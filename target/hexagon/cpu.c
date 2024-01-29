@@ -289,7 +289,7 @@ static void hexagon_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
-    HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cpu);
+    HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
     CPUHexagonState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {

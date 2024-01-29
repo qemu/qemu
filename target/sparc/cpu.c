@@ -31,9 +31,9 @@
 
 static void sparc_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    SPARCCPU *cpu = SPARC_CPU(s);
-    SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(obj);
     CPUSPARCState *env = &cpu->env;
 
     if (scc->parent_phases.hold) {

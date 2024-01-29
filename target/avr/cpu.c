@@ -79,7 +79,7 @@ static void avr_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
     AVRCPU *cpu = AVR_CPU(cs);
-    AVRCPUClass *mcc = AVR_CPU_GET_CLASS(cpu);
+    AVRCPUClass *mcc = AVR_CPU_GET_CLASS(obj);
     CPUAVRState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {

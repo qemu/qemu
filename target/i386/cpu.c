@@ -6695,9 +6695,9 @@ static void x86_cpu_set_sgxlepubkeyhash(CPUX86State *env)
 
 static void x86_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    X86CPU *cpu = X86_CPU(s);
-    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
     CPUX86State *env = &cpu->env;
     target_ulong cr4;
     uint64_t xcr0;
@@ -6785,8 +6785,8 @@ static void x86_cpu_reset_hold(Object *obj)
     memset(env->dr, 0, sizeof(env->dr));
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
-    cpu_breakpoint_remove_all(s, BP_CPU);
-    cpu_watchpoint_remove_all(s, BP_CPU);
+    cpu_breakpoint_remove_all(cs, BP_CPU);
+    cpu_watchpoint_remove_all(cs, BP_CPU);
 
     cr4 = 0;
     xcr0 = XSTATE_FP_MASK;
@@ -6837,9 +6837,9 @@ static void x86_cpu_reset_hold(Object *obj)
     env->triple_fault_pending = false;
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
-    apic_designate_bsp(cpu->apic_state, s->cpu_index == 0);
+    apic_designate_bsp(cpu->apic_state, cs->cpu_index == 0);
 
-    s->halted = !cpu_is_bsp(cpu);
+    cs->halted = !cpu_is_bsp(cpu);
 
     if (kvm_enabled()) {
         kvm_arch_reset_vcpu(cpu);

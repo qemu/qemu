@@ -65,7 +65,7 @@ static void cris_cpu_reset_hold(Object *obj)
 {
     CPUState *s = CPU(obj);
     CRISCPU *cpu = CRIS_CPU(s);
-    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(cpu);
+    CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
     uint32_t vr;
 

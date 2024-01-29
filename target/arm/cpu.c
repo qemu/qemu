@@ -214,9 +214,9 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
 
 static void arm_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    ARMCPU *cpu = ARM_CPU(s);
-    ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    ARMCPU *cpu = ARM_CPU(cs);
+    ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
     CPUARMState *env = &cpu->env;
 
     if (acc->parent_phases.hold) {
@@ -233,7 +233,7 @@ static void arm_cpu_reset_hold(Object *obj)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.mvfr1;
     env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.mvfr2;
 
-    cpu->power_state = s->start_powered_off ? PSCI_OFF : PSCI_ON;
+    cpu->power_state = cs->start_powered_off ? PSCI_OFF : PSCI_ON;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
@@ -438,7 +438,7 @@ static void arm_cpu_reset_hold(Object *obj)
 
         /* Load the initial SP and PC from offset 0 and 4 in the vector table */
         vecbase = env->v7m.vecbase[env->v7m.secure];
-        rom = rom_ptr_for_as(s->as, vecbase, 8);
+        rom = rom_ptr_for_as(cs->as, vecbase, 8);
         if (rom) {
             /* Address zero is covered by ROM which hasn't yet been
              * copied into physical memory.
@@ -451,8 +451,8 @@ static void arm_cpu_reset_hold(Object *obj)
              * it got copied into memory. In the latter case, rom_ptr
              * will return a NULL pointer and we should use ldl_phys instead.
              */
-            initial_msp = ldl_phys(s->as, vecbase);
-            initial_pc = ldl_phys(s->as, vecbase + 4);
+            initial_msp = ldl_phys(cs->as, vecbase);
+            initial_pc = ldl_phys(cs->as, vecbase + 4);
         }
 
         qemu_log_mask(CPU_LOG_INT,

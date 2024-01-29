@@ -67,7 +67,7 @@ static void nios2_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
     Nios2CPU *cpu = NIOS2_CPU(cs);
-    Nios2CPUClass *ncc = NIOS2_CPU_GET_CLASS(cpu);
+    Nios2CPUClass *ncc = NIOS2_CPU_GET_CLASS(obj);
     CPUNios2State *env = &cpu->env;
 
     if (ncc->parent_phases.hold) {

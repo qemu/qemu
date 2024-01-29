@@ -72,9 +72,9 @@ static void tricore_restore_state_to_opc(CPUState *cs,
 
 static void tricore_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    TriCoreCPU *cpu = TRICORE_CPU(s);
-    TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    TriCoreCPU *cpu = TRICORE_CPU(cs);
+    TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(obj);
     CPUTriCoreState *env = &cpu->env;
 
     if (tcc->parent_phases.hold) {

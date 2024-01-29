@@ -510,7 +510,7 @@ static void loongarch_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
-    LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(cpu);
+    LoongArchCPUClass *lacc = LOONGARCH_CPU_GET_CLASS(obj);
     CPULoongArchState *env = &cpu->env;
 
     if (lacc->parent_phases.hold) {

@@ -73,9 +73,9 @@ static void m68k_unset_feature(CPUM68KState *env, int feature)
 
 static void m68k_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    M68kCPU *cpu = M68K_CPU(s);
-    M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    M68kCPU *cpu = M68K_CPU(cs);
+    M68kCPUClass *mcc = M68K_CPU_GET_CLASS(obj);
     CPUM68KState *env = &cpu->env;
     floatx80 nan = floatx80_default_nan(NULL);
     int i;
