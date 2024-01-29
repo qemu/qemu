@@ -344,9 +344,11 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
     unsigned long lastbit = find_last_bit(backend->host_nodes, MAX_NODES);
     /* lastbit == MAX_NODES means maxnode = 0 */
     unsigned long maxnode = (lastbit + 1) % (MAX_NODES + 1);
-    /* ensure policy won't be ignored in case memory is preallocated
+    /*
+     * Ensure policy won't be ignored in case memory is preallocated
      * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
-     * this doesn't catch hugepage case. */
+     * this doesn't catch hugepage case.
+     */
     unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
     int mode = backend->policy;
 
@@ -363,7 +365,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    /* We can have up to MAX_NODES nodes, but we need to pass maxnode+1
+    /*
+     * We can have up to MAX_NODES nodes, but we need to pass maxnode+1
      * as argument to mbind() due to an old Linux bug (feature?) which
      * cuts off the last specified node. This means backend->host_nodes
      * must have MAX_NODES+1 bits available.
@@ -391,7 +394,8 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         }
     }
 #endif
-    /* Preallocate memory after the NUMA policy has been instantiated.
+    /*
+     * Preallocate memory after the NUMA policy has been instantiated.
      * This is necessary to guarantee memory is allocated with
      * specified NUMA policy in place.
      */
