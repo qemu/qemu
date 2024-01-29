@@ -4070,6 +4070,8 @@
 ##
 # @BlockdevOptionsIscsi:
 #
+# Driver specific block device options for iscsi
+#
 # @transport: The iscsi transport type
 #
 # @portal: The address of the iscsi portal
@@ -4093,8 +4095,6 @@
 #
 # @timeout: Timeout in seconds after which a request will timeout.  0
 #     means no timeout and is the default.
-#
-# Driver specific block device options for iscsi
 #
 # Since: 2.9
 ##
