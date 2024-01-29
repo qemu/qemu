@@ -2315,12 +2315,6 @@ static inline int cpu_mmu_index_kernel(CPUX86State *env)
 #include "hw/i386/apic.h"
 #endif
 
-int x86_cpu_mmu_index(CPUState *cs, bool ifetch);
-static inline int cpu_mmu_index(CPUX86State *env, bool ifetch)
-{
-    return x86_cpu_mmu_index(env_cpu(env), ifetch);
-}
-
 static inline void cpu_get_tb_cpu_state(CPUX86State *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {

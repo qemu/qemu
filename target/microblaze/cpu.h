@@ -434,12 +434,6 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                MemTxResult response, uintptr_t retaddr);
 #endif
 
-int mb_cpu_mmu_index(CPUState *cs, bool ifetch);
-static inline int cpu_mmu_index(CPUMBState *env, bool ifetch)
-{
-    return mb_cpu_mmu_index(env_cpu(env), ifetch);
-}
-
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_mb_cpu;
 #endif

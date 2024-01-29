@@ -361,12 +361,6 @@ static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env, vaddr *pc,
            | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE));
 }
 
-int openrisc_cpu_mmu_index(CPUState *cs, bool ifetch);
-static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
-{
-    return openrisc_cpu_mmu_index(env_cpu(env), ifetch);
-}
-
 static inline uint32_t cpu_get_sr(const CPUOpenRISCState *env)
 {
     return (env->sr

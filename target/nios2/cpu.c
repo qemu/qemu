@@ -57,7 +57,7 @@ static bool nios2_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-int nios2_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int nios2_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     return (cpu_env(cs)->ctrl[CR_STATUS] & CR_STATUS_U
             ? MMU_USER_IDX : MMU_SUPERVISOR_IDX);

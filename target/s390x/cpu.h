@@ -412,8 +412,6 @@ static inline int s390x_env_mmu_index(CPUS390XState *env, bool ifetch)
 #endif
 }
 
-#define cpu_mmu_index s390x_env_mmu_index
-
 #ifdef CONFIG_TCG
 
 #include "tcg/tcg_s390x.h"

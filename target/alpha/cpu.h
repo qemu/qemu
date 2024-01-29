@@ -398,11 +398,6 @@ static inline int alpha_env_mmu_index(CPUAlphaState *env)
     return ret;
 }
 
-static inline int cpu_mmu_index(CPUAlphaState *env, bool ifetch)
-{
-    return alpha_env_mmu_index(env);
-}
-
 enum {
     IR_V0   = 0,
     IR_T0   = 1,

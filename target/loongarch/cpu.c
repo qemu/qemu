@@ -375,7 +375,7 @@ static bool loongarch_cpu_has_work(CPUState *cs)
 #endif
 }
 
-int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPULoongArchState *env = cpu_env(cs);
 

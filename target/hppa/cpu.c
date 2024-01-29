@@ -94,7 +94,7 @@ static bool hppa_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
-int hppa_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int hppa_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPUHPPAState *env = cpu_env(cs);
 

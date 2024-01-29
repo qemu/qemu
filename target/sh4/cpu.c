@@ -89,7 +89,7 @@ static bool superh_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-int sh4_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int sh4_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPUSH4State *env = cpu_env(cs);
 

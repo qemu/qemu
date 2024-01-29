@@ -68,7 +68,7 @@ static bool openrisc_cpu_has_work(CPUState *cs)
                                     CPU_INTERRUPT_TIMER);
 }
 
-int openrisc_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int openrisc_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPUOpenRISCState *env = cpu_env(cs);
 

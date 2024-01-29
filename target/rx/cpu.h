@@ -158,11 +158,6 @@ static inline void cpu_get_tb_cpu_state(CPURXState *env, vaddr *pc,
     *flags = FIELD_DP32(*flags, PSW, U, env->psw_u);
 }
 
-static inline int cpu_mmu_index(CPURXState *env, bool ifetch)
-{
-    return 0;
-}
-
 static inline uint32_t rx_cpu_pack_psw(CPURXState *env)
 {
     uint32_t psw = 0;

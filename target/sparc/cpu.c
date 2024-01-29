@@ -718,7 +718,7 @@ static bool sparc_cpu_has_work(CPUState *cs)
            cpu_interrupts_enabled(env);
 }
 
-int sparc_cpu_mmu_index(CPUState *cs, bool ifetch)
+static int sparc_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     CPUSPARCState *env = cpu_env(cs);
 
