@@ -465,7 +465,6 @@ static void npcm7xx_machine_class_init(ObjectClass *oc, void *data)
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
-    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
     mc->valid_cpu_types = valid_cpu_types;
 }
 
