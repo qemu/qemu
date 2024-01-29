@@ -3005,7 +3005,7 @@ foreach target : target_dirs
     }
   endif
 
-  accel_kconfig = []
+  target_kconfig = []
   foreach sym: accelerators
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
@@ -3015,10 +3015,10 @@ foreach target : target_dirs
       else
         config_target += { 'CONFIG_TCG_BUILTIN': 'y' }
       endif
-      accel_kconfig += [ sym + '=y' ]
+      target_kconfig += [ sym + '=y' ]
     endif
   endforeach
-  if accel_kconfig.length() == 0
+  if target_kconfig.length() == 0
     if default_targets
       continue
     endif
@@ -3078,6 +3078,9 @@ foreach target : target_dirs
                                                configuration: config_target_data)}
 
   if target.endswith('-softmmu')
+    target_kconfig += 'CONFIG_' + config_target['TARGET_ARCH'].to_upper() + '=y'
+    target_kconfig += 'CONFIG_TARGET_BIG_ENDIAN=' + config_target['TARGET_BIG_ENDIAN']
+
     config_input = meson.get_external_property(target, 'default')
     config_devices_mak = target + '-config-devices.mak'
     config_devices_mak = configure_file(
@@ -3088,8 +3091,7 @@ foreach target : target_dirs
       command: [minikconf,
                 get_option('default_devices') ? '--defconfig' : '--allnoconfig',
                 config_devices_mak, '@DEPFILE@', '@INPUT@',
-                host_kconfig, accel_kconfig,
-                'CONFIG_' + config_target['TARGET_ARCH'].to_upper() + '=y'])
+                host_kconfig, target_kconfig])
 
     config_devices_data = configuration_data()
     config_devices = keyval.load(config_devices_mak)

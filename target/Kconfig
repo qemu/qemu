@@ -17,3 +17,6 @@ source sh4/Kconfig
 source sparc/Kconfig
 source tricore/Kconfig
 source xtensa/Kconfig
+
+config TARGET_BIG_ENDIAN
+    bool
