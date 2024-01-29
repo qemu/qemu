@@ -96,9 +96,8 @@ bool xtensa_abi_call0(void)
 static void xtensa_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
-    XtensaCPU *cpu = XTENSA_CPU(cs);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
-    CPUXtensaState *env = &cpu->env;
+    CPUXtensaState *env = cpu_env(cs);
     bool dfpu = xtensa_option_enabled(env->config,
                                       XTENSA_OPTION_DFP_COPROCESSOR);
 
