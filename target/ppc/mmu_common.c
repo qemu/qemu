@@ -1561,9 +1561,9 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
      * mapped by code TLBs, so we also try a MMU_INST_FETCH.
      */
     if (ppc_xlate(cpu, addr, MMU_DATA_LOAD, &raddr, &s, &p,
-                  cpu_mmu_index(&cpu->env, false), false) ||
+                  ppc_env_mmu_index(&cpu->env, false), false) ||
         ppc_xlate(cpu, addr, MMU_INST_FETCH, &raddr, &s, &p,
-                  cpu_mmu_index(&cpu->env, true), false)) {
+                  ppc_env_mmu_index(&cpu->env, true), false)) {
         return raddr & TARGET_PAGE_MASK;
     }
     return -1;
