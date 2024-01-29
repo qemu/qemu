@@ -755,7 +755,7 @@ static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, vaddr *pc,
     uint32_t flags;
     *pc = env->pc;
     *cs_base = env->npc;
-    flags = cpu_mmu_index(env, false);
+    flags = cpu_mmu_index(env_cpu(env), false);
 #ifndef CONFIG_USER_ONLY
     if (cpu_supervisor_mode(env)) {
         flags |= TB_FLAG_SUPER;

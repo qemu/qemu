@@ -228,10 +228,9 @@ hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
                                         MemTxAttrs *attrs)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUMBState *env = &cpu->env;
     target_ulong vaddr, paddr = 0;
     MicroBlazeMMULookup lu;
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = cpu_mmu_index(cs, false);
     unsigned int hit;
 
     /* Caller doesn't initialize */

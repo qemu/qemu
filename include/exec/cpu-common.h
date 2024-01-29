@@ -275,9 +275,8 @@ static inline CPUState *env_cpu(CPUArchState *env)
  * The user-only version of this function is inline in cpu-all.h,
  * where it always returns MMU_USER_IDX.
  */
-static inline int cpu_mmu_index(CPUArchState *env, bool ifetch)
+static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
 {
-    CPUState *cs = env_cpu(env);
     int ret = cs->cc->mmu_index(cs, ifetch);
     tcg_debug_assert(ret >= 0 && ret < NB_MMU_MODES);
     return ret;

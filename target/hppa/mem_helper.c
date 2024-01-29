@@ -646,7 +646,7 @@ int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
 void HELPER(diag_btlb)(CPUHPPAState *env)
 {
     unsigned int phys_page, len, slot;
-    int mmu_idx = cpu_mmu_index(env, 0);
+    int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uintptr_t ra = GETPC();
     HPPATLBEntry *btlb;
     uint64_t virt_page;

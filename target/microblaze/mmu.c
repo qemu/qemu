@@ -305,7 +305,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             }
 
             hit = mmu_translate(cpu, &lu, v & TLB_EPN_MASK,
-                                0, cpu_mmu_index(env, false));
+                                0, cpu_mmu_index(env_cpu(env), false));
             if (hit) {
                 env->mmu.regs[MMU_R_TLBX] = lu.idx;
             } else {
