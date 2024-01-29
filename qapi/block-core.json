@@ -4665,8 +4665,6 @@
 # @force-share: force share all permission on added nodes.  Requires
 #     read-only=true.  (Since 2.10)
 #
-# Remaining options are determined by the block driver.
-#
 # Since: 2.9
 ##
 { 'union': 'BlockdevOptions',
