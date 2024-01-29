@@ -273,16 +273,6 @@ void cpu_load_tlb(CPUSH4State * env);
 
 /* MMU modes definitions */
 #define MMU_USER_IDX 1
-static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
-{
-    /* The instruction in a RTE delay slot is fetched in privileged
-       mode, but executed in user mode.  */
-    if (ifetch && (env->flags & TB_FLAG_DELAY_SLOT_RTE)) {
-        return 0;
-    } else {
-        return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
-    }
-}
 
 #include "exec/cpu-all.h"
 
@@ -378,6 +368,12 @@ static inline void cpu_write_sr(CPUSH4State *env, target_ulong sr)
     env->sr_q = (sr >> SR_Q) & 1;
     env->sr_t = (sr >> SR_T) & 1;
     env->sr = sr & ~((1u << SR_M) | (1u << SR_Q) | (1u << SR_T));
+}
+
+int sh4_cpu_mmu_index(CPUState *cs, bool ifetch);
+static inline int cpu_mmu_index(CPUSH4State *env, bool ifetch)
+{
+    return sh4_cpu_mmu_index(env_cpu(env), ifetch);
 }
 
 static inline void cpu_get_tb_cpu_state(CPUSH4State *env, vaddr *pc,
