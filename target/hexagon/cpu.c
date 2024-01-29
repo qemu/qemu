@@ -236,10 +236,7 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
 
 static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
-
-    hexagon_dump(env, f, flags);
+    hexagon_dump(cpu_env(cs), f, flags);
 }
 
 void hexagon_debug(CPUHexagonState *env)
@@ -249,25 +246,19 @@ void hexagon_debug(CPUHexagonState *env)
 
 static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
-    env->gpr[HEX_REG_PC] = value;
+    cpu_env(cs)->gpr[HEX_REG_PC] = value;
 }
 
 static vaddr hexagon_cpu_get_pc(CPUState *cs)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
-    return env->gpr[HEX_REG_PC];
+    return cpu_env(cs)->gpr[HEX_REG_PC];
 }
 
 static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
                                             const TranslationBlock *tb)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
     tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
-    env->gpr[HEX_REG_PC] = tb->pc;
+    cpu_env(cs)->gpr[HEX_REG_PC] = tb->pc;
 }
 
 static bool hexagon_cpu_has_work(CPUState *cs)
@@ -279,18 +270,14 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
                                          const TranslationBlock *tb,
                                          const uint64_t *data)
 {
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
-
-    env->gpr[HEX_REG_PC] = data[0];
+    cpu_env(cs)->gpr[HEX_REG_PC] = data[0];
 }
 
 static void hexagon_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(obj);
-    CPUHexagonState *env = &cpu->env;
+    CPUHexagonState *env = cpu_env(cs);
 
     if (mcc->parent_phases.hold) {
         mcc->parent_phases.hold(obj);
