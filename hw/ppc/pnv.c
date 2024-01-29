@@ -1265,11 +1265,11 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     }
 
     /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip8->psi), "bar", PNV_PSIHB_BASE(chip),
+    object_property_set_int(OBJECT(psi8), "bar", PNV_PSIHB_BASE(chip),
                             &error_fatal);
-    object_property_set_link(OBJECT(&chip8->psi), ICS_PROP_XICS,
+    object_property_set_link(OBJECT(psi8), ICS_PROP_XICS,
                              OBJECT(chip8->xics), &error_abort);
-    if (!qdev_realize(DEVICE(&chip8->psi), NULL, errp)) {
+    if (!qdev_realize(DEVICE(psi8), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE,
@@ -1300,7 +1300,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
     qdev_connect_gpio_out(DEVICE(&chip8->occ), 0,
-                          qdev_get_gpio_in(DEVICE(&chip8->psi), PSIHB_IRQ_OCC));
+                          qdev_get_gpio_in(DEVICE(psi8), PSIHB_IRQ_OCC));
 
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV_OCC_SENSOR_BASE(chip),
@@ -1553,12 +1553,12 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             &chip9->xive.xscom_regs);
 
     /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip9->psi), "bar", PNV9_PSIHB_BASE(chip),
+    object_property_set_int(OBJECT(psi9), "bar", PNV9_PSIHB_BASE(chip),
                             &error_fatal);
     /* This is the only device with 4k ESB pages */
-    object_property_set_int(OBJECT(&chip9->psi), "shift", XIVE_ESB_4K,
+    object_property_set_int(OBJECT(psi9), "shift", XIVE_ESB_4K,
                             &error_fatal);
-    if (!qdev_realize(DEVICE(&chip9->psi), NULL, errp)) {
+    if (!qdev_realize(DEVICE(psi9), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PSIHB_BASE,
@@ -1594,7 +1594,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
     qdev_connect_gpio_out(DEVICE(&chip9->occ), 0, qdev_get_gpio_in(
-                              DEVICE(&chip9->psi), PSIHB9_IRQ_OCC));
+                              DEVICE(psi9), PSIHB9_IRQ_OCC));
 
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
@@ -1609,7 +1609,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_SBE_MBOX_BASE,
                             &chip9->sbe.xscom_mbox_regs);
     qdev_connect_gpio_out(DEVICE(&chip9->sbe), 0, qdev_get_gpio_in(
-                              DEVICE(&chip9->psi), PSIHB9_IRQ_PSU));
+                              DEVICE(psi9), PSIHB9_IRQ_PSU));
 
     /* HOMER */
     object_property_set_link(OBJECT(&chip9->homer), "chip", OBJECT(chip),
@@ -1650,7 +1650,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                         PNV9_XSCOM_I2CM_SIZE,
                                 &chip9->i2c[i].xscom_regs);
         qdev_connect_gpio_out(DEVICE(&chip9->i2c[i]), 0,
-                              qdev_get_gpio_in(DEVICE(&chip9->psi),
+                              qdev_get_gpio_in(DEVICE(psi9),
                                                PSIHB9_IRQ_SBE_I2C));
     }
 }
