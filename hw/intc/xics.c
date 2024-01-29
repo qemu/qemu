@@ -40,6 +40,7 @@
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
+#include "target/ppc/cpu.h"
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
