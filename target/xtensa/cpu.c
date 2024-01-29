@@ -74,6 +74,11 @@ static bool xtensa_cpu_has_work(CPUState *cs)
 #endif
 }
 
+static int xtensa_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return xtensa_get_cring(cpu_env(cs));
+}
+
 #ifdef CONFIG_USER_ONLY
 static bool abi_call0;
 
@@ -252,6 +257,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = xtensa_cpu_class_by_name;
     cc->has_work = xtensa_cpu_has_work;
+    cc->mmu_index = xtensa_cpu_mmu_index;
     cc->dump_state = xtensa_cpu_dump_state;
     cc->set_pc = xtensa_cpu_set_pc;
     cc->get_pc = xtensa_cpu_get_pc;
