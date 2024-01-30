@@ -663,9 +663,9 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
     assert(create_options->driver == BLOCKDEV_DRIVER_LUKS);
     luks_opts = &create_options->u.luks;
 
-    bs = bdrv_co_open_blockdev_ref(luks_opts->file, errp);
-    if (bs == NULL) {
-        return -EIO;
+    if (luks_opts->file == NULL) {
+        error_setg(errp, "Formatting LUKS disk requires parameter 'file'");
+        return -EINVAL;
     }
 
     create_opts = (QCryptoBlockCreateOptions) {
@@ -677,10 +677,17 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
         preallocation = luks_opts->preallocation;
     }
 
-    ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
-                                         preallocation, errp);
-    if (ret < 0) {
-        goto fail;
+    if (luks_opts->file) {
+        bs = bdrv_co_open_blockdev_ref(luks_opts->file, errp);
+        if (bs == NULL) {
+            return -EIO;
+        }
+
+        ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
+                                             preallocation, errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     ret = 0;
