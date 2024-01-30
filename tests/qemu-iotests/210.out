@@ -18,6 +18,7 @@ virtual size: 128 MiB (134217728 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
+    detached header: false
     hash alg: sha256
     cipher alg: aes-256
     uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -70,6 +71,7 @@ virtual size: 64 MiB (67108864 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
+    detached header: false
     hash alg: sha1
     cipher alg: aes-128
     uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -125,6 +127,7 @@ virtual size: 0 B (0 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
+    detached header: false
     hash alg: sha256
     cipher alg: aes-256
     uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -195,6 +198,7 @@ virtual size: 0 B (0 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
+    detached header: false
     hash alg: sha256
     cipher alg: aes-256
     uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX

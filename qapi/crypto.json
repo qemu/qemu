@@ -317,6 +317,8 @@
 #
 # @hash-alg: the master key hash algorithm
 #
+# @detached-header: whether the LUKS header is detached (Since 9.0)
+#
 # @payload-offset: offset to the payload data in bytes
 #
 # @master-key-iters: number of PBKDF2 iterations for key material
@@ -333,6 +335,7 @@
            'ivgen-alg': 'QCryptoIVGenAlgorithm',
            '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
            'hash-alg': 'QCryptoHashAlgorithm',
+           'detached-header': 'bool',
            'payload-offset': 'int',
            'master-key-iters': 'int',
            'uuid': 'str',

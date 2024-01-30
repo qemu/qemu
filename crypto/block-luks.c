@@ -1271,6 +1271,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
     block->payload_offset = luks->header.payload_offset_sector *
         block->sector_size;
+    block->detached_header = (block->payload_offset == 0) ? true : false;
 
     return 0;
 
@@ -1895,6 +1896,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
     info->u.luks.master_key_iters = luks->header.master_key_iterations;
     info->u.luks.uuid = g_strndup((const char *)luks->header.uuid,
                                   sizeof(luks->header.uuid));
+    info->u.luks.detached_header = block->detached_header;
 
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
         slot = g_new0(QCryptoBlockInfoLUKSSlot, 1);
