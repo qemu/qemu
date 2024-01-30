@@ -402,7 +402,8 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 }
 
 static void virtio_gpu_resource_destroy(VirtIOGPU *g,
-                                        struct virtio_gpu_simple_resource *res)
+                                        struct virtio_gpu_simple_resource *res,
+                                        Error **errp)
 {
     int i;
 
@@ -438,7 +439,11 @@ static void virtio_gpu_resource_unref(VirtIOGPU *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
-    virtio_gpu_resource_destroy(g, res);
+    /*
+     * virtio_gpu_resource_destroy does not set any errors, so pass a NULL errp
+     * to ignore them.
+     */
+    virtio_gpu_resource_destroy(g, res, NULL);
 }
 
 static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
@@ -1488,11 +1493,24 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev)
 static void virtio_gpu_reset_bh(void *opaque)
 {
     VirtIOGPU *g = VIRTIO_GPU(opaque);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
     struct virtio_gpu_simple_resource *res, *tmp;
+    uint32_t resource_id;
+    Error *local_err = NULL;
     int i = 0;
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
-        virtio_gpu_resource_destroy(g, res);
+        resource_id = res->resource_id;
+        vgc->resource_destroy(g, res, &local_err);
+        if (local_err) {
+            error_append_hint(&local_err, "%s: %s resource_destroy"
+                              "for resource_id = %"PRIu32" failed.\n",
+                              __func__, object_get_typename(OBJECT(g)),
+                              resource_id);
+            /* error_report_err frees the error object for us */
+            error_report_err(local_err);
+            local_err = NULL;
+        }
     }
 
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
@@ -1632,6 +1650,7 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
     vgc->process_cmd = virtio_gpu_simple_process_cmd;
     vgc->update_cursor_data = virtio_gpu_update_cursor_data;
+    vgc->resource_destroy = virtio_gpu_resource_destroy;
     vgbc->gl_flushed = virtio_gpu_handle_gl_flushed;
 
     vdc->realize = virtio_gpu_device_realize;
