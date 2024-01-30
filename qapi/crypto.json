@@ -226,6 +226,8 @@
 # @iter-time: number of milliseconds to spend in PBKDF passphrase
 #     processing.  Currently defaults to 2000. (since 2.8)
 #
+# @detached-header: create a detached LUKS header. (since 9.0)
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',
@@ -235,7 +237,8 @@
             '*ivgen-alg': 'QCryptoIVGenAlgorithm',
             '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
             '*hash-alg': 'QCryptoHashAlgorithm',
-            '*iter-time': 'int'}}
+            '*iter-time': 'int',
+            '*detached-header': 'bool'}}
 
 ##
 # @QCryptoBlockOpenOptions:

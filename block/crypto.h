@@ -41,6 +41,7 @@
 #define BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG "ivgen-hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
+#define BLOCK_CRYPTO_OPT_LUKS_DETACHED_HEADER "detached-header"
 #define BLOCK_CRYPTO_OPT_LUKS_KEYSLOT "keyslot"
 #define BLOCK_CRYPTO_OPT_LUKS_STATE "state"
 #define BLOCK_CRYPTO_OPT_LUKS_OLD_SECRET "old-secret"
@@ -98,6 +99,13 @@
         .name = prefix BLOCK_CRYPTO_OPT_LUKS_STATE,                       \
         .type = QEMU_OPT_STRING,                                          \
         .help = "Select new state of affected keyslots (active/inactive)",\
+    }
+
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_DETACHED_HEADER(prefix)     \
+    {                                                         \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_DETACHED_HEADER, \
+        .type = QEMU_OPT_BOOL,                                \
+        .help = "Create a detached LUKS header",              \
     }
 
 #define BLOCK_CRYPTO_OPT_DEF_LUKS_KEYSLOT(prefix)              \

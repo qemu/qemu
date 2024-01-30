@@ -231,6 +231,7 @@ static QemuOptsList block_crypto_create_opts_luks = {
         BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(""),
         BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(""),
         BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_DETACHED_HEADER(""),
         { /* end of list */ }
     },
 };
@@ -405,7 +406,7 @@ block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
 
     data = (struct BlockCryptoCreateData) {
         .blk = blk,
-        .size = size,
+        .size = flags & QCRYPTO_BLOCK_CREATE_DETACHED ? 0 : size,
         .prealloc = prealloc,
     };
 
@@ -791,6 +792,9 @@ block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
     PreallocMode prealloc;
     char *buf = NULL;
     int64_t size;
+    bool detached_hdr =
+        qemu_opt_get_bool(opts, "detached-header", false);
+    unsigned int cflags = 0;
     int ret;
     Error *local_err = NULL;
 
@@ -830,9 +834,13 @@ block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
         goto fail;
     }
 
+    if (detached_hdr) {
+        cflags |= QCRYPTO_BLOCK_CREATE_DETACHED;
+    }
+
     /* Create format layer */
     ret = block_crypto_co_create_generic(bs, size, create_opts,
-                                         prealloc, 0, errp);
+                                         prealloc, cflags, errp);
     if (ret < 0) {
         goto fail;
     }
