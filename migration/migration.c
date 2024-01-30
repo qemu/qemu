@@ -67,6 +67,7 @@
 #include "options.h"
 #include "sysemu/dirtylimit.h"
 #include "qemu/sockets.h"
+#include "sysemu/kvm.h"
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -1903,6 +1904,12 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     if (runstate_check(RUN_STATE_POSTMIGRATE)) {
         error_setg(errp, "Can't migrate the vm that was paused due to "
                    "previous migration");
+        return false;
+    }
+
+    if (kvm_hwpoisoned_mem()) {
+        error_setg(errp, "Can't migrate this vm with hardware poisoned memory, "
+                   "please reboot the vm and try again");
         return false;
     }
 
