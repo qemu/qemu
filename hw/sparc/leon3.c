@@ -343,8 +343,6 @@ static void leon3_generic_hw_init(MachineState *machine)
 
             bootloader_entry = memory_region_get_ram_ptr(prom);
             write_bootloader(env, bootloader_entry, entry);
-            env->pc = LEON3_PROM_OFFSET;
-            env->npc = LEON3_PROM_OFFSET + 4;
             reset_info->entry = LEON3_PROM_OFFSET;
         }
     }
