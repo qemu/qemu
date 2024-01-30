@@ -39,6 +39,7 @@ typedef struct BlockCrypto BlockCrypto;
 struct BlockCrypto {
     QCryptoBlock *block;
     bool updating_keys;
+    BdrvChild *header;  /* Reference to the detached LUKS header */
 };
 
 
@@ -63,12 +64,14 @@ static int block_crypto_read_func(QCryptoBlock *block,
                                   Error **errp)
 {
     BlockDriverState *bs = opaque;
+    BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    ret = bdrv_pread(bs->file, offset, buflen, buf, 0);
+    ret = bdrv_pread(crypto->header ? crypto->header : bs->file,
+                     offset, buflen, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -84,12 +87,14 @@ static int block_crypto_write_func(QCryptoBlock *block,
                                    Error **errp)
 {
     BlockDriverState *bs = opaque;
+    BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    ret = bdrv_pwrite(bs->file, offset, buflen, buf, 0);
+    ret = bdrv_pwrite(crypto->header ? crypto->header : bs->file,
+                      offset, buflen, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write encryption header");
         return ret;
@@ -262,6 +267,8 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
                                      int flags,
                                      Error **errp)
 {
+    ERRP_GUARD();
+
     BlockCrypto *crypto = bs->opaque;
     QemuOpts *opts = NULL;
     int ret;
@@ -274,6 +281,13 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
+    }
+
+    crypto->header = bdrv_open_child(NULL, options, "header", bs,
+                                     &child_of_bds, BDRV_CHILD_METADATA,
+                                     true, errp);
+    if (*errp != NULL) {
+        return -EINVAL;
     }
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
@@ -298,6 +312,9 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 
     if (flags & BDRV_O_NO_IO) {
         cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
+    }
+    if (crypto->header != NULL) {
+        cflags |= QCRYPTO_BLOCK_OPEN_DETACHED;
     }
     crypto->block = qcrypto_block_open(open_opts, NULL,
                                        block_crypto_read_func,

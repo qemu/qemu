@@ -66,6 +66,7 @@ bool qcrypto_block_has_format(QCryptoBlockFormat format,
 
 typedef enum {
     QCRYPTO_BLOCK_OPEN_NO_IO = (1 << 0),
+    QCRYPTO_BLOCK_OPEN_DETACHED = (1 << 1),
 } QCryptoBlockOpenFlags;
 
 /**
@@ -94,6 +95,10 @@ typedef enum {
  * the resulting QCryptoBlock object would be to query
  * metadata such as the payload offset. There will be
  * no cipher or ivgen objects available.
+ *
+ * If @flags contains QCRYPTO_BLOCK_OPEN_DETACHED then
+ * the open process will be optimized to skip the LUKS
+ * payload overlap check.
  *
  * If any part of initializing the encryption context
  * fails an error will be returned. This could be due

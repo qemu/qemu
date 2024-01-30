@@ -468,12 +468,15 @@ qcrypto_block_luks_load_header(QCryptoBlock *block,
  * Does basic sanity checks on the LUKS header
  */
 static int
-qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
+qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks,
+                                unsigned int flags,
+                                Error **errp)
 {
     size_t i, j;
 
     unsigned int header_sectors = QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+    bool detached = flags & QCRYPTO_BLOCK_OPEN_DETACHED;
 
     if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
                QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
@@ -505,7 +508,7 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
         return -1;
     }
 
-    if (luks->header.payload_offset_sector <
+    if (!detached && luks->header.payload_offset_sector <
         DIV_ROUND_UP(QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET,
                      QCRYPTO_BLOCK_LUKS_SECTOR_SIZE)) {
         error_setg(errp, "LUKS payload is overlapping with the header");
@@ -554,7 +557,7 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
             return -1;
         }
 
-        if (start1 + len1 > luks->header.payload_offset_sector) {
+        if (!detached && start1 + len1 > luks->header.payload_offset_sector) {
             error_setg(errp,
                        "Keyslot %zu is overlapping with the encrypted payload",
                        i);
@@ -1214,7 +1217,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         goto fail;
     }
 
-    if (qcrypto_block_luks_check_header(luks, errp) < 0) {
+    if (qcrypto_block_luks_check_header(luks, flags, errp) < 0) {
         goto fail;
     }
 
