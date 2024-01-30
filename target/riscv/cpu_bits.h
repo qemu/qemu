@@ -32,14 +32,6 @@
 #define FSR_NXA             (FPEXC_NX << FSR_AEXC_SHIFT)
 #define FSR_AEXC            (FSR_NVA | FSR_OFA | FSR_UFA | FSR_DZA | FSR_NXA)
 
-/* Vector Fixed-Point round model */
-#define FSR_VXRM_SHIFT      9
-#define FSR_VXRM            (0x3 << FSR_VXRM_SHIFT)
-
-/* Vector Fixed-Point saturation flag */
-#define FSR_VXSAT_SHIFT     8
-#define FSR_VXSAT           (0x1 << FSR_VXSAT_SHIFT)
-
 /* Control and Status Registers */
 
 /* User Trap Setup */
