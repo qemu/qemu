@@ -116,6 +116,10 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
                                  size_t n_threads,
                                  Error **errp);
 
+typedef enum {
+    QCRYPTO_BLOCK_CREATE_DETACHED = (1 << 0),
+} QCryptoBlockCreateFlags;
+
 /**
  * qcrypto_block_create:
  * @options: the encryption options
@@ -123,6 +127,7 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
  * @initfunc: callback for initializing volume header
  * @writefunc: callback for writing data to the volume header
  * @opaque: data to pass to @initfunc and @writefunc
+ * @flags: bitmask of QCryptoBlockCreateFlags values
  * @errp: pointer to a NULL-initialized error object
  *
  * Create a new block encryption object for initializing
@@ -133,6 +138,11 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
  * using @initfunc and then write header data using @writefunc,
  * generating new master keys, etc as required. Any existing
  * data present on the volume will be irrevocably destroyed.
+ *
+ * If @flags contains QCRYPTO_BLOCK_CREATE_DETACHED then
+ * the open process will set the payload_offset_sector to 0
+ * to specify the starting point for the read/write of a
+ * detached LUKS header image.
  *
  * If any part of initializing the encryption context
  * fails an error will be returned. This could be due
@@ -147,6 +157,7 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
                                    QCryptoBlockInitFunc initfunc,
                                    QCryptoBlockWriteFunc writefunc,
                                    void *opaque,
+                                   unsigned int flags,
                                    Error **errp);
 
 /**

@@ -369,6 +369,7 @@ block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
                                   block_crypto_create_init_func,
                                   block_crypto_create_write_func,
                                   &data,
+                                  0,
                                   errp);
 
     if (!crypto) {
