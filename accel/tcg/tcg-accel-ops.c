@@ -63,12 +63,12 @@ void tcg_cpu_init_cflags(CPUState *cpu, bool parallel)
     cpu->tcg_cflags |= cflags;
 }
 
-void tcg_cpus_destroy(CPUState *cpu)
+void tcg_cpu_destroy(CPUState *cpu)
 {
     cpu_thread_signal_destroyed(cpu);
 }
 
-int tcg_cpus_exec(CPUState *cpu)
+int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
     assert(tcg_enabled());

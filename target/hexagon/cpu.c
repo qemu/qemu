@@ -337,7 +337,7 @@ static void hexagon_cpu_init(Object *obj)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static const struct TCGCPUOps hexagon_tcg_ops = {
+static const TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,

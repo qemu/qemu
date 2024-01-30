@@ -33,7 +33,7 @@
  * the target-specific DisasContext, and then invoke translator_loop.
  */
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                           target_ulong pc, void *host_pc);
+                           vaddr pc, void *host_pc);
 
 /**
  * DisasJumpType:
@@ -79,8 +79,8 @@ typedef enum DisasJumpType {
  */
 typedef struct DisasContextBase {
     TranslationBlock *tb;
-    target_ulong pc_first;
-    target_ulong pc_next;
+    vaddr pc_first;
+    vaddr pc_next;
     DisasJumpType is_jmp;
     int num_insns;
     int max_insns;
@@ -235,7 +235,7 @@ void translator_fake_ldb(uint8_t insn8, abi_ptr pc);
  * Translators can use this to enforce the rule that only single-insn
  * translation blocks are allowed to cross page boundaries.
  */
-static inline bool is_same_page(const DisasContextBase *db, target_ulong addr)
+static inline bool is_same_page(const DisasContextBase *db, vaddr addr)
 {
     return ((addr ^ db->pc_first) & TARGET_PAGE_MASK) == 0;
 }

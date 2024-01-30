@@ -6,10 +6,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/lockable.h"
+#include "tcg/debuginfo.h"
 
 #include <elfutils/libdwfl.h>
-
-#include "debuginfo.h"
 
 static QemuMutex lock;
 static Dwfl *dwfl;
