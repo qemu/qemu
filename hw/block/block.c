@@ -30,7 +30,7 @@ static int blk_pread_nonzeroes(BlockBackend *blk, hwaddr size, void *buf)
     BlockDriverState *bs = blk_bs(blk);
 
     for (;;) {
-        bytes = MIN(size - offset, BDRV_REQUEST_MAX_SECTORS);
+        bytes = MIN(size - offset, BDRV_REQUEST_MAX_BYTES);
         if (bytes <= 0) {
             return 0;
         }
