@@ -993,6 +993,20 @@ const char *qdev_fw_name(DeviceState *dev);
 void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
 
+/**
+ * qdev_get_human_name() - Return a human-readable name for a device
+ * @dev: The device. Must be a valid and non-NULL pointer.
+ *
+ * .. note::
+ *    This function is intended for user friendly error messages.
+ *
+ * Returns: A newly allocated string containing the device id if not null,
+ * else the object canonical path.
+ *
+ * Use g_free() to free it.
+ */
+char *qdev_get_human_name(DeviceState *dev);
+
 /* FIXME: make this a link<> */
 bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);
 
