@@ -132,7 +132,8 @@ The example above provides the guest kernel command line after a separator
 (" ``--`` ") on the Xen command line, and does not provide the guest kernel
 with an actual initramfs, which would need to listed as a second multiboot
 module. For more complicated alternatives, see the command line
-documentation for the ``-initrd`` option.
+:ref:`documentation <system/invocation-qemu-options-initrd>` for the
+``-initrd`` option.
 
 Host OS requirements
 --------------------
