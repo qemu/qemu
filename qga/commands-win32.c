@@ -935,6 +935,8 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         DWORD last_err = GetLastError();
         if (last_err == ERROR_MORE_DATA) {
             /* Try once more with big enough buffer */
+            size = sizeof(VOLUME_DISK_EXTENTS) +
+               (sizeof(DISK_EXTENT) * (extents->NumberOfDiskExtents - 1));
             g_free(extents);
             extents = g_malloc0(size);
             if (!DeviceIoControl(
