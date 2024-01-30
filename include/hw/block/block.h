@@ -88,8 +88,8 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 
 /* Backend access helpers */
 
-bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
-                                 Error **errp);
+bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
+                                 void *buf, hwaddr size, Error **errp);
 
 /* Configuration helpers */
 

@@ -848,8 +848,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
-                                         errp)) {
+        if (!blk_check_size_and_read_all(pfl->blk, dev, pfl->storage,
+                                         total_len, errp)) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
             return;
         }
