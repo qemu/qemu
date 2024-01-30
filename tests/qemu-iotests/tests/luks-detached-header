@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+# group: rw auto
+#
+# Test LUKS volume with detached header
+#
+# Copyright (C) 2024 SmartX Inc.
+#
+# Authors:
+#     Hyman Huang <yong.huang@smartx.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import json
+import iotests
+from iotests import (
+    imgfmt,
+    qemu_img_create,
+    qemu_img_info,
+    QMPTestCase,
+)
+
+
+image_size = 128 * 1024 * 1024
+
+luks_img = os.path.join(iotests.test_dir, "luks.img")
+detached_header_img1 = os.path.join(iotests.test_dir, "detached_header.img1")
+detached_header_img2 = os.path.join(iotests.test_dir, "detached_header.img2")
+detached_payload_raw_img = os.path.join(
+    iotests.test_dir, "detached_payload_raw.img"
+)
+detached_payload_qcow2_img = os.path.join(
+    iotests.test_dir, "detached_payload_qcow2.img"
+)
+detached_header_raw_img = "json:" + json.dumps(
+    {
+        "driver": "luks",
+        "file": {"filename": detached_payload_raw_img},
+        "header": {
+            "filename": detached_header_img1,
+        },
+    }
+)
+detached_header_qcow2_img = "json:" + json.dumps(
+    {
+        "driver": "luks",
+        "file": {"filename": detached_payload_qcow2_img},
+        "header": {"filename": detached_header_img2},
+    }
+)
+
+secret_obj = "secret,id=sec0,data=foo"
+luks_opts = "key-secret=sec0"
+
+
+class TestDetachedLUKSHeader(QMPTestCase):
+    def setUp(self) -> None:
+        self.vm = iotests.VM()
+        self.vm.add_object(secret_obj)
+        self.vm.launch()
+
+        # 1. Create the normal LUKS disk with 128M size
+        self.vm.blockdev_create(
+            {"driver": "file", "filename": luks_img, "size": 0}
+        )
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=luks_img,
+            node_name="luks-1-storage",
+        )
+        result = self.vm.blockdev_create(
+            {
+                "driver": imgfmt,
+                "file": "luks-1-storage",
+                "key-secret": "sec0",
+                "size": image_size,
+                "iter-time": 10,
+            }
+        )
+        # None is expected
+        self.assertEqual(result, None)
+
+        # 2. Create the LUKS disk with detached header (raw)
+
+        # Create detached LUKS header
+        self.vm.blockdev_create(
+            {"driver": "file", "filename": detached_header_img1, "size": 0}
+        )
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_header_img1,
+            node_name="luks-2-header-storage",
+        )
+
+        # Create detached LUKS raw payload
+        self.vm.blockdev_create(
+            {"driver": "file", "filename": detached_payload_raw_img, "size": 0}
+        )
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_payload_raw_img,
+            node_name="luks-2-payload-storage",
+        )
+
+        # Format LUKS disk with detached header
+        result = self.vm.blockdev_create(
+            {
+                "driver": imgfmt,
+                "header": "luks-2-header-storage",
+                "file": "luks-2-payload-storage",
+                "key-secret": "sec0",
+                "preallocation": "full",
+                "size": image_size,
+                "iter-time": 10,
+            }
+        )
+        self.assertEqual(result, None)
+
+        self.vm.shutdown()
+
+        # 3. Create the LUKS disk with detached header (qcow2)
+
+        # Create detached LUKS header using qemu-img
+        res = qemu_img_create(
+            "-f",
+            "luks",
+            "--object",
+            secret_obj,
+            "-o",
+            luks_opts,
+            "-o",
+            "detached-header=true",
+            detached_header_img2,
+        )
+        assert res.returncode == 0
+
+        # Create detached LUKS qcow2 payload
+        res = qemu_img_create(
+            "-f", "qcow2", detached_payload_qcow2_img, str(image_size)
+        )
+        assert res.returncode == 0
+
+    def tearDown(self) -> None:
+        os.remove(luks_img)
+        os.remove(detached_header_img1)
+        os.remove(detached_header_img2)
+        os.remove(detached_payload_raw_img)
+        os.remove(detached_payload_qcow2_img)
+
+        # Check if there was any qemu-io run that failed
+        if "Pattern verification failed" in self.vm.get_log():
+            print("ERROR: Pattern verification failed:")
+            print(self.vm.get_log())
+            self.fail("qemu-io pattern verification failed")
+
+    def test_img_creation(self) -> None:
+        # Check if the images created above are expected
+
+        data = qemu_img_info(luks_img)["format-specific"]
+        self.assertEqual(data["type"], imgfmt)
+        self.assertEqual(data["data"]["detached-header"], False)
+
+        data = qemu_img_info(detached_header_raw_img)["format-specific"]
+        self.assertEqual(data["type"], imgfmt)
+        self.assertEqual(data["data"]["detached-header"], True)
+
+        data = qemu_img_info(detached_header_qcow2_img)["format-specific"]
+        self.assertEqual(data["type"], imgfmt)
+        self.assertEqual(data["data"]["detached-header"], True)
+
+        # Check if preallocation works
+        size = qemu_img_info(detached_payload_raw_img)["actual-size"]
+        self.assertGreaterEqual(size, image_size)
+
+    def test_detached_luks_header(self) -> None:
+        self.vm.launch()
+
+        # 1. Add the disk created above
+
+        # Add normal LUKS disk
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=luks_img,
+            node_name="luks-1-storage",
+        )
+        result = self.vm.qmp_log(
+            "blockdev-add",
+            driver="luks",
+            file="luks-1-storage",
+            key_secret="sec0",
+            node_name="luks-1-format",
+        )
+
+        # Expected result{ "return": {} }
+        self.assert_qmp(result, "return", {})
+
+        # Add detached LUKS header with raw payload
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_header_img1,
+            node_name="luks-header1-storage",
+        )
+
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_payload_raw_img,
+            node_name="luks-2-payload-raw-storage",
+        )
+
+        result = self.vm.qmp_log(
+            "blockdev-add",
+            driver=imgfmt,
+            header="luks-header1-storage",
+            file="luks-2-payload-raw-storage",
+            key_secret="sec0",
+            node_name="luks-2-payload-raw-format",
+        )
+        self.assert_qmp(result, "return", {})
+
+        # Add detached LUKS header with qcow2 payload
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_header_img2,
+            node_name="luks-header2-storage",
+        )
+
+        self.vm.qmp_log(
+            "blockdev-add",
+            driver="file",
+            filename=detached_payload_qcow2_img,
+            node_name="luks-3-payload-qcow2-storage",
+        )
+
+        result = self.vm.qmp_log(
+            "blockdev-add",
+            driver=imgfmt,
+            header="luks-header2-storage",
+            file="luks-3-payload-qcow2-storage",
+            key_secret="sec0",
+            node_name="luks-3-payload-qcow2-format",
+        )
+        self.assert_qmp(result, "return", {})
+
+        # 2. Do I/O test
+
+        # Do some I/O to the image to see whether it still works
+        # (Pattern verification will be checked by tearDown())
+
+        # Normal LUKS disk
+        result = self.vm.qmp_log(
+            "human-monitor-command",
+            command_line='qemu-io luks-1-format "write -P 40 0 64k"',
+        )
+        self.assert_qmp(result, "return", "")
+
+        result = self.vm.qmp_log(
+            "human-monitor-command",
+            command_line='qemu-io luks-1-format "read -P 40 0 64k"',
+        )
+        self.assert_qmp(result, "return", "")
+
+        # Detached LUKS header with raw payload
+        cmd = 'qemu-io luks-2-payload-raw-format "write -P 41 0 64k"'
+        result = self.vm.qmp(
+            "human-monitor-command",
+            command_line=cmd
+        )
+        self.assert_qmp(result, "return", "")
+
+        cmd = 'qemu-io luks-2-payload-raw-format "read -P 41 0 64k"'
+        result = self.vm.qmp(
+            "human-monitor-command",
+            command_line=cmd
+        )
+        self.assert_qmp(result, "return", "")
+
+        # Detached LUKS header with qcow2 payload
+        cmd = 'qemu-io luks-3-payload-qcow2-format "write -P 42 0 64k"'
+        result = self.vm.qmp(
+            "human-monitor-command",
+            command_line=cmd
+        )
+        self.assert_qmp(result, "return", "")
+
+        cmd = 'qemu-io luks-3-payload-qcow2-format "read -P 42 0 64k"'
+        result = self.vm.qmp(
+            "human-monitor-command",
+            command_line=cmd
+        )
+        self.assert_qmp(result, "return", "")
+
+        self.vm.shutdown()
+
+
+if __name__ == "__main__":
+    # Test image creation and I/O
+    iotests.main(supported_fmts=["luks"], supported_protocols=["file"])
