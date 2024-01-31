@@ -432,7 +432,7 @@ LuringState *luring_init(Error **errp)
 
     rc = io_uring_queue_init(MAX_ENTRIES, ring, 0);
     if (rc < 0) {
-        error_setg_errno(errp, errno, "failed to init linux io_uring ring");
+        error_setg_errno(errp, -rc, "failed to init linux io_uring ring");
         g_free(s);
         return NULL;
     }
