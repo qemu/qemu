@@ -13,7 +13,6 @@
 #ifndef HW_AUDIO_ASC_H
 #define HW_AUDIO_ASC_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "audio/audio.h"
 

@@ -33,7 +33,6 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif
-#include "qemu/compiler.h"
 
 #include "plugin.h"
 

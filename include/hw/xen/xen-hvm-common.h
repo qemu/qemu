@@ -1,7 +1,6 @@
 #ifndef HW_XEN_HVM_COMMON_H
 #define HW_XEN_HVM_COMMON_H
 
-#include "qemu/osdep.h"
 #include "qemu/units.h"
 
 #include "cpu.h"

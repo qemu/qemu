@@ -1,7 +1,6 @@
 #ifndef HW_SPAPR_NESTED_H
 #define HW_SPAPR_NESTED_H
 
-#include "qemu/osdep.h"
 #include "target/ppc/cpu.h"
 
 /*

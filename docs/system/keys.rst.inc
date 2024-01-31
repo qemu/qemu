@@ -1,8 +1,9 @@
-During the graphical emulation, you can use special key combinations to
-change modes. The default key mappings are shown below, but if you use
-``-alt-grab`` then the modifier is Ctrl-Alt-Shift (instead of Ctrl-Alt)
-and if you use ``-ctrl-grab`` then the modifier is the right Ctrl key
-(instead of Ctrl-Alt):
+During the graphical emulation, you can use special key combinations from
+the following table to change modes. By default the modifier is Ctrl-Alt
+(used in the table below) which can be changed with ``-display`` suboption
+``mod=`` where appropriate. For example, ``-display sdl,
+grab-mod=lshift-lctrl-lalt`` changes the modifier key to Ctrl-Alt-Shift,
+while ``-display sdl,grab-mod=rctrl`` changes it to the right Ctrl key.
 
 Ctrl-Alt-f
    Toggle full screen

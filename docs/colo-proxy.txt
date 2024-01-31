@@ -162,7 +162,7 @@ Here is an example using demonstration IP and port addresses to more
 clearly describe the usage.
 
 Primary(ip:3.3.3.3):
--netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
+-netdev tap,id=hn0,vhost=off
 -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
 -chardev socket,id=mirror0,host=3.3.3.3,port=9003,server=on,wait=off
 -chardev socket,id=compare1,host=3.3.3.3,port=9004,server=on,wait=off
@@ -177,7 +177,7 @@ Primary(ip:3.3.3.3):
 -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,iothread=iothread1
 
 Secondary(ip:3.3.3.8):
--netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,down script=/etc/qemu-ifdown
+-netdev tap,id=hn0,vhost=off
 -device e1000,netdev=hn0,mac=52:a4:00:12:78:66
 -chardev socket,id=red0,host=3.3.3.3,port=9003
 -chardev socket,id=red1,host=3.3.3.3,port=9004
@@ -202,7 +202,7 @@ Primary(ip:3.3.3.3):
 -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,vnet_hdr_support
 
 Secondary(ip:3.3.3.8):
--netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,down script=/etc/qemu-ifdown
+-netdev tap,id=hn0,vhost=off
 -device e1000,netdev=hn0,mac=52:a4:00:12:78:66
 -chardev socket,id=red0,host=3.3.3.3,port=9003
 -chardev socket,id=red1,host=3.3.3.3,port=9004

@@ -1008,7 +1008,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
                     " migration may not work",
                     tables_blob->len, ACPI_BUILD_TABLE_SIZE / 2);
         error_printf("Try removing CPUs, NUMA nodes, memory slots"
-                     " or PCI bridges.");
+                     " or PCI bridges.\n");
     }
     acpi_align_size(tables_blob, ACPI_BUILD_TABLE_SIZE);
 

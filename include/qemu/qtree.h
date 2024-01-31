@@ -42,7 +42,6 @@
 #ifndef QEMU_QTREE_H
 #define QEMU_QTREE_H
 
-#include "qemu/osdep.h"
 
 #ifdef HAVE_GLIB_WITH_SLICE_ALLOCATOR
 

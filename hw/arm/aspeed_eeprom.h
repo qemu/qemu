@@ -7,7 +7,6 @@
 #ifndef ASPEED_EEPROM_H
 #define ASPEED_EEPROM_H
 
-#include "qemu/osdep.h"
 
 extern const uint8_t tiogapass_bmc_fruid[];
 extern const size_t tiogapass_bmc_fruid_len;

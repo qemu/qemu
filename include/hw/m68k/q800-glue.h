@@ -23,7 +23,6 @@
 #ifndef HW_Q800_GLUE_H
 #define HW_Q800_GLUE_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 
 #define TYPE_GLUE "q800-glue"

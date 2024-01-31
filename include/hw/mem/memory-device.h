@@ -14,7 +14,6 @@
 #define MEMORY_DEVICE_H
 
 #include "hw/qdev-core.h"
-#include "qemu/typedefs.h"
 #include "qapi/qapi-types-machine.h"
 #include "qom/object.h"
 

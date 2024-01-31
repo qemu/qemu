@@ -4,8 +4,6 @@
 #ifndef QEMU_RECT_H
 #define QEMU_RECT_H
 
-#include <stdint.h>
-#include <stdbool.h>
 
 typedef struct QemuRect {
     int16_t x;

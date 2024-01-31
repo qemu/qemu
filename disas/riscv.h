@@ -7,7 +7,6 @@
 #ifndef DISAS_RISCV_H
 #define DISAS_RISCV_H
 
-#include "qemu/osdep.h"
 #include "target/riscv/cpu_cfg.h"
 
 /* types */

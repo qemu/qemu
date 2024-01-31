@@ -12,8 +12,6 @@
 #ifndef QTEST_ASPEED_H
 #define QTEST_ASPEED_H
 
-#include <stdint.h>
-
 #include "libqtest.h"
 
 #define AST2600_ASPEED_I2C_BASE_ADDR 0x1e78a000

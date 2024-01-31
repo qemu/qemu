@@ -4,6 +4,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/nvram/fw_cfg_acpi.h"
 #include "hw/acpi/aml-build.h"
 

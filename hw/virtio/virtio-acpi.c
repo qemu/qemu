@@ -4,6 +4,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/virtio-acpi.h"
 #include "hw/acpi/aml-build.h"
 
