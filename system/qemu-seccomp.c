@@ -74,7 +74,7 @@ const struct scmp_arg_cmp sched_setscheduler_arg[] = {
 
 #define RULE_CLONE_FLAG(flag) \
     { SCMP_SYS(clone),                  QEMU_SECCOMP_SET_SPAWN, \
-      ARRAY_SIZE(clone_arg ## flag), clone_arg ## flag, SCMP_ACT_TRAP }
+      ARRAY_SIZE(clone_arg ## flag), clone_arg ## flag, SCMP_ACT_ERRNO(EPERM) }
 
 /* If no CLONE_* flags are set, except CSIGNAL, deny */
 const struct scmp_arg_cmp clone_arg_none[] = {
@@ -214,13 +214,13 @@ static const struct QemuSeccompSyscall denylist[] = {
       0, NULL, SCMP_ACT_TRAP },
     /* spawn */
     { SCMP_SYS(fork),                   QEMU_SECCOMP_SET_SPAWN,
-      0, NULL, SCMP_ACT_TRAP },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     { SCMP_SYS(vfork),                  QEMU_SECCOMP_SET_SPAWN,
-      0, NULL, SCMP_ACT_TRAP },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN,
-      0, NULL, SCMP_ACT_TRAP },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     { SCMP_SYS(clone),                  QEMU_SECCOMP_SET_SPAWN,
-      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_TRAP },
+      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
     RULE_CLONE_FLAG(CLONE_VM),
     RULE_CLONE_FLAG(CLONE_FS),
     RULE_CLONE_FLAG(CLONE_FILES),
