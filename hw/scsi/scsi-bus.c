@@ -376,15 +376,13 @@ static void scsi_qdev_unrealize(DeviceState *qdev)
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
-                                      int unit, bool removable, int bootindex,
-                                      bool share_rw,
-                                      BlockdevOnError rerror,
-                                      BlockdevOnError werror,
+                                      int unit, bool removable, BlockConf *conf,
                                       const char *serial, Error **errp)
 {
     const char *driver;
     char *name;
     DeviceState *dev;
+    SCSIDevice *s;
     DriveInfo *dinfo;
 
     if (blk_is_sg(blk)) {
@@ -402,11 +400,10 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     object_property_add_child(OBJECT(bus), name, OBJECT(dev));
     g_free(name);
 
+    s = SCSI_DEVICE(dev);
+    s->conf = *conf;
+
     qdev_prop_set_uint32(dev, "scsi-id", unit);
-    if (bootindex >= 0) {
-        object_property_set_int(OBJECT(dev), "bootindex", bootindex,
-                                &error_abort);
-    }
     if (object_property_find(OBJECT(dev), "removable")) {
         qdev_prop_set_bit(dev, "removable", removable);
     }
@@ -417,19 +414,12 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    if (!object_property_set_bool(OBJECT(dev), "share-rw", share_rw, errp)) {
-        object_unparent(OBJECT(dev));
-        return NULL;
-    }
-
-    qdev_prop_set_enum(dev, "rerror", rerror);
-    qdev_prop_set_enum(dev, "werror", werror);
 
     if (!qdev_realize_and_unref(dev, &bus->qbus, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    return SCSI_DEVICE(dev);
+    return s;
 }
 
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
@@ -437,6 +427,12 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     Location loc;
     DriveInfo *dinfo;
     int unit;
+    BlockConf conf = {
+        .bootindex = -1,
+        .share_rw = false,
+        .rerror = BLOCKDEV_ON_ERROR_AUTO,
+        .werror = BLOCKDEV_ON_ERROR_AUTO,
+    };
 
     loc_push_none(&loc);
     for (unit = 0; unit <= bus->info->max_target; unit++) {
@@ -446,10 +442,7 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
         }
         qemu_opts_loc_restore(dinfo->opts);
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
-                                  unit, false, -1, false,
-                                  BLOCKDEV_ON_ERROR_AUTO,
-                                  BLOCKDEV_ON_ERROR_AUTO,
-                                  NULL, &error_fatal);
+                                  unit, false, &conf, NULL, &error_fatal);
     }
     loc_pop(&loc);
 }
