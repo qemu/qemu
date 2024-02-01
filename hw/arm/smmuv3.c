@@ -1857,8 +1857,8 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_smmuv3;
     resettable_class_set_parent_phases(rc, NULL, smmu_reset_hold, NULL,
                                        &c->parent_phases);
-    c->parent_realize = dc->realize;
-    dc->realize = smmu_realize;
+    device_class_set_parent_realize(dc, smmu_realize,
+                                    &c->parent_realize);
     device_class_set_props(dc, smmuv3_properties);
 }
 
