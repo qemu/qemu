@@ -183,10 +183,11 @@ when the override is present.
     }
 
 We also generate an analyze_<tag> function for each instruction.  Currently,
-these functions record the writes to registers by calling ctx_log_*.  During
-gen_start_packet, we invoke the analyze_<tag> function for each instruction in
-the packet, and we mark the implicit writes.  After the analysis is performed,
-we initialize the result register for each of the predicated assignments.
+these functions record the reads and writes to registers by calling ctx_log_*.
+During gen_start_packet, we invoke the analyze_<tag> function for each instruction in
+the packet, and we mark the implicit writes.  The analysis determines if the packet
+semantics can be short-circuited.  If not, we initialize the result register for each
+of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is a four step process.

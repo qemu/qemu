@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -75,6 +75,8 @@ typedef struct DisasContext {
     TCGv dczero_addr;
 } DisasContext;
 
+bool is_gather_store_insn(DisasContext *ctx);
+
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
     if (!test_bit(pnum, ctx->pregs_written)) {
@@ -86,6 +88,12 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 
 static inline void ctx_log_pred_read(DisasContext *ctx, int pnum)
 {
+    set_bit(pnum, ctx->pregs_read);
+}
+
+static inline void ctx_log_pred_read_new(DisasContext *ctx, int pnum)
+{
+    g_assert(test_bit(pnum, ctx->pregs_written));
     set_bit(pnum, ctx->pregs_read);
 }
 
@@ -117,6 +125,12 @@ static inline void ctx_log_reg_write_pair(DisasContext *ctx, int rnum,
 
 static inline void ctx_log_reg_read(DisasContext *ctx, int rnum)
 {
+    set_bit(rnum, ctx->regs_read);
+}
+
+static inline void ctx_log_reg_read_new(DisasContext *ctx, int rnum)
+{
+    g_assert(test_bit(rnum, ctx->regs_written));
     set_bit(rnum, ctx->regs_read);
 }
 
@@ -171,6 +185,15 @@ static inline void ctx_log_vreg_read(DisasContext *ctx, int rnum)
     set_bit(rnum, ctx->vregs_read);
 }
 
+static inline void ctx_log_vreg_read_new(DisasContext *ctx, int rnum)
+{
+    g_assert(is_gather_store_insn(ctx) ||
+             test_bit(rnum, ctx->vregs_updated) ||
+             test_bit(rnum, ctx->vregs_select) ||
+             test_bit(rnum, ctx->vregs_updated_tmp));
+    set_bit(rnum, ctx->vregs_read);
+}
+
 static inline void ctx_log_vreg_read_pair(DisasContext *ctx, int rnum)
 {
     ctx_log_vreg_read(ctx, rnum ^ 0);
@@ -205,7 +228,6 @@ extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
 
-bool is_gather_store_insn(DisasContext *ctx);
 void process_store(DisasContext *ctx, int slot_num);
 
 FIELD(PROBE_PKT_SCALAR_STORE_S0, MMU_IDX,       0, 2)

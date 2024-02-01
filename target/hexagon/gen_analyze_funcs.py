@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2022-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2022-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -44,15 +44,25 @@ def gen_analyze_func(f, tag, regs, imms):
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
 
-    i = 0
-    ## Analyze all the registers
-    for regtype, regid in regs:
-        reg = hex_common.get_register(tag, regtype, regid)
+    ## Declare all the registers
+    for regno, register in enumerate(regs):
+        reg_type, reg_id = register
+        reg = hex_common.get_register(tag, reg_type, reg_id)
+        reg.decl_reg_num(f, regno)
+
+    ## Analyze the register reads
+    for regno, register in enumerate(regs):
+        reg_type, reg_id = register
+        reg = hex_common.get_register(tag, reg_type, reg_id)
+        if reg.is_read():
+            reg.analyze_read(f, regno)
+
+    ## Analyze the register writes
+    for regno, register in enumerate(regs):
+        reg_type, reg_id = register
+        reg = hex_common.get_register(tag, reg_type, reg_id)
         if reg.is_written():
-            reg.analyze_write(f, tag, i)
-        else:
-            reg.analyze_read(f, i)
-        i += 1
+            reg.analyze_write(f, tag, regno)
 
     has_generated_helper = not hex_common.skip_qemu_helper(
         tag
@@ -89,13 +99,13 @@ def main():
     tagimms = hex_common.get_tagimms()
 
     with open(sys.argv[-1], "w") as f:
-        f.write("#ifndef HEXAGON_TCG_FUNCS_H\n")
-        f.write("#define HEXAGON_TCG_FUNCS_H\n\n")
+        f.write("#ifndef HEXAGON_ANALYZE_FUNCS_C_INC\n")
+        f.write("#define HEXAGON_ANALYZE_FUNCS_C_INC\n\n")
 
         for tag in hex_common.tags:
             gen_analyze_func(f, tag, tagregs[tag], tagimms[tag])
 
-        f.write("#endif    /* HEXAGON_TCG_FUNCS_H */\n")
+        f.write("#endif    /* HEXAGON_ANALYZE_FUNCS_C_INC */\n")
 
 
 if __name__ == "__main__":
