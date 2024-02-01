@@ -241,6 +241,16 @@ def is_idef_parser_enabled(tag):
     return tag in idef_parser_enabled
 
 
+def is_hvx_insn(tag):
+    return "A_CVI" in attribdict[tag]
+
+
+def has_hvx_helper(tag):
+    return (is_hvx_insn(tag) and
+            not skip_qemu_helper(tag) and
+            not is_idef_parser_enabled(tag))
+
+
 def imm_name(immlett):
     return f"{immlett}iV"
 
@@ -704,7 +714,8 @@ class VRegDest(Register, Hvx, Dest):
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegSource(Register, Hvx, OldSource):
@@ -724,7 +735,7 @@ class VRegSource(Register, Hvx, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read(ctx, {self.reg_num});
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegNewSource(Register, Hvx, NewSource):
@@ -741,7 +752,7 @@ class VRegNewSource(Register, Hvx, NewSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read_new(ctx, {self.reg_num});
+            ctx_log_vreg_read_new(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegReadWrite(Register, Hvx, ReadWrite):
@@ -767,13 +778,14 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read(ctx, {self.reg_num});
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegTmp(Register, Hvx, ReadWrite):
@@ -801,13 +813,14 @@ class VRegTmp(Register, Hvx, ReadWrite):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read(ctx, {self.reg_num});
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegPairDest(Register, Hvx, Dest):
@@ -832,7 +845,8 @@ class VRegPairDest(Register, Hvx, Dest):
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated},
+                                    insn_has_hvx_helper);
         """))
 
 class VRegPairSource(Register, Hvx, OldSource):
@@ -859,7 +873,7 @@ class VRegPairSource(Register, Hvx, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read_pair(ctx, {self.reg_num});
+            ctx_log_vreg_read_pair(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegPairReadWrite(Register, Hvx, ReadWrite):
@@ -891,13 +905,14 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read_pair(ctx, {self.reg_num});
+            ctx_log_vreg_read_pair(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated},
+                                    insn_has_hvx_helper);
         """))
 
 class QRegDest(Register, Hvx, Dest):
@@ -920,7 +935,7 @@ class QRegDest(Register, Hvx, Dest):
         """))
     def analyze_write(self, f, tag, regno):
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num});
+            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class QRegSource(Register, Hvx, OldSource):
@@ -941,7 +956,7 @@ class QRegSource(Register, Hvx, OldSource):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_qreg_read(ctx, {self.reg_num});
+            ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class QRegReadWrite(Register, Hvx, ReadWrite):
@@ -967,11 +982,11 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_qreg_read(ctx, {self.reg_num});
+            ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num});
+            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 def init_registers():

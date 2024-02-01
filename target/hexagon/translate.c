@@ -380,58 +380,8 @@ static bool need_commit(DisasContext *ctx)
         return true;
     }
 
-    if (pkt->num_insns == 1) {
-        if (pkt->pkt_has_hvx) {
-            /*
-             * The HVX instructions with generated helpers use
-             * pass-by-reference, so they need the read/write overlap
-             * check below.
-             * The HVX instructions with overrides are OK.
-             */
-            if (!ctx->has_hvx_helper) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    if (ctx->read_after_write) {
+    if (ctx->read_after_write || ctx->has_hvx_overlap) {
         return true;
-    }
-
-    /* Check for overlap between HVX reads and writes */
-    for (int i = 0; i < ctx->vreg_log_idx; i++) {
-        int vnum = ctx->vreg_log[i];
-        if (test_bit(vnum, ctx->vregs_read)) {
-            return true;
-        }
-    }
-    if (!bitmap_empty(ctx->vregs_updated_tmp, NUM_VREGS)) {
-        int i = find_first_bit(ctx->vregs_updated_tmp, NUM_VREGS);
-        while (i < NUM_VREGS) {
-            if (test_bit(i, ctx->vregs_read)) {
-                return true;
-            }
-            i = find_next_bit(ctx->vregs_updated_tmp, NUM_VREGS, i + 1);
-        }
-    }
-    if (!bitmap_empty(ctx->vregs_select, NUM_VREGS)) {
-        int i = find_first_bit(ctx->vregs_select, NUM_VREGS);
-        while (i < NUM_VREGS) {
-            if (test_bit(i, ctx->vregs_read)) {
-                return true;
-            }
-            i = find_next_bit(ctx->vregs_select, NUM_VREGS, i + 1);
-        }
-    }
-
-    /* Check for overlap between HVX predicate reads and writes */
-    for (int i = 0; i < ctx->qreg_log_idx; i++) {
-        int qnum = ctx->qreg_log[i];
-        if (test_bit(qnum, ctx->qregs_read)) {
-            return true;
-        }
     }
 
     return false;
@@ -455,8 +405,8 @@ static void mark_implicit_pred_reads(DisasContext *ctx)
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
-    ctx->has_hvx_helper = false;
     ctx->read_after_write = false;
+    ctx->has_hvx_overlap = false;
     for (int i = 0; i < pkt->num_insns; i++) {
         Insn *insn = &pkt->insn[i];
         ctx->insn = insn;
@@ -487,13 +437,13 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->future_vregs_idx = 0;
     ctx->tmp_vregs_idx = 0;
     ctx->vreg_log_idx = 0;
+    bitmap_zero(ctx->vregs_written, NUM_VREGS);
     bitmap_zero(ctx->vregs_updated_tmp, NUM_VREGS);
     bitmap_zero(ctx->vregs_updated, NUM_VREGS);
     bitmap_zero(ctx->vregs_select, NUM_VREGS);
     bitmap_zero(ctx->predicated_future_vregs, NUM_VREGS);
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
-    bitmap_zero(ctx->vregs_read, NUM_VREGS);
-    bitmap_zero(ctx->qregs_read, NUM_QREGS);
+    bitmap_zero(ctx->qregs_written, NUM_QREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;

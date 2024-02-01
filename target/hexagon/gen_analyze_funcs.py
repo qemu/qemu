@@ -43,6 +43,16 @@ def gen_analyze_func(f, tag, regs, imms):
     f.write("{\n")
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
+    if (hex_common.is_hvx_insn(tag)):
+        if hex_common.has_hvx_helper(tag):
+            f.write(
+                "    const bool G_GNUC_UNUSED insn_has_hvx_helper = true;\n"
+            )
+            f.write("    ctx_start_hvx_insn(ctx);\n")
+        else:
+            f.write(
+                "    const bool G_GNUC_UNUSED insn_has_hvx_helper = false;\n"
+            )
 
     ## Declare all the registers
     for regno, register in enumerate(regs):
@@ -63,15 +73,6 @@ def gen_analyze_func(f, tag, regs, imms):
         reg = hex_common.get_register(tag, reg_type, reg_id)
         if reg.is_written():
             reg.analyze_write(f, tag, regno)
-
-    has_generated_helper = not hex_common.skip_qemu_helper(
-        tag
-    ) and not hex_common.is_idef_parser_enabled(tag)
-
-    ## Mark HVX instructions with generated helpers
-    if (has_generated_helper and
-        "A_CVI" in hex_common.attribdict[tag]):
-        f.write("    ctx->has_hvx_helper = true;\n")
 
     f.write("}\n\n")
 
