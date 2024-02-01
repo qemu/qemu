@@ -632,7 +632,7 @@ static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
 {
     struct qemu_ether_header *hdr = (void *)buf;
     if ((*(hdr->ether_dhost)&0x01) &&
-        ((uint64_t *)&s->csr[8])[0] != 0LL) {
+        (s->csr[8] | s->csr[9] | s->csr[10] | s->csr[11]) != 0) {
         uint8_t ladr[8] = {
             s->csr[8] & 0xff, s->csr[8] >> 8,
             s->csr[9] & 0xff, s->csr[9] >> 8,
