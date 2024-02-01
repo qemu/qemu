@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -396,20 +396,8 @@ static bool need_commit(DisasContext *ctx)
         }
     }
 
-    /* Check for overlap between register reads and writes */
-    for (int i = 0; i < ctx->reg_log_idx; i++) {
-        int rnum = ctx->reg_log[i];
-        if (test_bit(rnum, ctx->regs_read)) {
-            return true;
-        }
-    }
-
-    /* Check for overlap between predicate reads and writes */
-    for (int i = 0; i < ctx->preg_log_idx; i++) {
-        int pnum = ctx->preg_log[i];
-        if (test_bit(pnum, ctx->pregs_read)) {
-            return true;
-        }
+    if (ctx->read_after_write) {
+        return true;
     }
 
     /* Check for overlap between HVX reads and writes */
@@ -468,6 +456,7 @@ static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
     ctx->has_hvx_helper = false;
+    ctx->read_after_write = false;
     for (int i = 0; i < pkt->num_insns; i++) {
         Insn *insn = &pkt->insn[i];
         ctx->insn = insn;
@@ -492,11 +481,9 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
-    bitmap_zero(ctx->regs_read, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
-    bitmap_zero(ctx->pregs_read, NUM_PREGS);
     ctx->future_vregs_idx = 0;
     ctx->tmp_vregs_idx = 0;
     ctx->vreg_log_idx = 0;

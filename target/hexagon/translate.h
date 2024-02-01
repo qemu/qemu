@@ -38,12 +38,10 @@ typedef struct DisasContext {
     int reg_log[REG_WRITES_MAX];
     int reg_log_idx;
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
-    DECLARE_BITMAP(regs_read, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);
-    DECLARE_BITMAP(pregs_read, NUM_PREGS);
     uint8_t store_width[STORES_MAX];
     bool s1_store_processed;
     int future_vregs_idx;
@@ -68,6 +66,7 @@ typedef struct DisasContext {
     bool is_tight_loop;
     bool short_circuit;
     bool has_hvx_helper;
+    bool read_after_write;
     TCGv new_value[TOTAL_PER_THREAD_REGS];
     TCGv new_pred_value[NUM_PREGS];
     TCGv pred_written;
@@ -88,13 +87,14 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 
 static inline void ctx_log_pred_read(DisasContext *ctx, int pnum)
 {
-    set_bit(pnum, ctx->pregs_read);
+    if (test_bit(pnum, ctx->pregs_written)) {
+        ctx->read_after_write = true;
+    }
 }
 
 static inline void ctx_log_pred_read_new(DisasContext *ctx, int pnum)
 {
     g_assert(test_bit(pnum, ctx->pregs_written));
-    set_bit(pnum, ctx->pregs_read);
 }
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
@@ -125,13 +125,14 @@ static inline void ctx_log_reg_write_pair(DisasContext *ctx, int rnum,
 
 static inline void ctx_log_reg_read(DisasContext *ctx, int rnum)
 {
-    set_bit(rnum, ctx->regs_read);
+    if (test_bit(rnum, ctx->regs_written)) {
+        ctx->read_after_write = true;
+    }
 }
 
 static inline void ctx_log_reg_read_new(DisasContext *ctx, int rnum)
 {
     g_assert(test_bit(rnum, ctx->regs_written));
-    set_bit(rnum, ctx->regs_read);
 }
 
 static inline void ctx_log_reg_read_pair(DisasContext *ctx, int rnum)
