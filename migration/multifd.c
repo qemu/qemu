@@ -429,7 +429,9 @@ static int multifd_send_pages(void)
         return -1;
     }
 
+    /* We wait here, until at least one channel is ready */
     qemu_sem_wait(&multifd_send_state->channels_ready);
+
     /*
      * next_channel can remain from a previous migration that was
      * using more channels, so ensure it doesn't overflow if the
@@ -441,17 +443,26 @@ static int multifd_send_pages(void)
             return -1;
         }
         p = &multifd_send_state->params[i];
-        qemu_mutex_lock(&p->mutex);
+        /*
+         * Lockless read to p->pending_job is safe, because only multifd
+         * sender thread can clear it.
+         */
         if (qatomic_read(&p->pending_job) == false) {
-            qatomic_set(&p->pending_job, true);
             next_channel = (i + 1) % migrate_multifd_channels();
             break;
         }
-        qemu_mutex_unlock(&p->mutex);
     }
+
+    qemu_mutex_lock(&p->mutex);
     assert(!p->pages->num);
     assert(!p->pages->block);
-
+    /*
+     * Double check on pending_job==false with the lock.  In the future if
+     * we can have >1 requester thread, we can replace this with a "goto
+     * retry", but that is for later.
+     */
+    assert(qatomic_read(&p->pending_job) == false);
+    qatomic_set(&p->pending_job, true);
     p->packet_num = multifd_send_state->packet_num++;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
@@ -709,8 +720,6 @@ static void *multifd_send_thread(void *opaque)
             multifd_send_fill_packet(p);
             p->num_packets++;
             p->total_normal_pages += pages->num;
-            qemu_mutex_unlock(&p->mutex);
-
             trace_multifd_send(p->id, packet_num, pages->num, p->flags,
                                p->next_packet_size);
 
@@ -730,6 +739,7 @@ static void *multifd_send_thread(void *opaque)
             ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
                                               0, p->write_flags, &local_err);
             if (ret != 0) {
+                qemu_mutex_unlock(&p->mutex);
                 break;
             }
 
@@ -738,7 +748,6 @@ static void *multifd_send_thread(void *opaque)
 
             multifd_pages_reset(p->pages);
             p->next_packet_size = 0;
-            qemu_mutex_lock(&p->mutex);
             qatomic_set(&p->pending_job, false);
             qemu_mutex_unlock(&p->mutex);
         } else if (qatomic_read(&p->pending_sync)) {
