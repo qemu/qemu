@@ -663,7 +663,7 @@ static void multifd_send_cleanup_state(void)
     multifd_send_state = NULL;
 }
 
-void multifd_save_cleanup(void)
+void multifd_send_shutdown(void)
 {
     int i;
 
@@ -965,7 +965,7 @@ static void multifd_new_send_channel_create(gpointer opaque)
     socket_send_channel_create(multifd_new_send_channel_async, opaque);
 }
 
-int multifd_save_setup(Error **errp)
+int multifd_send_setup(Error **errp)
 {
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
@@ -1063,7 +1063,7 @@ static void multifd_recv_terminate_threads(Error *err)
     }
 }
 
-void multifd_load_shutdown(void)
+void multifd_recv_shutdown(void)
 {
     if (migrate_multifd()) {
         multifd_recv_terminate_threads(NULL);
@@ -1098,7 +1098,7 @@ static void multifd_recv_cleanup_state(void)
     multifd_recv_state = NULL;
 }
 
-void multifd_load_cleanup(void)
+void multifd_recv_cleanup(void)
 {
     int i;
 
@@ -1213,7 +1213,7 @@ static void *multifd_recv_thread(void *opaque)
     return NULL;
 }
 
-int multifd_load_setup(Error **errp)
+int multifd_recv_setup(Error **errp)
 {
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
