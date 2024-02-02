@@ -120,17 +120,13 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
     SCSIRequest *next;
 
     /*
-     * If the AioContext changed before this BH was called then reschedule into
-     * the new AioContext before accessing ->requests. This can happen when
-     * scsi_device_for_each_req_async() is called and then the AioContext is
-     * changed before BHs are run.
+     * The BB cannot have changed contexts between this BH being scheduled and
+     * now: BBs' AioContexts, when they have a node attached, can only be
+     * changed via bdrv_try_change_aio_context(), in a drained section.  While
+     * we have the in-flight counter incremented, that drain must block.
      */
     ctx = blk_get_aio_context(s->conf.blk);
-    if (ctx != qemu_get_current_aio_context()) {
-        aio_bh_schedule_oneshot(ctx, scsi_device_for_each_req_async_bh,
-                                g_steal_pointer(&data));
-        return;
-    }
+    assert(ctx == qemu_get_current_aio_context());
 
     QTAILQ_FOREACH_SAFE(req, &s->requests, next, next) {
         data->fn(req, data->fn_opaque);
@@ -138,11 +134,16 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
 
     /* Drop the reference taken by scsi_device_for_each_req_async() */
     object_unref(OBJECT(s));
+
+    /* Paired with blk_inc_in_flight() in scsi_device_for_each_req_async() */
+    blk_dec_in_flight(s->conf.blk);
 }
 
 /*
  * Schedule @fn() to be invoked for each enqueued request in device @s. @fn()
  * runs in the AioContext that is executing the request.
+ * Keeps the BlockBackend's in-flight counter incremented until everything is
+ * done, so draining it will settle all scheduled @fn() calls.
  */
 static void scsi_device_for_each_req_async(SCSIDevice *s,
                                            void (*fn)(SCSIRequest *, void *),
@@ -163,6 +164,8 @@ static void scsi_device_for_each_req_async(SCSIDevice *s,
      */
     object_ref(OBJECT(s));
 
+    /* Paired with blk_dec_in_flight() in scsi_device_for_each_req_async_bh() */
+    blk_inc_in_flight(s->conf.blk);
     aio_bh_schedule_oneshot(blk_get_aio_context(s->conf.blk),
                             scsi_device_for_each_req_async_bh,
                             data);
@@ -1728,11 +1731,20 @@ static void scsi_device_purge_one_req(SCSIRequest *req, void *opaque)
     scsi_req_cancel_async(req, NULL);
 }
 
+/**
+ * Cancel all requests, and block until they are deleted.
+ */
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 {
     scsi_device_for_each_req_async(sdev, scsi_device_purge_one_req, NULL);
 
+    /*
+     * Await all the scsi_device_purge_one_req() calls scheduled by
+     * scsi_device_for_each_req_async(), and all I/O requests that were
+     * cancelled this way, but may still take a bit of time to settle.
+     */
     blk_drain(sdev->conf.blk);
+
     scsi_device_set_ua(sdev, sense);
 }
 
