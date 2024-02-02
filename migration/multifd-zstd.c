@@ -113,6 +113,7 @@ static void zstd_send_cleanup(MultiFDSendParams *p, Error **errp)
  */
 static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
 {
+    MultiFDPages_t *pages = p->pages;
     struct zstd_data *z = p->data;
     int ret;
     uint32_t i;
@@ -121,13 +122,13 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
     z->out.size = z->zbuff_len;
     z->out.pos = 0;
 
-    for (i = 0; i < p->normal_num; i++) {
+    for (i = 0; i < pages->num; i++) {
         ZSTD_EndDirective flush = ZSTD_e_continue;
 
-        if (i == p->normal_num - 1) {
+        if (i == pages->num - 1) {
             flush = ZSTD_e_flush;
         }
-        z->in.src = p->pages->block->host + p->normal[i];
+        z->in.src = p->pages->block->host + pages->offset[i];
         z->in.size = p->page_size;
         z->in.pos = 0;
 
