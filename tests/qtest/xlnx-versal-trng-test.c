@@ -298,10 +298,13 @@ static size_t trng_collect(uint32_t *rnd, size_t cnt)
     return i;
 }
 
+/* These tests all generate 512 bits of random data with the device */
+#define TEST_DATA_WORDS (512 / 32)
+
 static void trng_test_autogen(void)
 {
-    const size_t cnt = 512 / 32;
-    uint32_t rng[cnt], prng[cnt];
+    const size_t cnt = TEST_DATA_WORDS;
+    uint32_t rng[TEST_DATA_WORDS], prng[TEST_DATA_WORDS];
     size_t n;
 
     trng_reset();
@@ -343,8 +346,8 @@ static void trng_test_autogen(void)
 
 static void trng_test_oneshot(void)
 {
-    const size_t cnt = 512 / 32;
-    uint32_t rng[cnt];
+    const size_t cnt = TEST_DATA_WORDS;
+    uint32_t rng[TEST_DATA_WORDS];
     size_t n;
 
     trng_reset();
@@ -370,8 +373,8 @@ static void trng_test_oneshot(void)
 
 static void trng_test_per_str(void)
 {
-    const size_t cnt = 512 / 32;
-    uint32_t rng[cnt], prng[cnt];
+    const size_t cnt = TEST_DATA_WORDS;
+    uint32_t rng[TEST_DATA_WORDS], prng[TEST_DATA_WORDS];
     size_t n;
 
     trng_reset();
@@ -415,8 +418,8 @@ static void trng_test_forced_prng(void)
     const char *prop = "forced-prng";
     const uint64_t seed = 0xdeadbeefbad1bad0ULL;
 
-    const size_t cnt = 512 / 32;
-    uint32_t rng[cnt], prng[cnt];
+    const size_t cnt = TEST_DATA_WORDS;
+    uint32_t rng[TEST_DATA_WORDS], prng[TEST_DATA_WORDS];
     size_t n;
 
     trng_reset();

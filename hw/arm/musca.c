@@ -605,7 +605,6 @@ static void musca_class_init(ObjectClass *oc, void *data)
     mc->default_cpus = 2;
     mc->min_cpus = mc->default_cpus;
     mc->max_cpus = mc->default_cpus;
-    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m33");
     mc->valid_cpu_types = valid_cpu_types;
     mc->init = musca_init;
 }

@@ -329,8 +329,6 @@ struct BusClass {
      */
     char *(*get_fw_dev_path)(DeviceState *dev);
 
-    void (*reset)(BusState *bus);
-
     /*
      * Return whether the device can be added to @bus,
      * based on the address that was set (via device properties)

@@ -47,13 +47,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(MSF2State, MSF2_SOC)
 #define MSF2_NUM_TIMERS       2
 
 struct MSF2State {
-    /*< private >*/
     SysBusDevice parent_obj;
-    /*< public >*/
 
     ARMv7MState armv7m;
 
-    char *cpu_type;
     char *part_name;
     uint64_t envm_size;
     uint64_t esram_size;

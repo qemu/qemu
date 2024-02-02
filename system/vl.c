@@ -1439,18 +1439,22 @@ static void qemu_create_default_devices(void)
 static int serial_parse(const char *devname)
 {
     int index = num_serial_hds;
-    char label[32];
 
-    if (strcmp(devname, "none") == 0)
-        return 0;
-    snprintf(label, sizeof(label), "serial%d", index);
     serial_hds = g_renew(Chardev *, serial_hds, index + 1);
 
-    serial_hds[index] = qemu_chr_new_mux_mon(label, devname, NULL);
-    if (!serial_hds[index]) {
-        error_report("could not connect serial device"
-                     " to character backend '%s'", devname);
-        return -1;
+    if (strcmp(devname, "none") == 0) {
+        /* Don't allocate a serial device for this index */
+        serial_hds[index] = NULL;
+    } else {
+        char label[32];
+        snprintf(label, sizeof(label), "serial%d", index);
+
+        serial_hds[index] = qemu_chr_new_mux_mon(label, devname, NULL);
+        if (!serial_hds[index]) {
+            error_report("could not connect serial device"
+                         " to character backend '%s'", devname);
+            return -1;
+        }
     }
     num_serial_hds++;
     return 0;

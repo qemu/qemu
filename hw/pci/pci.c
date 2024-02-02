@@ -64,7 +64,7 @@ bool pci_available = true;
 
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
-static void pcibus_reset(BusState *qbus);
+static void pcibus_reset_hold(Object *obj);
 static bool pcie_has_upstream_port(PCIDevice *dev);
 
 static Property pci_props[] = {
@@ -202,13 +202,15 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     PCIBusClass *pbc = PCI_BUS_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     k->print_dev = pcibus_dev_print;
     k->get_dev_path = pcibus_get_dev_path;
     k->get_fw_dev_path = pcibus_get_fw_dev_path;
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
-    k->reset = pcibus_reset;
+
+    rc->phases.hold = pcibus_reset_hold;
 
     pbc->bus_num = pcibus_num;
     pbc->numa_node = pcibus_numa_node;
@@ -424,9 +426,9 @@ void pci_device_reset(PCIDevice *dev)
  * Called via bus_cold_reset on RST# assert, after the devices
  * have been reset device_cold_reset-ed already.
  */
-static void pcibus_reset(BusState *qbus)
+static void pcibus_reset_hold(Object *obj)
 {
-    PCIBus *bus = DO_UPCAST(PCIBus, qbus, qbus);
+    PCIBus *bus = PCI_BUS(obj);
     int i;
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
