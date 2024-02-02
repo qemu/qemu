@@ -37,6 +37,8 @@
 #include "hw/virtio/virtio-blk-common.h"
 #include "qemu/coroutine.h"
 
+static void virtio_blk_ioeventfd_attach(VirtIOBlock *s);
+
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
                                     VirtIOBlockReq *req)
 {
@@ -1847,17 +1849,14 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_started = true;
     smp_wmb(); /* paired with aio_notify_accept() on the read side */
 
-    /* Get this show started by hooking up our callbacks */
-    for (i = 0; i < nvqs; i++) {
-        VirtQueue *vq = virtio_get_queue(vdev, i);
-        AioContext *ctx = s->vq_aio_context[i];
-
-        /* Kick right away to begin processing requests already in vring */
-        event_notifier_set(virtio_queue_get_host_notifier(vq));
-
-        if (!blk_in_drain(s->conf.conf.blk)) {
-            virtio_queue_aio_attach_host_notifier(vq, ctx);
-        }
+    /*
+     * Get this show started by hooking up our callbacks.  If drained now,
+     * virtio_blk_drained_end() will do this later.
+     * Attaching the notifier also kicks the virtqueues, processing any requests
+     * they may already have.
+     */
+    if (!blk_in_drain(s->conf.conf.blk)) {
+        virtio_blk_ioeventfd_attach(s);
     }
     return 0;
 
