@@ -97,8 +97,6 @@ typedef struct {
     bool running;
     /* multifd flags for each packet */
     uint32_t flags;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
     /*
      * The sender thread has work to do if either of below boolean is set.
      *

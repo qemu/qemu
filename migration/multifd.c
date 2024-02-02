@@ -45,6 +45,35 @@ typedef struct {
     uint64_t unused2[4];    /* Reserved for future use */
 } __attribute__((packed)) MultiFDInit_t;
 
+struct {
+    MultiFDSendParams *params;
+    /* array of pages to sent */
+    MultiFDPages_t *pages;
+    /*
+     * Global number of generated multifd packets.
+     *
+     * Note that we used 'uintptr_t' because it'll naturally support atomic
+     * operations on both 32bit / 64 bits hosts.  It means on 32bit systems
+     * multifd will overflow the packet_num easier, but that should be
+     * fine.
+     *
+     * Another option is to use QEMU's Stat64 then it'll be 64 bits on all
+     * hosts, however so far it does not support atomic fetch_add() yet.
+     * Make it easy for now.
+     */
+    uintptr_t packet_num;
+    /* send channels ready */
+    QemuSemaphore channels_ready;
+    /*
+     * Have we already run terminate threads.  There is a race when it
+     * happens that we got one error while we are exiting.
+     * We will use atomic operations.  Only valid values are 0 and 1.
+     */
+    int exiting;
+    /* multifd ops */
+    MultiFDMethods *ops;
+} *multifd_send_state;
+
 /* Multifd without compression */
 
 /**
@@ -292,13 +321,16 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
 {
     MultiFDPacket_t *packet = p->packet;
     MultiFDPages_t *pages = p->pages;
+    uint64_t packet_num;
     int i;
 
     packet->flags = cpu_to_be32(p->flags);
     packet->pages_alloc = cpu_to_be32(p->pages->allocated);
     packet->normal_pages = cpu_to_be32(pages->num);
     packet->next_packet_size = cpu_to_be32(p->next_packet_size);
-    packet->packet_num = cpu_to_be64(p->packet_num);
+
+    packet_num = qatomic_fetch_inc(&multifd_send_state->packet_num);
+    packet->packet_num = cpu_to_be64(packet_num);
 
     if (pages->block) {
         strncpy(packet->ramblock, pages->block->idstr, 256);
@@ -314,7 +346,7 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
     p->packets_sent++;
     p->total_normal_pages += pages->num;
 
-    trace_multifd_send(p->id, p->packet_num, pages->num, p->flags,
+    trace_multifd_send(p->id, packet_num, pages->num, p->flags,
                        p->next_packet_size);
 }
 
@@ -398,24 +430,6 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-struct {
-    MultiFDSendParams *params;
-    /* array of pages to sent */
-    MultiFDPages_t *pages;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
-    /* send channels ready */
-    QemuSemaphore channels_ready;
-    /*
-     * Have we already run terminate threads.  There is a race when it
-     * happens that we got one error while we are exiting.
-     * We will use atomic operations.  Only valid values are 0 and 1.
-     */
-    int exiting;
-    /* multifd ops */
-    MultiFDMethods *ops;
-} *multifd_send_state;
-
 static bool multifd_send_should_exit(void)
 {
     return qatomic_read(&multifd_send_state->exiting);
@@ -497,7 +511,6 @@ static bool multifd_send_pages(void)
      */
     assert(qatomic_read(&p->pending_job) == false);
     qatomic_set(&p->pending_job, true);
-    p->packet_num = multifd_send_state->packet_num++;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
     qemu_mutex_unlock(&p->mutex);
@@ -730,7 +743,6 @@ int multifd_send_sync_main(void)
         trace_multifd_send_sync_main_signal(p->id);
 
         qemu_mutex_lock(&p->mutex);
-        p->packet_num = multifd_send_state->packet_num++;
         /*
          * We should be the only user so far, so not possible to be set by
          * others concurrently.
