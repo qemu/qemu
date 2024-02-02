@@ -63,7 +63,11 @@ vdso_syscall __kernel_clock_getres, __NR_clock_getres
  * For now, elide the unwind info for __kernel_rt_sigreturn and rely on
  * the libgcc fallback routine as we have always done.  This requires
  * that the code sequence used be exact.
+ *
+ * Add a nop as a spacer to ensure that unwind does not pick up the
+ * unwind info from the preceding syscall.
  */
+	nop
 __kernel_rt_sigreturn:
 	/* No BTI C insn here -- we arrive via RET. */
 	mov	x8, #__NR_rt_sigreturn
