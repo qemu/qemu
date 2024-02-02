@@ -756,7 +756,9 @@ static void *multifd_send_thread(void *opaque)
             p->next_packet_size = 0;
             qatomic_set(&p->pending_job, false);
             qemu_mutex_unlock(&p->mutex);
-        } else if (qatomic_read(&p->pending_sync)) {
+        } else {
+            /* If not a normal job, must be a sync request */
+            assert(qatomic_read(&p->pending_sync));
             p->flags = MULTIFD_FLAG_SYNC;
             multifd_send_fill_packet(p);
             ret = qio_channel_write_all(p->c, (void *)p->packet,
@@ -771,9 +773,6 @@ static void *multifd_send_thread(void *opaque)
             qatomic_set(&p->pending_sync, false);
             qemu_mutex_unlock(&p->mutex);
             qemu_sem_post(&p->sem_sync);
-        } else {
-            qemu_mutex_unlock(&p->mutex);
-            /* sometimes there are spurious wakeups */
         }
     }
 
