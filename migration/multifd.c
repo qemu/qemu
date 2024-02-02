@@ -506,35 +506,53 @@ static bool multifd_send_pages(void)
     return true;
 }
 
+static inline bool multifd_queue_empty(MultiFDPages_t *pages)
+{
+    return pages->num == 0;
+}
+
+static inline bool multifd_queue_full(MultiFDPages_t *pages)
+{
+    return pages->num == pages->allocated;
+}
+
+static inline void multifd_enqueue(MultiFDPages_t *pages, ram_addr_t offset)
+{
+    pages->offset[pages->num++] = offset;
+}
+
 /* Returns true if enqueue successful, false otherwise */
 bool multifd_queue_page(RAMBlock *block, ram_addr_t offset)
 {
-    MultiFDPages_t *pages = multifd_send_state->pages;
-    bool changed = false;
+    MultiFDPages_t *pages;
 
-    if (!pages->block) {
+retry:
+    pages = multifd_send_state->pages;
+
+    /* If the queue is empty, we can already enqueue now */
+    if (multifd_queue_empty(pages)) {
         pages->block = block;
+        multifd_enqueue(pages, offset);
+        return true;
     }
 
-    if (pages->block == block) {
-        pages->offset[pages->num] = offset;
-        pages->num++;
-
-        if (pages->num < pages->allocated) {
-            return true;
+    /*
+     * Not empty, meanwhile we need a flush.  It can because of either:
+     *
+     * (1) The page is not on the same ramblock of previous ones, or,
+     * (2) The queue is full.
+     *
+     * After flush, always retry.
+     */
+    if (pages->block != block || multifd_queue_full(pages)) {
+        if (!multifd_send_pages()) {
+            return false;
         }
-    } else {
-        changed = true;
+        goto retry;
     }
 
-    if (!multifd_send_pages()) {
-        return false;
-    }
-
-    if (changed) {
-        return multifd_queue_page(block, offset);
-    }
-
+    /* Not empty, and we still have space, do it! */
+    multifd_enqueue(pages, offset);
     return true;
 }
 
