@@ -505,7 +505,8 @@ static int multifd_send_pages(void)
     return 1;
 }
 
-int multifd_queue_page(RAMBlock *block, ram_addr_t offset)
+/* Returns true if enqueue successful, false otherwise */
+bool multifd_queue_page(RAMBlock *block, ram_addr_t offset)
 {
     MultiFDPages_t *pages = multifd_send_state->pages;
     bool changed = false;
@@ -519,21 +520,21 @@ int multifd_queue_page(RAMBlock *block, ram_addr_t offset)
         pages->num++;
 
         if (pages->num < pages->allocated) {
-            return 1;
+            return true;
         }
     } else {
         changed = true;
     }
 
     if (multifd_send_pages() < 0) {
-        return -1;
+        return false;
     }
 
     if (changed) {
         return multifd_queue_page(block, offset);
     }
 
-    return 1;
+    return true;
 }
 
 /* Multifd send side hit an error; remember it and prepare to quit */
