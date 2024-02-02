@@ -501,19 +501,19 @@ static bool multifd_send_pages(void)
         }
     }
 
-    qemu_mutex_lock(&p->mutex);
-    assert(!p->pages->num);
-    assert(!p->pages->block);
     /*
-     * Double check on pending_job==false with the lock.  In the future if
-     * we can have >1 requester thread, we can replace this with a "goto
-     * retry", but that is for later.
+     * Make sure we read p->pending_job before all the rest.  Pairs with
+     * qatomic_store_release() in multifd_send_thread().
      */
-    assert(qatomic_read(&p->pending_job) == false);
-    qatomic_set(&p->pending_job, true);
+    smp_mb_acquire();
+    assert(!p->pages->num);
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-    qemu_mutex_unlock(&p->mutex);
+    /*
+     * Making sure p->pages is setup before marking pending_job=true. Pairs
+     * with the qatomic_load_acquire() in multifd_send_thread().
+     */
+    qatomic_store_release(&p->pending_job, true);
     qemu_sem_post(&p->sem);
 
     return true;
@@ -648,7 +648,6 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
     }
     multifd_send_channel_destroy(p->c);
     p->c = NULL;
-    qemu_mutex_destroy(&p->mutex);
     qemu_sem_destroy(&p->sem);
     qemu_sem_destroy(&p->sem_sync);
     g_free(p->name);
@@ -742,14 +741,12 @@ int multifd_send_sync_main(void)
 
         trace_multifd_send_sync_main_signal(p->id);
 
-        qemu_mutex_lock(&p->mutex);
         /*
          * We should be the only user so far, so not possible to be set by
          * others concurrently.
          */
         assert(qatomic_read(&p->pending_sync) == false);
         qatomic_set(&p->pending_sync, true);
-        qemu_mutex_unlock(&p->mutex);
         qemu_sem_post(&p->sem);
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -796,9 +793,12 @@ static void *multifd_send_thread(void *opaque)
         if (multifd_send_should_exit()) {
             break;
         }
-        qemu_mutex_lock(&p->mutex);
 
-        if (qatomic_read(&p->pending_job)) {
+        /*
+         * Read pending_job flag before p->pages.  Pairs with the
+         * qatomic_store_release() in multifd_send_pages().
+         */
+        if (qatomic_load_acquire(&p->pending_job)) {
             MultiFDPages_t *pages = p->pages;
 
             p->iovs_num = 0;
@@ -806,14 +806,12 @@ static void *multifd_send_thread(void *opaque)
 
             ret = multifd_send_state->ops->send_prepare(p, &local_err);
             if (ret != 0) {
-                qemu_mutex_unlock(&p->mutex);
                 break;
             }
 
             ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,
                                               0, p->write_flags, &local_err);
             if (ret != 0) {
-                qemu_mutex_unlock(&p->mutex);
                 break;
             }
 
@@ -822,24 +820,31 @@ static void *multifd_send_thread(void *opaque)
 
             multifd_pages_reset(p->pages);
             p->next_packet_size = 0;
-            qatomic_set(&p->pending_job, false);
-            qemu_mutex_unlock(&p->mutex);
+
+            /*
+             * Making sure p->pages is published before saying "we're
+             * free".  Pairs with the smp_mb_acquire() in
+             * multifd_send_pages().
+             */
+            qatomic_store_release(&p->pending_job, false);
         } else {
-            /* If not a normal job, must be a sync request */
+            /*
+             * If not a normal job, must be a sync request.  Note that
+             * pending_sync is a standalone flag (unlike pending_job), so
+             * it doesn't require explicit memory barriers.
+             */
             assert(qatomic_read(&p->pending_sync));
             p->flags = MULTIFD_FLAG_SYNC;
             multifd_send_fill_packet(p);
             ret = qio_channel_write_all(p->c, (void *)p->packet,
                                         p->packet_len, &local_err);
             if (ret != 0) {
-                qemu_mutex_unlock(&p->mutex);
                 break;
             }
             /* p->next_packet_size will always be zero for a SYNC packet */
             stat64_add(&mig_stats.multifd_bytes, p->packet_len);
             p->flags = 0;
             qatomic_set(&p->pending_sync, false);
-            qemu_mutex_unlock(&p->mutex);
             qemu_sem_post(&p->sem_sync);
         }
     }
@@ -853,10 +858,7 @@ out:
         error_free(local_err);
     }
 
-    qemu_mutex_lock(&p->mutex);
     p->running = false;
-    qemu_mutex_unlock(&p->mutex);
-
     rcu_unregister_thread();
     migration_threads_remove(thread);
     trace_multifd_send_thread_end(p->id, p->packets_sent, p->total_normal_pages);
@@ -998,7 +1000,6 @@ int multifd_send_setup(Error **errp)
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
-        qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->sem_sync, 0);
         p->id = i;
