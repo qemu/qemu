@@ -536,10 +536,9 @@ int multifd_queue_page(RAMBlock *block, ram_addr_t offset)
     return 1;
 }
 
-static void multifd_send_terminate_threads(Error *err)
+/* Multifd send side hit an error; remember it and prepare to quit */
+static void multifd_send_set_error(Error *err)
 {
-    int i;
-
     /*
      * We don't want to exit each threads twice.  Depending on where
      * we get the error, or if there are two independent errors in two
@@ -549,8 +548,6 @@ static void multifd_send_terminate_threads(Error *err)
     if (qatomic_xchg(&multifd_send_state->exiting, 1)) {
         return;
     }
-
-    trace_multifd_send_terminate_threads(err != NULL);
 
     if (err) {
         MigrationState *s = migrate_get_current();
@@ -563,7 +560,19 @@ static void multifd_send_terminate_threads(Error *err)
                               MIGRATION_STATUS_FAILED);
         }
     }
+}
 
+static void multifd_send_terminate_threads(void)
+{
+    int i;
+
+    trace_multifd_send_terminate_threads();
+
+    /*
+     * Tell everyone we're quitting.  No xchg() needed here; we simply
+     * always set it.
+     */
+    qatomic_set(&multifd_send_state->exiting, 1);
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -586,7 +595,7 @@ void multifd_save_cleanup(void)
     if (!migrate_multifd()) {
         return;
     }
-    multifd_send_terminate_threads(NULL);
+    multifd_send_terminate_threads();
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -780,7 +789,7 @@ out:
     if (ret) {
         assert(local_err);
         trace_multifd_send_error(p->id);
-        multifd_send_terminate_threads(local_err);
+        multifd_send_set_error(local_err);
         multifd_send_kick_main(p);
         error_free(local_err);
     }
@@ -816,7 +825,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
 
     trace_multifd_tls_outgoing_handshake_error(ioc, error_get_pretty(err));
 
-    multifd_send_terminate_threads(err);
+    multifd_send_set_error(err);
     multifd_send_kick_main(p);
     error_free(err);
 }
@@ -898,7 +907,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     }
 
     trace_multifd_new_send_channel_async_error(p->id, local_err);
-    multifd_send_terminate_threads(local_err);
+    multifd_send_set_error(local_err);
     multifd_send_kick_main(p);
     object_unref(OBJECT(ioc));
     error_free(local_err);
