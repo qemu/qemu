@@ -1070,6 +1070,34 @@ void multifd_load_shutdown(void)
     }
 }
 
+static void multifd_recv_cleanup_channel(MultiFDRecvParams *p)
+{
+    migration_ioc_unregister_yank(p->c);
+    object_unref(OBJECT(p->c));
+    p->c = NULL;
+    qemu_mutex_destroy(&p->mutex);
+    qemu_sem_destroy(&p->sem_sync);
+    g_free(p->name);
+    p->name = NULL;
+    p->packet_len = 0;
+    g_free(p->packet);
+    p->packet = NULL;
+    g_free(p->iov);
+    p->iov = NULL;
+    g_free(p->normal);
+    p->normal = NULL;
+    multifd_recv_state->ops->recv_cleanup(p);
+}
+
+static void multifd_recv_cleanup_state(void)
+{
+    qemu_sem_destroy(&multifd_recv_state->sem_sync);
+    g_free(multifd_recv_state->params);
+    multifd_recv_state->params = NULL;
+    g_free(multifd_recv_state);
+    multifd_recv_state = NULL;
+}
+
 void multifd_load_cleanup(void)
 {
     int i;
@@ -1092,29 +1120,9 @@ void multifd_load_cleanup(void)
         qemu_thread_join(&p->thread);
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDRecvParams *p = &multifd_recv_state->params[i];
-
-        migration_ioc_unregister_yank(p->c);
-        object_unref(OBJECT(p->c));
-        p->c = NULL;
-        qemu_mutex_destroy(&p->mutex);
-        qemu_sem_destroy(&p->sem_sync);
-        g_free(p->name);
-        p->name = NULL;
-        p->packet_len = 0;
-        g_free(p->packet);
-        p->packet = NULL;
-        g_free(p->iov);
-        p->iov = NULL;
-        g_free(p->normal);
-        p->normal = NULL;
-        multifd_recv_state->ops->recv_cleanup(p);
+        multifd_recv_cleanup_channel(&multifd_recv_state->params[i]);
     }
-    qemu_sem_destroy(&multifd_recv_state->sem_sync);
-    g_free(multifd_recv_state->params);
-    multifd_recv_state->params = NULL;
-    g_free(multifd_recv_state);
-    multifd_recv_state = NULL;
+    multifd_recv_cleanup_state();
 }
 
 void multifd_recv_sync_main(void)
