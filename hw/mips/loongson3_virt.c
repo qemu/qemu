@@ -451,9 +451,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
         usb_create_simple(usb_bus_find(-1), "usb-tablet");
     }
 
-    for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
-    }
+    pci_init_nic_devices(pci_bus, mc->default_nic);
 }
 
 static void mips_loongson3_virt_init(MachineState *machine)

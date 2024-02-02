@@ -203,11 +203,69 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len);
 int qemu_set_vnet_le(NetClientState *nc, bool is_le);
 int qemu_set_vnet_be(NetClientState *nc, bool is_be);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
-int qemu_show_nic_models(const char *arg, const char *const *models);
-void qemu_check_nic_model(NICInfo *nd, const char *model);
-int qemu_find_nic_model(NICInfo *nd, const char * const *models,
-                        const char *default_model);
+/**
+ * qemu_find_nic_info: Obtain NIC configuration information
+ * @typename: Name of device object type
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match (for user convenience and
+ *         backward compatibility).
+ *
+ * Search for a NIC configuration matching the NIC model constraints.
+ */
+NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+                            const char *alias);
+/**
+ * qemu_configure_nic_device: Apply NIC configuration to a given device
+ * @dev: Network device to be configured
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match
+ *
+ * Search for a NIC configuration for the provided device, using the
+ * additionally specified matching constraints. If found, apply the
+ * configuration using qdev_set_nic_properties() and return %true.
+ *
+ * This is used by platform code which creates the device anyway,
+ * regardless of whether there is a configuration for it. This tends
+ * to be platforms which ignore `--nodefaults` and create net devices
+ * anyway, for example because the Ethernet device on that board is
+ * always physically present.
+ */
+bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
+                               const char *alias);
 
+/**
+ * qemu_create_nic_device: Create a NIC device if a configuration exists for it
+ * @typename: Object typename of network device
+ * @match_default: Match NIC configurations with no model specified
+ * @alias: Additional model string to match
+ *
+ * Search for a NIC configuration for the provided device type. If found,
+ * create an object of the corresponding type and return it.
+ */
+DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+                                    const char *alias);
+
+/*
+ * qemu_create_nic_bus_devices: Create configured NIC devices for a given bus
+ * @bus: Bus on which to create devices
+ * @parent_type: Object type for devices to be created (e.g. TYPE_PCI_DEVICE)
+ * @default_model: Object type name for default NIC model (or %NULL)
+ * @alias: Additional model string to replace, for user convenience
+ * @alias_target: Actual object type name to be used in place of @alias
+ *
+ * Instantiate dynamic NICs on a given bus, typically a PCI bus. This scans
+ * for available NIC configurations which either specify a model which is
+ * a child type of @parent_type, or which do not specify a model when
+ * @default_model is non-NULL. Each device is instantiated on the given @bus.
+ *
+ * A single substitution is supported, e.g. "xen" → "xen-net-device" for the
+ * Xen bus, or "virtio" → "virtio-net-pci" for PCI. This allows the user to
+ * specify a more understandable "model=" parameter on the command line, not
+ * only the real object typename.
+ */
+void qemu_create_nic_bus_devices(BusState *bus, const char *parent_type,
+                                 const char *default_model,
+                                 const char *alias, const char *alias_target);
 void print_net_client(Monitor *mon, NetClientState *nc);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
@@ -242,10 +300,6 @@ struct NICInfo {
     int instantiated; /* does this NICInfo correspond to an instantiated NIC? */
     int nvectors;
 };
-
-extern int nb_nics;
-extern NICInfo nd_table[MAX_NICS];
-extern const char *host_net_devices[];
 
 /* from net.c */
 extern NetClientStateList net_clients;
