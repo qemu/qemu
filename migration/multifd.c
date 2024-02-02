@@ -712,10 +712,14 @@ static void *multifd_send_thread(void *opaque)
         if (qatomic_read(&p->pending_job)) {
             MultiFDPages_t *pages = p->pages;
 
-            if (use_zero_copy_send) {
-                p->iovs_num = 0;
-            } else {
-                p->iovs_num = 1;
+            p->iovs_num = 0;
+
+            if (!use_zero_copy_send) {
+                /*
+                 * Only !zerocopy needs the header in IOV; zerocopy will
+                 * send it separately.
+                 */
+                multifd_send_prepare_header(p);
             }
 
             assert(pages->num);
@@ -735,10 +739,6 @@ static void *multifd_send_thread(void *opaque)
                 if (ret != 0) {
                     break;
                 }
-            } else {
-                /* Send header using the same writev call */
-                p->iov[0].iov_len = p->packet_len;
-                p->iov[0].iov_base = p->packet;
             }
 
             ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num, NULL,

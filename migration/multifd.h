@@ -209,5 +209,13 @@ typedef struct {
 
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
+static inline void multifd_send_prepare_header(MultiFDSendParams *p)
+{
+    p->iov[0].iov_len = p->packet_len;
+    p->iov[0].iov_base = p->packet;
+    p->iovs_num++;
+}
+
+
 #endif
 
