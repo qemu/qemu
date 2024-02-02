@@ -710,13 +710,14 @@ static void *multifd_send_thread(void *opaque)
                 p->iovs_num = 1;
             }
 
-            if (pages->num) {
-                ret = multifd_send_state->ops->send_prepare(p, &local_err);
-                if (ret != 0) {
-                    qemu_mutex_unlock(&p->mutex);
-                    break;
-                }
+            assert(pages->num);
+
+            ret = multifd_send_state->ops->send_prepare(p, &local_err);
+            if (ret != 0) {
+                qemu_mutex_unlock(&p->mutex);
+                break;
             }
+
             multifd_send_fill_packet(p);
             p->num_packets++;
             p->total_normal_pages += pages->num;
