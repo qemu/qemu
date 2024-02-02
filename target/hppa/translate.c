@@ -4411,6 +4411,12 @@ static bool trans_diag(DisasContext *ctx, arg_diag *a)
         gen_helper_diag_btlb(tcg_env);
         return nullify_end(ctx);
     }
+    if (a->i == 0x101) {
+        /* print char in %r26 to first serial console, used by SeaBIOS-hppa */
+        nullify_over(ctx);
+        gen_helper_diag_console_output(tcg_env);
+        return nullify_end(ctx);
+    }
 #endif
     qemu_log_mask(LOG_UNIMP, "DIAG opcode 0x%04x ignored\n", a->i);
     return true;
