@@ -38,6 +38,7 @@ static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
     case LASI_LPT:
     case LASI_UART:
     case LASI_LAN:
+    case LASI_LAN + 12: /* LASI LAN MAC */
     case LASI_RTC:
 
     case LASI_PCR ... LASI_AMR:
@@ -78,6 +79,7 @@ static MemTxResult lasi_chip_read_with_attrs(void *opaque, hwaddr addr,
     case LASI_LPT:
     case LASI_UART:
     case LASI_LAN:
+    case LASI_LAN + 12:
         val = 0;
         break;
     case LASI_RTC:
