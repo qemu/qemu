@@ -122,10 +122,6 @@ static MemTxResult elroy_chip_read_with_attrs(void *opaque, hwaddr addr,
     case 0x0800:                /* IOSAPIC_REG_SELECT */
         val = s->iosapic_reg_select;
         break;
-    case 0x0808:
-        val = UINT64_MAX;            /* XXX: tbc. */
-        g_assert_not_reached();
-        break;
     case 0x0810:                /* IOSAPIC_REG_WINDOW */
         switch (s->iosapic_reg_select) {
         case 0x01:              /* IOSAPIC_REG_VERSION */
@@ -135,15 +131,15 @@ static MemTxResult elroy_chip_read_with_attrs(void *opaque, hwaddr addr,
             if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
                 val = s->iosapic_reg[s->iosapic_reg_select];
             } else {
-                trace_iosapic_reg_read(s->iosapic_reg_select, size, val);
-                g_assert_not_reached();
+                val = 0;
+                ret = MEMTX_DECODE_ERROR;
             }
         }
         trace_iosapic_reg_read(s->iosapic_reg_select, size, val);
         break;
     default:
-        trace_elroy_read(addr, size, val);
-        g_assert_not_reached();
+        val = 0;
+        ret = MEMTX_DECODE_ERROR;
     }
     trace_elroy_read(addr, size, val);
 
@@ -191,7 +187,7 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
             s->iosapic_reg[s->iosapic_reg_select] = val;
         } else {
-            g_assert_not_reached();
+            return MEMTX_DECODE_ERROR;
         }
         break;
     case 0x0840:                /* IOSAPIC_REG_EOI */
@@ -204,7 +200,7 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         }
         break;
     default:
-        g_assert_not_reached();
+        return MEMTX_DECODE_ERROR;
     }
     return MEMTX_OK;
 }
@@ -594,8 +590,8 @@ static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
 #undef EMPTY_PORT
 
     default:
-        trace_astro_chip_read(addr, size, val);
-        g_assert_not_reached();
+        val = 0;
+        ret = MEMTX_DECODE_ERROR;
     }
 
     /* for 32-bit accesses mask return value */
@@ -610,6 +606,7 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
                                               uint64_t val, unsigned size,
                                               MemTxAttrs attrs)
 {
+    MemTxResult ret = MEMTX_OK;
     AstroState *s = opaque;
 
     trace_astro_chip_write(addr, size, val);
@@ -686,11 +683,9 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
 #undef EMPTY_PORT
 
     default:
-        /* Controlled by astro_chip_mem_valid above.  */
-        trace_astro_chip_write(addr, size, val);
-        g_assert_not_reached();
+        ret = MEMTX_DECODE_ERROR;
     }
-    return MEMTX_OK;
+    return ret;
 }
 
 static const MemoryRegionOps astro_chip_ops = {
