@@ -382,7 +382,7 @@ int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
     if (FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG)) {
         return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
     }
-    return MMU_IDX_DA;
+    return MMU_DA_IDX;
 }
 
 static void loongarch_la464_initfn(Object *obj)
