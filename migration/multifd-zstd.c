@@ -118,6 +118,8 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
     int ret;
     uint32_t i;
 
+    multifd_send_prepare_header(p);
+
     z->out.dst = z->zbuff;
     z->out.size = z->zbuff_len;
     z->out.pos = 0;
@@ -160,6 +162,8 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
     p->iovs_num++;
     p->next_packet_size = z->out.pos;
     p->flags |= MULTIFD_FLAG_ZSTD;
+
+    multifd_send_fill_packet(p);
 
     return 0;
 }

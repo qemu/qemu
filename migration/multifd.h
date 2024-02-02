@@ -208,6 +208,7 @@ typedef struct {
 } MultiFDMethods;
 
 void multifd_register_ops(int method, MultiFDMethods *ops);
+void multifd_send_fill_packet(MultiFDSendParams *p);
 
 static inline void multifd_send_prepare_header(MultiFDSendParams *p)
 {

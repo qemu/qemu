@@ -123,6 +123,8 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
     int ret;
     uint32_t i;
 
+    multifd_send_prepare_header(p);
+
     for (i = 0; i < pages->num; i++) {
         uint32_t available = z->zbuff_len - out_size;
         int flush = Z_NO_FLUSH;
@@ -171,6 +173,8 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
     p->iovs_num++;
     p->next_packet_size = out_size;
     p->flags |= MULTIFD_FLAG_ZLIB;
+
+    multifd_send_fill_packet(p);
 
     return 0;
 }
