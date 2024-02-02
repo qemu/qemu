@@ -497,9 +497,14 @@ void aio_set_event_notifier(AioContext *ctx,
                             AioPollFn *io_poll,
                             EventNotifierHandler *io_poll_ready);
 
-/* Set polling begin/end callbacks for an event notifier that has already been
+/*
+ * Set polling begin/end callbacks for an event notifier that has already been
  * registered with aio_set_event_notifier.  Do nothing if the event notifier is
  * not registered.
+ *
+ * Note that if the io_poll_end() callback (or the entire notifier) is removed
+ * during polling, it will not be called, so an io_poll_begin() is not
+ * necessarily always followed by an io_poll_end().
  */
 void aio_set_event_notifier_poll(AioContext *ctx,
                                  EventNotifier *notifier,
