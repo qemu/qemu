@@ -373,6 +373,18 @@ struct {
 } *multifd_send_state;
 
 /*
+ * The migration thread can wait on either of the two semaphores.  This
+ * function can be used to kick the main thread out of waiting on either of
+ * them.  Should mostly only be called when something wrong happened with
+ * the current multifd send thread.
+ */
+static void multifd_send_kick_main(MultiFDSendParams *p)
+{
+    qemu_sem_post(&p->sem_sync);
+    qemu_sem_post(&multifd_send_state->channels_ready);
+}
+
+/*
  * How we use multifd_send_state->pages and channel->pages?
  *
  * We create a pages for each channel, and a main one.  Each time that
@@ -739,8 +751,7 @@ out:
         assert(local_err);
         trace_multifd_send_error(p->id);
         multifd_send_terminate_threads(local_err);
-        qemu_sem_post(&p->sem_sync);
-        qemu_sem_post(&multifd_send_state->channels_ready);
+        multifd_send_kick_main(p);
         error_free(local_err);
     }
 
@@ -781,8 +792,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
      * is not created, and then tell who pay attention to me.
      */
     p->quit = true;
-    qemu_sem_post(&multifd_send_state->channels_ready);
-    qemu_sem_post(&p->sem_sync);
+    multifd_send_kick_main(p);
     error_free(err);
 }
 
@@ -852,8 +862,7 @@ static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
 {
      migrate_set_error(migrate_get_current(), err);
      /* Error happen, we need to tell who pay attention to me */
-     qemu_sem_post(&multifd_send_state->channels_ready);
-     qemu_sem_post(&p->sem_sync);
+     multifd_send_kick_main(p);
      /*
       * Although multifd_send_thread is not created, but main migration
       * thread need to judge whether it is running, so we need to mark
