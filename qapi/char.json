@@ -468,6 +468,10 @@
 #
 # @memory: Since 1.5
 #
+# Features:
+#
+# @deprecated: Member @memory is deprecated.  Use @ringbuf instead.
+#
 # Since: 1.4
 ##
 { 'enum': 'ChardevBackendKind',
@@ -492,8 +496,7 @@
             { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' },
             'vc',
             'ringbuf',
-            # next one is just for compatibility
-            'memory' ] }
+            { 'name': 'memory', 'features': [ 'deprecated' ] } ] }
 
 ##
 # @ChardevFileWrapper:
@@ -642,7 +645,6 @@
                       'if': 'CONFIG_DBUS_DISPLAY' },
             'vc': 'ChardevVCWrapper',
             'ringbuf': 'ChardevRingbufWrapper',
-            # next one is just for compatibility
             'memory': 'ChardevRingbufWrapper' } }
 
 ##
