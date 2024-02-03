@@ -1202,7 +1202,7 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
                 old, old & env->CP0_Cause & CP0Ca_IP_mask,
                 val, val & env->CP0_Cause & CP0Ca_IP_mask,
                 env->CP0_Cause);
-        switch (cpu_mmu_index(env, false)) {
+        switch (mips_env_mmu_index(env)) {
         case 3:
             qemu_log(", ERL\n");
             break;

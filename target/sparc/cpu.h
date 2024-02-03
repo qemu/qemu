@@ -31,8 +31,10 @@
 
 #if !defined(TARGET_SPARC64)
 #define TARGET_DPREGS 16
+#define TARGET_FCCREGS 1
 #else
 #define TARGET_DPREGS 32
+#define TARGET_FCCREGS 4
 #endif
 
 /*#define EXCP_INTERRUPT 0x100*/
@@ -176,6 +178,7 @@ enum {
 #define FSR_DZM   (1ULL << 24)
 #define FSR_NXM   (1ULL << 23)
 #define FSR_TEM_MASK (FSR_NVM | FSR_OFM | FSR_UFM | FSR_DZM | FSR_NXM)
+#define FSR_TEM_SHIFT  23
 
 #define FSR_NVA   (1ULL << 9)
 #define FSR_OFA   (1ULL << 8)
@@ -183,6 +186,7 @@ enum {
 #define FSR_DZA   (1ULL << 6)
 #define FSR_NXA   (1ULL << 5)
 #define FSR_AEXC_MASK (FSR_NVA | FSR_OFA | FSR_UFA | FSR_DZA | FSR_NXA)
+#define FSR_AEXC_SHIFT 5
 
 #define FSR_NVC   (1ULL << 4)
 #define FSR_OFC   (1ULL << 3)
@@ -191,31 +195,22 @@ enum {
 #define FSR_NXC   (1ULL << 0)
 #define FSR_CEXC_MASK (FSR_NVC | FSR_OFC | FSR_UFC | FSR_DZC | FSR_NXC)
 
+#define FSR_VER_SHIFT  17
+#define FSR_VER_MASK   (7 << FSR_VER_SHIFT)
+
 #define FSR_FTT2   (1ULL << 16)
 #define FSR_FTT1   (1ULL << 15)
 #define FSR_FTT0   (1ULL << 14)
 #define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
-#ifdef TARGET_SPARC64
-#define FSR_FTT_NMASK      0xfffffffffffe3fffULL
-#define FSR_FTT_CEXC_NMASK 0xfffffffffffe3fe0ULL
-#define FSR_LDFSR_OLDMASK  0x0000003f000fc000ULL
-#define FSR_LDXFSR_MASK    0x0000003fcfc00fffULL
-#define FSR_LDXFSR_OLDMASK 0x00000000000fc000ULL
-#else
-#define FSR_FTT_NMASK      0xfffe3fffULL
-#define FSR_FTT_CEXC_NMASK 0xfffe3fe0ULL
-#define FSR_LDFSR_OLDMASK  0x000fc000ULL
-#endif
-#define FSR_LDFSR_MASK     0xcfc00fffULL
 #define FSR_FTT_IEEE_EXCP (1ULL << 14)
 #define FSR_FTT_UNIMPFPOP (3ULL << 14)
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)
 #define FSR_FTT_INVAL_FPR (6ULL << 14)
 
-#define FSR_FCC1_SHIFT 11
-#define FSR_FCC1  (1ULL << FSR_FCC1_SHIFT)
-#define FSR_FCC0_SHIFT 10
-#define FSR_FCC0  (1ULL << FSR_FCC0_SHIFT)
+#define FSR_FCC0_SHIFT    10
+#define FSR_FCC1_SHIFT    32
+#define FSR_FCC2_SHIFT    34
+#define FSR_FCC3_SHIFT    36
 
 /* MMU */
 #define MMU_E     (1<<0)
@@ -461,7 +456,11 @@ struct CPUArchState {
     target_ulong cond; /* conditional branch result (XXX: save it in a
                           temporary register when possible) */
 
-    target_ulong fsr;      /* FPU state register */
+    /* FPU State Register, in parts */
+    uint32_t fsr;                    /* rm, tem, aexc */
+    uint32_t fsr_cexc_ftt;           /* cexc, ftt */
+    uint32_t fcc[TARGET_FCCREGS];    /* fcc* */
+
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */
@@ -509,8 +508,6 @@ struct CPUArchState {
     uint64_t mmubpregs[4];
     uint64_t prom_addr;
 #endif
-    /* temporary float registers */
-    float128 qt0, qt1;
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL_MAX 8
@@ -619,7 +616,9 @@ void sparc_restore_state_to_opc(CPUState *cs,
                                 const TranslationBlock *tb,
                                 const uint64_t *data);
 
-/* cpu-exec.c */
+/* fop_helper.c */
+target_ulong cpu_get_fsr(CPUSPARCState *);
+void cpu_put_fsr(CPUSPARCState *, target_ulong);
 
 /* win_helper.c */
 target_ulong cpu_get_psr(CPUSPARCState *env1);
@@ -708,34 +707,6 @@ static inline int cpu_supervisor_mode(CPUSPARCState *env1)
 }
 #endif
 
-static inline int cpu_mmu_index(CPUSPARCState *env, bool ifetch)
-{
-#if defined(CONFIG_USER_ONLY)
-    return MMU_USER_IDX;
-#elif !defined(TARGET_SPARC64)
-    if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
-        return MMU_PHYS_IDX;
-    } else {
-        return env->psrs;
-    }
-#else
-    /* IMMU or DMMU disabled.  */
-    if (ifetch
-        ? (env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0
-        : (env->lsu & DMMU_E) == 0) {
-        return MMU_PHYS_IDX;
-    } else if (cpu_hypervisor_mode(env)) {
-        return MMU_PHYS_IDX;
-    } else if (env->tl > 0) {
-        return MMU_NUCLEUS_IDX;
-    } else if (cpu_supervisor_mode(env)) {
-        return MMU_KERNEL_IDX;
-    } else {
-        return MMU_USER_IDX;
-    }
-#endif
-}
-
 static inline int cpu_interrupts_enabled(CPUSPARCState *env1)
 {
 #if !defined (TARGET_SPARC64)
@@ -783,7 +754,7 @@ static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, vaddr *pc,
     uint32_t flags;
     *pc = env->pc;
     *cs_base = env->npc;
-    flags = cpu_mmu_index(env, false);
+    flags = cpu_mmu_index(env_cpu(env), false);
 #ifndef CONFIG_USER_ONLY
     if (cpu_supervisor_mode(env)) {
         flags |= TB_FLAG_SUPER;

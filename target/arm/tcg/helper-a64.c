@@ -856,7 +856,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         tbii = EX_TBFLAG_A64(env->hflags, TBII);
         if ((tbii >> extract64(new_pc, 55, 1)) & 1) {
             /* TBI is enabled. */
-            int core_mmu_idx = cpu_mmu_index(env, false);
+            int core_mmu_idx = arm_env_mmu_index(env);
             if (regime_has_2_ranges(core_to_aa64_mmu_idx(core_mmu_idx))) {
                 new_pc = sextract64(new_pc, 0, 56);
             } else {
@@ -925,7 +925,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
      */
     int blocklen = 4 << env_archcpu(env)->dcz_blocksize;
     uint64_t vaddr = vaddr_in & ~(blocklen - 1);
-    int mmu_idx = cpu_mmu_index(env, false);
+    int mmu_idx = arm_env_mmu_index(env);
     void *mem;
 
     /*

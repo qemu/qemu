@@ -246,11 +246,6 @@ void fpu_set_state(CPUTriCoreState *env);
 
 #define MMU_USER_IDX 2
 
-static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
-{
-    return 0;
-}
-
 #include "exec/cpu-all.h"
 
 FIELD(TB_FLAGS, PRIV, 0, 2)

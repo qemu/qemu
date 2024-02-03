@@ -623,7 +623,7 @@ static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
 static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         int directory_index, bool *huge_page, bool *hgpg_directory_hit,
         uint64_t *pw_entrylo0, uint64_t *pw_entrylo1,
-        unsigned directory_shift, unsigned leaf_shift)
+        unsigned directory_shift, unsigned leaf_shift, int ptw_mmu_idx)
 {
     int dph = (env->CP0_PWCtl >> CP0PC_DPH) & 0x1;
     int psn = (env->CP0_PWCtl >> CP0PC_PSN) & 0x3F;
@@ -638,8 +638,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
     uint64_t w = 0;
 
     if (get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
-                             cpu_mmu_index(env, false)) !=
-                             TLBRET_MATCH) {
+                             ptw_mmu_idx) != TLBRET_MATCH) {
         /* wrong base address */
         return 0;
     }
@@ -666,8 +665,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
                 *pw_entrylo0 = entry;
             }
             if (get_physical_address(env, &paddr, &prot, vaddr2, MMU_DATA_LOAD,
-                                     cpu_mmu_index(env, false)) !=
-                                     TLBRET_MATCH) {
+                                     ptw_mmu_idx) != TLBRET_MATCH) {
                 return 0;
             }
             if (!get_pte(env, vaddr2, leafentry_size, &entry)) {
@@ -690,7 +688,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
 }
 
 static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
-                                   int mmu_idx)
+                                   int ptw_mmu_idx)
 {
     int gdw = (env->CP0_PWSize >> CP0PS_GDW) & 0x3F;
     int udw = (env->CP0_PWSize >> CP0PS_UDW) & 0x3F;
@@ -776,7 +774,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         vaddr |= goffset;
         switch (walk_directory(env, &vaddr, pf_gdw, &huge_page, &hgpg_gdhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift))
+                               directory_shift, leaf_shift, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -793,7 +791,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         vaddr |= uoffset;
         switch (walk_directory(env, &vaddr, pf_udw, &huge_page, &hgpg_udhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift))
+                               directory_shift, leaf_shift, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -810,7 +808,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         vaddr |= moffset;
         switch (walk_directory(env, &vaddr, pf_mdw, &huge_page, &hgpg_mdhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift))
+                               directory_shift, leaf_shift, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -825,8 +823,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     /* Leaf Level Page Table - First half of PTE pair */
     vaddr |= ptoffset0;
     if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             cpu_mmu_index(env, false)) !=
-                             TLBRET_MATCH) {
+                             ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
     if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
@@ -838,8 +835,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     /* Leaf Level Page Table - Second half of PTE pair */
     vaddr |= ptoffset1;
     if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             cpu_mmu_index(env, false)) !=
-                             TLBRET_MATCH) {
+                             ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
     if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
@@ -944,12 +940,10 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * Memory reads during hardware page table walking are performed
          * as if they were kernel-mode load instructions.
          */
-        int mode = (env->hflags & MIPS_HFLAG_KSU);
-        bool ret_walker;
-        env->hflags &= ~MIPS_HFLAG_KSU;
-        ret_walker = page_table_walk_refill(env, address, mmu_idx);
-        env->hflags |= mode;
-        if (ret_walker) {
+        int ptw_mmu_idx = (env->hflags & MIPS_HFLAG_ERL ?
+                           MMU_ERL_IDX : MMU_KERNEL_IDX);
+
+        if (page_table_walk_refill(env, address, ptw_mmu_idx)) {
             ret = get_physical_address(env, &physical, &prot, address,
                                        access_type, mmu_idx);
             if (ret == TLBRET_MATCH) {
@@ -979,7 +973,7 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
 
     /* data access */
     ret = get_physical_address(env, &physical, &prot, address, access_type,
-                               cpu_mmu_index(env, false));
+                               mips_env_mmu_index(env));
     if (ret == TLBRET_MATCH) {
         return physical;
     }

@@ -91,8 +91,6 @@ static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
 static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
                        unsigned int size)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
     if (dc->delayed_branch == 1) {
@@ -101,11 +99,11 @@ static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
 
     /* Conditional writes. */
     if (dc->flags_x) {
-        gen_store_v10_conditional(dc, addr, val, size, mem_index);
+        gen_store_v10_conditional(dc, addr, val, size, dc->mem_index);
         return;
     }
 
-    tcg_gen_qemu_st_tl(val, addr, mem_index, ctz32(size) | MO_TE);
+    tcg_gen_qemu_st_tl(val, addr, dc->mem_index, ctz32(size) | MO_TE);
 }
 
 

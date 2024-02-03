@@ -66,7 +66,7 @@ void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
      * only the side-effects (ie any MMU or other exception)
      */
     probe_access(env, vaddr, 1, MMU_INST_FETCH,
-                 cpu_mmu_index(env, true), GETPC());
+                 cpu_mmu_index(env_cpu(env), true), GETPC());
 }
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)

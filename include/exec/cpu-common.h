@@ -8,6 +8,7 @@
 #include "exec/hwaddr.h"
 #endif
 #include "hw/core/cpu.h"
+#include "tcg/debug-assert.h"
 
 #define EXCP_INTERRUPT  0x10000 /* async interruption */
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
@@ -261,5 +262,25 @@ static inline CPUState *env_cpu(CPUArchState *env)
 {
     return (void *)env - sizeof(CPUState);
 }
+
+#ifndef CONFIG_USER_ONLY
+/**
+ * cpu_mmu_index:
+ * @env: The cpu environment
+ * @ifetch: True for code access, false for data access.
+ *
+ * Return the core mmu index for the current translation regime.
+ * This function is used by generic TCG code paths.
+ *
+ * The user-only version of this function is inline in cpu-all.h,
+ * where it always returns MMU_USER_IDX.
+ */
+static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    int ret = cs->cc->mmu_index(cs, ifetch);
+    tcg_debug_assert(ret >= 0 && ret < NB_MMU_MODES);
+    return ret;
+}
+#endif /* !CONFIG_USER_ONLY */
 
 #endif /* CPU_COMMON_H */

@@ -113,14 +113,15 @@ static void probe_pages(CPURISCVState *env, target_ulong addr,
 {
     target_ulong pagelen = -(addr | TARGET_PAGE_MASK);
     target_ulong curlen = MIN(pagelen, len);
+    int mmu_index = riscv_env_mmu_index(env, false);
 
     probe_access(env, adjust_addr(env, addr), curlen, access_type,
-                 cpu_mmu_index(env, false), ra);
+                 mmu_index, ra);
     if (len > curlen) {
         addr += curlen;
         curlen = len - curlen;
         probe_access(env, adjust_addr(env, addr), curlen, access_type,
-                     cpu_mmu_index(env, false), ra);
+                     mmu_index, ra);
     }
 }
 
@@ -464,6 +465,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     uint32_t esz = 1 << log2_esz;
     uint32_t vma = vext_vma(desc);
     target_ulong addr, offset, remain;
+    int mmu_index = riscv_env_mmu_index(env, false);
 
     /* probe every access */
     for (i = env->vstart; i < env->vl; i++) {
@@ -478,8 +480,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
             remain = nf << log2_esz;
             while (remain > 0) {
                 offset = -(addr | TARGET_PAGE_MASK);
-                host = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD,
-                                         cpu_mmu_index(env, false));
+                host = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD, mmu_index);
                 if (host) {
 #ifdef CONFIG_USER_ONLY
                     if (!page_check_range(addr, offset, PAGE_READ)) {

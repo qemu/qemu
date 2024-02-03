@@ -83,6 +83,32 @@ static const VMStateInfo vmstate_psr = {
     .put = put_psr,
 };
 
+static int get_fsr(QEMUFile *f, void *opaque, size_t size,
+                   const VMStateField *field)
+{
+    SPARCCPU *cpu = opaque;
+    target_ulong val = qemu_get_betl(f);
+
+    cpu_put_fsr(&cpu->env, val);
+    return 0;
+}
+
+static int put_fsr(QEMUFile *f, void *opaque, size_t size,
+                   const VMStateField *field, JSONWriter *vmdesc)
+{
+    SPARCCPU *cpu = opaque;
+    target_ulong val = cpu_get_fsr(&cpu->env);
+
+    qemu_put_betl(f, val);
+    return 0;
+}
+
+static const VMStateInfo vmstate_fsr = {
+    .name = "fsr",
+    .get = get_fsr,
+    .put = put_fsr,
+};
+
 #ifdef TARGET_SPARC64
 static int get_xcc(QEMUFile *f, void *opaque, size_t size,
                    const VMStateField *field)
@@ -157,7 +183,6 @@ const VMStateDescription vmstate_sparc_cpu = {
         VMSTATE_UINTTL(env.npc, SPARCCPU),
         VMSTATE_UINTTL(env.y, SPARCCPU),
         {
-
             .name = "psr",
             .version_id = 0,
             .size = sizeof(uint32_t),
@@ -165,7 +190,14 @@ const VMStateDescription vmstate_sparc_cpu = {
             .flags = VMS_SINGLE,
             .offset = 0,
         },
-        VMSTATE_UINTTL(env.fsr, SPARCCPU),
+        {
+            .name = "fsr",
+            .version_id = 0,
+            .size = sizeof(target_ulong),
+            .info = &vmstate_fsr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
         VMSTATE_UINTTL(env.tbr, SPARCCPU),
         VMSTATE_INT32(env.interrupt_index, SPARCCPU),
         VMSTATE_UINT32(env.pil_in, SPARCCPU),

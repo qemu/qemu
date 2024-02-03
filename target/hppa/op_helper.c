@@ -59,7 +59,7 @@ void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
 static void atomic_store_mask32(CPUHPPAState *env, target_ulong addr,
                                 uint32_t val, uint32_t mask, uintptr_t ra)
 {
-    int mmu_idx = cpu_mmu_index(env, 0);
+    int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uint32_t old, new, cmp, *haddr;
     void *vaddr;
 
@@ -86,7 +86,7 @@ static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
                                 int size, uintptr_t ra)
 {
 #ifdef CONFIG_ATOMIC64
-    int mmu_idx = cpu_mmu_index(env, 0);
+    int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uint64_t old, new, cmp, *haddr;
     void *vaddr;
 
@@ -235,7 +235,7 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
     default:
         /* Nothing is stored, but protection is checked and the
            cacheline is marked dirty.  */
-        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
+        probe_write(env, addr, 0, cpu_mmu_index(env_cpu(env), 0), ra);
         break;
     }
 }
@@ -296,7 +296,7 @@ static void do_stdby_e(CPUHPPAState *env, target_ulong addr, uint64_t val,
     default:
         /* Nothing is stored, but protection is checked and the
            cacheline is marked dirty.  */
-        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
+        probe_write(env, addr, 0, cpu_mmu_index(env_cpu(env), 0), ra);
         break;
     }
 }

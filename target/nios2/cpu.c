@@ -57,6 +57,12 @@ static bool nios2_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
+static int nios2_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return (cpu_env(cs)->ctrl[CR_STATUS] & CR_STATUS_U
+            ? MMU_USER_IDX : MMU_SUPERVISOR_IDX);
+}
+
 static void nios2_cpu_reset_hold(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -381,6 +387,7 @@ static void nios2_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = nios2_cpu_class_by_name;
     cc->has_work = nios2_cpu_has_work;
+    cc->mmu_index = nios2_cpu_mmu_index;
     cc->dump_state = nios2_cpu_dump_state;
     cc->set_pc = nios2_cpu_set_pc;
     cc->get_pc = nios2_cpu_get_pc;

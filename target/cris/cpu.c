@@ -56,6 +56,11 @@ static bool cris_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
+static int cris_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return !!(cpu_env(cs)->pregs[PR_CCS] & U_FLAG);
+}
+
 static void cris_cpu_reset_hold(Object *obj)
 {
     CPUState *s = CPU(obj);
@@ -274,6 +279,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = cris_cpu_class_by_name;
     cc->has_work = cris_cpu_has_work;
+    cc->mmu_index = cris_cpu_mmu_index;
     cc->dump_state = cris_cpu_dump_state;
     cc->set_pc = cris_cpu_set_pc;
     cc->get_pc = cris_cpu_get_pc;

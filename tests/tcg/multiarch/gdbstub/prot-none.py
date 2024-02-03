@@ -20,7 +20,7 @@ def probe_proc_self_mem():
 
 def run_test():
     """Run through the tests one by one"""
-    if not probe_proc_self_mem:
+    if not probe_proc_self_mem():
         print("SKIP: /proc/self/mem is not usable")
         exit(0)
     gdb.Breakpoint("break_here")

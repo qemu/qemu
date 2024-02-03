@@ -713,11 +713,6 @@ static inline uint32_t xtensa_replicate_windowstart(CPUXtensaState *env)
 /* MMU modes definitions */
 #define MMU_USER_IDX 3
 
-static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
-{
-    return xtensa_get_cring(env);
-}
-
 #define XTENSA_TBFLAG_RING_MASK 0x3
 #define XTENSA_TBFLAG_EXCM 0x4
 #define XTENSA_TBFLAG_LITBASE 0x8

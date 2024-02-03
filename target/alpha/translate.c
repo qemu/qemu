@@ -2875,7 +2875,7 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     int64_t bound;
 
     ctx->tbflags = ctx->base.tb->flags;
-    ctx->mem_idx = cpu_mmu_index(env, false);
+    ctx->mem_idx = alpha_env_mmu_index(env);
     ctx->implver = env->implver;
     ctx->amask = env->amask;
 
