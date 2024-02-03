@@ -556,7 +556,7 @@ static int make_udp_socket(int *port)
     socklen_t alen = sizeof(addr);
     int ret, sock = qemu_socket(PF_INET, SOCK_DGRAM, 0);
 
-    g_assert_cmpint(sock, >, 0);
+    g_assert_cmpint(sock, >=, 0);
     addr.sin_family = AF_INET ;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = 0;
@@ -1407,7 +1407,7 @@ static void char_hotswap_test(void)
 
     int port;
     int sock = make_udp_socket(&port);
-    g_assert_cmpint(sock, >, 0);
+    g_assert_cmpint(sock, >=, 0);
 
     chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
 
