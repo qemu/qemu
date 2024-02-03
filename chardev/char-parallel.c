@@ -164,13 +164,13 @@ static void qemu_chr_open_pp_fd(Chardev *chr,
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
 
+    drv->fd = fd;
+
     if (ioctl(fd, PPCLAIM) < 0) {
         error_setg_errno(errp, errno, "not a parallel port");
-        close(fd);
         return;
     }
 
-    drv->fd = fd;
     drv->mode = IEEE1284_MODE_COMPAT;
 }
 #endif /* __linux__ */
@@ -238,6 +238,7 @@ static void qemu_chr_open_pp_fd(Chardev *chr,
 }
 #endif
 
+#ifdef HAVE_CHARDEV_PARALLEL
 static void qmp_chardev_open_parallel(Chardev *chr,
                                       ChardevBackend *backend,
                                       bool *be_opened,
@@ -306,3 +307,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+#endif  /* HAVE_CHARDEV_PARALLEL */
