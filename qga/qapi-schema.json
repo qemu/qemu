@@ -1565,10 +1565,10 @@
 ##
 # @guest-ssh-get-authorized-keys:
 #
-# @username: the user account to add the authorized keys
-#
 # Return the public keys from user .ssh/authorized_keys on Unix
 # systems (not implemented for other systems).
+#
+# @username: the user account to add the authorized keys
 #
 # Returns: @GuestAuthorizedKeys
 #
@@ -1582,15 +1582,15 @@
 ##
 # @guest-ssh-add-authorized-keys:
 #
+# Append public keys to user .ssh/authorized_keys on Unix systems (not
+# implemented for other systems).
+#
 # @username: the user account to add the authorized keys
 #
 # @keys: the public keys to add (in OpenSSH/sshd(8) authorized_keys
 #     format)
 #
 # @reset: ignore the existing content, set it with the given keys only
-#
-# Append public keys to user .ssh/authorized_keys on Unix systems (not
-# implemented for other systems).
 #
 # Returns: Nothing on success.
 #
@@ -1603,14 +1603,14 @@
 ##
 # @guest-ssh-remove-authorized-keys:
 #
+# Remove public keys from the user .ssh/authorized_keys on Unix
+# systems (not implemented for other systems). It's not an error if
+# the key is already missing.
+#
 # @username: the user account to remove the authorized keys
 #
 # @keys: the public keys to remove (in OpenSSH/sshd(8) authorized_keys
 #     format)
-#
-# Remove public keys from the user .ssh/authorized_keys on Unix
-# systems (not implemented for other systems). It's not an error if
-# the key is already missing.
 #
 # Returns: Nothing on success.
 #

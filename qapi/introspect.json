@@ -93,8 +93,6 @@
 #     particular order.  (since 4.1 for object types, 4.2 for
 #     commands, 5.0 for the rest)
 #
-# Additional members depend on the value of @meta-type.
-#
 # Since: 2.5
 ##
 { 'union': 'SchemaInfo',
