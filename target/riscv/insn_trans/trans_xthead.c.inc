@@ -992,7 +992,6 @@ static bool trans_th_sfence_vmas(DisasContext *ctx, arg_th_sfence_vmas *a)
 #endif
 }
 
-#ifndef CONFIG_USER_ONLY
 static void gen_th_sync_local(DisasContext *ctx)
 {
     /*
@@ -1003,14 +1002,12 @@ static void gen_th_sync_local(DisasContext *ctx)
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
-#endif
 
 static bool trans_th_sync(DisasContext *ctx, arg_th_sync *a)
 {
     (void) a;
     REQUIRE_XTHEADSYNC(ctx);
 
-#ifndef CONFIG_USER_ONLY
     REQUIRE_PRIV_MSU(ctx);
 
     /*
@@ -1019,9 +1016,6 @@ static bool trans_th_sync(DisasContext *ctx, arg_th_sync *a)
     gen_th_sync_local(ctx);
 
     return true;
-#else
-    return false;
-#endif
 }
 
 static bool trans_th_sync_i(DisasContext *ctx, arg_th_sync_i *a)
@@ -1029,7 +1023,6 @@ static bool trans_th_sync_i(DisasContext *ctx, arg_th_sync_i *a)
     (void) a;
     REQUIRE_XTHEADSYNC(ctx);
 
-#ifndef CONFIG_USER_ONLY
     REQUIRE_PRIV_MSU(ctx);
 
     /*
@@ -1038,9 +1031,6 @@ static bool trans_th_sync_i(DisasContext *ctx, arg_th_sync_i *a)
     gen_th_sync_local(ctx);
 
     return true;
-#else
-    return false;
-#endif
 }
 
 static bool trans_th_sync_is(DisasContext *ctx, arg_th_sync_is *a)
