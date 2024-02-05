@@ -1464,7 +1464,8 @@ SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
         break;
     case SOCKET_ADDRESS_TYPE_FD:
         addr->type = SOCKET_ADDRESS_TYPE_FD;
-        QAPI_CLONE_MEMBERS(String, &addr->u.fd, addr_legacy->u.fd.data);
+        QAPI_CLONE_MEMBERS(FdSocketAddress, &addr->u.fd,
+                           addr_legacy->u.fd.data);
         break;
     default:
         abort();
