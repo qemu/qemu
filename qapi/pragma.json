@@ -74,7 +74,6 @@
         'DummyBlockCoreForceArrays',
         'DummyForceArrays',
         'DummyVirtioForceArrays',
-        'DumpGuestMemoryCapability',
         'GrabToggleKeys',
         'GuestPanicInformationHyperV',
         'HotKeyMod',
