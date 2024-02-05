@@ -120,6 +120,8 @@
 # - which providers to request statistics from
 # - which named values to return within each provider
 #
+# @target: the kind of objects to query
+#
 # Since: 7.1
 ##
 { 'union': 'StatsFilter',

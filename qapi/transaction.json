@@ -158,6 +158,8 @@
 # A discriminated record of operations that can be performed with
 # @transaction.
 #
+# @type: the operation to be performed
+#
 # Since: 1.1
 ##
 { 'union': 'TransactionAction',

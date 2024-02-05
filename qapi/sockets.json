@@ -178,6 +178,8 @@
 # Captures the address of a socket, which could also be a named file
 # descriptor
 #
+# @type: Transport type
+#
 # Note: This type is deprecated in favor of SocketAddress.  The
 #     difference between SocketAddressLegacy and SocketAddress is that
 #     the latter has fewer {} on the wire.

@@ -252,6 +252,8 @@
 # A discriminated record of image format specific information
 # structures.
 #
+# @type: block driver name
+#
 # Since: 1.7
 ##
 { 'union': 'ImageInfoSpecific',
@@ -1101,6 +1103,8 @@
 # @BlockStatsSpecific:
 #
 # Block driver specific statistics
+#
+# @driver: block driver name
 #
 # Since: 4.2
 ##
@@ -3472,6 +3476,8 @@
 ##
 # @BlockdevQcowEncryption:
 #
+# @format: encryption format
+#
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcowEncryption',
@@ -3505,6 +3511,8 @@
 
 ##
 # @BlockdevQcow2Encryption:
+#
+# @format: encryption format
 #
 # Since: 2.10
 ##
@@ -3655,6 +3663,8 @@
 
 ##
 # @SshHostKeyCheck:
+#
+# @mode: How to check the host key
 #
 # Since: 2.12
 ##
@@ -4224,6 +4234,8 @@
 
 ##
 # @RbdEncryptionCreateOptions:
+#
+# @format: Encryption format.
 #
 # Since: 6.1
 ##

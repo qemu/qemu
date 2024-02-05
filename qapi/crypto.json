@@ -645,6 +645,8 @@
 # The options that are available for all asymmetric key algorithms
 # when creating a new QCryptoAkCipher.
 #
+# @alg: encryption cipher algorithm
+#
 # Since: 7.1
 ##
 { 'union': 'QCryptoAkCipherOptions',

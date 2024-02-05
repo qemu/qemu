@@ -443,6 +443,8 @@
 #
 # A discriminated record of NUMA options.  (for OptsVisitor)
 #
+# @type: NUMA option type
+#
 # Since: 2.1
 ##
 { 'union': 'NumaOptions',
@@ -1447,6 +1449,8 @@
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
+#
+# @type: memory device type
 #
 # Since: 2.1
 ##

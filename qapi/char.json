@@ -634,6 +634,8 @@
 #
 # Configuration info for the new chardev backend.
 #
+# @type: backend type
+#
 # Since: 1.4
 ##
 { 'union': 'ChardevBackend',

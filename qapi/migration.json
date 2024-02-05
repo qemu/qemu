@@ -1630,6 +1630,8 @@
 #
 # Migration endpoint configuration.
 #
+# @transport: The migration stream transport mechanism
+#
 # Since: 8.2
 ##
 { 'union': 'MigrationAddress',

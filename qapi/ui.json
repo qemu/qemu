@@ -1012,6 +1012,8 @@
 #
 # Represents a keyboard key.
 #
+# @type: key encoding
+#
 # Since: 1.3
 ##
 { 'union': 'KeyValue',
