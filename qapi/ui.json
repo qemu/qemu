@@ -990,6 +990,8 @@
 ##
 # @IntWrapper:
 #
+# @data: a numeric key code
+#
 # Since: 1.3
 ##
 { 'struct': 'IntWrapper',
@@ -997,6 +999,8 @@
 
 ##
 # @QKeyCodeWrapper:
+#
+# @data: An enumeration of key name
 #
 # Since: 1.3
 ##
@@ -1175,6 +1179,8 @@
 ##
 # @InputKeyEventWrapper:
 #
+# @data: Keyboard input event
+#
 # Since: 2.0
 ##
 { 'struct': 'InputKeyEventWrapper',
@@ -1182,6 +1188,8 @@
 
 ##
 # @InputBtnEventWrapper:
+#
+# @data: Pointer button input event
 #
 # Since: 2.0
 ##
@@ -1191,6 +1199,8 @@
 ##
 # @InputMoveEventWrapper:
 #
+# @data: Pointer motion input event
+#
 # Since: 2.0
 ##
 { 'struct': 'InputMoveEventWrapper',
@@ -1198,6 +1208,8 @@
 
 ##
 # @InputMultiTouchEventWrapper:
+#
+# @data: MultiTouch input event
 #
 # Since: 8.1
 ##

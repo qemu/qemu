@@ -102,6 +102,8 @@
 ##
 # @TPMPassthroughOptionsWrapper:
 #
+# @data: Information about the TPM passthrough type
+#
 # Since: 1.5
 ##
 { 'struct': 'TPMPassthroughOptionsWrapper',
@@ -110,6 +112,8 @@
 
 ##
 # @TPMEmulatorOptionsWrapper:
+#
+# @data: Information about the TPM emulator type
 #
 # Since: 2.11
 ##

@@ -196,6 +196,8 @@
 ##
 # @ImageInfoSpecificQCow2Wrapper:
 #
+# @data: image information specific to QCOW2
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2Wrapper',
@@ -204,6 +206,8 @@
 ##
 # @ImageInfoSpecificVmdkWrapper:
 #
+# @data: image information specific to VMDK
+#
 # Since: 6.1
 ##
 { 'struct': 'ImageInfoSpecificVmdkWrapper',
@@ -211,6 +215,8 @@
 
 ##
 # @ImageInfoSpecificLUKSWrapper:
+#
+# @data: image information specific to LUKS
 #
 # Since: 2.7
 ##
@@ -223,6 +229,8 @@
 ##
 # @ImageInfoSpecificRbdWrapper:
 #
+# @data: image information specific to RBD
+#
 # Since: 6.1
 ##
 { 'struct': 'ImageInfoSpecificRbdWrapper',
@@ -230,6 +238,8 @@
 
 ##
 # @ImageInfoSpecificFileWrapper:
+#
+# @data: image information specific to files
 #
 # Since: 8.0
 ##
