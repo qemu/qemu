@@ -656,9 +656,7 @@
 # @bins: list of io request counts corresponding to histogram
 #     intervals, one more element than @boundaries has.  For the
 #     example above, @bins may be something like [3, 1, 5, 2], and
-#     corresponding histogram looks like:
-#
-# ::
+#     corresponding histogram looks like::
 #
 #        5|           *
 #        4|           *
