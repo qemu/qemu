@@ -36,12 +36,6 @@
         'guest-sync-delimited' ],
     # Types and commands with undocumented members:
     'documentation-exceptions': [
-        'GuestCpuStats',
-        'GuestCpuStatsType',
-        'GuestDeviceId',
-        'GuestDeviceType',
-        'GuestDiskSmart',
-        'GuestDiskStatsInfo',
         'GuestNVMeSmart' ] } }
 
 ##
@@ -944,6 +938,8 @@
 # NVMe smart information, based on NVMe specification, section
 # <SMART / Health Information (Log Identifier 02h)>
 #
+# TODO: document members briefly
+#
 # Since: 7.1
 ##
 { 'struct': 'GuestNVMeSmart',
@@ -978,7 +974,7 @@
 #
 # Disk type related smart information.
 #
-# - @nvme: NVMe disk smart
+# @type: disk bus type
 #
 # Since: 7.1
 ##
@@ -1499,6 +1495,8 @@
 
 ##
 # @GuestDeviceType:
+#
+# @pci: PCI device
 ##
 { 'enum': 'GuestDeviceType',
   'data': [ 'pci' ] }
@@ -1518,7 +1516,9 @@
 ##
 # @GuestDeviceId:
 #
-# Id of the device - @pci: PCI ID, since: 5.2
+# Id of the device
+#
+# @type: device type
 #
 # Since: 5.2
 ##
@@ -1700,6 +1700,8 @@
 # @major: major device number of disk
 #
 # @minor: minor device number of disk
+#
+# @stats: I/O statistics
 ##
 { 'struct': 'GuestDiskStatsInfo',
   'data': {'name': 'str',
@@ -1723,7 +1725,9 @@
 ##
 # @GuestCpuStatsType:
 #
-# An enumeration of OS type
+# Guest operating systems supporting CPU statistics
+#
+# @linux: Linux
 #
 # Since: 7.1
 ##
@@ -1780,7 +1784,7 @@
 #
 # Get statistics of each CPU in millisecond.
 #
-# - @linux: Linux style CPU statistics
+# @type: guest operating system
 #
 # Since: 7.1
 ##
