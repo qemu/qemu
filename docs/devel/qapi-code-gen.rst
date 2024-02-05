@@ -1023,7 +1023,7 @@ For example::
  #
  # ... more members ...
  #
- # Since: 0.14.0
+ # Since: 0.14
  ##
  { 'struct': 'BlockStats',
    'data': {'*device': 'str', '*node-name': 'str',
@@ -1039,7 +1039,7 @@ For example::
  #
  # Returns: A list of @BlockStats for each virtual block devices.
  #
- # Since: 0.14.0
+ # Since: 0.14
  #
  # Example:
  #
