@@ -348,9 +348,10 @@
 #     - If file descriptor was not received, GenericError
 #     - If @fdset-id is a negative value, GenericError
 #
-# Notes: The list of fd sets is shared by all monitor connections.
+# Notes:
+#     The list of fd sets is shared by all monitor connections.
 #
-# If @fdset-id is not specified, a new fd set will be created.
+#     If @fdset-id is not specified, a new fd set will be created.
 #
 # Since: 1.2
 #
@@ -379,10 +380,11 @@
 #
 # Since: 1.2
 #
-# Notes: The list of fd sets is shared by all monitor connections.
+# Notes:
+#     The list of fd sets is shared by all monitor connections.
 #
-# If @fd is not specified, all file descriptors in @fdset-id will be
-# removed.
+#     If @fd is not specified, all file descriptors in @fdset-id will
+#     be removed.
 #
 # Example:
 #

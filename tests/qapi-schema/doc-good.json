@@ -73,8 +73,8 @@
 # @Base:
 #
 # @base1:
-# description starts on a new line,
-# not indented
+#  description starts on a new line,
+#  minimally indented
 ##
 { 'struct': 'Base', 'data': { 'base1': 'Enum' },
   'if': { 'all': ['IFALL1', 'IFALL2'] } }
@@ -155,10 +155,10 @@
 # TODO: frobnicate
 # Notes:
 #
-# - Lorem ipsum dolor sit amet
-# - Ut enim ad minim veniam
+#  - Lorem ipsum dolor sit amet
+#  - Ut enim ad minim veniam
 #
-# Duis aute irure dolor
+#  Duis aute irure dolor
 # Example:
 #
 # -> in

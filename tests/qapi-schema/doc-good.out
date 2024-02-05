@@ -118,7 +118,7 @@ doc symbol=Base
 
     arg=base1
 description starts on a new line,
-not indented
+minimally indented
 doc symbol=Variant1
     body=
 A paragraph
