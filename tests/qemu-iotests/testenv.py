@@ -126,7 +126,7 @@ class TestEnv(ContextManager['TestEnv']):
             self.tmp_sock_dir = False
             Path(self.sock_dir).mkdir(parents=True, exist_ok=True)
         except KeyError:
-            self.sock_dir = tempfile.mkdtemp()
+            self.sock_dir = tempfile.mkdtemp(prefix="qemu-iotests-")
             self.tmp_sock_dir = True
 
         self.sample_img_dir = os.getenv('SAMPLE_IMG_DIR',
