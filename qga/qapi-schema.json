@@ -33,7 +33,18 @@
         'guest-get-time',
         'guest-set-vcpus',
         'guest-sync',
-        'guest-sync-delimited' ] } }
+        'guest-sync-delimited' ],
+    # Types and commands with undocumented members:
+    'documentation-exceptions': [
+        'GuestCpuStats',
+        'GuestCpuStatsType',
+        'GuestDeviceId',
+        'GuestDeviceType',
+        'GuestDiskSmart',
+        'GuestDiskStatsInfo',
+        'GuestNVMeSmart',
+        'guest-set-memory-blocks',
+        'guest-set-vcpus' ] } }
 
 ##
 # @guest-sync-delimited:

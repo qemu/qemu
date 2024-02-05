@@ -167,6 +167,7 @@ Syntax::
                    '*doc-required': BOOL,
                    '*command-name-exceptions': [ STRING, ... ],
                    '*command-returns-exceptions': [ STRING, ... ],
+                   '*documentation-exceptions': [ STRING, ... ],
                    '*member-name-exceptions': [ STRING, ... ] } }
 
 The pragma directive lets you control optional generator behavior.
@@ -182,6 +183,10 @@ may contain ``"_"`` instead of ``"-"``.  Default is none.
 
 Pragma 'command-returns-exceptions' takes a list of commands that may
 violate the rules on permitted return types.  Default is none.
+
+Pragma 'documentation-exceptions' takes a list of types, commands, and
+events whose members / arguments need not be documented.  Default is
+none.
 
 Pragma 'member-name-exceptions' takes a list of types whose member
 names may contain uppercase letters, and ``"_"`` instead of ``"-"``.

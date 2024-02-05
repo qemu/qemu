@@ -3,7 +3,9 @@
 #
 # Positive QAPI doc comment tests
 
-{ 'pragma': { 'doc-required': true } }
+{ 'pragma': {
+    'doc-required': true,
+    'documentation-exceptions': [ 'Enum', 'Variant1', 'Alternate', 'cmd' ] } }
 
 ##
 # = Section

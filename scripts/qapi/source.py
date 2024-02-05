@@ -24,6 +24,8 @@ class QAPISchemaPragma:
         self.command_name_exceptions: List[str] = []
         # Commands allowed to return a non-dictionary
         self.command_returns_exceptions: List[str] = []
+        # Types, commands, and events with undocumented members
+        self.documentation_exceptions: List[str] = []
         # Types whose member names may violate case conventions
         self.member_name_exceptions: List[str] = []
 

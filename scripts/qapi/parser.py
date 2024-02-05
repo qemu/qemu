@@ -238,6 +238,8 @@ class QAPISchemaParser:
             pragma.command_name_exceptions = check_list_str(name, value)
         elif name == 'command-returns-exceptions':
             pragma.command_returns_exceptions = check_list_str(name, value)
+        elif name == 'documentation-exceptions':
+            pragma.documentation_exceptions = check_list_str(name, value)
         elif name == 'member-name-exceptions':
             pragma.member_name_exceptions = check_list_str(name, value)
         else:
@@ -739,7 +741,10 @@ class QAPIDoc:
 
     def connect_member(self, member: 'QAPISchemaMember') -> None:
         if member.name not in self.args:
-            # Undocumented TODO outlaw
+            if self.symbol not in member.info.pragma.documentation_exceptions:
+                raise QAPISemError(member.info,
+                                   "%s '%s' lacks documentation"
+                                   % (member.role, member.name))
             self.args[member.name] = QAPIDoc.ArgSection(self._parser,
                                                         member.name)
         self.args[member.name].connect(member)
