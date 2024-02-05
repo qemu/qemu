@@ -42,8 +42,7 @@
         'GuestDeviceType',
         'GuestDiskSmart',
         'GuestDiskStatsInfo',
-        'GuestNVMeSmart',
-        'guest-set-vcpus' ] } }
+        'GuestNVMeSmart' ] } }
 
 ##
 # @guest-sync-delimited:
@@ -786,14 +785,15 @@
 # Attempt to reconfigure (currently: enable/disable) logical
 # processors inside the guest.
 #
-# The input list is processed node by node in order.  In each node
-# @logical-id is used to look up the guest VCPU, for which @online
-# specifies the requested state.  The set of distinct @logical-id's is
-# only required to be a subset of the guest-supported identifiers.
-# There's no restriction on list length or on repeating the same
-# @logical-id (with possibly different @online field). Preferably the
-# input list should describe a modified subset of @guest-get-vcpus'
-# return value.
+# @vcpus: The logical processors to be reconfigured.  This list is
+#     processed node by node in order.  In each node @logical-id is
+#     used to look up the guest VCPU, for which @online specifies the
+#     requested state.  The set of distinct @logical-id's is only
+#     required to be a subset of the guest-supported identifiers.
+#     There's no restriction on list length or on repeating the same
+#     @logical-id (with possibly different @online field).  Preferably
+#     the input list should describe a modified subset of
+#     @guest-get-vcpus' return value.
 #
 # Returns: The length of the initial sublist that has been
 #     successfully processed.  The guest agent maximizes this value.
