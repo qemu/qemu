@@ -6,7 +6,6 @@
 # = Net devices
 ##
 
-{ 'include': 'common.json' }
 { 'include': 'sockets.json' }
 
 ##
@@ -104,6 +103,17 @@
     '*model':   'str',
     '*addr':    'str',
     '*vectors': 'uint32' } }
+
+##
+# @String:
+#
+# A fat type wrapping 'str', to be embedded in lists.
+#
+# Since: 1.2
+##
+{ 'struct': 'String',
+  'data': {
+    'str': 'str' } }
 
 ##
 # @NetdevUserOptions:
