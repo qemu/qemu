@@ -43,7 +43,6 @@
         'GuestDiskSmart',
         'GuestDiskStatsInfo',
         'GuestNVMeSmart',
-        'guest-set-memory-blocks',
         'guest-set-vcpus' ] } }
 
 ##
@@ -1174,14 +1173,16 @@
 # Attempt to reconfigure (currently: enable/disable) state of memory
 # blocks inside the guest.
 #
-# The input list is processed node by node in order.  In each node
-# @phys-index is used to look up the guest MEMORY BLOCK, for which
-# @online specifies the requested state.  The set of distinct
-# @phys-index's is only required to be a subset of the guest-supported
-# identifiers.  There's no restriction on list length or on repeating
-# the same @phys-index (with possibly different @online field).
-# Preferably the input list should describe a modified subset of
-# @guest-get-memory-blocks' return value.
+# @mem-blks: The memory blocks to be reconfigured.  This list is
+#     processed node by node in order.  In each node @phys-index is
+#     used to look up the guest MEMORY BLOCK, for which @online
+#     specifies the requested state.  The set of distinct
+#     @phys-index's is only required to be a subset of the
+#     guest-supported identifiers.  There's no restriction on list
+#     length or on repeating the same @phys-index (with possibly
+#     different @online field).  Preferably the input list should
+#     describe a modified subset of @guest-get-memory-blocks' return
+#     value.
 #
 # Returns: The operation results, it is a list of
 #     @GuestMemoryBlockResponse, which is corresponding to the input
