@@ -74,7 +74,7 @@
 # Try to recover from hanging QEMU by yanking the specified instances.
 # See @YankInstance for more information.
 #
-# Takes a list of @YankInstance as argument.
+# @instances: the instances to be yanked
 #
 # Returns:
 #     - Nothing on success

@@ -148,8 +148,7 @@
         'query-rocker',
         'query-rocker-ports',
         'query-stats-schemas',
-        'watchdog-set-action',
-        'yank' ],
+        'watchdog-set-action' ],
     # Externally visible types whose member names may use uppercase
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status
