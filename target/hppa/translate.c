@@ -2156,9 +2156,15 @@ static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
 
 static bool trans_rsm(DisasContext *ctx, arg_rsm *a)
 {
+#ifdef CONFIG_USER_ONLY
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-#ifndef CONFIG_USER_ONLY
+#else
     TCGv_i64 tmp;
+
+    /* HP-UX 11i and HP ODE use rsm for read-access to PSW */
+    if (a->i) {
+        CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    }
 
     nullify_over(ctx);
 
