@@ -59,6 +59,30 @@ static int scc_partno(MPS2SCC *s)
     return extract32(s->id, 4, 8);
 }
 
+/* Is CFG_REG2 present? */
+static bool have_cfg2(MPS2SCC *s)
+{
+    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547;
+}
+
+/* Is CFG_REG3 present? */
+static bool have_cfg3(MPS2SCC *s)
+{
+    return scc_partno(s) != 0x524 && scc_partno(s) != 0x547;
+}
+
+/* Is CFG_REG5 present? */
+static bool have_cfg5(MPS2SCC *s)
+{
+    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547;
+}
+
+/* Is CFG_REG6 present? */
+static bool have_cfg6(MPS2SCC *s)
+{
+    return scc_partno(s) == 0x524;
+}
+
 /* Handle a write via the SYS_CFG channel to the specified function/device.
  * Return false on error (reported to guest via SYS_CFGCTRL ERROR bit).
  */
@@ -111,15 +135,13 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->cfg1;
         break;
     case A_CFG2:
-        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
-            /* CFG2 reserved on other boards */
+        if (!have_cfg2(s)) {
             goto bad_offset;
         }
         r = s->cfg2;
         break;
     case A_CFG3:
-        if (scc_partno(s) == 0x524 || scc_partno(s) == 0x547) {
-            /* CFG3 reserved on AN524 */
+        if (!have_cfg3(s)) {
             goto bad_offset;
         }
         /* These are user-settable DIP switches on the board. We don't
@@ -131,15 +153,13 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->cfg4;
         break;
     case A_CFG5:
-        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
-            /* CFG5 reserved on other boards */
+        if (!have_cfg5(s)) {
             goto bad_offset;
         }
         r = s->cfg5;
         break;
     case A_CFG6:
-        if (scc_partno(s) != 0x524) {
-            /* CFG6 reserved on other boards */
+        if (!have_cfg6(s)) {
             goto bad_offset;
         }
         r = s->cfg6;
@@ -202,24 +222,21 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
         }
         break;
     case A_CFG2:
-        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
-            /* CFG2 reserved on other boards */
+        if (!have_cfg2(s)) {
             goto bad_offset;
         }
         /* AN524: QSPI Select signal */
         s->cfg2 = value;
         break;
     case A_CFG5:
-        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
-            /* CFG5 reserved on other boards */
+        if (!have_cfg5(s)) {
             goto bad_offset;
         }
         /* AN524: ACLK frequency in Hz */
         s->cfg5 = value;
         break;
     case A_CFG6:
-        if (scc_partno(s) != 0x524) {
-            /* CFG6 reserved on other boards */
+        if (!have_cfg6(s)) {
             goto bad_offset;
         }
         /* AN524: Clock divider for BRAM */
