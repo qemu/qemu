@@ -684,7 +684,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
     case 0:
         /* return BTLB parameters */
         qemu_log_mask(CPU_LOG_MMU, "PDC_BLOCK_TLB: PDC_BTLB_INFO\n");
-        vaddr = probe_access(env, env->gr[24], 4 * sizeof(target_ulong),
+        vaddr = probe_access(env, env->gr[24], 4 * sizeof(uint32_t),
                              MMU_DATA_STORE, mmu_idx, ra);
         if (vaddr == NULL) {
             env->gr[28] = -10; /* invalid argument */
