@@ -661,6 +661,9 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
     int64_t zrp_size, n, j = 0;
     int64_t nz = data->zone_report_data.nr_zones;
     int8_t err_status = VIRTIO_BLK_S_OK;
+    struct virtio_blk_zone_report zrp_hdr = (struct virtio_blk_zone_report) {
+        .nr_zones = cpu_to_le64(nz),
+    };
 
     trace_virtio_blk_zone_report_complete(vdev, req, nz, ret);
     if (ret) {
@@ -668,9 +671,6 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
         goto out;
     }
 
-    struct virtio_blk_zone_report zrp_hdr = (struct virtio_blk_zone_report) {
-        .nr_zones = cpu_to_le64(nz),
-    };
     zrp_size = sizeof(struct virtio_blk_zone_report)
                + sizeof(struct virtio_blk_zone_descriptor) * nz;
     n = iov_from_buf(in_iov, in_num, 0, &zrp_hdr, sizeof(zrp_hdr));
@@ -898,13 +898,14 @@ static int virtio_blk_handle_zone_append(VirtIOBlockReq *req,
 
     int64_t offset = virtio_ldq_p(vdev, &req->out.sector) << BDRV_SECTOR_BITS;
     int64_t len = iov_size(out_iov, out_num);
+    ZoneCmdData *data;
 
     trace_virtio_blk_handle_zone_append(vdev, req, offset >> BDRV_SECTOR_BITS);
     if (!check_zoned_request(s, offset, len, true, &err_status)) {
         goto out;
     }
 
-    ZoneCmdData *data = g_malloc(sizeof(ZoneCmdData));
+    data = g_malloc(sizeof(ZoneCmdData));
     data->req = req;
     data->in_iov = in_iov;
     data->in_num = in_num;
@@ -1191,14 +1192,15 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
 {
     VirtIOBlock *s = opaque;
     uint16_t num_queues = s->conf.num_queues;
+    g_autofree VirtIOBlockReq **vq_rq = NULL;
+    VirtIOBlockReq *rq;
 
     if (!running) {
         return;
     }
 
     /* Split the device-wide s->rq request list into per-vq request lists */
-    g_autofree VirtIOBlockReq **vq_rq = g_new0(VirtIOBlockReq *, num_queues);
-    VirtIOBlockReq *rq;
+    vq_rq = g_new0(VirtIOBlockReq *, num_queues);
 
     WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
         rq = s->rq;
@@ -1961,6 +1963,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
+    BlockDriverState *bs;
     Error *err = NULL;
     unsigned i;
 
@@ -2006,7 +2009,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    BlockDriverState *bs = blk_bs(conf->conf.blk);
+    bs = blk_bs(conf->conf.blk);
     if (bs->bl.zoned != BLK_Z_NONE) {
         virtio_add_feature(&s->host_features, VIRTIO_BLK_F_ZONED);
         if (bs->bl.zoned == BLK_Z_HM) {
