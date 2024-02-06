@@ -1209,6 +1209,8 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
         VirtIOBlockReq *next = rq->next;
         uint16_t idx = virtio_get_queue_index(rq->vq);
 
+        /* Only num_queues vqs were created so vq_rq[idx] is within bounds */
+        assert(idx < num_queues);
         rq->next = vq_rq[idx];
         vq_rq[idx] = rq;
         rq = next;
