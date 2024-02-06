@@ -1824,6 +1824,7 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
      * Try to change the AioContext so that block jobs and other operations can
      * co-locate their activity in the same AioContext. If it fails, nevermind.
      */
+    assert(nvqs > 0); /* enforced during ->realize() */
     r = blk_set_aio_context(s->conf.conf.blk, s->vq_aio_context[0],
                             &local_err);
     if (r < 0) {
