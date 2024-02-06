@@ -37,6 +37,7 @@ REG32(CFG3, 0xc)
 REG32(CFG4, 0x10)
 REG32(CFG5, 0x14)
 REG32(CFG6, 0x18)
+REG32(CFG7, 0x1c)
 REG32(CFGDATA_RTN, 0xa0)
 REG32(CFGDATA_OUT, 0xa4)
 REG32(CFGCTRL, 0xa8)
@@ -62,25 +63,46 @@ static int scc_partno(MPS2SCC *s)
 /* Is CFG_REG2 present? */
 static bool have_cfg2(MPS2SCC *s)
 {
-    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547;
+    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547 ||
+        scc_partno(s) == 0x536;
 }
 
 /* Is CFG_REG3 present? */
 static bool have_cfg3(MPS2SCC *s)
 {
-    return scc_partno(s) != 0x524 && scc_partno(s) != 0x547;
+    return scc_partno(s) != 0x524 && scc_partno(s) != 0x547 &&
+        scc_partno(s) != 0x536;
 }
 
 /* Is CFG_REG5 present? */
 static bool have_cfg5(MPS2SCC *s)
 {
-    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547;
+    return scc_partno(s) == 0x524 || scc_partno(s) == 0x547 ||
+        scc_partno(s) == 0x536;
 }
 
 /* Is CFG_REG6 present? */
 static bool have_cfg6(MPS2SCC *s)
 {
-    return scc_partno(s) == 0x524;
+    return scc_partno(s) == 0x524 || scc_partno(s) == 0x536;
+}
+
+/* Is CFG_REG7 present? */
+static bool have_cfg7(MPS2SCC *s)
+{
+    return scc_partno(s) == 0x536;
+}
+
+/* Does CFG_REG0 drive the 'remap' GPIO output? */
+static bool cfg0_is_remap(MPS2SCC *s)
+{
+    return scc_partno(s) != 0x536;
+}
+
+/* Is CFG_REG1 driving a set of LEDs? */
+static bool cfg1_is_leds(MPS2SCC *s)
+{
+    return scc_partno(s) != 0x536;
 }
 
 /* Handle a write via the SYS_CFG channel to the specified function/device.
@@ -144,8 +166,16 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         if (!have_cfg3(s)) {
             goto bad_offset;
         }
-        /* These are user-settable DIP switches on the board. We don't
+        /*
+         * These are user-settable DIP switches on the board. We don't
          * model that, so just return zeroes.
+         *
+         * TODO: for AN536 this is MCC_MSB_ADDR "additional MCC addressing
+         * bits". These change which part of the DDR4 the motherboard
+         * configuration controller can see in its memory map (see the
+         * appnote section 2.4). QEMU doesn't model the MCC at all, so these
+         * bits are not interesting to us; read-as-zero is as good as anything
+         * else.
          */
         r = 0;
         break;
@@ -163,6 +193,12 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
             goto bad_offset;
         }
         r = s->cfg6;
+        break;
+    case A_CFG7:
+        if (!have_cfg7(s)) {
+            goto bad_offset;
+        }
+        r = s->cfg7;
         break;
     case A_CFGDATA_RTN:
         r = s->cfgdata_rtn;
@@ -211,28 +247,43 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
          * we always reflect bit 0 in the 'remap' GPIO output line,
          * and let the board wire it up or not as it chooses.
          * TODO on some boards bit 1 is CPU_WAIT.
+         *
+         * TODO: on the AN536 this register controls reset and halt
+         * for both CPUs. For the moment we don't implement this, so the
+         * register just reads as written.
          */
         s->cfg0 = value;
-        qemu_set_irq(s->remap, s->cfg0 & 1);
+        if (cfg0_is_remap(s)) {
+            qemu_set_irq(s->remap, s->cfg0 & 1);
+        }
         break;
     case A_CFG1:
         s->cfg1 = value;
-        for (size_t i = 0; i < ARRAY_SIZE(s->led); i++) {
-            led_set_state(s->led[i], extract32(value, i, 1));
+        /*
+         * On most boards this register drives LEDs.
+         *
+         * TODO: for AN536 this controls whether flash and ATCM are
+         * enabled or disabled on reset. QEMU doesn't model this, and
+         * always wires up RAM in the ATCM area and ROM in the flash area.
+         */
+        if (cfg1_is_leds(s)) {
+            for (size_t i = 0; i < ARRAY_SIZE(s->led); i++) {
+                led_set_state(s->led[i], extract32(value, i, 1));
+            }
         }
         break;
     case A_CFG2:
         if (!have_cfg2(s)) {
             goto bad_offset;
         }
-        /* AN524: QSPI Select signal */
+        /* AN524, AN536: QSPI Select signal */
         s->cfg2 = value;
         break;
     case A_CFG5:
         if (!have_cfg5(s)) {
             goto bad_offset;
         }
-        /* AN524: ACLK frequency in Hz */
+        /* AN524, AN536: ACLK frequency in Hz */
         s->cfg5 = value;
         break;
     case A_CFG6:
@@ -240,6 +291,14 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
             goto bad_offset;
         }
         /* AN524: Clock divider for BRAM */
+        /* AN536: Core 0 vector table base address */
+        s->cfg6 = value;
+        break;
+    case A_CFG7:
+        if (!have_cfg7(s)) {
+            goto bad_offset;
+        }
+        /* AN536: Core 1 vector table base address */
         s->cfg6 = value;
         break;
     case A_CFGDATA_OUT:
@@ -353,6 +412,24 @@ static void mps2_scc_finalize(Object *obj)
     g_free(s->oscclk_reset);
 }
 
+static bool cfg7_needed(void *opaque)
+{
+    MPS2SCC *s = opaque;
+
+    return have_cfg7(s);
+}
+
+static const VMStateDescription vmstate_cfg7 = {
+    .name = "mps2-scc/cfg7",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = cfg7_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(cfg7, MPS2SCC),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription mps2_scc_vmstate = {
     .name = "mps2-scc",
     .version_id = 3,
@@ -372,6 +449,10 @@ static const VMStateDescription mps2_scc_vmstate = {
         VMSTATE_VARRAY_UINT32(oscclk, MPS2SCC, num_oscclk,
                               0, vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_cfg7,
+        NULL
     }
 };
 
