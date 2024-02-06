@@ -1485,68 +1485,6 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
-static bool
-validate_iothread_vq_mapping_list(IOThreadVirtQueueMappingList *list,
-        uint16_t num_queues, Error **errp)
-{
-    g_autofree unsigned long *vqs = bitmap_new(num_queues);
-    g_autoptr(GHashTable) iothreads =
-        g_hash_table_new(g_str_hash, g_str_equal);
-
-    for (IOThreadVirtQueueMappingList *node = list; node; node = node->next) {
-        const char *name = node->value->iothread;
-        uint16List *vq;
-
-        if (!iothread_by_id(name)) {
-            error_setg(errp, "IOThread \"%s\" object does not exist", name);
-            return false;
-        }
-
-        if (!g_hash_table_add(iothreads, (gpointer)name)) {
-            error_setg(errp,
-                    "duplicate IOThread name \"%s\" in iothread-vq-mapping",
-                    name);
-            return false;
-        }
-
-        if (node != list) {
-            if (!!node->value->vqs != !!list->value->vqs) {
-                error_setg(errp, "either all items in iothread-vq-mapping "
-                                 "must have vqs or none of them must have it");
-                return false;
-            }
-        }
-
-        for (vq = node->value->vqs; vq; vq = vq->next) {
-            if (vq->value >= num_queues) {
-                error_setg(errp, "vq index %u for IOThread \"%s\" must be "
-                        "less than num_queues %u in iothread-vq-mapping",
-                        vq->value, name, num_queues);
-                return false;
-            }
-
-            if (test_and_set_bit(vq->value, vqs)) {
-                error_setg(errp, "cannot assign vq %u to IOThread \"%s\" "
-                        "because it is already assigned", vq->value, name);
-                return false;
-            }
-        }
-    }
-
-    if (list->value->vqs) {
-        for (uint16_t i = 0; i < num_queues; i++) {
-            if (!test_bit(i, vqs)) {
-                error_setg(errp,
-                        "missing vq %u IOThread assignment in iothread-vq-mapping",
-                        i);
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 static void virtio_resize_cb(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -1613,14 +1551,94 @@ static const BlockDevOps virtio_block_ops = {
     .drained_end   = virtio_blk_drained_end,
 };
 
-/* Generate vq:AioContext mappings from a validated iothread-vq-mapping list */
-static void
-apply_vq_mapping(IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
-                 AioContext **vq_aio_context, uint16_t num_queues)
+static bool
+validate_iothread_vq_mapping_list(IOThreadVirtQueueMappingList *list,
+        uint16_t num_queues, Error **errp)
+{
+    g_autofree unsigned long *vqs = bitmap_new(num_queues);
+    g_autoptr(GHashTable) iothreads =
+        g_hash_table_new(g_str_hash, g_str_equal);
+
+    for (IOThreadVirtQueueMappingList *node = list; node; node = node->next) {
+        const char *name = node->value->iothread;
+        uint16List *vq;
+
+        if (!iothread_by_id(name)) {
+            error_setg(errp, "IOThread \"%s\" object does not exist", name);
+            return false;
+        }
+
+        if (!g_hash_table_add(iothreads, (gpointer)name)) {
+            error_setg(errp,
+                    "duplicate IOThread name \"%s\" in iothread-vq-mapping",
+                    name);
+            return false;
+        }
+
+        if (node != list) {
+            if (!!node->value->vqs != !!list->value->vqs) {
+                error_setg(errp, "either all items in iothread-vq-mapping "
+                                 "must have vqs or none of them must have it");
+                return false;
+            }
+        }
+
+        for (vq = node->value->vqs; vq; vq = vq->next) {
+            if (vq->value >= num_queues) {
+                error_setg(errp, "vq index %u for IOThread \"%s\" must be "
+                        "less than num_queues %u in iothread-vq-mapping",
+                        vq->value, name, num_queues);
+                return false;
+            }
+
+            if (test_and_set_bit(vq->value, vqs)) {
+                error_setg(errp, "cannot assign vq %u to IOThread \"%s\" "
+                        "because it is already assigned", vq->value, name);
+                return false;
+            }
+        }
+    }
+
+    if (list->value->vqs) {
+        for (uint16_t i = 0; i < num_queues; i++) {
+            if (!test_bit(i, vqs)) {
+                error_setg(errp,
+                        "missing vq %u IOThread assignment in iothread-vq-mapping",
+                        i);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
+ * apply_iothread_vq_mapping:
+ * @iothread_vq_mapping_list: The mapping of virtqueues to IOThreads.
+ * @vq_aio_context: The array of AioContext pointers to fill in.
+ * @num_queues: The length of @vq_aio_context.
+ * @errp: If an error occurs, a pointer to the area to store the error.
+ *
+ * Fill in the AioContext for each virtqueue in the @vq_aio_context array given
+ * the iothread-vq-mapping parameter in @iothread_vq_mapping_list.
+ *
+ * Returns: %true on success, %false on failure.
+ **/
+static bool apply_iothread_vq_mapping(
+        IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
+        AioContext **vq_aio_context,
+        uint16_t num_queues,
+        Error **errp)
 {
     IOThreadVirtQueueMappingList *node;
     size_t num_iothreads = 0;
     size_t cur_iothread = 0;
+
+    if (!validate_iothread_vq_mapping_list(iothread_vq_mapping_list,
+                                           num_queues, errp)) {
+        return false;
+    }
 
     for (node = iothread_vq_mapping_list; node; node = node->next) {
         num_iothreads++;
@@ -1638,6 +1656,7 @@ apply_vq_mapping(IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
 
             /* Explicit vq:IOThread assignment */
             for (vq = node->value->vqs; vq; vq = vq->next) {
+                assert(vq->value < num_queues);
                 vq_aio_context[vq->value] = ctx;
             }
         } else {
@@ -1650,6 +1669,8 @@ apply_vq_mapping(IOThreadVirtQueueMappingList *iothread_vq_mapping_list,
 
         cur_iothread++;
     }
+
+    return true;
 }
 
 /* Context: BQL held */
@@ -1659,6 +1680,13 @@ static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
     VirtIOBlkConf *conf = &s->conf;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    if (conf->iothread && conf->iothread_vq_mapping_list) {
+        error_setg(errp,
+                   "iothread and iothread-vq-mapping properties cannot be set "
+                   "at the same time");
+        return false;
+    }
 
     if (conf->iothread || conf->iothread_vq_mapping_list) {
         if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
@@ -1685,8 +1713,14 @@ static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
     s->vq_aio_context = g_new(AioContext *, conf->num_queues);
 
     if (conf->iothread_vq_mapping_list) {
-        apply_vq_mapping(conf->iothread_vq_mapping_list, s->vq_aio_context,
-                         conf->num_queues);
+        if (!apply_iothread_vq_mapping(conf->iothread_vq_mapping_list,
+                                       s->vq_aio_context,
+                                       conf->num_queues,
+                                       errp)) {
+            g_free(s->vq_aio_context);
+            s->vq_aio_context = NULL;
+            return false;
+        }
     } else if (conf->iothread) {
         AioContext *ctx = iothread_get_aio_context(conf->iothread);
         for (unsigned i = 0; i < conf->num_queues; i++) {
@@ -1994,19 +2028,6 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                    conf->max_write_zeroes_sectors,
                    (int)BDRV_REQUEST_MAX_SECTORS);
         return;
-    }
-
-    if (conf->iothread_vq_mapping_list) {
-        if (conf->iothread) {
-            error_setg(errp, "iothread and iothread-vq-mapping properties "
-                             "cannot be set at the same time");
-            return;
-        }
-
-        if (!validate_iothread_vq_mapping_list(conf->iothread_vq_mapping_list,
-                                               conf->num_queues, errp)) {
-            return;
-        }
     }
 
     s->config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
