@@ -30,10 +30,13 @@
 #include "qapi/qmp/qlist.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
+#include "sysemu/sysemu.h"
 #include "hw/boards.h"
+#include "hw/or-irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
+#include "hw/char/cmsdk-apb-uart.h"
 #include "hw/intc/arm_gicv3.h"
 
 /* Define the layout of RAM and ROM in a board */
@@ -65,6 +68,7 @@ typedef struct RAMInfo {
 
 #define MPS3R_RAM_MAX 9
 #define MPS3R_CPU_MAX 2
+#define MPS3R_UART_MAX 4 /* shared UART count */
 
 #define PERIPHBASE 0xf0000000
 #define NUM_SPIS 96
@@ -89,12 +93,23 @@ struct MPS3RMachineState {
     MemoryRegion sysmem_alias[MPS3R_CPU_MAX];
     MemoryRegion cpu_ram[MPS3R_CPU_MAX];
     GICv3State gic;
+    /* per-CPU UARTs followed by the shared UARTs */
+    CMSDKAPBUART uart[MPS3R_CPU_MAX + MPS3R_UART_MAX];
+    OrIRQState cpu_uart_oflow[MPS3R_CPU_MAX];
+    OrIRQState uart_oflow;
 };
 
 #define TYPE_MPS3R_MACHINE "mps3r"
 #define TYPE_MPS3R_AN536_MACHINE MACHINE_TYPE_NAME("mps3-an536")
 
 OBJECT_DECLARE_TYPE(MPS3RMachineState, MPS3RMachineClass, MPS3R_MACHINE)
+
+/*
+ * Main clock frequency CLK in Hz (50MHz). In the image there are also
+ * ACLK, MCLK, GPUCLK and PERIPHCLK at the same frequency; for our
+ * model we just roll them all into one.
+ */
+#define CLK_FRQ 50000000
 
 static const RAMInfo an536_raminfo[] = {
     {
@@ -279,11 +294,40 @@ static void create_gic(MPS3RMachineState *mms, MemoryRegion *sysmem)
     }
 }
 
+/*
+ * Create UART uartno, and map it into the MemoryRegion mem at address baseaddr.
+ * The qemu_irq arguments are where we connect the various IRQs from the UART.
+ */
+static void create_uart(MPS3RMachineState *mms, int uartno, MemoryRegion *mem,
+                        hwaddr baseaddr, qemu_irq txirq, qemu_irq rxirq,
+                        qemu_irq txoverirq, qemu_irq rxoverirq,
+                        qemu_irq combirq)
+{
+    g_autofree char *s = g_strdup_printf("uart%d", uartno);
+    SysBusDevice *sbd;
+
+    assert(uartno < ARRAY_SIZE(mms->uart));
+    object_initialize_child(OBJECT(mms), s, &mms->uart[uartno],
+                            TYPE_CMSDK_APB_UART);
+    qdev_prop_set_uint32(DEVICE(&mms->uart[uartno]), "pclk-frq", CLK_FRQ);
+    qdev_prop_set_chr(DEVICE(&mms->uart[uartno]), "chardev", serial_hd(uartno));
+    sbd = SYS_BUS_DEVICE(&mms->uart[uartno]);
+    sysbus_realize(sbd, &error_fatal);
+    memory_region_add_subregion(mem, baseaddr,
+                                sysbus_mmio_get_region(sbd, 0));
+    sysbus_connect_irq(sbd, 0, txirq);
+    sysbus_connect_irq(sbd, 1, rxirq);
+    sysbus_connect_irq(sbd, 2, txoverirq);
+    sysbus_connect_irq(sbd, 3, rxoverirq);
+    sysbus_connect_irq(sbd, 4, combirq);
+}
+
 static void mps3r_common_init(MachineState *machine)
 {
     MPS3RMachineState *mms = MPS3R_MACHINE(machine);
     MPS3RMachineClass *mmc = MPS3R_MACHINE_GET_CLASS(mms);
     MemoryRegion *sysmem = get_system_memory();
+    DeviceState *gicdev;
 
     for (const RAMInfo *ri = mmc->raminfo; ri->name; ri++) {
         MemoryRegion *mr = mr_for_raminfo(mms, ri);
@@ -326,6 +370,56 @@ static void mps3r_common_init(MachineState *machine)
     }
 
     create_gic(mms, sysmem);
+    gicdev = DEVICE(&mms->gic);
+
+    /*
+     * UARTs 0 and 1 are per-CPU; their interrupts are wired to
+     * the relevant CPU's PPI 0..3, aka INTID 16..19
+     */
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        int intidbase = NUM_SPIS + i * GIC_INTERNAL;
+        g_autofree char *s = g_strdup_printf("cpu-uart-oflow-orgate%d", i);
+        DeviceState *orgate;
+
+        /* The two overflow IRQs from the UART are ORed together into PPI 3 */
+        object_initialize_child(OBJECT(mms), s, &mms->cpu_uart_oflow[i],
+                                TYPE_OR_IRQ);
+        orgate = DEVICE(&mms->cpu_uart_oflow[i]);
+        qdev_prop_set_uint32(orgate, "num-lines", 2);
+        qdev_realize(orgate, NULL, &error_fatal);
+        qdev_connect_gpio_out(orgate, 0,
+                              qdev_get_gpio_in(gicdev, intidbase + 19));
+
+        create_uart(mms, i, &mms->cpu_sysmem[i], 0xe7c00000,
+                    qdev_get_gpio_in(gicdev, intidbase + 17), /* tx */
+                    qdev_get_gpio_in(gicdev, intidbase + 16), /* rx */
+                    qdev_get_gpio_in(orgate, 0), /* txover */
+                    qdev_get_gpio_in(orgate, 1), /* rxover */
+                    qdev_get_gpio_in(gicdev, intidbase + 18) /* combined */);
+    }
+    /*
+     * UARTs 2 to 5 are whole-system; all overflow IRQs are ORed
+     * together into IRQ 17
+     */
+    object_initialize_child(OBJECT(mms), "uart-oflow-orgate",
+                            &mms->uart_oflow, TYPE_OR_IRQ);
+    qdev_prop_set_uint32(DEVICE(&mms->uart_oflow), "num-lines",
+                         MPS3R_UART_MAX * 2);
+    qdev_realize(DEVICE(&mms->uart_oflow), NULL, &error_fatal);
+    qdev_connect_gpio_out(DEVICE(&mms->uart_oflow), 0,
+                          qdev_get_gpio_in(gicdev, 17));
+
+    for (int i = 0; i < MPS3R_UART_MAX; i++) {
+        hwaddr baseaddr = 0xe0205000 + i * 0x1000;
+        int rxirq = 5 + i * 2, txirq = 6 + i * 2, combirq = 13 + i;
+
+        create_uart(mms, i + MPS3R_CPU_MAX, sysmem, baseaddr,
+                    qdev_get_gpio_in(gicdev, txirq),
+                    qdev_get_gpio_in(gicdev, rxirq),
+                    qdev_get_gpio_in(DEVICE(&mms->uart_oflow), i * 2),
+                    qdev_get_gpio_in(DEVICE(&mms->uart_oflow), i * 2 + 1),
+                    qdev_get_gpio_in(gicdev, combirq));
+    }
 
     mms->bootinfo.ram_size = machine->ram_size;
     mms->bootinfo.board_id = -1;
