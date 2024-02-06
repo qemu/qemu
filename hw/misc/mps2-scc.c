@@ -118,7 +118,7 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->cfg2;
         break;
     case A_CFG3:
-        if (scc_partno(s) == 0x524 && scc_partno(s) == 0x547) {
+        if (scc_partno(s) == 0x524 || scc_partno(s) == 0x547) {
             /* CFG3 reserved on AN524 */
             goto bad_offset;
         }
