@@ -33,11 +33,16 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
 #include "hw/char/cmsdk-apb-uart.h"
+#include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/misc/unimp.h"
+#include "hw/timer/cmsdk-apb-dualtimer.h"
+#include "hw/watchdog/cmsdk-apb-watchdog.h"
 
 /* Define the layout of RAM and ROM in a board */
 typedef struct RAMInfo {
@@ -97,6 +102,10 @@ struct MPS3RMachineState {
     CMSDKAPBUART uart[MPS3R_CPU_MAX + MPS3R_UART_MAX];
     OrIRQState cpu_uart_oflow[MPS3R_CPU_MAX];
     OrIRQState uart_oflow;
+    CMSDKAPBWatchdog watchdog;
+    CMSDKAPBDualTimer dualtimer;
+    ArmSbconI2CState i2c[5];
+    Clock *clk;
 };
 
 #define TYPE_MPS3R_MACHINE "mps3r"
@@ -329,6 +338,9 @@ static void mps3r_common_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *gicdev;
 
+    mms->clk = clock_new(OBJECT(machine), "CLK");
+    clock_set_hz(mms->clk, CLK_FRQ);
+
     for (const RAMInfo *ri = mmc->raminfo; ri->name; ri++) {
         MemoryRegion *mr = mr_for_raminfo(mms, ri);
         memory_region_add_subregion(sysmem, ri->base, mr);
@@ -419,6 +431,53 @@ static void mps3r_common_init(MachineState *machine)
                     qdev_get_gpio_in(DEVICE(&mms->uart_oflow), i * 2),
                     qdev_get_gpio_in(DEVICE(&mms->uart_oflow), i * 2 + 1),
                     qdev_get_gpio_in(gicdev, combirq));
+    }
+
+    for (int i = 0; i < 4; i++) {
+        /* CMSDK GPIO controllers */
+        g_autofree char *s = g_strdup_printf("gpio%d", i);
+        create_unimplemented_device(s, 0xe0000000 + i * 0x1000, 0x1000);
+    }
+
+    object_initialize_child(OBJECT(mms), "watchdog", &mms->watchdog,
+                            TYPE_CMSDK_APB_WATCHDOG);
+    qdev_connect_clock_in(DEVICE(&mms->watchdog), "WDOGCLK", mms->clk);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->watchdog), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->watchdog), 0,
+                       qdev_get_gpio_in(gicdev, 0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->watchdog), 0, 0xe0100000);
+
+    object_initialize_child(OBJECT(mms), "dualtimer", &mms->dualtimer,
+                            TYPE_CMSDK_APB_DUALTIMER);
+    qdev_connect_clock_in(DEVICE(&mms->dualtimer), "TIMCLK", mms->clk);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->dualtimer), &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->dualtimer), 0,
+                       qdev_get_gpio_in(gicdev, 3));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->dualtimer), 1,
+                       qdev_get_gpio_in(gicdev, 1));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->dualtimer), 2,
+                       qdev_get_gpio_in(gicdev, 2));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->dualtimer), 0, 0xe0101000);
+
+    for (int i = 0; i < ARRAY_SIZE(mms->i2c); i++) {
+        static const hwaddr i2cbase[] = {0xe0102000,    /* Touch */
+                                         0xe0103000,    /* Audio */
+                                         0xe0107000,    /* Shield0 */
+                                         0xe0108000,    /* Shield1 */
+                                         0xe0109000};   /* DDR4 EEPROM */
+        g_autofree char *s = g_strdup_printf("i2c%d", i);
+
+        object_initialize_child(OBJECT(mms), s, &mms->i2c[i],
+                                TYPE_ARM_SBCON_I2C);
+        sysbus_realize(SYS_BUS_DEVICE(&mms->i2c[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&mms->i2c[i]), 0, i2cbase[i]);
+        if (i != 2 && i != 3) {
+            /*
+             * internal-only bus: mark it full to avoid user-created
+             * i2c devices being plugged into it.
+             */
+            qbus_mark_full(qdev_get_child_bus(DEVICE(&mms->i2c[i]), "i2c"));
+        }
     }
 
     mms->bootinfo.ram_size = machine->ram_size;
