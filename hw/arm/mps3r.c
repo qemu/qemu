@@ -40,7 +40,12 @@
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/misc/mps2-scc.h"
+#include "hw/misc/mps2-fpgaio.h"
 #include "hw/misc/unimp.h"
+#include "hw/net/lan9118.h"
+#include "hw/rtc/pl031.h"
+#include "hw/ssi/pl022.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 
@@ -105,6 +110,11 @@ struct MPS3RMachineState {
     CMSDKAPBWatchdog watchdog;
     CMSDKAPBDualTimer dualtimer;
     ArmSbconI2CState i2c[5];
+    PL022State spi[3];
+    MPS2SCC scc;
+    MPS2FPGAIO fpgaio;
+    UnimplementedDeviceState i2s_audio;
+    PL031State rtc;
     Clock *clk;
 };
 
@@ -176,6 +186,16 @@ static const RAMInfo an536_raminfo[] = {
     }, {
         .name = NULL,
     }
+};
+
+static const int an536_oscclk[] = {
+    24000000, /* 24MHz reference for RTC and timers */
+    50000000, /* 50MHz ACLK */
+    50000000, /* 50MHz MCLK */
+    50000000, /* 50MHz GPUCLK */
+    24576000, /* 24.576MHz AUDCLK */
+    23750000, /* 23.75MHz HDLCDCLK */
+    100000000, /* 100MHz DDR4_REF_CLK */
 };
 
 static MemoryRegion *mr_for_raminfo(MPS3RMachineState *mms,
@@ -337,6 +357,7 @@ static void mps3r_common_init(MachineState *machine)
     MPS3RMachineClass *mmc = MPS3R_MACHINE_GET_CLASS(mms);
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *gicdev;
+    QList *oscclk;
 
     mms->clk = clock_new(OBJECT(machine), "CLK");
     clock_set_hz(mms->clk, CLK_FRQ);
@@ -479,6 +500,59 @@ static void mps3r_common_init(MachineState *machine)
             qbus_mark_full(qdev_get_child_bus(DEVICE(&mms->i2c[i]), "i2c"));
         }
     }
+
+    for (int i = 0; i < ARRAY_SIZE(mms->spi); i++) {
+        g_autofree char *s = g_strdup_printf("spi%d", i);
+        hwaddr baseaddr = 0xe0104000 + i * 0x1000;
+
+        object_initialize_child(OBJECT(mms), s, &mms->spi[i], TYPE_PL022);
+        sysbus_realize(SYS_BUS_DEVICE(&mms->spi[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&mms->spi[i]), 0, baseaddr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&mms->spi[i]), 0,
+                           qdev_get_gpio_in(gicdev, 22 + i));
+    }
+
+    object_initialize_child(OBJECT(mms), "scc", &mms->scc, TYPE_MPS2_SCC);
+    qdev_prop_set_uint32(DEVICE(&mms->scc), "scc-cfg0", 0);
+    qdev_prop_set_uint32(DEVICE(&mms->scc), "scc-cfg4", 0x2);
+    qdev_prop_set_uint32(DEVICE(&mms->scc), "scc-aid", 0x00200008);
+    qdev_prop_set_uint32(DEVICE(&mms->scc), "scc-id", 0x41055360);
+    oscclk = qlist_new();
+    for (int i = 0; i < ARRAY_SIZE(an536_oscclk); i++) {
+        qlist_append_int(oscclk, an536_oscclk[i]);
+    }
+    qdev_prop_set_array(DEVICE(&mms->scc), "oscclk", oscclk);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->scc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->scc), 0, 0xe0200000);
+
+    create_unimplemented_device("i2s-audio", 0xe0201000, 0x1000);
+
+    object_initialize_child(OBJECT(mms), "fpgaio", &mms->fpgaio,
+                            TYPE_MPS2_FPGAIO);
+    qdev_prop_set_uint32(DEVICE(&mms->fpgaio), "prescale-clk", an536_oscclk[1]);
+    qdev_prop_set_uint32(DEVICE(&mms->fpgaio), "num-leds", 10);
+    qdev_prop_set_bit(DEVICE(&mms->fpgaio), "has-switches", true);
+    qdev_prop_set_bit(DEVICE(&mms->fpgaio), "has-dbgctrl", false);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->fpgaio), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->fpgaio), 0, 0xe0202000);
+
+    create_unimplemented_device("clcd", 0xe0209000, 0x1000);
+
+    object_initialize_child(OBJECT(mms), "rtc", &mms->rtc, TYPE_PL031);
+    sysbus_realize(SYS_BUS_DEVICE(&mms->rtc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->rtc), 0, 0xe020a000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->rtc), 0,
+                       qdev_get_gpio_in(gicdev, 4));
+
+    /*
+     * In hardware this is a LAN9220; the LAN9118 is software compatible
+     * except that it doesn't support the checksum-offload feature.
+     */
+    lan9118_init(0xe0300000,
+                 qdev_get_gpio_in(gicdev, 18));
+
+    create_unimplemented_device("usb", 0xe0301000, 0x1000);
+    create_unimplemented_device("qspi-write-config", 0xe0600000, 0x1000);
 
     mms->bootinfo.ram_size = machine->ram_size;
     mms->bootinfo.board_id = -1;
