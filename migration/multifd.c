@@ -630,6 +630,10 @@ static void multifd_send_terminate_threads(void)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
+        if (p->tls_thread_created) {
+            qemu_thread_join(&p->tls_thread);
+        }
+
         if (p->running) {
             qemu_thread_join(&p->thread);
         }
@@ -921,7 +925,9 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
     trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
     p->c = QIO_CHANNEL(tioc);
-    qemu_thread_create(&p->thread, "multifd-tls-handshake-worker",
+
+    p->tls_thread_created = true;
+    qemu_thread_create(&p->tls_thread, "multifd-tls-handshake-worker",
                        multifd_tls_handshake_thread, p,
                        QEMU_THREAD_JOINABLE);
     return true;
