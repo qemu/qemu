@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "exec/hwaddr.h"
@@ -21,11 +22,20 @@
 #include "trace.h"
 #include "internals.h"
 
+#define GDB_NR_SYSCALLS 1024
+typedef unsigned long GDBSyscallsMask[BITS_TO_LONGS(GDB_NR_SYSCALLS)];
+
 /* User-mode specific state */
 typedef struct {
     int fd;
     char *socket_path;
     int running_state;
+    /*
+     * Store syscalls mask without memory allocation in order to avoid
+     * implementing synchronization.
+     */
+    bool catch_all_syscalls;
+    GDBSyscallsMask catch_syscalls_mask;
 } GDBUserState;
 
 static GDBUserState gdbserver_user_state;
@@ -503,10 +513,91 @@ void gdb_syscall_handling(const char *syscall_packet)
     gdb_handlesig(gdbserver_state.c_cpu, 0);
 }
 
+static bool should_catch_syscall(int num)
+{
+    if (gdbserver_user_state.catch_all_syscalls) {
+        return true;
+    }
+    if (num < 0 || num >= GDB_NR_SYSCALLS) {
+        return false;
+    }
+    return test_bit(num, gdbserver_user_state.catch_syscalls_mask);
+}
+
 void gdb_syscall_entry(CPUState *cs, int num)
 {
+    if (should_catch_syscall(num)) {
+        g_autofree char *reason = g_strdup_printf("syscall_entry:%x;", num);
+        gdb_handlesig_reason(cs, gdb_target_sigtrap(), reason);
+    }
 }
 
 void gdb_syscall_return(CPUState *cs, int num)
 {
+    if (should_catch_syscall(num)) {
+        g_autofree char *reason = g_strdup_printf("syscall_return:%x;", num);
+        gdb_handlesig_reason(cs, gdb_target_sigtrap(), reason);
+    }
+}
+
+void gdb_handle_set_catch_syscalls(GArray *params, void *user_ctx)
+{
+    const char *param = get_param(params, 0)->data;
+    GDBSyscallsMask catch_syscalls_mask;
+    bool catch_all_syscalls;
+    unsigned int num;
+    const char *p;
+
+    /* "0" means not catching any syscalls. */
+    if (strcmp(param, "0") == 0) {
+        gdbserver_user_state.catch_all_syscalls = false;
+        memset(gdbserver_user_state.catch_syscalls_mask, 0,
+               sizeof(gdbserver_user_state.catch_syscalls_mask));
+        gdb_put_packet("OK");
+        return;
+    }
+
+    /* "1" means catching all syscalls. */
+    if (strcmp(param, "1") == 0) {
+        gdbserver_user_state.catch_all_syscalls = true;
+        gdb_put_packet("OK");
+        return;
+    }
+
+    /*
+     * "1;..." means catching only the specified syscalls.
+     * The syscall list must not be empty.
+     */
+    if (param[0] == '1' && param[1] == ';') {
+        catch_all_syscalls = false;
+        memset(catch_syscalls_mask, 0, sizeof(catch_syscalls_mask));
+        for (p = &param[2];; p++) {
+            if (qemu_strtoui(p, &p, 16, &num) || (*p && *p != ';')) {
+                goto err;
+            }
+            if (num >= GDB_NR_SYSCALLS) {
+                /*
+                 * Fall back to reporting all syscalls. Reporting extra
+                 * syscalls is inefficient, but the spec explicitly allows it.
+                 * Keep parsing in case there is a syntax error ahead.
+                 */
+                catch_all_syscalls = true;
+            } else {
+                set_bit(num, catch_syscalls_mask);
+            }
+            if (!*p) {
+                break;
+            }
+        }
+        gdbserver_user_state.catch_all_syscalls = catch_all_syscalls;
+        if (!catch_all_syscalls) {
+            memcpy(gdbserver_user_state.catch_syscalls_mask,
+                   catch_syscalls_mask, sizeof(catch_syscalls_mask));
+        }
+        gdb_put_packet("OK");
+        return;
+    }
+
+err:
+    gdb_put_packet("E00");
 }
