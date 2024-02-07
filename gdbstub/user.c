@@ -502,3 +502,11 @@ void gdb_syscall_handling(const char *syscall_packet)
     gdb_put_packet(syscall_packet);
     gdb_handlesig(gdbserver_state.c_cpu, 0);
 }
+
+void gdb_syscall_entry(CPUState *cs, int num)
+{
+}
+
+void gdb_syscall_return(CPUState *cs, int num)
+{
+}

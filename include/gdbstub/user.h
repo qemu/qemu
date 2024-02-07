@@ -51,5 +51,18 @@ void gdb_signalled(CPUArchState *as, int sig);
  */
 void gdbserver_fork(CPUState *cs);
 
+/**
+ * gdb_syscall_entry() - inform gdb of syscall entry and yield control to it
+ * @cs: CPU
+ * @num: syscall number
+ */
+void gdb_syscall_entry(CPUState *cs, int num);
+
+/**
+ * gdb_syscall_entry() - inform gdb of syscall return and yield control to it
+ * @cs: CPU
+ * @num: syscall number
+ */
+void gdb_syscall_return(CPUState *cs, int num);
 
 #endif /* GDBSTUB_USER_H */
