@@ -29,7 +29,6 @@
 #include "hw/timer/renesas_tmr.h"
 #include "hw/timer/renesas_cmt.h"
 #include "hw/char/renesas_sci.h"
-#include "qemu/units.h"
 #include "qom/object.h"
 
 #define TYPE_RX62N_MCU "rx62n-mcu"
