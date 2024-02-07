@@ -293,12 +293,14 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
 {
     REQUIRE_ZCMT(ctx);
 
+    TCGv addr = tcg_temp_new();
+
     /*
      * Update pc to current for the non-unwinding exception
      * that might come from cpu_ld*_code() in the helper.
      */
     gen_update_pc(ctx, 0);
-    gen_helper_cm_jalt(cpu_pc, tcg_env, tcg_constant_i32(a->index));
+    gen_helper_cm_jalt(addr, tcg_env, tcg_constant_i32(a->index));
 
     /* c.jt vs c.jalt depends on the index. */
     if (a->index >= 32) {
@@ -306,6 +308,8 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
         gen_pc_plus_diff(succ_pc, ctx, ctx->cur_insn_len);
         gen_set_gpr(ctx, xRA, succ_pc);
     }
+
+    tcg_gen_mov_tl(cpu_pc, addr);
 
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
