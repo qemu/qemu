@@ -10,9 +10,10 @@
 #define GDBSTUB_USER_H
 
 /**
- * gdb_handlesig() - yield control to gdb
+ * gdb_handlesig_reason() - yield control to gdb
  * @cpu: CPU
  * @sig: if non-zero, the signal number which caused us to stop
+ * @reason: stop reason for stop reply packet or NULL
  *
  * This function yields control to gdb, when a user-mode-only target
  * needs to stop execution. If @sig is non-zero, then we will send a
@@ -24,7 +25,18 @@
  * or 0 if no signal should be delivered, ie the signal that caused
  * us to stop should be ignored.
  */
-int gdb_handlesig(CPUState *, int);
+int gdb_handlesig_reason(CPUState *, int, const char *);
+
+/**
+ * gdb_handlesig() - yield control to gdb
+ * @cpu CPU
+ * @sig: if non-zero, the signal number which caused us to stop
+ * @see gdb_handlesig_reason()
+ */
+static inline int gdb_handlesig(CPUState *cpu, int sig)
+{
+    return gdb_handlesig_reason(cpu, sig, NULL);
+}
 
 /**
  * gdb_signalled() - inform remote gdb of sig exit
