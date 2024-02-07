@@ -59,6 +59,10 @@ mappings:
     CentOSStream8:
     OpenSUSELeap15:
 
+  python3-sqlite3:
+    CentOSStream8: python38
+    OpenSUSELeap15: python311
+
   python3-tomli:
     # test using tomllib
     apk:
