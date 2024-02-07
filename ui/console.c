@@ -2583,7 +2583,7 @@ void qemu_console_resize(QemuConsole *s, int width, int height)
     assert(s->console_type == GRAPHIC_CONSOLE);
 
     if ((s->scanout.kind != SCANOUT_SURFACE ||
-         (surface && surface->flags & QEMU_ALLOCATED_FLAG)) &&
+         (surface && !is_buffer_shared(surface) && !is_placeholder(surface))) &&
         qemu_console_get_width(s, -1) == width &&
         qemu_console_get_height(s, -1) == height) {
         return;
