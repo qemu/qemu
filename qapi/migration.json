@@ -980,6 +980,10 @@
 #     2.9) Previously (since 2.7), this was reported by omitting
 #     tls-hostname instead.
 #
+# @tls-authz: ID of the 'authz' object subclass that provides access
+#     control checking of the TLS x509 certificate distinguished name.
+#     (Since 4.0)
+#
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
 #

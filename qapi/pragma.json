@@ -69,7 +69,6 @@
         'JSONType',
         'KeyValueKind',
         'MemoryDeviceInfoKind',
-        'MigrateSetParameters',
         'NetClientDriver',
         'ObjectType',
         'PciMemoryRegion',
