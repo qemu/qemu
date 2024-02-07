@@ -1,2 +1,3 @@
 config M68K
     bool
+    select SEMIHOSTING
