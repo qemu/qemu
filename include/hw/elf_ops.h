@@ -427,16 +427,6 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
             file_size = ph->p_filesz; /* Size of the allocated data */
             data_offset = ph->p_offset; /* Offset where the data is located */
 
-            /*
-             * Some ELF files really do have segments of zero size;
-             * just ignore them rather than trying to set the wrong addr,
-             * or create empty ROM blobs, because the zero-length blob can
-             * falsely trigger the overlapping-ROM-blobs check.
-             */
-            if (mem_size == 0) {
-                continue;
-            }
-
             if (file_size > 0) {
                 if (g_mapped_file_get_length(mapped_file) <
                     file_size + data_offset) {
@@ -540,37 +530,44 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
                 *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
             }
 
-            if (load_rom) {
-                g_autofree char *label =
-                    g_strdup_printf("%s ELF program header segment %d",
-                                    name, i);
+            /* Some ELF files really do have segments of zero size;
+             * just ignore them rather than trying to create empty
+             * ROM blobs, because the zero-length blob can falsely
+             * trigger the overlapping-ROM-blobs check.
+             */
+            if (mem_size != 0) {
+                if (load_rom) {
+                    g_autofree char *label =
+                        g_strdup_printf("%s ELF program header segment %d",
+                                        name, i);
 
-                /*
-                 * rom_add_elf_program() takes its own reference to
-                 * 'mapped_file'.
-                 */
-                rom_add_elf_program(label, mapped_file, data, file_size,
-                                    mem_size, addr, as);
-            } else {
-                MemTxResult res;
+                    /*
+                     * rom_add_elf_program() takes its own reference to
+                     * 'mapped_file'.
+                     */
+                    rom_add_elf_program(label, mapped_file, data, file_size,
+                                        mem_size, addr, as);
+                } else {
+                    MemTxResult res;
 
-                res = address_space_write(as ? as : &address_space_memory,
-                                          addr, MEMTXATTRS_UNSPECIFIED,
-                                          data, file_size);
-                if (res != MEMTX_OK) {
-                    goto fail;
-                }
-                /*
-                 * We need to zero'ify the space that is not copied
-                 * from file
-                 */
-                if (file_size < mem_size) {
-                    res = address_space_set(as ? as : &address_space_memory,
-                                            addr + file_size, 0,
-                                            mem_size - file_size,
-                                            MEMTXATTRS_UNSPECIFIED);
+                    res = address_space_write(as ? as : &address_space_memory,
+                                              addr, MEMTXATTRS_UNSPECIFIED,
+                                              data, file_size);
                     if (res != MEMTX_OK) {
                         goto fail;
+                    }
+                    /*
+                     * We need to zero'ify the space that is not copied
+                     * from file
+                     */
+                    if (file_size < mem_size) {
+                        res = address_space_set(as ? as : &address_space_memory,
+                                                addr + file_size, 0,
+                                                mem_size - file_size,
+                                                MEMTXATTRS_UNSPECIFIED);
+                        if (res != MEMTX_OK) {
+                            goto fail;
+                        }
                     }
                 }
             }
