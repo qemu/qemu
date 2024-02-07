@@ -192,6 +192,13 @@ in the QEMU object model anymore. ``power5+``, ``power5+_v2.1``,
 an alias, but for consistency these will get removed in a future
 release, too. Use ``power5p_v2.1`` and ``power7p_v2.1`` instead.
 
+CRIS CPU architecture (since 9.0)
+'''''''''''''''''''''''''''''''''
+
+The CRIS architecture was pulled from Linux in 4.17 and the compiler
+is no longer packaged in any distro making it harder to run the
+``check-tcg`` tests. Unless we can improve the testing situation there
+is a chance the code will bitrot without anyone noticing.
 
 System emulator machines
 ------------------------
