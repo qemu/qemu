@@ -67,7 +67,6 @@ struct RX62NState {
     MemoryRegion iomem2;
     MemoryRegion iomem3;
     MemoryRegion c_flash;
-    qemu_irq irq[NR_IRQS];
 
     /* Input Clock (XTAL) frequency */
     uint32_t xtal_freq_hz;
