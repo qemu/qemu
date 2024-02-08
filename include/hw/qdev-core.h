@@ -1084,6 +1084,11 @@ typedef enum MachineInitPhase {
     PHASE_ACCEL_CREATED,
 
     /*
+     * Late backend objects have been created and initialized.
+     */
+    PHASE_LATE_BACKENDS_CREATED,
+
+    /*
      * machine_class->init has been called, thus creating any embedded
      * devices and validating machine properties.  Devices created at
      * this time are considered to be cold-plugged.
