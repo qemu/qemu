@@ -2855,7 +2855,7 @@ static inline uint16_t nvme_check_copy_mcl(NvmeNamespace *ns,
         uint32_t nlb;
         nvme_copy_source_range_parse(iocb->ranges, idx, iocb->format, NULL,
                                      &nlb, NULL, NULL, NULL);
-        copy_len += nlb + 1;
+        copy_len += nlb;
     }
 
     if (copy_len > ns->id_ns.mcl) {
