@@ -104,7 +104,11 @@ if have_block
   util_ss.add(files('throttle.c'))
   util_ss.add(files('timed-average.c'))
   if config_host_data.get('CONFIG_INOTIFY1')
-    util_ss.add(files('filemonitor-inotify.c'))
+    freebsd_dep = []
+    if host_os == 'freebsd'
+      freebsd_dep = inotify
+    endif
+    util_ss.add(files('filemonitor-inotify.c'), freebsd_dep)
   else
     util_ss.add(files('filemonitor-stub.c'))
   endif

@@ -214,9 +214,7 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t ckc)
 
 void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
 {
-    S390CPU *cpu = S390_CPU(cs);
-
-    update_ckc_timer(&cpu->env);
+    update_ckc_timer(cpu_env(cs));
 }
 
 /* Set Clock */

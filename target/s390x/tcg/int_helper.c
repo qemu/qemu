@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 /* #define DEBUG_HELPER */
 #ifdef DEBUG_HELPER
@@ -98,6 +99,81 @@ Int128 HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al, uint64_t b)
     tcg_s390_program_interrupt(env, PGM_FIXPT_DIVIDE, GETPC());
 }
 
+void HELPER(cvb)(CPUS390XState *env, uint32_t r1, uint64_t dec)
+{
+    int64_t pow10 = 1, bin = 0;
+    int digit, sign;
+
+    sign = dec & 0xf;
+    if (sign < 0xa) {
+        tcg_s390_data_exception(env, 0, GETPC());
+    }
+    dec >>= 4;
+
+    while (dec) {
+        digit = dec & 0xf;
+        if (digit > 0x9) {
+            tcg_s390_data_exception(env, 0, GETPC());
+        }
+        dec >>= 4;
+        bin += digit * pow10;
+        pow10 *= 10;
+    }
+
+    if (sign == 0xb || sign == 0xd) {
+        bin = -bin;
+    }
+
+    /* R1 is updated even on fixed-point-divide exception. */
+    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | (uint32_t)bin;
+    if (bin != (int32_t)bin) {
+        tcg_s390_program_interrupt(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+}
+
+uint64_t HELPER(cvbg)(CPUS390XState *env, Int128 dec)
+{
+    uint64_t dec64[] = {int128_getlo(dec), int128_gethi(dec)};
+    int64_t bin = 0, pow10, tmp;
+    int digit, i, sign;
+
+    sign = dec64[0] & 0xf;
+    if (sign < 0xa) {
+        tcg_s390_data_exception(env, 0, GETPC());
+    }
+    dec64[0] >>= 4;
+    pow10 = (sign == 0xb || sign == 0xd) ? -1 : 1;
+
+    for (i = 1; i < 20; i++) {
+        digit = dec64[i >> 4] & 0xf;
+        if (digit > 0x9) {
+            tcg_s390_data_exception(env, 0, GETPC());
+        }
+        dec64[i >> 4] >>= 4;
+        /*
+         * Prepend the next digit and check for overflow. The multiplication
+         * cannot overflow, since, conveniently, the int64_t limits are
+         * approximately +-9.2E+18. If bin is zero, the addition cannot
+         * overflow. Otherwise bin is known to have the same sign as the rhs
+         * addend, in which case overflow happens if and only if the result
+         * has a different sign.
+         */
+        tmp = bin + pow10 * digit;
+        if (bin && ((tmp ^ bin) < 0)) {
+            tcg_s390_program_interrupt(env, PGM_FIXPT_DIVIDE, GETPC());
+        }
+        bin = tmp;
+        pow10 *= 10;
+    }
+
+    g_assert(!dec64[0]);
+    if (dec64[1]) {
+        tcg_s390_program_interrupt(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    return bin;
+}
+
 uint64_t HELPER(cvd)(int32_t reg)
 {
     /* positive 0 */
@@ -113,6 +189,27 @@ uint64_t HELPER(cvd)(int32_t reg)
     for (shift = 4; (shift < 64) && bin; shift += 4) {
         dec |= (bin % 10) << shift;
         bin /= 10;
+    }
+
+    return dec;
+}
+
+Int128 HELPER(cvdg)(int64_t reg)
+{
+    /* positive 0 */
+    Int128 dec = int128_make64(0x0c);
+    Int128 bin = int128_makes64(reg);
+    Int128 base = int128_make64(10);
+    int shift;
+
+    if (!int128_nonneg(bin)) {
+        bin = int128_neg(bin);
+        dec = int128_make64(0x0d);
+    }
+
+    for (shift = 4; (shift < 128) && int128_nz(bin); shift += 4) {
+        dec = int128_or(dec, int128_lshift(int128_remu(bin, base), shift));
+        bin = int128_divu(bin, base);
     }
 
     return dec;
