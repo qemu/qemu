@@ -44,7 +44,7 @@ struct BlockBackend {
     char *name;
     int refcnt;
     BdrvChild *root;
-    AioContext *ctx;
+    AioContext *ctx; /* access with atomic operations only */
     DriveInfo *legacy_dinfo;    /* null unless created by drive_new() */
     QTAILQ_ENTRY(BlockBackend) link;         /* for block_backends */
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
@@ -2414,22 +2414,22 @@ void blk_op_unblock_all(BlockBackend *blk, Error *reason)
     }
 }
 
+/**
+ * Return BB's current AioContext.  Note that this context may change
+ * concurrently at any time, with one exception: If the BB has a root node
+ * attached, its context will only change through bdrv_try_change_aio_context(),
+ * which creates a drained section.  Therefore, incrementing such a BB's
+ * in-flight counter will prevent its context from changing.
+ */
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    BlockDriverState *bs;
     IO_CODE();
 
     if (!blk) {
         return qemu_get_aio_context();
     }
 
-    bs = blk_bs(blk);
-    if (bs) {
-        AioContext *ctx = bdrv_get_aio_context(blk_bs(blk));
-        assert(ctx == blk->ctx);
-    }
-
-    return blk->ctx;
+    return qatomic_read(&blk->ctx);
 }
 
 int blk_set_aio_context(BlockBackend *blk, AioContext *new_context,
@@ -2442,7 +2442,7 @@ int blk_set_aio_context(BlockBackend *blk, AioContext *new_context,
     GLOBAL_STATE_CODE();
 
     if (!bs) {
-        blk->ctx = new_context;
+        qatomic_set(&blk->ctx, new_context);
         return 0;
     }
 
@@ -2471,7 +2471,7 @@ static void blk_root_set_aio_ctx_commit(void *opaque)
     AioContext *new_context = s->new_ctx;
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
 
-    blk->ctx = new_context;
+    qatomic_set(&blk->ctx, new_context);
     if (tgm->throttle_state) {
         throttle_group_detach_aio_context(tgm);
         throttle_group_attach_aio_context(tgm, new_context);

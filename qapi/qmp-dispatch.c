@@ -212,8 +212,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
              * executing the command handler so that it can make progress if it
              * involves an AIO_WAIT_WHILE().
              */
-            aio_co_schedule(qemu_get_aio_context(), qemu_coroutine_self());
-            qemu_coroutine_yield();
+            aio_co_reschedule_self(qemu_get_aio_context());
         }
 
         monitor_set_cur(qemu_coroutine_self(), cur_mon);
@@ -227,9 +226,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
              * Move back to iohandler_ctx so that nested event loops for
              * qemu_aio_context don't start new monitor commands.
              */
-            aio_co_schedule(iohandler_get_aio_context(),
-                            qemu_coroutine_self());
-            qemu_coroutine_yield();
+            aio_co_reschedule_self(iohandler_get_aio_context());
         }
     } else {
        /*

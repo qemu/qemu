@@ -55,7 +55,7 @@ struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockBackend *blk;
     QemuMutex rq_lock;
-    void *rq; /* protected by rq_lock */
+    struct VirtIOBlockReq *rq; /* protected by rq_lock */
     VirtIOBlkConf conf;
     unsigned short sector_mask;
     bool original_wce;

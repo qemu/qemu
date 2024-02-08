@@ -120,17 +120,13 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
     SCSIRequest *next;
 
     /*
-     * If the AioContext changed before this BH was called then reschedule into
-     * the new AioContext before accessing ->requests. This can happen when
-     * scsi_device_for_each_req_async() is called and then the AioContext is
-     * changed before BHs are run.
+     * The BB cannot have changed contexts between this BH being scheduled and
+     * now: BBs' AioContexts, when they have a node attached, can only be
+     * changed via bdrv_try_change_aio_context(), in a drained section.  While
+     * we have the in-flight counter incremented, that drain must block.
      */
     ctx = blk_get_aio_context(s->conf.blk);
-    if (ctx != qemu_get_current_aio_context()) {
-        aio_bh_schedule_oneshot(ctx, scsi_device_for_each_req_async_bh,
-                                g_steal_pointer(&data));
-        return;
-    }
+    assert(ctx == qemu_get_current_aio_context());
 
     QTAILQ_FOREACH_SAFE(req, &s->requests, next, next) {
         data->fn(req, data->fn_opaque);
@@ -138,11 +134,16 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
 
     /* Drop the reference taken by scsi_device_for_each_req_async() */
     object_unref(OBJECT(s));
+
+    /* Paired with blk_inc_in_flight() in scsi_device_for_each_req_async() */
+    blk_dec_in_flight(s->conf.blk);
 }
 
 /*
  * Schedule @fn() to be invoked for each enqueued request in device @s. @fn()
  * runs in the AioContext that is executing the request.
+ * Keeps the BlockBackend's in-flight counter incremented until everything is
+ * done, so draining it will settle all scheduled @fn() calls.
  */
 static void scsi_device_for_each_req_async(SCSIDevice *s,
                                            void (*fn)(SCSIRequest *, void *),
@@ -163,6 +164,8 @@ static void scsi_device_for_each_req_async(SCSIDevice *s,
      */
     object_ref(OBJECT(s));
 
+    /* Paired with blk_dec_in_flight() in scsi_device_for_each_req_async_bh() */
+    blk_inc_in_flight(s->conf.blk);
     aio_bh_schedule_oneshot(blk_get_aio_context(s->conf.blk),
                             scsi_device_for_each_req_async_bh,
                             data);
@@ -373,15 +376,13 @@ static void scsi_qdev_unrealize(DeviceState *qdev)
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
-                                      int unit, bool removable, int bootindex,
-                                      bool share_rw,
-                                      BlockdevOnError rerror,
-                                      BlockdevOnError werror,
+                                      int unit, bool removable, BlockConf *conf,
                                       const char *serial, Error **errp)
 {
     const char *driver;
     char *name;
     DeviceState *dev;
+    SCSIDevice *s;
     DriveInfo *dinfo;
 
     if (blk_is_sg(blk)) {
@@ -399,11 +400,10 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     object_property_add_child(OBJECT(bus), name, OBJECT(dev));
     g_free(name);
 
+    s = SCSI_DEVICE(dev);
+    s->conf = *conf;
+
     qdev_prop_set_uint32(dev, "scsi-id", unit);
-    if (bootindex >= 0) {
-        object_property_set_int(OBJECT(dev), "bootindex", bootindex,
-                                &error_abort);
-    }
     if (object_property_find(OBJECT(dev), "removable")) {
         qdev_prop_set_bit(dev, "removable", removable);
     }
@@ -414,19 +414,12 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    if (!object_property_set_bool(OBJECT(dev), "share-rw", share_rw, errp)) {
-        object_unparent(OBJECT(dev));
-        return NULL;
-    }
-
-    qdev_prop_set_enum(dev, "rerror", rerror);
-    qdev_prop_set_enum(dev, "werror", werror);
 
     if (!qdev_realize_and_unref(dev, &bus->qbus, errp)) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    return SCSI_DEVICE(dev);
+    return s;
 }
 
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
@@ -434,6 +427,12 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     Location loc;
     DriveInfo *dinfo;
     int unit;
+    BlockConf conf = {
+        .bootindex = -1,
+        .share_rw = false,
+        .rerror = BLOCKDEV_ON_ERROR_AUTO,
+        .werror = BLOCKDEV_ON_ERROR_AUTO,
+    };
 
     loc_push_none(&loc);
     for (unit = 0; unit <= bus->info->max_target; unit++) {
@@ -443,10 +442,7 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
         }
         qemu_opts_loc_restore(dinfo->opts);
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
-                                  unit, false, -1, false,
-                                  BLOCKDEV_ON_ERROR_AUTO,
-                                  BLOCKDEV_ON_ERROR_AUTO,
-                                  NULL, &error_fatal);
+                                  unit, false, &conf, NULL, &error_fatal);
     }
     loc_pop(&loc);
 }
@@ -1728,11 +1724,20 @@ static void scsi_device_purge_one_req(SCSIRequest *req, void *opaque)
     scsi_req_cancel_async(req, NULL);
 }
 
+/**
+ * Cancel all requests, and block until they are deleted.
+ */
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 {
     scsi_device_for_each_req_async(sdev, scsi_device_purge_one_req, NULL);
 
+    /*
+     * Await all the scsi_device_purge_one_req() calls scheduled by
+     * scsi_device_for_each_req_async(), and all I/O requests that were
+     * cancelled this way, but may still take a bit of time to settle.
+     */
     blk_drain(sdev->conf.blk);
+
     scsi_device_set_ua(sdev, sense);
 }
 
