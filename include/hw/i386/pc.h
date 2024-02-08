@@ -154,8 +154,6 @@ extern int fd_bootchk;
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
-void pc_guest_info_init(PCMachineState *pcms);
-
 #define PCI_HOST_PROP_RAM_MEM          "ram-mem"
 #define PCI_HOST_PROP_PCI_MEM          "pci-mem"
 #define PCI_HOST_PROP_SYSTEM_MEM       "system-mem"
