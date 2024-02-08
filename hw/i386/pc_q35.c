@@ -45,7 +45,6 @@
 #include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/display/ramfb.h"
-#include "hw/firmware/smbios.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"
 #include "hw/intc/ioapic.h"
@@ -186,14 +185,6 @@ static void pc_q35_init(MachineState *machine)
 
     if (kvm_enabled()) {
         kvmclock_create(pcmc->kvmclock_create_always);
-    }
-
-    if (pcmc->smbios_defaults) {
-        /* These values are guest ABI, do not change */
-        smbios_set_defaults("QEMU", mc->desc,
-                            mc->name, pcmc->smbios_legacy_mode,
-                            pcmc->smbios_uuid_encoded,
-                            pcms->smbios_entry_point_type);
     }
 
     /* create pci host bus */
