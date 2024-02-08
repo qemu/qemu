@@ -92,11 +92,13 @@
 #define SZR  (TCG_TARGET_REG_BITS / 8)
 
 #define TCG_CT_CONST_S16  0x100
+#define TCG_CT_CONST_U16  0x200
 #define TCG_CT_CONST_S32  0x400
 #define TCG_CT_CONST_U32  0x800
 #define TCG_CT_CONST_ZERO 0x1000
 #define TCG_CT_CONST_MONE 0x2000
 #define TCG_CT_CONST_WSZ  0x4000
+#define TCG_CT_CONST_CMP  0x8000
 
 #define ALL_GENERAL_REGS  0xffffffffu
 #define ALL_VECTOR_REGS   0xffffffff00000000ull
@@ -281,31 +283,78 @@ static bool reloc_pc34(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
+static bool mask_operand(uint32_t c, int *mb, int *me);
+static bool mask64_operand(uint64_t c, int *mb, int *me);
+
 /* test if a constant matches the constraint */
-static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
+static bool tcg_target_const_match(int64_t sval, int ct,
+                                   TCGType type, TCGCond cond, int vece)
 {
+    uint64_t uval = sval;
+    int mb, me;
+
     if (ct & TCG_CT_CONST) {
         return 1;
     }
 
-    /* The only 32-bit constraint we use aside from
-       TCG_CT_CONST is TCG_CT_CONST_S16.  */
     if (type == TCG_TYPE_I32) {
-        val = (int32_t)val;
+        uval = (uint32_t)sval;
+        sval = (int32_t)sval;
     }
 
-    if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
+    if (ct & TCG_CT_CONST_CMP) {
+        switch (cond) {
+        case TCG_COND_EQ:
+        case TCG_COND_NE:
+            ct |= TCG_CT_CONST_S16 | TCG_CT_CONST_U16;
+            break;
+        case TCG_COND_LT:
+        case TCG_COND_GE:
+        case TCG_COND_LE:
+        case TCG_COND_GT:
+            ct |= TCG_CT_CONST_S16;
+            break;
+        case TCG_COND_LTU:
+        case TCG_COND_GEU:
+        case TCG_COND_LEU:
+        case TCG_COND_GTU:
+            ct |= TCG_CT_CONST_U16;
+            break;
+        case TCG_COND_TSTEQ:
+        case TCG_COND_TSTNE:
+            if ((uval & ~0xffff) == 0 || (uval & ~0xffff0000ull) == 0) {
+                return 1;
+            }
+            if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32
+                ? mask_operand(uval, &mb, &me)
+                : mask64_operand(uval << clz64(uval), &mb, &me)) {
+                return 1;
+            }
+            return 0;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    if ((ct & TCG_CT_CONST_S16) && sval == (int16_t)sval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
+    }
+    if ((ct & TCG_CT_CONST_U16) && uval == (uint16_t)uval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+    }
+    if ((ct & TCG_CT_CONST_S32) && sval == (int32_t)sval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+    }
+    if ((ct & TCG_CT_CONST_U32) && uval == (uint32_t)uval) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_MONE) && val == -1) {
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && sval == 0) {
         return 1;
-    } else if ((ct & TCG_CT_CONST_WSZ)
-               && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
+    }
+    if ((ct & TCG_CT_CONST_MONE) && sval == -1) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_WSZ) && sval == (type == TCG_TYPE_I32 ? 32 : 64)) {
         return 1;
     }
     return 0;
@@ -669,31 +718,35 @@ enum {
     CR_SO
 };
 
-static const uint32_t tcg_to_bc[] = {
-    [TCG_COND_EQ]  = BC | BI(7, CR_EQ) | BO_COND_TRUE,
-    [TCG_COND_NE]  = BC | BI(7, CR_EQ) | BO_COND_FALSE,
-    [TCG_COND_LT]  = BC | BI(7, CR_LT) | BO_COND_TRUE,
-    [TCG_COND_GE]  = BC | BI(7, CR_LT) | BO_COND_FALSE,
-    [TCG_COND_LE]  = BC | BI(7, CR_GT) | BO_COND_FALSE,
-    [TCG_COND_GT]  = BC | BI(7, CR_GT) | BO_COND_TRUE,
-    [TCG_COND_LTU] = BC | BI(7, CR_LT) | BO_COND_TRUE,
-    [TCG_COND_GEU] = BC | BI(7, CR_LT) | BO_COND_FALSE,
-    [TCG_COND_LEU] = BC | BI(7, CR_GT) | BO_COND_FALSE,
-    [TCG_COND_GTU] = BC | BI(7, CR_GT) | BO_COND_TRUE,
+static const uint32_t tcg_to_bc[16] = {
+    [TCG_COND_EQ]  = BC | BI(0, CR_EQ) | BO_COND_TRUE,
+    [TCG_COND_NE]  = BC | BI(0, CR_EQ) | BO_COND_FALSE,
+    [TCG_COND_TSTEQ]  = BC | BI(0, CR_EQ) | BO_COND_TRUE,
+    [TCG_COND_TSTNE]  = BC | BI(0, CR_EQ) | BO_COND_FALSE,
+    [TCG_COND_LT]  = BC | BI(0, CR_LT) | BO_COND_TRUE,
+    [TCG_COND_GE]  = BC | BI(0, CR_LT) | BO_COND_FALSE,
+    [TCG_COND_LE]  = BC | BI(0, CR_GT) | BO_COND_FALSE,
+    [TCG_COND_GT]  = BC | BI(0, CR_GT) | BO_COND_TRUE,
+    [TCG_COND_LTU] = BC | BI(0, CR_LT) | BO_COND_TRUE,
+    [TCG_COND_GEU] = BC | BI(0, CR_LT) | BO_COND_FALSE,
+    [TCG_COND_LEU] = BC | BI(0, CR_GT) | BO_COND_FALSE,
+    [TCG_COND_GTU] = BC | BI(0, CR_GT) | BO_COND_TRUE,
 };
 
 /* The low bit here is set if the RA and RB fields must be inverted.  */
-static const uint32_t tcg_to_isel[] = {
-    [TCG_COND_EQ]  = ISEL | BC_(7, CR_EQ),
-    [TCG_COND_NE]  = ISEL | BC_(7, CR_EQ) | 1,
-    [TCG_COND_LT]  = ISEL | BC_(7, CR_LT),
-    [TCG_COND_GE]  = ISEL | BC_(7, CR_LT) | 1,
-    [TCG_COND_LE]  = ISEL | BC_(7, CR_GT) | 1,
-    [TCG_COND_GT]  = ISEL | BC_(7, CR_GT),
-    [TCG_COND_LTU] = ISEL | BC_(7, CR_LT),
-    [TCG_COND_GEU] = ISEL | BC_(7, CR_LT) | 1,
-    [TCG_COND_LEU] = ISEL | BC_(7, CR_GT) | 1,
-    [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
+static const uint32_t tcg_to_isel[16] = {
+    [TCG_COND_EQ]  = ISEL | BC_(0, CR_EQ),
+    [TCG_COND_NE]  = ISEL | BC_(0, CR_EQ) | 1,
+    [TCG_COND_TSTEQ] = ISEL | BC_(0, CR_EQ),
+    [TCG_COND_TSTNE] = ISEL | BC_(0, CR_EQ) | 1,
+    [TCG_COND_LT]  = ISEL | BC_(0, CR_LT),
+    [TCG_COND_GE]  = ISEL | BC_(0, CR_LT) | 1,
+    [TCG_COND_LE]  = ISEL | BC_(0, CR_GT) | 1,
+    [TCG_COND_GT]  = ISEL | BC_(0, CR_GT),
+    [TCG_COND_LTU] = ISEL | BC_(0, CR_LT),
+    [TCG_COND_GEU] = ISEL | BC_(0, CR_LT) | 1,
+    [TCG_COND_LEU] = ISEL | BC_(0, CR_GT) | 1,
+    [TCG_COND_GTU] = ISEL | BC_(0, CR_GT),
 };
 
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
@@ -838,19 +891,31 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     return true;
 }
 
-static inline void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
-                               int sh, int mb)
+static void tcg_out_rld_rc(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                           int sh, int mb, bool rc)
 {
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     sh = SH(sh & 0x1f) | (((sh >> 5) & 1) << 1);
     mb = MB64((mb >> 5) | ((mb << 1) & 0x3f));
-    tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb);
+    tcg_out32(s, op | RA(ra) | RS(rs) | sh | mb | rc);
 }
 
-static inline void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
-                               int sh, int mb, int me)
+static void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                        int sh, int mb)
 {
-    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me));
+    tcg_out_rld_rc(s, op, ra, rs, sh, mb, false);
+}
+
+static void tcg_out_rlw_rc(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                           int sh, int mb, int me, bool rc)
+{
+    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me) | rc);
+}
+
+static void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
+                        int sh, int mb, int me)
+{
+    tcg_out_rlw_rc(s, op, ra, rs, sh, mb, me, false);
 }
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
@@ -1668,6 +1733,50 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
+/*
+ * Set dest non-zero if and only if (arg1 & arg2) is non-zero.
+ * If RC, then also set RC0.
+ */
+static void tcg_out_test(TCGContext *s, TCGReg dest, TCGReg arg1, TCGArg arg2,
+                         bool const_arg2, TCGType type, bool rc)
+{
+    int mb, me;
+
+    if (!const_arg2) {
+        tcg_out32(s, AND | SAB(arg1, dest, arg2) | rc);
+        return;
+    }
+
+    if (type == TCG_TYPE_I32) {
+        arg2 = (uint32_t)arg2;
+    } else if (arg2 == (uint32_t)arg2) {
+        type = TCG_TYPE_I32;
+    }
+
+    if ((arg2 & ~0xffff) == 0) {
+        tcg_out32(s, ANDI | SAI(arg1, dest, arg2));
+        return;
+    }
+    if ((arg2 & ~0xffff0000ull) == 0) {
+        tcg_out32(s, ANDIS | SAI(arg1, dest, arg2 >> 16));
+        return;
+    }
+    if (TCG_TARGET_REG_BITS == 32 || type == TCG_TYPE_I32) {
+        if (mask_operand(arg2, &mb, &me)) {
+            tcg_out_rlw_rc(s, RLWINM, dest, arg1, 0, mb, me, rc);
+            return;
+        }
+    } else {
+        int sh = clz64(arg2);
+        if (mask64_operand(arg2 << sh, &mb, &me)) {
+            tcg_out_rld_rc(s, RLDICR, dest, arg1, sh, me, rc);
+            return;
+        }
+    }
+    /* Constraints should satisfy this. */
+    g_assert_not_reached();
+}
+
 static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
                         int const_arg2, int cr, TCGType type)
 {
@@ -1676,7 +1785,10 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
 
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
 
-    /* Simplify the comparisons below wrt CMPI.  */
+    /*
+     * Simplify the comparisons below wrt CMPI.
+     * All of the tests are 16-bit, so a 32-bit sign extend always works.
+     */
     if (type == TCG_TYPE_I32) {
         arg2 = (int32_t)arg2;
     }
@@ -1698,6 +1810,12 @@ static void tcg_out_cmp(TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
         op = CMPL;
         imm = 0;
         break;
+
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        tcg_debug_assert(cr == 0);
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, true);
+        return;
 
     case TCG_COND_LT:
     case TCG_COND_GE:
@@ -1826,7 +1944,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     if (have_isa_3_10) {
         tcg_insn_unit bi, opc;
 
-        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 0, type);
 
         /* Re-use tcg_to_bc for BI and BO_COND_{TRUE,FALSE}. */
         bi = tcg_to_bc[cond] & (0x1f << 16);
@@ -1879,7 +1997,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     if (have_isel) {
         int isel, tab;
 
-        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
+        tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 0, type);
 
         isel = tcg_to_isel[cond];
 
@@ -1907,6 +2025,16 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     case TCG_COND_NE:
         arg1 = tcg_gen_setcond_xor(s, arg1, arg2, const_arg2);
         tcg_out_setcond_ne0(s, type, arg0, arg1, neg);
+        break;
+
+    case TCG_COND_TSTEQ:
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, false);
+        tcg_out_setcond_eq0(s, type, arg0, TCG_REG_R0, neg);
+        break;
+
+    case TCG_COND_TSTNE:
+        tcg_out_test(s, TCG_REG_R0, arg1, arg2, const_arg2, type, false);
+        tcg_out_setcond_ne0(s, type, arg0, TCG_REG_R0, neg);
         break;
 
     case TCG_COND_LE:
@@ -1945,22 +2073,28 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     }
 }
 
-static void tcg_out_bc(TCGContext *s, int bc, TCGLabel *l)
+static void tcg_out_bc(TCGContext *s, TCGCond cond, int bd)
 {
+    tcg_out32(s, tcg_to_bc[cond] | bd);
+}
+
+static void tcg_out_bc_lab(TCGContext *s, TCGCond cond, TCGLabel *l)
+{
+    int bd = 0;
     if (l->has_value) {
-        bc |= reloc_pc14_val(tcg_splitwx_to_rx(s->code_ptr), l->u.value_ptr);
+        bd = reloc_pc14_val(tcg_splitwx_to_rx(s->code_ptr), l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, l, 0);
     }
-    tcg_out32(s, bc);
+    tcg_out_bc(s, cond, bd);
 }
 
 static void tcg_out_brcond(TCGContext *s, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            TCGLabel *l, TCGType type)
 {
-    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
-    tcg_out_bc(s, tcg_to_bc[cond], l);
+    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 0, type);
+    tcg_out_bc_lab(s, cond, l);
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
@@ -1973,7 +2107,7 @@ static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
         return;
     }
 
-    tcg_out_cmp(s, cond, c1, c2, const_c2, 7, type);
+    tcg_out_cmp(s, cond, c1, c2, const_c2, 0, type);
 
     if (have_isel) {
         int isel = tcg_to_isel[cond];
@@ -2002,7 +2136,7 @@ static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
             }
         }
         /* Branch forward over one insn */
-        tcg_out32(s, tcg_to_bc[cond] | 8);
+        tcg_out_bc(s, cond, 8);
         if (v2 == 0) {
             tcg_out_movi(s, type, dest, 0);
         } else {
@@ -2017,17 +2151,17 @@ static void tcg_out_cntxz(TCGContext *s, TCGType type, uint32_t opc,
     if (const_a2 && a2 == (type == TCG_TYPE_I32 ? 32 : 64)) {
         tcg_out32(s, opc | RA(a0) | RS(a1));
     } else {
-        tcg_out_cmp(s, TCG_COND_EQ, a1, 0, 1, 7, type);
+        tcg_out_cmp(s, TCG_COND_EQ, a1, 0, 1, 0, type);
         /* Note that the only other valid constant for a2 is 0.  */
         if (have_isel) {
             tcg_out32(s, opc | RA(TCG_REG_R0) | RS(a1));
             tcg_out32(s, tcg_to_isel[TCG_COND_EQ] | TAB(a0, a2, TCG_REG_R0));
         } else if (!const_a2 && a0 == a2) {
-            tcg_out32(s, tcg_to_bc[TCG_COND_EQ] | 8);
+            tcg_out_bc(s, TCG_COND_EQ, 8);
             tcg_out32(s, opc | RA(a0) | RS(a1));
         } else {
             tcg_out32(s, opc | RA(a0) | RS(a1));
-            tcg_out32(s, tcg_to_bc[TCG_COND_NE] | 8);
+            tcg_out_bc(s, TCG_COND_NE, 8);
             if (const_a2) {
                 tcg_out_movi(s, type, a0, 0);
             } else {
@@ -2072,7 +2206,22 @@ static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
     do_equality:
         tcg_out_cmp(s, cond, al, bl, blconst, 6, TCG_TYPE_I32);
         tcg_out_cmp(s, cond, ah, bh, bhconst, 7, TCG_TYPE_I32);
-        tcg_out32(s, op | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+        tcg_out32(s, op | BT(0, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+        break;
+
+    case TCG_COND_TSTEQ:
+    case TCG_COND_TSTNE:
+        if (blconst) {
+            tcg_out_andi32(s, TCG_REG_R0, al, bl);
+        } else {
+            tcg_out32(s, AND | SAB(al, TCG_REG_R0, bl));
+        }
+        if (bhconst) {
+            tcg_out_andi32(s, TCG_REG_TMP1, ah, bh);
+        } else {
+            tcg_out32(s, AND | SAB(ah, TCG_REG_TMP1, bh));
+        }
+        tcg_out32(s, OR | SAB(TCG_REG_R0, TCG_REG_R0, TCG_REG_TMP1) | 1);
         break;
 
     case TCG_COND_LT:
@@ -2090,8 +2239,8 @@ static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
 
         tcg_out_cmp(s, cond, ah, bh, bhconst, 6, TCG_TYPE_I32);
         tcg_out_cmp(s, cond2, al, bl, blconst, 7, TCG_TYPE_I32);
-        tcg_out32(s, op | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, bit2));
-        tcg_out32(s, CROR | BT(7, CR_EQ) | BA(6, bit1) | BB(7, CR_EQ));
+        tcg_out32(s, op | BT(0, CR_EQ) | BA(6, CR_EQ) | BB(7, bit2));
+        tcg_out32(s, CROR | BT(0, CR_EQ) | BA(6, bit1) | BB(0, CR_EQ));
         break;
 
     default:
@@ -2103,15 +2252,15 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
                              const int *const_args)
 {
     tcg_out_cmp2(s, args + 1, const_args + 1);
-    tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(7));
-    tcg_out_rlw(s, RLWINM, args[0], TCG_REG_R0, 31, 31, 31);
+    tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(0));
+    tcg_out_rlw(s, RLWINM, args[0], TCG_REG_R0, CR_EQ + 0*4 + 1, 31, 31);
 }
 
-static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
-                             const int *const_args)
+static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
+                            const int *const_args)
 {
     tcg_out_cmp2(s, args, const_args);
-    tcg_out_bc(s, BC | BI(7, CR_EQ) | BO_COND_TRUE, arg_label(args[5]));
+    tcg_out_bc_lab(s, TCG_COND_EQ, arg_label(args[5]));
 }
 
 static void tcg_out_mb(TCGContext *s, TCGArg a0)
@@ -2435,17 +2584,17 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
             tcg_out_cmp(s, TCG_COND_EQ, addrhi, TCG_REG_TMP2,
                         0, 6, TCG_TYPE_I32);
 
-            /* Combine comparisons into cr7. */
-            tcg_out32(s, CRAND | BT(7, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
+            /* Combine comparisons into cr0. */
+            tcg_out32(s, CRAND | BT(0, CR_EQ) | BA(6, CR_EQ) | BB(7, CR_EQ));
         } else {
-            /* Full comparison into cr7. */
+            /* Full comparison into cr0. */
             tcg_out_cmp(s, TCG_COND_EQ, TCG_REG_R0, TCG_REG_TMP2,
-                        0, 7, addr_type);
+                        0, 0, addr_type);
         }
 
         /* Load a pointer into the current opcode w/conditional branch-link. */
         ldst->label_ptr[0] = s->code_ptr;
-        tcg_out32(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
+        tcg_out_bc(s, TCG_COND_NE, LK);
 
         h->base = TCG_REG_TMP1;
     } else {
@@ -3979,8 +4128,6 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_sar_i32:
     case INDEX_op_rotl_i32:
     case INDEX_op_rotr_i32:
-    case INDEX_op_setcond_i32:
-    case INDEX_op_negsetcond_i32:
     case INDEX_op_and_i64:
     case INDEX_op_andc_i64:
     case INDEX_op_shl_i64:
@@ -3988,8 +4135,6 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_sar_i64:
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i64:
         return C_O1_I2(r, r, ri);
 
     case INDEX_op_mul_i32:
@@ -4033,11 +4178,16 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        return C_O0_I2(r, ri);
-
+        return C_O0_I2(r, rC);
+    case INDEX_op_setcond_i32:
+    case INDEX_op_setcond_i64:
+    case INDEX_op_negsetcond_i32:
+    case INDEX_op_negsetcond_i64:
+        return C_O1_I2(r, r, rC);
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, ri, rZ, rZ);
+        return C_O1_I4(r, r, rC, rZ, rZ);
+
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, 0, rZ);

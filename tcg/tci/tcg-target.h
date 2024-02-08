@@ -117,6 +117,8 @@
 
 #define TCG_TARGET_HAS_qemu_ldst_i128   0
 
+#define TCG_TARGET_HAS_tst              1
+
 /* Number of registers available. */
 #define TCG_TARGET_NB_REGS 16
 

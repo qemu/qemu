@@ -173,7 +173,8 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
                          const TCGHelperInfo *info);
 static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot);
-static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece);
+static bool tcg_target_const_match(int64_t val, int ct,
+                                   TCGType type, TCGCond cond, int vece);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
 static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
@@ -1655,7 +1656,7 @@ TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t off, const char *name)
     return temp_tcgv_ptr(ts);
 }
 
-static TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
+TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
 {
     TCGContext *s = tcg_ctx;
     TCGTemp *ts;
@@ -2482,7 +2483,9 @@ static const char * const cond_name[] =
     [TCG_COND_LTU] = "ltu",
     [TCG_COND_GEU] = "geu",
     [TCG_COND_LEU] = "leu",
-    [TCG_COND_GTU] = "gtu"
+    [TCG_COND_GTU] = "gtu",
+    [TCG_COND_TSTEQ] = "tsteq",
+    [TCG_COND_TSTNE] = "tstne",
 };
 
 static const char * const ldst_name[(MO_BSWAP | MO_SSIZE) + 1] =
@@ -4784,6 +4787,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     TCGTemp *ts;
     TCGArg new_args[TCG_MAX_OP_ARGS];
     int const_args[TCG_MAX_OP_ARGS];
+    TCGCond op_cond;
 
     nb_oargs = def->nb_oargs;
     nb_iargs = def->nb_iargs;
@@ -4795,6 +4799,33 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
     i_allocated_regs = s->reserved_regs;
     o_allocated_regs = s->reserved_regs;
+
+    switch (op->opc) {
+    case INDEX_op_brcond_i32:
+    case INDEX_op_brcond_i64:
+        op_cond = op->args[2];
+        break;
+    case INDEX_op_setcond_i32:
+    case INDEX_op_setcond_i64:
+    case INDEX_op_negsetcond_i32:
+    case INDEX_op_negsetcond_i64:
+    case INDEX_op_cmp_vec:
+        op_cond = op->args[3];
+        break;
+    case INDEX_op_brcond2_i32:
+        op_cond = op->args[4];
+        break;
+    case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
+    case INDEX_op_setcond2_i32:
+    case INDEX_op_cmpsel_vec:
+        op_cond = op->args[5];
+        break;
+    default:
+        /* No condition within opcode. */
+        op_cond = TCG_COND_ALWAYS;
+        break;
+    }
 
     /* satisfy input constraints */
     for (k = 0; k < nb_iargs; k++) {
@@ -4809,7 +4840,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         ts = arg_temp(arg);
 
         if (ts->val_type == TEMP_VAL_CONST
-            && tcg_target_const_match(ts->val, ts->type, arg_ct->ct, TCGOP_VECE(op))) {
+            && tcg_target_const_match(ts->val, arg_ct->ct, ts->type,
+                                      op_cond, TCGOP_VECE(op))) {
             /* constant is OK for instruction */
             const_args[i] = 1;
             new_args[i] = ts->val;

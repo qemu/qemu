@@ -132,6 +132,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_U32 0x200
 #define TCG_CT_CONST_I32 0x400
 #define TCG_CT_CONST_WSZ 0x800
+#define TCG_CT_CONST_TST 0x1000
 
 /* Registers used with L constraint, which are the first argument
    registers on x86_64, and two random call clobbered registers on
@@ -195,13 +196,15 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 }
 
 /* test if a constant matches the constraint */
-static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
+static bool tcg_target_const_match(int64_t val, int ct,
+                                   TCGType type, TCGCond cond, int vece)
 {
     if (ct & TCG_CT_CONST) {
         return 1;
     }
     if (type == TCG_TYPE_I32) {
-        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 | TCG_CT_CONST_I32)) {
+        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 |
+                  TCG_CT_CONST_I32 | TCG_CT_CONST_TST)) {
             return 1;
         }
     } else {
@@ -212,6 +215,17 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
             return 1;
         }
         if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
+            return 1;
+        }
+        /*
+         * This will be used in combination with TCG_CT_CONST_S32,
+         * so "normal" TESTQ is already matched.  Also accept:
+         *    TESTQ -> TESTL   (uint32_t)
+         *    TESTQ -> BT      (is_power_of_2)
+         */
+        if ((ct & TCG_CT_CONST_TST)
+            && is_tst_cond(cond)
+            && (val == (uint32_t)val || is_power_of_2(val))) {
             return 1;
         }
     }
@@ -395,6 +409,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
 #define OPC_SHLX        (0xf7 | P_EXT38 | P_DATA16)
 #define OPC_SHRX        (0xf7 | P_EXT38 | P_SIMDF2)
 #define OPC_SHRD_Ib     (0xac | P_EXT)
+#define OPC_TESTB	(0x84)
 #define OPC_TESTL	(0x85)
 #define OPC_TZCNT       (0xbc | P_EXT | P_SIMDF3)
 #define OPC_UD2         (0x0b | P_EXT)
@@ -441,6 +456,12 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct, int vece)
 #define OPC_GRP3_Ev     (0xf7)
 #define OPC_GRP5        (0xff)
 #define OPC_GRP14       (0x73 | P_EXT | P_DATA16)
+#define OPC_GRPBT       (0xba | P_EXT)
+
+#define OPC_GRPBT_BT    4
+#define OPC_GRPBT_BTS   5
+#define OPC_GRPBT_BTR   6
+#define OPC_GRPBT_BTC   7
 
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
@@ -505,6 +526,8 @@ static const uint8_t tcg_cond_to_jcc[] = {
     [TCG_COND_GEU] = JCC_JAE,
     [TCG_COND_LEU] = JCC_JBE,
     [TCG_COND_GTU] = JCC_JA,
+    [TCG_COND_TSTEQ] = JCC_JE,
+    [TCG_COND_TSTNE] = JCC_JNE,
 };
 
 #if TCG_TARGET_REG_BITS == 64
@@ -1448,27 +1471,101 @@ static void tcg_out_jxx(TCGContext *s, int opc, TCGLabel *l, bool small)
     }
 }
 
-static void tcg_out_cmp(TCGContext *s, TCGArg arg1, TCGArg arg2,
-                        int const_arg2, int rexw)
+static int tcg_out_cmp(TCGContext *s, TCGCond cond, TCGArg arg1,
+                       TCGArg arg2, int const_arg2, int rexw)
 {
-    if (const_arg2) {
-        if (arg2 == 0) {
-            /* test r, r */
+    int jz, js;
+
+    if (!is_tst_cond(cond)) {
+        if (!const_arg2) {
+            tgen_arithr(s, ARITH_CMP + rexw, arg1, arg2);
+        } else if (arg2 == 0) {
             tcg_out_modrm(s, OPC_TESTL + rexw, arg1, arg1);
         } else {
+            tcg_debug_assert(!rexw || arg2 == (int32_t)arg2);
             tgen_arithi(s, ARITH_CMP + rexw, arg1, arg2, 0);
         }
-    } else {
-        tgen_arithr(s, ARITH_CMP + rexw, arg1, arg2);
+        return tcg_cond_to_jcc[cond];
     }
+
+    jz = tcg_cond_to_jcc[cond];
+    js = (cond == TCG_COND_TSTNE ? JCC_JS : JCC_JNS);
+
+    if (!const_arg2) {
+        tcg_out_modrm(s, OPC_TESTL + rexw, arg1, arg2);
+        return jz;
+    }
+
+    if (arg2 <= 0xff && (TCG_TARGET_REG_BITS == 64 || arg1 < 4)) {
+        if (arg2 == 0x80) {
+            tcg_out_modrm(s, OPC_TESTB | P_REXB_R, arg1, arg1);
+            return js;
+        }
+        if (arg2 == 0xff) {
+            tcg_out_modrm(s, OPC_TESTB | P_REXB_R, arg1, arg1);
+            return jz;
+        }
+        tcg_out_modrm(s, OPC_GRP3_Eb | P_REXB_RM, EXT3_TESTi, arg1);
+        tcg_out8(s, arg2);
+        return jz;
+    }
+
+    if ((arg2 & ~0xff00) == 0 && arg1 < 4) {
+        if (arg2 == 0x8000) {
+            tcg_out_modrm(s, OPC_TESTB, arg1 + 4, arg1 + 4);
+            return js;
+        }
+        if (arg2 == 0xff00) {
+            tcg_out_modrm(s, OPC_TESTB, arg1 + 4, arg1 + 4);
+            return jz;
+        }
+        tcg_out_modrm(s, OPC_GRP3_Eb, EXT3_TESTi, arg1 + 4);
+        tcg_out8(s, arg2 >> 8);
+        return jz;
+    }
+
+    if (arg2 == 0xffff) {
+        tcg_out_modrm(s, OPC_TESTL | P_DATA16, arg1, arg1);
+        return jz;
+    }
+    if (arg2 == 0xffffffffu) {
+        tcg_out_modrm(s, OPC_TESTL, arg1, arg1);
+        return jz;
+    }
+
+    if (is_power_of_2(rexw ? arg2 : (uint32_t)arg2)) {
+        int jc = (cond == TCG_COND_TSTNE ? JCC_JB : JCC_JAE);
+        int sh = ctz64(arg2);
+
+        rexw = (sh & 32 ? P_REXW : 0);
+        if ((sh & 31) == 31) {
+            tcg_out_modrm(s, OPC_TESTL | rexw, arg1, arg1);
+            return js;
+        } else {
+            tcg_out_modrm(s, OPC_GRPBT | rexw, OPC_GRPBT_BT, arg1);
+            tcg_out8(s, sh);
+            return jc;
+        }
+    }
+
+    if (rexw) {
+        if (arg2 == (uint32_t)arg2) {
+            rexw = 0;
+        } else {
+            tcg_debug_assert(arg2 == (int32_t)arg2);
+        }
+    }
+    tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_TESTi, arg1);
+    tcg_out32(s, arg2);
+    return jz;
 }
 
 static void tcg_out_brcond(TCGContext *s, int rexw, TCGCond cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            TCGLabel *label, bool small)
 {
-    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
-    tcg_out_jxx(s, tcg_cond_to_jcc[cond], label, small);
+    int jcc = tcg_out_cmp(s, cond, arg1, arg2, const_arg2, rexw);
+    tcg_out_jxx(s, jcc, label, small);
 }
 
 #if TCG_TARGET_REG_BITS == 32
@@ -1477,18 +1574,21 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
 {
     TCGLabel *label_next = gen_new_label();
     TCGLabel *label_this = arg_label(args[5]);
+    TCGCond cond = args[4];
 
-    switch(args[4]) {
+    switch (cond) {
     case TCG_COND_EQ:
-        tcg_out_brcond(s, 0, TCG_COND_NE, args[0], args[2], const_args[2],
-                       label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_EQ, args[1], args[3], const_args[3],
+    case TCG_COND_TSTEQ:
+        tcg_out_brcond(s, 0, tcg_invert_cond(cond),
+                       args[0], args[2], const_args[2], label_next, 1);
+        tcg_out_brcond(s, 0, cond, args[1], args[3], const_args[3],
                        label_this, small);
         break;
     case TCG_COND_NE:
-        tcg_out_brcond(s, 0, TCG_COND_NE, args[0], args[2], const_args[2],
+    case TCG_COND_TSTNE:
+        tcg_out_brcond(s, 0, cond, args[0], args[2], const_args[2],
                        label_this, small);
-        tcg_out_brcond(s, 0, TCG_COND_NE, args[1], args[3], const_args[3],
+        tcg_out_brcond(s, 0, cond, args[1], args[3], const_args[3],
                        label_this, small);
         break;
     case TCG_COND_LT:
@@ -1560,6 +1660,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
 {
     bool inv = false;
     bool cleared;
+    int jcc;
 
     switch (cond) {
     case TCG_COND_NE:
@@ -1596,7 +1697,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
          * We can then use NEG or INC to produce the desired result.
          * This is always smaller than the SETCC expansion.
          */
-        tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
+        tcg_out_cmp(s, TCG_COND_LTU, arg1, arg2, const_arg2, rexw);
 
         /* X - X - C = -C = (C ? -1 : 0) */
         tgen_arithr(s, ARITH_SBB + (neg ? rexw : 0), dest, dest);
@@ -1643,8 +1744,8 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
         cleared = true;
     }
 
-    tcg_out_cmp(s, arg1, arg2, const_arg2, rexw);
-    tcg_out_modrm(s, OPC_SETCC | tcg_cond_to_jcc[cond], 0, dest);
+    jcc = tcg_out_cmp(s, cond, arg1, arg2, const_arg2, rexw);
+    tcg_out_modrm(s, OPC_SETCC | jcc, 0, dest);
 
     if (!cleared) {
         tcg_out_ext8u(s, dest, dest);
@@ -1698,14 +1799,14 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
 }
 #endif
 
-static void tcg_out_cmov(TCGContext *s, TCGCond cond, int rexw,
+static void tcg_out_cmov(TCGContext *s, int jcc, int rexw,
                          TCGReg dest, TCGReg v1)
 {
     if (have_cmov) {
-        tcg_out_modrm(s, OPC_CMOVCC | tcg_cond_to_jcc[cond] | rexw, dest, v1);
+        tcg_out_modrm(s, OPC_CMOVCC | jcc | rexw, dest, v1);
     } else {
         TCGLabel *over = gen_new_label();
-        tcg_out_jxx(s, tcg_cond_to_jcc[tcg_invert_cond(cond)], over, 1);
+        tcg_out_jxx(s, jcc ^ 1, over, 1);
         tcg_out_mov(s, TCG_TYPE_I32, dest, v1);
         tcg_out_label(s, over);
     }
@@ -1715,8 +1816,8 @@ static void tcg_out_movcond(TCGContext *s, int rexw, TCGCond cond,
                             TCGReg dest, TCGReg c1, TCGArg c2, int const_c2,
                             TCGReg v1)
 {
-    tcg_out_cmp(s, c1, c2, const_c2, rexw);
-    tcg_out_cmov(s, cond, rexw, dest, v1);
+    int jcc = tcg_out_cmp(s, cond, c1, c2, const_c2, rexw);
+    tcg_out_cmov(s, jcc, rexw, dest, v1);
 }
 
 static void tcg_out_ctz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
@@ -1728,12 +1829,12 @@ static void tcg_out_ctz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
             tcg_debug_assert(arg2 == (rexw ? 64 : 32));
         } else {
             tcg_debug_assert(dest != arg2);
-            tcg_out_cmov(s, TCG_COND_LTU, rexw, dest, arg2);
+            tcg_out_cmov(s, JCC_JB, rexw, dest, arg2);
         }
     } else {
         tcg_debug_assert(dest != arg2);
         tcg_out_modrm(s, OPC_BSF + rexw, dest, arg1);
-        tcg_out_cmov(s, TCG_COND_EQ, rexw, dest, arg2);
+        tcg_out_cmov(s, JCC_JE, rexw, dest, arg2);
     }
 }
 
@@ -1746,7 +1847,7 @@ static void tcg_out_clz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
             tcg_debug_assert(arg2 == (rexw ? 64 : 32));
         } else {
             tcg_debug_assert(dest != arg2);
-            tcg_out_cmov(s, TCG_COND_LTU, rexw, dest, arg2);
+            tcg_out_cmov(s, JCC_JB, rexw, dest, arg2);
         }
     } else {
         tcg_debug_assert(!const_a2);
@@ -1758,8 +1859,8 @@ static void tcg_out_clz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
         tgen_arithi(s, ARITH_XOR + rexw, dest, rexw ? 63 : 31, 0);
 
         /* Since we have destroyed the flags from BSR, we have to re-test.  */
-        tcg_out_cmp(s, arg1, 0, 1, rexw);
-        tcg_out_cmov(s, TCG_COND_EQ, rexw, dest, arg2);
+        int jcc = tcg_out_cmp(s, TCG_COND_EQ, arg1, 0, 1, rexw);
+        tcg_out_cmov(s, jcc, rexw, dest, arg2);
     }
 }
 
@@ -1822,23 +1923,6 @@ static void tcg_out_nopn(TCGContext *s, int n)
         tcg_out8(s, 0x66);
     }
     tcg_out8(s, 0x90);
-}
-
-/* Test register R vs immediate bits I, setting Z flag for EQ/NE. */
-static void __attribute__((unused))
-tcg_out_testi(TCGContext *s, TCGReg r, uint32_t i)
-{
-    /*
-     * This is used for testing alignment, so we can usually use testb.
-     * For i686, we have to use testl for %esi/%edi.
-     */
-    if (i <= 0xff && (TCG_TARGET_REG_BITS == 64 || r < 4)) {
-        tcg_out_modrm(s, OPC_GRP3_Eb | P_REXB_RM, EXT3_TESTi, r);
-        tcg_out8(s, i);
-    } else {
-        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_TESTi, r);
-        tcg_out32(s, i);
-    }
 }
 
 typedef struct {
@@ -2101,16 +2185,17 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_L0, TCG_REG_L0,
                    offsetof(CPUTLBEntry, addend));
     } else if (a_mask) {
-        ldst = new_ldst_label(s);
+        int jcc;
 
+        ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
         ldst->addrlo_reg = addrlo;
         ldst->addrhi_reg = addrhi;
 
-        tcg_out_testi(s, addrlo, a_mask);
         /* jne slow_path */
-        tcg_out_opc(s, OPC_JCC_long + JCC_JNE, 0, 0, 0);
+        jcc = tcg_out_cmp(s, TCG_COND_TSTNE, addrlo, a_mask, true, false);
+        tcg_out_opc(s, OPC_JCC_long + jcc, 0, 0, 0);
         ldst->label_ptr[0] = s->code_ptr;
         s->code_ptr += 4;
     }
@@ -2256,9 +2341,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
         } else {
             TCGLabel *l1 = gen_new_label();
             TCGLabel *l2 = gen_new_label();
+            int jcc;
 
-            tcg_out_testi(s, h.base, 15);
-            tcg_out_jxx(s, JCC_JNE, l1, true);
+            jcc = tcg_out_cmp(s, TCG_COND_TSTNE, h.base, 15, true, false);
+            tcg_out_jxx(s, jcc, l1, true);
 
             tcg_out_vex_modrm_sib_offset(s, OPC_MOVDQA_VxWx + h.seg,
                                          TCG_TMP_VEC, 0,
@@ -2384,9 +2470,10 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
         } else {
             TCGLabel *l1 = gen_new_label();
             TCGLabel *l2 = gen_new_label();
+            int jcc;
 
-            tcg_out_testi(s, h.base, 15);
-            tcg_out_jxx(s, JCC_JNE, l1, true);
+            jcc = tcg_out_cmp(s, TCG_COND_TSTNE, h.base, 15, true, false);
+            tcg_out_jxx(s, jcc, l1, true);
 
             tcg_out_vex_modrm_sib_offset(s, OPC_MOVDQA_WxVx + h.seg,
                                          TCG_TMP_VEC, 0,
@@ -3373,7 +3460,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        return C_O0_I2(r, re);
+        return C_O0_I2(r, reT);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -3421,11 +3508,11 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i32:
     case INDEX_op_negsetcond_i64:
-        return C_O1_I2(q, r, re);
+        return C_O1_I2(q, r, reT);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, re, r, 0);
+        return C_O1_I4(r, r, reT, r, 0);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
