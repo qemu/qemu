@@ -100,6 +100,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
     int i;
     bool x2apic_mode = false;
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
+    X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(x86ms));
     AcpiTable table = { .sig = "APIC", .rev = 3, .oem_id = oem_id,
                         .oem_table_id = oem_table_id };
@@ -122,7 +123,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
                      IO_APIC_SECONDARY_ADDRESS, IO_APIC_SECONDARY_IRQBASE);
     }
 
-    if (x86ms->apic_xrupt_override) {
+    if (x86mc->apic_xrupt_override) {
         build_xrupt_override(table_data, 0, 2,
             0 /* Flags: Conforms to the specifications of the bus */);
     }
