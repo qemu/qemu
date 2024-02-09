@@ -83,12 +83,22 @@ echo
 echo === Performing block-commit on active layer ===
 echo
 
+capture_events="BLOCK_JOB_READY JOB_STATUS_CHANGE"
+
 # Block commit on active layer, push the new overlay into base
 _send_qemu_cmd $h "{ 'execute': 'block-commit',
                                 'arguments': {
                                                  'device': 'virtio0'
                                               }
-                    }" "READY"
+                    }" "return"
+
+_wait_event $h "JOB_STATUS_CHANGE"
+_wait_event $h "JOB_STATUS_CHANGE"
+_wait_event $h "JOB_STATUS_CHANGE"
+
+_wait_event $h "BLOCK_JOB_READY"
+
+capture_events=
 
 _send_qemu_cmd $h "{ 'execute': 'block-job-complete',
                                 'arguments': {
