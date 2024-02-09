@@ -35,7 +35,7 @@ void kvm_pc_setup_irq_routing(bool pci_enabled)
         kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
     }
     if (pci_enabled) {
-        for (i = 0; i < 24; ++i) {
+        for (i = 0; i < KVM_IOAPIC_NUM_PINS; ++i) {
             if (i == 0) {
                 kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
             } else if (i != 2) {
