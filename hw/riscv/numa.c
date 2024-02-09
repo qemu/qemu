@@ -167,7 +167,8 @@ void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
 void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
 {
     int i, j, idx;
-    uint32_t *dist_matrix, dist_matrix_size;
+    g_autofree uint32_t *dist_matrix = NULL;
+    uint32_t dist_matrix_size;
 
     if (numa_enabled(ms) && ms->numa_state->have_numa_distance) {
         dist_matrix_size = riscv_socket_count(ms) * riscv_socket_count(ms);
@@ -189,7 +190,6 @@ void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
                                 "numa-distance-map-v1");
         qemu_fdt_setprop(ms->fdt, "/distance-map", "distance-matrix",
                          dist_matrix, dist_matrix_size);
-        g_free(dist_matrix);
     }
 }
 

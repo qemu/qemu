@@ -32,14 +32,6 @@
 #define FSR_NXA             (FPEXC_NX << FSR_AEXC_SHIFT)
 #define FSR_AEXC            (FSR_NVA | FSR_OFA | FSR_UFA | FSR_DZA | FSR_NXA)
 
-/* Vector Fixed-Point round model */
-#define FSR_VXRM_SHIFT      9
-#define FSR_VXRM            (0x3 << FSR_VXRM_SHIFT)
-
-/* Vector Fixed-Point saturation flag */
-#define FSR_VXSAT_SHIFT     8
-#define FSR_VXSAT           (0x1 << FSR_VXSAT_SHIFT)
-
 /* Control and Status Registers */
 
 /* User Trap Setup */
@@ -361,6 +353,7 @@
 #define CSR_TDATA2          0x7a2
 #define CSR_TDATA3          0x7a3
 #define CSR_TINFO           0x7a4
+#define CSR_MCONTEXT        0x7a8
 
 /* Debug Mode Registers */
 #define CSR_DCSR            0x7b0
@@ -905,4 +898,10 @@ typedef enum RISCVException {
 /* JVT CSR bits */
 #define JVT_MODE                           0x3F
 #define JVT_BASE                           (~0x3F)
+
+/* Debug Sdtrig CSR masks */
+#define MCONTEXT32                         0x0000003F
+#define MCONTEXT64                         0x0000000000001FFFULL
+#define MCONTEXT32_HCONTEXT                0x0000007F
+#define MCONTEXT64_HCONTEXT                0x0000000000003FFFULL
 #endif
