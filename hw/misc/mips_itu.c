@@ -527,10 +527,6 @@ static void mips_itu_realize(DeviceState *dev, Error **errp)
                    s->num_semaphores);
         return;
     }
-    if (!s->cpu0) {
-        error_setg(errp, "Missing 'cpu[0]' property");
-        return;
-    }
 
     s->cell = g_new(ITCStorageCell, get_num_cells(s));
 }
@@ -558,7 +554,6 @@ static Property mips_itu_properties[] = {
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_UINT32("num-semaphores", MIPSITUState, num_semaphores,
                       ITC_SEMAPH_NUM_MAX),
-    DEFINE_PROP_LINK("cpu[0]", MIPSITUState, cpu0, TYPE_MIPS_CPU, ArchCPU *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
