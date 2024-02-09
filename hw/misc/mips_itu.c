@@ -94,12 +94,6 @@ static void itc_reconfigure(MIPSITUState *tag)
     uint64_t size = (1 * KiB) + (am[1] & ITC_AM1_ADDR_MASK_MASK);
     bool is_enabled = (am[0] & ITC_AM0_EN_MASK) != 0;
 
-    if (tag->saar) {
-        address = (tag->saar[0] & 0xFFFFFFFFE000ULL) << 4;
-        size = 1ULL << ((tag->saar[0] >> 1) & 0x1f);
-        is_enabled = tag->saar[0] & 1;
-    }
-
     memory_region_transaction_begin();
     if (!(size & (size - 1))) {
         memory_region_set_size(mr, size);
@@ -158,12 +152,7 @@ static inline ITCView get_itc_view(hwaddr addr)
 static inline int get_cell_stride_shift(const MIPSITUState *s)
 {
     /* Minimum interval (for EntryGain = 0) is 128 B */
-    if (s->saar) {
-        return 7 + ((s->icr0 >> ITC_ICR0_BLK_GRAIN) &
-                    ITC_ICR0_BLK_GRAIN_MASK);
-    } else {
-        return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
-    }
+    return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
 }
 
 static inline ITCStorageCell *get_cell(MIPSITUState *s,
@@ -535,15 +524,10 @@ static void mips_itu_reset(DeviceState *dev)
 {
     MIPSITUState *s = MIPS_ITU(dev);
 
-    if (s->saar) {
-        s->saar[0] = 0x11 << 1;
-        s->icr0 = get_num_cells(s) << ITC_ICR0_CELL_NUM;
-    } else {
-        s->ITCAddressMap[0] = 0;
-        s->ITCAddressMap[1] =
+    s->ITCAddressMap[0] = 0;
+    s->ITCAddressMap[1] =
             ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
             (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
-    }
     itc_reconfigure(s);
 
     itc_reset_cells(s);
