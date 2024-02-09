@@ -819,7 +819,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     } else if (strcmp(arch, "aarch64") == 0) {
         memory_size = "150M";
         machine_alias = "virt";
-        machine_opts = "gic-version=max";
+        machine_opts = "gic-version=3";
         arch_opts = g_strdup_printf("-cpu max -kernel %s", bootpath);
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;

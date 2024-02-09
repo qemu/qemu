@@ -116,17 +116,20 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
  */
 static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
 {
+    MultiFDPages_t *pages = p->pages;
     struct zlib_data *z = p->data;
     z_stream *zs = &z->zs;
     uint32_t out_size = 0;
     int ret;
     uint32_t i;
 
-    for (i = 0; i < p->normal_num; i++) {
+    multifd_send_prepare_header(p);
+
+    for (i = 0; i < pages->num; i++) {
         uint32_t available = z->zbuff_len - out_size;
         int flush = Z_NO_FLUSH;
 
-        if (i == p->normal_num - 1) {
+        if (i == pages->num - 1) {
             flush = Z_SYNC_FLUSH;
         }
 
@@ -135,7 +138,7 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
          * with compression. zlib does not guarantee that this is safe,
          * therefore copy the page before calling deflate().
          */
-        memcpy(z->buf, p->pages->block->host + p->normal[i], p->page_size);
+        memcpy(z->buf, p->pages->block->host + pages->offset[i], p->page_size);
         zs->avail_in = p->page_size;
         zs->next_in = z->buf;
 
@@ -170,6 +173,8 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
     p->iovs_num++;
     p->next_packet_size = out_size;
     p->flags |= MULTIFD_FLAG_ZLIB;
+
+    multifd_send_fill_packet(p);
 
     return 0;
 }

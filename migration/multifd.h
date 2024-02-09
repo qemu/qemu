@@ -13,16 +13,16 @@
 #ifndef QEMU_MIGRATION_MULTIFD_H
 #define QEMU_MIGRATION_MULTIFD_H
 
-int multifd_save_setup(Error **errp);
-void multifd_save_cleanup(void);
-int multifd_load_setup(Error **errp);
-void multifd_load_cleanup(void);
-void multifd_load_shutdown(void);
+bool multifd_send_setup(void);
+void multifd_send_shutdown(void);
+int multifd_recv_setup(Error **errp);
+void multifd_recv_cleanup(void);
+void multifd_recv_shutdown(void);
 bool multifd_recv_all_channels_created(void);
 void multifd_recv_new_channel(QIOChannel *ioc, Error **errp);
 void multifd_recv_sync_main(void);
 int multifd_send_sync_main(void);
-int multifd_queue_page(RAMBlock *block, ram_addr_t offset);
+bool multifd_queue_page(RAMBlock *block, ram_addr_t offset);
 
 /* Multifd Compression flags */
 #define MULTIFD_FLAG_SYNC (1 << 0)
@@ -73,6 +73,9 @@ typedef struct {
     char *name;
     /* channel thread id */
     QemuThread thread;
+    bool thread_created;
+    QemuThread tls_thread;
+    bool tls_thread_created;
     /* communication channel */
     QIOChannel *c;
     /* is the yank function registered */
@@ -91,18 +94,19 @@ typedef struct {
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
 
-    /* this mutex protects the following parameters */
-    QemuMutex mutex;
-    /* is this channel thread running */
-    bool running;
-    /* should this thread finish */
-    bool quit;
     /* multifd flags for each packet */
     uint32_t flags;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
-    /* thread has work to do */
-    int pending_job;
+    /*
+     * The sender thread has work to do if either of below boolean is set.
+     *
+     * @pending_job:  a job is pending
+     * @pending_sync: a sync request is pending
+     *
+     * For both of these fields, they're only set by the requesters, and
+     * cleared by the multifd sender threads.
+     */
+    bool pending_job;
+    bool pending_sync;
     /* array of pages to sent.
      * The owner of 'pages' depends of 'pending_job' value:
      * pending_job == 0 -> migration_thread can use it.
@@ -117,17 +121,13 @@ typedef struct {
     /* size of the next packet that contains pages */
     uint32_t next_packet_size;
     /* packets sent through this channel */
-    uint64_t num_packets;
+    uint64_t packets_sent;
     /* non zero pages sent through this channel */
     uint64_t total_normal_pages;
     /* buffers to send */
     struct iovec *iov;
     /* number of iovs used */
     uint32_t iovs_num;
-    /* Pages that are not zero */
-    ram_addr_t *normal;
-    /* num of non zero pages */
-    uint32_t normal_num;
     /* used for compression methods */
     void *data;
 }  MultiFDSendParams;
@@ -142,6 +142,7 @@ typedef struct {
     char *name;
     /* channel thread id */
     QemuThread thread;
+    bool thread_created;
     /* communication channel */
     QIOChannel *c;
     /* packet allocated len */
@@ -156,8 +157,6 @@ typedef struct {
 
     /* this mutex protects the following parameters */
     QemuMutex mutex;
-    /* is this channel thread running */
-    bool running;
     /* should this thread finish */
     bool quit;
     /* multifd flags for each packet */
@@ -171,8 +170,8 @@ typedef struct {
     MultiFDPacket_t *packet;
     /* size of the next packet that contains pages */
     uint32_t next_packet_size;
-    /* packets sent through this channel */
-    uint64_t num_packets;
+    /* packets received through this channel */
+    uint64_t packets_recved;
     /* ramblock */
     RAMBlock *block;
     /* ramblock host address */
@@ -205,6 +204,14 @@ typedef struct {
 } MultiFDMethods;
 
 void multifd_register_ops(int method, MultiFDMethods *ops);
+void multifd_send_fill_packet(MultiFDSendParams *p);
+
+static inline void multifd_send_prepare_header(MultiFDSendParams *p)
+{
+    p->iov[0].iov_len = p->packet_len;
+    p->iov[0].iov_base = p->packet;
+    p->iovs_num++;
+}
+
 
 #endif
-

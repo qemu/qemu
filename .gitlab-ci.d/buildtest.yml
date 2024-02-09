@@ -189,6 +189,8 @@ build-previous-qemu:
     TARGETS: x86_64-softmmu aarch64-softmmu
   before_script:
     - export QEMU_PREV_VERSION="$(sed 's/\([0-9.]*\)\.[0-9]*/v\1.0/' VERSION)"
+    - git remote add upstream https://gitlab.com/qemu-project/qemu
+    - git fetch upstream $QEMU_PREV_VERSION
     - git checkout $QEMU_PREV_VERSION
   after_script:
     - mv build build-previous
@@ -217,9 +219,10 @@ build-previous-qemu:
     - QTEST_QEMU_BINARY_DST=./qemu-system-${TARGET}
           QTEST_QEMU_BINARY=../build/qemu-system-${TARGET} ./tests/qtest/migration-test
 
-# This job is disabled until we release 9.0. The existing
-# migration-test in 8.2 is broken on aarch64. The fix was already
-# commited, but it will only take effect once 9.0 is out.
+# This job needs to be disabled until we can have an aarch64 CPU model that
+# will both (1) support both KVM and TCG, and (2) provide a stable ABI.
+# Currently only "-cpu max" can provide (1), however it doesn't guarantee
+# (2).  Mark this test skipped until later.
 migration-compat-aarch64:
   extends: .migration-compat-common
   variables:

@@ -1119,6 +1119,11 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+/*
+ * We track the poisoned pages to be able to:
+ * - replace them on VM reset
+ * - block a migration for a VM with a poisoned page
+ */
 typedef struct HWPoisonPage {
     ram_addr_t ram_addr;
     QLIST_ENTRY(HWPoisonPage) list;
@@ -1150,6 +1155,11 @@ void kvm_hwpoison_page_add(ram_addr_t ram_addr)
     page = g_new(HWPoisonPage, 1);
     page->ram_addr = ram_addr;
     QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
+}
+
+bool kvm_hwpoisoned_mem(void)
+{
+    return !QLIST_EMPTY(&hwpoison_page_list);
 }
 
 static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
