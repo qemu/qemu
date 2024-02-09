@@ -12,7 +12,7 @@
                      Dominik Maier <mail@dmnk.co>
 
    Copyright 2016, 2017 Google Inc. All rights reserved.
-   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
+   Copyright 2019-2024 AFLplusplus Project. All rights reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -34,22 +34,19 @@
 
 #define CMP_MAP_W 65536
 #define CMP_MAP_H 32
-#define CMP_MAP_RTN_H (CMP_MAP_H / 4)
+#define CMP_MAP_RTN_H (CMP_MAP_H / 2)
 
 #define SHAPE_BYTES(x) (x + 1)
 
-#define CMP_TYPE_INS 1
-#define CMP_TYPE_RTN 2
+#define CMP_TYPE_INS 0
+#define CMP_TYPE_RTN 1
 
-struct cmp_header {
+struct cmp_header {  // 16 bit = 2 bytes
 
-  unsigned hits : 24;
-  unsigned id : 24;
-  unsigned shape : 5;
-  unsigned type : 2;
-  unsigned attribute : 4;
-  unsigned overflow : 1;
-  unsigned reserved : 4;
+  unsigned hits : 6;       // up to 63 entries, we have CMP_MAP_H = 32
+  unsigned shape : 5;      // 31+1 bytes max
+  unsigned type : 1;       // 2: cmp, rtn
+  unsigned attribute : 4;  // 16 for arithmetic comparison types
 
 } __attribute__((packed));
 
@@ -59,14 +56,17 @@ struct cmp_operands {
   u64 v1;
   u64 v0_128;
   u64 v1_128;
+  u64 unused;
+  u8  unused1;
+  u8  unused2;
 
 } __attribute__((packed));
 
 struct cmpfn_operands {
 
-  u8 v0[31];
+  u8 v0[32];
   u8 v0_len;
-  u8 v1[31];
+  u8 v1[32];
   u8 v1_len;
 
 } __attribute__((packed));

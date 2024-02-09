@@ -10,7 +10,7 @@
                      Dominik Maier <mail@dmnk.co>
 
    Copyright 2016, 2017 Google Inc. All rights reserved.
-   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
+   Copyright 2019-2024 AFLplusplus Project. All rights reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -49,6 +49,14 @@ typedef uint128_t         u128;
 #define FS_ERROR_OLD_CMPLOG 32
 #define FS_ERROR_OLD_CMPLOG_QEMU 64
 
+/* New Forkserver */
+#define FS_NEW_VERSION_MIN 1
+#define FS_NEW_VERSION_MAX 1
+#define FS_NEW_ERROR 0xeffe0000
+#define FS_NEW_OPT_MAPSIZE 0x00000001      // parameter: 32 bit value
+#define FS_NEW_OPT_SHDMEM_FUZZ 0x00000002  // parameter: none
+#define FS_NEW_OPT_AUTODICT 0x00000800     // autodictionary data
+
 /* Reporting options */
 #define FS_OPT_ENABLED 0x80000001
 #define FS_OPT_MAPSIZE 0x40000000
@@ -57,7 +65,7 @@ typedef uint128_t         u128;
 #define FS_OPT_SHDMEM_FUZZ 0x01000000
 #define FS_OPT_NEWCMPLOG 0x02000000
 #define FS_OPT_OLD_AFLPP_WORKAROUND 0x0f000000
-// FS_OPT_MAX_MAPSIZE is 8388608 = 0x800000 = 2^23 = 1 << 22
+// FS_OPT_MAX_MAPSIZE is 8388608 = 0x800000 = 2^23 = 1 << 23
 #define FS_OPT_MAX_MAPSIZE ((0x00fffffeU >> 1) + 1)
 #define FS_OPT_GET_MAPSIZE(x) (((x & 0x00fffffe) >> 1) + 1)
 #define FS_OPT_SET_MAPSIZE(x) \
