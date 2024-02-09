@@ -516,7 +516,6 @@ static void mips_itu_init(Object *obj)
 static void mips_itu_realize(DeviceState *dev, Error **errp)
 {
     MIPSITUState *s = MIPS_ITU(dev);
-    CPUMIPSState *env;
 
     if (s->num_fifo > ITC_FIFO_NUM_MAX) {
         error_setg(errp, "Exceed maximum number of FIFO cells: %d",
@@ -531,11 +530,6 @@ static void mips_itu_realize(DeviceState *dev, Error **errp)
     if (!s->cpu0) {
         error_setg(errp, "Missing 'cpu[0]' property");
         return;
-    }
-
-    env = &MIPS_CPU(s->cpu0)->env;
-    if (env->saarp) {
-        s->saar = env->CP0_SAAR;
     }
 
     s->cell = g_new(ITCStorageCell, get_num_cells(s));
