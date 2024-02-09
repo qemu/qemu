@@ -1077,14 +1077,6 @@ void helper_mtc0_count(CPUMIPSState *env, target_ulong arg1)
     cpu_mips_store_count(env, arg1);
 }
 
-void helper_mtc0_saari(CPUMIPSState *env, target_ulong arg1)
-{
-    uint32_t target = arg1 & 0x3f;
-    if (target <= 1) {
-        env->CP0_SAARI = target;
-    }
-}
-
 void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 {
     target_ulong old, val, mask;
