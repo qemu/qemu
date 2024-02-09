@@ -285,7 +285,7 @@ MIPS TCG CPUs
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: target/mips/
 F: disas/*mips.c
@@ -1335,7 +1335,7 @@ F: include/hw/mips/
 
 Jazz
 M: Hervé Poussineau <hpoussin@reactos.org>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Maintained
 F: hw/mips/jazz.c
 F: hw/display/g364fb.c
@@ -1357,7 +1357,7 @@ F: tests/avocado/linux_ssh_mips_malta.py
 F: tests/avocado/machine_mips_malta.py
 
 Mipssim
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Orphan
 F: hw/mips/mipssim.c
 F: hw/net/mipsnet.c
@@ -1385,7 +1385,7 @@ F: tests/avocado/machine_mips_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: hw/core/loader-fit.c
 F: hw/mips/boston.c
@@ -3762,7 +3762,7 @@ M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: tcg/mips/
 
