@@ -179,7 +179,6 @@ for level in range(len(abi_models)):
         models[name]["delta"][level] = delta
 
 def print_uarch_abi_csv():
-    print("# Automatically generated from '%s'" % __file__)
     print("Model,baseline,v2,v3,v4")
     for name in models.keys():
         print(name, end="")

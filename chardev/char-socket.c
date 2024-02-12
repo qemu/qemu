@@ -378,6 +378,10 @@ static void tcp_chr_free_connection(Chardev *chr)
                                  char_socket_yank_iochannel,
                                  QIO_CHANNEL(s->sioc));
     }
+
+    if (s->ioc) {
+        qio_channel_close(s->ioc, NULL);
+    }
     object_unref(OBJECT(s->sioc));
     s->sioc = NULL;
     object_unref(OBJECT(s->ioc));

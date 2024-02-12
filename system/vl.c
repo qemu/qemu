@@ -1914,7 +1914,6 @@ static bool object_create_early(const char *type)
      * Allocation of large amounts of memory may delay
      * chardev initialization for too long, and trigger timeouts
      * on software that waits for a monitor socket to be created
-     * (e.g. libvirt).
      */
     if (g_str_has_prefix(type, "memory-backend-")) {
         return false;
@@ -2777,6 +2776,8 @@ void qemu_init(int argc, char **argv)
 
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
+
+    os_setup_limits();
 
     qemu_init_arch_modules();
 

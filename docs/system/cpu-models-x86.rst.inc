@@ -58,7 +58,7 @@ depending on the machine type is in use.
 .. csv-table:: x86-64 ABI compatibility levels
    :file: cpu-models-x86-abi.csv
    :widths: 40,15,15,15,15
-   :header-rows: 2
+   :header-rows: 1
 
 
 Preferred CPU models for Intel x86 hosts

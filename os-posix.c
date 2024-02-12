@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <pwd.h>
 #include <grp.h>
@@ -253,6 +254,27 @@ void os_daemonize(void)
         signal(SIGTSTP, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
+    }
+}
+
+void os_setup_limits(void)
+{
+    struct rlimit nofile;
+
+    if (getrlimit(RLIMIT_NOFILE, &nofile) < 0) {
+        warn_report("unable to query NOFILE limit: %s", strerror(errno));
+        return;
+    }
+
+    if (nofile.rlim_cur == nofile.rlim_max) {
+        return;
+    }
+
+    nofile.rlim_cur = nofile.rlim_max;
+
+    if (setrlimit(RLIMIT_NOFILE, &nofile) < 0) {
+        warn_report("unable to set NOFILE limit: %s", strerror(errno));
+        return;
     }
 }
 
