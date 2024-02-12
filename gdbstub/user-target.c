@@ -418,3 +418,8 @@ void gdb_handle_query_xfer_exec_file(GArray *params, void *user_ctx)
                     ts->bprm->filename + offset);
     gdb_put_strbuf();
 }
+
+int gdb_target_sigtrap(void)
+{
+    return TARGET_SIGTRAP;
+}
