@@ -1736,9 +1736,9 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
          * shifted immediate from pc.
          */
         int h = -i_disp;
-        int l = h & 0xfff;
+        int l = -(h & 0xfff);
 
-        h = encode_imm_nofail(h - l);
+        h = encode_imm_nofail(h + l);
         tcg_out_dat_imm(s, COND_AL, ARITH_SUB, TCG_REG_R0, TCG_REG_PC, h);
         tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, l);
     }
