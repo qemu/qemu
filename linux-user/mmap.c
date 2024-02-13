@@ -326,7 +326,7 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
                        flags | MAP_ANONYMOUS, -1, 0);
         if (p != host_start) {
             if (p != MAP_FAILED) {
-                munmap(p, host_page_size);
+                do_munmap(p, host_page_size);
                 errno = EEXIST;
             }
             return false;
@@ -622,7 +622,7 @@ static abi_long target_mmap__locked(abi_ulong start, abi_ulong len,
             p = mmap(g2h_untagged(start), len, host_prot,
                      flags | MAP_FIXED, fd, host_offset);
             if (p == MAP_FAILED) {
-                munmap(g2h_untagged(start), host_len);
+                do_munmap(g2h_untagged(start), host_len);
                 return -1;
             }
             host_start += offset - host_offset;
@@ -735,7 +735,7 @@ static abi_long target_mmap__locked(abi_ulong start, abi_ulong len,
                      flags, fd, offset1);
             if (p != want_p) {
                 if (p != MAP_FAILED) {
-                    munmap(p, len1);
+                    do_munmap(p, len1);
                     errno = EEXIST;
                 }
                 return -1;
