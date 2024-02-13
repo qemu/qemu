@@ -37,6 +37,7 @@
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"
+#include "hw/ide/ahci-sysbus.h"
 #include "ahci_internal.h"
 
 #include "trace.h"
