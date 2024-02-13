@@ -267,6 +267,21 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     return ret;
 }
 
+/*
+ * Perform munmap on behalf of the target, with host parameters.
+ * If reserved_va, we must replace the memory reservation.
+ */
+static int do_munmap(void *addr, size_t len)
+{
+    if (reserved_va) {
+        void *ptr = mmap(addr, len, PROT_NONE,
+                         MAP_FIXED | MAP_ANONYMOUS
+                         | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+        return ptr == addr ? 0 : -1;
+    }
+    return munmap(addr, len);
+}
+
 /* map an incomplete host page */
 static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
                       int prot, int flags, int fd, off_t offset)
@@ -854,13 +869,7 @@ static int mmap_reserve_or_unmap(abi_ulong start, abi_ulong len)
     real_len = real_last - real_start + 1;
     host_start = g2h_untagged(real_start);
 
-    if (reserved_va) {
-        void *ptr = mmap(host_start, real_len, PROT_NONE,
-                         MAP_FIXED | MAP_ANONYMOUS
-                         | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-        return ptr == host_start ? 0 : -1;
-    }
-    return munmap(host_start, real_len);
+    return do_munmap(host_start, real_len);
 }
 
 int target_munmap(abi_ulong start, abi_ulong len)
