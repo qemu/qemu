@@ -130,8 +130,7 @@ static void pc_q35_init(MachineState *machine)
     ISADevice *rtc_state;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
-    MemoryRegion *pci_memory;
-    MemoryRegion *rom_memory;
+    MemoryRegion *pci_memory = g_new(MemoryRegion, 1);
     GSIState *gsi_state;
     ISABus *isa_bus;
     int i;
@@ -142,6 +141,8 @@ static void pc_q35_init(MachineState *machine)
     bool acpi_pcihp;
     bool keep_pci_slot_hpc;
     uint64_t pci_hole64_size = 0;
+
+    assert(pcmc->pci_enabled);
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
      * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
@@ -189,16 +190,6 @@ static void pc_q35_init(MachineState *machine)
         kvmclock_create(pcmc->kvmclock_create_always);
     }
 
-    /* pci enabled */
-    if (pcmc->pci_enabled) {
-        pci_memory = g_new(MemoryRegion, 1);
-        memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
-        rom_memory = pci_memory;
-    } else {
-        pci_memory = NULL;
-        rom_memory = system_memory;
-    }
-
     pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
@@ -212,14 +203,13 @@ static void pc_q35_init(MachineState *machine)
     /* create pci host bus */
     phb = OBJECT(qdev_new(TYPE_Q35_HOST_DEVICE));
 
-    if (pcmc->pci_enabled) {
-        pci_hole64_size = object_property_get_uint(phb,
-                                                   PCI_HOST_PROP_PCI_HOLE64_SIZE,
-                                                   &error_abort);
-    }
+    pci_hole64_size = object_property_get_uint(phb,
+                                               PCI_HOST_PROP_PCI_HOLE64_SIZE,
+                                               &error_abort);
 
     /* allocate ram and load rom/bios */
-    pc_memory_init(pcms, system_memory, rom_memory, pci_hole64_size);
+    memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
+    pc_memory_init(pcms, system_memory, pci_memory, pci_hole64_size);
 
     object_property_add_child(OBJECT(machine), "q35", phb);
     object_property_set_link(phb, PCI_HOST_PROP_RAM_MEM,
@@ -243,7 +233,7 @@ static void pc_q35_init(MachineState *machine)
     pcms->bus = host_bus;
 
     /* irq lines */
-    gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
+    gsi_state = pc_gsi_create(&x86ms->gsi, true);
 
     /* create ISA bus */
     lpc = pci_new_multifunction(PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC),
@@ -286,9 +276,7 @@ static void pc_q35_init(MachineState *machine)
         pc_i8259_create(isa_bus, gsi_state->i8259_irq);
     }
 
-    if (pcmc->pci_enabled) {
-        ioapic_init_gsi(gsi_state, "q35");
-    }
+    ioapic_init_gsi(gsi_state, "q35");
 
     if (tcg_enabled()) {
         x86_register_ferr_irq(x86ms->gsi[13]);
