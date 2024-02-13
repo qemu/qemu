@@ -26,9 +26,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
 #define LASI_IAR        0x10
 
 #define LASI_LPT        0x02000
+#define LASI_AUDIO      0x04000
 #define LASI_UART       0x05000
 #define LASI_LAN        0x07000
 #define LASI_RTC        0x09000
+#define LASI_FDC        0x0A000
 
 #define LASI_PCR        0x0C000 /* LASI Power Control register */
 #define LASI_ERRLOG     0x0C004 /* LASI Error Logging register */

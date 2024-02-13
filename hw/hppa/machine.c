@@ -13,6 +13,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
@@ -333,6 +334,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    const char *firmware = machine->firmware;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *dev;
     PCIDevice *pci_dev;
@@ -408,31 +410,37 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     /* Load firmware.  Given that this is not "real" firmware,
        but one explicitly written for the emulation, we might as
-       well load it directly from an ELF image.  */
-    firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                       machine->firmware ?: "hppa-firmware.img");
-    if (firmware_filename == NULL) {
-        error_report("no firmware provided");
-        exit(1);
-    }
+       well load it directly from an ELF image. Load the 64-bit
+       firmware on 64-bit machines by default if not specified
+       on command line. */
+    if (!qtest_enabled()) {
+        if (!firmware) {
+            firmware = lasi_dev ? "hppa-firmware.img" : "hppa-firmware64.img";
+        }
+        firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, firmware);
+        if (firmware_filename == NULL) {
+            error_report("no firmware provided");
+            exit(1);
+        }
 
-    size = load_elf(firmware_filename, NULL, translate, NULL,
-                    &firmware_entry, &firmware_low, &firmware_high, NULL,
-                    true, EM_PARISC, 0, 0);
+        size = load_elf(firmware_filename, NULL, translate, NULL,
+                        &firmware_entry, &firmware_low, &firmware_high, NULL,
+                        true, EM_PARISC, 0, 0);
 
-    if (size < 0) {
-        error_report("could not load firmware '%s'", firmware_filename);
-        exit(1);
+        if (size < 0) {
+            error_report("could not load firmware '%s'", firmware_filename);
+            exit(1);
+        }
+        qemu_log_mask(CPU_LOG_PAGE, "Firmware loaded at 0x%08" PRIx64
+                      "-0x%08" PRIx64 ", entry at 0x%08" PRIx64 ".\n",
+                      firmware_low, firmware_high, firmware_entry);
+        if (firmware_low < translate(NULL, FIRMWARE_START) ||
+            firmware_high >= translate(NULL, FIRMWARE_END)) {
+            error_report("Firmware overlaps with memory or IO space");
+            exit(1);
+        }
+        g_free(firmware_filename);
     }
-    qemu_log_mask(CPU_LOG_PAGE, "Firmware loaded at 0x%08" PRIx64
-                  "-0x%08" PRIx64 ", entry at 0x%08" PRIx64 ".\n",
-                  firmware_low, firmware_high, firmware_entry);
-    if (firmware_low < translate(NULL, FIRMWARE_START) ||
-        firmware_high >= translate(NULL, FIRMWARE_END)) {
-        error_report("Firmware overlaps with memory or IO space");
-        exit(1);
-    }
-    g_free(firmware_filename);
 
     rom_region = g_new(MemoryRegion, 1);
     memory_region_init_ram(rom_region, NULL, "firmware",
