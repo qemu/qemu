@@ -304,7 +304,7 @@ static void pc_q35_init(MachineState *machine)
         idebus[1] = qdev_get_child_bus(DEVICE(pdev), "ide.1");
         g_assert(MAX_SATA_PORTS == ich9->ahci.ports);
         ide_drive_get(hd, ich9->ahci.ports);
-        ahci_ide_create_devs(pdev, hd);
+        ahci_ide_create_devs(&ich9->ahci, hd);
     } else {
         idebus[0] = idebus[1] = NULL;
     }

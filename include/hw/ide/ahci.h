@@ -52,7 +52,7 @@ typedef struct AHCIState {
 } AHCIState;
 
 
-void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
+void ahci_ide_create_devs(AHCIState *ahci, DriveInfo **hd);
 
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"
 OBJECT_DECLARE_SIMPLE_TYPE(SysbusAHCIState, SYSBUS_AHCI)
