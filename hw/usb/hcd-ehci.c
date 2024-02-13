@@ -1086,8 +1086,9 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
     case CONFIGFLAG:
         val &= 0x1;
         if (val) {
-            for(i = 0; i < NB_PORTS; i++)
+            for (i = 0; i < NB_PORTS; i++) {
                 handle_port_owner_write(s, i, 0);
+            }
         }
         break;
 
