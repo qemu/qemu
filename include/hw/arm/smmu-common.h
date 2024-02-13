@@ -92,6 +92,7 @@ typedef struct SMMUTransCfg {
     bool disabled;             /* smmu is disabled */
     bool bypassed;             /* translation is bypassed */
     bool aborted;              /* translation is aborted */
+    bool affd;                 /* AF fault disable */
     uint32_t iotlb_hits;       /* counts IOTLB hits */
     uint32_t iotlb_misses;     /* counts IOTLB misses*/
     /* Used by stage-1 only. */
