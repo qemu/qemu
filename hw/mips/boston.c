@@ -678,6 +678,7 @@ static void boston_mach_init(MachineState *machine)
     MemoryRegion *sys_mem = get_system_memory();
     XilinxPCIEHost *pcie2;
     PCIDevice *pdev;
+    AHCIPCIState *ich9;
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
@@ -771,8 +772,9 @@ static void boston_mach_init(MachineState *machine)
 
     pdev = pci_create_simple_multifunction(&PCI_BRIDGE(&pcie2->root)->sec_bus,
                                            PCI_DEVFN(0, 0), TYPE_ICH9_AHCI);
-    g_assert(ARRAY_SIZE(hd) == ahci_get_num_ports(pdev));
-    ide_drive_get(hd, ahci_get_num_ports(pdev));
+    ich9 = ICH9_AHCI(pdev);
+    g_assert(ARRAY_SIZE(hd) == ich9->ahci.ports);
+    ide_drive_get(hd, ich9->ahci.ports);
     ahci_ide_create_devs(pdev, hd);
 
     if (machine->firmware) {

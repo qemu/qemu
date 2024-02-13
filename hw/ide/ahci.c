@@ -1896,14 +1896,6 @@ static void sysbus_ahci_register_types(void)
 
 type_init(sysbus_ahci_register_types)
 
-int32_t ahci_get_num_ports(PCIDevice *dev)
-{
-    AHCIPCIState *d = ICH9_AHCI(dev);
-    AHCIState *ahci = &d->ahci;
-
-    return ahci->ports;
-}
-
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd)
 {
     AHCIPCIState *d = ICH9_AHCI(dev);

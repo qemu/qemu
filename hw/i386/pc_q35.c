@@ -292,16 +292,18 @@ static void pc_q35_init(MachineState *machine)
 
     if (pcms->sata_enabled) {
         PCIDevice *pdev;
+        AHCIPCIState *ich9;
 
         /* ahci and SATA device, for q35 1 ahci controller is built-in */
         pdev = pci_create_simple_multifunction(host_bus,
                                                PCI_DEVFN(ICH9_SATA1_DEV,
                                                          ICH9_SATA1_FUNC),
                                                "ich9-ahci");
+        ich9 = ICH9_AHCI(pdev);
         idebus[0] = qdev_get_child_bus(DEVICE(pdev), "ide.0");
         idebus[1] = qdev_get_child_bus(DEVICE(pdev), "ide.1");
-        g_assert(MAX_SATA_PORTS == ahci_get_num_ports(pdev));
-        ide_drive_get(hd, ahci_get_num_ports(pdev));
+        g_assert(MAX_SATA_PORTS == ich9->ahci.ports);
+        ide_drive_get(hd, ich9->ahci.ports);
         ahci_ide_create_devs(pdev, hd);
     } else {
         idebus[0] = idebus[1] = NULL;
