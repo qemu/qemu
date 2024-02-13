@@ -677,7 +677,7 @@ static void boston_mach_init(MachineState *machine)
     MemoryRegion *flash, *ddr_low_alias, *lcd, *platreg;
     MemoryRegion *sys_mem = get_system_memory();
     XilinxPCIEHost *pcie2;
-    PCIDevice *ahci;
+    PCIDevice *pdev;
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
@@ -769,11 +769,11 @@ static void boston_mach_init(MachineState *machine)
     qemu_chr_fe_set_handlers(&s->lcd_display, NULL, NULL,
                              boston_lcd_event, NULL, s, NULL, true);
 
-    ahci = pci_create_simple_multifunction(&PCI_BRIDGE(&pcie2->root)->sec_bus,
+    pdev = pci_create_simple_multifunction(&PCI_BRIDGE(&pcie2->root)->sec_bus,
                                            PCI_DEVFN(0, 0), TYPE_ICH9_AHCI);
-    g_assert(ARRAY_SIZE(hd) == ahci_get_num_ports(ahci));
-    ide_drive_get(hd, ahci_get_num_ports(ahci));
-    ahci_ide_create_devs(ahci, hd);
+    g_assert(ARRAY_SIZE(hd) == ahci_get_num_ports(pdev));
+    ide_drive_get(hd, ahci_get_num_ports(pdev));
+    ahci_ide_create_devs(pdev, hd);
 
     if (machine->firmware) {
         fw_size = load_image_targphys(machine->firmware,
