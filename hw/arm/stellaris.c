@@ -462,7 +462,10 @@ static void stellaris_sys_instance_init(Object *obj)
     s->sysclk = qdev_init_clock_out(DEVICE(s), "SYSCLK");
 }
 
-/* I2C controller.  */
+/*
+ * I2C controller.
+ * ??? For now we only implement the master interface.
+ */
 
 #define TYPE_STELLARIS_I2C "stellaris-i2c"
 OBJECT_DECLARE_SIMPLE_TYPE(stellaris_i2c_state, STELLARIS_I2C)
@@ -607,10 +610,17 @@ static void stellaris_i2c_write(void *opaque, hwaddr offset,
     stellaris_i2c_update(s);
 }
 
-static void stellaris_i2c_reset(stellaris_i2c_state *s)
+static void stellaris_i2c_reset_enter(Object *obj, ResetType type)
 {
+    stellaris_i2c_state *s = STELLARIS_I2C(obj);
+
     if (s->mcs & STELLARIS_I2C_MCS_BUSBSY)
         i2c_end_transfer(s->bus);
+}
+
+static void stellaris_i2c_reset_hold(Object *obj)
+{
+    stellaris_i2c_state *s = STELLARIS_I2C(obj);
 
     s->msa = 0;
     s->mcs = 0;
@@ -619,6 +629,12 @@ static void stellaris_i2c_reset(stellaris_i2c_state *s)
     s->mimr = 0;
     s->mris = 0;
     s->mcr = 0;
+}
+
+static void stellaris_i2c_reset_exit(Object *obj)
+{
+    stellaris_i2c_state *s = STELLARIS_I2C(obj);
+
     stellaris_i2c_update(s);
 }
 
@@ -658,8 +674,6 @@ static void stellaris_i2c_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &stellaris_i2c_ops, s,
                           "i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-    /* ??? For now we only implement the master interface.  */
-    stellaris_i2c_reset(s);
 }
 
 /* Analogue to Digital Converter.  This is only partially implemented,
@@ -1396,7 +1410,11 @@ type_init(stellaris_machine_init)
 static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    rc->phases.enter = stellaris_i2c_reset_enter;
+    rc->phases.hold = stellaris_i2c_reset_hold;
+    rc->phases.exit = stellaris_i2c_reset_exit;
     dc->vmsd = &vmstate_stellaris_i2c;
 }
 
