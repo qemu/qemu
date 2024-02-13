@@ -168,12 +168,6 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             # TODO drop fallbacks when undocumented members are outlawed
             if section.text:
                 defn = section.text
-            elif (variants and variants.tag_member == section.member
-                  and not section.member.type.doc_type()):
-                values = section.member.type.member_names()
-                defn = [nodes.Text('One of ')]
-                defn.extend(intersperse([nodes.literal('', v) for v in values],
-                                        nodes.Text(', ')))
             else:
                 defn = [nodes.Text('Not documented')]
 

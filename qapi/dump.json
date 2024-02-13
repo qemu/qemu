@@ -186,7 +186,7 @@
 ##
 # @DumpGuestMemoryCapability:
 #
-# A list of the available formats for dump-guest-memory
+# @formats: the available formats for dump-guest-memory
 #
 # Since: 2.0
 ##

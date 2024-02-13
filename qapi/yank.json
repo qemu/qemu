@@ -49,6 +49,8 @@
 # A yank instance can be yanked with the @yank qmp command to recover
 # from a hanging QEMU.
 #
+# @type: yank instance type
+#
 # Currently implemented yank instances:
 #
 # - nbd block device: Yanking it will shut down the connection to the
@@ -74,7 +76,7 @@
 # Try to recover from hanging QEMU by yanking the specified instances.
 # See @YankInstance for more information.
 #
-# Takes a list of @YankInstance as argument.
+# @instances: the instances to be yanked
 #
 # Returns:
 #     - Nothing on success

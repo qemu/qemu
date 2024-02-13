@@ -5,8 +5,6 @@
 # = Socket data types
 ##
 
-{ 'include': 'common.json' }
-
 ##
 # @NetworkAddressFamily:
 #
@@ -117,7 +115,27 @@
     'port': 'str' } }
 
 ##
+# @FdSocketAddress:
+#
+# A file descriptor name or number.
+#
+# @str: decimal is for file descriptor number, otherwise it's a file
+#     descriptor name.  Named file descriptors are permitted in
+#     monitor commands, in combination with the 'getfd' command.
+#     Decimal file descriptors are permitted at startup or other
+#     contexts where no monitor context is active.
+#
+#
+# Since: 1.2
+##
+{ 'struct': 'FdSocketAddress',
+  'data': {
+    'str': 'str' } }
+
+##
 # @InetSocketAddressWrapper:
+#
+# @data: internet domain socket address
 #
 # Since: 1.3
 ##
@@ -127,6 +145,8 @@
 ##
 # @UnixSocketAddressWrapper:
 #
+# @data: UNIX domain socket address
+#
 # Since: 1.3
 ##
 { 'struct': 'UnixSocketAddressWrapper',
@@ -135,24 +155,30 @@
 ##
 # @VsockSocketAddressWrapper:
 #
+# @data: VSOCK domain socket address
+#
 # Since: 2.8
 ##
 { 'struct': 'VsockSocketAddressWrapper',
   'data': { 'data': 'VsockSocketAddress' } }
 
 ##
-# @StringWrapper:
+# @FdSocketAddressWrapper:
+#
+# @data: file descriptor name or number
 #
 # Since: 1.3
 ##
-{ 'struct': 'StringWrapper',
-  'data': { 'data': 'String' } }
+{ 'struct': 'FdSocketAddressWrapper',
+  'data': { 'data': 'FdSocketAddress' } }
 
 ##
 # @SocketAddressLegacy:
 #
 # Captures the address of a socket, which could also be a named file
 # descriptor
+#
+# @type: Transport type
 #
 # Note: This type is deprecated in favor of SocketAddress.  The
 #     difference between SocketAddressLegacy and SocketAddress is that
@@ -167,7 +193,7 @@
     'inet': 'InetSocketAddressWrapper',
     'unix': 'UnixSocketAddressWrapper',
     'vsock': 'VsockSocketAddressWrapper',
-    'fd': 'StringWrapper' } }
+    'fd': 'FdSocketAddressWrapper' } }
 
 ##
 # @SocketAddressType:
@@ -180,11 +206,7 @@
 #
 # @vsock: VMCI address
 #
-# @fd: decimal is for file descriptor number, otherwise a file
-#     descriptor name.  Named file descriptors are permitted in
-#     monitor commands, in combination with the 'getfd' command.
-#     Decimal file descriptors are permitted at startup or other
-#     contexts where no monitor context is active.
+# @fd: Socket file descriptor
 #
 # Since: 2.9
 ##
@@ -194,7 +216,7 @@
 ##
 # @SocketAddress:
 #
-# Captures the address of a socket, which could also be a named file
+# Captures the address of a socket, which could also be a socket file
 # descriptor
 #
 # @type: Transport type
@@ -207,4 +229,4 @@
   'data': { 'inet': 'InetSocketAddress',
             'unix': 'UnixSocketAddress',
             'vsock': 'VsockSocketAddress',
-            'fd': 'String' } }
+            'fd': 'FdSocketAddress' } }

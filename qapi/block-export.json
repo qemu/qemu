@@ -346,6 +346,8 @@
 # Describes a block export, i.e. how single node should be exported on
 # an external interface.
 #
+# @type: Block export type
+#
 # @id: A unique identifier for the block export (across all export
 #     types)
 #

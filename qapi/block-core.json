@@ -196,6 +196,8 @@
 ##
 # @ImageInfoSpecificQCow2Wrapper:
 #
+# @data: image information specific to QCOW2
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2Wrapper',
@@ -204,6 +206,8 @@
 ##
 # @ImageInfoSpecificVmdkWrapper:
 #
+# @data: image information specific to VMDK
+#
 # Since: 6.1
 ##
 { 'struct': 'ImageInfoSpecificVmdkWrapper',
@@ -211,6 +215,8 @@
 
 ##
 # @ImageInfoSpecificLUKSWrapper:
+#
+# @data: image information specific to LUKS
 #
 # Since: 2.7
 ##
@@ -223,6 +229,8 @@
 ##
 # @ImageInfoSpecificRbdWrapper:
 #
+# @data: image information specific to RBD
+#
 # Since: 6.1
 ##
 { 'struct': 'ImageInfoSpecificRbdWrapper',
@@ -230,6 +238,8 @@
 
 ##
 # @ImageInfoSpecificFileWrapper:
+#
+# @data: image information specific to files
 #
 # Since: 8.0
 ##
@@ -241,6 +251,8 @@
 #
 # A discriminated record of image format specific information
 # structures.
+#
+# @type: block driver name
 #
 # Since: 1.7
 ##
@@ -656,9 +668,7 @@
 # @bins: list of io request counts corresponding to histogram
 #     intervals, one more element than @boundaries has.  For the
 #     example above, @bins may be something like [3, 1, 5, 2], and
-#     corresponding histogram looks like:
-#
-# ::
+#     corresponding histogram looks like::
 #
 #        5|           *
 #        4|           *
@@ -1093,6 +1103,8 @@
 # @BlockStatsSpecific:
 #
 # Block driver specific statistics
+#
+# @driver: block driver name
 #
 # Since: 4.2
 ##
@@ -3467,6 +3479,8 @@
 ##
 # @BlockdevQcowEncryption:
 #
+# @format: encryption format
+#
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcowEncryption',
@@ -3500,6 +3514,8 @@
 
 ##
 # @BlockdevQcow2Encryption:
+#
+# @format: encryption format
 #
 # Since: 2.10
 ##
@@ -3650,6 +3666,8 @@
 
 ##
 # @SshHostKeyCheck:
+#
+# @mode: How to check the host key
 #
 # Since: 2.12
 ##
@@ -4219,6 +4237,8 @@
 
 ##
 # @RbdEncryptionCreateOptions:
+#
+# @format: Encryption format.
 #
 # Since: 6.1
 ##

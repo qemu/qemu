@@ -52,17 +52,6 @@
   'data': [ 'on', 'off', 'split' ] }
 
 ##
-# @String:
-#
-# A fat type wrapping 'str', to be embedded in lists.
-#
-# Since: 1.2
-##
-{ 'struct': 'String',
-  'data': {
-    'str': 'str' } }
-
-##
 # @StrOrNull:
 #
 # This is a string value or the explicit lack of a string (null

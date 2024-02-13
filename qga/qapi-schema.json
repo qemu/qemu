@@ -33,7 +33,10 @@
         'guest-get-time',
         'guest-set-vcpus',
         'guest-sync',
-        'guest-sync-delimited' ] } }
+        'guest-sync-delimited' ],
+    # Types and commands with undocumented members:
+    'documentation-exceptions': [
+        'GuestNVMeSmart' ] } }
 
 ##
 # @guest-sync-delimited:
@@ -776,14 +779,15 @@
 # Attempt to reconfigure (currently: enable/disable) logical
 # processors inside the guest.
 #
-# The input list is processed node by node in order.  In each node
-# @logical-id is used to look up the guest VCPU, for which @online
-# specifies the requested state.  The set of distinct @logical-id's is
-# only required to be a subset of the guest-supported identifiers.
-# There's no restriction on list length or on repeating the same
-# @logical-id (with possibly different @online field). Preferably the
-# input list should describe a modified subset of @guest-get-vcpus'
-# return value.
+# @vcpus: The logical processors to be reconfigured.  This list is
+#     processed node by node in order.  In each node @logical-id is
+#     used to look up the guest VCPU, for which @online specifies the
+#     requested state.  The set of distinct @logical-id's is only
+#     required to be a subset of the guest-supported identifiers.
+#     There's no restriction on list length or on repeating the same
+#     @logical-id (with possibly different @online field).  Preferably
+#     the input list should describe a modified subset of
+#     @guest-get-vcpus' return value.
 #
 # Returns: The length of the initial sublist that has been
 #     successfully processed.  The guest agent maximizes this value.
@@ -934,6 +938,8 @@
 # NVMe smart information, based on NVMe specification, section
 # <SMART / Health Information (Log Identifier 02h)>
 #
+# TODO: document members briefly
+#
 # Since: 7.1
 ##
 { 'struct': 'GuestNVMeSmart',
@@ -968,7 +974,7 @@
 #
 # Disk type related smart information.
 #
-# - @nvme: NVMe disk smart
+# @type: disk bus type
 #
 # Since: 7.1
 ##
@@ -1163,14 +1169,16 @@
 # Attempt to reconfigure (currently: enable/disable) state of memory
 # blocks inside the guest.
 #
-# The input list is processed node by node in order.  In each node
-# @phys-index is used to look up the guest MEMORY BLOCK, for which
-# @online specifies the requested state.  The set of distinct
-# @phys-index's is only required to be a subset of the guest-supported
-# identifiers.  There's no restriction on list length or on repeating
-# the same @phys-index (with possibly different @online field).
-# Preferably the input list should describe a modified subset of
-# @guest-get-memory-blocks' return value.
+# @mem-blks: The memory blocks to be reconfigured.  This list is
+#     processed node by node in order.  In each node @phys-index is
+#     used to look up the guest MEMORY BLOCK, for which @online
+#     specifies the requested state.  The set of distinct
+#     @phys-index's is only required to be a subset of the
+#     guest-supported identifiers.  There's no restriction on list
+#     length or on repeating the same @phys-index (with possibly
+#     different @online field).  Preferably the input list should
+#     describe a modified subset of @guest-get-memory-blocks' return
+#     value.
 #
 # Returns: The operation results, it is a list of
 #     @GuestMemoryBlockResponse, which is corresponding to the input
@@ -1487,6 +1495,8 @@
 
 ##
 # @GuestDeviceType:
+#
+# @pci: PCI device
 ##
 { 'enum': 'GuestDeviceType',
   'data': [ 'pci' ] }
@@ -1506,7 +1516,9 @@
 ##
 # @GuestDeviceId:
 #
-# Id of the device - @pci: PCI ID, since: 5.2
+# Id of the device
+#
+# @type: device type
 #
 # Since: 5.2
 ##
@@ -1688,6 +1700,8 @@
 # @major: major device number of disk
 #
 # @minor: minor device number of disk
+#
+# @stats: I/O statistics
 ##
 { 'struct': 'GuestDiskStatsInfo',
   'data': {'name': 'str',
@@ -1711,7 +1725,9 @@
 ##
 # @GuestCpuStatsType:
 #
-# An enumeration of OS type
+# Guest operating systems supporting CPU statistics
+#
+# @linux: Linux
 #
 # Since: 7.1
 ##
@@ -1768,7 +1784,7 @@
 #
 # Get statistics of each CPU in millisecond.
 #
-# - @linux: Linux style CPU statistics
+# @type: guest operating system
 #
 # Since: 7.1
 ##

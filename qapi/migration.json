@@ -980,6 +980,10 @@
 #     2.9) Previously (since 2.7), this was reported by omitting
 #     tls-hostname instead.
 #
+# @tls-authz: ID of the 'authz' object subclass that provides access
+#     control checking of the TLS x509 certificate distinguished name.
+#     (Since 4.0)
+#
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
 #
@@ -1630,6 +1634,8 @@
 #
 # Migration endpoint configuration.
 #
+# @transport: The migration stream transport mechanism
+#
 # Since: 8.2
 ##
 { 'union': 'MigrationAddress',
@@ -1699,24 +1705,24 @@
 #
 # Notes:
 #
-# 1. The 'query-migrate' command should be used to check migration's
-#    progress and final result (this information is provided by the
-#    'status' member)
+#     1. The 'query-migrate' command should be used to check
+#        migration's progress and final result (this information is
+#        provided by the 'status' member)
 #
-# 2. All boolean arguments default to false
+#     2. All boolean arguments default to false
 #
-# 3. The user Monitor's "detach" argument is invalid in QMP and should
-#    not be used
+#     3. The user Monitor's "detach" argument is invalid in QMP and
+#        should not be used
 #
-# 4. The uri argument should have the Uniform Resource Identifier of
-#    default destination VM. This connection will be bound to default
-#    network.
+#     4. The uri argument should have the Uniform Resource Identifier
+#        of default destination VM. This connection will be bound to
+#        default network.
 #
-# 5. For now, number of migration streams is restricted to one, i.e
-#    number of items in 'channels' list is just 1.
+#     5. For now, number of migration streams is restricted to one,
+#        i.e number of items in 'channels' list is just 1.
 #
-# 6. The 'uri' and 'channels' arguments are mutually exclusive;
-#    exactly one of the two should be present.
+#     6. The 'uri' and 'channels' arguments are mutually exclusive;
+#        exactly one of the two should be present.
 #
 # Example:
 #
@@ -1781,20 +1787,20 @@
 #
 # Notes:
 #
-# 1. It's a bad idea to use a string for the uri, but it needs
-#    to stay compatible with -incoming and the format of the uri
-#    is already exposed above libvirt.
+#     1. It's a bad idea to use a string for the uri, but it needs to
+#        stay compatible with -incoming and the format of the uri is
+#        already exposed above libvirt.
 #
-# 2. QEMU must be started with -incoming defer to allow
-#    migrate-incoming to be used.
+#     2. QEMU must be started with -incoming defer to allow
+#        migrate-incoming to be used.
 #
-# 3. The uri format is the same as for -incoming
+#     3. The uri format is the same as for -incoming
 #
-# 5. For now, number of migration streams is restricted to one, i.e
-#    number of items in 'channels' list is just 1.
+#     5. For now, number of migration streams is restricted to one,
+#        i.e number of items in 'channels' list is just 1.
 #
-# 4. The 'uri' and 'channels' arguments are mutually exclusive;
-#    exactly one of the two should be present.
+#     4. The 'uri' and 'channels' arguments are mutually exclusive;
+#        exactly one of the two should be present.
 #
 # Example:
 #

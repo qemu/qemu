@@ -167,6 +167,7 @@ Syntax::
                    '*doc-required': BOOL,
                    '*command-name-exceptions': [ STRING, ... ],
                    '*command-returns-exceptions': [ STRING, ... ],
+                   '*documentation-exceptions': [ STRING, ... ],
                    '*member-name-exceptions': [ STRING, ... ] } }
 
 The pragma directive lets you control optional generator behavior.
@@ -182,6 +183,10 @@ may contain ``"_"`` instead of ``"-"``.  Default is none.
 
 Pragma 'command-returns-exceptions' takes a list of commands that may
 violate the rules on permitted return types.  Default is none.
+
+Pragma 'documentation-exceptions' takes a list of types, commands, and
+events whose members / arguments need not be documented.  Default is
+none.
 
 Pragma 'member-name-exceptions' takes a list of types whose member
 names may contain uppercase letters, and ``"_"`` instead of ``"-"``.
@@ -1019,11 +1024,11 @@ For example::
  # @device: If the stats are for a virtual block device, the name
  #     corresponding to the virtual block device.
  #
- # @node-name: The node name of the device. (since 2.3)
+ # @node-name: The node name of the device.  (Since 2.3)
  #
  # ... more members ...
  #
- # Since: 0.14.0
+ # Since: 0.14
  ##
  { 'struct': 'BlockStats',
    'data': {'*device': 'str', '*node-name': 'str',
@@ -1035,11 +1040,12 @@ For example::
  # Query the @BlockStats for all virtual block devices.
  #
  # @query-nodes: If true, the command will query all the block nodes
- #     ... explain, explain ...  (since 2.3)
+ #     ... explain, explain ...
+ #     (Since 2.3)
  #
  # Returns: A list of @BlockStats for each virtual block devices.
  #
- # Since: 0.14.0
+ # Since: 0.14
  #
  # Example:
  #

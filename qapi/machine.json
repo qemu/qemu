@@ -443,6 +443,8 @@
 #
 # A discriminated record of NUMA options.  (for OptsVisitor)
 #
+# @type: NUMA option type
+#
 # Since: 2.1
 ##
 { 'union': 'NumaOptions',
@@ -1396,6 +1398,8 @@
 ##
 # @PCDIMMDeviceInfoWrapper:
 #
+# @data: PCDIMMDevice state information
+#
 # Since: 2.1
 ##
 { 'struct': 'PCDIMMDeviceInfoWrapper',
@@ -1403,6 +1407,8 @@
 
 ##
 # @VirtioPMEMDeviceInfoWrapper:
+#
+# @data: VirtioPMEM state information
 #
 # Since: 2.1
 ##
@@ -1412,6 +1418,8 @@
 ##
 # @VirtioMEMDeviceInfoWrapper:
 #
+# @data: VirtioMEMDevice state information
+#
 # Since: 2.1
 ##
 { 'struct': 'VirtioMEMDeviceInfoWrapper',
@@ -1420,6 +1428,8 @@
 ##
 # @SgxEPCDeviceInfoWrapper:
 #
+# @data: Sgx EPC state information
+#
 # Since: 6.2
 ##
 { 'struct': 'SgxEPCDeviceInfoWrapper',
@@ -1427,6 +1437,8 @@
 
 ##
 # @HvBalloonDeviceInfoWrapper:
+#
+# @data: hv-balloon provided memory state information
 #
 # Since: 8.2
 ##
@@ -1437,6 +1449,8 @@
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
+#
+# @type: memory device type
 #
 # Since: 2.1
 ##
