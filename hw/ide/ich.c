@@ -113,7 +113,8 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     d = ICH9_AHCI(dev);
     int ret;
 
-    ahci_realize(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
+    d->ahci.ports = 6;
+    ahci_realize(&d->ahci, DEVICE(dev), pci_get_address_space(dev));
 
     pci_config_set_prog_interface(dev->config, AHCI_PROGMODE_MAJOR_REV_1);
 

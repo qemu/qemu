@@ -1614,14 +1614,14 @@ void ahci_init(AHCIState *s, DeviceState *qdev)
                           "ahci-idp", 32);
 }
 
-void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as)
 {
     qemu_irq *irqs;
     int i;
 
     s->as = as;
-    s->ports = ports;
-    s->dev = g_new0(AHCIDevice, ports);
+    assert(s->ports > 0);
+    s->dev = g_new0(AHCIDevice, s->ports);
     ahci_reg_init(s);
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
     for (i = 0; i < s->ports; i++) {
@@ -1862,7 +1862,8 @@ static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
     SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    ahci_realize(&s->ahci, dev, &address_space_memory, s->num_ports);
+    s->ahci.ports = s->num_ports;
+    ahci_realize(&s->ahci, dev, &address_space_memory);
 }
 
 static Property sysbus_ahci_properties[] = {
