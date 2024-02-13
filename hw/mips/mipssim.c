@@ -31,7 +31,6 @@
 #include "hw/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/char/serial.h"
-#include "hw/isa/isa.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
@@ -206,7 +205,11 @@ mips_mipssim_init(MachineState *machine)
     cpu_mips_irq_init_cpu(cpu);
     cpu_mips_clock_init(cpu);
 
-    /* Register 64 KB of ISA IO space at 0x1fd00000. */
+    /*
+     * Register 64 KB of ISA IO space at 0x1fd00000.  But without interrupts
+     * (except for the hardcoded serial port interrupt) -device cannot work,
+     * so do not expose the ISA bus to the user.
+     */
     memory_region_init_alias(isa, NULL, "isa_mmio",
                              get_system_io(), 0, 0x00010000);
     memory_region_add_subregion(get_system_memory(), 0x1fd00000, isa);
