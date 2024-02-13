@@ -297,8 +297,8 @@ static void pc_q35_init(MachineState *machine)
                                                PCI_DEVFN(ICH9_SATA1_DEV,
                                                          ICH9_SATA1_FUNC),
                                                "ich9-ahci");
-        idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
-        idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
+        idebus[0] = qdev_get_child_bus(DEVICE(ahci), "ide.0");
+        idebus[1] = qdev_get_child_bus(DEVICE(ahci), "ide.1");
         g_assert(MAX_SATA_PORTS == ahci_get_num_ports(ahci));
         ide_drive_get(hd, ahci_get_num_ports(ahci));
         ahci_ide_create_devs(ahci, hd);
