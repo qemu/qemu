@@ -50,6 +50,7 @@ typedef struct PCMachineState {
     bool hpet_enabled;
     bool i8042_enabled;
     bool default_bus_bypass_iommu;
+    bool fd_bootchk;
     uint64_t max_fw_size;
 
     /* ACPI Memory hotplug IO base address */
@@ -146,7 +147,6 @@ OBJECT_DECLARE_TYPE(PCMachineState, PCMachineClass, PC_MACHINE)
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
 
 /* pc.c */
-extern int fd_bootchk;
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 

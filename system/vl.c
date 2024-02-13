@@ -2927,7 +2927,7 @@ void qemu_init(int argc, char **argv)
                           optarg, FD_OPTS);
                 break;
             case QEMU_OPTION_no_fd_bootchk:
-                fd_bootchk = 0;
+                qdict_put_str(machine_opts_dict, "fd-bootchk", "off");
                 break;
             case QEMU_OPTION_netdev:
                 default_net = 0;

@@ -2650,7 +2650,7 @@ DEF("no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk,
 SRST
 ``-no-fd-bootchk``
     Disable boot signature checking for floppy disks in BIOS. May be
-    needed to boot from old floppy disks.
+    needed to boot from old floppy disks.  Synonym of ``-m fd-bootchk=off``.
 ERST
 
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
