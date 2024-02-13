@@ -31,6 +31,7 @@
 #else
 #include "hw/core/sysemu-cpu-ops.h"
 #include "exec/address-spaces.h"
+#include "exec/memory.h"
 #endif
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"

@@ -328,8 +328,8 @@ static void via_superio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
-    sc->parent_realize = dc->realize;
-    dc->realize = via_superio_realize;
+    device_class_set_parent_realize(dc, via_superio_realize,
+                                    &sc->parent_realize);
 }
 
 static const TypeInfo via_superio_info = {

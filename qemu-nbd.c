@@ -114,6 +114,7 @@ static void usage(const char *name)
 "  --tls-creds=ID            use id of an earlier --object to provide TLS\n"
 "  --tls-authz=ID            use id of an earlier --object to provide\n"
 "                            authorization\n"
+"  --tls-hostname=HOSTNAME   override hostname used to check x509 certificate\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"

@@ -2085,7 +2085,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_GTK)
     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
     "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off]\n"
-    "            [,show-menubar=on|off]\n"
+    "            [,show-menubar=on|off][,zoom-to-fit=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -3100,6 +3100,8 @@ SRST
         server. The files in dir will be exposed as the root of a TFTP
         server. The TFTP client on the guest must be configured in
         binary mode (use the command ``bin`` of the Unix TFTP client).
+        The built-in TFTP server is read-only; it does not implement any
+        command for writing files. QEMU will not write to this directory.
 
     ``tftp-server-name=name``
         In BOOTP reply, broadcast name as the "TFTP server name"

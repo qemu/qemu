@@ -646,9 +646,10 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
+    KVMS390FLICStateClass *kfsc = KVM_S390_FLIC_CLASS(oc);
 
-    KVM_S390_FLIC_CLASS(oc)->parent_realize = dc->realize;
-    dc->realize = kvm_s390_flic_realize;
+    device_class_set_parent_realize(dc, kvm_s390_flic_realize,
+                                    &kfsc->parent_realize);
     dc->vmsd = &kvm_s390_flic_vmstate;
     dc->reset = kvm_s390_flic_reset;
     fsc->register_io_adapter = kvm_s390_register_io_adapter;
