@@ -23,6 +23,10 @@ config ISA_SUPERIO
     # Some users of ISA_SUPERIO do not use it
     #select IDE_ISA
 
+config FDC37M81X
+    bool
+    select ISA_SUPERIO
+
 config PC87312
     bool
     select ISA_SUPERIO
