@@ -129,7 +129,7 @@ static void i82374_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "DMA already initialized on ISA bus");
         return;
     }
-    i8257_dma_init(isa_bus, true);
+    i8257_dma_init(OBJECT(dev), isa_bus, true);
 
     portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s,
                      "i82374");
