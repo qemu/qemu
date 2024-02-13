@@ -63,7 +63,6 @@ struct SysbusAHCIState {
     /*< public >*/
 
     AHCIState ahci;
-    uint32_t num_ports;
 };
 
 #define TYPE_ALLWINNER_AHCI "allwinner-ahci"
