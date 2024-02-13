@@ -15,8 +15,6 @@
 #include "hw/firmware/smbios.h"
 #include "hw/cxl/cxl.h"
 
-#define HPET_INTCAP "hpet-intcap"
-
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
