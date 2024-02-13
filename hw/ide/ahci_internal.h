@@ -324,14 +324,6 @@ struct AHCIDevice {
     MemReentrancyGuard mem_reentrancy_guard;
 };
 
-struct AHCIPCIState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    AHCIState ahci;
-};
-
 extern const VMStateDescription vmstate_ahci;
 
 #define VMSTATE_AHCI(_field, _state) {                               \

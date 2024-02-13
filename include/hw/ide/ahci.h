@@ -52,9 +52,6 @@ typedef struct AHCIState {
 } AHCIState;
 
 
-#define TYPE_ICH9_AHCI "ich9-ahci"
-OBJECT_DECLARE_SIMPLE_TYPE(AHCIPCIState, ICH9_AHCI)
-
 int32_t ahci_get_num_ports(PCIDevice *dev);
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
 

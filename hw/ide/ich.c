@@ -69,6 +69,7 @@
 #include "hw/isa/isa.h"
 #include "sysemu/dma.h"
 #include "hw/ide/pci.h"
+#include "hw/ide/ahci-pci.h"
 #include "ahci_internal.h"
 
 #define ICH9_MSI_CAP_OFFSET     0x80
