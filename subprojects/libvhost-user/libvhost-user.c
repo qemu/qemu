@@ -199,18 +199,29 @@ vu_panic(VuDev *dev, const char *msg, ...)
 static VuDevRegion *
 vu_gpa_to_mem_region(VuDev *dev, uint64_t guest_addr)
 {
-    unsigned int i;
+    int low = 0;
+    int high = dev->nregions - 1;
 
     /*
      * Memory regions cannot overlap in guest physical address space. Each
      * GPA belongs to exactly one memory region, so there can only be one
      * match.
+     *
+     * We store our memory regions ordered by GPA and can simply perform a
+     * binary search.
      */
-    for (i = 0; i < dev->nregions; i++) {
-        VuDevRegion *cur = &dev->regions[i];
+    while (low <= high) {
+        unsigned int mid = low + (high - low) / 2;
+        VuDevRegion *cur = &dev->regions[mid];
 
         if (guest_addr >= cur->gpa && guest_addr < cur->gpa + cur->size) {
             return cur;
+        }
+        if (guest_addr >= cur->gpa + cur->size) {
+            low = mid + 1;
+        }
+        if (guest_addr < cur->gpa) {
+            high = mid - 1;
         }
     }
     return NULL;
@@ -273,9 +284,14 @@ vu_remove_all_mem_regs(VuDev *dev)
 static void
 _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
 {
+    const uint64_t start_gpa = msg_region->guest_phys_addr;
+    const uint64_t end_gpa = start_gpa + msg_region->memory_size;
     int prot = PROT_READ | PROT_WRITE;
     VuDevRegion *r;
     void *mmap_addr;
+    int low = 0;
+    int high = dev->nregions - 1;
+    unsigned int idx;
 
     DPRINT("Adding region %d\n", dev->nregions);
     DPRINT("    guest_phys_addr: 0x%016"PRIx64"\n",
@@ -296,6 +312,29 @@ _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
     }
 
     /*
+     * We will add memory regions into the array sorted by GPA. Perform a
+     * binary search to locate the insertion point: it will be at the low
+     * index.
+     */
+    while (low <= high) {
+        unsigned int mid = low + (high - low)  / 2;
+        VuDevRegion *cur = &dev->regions[mid];
+
+        /* Overlap of GPA addresses. */
+        if (start_gpa < cur->gpa + cur->size && cur->gpa < end_gpa) {
+            vu_panic(dev, "regions with overlapping guest physical addresses");
+            return;
+        }
+        if (start_gpa >= cur->gpa + cur->size) {
+            low = mid + 1;
+        }
+        if (start_gpa < cur->gpa) {
+            high = mid - 1;
+        }
+    }
+    idx = low;
+
+    /*
      * We don't use offset argument of mmap() since the mapped address has
      * to be page aligned, and we use huge pages.
      */
@@ -308,7 +347,9 @@ _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
     DPRINT("    mmap_addr:       0x%016"PRIx64"\n",
            (uint64_t)(uintptr_t)mmap_addr);
 
-    r = &dev->regions[dev->nregions];
+    /* Shift all affected entries by 1 to open a hole at idx. */
+    r = &dev->regions[idx];
+    memmove(r + 1, r, sizeof(VuDevRegion) * (dev->nregions - idx));
     r->gpa = msg_region->guest_phys_addr;
     r->size = msg_region->memory_size;
     r->qva = msg_region->userspace_addr;
