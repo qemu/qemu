@@ -1735,61 +1735,6 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
         tcg_gen_mov_tl(ret, t0);
     }
 }
-/* Add functions with two operands */
-#define GEN_INT_ARITH_ADD(name, opc3, ca, add_ca, compute_ca, compute_ov)     \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],      \
-                     ca, glue(ca, 32),                                        \
-                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
-}
-/* Add functions with one operand and one immediate */
-#define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val, ca,                    \
-                                add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    TCGv t0 = tcg_constant_tl(const_val);                                     \
-    gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)],                           \
-                     cpu_gpr[rA(ctx->opcode)], t0,                            \
-                     ca, glue(ca, 32),                                        \
-                     add_ca, compute_ca, compute_ov, Rc(ctx->opcode));        \
-}
-
-/* add  add.  addo  addo. */
-GEN_INT_ARITH_ADD(add, 0x08, cpu_ca, 0, 0, 0)
-GEN_INT_ARITH_ADD(addo, 0x18, cpu_ca, 0, 0, 1)
-/* addc  addc.  addco  addco. */
-GEN_INT_ARITH_ADD(addc, 0x00, cpu_ca, 0, 1, 0)
-GEN_INT_ARITH_ADD(addco, 0x10, cpu_ca, 0, 1, 1)
-/* adde  adde.  addeo  addeo. */
-GEN_INT_ARITH_ADD(adde, 0x04, cpu_ca, 1, 1, 0)
-GEN_INT_ARITH_ADD(addeo, 0x14, cpu_ca, 1, 1, 1)
-/* addme  addme.  addmeo  addmeo.  */
-GEN_INT_ARITH_ADD_CONST(addme, 0x07, -1LL, cpu_ca, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addmeo, 0x17, -1LL, cpu_ca, 1, 1, 1)
-/* addex */
-GEN_INT_ARITH_ADD(addex, 0x05, cpu_ov, 1, 1, 0);
-/* addze  addze.  addzeo  addzeo.*/
-GEN_INT_ARITH_ADD_CONST(addze, 0x06, 0, cpu_ca, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addzeo, 0x16, 0, cpu_ca, 1, 1, 1)
-/* addic  addic.*/
-static inline void gen_op_addic(DisasContext *ctx, bool compute_rc0)
-{
-    TCGv c = tcg_constant_tl(SIMM(ctx->opcode));
-    gen_op_arith_add(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                     c, cpu_ca, cpu_ca32, 0, 1, 0, compute_rc0);
-}
-
-static void gen_addic(DisasContext *ctx)
-{
-    gen_op_addic(ctx, 0);
-}
-
-static void gen_addic_(DisasContext *ctx)
-{
-    gen_op_addic(ctx, 1);
-}
 
 static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, int sign, int compute_ov)
@@ -2209,47 +2154,6 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
     if (t0 != ret) {
         tcg_gen_mov_tl(ret, t0);
     }
-}
-/* Sub functions with Two operands functions */
-#define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
-                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],     \
-                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
-}
-/* Sub functions with one operand and one immediate */
-#define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
-                                add_ca, compute_ca, compute_ov)               \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    TCGv t0 = tcg_constant_tl(const_val);                                     \
-    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)],                          \
-                      cpu_gpr[rA(ctx->opcode)], t0,                           \
-                      add_ca, compute_ca, compute_ov, Rc(ctx->opcode));       \
-}
-/* subf  subf.  subfo  subfo. */
-GEN_INT_ARITH_SUBF(subf, 0x01, 0, 0, 0)
-GEN_INT_ARITH_SUBF(subfo, 0x11, 0, 0, 1)
-/* subfc  subfc.  subfco  subfco. */
-GEN_INT_ARITH_SUBF(subfc, 0x00, 0, 1, 0)
-GEN_INT_ARITH_SUBF(subfco, 0x10, 0, 1, 1)
-/* subfe  subfe.  subfeo  subfo. */
-GEN_INT_ARITH_SUBF(subfe, 0x04, 1, 1, 0)
-GEN_INT_ARITH_SUBF(subfeo, 0x14, 1, 1, 1)
-/* subfme  subfme.  subfmeo  subfmeo.  */
-GEN_INT_ARITH_SUBF_CONST(subfme, 0x07, -1LL, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfmeo, 0x17, -1LL, 1, 1, 1)
-/* subfze  subfze.  subfzeo  subfzeo.*/
-GEN_INT_ARITH_SUBF_CONST(subfze, 0x06, 0, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
-
-/* subfic */
-static void gen_subfic(DisasContext *ctx)
-{
-    TCGv c = tcg_constant_tl(SIMM(ctx->opcode));
-    gen_op_arith_subf(ctx, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                      c, 0, 1, 0, 0);
 }
 
 /* neg neg. nego nego. */
@@ -6524,8 +6428,6 @@ GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
-GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
-GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER),
@@ -6536,7 +6438,6 @@ GEN_HANDLER(mulld, 0x1F, 0x09, 0x07, 0x00000000, PPC_64B),
 #endif
 GEN_HANDLER(neg, 0x1F, 0x08, 0x03, 0x0000F800, PPC_INTEGER),
 GEN_HANDLER(nego, 0x1F, 0x08, 0x13, 0x0000F800, PPC_INTEGER),
-GEN_HANDLER(subfic, 0x08, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
@@ -6747,25 +6648,6 @@ GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
 GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 #endif
 
-#undef GEN_INT_ARITH_ADD
-#undef GEN_INT_ARITH_ADD_CONST
-#define GEN_INT_ARITH_ADD(name, opc3, add_ca, compute_ca, compute_ov)         \
-GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x00000000, PPC_INTEGER),
-#define GEN_INT_ARITH_ADD_CONST(name, opc3, const_val,                        \
-                                add_ca, compute_ca, compute_ov)               \
-GEN_HANDLER(name, 0x1F, 0x0A, opc3, 0x0000F800, PPC_INTEGER),
-GEN_INT_ARITH_ADD(add, 0x08, 0, 0, 0)
-GEN_INT_ARITH_ADD(addo, 0x18, 0, 0, 1)
-GEN_INT_ARITH_ADD(addc, 0x00, 0, 1, 0)
-GEN_INT_ARITH_ADD(addco, 0x10, 0, 1, 1)
-GEN_INT_ARITH_ADD(adde, 0x04, 1, 1, 0)
-GEN_INT_ARITH_ADD(addeo, 0x14, 1, 1, 1)
-GEN_INT_ARITH_ADD_CONST(addme, 0x07, -1LL, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addmeo, 0x17, -1LL, 1, 1, 1)
-GEN_HANDLER_E(addex, 0x1F, 0x0A, 0x05, 0x00000000, PPC_NONE, PPC2_ISA300),
-GEN_INT_ARITH_ADD_CONST(addze, 0x06, 0, 1, 1, 0)
-GEN_INT_ARITH_ADD_CONST(addzeo, 0x16, 0, 1, 1, 1)
-
 #undef GEN_INT_ARITH_DIVW
 #define GEN_INT_ARITH_DIVW(name, opc3, sign, compute_ov)                      \
 GEN_HANDLER(name, 0x1F, 0x0B, opc3, 0x00000000, PPC_INTEGER)
@@ -6803,24 +6685,6 @@ GEN_INT_ARITH_MUL_HELPER(mulhdu, 0x00),
 GEN_INT_ARITH_MUL_HELPER(mulhd, 0x02),
 GEN_INT_ARITH_MUL_HELPER(mulldo, 0x17),
 #endif
-
-#undef GEN_INT_ARITH_SUBF
-#undef GEN_INT_ARITH_SUBF_CONST
-#define GEN_INT_ARITH_SUBF(name, opc3, add_ca, compute_ca, compute_ov)        \
-GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x00000000, PPC_INTEGER),
-#define GEN_INT_ARITH_SUBF_CONST(name, opc3, const_val,                       \
-                                add_ca, compute_ca, compute_ov)               \
-GEN_HANDLER(name, 0x1F, 0x08, opc3, 0x0000F800, PPC_INTEGER),
-GEN_INT_ARITH_SUBF(subf, 0x01, 0, 0, 0)
-GEN_INT_ARITH_SUBF(subfo, 0x11, 0, 0, 1)
-GEN_INT_ARITH_SUBF(subfc, 0x00, 0, 1, 0)
-GEN_INT_ARITH_SUBF(subfco, 0x10, 0, 1, 1)
-GEN_INT_ARITH_SUBF(subfe, 0x04, 1, 1, 0)
-GEN_INT_ARITH_SUBF(subfeo, 0x14, 1, 1, 1)
-GEN_INT_ARITH_SUBF_CONST(subfme, 0x07, -1LL, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfmeo, 0x17, -1LL, 1, 1, 1)
-GEN_INT_ARITH_SUBF_CONST(subfze, 0x06, 0, 1, 1, 0)
-GEN_INT_ARITH_SUBF_CONST(subfzeo, 0x16, 0, 1, 1, 1)
 
 #undef GEN_LOGICAL1
 #undef GEN_LOGICAL2
