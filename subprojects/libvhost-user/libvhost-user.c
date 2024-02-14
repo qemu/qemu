@@ -247,11 +247,8 @@ vu_remove_all_mem_regs(VuDev *dev)
 
     for (i = 0; i < dev->nregions; i++) {
         VuDevRegion *r = &dev->regions[i];
-        void *ma = (void *)(uintptr_t)r->mmap_addr;
 
-        if (ma) {
-            munmap(ma, r->size + r->mmap_offset);
-        }
+        munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
     }
     dev->nregions = 0;
 }
@@ -888,11 +885,8 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     for (i = 0; i < dev->nregions; i++) {
         if (reg_equal(&dev->regions[i], msg_region)) {
             VuDevRegion *r = &dev->regions[i];
-            void *ma = (void *) (uintptr_t) r->mmap_addr;
 
-            if (ma) {
-                munmap(ma, r->size + r->mmap_offset);
-            }
+            munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
 
             /*
              * Shift all affected entries by 1 to close the hole at index i and
