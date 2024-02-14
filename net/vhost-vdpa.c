@@ -288,13 +288,18 @@ static ssize_t vhost_vdpa_receive(NetClientState *nc, const uint8_t *buf,
 }
 
 
-/** From any vdpa net client, get the netclient of the first queue pair */
-static VhostVDPAState *vhost_vdpa_net_first_nc_vdpa(VhostVDPAState *s)
+/** From any vdpa net client, get the netclient of the i-th queue pair */
+static VhostVDPAState *vhost_vdpa_net_get_nc_vdpa(VhostVDPAState *s, int i)
 {
     NICState *nic = qemu_get_nic(s->nc.peer);
-    NetClientState *nc0 = qemu_get_peer(nic->ncs, 0);
+    NetClientState *nc_i = qemu_get_peer(nic->ncs, i);
 
-    return DO_UPCAST(VhostVDPAState, nc, nc0);
+    return DO_UPCAST(VhostVDPAState, nc, nc_i);
+}
+
+static VhostVDPAState *vhost_vdpa_net_first_nc_vdpa(VhostVDPAState *s)
+{
+    return vhost_vdpa_net_get_nc_vdpa(s, 0);
 }
 
 static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
