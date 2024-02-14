@@ -284,9 +284,74 @@ vu_remove_all_mem_regs(VuDev *dev)
 }
 
 static bool
+map_ring(VuDev *dev, VuVirtq *vq)
+{
+    vq->vring.desc = qva_to_va(dev, vq->vra.desc_user_addr);
+    vq->vring.used = qva_to_va(dev, vq->vra.used_user_addr);
+    vq->vring.avail = qva_to_va(dev, vq->vra.avail_user_addr);
+
+    DPRINT("Setting virtq addresses:\n");
+    DPRINT("    vring_desc  at %p\n", vq->vring.desc);
+    DPRINT("    vring_used  at %p\n", vq->vring.used);
+    DPRINT("    vring_avail at %p\n", vq->vring.avail);
+
+    return !(vq->vring.desc && vq->vring.used && vq->vring.avail);
+}
+
+static bool
 vu_is_vq_usable(VuDev *dev, VuVirtq *vq)
 {
-    return likely(!dev->broken) && likely(vq->vring.avail);
+    if (unlikely(dev->broken)) {
+        return false;
+    }
+
+    if (likely(vq->vring.avail)) {
+        return true;
+    }
+
+    /*
+     * In corner cases, we might temporarily remove a memory region that
+     * mapped a ring. When removing a memory region we make sure to
+     * unmap any rings that would be impacted. Let's try to remap if we
+     * already succeeded mapping this ring once.
+     */
+    if (!vq->vra.desc_user_addr || !vq->vra.used_user_addr ||
+        !vq->vra.avail_user_addr) {
+        return false;
+    }
+    if (map_ring(dev, vq)) {
+        vu_panic(dev, "remapping queue on access");
+        return false;
+    }
+    return true;
+}
+
+static void
+unmap_rings(VuDev *dev, VuDevRegion *r)
+{
+    int i;
+
+    for (i = 0; i < dev->max_queues; i++) {
+        VuVirtq *vq = &dev->vq[i];
+        const uintptr_t desc = (uintptr_t)vq->vring.desc;
+        const uintptr_t used = (uintptr_t)vq->vring.used;
+        const uintptr_t avail = (uintptr_t)vq->vring.avail;
+
+        if (desc < r->mmap_addr || desc >= r->mmap_addr + r->size) {
+            continue;
+        }
+        if (used < r->mmap_addr || used >= r->mmap_addr + r->size) {
+            continue;
+        }
+        if (avail < r->mmap_addr || avail >= r->mmap_addr + r->size) {
+            continue;
+        }
+
+        DPRINT("Unmapping rings of queue %d\n", i);
+        vq->vring.desc = NULL;
+        vq->vring.used = NULL;
+        vq->vring.avail = NULL;
+    }
 }
 
 static size_t
@@ -787,21 +852,6 @@ vu_reset_device_exec(VuDev *dev, VhostUserMsg *vmsg)
 }
 
 static bool
-map_ring(VuDev *dev, VuVirtq *vq)
-{
-    vq->vring.desc = qva_to_va(dev, vq->vra.desc_user_addr);
-    vq->vring.used = qva_to_va(dev, vq->vra.used_user_addr);
-    vq->vring.avail = qva_to_va(dev, vq->vra.avail_user_addr);
-
-    DPRINT("Setting virtq addresses:\n");
-    DPRINT("    vring_desc  at %p\n", vq->vring.desc);
-    DPRINT("    vring_used  at %p\n", vq->vring.used);
-    DPRINT("    vring_avail at %p\n", vq->vring.avail);
-
-    return !(vq->vring.desc && vq->vring.used && vq->vring.avail);
-}
-
-static bool
 generate_faults(VuDev *dev) {
     unsigned int i;
     for (i = 0; i < dev->nregions; i++) {
@@ -884,7 +934,6 @@ generate_faults(VuDev *dev) {
 
 static bool
 vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
-    int i;
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
 
     if (vmsg->fd_num != 1) {
@@ -930,19 +979,9 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         vmsg->fd_num = 0;
         DPRINT("Successfully added new region in postcopy\n");
         return true;
-    } else {
-        for (i = 0; i < dev->max_queues; i++) {
-            if (dev->vq[i].vring.desc) {
-                if (map_ring(dev, &dev->vq[i])) {
-                    vu_panic(dev, "remapping queue %d for new memory region",
-                             i);
-                }
-            }
-        }
-
-        DPRINT("Successfully added new region\n");
-        return false;
     }
+    DPRINT("Successfully added new region\n");
+    return false;
 }
 
 static inline bool reg_equal(VuDevRegion *vudev_reg,
@@ -994,6 +1033,16 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         vu_panic(dev, "Specified region not found\n");
         return false;
     }
+
+    /*
+     * There might be valid cases where we temporarily remove memory regions
+     * to readd them again, or remove memory regions and don't use the rings
+     * anymore before we set the ring addresses and restart the device.
+     *
+     * Unmap all affected rings, remapping them on demand later. This should
+     * be a corner case.
+     */
+    unmap_rings(dev, r);
 
     munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
 
