@@ -888,13 +888,9 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
 
             munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
 
-            /*
-             * Shift all affected entries by 1 to close the hole at index i and
-             * zero out the last entry.
-             */
+            /* Shift all affected entries by 1 to close the hole at index. */
             memmove(dev->regions + i, dev->regions + i + 1,
                     sizeof(VuDevRegion) * (dev->nregions - i - 1));
-            memset(dev->regions + dev->nregions - 1, 0, sizeof(VuDevRegion));
             DPRINT("Successfully removed a region\n");
             dev->nregions--;
             i--;
@@ -2119,7 +2115,6 @@ vu_init(VuDev *dev,
         DPRINT("%s: failed to malloc mem regions\n", __func__);
         return false;
     }
-    memset(dev->regions, 0, VHOST_USER_MAX_RAM_SLOTS * sizeof(dev->regions[0]));
 
     dev->vq = malloc(max_queues * sizeof(dev->vq[0]));
     if (!dev->vq) {
