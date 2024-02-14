@@ -970,7 +970,10 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
 static int vhost_vdpa_set_dev_vring_base(struct vhost_dev *dev,
                                          struct vhost_vring_state *ring)
 {
-    trace_vhost_vdpa_set_vring_base(dev, ring->index, ring->num);
+    struct vhost_vdpa *v = dev->opaque;
+
+    trace_vhost_vdpa_set_dev_vring_base(dev, ring->index, ring->num,
+                                        v->shadow_vqs_enabled);
     return vhost_vdpa_call(dev, VHOST_SET_VRING_BASE, ring);
 }
 
