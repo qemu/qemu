@@ -2171,6 +2171,8 @@ vu_deinit(VuDev *dev)
 
     free(dev->vq);
     dev->vq = NULL;
+    free(dev->regions);
+    dev->regions = NULL;
 }
 
 bool
@@ -2205,9 +2207,18 @@ vu_init(VuDev *dev,
     dev->backend_fd = -1;
     dev->max_queues = max_queues;
 
+    dev->regions = malloc(VHOST_USER_MAX_RAM_SLOTS * sizeof(dev->regions[0]));
+    if (!dev->regions) {
+        DPRINT("%s: failed to malloc mem regions\n", __func__);
+        return false;
+    }
+    memset(dev->regions, 0, VHOST_USER_MAX_RAM_SLOTS * sizeof(dev->regions[0]));
+
     dev->vq = malloc(max_queues * sizeof(dev->vq[0]));
     if (!dev->vq) {
         DPRINT("%s: failed to malloc virtqueues\n", __func__);
+        free(dev->regions);
+        dev->regions = NULL;
         return false;
     }
 
