@@ -283,6 +283,12 @@ vu_remove_all_mem_regs(VuDev *dev)
     dev->nregions = 0;
 }
 
+static bool
+vu_is_vq_usable(VuDev *dev, VuVirtq *vq)
+{
+    return likely(!dev->broken) && likely(vq->vring.avail);
+}
+
 static size_t
 get_fd_hugepagesize(int fd)
 {
@@ -2380,8 +2386,7 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
     idx = vq->last_avail_idx;
 
     total_bufs = in_total = out_total = 0;
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         goto done;
     }
 
@@ -2496,8 +2501,7 @@ vu_queue_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int in_bytes,
 bool
 vu_queue_empty(VuDev *dev, VuVirtq *vq)
 {
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         return true;
     }
 
@@ -2536,8 +2540,7 @@ vring_notify(VuDev *dev, VuVirtq *vq)
 
 static void _vu_queue_notify(VuDev *dev, VuVirtq *vq, bool sync)
 {
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         return;
     }
 
@@ -2862,8 +2865,7 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
     unsigned int head;
     VuVirtqElement *elem;
 
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         return NULL;
     }
 
@@ -3020,8 +3022,7 @@ vu_queue_fill(VuDev *dev, VuVirtq *vq,
 {
     struct vring_used_elem uelem;
 
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         return;
     }
 
@@ -3050,8 +3051,7 @@ vu_queue_flush(VuDev *dev, VuVirtq *vq, unsigned int count)
 {
     uint16_t old, new;
 
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
+    if (!vu_is_vq_usable(dev, vq)) {
         return;
     }
 
