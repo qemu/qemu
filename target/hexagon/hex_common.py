@@ -101,6 +101,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fLSBNEW1', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
+    add_qemu_macro_attrib('fREAD_SP', 'A_IMPLICIT_READS_SP')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
@@ -199,6 +200,10 @@ def get_tagimms():
 
 def need_p0(tag):
     return "A_IMPLICIT_READS_P0" in attribdict[tag]
+
+
+def need_sp(tag):
+    return "A_IMPLICIT_READS_SP" in attribdict[tag]
 
 
 def need_slot(tag):
@@ -1143,6 +1148,12 @@ def helper_args(tag, regs, imms):
             "i32",
             "hex_pred[0]",
             "uint32_t P0"
+        ))
+    if need_sp(tag):
+        args.append(HelperArg(
+            "i32",
+            "hex_gpr[HEX_REG_SP]",
+            "uint32_t SP"
         ))
     if need_slot(tag):
         args.append(HelperArg(

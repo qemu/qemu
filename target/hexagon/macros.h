@@ -343,7 +343,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fREAD_SP() (env->gpr[HEX_REG_SP])
+#define fREAD_SP() (SP)
 #define fREAD_LC0 (env->gpr[HEX_REG_LC0])
 #define fREAD_LC1 (env->gpr[HEX_REG_LC1])
 #define fREAD_SA0 (env->gpr[HEX_REG_SA0])
