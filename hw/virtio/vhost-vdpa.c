@@ -1412,6 +1412,7 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
 
     if (v->shadow_vqs_enabled) {
         ring->num = virtio_queue_get_last_avail_idx(dev->vdev, ring->index);
+        trace_vhost_vdpa_get_vring_base(dev, ring->index, ring->num, true);
         return 0;
     }
 
@@ -1424,7 +1425,7 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
     }
 
     ret = vhost_vdpa_call(dev, VHOST_GET_VRING_BASE, ring);
-    trace_vhost_vdpa_get_vring_base(dev, ring->index, ring->num);
+    trace_vhost_vdpa_get_vring_base(dev, ring->index, ring->num, false);
     return ret;
 }
 
