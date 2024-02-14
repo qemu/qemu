@@ -460,6 +460,12 @@ _vu_add_mem_reg(VuDev *dev, VhostUserMemoryRegion *msg_region, int fd)
     DPRINT("    mmap_addr:       0x%016"PRIx64"\n",
            (uint64_t)(uintptr_t)mmap_addr);
 
+#if defined(__linux__)
+    /* Don't include all guest memory in a coredump. */
+    madvise(mmap_addr, msg_region->memory_size + mmap_offset,
+            MADV_DONTDUMP);
+#endif
+
     /* Shift all affected entries by 1 to open a hole at idx. */
     r = &dev->regions[idx];
     memmove(r + 1, r, sizeof(VuDevRegion) * (dev->nregions - idx));
