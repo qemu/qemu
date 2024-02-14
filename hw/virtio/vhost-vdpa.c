@@ -555,6 +555,11 @@ static bool vhost_vdpa_first_dev(struct vhost_dev *dev)
     return v->index == 0;
 }
 
+static bool vhost_vdpa_last_dev(struct vhost_dev *dev)
+{
+    return dev->vq_index + dev->nvqs == dev->vq_index_end;
+}
+
 static int vhost_vdpa_get_dev_features(struct vhost_dev *dev,
                                        uint64_t *features)
 {
@@ -1315,7 +1320,7 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
 
-    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
+    if (!vhost_vdpa_last_dev(dev)) {
         return 0;
     }
 
@@ -1337,7 +1342,7 @@ static void vhost_vdpa_reset_status(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v = dev->opaque;
 
-    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
+    if (!vhost_vdpa_last_dev(dev)) {
         return;
     }
 
