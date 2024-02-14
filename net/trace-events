@@ -23,3 +23,6 @@ colo_compare_tcp_info(const char *pkt, uint32_t seq, uint32_t ack, int hdlen, in
 # filter-rewriter.c
 colo_filter_rewriter_pkt_info(const char *func, const char *src, const char *dst, uint32_t seq, uint32_t ack, uint32_t flag) "%s: src/dst: %s/%s p: seq/ack=%u/%u  flags=0x%x"
 colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u"
+
+# vhost-vdpa.c
+vhost_vdpa_set_address_space_id(void *v, unsigned vq_group, unsigned asid_num) "vhost_vdpa: %p vq_group: %u asid: %u"

@@ -29,6 +29,7 @@
 #include "migration/migration.h"
 #include "migration/misc.h"
 #include "hw/virtio/vhost.h"
+#include "trace.h"
 
 /* Todo:need to add the multiqueue support here */
 typedef struct VhostVDPAState {
@@ -459,6 +460,8 @@ static int vhost_vdpa_set_address_space_id(struct vhost_vdpa *v,
         .num = asid_num,
     };
     int r;
+
+    trace_vhost_vdpa_set_address_space_id(v, vq_group, asid_num);
 
     r = ioctl(v->shared->device_fd, VHOST_VDPA_SET_GROUP_ASID, &asid);
     if (unlikely(r < 0)) {
