@@ -241,6 +241,22 @@ qva_to_va(VuDev *dev, uint64_t qemu_addr)
 }
 
 static void
+vu_remove_all_mem_regs(VuDev *dev)
+{
+    unsigned int i;
+
+    for (i = 0; i < dev->nregions; i++) {
+        VuDevRegion *r = &dev->regions[i];
+        void *ma = (void *)(uintptr_t)r->mmap_addr;
+
+        if (ma) {
+            munmap(ma, r->size + r->mmap_offset);
+        }
+    }
+    dev->nregions = 0;
+}
+
+static void
 vmsg_close_fds(VhostUserMsg *vmsg)
 {
     int i;
@@ -1003,14 +1019,7 @@ vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
     unsigned int i;
     VhostUserMemory m = vmsg->payload.memory, *memory = &m;
 
-    for (i = 0; i < dev->nregions; i++) {
-        VuDevRegion *r = &dev->regions[i];
-        void *ma = (void *) (uintptr_t) r->mmap_addr;
-
-        if (ma) {
-            munmap(ma, r->size + r->mmap_offset);
-        }
-    }
+    vu_remove_all_mem_regs(dev);
     dev->nregions = memory->nregions;
 
     if (dev->postcopy_listening) {
@@ -2112,14 +2121,7 @@ vu_deinit(VuDev *dev)
 {
     unsigned int i;
 
-    for (i = 0; i < dev->nregions; i++) {
-        VuDevRegion *r = &dev->regions[i];
-        void *m = (void *) (uintptr_t) r->mmap_addr;
-        if (m != MAP_FAILED) {
-            munmap(m, r->size + r->mmap_offset);
-        }
-    }
-    dev->nregions = 0;
+    vu_remove_all_mem_regs(dev);
 
     for (i = 0; i < dev->max_queues; i++) {
         VuVirtq *vq = &dev->vq[i];
