@@ -939,6 +939,8 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
         return 0;
     }
 
+    trace_vhost_vdpa_net_load_mq(s, n->curr_queue_pairs);
+
     mq.virtqueue_pairs = cpu_to_le16(n->curr_queue_pairs);
     const struct iovec data = {
         .iov_base = &mq,
