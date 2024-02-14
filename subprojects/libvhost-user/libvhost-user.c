@@ -195,30 +195,47 @@ vu_panic(VuDev *dev, const char *msg, ...)
      */
 }
 
+/* Search for a memory region that covers this guest physical address. */
+static VuDevRegion *
+vu_gpa_to_mem_region(VuDev *dev, uint64_t guest_addr)
+{
+    unsigned int i;
+
+    /*
+     * Memory regions cannot overlap in guest physical address space. Each
+     * GPA belongs to exactly one memory region, so there can only be one
+     * match.
+     */
+    for (i = 0; i < dev->nregions; i++) {
+        VuDevRegion *cur = &dev->regions[i];
+
+        if (guest_addr >= cur->gpa && guest_addr < cur->gpa + cur->size) {
+            return cur;
+        }
+    }
+    return NULL;
+}
+
 /* Translate guest physical address to our virtual address.  */
 void *
 vu_gpa_to_va(VuDev *dev, uint64_t *plen, uint64_t guest_addr)
 {
-    unsigned int i;
+    VuDevRegion *r;
 
     if (*plen == 0) {
         return NULL;
     }
 
-    /* Find matching memory region.  */
-    for (i = 0; i < dev->nregions; i++) {
-        VuDevRegion *r = &dev->regions[i];
-
-        if ((guest_addr >= r->gpa) && (guest_addr < (r->gpa + r->size))) {
-            if ((guest_addr + *plen) > (r->gpa + r->size)) {
-                *plen = r->gpa + r->size - guest_addr;
-            }
-            return (void *)(uintptr_t)
-                guest_addr - r->gpa + r->mmap_addr + r->mmap_offset;
-        }
+    r = vu_gpa_to_mem_region(dev, guest_addr);
+    if (!r) {
+        return NULL;
     }
 
-    return NULL;
+    if ((guest_addr + *plen) > (r->gpa + r->size)) {
+        *plen = r->gpa + r->size - guest_addr;
+    }
+    return (void *)(uintptr_t)guest_addr - r->gpa + r->mmap_addr +
+           r->mmap_offset;
 }
 
 /* Translate qemu virtual address to our virtual address.  */
@@ -854,8 +871,8 @@ static inline bool reg_equal(VuDevRegion *vudev_reg,
 static bool
 vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
-    unsigned int i;
-    bool found = false;
+    unsigned int idx;
+    VuDevRegion *r;
 
     if (vmsg->fd_num > 1) {
         vmsg_close_fds(vmsg);
@@ -882,27 +899,21 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     DPRINT("    mmap_offset      0x%016"PRIx64"\n",
            msg_region->mmap_offset);
 
-    for (i = 0; i < dev->nregions; i++) {
-        if (reg_equal(&dev->regions[i], msg_region)) {
-            VuDevRegion *r = &dev->regions[i];
-
-            munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
-
-            /* Shift all affected entries by 1 to close the hole at index. */
-            memmove(dev->regions + i, dev->regions + i + 1,
-                    sizeof(VuDevRegion) * (dev->nregions - i - 1));
-            DPRINT("Successfully removed a region\n");
-            dev->nregions--;
-            i--;
-
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
+    r = vu_gpa_to_mem_region(dev, msg_region->guest_phys_addr);
+    if (!r || !reg_equal(r, msg_region)) {
+        vmsg_close_fds(vmsg);
         vu_panic(dev, "Specified region not found\n");
+        return false;
     }
+
+    munmap((void *)(uintptr_t)r->mmap_addr, r->size + r->mmap_offset);
+
+    idx = r - dev->regions;
+    assert(idx < dev->nregions);
+    /* Shift all affected entries by 1 to close the hole. */
+    memmove(r, r + 1, sizeof(VuDevRegion) * (dev->nregions - idx - 1));
+    DPRINT("Successfully removed a region\n");
+    dev->nregions--;
 
     vmsg_close_fds(vmsg);
 
