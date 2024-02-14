@@ -937,94 +937,22 @@ vu_get_shared_object(VuDev *dev, VhostUserMsg *vmsg)
 }
 
 static bool
-vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
+vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
-    unsigned int i;
     VhostUserMemory m = vmsg->payload.memory, *memory = &m;
-    dev->nregions = memory->nregions;
+    int prot = PROT_READ | PROT_WRITE;
+    unsigned int i;
 
-    DPRINT("Nregions: %u\n", memory->nregions);
-    for (i = 0; i < dev->nregions; i++) {
-        void *mmap_addr;
-        VhostUserMemoryRegion *msg_region = &memory->regions[i];
-        VuDevRegion *dev_region = &dev->regions[i];
-
-        DPRINT("Region %d\n", i);
-        DPRINT("    guest_phys_addr: 0x%016"PRIx64"\n",
-               msg_region->guest_phys_addr);
-        DPRINT("    memory_size:     0x%016"PRIx64"\n",
-               msg_region->memory_size);
-        DPRINT("    userspace_addr   0x%016"PRIx64"\n",
-               msg_region->userspace_addr);
-        DPRINT("    mmap_offset      0x%016"PRIx64"\n",
-               msg_region->mmap_offset);
-
-        dev_region->gpa = msg_region->guest_phys_addr;
-        dev_region->size = msg_region->memory_size;
-        dev_region->qva = msg_region->userspace_addr;
-        dev_region->mmap_offset = msg_region->mmap_offset;
-
-        /* We don't use offset argument of mmap() since the
-         * mapped address has to be page aligned, and we use huge
-         * pages.
+    if (dev->postcopy_listening) {
+        /*
          * In postcopy we're using PROT_NONE here to catch anyone
          * accessing it before we userfault
          */
-        mmap_addr = mmap(0, dev_region->size + dev_region->mmap_offset,
-                         PROT_NONE, MAP_SHARED | MAP_NORESERVE,
-                         vmsg->fds[i], 0);
-
-        if (mmap_addr == MAP_FAILED) {
-            vu_panic(dev, "region mmap error: %s", strerror(errno));
-        } else {
-            dev_region->mmap_addr = (uint64_t)(uintptr_t)mmap_addr;
-            DPRINT("    mmap_addr:       0x%016"PRIx64"\n",
-                   dev_region->mmap_addr);
-        }
-
-        /* Return the address to QEMU so that it can translate the ufd
-         * fault addresses back.
-         */
-        msg_region->userspace_addr = (uintptr_t)(mmap_addr +
-                                                 dev_region->mmap_offset);
-        close(vmsg->fds[i]);
+        prot = PROT_NONE;
     }
-
-    /* Send the message back to qemu with the addresses filled in */
-    vmsg->fd_num = 0;
-    if (!vu_send_reply(dev, dev->sock, vmsg)) {
-        vu_panic(dev, "failed to respond to set-mem-table for postcopy");
-        return false;
-    }
-
-    /* Wait for QEMU to confirm that it's registered the handler for the
-     * faults.
-     */
-    if (!dev->read_msg(dev, dev->sock, vmsg) ||
-        vmsg->size != sizeof(vmsg->payload.u64) ||
-        vmsg->payload.u64 != 0) {
-        vu_panic(dev, "failed to receive valid ack for postcopy set-mem-table");
-        return false;
-    }
-
-    /* OK, now we can go and register the memory and generate faults */
-    (void)generate_faults(dev);
-
-    return false;
-}
-
-static bool
-vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
-{
-    unsigned int i;
-    VhostUserMemory m = vmsg->payload.memory, *memory = &m;
 
     vu_remove_all_mem_regs(dev);
     dev->nregions = memory->nregions;
-
-    if (dev->postcopy_listening) {
-        return vu_set_mem_table_exec_postcopy(dev, vmsg);
-    }
 
     DPRINT("Nregions: %u\n", memory->nregions);
     for (i = 0; i < dev->nregions; i++) {
@@ -1051,8 +979,7 @@ vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
          * mapped address has to be page aligned, and we use huge
          * pages.  */
         mmap_addr = mmap(0, dev_region->size + dev_region->mmap_offset,
-                         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE,
-                         vmsg->fds[i], 0);
+                         prot, MAP_SHARED | MAP_NORESERVE, vmsg->fds[i], 0);
 
         if (mmap_addr == MAP_FAILED) {
             vu_panic(dev, "region mmap error: %s", strerror(errno));
@@ -1062,7 +989,39 @@ vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
                    dev_region->mmap_addr);
         }
 
+        if (dev->postcopy_listening) {
+            /*
+             * Return the address to QEMU so that it can translate the ufd
+             * fault addresses back.
+             */
+            msg_region->userspace_addr = (uintptr_t)(mmap_addr +
+                                                     dev_region->mmap_offset);
+        }
         close(vmsg->fds[i]);
+    }
+
+    if (dev->postcopy_listening) {
+        /* Send the message back to qemu with the addresses filled in */
+        vmsg->fd_num = 0;
+        if (!vu_send_reply(dev, dev->sock, vmsg)) {
+            vu_panic(dev, "failed to respond to set-mem-table for postcopy");
+            return false;
+        }
+
+        /*
+         * Wait for QEMU to confirm that it's registered the handler for the
+         * faults.
+         */
+        if (!dev->read_msg(dev, dev->sock, vmsg) ||
+            vmsg->size != sizeof(vmsg->payload.u64) ||
+            vmsg->payload.u64 != 0) {
+            vu_panic(dev, "failed to receive valid ack for postcopy set-mem-table");
+            return false;
+        }
+
+        /* OK, now we can go and register the memory and generate faults */
+        (void)generate_faults(dev);
+        return false;
     }
 
     for (i = 0; i < dev->max_queues; i++) {
