@@ -324,6 +324,8 @@ static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
     data_queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
     cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
                                   n->max_ncs - n->max_queue_pairs : 0;
+    v->shared->svq_switching = enable ?
+        SVQ_TSTATE_ENABLING : SVQ_TSTATE_DISABLING;
     /*
      * TODO: vhost_net_stop does suspend, get_base and reset. We can be smarter
      * in the future and resume the device if read-only operations between
@@ -336,6 +338,7 @@ static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
     if (unlikely(r < 0)) {
         error_report("unable to start vhost net: %s(%d)", g_strerror(-r), -r);
     }
+    v->shared->svq_switching = SVQ_TSTATE_DONE;
 }
 
 static int vdpa_net_migration_state_notifier(NotifierWithReturn *notifier,
