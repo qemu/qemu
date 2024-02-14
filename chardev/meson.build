@@ -21,11 +21,9 @@ if host_os == 'windows'
 else
   chardev_ss.add(files(
       'char-fd.c',
+      'char-parallel.c',
       'char-pty.c',
     ), util)
-  if host_os in ['linux', 'gnu/kfreebsd', 'freebsd', 'dragonfly']
-    chardev_ss.add(files('char-parallel.c'))
-  endif
 endif
 
 chardev_ss = chardev_ss.apply({})

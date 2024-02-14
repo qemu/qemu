@@ -556,7 +556,7 @@ static int make_udp_socket(int *port)
     socklen_t alen = sizeof(addr);
     int ret, sock = qemu_socket(PF_INET, SOCK_DGRAM, 0);
 
-    g_assert_cmpint(sock, >, 0);
+    g_assert_cmpint(sock, >=, 0);
     addr.sin_family = AF_INET ;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = 0;
@@ -1203,6 +1203,30 @@ static void char_serial_test(void)
 }
 #endif
 
+#if defined(HAVE_CHARDEV_PARALLEL) && !defined(WIN32)
+static void char_parallel_test(void)
+{
+    QemuOpts *opts;
+    Chardev *chr;
+
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "parallel-id",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "parallel", &error_abort);
+    qemu_opt_set(opts, "path", "/dev/null", &error_abort);
+
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
+#ifdef __linux__
+    /* fails to PPCLAIM, see qemu_chr_open_pp_fd() */
+    g_assert_null(chr);
+#else
+    g_assert_nonnull(chr);
+    object_unparent(OBJECT(chr));
+#endif
+
+    qemu_opts_del(opts);
+}
+#endif
+
 #ifndef _WIN32
 static void char_file_fifo_test(void)
 {
@@ -1383,7 +1407,7 @@ static void char_hotswap_test(void)
 
     int port;
     int sock = make_udp_socket(&port);
-    g_assert_cmpint(sock, >, 0);
+    g_assert_cmpint(sock, >=, 0);
 
     chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
 
@@ -1544,6 +1568,9 @@ int main(int argc, char **argv)
     g_test_add_func("/char/udp", char_udp_test);
 #if defined(HAVE_CHARDEV_SERIAL) && !defined(WIN32)
     g_test_add_func("/char/serial", char_serial_test);
+#endif
+#if defined(HAVE_CHARDEV_PARALLEL) && !defined(WIN32)
+    g_test_add_func("/char/parallel", char_parallel_test);
 #endif
     g_test_add_func("/char/hotswap", char_hotswap_test);
     g_test_add_func("/char/websocket", char_websock_test);
