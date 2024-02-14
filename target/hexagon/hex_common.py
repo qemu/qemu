@@ -197,6 +197,10 @@ def get_tagimms():
     return dict(zip(tags, list(map(compute_tag_immediates, tags))))
 
 
+def need_p0(tag):
+    return "A_IMPLICIT_READS_P0" in attribdict[tag]
+
+
 def need_slot(tag):
     if (
         "A_CVI_SCATTER" not in attribdict[tag]
@@ -1133,6 +1137,12 @@ def helper_args(tag, regs, imms):
             "i32",
             "tcg_constant_tl(ctx->next_PC)",
             "target_ulong next_PC"
+        ))
+    if need_p0(tag):
+        args.append(HelperArg(
+            "i32",
+            "hex_pred[0]",
+            "uint32_t P0"
         ))
     if need_slot(tag):
         args.append(HelperArg(
