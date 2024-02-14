@@ -1456,7 +1456,15 @@ static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
 
     /* Remember last call fd because we can switch to SVQ anytime. */
     vhost_svq_set_svq_call_fd(svq, file->fd);
-    if (v->shadow_vqs_enabled) {
+    /*
+     * When SVQ is transitioning to off, shadow_vqs_enabled has
+     * not been set back to false yet, but the underlying call fd
+     * will have to switch back to the guest notifier to signal the
+     * passthrough virtqueues. In other situations, SVQ's own call
+     * fd shall be used to signal the device model.
+     */
+    if (v->shadow_vqs_enabled &&
+        v->shared->svq_switching != SVQ_TSTATE_DISABLING) {
         return 0;
     }
 
