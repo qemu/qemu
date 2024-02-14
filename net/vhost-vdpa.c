@@ -715,6 +715,7 @@ static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s,
 
     assert(data_size < vhost_vdpa_net_cvq_cmd_page_len() - sizeof(ctrl));
     cmd_size = sizeof(ctrl) + data_size;
+    trace_vhost_vdpa_net_load_cmd(s, class, cmd, data_num, data_size);
     if (vhost_svq_available_slots(svq) < 2 ||
         iov_size(out_cursor, 1) < cmd_size) {
         /*
@@ -746,6 +747,7 @@ static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s,
 
     r = vhost_vdpa_net_cvq_add(s, &out, 1, &in, 1);
     if (unlikely(r < 0)) {
+        trace_vhost_vdpa_net_load_cmd_retval(s, class, cmd, r);
         return r;
     }
 
