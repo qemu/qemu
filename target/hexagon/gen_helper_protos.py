@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,15 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         declared.append(arg.proto_arg)
 
     arguments = ", ".join(declared)
-    f.write(f"DEF_HELPER_{len(declared) - 1}({tag}, {arguments})\n")
+
+    ## Add the TCG_CALL_NO_RWG_SE flag to helpers that don't take the env
+    ## argument and aren't HVX instructions.  Since HVX instructions take
+    ## pointers to their arguments, they will have side effects.
+    if hex_common.need_env(tag) or hex_common.is_hvx_insn(tag):
+        f.write(f"DEF_HELPER_{len(declared) - 1}({tag}, {arguments})\n")
+    else:
+        f.write(f"DEF_HELPER_FLAGS_{len(declared) - 1}({tag}, "
+                f"TCG_CALL_NO_RWG_SE, {arguments})\n")
 
 
 def main():
