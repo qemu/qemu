@@ -58,18 +58,30 @@
  *
  */
 
-#define CXL_DEVICE_CAP_HDR1_OFFSET 0x10 /* Figure 138 */
-#define CXL_DEVICE_CAP_REG_SIZE 0x10 /* 8.2.8.2 */
-#define CXL_DEVICE_CAPS_MAX 4 /* 8.2.8.2.1 + 8.2.8.5 */
+/* CXL r3.1 Figure 8-12: CXL Device Registers */
+#define CXL_DEVICE_CAP_HDR1_OFFSET 0x10
+/* CXL r3.1 Section 8.2.8.2: CXL Device Capability Header Register */
+#define CXL_DEVICE_CAP_REG_SIZE 0x10
+
+/*
+ * CXL r3.1 Section 8.2.8.2.1: CXL Device Capabilities +
+ * CXL r3.1 Section 8.2.8.5: Memory Device Capabilities
+ */
+#define CXL_DEVICE_CAPS_MAX 4
 #define CXL_CAPS_SIZE \
     (CXL_DEVICE_CAP_REG_SIZE * (CXL_DEVICE_CAPS_MAX + 1)) /* +1 for header */
 
 #define CXL_DEVICE_STATUS_REGISTERS_OFFSET 0x80 /* Read comment above */
-#define CXL_DEVICE_STATUS_REGISTERS_LENGTH 0x8 /* 8.2.8.3.1 */
+/*
+ * CXL r3.1 Section 8.2.8.3: Device Status Registers
+ * As it is the only Device Status Register in CXL r3.1
+ */
+#define CXL_DEVICE_STATUS_REGISTERS_LENGTH 0x8
 
 #define CXL_MAILBOX_REGISTERS_OFFSET \
     (CXL_DEVICE_STATUS_REGISTERS_OFFSET + CXL_DEVICE_STATUS_REGISTERS_LENGTH)
-#define CXL_MAILBOX_REGISTERS_SIZE 0x20 /* 8.2.8.4, Figure 139 */
+/* CXL r3.1 Figure 8-13: Mailbox Registers */
+#define CXL_MAILBOX_REGISTERS_SIZE 0x20
 #define CXL_MAILBOX_PAYLOAD_SHIFT 11
 #define CXL_MAILBOX_MAX_PAYLOAD_SIZE (1 << CXL_MAILBOX_PAYLOAD_SHIFT)
 #define CXL_MAILBOX_REGISTERS_LENGTH \
@@ -83,7 +95,7 @@
     (CXL_DEVICE_CAP_REG_SIZE + CXL_DEVICE_STATUS_REGISTERS_LENGTH +     \
      CXL_MAILBOX_REGISTERS_LENGTH + CXL_MEMORY_DEVICE_REGISTERS_LENGTH)
 
-/* 8.2.8.4.5.1 Command Return Codes */
+/* CXL r3.1 Table 8-34: Command Return Codes */
 typedef enum {
     CXL_MBOX_SUCCESS = 0x0,
     CXL_MBOX_BG_STARTED = 0x1,
@@ -108,7 +120,17 @@ typedef enum {
     CXL_MBOX_INCORRECT_PASSPHRASE = 0x14,
     CXL_MBOX_UNSUPPORTED_MAILBOX = 0x15,
     CXL_MBOX_INVALID_PAYLOAD_LENGTH = 0x16,
-    CXL_MBOX_MAX = 0x17
+    CXL_MBOX_INVALID_LOG = 0x17,
+    CXL_MBOX_INTERRUPTED = 0x18,
+    CXL_MBOX_UNSUPPORTED_FEATURE_VERSION = 0x19,
+    CXL_MBOX_UNSUPPORTED_FEATURE_SELECTION_VALUE = 0x1a,
+    CXL_MBOX_FEATURE_TRANSFER_IN_PROGRESS = 0x1b,
+    CXL_MBOX_FEATURE_TRANSFER_OUT_OF_ORDER = 0x1c,
+    CXL_MBOX_RESOURCES_EXHAUSTED = 0x1d,
+    CXL_MBOX_INVALID_EXTENT_LIST = 0x1e,
+    CXL_MBOX_TRANSFER_OUT_OF_ORDER = 0x1f,
+    CXL_MBOX_REQUEST_ABORT_NOTSUP = 0x20,
+    CXL_MBOX_MAX = 0x20
 } CXLRetCode;
 
 typedef struct CXLCCI CXLCCI;
@@ -169,7 +191,7 @@ typedef struct CXLCCI {
 typedef struct cxl_device_state {
     MemoryRegion device_registers;
 
-    /* mmio for device capabilities array - 8.2.8.2 */
+    /* CXL r3.1 Section 8.2.8.3: Device Status Registers */
     struct {
         MemoryRegion device;
         union {
@@ -189,7 +211,7 @@ typedef struct cxl_device_state {
         };
     };
 
-    /* mmio for the mailbox registers 8.2.8.4 */
+    /* CXL r3.1 Section 8.2.8.4: Mailbox Registers */
     struct {
         MemoryRegion mailbox;
         uint16_t payload_size;
@@ -201,6 +223,9 @@ typedef struct cxl_device_state {
             uint64_t mbox_reg_state64[CXL_MAILBOX_REGISTERS_LENGTH / 8];
         };
     };
+
+    /* Stash the memory device status value */
+    uint64_t memdev_status;
 
     struct {
         bool set;
@@ -228,7 +253,7 @@ void cxl_device_register_init_t3(CXLType3Dev *ct3d);
 void cxl_device_register_init_swcci(CSWMBCCIDev *sw);
 
 /*
- * CXL 2.0 - 8.2.8.1 including errata F4
+ * CXL r3.1 Section 8.2.8.1: CXL Device Capabilities Array Register
  * Documented as a 128 bit register, but 64 bit accesses and the second
  * 64 bits are currently reserved.
  */
@@ -243,17 +268,18 @@ void cxl_event_set_status(CXLDeviceState *cxl_dstate, CXLEventLogType log_type,
 /*
  * Helper macro to initialize capability headers for CXL devices.
  *
- * In the 8.2.8.2, this is listed as a 128b register, but in 8.2.8, it says:
+ * In CXL r3.1 Section 8.2.8.2: CXL Device Capablity Header Register, this is
+ * listed as a 128b register, but in CXL r3.1 Section 8.2.8: CXL Device Register
+ * Interface, it says:
  * > No registers defined in Section 8.2.8 are larger than 64-bits wide so that
  * > is the maximum access size allowed for these registers. If this rule is not
- * > followed, the behavior is undefined
+ * > followed, the behavior is undefined.
  *
- * CXL 2.0 Errata F4 states further that the layouts in the specification are
- * shown as greater than 128 bits, but implementations are expected to
- * use any size of access up to 64 bits.
+ * > To illustrate how the fields fit together, the layouts ... are shown as
+ * > wider than a 64 bit register. Implemenations are expected to use any size
+ * > accesses for this information up to 64 bits without lost of functionality
  *
- * Here we've chosen to make it 4 dwords. The spec allows any pow2 multiple
- * access to be used for a register up to 64 bits.
+ * Here we've chosen to make it 4 dwords.
  */
 #define CXL_DEVICE_CAPABILITY_HEADER_REGISTER(n, offset)  \
     REG32(CXL_DEV_##n##_CAP_HDR0, offset)                 \
@@ -303,45 +329,51 @@ void cxl_initialize_t3_ld_cci(CXLCCI *cci, DeviceState *d,
                        CAP_LENGTH, CXL_##reg##_REGISTERS_LENGTH);          \
     } while (0)
 
-/* CXL 3.0 8.2.8.3.1 Event Status Register */
+/* CXL r3.2 Section 8.2.8.3.1: Event Status Register */
+#define CXL_DEVICE_STATUS_VERSION 2
 REG64(CXL_DEV_EVENT_STATUS, 0)
     FIELD(CXL_DEV_EVENT_STATUS, EVENT_STATUS, 0, 32)
 
-/* CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register */
+#define CXL_DEV_MAILBOX_VERSION 1
+/* CXL r3.1 Section 8.2.8.4.3: Mailbox Capabilities Register */
 REG32(CXL_DEV_MAILBOX_CAP, 0)
     FIELD(CXL_DEV_MAILBOX_CAP, PAYLOAD_SIZE, 0, 5)
     FIELD(CXL_DEV_MAILBOX_CAP, INT_CAP, 5, 1)
     FIELD(CXL_DEV_MAILBOX_CAP, BG_INT_CAP, 6, 1)
     FIELD(CXL_DEV_MAILBOX_CAP, MSI_N, 7, 4)
+    FIELD(CXL_DEV_MAILBOX_CAP, MBOX_READY_TIME, 11, 8)
+    FIELD(CXL_DEV_MAILBOX_CAP, TYPE, 19, 4)
 
-/* CXL 2.0 8.2.8.4.4 Mailbox Control Register */
+/* CXL r3.1 Section 8.2.8.4.4: Mailbox Control Register */
 REG32(CXL_DEV_MAILBOX_CTRL, 4)
     FIELD(CXL_DEV_MAILBOX_CTRL, DOORBELL, 0, 1)
     FIELD(CXL_DEV_MAILBOX_CTRL, INT_EN, 1, 1)
     FIELD(CXL_DEV_MAILBOX_CTRL, BG_INT_EN, 2, 1)
 
-/* CXL 2.0 8.2.8.4.5 Command Register */
+/* CXL r3.1 Section 8.2.8.4.5: Command Register */
 REG64(CXL_DEV_MAILBOX_CMD, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, COMMAND, 0, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, COMMAND_SET, 8, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, LENGTH, 16, 20)
 
-/* CXL 2.0 8.2.8.4.6 Mailbox Status Register */
+/* CXL r3.1 Section 8.2.8.4.6: Mailbox Status Register */
 REG64(CXL_DEV_MAILBOX_STS, 0x10)
     FIELD(CXL_DEV_MAILBOX_STS, BG_OP, 0, 1)
     FIELD(CXL_DEV_MAILBOX_STS, ERRNO, 32, 16)
     FIELD(CXL_DEV_MAILBOX_STS, VENDOR_ERRNO, 48, 16)
 
-/* CXL 2.0 8.2.8.4.7 Background Command Status Register */
+/* CXL r3.1 Section 8.2.8.4.7: Background Command Status Register */
 REG64(CXL_DEV_BG_CMD_STS, 0x18)
     FIELD(CXL_DEV_BG_CMD_STS, OP, 0, 16)
     FIELD(CXL_DEV_BG_CMD_STS, PERCENTAGE_COMP, 16, 7)
     FIELD(CXL_DEV_BG_CMD_STS, RET_CODE, 32, 16)
     FIELD(CXL_DEV_BG_CMD_STS, VENDOR_RET_CODE, 48, 16)
 
-/* CXL 2.0 8.2.8.4.8 Command Payload Registers */
+/* CXL r3.1 Section 8.2.8.4.8: Command Payload Registers */
 REG32(CXL_DEV_CMD_PAYLOAD, 0x20)
 
+/* CXL r3.1 Section 8.2.8.4.1: Memory Device Status Registers */
+#define CXL_MEM_DEV_STATUS_VERSION 1
 REG64(CXL_MEM_DEV_STS, 0)
     FIELD(CXL_MEM_DEV_STS, FATAL, 0, 1)
     FIELD(CXL_MEM_DEV_STS, FW_HALT, 1, 1)
@@ -353,8 +385,10 @@ static inline void __toggle_media(CXLDeviceState *cxl_dstate, int val)
 {
     uint64_t dev_status_reg;
 
-    dev_status_reg = FIELD_DP64(0, CXL_MEM_DEV_STS, MEDIA_STATUS, val);
-    cxl_dstate->mbox_reg_state64[R_CXL_MEM_DEV_STS] = dev_status_reg;
+    dev_status_reg = cxl_dstate->memdev_status;
+    dev_status_reg = FIELD_DP64(dev_status_reg, CXL_MEM_DEV_STS, MEDIA_STATUS,
+                                val);
+    cxl_dstate->memdev_status = dev_status_reg;
 }
 #define cxl_dev_disable_media(cxlds)                    \
         do { __toggle_media((cxlds), 0x3); } while (0)

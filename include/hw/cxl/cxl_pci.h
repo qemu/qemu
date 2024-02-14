@@ -16,9 +16,8 @@
 #define PCIE_DVSEC_HEADER1_OFFSET 0x4 /* Offset from start of extend cap */
 #define PCIE_DVSEC_ID_OFFSET 0x8
 
-#define PCIE_CXL_DEVICE_DVSEC_LENGTH 0x38
-#define PCIE_CXL1_DEVICE_DVSEC_REVID 0
-#define PCIE_CXL2_DEVICE_DVSEC_REVID 1
+#define PCIE_CXL_DEVICE_DVSEC_LENGTH 0x3C
+#define PCIE_CXL31_DEVICE_DVSEC_REVID 3
 
 #define EXTENSIONS_PORT_DVSEC_LENGTH 0x28
 #define EXTENSIONS_PORT_DVSEC_REVID 0
@@ -29,8 +28,8 @@
 #define GPF_DEVICE_DVSEC_LENGTH 0x10
 #define GPF_DEVICE_DVSEC_REVID 0
 
-#define PCIE_FLEXBUS_PORT_DVSEC_LENGTH_2_0 0x14
-#define PCIE_FLEXBUS_PORT_DVSEC_REVID_2_0  1
+#define PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH 0x20
+#define PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID  2
 
 #define REG_LOC_DVSEC_LENGTH 0x24
 #define REG_LOC_DVSEC_REVID  0
@@ -55,16 +54,26 @@ typedef struct DVSECHeader {
 QEMU_BUILD_BUG_ON(sizeof(DVSECHeader) != 10);
 
 /*
- * CXL 2.0 devices must implement certain DVSEC IDs, and can [optionally]
+ * CXL r3.1 Table 8-2: CXL DVSEC ID Assignment
+ * Devices must implement certain DVSEC IDs, and can [optionally]
  * implement others.
+ * (x) - IDs in Table 8-2.
  *
- * CXL 2.0 Device: 0, [2], 5, 8
- * CXL 2.0 RP: 3, 4, 7, 8
- * CXL 2.0 Upstream Port: [2], 7, 8
- * CXL 2.0 Downstream Port: 3, 4, 7, 8
+ * CXL RCD (D1):         0, [2], [5], 7, [8], A  - Not emulated yet
+ * CXL RCD USP (UP1):    7, [8]                  - Not emulated yet
+ * CXL RCH DSP (DP1):    7, [8]
+ * CXL SLD (D2):         0, [2], 5, 7, 8, [A]
+ * CXL LD (LD):          0, [2], 5, 7, 8
+ * CXL RP (R):           3, 4, 7, 8
+ * CXL Switch USP (USP): [2], 7, 8
+ * CXL Switch DSP (DSP): 3, 4, 7, 8
+ * FM-Owned LD (FMLD):   0, [2], 7, 8, 9
  */
 
-/* CXL 2.0 - 8.1.3 (ID 0001) */
+/*
+ * CXL r3.1 Section 8.1.3: PCIe DVSEC for Devices
+ * DVSEC ID: 0, Revision: 3
+ */
 typedef struct CXLDVSECDevice {
     DVSECHeader hdr;
     uint16_t cap;
@@ -82,10 +91,14 @@ typedef struct CXLDVSECDevice {
     uint32_t range2_size_lo;
     uint32_t range2_base_hi;
     uint32_t range2_base_lo;
-} CXLDVSECDevice;
-QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != 0x38);
+    uint16_t cap3;
+} QEMU_PACKED CXLDVSECDevice;
+QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != 0x3A);
 
-/* CXL 2.0 - 8.1.5 (ID 0003) */
+/*
+ * CXL r3.1 Section 8.1.5: CXL Extensions DVSEC for Ports
+ * DVSEC ID: 3, Revision: 0
+ */
 typedef struct CXLDVSECPortExt {
     DVSECHeader hdr;
     uint16_t status;
@@ -107,7 +120,10 @@ QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortExt) != 0x28);
 #define PORT_CONTROL_UNMASK_SBR      1
 #define PORT_CONTROL_ALT_MEMID_EN    4
 
-/* CXL 2.0 - 8.1.6 GPF DVSEC (ID 0004) */
+/*
+ * CXL r3.1 Section 8.1.6: GPF DVSEC for CXL Port
+ * DVSEC ID: 4, Revision: 0
+ */
 typedef struct CXLDVSECPortGPF {
     DVSECHeader hdr;
     uint16_t rsvd;
@@ -116,7 +132,10 @@ typedef struct CXLDVSECPortGPF {
 } CXLDVSECPortGPF;
 QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortGPF) != 0x10);
 
-/* CXL 2.0 - 8.1.7 GPF DVSEC for CXL Device */
+/*
+ * CXL r3.1 Section 8.1.7: GPF DVSEC for CXL Device
+ * DVSEC ID: 5, Revision 0
+ */
 typedef struct CXLDVSECDeviceGPF {
     DVSECHeader hdr;
     uint16_t phase2_duration;
@@ -124,17 +143,27 @@ typedef struct CXLDVSECDeviceGPF {
 } CXLDVSECDeviceGPF;
 QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDeviceGPF) != 0x10);
 
-/* CXL 2.0 - 8.1.8/8.2.1.3 Flex Bus DVSEC (ID 0007) */
+/*
+ * CXL r3.1 Section 8.1.8: PCIe DVSEC for Flex Bus Port
+ * CXL r3.1 Section 8.2.1.3: Flex Bus Port DVSEC
+ * DVSEC ID: 7, Revision 2
+ */
 typedef struct CXLDVSECPortFlexBus {
     DVSECHeader hdr;
     uint16_t cap;
     uint16_t ctrl;
     uint16_t status;
     uint32_t rcvd_mod_ts_data_phase1;
+    uint32_t cap2;
+    uint32_t ctrl2;
+    uint32_t status2;
 } CXLDVSECPortFlexBus;
-QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortFlexBus) != 0x14);
+QEMU_BUILD_BUG_ON(sizeof(CXLDVSECPortFlexBus) != 0x20);
 
-/* CXL 2.0 - 8.1.9 Register Locator DVSEC (ID 0008) */
+/*
+ * CXL r3.1 Section 8.1.9: Register Locator DVSEC
+ * DVSEC ID: 8, Revision 0
+ */
 typedef struct CXLDVSECRegisterLocator {
     DVSECHeader hdr;
     uint16_t rsvd;

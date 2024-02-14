@@ -42,9 +42,9 @@ enum {
     CT3_CDAT_NUM_ENTRIES
 };
 
-static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
-                                         int dsmad_handle, MemoryRegion *mr,
-                                         bool is_pmem, uint64_t dpa_base)
+static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
+                                          int dsmad_handle, MemoryRegion *mr,
+                                          bool is_pmem, uint64_t dpa_base)
 {
     g_autofree CDATDsmas *dsmas = NULL;
     g_autofree CDATDslbis *dslbis0 = NULL;
@@ -54,9 +54,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     g_autofree CDATDsemts *dsemts = NULL;
 
     dsmas = g_malloc(sizeof(*dsmas));
-    if (!dsmas) {
-        return -ENOMEM;
-    }
     *dsmas = (CDATDsmas) {
         .header = {
             .type = CDAT_TYPE_DSMAS,
@@ -70,9 +67,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
 
     /* For now, no memory side cache, plausiblish numbers */
     dslbis0 = g_malloc(sizeof(*dslbis0));
-    if (!dslbis0) {
-        return -ENOMEM;
-    }
     *dslbis0 = (CDATDslbis) {
         .header = {
             .type = CDAT_TYPE_DSLBIS,
@@ -86,9 +80,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     };
 
     dslbis1 = g_malloc(sizeof(*dslbis1));
-    if (!dslbis1) {
-        return -ENOMEM;
-    }
     *dslbis1 = (CDATDslbis) {
         .header = {
             .type = CDAT_TYPE_DSLBIS,
@@ -102,9 +93,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     };
 
     dslbis2 = g_malloc(sizeof(*dslbis2));
-    if (!dslbis2) {
-        return -ENOMEM;
-    }
     *dslbis2 = (CDATDslbis) {
         .header = {
             .type = CDAT_TYPE_DSLBIS,
@@ -118,9 +106,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     };
 
     dslbis3 = g_malloc(sizeof(*dslbis3));
-    if (!dslbis3) {
-        return -ENOMEM;
-    }
     *dslbis3 = (CDATDslbis) {
         .header = {
             .type = CDAT_TYPE_DSLBIS,
@@ -134,9 +119,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     };
 
     dsemts = g_malloc(sizeof(*dsemts));
-    if (!dsemts) {
-        return -ENOMEM;
-    }
     *dsemts = (CDATDsemts) {
         .header = {
             .type = CDAT_TYPE_DSEMTS,
@@ -159,8 +141,6 @@ static int ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     cdat_table[CT3_CDAT_DSLBIS2] = g_steal_pointer(&dslbis2);
     cdat_table[CT3_CDAT_DSLBIS3] = g_steal_pointer(&dslbis3);
     cdat_table[CT3_CDAT_DSEMTS] = g_steal_pointer(&dsemts);
-
-    return 0;
 }
 
 static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
@@ -171,7 +151,6 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     int dsmad_handle = 0;
     int cur_ent = 0;
     int len = 0;
-    int rc, i;
 
     if (!ct3d->hostpmem && !ct3d->hostvmem) {
         return 0;
@@ -194,27 +173,18 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
 
     table = g_malloc0(len * sizeof(*table));
-    if (!table) {
-        return -ENOMEM;
-    }
 
     /* Now fill them in */
     if (volatile_mr) {
-        rc = ct3_build_cdat_entries_for_mr(table, dsmad_handle++, volatile_mr,
-                                           false, 0);
-        if (rc < 0) {
-            return rc;
-        }
+        ct3_build_cdat_entries_for_mr(table, dsmad_handle++, volatile_mr,
+                                      false, 0);
         cur_ent = CT3_CDAT_NUM_ENTRIES;
     }
 
     if (nonvolatile_mr) {
         uint64_t base = volatile_mr ? memory_region_size(volatile_mr) : 0;
-        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++,
-                                           nonvolatile_mr, true, base);
-        if (rc < 0) {
-            goto error_cleanup;
-        }
+        ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++,
+                                      nonvolatile_mr, true, base);
         cur_ent += CT3_CDAT_NUM_ENTRIES;
     }
     assert(len == cur_ent);
@@ -222,11 +192,6 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     *cdat_table = g_steal_pointer(&table);
 
     return len;
-error_cleanup:
-    for (i = 0; i < cur_ent; i++) {
-        g_free(table[i]);
-    }
-    return rc;
 }
 
 static void ct3_free_cdat_table(CDATSubHeader **cdat_table, int num, void *priv)
@@ -354,7 +319,7 @@ static void build_dvsecs(CXLType3Dev *ct3d)
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                PCIE_CXL_DEVICE_DVSEC_LENGTH,
                                PCIE_CXL_DEVICE_DVSEC,
-                               PCIE_CXL2_DEVICE_DVSEC_REVID, dvsec);
+                               PCIE_CXL31_DEVICE_DVSEC_REVID, dvsec);
 
     dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
         .rsvd         = 0,
@@ -381,9 +346,9 @@ static void build_dvsecs(CXLType3Dev *ct3d)
         .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
     };
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
-                               PCIE_FLEXBUS_PORT_DVSEC_LENGTH_2_0,
+                               PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
-                               PCIE_FLEXBUS_PORT_DVSEC_REVID_2_0, dvsec);
+                               PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 }
 
 static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
@@ -829,8 +794,13 @@ static bool cxl_type3_dpa(CXLType3Dev *ct3d, hwaddr host_addr, uint64_t *dpa)
         }
         if (((uint64_t)host_addr < decoder_base) ||
             (hpa_offset >= decoder_size)) {
-            dpa_base += decoder_size /
-                cxl_interleave_ways_dec(iw, &error_fatal);
+            int decoded_iw = cxl_interleave_ways_dec(iw, &error_fatal);
+
+            if (decoded_iw == 0) {
+                return false;
+            }
+
+            dpa_base += decoder_size / decoded_iw;
             continue;
         }
 
@@ -1168,9 +1138,6 @@ void qmp_cxl_inject_uncorrectable_errors(const char *path,
         }
 
         cxl_err = g_malloc0(sizeof(*cxl_err));
-        if (!cxl_err) {
-            return;
-        }
 
         cxl_err->type = cxl_err_code;
         while (header && header_count < 32) {

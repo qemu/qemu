@@ -148,14 +148,38 @@ rutabaga_cmd_create_resource_3d(VirtIOGPU *g,
 }
 
 static void
+virtio_gpu_rutabaga_resource_unref(VirtIOGPU *g,
+                                   struct virtio_gpu_simple_resource *res,
+                                   Error **errp)
+{
+    int32_t result;
+    VirtIOGPURutabaga *vr = VIRTIO_GPU_RUTABAGA(g);
+
+    result = rutabaga_resource_unref(vr->rutabaga, res->resource_id);
+    if (result) {
+        error_setg_errno(errp,
+                        (int)result,
+                        "%s: rutabaga_resource_unref returned %"PRIi32
+                        " for resource_id = %"PRIu32, __func__, result,
+                        res->resource_id);
+    }
+
+    if (res->image) {
+        pixman_image_unref(res->image);
+    }
+
+    QTAILQ_REMOVE(&g->reslist, res, next);
+    g_free(res);
+}
+
+static void
 rutabaga_cmd_resource_unref(VirtIOGPU *g,
                             struct virtio_gpu_ctrl_command *cmd)
 {
-    int32_t result;
+    int32_t result = 0;
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_resource_unref unref;
-
-    VirtIOGPURutabaga *vr = VIRTIO_GPU_RUTABAGA(g);
+    Error *local_err = NULL;
 
     VIRTIO_GPU_FILL_CMD(unref);
 
@@ -164,15 +188,14 @@ rutabaga_cmd_resource_unref(VirtIOGPU *g,
     res = virtio_gpu_find_resource(g, unref.resource_id);
     CHECK(res, cmd);
 
-    result = rutabaga_resource_unref(vr->rutabaga, unref.resource_id);
-    CHECK(!result, cmd);
-
-    if (res->image) {
-        pixman_image_unref(res->image);
+    virtio_gpu_rutabaga_resource_unref(g, res, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        /* local_err was freed, do not reuse it. */
+        local_err = NULL;
+        result = 1;
     }
-
-    QTAILQ_REMOVE(&g->reslist, res, next);
-    g_free(res);
+    CHECK(!result, cmd);
 }
 
 static void
@@ -1099,7 +1122,7 @@ static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, void *data)
     vgc->handle_ctrl = virtio_gpu_rutabaga_handle_ctrl;
     vgc->process_cmd = virtio_gpu_rutabaga_process_cmd;
     vgc->update_cursor_data = virtio_gpu_rutabaga_update_cursor;
-
+    vgc->resource_destroy = virtio_gpu_rutabaga_resource_unref;
     vdc->realize = virtio_gpu_rutabaga_realize;
     device_class_set_props(dc, virtio_gpu_rutabaga_properties);
 }

@@ -327,7 +327,7 @@ virgl_get_resource_info_modifiers(uint32_t resource_id,
 #ifdef VIRGL_RENDERER_RESOURCE_INFO_EXT_VERSION
     struct virgl_renderer_resource_info_ext info_ext;
     ret = virgl_renderer_resource_get_info_ext(resource_id, &info_ext);
-    if (ret < 0) {
+    if (ret) {
         return ret;
     }
 
@@ -335,7 +335,7 @@ virgl_get_resource_info_modifiers(uint32_t resource_id,
     *modifiers = info_ext.modifiers;
 #else
     ret = virgl_renderer_resource_get_info(resource_id, info);
-    if (ret < 0) {
+    if (ret) {
         return ret;
     }
 
@@ -372,7 +372,7 @@ virgl_cmd_set_scanout(VuGpu *g,
         uint64_t modifiers = 0;
         ret = virgl_get_resource_info_modifiers(ss.resource_id, &info,
                                                 &modifiers);
-        if (ret == -1) {
+        if (ret) {
             g_critical("%s: illegal resource specified %d\n",
                        __func__, ss.resource_id);
             cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;

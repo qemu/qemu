@@ -148,9 +148,9 @@ Vring descriptor indices for packed virtqueues
 A vring address description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-+-------+-------+------+------------+------+-----------+-----+
-| index | flags | size | descriptor | used | available | log |
-+-------+-------+------+------------+------+-----------+-----+
++-------+-------+------------+------+-----------+-----+
+| index | flags | descriptor | used | available | log |
++-------+-------+------------+------+-----------+-----+
 
 :index: a 32-bit vring index
 

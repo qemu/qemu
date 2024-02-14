@@ -86,7 +86,7 @@ enum {
         #define MANAGEMENT_COMMAND     0x0
 };
 
-/* CCI Message Format CXL r3.0 Figure 7-19 */
+/* CCI Message Format CXL r3.1 Figure 7-19 */
 typedef struct CXLCCIMessage {
     uint8_t category;
 #define CXL_CCI_CAT_REQ 0
@@ -342,7 +342,7 @@ static CXLRetCode cmd_events_set_interrupt_policy(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* CXL r3.0 section 8.2.9.1.1: Identify (Opcode 0001h) */
+/* CXL r3.1 section 8.2.9.1.1: Identify (Opcode 0001h) */
 static CXLRetCode cmd_infostat_identify(const struct cxl_cmd *cmd,
                                         uint8_t *payload_in,
                                         size_t len_in,
@@ -403,7 +403,7 @@ static void cxl_set_dsp_active_bm(PCIBus *b, PCIDevice *d,
     }
 }
 
-/* CXL r3 8.2.9.1.1 */
+/* CXL r3.1 Section 7.6.7.1.1: Identify Switch Device (Opcode 5100h) */
 static CXLRetCode cmd_identify_switch_device(const struct cxl_cmd *cmd,
                                              uint8_t *payload_in,
                                              size_t len_in,
@@ -455,7 +455,7 @@ static CXLRetCode cmd_identify_switch_device(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* CXL r3.0 Section 7.6.7.1.2: Get Physical Port State (Opcode 5101h) */
+/* CXL r3.1 Section 7.6.7.1.2: Get Physical Port State (Opcode 5101h) */
 static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
                                               uint8_t *payload_in,
                                               size_t len_in,
@@ -463,14 +463,14 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
                                               size_t *len_out,
                                               CXLCCI *cci)
 {
-    /* CXL r3.0 Table 7-18: Get Physical Port State Request Payload */
+    /* CXL r3.1 Table 7-17: Get Physical Port State Request Payload */
     struct cxl_fmapi_get_phys_port_state_req_pl {
         uint8_t num_ports;
         uint8_t ports[];
     } QEMU_PACKED *in;
 
     /*
-     * CXL r3.0 Table 7-20: Get Physical Port State Port Information Block
+     * CXL r3.1 Table 7-19: Get Physical Port State Port Information Block
      * Format
      */
     struct cxl_fmapi_port_state_info_block {
@@ -491,7 +491,7 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
         uint8_t supported_ld_count;
     } QEMU_PACKED;
 
-    /* CXL r3.0 Table 7-19: Get Physical Port State Response Payload */
+    /* CXL r3.1 Table 7-18: Get Physical Port State Response Payload */
     struct cxl_fmapi_get_phys_port_state_resp_pl {
         uint8_t num_ports;
         uint8_t rsv1[3];
@@ -579,7 +579,7 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* CXL r3.0 8.2.9.1.2 */
+/* CXL r3.1 Section 8.2.9.1.2: Background Operation Status (Opcode 0002h) */
 static CXLRetCode cmd_infostat_bg_op_sts(const struct cxl_cmd *cmd,
                                          uint8_t *payload_in,
                                          size_t len_in,
@@ -609,7 +609,7 @@ static CXLRetCode cmd_infostat_bg_op_sts(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* 8.2.9.2.1 */
+/* CXL r3.1 Section 8.2.9.3.1: Get FW Info (Opcode 0200h) */
 static CXLRetCode cmd_firmware_update_get_info(const struct cxl_cmd *cmd,
                                                uint8_t *payload_in,
                                                size_t len,
@@ -647,7 +647,7 @@ static CXLRetCode cmd_firmware_update_get_info(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* 8.2.9.3.1 */
+/* CXL r3.1 Section 8.2.9.4.1: Get Timestamp (Opcode 0300h) */
 static CXLRetCode cmd_timestamp_get(const struct cxl_cmd *cmd,
                                     uint8_t *payload_in,
                                     size_t len_in,
@@ -664,7 +664,7 @@ static CXLRetCode cmd_timestamp_get(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* 8.2.9.3.2 */
+/* CXL r3.1 Section 8.2.9.4.2: Set Timestamp (Opcode 0301h) */
 static CXLRetCode cmd_timestamp_set(const struct cxl_cmd *cmd,
                                     uint8_t *payload_in,
                                     size_t len_in,
@@ -683,13 +683,13 @@ static CXLRetCode cmd_timestamp_set(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* CXL 3.0 8.2.9.5.2.1 Command Effects Log (CEL) */
+/* CXL r3.1 Section 8.2.9.5.2.1: Command Effects Log (CEL) */
 static const QemuUUID cel_uuid = {
     .data = UUID(0x0da9c0b5, 0xbf41, 0x4b78, 0x8f, 0x79,
                  0x96, 0xb1, 0x62, 0x3b, 0x3f, 0x17)
 };
 
-/* 8.2.9.4.1 */
+/* CXL r3.1 Section 8.2.9.5.1: Get Supported Logs (Opcode 0400h) */
 static CXLRetCode cmd_logs_get_supported(const struct cxl_cmd *cmd,
                                          uint8_t *payload_in,
                                          size_t len_in,
@@ -715,7 +715,7 @@ static CXLRetCode cmd_logs_get_supported(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* 8.2.9.4.2 */
+/* CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h) */
 static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
                                    uint8_t *payload_in,
                                    size_t len_in,
@@ -732,13 +732,10 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
     get_log = (void *)payload_in;
 
     /*
-     * 8.2.9.4.2
-     *   The device shall return Invalid Parameter if the Offset or Length
+     * CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h)
+     *   The device shall return Invalid Input if the Offset or Length
      *   fields attempt to access beyond the size of the log as reported by Get
      *   Supported Logs.
-     *
-     * XXX: Spec is wrong, "Invalid Parameter" isn't a thing.
-     * XXX: Spec doesn't address incorrect UUID incorrectness.
      *
      * The CEL buffer is large enough to fit all commands in the emulation, so
      * the only possible failure would be if the mailbox itself isn't big
@@ -749,7 +746,7 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
     }
 
     if (!qemu_uuid_is_equal(&get_log->uuid, &cel_uuid)) {
-        return CXL_MBOX_UNSUPPORTED;
+        return CXL_MBOX_INVALID_LOG;
     }
 
     /* Store off everything to local variables so we can wipe out the payload */
@@ -760,7 +757,7 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
-/* 8.2.9.5.1.1 */
+/* CXL r3.1 Section 8.2.9.9.1.1: Identify Memory Device (Opcode 4000h) */
 static CXLRetCode cmd_identify_memory_device(const struct cxl_cmd *cmd,
                                              uint8_t *payload_in,
                                              size_t len_in,
@@ -815,6 +812,7 @@ static CXLRetCode cmd_identify_memory_device(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
+/* CXL r3.1 Section 8.2.9.9.2.1: Get Partition Info (Opcode 4100h) */
 static CXLRetCode cmd_ccls_get_partition_info(const struct cxl_cmd *cmd,
                                               uint8_t *payload_in,
                                               size_t len_in,
@@ -851,6 +849,7 @@ static CXLRetCode cmd_ccls_get_partition_info(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
+/* CXL r3.1 Section 8.2.9.9.2.3: Get LSA (Opcode 4102h) */
 static CXLRetCode cmd_ccls_get_lsa(const struct cxl_cmd *cmd,
                                    uint8_t *payload_in,
                                    size_t len_in,
@@ -879,6 +878,7 @@ static CXLRetCode cmd_ccls_get_lsa(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
+/* CXL r3.1 Section 8.2.9.9.2.4: Set LSA (Opcode 4103h) */
 static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
                                    uint8_t *payload_in,
                                    size_t len_in,
@@ -940,7 +940,7 @@ static void __do_sanitization(CXLType3Dev *ct3d)
 }
 
 /*
- * CXL 3.0 spec section 8.2.9.8.5.1 - Sanitize.
+ * CXL r3.1 Section 8.2.9.9.5.1: Sanitize (Opcode 4400h)
  *
  * Once the Sanitize command has started successfully, the device shall be
  * placed in the media disabled state. If the command fails or is interrupted
@@ -1001,15 +1001,8 @@ static CXLRetCode cmd_sanitize_overwrite(const struct cxl_cmd *cmd,
 
     cxl_dev_disable_media(&ct3d->cxl_dstate);
 
-    if (secs > 2) {
-        /* sanitize when done */
-        return CXL_MBOX_BG_STARTED;
-    } else {
-        __do_sanitization(ct3d);
-        cxl_dev_enable_media(&ct3d->cxl_dstate);
-
-        return CXL_MBOX_SUCCESS;
-    }
+    /* sanitize when done */
+    return CXL_MBOX_BG_STARTED;
 }
 
 static CXLRetCode cmd_get_security_state(const struct cxl_cmd *cmd,
@@ -1025,7 +1018,10 @@ static CXLRetCode cmd_get_security_state(const struct cxl_cmd *cmd,
     *len_out = 4;
     return CXL_MBOX_SUCCESS;
 }
+
 /*
+ * CXL r3.1 Section 8.2.9.9.4.1: Get Poison List (Opcode 4300h)
+ *
  * This is very inefficient, but good enough for now!
  * Also the payload will always fit, so no need to handle the MORE flag and
  * make this stateful. We may want to allow longer poison lists to aid
@@ -1110,6 +1106,7 @@ static CXLRetCode cmd_media_get_poison_list(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
+/* CXL r3.1 Section 8.2.9.9.4.2: Inject Poison (Opcode 4301h) */
 static CXLRetCode cmd_media_inject_poison(const struct cxl_cmd *cmd,
                                           uint8_t *payload_in,
                                           size_t len_in,
@@ -1153,6 +1150,7 @@ static CXLRetCode cmd_media_inject_poison(const struct cxl_cmd *cmd,
     return CXL_MBOX_SUCCESS;
 }
 
+/* CXL r3.1 Section 8.2.9.9.4.3: Clear Poison (Opcode 4302h */
 static CXLRetCode cmd_media_clear_poison(const struct cxl_cmd *cmd,
                                          uint8_t *payload_in,
                                          size_t len_in,
@@ -1387,27 +1385,21 @@ static void bg_timercb(void *opaque)
 
         cci->bg.complete_pct = 100;
         cci->bg.ret_code = ret;
-        if (ret == CXL_MBOX_SUCCESS) {
-            switch (cci->bg.opcode) {
-            case 0x4400: /* sanitize */
-            {
-                CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
+        switch (cci->bg.opcode) {
+        case 0x4400: /* sanitize */
+        {
+            CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
 
-                __do_sanitization(ct3d);
-                cxl_dev_enable_media(&ct3d->cxl_dstate);
-            }
-            break;
-            case 0x4304: /* TODO: scan media */
-                break;
-            default:
-                __builtin_unreachable();
-                break;
-            }
+            __do_sanitization(ct3d);
+            cxl_dev_enable_media(&ct3d->cxl_dstate);
         }
-
-        qemu_log("Background command %04xh finished: %s\n",
-                 cci->bg.opcode,
-                 ret == CXL_MBOX_SUCCESS ? "success" : "aborted");
+        break;
+        case 0x4304: /* TODO: scan media */
+            break;
+        default:
+            __builtin_unreachable();
+            break;
+        }
     } else {
         /* estimate only */
         cci->bg.complete_pct = 100 * now / total_time;

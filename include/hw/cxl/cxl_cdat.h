@@ -16,17 +16,17 @@
 /*
  * Reference:
  *   Coherent Device Attribute Table (CDAT) Specification, Rev. 1.03, July. 2022
- *   Compute Express Link (CXL) Specification, Rev. 3.0, Aug. 2022
+ *   Compute Express Link (CXL) Specification, Rev. 3.1, Aug. 2023
  */
-/* Table Access DOE - CXL r3.0 8.1.11 */
+/* Table Access DOE - CXL r3.1 8.1.11 */
 #define CXL_DOE_TABLE_ACCESS      2
 #define CXL_DOE_PROTOCOL_CDAT     ((CXL_DOE_TABLE_ACCESS << 16) | CXL_VENDOR_ID)
 
-/* Read Entry - CXL r3.0 8.1.11.1 */
+/* Read Entry - CXL r3.1 8.1.11.1 */
 #define CXL_DOE_TAB_TYPE_CDAT 0
 #define CXL_DOE_TAB_ENT_MAX 0xFFFF
 
-/* Read Entry Request - CXL r3.0 8.1.11.1 Table 8-13 */
+/* Read Entry Request - CXL r3.1 8.1.11.1 Table 8-13 */
 #define CXL_DOE_TAB_REQ 0
 typedef struct CDATReq {
     DOEHeader header;
@@ -35,7 +35,7 @@ typedef struct CDATReq {
     uint16_t entry_handle;
 } QEMU_PACKED CDATReq;
 
-/* Read Entry Response - CXL r3.0 8.1.11.1 Table 8-14 */
+/* Read Entry Response - CXL r3.1 8.1.11.1 Table 8-14 */
 #define CXL_DOE_TAB_RSP 0
 typedef struct CDATRsp {
     DOEHeader header;

@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef QEMU_VHOST_USER_DEVICE_H
-#define QEMU_VHOST_USER_DEVICE_H
+#ifndef QEMU_VHOST_USER_BASE_H
+#define QEMU_VHOST_USER_BASE_H
 
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
@@ -17,11 +17,13 @@
 OBJECT_DECLARE_TYPE(VHostUserBase, VHostUserBaseClass, VHOST_USER_BASE)
 
 struct VHostUserBase {
-    VirtIODevice parent;
+    VirtIODevice parent_obj;
+
     /* Properties */
     CharBackend chardev;
     uint16_t virtio_id;
     uint32_t num_vqs;
+    uint32_t vq_size; /* can't exceed VIRTIO_QUEUE_MAX */
     uint32_t config_size;
     /* State tracking */
     VhostUserState vhost_user;
@@ -31,16 +33,17 @@ struct VHostUserBase {
     bool connected;
 };
 
-    /* needed so we can use the base realize after specialisation
-       tweaks */
+/*
+ * Needed so we can use the base realize after specialisation
+ * tweaks
+ */
 struct VHostUserBaseClass {
-    /*< private >*/
     VirtioDeviceClass parent_class;
-    /*< public >*/
+
     DeviceRealize parent_realize;
 };
 
-/* shared for the benefit of the derived pci class */
+
 #define TYPE_VHOST_USER_DEVICE "vhost-user-device"
 
-#endif /* QEMU_VHOST_USER_DEVICE_H */
+#endif /* QEMU_VHOST_USER_BASE_H */

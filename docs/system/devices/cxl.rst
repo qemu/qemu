@@ -411,5 +411,4 @@ References
 
  - Consortium website for specifications etc:
    http://www.computeexpresslink.org
- - Compute Express link Revision 2 specification, October 2020
- - CEDT CFMWS & QTG _DSM ECN May 2021
+ - Compute Express Link (CXL) Specification, Revision 3.1, August 2023
