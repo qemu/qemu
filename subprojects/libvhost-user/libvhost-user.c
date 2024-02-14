@@ -896,8 +896,7 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
             i--;
 
             found = true;
-
-            /* Continue the search for eventual duplicates. */
+            break;
         }
     }
 
