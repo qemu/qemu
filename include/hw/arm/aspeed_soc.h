@@ -140,6 +140,7 @@ struct AspeedSoCClass {
     int wdts_num;
     int macs_num;
     int uarts_num;
+    int uarts_base;
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
@@ -151,6 +152,7 @@ const char *aspeed_soc_cpu_type(AspeedSoCClass *sc);
 enum {
     ASPEED_DEV_SPI_BOOT,
     ASPEED_DEV_IOMEM,
+    ASPEED_DEV_UART0,
     ASPEED_DEV_UART1,
     ASPEED_DEV_UART2,
     ASPEED_DEV_UART3,
@@ -234,5 +236,20 @@ void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
                                    uint64_t size);
 void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                unsigned int count, int unit0);
+
+static inline int aspeed_uart_index(int uart_dev)
+{
+    return uart_dev - ASPEED_DEV_UART0;
+}
+
+static inline int aspeed_uart_first(AspeedSoCClass *sc)
+{
+    return aspeed_uart_index(sc->uarts_base);
+}
+
+static inline int aspeed_uart_last(AspeedSoCClass *sc)
+{
+    return aspeed_uart_first(sc) + sc->uarts_num - 1;
+}
 
 #endif /* ASPEED_SOC_H */
