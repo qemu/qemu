@@ -128,6 +128,12 @@ struct RISCVCPUConfig {
     bool ext_svade;
     bool ext_zic64b;
 
+    /*
+     * Always 'true' boolean for named features
+     * TCG always implement/can't be disabled.
+     */
+    bool ext_always_enabled;
+
     /* Vendor-specific custom extensions */
     bool ext_xtheadba;
     bool ext_xtheadbb;
