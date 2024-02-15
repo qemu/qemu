@@ -241,7 +241,8 @@ static void leon3_start_cpu_async_work(CPUState *cpu, run_on_cpu_data data)
 
 static void leon3_start_cpu(void *opaque, int n, int level)
 {
-    CPUState *cs = CPU(opaque);
+    DeviceState *cpu = opaque;
+    CPUState *cs = CPU(cpu);
 
     assert(level == 1);
     async_run_on_cpu(cs, leon3_start_cpu_async_work, RUN_ON_CPU_NULL);
@@ -310,8 +311,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     for (i = 0; i < machine->smp.cpus; i++) {
         cpu = reset_info->info[i].cpu;
         env = &cpu->env;
-        qdev_init_gpio_in_named_with_opaque(DEVICE(cpu), leon3_start_cpu,
-                                            cpu, "start_cpu", 1);
+        qdev_init_gpio_in_named(DEVICE(cpu), leon3_start_cpu, "start_cpu", 1);
         qdev_connect_gpio_out_named(irqmpdev, "grlib-start-cpu", i,
                                     qdev_get_gpio_in_named(DEVICE(cpu),
                                                            "start_cpu", 0));
