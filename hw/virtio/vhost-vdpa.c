@@ -47,12 +47,14 @@ static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
                                                 int page_mask)
 {
     Int128 llend;
+    bool is_ram = memory_region_is_ram(section->mr);
+    bool is_iommu = memory_region_is_iommu(section->mr);
+    bool is_protected = memory_region_is_protected(section->mr);
 
-    if ((!memory_region_is_ram(section->mr) &&
-         !memory_region_is_iommu(section->mr)) ||
-        memory_region_is_protected(section->mr) ||
-        /* vhost-vDPA doesn't allow MMIO to be mapped  */
-        memory_region_is_ram_device(section->mr)) {
+    /* vhost-vDPA doesn't allow MMIO to be mapped  */
+    bool is_ram_device = memory_region_is_ram_device(section->mr);
+
+    if ((!is_ram && !is_iommu) || is_protected || is_ram_device) {
         return true;
     }
 
@@ -69,7 +71,7 @@ static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
      * size that maps to the kernel
      */
 
-    if (!memory_region_is_iommu(section->mr)) {
+    if (!is_iommu) {
         llend = vhost_vdpa_section_end(section, page_mask);
         if (int128_gt(llend, int128_make64(iova_max))) {
             error_report("RAM section out of device range (max=0x%" PRIx64
