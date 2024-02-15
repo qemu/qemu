@@ -173,21 +173,26 @@ static abi_long do_prctl_set_tagged_addr_ctrl(CPUArchState *env, abi_long arg2)
     env->tagged_addr_enable = arg2 & PR_TAGGED_ADDR_ENABLE;
 
     if (cpu_isar_feature(aa64_mte, cpu)) {
-        switch (arg2 & PR_MTE_TCF_MASK) {
-        case PR_MTE_TCF_NONE:
-        case PR_MTE_TCF_SYNC:
-        case PR_MTE_TCF_ASYNC:
-            break;
-        default:
-            return -EINVAL;
-        }
-
         /*
          * Write PR_MTE_TCF to SCTLR_EL1[TCF0].
-         * Note that the syscall values are consistent with hw.
+         *
+         * The kernel has a per-cpu configuration for the sysadmin,
+         * /sys/devices/system/cpu/cpu<N>/mte_tcf_preferred,
+         * which qemu does not implement.
+         *
+         * Because there is no performance difference between the modes, and
+         * because SYNC is most useful for debugging MTE errors, choose SYNC
+         * as the preferred mode.  With this preference, and the way the API
+         * uses only two bits, there is no way for the program to select
+         * ASYMM mode.
          */
-        env->cp15.sctlr_el[1] =
-            deposit64(env->cp15.sctlr_el[1], 38, 2, arg2 >> PR_MTE_TCF_SHIFT);
+        unsigned tcf = 0;
+        if (arg2 & PR_MTE_TCF_SYNC) {
+            tcf = 1;
+        } else if (arg2 & PR_MTE_TCF_ASYNC) {
+            tcf = 2;
+        }
+        env->cp15.sctlr_el[1] = deposit64(env->cp15.sctlr_el[1], 38, 2, tcf);
 
         /*
          * Write PR_MTE_TAG to GCR_EL1[Exclude].

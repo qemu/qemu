@@ -570,10 +570,24 @@ static void msr_mrs_banked_exc_checks(CPUARMState *env, uint32_t tgtmode,
      */
     int curmode = env->uncached_cpsr & CPSR_M;
 
-    if (regno == 17) {
-        /* ELR_Hyp: a special case because access from tgtmode is OK */
-        if (curmode != ARM_CPU_MODE_HYP && curmode != ARM_CPU_MODE_MON) {
-            goto undef;
+    if (tgtmode == ARM_CPU_MODE_HYP) {
+        /*
+         * Handle Hyp target regs first because some are special cases
+         * which don't want the usual "not accessible from tgtmode" check.
+         */
+        switch (regno) {
+        case 16 ... 17: /* ELR_Hyp, SPSR_Hyp */
+            if (curmode != ARM_CPU_MODE_HYP && curmode != ARM_CPU_MODE_MON) {
+                goto undef;
+            }
+            break;
+        case 13:
+            if (curmode != ARM_CPU_MODE_MON) {
+                goto undef;
+            }
+            break;
+        default:
+            g_assert_not_reached();
         }
         return;
     }
@@ -604,13 +618,6 @@ static void msr_mrs_banked_exc_checks(CPUARMState *env, uint32_t tgtmode,
         }
     }
 
-    if (tgtmode == ARM_CPU_MODE_HYP) {
-        /* SPSR_Hyp, r13_hyp: accessible from Monitor mode only */
-        if (curmode != ARM_CPU_MODE_MON) {
-            goto undef;
-        }
-    }
-
     return;
 
 undef:
@@ -625,7 +632,12 @@ void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
 
     switch (regno) {
     case 16: /* SPSRs */
-        env->banked_spsr[bank_number(tgtmode)] = value;
+        if (tgtmode == (env->uncached_cpsr & CPSR_M)) {
+            /* Only happens for SPSR_Hyp access in Hyp mode */
+            env->spsr = value;
+        } else {
+            env->banked_spsr[bank_number(tgtmode)] = value;
+        }
         break;
     case 17: /* ELR_Hyp */
         env->elr_el[2] = value;
@@ -659,7 +671,12 @@ uint32_t HELPER(mrs_banked)(CPUARMState *env, uint32_t tgtmode, uint32_t regno)
 
     switch (regno) {
     case 16: /* SPSRs */
-        return env->banked_spsr[bank_number(tgtmode)];
+        if (tgtmode == (env->uncached_cpsr & CPSR_M)) {
+            /* Only happens for SPSR_Hyp access in Hyp mode */
+            return env->spsr;
+        } else {
+            return env->banked_spsr[bank_number(tgtmode)];
+        }
     case 17: /* ELR_Hyp */
         return env->elr_el[2];
     case 13:

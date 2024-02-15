@@ -228,7 +228,10 @@ static int *packet_test_init(int module_num, GString *cmd_line)
      * KISS and use -nic. The driver accepts 'emc0' and 'emc1' as aliases
      * in the 'model' field to specify the device to match.
      */
-    g_string_append_printf(cmd_line, " -nic socket,fd=%d,model=emc%d ",
+    g_string_append_printf(cmd_line, " -nic socket,fd=%d,model=emc%d "
+                           "-nic user,model=npcm7xx-emc "
+                           "-nic user,model=npcm-gmac "
+                           "-nic user,model=npcm-gmac",
                            test_sockets[1], module_num);
 
     g_test_queue_destroy(packet_test_clear, test_sockets);

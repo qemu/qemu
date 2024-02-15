@@ -51,6 +51,7 @@ struct MPS2SCC {
     uint32_t cfg4;
     uint32_t cfg5;
     uint32_t cfg6;
+    uint32_t cfg7;
     uint32_t cfgdata_rtn;
     uint32_t cfgdata_out;
     uint32_t cfgctrl;
