@@ -27,7 +27,6 @@
 #include "host/cpuinfo.h"
 
 typedef bool (*biz_accel_fn)(const void *, size_t);
-static biz_accel_fn buffer_is_zero_accel;
 
 static bool buffer_is_zero_int_lt256(const void *buf, size_t len)
 {
@@ -179,60 +178,35 @@ buffer_zero_avx2(const void *buf, size_t len)
 }
 #endif /* CONFIG_AVX2_OPT */
 
-static unsigned __attribute__((noinline))
-select_accel_cpuinfo(unsigned info)
-{
-    /* Array is sorted in order of algorithm preference. */
-    static const struct {
-        unsigned bit;
-        biz_accel_fn fn;
-    } all[] = {
+static biz_accel_fn const accel_table[] = {
+    buffer_is_zero_int_ge256,
+    buffer_zero_sse2,
 #ifdef CONFIG_AVX2_OPT
-        { CPUINFO_AVX2,    buffer_zero_avx2 },
+    buffer_zero_avx2,
 #endif
-        { CPUINFO_SSE2,    buffer_zero_sse2 },
-        { CPUINFO_ALWAYS,  buffer_is_zero_int_ge256 },
-    };
+};
 
-    for (unsigned i = 0; i < ARRAY_SIZE(all); ++i) {
-        if (info & all[i].bit) {
-            buffer_is_zero_accel = all[i].fn;
-            return all[i].bit;
-        }
+static unsigned best_accel(void)
+{
+    unsigned info = cpuinfo_init();
+
+#ifdef CONFIG_AVX2_OPT
+    if (info & CPUINFO_AVX2) {
+        return 2;
     }
-    return 0;
+#endif
+    return info & CPUINFO_SSE2 ? 1 : 0;
 }
 
-static unsigned used_accel;
-
-static void __attribute__((constructor)) init_accel(void)
-{
-    used_accel = select_accel_cpuinfo(cpuinfo_init());
-}
-
-#define INIT_ACCEL NULL
-
-bool test_buffer_is_zero_next_accel(void)
-{
-    /*
-     * Accumulate the accelerators that we've already tested, and
-     * remove them from the set to test this round.  We'll get back
-     * a zero from select_accel_cpuinfo when there are no more.
-     */
-    unsigned used = select_accel_cpuinfo(cpuinfo & ~used_accel);
-    used_accel |= used;
-    return used;
-}
 #else
-bool test_buffer_is_zero_next_accel(void)
-{
-    return false;
-}
-
-#define INIT_ACCEL buffer_is_zero_int_ge256
+#define best_accel() 0
+static biz_accel_fn const accel_table[1] = {
+    buffer_is_zero_int_ge256
+};
 #endif
 
-static biz_accel_fn buffer_is_zero_accel = INIT_ACCEL;
+static biz_accel_fn buffer_is_zero_accel;
+static unsigned accel_index;
 
 bool buffer_is_zero_ool(const void *buf, size_t len)
 {
@@ -256,4 +230,19 @@ bool buffer_is_zero_ool(const void *buf, size_t len)
 bool buffer_is_zero_ge256(const void *buf, size_t len)
 {
     return buffer_is_zero_accel(buf, len);
+}
+
+bool test_buffer_is_zero_next_accel(void)
+{
+    if (accel_index != 0) {
+        buffer_is_zero_accel = accel_table[--accel_index];
+        return true;
+    }
+    return false;
+}
+
+static void __attribute__((constructor)) init_accel(void)
+{
+    accel_index = best_accel();
+    buffer_is_zero_accel = accel_table[accel_index];
 }
