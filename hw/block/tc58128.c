@@ -202,7 +202,9 @@ static sh7750_io_device tc58128 = {
 
 int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2)
 {
-    warn_report_once("The TC58128 flash device is deprecated");
+    if (!qtest_enabled()) {
+        warn_report_once("The TC58128 flash device is deprecated");
+    }
     init_dev(&tc58128_devs[0], zone1);
     init_dev(&tc58128_devs[1], zone2);
     return sh7750_register_io_device(s, &tc58128);
