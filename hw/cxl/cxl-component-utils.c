@@ -297,6 +297,7 @@ void cxl_component_register_init_common(uint32_t *reg_state,
         caps = 3;
         break;
     case CXL2_ROOT_PORT:
+    case CXL2_RC:
         /* + Extended Security, + Snoop */
         caps = 5;
         break;
@@ -326,8 +327,19 @@ void cxl_component_register_init_common(uint32_t *reg_state,
                        CXL_##reg##_REGISTERS_OFFSET);                         \
     } while (0)
 
+    switch (type) {
+    case CXL2_DEVICE:
+    case CXL2_TYPE3_DEVICE:
+    case CXL2_LOGICAL_DEVICE:
+    case CXL2_ROOT_PORT:
+    case CXL2_UPSTREAM_PORT:
+    case CXL2_DOWNSTREAM_PORT:
     init_cap_reg(RAS, 2, CXL_RAS_CAPABILITY_VERSION);
-    ras_init_common(reg_state, write_msk);
+        ras_init_common(reg_state, write_msk);
+        break;
+    default:
+        break;
+    }
 
     init_cap_reg(LINK, 4, CXL_LINK_CAPABILITY_VERSION);
 
@@ -335,9 +347,10 @@ void cxl_component_register_init_common(uint32_t *reg_state,
         return;
     }
 
-    init_cap_reg(HDM, 5, CXL_HDM_CAPABILITY_VERSION);
-    hdm_init_common(reg_state, write_msk, type);
-
+    if (type != CXL2_ROOT_PORT) {
+        init_cap_reg(HDM, 5, CXL_HDM_CAPABILITY_VERSION);
+        hdm_init_common(reg_state, write_msk, type);
+    }
     if (caps < 5) {
         return;
     }
