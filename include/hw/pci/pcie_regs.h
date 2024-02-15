@@ -39,6 +39,8 @@ typedef enum PCIExpLinkSpeed {
     QEMU_PCI_EXP_LNK_5GT,
     QEMU_PCI_EXP_LNK_8GT,
     QEMU_PCI_EXP_LNK_16GT,
+    QEMU_PCI_EXP_LNK_32GT,
+    QEMU_PCI_EXP_LNK_64GT,
 } PCIExpLinkSpeed;
 
 #define QEMU_PCI_EXP_LNKCAP_MLS(speed)  (speed)
