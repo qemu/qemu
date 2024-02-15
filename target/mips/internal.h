@@ -83,7 +83,6 @@ struct mips_def_t {
     uint32_t lcsr_cpucfg2;
     uint64_t insn_flags;
     enum mips_mmu_types mmu_type;
-    int32_t SAARP;
 };
 
 extern const char regnames[32][3];
