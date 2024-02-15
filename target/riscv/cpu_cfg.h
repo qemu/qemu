@@ -119,12 +119,14 @@ struct RISCVCPUConfig {
     bool ext_smepmp;
     bool rvv_ta_all_1s;
     bool rvv_ma_all_1s;
-    bool svade;
-    bool zic64b;
 
     uint32_t mvendorid;
     uint64_t marchid;
     uint64_t mimpid;
+
+    /* Named features  */
+    bool ext_svade;
+    bool ext_zic64b;
 
     /* Vendor-specific custom extensions */
     bool ext_xtheadba;
