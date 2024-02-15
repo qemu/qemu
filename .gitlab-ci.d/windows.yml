@@ -88,7 +88,6 @@
       $MINGW_TARGET-libpng
       $MINGW_TARGET-libssh
       $MINGW_TARGET-libtasn1
-      $MINGW_TARGET-libusb
       $MINGW_TARGET-lzo2
       $MINGW_TARGET-nettle
       $MINGW_TARGET-ninja
@@ -98,9 +97,8 @@
       $MINGW_TARGET-SDL2
       $MINGW_TARGET-SDL2_image
       $MINGW_TARGET-snappy
-      $MINGW_TARGET-spice
-      $MINGW_TARGET-usbredir
-      $MINGW_TARGET-zstd "
+      $MINGW_TARGET-zstd
+      $EXTRA_PACKAGES "
   - Write-Output "Running build at $(Get-Date -Format u)"
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
   - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
@@ -123,6 +121,8 @@ msys2-64bit:
   variables:
     MINGW_TARGET: mingw-w64-x86_64
     MSYSTEM: MINGW64
+    # msys2 only ship these packages for 64-bit, not 32-bit
+    EXTRA_PACKAGES: $MINGW_TARGET-libusb $MINGW_TARGET-usbredir $MINGW_TARGET-spice
     # do not remove "--without-default-devices"!
     # commit 9f8e6cad65a6 ("gitlab-ci: Speed up the msys2-64bit job by using --without-default-devices"
     # changed to compile QEMU with the --without-default-devices switch
@@ -137,5 +137,6 @@ msys2-32bit:
   variables:
     MINGW_TARGET: mingw-w64-i686
     MSYSTEM: MINGW32
+    EXTRA_PACKAGES:
     CONFIGURE_ARGS:  --target-list=ppc64-softmmu -Ddebug=false -Doptimization=0
     TEST_ARGS: --no-suite qtest
