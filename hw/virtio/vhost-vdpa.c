@@ -55,6 +55,9 @@ static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
     bool is_ram_device = memory_region_is_ram_device(section->mr);
 
     if ((!is_ram && !is_iommu) || is_protected || is_ram_device) {
+        trace_vhost_vdpa_skipped_memory_section(is_ram, is_iommu, is_protected,
+                                                is_ram_device, iova_min,
+                                                iova_max, page_mask);
         return true;
     }
 
