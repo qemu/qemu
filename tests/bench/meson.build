@@ -21,6 +21,7 @@ benchs = {}
 
 if have_block
   benchs += {
+     'bufferiszero-bench': [],
      'benchmark-crypto-hash': [crypto],
      'benchmark-crypto-hmac': [crypto],
      'benchmark-crypto-cipher': [crypto],
