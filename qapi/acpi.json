@@ -113,12 +113,12 @@
 #
 # Example:
 #
-# -> { "execute": "query-acpi-ospm-status" }
-# <- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
-#                  { "slot": "1", "slot-type": "DIMM", "source": 0, "status": 0},
-#                  { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
-#                  { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
-#    ]}
+#     -> { "execute": "query-acpi-ospm-status" }
+#     <- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
+#                      { "slot": "1", "slot-type": "DIMM", "source": 0, "status": 0},
+#                      { "slot": "2", "slot-type": "DIMM", "source": 0, "status": 0},
+#                      { "slot": "3", "slot-type": "DIMM", "source": 0, "status": 0}
+#        ]}
 ##
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
@@ -133,10 +133,10 @@
 #
 # Example:
 #
-# <- { "event": "ACPI_DEVICE_OST",
-#      "data": { "info": { "device": "d1", "slot": "0",
-#                          "slot-type": "DIMM", "source": 1, "status": 0 } },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "ACPI_DEVICE_OST",
+#          "data": { "info": { "device": "d1", "slot": "0",
+#                              "slot-type": "DIMM", "source": 1, "status": 0 } },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'ACPI_DEVICE_OST',
      'data': { 'info': 'ACPIOSTInfo' } }

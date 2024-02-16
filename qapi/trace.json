@@ -66,9 +66,9 @@
 #
 # Example:
 #
-# -> { "execute": "trace-event-get-state",
-#      "arguments": { "name": "qemu_memalign" } }
-# <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
+#     -> { "execute": "trace-event-get-state",
+#          "arguments": { "name": "qemu_memalign" } }
+#     <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
 ##
 { 'command': 'trace-event-get-state',
   'data': {'name': 'str',
@@ -96,9 +96,9 @@
 #
 # Example:
 #
-# -> { "execute": "trace-event-set-state",
-#      "arguments": { "name": "qemu_memalign", "enable": true } }
-# <- { "return": {} }
+#     -> { "execute": "trace-event-set-state",
+#          "arguments": { "name": "qemu_memalign", "enable": true } }
+#     <- { "return": {} }
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',

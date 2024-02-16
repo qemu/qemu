@@ -84,13 +84,13 @@
 #
 # Example:
 #
-# -> { "execute": "yank",
-#      "arguments": {
-#          "instances": [
-#               { "type": "block-node",
-#                 "node-name": "nbd0" }
-#          ] } }
-# <- { "return": {} }
+#     -> { "execute": "yank",
+#          "arguments": {
+#              "instances": [
+#                   { "type": "block-node",
+#                     "node-name": "nbd0" }
+#              ] } }
+#     <- { "return": {} }
 #
 # Since: 6.0
 ##
@@ -107,11 +107,11 @@
 #
 # Example:
 #
-# -> { "execute": "query-yank" }
-# <- { "return": [
-#          { "type": "block-node",
-#            "node-name": "nbd0" }
-#      ] }
+#     -> { "execute": "query-yank" }
+#     <- { "return": [
+#              { "type": "block-node",
+#                "node-name": "nbd0" }
+#          ] }
 #
 # Since: 6.0
 ##

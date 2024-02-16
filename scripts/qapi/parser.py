@@ -492,6 +492,9 @@ class QAPIDoc:
                     # indeterminate indentation
                     if self.text != '':
                         # non-blank, non-first line determines indentation
+                        if indent == 0:
+                            raise QAPIParseError(
+                                self._parser, "line needs to be indented")
                         self._indent = indent
                 elif indent < self._indent:
                     raise QAPIParseError(

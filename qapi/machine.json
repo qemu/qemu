@@ -106,32 +106,32 @@
 #
 # Example:
 #
-# -> { "execute": "query-cpus-fast" }
-# <- { "return": [
-#         {
-#             "thread-id": 25627,
-#             "props": {
-#                 "core-id": 0,
-#                 "thread-id": 0,
-#                 "socket-id": 0
+#     -> { "execute": "query-cpus-fast" }
+#     <- { "return": [
+#             {
+#                 "thread-id": 25627,
+#                 "props": {
+#                     "core-id": 0,
+#                     "thread-id": 0,
+#                     "socket-id": 0
+#                 },
+#                 "qom-path": "/machine/unattached/device[0]",
+#                 "target":"x86_64",
+#                 "cpu-index": 0
 #             },
-#             "qom-path": "/machine/unattached/device[0]",
-#             "target":"x86_64",
-#             "cpu-index": 0
-#         },
-#         {
-#             "thread-id": 25628,
-#             "props": {
-#                 "core-id": 0,
-#                 "thread-id": 0,
-#                 "socket-id": 1
-#             },
-#             "qom-path": "/machine/unattached/device[2]",
-#             "target":"x86_64",
-#             "cpu-index": 1
-#         }
-#     ]
-# }
+#             {
+#                 "thread-id": 25628,
+#                 "props": {
+#                     "core-id": 0,
+#                     "thread-id": 0,
+#                     "socket-id": 1
+#                 },
+#                 "qom-path": "/machine/unattached/device[2]",
+#                 "target":"x86_64",
+#                 "cpu-index": 1
+#             }
+#         ]
+#     }
 ##
 { 'command': 'query-cpus-fast', 'returns': [ 'CpuInfoFast' ] }
 
@@ -258,8 +258,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-uuid" }
-# <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
+#     -> { "execute": "query-uuid" }
+#     <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
@@ -292,8 +292,8 @@
 #
 # Example:
 #
-# -> { "execute": "system_reset" }
-# <- { "return": {} }
+#     -> { "execute": "system_reset" }
+#     <- { "return": {} }
 ##
 { 'command': 'system_reset' }
 
@@ -311,8 +311,8 @@
 #
 # Example:
 #
-# -> { "execute": "system_powerdown" }
-# <- { "return": {} }
+#     -> { "execute": "system_powerdown" }
+#     <- { "return": {} }
 ##
 { 'command': 'system_powerdown' }
 
@@ -333,8 +333,8 @@
 #
 # Example:
 #
-# -> { "execute": "system_wakeup" }
-# <- { "return": {} }
+#     -> { "execute": "system_wakeup" }
+#     <- { "return": {} }
 ##
 { 'command': 'system_wakeup' }
 
@@ -386,8 +386,8 @@
 #
 # Example:
 #
-# -> { "execute": "inject-nmi" }
-# <- { "return": {} }
+#     -> { "execute": "inject-nmi" }
+#     <- { "return": {} }
 ##
 { 'command': 'inject-nmi' }
 
@@ -415,8 +415,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-kvm" }
-# <- { "return": { "enabled": true, "present": true } }
+#     -> { "execute": "query-kvm" }
+#     <- { "return": { "enabled": true, "present": true } }
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
@@ -786,11 +786,11 @@
 #
 # Example:
 #
-# -> { "execute": "memsave",
-#      "arguments": { "val": 10,
-#                     "size": 100,
-#                     "filename": "/tmp/virtual-mem-dump" } }
-# <- { "return": {} }
+#     -> { "execute": "memsave",
+#          "arguments": { "val": 10,
+#                         "size": 100,
+#                         "filename": "/tmp/virtual-mem-dump" } }
+#     <- { "return": {} }
 ##
 { 'command': 'memsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
@@ -814,11 +814,11 @@
 #
 # Example:
 #
-# -> { "execute": "pmemsave",
-#      "arguments": { "val": 10,
-#                     "size": 100,
-#                     "filename": "/tmp/physical-mem-dump" } }
-# <- { "return": {} }
+#     -> { "execute": "pmemsave",
+#          "arguments": { "val": 10,
+#                         "size": 100,
+#                         "filename": "/tmp/physical-mem-dump" } }
+#     <- { "return": {} }
 ##
 { 'command': 'pmemsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
@@ -875,29 +875,29 @@
 #
 # Example:
 #
-# -> { "execute": "query-memdev" }
-# <- { "return": [
-#        {
-#          "id": "mem1",
-#          "size": 536870912,
-#          "merge": false,
-#          "dump": true,
-#          "prealloc": false,
-#          "share": false,
-#          "host-nodes": [0, 1],
-#          "policy": "bind"
-#        },
-#        {
-#          "size": 536870912,
-#          "merge": false,
-#          "dump": true,
-#          "prealloc": true,
-#          "share": false,
-#          "host-nodes": [2, 3],
-#          "policy": "preferred"
+#     -> { "execute": "query-memdev" }
+#     <- { "return": [
+#            {
+#              "id": "mem1",
+#              "size": 536870912,
+#              "merge": false,
+#              "dump": true,
+#              "prealloc": false,
+#              "share": false,
+#              "host-nodes": [0, 1],
+#              "policy": "bind"
+#            },
+#            {
+#              "size": 536870912,
+#              "merge": false,
+#              "dump": true,
+#              "prealloc": true,
+#              "share": false,
+#              "host-nodes": [2, 3],
+#              "policy": "preferred"
+#            }
+#          ]
 #        }
-#      ]
-#    }
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'], 'allow-preconfig': true }
 
@@ -990,47 +990,47 @@
 #
 # Examples:
 #
-# For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu
-# POWER8:
+#     For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu
+#     POWER8:
 #
-# -> { "execute": "query-hotpluggable-cpus" }
-# <- {"return": [
-#      { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
-#        "vcpus-count": 1 },
-#      { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
-#        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
-#    ]}'
+#     -> { "execute": "query-hotpluggable-cpus" }
+#     <- {"return": [
+#          { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
+#            "vcpus-count": 1 },
+#          { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
+#            "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
+#        ]}'
 #
-# For pc machine type started with -smp 1,maxcpus=2:
+#     For pc machine type started with -smp 1,maxcpus=2:
 #
-# -> { "execute": "query-hotpluggable-cpus" }
-# <- {"return": [
-#      {
-#         "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
-#         "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
-#      },
-#      {
-#         "qom-path": "/machine/unattached/device[0]",
-#         "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
-#         "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
-#      }
-#    ]}
+#     -> { "execute": "query-hotpluggable-cpus" }
+#     <- {"return": [
+#          {
+#             "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+#             "props": {"core-id": 0, "socket-id": 1, "thread-id": 0}
+#          },
+#          {
+#             "qom-path": "/machine/unattached/device[0]",
+#             "type": "qemu64-x86_64-cpu", "vcpus-count": 1,
+#             "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
+#          }
+#        ]}
 #
-# For s390x-virtio-ccw machine type started with -smp 1,maxcpus=2 -cpu
-# qemu (Since: 2.11):
+#     For s390x-virtio-ccw machine type started with -smp 1,maxcpus=2 -cpu
+#     qemu (Since: 2.11):
 #
-# -> { "execute": "query-hotpluggable-cpus" }
-# <- {"return": [
-#      {
-#         "type": "qemu-s390x-cpu", "vcpus-count": 1,
-#         "props": { "core-id": 1 }
-#      },
-#      {
-#         "qom-path": "/machine/unattached/device[0]",
-#         "type": "qemu-s390x-cpu", "vcpus-count": 1,
-#         "props": { "core-id": 0 }
-#      }
-#    ]}
+#     -> { "execute": "query-hotpluggable-cpus" }
+#     <- {"return": [
+#          {
+#             "type": "qemu-s390x-cpu", "vcpus-count": 1,
+#             "props": { "core-id": 1 }
+#          },
+#          {
+#             "qom-path": "/machine/unattached/device[0]",
+#             "type": "qemu-s390x-cpu", "vcpus-count": 1,
+#             "props": { "core-id": 0 }
+#          }
+#        ]}
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'],
              'allow-preconfig': true }
@@ -1074,10 +1074,10 @@
 #
 # Example:
 #
-# -> { "execute": "balloon", "arguments": { "value": 536870912 } }
-# <- { "return": {} }
+#     -> { "execute": "balloon", "arguments": { "value": 536870912 } }
+#     <- { "return": {} }
 #
-# With a 2.5GiB guest this command inflated the ballon to 3GiB.
+#     With a 2.5GiB guest this command inflated the ballon to 3GiB.
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
@@ -1108,11 +1108,11 @@
 #
 # Example:
 #
-# -> { "execute": "query-balloon" }
-# <- { "return": {
-#          "actual": 1073741824
-#       }
-#    }
+#     -> { "execute": "query-balloon" }
+#     <- { "return": {
+#              "actual": 1073741824
+#           }
+#        }
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 
@@ -1132,9 +1132,9 @@
 #
 # Example:
 #
-# <- { "event": "BALLOON_CHANGE",
-#      "data": { "actual": 944766976 },
-#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#     <- { "event": "BALLOON_CHANGE",
+#          "data": { "actual": 944766976 },
+#          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
@@ -1172,12 +1172,12 @@
 #
 # Example:
 #
-# -> { "execute": "query-hv-balloon-status-report" }
-# <- { "return": {
-#          "committed": 816640000,
-#          "available": 3333054464
-#       }
-#    }
+#     -> { "execute": "query-hv-balloon-status-report" }
+#     <- { "return": {
+#              "committed": 816640000,
+#              "available": 3333054464
+#           }
+#        }
 ##
 { 'command': 'query-hv-balloon-status-report', 'returns': 'HvBalloonInfo' }
 
@@ -1193,9 +1193,9 @@
 #
 # Example:
 #
-# <- { "event": "HV_BALLOON_STATUS_REPORT",
-#      "data": { "committed": 816640000, "available": 3333054464 },
-#      "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#     <- { "event": "HV_BALLOON_STATUS_REPORT",
+#          "data": { "committed": 816640000, "available": 3333054464 },
+#          "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
 #
 ##
 { 'event': 'HV_BALLOON_STATUS_REPORT',
@@ -1226,8 +1226,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-memory-size-summary" }
-# <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
+#     -> { "execute": "query-memory-size-summary" }
+#     <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
 #
 # Since: 2.11
 ##
@@ -1505,18 +1505,18 @@
 #
 # Example:
 #
-# -> { "execute": "query-memory-devices" }
-# <- { "return": [ { "data":
-#                       { "addr": 5368709120,
-#                         "hotpluggable": true,
-#                         "hotplugged": true,
-#                         "id": "d1",
-#                         "memdev": "/objects/memX",
-#                         "node": 0,
-#                         "size": 1073741824,
-#                         "slot": 0},
-#                    "type": "dimm"
-#                  } ] }
+#     -> { "execute": "query-memory-devices" }
+#     <- { "return": [ { "data":
+#                           { "addr": 5368709120,
+#                             "hotpluggable": true,
+#                             "hotplugged": true,
+#                             "id": "d1",
+#                             "memdev": "/objects/memX",
+#                             "node": 0,
+#                             "size": 1073741824,
+#                             "slot": 0},
+#                        "type": "dimm"
+#                      } ] }
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
@@ -1539,10 +1539,10 @@
 #
 # Example:
 #
-# <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
-#      "data": { "id": "vm0", "size": 1073741824,
-#                "qom-path": "/machine/unattached/device[2]" },
-#      "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
+#     <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
+#          "data": { "id": "vm0", "size": 1073741824,
+#                    "qom-path": "/machine/unattached/device[2]" },
+#          "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
@@ -1565,11 +1565,11 @@
 #
 # Example:
 #
-# <- { "event": "MEM_UNPLUG_ERROR",
-#      "data": { "device": "dimm1",
-#                "msg": "acpi: device unplug for unsupported device"
-#      },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "MEM_UNPLUG_ERROR",
+#          "data": { "device": "dimm1",
+#                    "msg": "acpi: device unplug for unsupported device"
+#          },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'MEM_UNPLUG_ERROR',
   'data': { 'device': 'str', 'msg': 'str' },
@@ -1836,9 +1836,9 @@
 #
 # Example:
 #
-# -> { "execute": "dumpdtb" }
-#      "arguments": { "filename": "fdt.dtb" } }
-# <- { "return": {} }
+#     -> { "execute": "dumpdtb" }
+#          "arguments": { "filename": "fdt.dtb" } }
+#     <- { "return": {} }
 ##
 { 'command': 'dumpdtb',
   'data': { 'filename': 'str' },

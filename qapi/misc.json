@@ -34,9 +34,9 @@
 #
 # Example:
 #
-# -> { "execute": "add_client", "arguments": { "protocol": "vnc",
-#                                              "fdname": "myclient" } }
-# <- { "return": {} }
+#         -> { "execute": "add_client", "arguments": { "protocol": "vnc",
+#                                                      "fdname": "myclient" } }
+#         <- { "return": {} }
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
@@ -64,8 +64,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-name" }
-# <- { "return": { "name": "qemu-name" } }
+#     -> { "execute": "query-name" }
+#     <- { "return": { "name": "qemu-name" } }
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
@@ -115,18 +115,18 @@
 #
 # Example:
 #
-# -> { "execute": "query-iothreads" }
-# <- { "return": [
-#          {
-#             "id":"iothread0",
-#             "thread-id":3134
-#          },
-#          {
-#             "id":"iothread1",
-#             "thread-id":3135
-#          }
-#       ]
-#    }
+#     -> { "execute": "query-iothreads" }
+#     <- { "return": [
+#              {
+#                 "id":"iothread0",
+#                 "thread-id":3134
+#              },
+#              {
+#                 "id":"iothread1",
+#                 "thread-id":3135
+#              }
+#           ]
+#        }
 ##
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'],
   'allow-preconfig': true }
@@ -148,8 +148,8 @@
 #
 # Example:
 #
-# -> { "execute": "stop" }
-# <- { "return": {} }
+#     -> { "execute": "stop" }
+#     <- { "return": {} }
 ##
 { 'command': 'stop' }
 
@@ -174,8 +174,8 @@
 #
 # Example:
 #
-# -> { "execute": "cont" }
-# <- { "return": {} }
+#     -> { "execute": "cont" }
+#     <- { "return": {} }
 ##
 { 'command': 'cont' }
 
@@ -200,8 +200,8 @@
 #
 # Example:
 #
-# -> { "execute": "x-exit-preconfig" }
-# <- { "return": {} }
+#     -> { "execute": "x-exit-preconfig" }
+#     <- { "return": {} }
 ##
 { 'command': 'x-exit-preconfig', 'allow-preconfig': true,
   'features': [ 'unstable' ] }
@@ -240,9 +240,9 @@
 #
 # Example:
 #
-# -> { "execute": "human-monitor-command",
-#      "arguments": { "command-line": "info kvm" } }
-# <- { "return": "kvm support: enabled\r\n" }
+#     -> { "execute": "human-monitor-command",
+#          "arguments": { "command-line": "info kvm" } }
+#     <- { "return": "kvm support: enabled\r\n" }
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
@@ -268,8 +268,8 @@
 #
 # Example:
 #
-# -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
-# <- { "return": {} }
+#     -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'getfd', 'data': {'fdname': 'str'}, 'if': 'CONFIG_POSIX' }
 
@@ -297,8 +297,8 @@
 #
 # Example:
 #
-# -> { "execute": "get-win32-socket", "arguments": { "info": "abcd123..", fdname": "skclient" } }
-# <- { "return": {} }
+#     -> { "execute": "get-win32-socket", "arguments": { "info": "abcd123..", fdname": "skclient" } }
+#     <- { "return": {} }
 ##
 { 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
 
@@ -315,8 +315,8 @@
 #
 # Example:
 #
-# -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
-# <- { "return": {} }
+#     -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
@@ -357,8 +357,8 @@
 #
 # Example:
 #
-# -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
-# <- { "return": { "fdset-id": 1, "fd": 3 } }
+#     -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
+#     <- { "return": { "fdset-id": 1, "fd": 3 } }
 ##
 { 'command': 'add-fd',
   'data': { '*fdset-id': 'int',
@@ -388,8 +388,8 @@
 #
 # Example:
 #
-# -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
-# <- { "return": {} }
+#     -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+#     <- { "return": {} }
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
 
@@ -434,34 +434,34 @@
 #
 # Example:
 #
-# -> { "execute": "query-fdsets" }
-# <- { "return": [
-#        {
-#          "fds": [
+#     -> { "execute": "query-fdsets" }
+#     <- { "return": [
 #            {
-#              "fd": 30,
-#              "opaque": "rdonly:/path/to/file"
+#              "fds": [
+#                {
+#                  "fd": 30,
+#                  "opaque": "rdonly:/path/to/file"
+#                },
+#                {
+#                  "fd": 24,
+#                  "opaque": "rdwr:/path/to/file"
+#                }
+#              ],
+#              "fdset-id": 1
 #            },
 #            {
-#              "fd": 24,
-#              "opaque": "rdwr:/path/to/file"
+#              "fds": [
+#                {
+#                  "fd": 28
+#                },
+#                {
+#                  "fd": 29
+#                }
+#              ],
+#              "fdset-id": 0
 #            }
-#          ],
-#          "fdset-id": 1
-#        },
-#        {
-#          "fds": [
-#            {
-#              "fd": 28
-#            },
-#            {
-#              "fd": 29
-#            }
-#          ],
-#          "fdset-id": 0
+#          ]
 #        }
-#      ]
-#    }
 ##
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
@@ -535,24 +535,24 @@
 #
 # Example:
 #
-# -> { "execute": "query-command-line-options",
-#      "arguments": { "option": "option-rom" } }
-# <- { "return": [
-#         {
-#             "parameters": [
-#                 {
-#                     "name": "romfile",
-#                     "type": "string"
-#                 },
-#                 {
-#                     "name": "bootindex",
-#                     "type": "number"
-#                 }
-#             ],
-#             "option": "option-rom"
-#         }
-#      ]
-#    }
+#     -> { "execute": "query-command-line-options",
+#          "arguments": { "option": "option-rom" } }
+#     <- { "return": [
+#             {
+#                 "parameters": [
+#                     {
+#                         "name": "romfile",
+#                         "type": "string"
+#                     },
+#                     {
+#                         "name": "bootindex",
+#                         "type": "number"
+#                     }
+#                 ],
+#                 "option": "option-rom"
+#             }
+#          ]
+#        }
 ##
 {'command': 'query-command-line-options',
  'data': {'*option': 'str'},
@@ -577,9 +577,9 @@
 #
 # Example:
 #
-# <- { "event": "RTC_CHANGE",
-#      "data": { "offset": 78 },
-#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#     <- { "event": "RTC_CHANGE",
+#          "data": { "offset": 78 },
+#          "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int', 'qom-path': 'str' } }
@@ -604,12 +604,12 @@
 #
 # Example:
 #
-# <- { "event": "VFU_CLIENT_HANGUP",
-#      "data": { "vfu-id": "vfu1",
-#                "vfu-qom-path": "/objects/vfu1",
-#                "dev-id": "sas1",
-#                "dev-qom-path": "/machine/peripheral/sas1" },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "VFU_CLIENT_HANGUP",
+#          "data": { "vfu-id": "vfu1",
+#                    "vfu-qom-path": "/objects/vfu1",
+#                    "dev-id": "sas1",
+#                    "dev-qom-path": "/machine/peripheral/sas1" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',

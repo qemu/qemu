@@ -98,9 +98,9 @@
 #
 # Example:
 #
-# -> { "execute": "dump-guest-memory",
-#      "arguments": { "paging": false, "protocol": "fd:dump" } }
-# <- { "return": {} }
+#     -> { "execute": "dump-guest-memory",
+#          "arguments": { "paging": false, "protocol": "fd:dump" } }
+#     <- { "return": {} }
 ##
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
@@ -154,9 +154,9 @@
 #
 # Example:
 #
-# -> { "execute": "query-dump" }
-# <- { "return": { "status": "active", "completed": 1024000,
-#                  "total": 2048000 } }
+#     -> { "execute": "query-dump" }
+#     <- { "return": { "status": "active", "completed": 1024000,
+#                      "total": 2048000 } }
 ##
 { 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 
@@ -175,10 +175,10 @@
 #
 # Example:
 #
-# <- { "event": "DUMP_COMPLETED",
-#      "data": { "result": { "total": 1090650112, "status": "completed",
-#                            "completed": 1090650112 } },
-#      "timestamp": { "seconds": 1648244171, "microseconds": 950316 } }
+#     <- { "event": "DUMP_COMPLETED",
+#          "data": { "result": { "total": 1090650112, "status": "completed",
+#                                "completed": 1090650112 } },
+#          "timestamp": { "seconds": 1648244171, "microseconds": 950316 } }
 ##
 { 'event': 'DUMP_COMPLETED' ,
   'data': { 'result': 'DumpQueryResult', '*error': 'str' } }
@@ -206,9 +206,9 @@
 #
 # Example:
 #
-# -> { "execute": "query-dump-guest-memory-capability" }
-# <- { "return": { "formats":
-#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] } }
+#     -> { "execute": "query-dump-guest-memory-capability" }
+#     <- { "return": { "formats":
+#                      ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] } }
 ##
 { 'command': 'query-dump-guest-memory-capability',
   'returns': 'DumpGuestMemoryCapability' }

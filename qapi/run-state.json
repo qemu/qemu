@@ -128,9 +128,9 @@
 #
 # Example:
 #
-# -> { "execute": "query-status" }
-# <- { "return": { "running": true,
-#                  "status": "running" } }
+#     -> { "execute": "query-status" }
+#     <- { "return": { "running": true,
+#                      "status": "running" } }
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo',
   'allow-preconfig': true }
@@ -157,9 +157,9 @@
 #
 # Example:
 #
-# <- { "event": "SHUTDOWN",
-#      "data": { "guest": true, "reason": "guest-shutdown" },
-#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#     <- { "event": "SHUTDOWN",
+#          "data": { "guest": true, "reason": "guest-shutdown" },
+#          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 ##
 { 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -173,8 +173,8 @@
 #
 # Example:
 #
-# <- { "event": "POWERDOWN",
-#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#     <- { "event": "POWERDOWN",
+#          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 ##
 { 'event': 'POWERDOWN' }
 
@@ -194,9 +194,9 @@
 #
 # Example:
 #
-# <- { "event": "RESET",
-#      "data": { "guest": false, "reason": "guest-reset" },
-#      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
+#     <- { "event": "RESET",
+#          "data": { "guest": false, "reason": "guest-reset" },
+#          "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 ##
 { 'event': 'RESET', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
@@ -209,8 +209,8 @@
 #
 # Example:
 #
-# <- { "event": "STOP",
-#      "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#     <- { "event": "STOP",
+#          "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
 ##
 { 'event': 'STOP' }
 
@@ -223,8 +223,8 @@
 #
 # Example:
 #
-# <- { "event": "RESUME",
-#      "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+#     <- { "event": "RESUME",
+#          "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
 ##
 { 'event': 'RESUME' }
 
@@ -238,8 +238,8 @@
 #
 # Example:
 #
-# <- { "event": "SUSPEND",
-#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#     <- { "event": "SUSPEND",
+#          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
 ##
 { 'event': 'SUSPEND' }
 
@@ -257,8 +257,8 @@
 #
 # Example:
 #
-# <- { "event": "SUSPEND_DISK",
-#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#     <- { "event": "SUSPEND_DISK",
+#          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
 ##
 { 'event': 'SUSPEND_DISK' }
 
@@ -272,8 +272,8 @@
 #
 # Example:
 #
-# <- { "event": "WAKEUP",
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#     <- { "event": "WAKEUP",
+#          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 ##
 { 'event': 'WAKEUP' }
 
@@ -294,9 +294,9 @@
 #
 # Example:
 #
-# <- { "event": "WATCHDOG",
-#      "data": { "action": "reset" },
-#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#     <- { "event": "WATCHDOG",
+#          "data": { "action": "reset" },
+#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 ##
 { 'event': 'WATCHDOG',
   'data': { 'action': 'WatchdogAction' } }
@@ -406,12 +406,12 @@
 #
 # Example:
 #
-# -> { "execute": "set-action",
-#      "arguments": { "reboot": "shutdown",
-#                     "shutdown" : "pause",
-#                     "panic": "pause",
-#                     "watchdog": "inject-nmi" } }
-# <- { "return": {} }
+#     -> { "execute": "set-action",
+#          "arguments": { "reboot": "shutdown",
+#                         "shutdown" : "pause",
+#                         "panic": "pause",
+#                         "watchdog": "inject-nmi" } }
+#     <- { "return": {} }
 ##
 { 'command': 'set-action',
   'data': { '*reboot': 'RebootAction',
@@ -433,9 +433,9 @@
 #
 # Example:
 #
-# <- { "event": "GUEST_PANICKED",
-#      "data": { "action": "pause" },
-#      "timestamp": { "seconds": 1648245231, "microseconds": 900001 } }
+#     <- { "event": "GUEST_PANICKED",
+#          "data": { "action": "pause" },
+#          "timestamp": { "seconds": 1648245231, "microseconds": 900001 } }
 ##
 { 'event': 'GUEST_PANICKED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -453,9 +453,9 @@
 #
 # Example:
 #
-# <- { "event": "GUEST_CRASHLOADED",
-#      "data": { "action": "run" },
-#      "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
+#     <- { "event": "GUEST_CRASHLOADED",
+#          "data": { "action": "run" },
+#          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
 ##
 { 'event': 'GUEST_CRASHLOADED',
   'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
@@ -583,12 +583,12 @@
 #
 # Example:
 #
-# <- { "event": "MEMORY_FAILURE",
-#      "data": { "recipient": "hypervisor",
-#                "action": "fatal",
-#                "flags": { "action-required": false,
-#                           "recursive": false } },
-#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#     <- { "event": "MEMORY_FAILURE",
+#          "data": { "recipient": "hypervisor",
+#                    "action": "fatal",
+#                    "flags": { "action-required": false,
+#                               "recursive": false } },
+#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 ##
 { 'event': 'MEMORY_FAILURE',
   'data': { 'recipient': 'MemoryFailureRecipient',

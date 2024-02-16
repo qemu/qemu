@@ -165,11 +165,11 @@
 #  Duis aute irure dolor
 # Example:
 #
-# -> in
-# <- out
+#  -> in
+#  <- out
 # Examples:
-# - *verbatim*
-# - {braces}
+#  - *verbatim*
+#  - {braces}
 # Since: 2.10
 ##
 { 'command': 'cmd',
@@ -185,9 +185,9 @@
 # @cmd-feat2: another feature
 # Example:
 #
-# -> in
+#  -> in
 #
-# <- out
+#  <- out
 ##
 { 'command': 'cmd-boxed', 'boxed': true,
   'data': 'Object',

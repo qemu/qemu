@@ -56,8 +56,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-replay" }
-# <- { "return": { "mode": "play", "filename": "log.rr", "icount": 220414 } }
+#     -> { "execute": "query-replay" }
+#     <- { "return": { "mode": "play", "filename": "log.rr", "icount": 220414 } }
 ##
 { 'command': 'query-replay',
   'returns': 'ReplayInfo' }
@@ -78,8 +78,8 @@
 #
 # Example:
 #
-# -> { "execute": "replay-break", "arguments": { "icount": 220414 } }
-# <- { "return": {} }
+#     -> { "execute": "replay-break", "arguments": { "icount": 220414 } }
+#     <- { "return": {} }
 ##
 { 'command': 'replay-break', 'data': { 'icount': 'int' } }
 
@@ -93,8 +93,8 @@
 #
 # Example:
 #
-# -> { "execute": "replay-delete-break" }
-# <- { "return": {} }
+#     -> { "execute": "replay-delete-break" }
+#     <- { "return": {} }
 ##
 { 'command': 'replay-delete-break' }
 
@@ -114,7 +114,7 @@
 #
 # Example:
 #
-# -> { "execute": "replay-seek", "arguments": { "icount": 220414 } }
-# <- { "return": {} }
+#     -> { "execute": "replay-seek", "arguments": { "icount": 220414 } }
+#     <- { "return": {} }
 ##
 { 'command': 'replay-seek', 'data': { 'icount': 'int' } }
