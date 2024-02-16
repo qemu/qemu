@@ -71,6 +71,7 @@ schemas = [
   'doc-duplicated-return.json',
   'doc-duplicated-since.json',
   'doc-empty-arg.json',
+  'doc-empty-features.json',
   'doc-empty-section.json',
   'doc-empty-symbol.json',
   'doc-good.json',

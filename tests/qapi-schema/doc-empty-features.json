@@ -1,0 +1,10 @@
+# 'Features:' line not followed by feature descriptions
+
+##
+# @foo:
+#
+# Features:
+#
+# not a description
+##
+{ 'command': 'foo' }
