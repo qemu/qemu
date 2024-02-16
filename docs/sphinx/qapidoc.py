@@ -239,8 +239,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         seen_item = False
         dlnode = nodes.definition_list()
         for section in doc.features.values():
-            dlnode += self._make_dlitem([nodes.literal('', section.name)],
-                                        section.text)
+            dlnode += self._make_dlitem(
+                [nodes.literal('', section.member.name)], section.text)
             seen_item = True
 
         if not seen_item:

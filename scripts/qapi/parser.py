@@ -476,9 +476,9 @@ class QAPIDoc:
             self.info = parser.info
             # parser, for error messages about indentation
             self._parser = parser
-            # optional section name (argument/member or section name)
+            # section tag, if any ('Returns', '@name', ...)
             self.name = name
-            # section text without section name
+            # section text without tag
             self.text = ''
             # indentation to strip (None means indeterminate)
             self._indent = None if self.name else 0
@@ -700,7 +700,7 @@ class QAPIDoc:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
         assert not self.sections
-        new_section = QAPIDoc.ArgSection(self._parser, name)
+        new_section = QAPIDoc.ArgSection(self._parser, '@' + name)
         self._switch_section(new_section)
         symbols_dict[name] = new_section
 
@@ -727,9 +727,9 @@ class QAPIDoc:
             # We do not create anonymous sections unless there is
             # something to put in them; this is a parser bug.
             assert self._section.name
-            raise QAPIParseError(
-                self._parser,
-                "empty doc section '%s'" % self._section.name)
+            raise QAPISemError(
+                self._section.info,
+                "text required after '%s:'" % self._section.name)
 
         self._section = new_section
 
@@ -748,7 +748,7 @@ class QAPIDoc:
                                    "%s '%s' lacks documentation"
                                    % (member.role, member.name))
             self.args[member.name] = QAPIDoc.ArgSection(self._parser,
-                                                        member.name)
+                                                        '@' + member.name)
         self.args[member.name].connect(member)
 
     def connect_feature(self, feature: 'QAPISchemaFeature') -> None:
