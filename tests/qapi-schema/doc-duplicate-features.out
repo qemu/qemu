@@ -1,0 +1,22 @@
+module ./builtin
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module doc-duplicate-features.json
+command foo None -> None
+    gen=True success_response=True boxed=False oob=False preconfig=False
+    feature feat
+doc symbol=foo
+    body=
+
+    feature=feat
+mumble
+    section=None
+Features:

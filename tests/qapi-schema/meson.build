@@ -66,6 +66,7 @@ schemas = [
   'doc-bad-union-member.json',
   'doc-before-include.json',
   'doc-before-pragma.json',
+  'doc-duplicate-features.json',
   'doc-duplicated-arg.json',
   'doc-duplicated-return.json',
   'doc-duplicated-since.json',
