@@ -114,6 +114,7 @@ Format specific information:
     refcount bits: 16
     encrypt:
         ivgen alg: plain64
+        detached header: false
         hash alg: sha1
         cipher alg: aes-128
         uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
