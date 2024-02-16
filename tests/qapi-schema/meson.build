@@ -273,15 +273,17 @@ if build_docs
                                     output: ['doc-good.txt.nocr'],
                                     input: qapi_doc_out[0],
                                     build_by_default: true,
-                                    command: [remove_cr, '@INPUT@'],
-                                    capture: true)
+                                    command: [remove_cr],
+                                    capture: true,
+                                    feed: true)
 
   qapi_doc_ref_nocr = custom_target('QAPI rST doc reference newline-sanitized',
                                     output: ['doc-good.ref.nocr'],
                                     input: files('doc-good.txt'),
                                     build_by_default: true,
-                                    command: [remove_cr, '@INPUT@'],
-                                    capture: true)
+                                    command: [remove_cr],
+                                    capture: true,
+                                    feed: true)
 
   test('QAPI rST doc', diff, args: ['-u', qapi_doc_ref_nocr[0], qapi_doc_out_nocr[0]],
        suite: ['qapi-schema', 'qapi-doc'])
