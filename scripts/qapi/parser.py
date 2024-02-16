@@ -472,6 +472,8 @@ class QAPIDoc:
         # pylint: disable=too-few-public-methods
         def __init__(self, parser: QAPISchemaParser,
                      name: Optional[str] = None):
+            # section source info, i.e. where it begins
+            self.info = parser.info
             # parser, for error messages about indentation
             self._parser = parser
             # optional section name (argument/member or section name)
@@ -770,7 +772,7 @@ class QAPIDoc:
                      if not section.member]
             if bogus:
                 raise QAPISemError(
-                    self.info,
+                    args[bogus[0]].info,
                     "documented %s%s '%s' %s not exist" % (
                         what,
                         "s" if len(bogus) > 1 else "",

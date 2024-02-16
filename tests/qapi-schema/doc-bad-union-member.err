@@ -1,1 +1,1 @@
-doc-bad-union-member.json:3: documented members 'a', 'b' do not exist
+doc-bad-union-member.json:5: documented members 'a', 'b' do not exist
