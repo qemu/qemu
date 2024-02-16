@@ -759,9 +759,13 @@ class QAPIDoc:
         self.features[feature.name].connect(feature)
 
     def check_expr(self, expr: QAPIExpression) -> None:
-        if self.has_section('Returns') and 'command' not in expr:
-            raise QAPISemError(self.info,
-                               "'Returns:' is only valid for commands")
+        if 'command' not in expr:
+            sec = next((sec for sec in self.sections
+                        if sec.name == 'Returns'),
+                       None)
+            if sec:
+                raise QAPISemError(sec.info,
+                                   "'Returns:' is only valid for commands")
 
     def check(self) -> None:
 
