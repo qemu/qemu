@@ -440,9 +440,9 @@ class QAPISchemaParser:
                         self,
                         "unexpected '=' markup in definition documentation")
                 if cur_doc.body.text:
-                    cur_doc.end_comment()
-                    docs.append(cur_doc)
-                    cur_doc = QAPIDoc(self, info)
+                    raise QAPIParseError(
+                        self,
+                        "'=' heading must come first in a comment block")
             cur_doc.append(self.val)
             self.accept(False)
 
