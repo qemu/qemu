@@ -719,6 +719,9 @@ class QAPIDoc:
         self._start_symbol_section(self.features, name)
 
     def _start_section(self, tag: Optional[str] = None) -> None:
+        if not tag and not self._section.tag:
+            # extend current section
+            return
         if tag in ('Returns', 'Since') and self.has_section(tag):
             raise QAPIParseError(self._parser,
                                  "duplicated '%s' section" % tag)
