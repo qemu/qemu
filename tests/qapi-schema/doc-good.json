@@ -154,22 +154,29 @@
 # Features:
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
+#
 # Note: @arg3 is undocumented
+#
 # Returns: @Object
+#
 # TODO: frobnicate
+#
 # Notes:
 #
 #  - Lorem ipsum dolor sit amet
 #  - Ut enim ad minim veniam
 #
 #  Duis aute irure dolor
+#
 # Example:
 #
 #  -> in
 #  <- out
+#
 # Examples:
 #  - *verbatim*
 #  - {braces}
+#
 # Since: 2.10
 ##
 { 'command': 'cmd',
@@ -180,9 +187,11 @@
 ##
 # @cmd-boxed:
 # If you're bored enough to read this, go see a video of boxed cats
+#
 # Features:
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
+#
 # Example:
 #
 #  -> in

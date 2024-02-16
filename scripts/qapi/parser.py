@@ -538,6 +538,7 @@ class QAPIDoc:
         # the current section
         self._section = self.body
         self._append_line = self._append_body_line
+        self._first_line_in_paragraph = False
 
     def has_section(self, tag: str) -> bool:
         """Return True if we have a section with this tag."""
@@ -560,12 +561,14 @@ class QAPIDoc:
         line = line[1:]
         if not line:
             self._append_freeform(line)
+            self._first_line_in_paragraph = True
             return
 
         if line[0] != ' ':
             raise QAPIParseError(self._parser, "missing space after #")
         line = line[1:]
         self._append_line(line)
+        self._first_line_in_paragraph = False
 
     def end_comment(self) -> None:
         self._switch_section(QAPIDoc.NullSection(self._parser))
@@ -574,9 +577,11 @@ class QAPIDoc:
     def _match_at_name_colon(string: str) -> Optional[Match[str]]:
         return re.match(r'@([^:]*): *', string)
 
-    @staticmethod
-    def _match_section_tag(string: str) -> Optional[Match[str]]:
-        return re.match(r'(Returns|Since|Notes?|Examples?|TODO): *', string)
+    def _match_section_tag(self, string: str) -> Optional[Match[str]]:
+        if not self._first_line_in_paragraph:
+            return None
+        return re.match(r'(Returns|Since|Notes?|Examples?|TODO): *',
+                        string)
 
     def _append_body_line(self, line: str) -> None:
         """

@@ -986,16 +986,17 @@ indented like this::
 Extensions added after the definition was first released carry a
 "(since x.y.z)" comment.
 
-The feature descriptions must be preceded by a line "Features:", like
-this::
+The feature descriptions must be preceded by a blank line and then a
+line "Features:", like this::
 
+  #
   # Features:
   #
   # @feature: Description text
 
-A tagged section starts with one of the following words:
-"Note:"/"Notes:", "Since:", "Example:"/"Examples:", "Returns:",
-"TODO:".  The section ends with the start of a new section.
+A tagged section begins with a paragraph that starts with one of the
+following words: "Note:"/"Notes:", "Since:", "Example:"/"Examples:",
+"Returns:", "TODO:".  It ends with the start of a new section.
 
 The second and subsequent lines of tagged sections must be indented
 like this::
@@ -1086,8 +1087,10 @@ need to line up with each other, like this::
  #     or cache associativity unknown)
  #     (since 5.0)
 
-Section tags are case-sensitive and end with a colon.  Good example::
+Section tags are case-sensitive and end with a colon.  They are only
+recognized after a blank line.  Good example::
 
+ #
  # Since: 7.1
 
 Bad examples (all ordinary paragraphs)::
