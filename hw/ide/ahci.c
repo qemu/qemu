@@ -36,6 +36,8 @@
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
+#include "hw/ide/ahci-pci.h"
+#include "hw/ide/ahci-sysbus.h"
 #include "ahci_internal.h"
 
 #include "trace.h"
@@ -1613,14 +1615,14 @@ void ahci_init(AHCIState *s, DeviceState *qdev)
                           "ahci-idp", 32);
 }
 
-void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as)
 {
     qemu_irq *irqs;
     int i;
 
     s->as = as;
-    s->ports = ports;
-    s->dev = g_new0(AHCIDevice, ports);
+    assert(s->ports > 0);
+    s->dev = g_new0(AHCIDevice, s->ports);
     ahci_reg_init(s);
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
     for (i = 0; i < s->ports; i++) {
@@ -1818,7 +1820,7 @@ const VMStateDescription vmstate_ahci = {
     .version_id = 1,
     .post_load = ahci_state_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_INT32(dev, AHCIState, ports,
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(dev, AHCIState, ports,
                                      vmstate_ahci_device, AHCIDevice),
         VMSTATE_UINT32(control_regs.cap, AHCIState),
         VMSTATE_UINT32(control_regs.ghc, AHCIState),
@@ -1826,7 +1828,7 @@ const VMStateDescription vmstate_ahci = {
         VMSTATE_UINT32(control_regs.impl, AHCIState),
         VMSTATE_UINT32(control_regs.version, AHCIState),
         VMSTATE_UINT32(idp_index, AHCIState),
-        VMSTATE_INT32_EQUAL(ports, AHCIState, NULL),
+        VMSTATE_UINT32_EQUAL(ports, AHCIState, NULL),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1861,11 +1863,11 @@ static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 {
     SysbusAHCIState *s = SYSBUS_AHCI(dev);
 
-    ahci_realize(&s->ahci, dev, &address_space_memory, s->num_ports);
+    ahci_realize(&s->ahci, dev, &address_space_memory);
 }
 
 static Property sysbus_ahci_properties[] = {
-    DEFINE_PROP_UINT32("num-ports", SysbusAHCIState, num_ports, 1),
+    DEFINE_PROP_UINT32("num-ports", SysbusAHCIState, ahci.ports, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1895,18 +1897,8 @@ static void sysbus_ahci_register_types(void)
 
 type_init(sysbus_ahci_register_types)
 
-int32_t ahci_get_num_ports(PCIDevice *dev)
+void ahci_ide_create_devs(AHCIState *ahci, DriveInfo **hd)
 {
-    AHCIPCIState *d = ICH9_AHCI(dev);
-    AHCIState *ahci = &d->ahci;
-
-    return ahci->ports;
-}
-
-void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd)
-{
-    AHCIPCIState *d = ICH9_AHCI(dev);
-    AHCIState *ahci = &d->ahci;
     int i;
 
     for (i = 0; i < ahci->ports; i++) {
@@ -1915,5 +1907,4 @@ void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd)
         }
         ide_bus_create_drive(&ahci->dev[i].port, 0, hd[i]);
     }
-
 }

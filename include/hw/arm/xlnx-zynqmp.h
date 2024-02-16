@@ -22,7 +22,7 @@
 #include "hw/net/cadence_gem.h"
 #include "hw/char/cadence_uart.h"
 #include "hw/net/xlnx-zynqmp-can.h"
-#include "hw/ide/ahci.h"
+#include "hw/ide/ahci-sysbus.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/xilinx_spips.h"
 #include "hw/dma/xlnx_dpdma.h"

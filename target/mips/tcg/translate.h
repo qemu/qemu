@@ -49,7 +49,6 @@ typedef struct DisasContext {
     bool mrp;
     bool nan2008;
     bool abs2008;
-    bool saar;
     bool mi;
     int gi;
 } DisasContext;

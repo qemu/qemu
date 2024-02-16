@@ -23,6 +23,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/units.h"
 #include "hw/rx/rx62n.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
@@ -147,14 +148,11 @@ static void register_icu(RX62NState *s)
         qlist_append_int(trigger_level, levelirq[i]);
     }
     qdev_prop_set_array(DEVICE(icu), "trigger-level", trigger_level);
-
-    for (i = 0; i < NR_IRQS; i++) {
-        s->irq[i] = qdev_get_gpio_in(DEVICE(icu), i);
-    }
     sysbus_realize(icu, &error_abort);
+
     sysbus_connect_irq(icu, 0, qdev_get_gpio_in(DEVICE(&s->cpu), RX_CPU_IRQ));
     sysbus_connect_irq(icu, 1, qdev_get_gpio_in(DEVICE(&s->cpu), RX_CPU_FIR));
-    sysbus_connect_irq(icu, 2, s->irq[SWI]);
+    sysbus_connect_irq(icu, 2, qdev_get_gpio_in(DEVICE(&s->icu), SWI));
     sysbus_mmio_map(icu, 0, RX62N_ICU_BASE);
 }
 
@@ -171,7 +169,8 @@ static void register_tmr(RX62NState *s, int unit)
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
     for (i = 0; i < TMR_NR_IRQ; i++) {
-        sysbus_connect_irq(tmr, i, s->irq[irqbase + i]);
+        sysbus_connect_irq(tmr, i,
+                           qdev_get_gpio_in(DEVICE(&s->icu), irqbase + i));
     }
     sysbus_mmio_map(tmr, 0, RX62N_TMR_BASE + unit * 0x10);
 }
@@ -189,7 +188,8 @@ static void register_cmt(RX62NState *s, int unit)
 
     irqbase = RX62N_CMT_IRQ + CMT_NR_IRQ * unit;
     for (i = 0; i < CMT_NR_IRQ; i++) {
-        sysbus_connect_irq(cmt, i, s->irq[irqbase + i]);
+        sysbus_connect_irq(cmt, i,
+                           qdev_get_gpio_in(DEVICE(&s->icu), irqbase + i));
     }
     sysbus_mmio_map(cmt, 0, RX62N_CMT_BASE + unit * 0x10);
 }
@@ -208,7 +208,8 @@ static void register_sci(RX62NState *s, int unit)
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
     for (i = 0; i < SCI_NR_IRQ; i++) {
-        sysbus_connect_irq(sci, i, s->irq[irqbase + i]);
+        sysbus_connect_irq(sci, i,
+                           qdev_get_gpio_in(DEVICE(&s->icu), irqbase + i));
     }
     sysbus_mmio_map(sci, 0, RX62N_SCI_BASE + unit * 0x08);
 }

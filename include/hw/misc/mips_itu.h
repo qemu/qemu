@@ -70,15 +70,9 @@ struct MIPSITUState {
 
     /* ITU Control Register */
     uint64_t icr0;
-
-    /* SAAR */
-    uint64_t *saar;
-    ArchCPU *cpu0;
 };
 
 /* Get ITC Configuration Tag memory region. */
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu);
-
-void itc_reconfigure(struct MIPSITUState *tag);
 
 #endif /* MIPS_ITU_H */

@@ -45,6 +45,6 @@ struct I8257State {
     PortioList portio_pageh;
 };
 
-void i8257_dma_init(ISABus *bus, bool high_page_enable);
+void i8257_dma_init(Object *parent, ISABus *bus, bool high_page_enable);
 
 #endif

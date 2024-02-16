@@ -324,14 +324,6 @@ struct AHCIDevice {
     MemReentrancyGuard mem_reentrancy_guard;
 };
 
-struct AHCIPCIState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    AHCIState ahci;
-};
-
 extern const VMStateDescription vmstate_ahci;
 
 #define VMSTATE_AHCI(_field, _state) {                               \
@@ -385,7 +377,7 @@ typedef struct SDBFIS {
     uint32_t payload;
 } QEMU_PACKED SDBFIS;
 
-void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as);
 void ahci_init(AHCIState *s, DeviceState *qdev);
 void ahci_uninit(AHCIState *s);
 

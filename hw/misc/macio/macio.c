@@ -123,14 +123,17 @@ static bool macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(ide);
 
-    sysbus_connect_irq(sbd, 0, irq0);
-    sysbus_connect_irq(sbd, 1, irq1);
     qdev_prop_set_uint32(DEVICE(ide), "channel", dmaid);
     object_property_set_link(OBJECT(ide), "dbdma", OBJECT(&s->dbdma),
                              &error_abort);
     macio_ide_register_dma(ide);
+    if (!qdev_realize(DEVICE(ide), BUS(&s->macio_bus), errp)) {
+        return false;
+    }
+    sysbus_connect_irq(sbd, 0, irq0);
+    sysbus_connect_irq(sbd, 1, irq1);
 
-    return qdev_realize(DEVICE(ide), BUS(&s->macio_bus), errp);
+    return true;
 }
 
 static void macio_oldworld_realize(PCIDevice *d, Error **errp)

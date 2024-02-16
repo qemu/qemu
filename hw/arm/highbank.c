@@ -30,7 +30,7 @@
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
-#include "hw/ide/ahci.h"
+#include "hw/ide/ahci-sysbus.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/cpu/a15mpcore.h"
 #include "qemu/log.h"

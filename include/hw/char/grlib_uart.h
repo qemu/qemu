@@ -1,7 +1,9 @@
 /*
- * QEMU GRLIB Components
+ * QEMU GRLIB UART
  *
- * Copyright (c) 2010-2019 AdaCore
+ * SPDX-License-Identifier: MIT
+ *
+ * Copyright (c) 2024 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,24 +24,9 @@
  * THE SOFTWARE.
  */
 
-#ifndef GRLIB_H
-#define GRLIB_H
+#ifndef GRLIB_UART_H
+#define GRLIB_UART_H
 
-#include "hw/sysbus.h"
-
-/* Emulation of GrLib device is base on the GRLIB IP Core User's Manual:
- * http://www.gaisler.com/products/grlib/grip.pdf
- */
-
-/* IRQMP */
-#define TYPE_GRLIB_IRQMP "grlib-irqmp"
-
-void grlib_irqmp_ack(DeviceState *dev, int intno);
-
-/* GPTimer */
-#define TYPE_GRLIB_GPTIMER "grlib-gptimer"
-
-/* APB UART */
 #define TYPE_GRLIB_APB_UART "grlib-apbuart"
 
-#endif /* GRLIB_H */
+#endif
