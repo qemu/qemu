@@ -1728,6 +1728,7 @@
 #
 # -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
 # <- { "return": {} }
+#
 # -> { "execute": "migrate",
 #      "arguments": {
 #          "channels": [ { "channel-type": "main",
@@ -1796,19 +1797,19 @@
 #
 #     3. The uri format is the same as for -incoming
 #
-#     5. For now, number of migration streams is restricted to one,
+#     4. For now, number of migration streams is restricted to one,
 #        i.e number of items in 'channels' list is just 1.
 #
-#     4. The 'uri' and 'channels' arguments are mutually exclusive;
+#     5. The 'uri' and 'channels' arguments are mutually exclusive;
 #        exactly one of the two should be present.
 #
 # Example:
 #
 # -> { "execute": "migrate-incoming",
-#      "arguments": { "uri": "tcp::4446" } }
+#      "arguments": { "uri": "tcp:0:4446" } }
 # <- { "return": {} }
 #
-# -> { "execute": "migrate",
+# -> { "execute": "migrate-incoming",
 #      "arguments": {
 #          "channels": [ { "channel-type": "main",
 #                          "addr": { "transport": "socket",
@@ -1817,7 +1818,7 @@
 #                                    "port": "1050" } } ] } }
 # <- { "return": {} }
 #
-# -> { "execute": "migrate",
+# -> { "execute": "migrate-incoming",
 #      "arguments": {
 #          "channels": [ { "channel-type": "main",
 #                          "addr": { "transport": "exec",
@@ -1825,7 +1826,7 @@
 #                                              "/some/sock" ] } } ] } }
 # <- { "return": {} }
 #
-# -> { "execute": "migrate",
+# -> { "execute": "migrate-incoming",
 #      "arguments": {
 #          "channels": [ { "channel-type": "main",
 #                          "addr": { "transport": "rdma",
