@@ -471,17 +471,17 @@ class QAPIDoc:
     class Section:
         # pylint: disable=too-few-public-methods
         def __init__(self, parser: QAPISchemaParser,
-                     name: Optional[str] = None):
+                     tag: Optional[str] = None):
             # section source info, i.e. where it begins
             self.info = parser.info
             # parser, for error messages about indentation
             self._parser = parser
             # section tag, if any ('Returns', '@name', ...)
-            self.name = name
+            self.tag = tag
             # section text without tag
             self.text = ''
             # indentation to strip (None means indeterminate)
-            self._indent = None if self.name else 0
+            self._indent = None if self.tag else 0
 
         def append(self, line: str) -> None:
             line = line.rstrip()
@@ -504,8 +504,8 @@ class QAPIDoc:
 
     class ArgSection(Section):
         def __init__(self, parser: QAPISchemaParser,
-                     name: str):
-            super().__init__(parser, name)
+                     tag: str):
+            super().__init__(parser, tag)
             self.member: Optional['QAPISchemaMember'] = None
 
         def connect(self, member: 'QAPISchemaMember') -> None:
@@ -536,10 +536,10 @@ class QAPIDoc:
         self._section = self.body
         self._append_line = self._append_body_line
 
-    def has_section(self, name: str) -> bool:
-        """Return True if we have a section with this name."""
+    def has_section(self, tag: str) -> bool:
+        """Return True if we have a section with this tag."""
         for i in self.sections:
-            if i.name == name:
+            if i.tag == tag:
                 return True
         return False
 
@@ -710,11 +710,11 @@ class QAPIDoc:
     def _start_features_section(self, name: str) -> None:
         self._start_symbol_section(self.features, name)
 
-    def _start_section(self, name: Optional[str] = None) -> None:
-        if name in ('Returns', 'Since') and self.has_section(name):
+    def _start_section(self, tag: Optional[str] = None) -> None:
+        if tag in ('Returns', 'Since') and self.has_section(tag):
             raise QAPIParseError(self._parser,
-                                 "duplicated '%s' section" % name)
-        new_section = QAPIDoc.Section(self._parser, name)
+                                 "duplicated '%s' section" % tag)
+        new_section = QAPIDoc.Section(self._parser, tag)
         self._switch_section(new_section)
         self.sections.append(new_section)
 
@@ -726,10 +726,10 @@ class QAPIDoc:
         if self._section != self.body and not text:
             # We do not create anonymous sections unless there is
             # something to put in them; this is a parser bug.
-            assert self._section.name
+            assert self._section.tag
             raise QAPISemError(
                 self._section.info,
-                "text required after '%s:'" % self._section.name)
+                "text required after '%s:'" % self._section.tag)
 
         self._section = new_section
 
@@ -761,7 +761,7 @@ class QAPIDoc:
     def check_expr(self, expr: QAPIExpression) -> None:
         if 'command' not in expr:
             sec = next((sec for sec in self.sections
-                        if sec.name == 'Returns'),
+                        if sec.tag == 'Returns'),
                        None)
             if sec:
                 raise QAPISemError(sec.info,
