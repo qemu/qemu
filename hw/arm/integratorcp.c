@@ -670,7 +670,10 @@ static void integratorcp_init(MachineState *machine)
         smc91c111_init(0xc8000000, pic[27]);
     }
 
-    sysbus_create_simple("pl110", 0xc0000000, pic[22]);
+    dev = qdev_new("pl110");
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xc0000000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[22]);
 
     integrator_binfo.ram_size = ram_size;
     arm_load_kernel(cpu, machine, &integrator_binfo);
