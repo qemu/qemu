@@ -494,7 +494,7 @@ class QAPISchemaParser:
             symbol = line[1:-1]
             if not symbol:
                 raise QAPIParseError(self, "name required after '@'")
-            doc = QAPIDoc(self, info, symbol)
+            doc = QAPIDoc(info, symbol)
             self.accept(False)
             line = self.get_doc_line()
             no_more_args = False
@@ -518,7 +518,7 @@ class QAPISchemaParser:
                         line = self.get_doc_line()
                     while (line is not None
                            and (match := self._match_at_name_colon(line))):
-                        doc.new_feature(match.group(1))
+                        doc.new_feature(self.info, match.group(1))
                         text = line[match.end():]
                         if text:
                             doc.append_line(text)
@@ -536,7 +536,7 @@ class QAPISchemaParser:
                             % match.group(1))
                     while (line is not None
                            and (match := self._match_at_name_colon(line))):
-                        doc.new_argument(match.group(1))
+                        doc.new_argument(self.info, match.group(1))
                         text = line[match.end():]
                         if text:
                             doc.append_line(text)
@@ -546,7 +546,7 @@ class QAPISchemaParser:
                         r'(Returns|Since|Notes?|Examples?|TODO): *',
                         line):
                     # tagged section
-                    doc.new_tagged_section(match.group(1))
+                    doc.new_tagged_section(self.info, match.group(1))
                     text = line[match.end():]
                     if text:
                         doc.append_line(text)
@@ -558,13 +558,13 @@ class QAPISchemaParser:
                         "unexpected '=' markup in definition documentation")
                 else:
                     # tag-less paragraph
-                    doc.ensure_untagged_section()
+                    doc.ensure_untagged_section(self.info)
                     doc.append_line(line)
                     line = self.get_doc_paragraph(doc)
         else:
             # Free-form documentation
-            doc = QAPIDoc(self, info)
-            doc.ensure_untagged_section()
+            doc = QAPIDoc(info)
+            doc.ensure_untagged_section(self.info)
             first = True
             while line is not None:
                 if match := self._match_at_name_colon(line):
@@ -607,12 +607,10 @@ class QAPIDoc:
     """
 
     class Section:
-        def __init__(self, parser: QAPISchemaParser,
+        def __init__(self, info: QAPISourceInfo,
                      tag: Optional[str] = None):
             # section source info, i.e. where it begins
-            self.info = parser.info
-            # parser, for error messages about indentation
-            self._parser = parser
+            self.info = info
             # section tag, if any ('Returns', '@name', ...)
             self.tag = tag
             # section text without tag
@@ -622,27 +620,20 @@ class QAPIDoc:
             self.text += line + '\n'
 
     class ArgSection(Section):
-        def __init__(self, parser: QAPISchemaParser,
-                     tag: str):
-            super().__init__(parser, tag)
+        def __init__(self, info: QAPISourceInfo, tag: str):
+            super().__init__(info, tag)
             self.member: Optional['QAPISchemaMember'] = None
 
         def connect(self, member: 'QAPISchemaMember') -> None:
             self.member = member
 
-    def __init__(self, parser: QAPISchemaParser, info: QAPISourceInfo,
-                 symbol: Optional[str] = None):
-        # self._parser is used to report errors with QAPIParseError.  The
-        # resulting error position depends on the state of the parser.
-        # It happens to be the beginning of the comment.  More or less
-        # servicable, but action at a distance.
-        self._parser = parser
+    def __init__(self, info: QAPISourceInfo, symbol: Optional[str] = None):
         # info points to the doc comment block's first line
         self.info = info
         # definition doc's symbol, None for free-form doc
         self.symbol: Optional[str] = symbol
         # the sections in textual order
-        self.all_sections: List[QAPIDoc.Section] = [QAPIDoc.Section(parser)]
+        self.all_sections: List[QAPIDoc.Section] = [QAPIDoc.Section(info)]
         # the body section
         self.body: Optional[QAPIDoc.Section] = self.all_sections[0]
         # dicts mapping parameter/feature names to their description
@@ -658,44 +649,43 @@ class QAPIDoc:
                 raise QAPISemError(
                     section.info, "text required after '%s:'" % section.tag)
 
-    def ensure_untagged_section(self) -> None:
+    def ensure_untagged_section(self, info: QAPISourceInfo) -> None:
         if self.all_sections and not self.all_sections[-1].tag:
             # extend current section
             self.all_sections[-1].text += '\n'
             return
         # start new section
-        section = self.Section(self._parser)
+        section = self.Section(info)
         self.sections.append(section)
         self.all_sections.append(section)
 
-    def new_tagged_section(self, tag: str) -> None:
+    def new_tagged_section(self, info: QAPISourceInfo, tag: str) -> None:
         if tag in ('Returns', 'Since'):
             for section in self.all_sections:
                 if isinstance(section, self.ArgSection):
                     continue
                 if section.tag == tag:
-                    raise QAPIParseError(
-                        self._parser, "duplicated '%s' section" % tag)
-        section = self.Section(self._parser, tag)
+                    raise QAPISemError(
+                        info, "duplicated '%s' section" % tag)
+        section = self.Section(info, tag)
         self.sections.append(section)
         self.all_sections.append(section)
 
-    def _new_description(self, name: str,
+    def _new_description(self, info: QAPISourceInfo, name: str,
                          desc: Dict[str, ArgSection]) -> None:
         if not name:
-            raise QAPIParseError(self._parser, "invalid parameter name")
+            raise QAPISemError(info, "invalid parameter name")
         if name in desc:
-            raise QAPIParseError(self._parser,
-                                 "'%s' parameter name duplicated" % name)
-        section = self.ArgSection(self._parser, '@' + name)
+            raise QAPISemError(info, "'%s' parameter name duplicated" % name)
+        section = self.ArgSection(info, '@' + name)
         self.all_sections.append(section)
         desc[name] = section
 
-    def new_argument(self, name: str) -> None:
-        self._new_description(name, self.args)
+    def new_argument(self, info: QAPISourceInfo, name: str) -> None:
+        self._new_description(info, name, self.args)
 
-    def new_feature(self, name: str) -> None:
-        self._new_description(name, self.features)
+    def new_feature(self, info: QAPISourceInfo, name: str) -> None:
+        self._new_description(info, name, self.features)
 
     def append_line(self, line: str) -> None:
         self.all_sections[-1].append_line(line)
@@ -707,7 +697,7 @@ class QAPIDoc:
                                    "%s '%s' lacks documentation"
                                    % (member.role, member.name))
             self.args[member.name] = QAPIDoc.ArgSection(
-                self._parser, '@' + member.name)
+                self.info, '@' + member.name)
         self.args[member.name].connect(member)
 
     def connect_feature(self, feature: 'QAPISchemaFeature') -> None:
