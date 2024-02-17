@@ -76,7 +76,8 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
     }
     psw &= ~reserved;
 
-    env->psw = psw & ~(PSW_N | PSW_V | PSW_CB);
+    env->psw = psw & (uint32_t)~(PSW_N | PSW_V | PSW_CB);
+
     env->psw_n = (psw / PSW_N) & 1;
     env->psw_v = -((psw / PSW_V) & 1);
 
