@@ -271,6 +271,11 @@ int main(int argc, char **argv)
             const char *virtmachine[] = { "virt", NULL };
             add_cdrom_param_tests(virtmachine);
         }
+    } else if (g_str_equal(arch, "loongarch64")) {
+        if (qtest_has_device("virtio-blk-pci")) {
+            const char *virtmachine[] = { "virt", NULL };
+            add_cdrom_param_tests(virtmachine);
+        }
     } else {
         const char *nonemachine[] = { "none", NULL };
         add_cdrom_param_tests(nonemachine);
