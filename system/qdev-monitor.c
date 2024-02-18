@@ -909,7 +909,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     HotplugHandlerClass *hdc;
     Error *local_err = NULL;
 
-    if (qdev_unplug_blocked(dev, errp)) {
+    if (!qdev_hotunplug_allowed(dev, errp)) {
         return;
     }
 

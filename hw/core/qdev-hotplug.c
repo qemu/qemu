@@ -47,6 +47,11 @@ bool qdev_hotplug_allowed(DeviceState *dev, BusState *bus, Error **errp)
     return true;
 }
 
+bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp)
+{
+    return !qdev_unplug_blocked(dev, errp);
+}
+
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
 {
     if (dev->parent_bus) {
