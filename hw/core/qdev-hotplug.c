@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "hw/boards.h"
+#include "qapi/error.h"
 
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 {
@@ -33,6 +34,14 @@ HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 static bool qdev_hotplug_unplug_allowed_common(DeviceState *dev, BusState *bus,
                                                Error **errp)
 {
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (!dc->hotpluggable) {
+        error_setg(errp, "Device '%s' does not support hotplugging",
+                   object_get_typename(OBJECT(dev)));
+        return false;
+    }
+
     return true;
 }
 
