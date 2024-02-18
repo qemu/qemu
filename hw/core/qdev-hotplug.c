@@ -42,6 +42,14 @@ static bool qdev_hotplug_unplug_allowed_common(DeviceState *dev, BusState *bus,
         return false;
     }
 
+    if (bus) {
+        if (!qbus_is_hotpluggable(bus)) {
+            error_setg(errp, "Bus '%s' does not support hotplugging",
+                       bus->name);
+            return false;
+        }
+    }
+
     return true;
 }
 

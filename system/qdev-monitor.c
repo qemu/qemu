@@ -675,11 +675,6 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         return NULL;
     }
 
-    if (phase_check(PHASE_MACHINE_READY) && bus && !qbus_is_hotpluggable(bus)) {
-        error_setg(errp, "Bus '%s' does not support hotplugging", bus->name);
-        return NULL;
-    }
-
     if (migration_is_running()) {
         error_setg(errp, "device_add not allowed while migrating");
         return NULL;
@@ -908,12 +903,6 @@ void qdev_unplug(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     if (!qdev_hotunplug_allowed(dev, errp)) {
-        return;
-    }
-
-    if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
-        error_setg(errp, "Bus '%s' does not support hotplugging",
-                   dev->parent_bus->name);
         return;
     }
 
