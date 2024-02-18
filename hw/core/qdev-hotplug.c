@@ -48,6 +48,16 @@ static bool qdev_hotplug_unplug_allowed_common(DeviceState *dev, BusState *bus,
                        bus->name);
             return false;
         }
+    } else {
+        if (!qdev_get_machine_hotplug_handler(dev)) {
+            /*
+             * No bus, no machine hotplug handler --> device is not hotpluggable
+             */
+            error_setg(errp,
+                       "Device '%s' can not be hotplugged on this machine",
+                       object_get_typename(OBJECT(dev)));
+            return false;
+        }
     }
 
     return true;
