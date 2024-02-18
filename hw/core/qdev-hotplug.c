@@ -30,11 +30,21 @@ HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
     return NULL;
 }
 
+static bool qdev_hotplug_unplug_allowed_common(DeviceState *dev, BusState *bus,
+                                               Error **errp)
+{
+    return true;
+}
+
 bool qdev_hotplug_allowed(DeviceState *dev, BusState *bus, Error **errp)
 {
     MachineState *machine;
     MachineClass *mc;
     Object *m_obj = qdev_get_machine();
+
+    if (!qdev_hotplug_unplug_allowed_common(dev, bus, errp)) {
+        return false;
+    }
 
     if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
         machine = MACHINE(m_obj);
@@ -49,7 +59,8 @@ bool qdev_hotplug_allowed(DeviceState *dev, BusState *bus, Error **errp)
 
 bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp)
 {
-    return !qdev_unplug_blocked(dev, errp);
+    return !qdev_unplug_blocked(dev, errp) &&
+           qdev_hotplug_unplug_allowed_common(dev, dev->parent_bus, errp);
 }
 
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
