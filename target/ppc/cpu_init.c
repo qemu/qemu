@@ -5308,6 +5308,38 @@ static void register_power8_pmu_user_sprs(CPUPPCState *env)
                  0x00000000);
 }
 
+static void register_power10_pmu_sup_sprs(CPUPPCState *env)
+{
+    spr_register_kvm(env, SPR_POWER_MMCR3, "MMCR3",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_MMCR3, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_SIER2, "SIER2",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_SIER2, 0x00000000);
+    spr_register_kvm(env, SPR_POWER_SIER3, "SIER3",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_SIER3, 0x00000000);
+}
+
+static void register_power10_pmu_user_sprs(CPUPPCState *env)
+{
+    spr_register(env, SPR_POWER_UMMCR3, "UMMCR3",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_POWER_USIER2, "USIER2",
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_POWER_USIER3, "USIER3",
+                 &spr_read_generic, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+}
+
 static void register_power5p_ear_sprs(CPUPPCState *env)
 {
     /* External access control */
@@ -6502,6 +6534,8 @@ static void init_proc_POWER10(CPUPPCState *env)
     register_power9_mmu_sprs(env);
     register_power10_hash_sprs(env);
     register_power10_dexcr_sprs(env);
+    register_power10_pmu_sup_sprs(env);
+    register_power10_pmu_user_sprs(env);
 
     /* FIXME: Filter fields properly based on privilege level */
     spr_register_kvm_hv(env, SPR_PSSCR, "PSSCR", NULL, NULL, NULL, NULL,
