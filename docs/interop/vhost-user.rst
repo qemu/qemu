@@ -1839,7 +1839,9 @@ is sent by the front-end.
   When the ``VHOST_USER_PROTOCOL_F_SHARED_OBJECT`` protocol
   feature has been successfully negotiated, this message can be submitted
   by the backend to remove themselves from to the virtio-dmabuf shared
-  table API. The shared table will remove the back-end device associated with
+  table API. Only the back-end owning the entry (i.e., the one that first added
+  it) will have permission to remove it. Otherwise, the message is ignored.
+  The shared table will remove the back-end device associated with
   the UUID. If ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, and the
   back-end sets the ``VHOST_USER_NEED_REPLY`` flag, the front-end must respond
   with zero when operation is successfully completed, or non-zero otherwise.
