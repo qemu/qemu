@@ -647,8 +647,8 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
     acpi_add_table(table_offsets, tables_blob);
     {
         AcpiMcfgInfo mcfg = {
-           .base = s->memmap[VIRT_PCIE_MMIO].base,
-           .size = s->memmap[VIRT_PCIE_MMIO].size,
+           .base = s->memmap[VIRT_PCIE_ECAM].base,
+           .size = s->memmap[VIRT_PCIE_ECAM].size,
         };
         build_mcfg(tables_blob, tables->linker, &mcfg, s->oem_id,
                    s->oem_table_id);
