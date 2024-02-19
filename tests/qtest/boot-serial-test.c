@@ -156,7 +156,7 @@ static const testdef_t tests[] = {
       "Open Firmware" },
     { "ppc64", "powernv8", "", "OPAL" },
     { "ppc64", "powernv9", "", "OPAL" },
-    { "ppc64", "sam460ex", "-device e1000", "8086  100e" },
+    { "ppc64", "sam460ex", "-device pci-bridge,chassis_nr=2", "1b36  0001" },
     { "i386", "isapc", "-cpu qemu32 -M graphics=off", "SeaBIOS" },
     { "i386", "pc", "-M graphics=off", "SeaBIOS" },
     { "i386", "q35", "-M graphics=off", "SeaBIOS" },
