@@ -79,6 +79,19 @@ struct {
     MultiFDMethods *ops;
 } *multifd_send_state;
 
+struct {
+    MultiFDRecvParams *params;
+    /* number of created threads */
+    int count;
+    /* syncs main thread and channels */
+    QemuSemaphore sem_sync;
+    /* global number of generated multifd packets */
+    uint64_t packet_num;
+    int exiting;
+    /* multifd ops */
+    MultiFDMethods *ops;
+} *multifd_recv_state;
+
 /* Multifd without compression */
 
 /**
@@ -438,6 +451,11 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 static bool multifd_send_should_exit(void)
 {
     return qatomic_read(&multifd_send_state->exiting);
+}
+
+static bool multifd_recv_should_exit(void)
+{
+    return qatomic_read(&multifd_recv_state->exiting);
 }
 
 /*
@@ -1063,23 +1081,15 @@ bool multifd_send_setup(void)
     return true;
 }
 
-struct {
-    MultiFDRecvParams *params;
-    /* number of created threads */
-    int count;
-    /* syncs main thread and channels */
-    QemuSemaphore sem_sync;
-    /* global number of generated multifd packets */
-    uint64_t packet_num;
-    /* multifd ops */
-    MultiFDMethods *ops;
-} *multifd_recv_state;
-
 static void multifd_recv_terminate_threads(Error *err)
 {
     int i;
 
     trace_multifd_recv_terminate_threads(err != NULL);
+
+    if (qatomic_xchg(&multifd_recv_state->exiting, 1)) {
+        return;
+    }
 
     if (err) {
         MigrationState *s = migrate_get_current();
@@ -1094,8 +1104,6 @@ static void multifd_recv_terminate_threads(Error *err)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        qemu_mutex_lock(&p->mutex);
-        p->quit = true;
         /*
          * We could arrive here for two reasons:
          *  - normal quit, i.e. everything went fine, just finished
@@ -1105,7 +1113,6 @@ static void multifd_recv_terminate_threads(Error *err)
         if (p->c) {
             qio_channel_shutdown(p->c, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         }
-        qemu_mutex_unlock(&p->mutex);
     }
 }
 
@@ -1210,7 +1217,7 @@ static void *multifd_recv_thread(void *opaque)
     while (true) {
         uint32_t flags;
 
-        if (p->quit) {
+        if (multifd_recv_should_exit()) {
             break;
         }
 
@@ -1274,6 +1281,7 @@ int multifd_recv_setup(Error **errp)
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
     multifd_recv_state->params = g_new0(MultiFDRecvParams, thread_count);
     qatomic_set(&multifd_recv_state->count, 0);
+    qatomic_set(&multifd_recv_state->exiting, 0);
     qemu_sem_init(&multifd_recv_state->sem_sync, 0);
     multifd_recv_state->ops = multifd_ops[migrate_multifd_compression()];
 
@@ -1282,7 +1290,6 @@ int multifd_recv_setup(Error **errp)
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem_sync, 0);
-        p->quit = false;
         p->id = i;
         p->packet_len = sizeof(MultiFDPacket_t)
                       + sizeof(uint64_t) * page_count;
