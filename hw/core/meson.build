@@ -4,6 +4,7 @@ hwcore_ss.add(files(
   'qdev-properties.c',
   'qdev.c',
   'reset.c',
+  'resetcontainer.c',
   'resettable.c',
   'vmstate-if.c',
   # irq.c needed for qdev GPIO handling:
