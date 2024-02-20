@@ -869,7 +869,7 @@ ERST
         .cmd        = hmp_nmi,
     },
 SRST
-``nmi`` *cpu*
+``nmi``
   Inject an NMI, in a machine-specific way.
   Not all machines implement NMI handling.
 ERST

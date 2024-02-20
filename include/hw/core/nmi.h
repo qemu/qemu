@@ -46,6 +46,28 @@ struct NMIClass {
     void (*nmi_monitor_handler)(NMIState *ns, Error **errp);
 };
 
-void nmi_monitor_handle(int cpu_index, Error **errp);
+/**
+ * nmi_inject: Inject an NMI, in a machine-specific way
+ * @errp: pointer to error object
+ *
+ * This function injects an NMI, in a machine-specific way. The
+ * intention is that this should typically trigger a guest kernel
+ * dump or reboot, and might happen as a result of user request
+ * from the monitor, watchdog timeouts, and similar events.
+ * (For example on the x86 PC it triggers an NMI on all CPUs,
+ * and on s390 it triggers the RESTART interrupt on the first CPU.)
+ *
+ * The NMI is injected by looking for a QOM object which implements
+ * the TYPE_NMI interface, and calling its nmi_monitor_handler method. Usually
+ * it is the machine model class that implements this interface.
+ *
+ * Not all machines implement NMI handling; this function
+ * will return an error if used on a machine which does not
+ * implement NMIs.
+ *
+ * On success, return %true.
+ * On failure, store an error through @errp and return %false.
+ */
+bool nmi_inject(Error **errp);
 
 #endif /* NMI_H */
