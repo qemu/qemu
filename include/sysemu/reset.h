@@ -67,8 +67,11 @@ void qemu_unregister_resettable(Object *obj);
  * @opaque: opaque data to pass to @func
  *
  * Register @func on the list of functions which are called when the
- * entire system is reset. The functions are called in the order in
- * which they are registered.
+ * entire system is reset. Functions registered with this API and
+ * Resettable objects registered with qemu_register_resettable() are
+ * handled together, in the order in which they were registered.
+ * Functions registered with this API are called in the 'hold' phase
+ * of the 3-phase reset.
  *
  * In general this function should not be used in new code where possible;
  * for instance, device model reset is better accomplished using the
