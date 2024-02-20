@@ -147,7 +147,7 @@ Set this variable to 1 to create the pipelines, but leave all
 the jobs to be manually started from the UI
 
 Set this variable to 2 to create the pipelines and run all
-the jobs immediately, as was historicaly behaviour
+the jobs immediately, as was the historical behaviour
 
 QEMU_CI_AVOCADO_TESTING
 ~~~~~~~~~~~~~~~~~~~~~~~

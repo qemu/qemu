@@ -14,7 +14,7 @@ CanoKey [1]_ is an open-source secure key with supports of
 All these platform-independent features are in canokey-core [3]_.
 
 For different platforms, CanoKey has different implementations,
-including both hardware implementions and virtual cards:
+including both hardware implementations and virtual cards:
 
 * CanoKey STM32 [4]_
 * CanoKey Pigeon [5]_

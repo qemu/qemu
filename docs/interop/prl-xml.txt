@@ -122,7 +122,7 @@ Each Image element has following child elements:
     * Type - image type of the element. It can be:
              "Plain" for raw files.
              "Compressed" for expanding disks.
-    * File - path to image file. Path can be relative to DiskDecriptor.xml or
+    * File - path to image file. Path can be relative to DiskDescriptor.xml or
              absolute.
 
 == Snapshots element ==
