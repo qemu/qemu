@@ -2423,7 +2423,7 @@ static void test_migrate_fd_finish_hook(QTestState *from,
     qobject_unref(rsp);
 }
 
-static void test_migrate_fd_proto(void)
+static void test_migrate_precopy_fd_socket(void)
 {
     MigrateCommon args = {
         .listen_uri = "defer",
@@ -3527,7 +3527,8 @@ int main(int argc, char **argv)
 
     /* migration_test_add("/migration/ignore_shared", test_ignore_shared); */
 #ifndef _WIN32
-    migration_test_add("/migration/fd_proto", test_migrate_fd_proto);
+    migration_test_add("/migration/precopy/fd/tcp",
+                       test_migrate_precopy_fd_socket);
 #endif
     migration_test_add("/migration/validate_uuid", test_validate_uuid);
     migration_test_add("/migration/validate_uuid_error",
