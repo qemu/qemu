@@ -57,3 +57,7 @@ config IDE_SII3112
     bool
     select IDE_PCI
     select IDE_QDEV
+
+config IDE_CF
+    bool
+    default y if IDE_QDEV
