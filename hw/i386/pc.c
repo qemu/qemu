@@ -574,7 +574,6 @@ static void pc_cmos_init_late(void *opaque)
 }
 
 void pc_cmos_init(PCMachineState *pcms,
-                  BusState *idebus0, BusState *idebus1,
                   ISADevice *rtc)
 {
     int val;
@@ -634,8 +633,8 @@ void pc_cmos_init(PCMachineState *pcms,
 
     /* hard drives and FDC */
     arg.rtc_state = s;
-    arg.idebus[0] = idebus0;
-    arg.idebus[1] = idebus1;
+    arg.idebus[0] = pcms->idebus[0];
+    arg.idebus[1] = pcms->idebus[1];
     qemu_register_reset(pc_cmos_init_late, &arg);
 }
 

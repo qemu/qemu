@@ -126,7 +126,6 @@ static void pc_q35_init(MachineState *machine)
     PCIBus *host_bus;
     PCIDevice *lpc;
     DeviceState *lpc_dev;
-    BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
@@ -300,13 +299,11 @@ static void pc_q35_init(MachineState *machine)
                                                          ICH9_SATA1_FUNC),
                                                "ich9-ahci");
         ich9 = ICH9_AHCI(pdev);
-        idebus[0] = qdev_get_child_bus(DEVICE(pdev), "ide.0");
-        idebus[1] = qdev_get_child_bus(DEVICE(pdev), "ide.1");
+        pcms->idebus[0] = qdev_get_child_bus(DEVICE(pdev), "ide.0");
+        pcms->idebus[1] = qdev_get_child_bus(DEVICE(pdev), "ide.1");
         g_assert(MAX_SATA_PORTS == ich9->ahci.ports);
         ide_drive_get(hd, ich9->ahci.ports);
         ahci_ide_create_devs(&ich9->ahci, hd);
-    } else {
-        idebus[0] = idebus[1] = NULL;
     }
 
     if (machine_usb(machine)) {
@@ -327,7 +324,7 @@ static void pc_q35_init(MachineState *machine)
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
     }
 
-    pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
+    pc_cmos_init(pcms, rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);
