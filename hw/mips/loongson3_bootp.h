@@ -25,7 +25,7 @@
 struct efi_memory_map_loongson {
     uint16_t vers;               /* version of efi_memory_map */
     uint32_t nr_map;             /* number of memory_maps */
-    uint32_t mem_freq;           /* memory frequence */
+    uint32_t mem_freq;           /* memory frequency */
     struct mem_map {
         uint32_t node_id;        /* node_id which memory attached to */
         uint32_t mem_type;       /* system memory, pci memory, pci io, etc. */
@@ -156,7 +156,7 @@ struct board_devices {
 
 struct loongson_special_attribute {
     uint16_t vers;               /* version of this special */
-    char special_name[64];       /* special_atribute_name */
+    char special_name[64];       /* special_attribute_name */
     uint32_t loongson_special_type; /* type of special device */
     /* for each device's resource */
     struct resource_loongson resource[MAX_RESOURCE_NUMBER];
