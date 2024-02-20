@@ -2445,6 +2445,11 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         }
 
         if (read_s32(data, 4) < 0) {
+            if (!vnc_has_feature(vs, VNC_FEATURE_CLIPBOARD_EXT)) {
+                error_report("vnc: extended clipboard message while disabled");
+                vnc_client_error(vs);
+                break;
+            }
             if (dlen < 4) {
                 error_report("vnc: malformed payload (header less than 4 bytes)"
                              " in extended clipboard pseudo-encoding.");
