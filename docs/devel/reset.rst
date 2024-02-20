@@ -11,8 +11,8 @@ whole group can be reset consistently. Each individual member object does not
 have to care about others; in particular, problems of order (which object is
 reset first) are addressed.
 
-As of now DeviceClass and BusClass implement this interface.
-
+The main object types which implement this interface are DeviceClass
+and BusClass.
 
 Triggering reset
 ----------------
@@ -288,3 +288,43 @@ There is currently 2 cases where this function is used:
 2. *hot bus change*; it means an existing live device is added, moved or
    removed in the bus hierarchy. At the moment, it occurs only in the raspi
    machines for changing the sdbus used by sd card.
+
+Reset of the complete system
+----------------------------
+
+Reset of the complete system is a little complicated. The typical
+flow is:
+
+1. Code which wishes to reset the entire system does so by calling
+   ``qemu_system_reset_request()``. This schedules a reset, but the
+   reset will happen asynchronously after the function returns.
+   That makes this safe to call from, for example, device models.
+
+2. The function which is called to make the reset happen is
+   ``qemu_system_reset()``. Generally only core system code should
+   call this directly.
+
+3. ``qemu_system_reset()`` calls the ``MachineClass::reset`` method of
+   the current machine, if it has one. That method must call
+   ``qemu_devices_reset()``. If the machine has no reset method,
+   ``qemu_system_reset()`` calls ``qemu_devices_reset()`` directly.
+
+4. ``qemu_devices_reset()`` performs a reset of the system, using
+   the three-phase mechanism listed above. It resets all objects
+   that were registered with it using ``qemu_register_resettable()``.
+   It also calls all the functions registered with it using
+   ``qemu_register_reset()``. Those functions are called during the
+   "hold" phase of this reset.
+
+5. The most important object that this reset resets is the
+   'sysbus' bus. The sysbus bus is the root of the qbus tree. This
+   means that all devices on the sysbus are reset, and all their
+   child buses, and all the devices on those child buses.
+
+6. Devices which are not on the qbus tree are *not* automatically
+   reset! (The most obvious example of this is CPU objects, but
+   anything that directly inherits from ``TYPE_OBJECT`` or ``TYPE_DEVICE``
+   rather than from ``TYPE_SYS_BUS_DEVICE`` or some other plugs-into-a-bus
+   type will be in this category.) You need to therefore arrange for these
+   to be reset in some other way (e.g. using ``qemu_register_resettable()``
+   or ``qemu_register_reset()``).
