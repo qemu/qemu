@@ -190,7 +190,7 @@ build-previous-qemu:
   before_script:
     - export QEMU_PREV_VERSION="$(sed 's/\([0-9.]*\)\.[0-9]*/v\1.0/' VERSION)"
     - git remote add upstream https://gitlab.com/qemu-project/qemu
-    - git fetch upstream $QEMU_PREV_VERSION
+    - git fetch upstream refs/tags/$QEMU_PREV_VERSION:refs/tags/$QEMU_PREV_VERSION
     - git checkout $QEMU_PREV_VERSION
   after_script:
     - mv build build-previous

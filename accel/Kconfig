@@ -16,3 +16,4 @@ config KVM
 config XEN
     bool
     select FSDEV_9P if VIRTFS
+    select XEN_BUS

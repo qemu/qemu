@@ -1914,6 +1914,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
         case 0x1f:
             if (env->nr_dies < 2) {
+                cpuid_i--;
                 break;
             }
             /* fallthrough */
@@ -1922,10 +1923,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         case 0xd:
             for (j = 0; ; j++) {
                 if (i == 0xd && j == 64) {
-                    break;
-                }
-
-                if (i == 0x1f && j == 64) {
                     break;
                 }
 
@@ -1954,7 +1951,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
-        case 0x7:
         case 0x12:
             for (j = 0; ; j++) {
                 c->function = i;
@@ -1974,6 +1970,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
+        case 0x7:
         case 0x14:
         case 0x1d:
         case 0x1e: {
