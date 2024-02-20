@@ -172,7 +172,7 @@
 
 
 /*
- * Exeption-related registers
+ * Exception-related registers
  */
 
 /* Immediate data for TRAPA instruction - TRA */
