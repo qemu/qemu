@@ -81,7 +81,7 @@ struct NPCMGMACRxDesc {
 
 /* Disable Interrupt on Completion */
 #define RX_DESC_RDES1_DIS_INTR_COMP_MASK BIT(31)
-/* Recieve end of ring */
+/* Receive end of ring */
 #define RX_DESC_RDES1_RC_END_RING_MASK BIT(25)
 /* Second Address Chained */
 #define RX_DESC_RDES1_SEC_ADDR_CHND_MASK BIT(24)
@@ -213,7 +213,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(NPCMGMACState, NPCM_GMAC)
 #define NPCM_DMA_STATUS_FBI BIT(13)
 /* Early transmit Interrupt */
 #define NPCM_DMA_STATUS_ETI BIT(10)
-/* Receive Watchdog Timout */
+/* Receive Watchdog Timeout */
 #define NPCM_DMA_STATUS_RWT BIT(9)
 /* Receive Process Stopped */
 #define NPCM_DMA_STATUS_RPS BIT(8)
