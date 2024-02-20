@@ -17,6 +17,7 @@ help``.
 .. toctree::
    :maxdepth: 1
 
+   ppc/amigang
    ppc/embedded
    ppc/powermac
    ppc/powernv
