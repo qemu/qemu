@@ -1937,7 +1937,6 @@ IDE
 M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org
 S: Odd Fixes
-F: include/hw/ide.h
 F: include/hw/ide/
 F: hw/ide/
 F: hw/block/block.c

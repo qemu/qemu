@@ -179,4 +179,6 @@ typedef struct IDEDrive {
 
 void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp);
 
+void ide_drive_get(DriveInfo **hd, int max_bus);
+
 #endif

@@ -4,10 +4,9 @@
 /*
  * QEMU IDE Emulation -- internal header file
  * only files in hw/ide/ are supposed to include this file.
- * non-internal declarations are in hw/ide.h
+ * non-internal declarations are in hw/include/ide-*.h
  */
 
-#include "hw/ide.h"
 #include "hw/ide/ide-bus.h"
 
 /* debug IDE devices */
