@@ -432,9 +432,10 @@
 ##
 # @inject-nmi:
 #
-# Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or
-# all CPUs (ppc64).  The command fails when the guest doesn't support
-# injecting.
+# Injects a Non-Maskable Interrupt (machine specific: for example on
+# s390x CCW only the first vCPU receives the NMI, but on x86 machines
+# all vCPUs receive it).  The command fails when the guest doesn't
+# support injecting.
 #
 # Since: 0.14
 #
