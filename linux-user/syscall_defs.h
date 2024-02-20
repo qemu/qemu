@@ -943,6 +943,9 @@ struct target_rtc_pll_info {
 #define TARGET_FICLONE    TARGET_IOW(0x94, 9, abi_int)
 #define TARGET_FICLONERANGE TARGET_IOW(0x94, 13, struct file_clone_range)
 
+#define TARGET_FIFREEZE    TARGET_IOWR('X', 119, abi_int)
+#define TARGET_FITHAW    TARGET_IOWR('X', 120, abi_int)
+
 /*
  * Note that the ioctl numbers for FS_IOC_<GET|SET><FLAGS|VERSION>
  * claim type "long" but the actual type used by the kernel is "int".
