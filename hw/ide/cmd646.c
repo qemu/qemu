@@ -33,6 +33,7 @@
 #include "sysemu/reset.h"
 
 #include "hw/ide/pci.h"
+#include "hw/ide/internal.h"
 #include "trace.h"
 
 /* CMD646 specific */
