@@ -118,10 +118,7 @@ void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
         return;
     }
 
-    if (ide_init_drive(s, dev->conf.blk, kind,
-                       dev->version, dev->serial, dev->model, dev->wwn,
-                       dev->conf.cyls, dev->conf.heads, dev->conf.secs,
-                       dev->chs_trans, errp) < 0) {
+    if (ide_init_drive(s, dev, kind, errp) < 0) {
         return;
     }
 
