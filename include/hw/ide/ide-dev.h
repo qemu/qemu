@@ -65,6 +65,7 @@ struct IDEState {
     int drive_serial;
     char drive_serial_str[21];
     char drive_model_str[41];
+    bool win2k_install_hack;
     uint64_t wwn;
     /* ide regs */
     uint8_t feature;
@@ -163,6 +164,7 @@ struct IDEDevice {
      * 0xffff        - reserved
      */
     uint16_t rotation_rate;
+    bool win2k_install_hack;
 };
 
 typedef struct IDEDrive {

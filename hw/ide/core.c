@@ -1059,7 +1059,7 @@ static void ide_sector_write_cb(void *opaque, int ret)
                            ide_sector_write);
     }
 
-    if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
+    if (s->win2k_install_hack && ((++s->irq_count % 16) == 0)) {
         /* It seems there is a bug in the Windows 2000 installer HDD
            IDE driver which fills the disk with empty logs when the
            IDE write IRQ comes too early. This hack tries to correct
@@ -2597,6 +2597,7 @@ int ide_init_drive(IDEState *s, IDEDevice *dev, IDEDriveKind kind, Error **errp)
     s->drive_kind = kind;
 
     blk_get_geometry(s->blk, &nb_sectors);
+    s->win2k_install_hack = dev->win2k_install_hack;
     s->cylinders = dev->conf.cyls;
     s->heads = s->drive_heads = dev->conf.heads;
     s->sectors = s->drive_sectors = dev->conf.secs;
