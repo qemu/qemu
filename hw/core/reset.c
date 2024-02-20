@@ -26,8 +26,23 @@
 #include "qemu/osdep.h"
 #include "qemu/queue.h"
 #include "sysemu/reset.h"
+#include "hw/resettable.h"
+#include "hw/core/resetcontainer.h"
 
-/* reset/shutdown handler */
+/*
+ * Return a pointer to the singleton container that holds all the Resettable
+ * items that will be reset when qemu_devices_reset() is called.
+ */
+static ResettableContainer *get_root_reset_container(void)
+{
+    static ResettableContainer *root_reset_container;
+
+    if (!root_reset_container) {
+        root_reset_container =
+            RESETTABLE_CONTAINER(object_new(TYPE_RESETTABLE_CONTAINER));
+    }
+    return root_reset_container;
+}
 
 typedef struct QEMUResetEntry {
     QTAILQ_ENTRY(QEMUResetEntry) entry;
@@ -71,6 +86,16 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
     }
 }
 
+void qemu_register_resettable(Object *obj)
+{
+    resettable_container_add(get_root_reset_container(), obj);
+}
+
+void qemu_unregister_resettable(Object *obj)
+{
+    resettable_container_remove(get_root_reset_container(), obj);
+}
+
 void qemu_devices_reset(ShutdownCause reason)
 {
     QEMUResetEntry *re, *nre;
@@ -83,5 +108,7 @@ void qemu_devices_reset(ShutdownCause reason)
         }
         re->func(re->opaque);
     }
-}
 
+    /* Reset the simulation */
+    resettable_reset(OBJECT(get_root_reset_container()), RESET_TYPE_COLD);
+}

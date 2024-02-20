@@ -32,6 +32,36 @@
 typedef void QEMUResetHandler(void *opaque);
 
 /**
+ * qemu_register_resettable: Register an object to be reset
+ * @obj: object to be reset: it must implement the Resettable interface
+ *
+ * Register @obj on the list of objects which will be reset when the
+ * simulation is reset. These objects will be reset in the order
+ * they were added, using the three-phase Resettable protocol,
+ * so first all objects go through the enter phase, then all objects
+ * go through the hold phase, and then finally all go through the
+ * exit phase.
+ *
+ * It is not permitted to register or unregister reset functions or
+ * resettable objects from within any of the reset phase methods of @obj.
+ *
+ * We assume that the caller holds the BQL.
+ */
+void qemu_register_resettable(Object *obj);
+
+/**
+ * qemu_unregister_resettable: Unregister an object to be reset
+ * @obj: object to unregister
+ *
+ * Remove @obj from the list of objects which are reset when the
+ * simulation is reset. It must have been previously added to
+ * the list via qemu_register_resettable().
+ *
+ * We assume that the caller holds the BQL.
+ */
+void qemu_unregister_resettable(Object *obj);
+
+/**
  * qemu_register_reset: Register a callback for system reset
  * @func: function to call
  * @opaque: opaque data to pass to @func
@@ -44,8 +74,8 @@ typedef void QEMUResetHandler(void *opaque);
  * for instance, device model reset is better accomplished using the
  * methods on DeviceState.
  *
- * It is not permitted to register or unregister reset functions from
- * within the @func callback.
+ * It is not permitted to register or unregister reset functions or
+ * resettable objects from within the @func callback.
  *
  * We assume that the caller holds the BQL.
  */
@@ -81,7 +111,8 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque);
  *
  * This function performs the low-level work needed to do a complete reset
  * of the system (calling all the callbacks registered with
- * qemu_register_reset()). It should only be called by the code in a
+ * qemu_register_reset() and resetting all the Resettable objects registered
+ * with qemu_register_resettable()). It should only be called by the code in a
  * MachineClass reset method.
  *
  * If you want to trigger a system reset from, for instance, a device
