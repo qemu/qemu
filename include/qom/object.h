@@ -259,6 +259,51 @@ struct Object
 
 
 /**
+ * DO_OBJECT_DEFINE_TYPE_EXTENDED:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ * @ABSTRACT: boolean flag to indicate whether the object can be instantiated
+ * @CLASS_SIZE: size of the type's class
+ * @...: list of initializers for "InterfaceInfo" to declare implemented interfaces
+ *
+ * This is the base macro used to implement all the OBJECT_DEFINE_*
+ * macros. It should never be used directly in a source file.
+ */
+#define DO_OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                       MODULE_OBJ_NAME, \
+                                       PARENT_MODULE_OBJ_NAME, \
+                                       ABSTRACT, CLASS_SIZE, ...) \
+    static void \
+    module_obj_name##_finalize(Object *obj); \
+    static void \
+    module_obj_name##_class_init(ObjectClass *oc, void *data); \
+    static void \
+    module_obj_name##_init(Object *obj); \
+    \
+    static const TypeInfo module_obj_name##_info = { \
+        .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
+        .name = TYPE_##MODULE_OBJ_NAME, \
+        .instance_size = sizeof(ModuleObjName), \
+        .instance_align = __alignof__(ModuleObjName), \
+        .instance_init = module_obj_name##_init, \
+        .instance_finalize = module_obj_name##_finalize, \
+        .class_size = CLASS_SIZE, \
+        .class_init = module_obj_name##_class_init, \
+        .abstract = ABSTRACT, \
+        .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
+    }; \
+    \
+    static void \
+    module_obj_name##_register_types(void) \
+    { \
+        type_register_static(&module_obj_name##_info); \
+    } \
+    type_init(module_obj_name##_register_types);
+
+/**
  * OBJECT_DEFINE_TYPE_EXTENDED:
  * @ModuleObjName: the object name with initial caps
  * @module_obj_name: the object name in lowercase with underscore separators
@@ -284,32 +329,10 @@ struct Object
 #define OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
                                     MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
                                     ABSTRACT, ...) \
-    static void \
-    module_obj_name##_finalize(Object *obj); \
-    static void \
-    module_obj_name##_class_init(ObjectClass *oc, void *data); \
-    static void \
-    module_obj_name##_init(Object *obj); \
-    \
-    static const TypeInfo module_obj_name##_info = { \
-        .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
-        .name = TYPE_##MODULE_OBJ_NAME, \
-        .instance_size = sizeof(ModuleObjName), \
-        .instance_align = __alignof__(ModuleObjName), \
-        .instance_init = module_obj_name##_init, \
-        .instance_finalize = module_obj_name##_finalize, \
-        .class_size = sizeof(ModuleObjName##Class), \
-        .class_init = module_obj_name##_class_init, \
-        .abstract = ABSTRACT, \
-        .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
-    }; \
-    \
-    static void \
-    module_obj_name##_register_types(void) \
-    { \
-        type_register_static(&module_obj_name##_info); \
-    } \
-    type_init(module_obj_name##_register_types);
+    DO_OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                   MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                   ABSTRACT, sizeof(ModuleObjName##Class), \
+                                   __VA_ARGS__)
 
 /**
  * OBJECT_DEFINE_TYPE:
@@ -367,6 +390,45 @@ struct Object
     OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
                                 MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
                                 true, { NULL })
+
+/**
+ * OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ *
+ * This is a variant of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable for
+ * the case of a non-abstract type, with interfaces, and with no requirement
+ * for a class struct.
+ */
+#define OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(ModuleObjName, \
+                                                  module_obj_name, \
+                                                  MODULE_OBJ_NAME, \
+                                                  PARENT_MODULE_OBJ_NAME, ...) \
+    DO_OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                   MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                   false, 0, __VA_ARGS__)
+
+/**
+ * OBJECT_DEFINE_SIMPLE_TYPE:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ *
+ * This is a variant of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable for
+ * the common case of a non-abstract type, without any interfaces, and with
+ * no requirement for a class struct. If you declared your type with
+ * OBJECT_DECLARE_SIMPLE_TYPE then this is probably the right choice for
+ * defining it.
+ */
+#define OBJECT_DEFINE_SIMPLE_TYPE(ModuleObjName, module_obj_name, \
+                                  MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME) \
+    OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(ModuleObjName, module_obj_name, \
+        MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, { NULL })
 
 /**
  * struct TypeInfo:
