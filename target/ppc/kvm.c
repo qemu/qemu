@@ -2770,9 +2770,9 @@ void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
     while (i < n) {
         struct kvm_get_htab_header *hdr;
         int m = n < HPTES_PER_GROUP ? n : HPTES_PER_GROUP;
-        char buf[sizeof(*hdr) + m * HASH_PTE_SIZE_64];
+        char buf[sizeof(*hdr) + HPTES_PER_GROUP * HASH_PTE_SIZE_64];
 
-        rc = read(fd, buf, sizeof(buf));
+        rc = read(fd, buf, sizeof(*hdr) + m * HASH_PTE_SIZE_64);
         if (rc < 0) {
             hw_error("kvmppc_read_hptes: Unable to read HPTEs");
         }
