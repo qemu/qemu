@@ -211,6 +211,19 @@ struct smbios_type_8 {
     uint8_t port_type;
 } QEMU_PACKED;
 
+/* SMBIOS type 9 - System Slots (v2.1+) */
+struct smbios_type_9 {
+    struct smbios_structure_header header;
+    uint8_t slot_designation;
+    uint8_t slot_type;
+    uint8_t slot_data_bus_width;
+    uint8_t current_usage;
+    uint8_t slot_length;
+    uint16_t slot_id;
+    uint8_t slot_characteristics1;
+    uint8_t slot_characteristics2;
+} QEMU_PACKED;
+
 /* SMBIOS type 11 - OEM strings */
 struct smbios_type_11 {
     struct smbios_structure_header header;

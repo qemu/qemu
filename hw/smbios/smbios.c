@@ -121,6 +121,16 @@ struct type8_instance {
 };
 static QTAILQ_HEAD(, type8_instance) type8 = QTAILQ_HEAD_INITIALIZER(type8);
 
+/* type 9 instance for parsing */
+struct type9_instance {
+    const char *slot_designation;
+    uint8_t slot_type, slot_data_bus_width, current_usage, slot_length,
+            slot_characteristics1, slot_characteristics2;
+    uint16_t slot_id;
+    QTAILQ_ENTRY(type9_instance) next;
+};
+static QTAILQ_HEAD(, type9_instance) type9 = QTAILQ_HEAD_INITIALIZER(type9);
+
 static struct {
     size_t nvalues;
     char **values;
@@ -380,6 +390,54 @@ static const QemuOptDesc qemu_smbios_type8_opts[] = {
     { /* end of list */ }
 };
 
+static const QemuOptDesc qemu_smbios_type9_opts[] = {
+    {
+        .name = "type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "SMBIOS element type",
+    },
+    {
+        .name = "slot_designation",
+        .type = QEMU_OPT_STRING,
+        .help = "string number for reference designation",
+    },
+    {
+        .name = "slot_type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "connector type",
+    },
+    {
+        .name = "slot_data_bus_width",
+        .type = QEMU_OPT_NUMBER,
+        .help = "port type",
+    },
+    {
+        .name = "current_usage",
+        .type = QEMU_OPT_NUMBER,
+        .help = "current usage",
+    },
+    {
+        .name = "slot_length",
+        .type = QEMU_OPT_NUMBER,
+        .help = "system slot length",
+    },
+    {
+        .name = "slot_id",
+        .type = QEMU_OPT_NUMBER,
+        .help = "system slot id",
+    },
+    {
+        .name = "slot_characteristics1",
+        .type = QEMU_OPT_NUMBER,
+        .help = "slot characteristics1, see the spec",
+    },
+    {
+        .name = "slot_characteristics2",
+        .type = QEMU_OPT_NUMBER,
+        .help = "slot characteristics2, see the spec",
+    },
+};
+
 static const QemuOptDesc qemu_smbios_type11_opts[] = {
     {
         .name = "type",
@@ -609,6 +667,7 @@ bool smbios_skip_table(uint8_t type, bool required_table)
 #define T2_BASE 0x200
 #define T3_BASE 0x300
 #define T4_BASE 0x400
+#define T9_BASE 0x900
 #define T11_BASE 0xe00
 
 #define T16_BASE 0x1000
@@ -801,6 +860,28 @@ static void smbios_build_type_8_table(void)
         t->internal_connector_type = 0x0;
         t->external_connector_type = t8->connector_type;
         t->port_type = t8->port_type;
+
+        SMBIOS_BUILD_TABLE_POST;
+        instance++;
+    }
+}
+
+static void smbios_build_type_9_table(void)
+{
+    unsigned instance = 0;
+    struct type9_instance *t9;
+
+    QTAILQ_FOREACH(t9, &type9, next) {
+        SMBIOS_BUILD_TABLE_PRE(9, T9_BASE + instance, true);
+
+        SMBIOS_TABLE_SET_STR(9, slot_designation, t9->slot_designation);
+        t->slot_type = t9->slot_type;
+        t->slot_data_bus_width = t9->slot_data_bus_width;
+        t->current_usage = t9->current_usage;
+        t->slot_length = t9->slot_length;
+        t->slot_id = t9->slot_id;
+        t->slot_characteristics1 = t9->slot_characteristics1;
+        t->slot_characteristics2 = t9->slot_characteristics2;
 
         SMBIOS_BUILD_TABLE_POST;
         instance++;
@@ -1126,6 +1207,7 @@ void smbios_get_tables(MachineState *ms,
         }
 
         smbios_build_type_8_table();
+        smbios_build_type_9_table();
         smbios_build_type_11_table();
 
 #define MAX_DIMM_SZ (16 * GiB)
@@ -1460,6 +1542,23 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             t8_i->port_type = qemu_opt_get_number(opts, "port_type", 0);
             QTAILQ_INSERT_TAIL(&type8, t8_i, next);
             return;
+        case 9: {
+            if (!qemu_opts_validate(opts, qemu_smbios_type9_opts, errp)) {
+                return;
+            }
+            struct type9_instance *t;
+            t = g_new0(struct type9_instance, 1);
+            save_opt(&t->slot_designation, opts, "slot_designation");
+            t->slot_type = qemu_opt_get_number(opts, "slot_type", 0);
+            t->slot_data_bus_width = qemu_opt_get_number(opts, "slot_data_bus_width", 0);
+            t->current_usage = qemu_opt_get_number(opts, "current_usage", 0);
+            t->slot_length = qemu_opt_get_number(opts, "slot_length", 0);
+            t->slot_id = qemu_opt_get_number(opts, "slot_id", 0);
+            t->slot_characteristics1 = qemu_opt_get_number(opts, "slot_characteristics1", 0);
+            t->slot_characteristics2 = qemu_opt_get_number(opts, "slot_characteristics2", 0);
+            QTAILQ_INSERT_TAIL(&type9, t, next);
+            return;
+        }
         case 11:
             if (!qemu_opts_validate(opts, qemu_smbios_type11_opts, errp)) {
                 return;
