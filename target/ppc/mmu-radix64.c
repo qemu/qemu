@@ -678,9 +678,7 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
 
     /* Get Partition Table */
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc;
-        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        if (!vhc->get_pate(cpu->vhyp, cpu, lpid, &pate)) {
+        if (!cpu->vhyp_class->get_pate(cpu->vhyp, cpu, lpid, &pate)) {
             if (guest_visible) {
                 ppc_radix64_raise_hsi(cpu, access_type, eaddr, eaddr,
                                       DSISR_R_BADCONFIG);

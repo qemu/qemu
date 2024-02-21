@@ -1435,6 +1435,7 @@ struct ArchCPU {
     int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
+    PPCVirtualHypervisorClass *vhyp_class;
     void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
@@ -1532,7 +1533,7 @@ DECLARE_OBJ_CHECKERS(PPCVirtualHypervisor, PPCVirtualHypervisorClass,
 
 static inline bool vhyp_cpu_in_nested(PowerPCCPU *cpu)
 {
-    return PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp)->cpu_in_nested(cpu);
+    return cpu->vhyp_class->cpu_in_nested(cpu);
 }
 #endif /* CONFIG_USER_ONLY */
 

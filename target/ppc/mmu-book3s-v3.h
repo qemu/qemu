@@ -108,9 +108,7 @@ static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
     uint64_t base;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        return vhc->hpt_mask(cpu->vhyp);
+        return cpu->vhyp_class->hpt_mask(cpu->vhyp);
     }
     if (cpu->env.mmu_model == POWERPC_MMU_3_00) {
         ppc_v3_pate_t pate;

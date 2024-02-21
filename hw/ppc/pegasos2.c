@@ -400,6 +400,7 @@ static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
     machine->fdt = fdt;
 
     pm->cpu->vhyp = PPC_VIRTUAL_HYPERVISOR(machine);
+    pm->cpu->vhyp_class = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(pm->cpu->vhyp);
 }
 
 enum pegasos2_rtas_tokens {

@@ -794,9 +794,7 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
          * HV mode, we need to keep hypercall support.
          */
         if (lev == 1 && cpu->vhyp) {
-            PPCVirtualHypervisorClass *vhc =
-                PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-            vhc->hypercall(cpu->vhyp, cpu);
+            cpu->vhyp_class->hypercall(cpu->vhyp, cpu);
             powerpc_reset_excp_state(cpu);
             return;
         }
@@ -946,9 +944,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
          * HV mode, we need to keep hypercall support.
          */
         if (lev == 1 && cpu->vhyp) {
-            PPCVirtualHypervisorClass *vhc =
-                PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-            vhc->hypercall(cpu->vhyp, cpu);
+            cpu->vhyp_class->hypercall(cpu->vhyp, cpu);
             powerpc_reset_excp_state(cpu);
             return;
         }
@@ -1437,9 +1433,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 
         /* "PAPR mode" built-in hypercall emulation */
         if (lev == 1 && books_vhyp_handles_hcall(cpu)) {
-            PPCVirtualHypervisorClass *vhc =
-                PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-            vhc->hypercall(cpu->vhyp, cpu);
+            cpu->vhyp_class->hypercall(cpu->vhyp, cpu);
             powerpc_reset_excp_state(cpu);
             return;
         }
@@ -1574,10 +1568,8 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     }
 
     if ((new_msr & MSR_HVB) && books_vhyp_handles_hv_excp(cpu)) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         /* Deliver interrupt to L1 by returning from the H_ENTER_NESTED call */
-        vhc->deliver_hv_excp(cpu, excp);
+        cpu->vhyp_class->deliver_hv_excp(cpu, excp);
         powerpc_reset_excp_state(cpu);
     } else {
         /* Sanity check */

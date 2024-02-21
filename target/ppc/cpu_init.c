@@ -6661,6 +6661,7 @@ void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     CPUPPCState *env = &cpu->env;
 
     cpu->vhyp = vhyp;
+    cpu->vhyp_class = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(vhyp);
 
     /*
      * With a virtual hypervisor mode we never allow the CPU to go
@@ -7248,9 +7249,7 @@ static void ppc_cpu_exec_enter(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->cpu_exec_enter(cpu->vhyp, cpu);
+        cpu->vhyp_class->cpu_exec_enter(cpu->vhyp, cpu);
     }
 }
 
@@ -7259,9 +7258,7 @@ static void ppc_cpu_exec_exit(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->cpu_exec_exit(cpu->vhyp, cpu);
+        cpu->vhyp_class->cpu_exec_exit(cpu->vhyp, cpu);
     }
 }
 #endif /* CONFIG_TCG */
