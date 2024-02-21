@@ -222,6 +222,10 @@ struct smbios_type_9 {
     uint16_t slot_id;
     uint8_t slot_characteristics1;
     uint8_t slot_characteristics2;
+    /* SMBIOS spec v2.6+ */
+    uint16_t segment_group_number;
+    uint8_t bus_number;
+    uint8_t device_number;
 } QEMU_PACKED;
 
 /* SMBIOS type 11 - OEM strings */

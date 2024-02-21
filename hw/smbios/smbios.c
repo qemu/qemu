@@ -123,7 +123,7 @@ static QTAILQ_HEAD(, type8_instance) type8 = QTAILQ_HEAD_INITIALIZER(type8);
 
 /* type 9 instance for parsing */
 struct type9_instance {
-    const char *slot_designation;
+    const char *slot_designation, *pcidev;
     uint8_t slot_type, slot_data_bus_width, current_usage, slot_length,
             slot_characteristics1, slot_characteristics2;
     uint16_t slot_id;
@@ -436,6 +436,11 @@ static const QemuOptDesc qemu_smbios_type9_opts[] = {
         .type = QEMU_OPT_NUMBER,
         .help = "slot characteristics2, see the spec",
     },
+    {
+        .name = "pci_device",
+        .type = QEMU_OPT_STRING,
+        .help = "PCI device, if provided."
+    }
 };
 
 static const QemuOptDesc qemu_smbios_type11_opts[] = {
@@ -866,7 +871,7 @@ static void smbios_build_type_8_table(void)
     }
 }
 
-static void smbios_build_type_9_table(void)
+static void smbios_build_type_9_table(Error **errp)
 {
     unsigned instance = 0;
     struct type9_instance *t9;
@@ -882,6 +887,43 @@ static void smbios_build_type_9_table(void)
         t->slot_id = t9->slot_id;
         t->slot_characteristics1 = t9->slot_characteristics1;
         t->slot_characteristics2 = t9->slot_characteristics2;
+
+        if (t9->pcidev) {
+            PCIDevice *pdev = NULL;
+            int rc = pci_qdev_find_device(t9->pcidev, &pdev);
+            if (rc != 0) {
+                error_setg(errp,
+                           "No PCI device %s for SMBIOS type 9 entry %s",
+                           t9->pcidev, t9->slot_designation);
+                return;
+            }
+            /*
+             * We only handle the case were the device is attached to
+             * the PCI root bus. The general case is more complex as
+             * bridges are enumerated later and the table would need
+             * to be updated at this moment.
+             */
+            if (!pci_bus_is_root(pci_get_bus(pdev))) {
+                error_setg(errp,
+                           "Cannot create type 9 entry for PCI device %s: "
+                           "not attached to the root bus",
+                           t9->pcidev);
+                return;
+            }
+            t->segment_group_number = cpu_to_le16(0);
+            t->bus_number = pci_dev_bus_num(pdev);
+            t->device_number = pdev->devfn;
+        } else {
+            /*
+             * Per SMBIOS spec, For slots that are not of the PCI, AGP, PCI-X,
+             * or PCI-Express type that do not have bus/device/function
+             * information, 0FFh should be populated in the fields of Segment
+             * Group Number, Bus Number, Device/Function Number.
+             */
+            t->segment_group_number = 0xff;
+            t->bus_number = 0xff;
+            t->device_number = 0xff;
+        }
 
         SMBIOS_BUILD_TABLE_POST;
         instance++;
@@ -1207,7 +1249,7 @@ void smbios_get_tables(MachineState *ms,
         }
 
         smbios_build_type_8_table();
-        smbios_build_type_9_table();
+        smbios_build_type_9_table(errp);
         smbios_build_type_11_table();
 
 #define MAX_DIMM_SZ (16 * GiB)
@@ -1556,6 +1598,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             t->slot_id = qemu_opt_get_number(opts, "slot_id", 0);
             t->slot_characteristics1 = qemu_opt_get_number(opts, "slot_characteristics1", 0);
             t->slot_characteristics2 = qemu_opt_get_number(opts, "slot_characteristics2", 0);
+            save_opt(&t->pcidev, opts, "pcidev");
             QTAILQ_INSERT_TAIL(&type9, t, next);
             return;
         }
