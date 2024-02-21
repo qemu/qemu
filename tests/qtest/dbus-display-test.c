@@ -135,6 +135,13 @@ test_dbus_console_registered(GObject *source_object,
         NULL,
 #endif
         res, &err);
+
+    if (g_error_matches(err, G_DBUS_ERROR, G_DBUS_ERROR_UNKNOWN_METHOD)) {
+        g_test_skip("The VM doesn't have a console!");
+        g_main_loop_quit(test->loop);
+        return;
+    }
+
     g_assert_no_error(err);
 
     test->listener_conn = g_thread_join(test->thread);
@@ -156,7 +163,7 @@ test_dbus_display_console(void)
     g_autoptr(GMainLoop) loop = NULL;
     QTestState *qts = NULL;
     int pair[2];
-    TestDBusConsoleRegister test;
+    TestDBusConsoleRegister test = { 0, };
 #ifdef WIN32
     WSAPROTOCOL_INFOW info;
     g_autoptr(GVariant) listener = NULL;
@@ -245,7 +252,6 @@ test_dbus_display_keyboard(void)
             &err));
     g_assert_no_error(err);
 
-
     g_assert_cmpint(qtest_inb(qts, 0x64) & 0x1, ==, 0);
     g_assert_cmpint(qtest_inb(qts, 0x60), ==, 0);
 
@@ -256,6 +262,12 @@ test_dbus_display_keyboard(void)
         -1,
         NULL,
         &err);
+    if (g_error_matches(err, G_DBUS_ERROR, G_DBUS_ERROR_UNKNOWN_METHOD)) {
+        g_test_skip("The VM doesn't have a console!");
+        qtest_quit(qts);
+        return;
+    }
+
     g_assert_no_error(err);
 
     /* may be should wait for interrupt? */
