@@ -2688,7 +2688,7 @@ int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp)
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
 {
     int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    uint8_t buf[bufsize];
+    g_autofree uint8_t *buf = g_malloc(bufsize);
     ssize_t rc;
 
     do {
