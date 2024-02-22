@@ -45,6 +45,7 @@ bool notifier_list_empty(NotifierList *list);
 /* Same as Notifier but allows .notify() to return errors */
 typedef struct NotifierWithReturn NotifierWithReturn;
 
+/* Return int to allow for different failure modes and recovery actions */
 typedef int (*NotifierWithReturnFunc)(NotifierWithReturn *notifier, void *data,
                                       Error **errp);
 
