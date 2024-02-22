@@ -78,8 +78,6 @@ typedef struct {
     bool tls_thread_created;
     /* communication channel */
     QIOChannel *c;
-    /* is the yank function registered */
-    bool registered_yank;
     /* packet allocated len */
     uint32_t packet_len;
     /* guest page size */

@@ -666,11 +666,11 @@ static int multifd_send_channel_destroy(QIOChannel *send)
 
 static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
 {
-    if (p->registered_yank) {
+    if (p->c) {
         migration_ioc_unregister_yank(p->c);
+        multifd_send_channel_destroy(p->c);
+        p->c = NULL;
     }
-    multifd_send_channel_destroy(p->c);
-    p->c = NULL;
     qemu_sem_destroy(&p->sem);
     qemu_sem_destroy(&p->sem_sync);
     g_free(p->name);
@@ -950,7 +950,6 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
     qio_channel_set_delay(ioc, false);
 
     migration_ioc_register_yank(ioc);
-    p->registered_yank = true;
     /* Setup p->c only if the channel is completely setup */
     p->c = ioc;
 
