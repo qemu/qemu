@@ -12,8 +12,9 @@
 #include "hw/hotplug.h"
 #include "qom/object.h"
 #include "hw/i386/sgx-epc.h"
-#include "hw/firmware/smbios.h"
 #include "hw/cxl/cxl.h"
+
+#define MAX_IDE_BUS 2
 
 /**
  * PCMachineState:
@@ -35,6 +36,7 @@ typedef struct PCMachineState {
     PFlashCFI01 *flash[2];
     ISADevice *pcspk;
     DeviceState *iommu;
+    BusState *idebus[MAX_IDE_BUS];
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
@@ -149,8 +151,6 @@ extern int fd_bootchk;
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
-void pc_guest_info_init(PCMachineState *pcms);
-
 #define PCI_HOST_PROP_RAM_MEM          "ram-mem"
 #define PCI_HOST_PROP_PCI_MEM          "pci-mem"
 #define PCI_HOST_PROP_SYSTEM_MEM       "system-mem"
@@ -180,7 +180,6 @@ void pc_basic_device_init(struct PCMachineState *pcms,
                           bool create_fdctrl,
                           uint32_t hpet_irqs);
 void pc_cmos_init(PCMachineState *pcms,
-                  BusState *ide0, BusState *ide1,
                   ISADevice *s);
 void pc_nic_init(PCMachineClass *pcmc, ISABus *isa_bus, PCIBus *pci_bus);
 
@@ -192,8 +191,6 @@ void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs);
 #define TYPE_PORT92 "port92"
 
 /* pc_sysfw.c */
-void pc_system_flash_create(PCMachineState *pcms);
-void pc_system_flash_cleanup_unused(PCMachineState *pcms);
 void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
                                int *data_len);

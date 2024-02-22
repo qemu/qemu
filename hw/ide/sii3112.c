@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
 #include "qemu/module.h"
 #include "trace.h"

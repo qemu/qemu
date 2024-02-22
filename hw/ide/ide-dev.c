@@ -1,5 +1,5 @@
 /*
- * ide bus support for qdev.
+ * IDE device functions
  *
  * Copyright (c) 2009 Gerd Hoffmann <kraxel@redhat.com>
  *
@@ -18,73 +18,21 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/dma.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "hw/ide/ide-dev.h"
 #include "hw/ide/internal.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
-#include "hw/block/block.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
 #include "qapi/visitor.h"
-
-/* --------------------------------- */
-
-static char *idebus_get_fw_dev_path(DeviceState *dev);
-static void idebus_unrealize(BusState *qdev);
 
 static Property ide_props[] = {
     DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
-
-static void ide_bus_class_init(ObjectClass *klass, void *data)
-{
-    BusClass *k = BUS_CLASS(klass);
-
-    k->get_fw_dev_path = idebus_get_fw_dev_path;
-    k->unrealize = idebus_unrealize;
-}
-
-static void idebus_unrealize(BusState *bus)
-{
-    IDEBus *ibus = IDE_BUS(bus);
-
-    if (ibus->vmstate) {
-        qemu_del_vm_change_state_handler(ibus->vmstate);
-    }
-}
-
-static const TypeInfo ide_bus_info = {
-    .name = TYPE_IDE_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(IDEBus),
-    .class_init = ide_bus_class_init,
-};
-
-void ide_bus_init(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
-                 int bus_id, int max_units)
-{
-    qbus_init(idebus, idebus_size, TYPE_IDE_BUS, dev, NULL);
-    idebus->bus_id = bus_id;
-    idebus->max_units = max_units;
-}
-
-static char *idebus_get_fw_dev_path(DeviceState *dev)
-{
-    char path[30];
-
-    snprintf(path, sizeof(path), "%s@%x", qdev_fw_name(dev),
-             ((IDEBus*)dev->parent_bus)->bus_id);
-
-    return g_strdup(path);
-}
 
 static void ide_qdev_realize(DeviceState *qdev, Error **errp)
 {
@@ -124,45 +72,7 @@ static void ide_qdev_realize(DeviceState *qdev, Error **errp)
     dc->realize(dev, errp);
 }
 
-IDEDevice *ide_bus_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
-{
-    DeviceState *dev;
-
-    dev = qdev_new(drive->media_cd ? "ide-cd" : "ide-hd");
-    qdev_prop_set_uint32(dev, "unit", unit);
-    qdev_prop_set_drive_err(dev, "drive", blk_by_legacy_dinfo(drive),
-                            &error_fatal);
-    qdev_realize_and_unref(dev, &bus->qbus, &error_fatal);
-    return DO_UPCAST(IDEDevice, qdev, dev);
-}
-
-int ide_get_geometry(BusState *bus, int unit,
-                     int16_t *cyls, int8_t *heads, int8_t *secs)
-{
-    IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
-
-    if (s->drive_kind != IDE_HD || !s->blk) {
-        return -1;
-    }
-
-    *cyls = s->cylinders;
-    *heads = s->heads;
-    *secs = s->sectors;
-    return 0;
-}
-
-int ide_get_bios_chs_trans(BusState *bus, int unit)
-{
-    return DO_UPCAST(IDEBus, qbus, bus)->ifs[unit].chs_trans;
-}
-
-/* --------------------------------- */
-
-typedef struct IDEDrive {
-    IDEDevice dev;
-} IDEDrive;
-
-static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
+void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
@@ -283,19 +193,6 @@ static void ide_cd_realize(IDEDevice *dev, Error **errp)
     ide_dev_initfn(dev, IDE_CD, errp);
 }
 
-static void ide_cf_realize(IDEDevice *dev, Error **errp)
-{
-    ide_dev_initfn(dev, IDE_CFATA, errp);
-}
-
-#define DEFINE_IDE_DEV_PROPERTIES()                     \
-    DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
-    DEFINE_BLOCK_ERROR_PROPERTIES(IDEDrive, dev.conf),  \
-    DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
-    DEFINE_PROP_UINT64("wwn",  IDEDrive, dev.wwn, 0),   \
-    DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),\
-    DEFINE_PROP_STRING("model", IDEDrive, dev.model)
-
 static Property ide_hd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
@@ -346,32 +243,6 @@ static const TypeInfo ide_cd_info = {
     .class_init    = ide_cd_class_init,
 };
 
-static Property ide_cf_properties[] = {
-    DEFINE_IDE_DEV_PROPERTIES(),
-    DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
-    DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
-                IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ide_cf_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
-
-    k->realize  = ide_cf_realize;
-    dc->fw_name = "drive";
-    dc->desc    = "virtual CompactFlash card";
-    device_class_set_props(dc, ide_cf_properties);
-}
-
-static const TypeInfo ide_cf_info = {
-    .name          = "ide-cf",
-    .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
-    .class_init    = ide_cf_class_init,
-};
-
 static void ide_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -393,10 +264,8 @@ static const TypeInfo ide_device_type_info = {
 
 static void ide_register_types(void)
 {
-    type_register_static(&ide_bus_info);
     type_register_static(&ide_hd_info);
     type_register_static(&ide_cd_info);
-    type_register_static(&ide_cf_info);
     type_register_static(&ide_device_type_info);
 }
 

@@ -6,6 +6,14 @@ config XEN_IGD_PASSTHROUGH
     default y
     depends on XEN && PCI_I440FX
 
+config PPC4XX_PCI
+    bool
+    select PCI
+
+config PPC440_PCIX
+    bool
+    select PCI
+
 config RAVEN_PCI
     bool
     select PCI

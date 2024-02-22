@@ -269,13 +269,13 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
  */
 IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
 {
-    Object *obj;
+    DeviceState *dev;
 
-    obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
-    qdev_realize(DEVICE(obj), NULL, &error_fatal);
-    pnv_bmc_set_pnor(IPMI_BMC(obj), pnor);
+    dev = qdev_new(TYPE_IPMI_BMC_SIMULATOR);
+    qdev_realize(dev, NULL, &error_fatal);
+    pnv_bmc_set_pnor(IPMI_BMC(dev), pnor);
 
-    return IPMI_BMC(obj);
+    return IPMI_BMC(dev);
 }
 
 typedef struct ForeachArgs {

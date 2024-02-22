@@ -275,6 +275,8 @@ config SBSA_REF
     select USB_XHCI_SYSBUS
     select WDT_SBSA
     select BOCHS_DISPLAY
+    select IDE_BUS
+    select IDE_DEV
 
 config SABRELITE
     bool

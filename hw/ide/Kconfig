@@ -1,51 +1,58 @@
 config IDE_CORE
     bool
 
-config IDE_QDEV
+config IDE_BUS
     bool
     select IDE_CORE
+
+config IDE_DEV
+    bool
+    depends on IDE_BUS
 
 config IDE_PCI
     bool
     depends on PCI
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
 
 config IDE_ISA
     bool
     depends on ISA_BUS
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
 
 config IDE_PIIX
     bool
     select IDE_PCI
-    select IDE_QDEV
 
 config IDE_CMD646
     bool
     select IDE_PCI
-    select IDE_QDEV
 
 config IDE_MACIO
     bool
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
 
 config IDE_MMIO
     bool
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
 
 config IDE_VIA
     bool
     select IDE_PCI
-    select IDE_QDEV
 
 config MICRODRIVE
     bool
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
     depends on PCMCIA
 
 config AHCI
     bool
-    select IDE_QDEV
+    select IDE_BUS
+    select IDE_DEV
 
 config AHCI_ICH9
     bool
@@ -56,4 +63,7 @@ config AHCI_ICH9
 config IDE_SII3112
     bool
     select IDE_PCI
-    select IDE_QDEV
+
+config IDE_CF
+    bool
+    default y if IDE_BUS
