@@ -1236,69 +1236,161 @@ static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
 }
 #endif
 
+#if defined(__arm__) || defined(__mips__) || defined(__sparc__)
+#define HOST_FORCE_SHMLBA 1
+#else
+#define HOST_FORCE_SHMLBA 0
+#endif
+
 abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
                        abi_ulong shmaddr, int shmflg)
 {
     CPUState *cpu = env_cpu(cpu_env);
-    abi_ulong raddr;
     struct shmid_ds shm_info;
     int ret;
-    abi_ulong shmlba;
+    int h_pagesize;
+    int t_shmlba, h_shmlba, m_shmlba;
+    size_t t_len, h_len, m_len;
 
     /* shmat pointers are always untagged */
 
-    /* find out the length of the shared memory segment */
+    /*
+     * Because we can't use host shmat() unless the address is sufficiently
+     * aligned for the host, we'll need to check both.
+     * TODO: Could be fixed with softmmu.
+     */
+    t_shmlba = target_shmlba(cpu_env);
+    h_pagesize = qemu_real_host_page_size();
+    h_shmlba = (HOST_FORCE_SHMLBA ? SHMLBA : h_pagesize);
+    m_shmlba = MAX(t_shmlba, h_shmlba);
+
+    if (shmaddr) {
+        if (shmaddr & (m_shmlba - 1)) {
+            if (shmflg & SHM_RND) {
+                /*
+                 * The guest is allowing the kernel to round the address.
+                 * Assume that the guest is ok with us rounding to the
+                 * host required alignment too.  Anyway if we don't, we'll
+                 * get an error from the kernel.
+                 */
+                shmaddr &= ~(m_shmlba - 1);
+                if (shmaddr == 0 && (shmflg & SHM_REMAP)) {
+                    return -TARGET_EINVAL;
+                }
+            } else {
+                int require = TARGET_PAGE_SIZE;
+#ifdef TARGET_FORCE_SHMLBA
+                require = t_shmlba;
+#endif
+                /*
+                 * Include host required alignment, as otherwise we cannot
+                 * use host shmat at all.
+                 */
+                require = MAX(require, h_shmlba);
+                if (shmaddr & (require - 1)) {
+                    return -TARGET_EINVAL;
+                }
+            }
+        }
+    } else {
+        if (shmflg & SHM_REMAP) {
+            return -TARGET_EINVAL;
+        }
+    }
+    /* All rounding now manually concluded. */
+    shmflg &= ~SHM_RND;
+
+    /* Find out the length of the shared memory segment. */
     ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
     if (is_error(ret)) {
         /* can't get length, bail out */
         return ret;
     }
+    t_len = TARGET_PAGE_ALIGN(shm_info.shm_segsz);
+    h_len = ROUND_UP(shm_info.shm_segsz, h_pagesize);
+    m_len = MAX(t_len, h_len);
 
-    shmlba = target_shmlba(cpu_env);
-
-    if (shmaddr & (shmlba - 1)) {
-        if (shmflg & SHM_RND) {
-            shmaddr &= ~(shmlba - 1);
-        } else {
-            return -TARGET_EINVAL;
-        }
-    }
-    if (!guest_range_valid_untagged(shmaddr, shm_info.shm_segsz)) {
+    if (!guest_range_valid_untagged(shmaddr, m_len)) {
         return -TARGET_EINVAL;
     }
 
     WITH_MMAP_LOCK_GUARD() {
-        void *host_raddr;
+        bool mapped = false;
+        void *want, *test;
         abi_ulong last;
 
-        if (shmaddr) {
-            host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
-        } else {
-            abi_ulong mmap_start;
-
-            /* In order to use the host shmat, we need to honor host SHMLBA.  */
-            mmap_start = mmap_find_vma(0, shm_info.shm_segsz,
-                                       MAX(SHMLBA, shmlba));
-
-            if (mmap_start == -1) {
+        if (!shmaddr) {
+            shmaddr = mmap_find_vma(0, m_len, m_shmlba);
+            if (shmaddr == -1) {
                 return -TARGET_ENOMEM;
             }
-            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
-                               shmflg | SHM_REMAP);
+            mapped = !reserved_va;
+        } else if (shmflg & SHM_REMAP) {
+            /*
+             * If host page size > target page size, the host shmat may map
+             * more memory than the guest expects.  Reject a mapping that
+             * would replace memory in the unexpected gap.
+             * TODO: Could be fixed with softmmu.
+             */
+            if (t_len < h_len &&
+                !page_check_range_empty(shmaddr + t_len,
+                                        shmaddr + h_len - 1)) {
+                return -TARGET_EINVAL;
+            }
+        } else {
+            if (!page_check_range_empty(shmaddr, shmaddr + m_len - 1)) {
+                return -TARGET_EINVAL;
+            }
         }
 
-        if (host_raddr == (void *)-1) {
-            return get_errno(-1);
-        }
-        raddr = h2g(host_raddr);
-        last = raddr + shm_info.shm_segsz - 1;
+        /* All placement is now complete. */
+        want = (void *)g2h_untagged(shmaddr);
 
-        page_set_flags(raddr, last,
+        /*
+         * Map anonymous pages across the entire range, then remap with
+         * the shared memory.  This is required for a number of corner
+         * cases for which host and guest page sizes differ.
+         */
+        if (h_len != t_len) {
+            int mmap_p = PROT_READ | (shmflg & SHM_RDONLY ? 0 : PROT_WRITE);
+            int mmap_f = MAP_PRIVATE | MAP_ANONYMOUS
+                       | (reserved_va || (shmflg & SHM_REMAP)
+                          ? MAP_FIXED : MAP_FIXED_NOREPLACE);
+
+            test = mmap(want, m_len, mmap_p, mmap_f, -1, 0);
+            if (unlikely(test != want)) {
+                /* shmat returns EINVAL not EEXIST like mmap. */
+                ret = (test == MAP_FAILED && errno != EEXIST
+                       ? get_errno(-1) : -TARGET_EINVAL);
+                if (mapped) {
+                    do_munmap(want, m_len);
+                }
+                return ret;
+            }
+            mapped = true;
+        }
+
+        if (reserved_va || mapped) {
+            shmflg |= SHM_REMAP;
+        }
+        test = shmat(shmid, want, shmflg);
+        if (test == MAP_FAILED) {
+            ret = get_errno(-1);
+            if (mapped) {
+                do_munmap(want, m_len);
+            }
+            return ret;
+        }
+        assert(test == want);
+
+        last = shmaddr + m_len - 1;
+        page_set_flags(shmaddr, last,
                        PAGE_VALID | PAGE_RESET | PAGE_READ |
-                       (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
+                       (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE) |
+                       (shmflg & SHM_EXEC ? PAGE_EXEC : 0));
 
-        shm_region_rm_complete(raddr, last);
-        shm_region_add(raddr, last);
+        shm_region_rm_complete(shmaddr, last);
+        shm_region_add(shmaddr, last);
     }
 
     /*
@@ -1312,7 +1404,15 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
         tb_flush(cpu);
     }
 
-    return raddr;
+    if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
+        FILE *f = qemu_log_trylock();
+        if (f) {
+            fprintf(f, "page layout changed following shmat\n");
+            page_dump(f);
+            qemu_log_unlock(f);
+        }
+    }
+    return shmaddr;
 }
 
 abi_long target_shmdt(abi_ulong shmaddr)
