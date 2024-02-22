@@ -49,6 +49,7 @@ typedef struct VFIOContainerBase {
     QLIST_ENTRY(VFIOContainerBase) next;
     QLIST_HEAD(, VFIODevice) device_list;
     GList *iova_ranges;
+    NotifierWithReturn cpr_reboot_notifier;
 } VFIOContainerBase;
 
 typedef struct VFIOGuestIOMMU {
