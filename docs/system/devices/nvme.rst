@@ -81,6 +81,13 @@ There are a number of parameters available:
   Set the UUID of the namespace. This will be reported as a "Namespace UUID"
   descriptor in the Namespace Identification Descriptor List.
 
+``nguid``
+  Set the NGUID of the namespace. This will be reported as a "Namespace Globally
+  Unique Identifier" descriptor in the Namespace Identification Descriptor List.
+  It is specified as a string of hexadecimal digits containing exactly 16 bytes
+  or "auto" for a random value. An optional '-' separator could be used to group
+  bytes. If not specified the NGUID will remain all zeros.
+
 ``eui64``
   Set the EUI-64 of the namespace. This will be reported as a "IEEE Extended
   Unique Identifier" descriptor in the Namespace Identification Descriptor List.

@@ -5642,6 +5642,10 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
     } QEMU_PACKED uuid = {};
     struct {
         NvmeIdNsDescr hdr;
+        uint8_t v[NVME_NIDL_NGUID];
+    } QEMU_PACKED nguid = {};
+    struct {
+        NvmeIdNsDescr hdr;
         uint64_t v;
     } QEMU_PACKED eui64 = {};
     struct {
@@ -5666,6 +5670,14 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
         memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
         memcpy(pos, &uuid, sizeof(uuid));
         pos += sizeof(uuid);
+    }
+
+    if (!nvme_nguid_is_null(&ns->params.nguid)) {
+        nguid.hdr.nidt = NVME_NIDT_NGUID;
+        nguid.hdr.nidl = NVME_NIDL_NGUID;
+        memcpy(nguid.v, ns->params.nguid.data, NVME_NIDL_NGUID);
+        memcpy(pos, &nguid, sizeof(nguid));
+        pos += sizeof(nguid);
     }
 
     if (ns->params.eui64) {
