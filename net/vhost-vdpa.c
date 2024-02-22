@@ -323,11 +323,9 @@ static void vhost_vdpa_net_log_global_enable(VhostVDPAState *s, bool enable)
 }
 
 static int vdpa_net_migration_state_notifier(NotifierWithReturn *notifier,
-                                             void *data, Error **errp)
+                                             MigrationEvent *e, Error **errp)
 {
-    MigrationEvent *e = data;
-    VhostVDPAState *s = container_of(notifier, VhostVDPAState,
-                                     migration_state);
+    VhostVDPAState *s = container_of(notifier, VhostVDPAState, migration_state);
 
     if (e->type == MIG_EVENT_PRECOPY_SETUP) {
         vhost_vdpa_net_log_global_enable(s, true);

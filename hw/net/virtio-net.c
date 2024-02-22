@@ -3535,10 +3535,8 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationEvent *e)
 }
 
 static int virtio_net_migration_state_notifier(NotifierWithReturn *notifier,
-                                               void *data, Error **errp)
+                                               MigrationEvent *e, Error **errp)
 {
-    MigrationEvent *e = data;
-
     VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
     virtio_net_handle_migration_primary(n, e);
     return 0;

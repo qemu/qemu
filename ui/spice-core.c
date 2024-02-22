@@ -569,10 +569,8 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
 }
 
 static int migration_state_notifier(NotifierWithReturn *notifier,
-                                    void *data, Error **errp)
+                                    MigrationEvent *e, Error **errp)
 {
-    MigrationEvent *e = data;
-
     if (!spice_have_target_host) {
         return 0;
     }

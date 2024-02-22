@@ -755,9 +755,8 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
 }
 
 static int vfio_migration_state_notifier(NotifierWithReturn *notifier,
-                                         void *data, Error **errp)
+                                         MigrationEvent *e, Error **errp)
 {
-    MigrationEvent *e = data;
     VFIOMigration *migration = container_of(notifier, VFIOMigration,
                                             migration_state);
     VFIODevice *vbasedev = migration->vbasedev;

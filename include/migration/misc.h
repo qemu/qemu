@@ -72,6 +72,9 @@ typedef struct MigrationEvent {
     MigrationEventType type;
 } MigrationEvent;
 
+typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
+                                   MigrationEvent *e, Error **errp);
+
 /*
  * Register the notifier @notify to be called when a migration event occurs
  * for MIG_MODE_NORMAL, as specified by the MigrationEvent passed to @func.
@@ -81,7 +84,7 @@ typedef struct MigrationEvent {
  *    - MIG_EVENT_PRECOPY_FAILED
  */
 void migration_add_notifier(NotifierWithReturn *notify,
-                            NotifierWithReturnFunc func);
+                            MigrationNotifyFunc func);
 
 void migration_remove_notifier(NotifierWithReturn *notify);
 void migration_call_notifiers(MigrationState *s, MigrationEventType type);

@@ -1464,9 +1464,9 @@ static void migrate_fd_cancel(MigrationState *s)
 }
 
 void migration_add_notifier(NotifierWithReturn *notify,
-                            NotifierWithReturnFunc func)
+                            MigrationNotifyFunc func)
 {
-    notify->notify = func;
+    notify->notify = (NotifierWithReturnFunc)func;
     notifier_with_return_list_add(&migration_state_notifiers, notify);
 }
 
