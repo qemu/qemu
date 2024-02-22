@@ -38,11 +38,4 @@ struct target_pt_regs {
 #define TARGET_MCL_FUTURE  2
 #define TARGET_MCL_ONFAULT 4
 
-#define TARGET_FORCE_SHMLBA
-
-static inline abi_ulong target_shmlba(CPULoongArchState *env)
-{
-    return 64 * KiB;
-}
-
 #endif
