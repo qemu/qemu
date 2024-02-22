@@ -86,6 +86,12 @@ typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
 void migration_add_notifier(NotifierWithReturn *notify,
                             MigrationNotifyFunc func);
 
+/*
+ * Same as migration_add_notifier, but applies to be specified @mode.
+ */
+void migration_add_notifier_mode(NotifierWithReturn *notify,
+                                 MigrationNotifyFunc func, MigMode mode);
+
 void migration_remove_notifier(NotifierWithReturn *notify);
 void migration_call_notifiers(MigrationState *s, MigrationEventType type);
 bool migration_in_setup(MigrationState *);

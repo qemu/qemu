@@ -69,8 +69,13 @@
 #include "qemu/sockets.h"
 #include "sysemu/kvm.h"
 
-static NotifierWithReturnList migration_state_notifiers =
-    NOTIFIER_WITH_RETURN_LIST_INITIALIZER(migration_state_notifiers);
+#define NOTIFIER_ELEM_INIT(array, elem)    \
+    [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
+
+static NotifierWithReturnList migration_state_notifiers[] = {
+    NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_NORMAL),
+    NOTIFIER_ELEM_INIT(migration_state_notifiers, MIG_MODE_CPR_REBOOT),
+};
 
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
@@ -1463,11 +1468,17 @@ static void migrate_fd_cancel(MigrationState *s)
     }
 }
 
+void migration_add_notifier_mode(NotifierWithReturn *notify,
+                                 MigrationNotifyFunc func, MigMode mode)
+{
+    notify->notify = (NotifierWithReturnFunc)func;
+    notifier_with_return_list_add(&migration_state_notifiers[mode], notify);
+}
+
 void migration_add_notifier(NotifierWithReturn *notify,
                             MigrationNotifyFunc func)
 {
-    notify->notify = (NotifierWithReturnFunc)func;
-    notifier_with_return_list_add(&migration_state_notifiers, notify);
+    migration_add_notifier_mode(notify, func, MIG_MODE_NORMAL);
 }
 
 void migration_remove_notifier(NotifierWithReturn *notify)
@@ -1480,10 +1491,11 @@ void migration_remove_notifier(NotifierWithReturn *notify)
 
 void migration_call_notifiers(MigrationState *s, MigrationEventType type)
 {
+    MigMode mode = s->parameters.mode;
     MigrationEvent e;
 
     e.type = type;
-    notifier_with_return_list_notify(&migration_state_notifiers, &e, 0);
+    notifier_with_return_list_notify(&migration_state_notifiers[mode], &e, 0);
 }
 
 bool migration_in_setup(MigrationState *s)
