@@ -1953,6 +1953,23 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         return false;
     }
 
+    if (migrate_mode_is_cpr(s)) {
+        const char *conflict = NULL;
+
+        if (migrate_postcopy()) {
+            conflict = "postcopy";
+        } else if (migrate_background_snapshot()) {
+            conflict = "background snapshot";
+        } else if (migrate_colo()) {
+            conflict = "COLO";
+        }
+
+        if (conflict) {
+            error_setg(errp, "Cannot use %s with CPR", conflict);
+            return false;
+        }
+    }
+
     if (blk || blk_inc) {
         if (migrate_colo()) {
             error_setg(errp, "No disk migration is required in COLO mode");

@@ -657,6 +657,8 @@
 #     shared backend must be be non-volatile across reboot, such as by backing
 #     it with a dax device.
 #
+#     cpr-reboot may not be used with postcopy, colo, or background-snapshot.
+#
 #     (since 8.2)
 ##
 { 'enum': 'MigMode',
