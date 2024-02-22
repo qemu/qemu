@@ -2096,20 +2096,20 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
         if (!virtio_has_feature(dev->protocol_features,
                                 VHOST_USER_PROTOCOL_F_PAGEFAULT)) {
             /* TODO: Get the device name into this error somehow */
-            error_setg(pnd->errp,
+            error_setg(errp,
                        "vhost-user backend not capable of postcopy");
             return -ENOENT;
         }
         break;
 
     case POSTCOPY_NOTIFY_INBOUND_ADVISE:
-        return vhost_user_postcopy_advise(dev, pnd->errp);
+        return vhost_user_postcopy_advise(dev, errp);
 
     case POSTCOPY_NOTIFY_INBOUND_LISTEN:
-        return vhost_user_postcopy_listen(dev, pnd->errp);
+        return vhost_user_postcopy_listen(dev, errp);
 
     case POSTCOPY_NOTIFY_INBOUND_END:
-        return vhost_user_postcopy_end(dev, pnd->errp);
+        return vhost_user_postcopy_end(dev, errp);
 
     default:
         /* We ignore notifications we don't know */

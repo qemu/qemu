@@ -128,7 +128,6 @@ enum PostcopyNotifyReason {
 
 struct PostcopyNotifyData {
     enum PostcopyNotifyReason reason;
-    Error **errp;
 };
 
 void postcopy_add_notifier(NotifierWithReturn *nn);
