@@ -72,6 +72,11 @@ typedef struct MigrationEvent {
     MigrationEventType type;
 } MigrationEvent;
 
+/*
+ * A MigrationNotifyFunc may return an error code and an Error object,
+ * but only when @e->type is MIG_EVENT_PRECOPY_SETUP.  The code is an int
+ * to allow for different failure modes and recovery actions.
+ */
 typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
                                    MigrationEvent *e, Error **errp);
 
@@ -93,7 +98,8 @@ void migration_add_notifier_mode(NotifierWithReturn *notify,
                                  MigrationNotifyFunc func, MigMode mode);
 
 void migration_remove_notifier(NotifierWithReturn *notify);
-void migration_call_notifiers(MigrationState *s, MigrationEventType type);
+int migration_call_notifiers(MigrationState *s, MigrationEventType type,
+                             Error **errp);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
