@@ -757,18 +757,14 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
 static int vfio_migration_state_notifier(NotifierWithReturn *notifier,
                                          void *data, Error **errp)
 {
-    MigrationState *s = data;
+    MigrationEvent *e = data;
     VFIOMigration *migration = container_of(notifier, VFIOMigration,
                                             migration_state);
     VFIODevice *vbasedev = migration->vbasedev;
 
-    trace_vfio_migration_state_notifier(vbasedev->name,
-                                        MigrationStatus_str(s->state));
+    trace_vfio_migration_state_notifier(vbasedev->name, e->type);
 
-    switch (s->state) {
-    case MIGRATION_STATUS_CANCELLING:
-    case MIGRATION_STATUS_CANCELLED:
-    case MIGRATION_STATUS_FAILED:
+    if (e->type == MIG_EVENT_PRECOPY_FAILED) {
         vfio_migration_set_state_or_reset(vbasedev, VFIO_DEVICE_STATE_RUNNING);
     }
     return 0;

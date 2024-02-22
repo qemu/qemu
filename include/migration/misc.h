@@ -60,10 +60,31 @@ void migration_object_init(void);
 void migration_shutdown(void);
 bool migration_is_idle(void);
 bool migration_is_active(MigrationState *);
+
+typedef enum MigrationEventType {
+    MIG_EVENT_PRECOPY_SETUP,
+    MIG_EVENT_PRECOPY_DONE,
+    MIG_EVENT_PRECOPY_FAILED,
+    MIG_EVENT_MAX
+} MigrationEventType;
+
+typedef struct MigrationEvent {
+    MigrationEventType type;
+} MigrationEvent;
+
+/*
+ * Register the notifier @notify to be called when a migration event occurs
+ * for MIG_MODE_NORMAL, as specified by the MigrationEvent passed to @func.
+ * Notifiers may receive events in any of the following orders:
+ *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_DONE
+ *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_FAILED
+ *    - MIG_EVENT_PRECOPY_FAILED
+ */
 void migration_add_notifier(NotifierWithReturn *notify,
                             NotifierWithReturnFunc func);
+
 void migration_remove_notifier(NotifierWithReturn *notify);
-void migration_call_notifiers(MigrationState *s);
+void migration_call_notifiers(MigrationState *s, MigrationEventType type);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);

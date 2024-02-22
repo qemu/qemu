@@ -1319,6 +1319,8 @@ void migrate_set_state(int *state, int old_state, int new_state)
 
 static void migrate_fd_cleanup(MigrationState *s)
 {
+    MigrationEventType type;
+
     g_free(s->hostname);
     s->hostname = NULL;
     json_writer_free(s->vmdesc);
@@ -1367,7 +1369,9 @@ static void migrate_fd_cleanup(MigrationState *s)
         /* It is used on info migrate.  We can't free it */
         error_report_err(error_copy(s->error));
     }
-    migration_call_notifiers(s);
+    type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
+                                     MIG_EVENT_PRECOPY_DONE;
+    migration_call_notifiers(s, type);
     block_cleanup_parameters();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
@@ -1474,9 +1478,12 @@ void migration_remove_notifier(NotifierWithReturn *notify)
     }
 }
 
-void migration_call_notifiers(MigrationState *s)
+void migration_call_notifiers(MigrationState *s, MigrationEventType type)
 {
-    notifier_with_return_list_notify(&migration_state_notifiers, s, 0);
+    MigrationEvent e;
+
+    e.type = type;
+    notifier_with_return_list_notify(&migration_state_notifiers, &e, 0);
 }
 
 bool migration_in_setup(MigrationState *s)
@@ -2537,7 +2544,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * spice needs to trigger a transition now
      */
     ms->postcopy_after_devices = true;
-    migration_call_notifiers(ms);
+    migration_call_notifiers(ms, MIG_EVENT_PRECOPY_DONE);
 
     migration_downtime_end(ms);
 
@@ -3601,7 +3608,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        migration_call_notifiers(s);
+        migration_call_notifiers(s, MIG_EVENT_PRECOPY_SETUP);
     }
 
     migration_rate_set(rate_limit);
