@@ -145,14 +145,14 @@
  * and later ASIs.
  */
 #define ASI_REAL                0x14 /* Real address, cacheable          */
-#define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
-#define ASI_REAL_IO             0x15 /* Real address, non-cachable      */
+#define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cacheable		*/
+#define ASI_REAL_IO             0x15 /* Real address, non-cacheable      */
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
 #define ASI_BLK_AIUP_4V		0x16 /* (4V) Prim, user, block ld/st	*/
 #define ASI_BLK_AIUS_4V		0x17 /* (4V) Sec, user, block ld/st	*/
 #define ASI_REAL_L              0x1c /* Real address, cacheable, LE      */
-#define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cachable, little endian*/
-#define ASI_REAL_IO_L           0x1d /* Real address, non-cachable, LE  */
+#define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cacheable, little endian*/
+#define ASI_REAL_IO_L           0x1d /* Real address, non-cacheable, LE  */
 #define ASI_PHYS_BYPASS_EC_E_L	0x1d /* PADDR, E-bit, little endian	*/
 #define ASI_BLK_AIUP_L_4V	0x1e /* (4V) Prim, user, block, l-endian*/
 #define ASI_BLK_AIUS_L_4V	0x1f /* (4V) Sec, user, block, l-endian	*/

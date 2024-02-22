@@ -3146,7 +3146,7 @@ int ram_block_discard_require(bool state);
 
 /*
  * See ram_block_discard_require(): only inhibit technologies that disable
- * uncoordinated discarding of pages in RAM blocks, allowing co-existance with
+ * uncoordinated discarding of pages in RAM blocks, allowing co-existence with
  * technologies that only inhibit uncoordinated discards (via the
  * RamDiscardManager).
  */

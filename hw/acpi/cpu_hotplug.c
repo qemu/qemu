@@ -13,8 +13,8 @@
 #include "hw/acpi/cpu_hotplug.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
-#include "hw/i386/pc.h"
-#include "hw/pci/pci.h"
+#include "hw/i386/x86.h"
+#include "hw/pci/pci_device.h"
 #include "qemu/error-report.h"
 
 #define CPU_EJECT_METHOD "CPEJ"

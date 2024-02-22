@@ -2468,7 +2468,7 @@ SRST
 
     ``to=L``
         With this option, QEMU will try next available VNC displays,
-        until the number L, if the origianlly defined "-vnc display" is
+        until the number L, if the originally defined "-vnc display" is
         not available, e.g. port 5900+display is already used by another
         application. By default, to=0.
 
@@ -5511,7 +5511,7 @@ SRST
             -object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out
             -object filter-redirector,netdev=hn0,id=redire1,queue=rx,outdev=compare0
             -object iothread,id=iothread1
-            -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,notify_dev=nofity_way,iothread=iothread1
+            -object colo-compare,id=comp0,primary_in=compare0-0,secondary_in=compare1,outdev=compare_out0,notify_dev=notify_way,iothread=iothread1
 
             secondary:
             -netdev tap,id=hn0,vhost=off

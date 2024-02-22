@@ -322,7 +322,7 @@ static void uhci_reset(DeviceState *dev)
     s->fl_base_addr = 0;
     s->sof_timing = 64;
 
-    for(i = 0; i < NB_PORTS; i++) {
+    for(i = 0; i < UHCI_PORTS; i++) {
         port = &s->ports[i];
         port->ctrl = 0x0080;
         if (port->port.dev && port->port.dev->attached) {
@@ -364,7 +364,7 @@ static const VMStateDescription vmstate_uhci = {
     .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, UHCIState),
         VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState, NULL),
-        VMSTATE_STRUCT_ARRAY(ports, UHCIState, NB_PORTS, 1,
+        VMSTATE_STRUCT_ARRAY(ports, UHCIState, UHCI_PORTS, 1,
                              vmstate_uhci_port, UHCIPort),
         VMSTATE_UINT16(cmd, UHCIState),
         VMSTATE_UINT16(status, UHCIState),
@@ -404,7 +404,7 @@ static void uhci_port_write(void *opaque, hwaddr addr,
             int i;
 
             /* send reset on the USB bus */
-            for(i = 0; i < NB_PORTS; i++) {
+            for(i = 0; i < UHCI_PORTS; i++) {
                 port = &s->ports[i];
                 usb_device_reset(port->port.dev);
             }
@@ -457,8 +457,9 @@ static void uhci_port_write(void *opaque, hwaddr addr,
             int n;
 
             n = (addr >> 1) & 7;
-            if (n >= NB_PORTS)
+            if (n >= UHCI_PORTS) {
                 return;
+            }
             port = &s->ports[n];
             dev = port->port.dev;
             if (dev && dev->attached) {
@@ -513,8 +514,9 @@ static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
             UHCIPort *port;
             int n;
             n = (addr >> 1) & 7;
-            if (n >= NB_PORTS)
+            if (n >= UHCI_PORTS) {
                 goto read_default;
+            }
             port = &s->ports[n];
             val = port->ctrl;
         }
@@ -607,7 +609,7 @@ static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
     USBDevice *dev;
     int i;
 
-    for (i = 0; i < NB_PORTS; i++) {
+    for (i = 0; i < UHCI_PORTS; i++) {
         UHCIPort *port = &s->ports[i];
         if (!(port->ctrl & UHCI_PORT_EN)) {
             continue;
@@ -1171,11 +1173,11 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     s->irq = pci_allocate_irq(dev);
 
     if (s->masterbus) {
-        USBPort *ports[NB_PORTS];
-        for(i = 0; i < NB_PORTS; i++) {
+        USBPort *ports[UHCI_PORTS];
+        for(i = 0; i < UHCI_PORTS; i++) {
             ports[i] = &s->ports[i].port;
         }
-        usb_register_companion(s->masterbus, ports, NB_PORTS,
+        usb_register_companion(s->masterbus, ports, UHCI_PORTS,
                                s->firstport, s, &uhci_port_ops,
                                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
                                &err);
@@ -1185,14 +1187,14 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
         }
     } else {
         usb_bus_new(&s->bus, sizeof(s->bus), &uhci_bus_ops, DEVICE(dev));
-        for (i = 0; i < NB_PORTS; i++) {
+        for (i = 0; i < UHCI_PORTS; i++) {
             usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         }
     }
     s->bh = qemu_bh_new_guarded(uhci_bh, s, &DEVICE(dev)->mem_reentrancy_guard);
     s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uhci_frame_timer, s);
-    s->num_ports_vmstate = NB_PORTS;
+    s->num_ports_vmstate = UHCI_PORTS;
     QTAILQ_INIT(&s->queues);
 
     memory_region_init_io(&s->io_bar, OBJECT(s), &uhci_ioport_ops, s,

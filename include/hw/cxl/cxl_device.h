@@ -268,7 +268,7 @@ void cxl_event_set_status(CXLDeviceState *cxl_dstate, CXLEventLogType log_type,
 /*
  * Helper macro to initialize capability headers for CXL devices.
  *
- * In CXL r3.1 Section 8.2.8.2: CXL Device Capablity Header Register, this is
+ * In CXL r3.1 Section 8.2.8.2: CXL Device Capability Header Register, this is
  * listed as a 128b register, but in CXL r3.1 Section 8.2.8: CXL Device Register
  * Interface, it says:
  * > No registers defined in Section 8.2.8 are larger than 64-bits wide so that
@@ -276,7 +276,7 @@ void cxl_event_set_status(CXLDeviceState *cxl_dstate, CXLEventLogType log_type,
  * > followed, the behavior is undefined.
  *
  * > To illustrate how the fields fit together, the layouts ... are shown as
- * > wider than a 64 bit register. Implemenations are expected to use any size
+ * > wider than a 64 bit register. Implementations are expected to use any size
  * > accesses for this information up to 64 bits without lost of functionality
  *
  * Here we've chosen to make it 4 dwords.

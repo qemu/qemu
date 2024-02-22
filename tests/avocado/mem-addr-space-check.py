@@ -165,7 +165,7 @@ class MemAddrCheck(QemuSystemTest):
         For q35-7.0 machines, "above 4G" memory starts are 4G.
         pci64_hole size is 32 GiB. Since TCG_PHYS_ADDR_BITS is defined to
         be 40, TCG emulated CPUs have maximum of 1 TiB (1024 GiB) of
-        directly addressible memory.
+        directly addressable memory.
         Hence, maxmem value at most can be
         1024 GiB - 4 GiB - 1 GiB per slot for alignment - 32 GiB + 0.5 GiB
         which is equal to 987.5 GiB. Setting the value to 988 GiB should
@@ -190,7 +190,7 @@ class MemAddrCheck(QemuSystemTest):
         AMD_HT_START is defined to be at 1012 GiB. So for q35 machines
         version > 7.0 and AMD cpus, instead of 1024 GiB limit for 40 bit
         processor address space, it has to be 1012 GiB , that is 12 GiB
-        less than the case above in order to accomodate HT hole.
+        less than the case above in order to accommodate HT hole.
         Make sure QEMU fails when maxmem size is 976 GiB (12 GiB less
         than 988 GiB).
         """
@@ -297,7 +297,7 @@ class MemAddrCheck(QemuSystemTest):
         :avocado: tags=arch:x86_64
 
         AMD processor with 41 bits. Max cpu hw address = 2 TiB.
-        Same as above but by setting maxram beween 976 GiB and 992 Gib,
+        Same as above but by setting maxram between 976 GiB and 992 Gib,
         QEMU should start fine.
         """
         self.vm.add_args('-S', '-cpu', 'EPYC-v4,phys-bits=41',

@@ -76,7 +76,7 @@ static int required_atomicity(CPUState *cpu, uintptr_t p, MemOp memop)
         /*
          * Examine the alignment of p to determine if there are subobjects
          * that must be aligned.  Note that we only really need ctz4() --
-         * any more sigificant bits are discarded by the immediately
+         * any more significant bits are discarded by the immediately
          * following comparison.
          */
         tmp = ctz32(p);

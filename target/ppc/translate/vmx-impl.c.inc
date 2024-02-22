@@ -1183,7 +1183,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
 
 /*
  * Support for Altivec instructions that use bit 31 (Rc) as an opcode
- * bit but also use bit 21 as an actual Rc bit.  In general, thse pairs
+ * bit but also use bit 21 as an actual Rc bit.  In general, these pairs
  * come from different versions of the ISA, so we must also support a
  * pair of flags for each instruction.
  */

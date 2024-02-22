@@ -35,7 +35,7 @@
 
 typedef struct UHCIQueue UHCIQueue;
 
-#define NB_PORTS 2
+#define UHCI_PORTS 2
 
 typedef struct UHCIPort {
     USBPort port;
@@ -59,7 +59,7 @@ typedef struct UHCIState {
     uint32_t frame_bytes;
     uint32_t frame_bandwidth;
     bool completions_only;
-    UHCIPort ports[NB_PORTS];
+    UHCIPort ports[UHCI_PORTS];
     qemu_irq irq;
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;

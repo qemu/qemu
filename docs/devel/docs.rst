@@ -21,7 +21,7 @@ are processed in two ways:
 
 The syntax of these ``.hx`` files is simple. It is broadly an
 alternation of C code put into the C output and rST format text
-put into the documention. A few special directives are recognised;
+put into the documentation. A few special directives are recognised;
 these are all-caps and must be at the beginning of the line.
 
 ``HXCOMM`` is the comment marker. The line, including any arbitrary

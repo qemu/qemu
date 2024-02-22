@@ -783,9 +783,9 @@ static void ehci_register_companion(USBBus *bus, USBPort *ports[],
     EHCIState *s = container_of(bus, EHCIState, bus);
     uint32_t i;
 
-    if (firstport + portcount > NB_PORTS) {
+    if (firstport + portcount > EHCI_PORTS) {
         error_setg(errp, "firstport must be between 0 and %u",
-                   NB_PORTS - portcount);
+                   EHCI_PORTS - portcount);
         return;
     }
 
@@ -831,7 +831,7 @@ static USBDevice *ehci_find_device(EHCIState *ehci, uint8_t addr)
     USBPort *port;
     int i;
 
-    for (i = 0; i < NB_PORTS; i++) {
+    for (i = 0; i < EHCI_PORTS; i++) {
         port = &ehci->ports[i];
         if (!(ehci->portsc[i] & PORTSC_PED)) {
             DPRINTF("Port %d not enabled\n", i);
@@ -850,7 +850,7 @@ void ehci_reset(void *opaque)
 {
     EHCIState *s = opaque;
     int i;
-    USBDevice *devs[NB_PORTS];
+    USBDevice *devs[EHCI_PORTS];
 
     trace_usb_ehci_reset();
 
@@ -858,7 +858,7 @@ void ehci_reset(void *opaque)
      * Do the detach before touching portsc, so that it correctly gets send to
      * us or to our companion based on PORTSC_POWNER before the reset.
      */
-    for(i = 0; i < NB_PORTS; i++) {
+    for(i = 0; i < EHCI_PORTS; i++) {
         devs[i] = s->ports[i].dev;
         if (devs[i] && devs[i]->attached) {
             usb_detach(&s->ports[i]);
@@ -877,7 +877,7 @@ void ehci_reset(void *opaque)
     s->astate = EST_INACTIVE;
     s->pstate = EST_INACTIVE;
 
-    for(i = 0; i < NB_PORTS; i++) {
+    for(i = 0; i < EHCI_PORTS; i++) {
         if (s->companion_ports[i]) {
             s->portsc[i] = PORTSC_POWNER | PORTSC_PPOWER;
         } else {
@@ -1086,8 +1086,9 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
     case CONFIGFLAG:
         val &= 0x1;
         if (val) {
-            for(i = 0; i < NB_PORTS; i++)
+            for (i = 0; i < EHCI_PORTS; i++) {
                 handle_port_owner_write(s, i, 0);
+            }
         }
         break;
 
@@ -2426,7 +2427,7 @@ static int usb_ehci_post_load(void *opaque, int version_id)
     EHCIState *s = opaque;
     int i;
 
-    for (i = 0; i < NB_PORTS; i++) {
+    for (i = 0; i < EHCI_PORTS; i++) {
         USBPort *companion = s->companion_ports[i];
         if (companion == NULL) {
             continue;
@@ -2508,9 +2509,9 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
 {
     int i;
 
-    if (s->portnr > NB_PORTS) {
+    if (s->portnr > EHCI_PORTS) {
         error_setg(errp, "Too many ports! Max. port number is %d.",
-                   NB_PORTS);
+                   EHCI_PORTS);
         return;
     }
     if (s->maxframes < 8 || s->maxframes > 512)  {

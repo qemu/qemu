@@ -131,7 +131,7 @@ def create_parser():
                               'checks of the pipeline status.  Defaults '
                               'to %(default)s'))
     parser.add_argument('-w', '--wait', action='store_true', default=False,
-                        help=('Wether to wait, instead of checking only once '
+                        help=('Whether to wait, instead of checking only once '
                               'the status of a pipeline'))
     parser.add_argument('-p', '--project-id', type=int, default=11167699,
                         help=('The GitLab project ID. Defaults to the project '

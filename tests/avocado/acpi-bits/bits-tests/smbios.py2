@@ -1060,7 +1060,7 @@ class EventLogDescriptor(unpack.Struct):
             0x16: 'Log Area Reset/Cleared',
             0x17: 'System boot',
             xrange(0x18, 0x7F): 'Unused, available for assignment',
-            xrange(0x80, 0xFE): 'Availalbe for system- and OEM-specific assignments',
+            xrange(0x80, 0xFE): 'Available for system- and OEM-specific assignments',
             0xFF: 'End of log'
         }
         yield 'log_type', u.unpack_one('B'), unpack.format_table("{}", _event_log_type_descriptors)

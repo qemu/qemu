@@ -37,7 +37,7 @@
 #define MMIO_SIZE        0x1000
 #define CAPA_SIZE        0x10
 
-#define NB_PORTS         6        /* Max. Number of downstream ports */
+#define EHCI_PORTS       6        /* Max. Number of downstream ports */
 
 typedef struct EHCIPacket EHCIPacket;
 typedef struct EHCIQueue EHCIQueue;
@@ -288,7 +288,7 @@ struct EHCIState {
             uint32_t configflag;
         };
     };
-    uint32_t portsc[NB_PORTS];
+    uint32_t portsc[EHCI_PORTS];
 
     /*
      *  Internal states, shadow registers, etc
@@ -298,8 +298,8 @@ struct EHCIState {
     bool working;
     uint32_t astate;         /* Current state in asynchronous schedule */
     uint32_t pstate;         /* Current state in periodic schedule     */
-    USBPort ports[NB_PORTS];
-    USBPort *companion_ports[NB_PORTS];
+    USBPort ports[EHCI_PORTS];
+    USBPort *companion_ports[EHCI_PORTS];
     uint32_t usbsts_pending;
     uint32_t usbsts_frindex;
     EHCIQueueHead aqueues;

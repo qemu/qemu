@@ -67,7 +67,7 @@
   and enable the use of well-known bootloaders such as U-Boot.
   OpenSBI is distributed under the terms of the BSD 2-clause license
   ("Simplified BSD License" or "FreeBSD License", SPDX: BSD-2-Clause). OpenSBI
-  source code also contains code reused from other projects desribed here:
+  source code also contains code reused from other projects described here:
   https://github.com/riscv/opensbi/blob/master/ThirdPartyNotices.md.
 
 - npcm7xx_bootrom.bin is a simplified, free (Apache 2.0) boot ROM for Nuvoton
