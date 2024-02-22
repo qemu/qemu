@@ -636,19 +636,28 @@
 #
 # @normal: the original form of migration. (since 8.2)
 #
-# @cpr-reboot: The migrate command saves state to a file, allowing one to
-#              quit qemu, reboot to an updated kernel, and restart an updated
-#              version of qemu.  The caller must specify a migration URI
-#              that writes to and reads from a file.  Unlike normal mode,
-#              the use of certain local storage options does not block the
-#              migration, but the caller must not modify guest block devices
-#              between the quit and restart.  To avoid saving guest RAM to the
-#              file, the memory backend must be shared, and the @x-ignore-shared
-#              migration capability must be set.  Guest RAM must be non-volatile
-#              across reboot, such as by backing it with a dax device, but this
-#              is not enforced.  The restarted qemu arguments must match those
-#              used to initially start qemu, plus the -incoming option.
-#              (since 8.2)
+# @cpr-reboot: The migrate command stops the VM and saves state to the URI.
+#     After quitting qemu, the user resumes by running qemu -incoming.
+#
+#     This mode allows the user to quit qemu, and restart an updated version
+#     of qemu.  The user may even update and reboot the OS before restarting,
+#     as long as the URI persists across a reboot.
+#
+#     Unlike normal mode, the use of certain local storage options does not
+#     block the migration, but the user must not modify guest block devices
+#     between the quit and restart.
+#
+#     This mode supports vfio devices provided the user first puts the guest
+#     in the suspended runstate, such as by issuing guest-suspend-ram to the
+#     qemu guest agent.
+#
+#     Best performance is achieved when the memory backend is shared and the
+#     @x-ignore-shared migration capability is set, but this is not required.
+#     Further, if the user reboots before restarting such a configuration, the
+#     shared backend must be be non-volatile across reboot, such as by backing
+#     it with a dax device.
+#
+#     (since 8.2)
 ##
 { 'enum': 'MigMode',
   'data': [ 'normal', 'cpr-reboot' ] }
