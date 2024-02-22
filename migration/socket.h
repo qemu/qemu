@@ -23,7 +23,6 @@
 
 void socket_send_channel_create(QIOTaskFunc f, void *data);
 QIOChannel *socket_send_channel_create_sync(Error **errp);
-int socket_send_channel_destroy(QIOChannel *send);
 
 void socket_start_incoming_migration(SocketAddress *saddr, Error **errp);
 

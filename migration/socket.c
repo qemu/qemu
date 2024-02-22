@@ -60,13 +60,6 @@ QIOChannel *socket_send_channel_create_sync(Error **errp)
     return QIO_CHANNEL(sioc);
 }
 
-int socket_send_channel_destroy(QIOChannel *send)
-{
-    /* Remove channel */
-    object_unref(OBJECT(send));
-    return 0;
-}
-
 struct SocketConnectData {
     MigrationState *s;
     char *hostname;

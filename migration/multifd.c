@@ -659,16 +659,11 @@ static void multifd_send_terminate_threads(void)
     }
 }
 
-static int multifd_send_channel_destroy(QIOChannel *send)
-{
-    return socket_send_channel_destroy(send);
-}
-
 static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
 {
     if (p->c) {
         migration_ioc_unregister_yank(p->c);
-        multifd_send_channel_destroy(p->c);
+        object_unref(OBJECT(p->c));
         p->c = NULL;
     }
     qemu_sem_destroy(&p->sem);
