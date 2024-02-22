@@ -80,7 +80,7 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
     pnd.errp = errp;
 
     return notifier_with_return_list_notify(&postcopy_notifier_list,
-                                            &pnd);
+                                            &pnd, errp);
 }
 
 /*

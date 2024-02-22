@@ -2084,7 +2084,7 @@ static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
 }
 
 static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
-                                        void *opaque)
+                                        void *opaque, Error **errp)
 {
     struct PostcopyNotifyData *pnd = opaque;
     struct vhost_user *u = container_of(notifier, struct vhost_user,
