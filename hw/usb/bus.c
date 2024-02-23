@@ -100,19 +100,6 @@ void usb_bus_release(USBBus *bus)
     QTAILQ_REMOVE(&busses, bus, next);
 }
 
-USBBus *usb_bus_find(int busnr)
-{
-    USBBus *bus;
-
-    if (-1 == busnr)
-        return QTAILQ_FIRST(&busses);
-    QTAILQ_FOREACH(bus, &busses, next) {
-        if (bus->busnr == busnr)
-            return bus;
-    }
-    return NULL;
-}
-
 static void usb_device_realize(USBDevice *dev, Error **errp)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
@@ -643,7 +630,7 @@ HumanReadableText *qmp_x_query_usb(Error **errp)
 /* handle legacy -usbdevice cmd line option */
 USBDevice *usbdevice_create(const char *driver)
 {
-    USBBus *bus = usb_bus_find(-1 /* any */);
+    USBBus *bus = QTAILQ_FIRST(&busses);
     LegacyUSBFactory *f = NULL;
     Error *err = NULL;
     GSList *i;
