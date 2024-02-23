@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2016 Artyom Tarasenko
  *
- * This code is licensed under the GNU GPL v3 or (at your option) any later
+ * This code is licensed under the GNU GPL v2 or (at your option) any later
  * version.
  */
 
