@@ -152,6 +152,7 @@ static int ioapic_dispatch_post_load(void *opaque, int version_id)
 
 static void ioapic_common_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
     IOAPICCommonClass *info;
 
@@ -162,6 +163,9 @@ static void ioapic_common_realize(DeviceState *dev, Error **errp)
 
     info = IOAPIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
+    if (*errp) {
+        return;
+    }
 
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->io_memory);
     ioapic_no++;
