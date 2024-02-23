@@ -1551,6 +1551,7 @@ static void pnv_chip_power9_instance_init(Object *obj)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
 
+    object_initialize_child(obj, "adu",  &chip9->adu, TYPE_PNV_ADU);
     object_initialize_child(obj, "xive", &chip9->xive, TYPE_PNV_XIVE);
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip9->xive),
                               "xive-fabric");
@@ -1660,6 +1661,13 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* ADU */
+    if (!qdev_realize(DEVICE(&chip9->adu), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_ADU_BASE,
+                            &chip9->adu.xscom_regs);
 
     pnv_chip_quad_realize(chip9, &local_err);
     if (local_err) {
@@ -1827,6 +1835,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
 
+    object_initialize_child(obj, "adu",  &chip10->adu, TYPE_PNV_ADU);
     object_initialize_child(obj, "xive", &chip10->xive, TYPE_PNV_XIVE2);
     object_property_add_alias(obj, "xive-fabric", OBJECT(&chip10->xive),
                               "xive-fabric");
@@ -1918,6 +1927,13 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* ADU */
+    if (!qdev_realize(DEVICE(&chip10->adu), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_ADU_BASE,
+                            &chip10->adu.xscom_regs);
 
     pnv_chip_power10_quad_realize(chip10, &local_err);
     if (local_err) {

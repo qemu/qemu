@@ -82,6 +82,9 @@ struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_PBCQ_SPCI_BASE  0x9013c00
 #define PNV_XSCOM_PBCQ_SPCI_SIZE  0x5
 
+#define PNV9_XSCOM_ADU_BASE       0x0090000
+#define PNV9_XSCOM_ADU_SIZE       0x55
+
 /*
  * Layout of the XSCOM PCB addresses (POWER 9)
  */
@@ -127,6 +130,9 @@ struct PnvXScomInterfaceClass {
 #define PNV9_XSCOM_PEC_PCI_STK0   0x100
 #define PNV9_XSCOM_PEC_PCI_STK1   0x140
 #define PNV9_XSCOM_PEC_PCI_STK2   0x180
+
+#define PNV10_XSCOM_ADU_BASE      0x0090000
+#define PNV10_XSCOM_ADU_SIZE      0x55
 
 /*
  * Layout of the XSCOM PCB addresses (POWER 10)

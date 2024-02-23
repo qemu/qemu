@@ -2,6 +2,7 @@
 #define PPC_PNV_CHIP_H
 
 #include "hw/pci-host/pnv_phb4.h"
+#include "hw/ppc/pnv_adu.h"
 #include "hw/ppc/pnv_chiptod.h"
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_homer.h"
@@ -77,6 +78,7 @@ struct Pnv9Chip {
     PnvChip      parent_obj;
 
     /*< public >*/
+    PnvADU       adu;
     PnvXive      xive;
     Pnv9Psi      psi;
     PnvLpcController lpc;
@@ -110,6 +112,7 @@ struct Pnv10Chip {
     PnvChip      parent_obj;
 
     /*< public >*/
+    PnvADU       adu;
     PnvXive2     xive;
     Pnv9Psi      psi;
     PnvLpcController lpc;
