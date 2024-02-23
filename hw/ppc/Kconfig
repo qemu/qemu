@@ -70,7 +70,7 @@ config SAM460EX
     select SM501
     select SMBUS_EEPROM
     select USB_EHCI_SYSBUS
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
     select FDT_PPC
 
 config AMIGAONE
