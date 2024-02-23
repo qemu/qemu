@@ -28,18 +28,3 @@ void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
 void destroy_ppc_opcodes(PowerPCCPU *cpu)
 {
 }
-
-target_ulong softmmu_resize_hpt_prepare(PowerPCCPU *cpu,
-                                        SpaprMachineState *spapr,
-                                        target_ulong shift)
-{
-    g_assert_not_reached();
-}
-
-target_ulong softmmu_resize_hpt_commit(PowerPCCPU *cpu,
-                                       SpaprMachineState *spapr,
-                                       target_ulong flags,
-                                       target_ulong shift)
-{
-    g_assert_not_reached();
-}

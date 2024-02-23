@@ -749,12 +749,29 @@ target_ulong helper_4xx_tlbre_lo(CPUPPCState *env, target_ulong entry)
     return ret;
 }
 
+static void ppcemb_tlb_flush(CPUState *cs, ppcemb_tlb_t *tlb)
+{
+    unsigned mmu_idx = 0;
+
+    if (tlb->prot & 0xf) {
+        mmu_idx |= 0x1;
+    }
+    if ((tlb->prot >> 4) & 0xf) {
+        mmu_idx |= 0x2;
+    }
+    if (tlb->attr & 1) {
+        mmu_idx <<= 2;
+    }
+
+    tlb_flush_range_by_mmuidx(cs, tlb->EPN, tlb->size, mmu_idx,
+                              TARGET_LONG_BITS);
+}
+
 void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     ppcemb_tlb_t *tlb;
-    target_ulong page, end;
 
     qemu_log_mask(CPU_LOG_MMU, "%s entry %d val " TARGET_FMT_lx "\n",
                   __func__, (int)entry,
@@ -762,14 +779,11 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
     /* Invalidate previous TLB (if it's valid) */
-    if (tlb->prot & PAGE_VALID) {
-        end = tlb->EPN + tlb->size;
+    if ((tlb->prot & PAGE_VALID) && tlb->PID == env->spr[SPR_40x_PID]) {
         qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
                       TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
-                      (int)entry, tlb->EPN, end);
-        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-            tlb_flush_page(cs, page);
-        }
+                      (int)entry, tlb->EPN, tlb->EPN + tlb->size);
+        ppcemb_tlb_flush(cs, tlb);
     }
     tlb->size = booke_tlb_to_page_size((val >> PPC4XX_TLBHI_SIZE_SHIFT)
                                        & PPC4XX_TLBHI_SIZE_MASK);
@@ -803,27 +817,25 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_WRITE ? 'w' : '-',
                   tlb->prot & PAGE_EXEC ? 'x' : '-',
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
-    /* Invalidate new TLB (if valid) */
-    if (tlb->prot & PAGE_VALID) {
-        end = tlb->EPN + tlb->size;
-        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate TLB %d start "
-                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
-                      (int)entry, tlb->EPN, end);
-        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
-            tlb_flush_page(cs, page);
-        }
-    }
 }
 
 void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
+    CPUState *cs = env_cpu(env);
     ppcemb_tlb_t *tlb;
 
     qemu_log_mask(CPU_LOG_MMU, "%s entry %i val " TARGET_FMT_lx "\n",
                   __func__, (int)entry, val);
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
+    /* Invalidate previous TLB (if it's valid) */
+    if ((tlb->prot & PAGE_VALID) && tlb->PID == env->spr[SPR_40x_PID]) {
+        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
+                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
+                      (int)entry, tlb->EPN, tlb->EPN + tlb->size);
+        ppcemb_tlb_flush(cs, tlb);
+    }
     tlb->attr = val & PPC4XX_TLBLO_ATTR_MASK;
     tlb->RPN = val & PPC4XX_TLBLO_RPN_MASK;
     tlb->prot = PAGE_READ;
@@ -841,8 +853,6 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_WRITE ? 'w' : '-',
                   tlb->prot & PAGE_EXEC ? 'x' : '-',
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
-
-    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
 }
 
 target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
@@ -850,54 +860,61 @@ target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
     return ppcemb_tlb_search(env, address, env->spr[SPR_40x_PID]);
 }
 
+static bool mmubooke_pid_match(CPUPPCState *env, ppcemb_tlb_t *tlb)
+{
+    if (tlb->PID == env->spr[SPR_BOOKE_PID]) {
+        return true;
+    }
+    if (!env->nb_pids) {
+        return false;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] && tlb->PID == env->spr[SPR_BOOKE_PID1]) {
+        return true;
+    }
+    if (env->spr[SPR_BOOKE_PID2] && tlb->PID == env->spr[SPR_BOOKE_PID2]) {
+        return true;
+    }
+
+    return false;
+}
+
 /* PowerPC 440 TLB management */
 void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
 {
     ppcemb_tlb_t *tlb;
-    target_ulong EPN, RPN, size;
-    int do_flush_tlbs;
 
     qemu_log_mask(CPU_LOG_MMU, "%s word %d entry %d value " TARGET_FMT_lx "\n",
                   __func__, word, (int)entry, value);
-    do_flush_tlbs = 0;
     entry &= 0x3F;
     tlb = &env->tlb.tlbe[entry];
+
+    /* Invalidate previous TLB (if it's valid) */
+    if ((tlb->prot & PAGE_VALID) && mmubooke_pid_match(env, tlb)) {
+        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
+                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
+                      (int)entry, tlb->EPN, tlb->EPN + tlb->size);
+        ppcemb_tlb_flush(env_cpu(env), tlb);
+    }
+
     switch (word) {
     default:
         /* Just here to please gcc */
     case 0:
-        EPN = value & 0xFFFFFC00;
-        if ((tlb->prot & PAGE_VALID) && EPN != tlb->EPN) {
-            do_flush_tlbs = 1;
-        }
-        tlb->EPN = EPN;
-        size = booke_tlb_to_page_size((value >> 4) & 0xF);
-        if ((tlb->prot & PAGE_VALID) && tlb->size < size) {
-            do_flush_tlbs = 1;
-        }
-        tlb->size = size;
+        tlb->EPN = value & 0xFFFFFC00;
+        tlb->size = booke_tlb_to_page_size((value >> 4) & 0xF);
         tlb->attr &= ~0x1;
         tlb->attr |= (value >> 8) & 1;
         if (value & 0x200) {
             tlb->prot |= PAGE_VALID;
         } else {
-            if (tlb->prot & PAGE_VALID) {
-                tlb->prot &= ~PAGE_VALID;
-                do_flush_tlbs = 1;
-            }
+            tlb->prot &= ~PAGE_VALID;
         }
         tlb->PID = env->spr[SPR_440_MMUCR] & 0x000000FF;
-        if (do_flush_tlbs) {
-            tlb_flush(env_cpu(env));
-        }
         break;
     case 1:
-        RPN = value & 0xFFFFFC0F;
-        if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN) {
-            tlb_flush(env_cpu(env));
-        }
-        tlb->RPN = RPN;
+        tlb->RPN = value & 0xFFFFFC0F;
         break;
     case 2:
         tlb->attr = (tlb->attr & 0x1) | (value & 0x0000FF00);

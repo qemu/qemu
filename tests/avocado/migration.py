@@ -123,7 +123,6 @@ class PPC64(MigrationTest):
     """
     :avocado: tags=arch:ppc64
     :avocado: tags=machine:pseries
-    :avocado: tags=cpu:power9_v2.0
     """
 
     def test_migration_with_tcp_localhost(self):

@@ -32,6 +32,8 @@ config POWERNV
     select XIVE
     select FDT_PPC
     select PCI_POWERNV
+    select PCA9552
+    select PCA9554
 
 config PPC405
     bool
