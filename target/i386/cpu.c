@@ -6412,6 +6412,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         }
 
+        /*
+         * If these are changed, they should stay in sync with
+         * x86_cpu_filter_features().
+         */
         if (count == 0) {
             *eax = INTEL_PT_MAX_SUBLEAF;
             *ebx = INTEL_PT_MINIMAL_EBX;
@@ -7156,7 +7160,12 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
     }
 
-    if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) {
+    /*
+     * Check that KVM actually allows the processor tracing features that
+     * are advertised by cpu_x86_cpuid().  Keep these two in sync.
+     */
+    if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) &&
+        kvm_enabled()) {
         uint32_t eax_0, ebx_0, ecx_0, edx_0_unused;
         uint32_t eax_1, ebx_1, ecx_1_unused, edx_1_unused;
 

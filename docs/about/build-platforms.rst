@@ -139,6 +139,8 @@ unprivileged accounts can create symlinks if Developer Mode is enabled.
 When Developer Mode is not available/enabled, the SeCreateSymbolicLinkPrivilege
 privilege is required, or the process must be run as an administrator.
 
+Only 64-bit Windows is supported.
+
 .. _Homebrew: https://brew.sh/
 .. _MacPorts: https://www.macports.org/
 .. _MSYS2: https://www.msys2.org/

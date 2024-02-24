@@ -159,20 +159,6 @@ cross-mips64el-kvm-only:
     IMAGE: debian-mips64el-cross
     EXTRA_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
 
-cross-win32-system:
-  extends: .cross_system_build_job
-  needs:
-    job: win32-fedora-cross-container
-  variables:
-    IMAGE: fedora-win32-cross
-    EXTRA_CONFIGURE_OPTS: --enable-fdt=internal
-    CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu m68k-softmmu
-                        microblazeel-softmmu mips64el-softmmu nios2-softmmu
-  artifacts:
-    when: on_success
-    paths:
-      - build/qemu-setup*.exe
-
 cross-win64-system:
   extends: .cross_system_build_job
   needs:
