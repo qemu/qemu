@@ -1451,8 +1451,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     /* Coordinates have to be calculated each time because the window can change its size */
     int xCoord, yCoord, width, height;
-    xCoord = ([normalWindow frame].size.width - [pauseLabel frame].size.width)/2;
-    yCoord = [normalWindow frame].size.height - [pauseLabel frame].size.height - ([pauseLabel frame].size.height * .5);
+    xCoord = ([cocoaView frame].size.width - [pauseLabel frame].size.width)/2;
+    yCoord = [cocoaView frame].size.height - [pauseLabel frame].size.height - ([pauseLabel frame].size.height * .5);
     width = [pauseLabel frame].size.width;
     height = [pauseLabel frame].size.height;
     [pauseLabel setFrame: NSMakeRect(xCoord, yCoord, width, height)];
