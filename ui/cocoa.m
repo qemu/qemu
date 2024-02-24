@@ -1102,42 +1102,58 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 
     if (mouse_event) {
-        /* Don't send button events to the guest unless we've got a
-         * mouse grab or window focus. If we have neither then this event
-         * is the user clicking on the background window to activate and
-         * bring us to the front, which will be done by the sendEvent
-         * call below. We definitely don't want to pass that click through
-         * to the guest.
-         */
-        if ((isMouseGrabbed || [[self window] isKeyWindow]) &&
-            (last_buttons != buttons)) {
-            static uint32_t bmap[INPUT_BUTTON__MAX] = {
-                [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
-                [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
-                [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON
-            };
-            qemu_input_update_buttons(dcl.con, bmap, last_buttons, buttons);
-            last_buttons = buttons;
-        }
-        if (isMouseGrabbed) {
-            if (isAbsoluteEnabled) {
-                /* Note that the origin for Cocoa mouse coords is bottom left, not top left.
-                 * The check on screenContainsPoint is to avoid sending out of range values for
-                 * clicks in the titlebar.
-                 */
-                if ([self screenContainsPoint:p]) {
-                    qemu_input_queue_abs(dcl.con, INPUT_AXIS_X, p.x, 0, screen.width);
-                    qemu_input_queue_abs(dcl.con, INPUT_AXIS_Y, screen.height - p.y, 0, screen.height);
-                }
-            } else {
-                qemu_input_queue_rel(dcl.con, INPUT_AXIS_X, (int)[event deltaX]);
-                qemu_input_queue_rel(dcl.con, INPUT_AXIS_Y, (int)[event deltaY]);
-            }
-        } else {
-            return false;
-        }
-        qemu_input_event_sync();
+        return [self handleMouseEvent:event buttons:buttons];
     }
+    return true;
+}
+
+- (bool) handleMouseEvent:(NSEvent *)event buttons:(uint32_t)buttons
+{
+    /* Don't send button events to the guest unless we've got a
+     * mouse grab or window focus. If we have neither then this event
+     * is the user clicking on the background window to activate and
+     * bring us to the front, which will be done by the sendEvent
+     * call below. We definitely don't want to pass that click through
+     * to the guest.
+     */
+    if ((isMouseGrabbed || [[self window] isKeyWindow]) &&
+        (last_buttons != buttons)) {
+        static uint32_t bmap[INPUT_BUTTON__MAX] = {
+            [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
+            [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
+            [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON
+        };
+        qemu_input_update_buttons(dcl.con, bmap, last_buttons, buttons);
+        last_buttons = buttons;
+    }
+
+    return [self handleMouseEvent:event];
+}
+
+- (bool) handleMouseEvent:(NSEvent *)event
+{
+    if (!isMouseGrabbed) {
+        return false;
+    }
+
+    if (isAbsoluteEnabled) {
+        NSPoint p = [self screenLocationOfEvent:event];
+
+        /* Note that the origin for Cocoa mouse coords is bottom left, not top left.
+         * The check on screenContainsPoint is to avoid sending out of range values for
+         * clicks in the titlebar.
+         */
+        if ([self screenContainsPoint:p]) {
+            qemu_input_queue_abs(dcl.con, INPUT_AXIS_X, p.x, 0, screen.width);
+            qemu_input_queue_abs(dcl.con, INPUT_AXIS_Y, screen.height - p.y, 0, screen.height);
+        }
+    } else {
+        qemu_input_queue_rel(dcl.con, INPUT_AXIS_X, (int)[event deltaX]);
+        qemu_input_queue_rel(dcl.con, INPUT_AXIS_Y, (int)[event deltaY]);
+    }
+
+    qemu_input_event_sync();
+
     return true;
 }
 
