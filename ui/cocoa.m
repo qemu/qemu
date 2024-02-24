@@ -103,7 +103,6 @@ static const DisplayChangeListenerOps dcl_ops = {
 static DisplayChangeListener dcl = {
     .ops = &dcl_ops,
 };
-static int last_buttons;
 static int cursor_hide = 1;
 static int left_command_key_enabled = 1;
 static bool swap_opt_cmd;
@@ -1019,19 +1018,19 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                     }
                 }
             }
-            return [self handleMouseEvent:event buttons:0];
+            return [self handleMouseEvent:event];
         case NSEventTypeLeftMouseDown:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_LBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_LEFT down:true];
         case NSEventTypeRightMouseDown:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_RBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_RIGHT down:true];
         case NSEventTypeOtherMouseDown:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_MBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_MIDDLE down:true];
         case NSEventTypeLeftMouseDragged:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_LBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_LEFT down:true];
         case NSEventTypeRightMouseDragged:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_RBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_RIGHT down:true];
         case NSEventTypeOtherMouseDragged:
-            return [self handleMouseEvent:event buttons:MOUSE_EVENT_MBUTTON];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_MIDDLE down:true];
         case NSEventTypeLeftMouseUp:
             if (!isMouseGrabbed && [self screenContainsPoint:p]) {
                 /*
@@ -1043,11 +1042,11 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                     [self grabMouse];
                 }
             }
-            return [self handleMouseEvent:event buttons:0];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_LEFT down:false];
         case NSEventTypeRightMouseUp:
-            return [self handleMouseEvent:event buttons:0];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_RIGHT down:false];
         case NSEventTypeOtherMouseUp:
-            return [self handleMouseEvent:event buttons:0];
+            return [self handleMouseEvent:event button:INPUT_BUTTON_MIDDLE down:false];
         case NSEventTypeScrollWheel:
             /*
              * Send wheel events to the guest regardless of window focus.
@@ -1080,7 +1079,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 }
 
-- (bool) handleMouseEvent:(NSEvent *)event buttons:(uint32_t)buttons
+- (bool) handleMouseEvent:(NSEvent *)event button:(InputButton)button down:(bool)down
 {
     /* Don't send button events to the guest unless we've got a
      * mouse grab or window focus. If we have neither then this event
@@ -1089,16 +1088,11 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
      * call below. We definitely don't want to pass that click through
      * to the guest.
      */
-    if ((isMouseGrabbed || [[self window] isKeyWindow]) &&
-        (last_buttons != buttons)) {
-        static uint32_t bmap[INPUT_BUTTON__MAX] = {
-            [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
-            [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
-            [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON
-        };
-        qemu_input_update_buttons(dcl.con, bmap, last_buttons, buttons);
-        last_buttons = buttons;
+    if (!isMouseGrabbed && ![[self window] isKeyWindow]) {
+        return false;
     }
+
+    qemu_input_queue_btn(dcl.con, button, down);
 
     return [self handleMouseEvent:event];
 }
