@@ -807,9 +807,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     /* Return true if we handled the event, false if it should be given to OSX */
     COCOA_DEBUG("QemuCocoaView: handleEvent\n");
-    int buttons = 0;
+    InputButton button;
     int keycode = 0;
-    bool mouse_event = false;
     // Location of event in virtual screen coordinates
     NSPoint p = [self screenLocationOfEvent:event];
     NSUInteger modifiers = [event modifierFlags];
@@ -955,7 +954,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                     }
                     break;
             }
-            break;
+            return true;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
 
@@ -991,7 +990,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             } else {
                 [self handleMonitorInput: event];
             }
-            break;
+            return true;
         case NSEventTypeKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
 
@@ -1004,7 +1003,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             if (qemu_console_is_graphic(NULL)) {
                 qkbd_state_key_event(kbd, keycode, false);
             }
-            break;
+            return true;
         case NSEventTypeMouseMoved:
             if (isAbsoluteEnabled) {
                 // Cursor re-entered into a window might generate events bound to screen coordinates
@@ -1020,34 +1019,20 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                     }
                 }
             }
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:0];
         case NSEventTypeLeftMouseDown:
-            buttons |= MOUSE_EVENT_LBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_LBUTTON];
         case NSEventTypeRightMouseDown:
-            buttons |= MOUSE_EVENT_RBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_RBUTTON];
         case NSEventTypeOtherMouseDown:
-            buttons |= MOUSE_EVENT_MBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_MBUTTON];
         case NSEventTypeLeftMouseDragged:
-            buttons |= MOUSE_EVENT_LBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_LBUTTON];
         case NSEventTypeRightMouseDragged:
-            buttons |= MOUSE_EVENT_RBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_RBUTTON];
         case NSEventTypeOtherMouseDragged:
-            buttons |= MOUSE_EVENT_MBUTTON;
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:MOUSE_EVENT_MBUTTON];
         case NSEventTypeLeftMouseUp:
-            mouse_event = true;
             if (!isMouseGrabbed && [self screenContainsPoint:p]) {
                 /*
                  * In fullscreen mode, the window of cocoaView may not be the
@@ -1058,53 +1043,41 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                     [self grabMouse];
                 }
             }
-            break;
+            return [self handleMouseEvent:event buttons:0];
         case NSEventTypeRightMouseUp:
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:0];
         case NSEventTypeOtherMouseUp:
-            mouse_event = true;
-            break;
+            return [self handleMouseEvent:event buttons:0];
         case NSEventTypeScrollWheel:
             /*
              * Send wheel events to the guest regardless of window focus.
              * This is in-line with standard Mac OS X UI behaviour.
              */
 
-            /*
-             * We shouldn't have got a scroll event when deltaY and delta Y
-             * are zero, hence no harm in dropping the event
-             */
-            if ([event deltaY] != 0 || [event deltaX] != 0) {
             /* Determine if this is a scroll up or scroll down event */
-                if ([event deltaY] != 0) {
-                  buttons = ([event deltaY] > 0) ?
+            if ([event deltaY] != 0) {
+                button = ([event deltaY] > 0) ?
                     INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
-                } else if ([event deltaX] != 0) {
-                  buttons = ([event deltaX] > 0) ?
+            } else if ([event deltaX] != 0) {
+                button = ([event deltaX] > 0) ?
                     INPUT_BUTTON_WHEEL_LEFT : INPUT_BUTTON_WHEEL_RIGHT;
-                }
-
-                qemu_input_queue_btn(dcl.con, buttons, true);
-                qemu_input_event_sync();
-                qemu_input_queue_btn(dcl.con, buttons, false);
-                qemu_input_event_sync();
+            } else {
+                /*
+                 * We shouldn't have got a scroll event when deltaY and delta Y
+                 * are zero, hence no harm in dropping the event
+                 */
+                return true;
             }
 
-            /*
-             * Since deltaX/deltaY also report scroll wheel events we prevent mouse
-             * movement code from executing.
-             */
-            mouse_event = false;
-            break;
+            qemu_input_queue_btn(dcl.con, button, true);
+            qemu_input_event_sync();
+            qemu_input_queue_btn(dcl.con, button, false);
+            qemu_input_event_sync();
+
+            return true;
         default:
             return false;
     }
-
-    if (mouse_event) {
-        return [self handleMouseEvent:event buttons:buttons];
-    }
-    return true;
 }
 
 - (bool) handleMouseEvent:(NSEvent *)event buttons:(uint32_t)buttons
