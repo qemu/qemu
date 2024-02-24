@@ -218,7 +218,7 @@ static void pc_q35_init(MachineState *machine)
 
     /* pci */
     host_bus = PCI_BUS(qdev_get_child_bus(DEVICE(phb), "pcie.0"));
-    pcms->bus = host_bus;
+    pcms->pcibus = host_bus;
 
     /* irq lines */
     gsi_state = pc_gsi_create(&x86ms->gsi, true);

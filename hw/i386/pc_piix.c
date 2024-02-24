@@ -216,7 +216,7 @@ static void pc_init1(MachineState *machine,
         pci_bus_map_irqs(pci_bus,
                          xen_enabled() ? xen_pci_slot_get_pirq
                                        : pc_pci_slot_get_pirq);
-        pcms->bus = pci_bus;
+        pcms->pcibus = pci_bus;
 
         hole64_size = object_property_get_uint(phb,
                                                PCI_HOST_PROP_PCI_HOLE64_SIZE,
@@ -480,8 +480,8 @@ static void pc_xen_hvm_init(MachineState *machine)
     }
 
     pc_xen_hvm_init_pci(machine);
-    xen_igd_reserve_slot(pcms->bus);
-    pci_create_simple(pcms->bus, -1, "xen-platform");
+    xen_igd_reserve_slot(pcms->pcibus);
+    pci_create_simple(pcms->pcibus, -1, "xen-platform");
 }
 #endif
 
