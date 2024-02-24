@@ -1356,8 +1356,10 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 {
     stretch_video = !stretch_video;
     if (stretch_video == true) {
+        [cocoaView window].styleMask |= NSWindowStyleMaskResizable;
         [sender setState: NSControlStateValueOn];
     } else {
+        [cocoaView window].styleMask &= ~NSWindowStyleMaskResizable;
         [cocoaView resizeWindow];
         [sender setState: NSControlStateValueOff];
     }
@@ -2024,6 +2026,7 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 
     if (opts->u.cocoa.has_zoom_to_fit && opts->u.cocoa.zoom_to_fit) {
         stretch_video = true;
+        [cocoaView window].styleMask |= NSWindowStyleMaskResizable;
     }
 
     if (opts->u.cocoa.has_zoom_interpolation && opts->u.cocoa.zoom_interpolation) {
