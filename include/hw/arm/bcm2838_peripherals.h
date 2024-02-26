@@ -71,6 +71,7 @@ struct BCM2838PeripheralState {
     OrIRQState dma_9_10_irq_orgate;
 
     UnimplementedDeviceState asb;
+    UnimplementedDeviceState clkisp;
 };
 
 struct BCM2838PeripheralClass {
