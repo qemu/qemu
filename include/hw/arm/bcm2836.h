@@ -64,6 +64,7 @@ struct BCM283XState {
     BCM2835PeripheralState peripherals;
 };
 
-bool bcm283x_common_realize(DeviceState *dev, Error **errp);
+bool bcm283x_common_realize(DeviceState *dev, BCMSocPeripheralBaseState *ps,
+                            Error **errp);
 
 #endif /* BCM2836_H */
