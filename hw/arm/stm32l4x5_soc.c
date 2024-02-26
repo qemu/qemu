@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/or-irq.h"
 #include "hw/arm/stm32l4x5_soc.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
@@ -42,21 +43,24 @@
 #define NUM_EXTI_IRQ 40
 /* Match exti line connections with their CPU IRQ number */
 /* See Vector Table (Reference Manual p.396) */
+/*
+ * Some IRQs are connected to the same CPU IRQ (denoted by -1)
+ * and require an intermediary OR gate to function correctly.
+ */
 static const int exti_irq[NUM_EXTI_IRQ] = {
     6,                      /* GPIO[0]                 */
     7,                      /* GPIO[1]                 */
     8,                      /* GPIO[2]                 */
     9,                      /* GPIO[3]                 */
     10,                     /* GPIO[4]                 */
-    23, 23, 23, 23, 23,     /* GPIO[5..9]              */
-    40, 40, 40, 40, 40, 40, /* GPIO[10..15]            */
-    1,                      /* PVD                     */
+    -1, -1, -1, -1, -1,     /* GPIO[5..9] OR gate 23   */
+    -1, -1, -1, -1, -1, -1, /* GPIO[10..15] OR gate 40 */
+    -1,                     /* PVD OR gate 1           */
     67,                     /* OTG_FS_WKUP, Direct     */
     41,                     /* RTC_ALARM               */
     2,                      /* RTC_TAMP_STAMP2/CSS_LSE */
     3,                      /* RTC wakeup timer        */
-    63,                     /* COMP1                   */
-    63,                     /* COMP2                   */
+    -1, -1,                 /* COMP[1..2] OR gate 63   */
     31,                     /* I2C1 wakeup, Direct     */
     33,                     /* I2C2 wakeup, Direct     */
     72,                     /* I2C3 wakeup, Direct     */
@@ -69,11 +73,28 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
     65,                     /* LPTIM1, Direct          */
     66,                     /* LPTIM2, Direct          */
     76,                     /* SWPMI1 wakeup, Direct   */
-    1,                      /* PVM1 wakeup             */
-    1,                      /* PVM2 wakeup             */
-    1,                      /* PVM3 wakeup             */
-    1,                      /* PVM4 wakeup             */
+    -1, -1, -1, -1,         /* PVM[1..4] OR gate 1     */
     78                      /* LCD wakeup, Direct      */
+};
+
+static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
+    23, 40, 63, 1,
+};
+
+static const int exti_or_gates_num_lines_in[NUM_EXTI_OR_GATES] = {
+    5, 6, 2, 5,
+};
+
+/* 3 OR gates with consecutive inputs */
+#define NUM_EXTI_SIMPLE_OR_GATES 3
+static const int exti_or_gates_first_line_in[NUM_EXTI_SIMPLE_OR_GATES] = {
+    5, 10, 21,
+};
+
+/* 1 OR gate with non-consecutive inputs */
+#define EXTI_OR_GATE1_NUM_LINES_IN 5
+static const int exti_or_gate1_lines_in[EXTI_OR_GATE1_NUM_LINES_IN] = {
+    16, 35, 36, 37, 38,
 };
 
 static void stm32l4x5_soc_initfn(Object *obj)
@@ -81,6 +102,10 @@ static void stm32l4x5_soc_initfn(Object *obj)
     Stm32l4x5SocState *s = STM32L4X5_SOC(obj);
 
     object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
+    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
+        object_initialize_child(obj, "exti_or_gates[*]", &s->exti_or_gates[i],
+                                TYPE_OR_IRQ);
+    }
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
@@ -175,8 +200,43 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
     sysbus_mmio_map(busdev, 0, EXTI_ADDR);
+
+    /* IRQs with fan-in that require an OR gate */
+    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
+        if (!object_property_set_int(OBJECT(&s->exti_or_gates[i]), "num-lines",
+                                     exti_or_gates_num_lines_in[i], errp)) {
+            return;
+        }
+        if (!qdev_realize(DEVICE(&s->exti_or_gates[i]), NULL, errp)) {
+            return;
+        }
+
+        qdev_connect_gpio_out(DEVICE(&s->exti_or_gates[i]), 0,
+            qdev_get_gpio_in(armv7m, exti_or_gates_out[i]));
+
+        if (i < NUM_EXTI_SIMPLE_OR_GATES) {
+            /* consecutive inputs for OR gates 23, 40, 63 */
+            for (unsigned j = 0; j < exti_or_gates_num_lines_in[i]; j++) {
+                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
+                    exti_or_gates_first_line_in[i] + j,
+                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
+            }
+        } else {
+            /* non-consecutive inputs for OR gate 1 */
+            for (unsigned j = 0; j < EXTI_OR_GATE1_NUM_LINES_IN; j++) {
+                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
+                    exti_or_gate1_lines_in[j],
+                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
+            }
+        }
+    }
+
+    /* IRQs that don't require fan-in */
     for (unsigned i = 0; i < NUM_EXTI_IRQ; i++) {
-        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, exti_irq[i]));
+        if (exti_irq[i] != -1) {
+            sysbus_connect_irq(busdev, i,
+                               qdev_get_gpio_in(armv7m, exti_irq[i]));
+        }
     }
 
     for (unsigned i = 0; i < 16; i++) {
