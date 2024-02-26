@@ -107,6 +107,7 @@ static int migration_maybe_pause(MigrationState *s,
                                  int new_state);
 static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
+static void migration_completion_end(MigrationState *s);
 
 static void migration_downtime_start(MigrationState *s)
 {
@@ -2787,8 +2788,7 @@ static void migration_completion(MigrationState *s)
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_COLO);
     } else {
-        migrate_set_state(&s->state, current_active_state,
-                          MIGRATION_STATUS_COMPLETED);
+        migration_completion_end(s);
     }
 
     return;
@@ -2825,8 +2825,7 @@ static void bg_migration_completion(MigrationState *s)
         goto fail;
     }
 
-    migrate_set_state(&s->state, current_active_state,
-                      MIGRATION_STATUS_COMPLETED);
+    migration_completion_end(s);
     return;
 
 fail:
@@ -3028,18 +3027,28 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 }
 
-static void migration_calculate_complete(MigrationState *s)
+static void migration_completion_end(MigrationState *s)
 {
     uint64_t bytes = migration_transferred_bytes();
     int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     int64_t transfer_time;
 
+    /*
+     * Take the BQL here so that query-migrate on the QMP thread sees:
+     * - atomic update of s->total_time and s->mbps;
+     * - correct ordering of s->mbps update vs. s->state;
+     */
+    bql_lock();
     migration_downtime_end(s);
     s->total_time = end_time - s->start_time;
     transfer_time = s->total_time - s->setup_time;
     if (transfer_time) {
         s->mbps = ((double) bytes * 8.0) / transfer_time / 1000;
     }
+
+    migrate_set_state(&s->state, s->state,
+                      MIGRATION_STATUS_COMPLETED);
+    bql_unlock();
 }
 
 static void update_iteration_initial_status(MigrationState *s)
@@ -3186,7 +3195,6 @@ static void migration_iteration_finish(MigrationState *s)
     bql_lock();
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
-        migration_calculate_complete(s);
         runstate_set(RUN_STATE_POSTMIGRATE);
         break;
     case MIGRATION_STATUS_COLO:
@@ -3230,9 +3238,6 @@ static void bg_migration_iteration_finish(MigrationState *s)
     bql_lock();
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
-        migration_calculate_complete(s);
-        break;
-
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_FAILED:
     case MIGRATION_STATUS_CANCELLED:
