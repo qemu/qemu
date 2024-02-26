@@ -4066,10 +4066,12 @@ struct elf_thread_status {
     int num_notes;
 };
 
+#define NUMNOTES 3
+
 struct elf_note_info {
-    struct memelfnote   *notes;
-    struct target_elf_prstatus *prstatus;  /* NT_PRSTATUS */
-    struct target_elf_prpsinfo *psinfo;    /* NT_PRPSINFO */
+    struct memelfnote notes[NUMNOTES];
+    struct target_elf_prstatus prstatus;  /* NT_PRSTATUS */
+    struct target_elf_prpsinfo psinfo;    /* NT_PRPSINFO */
 
     QTAILQ_HEAD(, elf_thread_status) thread_list;
 #if 0
@@ -4117,7 +4119,7 @@ static void fill_auxv_note(struct memelfnote *, const TaskState *);
 static void fill_elf_note_phdr(struct elf_phdr *, int, off_t);
 static size_t note_size(const struct memelfnote *);
 static void free_note_info(struct elf_note_info *);
-static int fill_note_info(struct elf_note_info *, long, const CPUArchState *);
+static void fill_note_info(struct elf_note_info *, int, const CPUArchState *);
 static void fill_thread_info(struct elf_note_info *, const CPUArchState *);
 
 static int dump_write(int, const void *, size_t);
@@ -4514,44 +4516,33 @@ static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env
     info->notes_size += note_size(&ets->notes[0]);
 }
 
-static int fill_note_info(struct elf_note_info *info,
-                          long signr, const CPUArchState *env)
+static void fill_note_info(struct elf_note_info *info,
+                           int signr, const CPUArchState *env)
 {
-#define NUMNOTES 3
     CPUState *cpu = env_cpu((CPUArchState *)env);
     TaskState *ts = (TaskState *)cpu->opaque;
-    int i;
 
     memset(info, 0, sizeof (*info));
     QTAILQ_INIT(&info->thread_list);
-
-    info->notes = g_new0(struct memelfnote, NUMNOTES);
-    if (info->notes == NULL)
-        return (-ENOMEM);
-    info->prstatus = g_malloc0(sizeof (*info->prstatus));
-    if (info->prstatus == NULL)
-        return (-ENOMEM);
-    info->psinfo = g_malloc0(sizeof (*info->psinfo));
-    if (info->prstatus == NULL)
-        return (-ENOMEM);
 
     /*
      * First fill in status (and registers) of current thread
      * including process info & aux vector.
      */
-    fill_prstatus(info->prstatus, ts, signr);
-    elf_core_copy_regs(&info->prstatus->pr_reg, env);
+    fill_prstatus(&info->prstatus, ts, signr);
+    elf_core_copy_regs(&info->prstatus.pr_reg, env);
     fill_note(&info->notes[0], "CORE", NT_PRSTATUS,
-              sizeof (*info->prstatus), info->prstatus);
-    fill_psinfo(info->psinfo, ts);
+              sizeof(info->prstatus), &info->prstatus);
+    fill_psinfo(&info->psinfo, ts);
     fill_note(&info->notes[1], "CORE", NT_PRPSINFO,
-              sizeof (*info->psinfo), info->psinfo);
+              sizeof(info->psinfo), &info->psinfo);
     fill_auxv_note(&info->notes[2], ts);
     info->numnote = 3;
 
     info->notes_size = 0;
-    for (i = 0; i < info->numnote; i++)
+    for (int i = 0; i < info->numnote; i++) {
         info->notes_size += note_size(&info->notes[i]);
+    }
 
     /* read and fill status of all threads */
     WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
@@ -4562,8 +4553,6 @@ static int fill_note_info(struct elf_note_info *info,
             fill_thread_info(info, cpu_env(cpu));
         }
     }
-
-    return (0);
 }
 
 static void free_note_info(struct elf_note_info *info)
@@ -4575,10 +4564,6 @@ static void free_note_info(struct elf_note_info *info)
         QTAILQ_REMOVE(&info->thread_list, ets, ets_link);
         g_free(ets);
     }
-
-    g_free(info->prstatus);
-    g_free(info->psinfo);
-    g_free(info->notes);
 }
 
 static int write_note_info(struct elf_note_info *info, int fd)
@@ -4694,8 +4679,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
         goto out;
 
     /* fill in the in-memory version of notes */
-    if (fill_note_info(&info, signr, env) < 0)
-        goto out;
+    fill_note_info(&info, signr, env);
 
     offset += sizeof (elf);                             /* elf header */
     offset += (segs + 1) * sizeof (struct elf_phdr);    /* program headers */
