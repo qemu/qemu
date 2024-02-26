@@ -1342,6 +1342,8 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     qemu_savevm_state_cleanup();
 
+    close_return_path_on_source(s);
+
     if (s->to_dst_file) {
         QEMUFile *tmp;
 
@@ -1365,12 +1367,6 @@ static void migrate_fd_cleanup(MigrationState *s)
         migration_ioc_unregister_yank_from_file(tmp);
         qemu_fclose(tmp);
     }
-
-    /*
-     * We already cleaned up to_dst_file, so errors from the return
-     * path might be due to that, ignore them.
-     */
-    close_return_path_on_source(s);
 
     assert(!migration_is_active(s));
 
@@ -2915,6 +2911,13 @@ static MigThrError postcopy_pause(MigrationState *s)
         QEMUFile *file;
 
         /*
+         * We're already pausing, so ignore any errors on the return
+         * path and just wait for the thread to finish. It will be
+         * re-created when we resume.
+         */
+        close_return_path_on_source(s);
+
+        /*
          * Current channel is possibly broken. Release it.  Note that this is
          * guaranteed even without lock because to_dst_file should only be
          * modified by the migration thread.  That also guarantees that the
@@ -2932,13 +2935,6 @@ static MigThrError postcopy_pause(MigrationState *s)
 
         qemu_file_shutdown(file);
         qemu_fclose(file);
-
-        /*
-         * We're already pausing, so ignore any errors on the return
-         * path and just wait for the thread to finish. It will be
-         * re-created when we resume.
-         */
-        close_return_path_on_source(s);
 
         migrate_set_state(&s->state, s->state,
                           MIGRATION_STATUS_POSTCOPY_PAUSED);
