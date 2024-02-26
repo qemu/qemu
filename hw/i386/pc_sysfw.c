@@ -91,6 +91,18 @@ static PFlashCFI01 *pc_pflash_create(PCMachineState *pcms,
     return PFLASH_CFI01(dev);
 }
 
+static void pc_system_flash_create(PCMachineState *pcms)
+{
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+    if (pcmc->pci_enabled) {
+        pcms->flash[0] = pc_pflash_create(pcms, "system.flash0",
+                                          "pflash0");
+        pcms->flash[1] = pc_pflash_create(pcms, "system.flash1",
+                                          "pflash1");
+    }
+}
+
 static void pc_system_flash_cleanup_unused(PCMachineState *pcms)
 {
     char *prop_name;
@@ -198,8 +210,7 @@ void pc_system_firmware_init(PCMachineState *pcms,
         return;
     }
 
-    pcms->flash[0] = pc_pflash_create(pcms, "system.flash0", "pflash0");
-    pcms->flash[1] = pc_pflash_create(pcms, "system.flash1", "pflash1");
+    pc_system_flash_create(pcms);
 
     /* Map legacy -drive if=pflash to machine properties */
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
