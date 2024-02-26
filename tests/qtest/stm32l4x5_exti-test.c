@@ -31,6 +31,7 @@
 
 #define EXTI0_IRQ 6
 #define EXTI1_IRQ 7
+#define EXTI5_9_IRQ 23
 #define EXTI35_IRQ 1
 
 static void enable_nvic_irq(unsigned int n)
@@ -499,6 +500,40 @@ static void test_interrupt(void)
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 }
 
+static void test_orred_interrupts(void)
+{
+    /*
+     * For lines EXTI5..9 (fanned-in to NVIC irq 23),
+     * test that raising the line pends interrupt
+     * 23 in NVIC.
+     */
+    enable_nvic_irq(EXTI5_9_IRQ);
+    /* Check that there are no interrupts already pending in PR */
+    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    /* Check that this specific interrupt isn't pending in NVIC */
+    g_assert_false(check_nvic_pending(EXTI5_9_IRQ));
+
+    /* Enable interrupt lines EXTI[5..9] */
+    exti_writel(EXTI_IMR1, (0x1F << 5));
+
+    /* Configure interrupt on rising edge */
+    exti_writel(EXTI_RTSR1, (0x1F << 5));
+
+    /* Raise GPIO line i, check that the interrupt is pending */
+    for (unsigned i = 5; i < 10; i++) {
+        exti_set_irq(i, 1);
+        g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << i);
+        g_assert_true(check_nvic_pending(EXTI5_9_IRQ));
+
+        exti_writel(EXTI_PR1, 1 << i);
+        g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+        g_assert_true(check_nvic_pending(EXTI5_9_IRQ));
+
+        unpend_nvic_irq(EXTI5_9_IRQ);
+        g_assert_false(check_nvic_pending(EXTI5_9_IRQ));
+    }
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -515,6 +550,8 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/exti/masked_interrupt", test_masked_interrupt);
     qtest_add_func("stm32l4x5/exti/interrupt", test_interrupt);
     qtest_add_func("stm32l4x5/exti/test_edge_selector", test_edge_selector);
+    qtest_add_func("stm32l4x5/exti/test_orred_interrupts",
+                   test_orred_interrupts);
 
     qtest_start("-machine b-l475e-iot01a");
     ret = g_test_run();
