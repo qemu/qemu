@@ -61,12 +61,12 @@
 #
 # Example:
 #
-# -> { "execute": "qom-list",
-#      "arguments": { "path": "/chardevs" } }
-# <- { "return": [ { "name": "type", "type": "string" },
-#                  { "name": "parallel0", "type": "child<chardev-vc>" },
-#                  { "name": "serial0", "type": "child<chardev-vc>" },
-#                  { "name": "mon0", "type": "child<chardev-stdio>" } ] }
+#     -> { "execute": "qom-list",
+#          "arguments": { "path": "/chardevs" } }
+#     <- { "return": [ { "name": "type", "type": "string" },
+#                      { "name": "parallel0", "type": "child<chardev-vc>" },
+#                      { "name": "serial0", "type": "child<chardev-vc>" },
+#                      { "name": "mon0", "type": "child<chardev-stdio>" } ] }
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
@@ -106,19 +106,19 @@
 #
 # Examples:
 #
-# 1. Use absolute path
+#     1. Use absolute path
 #
-# -> { "execute": "qom-get",
-#      "arguments": { "path": "/machine/unattached/device[0]",
-#                     "property": "hotplugged" } }
-# <- { "return": false }
+#     -> { "execute": "qom-get",
+#          "arguments": { "path": "/machine/unattached/device[0]",
+#                         "property": "hotplugged" } }
+#     <- { "return": false }
 #
-# 2. Use partial path
+#     2. Use partial path
 #
-# -> { "execute": "qom-get",
-#      "arguments": { "path": "unattached/sysbus",
-#                     "property": "type" } }
-# <- { "return": "System" }
+#     -> { "execute": "qom-get",
+#          "arguments": { "path": "unattached/sysbus",
+#                         "property": "type" } }
+#     <- { "return": "System" }
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
@@ -141,11 +141,11 @@
 #
 # Example:
 #
-# -> { "execute": "qom-set",
-#      "arguments": { "path": "/machine",
-#                     "property": "graphics",
-#                     "value": false } }
-# <- { "return": {} }
+#     -> { "execute": "qom-set",
+#          "arguments": { "path": "/machine",
+#                         "property": "graphics",
+#                         "value": false } }
+#     <- { "return": {} }
 ##
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'any' },
@@ -1064,10 +1064,10 @@
 #
 # Example:
 #
-# -> { "execute": "object-add",
-#      "arguments": { "qom-type": "rng-random", "id": "rng1",
-#                     "filename": "/dev/hwrng" } }
-# <- { "return": {} }
+#     -> { "execute": "object-add",
+#          "arguments": { "qom-type": "rng-random", "id": "rng1",
+#                         "filename": "/dev/hwrng" } }
+#     <- { "return": {} }
 ##
 { 'command': 'object-add', 'data': 'ObjectOptions', 'boxed': true,
   'allow-preconfig': true }
@@ -1087,8 +1087,8 @@
 #
 # Example:
 #
-# -> { "execute": "object-del", "arguments": { "id": "rng1" } }
-# <- { "return": {} }
+#     -> { "execute": "object-del", "arguments": { "id": "rng1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'object-del', 'data': {'id': 'str'},
   'allow-preconfig': true }

@@ -29,9 +29,9 @@
 #
 # Example:
 #
-# -> { "execute": "set_link",
-#      "arguments": { "name": "e1000.0", "up": false } }
-# <- { "return": {} }
+#     -> { "execute": "set_link",
+#          "arguments": { "name": "e1000.0", "up": false } }
+#     <- { "return": {} }
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
@@ -50,10 +50,10 @@
 #
 # Example:
 #
-# -> { "execute": "netdev_add",
-#      "arguments": { "type": "user", "id": "netdev1",
-#                     "dnssearch": [ { "str": "example.org" } ] } }
-# <- { "return": {} }
+#     -> { "execute": "netdev_add",
+#          "arguments": { "type": "user", "id": "netdev1",
+#                         "dnssearch": [ { "str": "example.org" } ] } }
+#     <- { "return": {} }
 ##
 { 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true,
   'allow-preconfig': true }
@@ -73,8 +73,8 @@
 #
 # Example:
 #
-# -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
-# <- { "return": {} }
+#     -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'},
   'allow-preconfig': true }
@@ -836,32 +836,32 @@
 #
 # Example:
 #
-# -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
-# <- { "return": [
-#         {
-#             "promiscuous": true,
-#             "name": "vnet0",
-#             "main-mac": "52:54:00:12:34:56",
-#             "unicast": "normal",
-#             "vlan": "normal",
-#             "vlan-table": [
-#                 4,
-#                 0
-#             ],
-#             "unicast-table": [
-#             ],
-#             "multicast": "normal",
-#             "multicast-overflow": false,
-#             "unicast-overflow": false,
-#             "multicast-table": [
-#                 "01:00:5e:00:00:01",
-#                 "33:33:00:00:00:01",
-#                 "33:33:ff:12:34:56"
-#             ],
-#             "broadcast-allowed": false
-#         }
-#       ]
-#    }
+#     -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
+#     <- { "return": [
+#             {
+#                 "promiscuous": true,
+#                 "name": "vnet0",
+#                 "main-mac": "52:54:00:12:34:56",
+#                 "unicast": "normal",
+#                 "vlan": "normal",
+#                 "vlan-table": [
+#                     4,
+#                     0
+#                 ],
+#                 "unicast-table": [
+#                 ],
+#                 "multicast": "normal",
+#                 "multicast-overflow": false,
+#                 "unicast-overflow": false,
+#                 "multicast-table": [
+#                     "01:00:5e:00:00:01",
+#                     "33:33:00:00:00:01",
+#                     "33:33:ff:12:34:56"
+#                 ],
+#                 "broadcast-allowed": false
+#             }
+#           ]
+#        }
 ##
 { 'command': 'query-rx-filter',
   'data': { '*name': 'str' },
@@ -881,10 +881,10 @@
 #
 # Example:
 #
-# <- { "event": "NIC_RX_FILTER_CHANGED",
-#      "data": { "name": "vnet0",
-#                "path": "/machine/peripheral/vnet0/virtio-backend" },
-#      "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+#     <- { "event": "NIC_RX_FILTER_CHANGED",
+#          "data": { "name": "vnet0",
+#                    "path": "/machine/peripheral/vnet0/virtio-backend" },
+#          "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
@@ -930,11 +930,11 @@
 #
 # Example:
 #
-# -> { "execute": "announce-self",
-#      "arguments": {
-#          "initial": 50, "max": 550, "rounds": 10, "step": 50,
-#          "interfaces": ["vn2", "vn3"], "id": "bob" } }
-# <- { "return": {} }
+#     -> { "execute": "announce-self",
+#          "arguments": {
+#              "initial": 50, "max": 550, "rounds": 10, "step": 50,
+#              "interfaces": ["vn2", "vn3"], "id": "bob" } }
+#     <- { "return": {} }
 #
 # Since: 4.0
 ##
@@ -955,9 +955,9 @@
 #
 # Example:
 #
-# <- { "event": "FAILOVER_NEGOTIATED",
-#      "data": { "device-id": "net1" },
-#      "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
+#     <- { "event": "FAILOVER_NEGOTIATED",
+#          "data": { "device-id": "net1" },
+#          "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
@@ -975,16 +975,16 @@
 #
 # Examples:
 #
-# <- { "event": "NETDEV_STREAM_CONNECTED",
-#      "data": { "netdev-id": "netdev0",
-#                "addr": { "port": "47666", "ipv6": true,
-#                          "host": "::1", "type": "inet" } },
-#      "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
+#     <- { "event": "NETDEV_STREAM_CONNECTED",
+#          "data": { "netdev-id": "netdev0",
+#                    "addr": { "port": "47666", "ipv6": true,
+#                              "host": "::1", "type": "inet" } },
+#          "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
 #
-# <- { "event": "NETDEV_STREAM_CONNECTED",
-#      "data": { "netdev-id": "netdev0",
-#                "addr": { "path": "/tmp/qemu0", "type": "unix" } },
-#      "timestamp": { "seconds": 1666269706, "microseconds": 413651 } }
+#     <- { "event": "NETDEV_STREAM_CONNECTED",
+#          "data": { "netdev-id": "netdev0",
+#                    "addr": { "path": "/tmp/qemu0", "type": "unix" } },
+#          "timestamp": { "seconds": 1666269706, "microseconds": 413651 } }
 ##
 { 'event': 'NETDEV_STREAM_CONNECTED',
   'data': { 'netdev-id': 'str',
@@ -1001,9 +1001,9 @@
 #
 # Example:
 #
-# <- { 'event': 'NETDEV_STREAM_DISCONNECTED',
-#      'data': {'netdev-id': 'netdev0'},
-#      'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
+#     <- { 'event': 'NETDEV_STREAM_DISCONNECTED',
+#          'data': {'netdev-id': 'netdev0'},
+#          'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
 ##
 { 'event': 'NETDEV_STREAM_DISCONNECTED',
   'data': { 'netdev-id': 'str' } }

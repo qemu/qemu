@@ -120,8 +120,8 @@
 #
 # Example:
 #
-# -> { "execute": "eject", "arguments": { "id": "ide1-0-1" } }
-# <- { "return": {} }
+#     -> { "execute": "eject", "arguments": { "id": "ide1-0-1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'eject',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -164,17 +164,17 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-open-tray",
-#      "arguments": { "id": "ide0-1-0" } }
+#     -> { "execute": "blockdev-open-tray",
+#          "arguments": { "id": "ide0-1-0" } }
 #
-# <- { "timestamp": { "seconds": 1418751016,
-#                     "microseconds": 716996 },
-#      "event": "DEVICE_TRAY_MOVED",
-#      "data": { "device": "ide1-cd0",
-#                "id": "ide0-1-0",
-#                "tray-open": true } }
+#     <- { "timestamp": { "seconds": 1418751016,
+#                         "microseconds": 716996 },
+#          "event": "DEVICE_TRAY_MOVED",
+#          "data": { "device": "ide1-cd0",
+#                    "id": "ide0-1-0",
+#                    "tray-open": true } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-open-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -202,17 +202,17 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-close-tray",
-#      "arguments": { "id": "ide0-1-0" } }
+#     -> { "execute": "blockdev-close-tray",
+#          "arguments": { "id": "ide0-1-0" } }
 #
-# <- { "timestamp": { "seconds": 1418751345,
-#                     "microseconds": 272147 },
-#      "event": "DEVICE_TRAY_MOVED",
-#      "data": { "device": "ide1-cd0",
-#                "id": "ide0-1-0",
-#                "tray-open": false } }
+#     <- { "timestamp": { "seconds": 1418751345,
+#                         "microseconds": 272147 },
+#          "event": "DEVICE_TRAY_MOVED",
+#          "data": { "device": "ide1-cd0",
+#                    "id": "ide0-1-0",
+#                    "tray-open": false } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-close-tray',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -234,28 +234,28 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-remove-medium",
-#      "arguments": { "id": "ide0-1-0" } }
+#     -> { "execute": "blockdev-remove-medium",
+#          "arguments": { "id": "ide0-1-0" } }
 #
-# <- { "error": { "class": "GenericError",
-#                 "desc": "Tray of device 'ide0-1-0' is not open" } }
+#     <- { "error": { "class": "GenericError",
+#                     "desc": "Tray of device 'ide0-1-0' is not open" } }
 #
-# -> { "execute": "blockdev-open-tray",
-#      "arguments": { "id": "ide0-1-0" } }
+#     -> { "execute": "blockdev-open-tray",
+#          "arguments": { "id": "ide0-1-0" } }
 #
-# <- { "timestamp": { "seconds": 1418751627,
-#                     "microseconds": 549958 },
-#      "event": "DEVICE_TRAY_MOVED",
-#      "data": { "device": "ide1-cd0",
-#                "id": "ide0-1-0",
-#                "tray-open": true } }
+#     <- { "timestamp": { "seconds": 1418751627,
+#                         "microseconds": 549958 },
+#          "event": "DEVICE_TRAY_MOVED",
+#          "data": { "device": "ide1-cd0",
+#                    "id": "ide0-1-0",
+#                    "tray-open": true } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 #
-# -> { "execute": "blockdev-remove-medium",
-#      "arguments": { "id": "ide0-1-0" } }
+#     -> { "execute": "blockdev-remove-medium",
+#          "arguments": { "id": "ide0-1-0" } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-remove-medium',
   'data': { 'id': 'str' } }
@@ -275,19 +275,19 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-add",
-#      "arguments": {
-#          "node-name": "node0",
-#          "driver": "raw",
-#          "file": { "driver": "file",
-#                    "filename": "fedora.iso" } } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#              "node-name": "node0",
+#              "driver": "raw",
+#              "file": { "driver": "file",
+#                        "filename": "fedora.iso" } } }
+#     <- { "return": {} }
 #
-# -> { "execute": "blockdev-insert-medium",
-#      "arguments": { "id": "ide0-1-0",
-#                     "node-name": "node0" } }
+#     -> { "execute": "blockdev-insert-medium",
+#          "arguments": { "id": "ide0-1-0",
+#                         "node-name": "node0" } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-insert-medium',
   'data': { 'id': 'str',
@@ -345,33 +345,33 @@
 #
 # Examples:
 #
-# 1. Change a removable medium
+#     1. Change a removable medium
 #
-# -> { "execute": "blockdev-change-medium",
-#      "arguments": { "id": "ide0-1-0",
-#                     "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
-#                     "format": "raw" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-change-medium",
+#          "arguments": { "id": "ide0-1-0",
+#                         "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+#                         "format": "raw" } }
+#     <- { "return": {} }
 #
-# 2. Load a read-only medium into a writable drive
+#     2. Load a read-only medium into a writable drive
 #
-# -> { "execute": "blockdev-change-medium",
-#      "arguments": { "id": "floppyA",
-#                     "filename": "/srv/images/ro.img",
-#                     "format": "raw",
-#                     "read-only-mode": "retain" } }
+#     -> { "execute": "blockdev-change-medium",
+#          "arguments": { "id": "floppyA",
+#                         "filename": "/srv/images/ro.img",
+#                         "format": "raw",
+#                         "read-only-mode": "retain" } }
 #
-# <- { "error":
-#      { "class": "GenericError",
-#        "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
+#     <- { "error":
+#          { "class": "GenericError",
+#            "desc": "Could not open '/srv/images/ro.img': Permission denied" } }
 #
-# -> { "execute": "blockdev-change-medium",
-#      "arguments": { "id": "floppyA",
-#                     "filename": "/srv/images/ro.img",
-#                     "format": "raw",
-#                     "read-only-mode": "read-only" } }
+#     -> { "execute": "blockdev-change-medium",
+#          "arguments": { "id": "floppyA",
+#                         "filename": "/srv/images/ro.img",
+#                         "format": "raw",
+#                         "read-only-mode": "read-only" } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-change-medium',
   'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
@@ -400,12 +400,12 @@
 #
 # Example:
 #
-# <- { "event": "DEVICE_TRAY_MOVED",
-#      "data": { "device": "ide1-cd0",
-#                "id": "/machine/unattached/device[22]",
-#                "tray-open": true
-#      },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "DEVICE_TRAY_MOVED",
+#          "data": { "device": "ide1-cd0",
+#                    "id": "/machine/unattached/device[22]",
+#                    "tray-open": true
+#          },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'DEVICE_TRAY_MOVED',
   'data': { 'device': 'str', 'id': 'str', 'tray-open': 'bool' } }
@@ -424,11 +424,11 @@
 #
 # Example:
 #
-# <- { "event": "PR_MANAGER_STATUS_CHANGED",
-#      "data": { "id": "pr-helper0",
-#                "connected": true
-#      },
-#      "timestamp": { "seconds": 1519840375, "microseconds": 450486 } }
+#     <- { "event": "PR_MANAGER_STATUS_CHANGED",
+#          "data": { "id": "pr-helper0",
+#                    "connected": true
+#          },
+#          "timestamp": { "seconds": 1519840375, "microseconds": 450486 } }
 ##
 { 'event': 'PR_MANAGER_STATUS_CHANGED',
   'data': { 'id': 'str', 'connected': 'bool' } }
@@ -467,41 +467,41 @@
 #
 # Examples:
 #
-# -> { "execute": "block_set_io_throttle",
-#      "arguments": { "id": "virtio-blk-pci0/virtio-backend",
-#                     "bps": 0,
-#                     "bps_rd": 0,
-#                     "bps_wr": 0,
-#                     "iops": 512,
-#                     "iops_rd": 0,
-#                     "iops_wr": 0,
-#                     "bps_max": 0,
-#                     "bps_rd_max": 0,
-#                     "bps_wr_max": 0,
-#                     "iops_max": 0,
-#                     "iops_rd_max": 0,
-#                     "iops_wr_max": 0,
-#                     "bps_max_length": 0,
-#                     "iops_size": 0 } }
-# <- { "return": {} }
+#     -> { "execute": "block_set_io_throttle",
+#          "arguments": { "id": "virtio-blk-pci0/virtio-backend",
+#                         "bps": 0,
+#                         "bps_rd": 0,
+#                         "bps_wr": 0,
+#                         "iops": 512,
+#                         "iops_rd": 0,
+#                         "iops_wr": 0,
+#                         "bps_max": 0,
+#                         "bps_rd_max": 0,
+#                         "bps_wr_max": 0,
+#                         "iops_max": 0,
+#                         "iops_rd_max": 0,
+#                         "iops_wr_max": 0,
+#                         "bps_max_length": 0,
+#                         "iops_size": 0 } }
+#     <- { "return": {} }
 #
-# -> { "execute": "block_set_io_throttle",
-#      "arguments": { "id": "ide0-1-0",
-#                     "bps": 1000000,
-#                     "bps_rd": 0,
-#                     "bps_wr": 0,
-#                     "iops": 0,
-#                     "iops_rd": 0,
-#                     "iops_wr": 0,
-#                     "bps_max": 8000000,
-#                     "bps_rd_max": 0,
-#                     "bps_wr_max": 0,
-#                     "iops_max": 0,
-#                     "iops_rd_max": 0,
-#                     "iops_wr_max": 0,
-#                     "bps_max_length": 60,
-#                     "iops_size": 0 } }
-# <- { "return": {} }
+#     -> { "execute": "block_set_io_throttle",
+#          "arguments": { "id": "ide0-1-0",
+#                         "bps": 1000000,
+#                         "bps_rd": 0,
+#                         "bps_wr": 0,
+#                         "iops": 0,
+#                         "iops_rd": 0,
+#                         "iops_wr": 0,
+#                         "bps_max": 8000000,
+#                         "bps_rd_max": 0,
+#                         "bps_wr_max": 0,
+#                         "iops_max": 0,
+#                         "iops_rd_max": 0,
+#                         "iops_wr_max": 0,
+#                         "bps_max_length": 60,
+#                         "iops_size": 0 } }
+#     <- { "return": {} }
 ##
 { 'command': 'block_set_io_throttle', 'boxed': true,
   'data': 'BlockIOThrottle',
@@ -547,43 +547,43 @@
 #
 # Example:
 #
-# Set new histograms for all io types with intervals [0, 10), [10,
-# 50), [50, 100), [100, +inf):
+#     Set new histograms for all io types with intervals [0, 10), [10,
+#     50), [50, 100), [100, +inf):
 #
-# -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "id": "drive0",
-#                     "boundaries": [10, 50, 100] } }
-# <- { "return": {} }
-#
-# Example:
-#
-# Set new histogram only for write, other histograms will remain not
-# changed (or not created):
-#
-# -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "id": "drive0",
-#                     "boundaries-write": [10, 50, 100] } }
-# <- { "return": {} }
+#     -> { "execute": "block-latency-histogram-set",
+#          "arguments": { "id": "drive0",
+#                         "boundaries": [10, 50, 100] } }
+#     <- { "return": {} }
 #
 # Example:
 #
-# Set new histograms with the following intervals:   read, flush: [0,
-# 10), [10, 50), [50, 100), [100, +inf)   write: [0, 1000), [1000,
-# 5000), [5000, +inf)
+#     Set new histogram only for write, other histograms will remain not
+#     changed (or not created):
 #
-# -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "id": "drive0",
-#                     "boundaries": [10, 50, 100],
-#                     "boundaries-write": [1000, 5000] } }
-# <- { "return": {} }
+#     -> { "execute": "block-latency-histogram-set",
+#          "arguments": { "id": "drive0",
+#                         "boundaries-write": [10, 50, 100] } }
+#     <- { "return": {} }
 #
 # Example:
 #
-# Remove all latency histograms:
+#     Set new histograms with the following intervals:   read, flush: [0,
+#     10), [10, 50), [50, 100), [100, +inf)   write: [0, 1000), [1000,
+#     5000), [5000, +inf)
 #
-# -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "id": "drive0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-latency-histogram-set",
+#          "arguments": { "id": "drive0",
+#                         "boundaries": [10, 50, 100],
+#                         "boundaries-write": [1000, 5000] } }
+#     <- { "return": {} }
+#
+# Example:
+#
+#     Remove all latency histograms:
+#
+#     -> { "execute": "block-latency-histogram-set",
+#          "arguments": { "id": "drive0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-latency-histogram-set',
   'data': {'id': 'str',

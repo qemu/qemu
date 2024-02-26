@@ -20,9 +20,9 @@
 #
 # Example:
 #
-# -> { "execute": "qmp_capabilities",
-#      "arguments": { "enable": [ "oob" ] } }
-# <- { "return": {} }
+#     -> { "execute": "qmp_capabilities",
+#          "arguments": { "enable": [ "oob" ] } }
+#     <- { "return": {} }
 #
 # Notes: This command is valid exactly when first connecting: it must
 #     be issued before any other command will be accepted, and will
@@ -102,17 +102,17 @@
 #
 # Example:
 #
-# -> { "execute": "query-version" }
-# <- {
-#       "return":{
-#          "qemu":{
-#             "major":0,
-#             "minor":11,
-#             "micro":5
-#          },
-#          "package":""
-#       }
-#    }
+#     -> { "execute": "query-version" }
+#     <- {
+#           "return":{
+#              "qemu":{
+#                 "major":0,
+#                 "minor":11,
+#                 "micro":5
+#              },
+#              "package":""
+#           }
+#        }
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo',
   'allow-preconfig': true }
@@ -139,17 +139,17 @@
 #
 # Example:
 #
-# -> { "execute": "query-commands" }
-# <- {
-#      "return":[
-#         {
-#            "name":"query-balloon"
-#         },
-#         {
-#            "name":"system_powerdown"
-#         }
-#      ]
-#    }
+#     -> { "execute": "query-commands" }
+#     <- {
+#          "return":[
+#             {
+#                "name":"query-balloon"
+#             },
+#             {
+#                "name":"system_powerdown"
+#             }
+#          ]
+#        }
 #
 # Note: This example has been shortened as the real response is too
 #     long.
@@ -169,8 +169,8 @@
 #
 # Example:
 #
-# -> { "execute": "quit" }
-# <- { "return": {} }
+#     -> { "execute": "quit" }
+#     <- { "return": {} }
 ##
 { 'command': 'quit',
   'allow-preconfig': true }

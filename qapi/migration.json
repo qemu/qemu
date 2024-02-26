@@ -312,112 +312,112 @@
 #
 # Examples:
 #
-# 1. Before the first migration
+#     1. Before the first migration
 #
-# -> { "execute": "query-migrate" }
-# <- { "return": {} }
+#     -> { "execute": "query-migrate" }
+#     <- { "return": {} }
 #
-# 2. Migration is done and has succeeded
+#     2. Migration is done and has succeeded
 #
-# -> { "execute": "query-migrate" }
-# <- { "return": {
-#         "status": "completed",
-#         "total-time":12345,
-#         "setup-time":12345,
-#         "downtime":12345,
-#         "ram":{
-#           "transferred":123,
-#           "remaining":123,
-#           "total":246,
-#           "duplicate":123,
-#           "normal":123,
-#           "normal-bytes":123456,
-#           "dirty-sync-count":15
-#         }
-#      }
-#    }
-#
-# 3. Migration is done and has failed
-#
-# -> { "execute": "query-migrate" }
-# <- { "return": { "status": "failed" } }
-#
-# 4. Migration is being performed and is not a block migration:
-#
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "total-time":12345,
-#          "setup-time":12345,
-#          "expected-downtime":12345,
-#          "ram":{
-#             "transferred":123,
-#             "remaining":123,
-#             "total":246,
-#             "duplicate":123,
-#             "normal":123,
-#             "normal-bytes":123456,
-#             "dirty-sync-count":15
+#     -> { "execute": "query-migrate" }
+#     <- { "return": {
+#             "status": "completed",
+#             "total-time":12345,
+#             "setup-time":12345,
+#             "downtime":12345,
+#             "ram":{
+#               "transferred":123,
+#               "remaining":123,
+#               "total":246,
+#               "duplicate":123,
+#               "normal":123,
+#               "normal-bytes":123456,
+#               "dirty-sync-count":15
+#             }
 #          }
-#       }
-#    }
+#        }
 #
-# 5. Migration is being performed and is a block migration:
+#     3. Migration is done and has failed
 #
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "total-time":12345,
-#          "setup-time":12345,
-#          "expected-downtime":12345,
-#          "ram":{
-#             "total":1057024,
-#             "remaining":1053304,
-#             "transferred":3720,
-#             "duplicate":123,
-#             "normal":123,
-#             "normal-bytes":123456,
-#             "dirty-sync-count":15
-#          },
-#          "disk":{
-#             "total":20971520,
-#             "remaining":20880384,
-#             "transferred":91136
-#          }
-#       }
-#    }
+#     -> { "execute": "query-migrate" }
+#     <- { "return": { "status": "failed" } }
 #
-# 6. Migration is being performed and XBZRLE is active:
+#     4. Migration is being performed and is not a block migration:
 #
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "total-time":12345,
-#          "setup-time":12345,
-#          "expected-downtime":12345,
-#          "ram":{
-#             "total":1057024,
-#             "remaining":1053304,
-#             "transferred":3720,
-#             "duplicate":10,
-#             "normal":3333,
-#             "normal-bytes":3412992,
-#             "dirty-sync-count":15
-#          },
-#          "xbzrle-cache":{
-#             "cache-size":67108864,
-#             "bytes":20971520,
-#             "pages":2444343,
-#             "cache-miss":2244,
-#             "cache-miss-rate":0.123,
-#             "encoding-rate":80.1,
-#             "overflow":34434
-#          }
-#       }
-#    }
+#     -> { "execute": "query-migrate" }
+#     <- {
+#           "return":{
+#              "status":"active",
+#              "total-time":12345,
+#              "setup-time":12345,
+#              "expected-downtime":12345,
+#              "ram":{
+#                 "transferred":123,
+#                 "remaining":123,
+#                 "total":246,
+#                 "duplicate":123,
+#                 "normal":123,
+#                 "normal-bytes":123456,
+#                 "dirty-sync-count":15
+#              }
+#           }
+#        }
+#
+#     5. Migration is being performed and is a block migration:
+#
+#     -> { "execute": "query-migrate" }
+#     <- {
+#           "return":{
+#              "status":"active",
+#              "total-time":12345,
+#              "setup-time":12345,
+#              "expected-downtime":12345,
+#              "ram":{
+#                 "total":1057024,
+#                 "remaining":1053304,
+#                 "transferred":3720,
+#                 "duplicate":123,
+#                 "normal":123,
+#                 "normal-bytes":123456,
+#                 "dirty-sync-count":15
+#              },
+#              "disk":{
+#                 "total":20971520,
+#                 "remaining":20880384,
+#                 "transferred":91136
+#              }
+#           }
+#        }
+#
+#     6. Migration is being performed and XBZRLE is active:
+#
+#     -> { "execute": "query-migrate" }
+#     <- {
+#           "return":{
+#              "status":"active",
+#              "total-time":12345,
+#              "setup-time":12345,
+#              "expected-downtime":12345,
+#              "ram":{
+#                 "total":1057024,
+#                 "remaining":1053304,
+#                 "transferred":3720,
+#                 "duplicate":10,
+#                 "normal":3333,
+#                 "normal-bytes":3412992,
+#                 "dirty-sync-count":15
+#              },
+#              "xbzrle-cache":{
+#                 "cache-size":67108864,
+#                 "bytes":20971520,
+#                 "pages":2444343,
+#                 "cache-miss":2244,
+#                 "cache-miss-rate":0.123,
+#                 "encoding-rate":80.1,
+#                 "overflow":34434
+#              }
+#           }
+#        }
 ##
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
@@ -582,9 +582,9 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-set-capabilities" , "arguments":
-#      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-set-capabilities" , "arguments":
+#          { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate-set-capabilities',
   'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
@@ -600,17 +600,17 @@
 #
 # Example:
 #
-# -> { "execute": "query-migrate-capabilities" }
-# <- { "return": [
-#       {"state": false, "capability": "xbzrle"},
-#       {"state": false, "capability": "rdma-pin-all"},
-#       {"state": false, "capability": "auto-converge"},
-#       {"state": false, "capability": "zero-blocks"},
-#       {"state": false, "capability": "compress"},
-#       {"state": true, "capability": "events"},
-#       {"state": false, "capability": "postcopy-ram"},
-#       {"state": false, "capability": "x-colo"}
-#    ]}
+#     -> { "execute": "query-migrate-capabilities" }
+#     <- { "return": [
+#           {"state": false, "capability": "xbzrle"},
+#           {"state": false, "capability": "rdma-pin-all"},
+#           {"state": false, "capability": "auto-converge"},
+#           {"state": false, "capability": "zero-blocks"},
+#           {"state": false, "capability": "compress"},
+#           {"state": true, "capability": "events"},
+#           {"state": false, "capability": "postcopy-ram"},
+#           {"state": false, "capability": "x-colo"}
+#        ]}
 ##
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
@@ -1130,9 +1130,9 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-set-parameters" ,
-#      "arguments": { "multifd-channels": 5 } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-set-parameters" ,
+#          "arguments": { "multifd-channels": 5 } }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
   'data': 'MigrateSetParameters' }
@@ -1357,15 +1357,15 @@
 #
 # Example:
 #
-# -> { "execute": "query-migrate-parameters" }
-# <- { "return": {
-#          "multifd-channels": 2,
-#          "cpu-throttle-increment": 10,
-#          "cpu-throttle-initial": 20,
-#          "max-bandwidth": 33554432,
-#          "downtime-limit": 300
-#       }
-#    }
+#     -> { "execute": "query-migrate-parameters" }
+#     <- { "return": {
+#              "multifd-channels": 2,
+#              "cpu-throttle-increment": 10,
+#              "cpu-throttle-initial": 20,
+#              "max-bandwidth": 33554432,
+#              "downtime-limit": 300
+#           }
+#        }
 ##
 { 'command': 'query-migrate-parameters',
   'returns': 'MigrationParameters' }
@@ -1381,8 +1381,8 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-start-postcopy" }
-# <- { "return": {} }
+#     -> { "execute": "migrate-start-postcopy" }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate-start-postcopy' }
 
@@ -1397,9 +1397,9 @@
 #
 # Example:
 #
-# <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
-#     "event": "MIGRATION",
-#     "data": {"status": "completed"} }
+#     <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
+#         "event": "MIGRATION",
+#         "data": {"status": "completed"} }
 ##
 { 'event': 'MIGRATION',
   'data': {'status': 'MigrationStatus'}}
@@ -1416,8 +1416,8 @@
 #
 # Example:
 #
-# <- { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
-#       "event": "MIGRATION_PASS", "data": {"pass": 2} }
+#     <- { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
+#           "event": "MIGRATION_PASS", "data": {"pass": 2} }
 ##
 { 'event': 'MIGRATION_PASS',
   'data': { 'pass': 'int' } }
@@ -1500,8 +1500,8 @@
 #
 # Example:
 #
-# <- { "timestamp": {"seconds": 2032141960, "microseconds": 417172},
-#      "event": "COLO_EXIT", "data": {"mode": "primary", "reason": "request" } }
+#     <- { "timestamp": {"seconds": 2032141960, "microseconds": 417172},
+#          "event": "COLO_EXIT", "data": {"mode": "primary", "reason": "request" } }
 ##
 { 'event': 'COLO_EXIT',
   'data': {'mode': 'COLOMode', 'reason': 'COLOExitReason' } }
@@ -1543,8 +1543,8 @@
 #
 # Example:
 #
-# -> { "execute": "x-colo-lost-heartbeat" }
-# <- { "return": {} }
+#     -> { "execute": "x-colo-lost-heartbeat" }
+#     <- { "return": {} }
 ##
 { 'command': 'x-colo-lost-heartbeat',
   'features': [ 'unstable' ],
@@ -1564,8 +1564,8 @@
 #
 # Example:
 #
-# -> { "execute": "migrate_cancel" }
-# <- { "return": {} }
+#     -> { "execute": "migrate_cancel" }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate_cancel' }
 
@@ -1582,9 +1582,9 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-continue" , "arguments":
-#      { "state": "pre-switchover" } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-continue" , "arguments":
+#          { "state": "pre-switchover" } }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
 
@@ -1726,40 +1726,41 @@
 #
 # Example:
 #
-# -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
-# <- { "return": {} }
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "socket",
-#                                    "type": "inet",
-#                                    "host": "10.12.34.9",
-#                                    "port": "1050" } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "exec",
-#                                    "args": [ "/bin/nc", "-p", "6000",
-#                                              "/some/sock" ] } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "socket",
+#                                        "type": "inet",
+#                                        "host": "10.12.34.9",
+#                                        "port": "1050" } } ] } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "rdma",
-#                                    "host": "10.12.34.9",
-#                                    "port": "1050" } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "exec",
+#                                        "args": [ "/bin/nc", "-p", "6000",
+#                                                  "/some/sock" ] } } ] } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "file",
-#                                    "filename": "/tmp/migfile",
-#                                    "offset": "0x1000" } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "rdma",
+#                                        "host": "10.12.34.9",
+#                                        "port": "1050" } } ] } }
+#     <- { "return": {} }
+#
+#     -> { "execute": "migrate",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "file",
+#                                        "filename": "/tmp/migfile",
+#                                        "offset": "0x1000" } } ] } }
+#     <- { "return": {} }
 #
 ##
 { 'command': 'migrate',
@@ -1796,42 +1797,42 @@
 #
 #     3. The uri format is the same as for -incoming
 #
-#     5. For now, number of migration streams is restricted to one,
+#     4. For now, number of migration streams is restricted to one,
 #        i.e number of items in 'channels' list is just 1.
 #
-#     4. The 'uri' and 'channels' arguments are mutually exclusive;
+#     5. The 'uri' and 'channels' arguments are mutually exclusive;
 #        exactly one of the two should be present.
 #
 # Example:
 #
-# -> { "execute": "migrate-incoming",
-#      "arguments": { "uri": "tcp::4446" } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-incoming",
+#          "arguments": { "uri": "tcp:0:4446" } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "socket",
-#                                    "type": "inet",
-#                                    "host": "10.12.34.9",
-#                                    "port": "1050" } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-incoming",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "socket",
+#                                        "type": "inet",
+#                                        "host": "10.12.34.9",
+#                                        "port": "1050" } } ] } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "exec",
-#                                    "args": [ "/bin/nc", "-p", "6000",
-#                                              "/some/sock" ] } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-incoming",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "exec",
+#                                        "args": [ "/bin/nc", "-p", "6000",
+#                                                  "/some/sock" ] } } ] } }
+#     <- { "return": {} }
 #
-# -> { "execute": "migrate",
-#      "arguments": {
-#          "channels": [ { "channel-type": "main",
-#                          "addr": { "transport": "rdma",
-#                                    "host": "10.12.34.9",
-#                                    "port": "1050" } } ] } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-incoming",
+#          "arguments": {
+#              "channels": [ { "channel-type": "main",
+#                              "addr": { "transport": "rdma",
+#                                        "host": "10.12.34.9",
+#                                        "port": "1050" } } ] } }
+#     <- { "return": {} }
 ##
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
@@ -1856,9 +1857,9 @@
 #
 # Example:
 #
-# -> { "execute": "xen-save-devices-state",
-#      "arguments": { "filename": "/tmp/save" } }
-# <- { "return": {} }
+#     -> { "execute": "xen-save-devices-state",
+#          "arguments": { "filename": "/tmp/save" } }
+#     <- { "return": {} }
 ##
 { 'command': 'xen-save-devices-state',
   'data': {'filename': 'str', '*live':'bool' } }
@@ -1876,9 +1877,9 @@
 #
 # Example:
 #
-# -> { "execute": "xen-set-global-dirty-log",
-#      "arguments": { "enable": true } }
-# <- { "return": {} }
+#     -> { "execute": "xen-set-global-dirty-log",
+#          "arguments": { "enable": true } }
+#     <- { "return": {} }
 ##
 { 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
 
@@ -1896,9 +1897,9 @@
 #
 # Example:
 #
-# -> { "execute": "xen-load-devices-state",
-#      "arguments": { "filename": "/tmp/resume" } }
-# <- { "return": {} }
+#     -> { "execute": "xen-load-devices-state",
+#          "arguments": { "filename": "/tmp/resume" } }
+#     <- { "return": {} }
 ##
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
@@ -1918,9 +1919,9 @@
 #
 # Example:
 #
-# -> { "execute": "xen-set-replication",
-#      "arguments": {"enable": true, "primary": false} }
-# <- { "return": {} }
+#     -> { "execute": "xen-set-replication",
+#          "arguments": {"enable": true, "primary": false} }
+#     <- { "return": {} }
 #
 # Since: 2.9
 ##
@@ -1953,8 +1954,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-xen-replication-status" }
-# <- { "return": { "error": false } }
+#     -> { "execute": "query-xen-replication-status" }
+#     <- { "return": { "error": false } }
 #
 # Since: 2.9
 ##
@@ -1971,8 +1972,8 @@
 #
 # Example:
 #
-# -> { "execute": "xen-colo-do-checkpoint" }
-# <- { "return": {} }
+#     -> { "execute": "xen-colo-do-checkpoint" }
+#     <- { "return": {} }
 #
 # Since: 2.9
 ##
@@ -2009,8 +2010,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-colo-status" }
-# <- { "return": { "mode": "primary", "last-mode": "none", "reason": "request" } }
+#     -> { "execute": "query-colo-status" }
+#     <- { "return": { "mode": "primary", "last-mode": "none", "reason": "request" } }
 #
 # Since: 3.1
 ##
@@ -2029,9 +2030,9 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-recover",
-#      "arguments": { "uri": "tcp:192.168.1.200:12345" } }
-# <- { "return": {} }
+#     -> { "execute": "migrate-recover",
+#          "arguments": { "uri": "tcp:192.168.1.200:12345" } }
+#     <- { "return": {} }
 #
 # Since: 3.0
 ##
@@ -2048,8 +2049,8 @@
 #
 # Example:
 #
-# -> { "execute": "migrate-pause" }
-# <- { "return": {} }
+#     -> { "execute": "migrate-pause" }
+#     <- { "return": {} }
 #
 # Since: 3.0
 ##
@@ -2069,9 +2070,9 @@
 #
 # Example:
 #
-# <- { "event": "UNPLUG_PRIMARY",
-#      "data": { "device-id": "hostdev0" },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "UNPLUG_PRIMARY",
+#          "data": { "device-id": "hostdev0" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
@@ -2230,16 +2231,16 @@
 #
 # Example:
 #
-# -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
-#                                                 'sample-pages': 512} }
-# <- { "return": {} }
+#     -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
+#                                                     'sample-pages': 512} }
+#     <- { "return": {} }
 #
-# Measure dirty rate using dirty bitmap for 500 milliseconds:
+#     Measure dirty rate using dirty bitmap for 500 milliseconds:
 #
-# -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 500,
-#     "calc-time-unit": "millisecond", "mode": "dirty-bitmap"} }
+#     -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 500,
+#         "calc-time-unit": "millisecond", "mode": "dirty-bitmap"} }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
                                          '*calc-time-unit': 'TimeUnit',
@@ -2258,17 +2259,17 @@
 #
 # Examples:
 #
-# 1. Measurement is in progress:
+#     1. Measurement is in progress:
 #
-# <- {"status": "measuring", "sample-pages": 512,
-#     "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
-#     "calc-time-unit": "second"}
+#     <- {"status": "measuring", "sample-pages": 512,
+#         "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
+#         "calc-time-unit": "second"}
 #
-# 2. Measurement has been completed:
+#     2. Measurement has been completed:
 #
-# <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
-#     "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
-#     "calc-time-unit": "second"}
+#     <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
+#         "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
+#         "calc-time-unit": "second"}
 ##
 { 'command': 'query-dirty-rate', 'data': {'*calc-time-unit': 'TimeUnit' },
                                  'returns': 'DirtyRateInfo' }
@@ -2309,10 +2310,10 @@
 #
 # Example:
 #
-# -> {"execute": "set-vcpu-dirty-limit"}
-#     "arguments": { "dirty-rate": 200,
-#                    "cpu-index": 1 } }
-# <- { "return": {} }
+#     -> {"execute": "set-vcpu-dirty-limit"}
+#         "arguments": { "dirty-rate": 200,
+#                        "cpu-index": 1 } }
+#     <- { "return": {} }
 ##
 { 'command': 'set-vcpu-dirty-limit',
   'data': { '*cpu-index': 'int',
@@ -2333,9 +2334,9 @@
 #
 # Example:
 #
-# -> {"execute": "cancel-vcpu-dirty-limit"},
-#     "arguments": { "cpu-index": 1 } }
-# <- { "return": {} }
+#     -> {"execute": "cancel-vcpu-dirty-limit"},
+#         "arguments": { "cpu-index": 1 } }
+#     <- { "return": {} }
 ##
 { 'command': 'cancel-vcpu-dirty-limit',
   'data': { '*cpu-index': 'int'} }
@@ -2350,10 +2351,10 @@
 #
 # Example:
 #
-# -> {"execute": "query-vcpu-dirty-limit"}
-# <- {"return": [
-#        { "limit-rate": 60, "current-rate": 3, "cpu-index": 0},
-#        { "limit-rate": 60, "current-rate": 3, "cpu-index": 1}]}
+#     -> {"execute": "query-vcpu-dirty-limit"}
+#     <- {"return": [
+#            { "limit-rate": 60, "current-rate": 3, "cpu-index": 0},
+#            { "limit-rate": 60, "current-rate": 3, "cpu-index": 1}]}
 ##
 { 'command': 'query-vcpu-dirty-limit',
   'returns': [ 'DirtyLimitInfo' ] }
@@ -2418,40 +2419,40 @@
 #
 # Example:
 #
-# -> { "execute": "snapshot-save",
-#      "arguments": {
-#         "job-id": "snapsave0",
-#         "tag": "my-snap",
-#         "vmstate": "disk0",
-#         "devices": ["disk0", "disk1"]
-#      }
-#    }
-# <- { "return": { } }
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1432121972, "microseconds": 744001},
-#     "data": {"status": "created", "id": "snapsave0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1432122172, "microseconds": 744001},
-#     "data": {"status": "running", "id": "snapsave0"}}
-# <- {"event": "STOP",
-#     "timestamp": {"seconds": 1432122372, "microseconds": 744001} }
-# <- {"event": "RESUME",
-#     "timestamp": {"seconds": 1432122572, "microseconds": 744001} }
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1432122772, "microseconds": 744001},
-#     "data": {"status": "waiting", "id": "snapsave0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1432122972, "microseconds": 744001},
-#     "data": {"status": "pending", "id": "snapsave0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1432123172, "microseconds": 744001},
-#     "data": {"status": "concluded", "id": "snapsave0"}}
-# -> {"execute": "query-jobs"}
-# <- {"return": [{"current-progress": 1,
-#                 "status": "concluded",
-#                 "total-progress": 1,
-#                 "type": "snapshot-save",
-#                 "id": "snapsave0"}]}
+#     -> { "execute": "snapshot-save",
+#          "arguments": {
+#             "job-id": "snapsave0",
+#             "tag": "my-snap",
+#             "vmstate": "disk0",
+#             "devices": ["disk0", "disk1"]
+#          }
+#        }
+#     <- { "return": { } }
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1432121972, "microseconds": 744001},
+#         "data": {"status": "created", "id": "snapsave0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1432122172, "microseconds": 744001},
+#         "data": {"status": "running", "id": "snapsave0"}}
+#     <- {"event": "STOP",
+#         "timestamp": {"seconds": 1432122372, "microseconds": 744001} }
+#     <- {"event": "RESUME",
+#         "timestamp": {"seconds": 1432122572, "microseconds": 744001} }
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1432122772, "microseconds": 744001},
+#         "data": {"status": "waiting", "id": "snapsave0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1432122972, "microseconds": 744001},
+#         "data": {"status": "pending", "id": "snapsave0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1432123172, "microseconds": 744001},
+#         "data": {"status": "concluded", "id": "snapsave0"}}
+#     -> {"execute": "query-jobs"}
+#     <- {"return": [{"current-progress": 1,
+#                     "status": "concluded",
+#                     "total-progress": 1,
+#                     "type": "snapshot-save",
+#                     "id": "snapsave0"}]}
 #
 # Since: 6.0
 ##
@@ -2490,40 +2491,40 @@
 #
 # Example:
 #
-# -> { "execute": "snapshot-load",
-#      "arguments": {
-#         "job-id": "snapload0",
-#         "tag": "my-snap",
-#         "vmstate": "disk0",
-#         "devices": ["disk0", "disk1"]
-#      }
-#    }
-# <- { "return": { } }
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1472124172, "microseconds": 744001},
-#     "data": {"status": "created", "id": "snapload0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1472125172, "microseconds": 744001},
-#     "data": {"status": "running", "id": "snapload0"}}
-# <- {"event": "STOP",
-#     "timestamp": {"seconds": 1472125472, "microseconds": 744001} }
-# <- {"event": "RESUME",
-#     "timestamp": {"seconds": 1472125872, "microseconds": 744001} }
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1472126172, "microseconds": 744001},
-#     "data": {"status": "waiting", "id": "snapload0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1472127172, "microseconds": 744001},
-#     "data": {"status": "pending", "id": "snapload0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1472128172, "microseconds": 744001},
-#     "data": {"status": "concluded", "id": "snapload0"}}
-# -> {"execute": "query-jobs"}
-# <- {"return": [{"current-progress": 1,
-#                 "status": "concluded",
-#                 "total-progress": 1,
-#                 "type": "snapshot-load",
-#                 "id": "snapload0"}]}
+#     -> { "execute": "snapshot-load",
+#          "arguments": {
+#             "job-id": "snapload0",
+#             "tag": "my-snap",
+#             "vmstate": "disk0",
+#             "devices": ["disk0", "disk1"]
+#          }
+#        }
+#     <- { "return": { } }
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1472124172, "microseconds": 744001},
+#         "data": {"status": "created", "id": "snapload0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1472125172, "microseconds": 744001},
+#         "data": {"status": "running", "id": "snapload0"}}
+#     <- {"event": "STOP",
+#         "timestamp": {"seconds": 1472125472, "microseconds": 744001} }
+#     <- {"event": "RESUME",
+#         "timestamp": {"seconds": 1472125872, "microseconds": 744001} }
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1472126172, "microseconds": 744001},
+#         "data": {"status": "waiting", "id": "snapload0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1472127172, "microseconds": 744001},
+#         "data": {"status": "pending", "id": "snapload0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1472128172, "microseconds": 744001},
+#         "data": {"status": "concluded", "id": "snapload0"}}
+#     -> {"execute": "query-jobs"}
+#     <- {"return": [{"current-progress": 1,
+#                     "status": "concluded",
+#                     "total-progress": 1,
+#                     "type": "snapshot-load",
+#                     "id": "snapload0"}]}
 #
 # Since: 6.0
 ##
@@ -2553,35 +2554,35 @@
 #
 # Example:
 #
-# -> { "execute": "snapshot-delete",
-#      "arguments": {
-#         "job-id": "snapdelete0",
-#         "tag": "my-snap",
-#         "devices": ["disk0", "disk1"]
-#      }
-#    }
-# <- { "return": { } }
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1442124172, "microseconds": 744001},
-#     "data": {"status": "created", "id": "snapdelete0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1442125172, "microseconds": 744001},
-#     "data": {"status": "running", "id": "snapdelete0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1442126172, "microseconds": 744001},
-#     "data": {"status": "waiting", "id": "snapdelete0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1442127172, "microseconds": 744001},
-#     "data": {"status": "pending", "id": "snapdelete0"}}
-# <- {"event": "JOB_STATUS_CHANGE",
-#     "timestamp": {"seconds": 1442128172, "microseconds": 744001},
-#     "data": {"status": "concluded", "id": "snapdelete0"}}
-# -> {"execute": "query-jobs"}
-# <- {"return": [{"current-progress": 1,
-#                 "status": "concluded",
-#                 "total-progress": 1,
-#                 "type": "snapshot-delete",
-#                 "id": "snapdelete0"}]}
+#     -> { "execute": "snapshot-delete",
+#          "arguments": {
+#             "job-id": "snapdelete0",
+#             "tag": "my-snap",
+#             "devices": ["disk0", "disk1"]
+#          }
+#        }
+#     <- { "return": { } }
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1442124172, "microseconds": 744001},
+#         "data": {"status": "created", "id": "snapdelete0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1442125172, "microseconds": 744001},
+#         "data": {"status": "running", "id": "snapdelete0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1442126172, "microseconds": 744001},
+#         "data": {"status": "waiting", "id": "snapdelete0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1442127172, "microseconds": 744001},
+#         "data": {"status": "pending", "id": "snapdelete0"}}
+#     <- {"event": "JOB_STATUS_CHANGE",
+#         "timestamp": {"seconds": 1442128172, "microseconds": 744001},
+#         "data": {"status": "concluded", "id": "snapdelete0"}}
+#     -> {"execute": "query-jobs"}
+#     <- {"return": [{"current-progress": 1,
+#                     "status": "concluded",
+#                     "total-progress": 1,
+#                     "type": "snapshot-delete",
+#                     "id": "snapdelete0"}]}
 #
 # Since: 6.0
 ##

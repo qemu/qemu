@@ -33,8 +33,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-tpm-models" }
-# <- { "return": [ "tpm-tis", "tpm-crb", "tpm-spapr" ] }
+#     -> { "execute": "query-tpm-models" }
+#     <- { "return": [ "tpm-tis", "tpm-crb", "tpm-spapr" ] }
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'],
   'if': 'CONFIG_TPM' }
@@ -64,8 +64,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-tpm-types" }
-# <- { "return": [ "passthrough", "emulator" ] }
+#     -> { "execute": "query-tpm-types" }
+#     <- { "return": [ "passthrough", "emulator" ] }
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'],
   'if': 'CONFIG_TPM' }
@@ -172,21 +172,21 @@
 #
 # Example:
 #
-# -> { "execute": "query-tpm" }
-# <- { "return":
-#      [
-#        { "model": "tpm-tis",
-#          "options":
-#            { "type": "passthrough",
-#              "data":
-#                { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
-#                  "path": "/dev/tpm0"
-#                }
-#            },
-#          "id": "tpm0"
+#     -> { "execute": "query-tpm" }
+#     <- { "return":
+#          [
+#            { "model": "tpm-tis",
+#              "options":
+#                { "type": "passthrough",
+#                  "data":
+#                    { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+#                      "path": "/dev/tpm0"
+#                    }
+#                },
+#              "id": "tpm0"
+#            }
+#          ]
 #        }
-#      ]
-#    }
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'],
   'if': 'CONFIG_TPM' }

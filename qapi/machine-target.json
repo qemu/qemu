@@ -447,9 +447,9 @@
 #
 # Example:
 #
-# <- { "event": "CPU_POLARIZATION_CHANGE",
-#      "data": { "polarization": "horizontal" },
-#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#     <- { "event": "CPU_POLARIZATION_CHANGE",
+#          "data": { "polarization": "horizontal" },
+#          "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
 ##
 { 'event': 'CPU_POLARIZATION_CHANGE',
   'data': { 'polarization': 'CpuS390Polarization' },

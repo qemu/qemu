@@ -13,8 +13,8 @@
 #
 # Example:
 #
-# -> { "execute": "rtc-reset-reinjection" }
-# <- { "return": {} }
+#     -> { "execute": "rtc-reset-reinjection" }
+#     <- { "return": {} }
 ##
 { 'command': 'rtc-reset-reinjection',
   'if': 'TARGET_I386' }
@@ -91,10 +91,10 @@
 #
 # Example:
 #
-# -> { "execute": "query-sev" }
-# <- { "return": { "enabled": true, "api-major" : 0, "api-minor" : 0,
-#                  "build-id" : 0, "policy" : 0, "state" : "running",
-#                  "handle" : 1 } }
+#     -> { "execute": "query-sev" }
+#     <- { "return": { "enabled": true, "api-major" : 0, "api-minor" : 0,
+#                      "build-id" : 0, "policy" : 0, "state" : "running",
+#                      "handle" : 1 } }
 ##
 { 'command': 'query-sev', 'returns': 'SevInfo',
   'if': 'TARGET_I386' }
@@ -122,8 +122,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-sev-launch-measure" }
-# <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ" } }
+#     -> { "execute": "query-sev-launch-measure" }
+#     <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ" } }
 ##
 { 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
   'if': 'TARGET_I386' }
@@ -167,10 +167,10 @@
 #
 # Example:
 #
-# -> { "execute": "query-sev-capabilities" }
-# <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
-#                  "cpu0-id": "2lvmGwo+...61iEinw==",
-#                  "cbitpos": 47, "reduced-phys-bits": 1}}
+#     -> { "execute": "query-sev-capabilities" }
+#     <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
+#                      "cpu0-id": "2lvmGwo+...61iEinw==",
+#                      "cbitpos": 47, "reduced-phys-bits": 1}}
 ##
 { 'command': 'query-sev-capabilities', 'returns': 'SevCapability',
   'if': 'TARGET_I386' }
@@ -221,9 +221,9 @@
 #
 # Example:
 #
-# -> { "execute" : "query-sev-attestation-report",
-#                  "arguments": { "mnonce": "aaaaaaa" } }
-# <- { "return" : { "data": "aaaaaaaabbbddddd"} }
+#     -> { "execute" : "query-sev-attestation-report",
+#                      "arguments": { "mnonce": "aaaaaaa" } }
+#     <- { "return" : { "data": "aaaaaaaabbbddddd"} }
 ##
 { 'command': 'query-sev-attestation-report',
   'data': { 'mnonce': 'str' },
@@ -241,9 +241,9 @@
 #
 # Example:
 #
-# -> { "execute": "dump-skeys",
-#      "arguments": { "filename": "/tmp/skeys" } }
-# <- { "return": {} }
+#     -> { "execute": "dump-skeys",
+#          "arguments": { "filename": "/tmp/skeys" } }
+#     <- { "return": {} }
 ##
 { 'command': 'dump-skeys',
   'data': { 'filename': 'str' },
@@ -286,9 +286,9 @@
 #
 # Example:
 #
-# -> { "execute": "query-gic-capabilities" }
-# <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
-#                 { "version": 3, "emulated": false, "kernel": true } ] }
+#     -> { "execute": "query-gic-capabilities" }
+#     <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
+#                     { "version": 3, "emulated": false, "kernel": true } ] }
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
   'if': 'TARGET_ARM' }
@@ -344,11 +344,11 @@
 #
 # Example:
 #
-# -> { "execute": "query-sgx" }
-# <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
-#                  "flc": true,
-#                  "sections": [{"node": 0, "size": 67108864},
-#                  {"node": 1, "size": 29360128}]} }
+#     -> { "execute": "query-sgx" }
+#     <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
+#                      "flc": true,
+#                      "sections": [{"node": 0, "size": 67108864},
+#                      {"node": 1, "size": 29360128}]} }
 ##
 { 'command': 'query-sgx', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
 
@@ -363,11 +363,11 @@
 #
 # Example:
 #
-# -> { "execute": "query-sgx-capabilities" }
-# <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
-#                  "flc": true,
-#                  "section" : [{"node": 0, "size": 67108864},
-#                  {"node": 1, "size": 29360128}]} }
+#     -> { "execute": "query-sgx-capabilities" }
+#     <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
+#                      "flc": true,
+#                      "section" : [{"node": 0, "size": 67108864},
+#                      {"node": 1, "size": 29360128}]} }
 ##
 { 'command': 'query-sgx-capabilities', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
 
@@ -438,28 +438,28 @@
 #
 # Example:
 #
-# -> { "execute": "xen-event-list" }
-# <- { "return": [
-#         {
-#             "pending": false,
-#             "port": 1,
-#             "vcpu": 1,
-#             "remote-domain": "qemu",
-#             "masked": false,
-#             "type": "interdomain",
-#             "target": 1
-#         },
-#         {
-#             "pending": false,
-#             "port": 2,
-#             "vcpu": 0,
-#             "remote-domain": "",
-#             "masked": false,
-#             "type": "virq",
-#             "target": 0
-#         }
-#      ]
-#    }
+#     -> { "execute": "xen-event-list" }
+#     <- { "return": [
+#             {
+#                 "pending": false,
+#                 "port": 1,
+#                 "vcpu": 1,
+#                 "remote-domain": "qemu",
+#                 "masked": false,
+#                 "type": "interdomain",
+#                 "target": 1
+#             },
+#             {
+#                 "pending": false,
+#                 "port": 2,
+#                 "vcpu": 0,
+#                 "remote-domain": "",
+#                 "masked": false,
+#                 "type": "virq",
+#                 "target": 0
+#             }
+#          ]
+#        }
 ##
 { 'command': 'xen-event-list',
   'returns': ['EvtchnInfo'],
@@ -479,8 +479,8 @@
 #
 # Example:
 #
-# -> { "execute": "xen-event-inject", "arguments": { "port": 1 } }
-# <- { "return": { } }
+#     -> { "execute": "xen-event-inject", "arguments": { "port": 1 } }
+#     <- { "return": { } }
 ##
 { 'command': 'xen-event-inject',
   'data': { 'port': 'uint32' },

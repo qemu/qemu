@@ -1,1 +1,1 @@
-doc-duplicated-arg.json:6:1: 'a' parameter name duplicated
+doc-duplicated-arg.json:6: 'a' parameter name duplicated

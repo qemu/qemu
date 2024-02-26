@@ -32,8 +32,8 @@
 #
 # Example:
 #
-# -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
-# <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
+#     -> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
+#     <- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
 ##
 { 'command': 'query-rocker',
   'data': { 'name': 'str' },
@@ -100,12 +100,12 @@
 #
 # Example:
 #
-# -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
-# <- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
-#                   "autoneg": "off", "link-up": true, "speed": 10000},
-#                  {"duplex": "full", "enabled": true, "name": "sw1.2",
-#                   "autoneg": "off", "link-up": true, "speed": 10000}
-#    ]}
+#     -> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
+#     <- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
+#                       "autoneg": "off", "link-up": true, "speed": 10000},
+#                      {"duplex": "full", "enabled": true, "name": "sw1.2",
+#                       "autoneg": "off", "link-up": true, "speed": 10000}
+#        ]}
 ##
 { 'command': 'query-rocker-ports',
   'data': { 'name': 'str' },
@@ -242,16 +242,16 @@
 #
 # Example:
 #
-# -> { "execute": "query-rocker-of-dpa-flows",
-#      "arguments": { "name": "sw1" } }
-# <- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
-#                   "hits": 138,
-#                   "cookie": 0,
-#                   "action": {"goto-tbl": 10},
-#                   "mask": {"in-pport": 4294901760}
-#                  },
-#                  {...more...},
-#    ]}
+#     -> { "execute": "query-rocker-of-dpa-flows",
+#          "arguments": { "name": "sw1" } }
+#     <- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
+#                       "hits": 138,
+#                       "cookie": 0,
+#                       "action": {"goto-tbl": 10},
+#                       "mask": {"in-pport": 4294901760}
+#                      },
+#                      {...more...},
+#        ]}
 ##
 { 'command': 'query-rocker-of-dpa-flows',
   'data': { 'name': 'str', '*tbl-id': 'uint32' },
@@ -317,21 +317,21 @@
 #
 # Example:
 #
-# -> { "execute": "query-rocker-of-dpa-groups",
-#      "arguments": { "name": "sw1" } }
-# <- { "return": [ {"type": 0, "out-pport": 2,
-#                   "pport": 2, "vlan-id": 3841,
-#                   "pop-vlan": 1, "id": 251723778},
-#                  {"type": 0, "out-pport": 0,
-#                   "pport": 0, "vlan-id": 3841,
-#                   "pop-vlan": 1, "id": 251723776},
-#                  {"type": 0, "out-pport": 1,
-#                   "pport": 1, "vlan-id": 3840,
-#                   "pop-vlan": 1, "id": 251658241},
-#                  {"type": 0, "out-pport": 0,
-#                   "pport": 0, "vlan-id": 3840,
-#                   "pop-vlan": 1, "id": 251658240}
-#    ]}
+#     -> { "execute": "query-rocker-of-dpa-groups",
+#          "arguments": { "name": "sw1" } }
+#     <- { "return": [ {"type": 0, "out-pport": 2,
+#                       "pport": 2, "vlan-id": 3841,
+#                       "pop-vlan": 1, "id": 251723778},
+#                      {"type": 0, "out-pport": 0,
+#                       "pport": 0, "vlan-id": 3841,
+#                       "pop-vlan": 1, "id": 251723776},
+#                      {"type": 0, "out-pport": 1,
+#                       "pport": 1, "vlan-id": 3840,
+#                       "pop-vlan": 1, "id": 251658241},
+#                      {"type": 0, "out-pport": 0,
+#                       "pport": 0, "vlan-id": 3840,
+#                       "pop-vlan": 1, "id": 251658240}
+#        ]}
 ##
 { 'command': 'query-rocker-of-dpa-groups',
   'data': { 'name': 'str', '*type': 'uint8' },

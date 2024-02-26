@@ -1,0 +1,11 @@
+# Duplicate 'Features:' line
+
+##
+# @foo:
+#
+# Features:
+# @feat: mumble
+#
+# Features:
+##
+{ 'command': 'foo', 'features': ['feat'] }

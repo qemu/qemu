@@ -180,17 +180,13 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
 
         if variants:
             for v in variants.variants:
-                if v.type.is_implicit():
-                    assert not v.type.base and not v.type.variants
-                    for m in v.type.local_members:
-                        term = self._nodes_for_one_member(m)
-                        term.extend(self._nodes_for_variant_when(variants, v))
-                        dlnode += self._make_dlitem(term, None)
-                else:
-                    term = [nodes.Text('The members of '),
-                            nodes.literal('', v.type.doc_type())]
-                    term.extend(self._nodes_for_variant_when(variants, v))
-                    dlnode += self._make_dlitem(term, None)
+                if v.type.name == 'q_empty':
+                    continue
+                assert not v.type.is_implicit()
+                term = [nodes.Text('The members of '),
+                        nodes.literal('', v.type.doc_type())]
+                term.extend(self._nodes_for_variant_when(variants, v))
+                dlnode += self._make_dlitem(term, None)
 
         if not dlnode.children:
             return []
@@ -243,8 +239,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         seen_item = False
         dlnode = nodes.definition_list()
         for section in doc.features.values():
-            dlnode += self._make_dlitem([nodes.literal('', section.name)],
-                                        section.text)
+            dlnode += self._make_dlitem(
+                [nodes.literal('', section.member.name)], section.text)
             seen_item = True
 
         if not seen_item:
@@ -262,11 +258,11 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         """Return list of doctree nodes for additional sections"""
         nodelist = []
         for section in doc.sections:
-            if section.name and section.name == 'TODO':
+            if section.tag and section.tag == 'TODO':
                 # Hide TODO: sections
                 continue
-            snode = self._make_section(section.name)
-            if section.name and section.name.startswith('Example'):
+            snode = self._make_section(section.tag)
+            if section.tag and section.tag.startswith('Example'):
                 snode += self._nodes_for_example(section.text)
             else:
                 self._parse_text_into_node(section.text, snode)

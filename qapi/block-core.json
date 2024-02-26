@@ -766,87 +766,87 @@
 #
 # Example:
 #
-# -> { "execute": "query-block" }
-# <- {
-#       "return":[
-#          {
-#             "io-status": "ok",
-#             "device":"ide0-hd0",
-#             "locked":false,
-#             "removable":false,
-#             "inserted":{
-#                "ro":false,
-#                "drv":"qcow2",
-#                "encrypted":false,
-#                "file":"disks/test.qcow2",
-#                "backing_file_depth":1,
-#                "bps":1000000,
-#                "bps_rd":0,
-#                "bps_wr":0,
-#                "iops":1000000,
-#                "iops_rd":0,
-#                "iops_wr":0,
-#                "bps_max": 8000000,
-#                "bps_rd_max": 0,
-#                "bps_wr_max": 0,
-#                "iops_max": 0,
-#                "iops_rd_max": 0,
-#                "iops_wr_max": 0,
-#                "iops_size": 0,
-#                "detect_zeroes": "on",
-#                "write_threshold": 0,
-#                "image":{
-#                   "filename":"disks/test.qcow2",
-#                   "format":"qcow2",
-#                   "virtual-size":2048000,
-#                   "backing_file":"base.qcow2",
-#                   "full-backing-filename":"disks/base.qcow2",
-#                   "backing-filename-format":"qcow2",
-#                   "snapshots":[
-#                      {
-#                         "id": "1",
-#                         "name": "snapshot1",
-#                         "vm-state-size": 0,
-#                         "date-sec": 10000200,
-#                         "date-nsec": 12,
-#                         "vm-clock-sec": 206,
-#                         "vm-clock-nsec": 30
-#                      }
-#                   ],
-#                   "backing-image":{
-#                       "filename":"disks/base.qcow2",
+#     -> { "execute": "query-block" }
+#     <- {
+#           "return":[
+#              {
+#                 "io-status": "ok",
+#                 "device":"ide0-hd0",
+#                 "locked":false,
+#                 "removable":false,
+#                 "inserted":{
+#                    "ro":false,
+#                    "drv":"qcow2",
+#                    "encrypted":false,
+#                    "file":"disks/test.qcow2",
+#                    "backing_file_depth":1,
+#                    "bps":1000000,
+#                    "bps_rd":0,
+#                    "bps_wr":0,
+#                    "iops":1000000,
+#                    "iops_rd":0,
+#                    "iops_wr":0,
+#                    "bps_max": 8000000,
+#                    "bps_rd_max": 0,
+#                    "bps_wr_max": 0,
+#                    "iops_max": 0,
+#                    "iops_rd_max": 0,
+#                    "iops_wr_max": 0,
+#                    "iops_size": 0,
+#                    "detect_zeroes": "on",
+#                    "write_threshold": 0,
+#                    "image":{
+#                       "filename":"disks/test.qcow2",
 #                       "format":"qcow2",
-#                       "virtual-size":2048000
-#                   }
-#                }
-#             },
-#             "qdev": "ide_disk",
-#             "type":"unknown"
-#          },
-#          {
-#             "io-status": "ok",
-#             "device":"ide1-cd0",
-#             "locked":false,
-#             "removable":true,
-#             "qdev": "/machine/unattached/device[23]",
-#             "tray_open": false,
-#             "type":"unknown"
-#          },
-#          {
-#             "device":"floppy0",
-#             "locked":false,
-#             "removable":true,
-#             "qdev": "/machine/unattached/device[20]",
-#             "type":"unknown"
-#          },
-#          {
-#             "device":"sd0",
-#             "locked":false,
-#             "removable":true,
-#             "type":"unknown"
-#          }
-#       ]
-#    }
+#                       "virtual-size":2048000,
+#                       "backing_file":"base.qcow2",
+#                       "full-backing-filename":"disks/base.qcow2",
+#                       "backing-filename-format":"qcow2",
+#                       "snapshots":[
+#                          {
+#                             "id": "1",
+#                             "name": "snapshot1",
+#                             "vm-state-size": 0,
+#                             "date-sec": 10000200,
+#                             "date-nsec": 12,
+#                             "vm-clock-sec": 206,
+#                             "vm-clock-nsec": 30
+#                          }
+#                       ],
+#                       "backing-image":{
+#                           "filename":"disks/base.qcow2",
+#                           "format":"qcow2",
+#                           "virtual-size":2048000
+#                       }
+#                    }
+#                 },
+#                 "qdev": "ide_disk",
+#                 "type":"unknown"
+#              },
+#              {
+#                 "io-status": "ok",
+#                 "device":"ide1-cd0",
+#                 "locked":false,
+#                 "removable":true,
+#                 "qdev": "/machine/unattached/device[23]",
+#                 "tray_open": false,
+#                 "type":"unknown"
+#              },
+#              {
+#                 "device":"floppy0",
+#                 "locked":false,
+#                 "removable":true,
+#                 "qdev": "/machine/unattached/device[20]",
+#                 "type":"unknown"
+#              },
+#              {
+#                 "device":"sd0",
+#                 "locked":false,
+#                 "removable":true,
+#                 "type":"unknown"
+#              }
+#           ]
+#        }
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'],
   'allow-preconfig': true }
@@ -1170,105 +1170,105 @@
 #
 # Example:
 #
-# -> { "execute": "query-blockstats" }
-# <- {
-#       "return":[
-#          {
-#             "device":"ide0-hd0",
-#             "parent":{
-#                "stats":{
-#                   "wr_highest_offset":3686448128,
-#                   "wr_bytes":9786368,
-#                   "wr_operations":751,
-#                   "rd_bytes":122567168,
-#                   "rd_operations":36772
-#                   "wr_total_times_ns":313253456
-#                   "rd_total_times_ns":3465673657
-#                   "flush_total_times_ns":49653
-#                   "flush_operations":61,
-#                   "rd_merged":0,
-#                   "wr_merged":0,
-#                   "idle_time_ns":2953431879,
-#                   "account_invalid":true,
-#                   "account_failed":false
-#                }
-#             },
-#             "stats":{
-#                "wr_highest_offset":2821110784,
-#                "wr_bytes":9786368,
-#                "wr_operations":692,
-#                "rd_bytes":122739200,
-#                "rd_operations":36604
-#                "flush_operations":51,
-#                "wr_total_times_ns":313253456
-#                "rd_total_times_ns":3465673657
-#                "flush_total_times_ns":49653,
-#                "rd_merged":0,
-#                "wr_merged":0,
-#                "idle_time_ns":2953431879,
-#                "account_invalid":true,
-#                "account_failed":false
-#             },
-#             "qdev": "/machine/unattached/device[23]"
-#          },
-#          {
-#             "device":"ide1-cd0",
-#             "stats":{
-#                "wr_highest_offset":0,
-#                "wr_bytes":0,
-#                "wr_operations":0,
-#                "rd_bytes":0,
-#                "rd_operations":0
-#                "flush_operations":0,
-#                "wr_total_times_ns":0
-#                "rd_total_times_ns":0
-#                "flush_total_times_ns":0,
-#                "rd_merged":0,
-#                "wr_merged":0,
-#                "account_invalid":false,
-#                "account_failed":false
-#             },
-#             "qdev": "/machine/unattached/device[24]"
-#          },
-#          {
-#             "device":"floppy0",
-#             "stats":{
-#                "wr_highest_offset":0,
-#                "wr_bytes":0,
-#                "wr_operations":0,
-#                "rd_bytes":0,
-#                "rd_operations":0
-#                "flush_operations":0,
-#                "wr_total_times_ns":0
-#                "rd_total_times_ns":0
-#                "flush_total_times_ns":0,
-#                "rd_merged":0,
-#                "wr_merged":0,
-#                "account_invalid":false,
-#                "account_failed":false
-#             },
-#             "qdev": "/machine/unattached/device[16]"
-#          },
-#          {
-#             "device":"sd0",
-#             "stats":{
-#                "wr_highest_offset":0,
-#                "wr_bytes":0,
-#                "wr_operations":0,
-#                "rd_bytes":0,
-#                "rd_operations":0
-#                "flush_operations":0,
-#                "wr_total_times_ns":0
-#                "rd_total_times_ns":0
-#                "flush_total_times_ns":0,
-#                "rd_merged":0,
-#                "wr_merged":0,
-#                "account_invalid":false,
-#                "account_failed":false
-#             }
-#          }
-#       ]
-#    }
+#     -> { "execute": "query-blockstats" }
+#     <- {
+#           "return":[
+#              {
+#                 "device":"ide0-hd0",
+#                 "parent":{
+#                    "stats":{
+#                       "wr_highest_offset":3686448128,
+#                       "wr_bytes":9786368,
+#                       "wr_operations":751,
+#                       "rd_bytes":122567168,
+#                       "rd_operations":36772
+#                       "wr_total_times_ns":313253456
+#                       "rd_total_times_ns":3465673657
+#                       "flush_total_times_ns":49653
+#                       "flush_operations":61,
+#                       "rd_merged":0,
+#                       "wr_merged":0,
+#                       "idle_time_ns":2953431879,
+#                       "account_invalid":true,
+#                       "account_failed":false
+#                    }
+#                 },
+#                 "stats":{
+#                    "wr_highest_offset":2821110784,
+#                    "wr_bytes":9786368,
+#                    "wr_operations":692,
+#                    "rd_bytes":122739200,
+#                    "rd_operations":36604
+#                    "flush_operations":51,
+#                    "wr_total_times_ns":313253456
+#                    "rd_total_times_ns":3465673657
+#                    "flush_total_times_ns":49653,
+#                    "rd_merged":0,
+#                    "wr_merged":0,
+#                    "idle_time_ns":2953431879,
+#                    "account_invalid":true,
+#                    "account_failed":false
+#                 },
+#                 "qdev": "/machine/unattached/device[23]"
+#              },
+#              {
+#                 "device":"ide1-cd0",
+#                 "stats":{
+#                    "wr_highest_offset":0,
+#                    "wr_bytes":0,
+#                    "wr_operations":0,
+#                    "rd_bytes":0,
+#                    "rd_operations":0
+#                    "flush_operations":0,
+#                    "wr_total_times_ns":0
+#                    "rd_total_times_ns":0
+#                    "flush_total_times_ns":0,
+#                    "rd_merged":0,
+#                    "wr_merged":0,
+#                    "account_invalid":false,
+#                    "account_failed":false
+#                 },
+#                 "qdev": "/machine/unattached/device[24]"
+#              },
+#              {
+#                 "device":"floppy0",
+#                 "stats":{
+#                    "wr_highest_offset":0,
+#                    "wr_bytes":0,
+#                    "wr_operations":0,
+#                    "rd_bytes":0,
+#                    "rd_operations":0
+#                    "flush_operations":0,
+#                    "wr_total_times_ns":0
+#                    "rd_total_times_ns":0
+#                    "flush_total_times_ns":0,
+#                    "rd_merged":0,
+#                    "wr_merged":0,
+#                    "account_invalid":false,
+#                    "account_failed":false
+#                 },
+#                 "qdev": "/machine/unattached/device[16]"
+#              },
+#              {
+#                 "device":"sd0",
+#                 "stats":{
+#                    "wr_highest_offset":0,
+#                    "wr_bytes":0,
+#                    "wr_operations":0,
+#                    "rd_bytes":0,
+#                    "rd_operations":0
+#                    "flush_operations":0,
+#                    "wr_total_times_ns":0
+#                    "rd_total_times_ns":0
+#                    "flush_total_times_ns":0,
+#                    "rd_merged":0,
+#                    "wr_merged":0,
+#                    "account_invalid":false,
+#                    "account_failed":false
+#                 }
+#              }
+#           ]
+#        }
 ##
 { 'command': 'query-blockstats',
   'data': { '*query-nodes': 'bool' },
@@ -1464,9 +1464,9 @@
 #
 # Example:
 #
-# -> { "execute": "block_resize",
-#      "arguments": { "device": "scratch", "size": 1073741824 } }
-# <- { "return": {} }
+#     -> { "execute": "block_resize",
+#          "arguments": { "device": "scratch", "size": 1073741824 } }
+#     <- { "return": {} }
 ##
 { 'command': 'block_resize',
   'data': { '*device': 'str',
@@ -1682,12 +1682,12 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-snapshot-sync",
-#      "arguments": { "device": "ide-hd0",
-#                     "snapshot-file":
-#                     "/some/place/my-image",
-#                     "format": "qcow2" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-snapshot-sync",
+#          "arguments": { "device": "ide-hd0",
+#                         "snapshot-file":
+#                         "/some/place/my-image",
+#                         "format": "qcow2" } }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync',
@@ -1715,19 +1715,19 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-add",
-#      "arguments": { "driver": "qcow2",
-#                     "node-name": "node1534",
-#                     "file": { "driver": "file",
-#                               "filename": "hd1.qcow2" },
-#                     "backing": null } }
+#     -> { "execute": "blockdev-add",
+#          "arguments": { "driver": "qcow2",
+#                         "node-name": "node1534",
+#                         "file": { "driver": "file",
+#                                   "filename": "hd1.qcow2" },
+#                         "backing": null } }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 #
-# -> { "execute": "blockdev-snapshot",
-#      "arguments": { "node": "ide-hd0",
-#                     "overlay": "node1534" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-snapshot",
+#          "arguments": { "node": "ide-hd0",
+#                         "overlay": "node1534" } }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot',
@@ -1863,10 +1863,10 @@
 #
 # Example:
 #
-# -> { "execute": "block-commit",
-#      "arguments": { "device": "virtio0",
-#                     "top": "/tmp/snap1.qcow2" } }
-# <- { "return": {} }
+#     -> { "execute": "block-commit",
+#          "arguments": { "device": "virtio0",
+#                         "top": "/tmp/snap1.qcow2" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
@@ -1902,11 +1902,11 @@
 #
 # Example:
 #
-# -> { "execute": "drive-backup",
-#      "arguments": { "device": "drive0",
-#                     "sync": "full",
-#                     "target": "backup.img" } }
-# <- { "return": {} }
+#     -> { "execute": "drive-backup",
+#          "arguments": { "device": "drive0",
+#                         "sync": "full",
+#                         "target": "backup.img" } }
+#     <- { "return": {} }
 ##
 { 'command': 'drive-backup', 'boxed': true,
   'data': 'DriveBackup', 'features': ['deprecated'],
@@ -1929,11 +1929,11 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-backup",
-#      "arguments": { "device": "src-id",
-#                     "sync": "full",
-#                     "target": "tgt-id" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-backup",
+#          "arguments": { "device": "src-id",
+#                         "sync": "full",
+#                         "target": "tgt-id" } }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup',
@@ -1953,52 +1953,52 @@
 #
 # Example:
 #
-# -> { "execute": "query-named-block-nodes" }
-# <- { "return": [ { "ro":false,
-#                    "drv":"qcow2",
-#                    "encrypted":false,
-#                    "file":"disks/test.qcow2",
-#                    "node-name": "my-node",
-#                    "backing_file_depth":1,
-#                    "detect_zeroes":"off",
-#                    "bps":1000000,
-#                    "bps_rd":0,
-#                    "bps_wr":0,
-#                    "iops":1000000,
-#                    "iops_rd":0,
-#                    "iops_wr":0,
-#                    "bps_max": 8000000,
-#                    "bps_rd_max": 0,
-#                    "bps_wr_max": 0,
-#                    "iops_max": 0,
-#                    "iops_rd_max": 0,
-#                    "iops_wr_max": 0,
-#                    "iops_size": 0,
-#                    "write_threshold": 0,
-#                    "image":{
-#                       "filename":"disks/test.qcow2",
-#                       "format":"qcow2",
-#                       "virtual-size":2048000,
-#                       "backing_file":"base.qcow2",
-#                       "full-backing-filename":"disks/base.qcow2",
-#                       "backing-filename-format":"qcow2",
-#                       "snapshots":[
-#                          {
-#                             "id": "1",
-#                             "name": "snapshot1",
-#                             "vm-state-size": 0,
-#                             "date-sec": 10000200,
-#                             "date-nsec": 12,
-#                             "vm-clock-sec": 206,
-#                             "vm-clock-nsec": 30
-#                          }
-#                       ],
-#                       "backing-image":{
-#                           "filename":"disks/base.qcow2",
+#     -> { "execute": "query-named-block-nodes" }
+#     <- { "return": [ { "ro":false,
+#                        "drv":"qcow2",
+#                        "encrypted":false,
+#                        "file":"disks/test.qcow2",
+#                        "node-name": "my-node",
+#                        "backing_file_depth":1,
+#                        "detect_zeroes":"off",
+#                        "bps":1000000,
+#                        "bps_rd":0,
+#                        "bps_wr":0,
+#                        "iops":1000000,
+#                        "iops_rd":0,
+#                        "iops_wr":0,
+#                        "bps_max": 8000000,
+#                        "bps_rd_max": 0,
+#                        "bps_wr_max": 0,
+#                        "iops_max": 0,
+#                        "iops_rd_max": 0,
+#                        "iops_wr_max": 0,
+#                        "iops_size": 0,
+#                        "write_threshold": 0,
+#                        "image":{
+#                           "filename":"disks/test.qcow2",
 #                           "format":"qcow2",
-#                           "virtual-size":2048000
-#                       }
-#                    } } ] }
+#                           "virtual-size":2048000,
+#                           "backing_file":"base.qcow2",
+#                           "full-backing-filename":"disks/base.qcow2",
+#                           "backing-filename-format":"qcow2",
+#                           "snapshots":[
+#                              {
+#                                 "id": "1",
+#                                 "name": "snapshot1",
+#                                 "vm-state-size": 0,
+#                                 "date-sec": 10000200,
+#                                 "date-nsec": 12,
+#                                 "vm-clock-sec": 206,
+#                                 "vm-clock-nsec": 30
+#                              }
+#                           ],
+#                           "backing-image":{
+#                               "filename":"disks/base.qcow2",
+#                               "format":"qcow2",
+#                               "virtual-size":2048000
+#                           }
+#                        } } ] }
 ##
 { 'command': 'query-named-block-nodes',
   'returns': [ 'BlockDeviceInfo' ],
@@ -2135,12 +2135,12 @@
 #
 # Example:
 #
-# -> { "execute": "drive-mirror",
-#      "arguments": { "device": "ide-hd0",
-#                     "target": "/some/place/my-image",
-#                     "sync": "full",
-#                     "format": "qcow2" } }
-# <- { "return": {} }
+#     -> { "execute": "drive-mirror",
+#          "arguments": { "device": "ide-hd0",
+#                         "target": "/some/place/my-image",
+#                         "sync": "full",
+#                         "format": "qcow2" } }
+#     <- { "return": {} }
 ##
 { 'command': 'drive-mirror', 'boxed': true,
   'data': 'DriveMirror',
@@ -2313,9 +2313,9 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-add",
-#      "arguments": { "node": "drive0", "name": "bitmap0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-add",
+#          "arguments": { "node": "drive0", "name": "bitmap0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-add',
   'data': 'BlockDirtyBitmapAdd',
@@ -2338,9 +2338,9 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-remove",
-#      "arguments": { "node": "drive0", "name": "bitmap0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-remove",
+#          "arguments": { "node": "drive0", "name": "bitmap0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-remove',
   'data': 'BlockDirtyBitmap',
@@ -2362,9 +2362,9 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-clear",
-#      "arguments": { "node": "drive0", "name": "bitmap0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-clear",
+#          "arguments": { "node": "drive0", "name": "bitmap0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-clear',
   'data': 'BlockDirtyBitmap',
@@ -2384,9 +2384,9 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-enable",
-#      "arguments": { "node": "drive0", "name": "bitmap0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-enable",
+#          "arguments": { "node": "drive0", "name": "bitmap0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-enable',
   'data': 'BlockDirtyBitmap',
@@ -2406,9 +2406,9 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-disable",
-#      "arguments": { "node": "drive0", "name": "bitmap0" } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-disable",
+#          "arguments": { "node": "drive0", "name": "bitmap0" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-disable',
   'data': 'BlockDirtyBitmap',
@@ -2439,10 +2439,10 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-merge",
-#      "arguments": { "node": "drive0", "target": "bitmap0",
-#                     "bitmaps": ["bitmap1"] } }
-# <- { "return": {} }
+#     -> { "execute": "block-dirty-bitmap-merge",
+#          "arguments": { "node": "drive0", "target": "bitmap0",
+#                         "bitmaps": ["bitmap1"] } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-dirty-bitmap-merge',
   'data': 'BlockDirtyBitmapMerge',
@@ -2548,11 +2548,11 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-mirror",
-#      "arguments": { "device": "ide-hd0",
-#                     "target": "target0",
-#                     "sync": "full" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-mirror",
+#          "arguments": { "device": "ide-hd0",
+#                         "target": "target0",
+#                         "sync": "full" } }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
@@ -2874,10 +2874,10 @@
 #
 # Example:
 #
-# -> { "execute": "block-stream",
-#      "arguments": { "device": "virtio0",
-#                     "base": "/tmp/master.qcow2" } }
-# <- { "return": {} }
+#     -> { "execute": "block-stream",
+#          "arguments": { "device": "virtio0",
+#                         "base": "/tmp/master.qcow2" } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
@@ -4805,41 +4805,41 @@
 #
 # Examples:
 #
-# -> { "execute": "blockdev-add",
-#      "arguments": {
-#           "driver": "qcow2",
-#           "node-name": "test1",
-#           "file": {
-#               "driver": "file",
-#               "filename": "test.qcow2"
-#            }
-#       }
-#     }
-# <- { "return": {} }
-#
-# -> { "execute": "blockdev-add",
-#      "arguments": {
-#           "driver": "qcow2",
-#           "node-name": "node0",
-#           "discard": "unmap",
-#           "cache": {
-#              "direct": true
-#            },
-#            "file": {
-#              "driver": "file",
-#              "filename": "/tmp/test.qcow2"
-#            },
-#            "backing": {
-#               "driver": "raw",
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#               "driver": "qcow2",
+#               "node-name": "test1",
 #               "file": {
+#                   "driver": "file",
+#                   "filename": "test.qcow2"
+#                }
+#           }
+#         }
+#     <- { "return": {} }
+#
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#               "driver": "qcow2",
+#               "node-name": "node0",
+#               "discard": "unmap",
+#               "cache": {
+#                  "direct": true
+#                },
+#                "file": {
 #                  "driver": "file",
-#                  "filename": "/dev/fdset/4"
+#                  "filename": "/tmp/test.qcow2"
+#                },
+#                "backing": {
+#                   "driver": "raw",
+#                   "file": {
+#                      "driver": "file",
+#                      "filename": "/dev/fdset/4"
+#                    }
 #                }
 #            }
-#        }
-#      }
+#          }
 #
-# <- { "return": {} }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true,
   'allow-preconfig': true }
@@ -4903,22 +4903,22 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-add",
-#      "arguments": {
-#           "driver": "qcow2",
-#           "node-name": "node0",
-#           "file": {
-#               "driver": "file",
-#               "filename": "test.qcow2"
-#           }
-#      }
-#    }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#               "driver": "qcow2",
+#               "node-name": "node0",
+#               "file": {
+#                   "driver": "file",
+#                   "filename": "test.qcow2"
+#               }
+#          }
+#        }
+#     <- { "return": {} }
 #
-# -> { "execute": "blockdev-del",
-#      "arguments": { "node-name": "node0" }
-#    }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-del",
+#          "arguments": { "node-name": "node0" }
+#        }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' },
   'allow-preconfig': true }
@@ -5552,10 +5552,10 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_IMAGE_CORRUPTED",
-#      "data": { "device": "", "node-name": "drive", "fatal": false,
-#                "msg": "L2 table offset 0x2a2a2a00 unaligned (L1 index: 0)" },
-#      "timestamp": { "seconds": 1648243240, "microseconds": 906060 } }
+#     <- { "event": "BLOCK_IMAGE_CORRUPTED",
+#          "data": { "device": "", "node-name": "drive", "fatal": false,
+#                    "msg": "L2 table offset 0x2a2a2a00 unaligned (L1 index: 0)" },
+#          "timestamp": { "seconds": 1648243240, "microseconds": 906060 } }
 #
 # Since: 1.7
 ##
@@ -5601,13 +5601,13 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_IO_ERROR",
-#      "data": { "device": "ide0-hd1",
-#                "node-name": "#block212",
-#                "operation": "write",
-#                "action": "stop",
-#                "reason": "No space left on device" },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "BLOCK_IO_ERROR",
+#          "data": { "device": "ide0-hd1",
+#                    "node-name": "#block212",
+#                    "operation": "write",
+#                    "action": "stop",
+#                    "reason": "No space left on device" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', '*node-name': 'str',
@@ -5641,11 +5641,11 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_COMPLETED",
-#      "data": { "type": "stream", "device": "virtio-disk0",
-#                "len": 10737418240, "offset": 10737418240,
-#                "speed": 0 },
-#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#     <- { "event": "BLOCK_JOB_COMPLETED",
+#          "data": { "type": "stream", "device": "virtio-disk0",
+#                    "len": 10737418240, "offset": 10737418240,
+#                    "speed": 0 },
+#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
   'data': { 'type'  : 'JobType',
@@ -5676,11 +5676,11 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_CANCELLED",
-#      "data": { "type": "stream", "device": "virtio-disk0",
-#                "len": 10737418240, "offset": 134217728,
-#                "speed": 0 },
-#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#     <- { "event": "BLOCK_JOB_CANCELLED",
+#          "data": { "type": "stream", "device": "virtio-disk0",
+#                    "len": 10737418240, "offset": 134217728,
+#                    "speed": 0 },
+#          "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
   'data': { 'type'  : 'JobType',
@@ -5705,11 +5705,11 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_ERROR",
-#      "data": { "device": "ide0-hd1",
-#                "operation": "write",
-#                "action": "stop" },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "BLOCK_JOB_ERROR",
+#          "data": { "device": "ide0-hd1",
+#                    "operation": "write",
+#                    "action": "stop" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'BLOCK_JOB_ERROR',
   'data': { 'device'   : 'str',
@@ -5740,10 +5740,10 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_READY",
-#      "data": { "device": "drive0", "type": "mirror", "speed": 0,
-#                "len": 2097152, "offset": 2097152 },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "BLOCK_JOB_READY",
+#          "data": { "device": "drive0", "type": "mirror", "speed": 0,
+#                    "len": 2097152, "offset": 2097152 },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'BLOCK_JOB_READY',
   'data': { 'type'  : 'JobType',
@@ -5768,9 +5768,9 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_PENDING",
-#      "data": { "type": "mirror", "id": "backup_1" },
-#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#     <- { "event": "BLOCK_JOB_PENDING",
+#          "data": { "type": "mirror", "id": "backup_1" },
+#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'BLOCK_JOB_PENDING',
   'data': { 'type'  : 'JobType',
@@ -5842,10 +5842,10 @@
 #
 # Example:
 #
-# -> { "execute": "block-set-write-threshold",
-#      "arguments": { "node-name": "mydev",
-#                     "write-threshold": 17179869184 } }
-# <- { "return": {} }
+#     -> { "execute": "block-set-write-threshold",
+#          "arguments": { "node-name": "mydev",
+#                         "write-threshold": 17179869184 } }
+#     <- { "return": {} }
 ##
 { 'command': 'block-set-write-threshold',
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' },
@@ -5887,26 +5887,26 @@
 #
 # Examples:
 #
-# 1. Add a new node to a quorum
+#     1. Add a new node to a quorum
 #
-# -> { "execute": "blockdev-add",
-#      "arguments": {
-#          "driver": "raw",
-#          "node-name": "new_node",
-#          "file": { "driver": "file",
-#                    "filename": "test.raw" } } }
-# <- { "return": {} }
-# -> { "execute": "x-blockdev-change",
-#      "arguments": { "parent": "disk1",
-#                     "node": "new_node" } }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-add",
+#          "arguments": {
+#              "driver": "raw",
+#              "node-name": "new_node",
+#              "file": { "driver": "file",
+#                        "filename": "test.raw" } } }
+#     <- { "return": {} }
+#     -> { "execute": "x-blockdev-change",
+#          "arguments": { "parent": "disk1",
+#                         "node": "new_node" } }
+#     <- { "return": {} }
 #
-# 2. Delete a quorum's node
+#     2. Delete a quorum's node
 #
-# -> { "execute": "x-blockdev-change",
-#      "arguments": { "parent": "disk1",
-#                     "child": "children.1" } }
-# <- { "return": {} }
+#     -> { "execute": "x-blockdev-change",
+#          "arguments": { "parent": "disk1",
+#                         "child": "children.1" } }
+#     <- { "return": {} }
 ##
 { 'command': 'x-blockdev-change',
   'data' : { 'parent': 'str',
@@ -5939,19 +5939,19 @@
 #
 # Examples:
 #
-# 1. Move a node into an IOThread
+#     1. Move a node into an IOThread
 #
-# -> { "execute": "x-blockdev-set-iothread",
-#      "arguments": { "node-name": "disk1",
-#                     "iothread": "iothread0" } }
-# <- { "return": {} }
+#     -> { "execute": "x-blockdev-set-iothread",
+#          "arguments": { "node-name": "disk1",
+#                         "iothread": "iothread0" } }
+#     <- { "return": {} }
 #
-# 2. Move a node into the main loop
+#     2. Move a node into the main loop
 #
-# -> { "execute": "x-blockdev-set-iothread",
-#      "arguments": { "node-name": "disk1",
-#                     "iothread": null } }
-# <- { "return": {} }
+#     -> { "execute": "x-blockdev-set-iothread",
+#          "arguments": { "node-name": "disk1",
+#                         "iothread": null } }
+#     <- { "return": {} }
 ##
 { 'command': 'x-blockdev-set-iothread',
   'data' : { 'node-name': 'str',
@@ -5993,9 +5993,9 @@
 #
 # Example:
 #
-# <- { "event": "QUORUM_FAILURE",
-#      "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#     <- { "event": "QUORUM_FAILURE",
+#          "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
+#          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 ##
 { 'event': 'QUORUM_FAILURE',
   'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
@@ -6024,19 +6024,19 @@
 #
 # Examples:
 #
-# 1. Read operation
+#     1. Read operation
 #
-# <- { "event": "QUORUM_REPORT_BAD",
-#      "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
-#                "type": "read" },
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#     <- { "event": "QUORUM_REPORT_BAD",
+#          "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
+#                    "type": "read" },
+#          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 #
-# 2. Flush operation
+#     2. Flush operation
 #
-# <- { "event": "QUORUM_REPORT_BAD",
-#      "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
-#                "type": "flush", "error": "Broken pipe" },
-#      "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
+#     <- { "event": "QUORUM_REPORT_BAD",
+#          "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
+#                    "type": "flush", "error": "Broken pipe" },
+#          "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
 ##
 { 'event': 'QUORUM_REPORT_BAD',
   'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
@@ -6082,11 +6082,11 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-snapshot-internal-sync",
-#      "arguments": { "device": "ide-hd0",
-#                     "name": "snapshot0" }
-#    }
-# <- { "return": {} }
+#     -> { "execute": "blockdev-snapshot-internal-sync",
+#          "arguments": { "device": "ide-hd0",
+#                         "name": "snapshot0" }
+#        }
+#     <- { "return": {} }
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
   'data': 'BlockdevSnapshotInternal',
@@ -6119,21 +6119,21 @@
 #
 # Example:
 #
-# -> { "execute": "blockdev-snapshot-delete-internal-sync",
-#      "arguments": { "device": "ide-hd0",
-#                     "name": "snapshot0" }
-#    }
-# <- { "return": {
-#                    "id": "1",
-#                    "name": "snapshot0",
-#                    "vm-state-size": 0,
-#                    "date-sec": 1000012,
-#                    "date-nsec": 10,
-#                    "vm-clock-sec": 100,
-#                    "vm-clock-nsec": 20,
-#                    "icount": 220414
-#      }
-#    }
+#     -> { "execute": "blockdev-snapshot-delete-internal-sync",
+#          "arguments": { "device": "ide-hd0",
+#                         "name": "snapshot0" }
+#        }
+#     <- { "return": {
+#                        "id": "1",
+#                        "name": "snapshot0",
+#                        "vm-state-size": 0,
+#                        "date-sec": 1000012,
+#                        "date-nsec": 10,
+#                        "vm-clock-sec": 100,
+#                        "vm-clock-nsec": 20,
+#                        "icount": 220414
+#          }
+#        }
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},

@@ -44,7 +44,7 @@ Values
 ~~~~~~
 
 "one" (**If: **"IFONE")
-   The _one_ {and only}
+   The _one_ {and only}, description on the same line
 
 "two"
    Not documented
@@ -76,7 +76,7 @@ Members
 ~~~~~~~
 
 "base1": "Enum"
-   the first member
+   description starts on a new line, minimally indented
 
 
 If
@@ -90,7 +90,9 @@ If
 
 A paragraph
 
-Another paragraph (but no "var": line)
+Another paragraph
+
+"var1" is undocumented
 
 
 Members
@@ -141,7 +143,8 @@ Members
 ~~~~~~~
 
 "i": "int"
-   an integer "b" is undocumented
+   description starts on the same line remainder indented the same "b"
+   is undocumented
 
 "b": "boolean"
    Not documented
@@ -172,10 +175,10 @@ Arguments
 ~~~~~~~~~
 
 "arg1": "int"
-   the first argument
+   description starts on a new line, indented
 
 "arg2": "string" (optional)
-   the second argument
+   description starts on the same line remainder indented differently
 
 "arg3": "boolean"
    Not documented
@@ -201,12 +204,6 @@ Returns
 ~~~~~~~
 
 "Object"
-
-
-TODO
-~~~~
-
-frobnicate
 
 
 Notes
