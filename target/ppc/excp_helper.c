@@ -1978,8 +1978,21 @@ static int p9_next_unmasked_interrupt(CPUPPCState *env)
 }
 #endif /* TARGET_PPC64 */
 
-static int ppc_next_unmasked_interrupt_generic(CPUPPCState *env)
+static int ppc_next_unmasked_interrupt(CPUPPCState *env)
 {
+#ifdef TARGET_PPC64
+    switch (env->excp_model) {
+    case POWERPC_EXCP_POWER7:
+        return p7_next_unmasked_interrupt(env);
+    case POWERPC_EXCP_POWER8:
+        return p8_next_unmasked_interrupt(env);
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        return p9_next_unmasked_interrupt(env);
+    default:
+        break;
+    }
+#endif
     bool async_deliver;
 
     /* External reset */
@@ -2088,23 +2101,6 @@ static int ppc_next_unmasked_interrupt_generic(CPUPPCState *env)
     }
 
     return 0;
-}
-
-static int ppc_next_unmasked_interrupt(CPUPPCState *env)
-{
-    switch (env->excp_model) {
-#ifdef TARGET_PPC64
-    case POWERPC_EXCP_POWER7:
-        return p7_next_unmasked_interrupt(env);
-    case POWERPC_EXCP_POWER8:
-        return p8_next_unmasked_interrupt(env);
-    case POWERPC_EXCP_POWER9:
-    case POWERPC_EXCP_POWER10:
-        return p9_next_unmasked_interrupt(env);
-#endif
-    default:
-        return ppc_next_unmasked_interrupt_generic(env);
-    }
 }
 
 /*
@@ -2336,8 +2332,21 @@ static void p9_deliver_interrupt(CPUPPCState *env, int interrupt)
 }
 #endif /* TARGET_PPC64 */
 
-static void ppc_deliver_interrupt_generic(CPUPPCState *env, int interrupt)
+static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
 {
+#ifdef TARGET_PPC64
+    switch (env->excp_model) {
+    case POWERPC_EXCP_POWER7:
+        return p7_deliver_interrupt(env, interrupt);
+    case POWERPC_EXCP_POWER8:
+        return p8_deliver_interrupt(env, interrupt);
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
+        return p9_deliver_interrupt(env, interrupt);
+    default:
+        break;
+    }
+#endif
     PowerPCCPU *cpu = env_archcpu(env);
 
     switch (interrupt) {
@@ -2437,26 +2446,6 @@ static void ppc_deliver_interrupt_generic(CPUPPCState *env, int interrupt)
     default:
         cpu_abort(env_cpu(env), "Invalid PowerPC interrupt %d. Aborting\n",
                   interrupt);
-    }
-}
-
-static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
-{
-    switch (env->excp_model) {
-#ifdef TARGET_PPC64
-    case POWERPC_EXCP_POWER7:
-        p7_deliver_interrupt(env, interrupt);
-        break;
-    case POWERPC_EXCP_POWER8:
-        p8_deliver_interrupt(env, interrupt);
-        break;
-    case POWERPC_EXCP_POWER9:
-    case POWERPC_EXCP_POWER10:
-        p9_deliver_interrupt(env, interrupt);
-        break;
-#endif
-    default:
-        ppc_deliver_interrupt_generic(env, interrupt);
     }
 }
 
