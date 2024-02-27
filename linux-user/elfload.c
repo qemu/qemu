@@ -4652,7 +4652,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
     {
         g_autofree char *corefile = core_dump_filename(ts);
-        fd = open(corefile, O_WRONLY | O_CREAT,
+        fd = open(corefile, O_WRONLY | O_CREAT | O_TRUNC,
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
     if (fd < 0) {
