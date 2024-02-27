@@ -2663,7 +2663,7 @@ void helper_hrfid(CPUPPCState *env)
 }
 #endif /* TARGET_PPC64 */
 
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+#ifdef TARGET_PPC64
 void helper_rfebb(CPUPPCState *env, target_ulong s)
 {
     target_ulong msr = env->msr;
@@ -2738,7 +2738,7 @@ void raise_ebb_perfm_exception(CPUPPCState *env)
 
     do_ebb(env, POWERPC_EXCP_PERFM_EBB);
 }
-#endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
+#endif /* TARGET_PPC64 */
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
