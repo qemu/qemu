@@ -716,8 +716,9 @@ class QAPIDoc:
 
     def check_expr(self, expr: QAPIExpression) -> None:
         if self.returns and 'command' not in expr:
-            raise QAPISemError(self.returns.info,
-                               "'Returns:' is only valid for commands")
+            raise QAPISemError(
+                self.returns.info,
+                "'Returns' section is only valid for commands")
 
     def check(self) -> None:
 
