@@ -49,13 +49,8 @@ enum {
 int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUClass *cc = CPU_GET_CLASS(cs);
     CPUMBState *env = &cpu->env;
     uint32_t val;
-
-    if (n > cc->gdb_num_core_regs) {
-        return 0;
-    }
 
     switch (n) {
     case 1 ... 31:
