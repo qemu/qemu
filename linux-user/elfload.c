@@ -4292,7 +4292,7 @@ static int wmr_page_unprotect_regions(void *opaque, target_ulong start,
                                       target_ulong end, unsigned long flags)
 {
     if ((flags & (PAGE_WRITE | PAGE_WRITE_ORG)) == PAGE_WRITE_ORG) {
-        size_t step = MAX(TARGET_PAGE_SIZE, qemu_host_page_size);
+        size_t step = MAX(TARGET_PAGE_SIZE, qemu_real_host_page_size());
 
         while (1) {
             page_unprotect(start, 0);
