@@ -2954,6 +2954,7 @@ static inline bool ppc_has_spr(PowerPCCPU *cpu, int spr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+/* Sort out endianness of interrupt. Depends on the CPU, HV mode, etc. */
 static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu, bool hv)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
