@@ -561,9 +561,8 @@
 # could also exit (or set its status to "shutdown") due to other
 # reasons.
 #
-# The following errors may be returned:
-#
-# - If suspend to disk is not supported, Unsupported
+# Errors:
+#     - If suspend to disk is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -598,9 +597,8 @@
 # 2. Issue the query-status QMP command to confirm the VM status is
 #    "suspended"
 #
-# The following errors may be returned:
-#
-# - If suspend to ram is not supported, Unsupported
+# Errors:
+#     - If suspend to ram is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -634,9 +632,8 @@
 # 2. Issue the query-status QMP command to confirm the VM status is
 #    "suspended"
 #
-# The following errors may be returned:
-#
-# - If hybrid suspend is not supported, Unsupported
+# Errors:
+#     - If hybrid suspend is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -796,9 +793,6 @@
 #     - 0:
 #       if the @vcpus list was empty on input.  Guest state has not
 #       been changed.  Otherwise,
-#     - Error:
-#       processing the first node of @vcpus failed for the reason
-#       returned.  Guest state has not been changed.  Otherwise,
 #     - < length(@vcpus):
 #       more than zero initial nodes have been processed, but not the
 #       entire @vcpus list.  Guest state has changed accordingly.  To
@@ -807,6 +801,10 @@
 #       Otherwise,
 #     - length(@vcpus):
 #       call successful.
+#
+# Errors:
+#     - If the reconfiguration of the first node in @vcpus failed.
+#       Guest state has not been changed.
 #
 # Since: 1.5
 ##
