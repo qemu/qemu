@@ -4551,32 +4551,13 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     }
 
     /*
-     * Finally we can dump process memory into corefile as well.
+     * Finally write process memory into the corefile as well.
      */
     for (vma = vma_first(&mm); vma != NULL; vma = vma_next(vma)) {
-        abi_ulong addr;
-        abi_ulong end;
+        size_t size = vma_dump_size(vma);
 
-        end = vma->vma_start + vma_dump_size(vma);
-
-        for (addr = vma->vma_start; addr < end;
-             addr += TARGET_PAGE_SIZE) {
-            char page[TARGET_PAGE_SIZE];
-            int error;
-
-            /*
-             *  Read in page from target process memory and
-             *  write it to coredump file.
-             */
-            error = copy_from_user(page, addr, sizeof (page));
-            if (error != 0) {
-                (void) fprintf(stderr, "unable to dump " TARGET_ABI_FMT_lx "\n",
-                               addr);
-                errno = -error;
-                goto out;
-            }
-            if (dump_write(fd, page, TARGET_PAGE_SIZE) < 0)
-                goto out;
+        if (size && dump_write(fd, g2h_untagged(vma->vma_start), size) < 0) {
+            goto out;
         }
     }
     errno = 0;
