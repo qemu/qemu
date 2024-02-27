@@ -3963,6 +3963,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 }
 
 #ifdef USE_ELF_CORE_DUMP
+#include "exec/translate-all.h"
+
 /*
  * Definitions to generate Intel SVR4-like core files.
  * These mostly have the same names as the SVR4 types with "target_elf_"
@@ -4280,6 +4282,23 @@ static int dump_write(int fd, const void *ptr, size_t size)
     return (0);
 }
 
+static int wmr_page_unprotect_regions(void *opaque, target_ulong start,
+                                      target_ulong end, unsigned long flags)
+{
+    if ((flags & (PAGE_WRITE | PAGE_WRITE_ORG)) == PAGE_WRITE_ORG) {
+        size_t step = MAX(TARGET_PAGE_SIZE, qemu_host_page_size);
+
+        while (1) {
+            page_unprotect(start, 0);
+            if (end - start <= step) {
+                break;
+            }
+            start += step;
+        }
+    }
+    return 0;
+}
+
 typedef struct {
     unsigned count;
     size_t size;
@@ -4400,6 +4419,9 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
     cpu_list_lock();
     mmap_lock();
+
+    /* By unprotecting, we merge vmas that might be split. */
+    walk_memory_regions(NULL, wmr_page_unprotect_regions);
 
     /*
      * Walk through target process memory mappings and
