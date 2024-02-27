@@ -345,6 +345,8 @@
 #
 # Returns:
 #     - @AddfdInfo on success
+#
+# Errors:
 #     - If file descriptor was not received, GenericError
 #     - If @fdset-id is a negative value, GenericError
 #
@@ -376,6 +378,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If @fdset-id or @fd is not found, GenericError
 #
 # Since: 1.2
@@ -528,8 +532,10 @@
 # @option: option name
 #
 # Returns: list of @CommandLineOptionInfo for all options (or for the
-#     given @option).  Returns an error if the given @option doesn't
-#     exist.
+#     given @option).
+#
+# Errors:
+#     - if the given @option doesn't exist
 #
 # Since: 1.5
 #

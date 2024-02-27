@@ -80,6 +80,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If Spice is not enabled, DeviceNotFound
 #
 # Since: 0.14
@@ -142,6 +144,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If @protocol is 'spice' and Spice is not active,
 #       DeviceNotFound
 #
@@ -1038,6 +1042,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If key is unknown or redundant, GenericError
 #
 # Since: 1.3

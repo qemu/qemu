@@ -1062,6 +1062,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If the balloon driver is enabled but not functional because
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
@@ -1100,6 +1102,8 @@
 #
 # Returns:
 #     - @BalloonInfo on success
+#
+# Errors:
 #     - If the balloon driver is enabled but not functional because
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
@@ -1164,6 +1168,8 @@
 #
 # Returns:
 #     - @HvBalloonInfo on success
+#
+# Errors:
 #     - If no hv-balloon device is present, guest memory status
 #       reporting is not enabled or no guest memory status report
 #       received yet, GenericError

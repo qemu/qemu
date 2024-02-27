@@ -1458,6 +1458,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14
@@ -1676,6 +1678,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14
@@ -1756,6 +1760,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If "device" does not exist or cannot be determined,
 #       DeviceNotFound
 #
@@ -1856,6 +1862,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If @device does not exist, DeviceNotFound
 #     - Any other error returns a GenericError.
 #
@@ -1896,6 +1904,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #
 # Since: 1.6
@@ -1923,6 +1933,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 2.3
@@ -2129,6 +2141,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #
 # Since: 1.3
@@ -2306,6 +2320,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
 #     - If @name is already taken, GenericError with an explanation
 #
@@ -2330,6 +2346,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #     - if @name is frozen by an operation, GenericError
@@ -2355,6 +2373,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2377,6 +2397,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2399,6 +2421,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2429,6 +2453,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If any bitmap in @bitmaps or @target is not found,
 #       GenericError
@@ -2471,6 +2497,8 @@
 #
 # Returns:
 #     - BlockDirtyBitmapSha256 on success
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found or if hashing has failed, GenericError
 #       with an explanation
@@ -2868,6 +2896,8 @@
 #
 # Returns:
 #     - Nothing on success.
+#
+# Errors:
 #     - If @device does not exist, DeviceNotFound.
 #
 # Since: 1.1
@@ -2907,6 +2937,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -2952,6 +2984,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -2979,6 +3013,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -3004,6 +3040,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -3036,6 +3074,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -6072,6 +6112,8 @@
 #
 # Returns:
 #     - nothing on success
+#
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #     - If any snapshot matching @name exists, or @name is empty,
 #       GenericError
@@ -6109,6 +6151,8 @@
 #
 # Returns:
 #     - SnapshotInfo on success
+#
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #     - If snapshot not found, GenericError
 #     - If the format of the image used does not support it,

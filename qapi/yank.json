@@ -80,6 +80,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - @DeviceNotFound error, if any of the YankInstances doesn't exist
 #
 # Example:

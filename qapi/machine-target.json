@@ -154,10 +154,13 @@
 # Some architectures may not support comparing CPU models.  s390x
 # supports comparing CPU models.
 #
-# Returns: a CpuModelBaselineInfo.  Returns an error if comparing CPU
-#     models is not supported, if a model cannot be used, if a model
-#     contains an unknown cpu definition name, unknown properties or
-#     properties with wrong types.
+# Returns: a CpuModelBaselineInfo
+#
+# Errors:
+#     - if comparing CPU models is not supported
+#     - if a model cannot be used
+#     - if a model contains an unknown cpu definition name, unknown
+#       properties or properties with wrong types.
 #
 # Note: this command isn't specific to s390x, but is only implemented
 #     on this architecture currently.
@@ -201,10 +204,13 @@
 # Some architectures may not support baselining CPU models.  s390x
 # supports baselining CPU models.
 #
-# Returns: a CpuModelBaselineInfo.  Returns an error if baselining CPU
-#     models is not supported, if a model cannot be used, if a model
-#     contains an unknown cpu definition name, unknown properties or
-#     properties with wrong types.
+# Returns: a CpuModelBaselineInfo
+#
+# Errors:
+#     - if baselining CPU models is not supported
+#     - if a model cannot be used
+#     - if a model contains an unknown cpu definition name, unknown
+#       properties or properties with wrong types.
 #
 # Note: this command isn't specific to s390x, but is only implemented
 #     on this architecture currently.
@@ -263,11 +269,14 @@
 # Some architectures may not support all expansion types.  s390x
 # supports "full" and "static". Arm only supports "full".
 #
-# Returns: a CpuModelExpansionInfo.  Returns an error if expanding CPU
-#     models is not supported, if the model cannot be expanded, if the
-#     model contains an unknown CPU definition name, unknown
-#     properties or properties with a wrong type.  Also returns an
-#     error if an expansion type is not supported.
+# Returns: a CpuModelExpansionInfo
+#
+# Errors:
+#     - if expanding CPU models is not supported
+#     - if the model cannot be expanded
+#     - if the model contains an unknown CPU definition name, unknown
+#       properties or properties with a wrong type
+#     - if an expansion type is not supported
 #
 # Since: 2.8
 ##

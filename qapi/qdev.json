@@ -91,6 +91,8 @@
 #
 # Returns:
 #     - Nothing on success
+#
+# Errors:
 #     - If @id is not a valid device, DeviceNotFound
 #
 # Notes: When this command completes, the device may not be removed
