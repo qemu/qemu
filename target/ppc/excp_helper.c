@@ -35,7 +35,7 @@
 
 /*****************************************************************************/
 /* Exception processing */
-#if !defined(CONFIG_USER_ONLY)
+#ifndef CONFIG_USER_ONLY
 
 static const char *powerpc_excp_name(int excp)
 {
@@ -186,7 +186,7 @@ static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
              env->error_code);
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 static int powerpc_reset_wakeup(CPUPPCState *env, int excp, target_ulong *msr)
 {
     /* We no longer are in a PM state */
@@ -380,7 +380,7 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp, target_ulong msr,
         }
     }
 }
-#endif
+#endif /* TARGET_PPC64 */
 
 static void powerpc_reset_excp_state(PowerPCCPU *cpu)
 {
@@ -1163,7 +1163,7 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
         break;
     }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
     if (env->spr[SPR_BOOKE_EPCR] & EPCR_ICM) {
         /* Cat.64-bit: EPCR.ICM is copied to MSR.CM */
         new_msr |= (target_ulong)1 << MSR_CM;
@@ -1594,7 +1594,7 @@ static inline void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 {
     g_assert_not_reached();
 }
-#endif
+#endif /* TARGET_PPC64 */
 
 static void powerpc_excp(PowerPCCPU *cpu, int excp)
 {
@@ -1645,7 +1645,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     powerpc_excp(cpu, cs->exception_index);
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 #define P7_UNUSED_INTERRUPTS \
     (PPC_INTERRUPT_RESET | PPC_INTERRUPT_HVIRT | PPC_INTERRUPT_CEXT |       \
      PPC_INTERRUPT_WDT | PPC_INTERRUPT_CDOORBELL | PPC_INTERRUPT_FIT |      \
@@ -1976,7 +1976,7 @@ static int p9_next_unmasked_interrupt(CPUPPCState *env)
 
     return 0;
 }
-#endif
+#endif /* TARGET_PPC64 */
 
 static int ppc_next_unmasked_interrupt_generic(CPUPPCState *env)
 {
@@ -2093,7 +2093,7 @@ static int ppc_next_unmasked_interrupt_generic(CPUPPCState *env)
 static int ppc_next_unmasked_interrupt(CPUPPCState *env)
 {
     switch (env->excp_model) {
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
     case POWERPC_EXCP_POWER7:
         return p7_next_unmasked_interrupt(env);
     case POWERPC_EXCP_POWER8:
@@ -2132,7 +2132,7 @@ void ppc_maybe_interrupt(CPUPPCState *env)
     }
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 static void p7_deliver_interrupt(CPUPPCState *env, int interrupt)
 {
     PowerPCCPU *cpu = env_archcpu(env);
@@ -2334,7 +2334,7 @@ static void p9_deliver_interrupt(CPUPPCState *env, int interrupt)
                   interrupt);
     }
 }
-#endif
+#endif /* TARGET_PPC64 */
 
 static void ppc_deliver_interrupt_generic(CPUPPCState *env, int interrupt)
 {
@@ -2443,7 +2443,7 @@ static void ppc_deliver_interrupt_generic(CPUPPCState *env, int interrupt)
 static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
 {
     switch (env->excp_model) {
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
     case POWERPC_EXCP_POWER7:
         p7_deliver_interrupt(env, interrupt);
         break;
@@ -2553,9 +2553,9 @@ void helper_raise_exception(CPUPPCState *env, uint32_t exception)
 {
     raise_exception_err_ra(env, exception, 0, 0);
 }
-#endif
+#endif /* CONFIG_TCG */
 
-#if !defined(CONFIG_USER_ONLY)
+#ifndef CONFIG_USER_ONLY
 #ifdef CONFIG_TCG
 void helper_store_msr(CPUPPCState *env, target_ulong val)
 {
@@ -2572,7 +2572,7 @@ void helper_ppc_maybe_interrupt(CPUPPCState *env)
     ppc_maybe_interrupt(env);
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 void helper_scv(CPUPPCState *env, uint32_t lev)
 {
     if (env->spr[SPR_FSCR] & (1ull << FSCR_SCV)) {
@@ -2600,7 +2600,7 @@ void helper_pminsn(CPUPPCState *env, uint32_t insn)
 
     ppc_maybe_interrupt(env);
 }
-#endif /* defined(TARGET_PPC64) */
+#endif /* TARGET_PPC64 */
 
 static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {
@@ -2611,7 +2611,7 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     if (env->flags & POWERPC_FLAG_TGPR)
         msr &= ~(1ULL << MSR_TGPR);
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
     /* Switching to 32-bit ? Crop the nip */
     if (!msr_is_64bit(env, msr)) {
         nip = (uint32_t)nip;
@@ -2640,7 +2640,7 @@ void helper_rfi(CPUPPCState *env)
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1] & 0xfffffffful);
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 void helper_rfid(CPUPPCState *env)
 {
     /*
@@ -2661,7 +2661,7 @@ void helper_hrfid(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
 }
-#endif
+#endif /* TARGET_PPC64 */
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 void helper_rfebb(CPUPPCState *env, target_ulong s)
@@ -2738,7 +2738,7 @@ void raise_ebb_perfm_exception(CPUPPCState *env)
 
     do_ebb(env, POWERPC_EXCP_PERFM_EBB);
 }
-#endif
+#endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
@@ -2780,7 +2780,7 @@ void helper_tw(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
     }
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                uint32_t flags)
 {
@@ -2793,8 +2793,8 @@ void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                                POWERPC_EXCP_TRAP, GETPC());
     }
 }
-#endif
-#endif
+#endif /* TARGET_PPC64 */
+#endif /* CONFIG_TCG */
 
 #ifdef CONFIG_TCG
 static uint32_t helper_SIMON_LIKE_32_64(uint32_t x, uint64_t key, uint32_t lane)
@@ -2909,8 +2909,7 @@ HELPER_HASH(HASHSTP, env->spr[SPR_HASHPKEYR], true, PHIE)
 HELPER_HASH(HASHCHKP, env->spr[SPR_HASHPKEYR], false, PHIE)
 #endif /* CONFIG_TCG */
 
-#if !defined(CONFIG_USER_ONLY)
-
+#ifndef CONFIG_USER_ONLY
 #ifdef CONFIG_TCG
 
 /* Embedded.Processor Control */
@@ -3019,7 +3018,7 @@ void helper_book3s_msgsnd(target_ulong rb)
     book3s_msgsnd_common(pir, PPC_INTERRUPT_HDOORBELL);
 }
 
-#if defined(TARGET_PPC64)
+#ifdef TARGET_PPC64
 void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
 {
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgclrp", HFSCR_IC_MSGP);
