@@ -4625,7 +4625,6 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     const CPUState *cpu = env_cpu((CPUArchState *)env);
     const TaskState *ts = (const TaskState *)cpu->opaque;
     struct vm_area_struct *vma = NULL;
-    g_autofree char *corefile = NULL;
     struct elf_note_info info;
     struct elfhdr elf;
     struct elf_phdr phdr;
@@ -4644,18 +4643,21 @@ static int elf_core_dump(int signr, const CPUArchState *env)
         return 0;
     }
 
-    corefile = core_dump_filename(ts);
-
-    if ((fd = open(corefile, O_WRONLY | O_CREAT,
-                   S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)
-        return (-errno);
-
     /*
      * Walk through target process memory mappings and
      * set up structure containing this information.  After
      * this point vma_xxx functions can be used.
      */
     vma_init(&mm);
+
+    {
+        g_autofree char *corefile = core_dump_filename(ts);
+        fd = open(corefile, O_WRONLY | O_CREAT,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    }
+    if (fd < 0) {
+        goto out;
+    }
 
     walk_memory_regions(&mm, vma_walker);
     segs = vma_get_mapping_count(&mm);
