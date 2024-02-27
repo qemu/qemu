@@ -2457,7 +2457,7 @@
 # @unstable: This command is meant for debugging.
 #
 # Returns:
-#     - BlockDirtyBitmapSha256 on success
+#     BlockDirtyBitmapSha256
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -6084,7 +6084,7 @@
 # @name: optional the snapshot's name to be deleted
 #
 # Returns:
-#     - SnapshotInfo on success
+#     SnapshotInfo
 #
 # Errors:
 #     - If @device is not a valid block device, GenericError

@@ -332,7 +332,7 @@
 # @opaque: A free-form string that can be used to describe the fd.
 #
 # Returns:
-#     - @AddfdInfo on success
+#     @AddfdInfo
 #
 # Errors:
 #     - If file descriptor was not received, GenericError

@@ -1090,7 +1090,7 @@
 # Return information about the balloon device.
 #
 # Returns:
-#     - @BalloonInfo on success
+#     @BalloonInfo
 #
 # Errors:
 #     - If the balloon driver is enabled but not functional because
@@ -1156,7 +1156,7 @@
 # message from the guest.
 #
 # Returns:
-#     - @HvBalloonInfo on success
+#     @HvBalloonInfo
 #
 # Errors:
 #     - If no hv-balloon device is present, guest memory status
