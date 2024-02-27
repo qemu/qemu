@@ -115,8 +115,7 @@ the bottom::
  ##
  { 'command': 'hello-world' }
 
-The "command" keyword defines a new QMP command. It's an JSON object. All
-schema entries are JSON objects. The line above will instruct the QAPI to
+The "command" keyword defines a new QMP command. It instructs QAPI to
 generate any prototypes and the necessary code to marshal and unmarshal
 protocol data.
 
@@ -138,16 +137,16 @@ There are a few things to be noticed:
 3. It takes an "Error \*\*" argument. This is required. Later we will see how to
    return errors and take additional arguments. The Error argument should not
    be touched if the command doesn't return errors
-4. We won't add the function's prototype. That's automatically done by the QAPI
+4. We won't add the function's prototype. That's automatically done by QAPI
 5. Printing to the terminal is discouraged for QMP commands, we do it here
    because it's the easiest way to demonstrate a QMP command
 
-You're done. Now build qemu, run it as suggested in the "Testing" section,
+You're done. Now build QEMU, run it as suggested in the "Testing" section,
 and then type the following QMP command::
 
  { "execute": "hello-world" }
 
-Then check the terminal running qemu and look for the "Hello, world" string. If
+Then check the terminal running QEMU and look for the "Hello, world" string. If
 you don't see it then something went wrong.
 
 
@@ -201,7 +200,7 @@ There are two important details to be noticed:
 2. The C implementation signature must follow the schema's argument ordering,
    which is defined by the "data" member
 
-Time to test our new version of the "hello-world" command. Build qemu, run it as
+Time to test our new version of the "hello-world" command. Build QEMU, run it as
 described in the "Testing" section and then send two commands::
 
  { "execute": "hello-world" }
@@ -210,13 +209,13 @@ described in the "Testing" section and then send two commands::
      }
  }
 
- { "execute": "hello-world", "arguments": { "message": "We love qemu" } }
+ { "execute": "hello-world", "arguments": { "message": "We love QEMU" } }
  {
      "return": {
      }
  }
 
-You should see "Hello, world" and "We love qemu" in the terminal running qemu,
+You should see "Hello, world" and "We love QEMU" in the terminal running QEMU,
 if you don't see these strings, then something went wrong.
 
 
@@ -246,7 +245,7 @@ The first argument to the error_setg() function is the Error pointer
 to pointer, which is passed to all QMP functions. The next argument is a human
 description of the error, this is a free-form printf-like string.
 
-Let's test the example above. Build qemu, run it as defined in the "Testing"
+Let's test the example above. Build QEMU, run it as defined in the "Testing"
 section, and then issue the following command::
 
  { "execute": "hello-world", "arguments": { "message": "all you need is love" } }
@@ -279,9 +278,8 @@ Implementing the HMP command
 Now that the QMP command is in place, we can also make it available in the human
 monitor (HMP).
 
-With the introduction of the QAPI, HMP commands make QMP calls. Most of the
-time HMP commands are simple wrappers. All HMP commands implementation exist in
-the monitor/hmp-cmds.c file.
+With the introduction of QAPI, HMP commands make QMP calls. Most of the
+time HMP commands are simple wrappers.
 
 Here's the implementation of the "hello-world" HMP command::
 
@@ -332,17 +330,17 @@ To test this you have to open a user monitor and issue the "hello-world"
 command. It might be instructive to check the command's documentation with
 HMP's "help" command.
 
-Please, check the "-monitor" command-line option to know how to open a user
+Please check the "-monitor" command-line option to know how to open a user
 monitor.
 
 
 Writing more complex commands
 -----------------------------
 
-A QMP command is capable of returning any data the QAPI supports like integers,
+A QMP command is capable of returning any data QAPI supports like integers,
 strings, booleans, enumerations and user defined types.
 
-In this section we will focus on user defined types. Please, check the QAPI
+In this section we will focus on user defined types. Please check the QAPI
 documentation for information about the other types.
 
 
@@ -463,7 +461,7 @@ There are a number of things to be noticed:
    member, it comes with a 'has_bootindex' member that needs to be set
    by the implementation, as shown above
 
-Time to test the new command. Build qemu, run it as described in the "Testing"
+Time to test the new command. Build QEMU, run it as described in the "Testing"
 section and try this::
 
  { "execute": "query-option-rom" }
@@ -532,7 +530,7 @@ option-roms" follows::
    Show the option ROMs.
  ERST
 
-To test this, run qemu and type "info option-roms" in the user monitor.
+To test this, run QEMU and type "info option-roms" in the user monitor.
 
 
 Writing a debugging aid returning unstructured text
