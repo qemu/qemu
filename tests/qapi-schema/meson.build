@@ -79,6 +79,7 @@ schemas = [
   'doc-invalid-end.json',
   'doc-invalid-end2.json',
   'doc-invalid-return.json',
+  'doc-invalid-return2.json',
   'doc-invalid-section.json',
   'doc-invalid-start.json',
   'doc-missing-colon.json',

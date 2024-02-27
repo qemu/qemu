@@ -721,7 +721,12 @@ class QAPIDoc:
         self.features[feature.name].connect(feature)
 
     def check_expr(self, expr: QAPIExpression) -> None:
-        if 'command' not in expr:
+        if 'command' in expr:
+            if self.returns and 'returns' not in expr:
+                raise QAPISemError(
+                    self.returns.info,
+                    "'Returns' section, but command doesn't return anything")
+        else:
             if self.returns:
                 raise QAPISemError(
                     self.returns.info,
