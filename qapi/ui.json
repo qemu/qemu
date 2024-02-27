@@ -78,9 +78,6 @@
 #
 # Set the password of a remote display server.
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If Spice is not enabled, DeviceNotFound
 #
@@ -142,9 +139,6 @@
 #
 # Expire the password of a remote display server.
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If @protocol is 'spice' and Spice is not active,
 #       DeviceNotFound
@@ -190,8 +184,6 @@
 #     ID. (Since 2.12)
 #
 # @format: image format for screendump.  (default: ppm) (Since 7.1)
-#
-# Returns: Nothing on success
 #
 # Since: 0.14
 #
@@ -1040,9 +1032,6 @@
 # @hold-time: time to delay key up events, milliseconds.  Defaults to
 #     100
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If key is unknown or redundant, GenericError
 #
@@ -1264,8 +1253,6 @@
 #     multiple scanouts.
 #
 # @events: List of InputEvent union.
-#
-# Returns: Nothing on success.
 #
 # Since: 2.6
 #
@@ -1611,8 +1598,6 @@
 #
 # Reload display configuration.
 #
-# Returns: Nothing on success.
-#
 # Since: 6.0
 #
 # Example:
@@ -1669,8 +1654,6 @@
 # @display-update:
 #
 # Update display configuration.
-#
-# Returns: Nothing on success.
 #
 # Since: 7.1
 #

@@ -139,8 +139,6 @@
 #     - data itself is always Unicode regardless of format, like any
 #       other string.
 #
-# Returns: Nothing on success
-#
 # Since: 1.4
 #
 # Example:
@@ -772,8 +770,6 @@
 #
 # @id: the chardev's ID, must exist and not be in use
 #
-# Returns: Nothing on success
-#
 # Since: 1.4
 #
 # Example:
@@ -790,8 +786,6 @@
 # Send a break to a character device
 #
 # @id: the chardev's ID, must exist
-#
-# Returns: Nothing on success
 #
 # Since: 2.10
 #

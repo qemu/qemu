@@ -110,9 +110,6 @@
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
@@ -460,9 +457,6 @@
 # I/O limits can be disabled by setting all of them to 0. In this case
 # the device will be removed from its group and the rest of its
 # members will not be affected.  The 'group' parameter is ignored.
-#
-# Returns:
-#     - Nothing on success
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound

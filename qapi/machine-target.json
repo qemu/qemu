@@ -414,8 +414,6 @@
 #
 # @unstable: This command is experimental.
 #
-# Returns: Nothing on success.
-#
 # Since: 8.2
 ##
 { 'command': 'set-cpu-topology',

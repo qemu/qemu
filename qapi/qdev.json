@@ -89,9 +89,6 @@
 #
 # @id: the device's ID or QOM path
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If @id is not a valid device, DeviceNotFound
 #

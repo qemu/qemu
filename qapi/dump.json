@@ -92,8 +92,6 @@
 #
 # Note: All boolean arguments default to false
 #
-# Returns: nothing on success
-#
 # Since: 1.2
 #
 # Example:

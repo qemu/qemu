@@ -234,8 +234,6 @@
 #     execution of the transaction.  See @TransactionProperties for
 #     additional detail.
 #
-# Returns: nothing on success
-#
 # Errors:
 #     Any errors from commands in the transaction
 #

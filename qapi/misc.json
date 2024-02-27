@@ -28,8 +28,6 @@
 #
 # @tls: whether to perform TLS. Only applies to the "spice" protocol
 #
-# Returns: nothing on success.
-#
 # Since: 0.14
 #
 # Example:
@@ -160,8 +158,6 @@
 #
 # Since: 0.14
 #
-# Returns: If successful, nothing
-#
 # Notes: This command will succeed if the guest is currently running.
 #     It will also succeed if the guest is in the "inmigrate" state;
 #     in this case, the effect of the command is to make sure the
@@ -195,8 +191,6 @@
 # @unstable: This command is experimental.
 #
 # Since: 3.0
-#
-# Returns: nothing
 #
 # Example:
 #
@@ -256,8 +250,6 @@
 #
 # @fdname: file descriptor name
 #
-# Returns: Nothing on success
-#
 # Since: 0.14
 #
 # Notes: If @fdname already exists, the file descriptor assigned to it
@@ -285,8 +277,6 @@
 #
 # @fdname: file descriptor name
 #
-# Returns: Nothing on success
-#
 # Since: 8.0
 #
 # Notes: If @fdname already exists, the file descriptor assigned to it
@@ -308,8 +298,6 @@
 # Close a file descriptor previously passed via SCM rights
 #
 # @fdname: file descriptor name
-#
-# Returns: Nothing on success
 #
 # Since: 0.14
 #
@@ -375,9 +363,6 @@
 # @fdset-id: The ID of the fd set that the file descriptor belongs to.
 #
 # @fd: The file descriptor that is to be removed.
-#
-# Returns:
-#     - Nothing on success
 #
 # Errors:
 #     - If @fdset-id or @fd is not found, GenericError

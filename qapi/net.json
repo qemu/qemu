@@ -17,9 +17,6 @@
 #
 # @up: true to set the link status to be up
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If @name is not a valid network device, DeviceNotFound
 #
@@ -46,9 +43,6 @@
 #
 # Since: 0.14
 #
-# Returns:
-#     - Nothing on success
-#
 # Errors:
 #     - If @type is not a valid network backend, DeviceNotFound
 #
@@ -68,9 +62,6 @@
 # Remove a network backend.
 #
 # @id: the name of the network backend to remove
-#
-# Returns:
-#     - Nothing on success
 #
 # Errors:
 #     - If @id is not a valid network backend, DeviceNotFound
