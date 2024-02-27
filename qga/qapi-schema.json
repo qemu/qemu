@@ -1176,9 +1176,9 @@
 #     @GuestMemoryBlockResponse, which is corresponding to the input
 #     list.
 #
-#     Note: it will return NULL if the @mem-blks list was empty on
-#     input, or there is an error, and in this case, guest state will
-#     not be changed.
+#     Note: it will return an empty list if the @mem-blks list was
+#     empty on input, or there is an error, and in this case, guest
+#     state will not be changed.
 #
 # Since: 2.3
 ##
