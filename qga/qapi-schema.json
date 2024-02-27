@@ -437,14 +437,15 @@
 # command succeeded, you may call @guest-fsfreeze-thaw later to
 # unfreeze.
 #
+# On error, all filesystems will be thawed.  If no filesystems are
+# frozen as a result of this call, then @guest-fsfreeze-status will
+# remain "thawed" and calling @guest-fsfreeze-thaw is not necessary.
+#
+# Returns: Number of file systems currently frozen.
+#
 # Note: On Windows, the command is implemented with the help of a
 #     Volume Shadow-copy Service DLL helper.  The frozen state is
 #     limited for up to 10 seconds by VSS.
-#
-# Returns: Number of file systems currently frozen.  On error, all
-#     filesystems will be thawed.  If no filesystems are frozen as a
-#     result of this call, then @guest-fsfreeze-status will remain
-#     "thawed" and calling @guest-fsfreeze-thaw is not necessary.
 #
 # Since: 0.15.0
 ##
@@ -457,12 +458,13 @@
 # Sync and freeze specified guest filesystems.  See also
 # @guest-fsfreeze-freeze.
 #
+# On error, all filesystems will be thawed.
+#
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #     If omitted, every mounted filesystem is frozen.  Invalid mount
 #     points are ignored.
 #
-# Returns: Number of file systems currently frozen.  On error, all
-#     filesystems will be thawed.
+# Returns: Number of file systems currently frozen.
 #
 # Since: 2.2
 ##
