@@ -153,8 +153,6 @@
 # @time: time of nanoseconds, relative to the Epoch of 1970-01-01 in
 #     UTC.
 #
-# Returns: Nothing on success.
-#
 # Since: 1.5
 ##
 { 'command': 'guest-set-time',
@@ -244,8 +242,6 @@
 # Close an open file in the guest
 #
 # @handle: filehandle returned by guest-file-open
-#
-# Returns: Nothing on success.
 #
 # Since: 0.15.0
 ##
@@ -398,8 +394,6 @@
 # Write file changes buffered in userspace to disk/kernel buffers
 #
 # @handle: filehandle returned by guest-file-open
-#
-# Returns: Nothing on success.
 #
 # Since: 0.15.0
 ##
@@ -1077,8 +1071,6 @@
 # transmission, even if already crypt()d, to ensure it is 8-bit safe
 # when passed as JSON.
 #
-# Returns: Nothing on success.
-#
 # Since: 2.3
 ##
 { 'command': 'guest-set-user-password',
@@ -1602,8 +1594,6 @@
 #
 # @reset: ignore the existing content, set it with the given keys only
 #
-# Returns: Nothing on success.
-#
 # Since: 5.2
 ##
 { 'command': 'guest-ssh-add-authorized-keys',
@@ -1621,8 +1611,6 @@
 #
 # @keys: the public keys to remove (in OpenSSH/sshd(8) authorized_keys
 #     format)
-#
-# Returns: Nothing on success.
 #
 # Since: 5.2
 ##
