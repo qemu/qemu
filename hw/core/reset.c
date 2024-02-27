@@ -24,64 +24,164 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/queue.h"
 #include "sysemu/reset.h"
+#include "hw/resettable.h"
+#include "hw/core/resetcontainer.h"
 
-/* reset/shutdown handler */
+/*
+ * Return a pointer to the singleton container that holds all the Resettable
+ * items that will be reset when qemu_devices_reset() is called.
+ */
+static ResettableContainer *get_root_reset_container(void)
+{
+    static ResettableContainer *root_reset_container;
 
-typedef struct QEMUResetEntry {
-    QTAILQ_ENTRY(QEMUResetEntry) entry;
+    if (!root_reset_container) {
+        root_reset_container =
+            RESETTABLE_CONTAINER(object_new(TYPE_RESETTABLE_CONTAINER));
+    }
+    return root_reset_container;
+}
+
+/*
+ * Reason why the currently in-progress qemu_devices_reset() was called.
+ * If we made at least SHUTDOWN_CAUSE_SNAPSHOT_LOAD have a corresponding
+ * ResetType we could perhaps avoid the need for this global.
+ */
+static ShutdownCause device_reset_reason;
+
+/*
+ * This is an Object which implements Resettable simply to call the
+ * callback function in the hold phase.
+ */
+#define TYPE_LEGACY_RESET "legacy-reset"
+OBJECT_DECLARE_SIMPLE_TYPE(LegacyReset, LEGACY_RESET)
+
+struct LegacyReset {
+    Object parent;
+    ResettableState reset_state;
     QEMUResetHandler *func;
     void *opaque;
     bool skip_on_snapshot_load;
-} QEMUResetEntry;
+};
 
-static QTAILQ_HEAD(, QEMUResetEntry) reset_handlers =
-    QTAILQ_HEAD_INITIALIZER(reset_handlers);
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(LegacyReset, legacy_reset, LEGACY_RESET, OBJECT, { TYPE_RESETTABLE_INTERFACE }, { })
+
+static ResettableState *legacy_reset_get_state(Object *obj)
+{
+    LegacyReset *lr = LEGACY_RESET(obj);
+    return &lr->reset_state;
+}
+
+static void legacy_reset_hold(Object *obj)
+{
+    LegacyReset *lr = LEGACY_RESET(obj);
+
+    if (device_reset_reason == SHUTDOWN_CAUSE_SNAPSHOT_LOAD &&
+        lr->skip_on_snapshot_load) {
+        return;
+    }
+    lr->func(lr->opaque);
+}
+
+static void legacy_reset_init(Object *obj)
+{
+}
+
+static void legacy_reset_finalize(Object *obj)
+{
+}
+
+static void legacy_reset_class_init(ObjectClass *klass, void *data)
+{
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->get_state = legacy_reset_get_state;
+    rc->phases.hold = legacy_reset_hold;
+}
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry *re = g_new0(QEMUResetEntry, 1);
+    Object *obj = object_new(TYPE_LEGACY_RESET);
+    LegacyReset *lr = LEGACY_RESET(obj);
 
-    re->func = func;
-    re->opaque = opaque;
-    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    lr->func = func;
+    lr->opaque = opaque;
+    qemu_register_resettable(obj);
 }
 
 void qemu_register_reset_nosnapshotload(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry *re = g_new0(QEMUResetEntry, 1);
+    Object *obj = object_new(TYPE_LEGACY_RESET);
+    LegacyReset *lr = LEGACY_RESET(obj);
 
-    re->func = func;
-    re->opaque = opaque;
-    re->skip_on_snapshot_load = true;
-    QTAILQ_INSERT_TAIL(&reset_handlers, re, entry);
+    lr->func = func;
+    lr->opaque = opaque;
+    lr->skip_on_snapshot_load = true;
+    qemu_register_resettable(obj);
+}
+
+typedef struct FindLegacyInfo {
+    QEMUResetHandler *func;
+    void *opaque;
+    LegacyReset *lr;
+} FindLegacyInfo;
+
+static void find_legacy_reset_cb(Object *obj, void *opaque, ResetType type)
+{
+    LegacyReset *lr;
+    FindLegacyInfo *fli = opaque;
+
+    /* Not everything in the ResettableContainer will be a LegacyReset */
+    lr = LEGACY_RESET(object_dynamic_cast(obj, TYPE_LEGACY_RESET));
+    if (lr && lr->func == fli->func && lr->opaque == fli->opaque) {
+        fli->lr = lr;
+    }
+}
+
+static LegacyReset *find_legacy_reset(QEMUResetHandler *func, void *opaque)
+{
+    /*
+     * Find the LegacyReset with the specified func and opaque,
+     * by getting the ResettableContainer to call our callback for
+     * every item in it.
+     */
+    ResettableContainer *rootcon = get_root_reset_container();
+    ResettableClass *rc = RESETTABLE_GET_CLASS(rootcon);
+    FindLegacyInfo fli;
+
+    fli.func = func;
+    fli.opaque = opaque;
+    fli.lr = NULL;
+    rc->child_foreach(OBJECT(rootcon), find_legacy_reset_cb,
+                      &fli, RESET_TYPE_COLD);
+    return fli.lr;
 }
 
 void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry *re;
+    Object *obj = OBJECT(find_legacy_reset(func, opaque));
 
-    QTAILQ_FOREACH(re, &reset_handlers, entry) {
-        if (re->func == func && re->opaque == opaque) {
-            QTAILQ_REMOVE(&reset_handlers, re, entry);
-            g_free(re);
-            return;
-        }
+    if (obj) {
+        qemu_unregister_resettable(obj);
+        object_unref(obj);
     }
+}
+
+void qemu_register_resettable(Object *obj)
+{
+    resettable_container_add(get_root_reset_container(), obj);
+}
+
+void qemu_unregister_resettable(Object *obj)
+{
+    resettable_container_remove(get_root_reset_container(), obj);
 }
 
 void qemu_devices_reset(ShutdownCause reason)
 {
-    QEMUResetEntry *re, *nre;
+    device_reset_reason = reason;
 
-    /* reset all devices */
-    QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
-        if (reason == SHUTDOWN_CAUSE_SNAPSHOT_LOAD &&
-            re->skip_on_snapshot_load) {
-            continue;
-        }
-        re->func(re->opaque);
-    }
+    /* Reset the simulation */
+    resettable_reset(OBJECT(get_root_reset_container()), RESET_TYPE_COLD);
 }
-

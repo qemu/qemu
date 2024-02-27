@@ -101,20 +101,23 @@ void validate_bootdevices(const char *devices, Error **errp)
 void restore_boot_order(void *opaque)
 {
     char *normal_boot_order = opaque;
-    static int first = 1;
+    static int bootcount;
 
-    /* Restore boot order and remove ourselves after the first boot */
-    if (first) {
-        first = 0;
+    switch (bootcount++) {
+    case 0:
+        /* First boot: use the one-time config */
+        return;
+    case 1:
+        /* Second boot: restore normal boot order */
+        if (boot_set_handler) {
+            qemu_boot_set(normal_boot_order, &error_abort);
+        }
+        g_free(normal_boot_order);
+        return;
+    default:
+        /* Subsequent boots: keep using normal boot order */
         return;
     }
-
-    if (boot_set_handler) {
-        qemu_boot_set(normal_boot_order, &error_abort);
-    }
-
-    qemu_unregister_reset(restore_boot_order, normal_boot_order);
-    g_free(normal_boot_order);
 }
 
 void check_boot_index(int32_t bootindex, Error **errp)

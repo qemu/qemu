@@ -348,12 +348,14 @@ used. This does the same as OBJECT_DECLARE_SIMPLE_TYPE(), but without
 the 'struct MyDeviceClass' definition.
 
 To implement the type, the OBJECT_DEFINE macro family is available.
-In the simple case the OBJECT_DEFINE_TYPE macro is suitable:
+For the simplest case of a leaf class which doesn't need any of its
+own virtual functions (i.e. which was declared with OBJECT_DECLARE_SIMPLE_TYPE)
+the OBJECT_DEFINE_SIMPLE_TYPE macro is suitable:
 
 .. code-block:: c
    :caption: Defining a simple type
 
-   OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+   OBJECT_DEFINE_SIMPLE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
 
 This is equivalent to the following:
 
@@ -370,7 +372,6 @@ This is equivalent to the following:
        .instance_size = sizeof(MyDevice),
        .instance_init = my_device_init,
        .instance_finalize = my_device_finalize,
-       .class_size = sizeof(MyDeviceClass),
        .class_init = my_device_class_init,
    };
 
@@ -385,12 +386,35 @@ This is sufficient to get the type registered with the type
 system, and the three standard methods now need to be implemented
 along with any other logic required for the type.
 
+If the class needs its own virtual methods, or has some other
+per-class state it needs to store in its own class struct,
+then you can use the OBJECT_DEFINE_TYPE macro. This does the
+same thing as OBJECT_DEFINE_SIMPLE_TYPE, but it also sets the
+class_size of the type to the size of the class struct.
+
+.. code-block:: c
+   :caption: Defining a type which needs a class struct
+
+   OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+
 If the type needs to implement one or more interfaces, then the
-OBJECT_DEFINE_TYPE_WITH_INTERFACES() macro can be used instead.
-This accepts an array of interface type names.
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES() and
+OBJECT_DEFINE_TYPE_WITH_INTERFACES() macros can be used instead.
+These accept an array of interface type names. The difference between
+them is that the former is for simple leaf classes that don't need
+a class struct, and the latter is for when you will be defining
+a class struct.
 
 .. code-block:: c
    :caption: Defining a simple type implementing interfaces
+
+   OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(MyDevice, my_device,
+                                             MY_DEVICE, DEVICE,
+                                             { TYPE_USER_CREATABLE },
+                                             { NULL })
+
+.. code-block:: c
+   :caption: Defining a type implementing interfaces
 
    OBJECT_DEFINE_TYPE_WITH_INTERFACES(MyDevice, my_device,
                                       MY_DEVICE, DEVICE,
