@@ -4673,7 +4673,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
         return 0;
     }
 
-    if (getrlimit(RLIMIT_CORE, &dumpsize) == 0 && dumpsize.rlim_cur == 0) {
+    if (getrlimit(RLIMIT_CORE, &dumpsize) < 0 || dumpsize.rlim_cur == 0) {
         return 0;
     }
 
