@@ -31,8 +31,8 @@
 #include "sysemu/dma.h"
 #include "hw/irq.h"
 
-#include "hw/ide/internal.h"
 #include "qom/object.h"
+#include "ide-internal.h"
 
 #define TYPE_MICRODRIVE "microdrive"
 OBJECT_DECLARE_SIMPLE_TYPE(MicroDriveState, MICRODRIVE)

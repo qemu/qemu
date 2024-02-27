@@ -101,7 +101,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     QLIST_INIT(&x86_iommu->iec_notifiers);
     bool irq_all_kernel = kvm_irqchip_in_kernel() && !kvm_irqchip_is_split();
 
-    if (!pcms || !pcms->bus) {
+    if (!pcms || !pcms->pcibus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
                    mc->name);
         return;

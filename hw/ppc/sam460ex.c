@@ -274,6 +274,7 @@ static void sam460ex_init(MachineState *machine)
     DeviceState *uic[4];
     int i;
     PCIBus *pci_bus;
+    USBBus *usb_bus;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     I2CBus *i2c;
@@ -421,8 +422,10 @@ static void sam460ex_init(MachineState *machine)
     sysbus_realize_and_unref(sbdev, &error_fatal);
     sysbus_mmio_map(sbdev, 0, 0x4bffd0000);
     sysbus_connect_irq(sbdev, 0, qdev_get_gpio_in(uic[2], 30));
-    usb_create_simple(usb_bus_find(-1), "usb-kbd");
-    usb_create_simple(usb_bus_find(-1), "usb-mouse");
+    usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
+                                                      &error_abort));
+    usb_create_simple(usb_bus, "usb-kbd");
+    usb_create_simple(usb_bus, "usb-mouse");
 
     /* PCIe buses */
     dev = qdev_new(TYPE_PPC460EX_PCIE_HOST);

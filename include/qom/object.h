@@ -1551,6 +1551,19 @@ Object *object_resolve_path_type(const char *path, const char *typename,
                                  bool *ambiguous);
 
 /**
+ * object_resolve_type_unambiguous:
+ * @typename: the type to look for
+ * @errp: pointer to error object
+ *
+ * Return the only object in the QOM tree of type @typename.
+ * If no match or more than one match is found, an error is
+ * returned.
+ *
+ * Returns: The matched object or NULL on path lookup failure.
+ */
+Object *object_resolve_type_unambiguous(const char *typename, Error **errp);
+
+/**
  * object_resolve_path_at:
  * @parent: the object in which to resolve the path
  * @path: the path to resolve

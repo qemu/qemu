@@ -2,6 +2,7 @@ config HPPA_B160L
     bool
     imply PCI_DEVICES
     imply E1000_PCI
+    imply USB_OHCI_PCI
     imply VIRTIO_VGA
     select ASTRO
     select DINO
@@ -17,4 +18,3 @@ config HPPA_B160L
     select LASIPS2
     select PARALLEL
     select ARTIST
-    select USB_OHCI_PCI

@@ -1,5 +1,6 @@
 config PSERIES
     bool
+    imply USB_OHCI_PCI
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VIRTIO_VGA
@@ -69,7 +70,7 @@ config SAM460EX
     select SM501
     select SMBUS_EEPROM
     select USB_EHCI_SYSBUS
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
     select FDT_PPC
 
 config AMIGAONE
@@ -119,13 +120,13 @@ config MAC_NEWWORLD
     imply PCI_DEVICES
     imply SUNGEM
     imply TEST_DEVICES
+    imply USB_OHCI_PCI
     select ADB
     select MACIO
     select MACIO_GPIO
     select MAC_PMU
     select UNIN_PCI
     select FW_CFG_PPC
-    select USB_OHCI_PCI
 
 config E500
     bool

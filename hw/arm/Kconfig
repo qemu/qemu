@@ -185,7 +185,7 @@ config PXA2XX
     select SERIAL
     select SD
     select SSI
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
     select PCMCIA
 
 config GUMSTIX
@@ -256,7 +256,7 @@ config REALVIEW
     select PL310  # cache controller
     select ARM_SBCON_I2C
     select DS1338 # I2C RTC+NVRAM
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
 
 config SBSA_REF
     bool
@@ -339,7 +339,7 @@ config VERSATILE
     select PL080  # DMA controller
     select PL190  # Vector PIC
     select REALVIEW
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
 
 config VEXPRESS
     bool
@@ -395,6 +395,7 @@ config ALLWINNER_A10
     select AXP2XX_PMU
     select SERIAL
     select UNIMP
+    select USB_OHCI_SYSBUS
 
 config ALLWINNER_H3
     bool
@@ -408,7 +409,7 @@ config ALLWINNER_H3
     select ARM_TIMER
     select ARM_GIC
     select UNIMP
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
     select USB_EHCI_SYSBUS
     select SD
 
@@ -424,7 +425,7 @@ config ALLWINNER_R40
     select ARM_TIMER
     select ARM_GIC
     select UNIMP
-    select USB_OHCI
+    select USB_OHCI_SYSBUS
     select USB_EHCI_SYSBUS
     select SD
 
@@ -530,6 +531,7 @@ config NPCM7XX
     select SSI
     select UNIMP
     select PCA954X
+    select USB_OHCI_SYSBUS
 
 config FSL_IMX25
     bool

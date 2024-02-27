@@ -13,11 +13,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "ide-internal.h"
 
 #define TYPE_SII3112_PCI "sii3112"
 OBJECT_DECLARE_SIMPLE_TYPE(SiI3112PCIState, SII3112_PCI)
