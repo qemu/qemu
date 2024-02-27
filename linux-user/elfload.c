@@ -4099,7 +4099,7 @@ struct mm_struct {
     int mm_count;           /* number of mappings */
 };
 
-static struct mm_struct *vma_init(void);
+static void vma_init(struct mm_struct *);
 static void vma_delete(struct mm_struct *);
 static int vma_add_mapping(struct mm_struct *, target_ulong,
                            target_ulong, abi_ulong);
@@ -4174,17 +4174,10 @@ static inline void bswap_note(struct elf_note *en) { }
  * thread that received the signal is stopped.
  */
 
-static struct mm_struct *vma_init(void)
+static void vma_init(struct mm_struct *mm)
 {
-    struct mm_struct *mm;
-
-    if ((mm = g_malloc(sizeof (*mm))) == NULL)
-        return (NULL);
-
     mm->mm_count = 0;
     QTAILQ_INIT(&mm->mm_mmap);
-
-    return (mm);
 }
 
 static void vma_delete(struct mm_struct *mm)
@@ -4195,7 +4188,6 @@ static void vma_delete(struct mm_struct *mm)
         QTAILQ_REMOVE(&mm->mm_mmap, vma, vma_link);
         g_free(vma);
     }
-    g_free(mm);
 }
 
 static int vma_add_mapping(struct mm_struct *mm, target_ulong start,
@@ -4638,7 +4630,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     struct elfhdr elf;
     struct elf_phdr phdr;
     struct rlimit dumpsize;
-    struct mm_struct *mm = NULL;
+    struct mm_struct mm;
     off_t offset = 0, data_offset = 0;
     int segs = 0;
     int fd = -1;
@@ -4664,11 +4656,10 @@ static int elf_core_dump(int signr, const CPUArchState *env)
      * set up structure containing this information.  After
      * this point vma_xxx functions can be used.
      */
-    if ((mm = vma_init()) == NULL)
-        goto out;
+    vma_init(&mm);
 
-    walk_memory_regions(mm, vma_walker);
-    segs = vma_get_mapping_count(mm);
+    walk_memory_regions(&mm, vma_walker);
+    segs = vma_get_mapping_count(&mm);
 
     /*
      * Construct valid coredump ELF header.  We also
@@ -4701,7 +4692,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
      * Write program headers for memory regions mapped in
      * the target process.
      */
-    for (vma = vma_first(mm); vma != NULL; vma = vma_next(vma)) {
+    for (vma = vma_first(&mm); vma != NULL; vma = vma_next(vma)) {
         (void) memset(&phdr, 0, sizeof (phdr));
 
         phdr.p_type = PT_LOAD;
@@ -4738,7 +4729,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     /*
      * Finally we can dump process memory into corefile as well.
      */
-    for (vma = vma_first(mm); vma != NULL; vma = vma_next(vma)) {
+    for (vma = vma_first(&mm); vma != NULL; vma = vma_next(vma)) {
         abi_ulong addr;
         abi_ulong end;
 
@@ -4767,8 +4758,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
  out:
     free_note_info(&info);
-    if (mm != NULL)
-        vma_delete(mm);
+    vma_delete(&mm);
     (void) close(fd);
 
     if (errno != 0)
