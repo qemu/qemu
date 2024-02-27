@@ -70,7 +70,7 @@
 #include "sysemu/dma.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"
-#include "ahci_internal.h"
+#include "ahci-internal.h"
 
 #define ICH9_MSI_CAP_OFFSET     0x80
 #define ICH9_SATA_CAP_OFFSET    0xA8
