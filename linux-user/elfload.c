@@ -4634,8 +4634,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     off_t offset = 0, data_offset = 0;
     int segs = 0;
     int fd = -1;
-
-    errno = 0;
+    int ret;
 
     if (prctl(PR_GET_DUMPABLE) == 0) {
         return 0;
@@ -4755,15 +4754,14 @@ static int elf_core_dump(int signr, const CPUArchState *env)
                 goto out;
         }
     }
+    errno = 0;
 
  out:
+    ret = -errno;
     free_note_info(&info);
     vma_delete(&mm);
-    (void) close(fd);
-
-    if (errno != 0)
-        return (-errno);
-    return (0);
+    close(fd);
+    return ret;
 }
 #endif /* USE_ELF_CORE_DUMP */
 
