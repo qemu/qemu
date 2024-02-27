@@ -4166,37 +4166,23 @@ static int vma_get_mapping_count(const struct mm_struct *mm)
  */
 static abi_ulong vma_dump_size(const struct vm_area_struct *vma)
 {
-    /* if we cannot even read the first page, skip it */
-    if (!access_ok_untagged(VERIFY_READ, vma->vma_start, TARGET_PAGE_SIZE))
-        return (0);
+    /* The area must be readable. */
+    if (!(vma->vma_flags & PROT_READ)) {
+        return 0;
+    }
 
     /*
      * Usually we don't dump executable pages as they contain
      * non-writable code that debugger can read directly from
-     * target library etc.  However, thread stacks are marked
-     * also executable so we read in first page of given region
-     * and check whether it contains elf header.  If there is
-     * no elf header, we dump it.
+     * target library etc. If there is no elf header, we dump it.
      */
-    if (vma->vma_flags & PROT_EXEC) {
-        char page[TARGET_PAGE_SIZE];
-
-        if (copy_from_user(page, vma->vma_start, sizeof (page))) {
-            return 0;
-        }
-        if ((page[EI_MAG0] == ELFMAG0) &&
-            (page[EI_MAG1] == ELFMAG1) &&
-            (page[EI_MAG2] == ELFMAG2) &&
-            (page[EI_MAG3] == ELFMAG3)) {
-            /*
-             * Mappings are possibly from ELF binary.  Don't dump
-             * them.
-             */
-            return (0);
-        }
+    if (!(vma->vma_flags & PROT_WRITE) &&
+        (vma->vma_flags & PROT_EXEC) &&
+        memcmp(g2h_untagged(vma->vma_start), ELFMAG, SELFMAG) == 0) {
+        return 0;
     }
 
-    return (vma->vma_end - vma->vma_start);
+    return vma->vma_end - vma->vma_start;
 }
 
 static int vma_walker(void *priv, target_ulong start, target_ulong end,
