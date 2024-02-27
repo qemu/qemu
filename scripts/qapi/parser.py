@@ -639,6 +639,10 @@ class QAPIDoc:
         # dicts mapping parameter/feature names to their description
         self.args: Dict[str, QAPIDoc.ArgSection] = {}
         self.features: Dict[str, QAPIDoc.ArgSection] = {}
+        # a command's "Returns" section
+        self.returns: Optional[QAPIDoc.Section] = None
+        # "Since" section
+        self.since: Optional[QAPIDoc.Section] = None
         # sections other than .body, .args, .features
         self.sections: List[QAPIDoc.Section] = []
 
@@ -660,14 +664,17 @@ class QAPIDoc:
         self.all_sections.append(section)
 
     def new_tagged_section(self, info: QAPISourceInfo, tag: str) -> None:
-        if tag in ('Returns', 'Since'):
-            for section in self.all_sections:
-                if isinstance(section, self.ArgSection):
-                    continue
-                if section.tag == tag:
-                    raise QAPISemError(
-                        info, "duplicated '%s' section" % tag)
         section = self.Section(info, tag)
+        if tag == 'Returns':
+            if self.returns:
+                raise QAPISemError(
+                    info, "duplicated '%s' section" % tag)
+            self.returns = section
+        elif tag == 'Since':
+            if self.since:
+                raise QAPISemError(
+                    info, "duplicated '%s' section" % tag)
+            self.since = section
         self.sections.append(section)
         self.all_sections.append(section)
 
@@ -708,13 +715,9 @@ class QAPIDoc:
         self.features[feature.name].connect(feature)
 
     def check_expr(self, expr: QAPIExpression) -> None:
-        if 'command' not in expr:
-            sec = next((sec for sec in self.sections
-                        if sec.tag == 'Returns'),
-                       None)
-            if sec:
-                raise QAPISemError(sec.info,
-                                   "'Returns:' is only valid for commands")
+        if self.returns and 'command' not in expr:
+            raise QAPISemError(self.returns.info,
+                               "'Returns:' is only valid for commands")
 
     def check(self) -> None:
 
