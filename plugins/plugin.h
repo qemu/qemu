@@ -44,6 +44,8 @@ struct qemu_plugin_state {
      * the code cache is flushed.
      */
     struct qht dyn_cb_arr_ht;
+    /* How many vcpus were started */
+    int num_vcpus;
 };
 
 
@@ -96,5 +98,7 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
                                  void *udata);
 
 void exec_inline_op(struct qemu_plugin_dyn_cb *cb);
+
+int plugin_num_vcpus(void);
 
 #endif /* PLUGIN_H */
