@@ -296,33 +296,26 @@ static inline void gen_update_nip(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_nip, nip);
 }
 
-static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
+static void gen_exception_err_nip(DisasContext *ctx, uint32_t excp,
+                                  uint32_t error, target_ulong nip)
 {
     TCGv_i32 t0, t1;
 
-    /*
-     * These are all synchronous exceptions, we set the PC back to the
-     * faulting instruction
-     */
-    gen_update_nip(ctx, ctx->cia);
+    gen_update_nip(ctx, nip);
     t0 = tcg_constant_i32(excp);
     t1 = tcg_constant_i32(error);
     gen_helper_raise_exception_err(tcg_env, t0, t1);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception(DisasContext *ctx, uint32_t excp)
+static inline void gen_exception_err(DisasContext *ctx, uint32_t excp,
+                                     uint32_t error)
 {
-    TCGv_i32 t0;
-
     /*
      * These are all synchronous exceptions, we set the PC back to the
      * faulting instruction
      */
-    gen_update_nip(ctx, ctx->cia);
-    t0 = tcg_constant_i32(excp);
-    gen_helper_raise_exception(tcg_env, t0);
-    ctx->base.is_jmp = DISAS_NORETURN;
+    gen_exception_err_nip(ctx, excp, error, ctx->cia);
 }
 
 static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
@@ -334,6 +327,15 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     t0 = tcg_constant_i32(excp);
     gen_helper_raise_exception(tcg_env, t0);
     ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static inline void gen_exception(DisasContext *ctx, uint32_t excp)
+{
+    /*
+     * These are all synchronous exceptions, we set the PC back to the
+     * faulting instruction
+     */
+    gen_exception_nip(ctx, excp, ctx->cia);
 }
 
 #if !defined(CONFIG_USER_ONLY)
