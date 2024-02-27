@@ -543,7 +543,7 @@ class QAPISchemaParser:
                         line = self.get_doc_indented(doc)
                     no_more_args = True
                 elif match := re.match(
-                        r'(Returns|Since|Notes?|Examples?|TODO): *',
+                        r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
                         line):
                     # tagged section
                     doc.new_tagged_section(self.info, match.group(1))
@@ -639,8 +639,9 @@ class QAPIDoc:
         # dicts mapping parameter/feature names to their description
         self.args: Dict[str, QAPIDoc.ArgSection] = {}
         self.features: Dict[str, QAPIDoc.ArgSection] = {}
-        # a command's "Returns" section
+        # a command's "Returns" and "Errors" section
         self.returns: Optional[QAPIDoc.Section] = None
+        self.errors: Optional[QAPIDoc.Section] = None
         # "Since" section
         self.since: Optional[QAPIDoc.Section] = None
         # sections other than .body, .args, .features
@@ -670,6 +671,11 @@ class QAPIDoc:
                 raise QAPISemError(
                     info, "duplicated '%s' section" % tag)
             self.returns = section
+        elif tag == 'Errors':
+            if self.errors:
+                raise QAPISemError(
+                    info, "duplicated '%s' section" % tag)
+            self.errors = section
         elif tag == 'Since':
             if self.since:
                 raise QAPISemError(
@@ -715,10 +721,15 @@ class QAPIDoc:
         self.features[feature.name].connect(feature)
 
     def check_expr(self, expr: QAPIExpression) -> None:
-        if self.returns and 'command' not in expr:
-            raise QAPISemError(
-                self.returns.info,
-                "'Returns' section is only valid for commands")
+        if 'command' not in expr:
+            if self.returns:
+                raise QAPISemError(
+                    self.returns.info,
+                    "'Returns' section is only valid for commands")
+            if self.errors:
+                raise QAPISemError(
+                    self.returns.info,
+                    "'Errors' section is only valid for commands")
 
     def check(self) -> None:
 
