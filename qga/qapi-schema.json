@@ -228,7 +228,7 @@
 #
 # @mode: open mode, as per fopen(), "r" is the default.
 #
-# Returns: Guest file handle on success.
+# Returns: Guest file handle
 #
 # Since: 0.15.0
 ##
@@ -277,7 +277,7 @@
 # @count: maximum number of bytes to read (default is 4KB, maximum is
 #     48MB)
 #
-# Returns: @GuestFileRead on success.
+# Returns: @GuestFileRead
 #
 # Since: 0.15.0
 ##
@@ -312,7 +312,7 @@
 # @count: bytes to write (actual bytes, after base64-decode), default
 #     is all content in buf-b64 buffer after base64 decoding
 #
-# Returns: @GuestFileWrite on success.
+# Returns: @GuestFileWrite
 #
 # Since: 0.15.0
 ##
@@ -379,7 +379,7 @@
 #
 # @whence: Symbolic or numeric code for interpreting offset
 #
-# Returns: @GuestFileSeek on success.
+# Returns: @GuestFileSeek
 #
 # Since: 0.15.0
 ##
@@ -723,7 +723,7 @@
 #
 # Get list of guest IP addresses, MAC addresses and netmasks.
 #
-# Returns: List of GuestNetworkInterface on success.
+# Returns: List of GuestNetworkInterface
 #
 # Since: 1.1
 ##
@@ -1247,7 +1247,7 @@
 #
 # @pid: pid returned from guest-exec
 #
-# Returns: GuestExecStatus on success.
+# Returns: GuestExecStatus
 #
 # Since: 2.5
 ##
@@ -1315,7 +1315,7 @@
 # @capture-output: bool flag to enable capture of stdout/stderr of
 #     running process.  defaults to false.
 #
-# Returns: PID on success.
+# Returns: PID
 #
 # Since: 2.5
 ##
@@ -1344,7 +1344,7 @@
 # or even present in DNS or some other name service at all.  It need
 # not even be unique on your local network or site, but usually it is.
 #
-# Returns: the host name of the machine on success
+# Returns: the host name of the machine
 #
 # Since: 2.10
 ##
