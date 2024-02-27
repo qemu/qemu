@@ -4537,13 +4537,11 @@ static void fill_note_info(struct elf_note_info *info,
     }
 
     /* read and fill status of all threads */
-    WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
-        CPU_FOREACH(cpu) {
-            if (cpu == thread_cpu) {
-                continue;
-            }
-            fill_thread_info(info, cpu_env(cpu));
+    CPU_FOREACH(cpu) {
+        if (cpu == thread_cpu) {
+            continue;
         }
+        fill_thread_info(info, cpu_env(cpu));
     }
 }
 
@@ -4642,6 +4640,9 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     if (getrlimit(RLIMIT_CORE, &dumpsize) < 0 || dumpsize.rlim_cur == 0) {
         return 0;
     }
+
+    cpu_list_lock();
+    mmap_lock();
 
     /*
      * Walk through target process memory mappings and
@@ -4760,6 +4761,8 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
  out:
     ret = -errno;
+    mmap_unlock();
+    cpu_list_unlock();
     free_note_info(&info);
     vma_delete(&mm);
     close(fd);
