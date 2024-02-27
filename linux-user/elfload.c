@@ -4270,6 +4270,16 @@ static int vma_walker(void *priv, target_ulong start, target_ulong end,
     return (0);
 }
 
+static size_t size_note(const char *name, size_t datasz)
+{
+    size_t namesz = strlen(name) + 1;
+
+    namesz = ROUND_UP(namesz, 4);
+    datasz = ROUND_UP(datasz, 4);
+
+    return sizeof(struct elf_note) + namesz + datasz;
+}
+
 static void fill_note(struct memelfnote *note, const char *name, int type,
                       unsigned int sz, void *data)
 {
@@ -4428,27 +4438,9 @@ static int dump_write(int fd, const void *ptr, size_t size)
 {
     const char *bufp = (const char *)ptr;
     ssize_t bytes_written, bytes_left;
-    struct rlimit dumpsize;
-    off_t pos;
 
     bytes_written = 0;
-    getrlimit(RLIMIT_CORE, &dumpsize);
-    if ((pos = lseek(fd, 0, SEEK_CUR))==-1) {
-        if (errno == ESPIPE) { /* not a seekable stream */
-            bytes_left = size;
-        } else {
-            return pos;
-        }
-    } else {
-        if (dumpsize.rlim_cur <= pos) {
-            return -1;
-        } else if (dumpsize.rlim_cur == RLIM_INFINITY) {
-            bytes_left = size;
-        } else {
-            size_t limit_left=dumpsize.rlim_cur - pos;
-            bytes_left = limit_left >= size ? size : limit_left ;
-        }
-    }
+    bytes_left = size;
 
     /*
      * In normal conditions, single write(2) should do but
@@ -4622,16 +4614,15 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 {
     const CPUState *cpu = env_cpu((CPUArchState *)env);
     const TaskState *ts = (const TaskState *)cpu->opaque;
-    struct vm_area_struct *vma = NULL;
+    struct vm_area_struct *vma;
     struct elf_note_info info;
     struct elfhdr elf;
     struct elf_phdr phdr;
     struct rlimit dumpsize;
     struct mm_struct mm;
-    off_t offset = 0, data_offset = 0;
-    int segs = 0;
+    off_t offset, note_offset, data_offset;
+    int segs, cpus, ret;
     int fd = -1;
-    int ret;
 
     if (prctl(PR_GET_DUMPABLE) == 0) {
         return 0;
@@ -4646,10 +4637,36 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
     /*
      * Walk through target process memory mappings and
-     * set up structure containing this information.  After
-     * this point vma_xxx functions can be used.
+     * set up structure containing this information.
      */
     vma_init(&mm);
+    walk_memory_regions(&mm, vma_walker);
+    segs = vma_get_mapping_count(&mm);
+
+    cpus = 0;
+    CPU_FOREACH(cpu) {
+        cpus++;
+    }
+
+    offset = sizeof(struct elfhdr);
+    offset += (segs + 1) * sizeof(struct elf_phdr);
+    note_offset = offset;
+
+    offset += size_note("CORE", ts->info->auxv_len);
+    offset += size_note("CORE", sizeof(struct target_elf_prpsinfo));
+    offset += size_note("CORE", sizeof(struct target_elf_prstatus)) * cpus;
+    offset = ROUND_UP(offset, ELF_EXEC_PAGESIZE);
+    data_offset = offset;
+
+    for (vma = vma_first(&mm); vma != NULL; vma = vma_next(vma)) {
+        offset += vma_dump_size(vma);
+    }
+
+    /* Do not dump if the corefile size exceeds the limit. */
+    if (dumpsize.rlim_cur != RLIM_INFINITY && dumpsize.rlim_cur < offset) {
+        errno = 0;
+        goto out;
+    }
 
     {
         g_autofree char *corefile = core_dump_filename(ts);
@@ -4659,9 +4676,6 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     if (fd < 0) {
         goto out;
     }
-
-    walk_memory_regions(&mm, vma_walker);
-    segs = vma_get_mapping_count(&mm);
 
     /*
      * Construct valid coredump ELF header.  We also
@@ -4674,26 +4688,17 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     /* fill in the in-memory version of notes */
     fill_note_info(&info, signr, env);
 
-    offset += sizeof (elf);                             /* elf header */
-    offset += (segs + 1) * sizeof (struct elf_phdr);    /* program headers */
-
     /* write out notes program header */
-    fill_elf_note_phdr(&phdr, info.notes_size, offset);
+    fill_elf_note_phdr(&phdr, info.notes_size, note_offset);
 
-    offset += info.notes_size;
     if (dump_write(fd, &phdr, sizeof (phdr)) != 0)
         goto out;
-
-    /*
-     * ELF specification wants data to start at page boundary so
-     * we align it here.
-     */
-    data_offset = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
     /*
      * Write program headers for memory regions mapped in
      * the target process.
      */
+    offset = data_offset;
     for (vma = vma_first(&mm); vma != NULL; vma = vma_next(vma)) {
         (void) memset(&phdr, 0, sizeof (phdr));
 
