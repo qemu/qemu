@@ -194,10 +194,12 @@ static void cpu_common_parse_features(const char *typename, char *features,
     }
 }
 
+#ifdef CONFIG_PLUGIN
 static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
 {
     qemu_plugin_vcpu_init_hook(cpu);
 }
+#endif
 
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
@@ -223,9 +225,12 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* Plugin initialization must wait until the cpu start executing code */
+#ifdef CONFIG_PLUGIN
     if (tcg_enabled()) {
+        cpu->plugin_state = qemu_plugin_create_vcpu_state();
         async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
     }
+#endif
 
     /* NOTE: latest generic point where the cpu is fully realized */
 }
