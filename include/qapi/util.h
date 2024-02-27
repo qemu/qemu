@@ -56,4 +56,17 @@ int parse_qapi_name(const char *name, bool complete);
     (tail) = &(*(tail))->next; \
 } while (0)
 
+/*
+ * For any GenericList @list, return its length.
+ */
+#define QAPI_LIST_LENGTH(list)                                      \
+    ({                                                              \
+        size_t _len = 0;                                            \
+        typeof(list) _tail;                                         \
+        for (_tail = list; _tail != NULL; _tail = _tail->next) {    \
+            _len++;                                                 \
+        }                                                           \
+        _len;                                                       \
+    })
+
 #endif
