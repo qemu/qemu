@@ -206,6 +206,7 @@ static bool con_event(void *_xendev)
 
 static bool xen_console_connect(XenDevice *xendev, Error **errp)
 {
+    ERRP_GUARD();
     XenConsole *con = XEN_CONSOLE_DEVICE(xendev);
     unsigned int port, limit;
 
