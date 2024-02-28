@@ -215,7 +215,6 @@ static void unregister_vfs(PCIDevice *dev)
     g_free(dev->exp.sriov_pf.vf);
     dev->exp.sriov_pf.vf = NULL;
     dev->exp.sriov_pf.num_vfs = 0;
-    pci_set_word(dev->config + dev->exp.sriov_cap + PCI_SRIOV_NUM_VF, 0);
 }
 
 void pcie_sriov_config_write(PCIDevice *dev, uint32_t address,
@@ -259,6 +258,8 @@ void pcie_sriov_pf_reset(PCIDevice *dev)
 
     pci_set_word(dev->config + sriov_cap + PCI_SRIOV_CTRL, 0);
     unregister_vfs(dev);
+
+    pci_set_word(dev->config + sriov_cap + PCI_SRIOV_NUM_VF, 0);
 
     /*
      * Default is to use 4K pages, software can modify it
