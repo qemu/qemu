@@ -61,6 +61,7 @@
 #include "hw/xen/xen.h"
 #include "migration/global_state.h"
 #include "migration/misc.h"
+#include "sysemu/runstate.h"
 #include "sysemu/numa.h"
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/mem/nvdimm.h"
@@ -382,9 +383,6 @@ static const QEnumLookup PCSouthBridgeOption_lookup = {
     },
     .size = PC_SOUTH_BRIDGE_OPTION_MAX
 };
-
-#define NotifyVmexitOption_str(val) \
-    qapi_enum_lookup(&NotifyVmexitOption_lookup, (val))
 
 static int pc_get_south_bridge(Object *obj, Error **errp)
 {
