@@ -306,8 +306,8 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_SKIP:
         break;
     case X86_OP_SEG:
-        /* Note that gen_movl_seg_T0 takes care of interrupt shadow and TF.  */
-        gen_movl_seg_T0(s, op->n);
+        /* Note that gen_movl_seg takes care of interrupt shadow and TF.  */
+        gen_movl_seg(s, op->n, s->T0);
         break;
     case X86_OP_INT:
         if (op->has_ea) {

@@ -2525,12 +2525,12 @@ static void gen_op_movl_seg_real(DisasContext *s, X86Seg seg_reg, TCGv seg)
     tcg_gen_shli_tl(cpu_seg_base[seg_reg], selector, 4);
 }
 
-/* move T0 to seg_reg and compute if the CPU state may change. Never
+/* move SRC to seg_reg and compute if the CPU state may change. Never
    call this function with seg_reg == R_CS */
-static void gen_movl_seg_T0(DisasContext *s, X86Seg seg_reg)
+static void gen_movl_seg(DisasContext *s, X86Seg seg_reg, TCGv src)
 {
     if (PE(s) && !VM86(s)) {
-        tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
+        tcg_gen_trunc_tl_i32(s->tmp2_i32, src);
         gen_helper_load_seg(tcg_env, tcg_constant_i32(seg_reg), s->tmp2_i32);
         /* abort translation because the addseg value may change or
            because ss32 may change. For R_SS, translation must always
@@ -2542,7 +2542,7 @@ static void gen_movl_seg_T0(DisasContext *s, X86Seg seg_reg)
             s->base.is_jmp = DISAS_EOB_NEXT;
         }
     } else {
-        gen_op_movl_seg_real(s, seg_reg, s->T0);
+        gen_op_movl_seg_real(s, seg_reg, src);
         if (seg_reg == R_SS) {
             s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
         }
@@ -4084,13 +4084,13 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             goto illegal_op;
         reg = b >> 3;
         ot = gen_pop_T0(s);
-        gen_movl_seg_T0(s, reg);
+        gen_movl_seg(s, reg, s->T0);
         gen_pop_update(s, ot);
         break;
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
         ot = gen_pop_T0(s);
-        gen_movl_seg_T0(s, (b >> 3) & 7);
+        gen_movl_seg(s, (b >> 3) & 7, s->T0);
         gen_pop_update(s, ot);
         break;
 
@@ -4137,7 +4137,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (reg >= 6 || reg == R_CS)
             goto illegal_op;
         gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
-        gen_movl_seg_T0(s, reg);
+        gen_movl_seg(s, reg, s->T0);
         break;
     case 0x8c: /* mov Gv, seg */
         modrm = x86_ldub_code(env, s);
@@ -4323,7 +4323,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         gen_add_A0_im(s, 1 << ot);
         /* load the segment first to handle exceptions properly */
         gen_op_ld_v(s, MO_16, s->T0, s->A0);
-        gen_movl_seg_T0(s, op);
+        gen_movl_seg(s, op, s->T0);
         /* then put the data */
         gen_op_mov_reg_v(s, ot, reg, s->T1);
         break;
