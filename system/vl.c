@@ -2927,7 +2927,7 @@ void qemu_init(int argc, char **argv)
                           optarg, FD_OPTS);
                 break;
             case QEMU_OPTION_no_fd_bootchk:
-                fd_bootchk = 0;
+                qdict_put_str(machine_opts_dict, "fd-bootchk", "off");
                 break;
             case QEMU_OPTION_netdev:
                 default_net = 0;
@@ -3265,7 +3265,7 @@ void qemu_init(int argc, char **argv)
                 pid_file = optarg;
                 break;
             case QEMU_OPTION_win2k_hack:
-                win2k_install_hack = 1;
+                object_register_sugar_prop("ide-device", "win2k-install-hack", "true", true);
                 break;
             case QEMU_OPTION_acpitable:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("acpi"),

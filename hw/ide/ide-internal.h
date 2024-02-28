@@ -416,11 +416,7 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
-                   const char *version, const char *serial, const char *model,
-                   uint64_t wwn,
-                   uint32_t cylinders, uint32_t heads, uint32_t secs,
-                   int chs_trans, Error **errp);
+int ide_init_drive(IDEState *s, IDEDevice *dev, IDEDriveKind kind, Error **errp);
 void ide_exit(IDEState *s);
 void ide_bus_init_output_irq(IDEBus *bus, qemu_irq irq_out);
 int ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);

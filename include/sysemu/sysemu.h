@@ -41,7 +41,6 @@ extern int graphic_height;
 extern int graphic_depth;
 extern int display_opengl;
 extern const char *keyboard_layout;
-extern int win2k_install_hack;
 extern int graphic_rotate;
 extern int old_param;
 extern uint8_t *boot_splash_filedata;

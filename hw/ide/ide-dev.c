@@ -31,6 +31,7 @@
 
 static Property ide_props[] = {
     DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
+    DEFINE_PROP_BOOL("win2k-install-hack", IDEDevice, win2k_install_hack, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -118,10 +119,7 @@ void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
         return;
     }
 
-    if (ide_init_drive(s, dev->conf.blk, kind,
-                       dev->version, dev->serial, dev->model, dev->wwn,
-                       dev->conf.cyls, dev->conf.heads, dev->conf.secs,
-                       dev->chs_trans, errp) < 0) {
+    if (ide_init_drive(s, dev, kind, errp) < 0) {
         return;
     }
 
