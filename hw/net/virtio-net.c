@@ -3504,7 +3504,7 @@ out:
     return !err;
 }
 
-static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
+static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationEvent *e)
 {
     bool should_be_hidden;
     Error *err = NULL;
@@ -3516,7 +3516,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
 
     should_be_hidden = qatomic_read(&n->failover_primary_hidden);
 
-    if (migration_in_setup(s) && !should_be_hidden) {
+    if (e->type == MIG_EVENT_PRECOPY_SETUP && !should_be_hidden) {
         if (failover_unplug_primary(n, dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
             qapi_event_send_unplug_primary(dev->id);
@@ -3524,7 +3524,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
         } else {
             warn_report("couldn't unplug primary device");
         }
-    } else if (migration_has_failed(s)) {
+    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
         /* We already unplugged the device let's plug it back */
         if (!failover_replug_primary(n, dev, &err)) {
             if (err) {
@@ -3534,11 +3534,12 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
     }
 }
 
-static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
+static int virtio_net_migration_state_notifier(NotifierWithReturn *notifier,
+                                               MigrationEvent *e, Error **errp)
 {
-    MigrationState *s = data;
     VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
-    virtio_net_handle_migration_primary(n, s);
+    virtio_net_handle_migration_primary(n, e);
+    return 0;
 }
 
 static bool failover_hide_primary_device(DeviceListener *listener,

@@ -62,7 +62,7 @@ typedef struct VFIORegion {
 typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
-    Notifier migration_state;
+    NotifierWithReturn migration_state;
     uint32_t device_state;
     int data_fd;
     void *data_buffer;

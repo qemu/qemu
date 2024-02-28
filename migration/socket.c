@@ -60,17 +60,6 @@ QIOChannel *socket_send_channel_create_sync(Error **errp)
     return QIO_CHANNEL(sioc);
 }
 
-int socket_send_channel_destroy(QIOChannel *send)
-{
-    /* Remove channel */
-    object_unref(OBJECT(send));
-    if (outgoing_args.saddr) {
-        qapi_free_SocketAddress(outgoing_args.saddr);
-        outgoing_args.saddr = NULL;
-    }
-    return 0;
-}
-
 struct SocketConnectData {
     MigrationState *s;
     char *hostname;
@@ -135,6 +124,14 @@ void socket_start_outgoing_migration(MigrationState *s,
                                      data,
                                      socket_connect_data_free,
                                      NULL);
+}
+
+void socket_cleanup_outgoing_migration(void)
+{
+    if (outgoing_args.saddr) {
+        qapi_free_SocketAddress(outgoing_args.saddr);
+        outgoing_args.saddr = NULL;
+    }
 }
 
 static void socket_accept_incoming_migration(QIONetListener *listener,

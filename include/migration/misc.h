@@ -31,7 +31,6 @@ typedef enum PrecopyNotifyReason {
 
 typedef struct PrecopyNotifyData {
     enum PrecopyNotifyReason reason;
-    Error **errp;
 } PrecopyNotifyData;
 
 void precopy_infrastructure_init(void);
@@ -61,15 +60,51 @@ void migration_object_init(void);
 void migration_shutdown(void);
 bool migration_is_idle(void);
 bool migration_is_active(MigrationState *);
-void migration_add_notifier(Notifier *notify,
-                            void (*func)(Notifier *notifier, void *data));
-void migration_remove_notifier(Notifier *notify);
-void migration_call_notifiers(MigrationState *s);
+bool migrate_mode_is_cpr(MigrationState *);
+
+typedef enum MigrationEventType {
+    MIG_EVENT_PRECOPY_SETUP,
+    MIG_EVENT_PRECOPY_DONE,
+    MIG_EVENT_PRECOPY_FAILED,
+    MIG_EVENT_MAX
+} MigrationEventType;
+
+typedef struct MigrationEvent {
+    MigrationEventType type;
+} MigrationEvent;
+
+/*
+ * A MigrationNotifyFunc may return an error code and an Error object,
+ * but only when @e->type is MIG_EVENT_PRECOPY_SETUP.  The code is an int
+ * to allow for different failure modes and recovery actions.
+ */
+typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
+                                   MigrationEvent *e, Error **errp);
+
+/*
+ * Register the notifier @notify to be called when a migration event occurs
+ * for MIG_MODE_NORMAL, as specified by the MigrationEvent passed to @func.
+ * Notifiers may receive events in any of the following orders:
+ *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_DONE
+ *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_FAILED
+ *    - MIG_EVENT_PRECOPY_FAILED
+ */
+void migration_add_notifier(NotifierWithReturn *notify,
+                            MigrationNotifyFunc func);
+
+/*
+ * Same as migration_add_notifier, but applies to be specified @mode.
+ */
+void migration_add_notifier_mode(NotifierWithReturn *notify,
+                                 MigrationNotifyFunc func, MigMode mode);
+
+void migration_remove_notifier(NotifierWithReturn *notify);
+int migration_call_notifiers(MigrationState *s, MigrationEventType type,
+                             Error **errp);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
 /* ...and after the device transmission */
-bool migration_in_postcopy_after_devices(MigrationState *);
 /* True if incoming migration entered POSTCOPY_INCOMING_DISCARD */
 bool migration_in_incoming_postcopy(void);
 /* True if incoming migration entered POSTCOPY_INCOMING_ADVISE */

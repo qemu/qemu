@@ -348,8 +348,6 @@ struct MigrationState {
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
-    /* Flag set after postcopy has sent the device state */
-    bool postcopy_after_devices;
 
     /* Flag set once the migration thread is running (and needs joining) */
     bool migration_thread_running;
@@ -542,7 +540,5 @@ int migration_rp_wait(MigrationState *s);
  * to remember the target is always the migration thread.
  */
 void migration_rp_kick(MigrationState *s);
-
-int migration_stop_vm(RunState state);
 
 #endif

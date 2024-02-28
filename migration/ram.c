@@ -426,9 +426,8 @@ int precopy_notify(PrecopyNotifyReason reason, Error **errp)
 {
     PrecopyNotifyData pnd;
     pnd.reason = reason;
-    pnd.errp = errp;
 
-    return notifier_with_return_list_notify(&precopy_notifier_list, &pnd);
+    return notifier_with_return_list_notify(&precopy_notifier_list, &pnd, errp);
 }
 
 uint64_t ram_bytes_remaining(void)

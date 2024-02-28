@@ -42,7 +42,7 @@
 /* core bits */
 
 static SpiceServer *spice_server;
-static Notifier migration_state;
+static NotifierWithReturn migration_state;
 static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
@@ -568,24 +568,23 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
     return info;
 }
 
-static void migration_state_notifier(Notifier *notifier, void *data)
+static int migration_state_notifier(NotifierWithReturn *notifier,
+                                    MigrationEvent *e, Error **errp)
 {
-    MigrationState *s = data;
-
     if (!spice_have_target_host) {
-        return;
+        return 0;
     }
 
-    if (migration_in_setup(s)) {
+    if (e->type == MIG_EVENT_PRECOPY_SETUP) {
         spice_server_migrate_start(spice_server);
-    } else if (migration_has_finished(s) ||
-               migration_in_postcopy_after_devices(s)) {
+    } else if (e->type == MIG_EVENT_PRECOPY_DONE) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
-    } else if (migration_has_failed(s)) {
+    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
         spice_server_migrate_end(spice_server, false);
         spice_have_target_host = false;
     }
+    return 0;
 }
 
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
