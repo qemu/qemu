@@ -450,7 +450,7 @@ static void pc_compat_2_0_fn(MachineState *machine)
 #ifdef CONFIG_ISAPC
 static void pc_init_isa(MachineState *machine)
 {
-    pc_init1(machine, TYPE_I440FX_PCI_DEVICE);
+    pc_init1(machine, NULL);
 }
 #endif
 
