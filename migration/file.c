@@ -12,11 +12,16 @@
 #include "channel.h"
 #include "file.h"
 #include "migration.h"
+#include "multifd.h"
 #include "io/channel-file.h"
 #include "io/channel-util.h"
 #include "trace.h"
 
 #define OFFSET_OPTION ",offset="
+
+static struct FileOutgoingArgs {
+    char *fname;
+} outgoing_args;
 
 /* Remove the offset option from @filespec and return it in @offsetp. */
 
@@ -37,6 +42,36 @@ int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp)
     return 0;
 }
 
+void file_cleanup_outgoing_migration(void)
+{
+    g_free(outgoing_args.fname);
+    outgoing_args.fname = NULL;
+}
+
+bool file_send_channel_create(gpointer opaque, Error **errp)
+{
+    QIOChannelFile *ioc;
+    int flags = O_WRONLY;
+    bool ret = true;
+
+    ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
+    if (!ioc) {
+        ret = false;
+        goto out;
+    }
+
+    multifd_channel_connect(opaque, QIO_CHANNEL(ioc));
+
+out:
+    /*
+     * File channel creation is synchronous. However posting this
+     * semaphore here is simpler than adding a special case.
+     */
+    multifd_send_channel_created();
+
+    return ret;
+}
+
 void file_start_outgoing_migration(MigrationState *s,
                                    FileMigrationArgs *file_args, Error **errp)
 {
@@ -52,6 +87,8 @@ void file_start_outgoing_migration(MigrationState *s,
     if (!fioc) {
         return;
     }
+
+    outgoing_args.fname = g_strdup(filename);
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {
