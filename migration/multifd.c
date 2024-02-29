@@ -1182,18 +1182,27 @@ void multifd_recv_cleanup(void)
 
 void multifd_recv_sync_main(void)
 {
+    int thread_count = migrate_multifd_channels();
     int i;
 
     if (!migrate_multifd()) {
         return;
     }
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        trace_multifd_recv_sync_main_wait(p->id);
+    /*
+     * Initiate the synchronization by waiting for all channels.
+     * For socket-based migration this means each channel has received
+     * the SYNC packet on the stream.
+     */
+    for (i = 0; i < thread_count; i++) {
+        trace_multifd_recv_sync_main_wait(i);
         qemu_sem_wait(&multifd_recv_state->sem_sync);
     }
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+
+    /*
+     * Sync done. Release the channels for the next iteration.
+     */
+    for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
         WITH_QEMU_LOCK_GUARD(&p->mutex) {
