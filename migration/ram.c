@@ -1148,7 +1148,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
 
     if (migrate_mapped_ram()) {
         /* zero pages are not transferred with mapped-ram */
-        clear_bit(offset >> TARGET_PAGE_BITS, pss->block->file_bmap);
+        clear_bit_atomic(offset >> TARGET_PAGE_BITS, pss->block->file_bmap);
         return 1;
     }
 
@@ -2445,8 +2445,6 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
-        g_free(block->file_bmap);
-        block->file_bmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -3135,7 +3133,20 @@ static void ram_save_file_bmap(QEMUFile *f)
         qemu_put_buffer_at(f, (uint8_t *)block->file_bmap, bitmap_size,
                            block->bitmap_offset);
         ram_transferred_add(bitmap_size);
+
+        /*
+         * Free the bitmap here to catch any synchronization issues
+         * with multifd channels. No channels should be sending pages
+         * after we've written the bitmap to file.
+         */
+        g_free(block->file_bmap);
+        block->file_bmap = NULL;
     }
+}
+
+void ramblock_set_file_bmap_atomic(RAMBlock *block, ram_addr_t offset)
+{
+    set_bit_atomic(offset >> TARGET_PAGE_BITS, block->file_bmap);
 }
 
 /**
