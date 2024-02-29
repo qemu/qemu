@@ -1950,6 +1950,13 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         return false;
     }
 
+    if (migrate_mapped_ram()) {
+        if (migrate_tls()) {
+            error_setg(errp, "Cannot use TLS with mapped-ram");
+            return false;
+        }
+    }
+
     if (migrate_mode_is_cpr(s)) {
         const char *conflict = NULL;
 
