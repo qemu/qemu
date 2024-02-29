@@ -197,7 +197,7 @@ static void nocomp_recv_cleanup(MultiFDRecvParams *p)
 }
 
 /**
- * nocomp_recv_pages: read the data from the channel into actual pages
+ * nocomp_recv: read the data from the channel
  *
  * For no compression we just need to read things into the correct place.
  *
@@ -206,7 +206,7 @@ static void nocomp_recv_cleanup(MultiFDRecvParams *p)
  * @p: Params for the channel that we are using
  * @errp: pointer to an error
  */
-static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
+static int nocomp_recv(MultiFDRecvParams *p, Error **errp)
 {
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
 
@@ -228,7 +228,7 @@ static MultiFDMethods multifd_nocomp_ops = {
     .send_prepare = nocomp_send_prepare,
     .recv_setup = nocomp_recv_setup,
     .recv_cleanup = nocomp_recv_cleanup,
-    .recv_pages = nocomp_recv_pages
+    .recv = nocomp_recv
 };
 
 static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {
@@ -1227,6 +1227,8 @@ static void *multifd_recv_thread(void *opaque)
 
     while (true) {
         uint32_t flags;
+        bool has_data = false;
+        p->normal_num = 0;
 
         if (multifd_recv_should_exit()) {
             break;
@@ -1248,10 +1250,11 @@ static void *multifd_recv_thread(void *opaque)
         flags = p->flags;
         /* recv methods don't know how to handle the SYNC flag */
         p->flags &= ~MULTIFD_FLAG_SYNC;
+        has_data = !!p->normal_num;
         qemu_mutex_unlock(&p->mutex);
 
-        if (p->normal_num) {
-            ret = multifd_recv_state->ops->recv_pages(p, &local_err);
+        if (has_data) {
+            ret = multifd_recv_state->ops->recv(p, &local_err);
             if (ret != 0) {
                 break;
             }
