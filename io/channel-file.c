@@ -242,6 +242,11 @@ static int qio_channel_file_close(QIOChannel *ioc,
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
 
+    if (qemu_fdatasync(fioc->fd) < 0) {
+        error_setg_errno(errp, errno,
+                         "Unable to synchronize file data with storage device");
+        return -1;
+    }
     if (qemu_close(fioc->fd) < 0) {
         error_setg_errno(errp, errno,
                          "Unable to close file");
