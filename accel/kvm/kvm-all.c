@@ -2927,9 +2927,22 @@ int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
     }
 
     if (!memory_region_has_guest_memfd(mr)) {
-        error_report("Converting non guest_memfd backed memory region "
-                     "(0x%"HWADDR_PRIx" ,+ 0x%"HWADDR_PRIx") to %s",
-                     start, size, to_private ? "private" : "shared");
+        /*
+         * Because vMMIO region must be shared, guest TD may convert vMMIO
+         * region to shared explicitly.  Don't complain such case.  See
+         * memory_region_type() for checking if the region is MMIO region.
+         */
+        if (!to_private &&
+            !memory_region_is_ram(mr) &&
+            !memory_region_is_ram_device(mr) &&
+            !memory_region_is_rom(mr) &&
+            !memory_region_is_romd(mr)) {
+		    ret = 0;
+        } else {
+            error_report("Convert non guest_memfd backed memory region "
+                        "(0x%"HWADDR_PRIx" ,+ 0x%"HWADDR_PRIx") to %s",
+                        start, size, to_private ? "private" : "shared");
+        }
         goto out_unref;
     }
 
