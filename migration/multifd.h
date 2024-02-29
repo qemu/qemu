@@ -17,6 +17,7 @@ typedef struct MultiFDRecvData MultiFDRecvData;
 
 bool multifd_send_setup(void);
 void multifd_send_shutdown(void);
+void multifd_send_channel_created(void);
 int multifd_recv_setup(Error **errp);
 void multifd_recv_cleanup(void);
 void multifd_recv_shutdown(void);

@@ -101,6 +101,11 @@ static bool multifd_use_packets(void)
     return !migrate_mapped_ram();
 }
 
+void multifd_send_channel_created(void)
+{
+    qemu_sem_post(&multifd_send_state->channels_created);
+}
+
 /* Multifd without compression */
 
 /**
@@ -1023,7 +1028,7 @@ out:
      * Here we're not interested whether creation succeeded, only that
      * it happened at all.
      */
-    qemu_sem_post(&multifd_send_state->channels_created);
+    multifd_send_channel_created();
 
     if (ret) {
         return;
