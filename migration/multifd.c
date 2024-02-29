@@ -1545,8 +1545,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
         }
         trace_multifd_recv_new_channel(id);
     } else {
-        /* next patch gives this a meaningful value */
-        id = 0;
+        id = qatomic_read(&multifd_recv_state->count);
     }
 
     p = &multifd_recv_state->params[id];
