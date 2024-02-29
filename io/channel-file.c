@@ -36,6 +36,10 @@ qio_channel_file_new_fd(int fd)
 
     ioc->fd = fd;
 
+    if (lseek(fd, 0, SEEK_CUR) != (off_t)-1) {
+        qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_SEEKABLE);
+    }
+
     trace_qio_channel_file_new_fd(ioc, fd);
 
     return ioc;
@@ -58,6 +62,10 @@ qio_channel_file_new_path(const char *path,
         error_setg_errno(errp, errno,
                          "Unable to open %s", path);
         return NULL;
+    }
+
+    if (lseek(ioc->fd, 0, SEEK_CUR) != (off_t)-1) {
+        qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_SEEKABLE);
     }
 
     trace_qio_channel_file_new_path(ioc, path, flags, mode, ioc->fd);
