@@ -351,6 +351,7 @@ static bool net_event(void *_xendev)
 
 static bool xen_netdev_connect(XenDevice *xendev, Error **errp)
 {
+    ERRP_GUARD();
     XenNetDev *netdev = XEN_NET_DEVICE(xendev);
     unsigned int port, rx_copy;
 
