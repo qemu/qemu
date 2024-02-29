@@ -148,10 +148,39 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     return false;
 }
 
+static bool migration_needs_seekable_channel(void)
+{
+    return migrate_mapped_ram();
+}
+
+static bool transport_supports_seeking(MigrationAddress *addr)
+{
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        return true;
+    }
+
+    /*
+     * At this point, the user might not yet have passed the file
+     * descriptor to QEMU, so we cannot know for sure whether it
+     * refers to a plain file or a socket. Let it through anyway.
+     */
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
+        return addr->u.socket.type == SOCKET_ADDRESS_TYPE_FD;
+    }
+
+    return false;
+}
+
 static bool
 migration_channels_and_transport_compatible(MigrationAddress *addr,
                                             Error **errp)
 {
+    if (migration_needs_seekable_channel() &&
+        !transport_supports_seeking(addr)) {
+        error_setg(errp, "Migration requires seekable transport (e.g. file)");
+        return false;
+    }
+
     if (migration_needs_multiple_sockets() &&
         !transport_supports_multi_channels(addr)) {
         error_setg(errp, "Migration requires multi-channel URIs (e.g. tcp)");
