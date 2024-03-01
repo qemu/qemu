@@ -1312,6 +1312,12 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_multifd_compression) {
         dest->multifd_compression = params->multifd_compression;
     }
+    if (params->has_multifd_zlib_level) {
+        dest->multifd_zlib_level = params->multifd_zlib_level;
+    }
+    if (params->has_multifd_zstd_level) {
+        dest->multifd_zstd_level = params->multifd_zstd_level;
+    }
     if (params->has_xbzrle_cache_size) {
         dest->xbzrle_cache_size = params->xbzrle_cache_size;
     }
@@ -1446,6 +1452,12 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_multifd_compression) {
         s->parameters.multifd_compression = params->multifd_compression;
+    }
+    if (params->has_multifd_zlib_level) {
+        s->parameters.multifd_zlib_level = params->multifd_zlib_level;
+    }
+    if (params->has_multifd_zstd_level) {
+        s->parameters.multifd_zstd_level = params->multifd_zstd_level;
     }
     if (params->has_xbzrle_cache_size) {
         s->parameters.xbzrle_cache_size = params->xbzrle_cache_size;
