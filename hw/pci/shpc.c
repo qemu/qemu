@@ -8,6 +8,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/msi.h"
+#include "trace.h"
 
 /* TODO: model power only and disabled slot states. */
 /* TODO: handle SERR and wakeups */
@@ -122,6 +123,34 @@
 #define SHPC_IDX_TO_PCI(slot) ((slot) + 1)
 #define SHPC_PCI_TO_IDX(pci_slot) ((pci_slot) - 1)
 #define SHPC_IDX_TO_PHYSICAL(slot) ((slot) + 1)
+
+static const char *shpc_led_state_to_str(uint8_t value)
+{
+    switch (value) {
+    case SHPC_LED_ON:
+        return "on";
+    case SHPC_LED_BLINK:
+        return "blink";
+    case SHPC_LED_OFF:
+        return "off";
+    default:
+        return "invalid";
+    }
+}
+
+static const char *shpc_slot_state_to_str(uint8_t value)
+{
+    switch (value) {
+    case SHPC_STATE_PWRONLY:
+        return "power-only";
+    case SHPC_STATE_ENABLED:
+        return "enabled";
+    case SHPC_STATE_DISABLED:
+        return "disabled";
+    default:
+        return "invalid";
+    }
+}
 
 static uint8_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
@@ -300,6 +329,23 @@ static void shpc_slot_command(PCIDevice *d, uint8_t target,
         state = old_state;
     } else {
         shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
+    }
+
+    if (trace_event_get_state_backends(TRACE_SHPC_SLOT_COMMAND)) {
+        DeviceState *parent = DEVICE(d);
+        int pci_slot = SHPC_IDX_TO_PCI(slot);
+        DeviceState *child =
+            DEVICE(shpc->sec_bus->devices[PCI_DEVFN(pci_slot, 0)]);
+
+        trace_shpc_slot_command(
+            parent->canonical_path, pci_slot,
+            child ? child->canonical_path : "no-child",
+            shpc_led_state_to_str(old_power),
+            shpc_led_state_to_str(power),
+            shpc_led_state_to_str(old_attn),
+            shpc_led_state_to_str(attn),
+            shpc_slot_state_to_str(old_state),
+            shpc_slot_state_to_str(state));
     }
 
     if (!shpc_slot_is_off(old_state, old_power, old_attn) &&
