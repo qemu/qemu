@@ -2558,7 +2558,7 @@ static bool vfio_display_migration_needed(void *opaque)
         (vdev->ramfb_migrate == ON_OFF_AUTO_AUTO && vdev->enable_ramfb);
 }
 
-const VMStateDescription vmstate_vfio_display = {
+static const VMStateDescription vmstate_vfio_display = {
     .name = "VFIOPCIDevice/VFIODisplay",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2570,7 +2570,7 @@ const VMStateDescription vmstate_vfio_display = {
     }
 };
 
-const VMStateDescription vmstate_vfio_pci_config = {
+static const VMStateDescription vmstate_vfio_pci_config = {
     .name = "VFIOPCIDevice",
     .version_id = 1,
     .minimum_version_id = 1,
