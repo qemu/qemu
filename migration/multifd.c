@@ -709,6 +709,18 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
 {
     if (p->c) {
         migration_ioc_unregister_yank(p->c);
+        /*
+         * An explicit close() on the channel here is normally not
+         * required, but can be helpful for "file:" iochannels, where it
+         * will include fdatasync() to make sure the data is flushed to the
+         * disk backend.
+         *
+         * The object_unref() cannot guarantee that because: (1) finalize()
+         * of the iochannel is only triggered on the last reference, and
+         * it's not guaranteed that we always hold the last refcount when
+         * reaching here, and, (2) even if finalize() is invoked, it only
+         * does a close(fd) without data flush.
+         */
         qio_channel_close(p->c, &error_abort);
         object_unref(OBJECT(p->c));
         p->c = NULL;

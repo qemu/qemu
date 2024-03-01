@@ -4258,7 +4258,13 @@ static int ram_load_precopy(QEMUFile *f)
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_MEM_SIZE:
             ret = parse_ramblocks(f, addr);
-
+            /*
+             * For mapped-ram migration (to a file) using multifd, we sync
+             * once and for all here to make sure all tasks we queued to
+             * multifd threads are completed, so that all the ramblocks
+             * (including all the guest memory pages within) are fully
+             * loaded after this sync returns.
+             */
             if (migrate_mapped_ram()) {
                 multifd_recv_sync_main();
             }
