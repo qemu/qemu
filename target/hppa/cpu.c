@@ -121,9 +121,10 @@ void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     CPUHPPAState *env = &cpu->env;
 
     cs->exception_index = EXCP_UNALIGN;
+    cpu_restore_state(cs, retaddr);
     hppa_set_ior_and_isr(env, addr, MMU_IDX_MMU_DISABLED(mmu_idx));
 
-    cpu_loop_exit_restore(cs, retaddr);
+    cpu_loop_exit(cs);
 }
 #endif /* CONFIG_USER_ONLY */
 
