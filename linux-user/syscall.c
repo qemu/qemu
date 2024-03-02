@@ -6451,6 +6451,8 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
     case PR_GET_IO_FLUSHER:
     case PR_SET_IO_FLUSHER:
     case PR_SET_CHILD_SUBREAPER:
+    case PR_GET_SPECULATION_CTRL:
+    case PR_SET_SPECULATION_CTRL:
         /* Some prctl options have no pointer arguments and we can pass on. */
         return get_errno(prctl(option, arg2, arg3, arg4, arg5));
 
@@ -6465,8 +6467,6 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
             return ret;
         }
 
-    case PR_GET_SPECULATION_CTRL:
-    case PR_SET_SPECULATION_CTRL:
     case PR_GET_TID_ADDRESS:
         /* TODO */
         return -TARGET_EINVAL;
