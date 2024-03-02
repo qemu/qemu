@@ -6468,8 +6468,10 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
         }
 
     case PR_GET_TID_ADDRESS:
-        /* TODO */
-        return -TARGET_EINVAL;
+        {
+            TaskState *ts = env_cpu(env)->opaque;
+            return put_user_ual(ts->child_tidptr, arg2);
+        }
 
     case PR_GET_FPEXC:
     case PR_SET_FPEXC:
