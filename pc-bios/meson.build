@@ -73,6 +73,7 @@ blobs = [
   'qemu_vga.ndrv',
   'edk2-licenses.txt',
   'hppa-firmware.img',
+  'hppa-firmware64.img',
   'opensbi-riscv32-generic-fw_dynamic.bin',
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'npcm7xx_bootrom.bin',
