@@ -225,7 +225,7 @@ struct LSIState {
     MemoryRegion io_io;
     AddressSpace pci_io_as;
 
-    int carry; /* ??? Should this be an a visible register somewhere?  */
+    int carry; /* ??? Should this be in a visible register somewhere?  */
     int status;
     int msg_action;
     int msg_len;
