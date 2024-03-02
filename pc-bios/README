@@ -75,3 +75,9 @@
   initialize and run boot images stored in SPI flash, but may grow more
   features over time as needed. The source code is available at:
   https://github.com/google/vbootrom
+
+- hppa-firmware.img (32-bit) and hppa-firmware64.img (64-bit) are firmware
+  files for the HP-PARISC (hppa) architecture.
+  They are built form the SeaBIOS-hppa sources, which is a fork of SeaBIOS
+  adapted for hppa.
+  SeaBIOS-hppa is available at https://github.com/hdeller/seabios-hppa
