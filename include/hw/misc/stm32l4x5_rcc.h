@@ -26,6 +26,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4x5RccState, STM32L4X5_RCC)
 
 /* In the Stm32l4x5 clock tree, mux have at most 7 sources */
 #define RCC_NUM_CLOCK_MUX_SRC 7
+
+typedef enum PllCommonChannels {
+    RCC_PLL_COMMON_CHANNEL_P = 0,
+    RCC_PLL_COMMON_CHANNEL_Q = 1,
+    RCC_PLL_COMMON_CHANNEL_R = 2,
+
+    RCC_NUM_CHANNEL_PLL_OUT = 3
+} PllCommonChannels;
+
 /* NB: Prescaler are assimilated to mux with one source and one output */
 typedef enum RccClockMux {
     /* Internal muxes that arent't exposed publicly to other peripherals */
@@ -124,6 +133,14 @@ typedef enum RccClockMux {
     RCC_NUM_CLOCK_MUX
 } RccClockMux;
 
+typedef enum RccPll {
+    RCC_PLL_PLL,
+    RCC_PLL_PLLSAI1,
+    RCC_PLL_PLLSAI2,
+
+    RCC_NUM_PLL
+} RccPll;
+
 typedef struct RccClockMuxState {
     DeviceState parent_obj;
 
@@ -141,6 +158,26 @@ typedef struct RccClockMuxState {
      */
     struct RccClockMuxState *backref[RCC_NUM_CLOCK_MUX_SRC];
 } RccClockMuxState;
+
+typedef struct RccPllState {
+    DeviceState parent_obj;
+
+    RccPll id;
+    Clock *in;
+    uint32_t vco_multiplier;
+    Clock *channels[RCC_NUM_CHANNEL_PLL_OUT];
+    /* Global pll enabled flag */
+    bool enabled;
+    /* 'enabled' refers to the runtime configuration */
+    bool channel_enabled[RCC_NUM_CHANNEL_PLL_OUT];
+    /*
+     * 'exists' refers to the physical configuration
+     * It should only be set at pll initialization.
+     * e.g. pllsai2 doesn't have a Q output.
+     */
+    bool channel_exists[RCC_NUM_CHANNEL_PLL_OUT];
+    uint32_t channel_divider[RCC_NUM_CHANNEL_PLL_OUT];
+} RccPllState;
 
 struct Stm32l4x5RccState {
     SysBusDevice parent_obj;
@@ -186,6 +223,9 @@ struct Stm32l4x5RccState {
     Clock *lse_crystal;
     Clock *sai1_extclk;
     Clock *sai2_extclk;
+
+    /* PLLs */
+    RccPllState plls[RCC_NUM_PLL];
 
     /* Muxes ~= outputs */
     RccClockMuxState clock_muxes[RCC_NUM_CLOCK_MUX];

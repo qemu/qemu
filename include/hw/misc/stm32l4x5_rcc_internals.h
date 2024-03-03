@@ -22,7 +22,10 @@
 #include "hw/misc/stm32l4x5_rcc.h"
 
 #define TYPE_RCC_CLOCK_MUX "stm32l4x5-rcc-clock-mux"
+#define TYPE_RCC_PLL "stm32l4x5-rcc-pll"
+
 OBJECT_DECLARE_SIMPLE_TYPE(RccClockMuxState, RCC_CLOCK_MUX)
+OBJECT_DECLARE_SIMPLE_TYPE(RccPllState, RCC_PLL)
 
 /* Register map */
 REG32(CR, 0x00)
@@ -284,6 +287,25 @@ REG32(CSR, 0x94)
                             R_CSR_OBLRSTF_MASK  | \
                             R_CSR_FWRSTF_MASK   | \
                             R_CSR_LSIRDY_MASK)
+
+/* Pll Channels */
+enum PllChannels {
+    RCC_PLL_CHANNEL_PLLSAI3CLK = 0,
+    RCC_PLL_CHANNEL_PLL48M1CLK = 1,
+    RCC_PLL_CHANNEL_PLLCLK = 2,
+};
+
+enum PllSai1Channels {
+    RCC_PLLSAI1_CHANNEL_PLLSAI1CLK = 0,
+    RCC_PLLSAI1_CHANNEL_PLL48M2CLK = 1,
+    RCC_PLLSAI1_CHANNEL_PLLADC1CLK = 2,
+};
+
+enum PllSai2Channels {
+    RCC_PLLSAI2_CHANNEL_PLLSAI2CLK = 0,
+    /* No Q channel */
+    RCC_PLLSAI2_CHANNEL_PLLADC2CLK = 2,
+};
 
 typedef enum RccClockMuxSource {
     RCC_CLOCK_MUX_SRC_GND = 0,

@@ -164,6 +164,157 @@ static void clock_mux_set_source(RccClockMuxState *mux, RccClockMuxSource src)
     clock_mux_update(mux);
 }
 
+static void pll_update(RccPllState *pll)
+{
+    uint64_t vco_freq, old_channel_freq, channel_freq;
+    int i;
+
+    /* The common PLLM factor is handled by the PLL mux */
+    vco_freq = muldiv64(clock_get_hz(pll->in), pll->vco_multiplier, 1);
+
+    for (i = 0; i < RCC_NUM_CHANNEL_PLL_OUT; i++) {
+        if (!pll->channel_exists[i]) {
+            continue;
+        }
+
+        old_channel_freq = clock_get_hz(pll->channels[i]);
+        if (!pll->enabled ||
+            !pll->channel_enabled[i] ||
+            !pll->channel_divider[i]) {
+            channel_freq = 0;
+        } else {
+            channel_freq = muldiv64(vco_freq,
+                                    1,
+                                    pll->channel_divider[i]);
+        }
+
+        /* No change, early continue to avoid log spam and useless propagation */
+        if (old_channel_freq == channel_freq) {
+            continue;
+        }
+
+        clock_update_hz(pll->channels[i], channel_freq);
+        trace_stm32l4x5_rcc_pll_update(pll->id, i, vco_freq,
+            old_channel_freq, channel_freq);
+    }
+}
+
+static void pll_src_update(void *opaque, ClockEvent event)
+{
+    RccPllState *s = opaque;
+    pll_update(s);
+}
+
+static void pll_init(Object *obj)
+{
+    RccPllState *s = RCC_PLL(obj);
+    size_t i;
+
+    s->in = qdev_init_clock_in(DEVICE(s), "in",
+                               pll_src_update, s, ClockUpdate);
+
+    const char *names[] = {
+        "out-p", "out-q", "out-r",
+    };
+
+    for (i = 0; i < RCC_NUM_CHANNEL_PLL_OUT; i++) {
+        s->channels[i] = qdev_init_clock_out(DEVICE(s), names[i]);
+    }
+}
+
+static void pll_reset_hold(Object *obj)
+{ }
+
+static const VMStateDescription pll_vmstate = {
+    .name = TYPE_RCC_PLL,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(id, RccPllState),
+        VMSTATE_CLOCK(in, RccPllState),
+        VMSTATE_ARRAY_CLOCK(channels, RccPllState,
+                            RCC_NUM_CHANNEL_PLL_OUT),
+        VMSTATE_BOOL(enabled, RccPllState),
+        VMSTATE_UINT32(vco_multiplier, RccPllState),
+        VMSTATE_BOOL_ARRAY(channel_enabled, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+        VMSTATE_BOOL_ARRAY(channel_exists, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+        VMSTATE_UINT32_ARRAY(channel_divider, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pll_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->phases.hold = pll_reset_hold;
+    dc->vmsd = &pll_vmstate;
+}
+
+static void pll_set_vco_multiplier(RccPllState *pll, uint32_t vco_multiplier)
+{
+    if (pll->vco_multiplier == vco_multiplier) {
+        return;
+    }
+
+    if (vco_multiplier < 8 || vco_multiplier > 86) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: VCO multiplier is out of bound (%u) for PLL %u\n",
+            __func__, vco_multiplier, pll->id);
+        return;
+    }
+
+    trace_stm32l4x5_rcc_pll_set_vco_multiplier(pll->id,
+        pll->vco_multiplier, vco_multiplier);
+
+    pll->vco_multiplier = vco_multiplier;
+    pll_update(pll);
+}
+
+static void pll_set_enable(RccPllState *pll, bool enabled)
+{
+    if (pll->enabled == enabled) {
+        return;
+    }
+
+    pll->enabled = enabled;
+    pll_update(pll);
+}
+
+static void pll_set_channel_enable(RccPllState *pll,
+                                   PllCommonChannels channel,
+                                   bool enabled)
+{
+    if (pll->channel_enabled[channel] == enabled) {
+        return;
+    }
+
+    if (enabled) {
+        trace_stm32l4x5_rcc_pll_channel_enable(pll->id, channel);
+    } else {
+        trace_stm32l4x5_rcc_pll_channel_disable(pll->id, channel);
+    }
+
+    pll->channel_enabled[channel] = enabled;
+    pll_update(pll);
+}
+
+static void pll_set_channel_divider(RccPllState *pll,
+                                    PllCommonChannels channel,
+                                    uint32_t divider)
+{
+    if (pll->channel_divider[channel] == divider) {
+        return;
+    }
+
+    trace_stm32l4x5_rcc_pll_set_channel_divider(pll->id,
+        channel, pll->channel_divider[channel], divider);
+
+    pll->channel_divider[channel] = divider;
+    pll_update(pll);
+}
+
 static void rcc_update_irq(Stm32l4x5RccState *s)
 {
     if (s->cifr & CIFR_IRQ_MASK) {
@@ -473,6 +624,11 @@ static void stm32l4x5_rcc_init(Object *obj)
 
     qdev_init_clocks(DEVICE(s), stm32l4x5_rcc_clocks);
 
+    for (i = 0; i < RCC_NUM_PLL; i++) {
+        object_initialize_child(obj, "pll[*]",
+                                &s->plls[i], TYPE_RCC_PLL);
+    }
+
     for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
 
         object_initialize_child(obj, "clock[*]",
@@ -543,6 +699,16 @@ static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
             return;
         }
 
+    for (i = 0; i < RCC_NUM_PLL; i++) {
+        RccPllState *pll = &s->plls[i];
+
+        clock_set_source(pll->in, s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT].out);
+
+        if (!qdev_realize(DEVICE(pll), NULL, errp)) {
+            return;
+        }
+    }
+
     for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
         RccClockMuxState *clock_mux = &s->clock_muxes[i];
 
@@ -563,6 +729,10 @@ static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
     clock_mux_set_source(&s->clock_muxes[0], RCC_CLOCK_MUX_SRC_GND);
     clock_mux_set_enable(&s->clock_muxes[0], true);
     clock_mux_set_factor(&s->clock_muxes[0], 1, 1);
+    pll_set_channel_divider(&s->plls[0], 0, 1);
+    pll_set_enable(&s->plls[0], true);
+    pll_set_channel_enable(&s->plls[0], 0, true);
+    pll_set_vco_multiplier(&s->plls[0], 1);
 }
 
 static Property stm32l4x5_rcc_properties[] = {
@@ -600,6 +770,12 @@ static const TypeInfo stm32l4x5_rcc_types[] = {
         .instance_size = sizeof(RccClockMuxState),
         .instance_init = clock_mux_init,
         .class_init = clock_mux_class_init,
+    }, {
+        .name = TYPE_RCC_PLL,
+        .parent = TYPE_DEVICE,
+        .instance_size = sizeof(RccPllState),
+        .instance_init = pll_init,
+        .class_init = pll_class_init,
     }
 };
 
