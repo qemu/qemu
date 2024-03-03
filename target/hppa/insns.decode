@@ -26,7 +26,7 @@
 
 %assemble_11a   4:12 0:1             !function=expand_11a
 %assemble_12    0:s1 2:1 3:10        !function=expand_shl2
-%assemble_12a   0:s1 3:11            !function=expand_shl2
+%assemble_12a   3:13 0:1             !function=expand_12a
 %assemble_16    0:16                 !function=expand_16
 %assemble_17    0:s1 16:5 2:1 3:10   !function=expand_shl2
 %assemble_22    0:s1 16:10 2:1 3:10  !function=expand_shl2
@@ -314,8 +314,9 @@ fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
 @ldstim14m      ...... b:5 t:5 ................          \
                 &ldst sp=%assemble_sp disp=%assemble_16  \
                 x=0 scale=0 m=%neg_to_m
-@ldstim12m      ...... b:5 t:5 sp:2 ..............      \
-                &ldst disp=%assemble_12a x=0 scale=0 m=%pos_to_m
+@ldstim12m      ...... b:5 t:5 ................          \
+                &ldst sp=%assemble_sp disp=%assemble_12a \
+                x=0 scale=0 m=%pos_to_m
 
 # LDB, LDH, LDW, LDWM
 ld              010000 ..... ..... .. ..............    @ldstim14  size=0
@@ -331,15 +332,19 @@ st              011010 ..... ..... .. ..............    @ldstim14  size=2
 st              011011 ..... ..... .. ..............    @ldstim14m size=2
 st              011111 ..... ..... .. ...........10.    @ldstim12m size=2
 
-fldw            010110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
-fldw            010111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+fldw            010110 b:5 ..... ................        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fldw            010111 b:5 ..... .............0..        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=0 x=0 scale=0 size=2
 
-fstw            011110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
-fstw            011111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+fstw            011110 b:5 ..... ................        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fstw            011111 b:5 ..... .............0..        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=0 x=0 scale=0 size=2
 
 ld              010100 ..... ..... .. ............0.    @ldstim11
 fldd            010100 ..... ..... .. ............1.    @ldstim11
