@@ -155,6 +155,23 @@ static int expand_11a(DisasContext *ctx, int val)
     return i;
 }
 
+/* Expander for assemble_16a(s,im11a,i). */
+static int expand_12a(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bit 0 and bits [3:15].
+     * Swizzle thing around depending on PSW.W.
+     */
+    int im11a = extract32(val, 1, 11);
+    int s = extract32(val, 12, 2);
+    int i = (-(val & 1) << 13) | (im11a << 2);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
+}
+
 /* Expander for assemble_16(s,im14). */
 static int expand_16(DisasContext *ctx, int val)
 {
