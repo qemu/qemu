@@ -36,6 +36,134 @@
 #define LSE_FRQ 32768ULL
 #define LSI_FRQ 32000ULL
 
+static void clock_mux_update(RccClockMuxState *mux)
+{
+    uint64_t src_freq;
+    Clock *current_source = mux->srcs[mux->src];
+    uint32_t freq_multiplier = 0;
+    /*
+     * To avoid rounding errors, we use the clock period instead of the
+     * frequency.
+     * This means that the multiplier of the mux becomes the divider of
+     * the clock and the divider of the mux becomes the multiplier of the
+     * clock.
+     */
+    if (mux->enabled && mux->divider) {
+        freq_multiplier = mux->divider;
+    }
+
+    clock_set_mul_div(mux->out, freq_multiplier, mux->multiplier);
+    clock_update(mux->out, clock_get(current_source));
+
+    src_freq = clock_get_hz(current_source);
+    /* TODO: can we simply detect if the config changed so that we reduce log spam ? */
+    trace_stm32l4x5_rcc_mux_update(mux->id, mux->src, src_freq,
+                                   mux->multiplier, mux->divider);
+}
+
+static void clock_mux_src_update(void *opaque, ClockEvent event)
+{
+    RccClockMuxState **backref = opaque;
+    RccClockMuxState *s = *backref;
+    /*
+     * The backref value is equal to:
+     * s->backref + (sizeof(RccClockMuxState *) * update_src).
+     * By subtracting we can get back the index of the updated clock.
+     */
+    const uint32_t update_src = backref - s->backref;
+    /* Only update if the clock that was updated is the current source */
+    if (update_src == s->src) {
+        clock_mux_update(s);
+    }
+}
+
+static void clock_mux_init(Object *obj)
+{
+    RccClockMuxState *s = RCC_CLOCK_MUX(obj);
+    size_t i;
+
+    for (i = 0; i < RCC_NUM_CLOCK_MUX_SRC; i++) {
+        char *name = g_strdup_printf("srcs[%zu]", i);
+        s->backref[i] = s;
+        s->srcs[i] = qdev_init_clock_in(DEVICE(s), name,
+                                        clock_mux_src_update,
+                                        &s->backref[i],
+                                        ClockUpdate);
+        g_free(name);
+    }
+
+    s->out = qdev_init_clock_out(DEVICE(s), "out");
+}
+
+static void clock_mux_reset_hold(Object *obj)
+{ }
+
+static const VMStateDescription clock_mux_vmstate = {
+    .name = TYPE_RCC_CLOCK_MUX,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(id, RccClockMuxState),
+        VMSTATE_ARRAY_CLOCK(srcs, RccClockMuxState,
+                            RCC_NUM_CLOCK_MUX_SRC),
+        VMSTATE_BOOL(enabled, RccClockMuxState),
+        VMSTATE_UINT32(src, RccClockMuxState),
+        VMSTATE_UINT32(multiplier, RccClockMuxState),
+        VMSTATE_UINT32(divider, RccClockMuxState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void clock_mux_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->phases.hold = clock_mux_reset_hold;
+    dc->vmsd = &clock_mux_vmstate;
+}
+
+static void clock_mux_set_enable(RccClockMuxState *mux, bool enabled)
+{
+    if (mux->enabled == enabled) {
+        return;
+    }
+
+    if (enabled) {
+        trace_stm32l4x5_rcc_mux_enable(mux->id);
+    } else {
+        trace_stm32l4x5_rcc_mux_disable(mux->id);
+    }
+
+    mux->enabled = enabled;
+    clock_mux_update(mux);
+}
+
+static void clock_mux_set_factor(RccClockMuxState *mux,
+                                 uint32_t multiplier, uint32_t divider)
+{
+    if (mux->multiplier == multiplier && mux->divider == divider) {
+        return;
+    }
+    trace_stm32l4x5_rcc_mux_set_factor(mux->id,
+        mux->multiplier, multiplier, mux->divider, divider);
+
+    mux->multiplier = multiplier;
+    mux->divider = divider;
+    clock_mux_update(mux);
+}
+
+static void clock_mux_set_source(RccClockMuxState *mux, RccClockMuxSource src)
+{
+    if (mux->src == src) {
+        return;
+    }
+
+    trace_stm32l4x5_rcc_mux_set_src(mux->id, mux->src, src);
+    mux->src = src;
+    clock_mux_update(mux);
+}
+
 static void rcc_update_irq(Stm32l4x5RccState *s)
 {
     if (s->cifr & CIFR_IRQ_MASK) {
@@ -335,6 +463,7 @@ static const ClockPortInitArray stm32l4x5_rcc_clocks = {
 static void stm32l4x5_rcc_init(Object *obj)
 {
     Stm32l4x5RccState *s = STM32L4X5_RCC(obj);
+    size_t i;
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
@@ -343,6 +472,14 @@ static void stm32l4x5_rcc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
     qdev_init_clocks(DEVICE(s), stm32l4x5_rcc_clocks);
+
+    for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
+
+        object_initialize_child(obj, "clock[*]",
+                                &s->clock_muxes[i],
+                                TYPE_RCC_CLOCK_MUX);
+
+    }
 
     s->gnd = clock_new(obj, "gnd");
 }
@@ -396,6 +533,7 @@ static const VMStateDescription vmstate_stm32l4x5_rcc = {
 static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
 {
     Stm32l4x5RccState *s = STM32L4X5_RCC(dev);
+    size_t i;
 
     if (s->hse_frequency <  4000000ULL ||
         s->hse_frequency > 48000000ULL) {
@@ -405,10 +543,26 @@ static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
             return;
         }
 
+    for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
+        RccClockMuxState *clock_mux = &s->clock_muxes[i];
+
+        if (!qdev_realize(DEVICE(clock_mux), NULL, errp)) {
+            return;
+        }
+    }
+
     clock_update_hz(s->msi_rc, MSI_DEFAULT_FRQ);
     clock_update_hz(s->sai1_extclk, s->sai1_extclk_frequency);
     clock_update_hz(s->sai2_extclk, s->sai2_extclk_frequency);
     clock_update(s->gnd, 0);
+
+    /*
+     * Dummy values to make compilation pass.
+     * Removed in later commits.
+     */
+    clock_mux_set_source(&s->clock_muxes[0], RCC_CLOCK_MUX_SRC_GND);
+    clock_mux_set_enable(&s->clock_muxes[0], true);
+    clock_mux_set_factor(&s->clock_muxes[0], 1, 1);
 }
 
 static Property stm32l4x5_rcc_properties[] = {
@@ -440,6 +594,12 @@ static const TypeInfo stm32l4x5_rcc_types[] = {
         .instance_size  = sizeof(Stm32l4x5RccState),
         .instance_init  = stm32l4x5_rcc_init,
         .class_init     = stm32l4x5_rcc_class_init,
+    }, {
+        .name = TYPE_RCC_CLOCK_MUX,
+        .parent = TYPE_DEVICE,
+        .instance_size = sizeof(RccClockMuxState),
+        .instance_init = clock_mux_init,
+        .class_init = clock_mux_class_init,
     }
 };
 
