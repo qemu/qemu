@@ -425,9 +425,10 @@ static void set_boot_dev(PCMachineState *pcms, MC146818RtcState *s,
 
 static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
 {
-    PCMachineState *pcms = PC_MACHINE(current_machine);
+    PCMachineState *pcms = opaque;
+    X86MachineState *x86ms = X86_MACHINE(pcms);
 
-    set_boot_dev(pcms, opaque, boot_device, errp);
+    set_boot_dev(pcms, MC146818_RTC(x86ms->rtc), boot_device, errp);
 }
 
 static void pc_cmos_init_floppy(MC146818RtcState *rtc_state, ISADevice *floppy)
@@ -1252,7 +1253,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
     }
 #endif
 
-    qemu_register_boot_set(pc_boot_set, rtc_state);
+    qemu_register_boot_set(pc_boot_set, pcms);
 
     if (!xen_enabled() &&
         (x86ms->pit == ON_OFF_AUTO_AUTO || x86ms->pit == ON_OFF_AUTO_ON)) {
