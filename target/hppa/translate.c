@@ -121,12 +121,6 @@ static int expand_shl2(DisasContext *ctx, int val)
     return val << 2;
 }
 
-/* Used for fp memory ops.  */
-static int expand_shl3(DisasContext *ctx, int val)
-{
-    return val << 3;
-}
-
 /* Used for assemble_21.  */
 static int expand_shl11(DisasContext *ctx, int val)
 {
@@ -142,6 +136,23 @@ static int assemble_6(DisasContext *ctx, int val)
      * with the overflow from bit 4 summing with x.
      */
     return (val ^ 31) + 1;
+}
+
+/* Expander for assemble_16a(s,cat(im10a,0),i). */
+static int expand_11a(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bit 0 and bits [4:15].
+     * Swizzle thing around depending on PSW.W.
+     */
+    int im10a = extract32(val, 1, 10);
+    int s = extract32(val, 11, 2);
+    int i = (-(val & 1) << 13) | (im10a << 3);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
 }
 
 /* Expander for assemble_16(s,im14). */
