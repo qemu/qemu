@@ -344,8 +344,6 @@ static void pc_init1(MachineState *machine, const char *pci_type)
     }
 #endif
 
-    pc_cmos_init(pcms, x86ms->rtc);
-
     if (piix4_pm) {
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
 
