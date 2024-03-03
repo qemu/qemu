@@ -475,6 +475,7 @@ config STM32L4X5_SOC
     select OR_IRQ
     select STM32L4X5_SYSCFG
     select STM32L4X5_EXTI
+    select STM32L4X5_RCC
 
 config XLNX_ZYNQMP_ARM
     bool

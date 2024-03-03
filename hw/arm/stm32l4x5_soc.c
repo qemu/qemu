@@ -76,6 +76,8 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
     -1, -1, -1, -1,         /* PVM[1..4] OR gate 1     */
     78                      /* LCD wakeup, Direct      */
 };
+#define RCC_BASE_ADDRESS 0x40021000
+#define RCC_IRQ 5
 
 static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
     23, 40, 63, 1,
@@ -107,6 +109,7 @@ static void stm32l4x5_soc_initfn(Object *obj)
                                 TYPE_OR_IRQ);
     }
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
+    object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32L4X5_RCC);
 
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
     s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
@@ -244,6 +247,14 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
                               qdev_get_gpio_in(DEVICE(&s->exti), i));
     }
 
+    /* RCC device */
+    busdev = SYS_BUS_DEVICE(&s->rcc);
+    if (!sysbus_realize(busdev, errp)) {
+        return;
+    }
+    sysbus_mmio_map(busdev, 0, RCC_BASE_ADDRESS);
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, RCC_IRQ));
+
     /* APB1 BUS */
     create_unimplemented_device("TIM2",      0x40000000, 0x400);
     create_unimplemented_device("TIM3",      0x40000400, 0x400);
@@ -306,7 +317,6 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("DMA1",      0x40020000, 0x400);
     create_unimplemented_device("DMA2",      0x40020400, 0x400);
     /* RESERVED:    0x40020800, 0x800 */
-    create_unimplemented_device("RCC",       0x40021000, 0x400);
     /* RESERVED:    0x40021400, 0xC00 */
     create_unimplemented_device("FLASH",     0x40022000, 0x400);
     /* RESERVED:    0x40022400, 0xC00 */
