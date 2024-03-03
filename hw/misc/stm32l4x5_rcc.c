@@ -36,7 +36,13 @@
 #define LSE_FRQ 32768ULL
 #define LSI_FRQ 32000ULL
 
-static void clock_mux_update(RccClockMuxState *mux)
+/*
+ * Function to simply acknowledge and propagate changes in a clock mux
+ * frequency.
+ * `bypass_source` allows to bypass the period of the current source and just
+ * consider it equal to 0. This is useful during the hold phase of reset.
+ */
+static void clock_mux_update(RccClockMuxState *mux, bool bypass_source)
 {
     uint64_t src_freq;
     Clock *current_source = mux->srcs[mux->src];
@@ -48,7 +54,7 @@ static void clock_mux_update(RccClockMuxState *mux)
      * the clock and the divider of the mux becomes the multiplier of the
      * clock.
      */
-    if (mux->enabled && mux->divider) {
+    if (!bypass_source && mux->enabled && mux->divider) {
         freq_multiplier = mux->divider;
     }
 
@@ -73,7 +79,7 @@ static void clock_mux_src_update(void *opaque, ClockEvent event)
     const uint32_t update_src = backref - s->backref;
     /* Only update if the clock that was updated is the current source */
     if (update_src == s->src) {
-        clock_mux_update(s);
+        clock_mux_update(s, false);
     }
 }
 
@@ -95,8 +101,23 @@ static void clock_mux_init(Object *obj)
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
+static void clock_mux_reset_enter(Object *obj, ResetType type)
+{
+    RccClockMuxState *s = RCC_CLOCK_MUX(obj);
+    set_clock_mux_init_info(s, s->id);
+}
+
 static void clock_mux_reset_hold(Object *obj)
-{ }
+{
+    RccClockMuxState *s = RCC_CLOCK_MUX(obj);
+    clock_mux_update(s, true);
+}
+
+static void clock_mux_reset_exit(Object *obj)
+{
+    RccClockMuxState *s = RCC_CLOCK_MUX(obj);
+    clock_mux_update(s, false);
+}
 
 static const VMStateDescription clock_mux_vmstate = {
     .name = TYPE_RCC_CLOCK_MUX,
@@ -119,7 +140,9 @@ static void clock_mux_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    rc->phases.enter = clock_mux_reset_enter;
     rc->phases.hold = clock_mux_reset_hold;
+    rc->phases.exit = clock_mux_reset_exit;
     dc->vmsd = &clock_mux_vmstate;
 }
 
@@ -136,7 +159,7 @@ static void clock_mux_set_enable(RccClockMuxState *mux, bool enabled)
     }
 
     mux->enabled = enabled;
-    clock_mux_update(mux);
+    clock_mux_update(mux, false);
 }
 
 static void clock_mux_set_factor(RccClockMuxState *mux,
@@ -150,7 +173,7 @@ static void clock_mux_set_factor(RccClockMuxState *mux,
 
     mux->multiplier = multiplier;
     mux->divider = divider;
-    clock_mux_update(mux);
+    clock_mux_update(mux, false);
 }
 
 static void clock_mux_set_source(RccClockMuxState *mux, RccClockMuxSource src)
@@ -161,10 +184,15 @@ static void clock_mux_set_source(RccClockMuxState *mux, RccClockMuxSource src)
 
     trace_stm32l4x5_rcc_mux_set_src(mux->id, mux->src, src);
     mux->src = src;
-    clock_mux_update(mux);
+    clock_mux_update(mux, false);
 }
 
-static void pll_update(RccPllState *pll)
+/*
+ * Acknowledge and propagate changes in a PLL frequency.
+ * `bypass_source` allows to bypass the period of the current source and just
+ * consider it equal to 0. This is useful during the hold phase of reset.
+ */
+static void pll_update(RccPllState *pll, bool bypass_source)
 {
     uint64_t vco_freq, old_channel_freq, channel_freq;
     int i;
@@ -178,7 +206,8 @@ static void pll_update(RccPllState *pll)
         }
 
         old_channel_freq = clock_get_hz(pll->channels[i]);
-        if (!pll->enabled ||
+        if (bypass_source ||
+            !pll->enabled ||
             !pll->channel_enabled[i] ||
             !pll->channel_divider[i]) {
             channel_freq = 0;
@@ -202,7 +231,7 @@ static void pll_update(RccPllState *pll)
 static void pll_src_update(void *opaque, ClockEvent event)
 {
     RccPllState *s = opaque;
-    pll_update(s);
+    pll_update(s, false);
 }
 
 static void pll_init(Object *obj)
@@ -222,8 +251,23 @@ static void pll_init(Object *obj)
     }
 }
 
+static void pll_reset_enter(Object *obj, ResetType type)
+{
+    RccPllState *s = RCC_PLL(obj);
+    set_pll_init_info(s, s->id);
+}
+
 static void pll_reset_hold(Object *obj)
-{ }
+{
+    RccPllState *s = RCC_PLL(obj);
+    pll_update(s, true);
+}
+
+static void pll_reset_exit(Object *obj)
+{
+    RccPllState *s = RCC_PLL(obj);
+    pll_update(s, false);
+}
 
 static const VMStateDescription pll_vmstate = {
     .name = TYPE_RCC_PLL,
@@ -248,7 +292,9 @@ static void pll_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    rc->phases.enter = pll_reset_enter;
     rc->phases.hold = pll_reset_hold;
+    rc->phases.exit = pll_reset_exit;
     dc->vmsd = &pll_vmstate;
 }
 
@@ -269,7 +315,7 @@ static void pll_set_vco_multiplier(RccPllState *pll, uint32_t vco_multiplier)
         pll->vco_multiplier, vco_multiplier);
 
     pll->vco_multiplier = vco_multiplier;
-    pll_update(pll);
+    pll_update(pll, false);
 }
 
 static void pll_set_enable(RccPllState *pll, bool enabled)
@@ -279,7 +325,7 @@ static void pll_set_enable(RccPllState *pll, bool enabled)
     }
 
     pll->enabled = enabled;
-    pll_update(pll);
+    pll_update(pll, false);
 }
 
 static void pll_set_channel_enable(RccPllState *pll,
@@ -297,7 +343,7 @@ static void pll_set_channel_enable(RccPllState *pll,
     }
 
     pll->channel_enabled[channel] = enabled;
-    pll_update(pll);
+    pll_update(pll, false);
 }
 
 static void pll_set_channel_divider(RccPllState *pll,
@@ -312,7 +358,7 @@ static void pll_set_channel_divider(RccPllState *pll,
         channel, pll->channel_divider[channel], divider);
 
     pll->channel_divider[channel] = divider;
-    pll_update(pll);
+    pll_update(pll, false);
 }
 
 static void rcc_update_irq(Stm32l4x5RccState *s)
@@ -625,20 +671,78 @@ static void stm32l4x5_rcc_init(Object *obj)
     qdev_init_clocks(DEVICE(s), stm32l4x5_rcc_clocks);
 
     for (i = 0; i < RCC_NUM_PLL; i++) {
-        object_initialize_child(obj, "pll[*]",
+        object_initialize_child(obj, PLL_INIT_INFO[i].name,
                                 &s->plls[i], TYPE_RCC_PLL);
+        set_pll_init_info(&s->plls[i], i);
     }
 
     for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
+        char *alias;
 
-        object_initialize_child(obj, "clock[*]",
+        object_initialize_child(obj, CLOCK_MUX_INIT_INFO[i].name,
                                 &s->clock_muxes[i],
                                 TYPE_RCC_CLOCK_MUX);
+        set_clock_mux_init_info(&s->clock_muxes[i], i);
 
+        if (!CLOCK_MUX_INIT_INFO[i].hidden) {
+            /* Expose muxes output as RCC outputs */
+            alias = g_strdup_printf("%s-out", CLOCK_MUX_INIT_INFO[i].name);
+            qdev_alias_clock(DEVICE(&s->clock_muxes[i]), "out", DEVICE(obj), alias);
+            g_free(alias);
+        }
     }
 
     s->gnd = clock_new(obj, "gnd");
 }
+
+static void connect_mux_sources(Stm32l4x5RccState *s,
+                                RccClockMuxState *mux,
+                                const RccClockMuxSource *clk_mapping)
+{
+    size_t i;
+
+    Clock * const CLK_SRC_MAPPING[] = {
+        [RCC_CLOCK_MUX_SRC_GND] = s->gnd,
+        [RCC_CLOCK_MUX_SRC_HSI] = s->hsi16_rc,
+        [RCC_CLOCK_MUX_SRC_HSE] = s->hse,
+        [RCC_CLOCK_MUX_SRC_MSI] = s->msi_rc,
+        [RCC_CLOCK_MUX_SRC_LSI] = s->lsi_rc,
+        [RCC_CLOCK_MUX_SRC_LSE] = s->lse_crystal,
+        [RCC_CLOCK_MUX_SRC_SAI1_EXTCLK] = s->sai1_extclk,
+        [RCC_CLOCK_MUX_SRC_SAI2_EXTCLK] = s->sai2_extclk,
+        [RCC_CLOCK_MUX_SRC_PLL] =
+            s->plls[RCC_PLL_PLL].channels[RCC_PLL_CHANNEL_PLLCLK],
+        [RCC_CLOCK_MUX_SRC_PLLSAI1] =
+            s->plls[RCC_PLL_PLLSAI1].channels[RCC_PLLSAI1_CHANNEL_PLLSAI1CLK],
+        [RCC_CLOCK_MUX_SRC_PLLSAI2] =
+            s->plls[RCC_PLL_PLLSAI2].channels[RCC_PLLSAI2_CHANNEL_PLLSAI2CLK],
+        [RCC_CLOCK_MUX_SRC_PLLSAI3] =
+            s->plls[RCC_PLL_PLL].channels[RCC_PLL_CHANNEL_PLLSAI3CLK],
+        [RCC_CLOCK_MUX_SRC_PLL48M1] =
+            s->plls[RCC_PLL_PLL].channels[RCC_PLL_CHANNEL_PLL48M1CLK],
+        [RCC_CLOCK_MUX_SRC_PLL48M2] =
+            s->plls[RCC_PLL_PLLSAI1].channels[RCC_PLLSAI1_CHANNEL_PLL48M2CLK],
+        [RCC_CLOCK_MUX_SRC_PLLADC1] =
+            s->plls[RCC_PLL_PLLSAI1].channels[RCC_PLLSAI1_CHANNEL_PLLADC1CLK],
+        [RCC_CLOCK_MUX_SRC_PLLADC2] =
+            s->plls[RCC_PLL_PLLSAI2] .channels[RCC_PLLSAI2_CHANNEL_PLLADC2CLK],
+        [RCC_CLOCK_MUX_SRC_SYSCLK] = s->clock_muxes[RCC_CLOCK_MUX_SYSCLK].out,
+        [RCC_CLOCK_MUX_SRC_HCLK] = s->clock_muxes[RCC_CLOCK_MUX_HCLK].out,
+        [RCC_CLOCK_MUX_SRC_PCLK1] = s->clock_muxes[RCC_CLOCK_MUX_PCLK1].out,
+        [RCC_CLOCK_MUX_SRC_PCLK2] = s->clock_muxes[RCC_CLOCK_MUX_PCLK2].out,
+        [RCC_CLOCK_MUX_SRC_HSE_OVER_32] = s->clock_muxes[RCC_CLOCK_MUX_HSE_OVER_32].out,
+        [RCC_CLOCK_MUX_SRC_LCD_AND_RTC_COMMON] =
+            s->clock_muxes[RCC_CLOCK_MUX_LCD_AND_RTC_COMMON].out,
+    };
+
+    assert(ARRAY_SIZE(CLK_SRC_MAPPING) == RCC_CLOCK_MUX_SRC_NUMBER);
+
+    for (i = 0; i < RCC_NUM_CLOCK_MUX_SRC; i++) {
+        RccClockMuxSource mapping = clk_mapping[i];
+        clock_set_source(mux->srcs[i], CLK_SRC_MAPPING[mapping]);
+    }
+}
+
 
 static const VMStateDescription vmstate_stm32l4x5_rcc = {
     .name = TYPE_STM32L4X5_RCC,
@@ -712,11 +816,17 @@ static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
         RccClockMuxState *clock_mux = &s->clock_muxes[i];
 
+        connect_mux_sources(s, clock_mux, CLOCK_MUX_INIT_INFO[i].src_mapping);
+
         if (!qdev_realize(DEVICE(clock_mux), NULL, errp)) {
             return;
         }
     }
 
+    /*
+     * Start clocks after everything is connected
+     * to propagate the frequencies along the tree.
+     */
     clock_update_hz(s->msi_rc, MSI_DEFAULT_FRQ);
     clock_update_hz(s->sai1_extclk, s->sai1_extclk_frequency);
     clock_update_hz(s->sai2_extclk, s->sai2_extclk_frequency);
@@ -750,6 +860,7 @@ static void stm32l4x5_rcc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    assert(ARRAY_SIZE(CLOCK_MUX_INIT_INFO) == RCC_NUM_CLOCK_MUX);
 
     rc->phases.hold = stm32l4x5_rcc_reset_hold;
     device_class_set_props(dc, stm32l4x5_rcc_properties);
