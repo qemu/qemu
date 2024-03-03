@@ -476,11 +476,6 @@ if host_os == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase', '-Wl,--high-entropy-va')
 endif
 
-# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if host_os != 'sunos' and not get_option('tsan')
-  qemu_ldflags += cc.get_supported_link_arguments('-Wl,--warn-common')
-endif
-
 if get_option('fuzzing')
   # Specify a filter to only instrument code that is directly related to
   # virtual-devices.
