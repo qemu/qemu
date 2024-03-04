@@ -4214,6 +4214,12 @@ static int ram_load_precopy(QEMUFile *f)
         i++;
 
         addr = qemu_get_be64(f);
+        ret = qemu_file_get_error(f);
+        if (ret) {
+            error_report("Getting RAM address failed");
+            break;
+        }
+
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
 
