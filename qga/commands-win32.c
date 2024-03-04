@@ -2124,26 +2124,23 @@ typedef struct _ga_matrix_lookup_t {
     const char *version_id;
 } ga_matrix_lookup_t;
 
-static const ga_matrix_lookup_t WIN_VERSION_MATRIX[2][7] = {
-    {
-        /* Desktop editions */
-        { 5, 0, "Microsoft Windows 2000",   "2000"},
-        { 5, 1, "Microsoft Windows XP",     "xp"},
-        { 6, 0, "Microsoft Windows Vista",  "vista"},
-        { 6, 1, "Microsoft Windows 7"       "7"},
-        { 6, 2, "Microsoft Windows 8",      "8"},
-        { 6, 3, "Microsoft Windows 8.1",    "8.1"},
-        { 0, 0, 0}
-    },{
-        /* Server editions */
-        { 5, 2, "Microsoft Windows Server 2003",        "2003"},
-        { 6, 0, "Microsoft Windows Server 2008",        "2008"},
-        { 6, 1, "Microsoft Windows Server 2008 R2",     "2008r2"},
-        { 6, 2, "Microsoft Windows Server 2012",        "2012"},
-        { 6, 3, "Microsoft Windows Server 2012 R2",     "2012r2"},
-        { 0, 0, 0},
-        { 0, 0, 0}
-    }
+static const ga_matrix_lookup_t WIN_CLIENT_VERSION_MATRIX[] = {
+    { 5, 0, "Microsoft Windows 2000",   "2000"},
+    { 5, 1, "Microsoft Windows XP",     "xp"},
+    { 6, 0, "Microsoft Windows Vista",  "vista"},
+    { 6, 1, "Microsoft Windows 7"       "7"},
+    { 6, 2, "Microsoft Windows 8",      "8"},
+    { 6, 3, "Microsoft Windows 8.1",    "8.1"},
+    { }
+};
+
+static const ga_matrix_lookup_t WIN_SERVER_VERSION_MATRIX[] = {
+    { 5, 2, "Microsoft Windows Server 2003",        "2003"},
+    { 6, 0, "Microsoft Windows Server 2008",        "2008"},
+    { 6, 1, "Microsoft Windows Server 2008 R2",     "2008r2"},
+    { 6, 2, "Microsoft Windows Server 2012",        "2012"},
+    { 6, 3, "Microsoft Windows Server 2012 R2",     "2012r2"},
+    { },
 };
 
 typedef struct _ga_win_10_0_t {
@@ -2152,17 +2149,17 @@ typedef struct _ga_win_10_0_t {
     const char *version_id;
 } ga_win_10_0_t;
 
-static const ga_win_10_0_t WIN_10_0_SERVER_VERSION_MATRIX[4] = {
+static const ga_win_10_0_t WIN_10_0_SERVER_VERSION_MATRIX[] = {
     {14393, "Microsoft Windows Server 2016",    "2016"},
     {17763, "Microsoft Windows Server 2019",    "2019"},
     {20344, "Microsoft Windows Server 2022",    "2022"},
-    {0, 0}
+    { }
 };
 
-static const ga_win_10_0_t WIN_10_0_CLIENT_VERSION_MATRIX[3] = {
+static const ga_win_10_0_t WIN_10_0_CLIENT_VERSION_MATRIX[] = {
     {10240, "Microsoft Windows 10",    "10"},
     {22000, "Microsoft Windows 11",    "11"},
-    {0, 0}
+    { }
 };
 
 static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
@@ -2191,7 +2188,8 @@ static char *ga_get_win_name(const OSVERSIONINFOEXW *os_version, bool id)
     DWORD minor = os_version->dwMinorVersion;
     DWORD build = os_version->dwBuildNumber;
     int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
-    const ga_matrix_lookup_t *table = WIN_VERSION_MATRIX[tbl_idx];
+    const ga_matrix_lookup_t *table = tbl_idx ?
+        WIN_SERVER_VERSION_MATRIX : WIN_CLIENT_VERSION_MATRIX;
     const ga_win_10_0_t *win_10_0_table = tbl_idx ?
         WIN_10_0_SERVER_VERSION_MATRIX : WIN_10_0_CLIENT_VERSION_MATRIX;
     const ga_win_10_0_t *win_10_0_version = NULL;
