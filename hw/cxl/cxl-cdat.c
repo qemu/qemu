@@ -114,7 +114,7 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
 static void ct3_load_cdat(CDATObject *cdat, Error **errp)
 {
     g_autofree CDATEntry *cdat_st = NULL;
-    g_autofree char *buf = NULL;
+    g_autofree uint8_t *buf = NULL;
     uint8_t sum = 0;
     int num_ent;
     int i = 0, ent = 1;
@@ -171,7 +171,7 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
         cdat_st[ent].base = hdr;
         cdat_st[ent].length = hdr->length;
 
-        while (buf + i < (char *)cdat_st[ent].base + cdat_st[ent].length) {
+        while (buf + i < (uint8_t *)cdat_st[ent].base + cdat_st[ent].length) {
             assert(i < file_size);
             sum += buf[i++];
         }
