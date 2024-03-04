@@ -18,7 +18,7 @@
 
 typedef struct SaveVMHandlers {
     /* This runs inside the BQL.  */
-    SaveStateHandler *save_state;
+    void (*save_state)(QEMUFile *f, void *opaque);
 
     /*
      * save_prepare is called early, even before migration starts, and can be
@@ -71,7 +71,7 @@ typedef struct SaveVMHandlers {
     /* This calculate the exact remaining data to transfer */
     void (*state_pending_exact)(void *opaque, uint64_t *must_precopy,
                                 uint64_t *can_postcopy);
-    LoadStateHandler *load_state;
+    int (*load_state)(QEMUFile *f, void *opaque, int version_id);
     int (*load_setup)(QEMUFile *f, void *opaque);
     int (*load_cleanup)(void *opaque);
     /* Called when postcopy migration wants to resume from failure */
