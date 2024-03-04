@@ -505,6 +505,12 @@ static bool vfio_is_active_iterate(void *opaque)
     return vfio_device_state_is_precopy(vbasedev);
 }
 
+/*
+ * Note about migration rate limiting: VFIO migration buffer size is currently
+ * limited to 1MB, so there is no need to check if migration rate exceeded (as
+ * in the worst case it will exceed by 1MB). However, if the buffer size is
+ * later changed to a bigger value, migration rate should be enforced here.
+ */
 static int vfio_save_iterate(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
