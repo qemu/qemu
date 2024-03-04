@@ -348,9 +348,10 @@ raise_exception_with_ior(CPUHPPAState *env, int excp, uintptr_t retaddr,
     CPUState *cs = env_cpu(env);
 
     cs->exception_index = excp;
+    cpu_restore_state(cs, retaddr);
     hppa_set_ior_and_isr(env, addr, mmu_disabled);
 
-    cpu_loop_exit_restore(cs, retaddr);
+    cpu_loop_exit(cs);
 }
 
 void hppa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
