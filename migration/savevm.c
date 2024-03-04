@@ -1317,7 +1317,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
     MigrationState *ms = migrate_get_current();
     SaveStateEntry *se;
     Error *local_err = NULL;
-    int ret;
+    int ret = 0;
 
     json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
     json_writer_start_array(ms->vmdesc, "devices");
@@ -1349,6 +1349,10 @@ void qemu_savevm_state_setup(QEMUFile *f)
             qemu_file_set_error(f, ret);
             break;
         }
+    }
+
+    if (ret) {
+        return;
     }
 
     if (precopy_notify(PRECOPY_NOTIFY_SETUP, &local_err)) {
