@@ -192,8 +192,8 @@ enum {
 
 static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
 {
-    g_autofree CDATSslbis *sslbis_latency = NULL;
-    g_autofree CDATSslbis *sslbis_bandwidth = NULL;
+    CDATSslbis *sslbis_latency;
+    CDATSslbis *sslbis_bandwidth;
     CXLUpstreamPort *us = CXL_USP(priv);
     PCIBus *bus = &PCI_BRIDGE(us)->sec_bus;
     int devfn, sslbis_size, i;
@@ -270,8 +270,8 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     *cdat_table = g_new0(CDATSubHeader *, CXL_USP_CDAT_NUM_ENTRIES);
 
     /* Header always at start of structure */
-    (*cdat_table)[CXL_USP_CDAT_SSLBIS_LAT] = g_steal_pointer(&sslbis_latency);
-    (*cdat_table)[CXL_USP_CDAT_SSLBIS_BW] = g_steal_pointer(&sslbis_bandwidth);
+    (*cdat_table)[CXL_USP_CDAT_SSLBIS_LAT] = (CDATSubHeader *)sslbis_latency;
+    (*cdat_table)[CXL_USP_CDAT_SSLBIS_BW] = (CDATSubHeader *)sslbis_bandwidth;
 
     return CXL_USP_CDAT_NUM_ENTRIES;
 }

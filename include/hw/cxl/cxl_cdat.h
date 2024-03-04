@@ -130,7 +130,8 @@ typedef struct CDATSslbisHeader {
     uint8_t data_type;
     uint8_t reserved[3];
     uint64_t entry_base_unit;
-} QEMU_PACKED CDATSslbisHeader;
+} CDATSslbisHeader;
+QEMU_BUILD_BUG_ON(sizeof(CDATSslbisHeader) != 16);
 
 #define CDAT_PORT_ID_USP 0x100
 /* Switch Scoped Latency and Bandwidth Entry - CDAT Table 10 */
@@ -139,12 +140,13 @@ typedef struct CDATSslbe {
     uint16_t port_y_id;
     uint16_t latency_bandwidth;
     uint16_t reserved;
-} QEMU_PACKED CDATSslbe;
+} CDATSslbe;
+QEMU_BUILD_BUG_ON(sizeof(CDATSslbe) != 8);
 
 typedef struct CDATSslbis {
     CDATSslbisHeader sslbis_header;
     CDATSslbe sslbe[];
-} QEMU_PACKED CDATSslbis;
+} CDATSslbis;
 
 typedef struct CDATEntry {
     void *base;
