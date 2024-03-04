@@ -46,12 +46,12 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
                                           int dsmad_handle, MemoryRegion *mr,
                                           bool is_pmem, uint64_t dpa_base)
 {
-    g_autofree CDATDsmas *dsmas = NULL;
-    g_autofree CDATDslbis *dslbis0 = NULL;
-    g_autofree CDATDslbis *dslbis1 = NULL;
-    g_autofree CDATDslbis *dslbis2 = NULL;
-    g_autofree CDATDslbis *dslbis3 = NULL;
-    g_autofree CDATDsemts *dsemts = NULL;
+    CDATDsmas *dsmas;
+    CDATDslbis *dslbis0;
+    CDATDslbis *dslbis1;
+    CDATDslbis *dslbis2;
+    CDATDslbis *dslbis3;
+    CDATDsemts *dsemts;
 
     dsmas = g_malloc(sizeof(*dsmas));
     *dsmas = (CDATDsmas) {
@@ -135,12 +135,12 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     };
 
     /* Header always at start of structure */
-    cdat_table[CT3_CDAT_DSMAS] = g_steal_pointer(&dsmas);
-    cdat_table[CT3_CDAT_DSLBIS0] = g_steal_pointer(&dslbis0);
-    cdat_table[CT3_CDAT_DSLBIS1] = g_steal_pointer(&dslbis1);
-    cdat_table[CT3_CDAT_DSLBIS2] = g_steal_pointer(&dslbis2);
-    cdat_table[CT3_CDAT_DSLBIS3] = g_steal_pointer(&dslbis3);
-    cdat_table[CT3_CDAT_DSEMTS] = g_steal_pointer(&dsemts);
+    cdat_table[CT3_CDAT_DSMAS] = (CDATSubHeader *)dsmas;
+    cdat_table[CT3_CDAT_DSLBIS0] = (CDATSubHeader *)dslbis0;
+    cdat_table[CT3_CDAT_DSLBIS1] = (CDATSubHeader *)dslbis1;
+    cdat_table[CT3_CDAT_DSLBIS2] = (CDATSubHeader *)dslbis2;
+    cdat_table[CT3_CDAT_DSLBIS3] = (CDATSubHeader *)dslbis3;
+    cdat_table[CT3_CDAT_DSEMTS] = (CDATSubHeader *)dsemts;
 }
 
 static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
