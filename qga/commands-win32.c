@@ -2120,11 +2120,11 @@ GuestUserList *qmp_guest_get_users(Error **errp)
 typedef struct _ga_matrix_lookup_t {
     int major;
     int minor;
-    char const *version;
-    char const *version_id;
+    const char *version;
+    const char *version_id;
 } ga_matrix_lookup_t;
 
-static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][7] = {
+static const ga_matrix_lookup_t WIN_VERSION_MATRIX[2][7] = {
     {
         /* Desktop editions */
         { 5, 0, "Microsoft Windows 2000",   "2000"},
@@ -2148,18 +2148,18 @@ static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][7] = {
 
 typedef struct _ga_win_10_0_t {
     int first_build;
-    char const *version;
-    char const *version_id;
+    const char *version;
+    const char *version_id;
 } ga_win_10_0_t;
 
-static ga_win_10_0_t const WIN_10_0_SERVER_VERSION_MATRIX[4] = {
+static const ga_win_10_0_t WIN_10_0_SERVER_VERSION_MATRIX[4] = {
     {14393, "Microsoft Windows Server 2016",    "2016"},
     {17763, "Microsoft Windows Server 2019",    "2019"},
     {20344, "Microsoft Windows Server 2022",    "2022"},
     {0, 0}
 };
 
-static ga_win_10_0_t const WIN_10_0_CLIENT_VERSION_MATRIX[3] = {
+static const ga_win_10_0_t WIN_10_0_CLIENT_VERSION_MATRIX[3] = {
     {10240, "Microsoft Windows 10",    "10"},
     {22000, "Microsoft Windows 11",    "11"},
     {0, 0}
@@ -2185,16 +2185,16 @@ static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
     return;
 }
 
-static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
+static char *ga_get_win_name(const OSVERSIONINFOEXW *os_version, bool id)
 {
     DWORD major = os_version->dwMajorVersion;
     DWORD minor = os_version->dwMinorVersion;
     DWORD build = os_version->dwBuildNumber;
     int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
-    ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
-    ga_win_10_0_t const *win_10_0_table = tbl_idx ?
+    const ga_matrix_lookup_t *table = WIN_VERSION_MATRIX[tbl_idx];
+    const ga_win_10_0_t *win_10_0_table = tbl_idx ?
         WIN_10_0_SERVER_VERSION_MATRIX : WIN_10_0_CLIENT_VERSION_MATRIX;
-    ga_win_10_0_t const *win_10_0_version = NULL;
+    const ga_win_10_0_t *win_10_0_version = NULL;
     while (table->version != NULL) {
         if (major == 10 && minor == 0) {
             while (win_10_0_table->version != NULL) {
