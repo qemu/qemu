@@ -34,5 +34,5 @@ git submodule update --init
         CryptoPkg/Library/OpensslLib/openssl \
         MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
 popd
-tar --exclude=.git -cjf ${destination}.tar.bz2 ${destination}
+tar --exclude=.git -cJf ${destination}.tar.xz ${destination}
 rm -rf ${destination}
