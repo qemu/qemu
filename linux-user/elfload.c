@@ -4522,7 +4522,9 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     ret = -errno;
     mmap_unlock();
     cpu_list_unlock();
-    close(fd);
+    if (fd >= 0) {
+        close(fd);
+    }
     return ret;
 }
 #endif /* USE_ELF_CORE_DUMP */
