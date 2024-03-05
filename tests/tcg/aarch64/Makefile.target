@@ -67,7 +67,7 @@ endif
 
 # SME Tests
 ifneq ($(CROSS_AS_HAS_ARMV9_SME),)
-AARCH64_TESTS += sme-outprod1
+AARCH64_TESTS += sme-outprod1 sme-smopa-1 sme-smopa-2
 endif
 
 # System Registers Tests
