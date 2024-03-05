@@ -670,6 +670,26 @@ print_semctl(CPUArchState *cpu_env, const struct syscallname *name,
 }
 #endif
 
+static void
+print_shmat(CPUArchState *cpu_env, const struct syscallname *name,
+            abi_long arg0, abi_long arg1, abi_long arg2,
+            abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    static const struct flags shmat_flags[] = {
+        FLAG_GENERIC(SHM_RND),
+        FLAG_GENERIC(SHM_REMAP),
+        FLAG_GENERIC(SHM_RDONLY),
+        FLAG_GENERIC(SHM_EXEC),
+        FLAG_END
+    };
+
+    print_syscall_prologue(name);
+    print_raw_param(TARGET_ABI_FMT_ld, arg0, 0);
+    print_pointer(arg1, 0);
+    print_flags(shmat_flags, arg2, 1);
+    print_syscall_epilogue(name);
+}
+
 #ifdef TARGET_NR_ipc
 static void
 print_ipc(CPUArchState *cpu_env, const struct syscallname *name,
@@ -682,6 +702,10 @@ print_ipc(CPUArchState *cpu_env, const struct syscallname *name,
                  arg1, arg2);
         print_ipc_cmd(arg3);
         qemu_log(",0x" TARGET_ABI_FMT_lx ")", arg4);
+        break;
+    case IPCOP_shmat:
+        print_shmat(cpu_env, &(const struct syscallname){ .name = "shmat" },
+                    arg1, arg4, arg2, 0, 0, 0);
         break;
     default:
         qemu_log(("%s("

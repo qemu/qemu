@@ -1398,7 +1398,7 @@
 { TARGET_NR_sgetmask, "sgetmask" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_shmat
-{ TARGET_NR_shmat, "shmat" , NULL, NULL, print_syscall_ret_addr },
+{ TARGET_NR_shmat, "shmat" , NULL, print_shmat, print_syscall_ret_addr },
 #endif
 #ifdef TARGET_NR_shmctl
 { TARGET_NR_shmctl, "shmctl" , NULL, NULL, NULL },
