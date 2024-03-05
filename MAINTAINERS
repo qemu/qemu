@@ -1133,6 +1133,7 @@ F: hw/arm/stm32l4x5_soc.c
 F: hw/misc/stm32l4x5_exti.c
 F: hw/misc/stm32l4x5_syscfg.c
 F: hw/misc/stm32l4x5_rcc.c
+F: hw/gpio/stm32l4x5_gpio.c
 F: include/hw/*/stm32l4x5_*.h
 
 B-L475E-IOT01A IoT Node
