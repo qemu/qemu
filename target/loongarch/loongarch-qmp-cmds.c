@@ -10,7 +10,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "cpu.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qom/qom-qobject.h"
@@ -48,6 +47,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      CpuModelInfo *model,
                                                      Error **errp)
 {
+    Visitor *visitor;
+    bool ok;
     CpuModelExpansionInfo *expansion_info;
     QDict *qdict_out;
     ObjectClass *oc;
@@ -58,6 +59,21 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     if (type != CPU_MODEL_EXPANSION_TYPE_STATIC) {
         error_setg(errp, "The requested expansion type is not supported");
         return NULL;
+    }
+
+    if (model->props) {
+        visitor = qobject_input_visitor_new(model->props);
+        if (!visit_start_struct(visitor, "model.props", NULL, 0, errp)) {
+            visit_free(visitor);
+            return NULL;
+        }
+
+        ok = visit_check_struct(visitor, errp);
+        visit_end_struct(visitor, NULL);
+        visit_free(visitor);
+        if (!ok) {
+            return NULL;
+        }
     }
 
     oc = cpu_class_by_name(TYPE_LOONGARCH_CPU, model->name);
