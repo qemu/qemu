@@ -202,7 +202,7 @@
     qatomic_xchg__nocheck(ptr, i);                          \
 })
 
-/* Returns the eventual value, failed or not */
+/* Returns the old value of '*ptr' (whether the cmpxchg failed or not) */
 #define qatomic_cmpxchg__nocheck(ptr, old, new)    ({                   \
     typeof_strip_qual(*ptr) _old = (old);                               \
     (void)__atomic_compare_exchange_n(ptr, &_old, new, false,           \
