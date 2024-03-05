@@ -1083,11 +1083,32 @@ void HELPER(sme_bfmopa)(void *vza, void *vzn, void *vzm, void *vpn,
     }
 }
 
-typedef uint64_t IMOPFn(uint64_t, uint64_t, uint64_t, uint8_t, bool);
+typedef uint32_t IMOPFn32(uint32_t, uint32_t, uint32_t, uint8_t, bool);
+static inline void do_imopa_s(uint32_t *za, uint32_t *zn, uint32_t *zm,
+                              uint8_t *pn, uint8_t *pm,
+                              uint32_t desc, IMOPFn32 *fn)
+{
+    intptr_t row, col, oprsz = simd_oprsz(desc) / 4;
+    bool neg = simd_data(desc);
 
-static inline void do_imopa(uint64_t *za, uint64_t *zn, uint64_t *zm,
-                            uint8_t *pn, uint8_t *pm,
-                            uint32_t desc, IMOPFn *fn)
+    for (row = 0; row < oprsz; ++row) {
+        uint8_t pa = (pn[H1(row >> 1)] >> ((row & 1) * 4)) & 0xf;
+        uint32_t *za_row = &za[tile_vslice_index(row)];
+        uint32_t n = zn[H4(row)];
+
+        for (col = 0; col < oprsz; ++col) {
+            uint8_t pb = pm[H1(col >> 1)] >> ((col & 1) * 4);
+            uint32_t *a = &za_row[H4(col)];
+
+            *a = fn(n, zm[H4(col)], *a, pa & pb, neg);
+        }
+    }
+}
+
+typedef uint64_t IMOPFn64(uint64_t, uint64_t, uint64_t, uint8_t, bool);
+static inline void do_imopa_d(uint64_t *za, uint64_t *zn, uint64_t *zm,
+                              uint8_t *pn, uint8_t *pm,
+                              uint32_t desc, IMOPFn64 *fn)
 {
     intptr_t row, col, oprsz = simd_oprsz(desc) / 8;
     bool neg = simd_data(desc);
@@ -1107,25 +1128,16 @@ static inline void do_imopa(uint64_t *za, uint64_t *zn, uint64_t *zm,
 }
 
 #define DEF_IMOP_32(NAME, NTYPE, MTYPE) \
-static uint64_t NAME(uint64_t n, uint64_t m, uint64_t a, uint8_t p, bool neg) \
+static uint32_t NAME(uint32_t n, uint32_t m, uint32_t a, uint8_t p, bool neg) \
 {                                                                           \
-    uint32_t sum0 = 0, sum1 = 0;                                            \
+    uint32_t sum = 0;                                                       \
     /* Apply P to N as a mask, making the inactive elements 0. */           \
     n &= expand_pred_b(p);                                                  \
-    sum0 += (NTYPE)(n >> 0) * (MTYPE)(m >> 0);                              \
-    sum0 += (NTYPE)(n >> 8) * (MTYPE)(m >> 8);                              \
-    sum0 += (NTYPE)(n >> 16) * (MTYPE)(m >> 16);                            \
-    sum0 += (NTYPE)(n >> 24) * (MTYPE)(m >> 24);                            \
-    sum1 += (NTYPE)(n >> 32) * (MTYPE)(m >> 32);                            \
-    sum1 += (NTYPE)(n >> 40) * (MTYPE)(m >> 40);                            \
-    sum1 += (NTYPE)(n >> 48) * (MTYPE)(m >> 48);                            \
-    sum1 += (NTYPE)(n >> 56) * (MTYPE)(m >> 56);                            \
-    if (neg) {                                                              \
-        sum0 = (uint32_t)a - sum0, sum1 = (uint32_t)(a >> 32) - sum1;       \
-    } else {                                                                \
-        sum0 = (uint32_t)a + sum0, sum1 = (uint32_t)(a >> 32) + sum1;       \
-    }                                                                       \
-    return ((uint64_t)sum1 << 32) | sum0;                                   \
+    sum += (NTYPE)(n >> 0) * (MTYPE)(m >> 0);                               \
+    sum += (NTYPE)(n >> 8) * (MTYPE)(m >> 8);                               \
+    sum += (NTYPE)(n >> 16) * (MTYPE)(m >> 16);                             \
+    sum += (NTYPE)(n >> 24) * (MTYPE)(m >> 24);                             \
+    return neg ? a - sum : a + sum;                                         \
 }
 
 #define DEF_IMOP_64(NAME, NTYPE, MTYPE) \
@@ -1151,16 +1163,17 @@ DEF_IMOP_64(umopa_d, uint16_t, uint16_t)
 DEF_IMOP_64(sumopa_d, int16_t, uint16_t)
 DEF_IMOP_64(usmopa_d, uint16_t, int16_t)
 
-#define DEF_IMOPH(NAME) \
-    void HELPER(sme_##NAME)(void *vza, void *vzn, void *vzm, void *vpn,      \
-                            void *vpm, uint32_t desc)                        \
-    { do_imopa(vza, vzn, vzm, vpn, vpm, desc, NAME); }
+#define DEF_IMOPH(NAME, S) \
+    void HELPER(sme_##NAME##_##S)(void *vza, void *vzn, void *vzm,          \
+                                  void *vpn, void *vpm, uint32_t desc)      \
+    { do_imopa_##S(vza, vzn, vzm, vpn, vpm, desc, NAME##_##S); }
 
-DEF_IMOPH(smopa_s)
-DEF_IMOPH(umopa_s)
-DEF_IMOPH(sumopa_s)
-DEF_IMOPH(usmopa_s)
-DEF_IMOPH(smopa_d)
-DEF_IMOPH(umopa_d)
-DEF_IMOPH(sumopa_d)
-DEF_IMOPH(usmopa_d)
+DEF_IMOPH(smopa, s)
+DEF_IMOPH(umopa, s)
+DEF_IMOPH(sumopa, s)
+DEF_IMOPH(usmopa, s)
+
+DEF_IMOPH(smopa, d)
+DEF_IMOPH(umopa, d)
+DEF_IMOPH(sumopa, d)
+DEF_IMOPH(usmopa, d)
