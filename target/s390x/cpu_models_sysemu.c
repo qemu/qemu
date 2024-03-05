@@ -17,7 +17,6 @@
 #include "sysemu/kvm.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qapi-commands-machine-target.h"
@@ -101,20 +100,12 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
                                 Error **errp)
 {
     Error *err = NULL;
-    const QDict *qdict = NULL;
+    const QDict *qdict;
     const QDictEntry *e;
     Visitor *visitor;
     ObjectClass *oc;
     S390CPU *cpu;
     Object *obj;
-
-    if (info->props) {
-        qdict = qobject_to(QDict, info->props);
-        if (!qdict) {
-            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
-            return;
-        }
-    }
 
     oc = cpu_class_by_name(TYPE_S390_CPU, info->name);
     if (!oc) {
@@ -135,13 +126,14 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
         return;
     }
 
-    if (qdict) {
+    if (info->props) {
         visitor = qobject_input_visitor_new(info->props);
-        if (!visit_start_struct(visitor, NULL, NULL, 0, errp)) {
+        if (!visit_start_struct(visitor, "props", NULL, 0, errp)) {
             visit_free(visitor);
             object_unref(obj);
             return;
         }
+        qdict = qobject_to(QDict, info->props);
         for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
             if (!object_property_set(obj, e->key, visitor, &err)) {
                 break;
