@@ -25,6 +25,7 @@
 #define TYPE_STM32L4X5_GPIO "stm32l4x5-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4x5GpioState, STM32L4X5_GPIO)
 
+#define NUM_GPIOS 8
 #define GPIO_NUM_PINS 16
 
 struct Stm32l4x5GpioState {

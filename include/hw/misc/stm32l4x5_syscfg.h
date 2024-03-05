@@ -26,12 +26,11 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "hw/gpio/stm32l4x5_gpio.h"
 
 #define TYPE_STM32L4X5_SYSCFG "stm32l4x5-syscfg"
 OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4x5SyscfgState, STM32L4X5_SYSCFG)
 
-#define NUM_GPIOS 8
-#define GPIO_NUM_PINS 16
 #define SYSCFG_NUM_EXTICR 4
 
 struct Stm32l4x5SyscfgState {

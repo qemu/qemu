@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32l4x5_syscfg.h"
+#include "hw/gpio/stm32l4x5_gpio.h"
 
 #define SYSCFG_MEMRMP 0x00
 #define SYSCFG_CFGR1 0x04
