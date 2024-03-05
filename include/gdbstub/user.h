@@ -46,6 +46,11 @@ static inline int gdb_handlesig(CPUState *cpu, int sig)
 void gdb_signalled(CPUArchState *as, int sig);
 
 /**
+ * gdbserver_fork_start() - inform gdb of the upcoming fork()
+ */
+void gdbserver_fork_start(void);
+
+/**
  * gdbserver_fork() - disable gdb stub for child processes.
  * @cs: CPU
  */
