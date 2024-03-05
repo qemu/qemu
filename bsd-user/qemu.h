@@ -117,6 +117,11 @@ typedef struct TaskState {
     struct target_sigaltstack sigaltstack_used;
 } __attribute__((aligned(16))) TaskState;
 
+static inline TaskState *get_task_state(CPUState *cs)
+{
+    return cs->opaque;
+}
+
 void stop_all_tasks(void);
 extern const char *interp_prefix;
 extern const char *qemu_uname_release;

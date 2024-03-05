@@ -204,7 +204,7 @@ int gdb_target_signal_to_gdb(int sig)
 
 int gdb_get_cpu_index(CPUState *cpu)
 {
-    TaskState *ts = (TaskState *) cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     return ts ? ts->ts_tid : -1;
 }
 
@@ -399,7 +399,7 @@ void gdb_handle_query_xfer_exec_file(GArray *params, void *user_ctx)
         return;
     }
 
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     if (!ts || !ts->bprm || !ts->bprm->filename) {
         gdb_put_packet("E00");
         return;

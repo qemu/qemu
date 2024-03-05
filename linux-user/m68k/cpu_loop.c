@@ -95,7 +95,7 @@ void cpu_loop(CPUM68KState *env)
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     struct image_info *info = ts->info;
 
     env->pc = regs->pc;

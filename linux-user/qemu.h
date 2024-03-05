@@ -162,6 +162,11 @@ typedef struct TaskState {
     uint64_t start_boottime;
 } TaskState;
 
+static inline TaskState *get_task_state(CPUState *cs)
+{
+    return cs->opaque;
+}
+
 abi_long do_brk(abi_ulong new_brk);
 int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
                     int flags, mode_t mode, bool safe);
