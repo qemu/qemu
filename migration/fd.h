@@ -20,4 +20,6 @@ void fd_start_incoming_migration(const char *fdname, Error **errp);
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname,
                                  Error **errp);
+void fd_cleanup_outgoing_migration(void);
+int fd_args_get_fd(void);
 #endif

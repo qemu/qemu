@@ -140,9 +140,38 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
 
-        return saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-               saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-               saddr->type == SOCKET_ADDRESS_TYPE_VSOCK;
+        if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
+            return migrate_mapped_ram();
+        }
+
+        return (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
+                saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+                saddr->type == SOCKET_ADDRESS_TYPE_VSOCK);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        return migrate_mapped_ram();
+    } else {
+        return false;
+    }
+}
+
+static bool migration_needs_seekable_channel(void)
+{
+    return migrate_mapped_ram();
+}
+
+static bool transport_supports_seeking(MigrationAddress *addr)
+{
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        return true;
+    }
+
+    /*
+     * At this point, the user might not yet have passed the file
+     * descriptor to QEMU, so we cannot know for sure whether it
+     * refers to a plain file or a socket. Let it through anyway.
+     */
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
+        return addr->u.socket.type == SOCKET_ADDRESS_TYPE_FD;
     }
 
     return false;
@@ -152,6 +181,12 @@ static bool
 migration_channels_and_transport_compatible(MigrationAddress *addr,
                                             Error **errp)
 {
+    if (migration_needs_seekable_channel() &&
+        !transport_supports_seeking(addr)) {
+        error_setg(errp, "Migration requires seekable transport (e.g. file)");
+        return false;
+    }
+
     if (migration_needs_multiple_sockets() &&
         !transport_supports_multi_channels(addr)) {
         error_setg(errp, "Migration requires multi-channel URIs (e.g. tcp)");
@@ -881,7 +916,8 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     uint32_t channel_magic = 0;
     int ret = 0;
 
-    if (migrate_multifd() && !migrate_postcopy_ram() &&
+    if (migrate_multifd() && !migrate_mapped_ram() &&
+        !migrate_postcopy_ram() &&
         qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK)) {
         /*
          * With multiple channels, it is possible that we receive channels
@@ -1948,6 +1984,18 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
     if (migration_is_blocked(errp)) {
         return false;
+    }
+
+    if (migrate_mapped_ram()) {
+        if (migrate_tls()) {
+            error_setg(errp, "Cannot use TLS with mapped-ram");
+            return false;
+        }
+
+        if (migrate_multifd_compression()) {
+            error_setg(errp, "Cannot use compression with mapped-ram");
+            return false;
+        }
     }
 
     if (migrate_mode_is_cpr(s)) {
