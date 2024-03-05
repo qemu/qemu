@@ -173,6 +173,8 @@ another feature
 @arg3 is undocumented
     section=Returns
 @Object
+    section=Errors
+some
     section=TODO
 frobnicate
     section=Notes

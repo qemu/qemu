@@ -110,8 +110,7 @@
 #
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Notes: Ejecting a device with no media results in success
@@ -459,8 +458,7 @@
 # the device will be removed from its group and the rest of its
 # members will not be affected.  The 'group' parameter is ignored.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 1.1
@@ -540,8 +538,8 @@
 # @boundaries-flush: list of interval boundary values for flush
 #     latency histogram.
 #
-# Returns: error if device is not found or any boundary arrays are
-#     invalid.
+# Errors:
+#     - if device is not found or any boundary arrays are invalid.
 #
 # Since: 4.0
 #

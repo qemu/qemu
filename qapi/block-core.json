@@ -1456,8 +1456,7 @@
 #
 # @size: new image size in bytes
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14
@@ -1674,8 +1673,7 @@
 #
 # For the arguments, see the documentation of BlockdevSnapshotSync.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 0.14
@@ -1754,8 +1752,7 @@
 #     is not validated, so care should be taken when specifying the
 #     string or the image chain may not be able to be reopened again.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If "device" does not exist or cannot be determined,
 #       DeviceNotFound
 #
@@ -1854,8 +1851,7 @@
 # @deprecated: Members @base and @top are deprecated.  Use @base-node
 #     and @top-node instead.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @device does not exist, DeviceNotFound
 #     - Any other error returns a GenericError.
 #
@@ -1894,8 +1890,7 @@
 # @deprecated: This command is deprecated.  Use @blockdev-backup
 #     instead.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #
 # Since: 1.6
@@ -1921,8 +1916,7 @@
 # 'backup'. The operation can be stopped before it has completed using
 # the block-job-cancel command.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, DeviceNotFound
 #
 # Since: 2.3
@@ -2127,8 +2121,7 @@
 # specifies the format of the mirror image, default is to probe if
 # mode='existing', else the format of the source.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #
 # Since: 1.3
@@ -2304,8 +2297,7 @@
 # Create a dirty bitmap with a name on the node, and start tracking
 # the writes.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
 #     - If @name is already taken, GenericError with an explanation
 #
@@ -2328,8 +2320,7 @@
 # with block-dirty-bitmap-add.  If the bitmap is persistent, remove it
 # from its storage too.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #     - if @name is frozen by an operation, GenericError
@@ -2353,8 +2344,7 @@
 # backup from this point in time forward will only backup clusters
 # modified after this clear operation.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2375,8 +2365,7 @@
 #
 # Enables a dirty bitmap so that it will begin tracking disk changes.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2397,8 +2386,7 @@
 #
 # Disables a dirty bitmap so that it will stop tracking disk changes.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found, GenericError with an explanation
 #
@@ -2427,8 +2415,7 @@
 # dirty in any of the source bitmaps.  This can be used to achieve
 # backup checkpoints, or in simpler usages, to copy bitmaps.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If any bitmap in @bitmaps or @target is not found,
 #       GenericError
@@ -2470,7 +2457,9 @@
 # @unstable: This command is meant for debugging.
 #
 # Returns:
-#     - BlockDirtyBitmapSha256 on success
+#     BlockDirtyBitmapSha256
+#
+# Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found or if hashing has failed, GenericError
 #       with an explanation
@@ -2541,8 +2530,6 @@
 #     @block-job-dismiss.  When true, this job will automatically
 #     disappear from the query list without user intervention.
 #     Defaults to true.  (Since 3.1)
-#
-# Returns: nothing on success.
 #
 # Since: 2.6
 #
@@ -2866,8 +2853,7 @@
 #     disappear from the query list without user intervention.
 #     Defaults to true.  (Since 3.1)
 #
-# Returns:
-#     - Nothing on success.
+# Errors:
 #     - If @device does not exist, DeviceNotFound.
 #
 # Since: 1.1
@@ -2905,8 +2891,7 @@
 # @speed: the maximum speed, in bytes per second, or 0 for unlimited.
 #     Defaults to 0.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -2950,8 +2935,7 @@
 #     paused) instead of waiting for the destination to complete its
 #     final synchronization (since 1.3)
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -2977,8 +2961,7 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -3002,8 +2985,7 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -3034,8 +3016,7 @@
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If no background operation is active on this device,
 #       DeviceNotActive
 #
@@ -3059,8 +3040,6 @@
 #
 # @id: The job identifier.
 #
-# Returns: Nothing on success
-#
 # Since: 2.12
 ##
 { 'command': 'block-job-dismiss', 'data': { 'id': 'str' },
@@ -3077,8 +3056,6 @@
 # finalize.
 #
 # @id: The job identifier.
-#
-# Returns: Nothing on success
 #
 # Since: 2.12
 ##
@@ -6070,8 +6047,7 @@
 # For the arguments, see the documentation of
 # BlockdevSnapshotInternal.
 #
-# Returns:
-#     - nothing on success
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #     - If any snapshot matching @name exists, or @name is empty,
 #       GenericError
@@ -6108,7 +6084,9 @@
 # @name: optional the snapshot's name to be deleted
 #
 # Returns:
-#     - SnapshotInfo on success
+#     SnapshotInfo
+#
+# Errors:
 #     - If @device is not a valid block device, GenericError
 #     - If snapshot not found, GenericError
 #     - If the format of the image used does not support it,

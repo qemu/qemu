@@ -78,9 +78,8 @@
 #
 # @instances: the instances to be yanked
 #
-# Returns:
-#     - Nothing on success
-#     - @DeviceNotFound error, if any of the YankInstances doesn't exist
+# Errors:
+#     - If any of the YankInstances doesn't exist, DeviceNotFound
 #
 # Example:
 #

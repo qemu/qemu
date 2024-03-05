@@ -326,8 +326,6 @@
 #
 # Since: 1.1
 #
-# Returns: nothing.
-#
 # Note: prior to 4.0, this command does nothing in case the guest
 #     isn't suspended.
 #
@@ -376,8 +374,6 @@
 # Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or
 # all CPUs (ppc64). The command fails when the guest doesn't support
 # injecting.
-#
-# Returns: If successful, nothing
 #
 # Since: 0.14
 #
@@ -778,8 +774,6 @@
 # @cpu-index: the index of the virtual CPU to use for translating the
 #     virtual address (defaults to CPU 0)
 #
-# Returns: Nothing on success
-#
 # Since: 0.14
 #
 # Notes: Errors were not reliably returned until 1.1
@@ -805,8 +799,6 @@
 # @size: the size of memory region to save
 #
 # @filename: the file to save the memory to as binary data
-#
-# Returns: Nothing on success
 #
 # Since: 0.14
 #
@@ -1060,8 +1052,7 @@
 #
 #     From it we have: balloon_size = vm_ram_size - @value
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If the balloon driver is enabled but not functional because
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
@@ -1099,7 +1090,9 @@
 # Return information about the balloon device.
 #
 # Returns:
-#     - @BalloonInfo on success
+#     @BalloonInfo
+#
+# Errors:
 #     - If the balloon driver is enabled but not functional because
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
@@ -1163,7 +1156,9 @@
 # message from the guest.
 #
 # Returns:
-#     - @HvBalloonInfo on success
+#     @HvBalloonInfo
+#
+# Errors:
 #     - If no hv-balloon device is present, guest memory status
 #       reporting is not enabled or no guest memory status report
 #       received yet, GenericError

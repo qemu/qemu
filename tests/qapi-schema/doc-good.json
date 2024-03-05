@@ -159,6 +159,8 @@
 #
 # Returns: @Object
 #
+# Errors: some
+#
 # TODO: frobnicate
 #
 # Notes:

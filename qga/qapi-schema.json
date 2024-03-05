@@ -153,8 +153,6 @@
 # @time: time of nanoseconds, relative to the Epoch of 1970-01-01 in
 #     UTC.
 #
-# Returns: Nothing on success.
-#
 # Since: 1.5
 ##
 { 'command': 'guest-set-time',
@@ -230,7 +228,7 @@
 #
 # @mode: open mode, as per fopen(), "r" is the default.
 #
-# Returns: Guest file handle on success.
+# Returns: Guest file handle
 #
 # Since: 0.15.0
 ##
@@ -244,8 +242,6 @@
 # Close an open file in the guest
 #
 # @handle: filehandle returned by guest-file-open
-#
-# Returns: Nothing on success.
 #
 # Since: 0.15.0
 ##
@@ -281,7 +277,7 @@
 # @count: maximum number of bytes to read (default is 4KB, maximum is
 #     48MB)
 #
-# Returns: @GuestFileRead on success.
+# Returns: @GuestFileRead
 #
 # Since: 0.15.0
 ##
@@ -316,7 +312,7 @@
 # @count: bytes to write (actual bytes, after base64-decode), default
 #     is all content in buf-b64 buffer after base64 decoding
 #
-# Returns: @GuestFileWrite on success.
+# Returns: @GuestFileWrite
 #
 # Since: 0.15.0
 ##
@@ -383,7 +379,7 @@
 #
 # @whence: Symbolic or numeric code for interpreting offset
 #
-# Returns: @GuestFileSeek on success.
+# Returns: @GuestFileSeek
 #
 # Since: 0.15.0
 ##
@@ -398,8 +394,6 @@
 # Write file changes buffered in userspace to disk/kernel buffers
 #
 # @handle: filehandle returned by guest-file-open
-#
-# Returns: Nothing on success.
 #
 # Since: 0.15.0
 ##
@@ -443,14 +437,15 @@
 # command succeeded, you may call @guest-fsfreeze-thaw later to
 # unfreeze.
 #
+# On error, all filesystems will be thawed.  If no filesystems are
+# frozen as a result of this call, then @guest-fsfreeze-status will
+# remain "thawed" and calling @guest-fsfreeze-thaw is not necessary.
+#
+# Returns: Number of file systems currently frozen.
+#
 # Note: On Windows, the command is implemented with the help of a
 #     Volume Shadow-copy Service DLL helper.  The frozen state is
 #     limited for up to 10 seconds by VSS.
-#
-# Returns: Number of file systems currently frozen.  On error, all
-#     filesystems will be thawed.  If no filesystems are frozen as a
-#     result of this call, then @guest-fsfreeze-status will remain
-#     "thawed" and calling @guest-fsfreeze-thaw is not necessary.
 #
 # Since: 0.15.0
 ##
@@ -463,12 +458,13 @@
 # Sync and freeze specified guest filesystems.  See also
 # @guest-fsfreeze-freeze.
 #
+# On error, all filesystems will be thawed.
+#
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #     If omitted, every mounted filesystem is frozen.  Invalid mount
 #     points are ignored.
 #
-# Returns: Number of file systems currently frozen.  On error, all
-#     filesystems will be thawed.
+# Returns: Number of file systems currently frozen.
 #
 # Since: 2.2
 ##
@@ -561,9 +557,8 @@
 # could also exit (or set its status to "shutdown") due to other
 # reasons.
 #
-# The following errors may be returned:
-#
-# - If suspend to disk is not supported, Unsupported
+# Errors:
+#     - If suspend to disk is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -598,9 +593,8 @@
 # 2. Issue the query-status QMP command to confirm the VM status is
 #    "suspended"
 #
-# The following errors may be returned:
-#
-# - If suspend to ram is not supported, Unsupported
+# Errors:
+#     - If suspend to ram is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -634,9 +628,8 @@
 # 2. Issue the query-status QMP command to confirm the VM status is
 #    "suspended"
 #
-# The following errors may be returned:
-#
-# - If hybrid suspend is not supported, Unsupported
+# Errors:
+#     - If hybrid suspend is not supported, Unsupported
 #
 # Notes: It's strongly recommended to issue the guest-sync command
 #     before sending commands when the guest resumes
@@ -732,7 +725,7 @@
 #
 # Get list of guest IP addresses, MAC addresses and netmasks.
 #
-# Returns: List of GuestNetworkInterface on success.
+# Returns: List of GuestNetworkInterface
 #
 # Since: 1.1
 ##
@@ -796,9 +789,6 @@
 #     - 0:
 #       if the @vcpus list was empty on input.  Guest state has not
 #       been changed.  Otherwise,
-#     - Error:
-#       processing the first node of @vcpus failed for the reason
-#       returned.  Guest state has not been changed.  Otherwise,
 #     - < length(@vcpus):
 #       more than zero initial nodes have been processed, but not the
 #       entire @vcpus list.  Guest state has changed accordingly.  To
@@ -807,6 +797,10 @@
 #       Otherwise,
 #     - length(@vcpus):
 #       call successful.
+#
+# Errors:
+#     - If the reconfiguration of the first node in @vcpus failed.
+#       Guest state has not been changed.
 #
 # Since: 1.5
 ##
@@ -1079,8 +1073,6 @@
 # transmission, even if already crypt()d, to ensure it is 8-bit safe
 # when passed as JSON.
 #
-# Returns: Nothing on success.
-#
 # Since: 2.3
 ##
 { 'command': 'guest-set-user-password',
@@ -1184,9 +1176,9 @@
 #     @GuestMemoryBlockResponse, which is corresponding to the input
 #     list.
 #
-#     Note: it will return NULL if the @mem-blks list was empty on
-#     input, or there is an error, and in this case, guest state will
-#     not be changed.
+#     Note: it will return an empty list if the @mem-blks list was
+#     empty on input, or there is an error, and in this case, guest
+#     state will not be changed.
 #
 # Since: 2.3
 ##
@@ -1257,7 +1249,7 @@
 #
 # @pid: pid returned from guest-exec
 #
-# Returns: GuestExecStatus on success.
+# Returns: GuestExecStatus
 #
 # Since: 2.5
 ##
@@ -1325,7 +1317,7 @@
 # @capture-output: bool flag to enable capture of stdout/stderr of
 #     running process.  defaults to false.
 #
-# Returns: PID on success.
+# Returns: PID
 #
 # Since: 2.5
 ##
@@ -1354,7 +1346,7 @@
 # or even present in DNS or some other name service at all.  It need
 # not even be unique on your local network or site, but usually it is.
 #
-# Returns: the host name of the machine on success
+# Returns: the host name of the machine
 #
 # Since: 2.10
 ##
@@ -1604,8 +1596,6 @@
 #
 # @reset: ignore the existing content, set it with the given keys only
 #
-# Returns: Nothing on success.
-#
 # Since: 5.2
 ##
 { 'command': 'guest-ssh-add-authorized-keys',
@@ -1623,8 +1613,6 @@
 #
 # @keys: the public keys to remove (in OpenSSH/sshd(8) authorized_keys
 #     format)
-#
-# Returns: Nothing on success.
 #
 # Since: 5.2
 ##

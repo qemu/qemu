@@ -395,10 +395,7 @@
 #
 # @panic: @PanicAction action taken on guest panic.
 #
-# @watchdog: @WatchdogAction action taken when watchdog timer expires
-#     .
-#
-# Returns: Nothing on success.
+# @watchdog: @WatchdogAction action taken when watchdog timer expires.
 #
 # Since: 6.0
 #

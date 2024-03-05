@@ -17,8 +17,7 @@
 #
 # @up: true to set the link status to be up
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @name is not a valid network device, DeviceNotFound
 #
 # Since: 0.14
@@ -44,8 +43,7 @@
 #
 # Since: 0.14
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @type is not a valid network backend, DeviceNotFound
 #
 # Example:
@@ -65,8 +63,7 @@
 #
 # @id: the name of the network backend to remove
 #
-# Returns:
-#     - Nothing on success
+# Errors:
 #     - If @id is not a valid network backend, DeviceNotFound
 #
 # Since: 0.14
@@ -828,9 +825,11 @@
 # @name: net client name
 #
 # Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
-#     Returns an error if the given @name doesn't exist, or given NIC
-#     doesn't support rx-filter querying, or given net client isn't a
-#     NIC.
+#
+# Errors:
+#     - if the given @name doesn't exist
+#     - if the given NIC doesn't support rx-filter querying
+#     - if the given net client isn't a NIC
 #
 # Since: 1.6
 #

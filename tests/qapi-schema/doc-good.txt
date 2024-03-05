@@ -206,6 +206,12 @@ Returns
 "Object"
 
 
+Errors
+~~~~~~
+
+some
+
+
 Notes
 ~~~~~
 

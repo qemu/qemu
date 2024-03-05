@@ -166,8 +166,6 @@
 #
 # Return information about the TPM device
 #
-# Returns: @TPMInfo on success
-#
 # Since: 1.5
 #
 # Example:

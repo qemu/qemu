@@ -1,1 +1,1 @@
-doc-invalid-return.json:6: 'Returns:' is only valid for commands
+doc-invalid-return.json:6: 'Returns' section is only valid for commands

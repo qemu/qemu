@@ -996,7 +996,8 @@ line "Features:", like this::
 
 A tagged section begins with a paragraph that starts with one of the
 following words: "Note:"/"Notes:", "Since:", "Example:"/"Examples:",
-"Returns:", "TODO:".  It ends with the start of a new section.
+"Returns:", "Errors:", "TODO:".  It ends with the start of a new
+section.
 
 The second and subsequent lines of tagged sections must be indented
 like this::
@@ -1006,6 +1007,9 @@ like this::
  #
  #     Duis aute irure dolor in reprehenderit in voluptate velit esse
  #     cillum dolore eu fugiat nulla pariatur.
+
+"Returns" and "Errors" sections are only valid for commands.  They
+document the success and the error response, respectively.
 
 A "Since: x.y.z" tagged section lists the release that introduced the
 definition.

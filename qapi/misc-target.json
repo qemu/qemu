@@ -472,9 +472,6 @@
 #
 # @port: The port number
 #
-# Returns:
-#     - Nothing on success.
-#
 # Since: 8.0
 #
 # Example:
