@@ -165,7 +165,7 @@ void fork_end(pid_t pid)
         }
         qemu_init_cpu_list();
         get_task_state(thread_cpu)->ts_tid = qemu_get_thread_id();
-        gdbserver_fork(thread_cpu);
+        gdbserver_fork(thread_cpu, pid);
     } else {
         cpu_list_unlock();
     }
