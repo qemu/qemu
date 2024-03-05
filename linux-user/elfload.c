@@ -4204,7 +4204,14 @@ static void fill_prpsinfo_note(void *data, const TaskState *ts)
      * may well have higher alignment requirements, fill locally and
      * memcpy to the destination afterward.
      */
-    struct target_elf_prpsinfo psinfo;
+    struct target_elf_prpsinfo psinfo = {
+        .pr_pid = getpid(),
+        .pr_ppid = getppid(),
+        .pr_pgrp = getpgrp(),
+        .pr_sid = getsid(0),
+        .pr_uid = getuid(),
+        .pr_gid = getgid(),
+    };
     char *base_filename;
     size_t len;
 
@@ -4216,13 +4223,6 @@ static void fill_prpsinfo_note(void *data, const TaskState *ts)
             psinfo.pr_psargs[i] = ' ';
         }
     }
-
-    psinfo.pr_pid = getpid();
-    psinfo.pr_ppid = getppid();
-    psinfo.pr_pgrp = getpgrp();
-    psinfo.pr_sid = getsid(0);
-    psinfo.pr_uid = getuid();
-    psinfo.pr_gid = getgid();
 
     base_filename = g_path_get_basename(ts->bprm->filename);
     /*
