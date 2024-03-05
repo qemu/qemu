@@ -710,16 +710,26 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
     if (p->c) {
         migration_ioc_unregister_yank(p->c);
         /*
-         * An explicit close() on the channel here is normally not
-         * required, but can be helpful for "file:" iochannels, where it
-         * will include fdatasync() to make sure the data is flushed to the
-         * disk backend.
+         * The object_unref() cannot guarantee the fd will always be
+         * released because finalize() of the iochannel is only
+         * triggered on the last reference and it's not guaranteed
+         * that we always hold the last refcount when reaching here.
          *
-         * The object_unref() cannot guarantee that because: (1) finalize()
-         * of the iochannel is only triggered on the last reference, and
-         * it's not guaranteed that we always hold the last refcount when
-         * reaching here, and, (2) even if finalize() is invoked, it only
-         * does a close(fd) without data flush.
+         * Closing the fd explicitly has the benefit that if there is any
+         * registered I/O handler callbacks on such fd, that will get a
+         * POLLNVAL event and will further trigger the cleanup to finally
+         * release the IOC.
+         *
+         * FIXME: It should logically be guaranteed that all multifd
+         * channels have no I/O handler callback registered when reaching
+         * here, because migration thread will wait for all multifd channel
+         * establishments to complete during setup.  Since
+         * migrate_fd_cleanup() will be scheduled in main thread too, all
+         * previous callbacks should guarantee to be completed when
+         * reaching here.  See multifd_send_state.channels_created and its
+         * usage.  In the future, we could replace this with an assert
+         * making sure we're the last reference, or simply drop it if above
+         * is more clear to be justified.
          */
         qio_channel_close(p->c, &error_abort);
         object_unref(OBJECT(p->c));
