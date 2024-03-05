@@ -396,6 +396,14 @@ typedef struct disassemble_info {
   /* Command line options specific to the target disassembler.  */
   char * disassembler_options;
 
+  /*
+   * When true instruct the disassembler it may preface the
+   * disassembly with the opcodes values if it wants to. This is
+   * mainly for the benefit of the plugin interface which doesn't want
+   * that.
+   */
+  bool show_opcodes;
+
   /* Field intended to be used by targets in any way they deem suitable.  */
   void *target_info;
 
