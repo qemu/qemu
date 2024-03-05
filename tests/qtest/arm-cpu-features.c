@@ -213,7 +213,8 @@ static void assert_bad_props(QTestState *qts, const char *cpu_type)
     error = resp_get_error(resp);
     g_assert(error);
     g_assert_cmpstr(error, ==,
-                    "Invalid parameter type for 'props', expected: object");
+                    "Invalid parameter type for 'model.props',"
+                    " expected: object");
     qobject_unref(resp);
 }
 
@@ -446,7 +447,7 @@ static void test_query_cpu_model_expansion(const void *data)
     assert_bad_props(qts, "max");
     assert_error(qts, "foo", "The CPU type 'foo' is not a recognized "
                  "ARM CPU type", NULL);
-    assert_error(qts, "max", "Parameter 'props.not-a-prop' is unexpected",
+    assert_error(qts, "max", "Parameter 'model.props.not-a-prop' is unexpected",
                  "{ 'not-a-prop': false }");
     assert_error(qts, "host", "The CPU type 'host' requires KVM", NULL);
 

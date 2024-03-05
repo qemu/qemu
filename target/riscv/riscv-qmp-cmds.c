@@ -128,6 +128,7 @@ static void riscv_obj_add_profiles_qdict(Object *obj, QDict *qdict_out)
 }
 
 static void riscv_cpuobj_validate_qdict_in(Object *obj, QObject *props,
+                                           const char *props_arg_name,
                                            Error **errp)
 {
     const QDict *qdict_in;
@@ -136,7 +137,7 @@ static void riscv_cpuobj_validate_qdict_in(Object *obj, QObject *props,
     Error *local_err = NULL;
 
     visitor = qobject_input_visitor_new(props);
-    if (!visit_start_struct(visitor, "props", NULL, 0, &local_err)) {
+    if (!visit_start_struct(visitor, props_arg_name, NULL, 0, &local_err)) {
         goto err;
     }
 
@@ -197,7 +198,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     }
 
     if (model->props) {
-        riscv_cpuobj_validate_qdict_in(obj, model->props, &local_err);
+        riscv_cpuobj_validate_qdict_in(obj, model->props, "model.props",
+                                       &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             object_unref(obj);

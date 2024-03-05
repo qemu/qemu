@@ -157,7 +157,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         Error *err = NULL;
 
         visitor = qobject_input_visitor_new(model->props);
-        if (!visit_start_struct(visitor, "props", NULL, 0, errp)) {
+        if (!visit_start_struct(visitor, "model.props", NULL, 0, errp)) {
             visit_free(visitor);
             object_unref(obj);
             return NULL;
