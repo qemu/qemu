@@ -241,13 +241,42 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
 void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
                      uint32_t maxsz, TCGv_i64 c, const GVecGen2s *op);
 
+/*
+ * Expand (dbase+dofs) = op(abase+aofs, bbase+bofs),
+ * length @oprsz, clearing to @maxsz.
+ */
+void tcg_gen_gvec_3_var(TCGv_ptr dbase, uint32_t dofs,
+                        TCGv_ptr abase, uint32_t aofs,
+                        TCGv_ptr bbase, uint32_t bofs,
+                        uint32_t oprsz, uint32_t maxsz, const GVecGen3 *op);
+/* Similarly, expand (env+dofs) = op(env+aofs, env+bofs). */
 void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
-                    uint32_t oprsz, uint32_t maxsz, const GVecGen3 *);
+                    uint32_t oprsz, uint32_t maxsz, const GVecGen3 *op);
+
+/*
+ * Depending on op->load_dest and op->write_aofs, expand
+ *    (env+dofs) = op(env+aofs, env+bofs, c)
+ * or
+ *    (env+dofs) = op(env+dofs, env+aofs, env+bofs, c)
+ * or
+ *    (env+dofs), (env+aofs) = op(env+aofs, env+bofs, c)
+ * or
+ *    (env+dofs), (env+aofs) = op(env+dofs, env+aofs, env+bofs, c)
+ */
 void tcg_gen_gvec_3i(uint32_t dofs, uint32_t aofs, uint32_t bofs,
                      uint32_t oprsz, uint32_t maxsz, int64_t c,
-                     const GVecGen3i *);
+                     const GVecGen3i *op);
+
+/*
+ * Depending on op->write_aofs, expand
+ *     (env+dofs) = op(env+aofs, env+bofs, env+cofs)
+ * or
+ *     (env+dofs), (env+aofs) = op(env+aofs, env+bofs, env+cofs)
+ */
 void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
                     uint32_t oprsz, uint32_t maxsz, const GVecGen4 *);
+
+/* Expand (env+dofs) = op(env+aofs, env+bofs, env+cofs, c). */
 void tcg_gen_gvec_4i(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
                      uint32_t oprsz, uint32_t maxsz, int64_t c,
                      const GVecGen4i *);
