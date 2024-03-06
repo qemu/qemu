@@ -319,7 +319,7 @@ void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info)
 
 int block_signals(void)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = get_task_state(thread_cpu);
     sigset_t set;
 
     /*
@@ -359,7 +359,7 @@ void dump_core_and_abort(int target_sig)
 {
     CPUState *cpu = thread_cpu;
     CPUArchState *env = cpu_env(cpu);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     int core_dumped = 0;
     int host_sig;
     struct sigaction act;
@@ -421,7 +421,7 @@ void queue_signal(CPUArchState *env, int sig, int si_type,
                   target_siginfo_t *info)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
 
     trace_user_queue_signal(env, sig);
 
@@ -476,7 +476,7 @@ void force_sig_fault(int sig, int code, abi_ulong addr)
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUState *cpu = thread_cpu;
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     target_siginfo_t tinfo;
     ucontext_t *uc = puc;
     struct emulated_sigtable *k;
@@ -585,7 +585,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 /* compare to kern/kern_sig.c sys_sigaltstack() and kern_sigaltstack() */
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = get_task_state(thread_cpu);
     int ret;
     target_stack_t oss;
 
@@ -714,7 +714,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 static inline abi_ulong get_sigframe(struct target_sigaction *ka,
         CPUArchState *env, size_t frame_size)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = get_task_state(thread_cpu);
     abi_ulong sp;
 
     /* Use default user stack */
@@ -789,7 +789,7 @@ static int reset_signal_mask(target_ucontext_t *ucontext)
     int i;
     sigset_t blocked;
     target_sigset_t target_set;
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = get_task_state(thread_cpu);
 
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __get_user(target_set.__bits[i], &ucontext->uc_sigmask.__bits[i]);
@@ -839,7 +839,7 @@ badframe:
 
 void signal_init(void)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = get_task_state(thread_cpu);
     struct sigaction act;
     struct sigaction oact;
     int i;
@@ -878,7 +878,7 @@ static void handle_pending_signal(CPUArchState *env, int sig,
                                   struct emulated_sigtable *k)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
     struct target_sigaction *sa;
     int code;
     sigset_t set;
@@ -967,7 +967,7 @@ void process_pending_signals(CPUArchState *env)
     int sig;
     sigset_t *blocked_set, set;
     struct emulated_sigtable *k;
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = get_task_state(cpu);
 
     while (qatomic_read(&ts->signal_pending)) {
         sigfillset(&set);

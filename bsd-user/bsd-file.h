@@ -641,7 +641,7 @@ static abi_long do_bsd_readlink(CPUArchState *env, abi_long arg1,
     }
     if (strcmp(p1, "/proc/curproc/file") == 0) {
         CPUState *cpu = env_cpu(env);
-        TaskState *ts = (TaskState *)cpu->opaque;
+        TaskState *ts = get_task_state(cpu);
         strncpy(p2, ts->bprm->fullpath, arg3);
         ret = MIN((abi_long)strlen(ts->bprm->fullpath), arg3);
     } else {
