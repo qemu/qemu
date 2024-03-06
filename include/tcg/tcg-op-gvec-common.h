@@ -227,12 +227,20 @@ typedef struct {
     bool prefer_i64;
 } GVecGen4i;
 
+/* Expand (dbase+dofs) = op(abase+aofs), length @oprsz, clearing to @maxsz. */
+void tcg_gen_gvec_2_var(TCGv_ptr dbase, uint32_t dofs,
+                        TCGv_ptr abase, uint32_t aofs,
+                        uint32_t oprsz, uint32_t maxsz, const GVecGen2 *op);
+/* Similarly, expand (env+dofs) = op(env+aofs). */
 void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
-                    uint32_t oprsz, uint32_t maxsz, const GVecGen2 *);
+                    uint32_t oprsz, uint32_t maxsz, const GVecGen2 *op);
+/* Similarly, expand (env+dofs) = op(env+aofs, c). */
 void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
-                     uint32_t maxsz, int64_t c, const GVecGen2i *);
+                     uint32_t maxsz, int64_t c, const GVecGen2i *op);
+/* Similarly, expand (env+dofs) = op(env+aofs, s). */
 void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
-                     uint32_t maxsz, TCGv_i64 c, const GVecGen2s *);
+                     uint32_t maxsz, TCGv_i64 c, const GVecGen2s *op);
+
 void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
                     uint32_t oprsz, uint32_t maxsz, const GVecGen3 *);
 void tcg_gen_gvec_3i(uint32_t dofs, uint32_t aofs, uint32_t bofs,
