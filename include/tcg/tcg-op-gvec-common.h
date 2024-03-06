@@ -283,6 +283,10 @@ void tcg_gen_gvec_4i(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
 
 /* Expand a specific vector operation.  */
 
+void tcg_gen_gvec_mov_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                          TCGv_ptr abase, uint32_t aofs,
+                          uint32_t oprsz, uint32_t maxsz);
+
 void tcg_gen_gvec_mov(unsigned vece, uint32_t dofs, uint32_t aofs,
                       uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_not(unsigned vece, uint32_t dofs, uint32_t aofs,

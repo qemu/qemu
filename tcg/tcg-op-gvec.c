@@ -1746,8 +1746,9 @@ static void vec_mov2(unsigned vece, TCGv_vec a, TCGv_vec b)
     tcg_gen_mov_vec(a, b);
 }
 
-void tcg_gen_gvec_mov(unsigned vece, uint32_t dofs, uint32_t aofs,
-                      uint32_t oprsz, uint32_t maxsz)
+void tcg_gen_gvec_mov_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                          TCGv_ptr abase, uint32_t aofs,
+                          uint32_t oprsz, uint32_t maxsz)
 {
     static const GVecGen2 g = {
         .fni8 = tcg_gen_mov_i64,
@@ -1755,14 +1756,22 @@ void tcg_gen_gvec_mov(unsigned vece, uint32_t dofs, uint32_t aofs,
         .fno = gen_helper_gvec_mov,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    if (dofs != aofs) {
-        tcg_gen_gvec_2(dofs, aofs, oprsz, maxsz, &g);
-    } else {
+
+    if (dofs == aofs && dbase == abase) {
         check_size_align(oprsz, maxsz, dofs);
         if (oprsz < maxsz) {
-            expand_clr(tcg_env, dofs + oprsz, maxsz - oprsz);
+            expand_clr(dbase, dofs + oprsz, maxsz - oprsz);
         }
+        return;
     }
+
+    tcg_gen_gvec_2_var(dbase, dofs, abase, aofs, oprsz, maxsz, &g);
+}
+
+void tcg_gen_gvec_mov(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_mov_var(vece, tcg_env, dofs, tcg_env, aofs, oprsz, maxsz);
 }
 
 void tcg_gen_gvec_dup_i32(unsigned vece, uint32_t dofs, uint32_t oprsz,
