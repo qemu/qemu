@@ -530,13 +530,14 @@ static void do_dup_store(TCGType type, TCGv_ptr dbase, uint32_t dofs,
     }
 }
 
-/* Set OPRSZ bytes at DOFS to replications of IN_32, IN_64 or IN_C.
+/*
+ * Set OPRSZ bytes at DBASE + DOFS to replications of IN_32, IN_64 or IN_C.
  * Only one of IN_32 or IN_64 may be set;
  * IN_C is used if IN_32 and IN_64 are unset.
  */
-static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
-                   uint32_t maxsz, TCGv_i32 in_32, TCGv_i64 in_64,
-                   uint64_t in_c)
+static void do_dup(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                   uint32_t oprsz, uint32_t maxsz,
+                   TCGv_i32 in_32, TCGv_i64 in_64, uint64_t in_c)
 {
     TCGType type;
     TCGv_i64 t_64;
@@ -574,7 +575,7 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
         } else {
             tcg_gen_dupi_vec(vece, t_vec, in_c);
         }
-        do_dup_store(type, tcg_env, dofs, oprsz, maxsz, t_vec);
+        do_dup_store(type, dbase, dofs, oprsz, maxsz, t_vec);
         return;
     }
 
@@ -618,14 +619,14 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
         /* Implement inline if we picked an implementation size above.  */
         if (t_32) {
             for (i = 0; i < oprsz; i += 4) {
-                tcg_gen_st_i32(t_32, tcg_env, dofs + i);
+                tcg_gen_st_i32(t_32, dbase, dofs + i);
             }
             tcg_temp_free_i32(t_32);
             goto done;
         }
         if (t_64) {
             for (i = 0; i < oprsz; i += 8) {
-                tcg_gen_st_i64(t_64, tcg_env, dofs + i);
+                tcg_gen_st_i64(t_64, dbase, dofs + i);
             }
             tcg_temp_free_i64(t_64);
             goto done;
@@ -634,7 +635,7 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
 
     /* Otherwise implement out of line.  */
     t_ptr = tcg_temp_ebb_new_ptr();
-    tcg_gen_addi_ptr(t_ptr, tcg_env, dofs);
+    tcg_gen_addi_ptr(t_ptr, dbase, dofs);
 
     /*
      * This may be expand_clr for the tail of an operation, e.g.
@@ -710,7 +711,7 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
 /* Likewise, but with zero.  */
 static void expand_clr(uint32_t dofs, uint32_t maxsz)
 {
-    do_dup(MO_8, dofs, maxsz, maxsz, NULL, NULL, 0);
+    do_dup(MO_8, tcg_env, dofs, maxsz, maxsz, NULL, NULL, 0);
 }
 
 /* Expand OPSZ bytes worth of two-operand operations using i32 elements.  */
@@ -1711,7 +1712,7 @@ void tcg_gen_gvec_dup_i32(unsigned vece, uint32_t dofs, uint32_t oprsz,
 {
     check_size_align(oprsz, maxsz, dofs);
     tcg_debug_assert(vece <= MO_32);
-    do_dup(vece, dofs, oprsz, maxsz, in, NULL, 0);
+    do_dup(vece, tcg_env, dofs, oprsz, maxsz, in, NULL, 0);
 }
 
 void tcg_gen_gvec_dup_i64(unsigned vece, uint32_t dofs, uint32_t oprsz,
@@ -1719,7 +1720,7 @@ void tcg_gen_gvec_dup_i64(unsigned vece, uint32_t dofs, uint32_t oprsz,
 {
     check_size_align(oprsz, maxsz, dofs);
     tcg_debug_assert(vece <= MO_64);
-    do_dup(vece, dofs, oprsz, maxsz, NULL, in, 0);
+    do_dup(vece, tcg_env, dofs, oprsz, maxsz, NULL, in, 0);
 }
 
 void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1745,12 +1746,12 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
                 tcg_gen_ld_i32(in, tcg_env, aofs);
                 break;
             }
-            do_dup(vece, dofs, oprsz, maxsz, in, NULL, 0);
+            do_dup(vece, tcg_env, dofs, oprsz, maxsz, in, NULL, 0);
             tcg_temp_free_i32(in);
         } else {
             TCGv_i64 in = tcg_temp_ebb_new_i64();
             tcg_gen_ld_i64(in, tcg_env, aofs);
-            do_dup(vece, dofs, oprsz, maxsz, NULL, in, 0);
+            do_dup(vece, tcg_env, dofs, oprsz, maxsz, NULL, in, 0);
             tcg_temp_free_i64(in);
         }
     } else if (vece == 4) {
@@ -1833,7 +1834,7 @@ void tcg_gen_gvec_dup_imm(unsigned vece, uint32_t dofs, uint32_t oprsz,
                           uint32_t maxsz, uint64_t x)
 {
     check_size_align(oprsz, maxsz, dofs);
-    do_dup(vece, dofs, oprsz, maxsz, NULL, NULL, x);
+    do_dup(vece, tcg_env, dofs, oprsz, maxsz, NULL, NULL, x);
 }
 
 void tcg_gen_gvec_not(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -3772,7 +3773,7 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
     check_overlap_3(dofs, aofs, bofs, maxsz);
 
     if (cond == TCG_COND_NEVER || cond == TCG_COND_ALWAYS) {
-        do_dup(MO_8, dofs, oprsz, maxsz,
+        do_dup(MO_8, tcg_env, dofs, oprsz, maxsz,
                NULL, NULL, -(cond == TCG_COND_ALWAYS));
         return;
     }
@@ -3892,7 +3893,7 @@ void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
     check_overlap_2(dofs, aofs, maxsz);
 
     if (cond == TCG_COND_NEVER || cond == TCG_COND_ALWAYS) {
-        do_dup(MO_8, dofs, oprsz, maxsz,
+        do_dup(MO_8, tcg_env, dofs, oprsz, maxsz,
                NULL, NULL, -(cond == TCG_COND_ALWAYS));
         return;
     }
