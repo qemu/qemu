@@ -218,11 +218,23 @@ static void riscv_aplic_set_pending(RISCVAPLICState *aplic,
     }
 
     sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if ((sm == APLIC_SOURCECFG_SM_INACTIVE) ||
-        ((!aplic->msimode || (aplic->msimode && !pending)) &&
-         ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) ||
-          (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)))) {
+    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
         return;
+    }
+
+    if ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) ||
+        (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)) {
+        if (!aplic->msimode || (aplic->msimode && !pending)) {
+            return;
+        }
+        if ((aplic->state[irq] & APLIC_ISTATE_INPUT) &&
+            (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)) {
+            return;
+        }
+        if (!(aplic->state[irq] & APLIC_ISTATE_INPUT) &&
+            (sm == APLIC_SOURCECFG_SM_LEVEL_HIGH)) {
+            return;
+        }
     }
 
     riscv_aplic_set_pending_raw(aplic, irq, pending);
