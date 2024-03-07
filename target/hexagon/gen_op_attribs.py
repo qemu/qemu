@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,12 @@ import hex_common
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])
-    hex_common.read_attribs_file(sys.argv[2])
     hex_common.calculate_attribs()
 
     ##
     ##     Generate all the attributes associated with each instruction
     ##
-    with open(sys.argv[3], "w") as f:
+    with open(sys.argv[-1], "w") as f:
         for tag in hex_common.tags:
             f.write(
                 f"OP_ATTRIB({tag},ATTRIBS("

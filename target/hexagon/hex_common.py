@@ -26,7 +26,6 @@ behdict = {}  # tag ->behavior
 semdict = {}  # tag -> semantics
 attribdict = {}  # tag -> attributes
 macros = {}  # macro -> macro information...
-attribinfo = {}  # Register information and misc
 registers = {}  # register -> register functions
 new_registers = {}
 tags = []  # list of all tags
@@ -286,19 +285,6 @@ def read_semantics_file(name):
             else:
                 eval(eval_line.strip())
                 eval_line = ""
-
-
-def read_attribs_file(name):
-    attribre = re.compile(
-        r"DEF_ATTRIB\(([A-Za-z0-9_]+), ([^,]*), "
-        + r'"([A-Za-z0-9_\.]*)", "([A-Za-z0-9_\.]*)"\)'
-    )
-    for line in open(name, "rt").readlines():
-        if not attribre.match(line):
-            continue
-        (attrib_base, descr, rreg, wreg) = attribre.findall(line)[0]
-        attrib_base = "A_" + attrib_base
-        attribinfo[attrib_base] = {"rreg": rreg, "wreg": wreg, "descr": descr}
 
 
 def read_overrides_file(name):
@@ -1193,3 +1179,24 @@ def helper_args(tag, regs, imms):
             "uint32_t part1"
         ))
     return args
+
+
+def read_common_files():
+    read_semantics_file(sys.argv[1])
+    read_overrides_file(sys.argv[2])
+    read_overrides_file(sys.argv[3])
+    ## Whether or not idef-parser is enabled is
+    ## determined by the number of arguments to
+    ## this script:
+    ##
+    ##   4 args. -> not enabled,
+    ##   5 args. -> idef-parser enabled.
+    ##
+    ## The 5:th arg. then holds a list of the successfully
+    ## parsed instructions.
+    is_idef_parser_enabled = len(sys.argv) > 5
+    if is_idef_parser_enabled:
+        read_idef_parser_enabled_file(sys.argv[4])
+    calculate_attribs()
+    init_registers()
+    return is_idef_parser_enabled
