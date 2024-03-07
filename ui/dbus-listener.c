@@ -630,11 +630,26 @@ static void dbus_gfx_update_sub(DBusDisplayListener *ddl,
         DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
+static void ddl_scanout(DBusDisplayListener *ddl)
+{
+    GVariant *v_data;
+
+    v_data = g_variant_new_from_data(
+        G_VARIANT_TYPE("ay"), surface_data(ddl->ds),
+        surface_stride(ddl->ds) * surface_height(ddl->ds), TRUE,
+        (GDestroyNotify)pixman_image_unref, pixman_image_ref(ddl->ds->image));
+
+    qemu_dbus_display1_listener_call_scanout(
+        ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
+        surface_stride(ddl->ds), surface_format(ddl->ds), v_data,
+        G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL,
+        g_object_ref(ddl));
+}
+
 static void dbus_gfx_update(DisplayChangeListener *dcl,
                             int x, int y, int w, int h)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
-    GVariant *v_data;
 
     assert(ddl->ds);
 
@@ -652,23 +667,7 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
 #endif
 
     if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
-        v_data = g_variant_new_from_data(
-            G_VARIANT_TYPE("ay"),
-            surface_data(ddl->ds),
-            surface_stride(ddl->ds) * surface_height(ddl->ds),
-            TRUE,
-            (GDestroyNotify)pixman_image_unref,
-            pixman_image_ref(ddl->ds->image));
-        qemu_dbus_display1_listener_call_scanout(
-            ddl->proxy,
-            surface_width(ddl->ds),
-            surface_height(ddl->ds),
-            surface_stride(ddl->ds),
-            surface_format(ddl->ds),
-            v_data,
-            G_DBUS_CALL_FLAGS_NONE,
-            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
-        return;
+        return ddl_scanout(ddl);
     }
 
     dbus_gfx_update_sub(ddl, x, y, w, h);
