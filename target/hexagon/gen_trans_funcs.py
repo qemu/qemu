@@ -70,6 +70,7 @@ def mark_which_imm_extended(f, tag):
 ##         insn->regno[2] = args->Rt;
 ##         insn->new_read_idx = -1;
 ##         insn->dest_idx = 0;
+##         insn->has_pred_dest = false;
 ##         return true;
 ##     }
 ##
@@ -88,6 +89,7 @@ def gen_trans_funcs(f):
 
         new_read_idx = -1
         dest_idx = -1
+        has_pred_dest = "false"
         for regno, (reg_type, reg_id, *_) in enumerate(regs):
             reg = hex_common.get_register(tag, reg_type, reg_id)
             f.write(code_fmt(f"""\
@@ -98,6 +100,8 @@ def gen_trans_funcs(f):
             # dest_idx should be the first destination, so check for -1
             if reg.is_written() and dest_idx == -1:
                 dest_idx = regno
+            if reg_type == "P" and reg.is_written() and not reg.is_read():
+                has_pred_dest = "true"
 
         if len(imms) != 0:
             mark_which_imm_extended(f, tag)
@@ -121,6 +125,7 @@ def gen_trans_funcs(f):
         f.write(code_fmt(f"""\
             insn->new_read_idx = {new_read_idx};
             insn->dest_idx = {dest_idx};
+            insn->has_pred_dest = {has_pred_dest};
         """))
         f.write(textwrap.dedent(f"""\
                 return true;

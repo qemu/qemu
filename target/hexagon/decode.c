@@ -366,6 +366,9 @@ static void decode_shuffle_for_execution(Packet *packet)
         for (flag = false, i = 0; i < last_insn + 1; i++) {
             int opcode = packet->insn[i].opcode;
 
+            g_assert(packet->insn[i].has_pred_dest ==
+                     (strstr(opcode_wregs[opcode], "Pd4") ||
+                      strstr(opcode_wregs[opcode], "Pe4")));
             if ((strstr(opcode_wregs[opcode], "Pd4") ||
                  strstr(opcode_wregs[opcode], "Pe4")) &&
                 GET_ATTRIB(opcode, A_STORE) == 0) {
