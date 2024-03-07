@@ -68,6 +68,7 @@ struct VirtIOIOMMU {
     Notifier machine_done;
     bool granule_frozen;
     GranuleMode granule_mode;
+    uint8_t aw_bits;
 };
 
 #endif
