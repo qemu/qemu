@@ -83,12 +83,21 @@ struct _DBusDisplayListener {
     egl_fb fb;
 #endif
 #endif
+
+    guint dbus_filter;
+    guint32 out_serial_to_discard;
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
 
 static void dbus_gfx_update(DisplayChangeListener *dcl,
                             int x, int y, int w, int h);
+
+static void ddl_discard_pending_messages(DBusDisplayListener *ddl)
+{
+    ddl->out_serial_to_discard = g_dbus_connection_get_last_serial(
+        g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy)));
+}
 
 #ifdef CONFIG_OPENGL
 static void dbus_scanout_disable(DisplayChangeListener *dcl)
@@ -276,6 +285,8 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
         return;
     }
 
+    ddl_discard_pending_messages(ddl);
+
     /* FIXME: add missing x/y/w/h support */
     qemu_dbus_display1_listener_call_scanout_dmabuf(
         ddl->proxy,
@@ -322,6 +333,8 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         ddl->can_share_map = false;
         return false;
     }
+
+    ddl_discard_pending_messages(ddl);
 
     if (!qemu_dbus_display1_listener_win32_map_call_scanout_map_sync(
             ddl->map_proxy,
@@ -383,6 +396,8 @@ dbus_scanout_share_d3d_texture(
         CloseHandle(share_handle);
         return false;
     }
+
+    ddl_discard_pending_messages(ddl);
 
     qemu_dbus_display1_listener_win32_d3d11_call_scanout_texture2d(
         ddl->d3d11_proxy,
@@ -638,6 +653,8 @@ static void ddl_scanout(DBusDisplayListener *ddl)
         G_VARIANT_TYPE("ay"), surface_data(ddl->ds),
         surface_stride(ddl->ds) * surface_height(ddl->ds), TRUE,
         (GDestroyNotify)pixman_image_unref, pixman_image_ref(ddl->ds->image));
+
+    ddl_discard_pending_messages(ddl);
 
     qemu_dbus_display1_listener_call_scanout(
         ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
@@ -963,6 +980,28 @@ dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
 #endif
 }
 
+static GDBusMessage *
+dbus_filter(GDBusConnection *connection,
+            GDBusMessage    *message,
+            gboolean         incoming,
+            gpointer         user_data)
+{
+    DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(user_data);
+    guint32 serial;
+
+    if (incoming) {
+        return message;
+    }
+
+    serial = g_dbus_message_get_serial(message);
+    if (serial <= ddl->out_serial_to_discard) {
+        trace_dbus_filter(serial, ddl->out_serial_to_discard);
+        return NULL;
+    }
+
+    return message;
+}
+
 DBusDisplayListener *
 dbus_display_listener_new(const char *bus_name,
                           GDBusConnection *conn,
@@ -987,6 +1026,7 @@ dbus_display_listener_new(const char *bus_name,
         return NULL;
     }
 
+    ddl->dbus_filter = g_dbus_connection_add_filter(conn, dbus_filter, g_object_ref(ddl), g_object_unref);
     ddl->bus_name = g_strdup(bus_name);
     ddl->conn = conn;
     ddl->console = console;
