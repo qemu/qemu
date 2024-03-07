@@ -428,10 +428,18 @@ class Source:
 class OldSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}V"
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class NewSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}N"
+    def is_old(self):
+        return False
+    def is_new(self):
+        return True
 
 class ReadWrite:
     def reg_tcg(self):
@@ -444,6 +452,10 @@ class ReadWrite:
         return True
     def is_readwrite(self):
         return True
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class GprDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
