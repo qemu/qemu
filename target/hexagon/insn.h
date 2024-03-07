@@ -40,6 +40,7 @@ struct Instruction {
     uint32_t which_extended:1;    /* If has an extender, which immediate */
     uint32_t new_value_producer_slot:4;
     int32_t new_read_idx;
+    int32_t dest_idx;
 
     bool part1;              /*
                               * cmp-jumps are split into two insns.

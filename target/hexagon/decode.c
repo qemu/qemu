@@ -184,6 +184,8 @@ decode_fill_newvalue_regno(Packet *packet)
 
             /* Now patch up the consumer with the register number */
             dst_idx = dststr - opcode_reginfo[def_opcode];
+            g_assert(packet->insn[def_idx].dest_idx != -1 &&
+                     packet->insn[def_idx].dest_idx == dst_idx);
             packet->insn[i].regno[use_regidx] =
                 packet->insn[def_idx].regno[dst_idx];
             /*

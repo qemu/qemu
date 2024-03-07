@@ -86,6 +86,8 @@ check_new_value(Packet *pkt)
                     /* still not there, we have a bad packet */
                     g_assert_not_reached();
                 }
+                g_assert(pkt->insn[def_idx].dest_idx != -1 &&
+                         pkt->insn[def_idx].dest_idx == dststr - reginfo);
                 int def_regnum = pkt->insn[def_idx].regno[dststr - reginfo];
                 /* Now patch up the consumer with the register number */
                 pkt->insn[i].regno[use_regidx] = def_regnum ^ def_oreg;
