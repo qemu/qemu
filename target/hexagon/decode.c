@@ -131,6 +131,8 @@ decode_fill_newvalue_regno(Packet *packet)
                 use_regidx = strchr(opcode_reginfo[use_opcode], 's') -
                     opcode_reginfo[use_opcode];
             }
+            g_assert(packet->insn[i].new_read_idx != -1 &&
+                     packet->insn[i].new_read_idx == use_regidx);
 
             /*
              * What's encoded at the N-field is the offset to who's producing

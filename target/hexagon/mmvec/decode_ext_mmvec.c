@@ -41,6 +41,8 @@ check_new_value(Packet *pkt)
             GET_ATTRIB(use_opcode, A_STORE)) {
             int use_regidx = strchr(opcode_reginfo[use_opcode], 's') -
                 opcode_reginfo[use_opcode];
+            g_assert(pkt->insn[i].new_read_idx != -1 &&
+                     pkt->insn[i].new_read_idx == use_regidx);
             /*
              * What's encoded at the N-field is the offset to who's producing
              * the value.
