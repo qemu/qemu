@@ -60,7 +60,7 @@ Elf64_Half elf_getphdrnum(void *map)
     return ehdr->e_phnum;
 }
 
-static int init_states(QEMU_Elf *qe)
+static bool init_states(QEMU_Elf *qe)
 {
     Elf64_Phdr *phdr = elf64_getphdr(qe->map);
     Elf64_Nhdr *start = (void *)((uint8_t *)qe->map + phdr[0].p_offset);
@@ -70,7 +70,7 @@ static int init_states(QEMU_Elf *qe)
 
     if (phdr[0].p_type != PT_NOTE) {
         eprintf("Failed to find PT_NOTE\n");
-        return 1;
+        return false;
     }
 
     qe->has_kernel_gs_base = 1;
@@ -107,7 +107,7 @@ static int init_states(QEMU_Elf *qe)
 
     qe->state_nr = cpu_nr;
 
-    return 0;
+    return true;
 }
 
 static void exit_states(QEMU_Elf *qe)
@@ -162,7 +162,7 @@ static bool check_ehdr(QEMU_Elf *qe)
     return true;
 }
 
-static int QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
+static bool QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
 {
 #ifdef CONFIG_LINUX
     struct stat st;
@@ -173,13 +173,13 @@ static int QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
     fd = open(filename, O_RDONLY, 0);
     if (fd == -1) {
         eprintf("Failed to open ELF dump file \'%s\'\n", filename);
-        return 1;
+        return false;
     }
 
     if (fstat(fd, &st)) {
         eprintf("Failed to get size of ELF dump file\n");
         close(fd);
-        return 1;
+        return false;
     }
     qe->size = st.st_size;
 
@@ -188,7 +188,7 @@ static int QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
     if (qe->map == MAP_FAILED) {
         eprintf("Failed to map ELF file\n");
         close(fd);
-        return 1;
+        return false;
     }
 
     close(fd);
@@ -201,14 +201,14 @@ static int QEMU_Elf_map(QEMU_Elf *qe, const char *filename)
     if (gerr) {
         eprintf("Failed to map ELF dump file \'%s\'\n", filename);
         g_error_free(gerr);
-        return 1;
+        return false;
     }
 
     qe->map = g_mapped_file_get_contents(qe->gmf);
     qe->size = g_mapped_file_get_length(qe->gmf);
 #endif
 
-    return 0;
+    return true;
 }
 
 static void QEMU_Elf_unmap(QEMU_Elf *qe)
@@ -220,25 +220,25 @@ static void QEMU_Elf_unmap(QEMU_Elf *qe)
 #endif
 }
 
-int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
+bool QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
 {
-    if (QEMU_Elf_map(qe, filename)) {
-        return 1;
+    if (!QEMU_Elf_map(qe, filename)) {
+        return false;
     }
 
     if (!check_ehdr(qe)) {
         eprintf("Input file has the wrong format\n");
         QEMU_Elf_unmap(qe);
-        return 1;
+        return false;
     }
 
-    if (init_states(qe)) {
+    if (!init_states(qe)) {
         eprintf("Failed to extract QEMU CPU states\n");
         QEMU_Elf_unmap(qe);
-        return 1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 void QEMU_Elf_exit(QEMU_Elf *qe)
