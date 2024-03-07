@@ -1172,6 +1172,14 @@ SRST
     Please also refer to the wiki page for general scenarios of VT-d
     emulation in QEMU: https://wiki.qemu.org/Features/VT-d.
 
+``-device virtio-iommu-pci[,option=...]``
+    This is only supported by ``-machine q35`` (x86_64) and ``-machine virt`` (ARM).
+    It supports below options:
+
+    ``granule=val`` (possible values are 4k, 8k, 16k, 64k and host; default: host)
+        This decides the default granule to be be exposed by the
+        virtio-iommu. If host, the granule matches the host page size.
+
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
