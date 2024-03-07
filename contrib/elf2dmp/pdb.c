@@ -177,7 +177,6 @@ static int pdb_init_segments(struct pdb_reader *r)
 
 static int pdb_init_symbols(struct pdb_reader *r)
 {
-    int err = 0;
     PDB_SYMBOLS *symbols;
 
     symbols = pdb_ds_read_file(r, 3);
@@ -196,7 +195,6 @@ static int pdb_init_symbols(struct pdb_reader *r)
     /* Read global symbol table */
     r->modimage = pdb_ds_read_file(r, symbols->gsym_file);
     if (!r->modimage) {
-        err = 1;
         goto out_symbols;
     }
 
@@ -205,7 +203,7 @@ static int pdb_init_symbols(struct pdb_reader *r)
 out_symbols:
     g_free(symbols);
 
-    return err;
+    return 1;
 }
 
 static int pdb_reader_ds_init(struct pdb_reader *r, PDB_DS_HEADER *hdr)
@@ -228,7 +226,6 @@ static int pdb_reader_ds_init(struct pdb_reader *r, PDB_DS_HEADER *hdr)
 
 static int pdb_reader_init(struct pdb_reader *r, void *data)
 {
-    int err = 0;
     const char pdb7[] = "Microsoft C/C++ MSF 7.00";
 
     if (memcmp(data, pdb7, sizeof(pdb7) - 1)) {
@@ -241,17 +238,14 @@ static int pdb_reader_init(struct pdb_reader *r, void *data)
 
     r->ds.root = pdb_ds_read_file(r, 1);
     if (!r->ds.root) {
-        err = 1;
         goto out_ds;
     }
 
     if (pdb_init_symbols(r)) {
-        err = 1;
         goto out_root;
     }
 
     if (pdb_init_segments(r)) {
-        err = 1;
         goto out_sym;
     }
 
@@ -264,7 +258,7 @@ out_root:
 out_ds:
     pdb_reader_ds_exit(r);
 
-    return err;
+    return 1;
 }
 
 static void pdb_reader_exit(struct pdb_reader *r)
@@ -278,7 +272,6 @@ static void pdb_reader_exit(struct pdb_reader *r)
 int pdb_init_from_file(const char *name, struct pdb_reader *reader)
 {
     GError *gerr = NULL;
-    int err = 0;
     void *map;
 
     reader->gmf = g_mapped_file_new(name, TRUE, &gerr);
@@ -291,7 +284,6 @@ int pdb_init_from_file(const char *name, struct pdb_reader *reader)
     reader->file_size = g_mapped_file_get_length(reader->gmf);
     map = g_mapped_file_get_contents(reader->gmf);
     if (pdb_reader_init(reader, map)) {
-        err = 1;
         goto out_unmap;
     }
 
@@ -300,7 +292,7 @@ int pdb_init_from_file(const char *name, struct pdb_reader *reader)
 out_unmap:
     g_mapped_file_unref(reader->gmf);
 
-    return err;
+    return 1;
 }
 
 void pdb_exit(struct pdb_reader *reader)
