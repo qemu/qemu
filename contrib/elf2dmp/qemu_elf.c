@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "err.h"
 #include "qemu_elf.h"
 
@@ -15,34 +16,9 @@
 #define ROUND_UP(n, d) (((n) + (d) - 1) & -(0 ? (n) : (d)))
 #endif
 
-#ifndef DIV_ROUND_UP
-#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
-#endif
-
-#define ELF_NOTE_SIZE(hdr_size, name_size, desc_size)   \
-    ((DIV_ROUND_UP((hdr_size), 4) +                     \
-      DIV_ROUND_UP((name_size), 4) +                    \
-      DIV_ROUND_UP((desc_size), 4)) * 4)
-
 int is_system(QEMUCPUState *s)
 {
     return s->gs.base >> 63;
-}
-
-static char *nhdr_get_name(Elf64_Nhdr *nhdr)
-{
-    return (char *)nhdr + ROUND_UP(sizeof(*nhdr), 4);
-}
-
-static void *nhdr_get_desc(Elf64_Nhdr *nhdr)
-{
-    return nhdr_get_name(nhdr) + ROUND_UP(nhdr->n_namesz, 4);
-}
-
-static Elf64_Nhdr *nhdr_get_next(Elf64_Nhdr *nhdr)
-{
-    return (void *)((uint8_t *)nhdr + ELF_NOTE_SIZE(sizeof(*nhdr),
-                nhdr->n_namesz, nhdr->n_descsz));
 }
 
 Elf64_Phdr *elf64_getphdr(void *map)
@@ -60,13 +36,35 @@ Elf64_Half elf_getphdrnum(void *map)
     return ehdr->e_phnum;
 }
 
+static bool advance_note_offset(uint64_t *offsetp, uint64_t size, uint64_t end)
+{
+    uint64_t offset = *offsetp;
+
+    if (uadd64_overflow(offset, size, &offset) || offset > UINT64_MAX - 3) {
+        return false;
+    }
+
+    offset = ROUND_UP(offset, 4);
+
+    if (offset > end) {
+        return false;
+    }
+
+    *offsetp = offset;
+
+    return true;
+}
+
 static bool init_states(QEMU_Elf *qe)
 {
     Elf64_Phdr *phdr = elf64_getphdr(qe->map);
-    Elf64_Nhdr *start = (void *)((uint8_t *)qe->map + phdr[0].p_offset);
-    Elf64_Nhdr *end = (void *)((uint8_t *)start + phdr[0].p_memsz);
     Elf64_Nhdr *nhdr;
     GPtrArray *states;
+    QEMUCPUState *state;
+    uint32_t state_size;
+    uint64_t offset;
+    uint64_t end_offset;
+    char *name;
 
     if (phdr[0].p_type != PT_NOTE) {
         eprintf("Failed to find PT_NOTE\n");
@@ -74,15 +72,40 @@ static bool init_states(QEMU_Elf *qe)
     }
 
     qe->has_kernel_gs_base = 1;
+    offset = phdr[0].p_offset;
     states = g_ptr_array_new();
 
-    for (nhdr = start; nhdr < end; nhdr = nhdr_get_next(nhdr)) {
-        if (!strcmp(nhdr_get_name(nhdr), QEMU_NOTE_NAME)) {
-            QEMUCPUState *state = nhdr_get_desc(nhdr);
+    if (uadd64_overflow(offset, phdr[0].p_memsz, &end_offset) ||
+        end_offset > qe->size) {
+        end_offset = qe->size;
+    }
 
-            if (state->size < sizeof(*state)) {
+    while (offset < end_offset) {
+        nhdr = (void *)((uint8_t *)qe->map + offset);
+
+        if (!advance_note_offset(&offset, sizeof(*nhdr), end_offset)) {
+            break;
+        }
+
+        name = (char *)qe->map + offset;
+
+        if (!advance_note_offset(&offset, nhdr->n_namesz, end_offset)) {
+            break;
+        }
+
+        state = (void *)((uint8_t *)qe->map + offset);
+
+        if (!advance_note_offset(&offset, nhdr->n_descsz, end_offset)) {
+            break;
+        }
+
+        if (!strcmp(name, QEMU_NOTE_NAME) &&
+            nhdr->n_descsz >= offsetof(QEMUCPUState, kernel_gs_base)) {
+            state_size = MIN(state->size, nhdr->n_descsz);
+
+            if (state_size < sizeof(*state)) {
                 eprintf("CPU #%u: QEMU CPU state size %u doesn't match\n",
-                        states->len, state->size);
+                        states->len, state_size);
                 /*
                  * We assume either every QEMU CPU state has KERNEL_GS_BASE or
                  * no one has.
