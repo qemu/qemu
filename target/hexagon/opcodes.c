@@ -37,13 +37,6 @@ const char * const opcode_names[] = {
 };
 
 
-const char * const opcode_short_semantics[] = {
-#define DEF_SHORTCODE(TAG, SHORTCODE)              [TAG] = #SHORTCODE,
-#include "shortcode_generated.h.inc"
-#undef DEF_SHORTCODE
-    NULL
-};
-
 DECLARE_BITMAP(opcode_attribs[XX_LAST_OPCODE], A_ZZ_LASTATTRIB);
 
 static void init_attribs(int tag, ...)
