@@ -1,5 +1,5 @@
 ##
-##  Copyright(c) 2020-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2020-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ hexagon_ss.add(semantics_generated)
 #     shortcode_generated.h.inc
 #     tcg_func_table_generated.c.inc
 #     printinsn_generated.h.inc
-#     op_regs_generated.h.inc
 #     op_attribs_generated.h.inc
 #     opcodes_def_generated.h.inc
 #
@@ -76,15 +75,6 @@ printinsn_generated = custom_target(
 )
 hexagon_ss.add(printinsn_generated)
 
-op_regs_generated = custom_target(
-    'op_regs_generated.h.inc',
-    output: 'op_regs_generated.h.inc',
-    depends: [semantics_generated],
-    depend_files: [hex_common_py, attribs_def],
-    command: [python, files('gen_op_regs.py'), semantics_generated, attribs_def, '@OUTPUT@'],
-)
-hexagon_ss.add(op_regs_generated)
-
 op_attribs_generated = custom_target(
     'op_attribs_generated.h.inc',
     output: 'op_attribs_generated.h.inc',
@@ -110,7 +100,7 @@ hexagon_ss.add(opcodes_def_generated)
 #
 gen_dectree_import = executable(
     'gen_dectree_import',
-    'gen_dectree_import.c', opcodes_def_generated, op_regs_generated,
+    'gen_dectree_import.c', opcodes_def_generated,
     native: true, build_by_default: false)
 
 iset_py = custom_target(

@@ -43,7 +43,6 @@ target/hexagon/gen_semantics.c.  This step produces
 That file is consumed by the following python scripts to produce the indicated
 header files in <BUILD_DIR>/target/hexagon
         gen_opcodes_def.py              -> opcodes_def_generated.h.inc
-        gen_op_regs.py                  -> op_regs_generated.h.inc
         gen_printinsn.py                -> printinsn_generated.h.inc
         gen_op_attribs.py               -> op_attribs_generated.h.inc
         gen_helper_protos.py            -> helper_protos_generated.h.inc
