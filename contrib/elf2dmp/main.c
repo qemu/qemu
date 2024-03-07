@@ -596,7 +596,7 @@ int main(int argc, char *argv[])
         goto out_ps;
     }
 
-    if (pdb_init_from_file(PDB_NAME, &pdb)) {
+    if (!pdb_init_from_file(PDB_NAME, &pdb)) {
         eprintf("Failed to initialize PDB reader\n");
         goto out_pdb_file;
     }

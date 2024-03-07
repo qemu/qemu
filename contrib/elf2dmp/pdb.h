@@ -233,7 +233,7 @@ struct pdb_reader {
     size_t segs_size;
 };
 
-int pdb_init_from_file(const char *name, struct pdb_reader *reader);
+bool pdb_init_from_file(const char *name, struct pdb_reader *reader);
 void pdb_exit(struct pdb_reader *reader);
 uint64_t pdb_resolve(uint64_t img_base, struct pdb_reader *r, const char *name);
 uint64_t pdb_find_public_v3_symbol(struct pdb_reader *reader, const char *name);
