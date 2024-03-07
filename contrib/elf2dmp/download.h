@@ -8,6 +8,6 @@
 #ifndef DOWNLOAD_H
 #define DOWNLOAD_H
 
-int download_url(const char *name, const char *url);
+bool download_url(const char *name, const char *url);
 
 #endif /* DOWNLOAD_H */

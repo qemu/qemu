@@ -9,14 +9,14 @@
 #include <curl/curl.h>
 #include "download.h"
 
-int download_url(const char *name, const char *url)
+bool download_url(const char *name, const char *url)
 {
-    int err = 1;
+    bool success = false;
     FILE *file;
     CURL *curl = curl_easy_init();
 
     if (!curl) {
-        return 1;
+        return false;
     }
 
     file = fopen(name, "wb");
@@ -33,11 +33,11 @@ int download_url(const char *name, const char *url)
         unlink(name);
         fclose(file);
     } else {
-        err = fclose(file);
+        success = !fclose(file);
     }
 
 out_curl:
     curl_easy_cleanup(curl);
 
-    return err;
+    return success;
 }
