@@ -3370,6 +3370,59 @@ static inline MemoryRegion *address_space_translate_cached(
     return section.mr;
 }
 
+/* Called within RCU critical section.  */
+static MemTxResult address_space_write_continue_cached(MemTxAttrs attrs,
+                                                       const void *ptr,
+                                                       hwaddr len,
+                                                       hwaddr mr_addr,
+                                                       hwaddr l,
+                                                       MemoryRegion *mr)
+{
+    MemTxResult result = MEMTX_OK;
+    const uint8_t *buf = ptr;
+
+    for (;;) {
+        result |= flatview_write_continue_step(attrs, buf, len, mr_addr, &l,
+                                               mr);
+
+        len -= l;
+        buf += l;
+        mr_addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+    }
+
+    return result;
+}
+
+/* Called within RCU critical section.  */
+static MemTxResult address_space_read_continue_cached(MemTxAttrs attrs,
+                                                      void *ptr, hwaddr len,
+                                                      hwaddr mr_addr, hwaddr l,
+                                                      MemoryRegion *mr)
+{
+    MemTxResult result = MEMTX_OK;
+    uint8_t *buf = ptr;
+
+    for (;;) {
+        result |= flatview_read_continue_step(attrs, buf, len, mr_addr, &l, mr);
+        len -= l;
+        buf += l;
+        mr_addr += l;
+
+        if (!len) {
+            break;
+        }
+        l = len;
+    }
+
+    return result;
+}
+
 /* Called from RCU critical section. address_space_read_cached uses this
  * out of line function when the target is an MMIO or IOMMU region.
  */
@@ -3383,9 +3436,8 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &mr_addr, &l, false,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_read_continue(cache->fv,
-                                  addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                  mr_addr, l, mr);
+    return address_space_read_continue_cached(MEMTXATTRS_UNSPECIFIED,
+                                              buf, len, mr_addr, l, mr);
 }
 
 /* Called from RCU critical section. address_space_write_cached uses this
@@ -3401,9 +3453,8 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     l = len;
     mr = address_space_translate_cached(cache, addr, &mr_addr, &l, true,
                                         MEMTXATTRS_UNSPECIFIED);
-    return flatview_write_continue(cache->fv,
-                                   addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                   mr_addr, l, mr);
+    return address_space_write_continue_cached(MEMTXATTRS_UNSPECIFIED,
+                                               buf, len, mr_addr, l, mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
