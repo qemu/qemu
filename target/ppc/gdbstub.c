@@ -324,6 +324,9 @@ static void gdb_gen_spr_feature(CPUState *cs)
             continue;
         }
 
+        gdb_feature_builder_append_reg(&builder, g_ascii_strdown(spr->name, -1),
+                                       TARGET_LONG_BITS, num_regs,
+                                       "int", "spr");
         /*
          * GDB identifies registers based on the order they are
          * presented in the XML. These ids will not match QEMU's
@@ -334,10 +337,6 @@ static void gdb_gen_spr_feature(CPUState *cs)
          */
         spr->gdb_id = num_regs;
         num_regs++;
-
-        gdb_feature_builder_append_reg(&builder, g_ascii_strdown(spr->name, -1),
-                                       TARGET_LONG_BITS, num_regs,
-                                       "int", "spr");
     }
 
     gdb_feature_builder_end(&builder);
