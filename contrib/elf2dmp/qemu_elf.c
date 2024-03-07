@@ -132,6 +132,7 @@ static void exit_states(QEMU_Elf *qe)
 static bool check_ehdr(QEMU_Elf *qe)
 {
     Elf64_Ehdr *ehdr = qe->map;
+    uint64_t phendoff;
 
     if (sizeof(Elf64_Ehdr) > qe->size) {
         eprintf("Invalid input dump file size\n");
@@ -170,6 +171,13 @@ static bool check_ehdr(QEMU_Elf *qe)
      */
     if (ehdr->e_phnum < 2) {
         eprintf("Invalid number of ELF program headers\n");
+        return false;
+    }
+
+    if (umul64_overflow(ehdr->e_phnum, sizeof(Elf64_Phdr), &phendoff) ||
+        uadd64_overflow(phendoff, ehdr->e_phoff, &phendoff) ||
+        phendoff > qe->size) {
+        eprintf("phdrs do not fit in file\n");
         return false;
     }
 
