@@ -2685,7 +2685,7 @@ static bool flatview_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
 static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
                                            MemTxAttrs attrs,
                                            const void *ptr,
-                                           hwaddr len, hwaddr addr1,
+                                           hwaddr len, hwaddr mr_addr,
                                            hwaddr l, MemoryRegion *mr)
 {
     uint8_t *ram_ptr;
@@ -2695,12 +2695,12 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
     const uint8_t *buf = ptr;
 
     for (;;) {
-        if (!flatview_access_allowed(mr, attrs, addr1, l)) {
+        if (!flatview_access_allowed(mr, attrs, mr_addr, l)) {
             result |= MEMTX_ACCESS_ERROR;
             /* Keep going. */
         } else if (!memory_access_is_direct(mr, true)) {
             release_lock |= prepare_mmio_access(mr);
-            l = memory_access_size(mr, l, addr1);
+            l = memory_access_size(mr, l, mr_addr);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
 
@@ -2715,13 +2715,13 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
                    (l == 8 && len >= 8));
 #endif
             val = ldn_he_p(buf, l);
-            result |= memory_region_dispatch_write(mr, addr1, val,
+            result |= memory_region_dispatch_write(mr, mr_addr, val,
                                                    size_memop(l), attrs);
         } else {
             /* RAM case */
-            ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+            ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, &l, false);
             memmove(ram_ptr, buf, l);
-            invalidate_and_set_dirty(mr, addr1, l);
+            invalidate_and_set_dirty(mr, mr_addr, l);
         }
 
         if (release_lock) {
@@ -2738,7 +2738,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
         }
 
         l = len;
-        mr = flatview_translate(fv, addr, &addr1, &l, true, attrs);
+        mr = flatview_translate(fv, addr, &mr_addr, &l, true, attrs);
     }
 
     return result;
@@ -2749,22 +2749,22 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
                                   const void *buf, hwaddr len)
 {
     hwaddr l;
-    hwaddr addr1;
+    hwaddr mr_addr;
     MemoryRegion *mr;
 
     l = len;
-    mr = flatview_translate(fv, addr, &addr1, &l, true, attrs);
+    mr = flatview_translate(fv, addr, &mr_addr, &l, true, attrs);
     if (!flatview_access_allowed(mr, attrs, addr, len)) {
         return MEMTX_ACCESS_ERROR;
     }
     return flatview_write_continue(fv, addr, attrs, buf, len,
-                                   addr1, l, mr);
+                                   mr_addr, l, mr);
 }
 
 /* Called within RCU critical section.  */
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, void *ptr,
-                                   hwaddr len, hwaddr addr1, hwaddr l,
+                                   hwaddr len, hwaddr mr_addr, hwaddr l,
                                    MemoryRegion *mr)
 {
     uint8_t *ram_ptr;
@@ -2775,14 +2775,14 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
 
     fuzz_dma_read_cb(addr, len, mr);
     for (;;) {
-        if (!flatview_access_allowed(mr, attrs, addr1, l)) {
+        if (!flatview_access_allowed(mr, attrs, mr_addr, l)) {
             result |= MEMTX_ACCESS_ERROR;
             /* Keep going. */
         } else if (!memory_access_is_direct(mr, false)) {
             /* I/O case */
             release_lock |= prepare_mmio_access(mr);
-            l = memory_access_size(mr, l, addr1);
-            result |= memory_region_dispatch_read(mr, addr1, &val,
+            l = memory_access_size(mr, l, mr_addr);
+            result |= memory_region_dispatch_read(mr, mr_addr, &val,
                                                   size_memop(l), attrs);
 
             /*
@@ -2798,7 +2798,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             stn_he_p(buf, l, val);
         } else {
             /* RAM case */
-            ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+            ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, &l, false);
             memcpy(buf, ram_ptr, l);
         }
 
@@ -2816,7 +2816,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
         }
 
         l = len;
-        mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
+        mr = flatview_translate(fv, addr, &mr_addr, &l, false, attrs);
     }
 
     return result;
@@ -2827,16 +2827,16 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
                                  MemTxAttrs attrs, void *buf, hwaddr len)
 {
     hwaddr l;
-    hwaddr addr1;
+    hwaddr mr_addr;
     MemoryRegion *mr;
 
     l = len;
-    mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
+    mr = flatview_translate(fv, addr, &mr_addr, &l, false, attrs);
     if (!flatview_access_allowed(mr, attrs, addr, len)) {
         return MEMTX_ACCESS_ERROR;
     }
     return flatview_read_continue(fv, addr, attrs, buf, len,
-                                  addr1, l, mr);
+                                  mr_addr, l, mr);
 }
 
 MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
@@ -3348,15 +3348,15 @@ MemTxResult
 address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
                                    void *buf, hwaddr len)
 {
-    hwaddr addr1, l;
+    hwaddr mr_addr, l;
     MemoryRegion *mr;
 
     l = len;
-    mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
+    mr = address_space_translate_cached(cache, addr, &mr_addr, &l, false,
                                         MEMTXATTRS_UNSPECIFIED);
     return flatview_read_continue(cache->fv,
                                   addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                  addr1, l, mr);
+                                  mr_addr, l, mr);
 }
 
 /* Called from RCU critical section. address_space_write_cached uses this
@@ -3366,15 +3366,15 @@ MemTxResult
 address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
                                     const void *buf, hwaddr len)
 {
-    hwaddr addr1, l;
+    hwaddr mr_addr, l;
     MemoryRegion *mr;
 
     l = len;
-    mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
+    mr = address_space_translate_cached(cache, addr, &mr_addr, &l, true,
                                         MEMTXATTRS_UNSPECIFIED);
     return flatview_write_continue(cache->fv,
                                    addr, MEMTXATTRS_UNSPECIFIED, buf, len,
-                                   addr1, l, mr);
+                                   mr_addr, l, mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
