@@ -1180,6 +1180,9 @@ SRST
         This decides the default granule to be be exposed by the
         virtio-iommu. If host, the granule matches the host page size.
 
+    ``aw-bits=val`` (val between 32 and 64, default depends on machine)
+        This decides the address width of the IOVA address space.
+
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
