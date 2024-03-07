@@ -226,8 +226,8 @@ void *va_space_resolve(struct va_space *vs, uint64_t va)
     return pa_space_resolve(vs->ps, pa);
 }
 
-int va_space_rw(struct va_space *vs, uint64_t addr,
-        void *buf, size_t size, int is_write)
+bool va_space_rw(struct va_space *vs, uint64_t addr,
+                 void *buf, size_t size, int is_write)
 {
     while (size) {
         uint64_t page = addr & ELF2DMP_PFN_MASK;
@@ -238,7 +238,7 @@ int va_space_rw(struct va_space *vs, uint64_t addr,
 
         ptr = va_space_resolve(vs, addr);
         if (!ptr) {
-            return 1;
+            return false;
         }
 
         if (is_write) {
@@ -252,5 +252,5 @@ int va_space_rw(struct va_space *vs, uint64_t addr,
         addr += s;
     }
 
-    return 0;
+    return true;
 }

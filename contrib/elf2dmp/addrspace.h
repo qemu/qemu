@@ -39,7 +39,7 @@ void pa_space_destroy(struct pa_space *ps);
 void va_space_create(struct va_space *vs, struct pa_space *ps, uint64_t dtb);
 void va_space_set_dtb(struct va_space *vs, uint64_t dtb);
 void *va_space_resolve(struct va_space *vs, uint64_t va);
-int va_space_rw(struct va_space *vs, uint64_t addr,
-        void *buf, size_t size, int is_write);
+bool va_space_rw(struct va_space *vs, uint64_t addr,
+                 void *buf, size_t size, int is_write);
 
 #endif /* ADDRSPACE_H */
