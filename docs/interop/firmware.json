@@ -223,7 +223,7 @@
 
 
 ##
-# @FirmwareFlashType:
+# @FirmwareFlashMode:
 #
 # Describes how the firmware build handles code versus variable
 # persistence.
