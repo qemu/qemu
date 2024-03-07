@@ -33,7 +33,7 @@ struct va_space {
     struct pa_space *ps;
 };
 
-int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf);
+void pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf);
 void pa_space_destroy(struct pa_space *ps);
 
 void va_space_create(struct va_space *vs, struct pa_space *ps, uint64_t dtb);

@@ -57,7 +57,7 @@ static void pa_block_align(struct pa_block *b)
     b->paddr += low_align;
 }
 
-int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
+void pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
 {
     Elf64_Half phdr_nr = elf_getphdrnum(qemu_elf->map);
     Elf64_Phdr *phdr = elf64_getphdr(qemu_elf->map);
@@ -87,8 +87,6 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
     }
 
     ps->block_nr = block_i;
-
-    return 0;
 }
 
 void pa_space_destroy(struct pa_space *ps)
