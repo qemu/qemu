@@ -8,6 +8,7 @@
 #include "hw/ppc/spapr_nested.h"
 #include "mmu-book3s-v3.h"
 #include "cpu-models.h"
+#include "qemu/log.h"
 
 void spapr_nested_reset(SpaprMachineState *spapr)
 {
@@ -434,6 +435,16 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     }
 }
 
+static
+SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
+                                                     target_ulong guestid)
+{
+    SpaprMachineStateNestedGuest *guest;
+
+    guest = g_hash_table_lookup(spapr->nested.guests, GINT_TO_POINTER(guestid));
+    return guest;
+}
+
 static target_ulong h_guest_get_capabilities(PowerPCCPU *cpu,
                                              SpaprMachineState *spapr,
                                              target_ulong opcode,
@@ -525,6 +536,7 @@ static void
 destroy_guest_helper(gpointer value)
 {
     struct SpaprMachineStateNestedGuest *guest = value;
+    g_free(guest->vcpus);
     g_free(guest);
 }
 
@@ -620,6 +632,54 @@ static target_ulong h_guest_delete(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_ulong h_guest_create_vcpu(PowerPCCPU *cpu,
+                                        SpaprMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong guestid = args[1];
+    target_ulong vcpuid = args[2];
+    SpaprMachineStateNestedGuest *guest;
+
+    if (flags) { /* don't handle any flags for now */
+        return H_UNSUPPORTED_FLAG;
+    }
+
+    guest = spapr_get_nested_guest(spapr, guestid);
+    if (!guest) {
+        return H_P2;
+    }
+
+    if (vcpuid < guest->nr_vcpus) {
+        qemu_log_mask(LOG_UNIMP, "vcpuid " TARGET_FMT_ld " already in use.",
+                      vcpuid);
+        return H_IN_USE;
+    }
+    /* linear vcpuid allocation only */
+    assert(vcpuid == guest->nr_vcpus);
+
+    if (guest->nr_vcpus >= PAPR_NESTED_GUEST_VCPU_MAX) {
+        return H_P3;
+    }
+
+    SpaprMachineStateNestedGuestVcpu *vcpus, *curr_vcpu;
+    vcpus = g_try_renew(struct SpaprMachineStateNestedGuestVcpu,
+                        guest->vcpus,
+                        guest->nr_vcpus + 1);
+    if (!vcpus) {
+        return H_NO_MEM;
+    }
+    guest->vcpus = vcpus;
+    curr_vcpu = &vcpus[guest->nr_vcpus];
+    memset(curr_vcpu, 0, sizeof(SpaprMachineStateNestedGuestVcpu));
+
+    curr_vcpu->enabled = true;
+    guest->nr_vcpus++;
+
+    return H_SUCCESS;
+}
+
 void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -644,6 +704,7 @@ void spapr_register_nested_papr(void)
                              h_guest_set_capabilities);
     spapr_register_hypercall(H_GUEST_CREATE, h_guest_create);
     spapr_register_hypercall(H_GUEST_DELETE, h_guest_delete);
+    spapr_register_hypercall(H_GUEST_CREATE_VCPU, h_guest_create_vcpu);
 }
 
 void spapr_unregister_nested_papr(void)
@@ -652,6 +713,7 @@ void spapr_unregister_nested_papr(void)
     spapr_unregister_hypercall(H_GUEST_SET_CAPABILITIES);
     spapr_unregister_hypercall(H_GUEST_CREATE);
     spapr_unregister_hypercall(H_GUEST_DELETE);
+    spapr_unregister_hypercall(H_GUEST_CREATE_VCPU);
 }
 
 #else
