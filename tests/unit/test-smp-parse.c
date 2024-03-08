@@ -75,6 +75,22 @@
             .has_maxcpus  = hf, .maxcpus  = f,                \
         }
 
+/*
+ * Currently a 5-level topology hierarchy is supported on s390 ccw machines
+ *  -drawers/books/sockets/cores/threads
+ */
+#define SMP_CONFIG_WITH_BOOKS_DRAWERS(ha, a, hb, b, hc, c, hd, \
+                                      d, he, e, hf, f, hg, g)  \
+        {                                                      \
+            .has_cpus     = ha, .cpus     = a,                 \
+            .has_drawers  = hb, .drawers  = b,                 \
+            .has_books    = hc, .books    = c,                 \
+            .has_sockets  = hd, .sockets  = d,                 \
+            .has_cores    = he, .cores    = e,                 \
+            .has_threads  = hf, .threads  = f,                 \
+            .has_maxcpus  = hg, .maxcpus  = g,                 \
+        }
+
 /**
  * @config - the given SMP configuration
  * @expect_prefer_sockets - the expected parsing result for the
@@ -309,6 +325,11 @@ static const struct SMPTestData data_generic_invalid[] = {
         .config = SMP_CONFIG_WITH_CLUSTERS(T, 2, F, 0, T, 2, F, 0, F, 0, F, 0),
         .expect_error = "clusters not supported by this machine's CPU topology",
     }, {
+        /* config: -smp 2,books=2 */
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 2, F, 0, T, 2, F,
+                                                0, F, 0, F, 0, F, 0),
+        .expect_error = "books not supported by this machine's CPU topology",
+    }, {
         /* config: -smp 8,sockets=2,cores=4,threads=2,maxcpus=8 */
         .config = SMP_CONFIG_GENERIC(T, 8, T, 2, T, 4, T, 2, T, 8),
         .expect_error = "Invalid CPU topology: "
@@ -375,6 +396,26 @@ static const struct SMPTestData data_with_clusters_invalid[] = {
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
                         "sockets (2) * clusters (2) * cores (4) * threads (2) "
+                        "== maxcpus (32) < smp_cpus (34)",
+    },
+};
+
+static const struct SMPTestData data_with_books_invalid[] = {
+    {
+        /* config: -smp 16,books=2,sockets=2,cores=4,threads=2,maxcpus=16 */
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, F, 1, T, 2, T,
+                                                2, T, 4, T, 2, T, 16),
+        .expect_error = "Invalid CPU topology: "
+                        "product of the hierarchy must match maxcpus: "
+                        "books (2) * sockets (2) * cores (4) * threads (2) "
+                        "!= maxcpus (16)",
+    }, {
+        /* config: -smp 34,books=2,sockets=2,cores=4,threads=2,maxcpus=32 */
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, F, 1, T, 2, T,
+                                                2, T, 4, T, 2, T, 32),
+        .expect_error = "Invalid CPU topology: "
+                        "maxcpus must be equal to or greater than smp: "
+                        "books (2) * sockets (2) * cores (4) * threads (2) "
                         "== maxcpus (32) < smp_cpus (34)",
     },
 };
@@ -618,6 +659,13 @@ static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
     mc->smp_props.clusters_supported = true;
 }
 
+static void machine_with_books_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->smp_props.books_supported = true;
+}
+
 static void test_generic_valid(const void *opaque)
 {
     const char *machine_type = opaque;
@@ -756,6 +804,56 @@ static void test_with_clusters(const void *opaque)
     object_unref(obj);
 }
 
+static void test_with_books(const void *opaque)
+{
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
+    MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    SMPTestData data = {};
+    unsigned int num_books = 2;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
+        data = data_generic_valid[i];
+        unsupported_params_init(mc, &data);
+
+        /* when books parameter is omitted, it will be set as 1 */
+        data.expect_prefer_sockets.books = 1;
+        data.expect_prefer_cores.books = 1;
+
+        smp_parse_test(ms, &data, true);
+
+        /* when books parameter is specified */
+        data.config.has_books = true;
+        data.config.books = num_books;
+        if (data.config.has_cpus) {
+            data.config.cpus *= num_books;
+        }
+        if (data.config.has_maxcpus) {
+            data.config.maxcpus *= num_books;
+        }
+
+        data.expect_prefer_sockets.books = num_books;
+        data.expect_prefer_sockets.cpus *= num_books;
+        data.expect_prefer_sockets.max_cpus *= num_books;
+        data.expect_prefer_cores.books = num_books;
+        data.expect_prefer_cores.cpus *= num_books;
+        data.expect_prefer_cores.max_cpus *= num_books;
+
+        smp_parse_test(ms, &data, true);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(data_with_books_invalid); i++) {
+        data = data_with_books_invalid[i];
+        unsupported_params_init(mc, &data);
+
+        smp_parse_test(ms, &data, false);
+    }
+
+    object_unref(obj);
+}
+
 /* Type info of the tested machine */
 static const TypeInfo smp_machine_types[] = {
     {
@@ -780,6 +878,10 @@ static const TypeInfo smp_machine_types[] = {
         .name           = MACHINE_TYPE_NAME("smp-with-clusters"),
         .parent         = TYPE_MACHINE,
         .class_init     = machine_with_clusters_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("smp-with-books"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_with_books_class_init,
     }
 };
 
@@ -803,6 +905,9 @@ int main(int argc, char *argv[])
     g_test_add_data_func("/test-smp-parse/with_clusters",
                          MACHINE_TYPE_NAME("smp-with-clusters"),
                          test_with_clusters);
+    g_test_add_data_func("/test-smp-parse/with_books",
+                         MACHINE_TYPE_NAME("smp-with-books"),
+                         test_with_books);
 
     g_test_run();
 
