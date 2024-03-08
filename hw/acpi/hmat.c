@@ -214,7 +214,7 @@ static void hmat_build_table_structs(GArray *table_data, NumaState *numa_state)
     }
 
     for (i = 0; i < numa_state->num_nodes; i++) {
-        if (numa_state->nodes[i].has_cpu) {
+        if (numa_state->nodes[i].has_cpu || numa_state->nodes[i].has_gi) {
             initiator_list[num_initiator++] = i;
         }
     }
