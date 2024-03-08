@@ -7,6 +7,7 @@ typedef struct SpaprMachineStateNested {
     uint64_t ptcr;
     uint8_t api;
 #define NESTED_API_KVM_HV  1
+#define NESTED_API_PAPR    2
     bool capabilities_set;
     uint32_t pvr_base;
     GHashTable *guests;
@@ -121,6 +122,55 @@ struct nested_ppc_state {
     uint64_t ppr;
 
     int64_t tb_offset;
+    /* Nested PAPR API */
+    uint64_t amor;
+    uint64_t dawr0;
+    uint64_t dawrx0;
+    uint64_t ciabr;
+    uint64_t purr;
+    uint64_t spurr;
+    uint64_t ic;
+    uint64_t vtb;
+    uint64_t hdar;
+    uint64_t hdsisr;
+    uint64_t heir;
+    uint64_t asdr;
+    uint64_t dawr1;
+    uint64_t dawrx1;
+    uint64_t dexcr;
+    uint64_t hdexcr;
+    uint64_t hashkeyr;
+    uint64_t hashpkeyr;
+    ppc_vsr_t vsr[64] QEMU_ALIGNED(16);
+    uint64_t ebbhr;
+    uint64_t tar;
+    uint64_t ebbrr;
+    uint64_t bescr;
+    uint64_t iamr;
+    uint64_t amr;
+    uint64_t uamor;
+    uint64_t dscr;
+    uint64_t fscr;
+    uint64_t pspb;
+    uint64_t ctrl;
+    uint64_t vrsave;
+    uint64_t dar;
+    uint64_t dsisr;
+    uint64_t pmc1;
+    uint64_t pmc2;
+    uint64_t pmc3;
+    uint64_t pmc4;
+    uint64_t pmc5;
+    uint64_t pmc6;
+    uint64_t mmcr0;
+    uint64_t mmcr1;
+    uint64_t mmcr2;
+    uint64_t mmcra;
+    uint64_t sdar;
+    uint64_t siar;
+    uint64_t sier;
+    uint32_t vscr;
+    uint64_t fpscr;
 };
 
 typedef struct SpaprMachineStateNestedGuestVcpu {

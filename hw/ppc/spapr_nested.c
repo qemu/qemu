@@ -108,6 +108,7 @@ static target_ulong h_copy_tofrom_guest(PowerPCCPU *cpu,
 static void nested_save_state(struct nested_ppc_state *save, PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     memcpy(save->gpr, env->gpr, sizeof(save->gpr));
 
@@ -134,6 +135,58 @@ static void nested_save_state(struct nested_ppc_state *save, PowerPCCPU *cpu)
     save->pidr = env->spr[SPR_BOOKS_PID];
     save->ppr = env->spr[SPR_PPR];
 
+    if (spapr_nested_api(spapr) == NESTED_API_PAPR) {
+        save->pvr = env->spr[SPR_PVR];
+        save->amor = env->spr[SPR_AMOR];
+        save->dawr0 = env->spr[SPR_DAWR0];
+        save->dawrx0 = env->spr[SPR_DAWRX0];
+        save->ciabr = env->spr[SPR_CIABR];
+        save->purr = env->spr[SPR_PURR];
+        save->spurr = env->spr[SPR_SPURR];
+        save->ic = env->spr[SPR_IC];
+        save->vtb = env->spr[SPR_VTB];
+        save->hdar = env->spr[SPR_HDAR];
+        save->hdsisr = env->spr[SPR_HDSISR];
+        save->heir = env->spr[SPR_HEIR];
+        save->asdr = env->spr[SPR_ASDR];
+        save->dawr1 = env->spr[SPR_DAWR1];
+        save->dawrx1 = env->spr[SPR_DAWRX1];
+        save->dexcr = env->spr[SPR_DEXCR];
+        save->hdexcr = env->spr[SPR_HDEXCR];
+        save->hashkeyr = env->spr[SPR_HASHKEYR];
+        save->hashpkeyr = env->spr[SPR_HASHPKEYR];
+        memcpy(save->vsr, env->vsr, sizeof(save->vsr));
+        save->ebbhr = env->spr[SPR_EBBHR];
+        save->tar = env->spr[SPR_TAR];
+        save->ebbrr = env->spr[SPR_EBBRR];
+        save->bescr = env->spr[SPR_BESCR];
+        save->iamr = env->spr[SPR_IAMR];
+        save->amr = env->spr[SPR_AMR];
+        save->uamor = env->spr[SPR_UAMOR];
+        save->dscr = env->spr[SPR_DSCR];
+        save->fscr = env->spr[SPR_FSCR];
+        save->pspb = env->spr[SPR_PSPB];
+        save->ctrl = env->spr[SPR_CTRL];
+        save->vrsave = env->spr[SPR_VRSAVE];
+        save->dar = env->spr[SPR_DAR];
+        save->dsisr = env->spr[SPR_DSISR];
+        save->pmc1 = env->spr[SPR_POWER_PMC1];
+        save->pmc2 = env->spr[SPR_POWER_PMC2];
+        save->pmc3 = env->spr[SPR_POWER_PMC3];
+        save->pmc4 = env->spr[SPR_POWER_PMC4];
+        save->pmc5 = env->spr[SPR_POWER_PMC5];
+        save->pmc6 = env->spr[SPR_POWER_PMC6];
+        save->mmcr0 = env->spr[SPR_POWER_MMCR0];
+        save->mmcr1 = env->spr[SPR_POWER_MMCR1];
+        save->mmcr2 = env->spr[SPR_POWER_MMCR2];
+        save->mmcra = env->spr[SPR_POWER_MMCRA];
+        save->sdar = env->spr[SPR_POWER_SDAR];
+        save->siar = env->spr[SPR_POWER_SIAR];
+        save->sier = env->spr[SPR_POWER_SIER];
+        save->vscr = ppc_get_vscr(env);
+        save->fpscr = env->fpscr;
+    }
+
     save->tb_offset = env->tb_env->tb_offset;
 }
 
@@ -141,6 +194,7 @@ static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     memcpy(env->gpr, load->gpr, sizeof(env->gpr));
 
@@ -166,6 +220,58 @@ static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
     env->spr[SPR_SPRG3] = load->sprg3;
     env->spr[SPR_BOOKS_PID] = load->pidr;
     env->spr[SPR_PPR] = load->ppr;
+
+    if (spapr_nested_api(spapr) == NESTED_API_PAPR) {
+        env->spr[SPR_PVR] = load->pvr;
+        env->spr[SPR_AMOR] = load->amor;
+        env->spr[SPR_DAWR0] = load->dawr0;
+        env->spr[SPR_DAWRX0] = load->dawrx0;
+        env->spr[SPR_CIABR] = load->ciabr;
+        env->spr[SPR_PURR] = load->purr;
+        env->spr[SPR_SPURR] = load->purr;
+        env->spr[SPR_IC] = load->ic;
+        env->spr[SPR_VTB] = load->vtb;
+        env->spr[SPR_HDAR] = load->hdar;
+        env->spr[SPR_HDSISR] = load->hdsisr;
+        env->spr[SPR_HEIR] = load->heir;
+        env->spr[SPR_ASDR] = load->asdr;
+        env->spr[SPR_DAWR1] = load->dawr1;
+        env->spr[SPR_DAWRX1] = load->dawrx1;
+        env->spr[SPR_DEXCR] = load->dexcr;
+        env->spr[SPR_HDEXCR] = load->hdexcr;
+        env->spr[SPR_HASHKEYR] = load->hashkeyr;
+        env->spr[SPR_HASHPKEYR] = load->hashpkeyr;
+        memcpy(env->vsr, load->vsr, sizeof(env->vsr));
+        env->spr[SPR_EBBHR] = load->ebbhr;
+        env->spr[SPR_TAR] = load->tar;
+        env->spr[SPR_EBBRR] = load->ebbrr;
+        env->spr[SPR_BESCR] = load->bescr;
+        env->spr[SPR_IAMR] = load->iamr;
+        env->spr[SPR_AMR] = load->amr;
+        env->spr[SPR_UAMOR] = load->uamor;
+        env->spr[SPR_DSCR] = load->dscr;
+        env->spr[SPR_FSCR] = load->fscr;
+        env->spr[SPR_PSPB] = load->pspb;
+        env->spr[SPR_CTRL] = load->ctrl;
+        env->spr[SPR_VRSAVE] = load->vrsave;
+        env->spr[SPR_DAR] = load->dar;
+        env->spr[SPR_DSISR] = load->dsisr;
+        env->spr[SPR_POWER_PMC1] = load->pmc1;
+        env->spr[SPR_POWER_PMC2] = load->pmc2;
+        env->spr[SPR_POWER_PMC3] = load->pmc3;
+        env->spr[SPR_POWER_PMC4] = load->pmc4;
+        env->spr[SPR_POWER_PMC5] = load->pmc5;
+        env->spr[SPR_POWER_PMC6] = load->pmc6;
+        env->spr[SPR_POWER_MMCR0] = load->mmcr0;
+        env->spr[SPR_POWER_MMCR1] = load->mmcr1;
+        env->spr[SPR_POWER_MMCR2] = load->mmcr2;
+        env->spr[SPR_POWER_MMCRA] = load->mmcra;
+        env->spr[SPR_POWER_SDAR] = load->sdar;
+        env->spr[SPR_POWER_SIAR] = load->siar;
+        env->spr[SPR_POWER_SIER] = load->sier;
+        ppc_store_vscr(env, load->vscr);
+        ppc_store_fpscr(env, load->fpscr);
+    }
 
     env->tb_env->tb_offset = load->tb_offset;
 
