@@ -162,7 +162,7 @@ static bool is_kvm_aia(bool msimode)
 static uint32_t riscv_aplic_read_input_word(RISCVAPLICState *aplic,
                                             uint32_t word)
 {
-    uint32_t i, irq, ret = 0;
+    uint32_t i, irq, sourcecfg, sm, raw_input, irq_inverted, ret = 0;
 
     for (i = 0; i < 32; i++) {
         irq = word * 32 + i;
@@ -170,7 +170,20 @@ static uint32_t riscv_aplic_read_input_word(RISCVAPLICState *aplic,
             continue;
         }
 
-        ret |= ((aplic->state[irq] & APLIC_ISTATE_INPUT) ? 1 : 0) << i;
+        sourcecfg = aplic->sourcecfg[irq];
+        if (sourcecfg & APLIC_SOURCECFG_D) {
+            continue;
+        }
+
+        sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
+        if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
+            continue;
+        }
+
+        raw_input = (aplic->state[irq] & APLIC_ISTATE_INPUT) ? 1 : 0;
+        irq_inverted = (sm == APLIC_SOURCECFG_SM_LEVEL_LOW ||
+                        sm == APLIC_SOURCECFG_SM_EDGE_FALL) ? 1 : 0;
+        ret |= (raw_input ^ irq_inverted) << i;
     }
 
     return ret;
@@ -218,11 +231,23 @@ static void riscv_aplic_set_pending(RISCVAPLICState *aplic,
     }
 
     sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if ((sm == APLIC_SOURCECFG_SM_INACTIVE) ||
-        ((!aplic->msimode || (aplic->msimode && !pending)) &&
-         ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) ||
-          (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)))) {
+    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
         return;
+    }
+
+    if ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) ||
+        (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)) {
+        if (!aplic->msimode || (aplic->msimode && !pending)) {
+            return;
+        }
+        if ((aplic->state[irq] & APLIC_ISTATE_INPUT) &&
+            (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)) {
+            return;
+        }
+        if (!(aplic->state[irq] & APLIC_ISTATE_INPUT) &&
+            (sm == APLIC_SOURCECFG_SM_LEVEL_HIGH)) {
+            return;
+        }
     }
 
     riscv_aplic_set_pending_raw(aplic, irq, pending);

@@ -174,6 +174,42 @@ acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(scope, dev);
 }
 
+/*
+ * Serial Port Console Redirection Table (SPCR)
+ * Rev: 1.07
+ */
+
+static void
+spcr_setup(GArray *table_data, BIOSLinker *linker, RISCVVirtState *s)
+{
+    AcpiSpcrData serial = {
+        .interface_type = 0,       /* 16550 compatible */
+        .base_addr.id = AML_AS_SYSTEM_MEMORY,
+        .base_addr.width = 32,
+        .base_addr.offset = 0,
+        .base_addr.size = 1,
+        .base_addr.addr = s->memmap[VIRT_UART0].base,
+        .interrupt_type = (1 << 4),/* Bit[4] RISC-V PLIC/APLIC */
+        .pc_interrupt = 0,
+        .interrupt = UART0_IRQ,
+        .baud_rate = 7,            /* 15200 */
+        .parity = 0,
+        .stop_bits = 1,
+        .flow_control = 0,
+        .terminal_type = 3,        /* ANSI */
+        .language = 0,             /* Language */
+        .pci_device_id = 0xffff,   /* not a PCI device*/
+        .pci_vendor_id = 0xffff,   /* not a PCI device*/
+        .pci_bus = 0,
+        .pci_device = 0,
+        .pci_function = 0,
+        .pci_flags = 0,
+        .pci_segment = 0,
+    };
+
+    build_spcr(table_data, linker, &serial, 2, s->oem_id, s->oem_table_id);
+}
+
 /* RHCT Node[N] starts at offset 56 */
 #define RHCT_NODE_ARRAY_OFFSET 56
 
@@ -528,11 +564,61 @@ static void build_madt(GArray *table_data,
     acpi_table_end(linker, &table);
 }
 
+/*
+ * ACPI spec, Revision 6.5+
+ * 5.2.16 System Resource Affinity Table (SRAT)
+ * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/25
+ *      https://drive.google.com/file/d/1YTdDx2IPm5IeZjAW932EYU-tUtgS08tX/view
+ */
+static void
+build_srat(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
+{
+    int i;
+    uint64_t mem_base;
+    MachineClass *mc = MACHINE_GET_CLASS(vms);
+    MachineState *ms = MACHINE(vms);
+    const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
+    AcpiTable table = { .sig = "SRAT", .rev = 3, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
+
+    acpi_table_begin(&table, table_data);
+    build_append_int_noprefix(table_data, 1, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 0, 8); /* Reserved */
+
+    for (i = 0; i < cpu_list->len; ++i) {
+        uint32_t nodeid = cpu_list->cpus[i].props.node_id;
+        /*
+         * 5.2.16.8 RINTC Affinity Structure
+         */
+        build_append_int_noprefix(table_data, 7, 1);      /* Type */
+        build_append_int_noprefix(table_data, 20, 1);     /* Length */
+        build_append_int_noprefix(table_data, 0, 2);        /* Reserved */
+        build_append_int_noprefix(table_data, nodeid, 4); /* Proximity Domain */
+        build_append_int_noprefix(table_data, i, 4); /* ACPI Processor UID */
+        /* Flags, Table 5-70 */
+        build_append_int_noprefix(table_data, 1 /* Flags: Enabled */, 4);
+        build_append_int_noprefix(table_data, 0, 4); /* Clock Domain */
+    }
+
+    mem_base = vms->memmap[VIRT_DRAM].base;
+    for (i = 0; i < ms->numa_state->num_nodes; ++i) {
+        if (ms->numa_state->nodes[i].node_mem > 0) {
+            build_srat_memory(table_data, mem_base,
+                              ms->numa_state->nodes[i].node_mem, i,
+                              MEM_AFFINITY_ENABLED);
+            mem_base += ms->numa_state->nodes[i].node_mem;
+        }
+    }
+
+    acpi_table_end(linker, &table);
+}
+
 static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
 {
     GArray *table_offsets;
     unsigned dsdt, xsdt;
     GArray *tables_blob = tables->table_data;
+    MachineState *ms = MACHINE(s);
 
     table_offsets = g_array_new(false, true,
                                 sizeof(uint32_t));
@@ -556,13 +642,26 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
     build_rhct(tables_blob, tables->linker, s);
 
     acpi_add_table(table_offsets, tables_blob);
+    spcr_setup(tables_blob, tables->linker, s);
+
+    acpi_add_table(table_offsets, tables_blob);
     {
         AcpiMcfgInfo mcfg = {
-           .base = s->memmap[VIRT_PCIE_MMIO].base,
-           .size = s->memmap[VIRT_PCIE_MMIO].size,
+           .base = s->memmap[VIRT_PCIE_ECAM].base,
+           .size = s->memmap[VIRT_PCIE_ECAM].size,
         };
         build_mcfg(tables_blob, tables->linker, &mcfg, s->oem_id,
                    s->oem_table_id);
+    }
+
+    if (ms->numa_state->num_nodes > 0) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_srat(tables_blob, tables->linker, s);
+        if (ms->numa_state->have_numa_distance) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_slit(tables_blob, tables->linker, ms, s->oem_id,
+                       s->oem_table_id);
+        }
     }
 
     /* XSDT is pointed to by RSDP */

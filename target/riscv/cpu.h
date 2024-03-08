@@ -271,7 +271,7 @@ struct CPUArchState {
     target_ulong hstatus;
     target_ulong hedeleg;
     uint64_t hideleg;
-    target_ulong hcounteren;
+    uint32_t hcounteren;
     target_ulong htval;
     target_ulong htinst;
     target_ulong hgatp;
@@ -334,10 +334,10 @@ struct CPUArchState {
      */
     bool two_stage_indirect_lookup;
 
-    target_ulong scounteren;
-    target_ulong mcounteren;
+    uint32_t scounteren;
+    uint32_t mcounteren;
 
-    target_ulong mcountinhibit;
+    uint32_t mcountinhibit;
 
     /* PMU counter state */
     PMUCTRState pmu_ctrs[RV_MAX_MHPMCOUNTERS];

@@ -196,17 +196,14 @@ static bool cpu_cfg_offset_is_named_feat(uint32_t ext_offset)
 
 static void riscv_cpu_enable_named_feat(RISCVCPU *cpu, uint32_t feat_offset)
 {
-    switch (feat_offset) {
-    case CPU_CFG_OFFSET(zic64b):
+     /*
+      * All other named features are already enabled
+      * in riscv_tcg_cpu_instance_init().
+      */
+    if (feat_offset == CPU_CFG_OFFSET(ext_zic64b)) {
         cpu->cfg.cbom_blocksize = 64;
         cpu->cfg.cbop_blocksize = 64;
         cpu->cfg.cboz_blocksize = 64;
-        break;
-    case CPU_CFG_OFFSET(svade):
-        cpu->cfg.ext_svadu = false;
-        break;
-    default:
-        g_assert_not_reached();
     }
 }
 
@@ -216,10 +213,6 @@ static void cpu_bump_multi_ext_priv_ver(CPURISCVState *env,
     int ext_priv_ver;
 
     if (env->priv_ver == PRIV_VERSION_LATEST) {
-        return;
-    }
-
-    if (cpu_cfg_offset_is_named_feat(ext_offset)) {
         return;
     }
 
@@ -322,11 +315,9 @@ static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
 
 static void riscv_cpu_update_named_features(RISCVCPU *cpu)
 {
-    cpu->cfg.zic64b = cpu->cfg.cbom_blocksize == 64 &&
-                      cpu->cfg.cbop_blocksize == 64 &&
-                      cpu->cfg.cboz_blocksize == 64;
-
-    cpu->cfg.svade = !cpu->cfg.ext_svadu;
+    cpu->cfg.ext_zic64b = cpu->cfg.cbom_blocksize == 64 &&
+                          cpu->cfg.cbop_blocksize == 64 &&
+                          cpu->cfg.cboz_blocksize == 64;
 }
 
 static void riscv_cpu_validate_g(RISCVCPU *cpu)
@@ -1075,6 +1066,7 @@ static void cpu_set_profile(Object *obj, Visitor *v, const char *name,
 
 #ifndef CONFIG_USER_ONLY
     if (profile->satp_mode != RISCV_PROFILE_ATTR_UNUSED) {
+        object_property_set_bool(obj, "mmu", true, NULL);
         const char *satp_prop = satp_mode_str(profile->satp_mode,
                                               riscv_cpu_is_32bit(cpu));
         object_property_set_bool(obj, satp_prop, profile->enabled, NULL);
@@ -1290,6 +1282,12 @@ static void riscv_init_max_cpu_extensions(Object *obj)
         isa_ext_update_enabled(cpu, prop->offset, true);
     }
 
+    /*
+     * Some extensions can't be added without backward compatibilty concerns.
+     * Disable those, the user can still opt in to them on the command line.
+     */
+    cpu->cfg.ext_svade = false;
+
     /* set vector version */
     env->vext_ver = VEXT_VERSION_1_00_0;
 
@@ -1317,6 +1315,8 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     Object *obj = OBJECT(cpu);
+
+    cpu->cfg.ext_always_enabled = true;
 
     misa_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
     multi_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
