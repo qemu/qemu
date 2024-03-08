@@ -524,6 +524,91 @@ static const struct SMPTestData data_full_topo_invalid[] = {
     },
 };
 
+static const struct SMPTestData data_zero_topo_invalid[] = {
+    {
+        /*
+         * Test "cpus=0".
+         * config: -smp 0,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=1,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(0, 1, 1, 1, 1, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "drawers=0".
+         * config: -smp 1,drawers=0,books=1,sockets=1,dies=1,\
+         *              clusters=1,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 0, 1, 1, 1, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "books=0".
+         * config: -smp 1,drawers=1,books=0,sockets=1,dies=1,\
+         *              clusters=1,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 0, 1, 1, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "sockets=0".
+         * config: -smp 1,drawers=1,books=1,sockets=0,dies=1,\
+         *              clusters=1,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 0, 1, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "dies=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=0,\
+         *              clusters=1,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 0, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "clusters=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=0,cores=1,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 0, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "cores=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=1,cores=0,threads=1,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 0, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "threads=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=1,cores=1,threads=0,maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 0, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "maxcpus=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=1,cores=1,threads=1,maxcpus=0
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 1, 0),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    },
+};
+
 static char *smp_config_to_string(const SMPConfiguration *config)
 {
     return g_strdup_printf(
@@ -1168,6 +1253,13 @@ static void test_full_topo(const void *opaque)
 
     for (i = 0; i < ARRAY_SIZE(data_full_topo_invalid); i++) {
         data = data_full_topo_invalid[i];
+        unsupported_params_init(mc, &data);
+
+        smp_parse_test(ms, &data, false);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(data_zero_topo_invalid); i++) {
+        data = data_zero_topo_invalid[i];
         unsupported_params_init(mc, &data);
 
         smp_parse_test(ms, &data, false);
