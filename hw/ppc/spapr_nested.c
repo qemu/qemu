@@ -19,6 +19,7 @@ void spapr_nested_reset(SpaprMachineState *spapr)
     } else {
         spapr->nested.api = 0;
         spapr->nested.capabilities_set = false;
+        spapr_nested_gsb_init();
     }
 }
 
@@ -136,7 +137,6 @@ static void nested_save_state(struct nested_ppc_state *save, PowerPCCPU *cpu)
     save->ppr = env->spr[SPR_PPR];
 
     if (spapr_nested_api(spapr) == NESTED_API_PAPR) {
-        save->pvr = env->spr[SPR_PVR];
         save->amor = env->spr[SPR_AMOR];
         save->dawr0 = env->spr[SPR_DAWR0];
         save->dawrx0 = env->spr[SPR_DAWRX0];
@@ -222,7 +222,6 @@ static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
     env->spr[SPR_PPR] = load->ppr;
 
     if (spapr_nested_api(spapr) == NESTED_API_PAPR) {
-        env->spr[SPR_PVR] = load->pvr;
         env->spr[SPR_AMOR] = load->amor;
         env->spr[SPR_DAWR0] = load->dawr0;
         env->spr[SPR_DAWRX0] = load->dawrx0;
@@ -551,6 +550,485 @@ SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
     return guest;
 }
 
+static bool spapr_nested_vcpu_check(SpaprMachineStateNestedGuest *guest,
+                                    target_ulong vcpuid, bool inoutbuf)
+{
+    struct SpaprMachineStateNestedGuestVcpu *vcpu;
+    /*
+     * Perform sanity checks for the provided vcpuid of a guest.
+     * For now, ensure its valid, allocated and enabled for use.
+     */
+
+    if (vcpuid >= PAPR_NESTED_GUEST_VCPU_MAX) {
+        return false;
+    }
+
+    if (!(vcpuid < guest->nr_vcpus)) {
+        return false;
+    }
+
+    vcpu = &guest->vcpus[vcpuid];
+    if (!vcpu->enabled) {
+        return false;
+    }
+
+    if (!inoutbuf) {
+        return true;
+    }
+
+    /* Check to see if the in/out buffers are registered */
+    if (vcpu->runbufin.addr && vcpu->runbufout.addr) {
+        return true;
+    }
+
+    return false;
+}
+
+static void *get_vcpu_state_ptr(SpaprMachineStateNestedGuest *guest,
+                              target_ulong vcpuid)
+{
+    assert(spapr_nested_vcpu_check(guest, vcpuid, false));
+    return &guest->vcpus[vcpuid].state;
+}
+
+static void *get_vcpu_ptr(SpaprMachineStateNestedGuest *guest,
+                                   target_ulong vcpuid)
+{
+    assert(spapr_nested_vcpu_check(guest, vcpuid, false));
+    return &guest->vcpus[vcpuid];
+}
+
+static void *get_guest_ptr(SpaprMachineStateNestedGuest *guest,
+                           target_ulong vcpuid)
+{
+    return guest; /* for GSBE_NESTED */
+}
+
+/*
+ * set=1 means the L1 is trying to set some state
+ * set=0 means the L1 is trying to get some state
+ */
+static void copy_state_8to8(void *a, void *b, bool set)
+{
+    /* set takes from the Big endian element_buf and sets internal buffer */
+
+    if (set) {
+        *(uint64_t *)a = be64_to_cpu(*(uint64_t *)b);
+    } else {
+        *(uint64_t *)b = cpu_to_be64(*(uint64_t *)a);
+    }
+}
+
+static void copy_state_4to4(void *a, void *b, bool set)
+{
+    if (set) {
+        *(uint32_t *)a = be32_to_cpu(*(uint32_t *)b);
+    } else {
+        *(uint32_t *)b = cpu_to_be32(*((uint32_t *)a));
+    }
+}
+
+static void copy_state_16to16(void *a, void *b, bool set)
+{
+    uint64_t *src, *dst;
+
+    if (set) {
+        src = b;
+        dst = a;
+
+        dst[1] = be64_to_cpu(src[0]);
+        dst[0] = be64_to_cpu(src[1]);
+    } else {
+        src = a;
+        dst = b;
+
+        dst[1] = cpu_to_be64(src[0]);
+        dst[0] = cpu_to_be64(src[1]);
+    }
+}
+
+static void copy_state_4to8(void *a, void *b, bool set)
+{
+    if (set) {
+        *(uint64_t *)a  = (uint64_t) be32_to_cpu(*(uint32_t *)b);
+    } else {
+        *(uint32_t *)b = cpu_to_be32((uint32_t) (*((uint64_t *)a)));
+    }
+}
+
+static void copy_state_pagetbl(void *a, void *b, bool set)
+{
+    uint64_t *pagetbl;
+    uint64_t *buf; /* 3 double words */
+    uint64_t rts;
+
+    assert(set);
+
+    pagetbl = a;
+    buf = b;
+
+    *pagetbl = be64_to_cpu(buf[0]);
+    /* as per ISA section 6.7.6.1 */
+    *pagetbl |= PATE0_HR; /* Host Radix bit is 1 */
+
+    /* RTS */
+    rts = be64_to_cpu(buf[1]);
+    assert(rts == 52);
+    rts = rts - 31; /* since radix tree size = 2^(RTS+31) */
+    *pagetbl |=  ((rts & 0x7) << 5); /* RTS2 is bit 56:58 */
+    *pagetbl |=  (((rts >> 3) & 0x3) << 61); /* RTS1 is bit 1:2 */
+
+    /* RPDS {Size = 2^(RPDS+3) , RPDS >=5} */
+    *pagetbl |= 63 - clz64(be64_to_cpu(buf[2])) - 3;
+}
+
+static void copy_state_proctbl(void *a, void *b, bool set)
+{
+    uint64_t *proctbl;
+    uint64_t *buf; /* 2 double words */
+
+    assert(set);
+
+    proctbl = a;
+    buf = b;
+    /* PRTB: Process Table Base */
+    *proctbl = be64_to_cpu(buf[0]);
+    /* PRTS: Process Table Size = 2^(12+PRTS) */
+    if (be64_to_cpu(buf[1]) == (1ULL << 12)) {
+            *proctbl |= 0;
+    } else if (be64_to_cpu(buf[1]) == (1ULL << 24)) {
+            *proctbl |= 12;
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void copy_state_runbuf(void *a, void *b, bool set)
+{
+    uint64_t *buf; /* 2 double words */
+    struct SpaprMachineStateNestedGuestVcpuRunBuf *runbuf;
+
+    assert(set);
+
+    runbuf = a;
+    buf = b;
+
+    runbuf->addr = be64_to_cpu(buf[0]);
+    assert(runbuf->addr);
+
+    /* per spec */
+    assert(be64_to_cpu(buf[1]) <= 16384);
+
+    /*
+     * This will also hit in the input buffer but should be fine for
+     * now. If not we can split this function.
+     */
+    assert(be64_to_cpu(buf[1]) >= VCPU_OUT_BUF_MIN_SZ);
+
+    runbuf->size = be64_to_cpu(buf[1]);
+}
+
+/* tell the L1 how big we want the output vcpu run buffer */
+static void out_buf_min_size(void *a, void *b, bool set)
+{
+    uint64_t *buf; /* 1 double word */
+
+    assert(!set);
+
+    buf = b;
+
+    buf[0] = cpu_to_be64(VCPU_OUT_BUF_MIN_SZ);
+}
+
+static void copy_logical_pvr(void *a, void *b, bool set)
+{
+    SpaprMachineStateNestedGuest *guest;
+    uint32_t *buf; /* 1 word */
+    uint32_t *pvr_logical_ptr;
+    uint32_t pvr_logical;
+    target_ulong pcr = 0;
+
+    pvr_logical_ptr = a;
+    buf = b;
+
+    if (!set) {
+        buf[0] = cpu_to_be32(*pvr_logical_ptr);
+        return;
+    }
+
+    pvr_logical = be32_to_cpu(buf[0]);
+
+    *pvr_logical_ptr = pvr_logical;
+
+    if (*pvr_logical_ptr) {
+        switch (*pvr_logical_ptr) {
+        case CPU_POWERPC_LOGICAL_3_10:
+            pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00;
+            break;
+        case CPU_POWERPC_LOGICAL_3_00:
+            pcr = PCR_COMPAT_3_00;
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Could not set PCR for LPVR=0x%08x\n",
+                          *pvr_logical_ptr);
+            return;
+        }
+    }
+
+    guest = container_of(pvr_logical_ptr,
+                         struct SpaprMachineStateNestedGuest,
+                         pvr_logical);
+    for (int i = 0; i < guest->nr_vcpus; i++) {
+        guest->vcpus[i].state.pcr = ~pcr | HVMASK_PCR;
+    }
+}
+
+static void copy_tb_offset(void *a, void *b, bool set)
+{
+    SpaprMachineStateNestedGuest *guest;
+    uint64_t *buf; /* 1 double word */
+    uint64_t *tb_offset_ptr;
+    uint64_t tb_offset;
+
+    tb_offset_ptr = a;
+    buf = b;
+
+    if (!set) {
+        buf[0] = cpu_to_be64(*tb_offset_ptr);
+        return;
+    }
+
+    tb_offset = be64_to_cpu(buf[0]);
+    /* need to copy this to the individual tb_offset for each vcpu */
+    guest = container_of(tb_offset_ptr,
+                         struct SpaprMachineStateNestedGuest,
+                         tb_offset);
+    for (int i = 0; i < guest->nr_vcpus; i++) {
+        guest->vcpus[i].tb_offset = tb_offset;
+    }
+}
+
+static void copy_state_hdecr(void *a, void *b, bool set)
+{
+    uint64_t *buf; /* 1 double word */
+    uint64_t *hdecr_expiry_tb;
+
+    hdecr_expiry_tb = a;
+    buf = b;
+
+    if (!set) {
+        buf[0] = cpu_to_be64(*hdecr_expiry_tb);
+        return;
+    }
+
+    *hdecr_expiry_tb = be64_to_cpu(buf[0]);
+}
+
+struct guest_state_element_type guest_state_element_types[] = {
+    GUEST_STATE_ELEMENT_NOP(GSB_HV_VCPU_IGNORED_ID, 0),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR0,  gpr[0]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR1,  gpr[1]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR2,  gpr[2]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR3,  gpr[3]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR4,  gpr[4]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR5,  gpr[5]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR6,  gpr[6]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR7,  gpr[7]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR8,  gpr[8]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR9,  gpr[9]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR10, gpr[10]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR11, gpr[11]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR12, gpr[12]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR13, gpr[13]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR14, gpr[14]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR15, gpr[15]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR16, gpr[16]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR17, gpr[17]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR18, gpr[18]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR19, gpr[19]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR20, gpr[20]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR21, gpr[21]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR22, gpr[22]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR23, gpr[23]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR24, gpr[24]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR25, gpr[25]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR26, gpr[26]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR27, gpr[27]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR28, gpr[28]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR29, gpr[29]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR30, gpr[30]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_GPR31, gpr[31]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_NIA, nip),
+    GSE_ENV_DWM(GSB_VCPU_SPR_MSR, msr, HVMASK_MSR),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_CTR, ctr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_LR, lr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_XER, xer),
+    GUEST_STATE_ELEMENT_ENV_WW(GSB_VCPU_SPR_CR, cr),
+    GUEST_STATE_ELEMENT_NOP_DW(GSB_VCPU_SPR_MMCR3),
+    GUEST_STATE_ELEMENT_NOP_DW(GSB_VCPU_SPR_SIER2),
+    GUEST_STATE_ELEMENT_NOP_DW(GSB_VCPU_SPR_SIER3),
+    GUEST_STATE_ELEMENT_NOP_W(GSB_VCPU_SPR_WORT),
+    GSE_ENV_DWM(GSB_VCPU_SPR_LPCR, lpcr, HVMASK_LPCR),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_AMOR, amor),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_HFSCR, hfscr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DAWR0, dawr0),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_DAWRX0, dawrx0),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_CIABR, ciabr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_PURR,  purr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SPURR, spurr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_IC,    ic),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_VTB,   vtb),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_HDAR,  hdar),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_HDSISR, hdsisr),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_HEIR,   heir),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_ASDR,  asdr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SRR0,  srr0),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SRR1,  srr1),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SPRG0, sprg0),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SPRG1, sprg1),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SPRG2, sprg2),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SPRG3, sprg3),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PIDR,   pidr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_CFAR,  cfar),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_PPR,   ppr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DAWR1, dawr1),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_DAWRX1, dawrx1),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DEXCR, dexcr),
+    GSE_ENV_DWM(GSB_VCPU_SPR_HDEXCR, hdexcr, HVMASK_HDEXCR),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_HASHKEYR, hashkeyr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_HASHPKEYR, hashpkeyr),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR0, vsr[0]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR1, vsr[1]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR2, vsr[2]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR3, vsr[3]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR4, vsr[4]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR5, vsr[5]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR6, vsr[6]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR7, vsr[7]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR8, vsr[8]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR9, vsr[9]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR10, vsr[10]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR11, vsr[11]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR12, vsr[12]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR13, vsr[13]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR14, vsr[14]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR15, vsr[15]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR16, vsr[16]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR17, vsr[17]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR18, vsr[18]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR19, vsr[19]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR20, vsr[20]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR21, vsr[21]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR22, vsr[22]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR23, vsr[23]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR24, vsr[24]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR25, vsr[25]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR26, vsr[26]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR27, vsr[27]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR28, vsr[28]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR29, vsr[29]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR30, vsr[30]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR31, vsr[31]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR32, vsr[32]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR33, vsr[33]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR34, vsr[34]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR35, vsr[35]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR36, vsr[36]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR37, vsr[37]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR38, vsr[38]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR39, vsr[39]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR40, vsr[40]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR41, vsr[41]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR42, vsr[42]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR43, vsr[43]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR44, vsr[44]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR45, vsr[45]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR46, vsr[46]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR47, vsr[47]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR48, vsr[48]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR49, vsr[49]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR50, vsr[50]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR51, vsr[51]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR52, vsr[52]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR53, vsr[53]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR54, vsr[54]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR55, vsr[55]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR56, vsr[56]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR57, vsr[57]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR58, vsr[58]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR59, vsr[59]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR60, vsr[60]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR61, vsr[61]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR62, vsr[62]),
+    GUEST_STATE_ELEMENT_ENV_QW(GSB_VCPU_SPR_VSR63, vsr[63]),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_EBBHR, ebbhr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_TAR,   tar),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_EBBRR, ebbrr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_BESCR, bescr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_IAMR,  iamr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_AMR,   amr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_UAMOR, uamor),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DSCR,  dscr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_FSCR,  fscr),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PSPB,   pspb),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_CTRL,  ctrl),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_VRSAVE, vrsave),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DAR,   dar),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_DSISR,  dsisr),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC1,   pmc1),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC2,   pmc2),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC3,   pmc3),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC4,   pmc4),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC5,   pmc5),
+    GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PMC6,   pmc6),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_MMCR0, mmcr0),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_MMCR1, mmcr1),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_MMCR2, mmcr2),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_MMCRA, mmcra),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SDAR , sdar),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SIAR , siar),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_SIER , sier),
+    GUEST_STATE_ELEMENT_ENV_WW(GSB_VCPU_SPR_VSCR,  vscr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_FPSCR, fpscr),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_DEC_EXPIRE_TB, dec_expiry_tb),
+    GSBE_NESTED(GSB_PART_SCOPED_PAGETBL, 0x18, parttbl[0],  copy_state_pagetbl),
+    GSBE_NESTED(GSB_PROCESS_TBL,         0x10, parttbl[1],  copy_state_proctbl),
+    GSBE_NESTED(GSB_VCPU_LPVR,           0x4,  pvr_logical, copy_logical_pvr),
+    GSBE_NESTED_MSK(GSB_TB_OFFSET, 0x8, tb_offset, copy_tb_offset,
+                    HVMASK_TB_OFFSET),
+    GSBE_NESTED_VCPU(GSB_VCPU_IN_BUFFER, 0x10, runbufin,    copy_state_runbuf),
+    GSBE_NESTED_VCPU(GSB_VCPU_OUT_BUFFER, 0x10, runbufout,   copy_state_runbuf),
+    GSBE_NESTED_VCPU(GSB_VCPU_OUT_BUF_MIN_SZ, 0x8, runbufout, out_buf_min_size),
+    GSBE_NESTED_VCPU(GSB_VCPU_HDEC_EXPIRY_TB, 0x8, hdecr_expiry_tb,
+                     copy_state_hdecr)
+};
+
+void spapr_nested_gsb_init(void)
+{
+    struct guest_state_element_type *type;
+
+    /* Init the guest state elements lookup table, flags for now */
+    for (int i = 0; i < ARRAY_SIZE(guest_state_element_types); i++) {
+        type = &guest_state_element_types[i];
+
+        assert(type->id <= GSB_LAST);
+        if (type->id >= GSB_VCPU_SPR_HDAR)
+            /* 0xf000 - 0xf005 Thread + RO */
+            type->flags = GUEST_STATE_ELEMENT_TYPE_FLAG_READ_ONLY;
+        else if (type->id >= GSB_VCPU_IN_BUFFER)
+            /* 0x0c00 - 0xf000 Thread + RW */
+            type->flags = 0;
+        else if (type->id >= GSB_VCPU_LPVR)
+            /* 0x0003 - 0x0bff Guest + RW */
+            type->flags = GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE;
+        else if (type->id >= GSB_HV_VCPU_STATE_SIZE)
+            /* 0x0001 - 0x0002 Guest + RO */
+            type->flags = GUEST_STATE_ELEMENT_TYPE_FLAG_READ_ONLY |
+                          GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE;
+    }
+}
+
 static target_ulong h_guest_get_capabilities(PowerPCCPU *cpu,
                                              SpaprMachineState *spapr,
                                              target_ulong opcode,
@@ -850,6 +1328,11 @@ void spapr_register_nested_papr(void)
 }
 
 void spapr_unregister_nested_papr(void)
+{
+    /* DO NOTHING */
+}
+
+void spapr_nested_gsb_init(void)
 {
     /* DO NOTHING */
 }
