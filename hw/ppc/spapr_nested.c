@@ -13,13 +13,15 @@
 void spapr_nested_reset(SpaprMachineState *spapr)
 {
     if (spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV)) {
-        spapr->nested.api = NESTED_API_KVM_HV;
         spapr_unregister_nested_hv();
         spapr_register_nested_hv();
+    } else if (spapr_get_cap(spapr, SPAPR_CAP_NESTED_PAPR)) {
+        spapr->nested.capabilities_set = false;
+        spapr_unregister_nested_papr();
+        spapr_register_nested_papr();
+        spapr_nested_gsb_init();
     } else {
         spapr->nested.api = 0;
-        spapr->nested.capabilities_set = false;
-        spapr_nested_gsb_init();
     }
 }
 
