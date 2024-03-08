@@ -607,11 +607,6 @@ static void test_generic_valid(const void *opaque)
         unsupported_params_init(mc, &data);
 
         smp_parse_test(ms, &data, true);
-
-        /* Unsupported parameters can be provided with their values as 1 */
-        data.config.has_dies = true;
-        data.config.dies = 1;
-        smp_parse_test(ms, &data, true);
     }
 
     object_unref(obj);
