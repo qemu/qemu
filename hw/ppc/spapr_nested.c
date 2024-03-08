@@ -210,14 +210,28 @@ static void nested_save_state(struct nested_ppc_state *save, PowerPCCPU *cpu)
         save->sier = env->spr[SPR_POWER_SIER];
         save->vscr = ppc_get_vscr(env);
         save->fpscr = env->fpscr;
+    } else if (spapr_nested_api(spapr) == NESTED_API_KVM_HV) {
+        save->tb_offset = env->tb_env->tb_offset;
     }
+}
 
-    save->tb_offset = env->tb_env->tb_offset;
+static void nested_post_load_state(CPUPPCState *env, CPUState *cs)
+{
+    /*
+     * compute hflags and possible interrupts.
+     */
+    hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
+    /*
+     * Nested HV does not tag TLB entries between L1 and L2, so must
+     * flush on transition.
+     */
+    tlb_flush(cs);
+    env->reserve_addr = -1; /* Reset the reservation */
 }
 
 static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
 {
-    CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
@@ -295,22 +309,9 @@ static void nested_load_state(PowerPCCPU *cpu, struct nested_ppc_state *load)
         env->spr[SPR_POWER_SIER] = load->sier;
         ppc_store_vscr(env, load->vscr);
         ppc_store_fpscr(env, load->fpscr);
+    } else if (spapr_nested_api(spapr) == NESTED_API_KVM_HV) {
+        env->tb_env->tb_offset = load->tb_offset;
     }
-
-    env->tb_env->tb_offset = load->tb_offset;
-
-    /*
-     * MSR updated, compute hflags and possible interrupts.
-     */
-    hreg_compute_hflags(env);
-    ppc_maybe_interrupt(env);
-
-    /*
-     * Nested HV does not tag TLB entries between L1 and L2, so must
-     * flush on transition.
-     */
-    tlb_flush(cs);
-    env->reserve_addr = -1; /* Reset the reservation */
 }
 
 /*
@@ -325,6 +326,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     struct nested_ppc_state l2_state;
     target_ulong hv_ptr = args[0];
@@ -423,6 +425,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
      * Switch to the nested guest environment and start the "hdec" timer.
      */
     nested_load_state(cpu, &l2_state);
+    nested_post_load_state(env, cs);
 
     hdec = hv_state.hdec_expiry - now;
     cpu_ppc_hdecr_init(env);
@@ -454,6 +457,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
 static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
 {
     CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     struct nested_ppc_state l2_state;
     target_ulong hv_ptr = spapr_cpu->nested_host_state->gpr[4];
@@ -475,6 +479,7 @@ static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
      */
     assert(env->spr[SPR_LPIDR] != 0);
     nested_load_state(cpu, spapr_cpu->nested_host_state);
+    nested_post_load_state(env, cs);
     env->gpr[3] = env->excp_vectors[excp]; /* hcall return value */
 
     cpu_ppc_hdecr_exit(env);
@@ -550,19 +555,6 @@ static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
 
     /* Is it okay to specify write length larger than actual data written? */
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
-}
-
-void spapr_exit_nested(PowerPCCPU *cpu, int excp)
-{
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    assert(spapr_cpu->in_nested);
-    if (spapr_nested_api(spapr) == NESTED_API_KVM_HV) {
-        spapr_exit_nested_hv(cpu, excp);
-    } else {
-        g_assert_not_reached();
-    }
 }
 
 static bool spapr_nested_vcpu_check(SpaprMachineStateNestedGuest *guest,
@@ -1543,6 +1535,286 @@ static target_ulong h_guest_get_state(PowerPCCPU *cpu,
     return h_guest_getset_state(cpu, spapr, args, false);
 }
 
+static void exit_nested_store_l2(PowerPCCPU *cpu, int excp,
+                                 SpaprMachineStateNestedGuestVcpu *vcpu)
+{
+    CPUPPCState *env = &cpu->env;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong now, hdar, hdsisr, asdr;
+
+    assert(sizeof(env->gpr) == sizeof(vcpu->state.gpr)); /* sanity check */
+
+    now = cpu_ppc_load_tbl(env); /* L2 timebase */
+    now -= vcpu->tb_offset; /* L1 timebase */
+    vcpu->state.dec_expiry_tb = now - cpu_ppc_load_decr(env);
+    cpu_ppc_store_decr(env, spapr_cpu->nested_host_state->dec_expiry_tb - now);
+    /* backup hdar, hdsisr, asdr if reqd later below */
+    hdar   = vcpu->state.hdar;
+    hdsisr = vcpu->state.hdsisr;
+    asdr   = vcpu->state.asdr;
+
+    nested_save_state(&vcpu->state, cpu);
+
+    if (excp == POWERPC_EXCP_MCHECK ||
+        excp == POWERPC_EXCP_RESET ||
+        excp == POWERPC_EXCP_SYSCALL) {
+        vcpu->state.nip = env->spr[SPR_SRR0];
+        vcpu->state.msr = env->spr[SPR_SRR1] & env->msr_mask;
+    } else {
+        vcpu->state.nip = env->spr[SPR_HSRR0];
+        vcpu->state.msr = env->spr[SPR_HSRR1] & env->msr_mask;
+    }
+
+    /* hdar, hdsisr, asdr should be retained unless certain exceptions */
+    if ((excp != POWERPC_EXCP_HDSI) && (excp != POWERPC_EXCP_HISI)) {
+        vcpu->state.asdr = asdr;
+    } else if (excp != POWERPC_EXCP_HDSI) {
+        vcpu->state.hdar   = hdar;
+        vcpu->state.hdsisr = hdsisr;
+    }
+}
+
+static int get_exit_ids(uint64_t srr0, uint16_t ids[16])
+{
+    int nr;
+
+    switch (srr0) {
+    case 0xc00:
+        nr = 10;
+        ids[0] = GSB_VCPU_GPR3;
+        ids[1] = GSB_VCPU_GPR4;
+        ids[2] = GSB_VCPU_GPR5;
+        ids[3] = GSB_VCPU_GPR6;
+        ids[4] = GSB_VCPU_GPR7;
+        ids[5] = GSB_VCPU_GPR8;
+        ids[6] = GSB_VCPU_GPR9;
+        ids[7] = GSB_VCPU_GPR10;
+        ids[8] = GSB_VCPU_GPR11;
+        ids[9] = GSB_VCPU_GPR12;
+        break;
+    case 0xe00:
+        nr = 5;
+        ids[0] = GSB_VCPU_SPR_HDAR;
+        ids[1] = GSB_VCPU_SPR_HDSISR;
+        ids[2] = GSB_VCPU_SPR_ASDR;
+        ids[3] = GSB_VCPU_SPR_NIA;
+        ids[4] = GSB_VCPU_SPR_MSR;
+        break;
+    case 0xe20:
+        nr = 4;
+        ids[0] = GSB_VCPU_SPR_HDAR;
+        ids[1] = GSB_VCPU_SPR_ASDR;
+        ids[2] = GSB_VCPU_SPR_NIA;
+        ids[3] = GSB_VCPU_SPR_MSR;
+        break;
+    case 0xe40:
+        nr = 3;
+        ids[0] = GSB_VCPU_SPR_HEIR;
+        ids[1] = GSB_VCPU_SPR_NIA;
+        ids[2] = GSB_VCPU_SPR_MSR;
+        break;
+    case 0xf80:
+        nr = 3;
+        ids[0] = GSB_VCPU_SPR_HFSCR;
+        ids[1] = GSB_VCPU_SPR_NIA;
+        ids[2] = GSB_VCPU_SPR_MSR;
+        break;
+    default:
+        nr = 0;
+        break;
+    }
+
+    return nr;
+}
+
+static void exit_process_output_buffer(PowerPCCPU *cpu,
+                                       SpaprMachineStateNestedGuest *guest,
+                                       target_ulong vcpuid,
+                                       target_ulong *r3)
+{
+    SpaprMachineStateNestedGuestVcpu *vcpu = &guest->vcpus[vcpuid];
+    struct guest_state_request gsr;
+    struct guest_state_buffer *gsb;
+    struct guest_state_element *element;
+    struct guest_state_element_type *type;
+    int exit_id_count = 0;
+    uint16_t exit_cause_ids[16];
+    hwaddr len;
+
+    len = vcpu->runbufout.size;
+    gsb = address_space_map(CPU(cpu)->as, vcpu->runbufout.addr, &len, true,
+                            MEMTXATTRS_UNSPECIFIED);
+    if (!gsb || len != vcpu->runbufout.size) {
+        address_space_unmap(CPU(cpu)->as, gsb, len, true, len);
+        *r3 = H_P2;
+        return;
+    }
+
+    exit_id_count = get_exit_ids(*r3, exit_cause_ids);
+
+    /* Create a buffer of elements to send back */
+    gsb->num_elements = cpu_to_be32(exit_id_count);
+    element = gsb->elements;
+    for (int i = 0; i < exit_id_count; i++) {
+        type = guest_state_element_type_find(exit_cause_ids[i]);
+        assert(type);
+        element->id = cpu_to_be16(exit_cause_ids[i]);
+        element->size = cpu_to_be16(type->size);
+        element = guest_state_element_next(element, NULL, NULL);
+    }
+    gsr.gsb = gsb;
+    gsr.len = VCPU_OUT_BUF_MIN_SZ;
+    gsr.flags = 0; /* get + never guest wide */
+    getset_state(guest, vcpuid, &gsr);
+
+    address_space_unmap(CPU(cpu)->as, gsb, len, true, len);
+    return;
+}
+
+static
+void spapr_exit_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu, int excp)
+{
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong r3_return = env->excp_vectors[excp]; /* hcall return value */
+    target_ulong lpid = 0, vcpuid = 0;
+    struct SpaprMachineStateNestedGuestVcpu *vcpu = NULL;
+    struct SpaprMachineStateNestedGuest *guest = NULL;
+
+    lpid = spapr_cpu->nested_host_state->gpr[5];
+    vcpuid = spapr_cpu->nested_host_state->gpr[6];
+    guest = spapr_get_nested_guest(spapr, lpid);
+    assert(guest);
+    spapr_nested_vcpu_check(guest, vcpuid, false);
+    vcpu = &guest->vcpus[vcpuid];
+
+    exit_nested_store_l2(cpu, excp, vcpu);
+    /* do the output buffer for run_vcpu*/
+    exit_process_output_buffer(cpu, guest, vcpuid, &r3_return);
+
+    assert(env->spr[SPR_LPIDR] != 0);
+    nested_load_state(cpu, spapr_cpu->nested_host_state);
+    cpu_ppc_decrease_tb_by_offset(env, vcpu->tb_offset);
+    env->gpr[3] = H_SUCCESS;
+    env->gpr[4] = r3_return;
+    nested_post_load_state(env, cs);
+    cpu_ppc_hdecr_exit(env);
+
+    spapr_cpu->in_nested = false;
+    g_free(spapr_cpu->nested_host_state);
+    spapr_cpu->nested_host_state = NULL;
+}
+
+void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    assert(spapr_cpu->in_nested);
+    if (spapr_nested_api(spapr) == NESTED_API_KVM_HV) {
+        spapr_exit_nested_hv(cpu, excp);
+    } else if (spapr_nested_api(spapr) == NESTED_API_PAPR) {
+        spapr_exit_nested_papr(spapr, cpu, excp);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void nested_papr_load_l2(PowerPCCPU *cpu,
+                                CPUPPCState *env,
+                                SpaprMachineStateNestedGuestVcpu *vcpu,
+                                target_ulong now)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    target_ulong lpcr, lpcr_mask, hdec;
+    lpcr_mask = LPCR_DPFD | LPCR_ILE | LPCR_AIL | LPCR_LD | LPCR_MER;
+
+    assert(vcpu);
+    assert(sizeof(env->gpr) == sizeof(vcpu->state.gpr));
+    nested_load_state(cpu, &vcpu->state);
+    lpcr = (env->spr[SPR_LPCR] & ~lpcr_mask) |
+           (vcpu->state.lpcr & lpcr_mask);
+    lpcr |= LPCR_HR | LPCR_UPRT | LPCR_GTSE | LPCR_HVICE | LPCR_HDICE;
+    lpcr &= ~LPCR_LPES0;
+    env->spr[SPR_LPCR] = lpcr & pcc->lpcr_mask;
+
+    hdec = vcpu->hdecr_expiry_tb - now;
+    cpu_ppc_store_decr(env, vcpu->state.dec_expiry_tb - now);
+    cpu_ppc_hdecr_init(env);
+    cpu_ppc_store_hdecr(env, hdec);
+
+    cpu_ppc_increase_tb_by_offset(env, vcpu->tb_offset);
+}
+
+static void nested_papr_run_vcpu(PowerPCCPU *cpu,
+                                 uint64_t lpid,
+                                 SpaprMachineStateNestedGuestVcpu *vcpu)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    target_ulong now = cpu_ppc_load_tbl(env);
+
+    assert(env->spr[SPR_LPIDR] == 0);
+    assert(spapr->nested.api); /* ensure API version is initialized */
+    spapr_cpu->nested_host_state = g_try_new(struct nested_ppc_state, 1);
+    assert(spapr_cpu->nested_host_state);
+    nested_save_state(spapr_cpu->nested_host_state, cpu);
+    spapr_cpu->nested_host_state->dec_expiry_tb = now - cpu_ppc_load_decr(env);
+    nested_papr_load_l2(cpu, env, vcpu, now);
+    env->spr[SPR_LPIDR] = lpid; /* post load l2 */
+
+    spapr_cpu->in_nested = true;
+    nested_post_load_state(env, cs);
+}
+
+static target_ulong h_guest_run_vcpu(PowerPCCPU *cpu,
+                                     SpaprMachineState *spapr,
+                                     target_ulong opcode,
+                                     target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+    target_ulong lpid = args[1];
+    target_ulong vcpuid = args[2];
+    struct SpaprMachineStateNestedGuestVcpu *vcpu;
+    struct guest_state_request gsr;
+    SpaprMachineStateNestedGuest *guest;
+    target_ulong rc;
+
+    if (flags) /* don't handle any flags for now */
+        return H_PARAMETER;
+
+    guest = spapr_get_nested_guest(spapr, lpid);
+    if (!guest) {
+        return H_P2;
+    }
+    if (!spapr_nested_vcpu_check(guest, vcpuid, true)) {
+        return H_P3;
+    }
+
+    if (guest->parttbl[0] == 0) {
+        /* At least need a partition scoped radix tree */
+        return H_NOT_AVAILABLE;
+    }
+
+    vcpu = &guest->vcpus[vcpuid];
+
+    /* Read run_vcpu input buffer to update state */
+    gsr.buf = vcpu->runbufin.addr;
+    gsr.len = vcpu->runbufin.size;
+    gsr.flags = GUEST_STATE_REQUEST_SET; /* Thread wide + writing */
+    rc = map_and_getset_state(cpu, guest, vcpuid, &gsr);
+    if (rc == H_SUCCESS) {
+        nested_papr_run_vcpu(cpu, lpid, vcpu);
+    } else {
+        env->gpr[3] = rc;
+    }
+    return env->gpr[3];
+}
+
 void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -1570,6 +1842,7 @@ void spapr_register_nested_papr(void)
     spapr_register_hypercall(H_GUEST_CREATE_VCPU, h_guest_create_vcpu);
     spapr_register_hypercall(H_GUEST_SET_STATE, h_guest_set_state);
     spapr_register_hypercall(H_GUEST_GET_STATE, h_guest_get_state);
+    spapr_register_hypercall(H_GUEST_RUN_VCPU, h_guest_run_vcpu);
 }
 
 void spapr_unregister_nested_papr(void)
@@ -1581,6 +1854,7 @@ void spapr_unregister_nested_papr(void)
     spapr_unregister_hypercall(H_GUEST_CREATE_VCPU);
     spapr_unregister_hypercall(H_GUEST_SET_STATE);
     spapr_unregister_hypercall(H_GUEST_GET_STATE);
+    spapr_unregister_hypercall(H_GUEST_RUN_VCPU);
 }
 
 #else
