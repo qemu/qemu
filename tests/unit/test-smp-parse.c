@@ -573,7 +573,8 @@ static unsigned int cpu_topology_get_cores_per_socket(const CpuTopology *topo)
 
 static char *cpu_topology_to_string(const CpuTopology *topo,
                                     unsigned int threads_per_socket,
-                                    unsigned int cores_per_socket)
+                                    unsigned int cores_per_socket,
+                                    bool has_clusters)
 {
     return g_strdup_printf(
         "(CpuTopology) {\n"
@@ -588,17 +589,20 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
         "    .max_cpus           = %u,\n"
         "    .threads_per_socket = %u,\n"
         "    .cores_per_socket   = %u,\n"
+        "    .has_clusters       = %s,\n"
         "}",
         topo->cpus, topo->drawers, topo->books,
         topo->sockets, topo->dies, topo->clusters,
         topo->cores, topo->threads, topo->max_cpus,
-        threads_per_socket, cores_per_socket);
+        threads_per_socket, cores_per_socket,
+        has_clusters ? "true" : "false");
 }
 
 static void check_parse(MachineState *ms, const SMPConfiguration *config,
                         const CpuTopology *expect_topo, const char *expect_err,
                         bool is_valid)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     g_autofree char *config_str = smp_config_to_string(config);
     g_autofree char *expect_topo_str = NULL, *output_topo_str = NULL;
     unsigned int expect_threads_per_socket, expect_cores_per_socket;
@@ -611,15 +615,18 @@ static void check_parse(MachineState *ms, const SMPConfiguration *config,
                         cpu_topology_get_cores_per_socket(expect_topo);
     expect_topo_str = cpu_topology_to_string(expect_topo,
                                              expect_threads_per_socket,
-                                             expect_cores_per_socket);
+                                             expect_cores_per_socket,
+                                             config->has_clusters);
 
     /* call the generic parser */
     machine_parse_smp_config(ms, config, &err);
 
     ms_threads_per_socket = machine_topo_get_threads_per_socket(ms);
     ms_cores_per_socket = machine_topo_get_cores_per_socket(ms);
-    output_topo_str = cpu_topology_to_string(&ms->smp, ms_threads_per_socket,
-                                             ms_cores_per_socket);
+    output_topo_str = cpu_topology_to_string(&ms->smp,
+                                             ms_threads_per_socket,
+                                             ms_cores_per_socket,
+                                             mc->smp_props.has_clusters);
 
     /* when the configuration is supposed to be valid */
     if (is_valid) {
@@ -634,7 +641,8 @@ static void check_parse(MachineState *ms, const SMPConfiguration *config,
             (ms->smp.threads == expect_topo->threads) &&
             (ms->smp.max_cpus == expect_topo->max_cpus) &&
             (ms_threads_per_socket == expect_threads_per_socket) &&
-            (ms_cores_per_socket == expect_cores_per_socket)) {
+            (ms_cores_per_socket == expect_cores_per_socket) &&
+            (mc->smp_props.has_clusters == config->has_clusters)) {
             return;
         }
 
