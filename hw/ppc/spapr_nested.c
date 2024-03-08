@@ -11,9 +11,17 @@
 void spapr_nested_reset(SpaprMachineState *spapr)
 {
     if (spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV)) {
+        spapr->nested.api = NESTED_API_KVM_HV;
         spapr_unregister_nested_hv();
         spapr_register_nested_hv();
+    } else {
+        spapr->nested.api = 0;
     }
+}
+
+uint8_t spapr_nested_api(SpaprMachineState *spapr)
+{
+    return spapr->nested.api;
 }
 
 #ifdef CONFIG_TCG
@@ -310,7 +318,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     return env->gpr[3];
 }
 
-void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
 {
     CPUPPCState *env = &cpu->env;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
@@ -321,8 +329,6 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     struct kvmppc_hv_guest_state *hvstate;
     struct kvmppc_pt_regs *regs;
     hwaddr len;
-
-    assert(spapr_cpu->in_nested);
 
     nested_save_state(&l2_state, cpu);
     hsrr0 = env->spr[SPR_HSRR0];
@@ -411,6 +417,19 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
 
     /* Is it okay to specify write length larger than actual data written? */
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
+}
+
+void spapr_exit_nested(PowerPCCPU *cpu, int excp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    assert(spapr_cpu->in_nested);
+    if (spapr_nested_api(spapr) == NESTED_API_KVM_HV) {
+        spapr_exit_nested_hv(cpu, excp);
+    } else {
+        g_assert_not_reached();
+    }
 }
 
 void spapr_register_nested_hv(void)
