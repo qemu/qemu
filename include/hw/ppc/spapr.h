@@ -586,8 +586,10 @@ struct SpaprMachineState {
 #define H_WATCHDOG              0x45C
 #define H_GUEST_GET_CAPABILITIES 0x460
 #define H_GUEST_SET_CAPABILITIES 0x464
+#define H_GUEST_CREATE           0x470
+#define H_GUEST_DELETE           0x488
 
-#define MAX_HCALL_OPCODE         H_GUEST_SET_CAPABILITIES
+#define MAX_HCALL_OPCODE         H_GUEST_DELETE
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.

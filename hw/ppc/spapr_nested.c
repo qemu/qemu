@@ -521,6 +521,105 @@ static target_ulong h_guest_set_capabilities(PowerPCCPU *cpu,
     }
 }
 
+static void
+destroy_guest_helper(gpointer value)
+{
+    struct SpaprMachineStateNestedGuest *guest = value;
+    g_free(guest);
+}
+
+static target_ulong h_guest_create(PowerPCCPU *cpu,
+                                   SpaprMachineState *spapr,
+                                   target_ulong opcode,
+                                   target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+    target_ulong continue_token = args[1];
+    uint64_t guestid;
+    int nguests = 0;
+    struct SpaprMachineStateNestedGuest *guest;
+
+    if (flags) { /* don't handle any flags for now */
+        return H_UNSUPPORTED_FLAG;
+    }
+
+    if (continue_token != -1) {
+        return H_P2;
+    }
+
+    if (!spapr->nested.capabilities_set) {
+        return H_STATE;
+    }
+
+    if (!spapr->nested.guests) {
+        spapr->nested.guests = g_hash_table_new_full(NULL,
+                                                     NULL,
+                                                     NULL,
+                                                     destroy_guest_helper);
+    }
+
+    nguests = g_hash_table_size(spapr->nested.guests);
+
+    if (nguests == PAPR_NESTED_GUEST_MAX) {
+        return H_NO_MEM;
+    }
+
+    /* Lookup for available guestid */
+    for (guestid = 1; guestid < PAPR_NESTED_GUEST_MAX; guestid++) {
+        if (!(g_hash_table_lookup(spapr->nested.guests,
+                                  GINT_TO_POINTER(guestid)))) {
+            break;
+        }
+    }
+
+    if (guestid == PAPR_NESTED_GUEST_MAX) {
+        return H_NO_MEM;
+    }
+
+    guest = g_try_new0(struct SpaprMachineStateNestedGuest, 1);
+    if (!guest) {
+        return H_NO_MEM;
+    }
+
+    guest->pvr_logical = spapr->nested.pvr_base;
+    g_hash_table_insert(spapr->nested.guests, GINT_TO_POINTER(guestid), guest);
+    env->gpr[4] = guestid;
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_guest_delete(PowerPCCPU *cpu,
+                                   SpaprMachineState *spapr,
+                                   target_ulong opcode,
+                                   target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong guestid = args[1];
+    struct SpaprMachineStateNestedGuest *guest;
+
+    /*
+     * handle flag deleteAllGuests, if set:
+     * guestid is ignored and all guests are deleted
+     *
+     */
+    if (flags & ~H_GUEST_DELETE_ALL_FLAG) {
+        return H_UNSUPPORTED_FLAG; /* other flag bits reserved */
+    } else if (flags & H_GUEST_DELETE_ALL_FLAG) {
+        g_hash_table_destroy(spapr->nested.guests);
+        return H_SUCCESS;
+    }
+
+    guest = g_hash_table_lookup(spapr->nested.guests, GINT_TO_POINTER(guestid));
+    if (!guest) {
+        return H_P2;
+    }
+
+    g_hash_table_remove(spapr->nested.guests, GINT_TO_POINTER(guestid));
+
+    return H_SUCCESS;
+}
+
 void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -543,12 +642,16 @@ void spapr_register_nested_papr(void)
                              h_guest_get_capabilities);
     spapr_register_hypercall(H_GUEST_SET_CAPABILITIES,
                              h_guest_set_capabilities);
+    spapr_register_hypercall(H_GUEST_CREATE, h_guest_create);
+    spapr_register_hypercall(H_GUEST_DELETE, h_guest_delete);
 }
 
 void spapr_unregister_nested_papr(void)
 {
     spapr_unregister_hypercall(H_GUEST_GET_CAPABILITIES);
     spapr_unregister_hypercall(H_GUEST_SET_CAPABILITIES);
+    spapr_unregister_hypercall(H_GUEST_CREATE);
+    spapr_unregister_hypercall(H_GUEST_DELETE);
 }
 
 #else
