@@ -364,6 +364,7 @@ struct SpaprMachineState {
 #define H_NOOP            -63
 #define H_UNSUPPORTED     -67
 #define H_OVERLAP         -68
+#define H_STATE           -75
 #define H_UNSUPPORTED_FLAG -256
 #define H_MULTI_THREADS_ACTIVE -9005
 
@@ -583,8 +584,10 @@ struct SpaprMachineState {
 #define H_RPT_INVALIDATE        0x448
 #define H_SCM_FLUSH             0x44C
 #define H_WATCHDOG              0x45C
+#define H_GUEST_GET_CAPABILITIES 0x460
+#define H_GUEST_SET_CAPABILITIES 0x464
 
-#define MAX_HCALL_OPCODE        H_WATCHDOG
+#define MAX_HCALL_OPCODE         H_GUEST_SET_CAPABILITIES
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -1033,5 +1036,7 @@ void spapr_watchdog_init(SpaprMachineState *spapr);
 void spapr_register_nested_hv(void);
 void spapr_unregister_nested_hv(void);
 void spapr_nested_reset(SpaprMachineState *spapr);
+void spapr_register_nested_papr(void);
+void spapr_unregister_nested_papr(void);
 
 #endif /* HW_SPAPR_H */

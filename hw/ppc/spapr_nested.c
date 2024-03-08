@@ -7,6 +7,7 @@
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_nested.h"
 #include "mmu-book3s-v3.h"
+#include "cpu-models.h"
 
 void spapr_nested_reset(SpaprMachineState *spapr)
 {
@@ -16,6 +17,7 @@ void spapr_nested_reset(SpaprMachineState *spapr)
         spapr_register_nested_hv();
     } else {
         spapr->nested.api = 0;
+        spapr->nested.capabilities_set = false;
     }
 }
 
@@ -432,6 +434,93 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     }
 }
 
+static target_ulong h_guest_get_capabilities(PowerPCCPU *cpu,
+                                             SpaprMachineState *spapr,
+                                             target_ulong opcode,
+                                             target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+
+    if (flags) { /* don't handle any flags capabilities for now */
+        return H_PARAMETER;
+    }
+
+    /* P10 capabilities */
+    if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
+        spapr->max_compat_pvr)) {
+        env->gpr[4] |= H_GUEST_CAPABILITIES_P10_MODE;
+    }
+
+    /* P9 capabilities */
+    if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+        spapr->max_compat_pvr)) {
+        env->gpr[4] |= H_GUEST_CAPABILITIES_P9_MODE;
+    }
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_guest_set_capabilities(PowerPCCPU *cpu,
+                                             SpaprMachineState *spapr,
+                                             target_ulong opcode,
+                                              target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong flags = args[0];
+    target_ulong capabilities = args[1];
+    env->gpr[4] = 0;
+
+    if (flags) { /* don't handle any flags capabilities for now */
+        return H_PARAMETER;
+    }
+
+    if (capabilities & H_GUEST_CAPABILITIES_COPY_MEM) {
+        env->gpr[4] = 1;
+        return H_P2; /* isn't supported */
+    }
+
+    /*
+     * If there are no capabilities configured, set the R5 to the index of
+     * the first supported Power Processor Mode
+     */
+    if (!capabilities) {
+        env->gpr[4] = 1;
+
+        /* set R5 to the first supported Power Processor Mode */
+        if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
+                             spapr->max_compat_pvr)) {
+            env->gpr[5] = H_GUEST_CAP_P10_MODE_BMAP;
+        } else if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+                                    spapr->max_compat_pvr)) {
+            env->gpr[5] = H_GUEST_CAP_P9_MODE_BMAP;
+        }
+
+        return H_P2;
+    }
+
+    /*
+     * If an invalid capability is set, R5 should contain the index of the
+     * invalid capability bit
+     */
+    if (capabilities & ~H_GUEST_CAP_VALID_MASK) {
+        env->gpr[4] = 1;
+
+        /* Set R5 to the index of the invalid capability */
+        env->gpr[5] = 63 - ctz64(capabilities);
+
+        return H_P2;
+    }
+
+    if (!spapr->nested.capabilities_set) {
+        spapr->nested.capabilities_set = true;
+        spapr->nested.pvr_base = env->spr[SPR_PVR];
+        return H_SUCCESS;
+    } else {
+        return H_STATE;
+    }
+}
+
 void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
@@ -447,6 +536,21 @@ void spapr_unregister_nested_hv(void)
     spapr_unregister_hypercall(KVMPPC_H_TLB_INVALIDATE);
     spapr_unregister_hypercall(KVMPPC_H_COPY_TOFROM_GUEST);
 }
+
+void spapr_register_nested_papr(void)
+{
+    spapr_register_hypercall(H_GUEST_GET_CAPABILITIES,
+                             h_guest_get_capabilities);
+    spapr_register_hypercall(H_GUEST_SET_CAPABILITIES,
+                             h_guest_set_capabilities);
+}
+
+void spapr_unregister_nested_papr(void)
+{
+    spapr_unregister_hypercall(H_GUEST_GET_CAPABILITIES);
+    spapr_unregister_hypercall(H_GUEST_SET_CAPABILITIES);
+}
+
 #else
 void spapr_exit_nested(PowerPCCPU *cpu, int excp)
 {
@@ -468,4 +572,15 @@ bool spapr_get_pate_nested_hv(SpaprMachineState *spapr, PowerPCCPU *cpu,
 {
     return false;
 }
+
+void spapr_register_nested_papr(void)
+{
+    /* DO NOTHING */
+}
+
+void spapr_unregister_nested_papr(void)
+{
+    /* DO NOTHING */
+}
+
 #endif
