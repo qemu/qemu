@@ -68,6 +68,7 @@
 #include "hw/acpi/utils.h"
 #include "hw/acpi/pci.h"
 #include "hw/acpi/cxl.h"
+#include "hw/acpi/acpi_generic_initiator.h"
 
 #include "qom/qom-qobject.h"
 #include "hw/i386/amd_iommu.h"
@@ -2045,6 +2046,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     for (; slots < nb_numa_nodes + 2; slots++) {
         build_srat_memory(table_data, 0, 0, 0, MEM_AFFINITY_NOFLAGS);
     }
+
+    build_srat_generic_pci_initiator(table_data);
 
     /*
      * Entry is required for Windows to enable memory hotplug in OS
