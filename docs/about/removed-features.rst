@@ -489,6 +489,21 @@ The ``-singlestep`` option has been turned into an accelerator property,
 and given a name that better reflects what it actually does.
 Use ``-accel tcg,one-insn-per-tb=on`` instead.
 
+``-smp`` ("parameter=0" SMP configurations) (removed in 9.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Specified CPU topology parameters must be greater than zero.
+
+In the SMP configuration, users should either provide a CPU topology
+parameter with a reasonable value (greater than zero) or just omit it
+and QEMU will compute the missing value.
+
+However, historically it was implicitly allowed for users to provide
+a parameter with zero value, which is meaningless and could also possibly
+cause unexpected results in the -smp parsing. So support for this kind of
+configurations (e.g. -smp 8,sockets=0) is removed since 9.0, users have
+to ensure that all the topology members described with -smp are greater
+than zero.
 
 User-mode emulator command line arguments
 -----------------------------------------

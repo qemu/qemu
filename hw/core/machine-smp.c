@@ -105,8 +105,9 @@ void machine_parse_smp_config(MachineState *ms,
         (config->has_cores && config->cores == 0) ||
         (config->has_threads && config->threads == 0) ||
         (config->has_maxcpus && config->maxcpus == 0)) {
-        warn_report("Deprecated CPU topology (considered invalid): "
-                    "CPU topology parameters must be greater than zero");
+        error_setg(errp, "Invalid CPU topology: "
+                   "CPU topology parameters must be greater than zero");
+        return;
     }
 
     /*
