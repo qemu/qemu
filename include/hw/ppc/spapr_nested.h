@@ -95,7 +95,6 @@ struct nested_ppc_state {
     int64_t tb_offset;
 };
 
-void spapr_register_nested(void);
 void spapr_exit_nested(PowerPCCPU *cpu, int excp);
 
 #endif /* HW_SPAPR_NESTED_H */

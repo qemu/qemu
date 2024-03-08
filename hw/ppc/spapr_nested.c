@@ -7,6 +7,14 @@
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_nested.h"
 
+void spapr_nested_reset(SpaprMachineState *spapr)
+{
+    if (spapr_get_cap(spapr, SPAPR_CAP_NESTED_KVM_HV)) {
+        spapr_unregister_nested_hv();
+        spapr_register_nested_hv();
+    }
+}
+
 #ifdef CONFIG_TCG
 #define PRTS_MASK      0x1f
 
@@ -375,12 +383,20 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     address_space_unmap(CPU(cpu)->as, regs, len, len, true);
 }
 
-void spapr_register_nested(void)
+void spapr_register_nested_hv(void)
 {
     spapr_register_hypercall(KVMPPC_H_SET_PARTITION_TABLE, h_set_ptbl);
     spapr_register_hypercall(KVMPPC_H_ENTER_NESTED, h_enter_nested);
     spapr_register_hypercall(KVMPPC_H_TLB_INVALIDATE, h_tlb_invalidate);
     spapr_register_hypercall(KVMPPC_H_COPY_TOFROM_GUEST, h_copy_tofrom_guest);
+}
+
+void spapr_unregister_nested_hv(void)
+{
+    spapr_unregister_hypercall(KVMPPC_H_SET_PARTITION_TABLE);
+    spapr_unregister_hypercall(KVMPPC_H_ENTER_NESTED);
+    spapr_unregister_hypercall(KVMPPC_H_TLB_INVALIDATE);
+    spapr_unregister_hypercall(KVMPPC_H_COPY_TOFROM_GUEST);
 }
 #else
 void spapr_exit_nested(PowerPCCPU *cpu, int excp)
@@ -388,7 +404,12 @@ void spapr_exit_nested(PowerPCCPU *cpu, int excp)
     g_assert_not_reached();
 }
 
-void spapr_register_nested(void)
+void spapr_register_nested_hv(void)
+{
+    /* DO NOTHING */
+}
+
+void spapr_unregister_nested_hv(void)
 {
     /* DO NOTHING */
 }
