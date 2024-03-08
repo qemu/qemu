@@ -140,11 +140,6 @@ typedef struct ARMGenericTimer {
     uint64_t ctl; /* Timer Control register */
 } ARMGenericTimer;
 
-#define VTCR_NSW (1u << 29)
-#define VTCR_NSA (1u << 30)
-#define VSTCR_SW VTCR_NSW
-#define VSTCR_SA VTCR_NSA
-
 /* Define a maximum sized vector register.
  * For 32-bit, this is a 128-bit NEON/AdvSIMD register.
  * For 64-bit, this is a 2048-bit SVE register.
@@ -457,6 +452,7 @@ typedef struct CPUArchState {
         uint64_t c14_cntkctl; /* Timer Control register */
         uint64_t cnthctl_el2; /* Counter/Timer Hyp Control register */
         uint64_t cntvoff_el2; /* Counter Virtual Offset register */
+        uint64_t cntpoff_el2; /* Counter Physical Offset register */
         ARMGenericTimer c14_timer[NUM_GTIMERS];
         uint32_t c15_cpar; /* XScale Coprocessor Access Register */
         uint32_t c15_ticonfig; /* TI925T configuration byte.  */
@@ -1375,73 +1371,6 @@ void pmu_init(ARMCPU *cpu);
 #define SCTLR_SPINTMASK (1ULL << 62) /* FEAT_NMI */
 #define SCTLR_TIDCP   (1ULL << 63) /* FEAT_TIDCP1 */
 
-/* Bit definitions for CPACR (AArch32 only) */
-FIELD(CPACR, CP10, 20, 2)
-FIELD(CPACR, CP11, 22, 2)
-FIELD(CPACR, TRCDIS, 28, 1)    /* matches CPACR_EL1.TTA */
-FIELD(CPACR, D32DIS, 30, 1)    /* up to v7; RAZ in v8 */
-FIELD(CPACR, ASEDIS, 31, 1)
-
-/* Bit definitions for CPACR_EL1 (AArch64 only) */
-FIELD(CPACR_EL1, ZEN, 16, 2)
-FIELD(CPACR_EL1, FPEN, 20, 2)
-FIELD(CPACR_EL1, SMEN, 24, 2)
-FIELD(CPACR_EL1, TTA, 28, 1)   /* matches CPACR.TRCDIS */
-
-/* Bit definitions for HCPTR (AArch32 only) */
-FIELD(HCPTR, TCP10, 10, 1)
-FIELD(HCPTR, TCP11, 11, 1)
-FIELD(HCPTR, TASE, 15, 1)
-FIELD(HCPTR, TTA, 20, 1)
-FIELD(HCPTR, TAM, 30, 1)       /* matches CPTR_EL2.TAM */
-FIELD(HCPTR, TCPAC, 31, 1)     /* matches CPTR_EL2.TCPAC */
-
-/* Bit definitions for CPTR_EL2 (AArch64 only) */
-FIELD(CPTR_EL2, TZ, 8, 1)      /* !E2H */
-FIELD(CPTR_EL2, TFP, 10, 1)    /* !E2H, matches HCPTR.TCP10 */
-FIELD(CPTR_EL2, TSM, 12, 1)    /* !E2H */
-FIELD(CPTR_EL2, ZEN, 16, 2)    /* E2H */
-FIELD(CPTR_EL2, FPEN, 20, 2)   /* E2H */
-FIELD(CPTR_EL2, SMEN, 24, 2)   /* E2H */
-FIELD(CPTR_EL2, TTA, 28, 1)
-FIELD(CPTR_EL2, TAM, 30, 1)    /* matches HCPTR.TAM */
-FIELD(CPTR_EL2, TCPAC, 31, 1)  /* matches HCPTR.TCPAC */
-
-/* Bit definitions for CPTR_EL3 (AArch64 only) */
-FIELD(CPTR_EL3, EZ, 8, 1)
-FIELD(CPTR_EL3, TFP, 10, 1)
-FIELD(CPTR_EL3, ESM, 12, 1)
-FIELD(CPTR_EL3, TTA, 20, 1)
-FIELD(CPTR_EL3, TAM, 30, 1)
-FIELD(CPTR_EL3, TCPAC, 31, 1)
-
-#define MDCR_MTPME    (1U << 28)
-#define MDCR_TDCC     (1U << 27)
-#define MDCR_HLP      (1U << 26)  /* MDCR_EL2 */
-#define MDCR_SCCD     (1U << 23)  /* MDCR_EL3 */
-#define MDCR_HCCD     (1U << 23)  /* MDCR_EL2 */
-#define MDCR_EPMAD    (1U << 21)
-#define MDCR_EDAD     (1U << 20)
-#define MDCR_TTRF     (1U << 19)
-#define MDCR_STE      (1U << 18)  /* MDCR_EL3 */
-#define MDCR_SPME     (1U << 17)  /* MDCR_EL3 */
-#define MDCR_HPMD     (1U << 17)  /* MDCR_EL2 */
-#define MDCR_SDD      (1U << 16)
-#define MDCR_SPD      (3U << 14)
-#define MDCR_TDRA     (1U << 11)
-#define MDCR_TDOSA    (1U << 10)
-#define MDCR_TDA      (1U << 9)
-#define MDCR_TDE      (1U << 8)
-#define MDCR_HPME     (1U << 7)
-#define MDCR_TPM      (1U << 6)
-#define MDCR_TPMCR    (1U << 5)
-#define MDCR_HPMN     (0x1fU)
-
-/* Not all of the MDCR_EL3 bits are present in the 32-bit SDCR */
-#define SDCR_VALID_MASK (MDCR_MTPME | MDCR_TDCC | MDCR_SCCD | \
-                         MDCR_EPMAD | MDCR_EDAD | MDCR_TTRF | \
-                         MDCR_STE | MDCR_SPME | MDCR_SPD)
-
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)
 #define CPSR_F (1U << 6)
@@ -1487,41 +1416,6 @@ FIELD(CPTR_EL3, TCPAC, 31, 1)
 #define XPSR_N CPSR_N
 #define XPSR_NZCV CPSR_NZCV
 #define XPSR_IT CPSR_IT
-
-#define TTBCR_N      (7U << 0) /* TTBCR.EAE==0 */
-#define TTBCR_T0SZ   (7U << 0) /* TTBCR.EAE==1 */
-#define TTBCR_PD0    (1U << 4)
-#define TTBCR_PD1    (1U << 5)
-#define TTBCR_EPD0   (1U << 7)
-#define TTBCR_IRGN0  (3U << 8)
-#define TTBCR_ORGN0  (3U << 10)
-#define TTBCR_SH0    (3U << 12)
-#define TTBCR_T1SZ   (3U << 16)
-#define TTBCR_A1     (1U << 22)
-#define TTBCR_EPD1   (1U << 23)
-#define TTBCR_IRGN1  (3U << 24)
-#define TTBCR_ORGN1  (3U << 26)
-#define TTBCR_SH1    (1U << 28)
-#define TTBCR_EAE    (1U << 31)
-
-FIELD(VTCR, T0SZ, 0, 6)
-FIELD(VTCR, SL0, 6, 2)
-FIELD(VTCR, IRGN0, 8, 2)
-FIELD(VTCR, ORGN0, 10, 2)
-FIELD(VTCR, SH0, 12, 2)
-FIELD(VTCR, TG0, 14, 2)
-FIELD(VTCR, PS, 16, 3)
-FIELD(VTCR, VS, 19, 1)
-FIELD(VTCR, HA, 21, 1)
-FIELD(VTCR, HD, 22, 1)
-FIELD(VTCR, HWU59, 25, 1)
-FIELD(VTCR, HWU60, 26, 1)
-FIELD(VTCR, HWU61, 27, 1)
-FIELD(VTCR, HWU62, 28, 1)
-FIELD(VTCR, NSW, 29, 1)
-FIELD(VTCR, NSA, 30, 1)
-FIELD(VTCR, DS, 32, 1)
-FIELD(VTCR, SL2, 33, 1)
 
 /* Bit definitions for ARMv8 SPSR (PSTATE) format.
  * Only these are valid when in AArch64 mode; in
@@ -1730,21 +1624,6 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define HCR_TWEDEN    (1ULL << 59)
 #define HCR_TWEDEL    MAKE_64BIT_MASK(60, 4)
 
-#define HCRX_ENAS0    (1ULL << 0)
-#define HCRX_ENALS    (1ULL << 1)
-#define HCRX_ENASR    (1ULL << 2)
-#define HCRX_FNXS     (1ULL << 3)
-#define HCRX_FGTNXS   (1ULL << 4)
-#define HCRX_SMPME    (1ULL << 5)
-#define HCRX_TALLINT  (1ULL << 6)
-#define HCRX_VINMI    (1ULL << 7)
-#define HCRX_VFNMI    (1ULL << 8)
-#define HCRX_CMOW     (1ULL << 9)
-#define HCRX_MCE2     (1ULL << 10)
-#define HCRX_MSCEN    (1ULL << 11)
-
-#define HPFAR_NS      (1ULL << 63)
-
 #define SCR_NS                (1ULL << 0)
 #define SCR_IRQ               (1ULL << 1)
 #define SCR_FIQ               (1ULL << 2)
@@ -1782,12 +1661,6 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define SCR_ENTP2             (1ULL << 41)
 #define SCR_GPF               (1ULL << 48)
 #define SCR_NSE               (1ULL << 62)
-
-#define HSTR_TTEE (1 << 16)
-#define HSTR_TJDBX (1 << 17)
-
-#define CNTHCTL_CNTVMASK      (1 << 18)
-#define CNTHCTL_CNTPMASK      (1 << 19)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);
