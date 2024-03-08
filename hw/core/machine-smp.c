@@ -112,30 +112,61 @@ void machine_parse_smp_config(MachineState *ms,
 
     /*
      * If not supported by the machine, a topology parameter must be
-     * omitted or specified equal to 1.
+     * omitted.
      */
-    if (!mc->smp_props.dies_supported && dies > 1) {
-        error_setg(errp, "dies not supported by this machine's CPU topology");
-        return;
+    if (!mc->smp_props.clusters_supported && config->has_clusters) {
+        if (config->clusters > 1) {
+            error_setg(errp, "clusters not supported by this "
+                       "machine's CPU topology");
+            return;
+        } else {
+            /* Here clusters only equals 1 since we've checked zero case. */
+            warn_report("Deprecated CPU topology (considered invalid): "
+                        "Unsupported clusters parameter mustn't be "
+                        "specified as 1");
+        }
     }
-    if (!mc->smp_props.clusters_supported && clusters > 1) {
-        error_setg(errp, "clusters not supported by this machine's CPU topology");
-        return;
-    }
-
-    dies = dies > 0 ? dies : 1;
     clusters = clusters > 0 ? clusters : 1;
 
-    if (!mc->smp_props.books_supported && books > 1) {
-        error_setg(errp, "books not supported by this machine's CPU topology");
-        return;
+    if (!mc->smp_props.dies_supported && config->has_dies) {
+        if (config->dies > 1) {
+            error_setg(errp, "dies not supported by this "
+                       "machine's CPU topology");
+            return;
+        } else {
+            /* Here dies only equals 1 since we've checked zero case. */
+            warn_report("Deprecated CPU topology (considered invalid): "
+                        "Unsupported dies parameter mustn't be "
+                        "specified as 1");
+        }
+    }
+    dies = dies > 0 ? dies : 1;
+
+    if (!mc->smp_props.books_supported && config->has_books) {
+        if (config->books > 1) {
+            error_setg(errp, "books not supported by this "
+                       "machine's CPU topology");
+            return;
+        } else {
+            /* Here books only equals 1 since we've checked zero case. */
+            warn_report("Deprecated CPU topology (considered invalid): "
+                        "Unsupported books parameter mustn't be "
+                        "specified as 1");
+        }
     }
     books = books > 0 ? books : 1;
 
-    if (!mc->smp_props.drawers_supported && drawers > 1) {
-        error_setg(errp,
-                   "drawers not supported by this machine's CPU topology");
-        return;
+    if (!mc->smp_props.drawers_supported && config->has_drawers) {
+        if (config->drawers > 1) {
+            error_setg(errp, "drawers not supported by this "
+                       "machine's CPU topology");
+            return;
+        } else {
+            /* Here drawers only equals 1 since we've checked zero case. */
+            warn_report("Deprecated CPU topology (considered invalid): "
+                        "Unsupported drawers parameter mustn't be "
+                        "specified as 1");
+        }
     }
     drawers = drawers > 0 ? drawers : 1;
 
