@@ -1932,7 +1932,7 @@ static void qemu_apply_machine_options(QDict *qdict)
     }
 
     if (current_machine->smp.cpus > 1) {
-        replay_add_blocker("smp");
+        replay_add_blocker("multiple CPUs");
     }
 }
 

@@ -227,7 +227,7 @@ struct LSIState {
     AddressSpace pci_io_as;
     QEMUTimer *scripts_timer;
 
-    int carry; /* ??? Should this be an a visible register somewhere?  */
+    int carry; /* ??? Should this be in a visible register somewhere?  */
     int status;
     int msg_action;
     int msg_len;
