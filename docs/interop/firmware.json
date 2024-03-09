@@ -223,7 +223,7 @@
 
 
 ##
-# @FirmwareFlashType:
+# @FirmwareFlashMode:
 #
 # Describes how the firmware build handles code versus variable
 # persistence.
@@ -435,203 +435,203 @@
 #
 # Examples:
 #
-# {
-#     "description": "SeaBIOS",
-#     "interface-types": [
-#         "bios"
-#     ],
-#     "mapping": {
-#         "device": "memory",
-#         "filename": "/usr/share/seabios/bios-256k.bin"
-#     },
-#     "targets": [
-#         {
-#             "architecture": "i386",
-#             "machines": [
-#                 "pc-i440fx-*",
-#                 "pc-q35-*"
-#             ]
+#     {
+#         "description": "SeaBIOS",
+#         "interface-types": [
+#             "bios"
+#         ],
+#         "mapping": {
+#             "device": "memory",
+#             "filename": "/usr/share/seabios/bios-256k.bin"
 #         },
-#         {
-#             "architecture": "x86_64",
-#             "machines": [
-#                 "pc-i440fx-*",
-#                 "pc-q35-*"
-#             ]
-#         }
-#     ],
-#     "features": [
-#         "acpi-s3",
-#         "acpi-s4"
-#     ],
-#     "tags": [
-#         "CONFIG_BOOTSPLASH=n",
-#         "CONFIG_ROM_SIZE=256",
-#         "CONFIG_USE_SMM=n"
-#     ]
-# }
+#         "targets": [
+#             {
+#                 "architecture": "i386",
+#                 "machines": [
+#                     "pc-i440fx-*",
+#                     "pc-q35-*"
+#                 ]
+#             },
+#             {
+#                 "architecture": "x86_64",
+#                 "machines": [
+#                     "pc-i440fx-*",
+#                     "pc-q35-*"
+#                 ]
+#             }
+#         ],
+#         "features": [
+#             "acpi-s3",
+#             "acpi-s4"
+#         ],
+#         "tags": [
+#             "CONFIG_BOOTSPLASH=n",
+#             "CONFIG_ROM_SIZE=256",
+#             "CONFIG_USE_SMM=n"
+#         ]
+#     }
 #
-# {
-#     "description": "OVMF with SB+SMM, empty varstore",
-#     "interface-types": [
-#         "uefi"
-#     ],
-#     "mapping": {
-#         "device": "flash",
-#         "executable": {
-#             "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
-#             "format": "raw"
+#     {
+#         "description": "OVMF with SB+SMM, empty varstore",
+#         "interface-types": [
+#             "uefi"
+#         ],
+#         "mapping": {
+#             "device": "flash",
+#             "executable": {
+#                 "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
+#                 "format": "raw"
+#             },
+#             "nvram-template": {
+#                 "filename": "/usr/share/OVMF/OVMF_VARS.fd",
+#                 "format": "raw"
+#             }
 #         },
-#         "nvram-template": {
-#             "filename": "/usr/share/OVMF/OVMF_VARS.fd",
-#             "format": "raw"
-#         }
-#     },
-#     "targets": [
-#         {
-#             "architecture": "x86_64",
-#             "machines": [
-#                 "pc-q35-*"
-#             ]
-#         }
-#     ],
-#     "features": [
-#         "acpi-s3",
-#         "amd-sev",
-#         "requires-smm",
-#         "secure-boot",
-#         "verbose-dynamic"
-#     ],
-#     "tags": [
-#         "-a IA32",
-#         "-a X64",
-#         "-p OvmfPkg/OvmfPkgIa32X64.dsc",
-#         "-t GCC48",
-#         "-b DEBUG",
-#         "-D SMM_REQUIRE",
-#         "-D SECURE_BOOT_ENABLE",
-#         "-D FD_SIZE_4MB"
-#     ]
-# }
+#         "targets": [
+#             {
+#                 "architecture": "x86_64",
+#                 "machines": [
+#                     "pc-q35-*"
+#                 ]
+#             }
+#         ],
+#         "features": [
+#             "acpi-s3",
+#             "amd-sev",
+#             "requires-smm",
+#             "secure-boot",
+#             "verbose-dynamic"
+#         ],
+#         "tags": [
+#             "-a IA32",
+#             "-a X64",
+#             "-p OvmfPkg/OvmfPkgIa32X64.dsc",
+#             "-t GCC48",
+#             "-b DEBUG",
+#             "-D SMM_REQUIRE",
+#             "-D SECURE_BOOT_ENABLE",
+#             "-D FD_SIZE_4MB"
+#         ]
+#     }
 #
-# {
-#     "description": "OVMF with SB+SMM, SB enabled, MS certs enrolled",
-#     "interface-types": [
-#         "uefi"
-#     ],
-#     "mapping": {
-#         "device": "flash",
-#         "executable": {
-#             "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
-#             "format": "raw"
+#     {
+#         "description": "OVMF with SB+SMM, SB enabled, MS certs enrolled",
+#         "interface-types": [
+#             "uefi"
+#         ],
+#         "mapping": {
+#             "device": "flash",
+#             "executable": {
+#                 "filename": "/usr/share/OVMF/OVMF_CODE.secboot.fd",
+#                 "format": "raw"
+#             },
+#             "nvram-template": {
+#                 "filename": "/usr/share/OVMF/OVMF_VARS.secboot.fd",
+#                 "format": "raw"
+#             }
 #         },
-#         "nvram-template": {
-#             "filename": "/usr/share/OVMF/OVMF_VARS.secboot.fd",
-#             "format": "raw"
-#         }
-#     },
-#     "targets": [
-#         {
-#             "architecture": "x86_64",
-#             "machines": [
-#                 "pc-q35-*"
-#             ]
-#         }
-#     ],
-#     "features": [
-#         "acpi-s3",
-#         "amd-sev",
-#         "enrolled-keys",
-#         "requires-smm",
-#         "secure-boot",
-#         "verbose-dynamic"
-#     ],
-#     "tags": [
-#         "-a IA32",
-#         "-a X64",
-#         "-p OvmfPkg/OvmfPkgIa32X64.dsc",
-#         "-t GCC48",
-#         "-b DEBUG",
-#         "-D SMM_REQUIRE",
-#         "-D SECURE_BOOT_ENABLE",
-#         "-D FD_SIZE_4MB"
-#     ]
-# }
+#         "targets": [
+#             {
+#                 "architecture": "x86_64",
+#                 "machines": [
+#                     "pc-q35-*"
+#                 ]
+#             }
+#         ],
+#         "features": [
+#             "acpi-s3",
+#             "amd-sev",
+#             "enrolled-keys",
+#             "requires-smm",
+#             "secure-boot",
+#             "verbose-dynamic"
+#         ],
+#         "tags": [
+#             "-a IA32",
+#             "-a X64",
+#             "-p OvmfPkg/OvmfPkgIa32X64.dsc",
+#             "-t GCC48",
+#             "-b DEBUG",
+#             "-D SMM_REQUIRE",
+#             "-D SECURE_BOOT_ENABLE",
+#             "-D FD_SIZE_4MB"
+#         ]
+#     }
 #
-# {
-#     "description": "OVMF with SEV-ES support",
-#     "interface-types": [
-#         "uefi"
-#     ],
-#     "mapping": {
-#         "device": "flash",
-#         "executable": {
-#             "filename": "/usr/share/OVMF/OVMF_CODE.fd",
-#             "format": "raw"
+#     {
+#         "description": "OVMF with SEV-ES support",
+#         "interface-types": [
+#             "uefi"
+#         ],
+#         "mapping": {
+#             "device": "flash",
+#             "executable": {
+#                 "filename": "/usr/share/OVMF/OVMF_CODE.fd",
+#                 "format": "raw"
+#             },
+#             "nvram-template": {
+#                 "filename": "/usr/share/OVMF/OVMF_VARS.fd",
+#                 "format": "raw"
+#             }
 #         },
-#         "nvram-template": {
-#             "filename": "/usr/share/OVMF/OVMF_VARS.fd",
-#             "format": "raw"
-#         }
-#     },
-#     "targets": [
-#         {
-#             "architecture": "x86_64",
-#             "machines": [
-#                 "pc-q35-*"
-#             ]
-#         }
-#     ],
-#     "features": [
-#         "acpi-s3",
-#         "amd-sev",
-#         "amd-sev-es",
-#         "verbose-dynamic"
-#     ],
-#     "tags": [
-#         "-a X64",
-#         "-p OvmfPkg/OvmfPkgX64.dsc",
-#         "-t GCC48",
-#         "-b DEBUG",
-#         "-D FD_SIZE_4MB"
-#     ]
-# }
+#         "targets": [
+#             {
+#                 "architecture": "x86_64",
+#                 "machines": [
+#                     "pc-q35-*"
+#                 ]
+#             }
+#         ],
+#         "features": [
+#             "acpi-s3",
+#             "amd-sev",
+#             "amd-sev-es",
+#             "verbose-dynamic"
+#         ],
+#         "tags": [
+#             "-a X64",
+#             "-p OvmfPkg/OvmfPkgX64.dsc",
+#             "-t GCC48",
+#             "-b DEBUG",
+#             "-D FD_SIZE_4MB"
+#         ]
+#     }
 #
-# {
-#     "description": "UEFI firmware for ARM64 virtual machines",
-#     "interface-types": [
-#         "uefi"
-#     ],
-#     "mapping": {
-#         "device": "flash",
-#         "executable": {
-#             "filename": "/usr/share/AAVMF/AAVMF_CODE.fd",
-#             "format": "raw"
+#     {
+#         "description": "UEFI firmware for ARM64 virtual machines",
+#         "interface-types": [
+#             "uefi"
+#         ],
+#         "mapping": {
+#             "device": "flash",
+#             "executable": {
+#                 "filename": "/usr/share/AAVMF/AAVMF_CODE.fd",
+#                 "format": "raw"
+#             },
+#             "nvram-template": {
+#                 "filename": "/usr/share/AAVMF/AAVMF_VARS.fd",
+#                 "format": "raw"
+#             }
 #         },
-#         "nvram-template": {
-#             "filename": "/usr/share/AAVMF/AAVMF_VARS.fd",
-#             "format": "raw"
-#         }
-#     },
-#     "targets": [
-#         {
-#             "architecture": "aarch64",
-#             "machines": [
-#                 "virt-*"
-#             ]
-#         }
-#     ],
-#     "features": [
+#         "targets": [
+#             {
+#                 "architecture": "aarch64",
+#                 "machines": [
+#                     "virt-*"
+#                 ]
+#             }
+#         ],
+#         "features": [
 #
-#     ],
-#     "tags": [
-#         "-a AARCH64",
-#         "-p ArmVirtPkg/ArmVirtQemu.dsc",
-#         "-t GCC48",
-#         "-b DEBUG",
-#         "-D DEBUG_PRINT_ERROR_LEVEL=0x80000000"
-#     ]
-# }
+#         ],
+#         "tags": [
+#             "-a AARCH64",
+#             "-p ArmVirtPkg/ArmVirtQemu.dsc",
+#             "-t GCC48",
+#             "-b DEBUG",
+#             "-D DEBUG_PRINT_ERROR_LEVEL=0x80000000"
+#         ]
+#     }
 ##
 { 'struct' : 'Firmware',
   'data'   : { 'description'     : 'str',

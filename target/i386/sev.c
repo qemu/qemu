@@ -1044,6 +1044,7 @@ sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
 int sev_inject_launch_secret(const char *packet_hdr, const char *secret,
                              uint64_t gpa, Error **errp)
 {
+    ERRP_GUARD();
     struct kvm_sev_launch_secret input;
     g_autofree guchar *data = NULL, *hdr = NULL;
     int error, ret = 1;

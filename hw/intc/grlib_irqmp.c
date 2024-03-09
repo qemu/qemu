@@ -356,6 +356,7 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Invalid ncpus properties: "
                    "%u, must be 0 < ncpus =< %u.", irqmp->ncpus,
                    IRQMP_MAX_CPU);
+        return;
     }
 
     qdev_init_gpio_in(dev, grlib_irqmp_set_irq, MAX_PILS);
