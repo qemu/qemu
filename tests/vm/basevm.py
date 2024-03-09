@@ -606,7 +606,7 @@ def parse_args(vmcls):
     parser.add_argument("--build-qemu",
                         help="build QEMU from source in guest")
     parser.add_argument("--build-target",
-                        help="QEMU build target", default="check")
+                        help="QEMU build target", default="all check")
     parser.add_argument("--build-path", default=None,
                         help="Path of build directory, "\
                         "for using build tree QEMU binary. ")
