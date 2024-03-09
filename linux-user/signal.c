@@ -34,6 +34,9 @@
 #include "user/safe-syscall.h"
 #include "tcg/tcg.h"
 
+/* target_siginfo_t must fit in gdbstub's siginfo save area. */
+QEMU_BUILD_BUG_ON(sizeof(target_siginfo_t) > MAX_SIGINFO_LENGTH);
+
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
 static void host_signal_handler(int host_signum, siginfo_t *info,
@@ -1184,7 +1187,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
      */
     tswap_siginfo(&k->info, &k->info);
 
-    sig = gdb_handlesig(cpu, sig, NULL);
+    sig = gdb_handlesig(cpu, sig, NULL, &k->info, sizeof(k->info));
     if (!sig) {
         sa = NULL;
         handler = TARGET_SIG_IGN;

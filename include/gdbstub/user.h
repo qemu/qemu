@@ -9,11 +9,15 @@
 #ifndef GDBSTUB_USER_H
 #define GDBSTUB_USER_H
 
+#define MAX_SIGINFO_LENGTH 128
+
 /**
  * gdb_handlesig() - yield control to gdb
  * @cpu: CPU
  * @sig: if non-zero, the signal number which caused us to stop
  * @reason: stop reason for stop reply packet or NULL
+ * @siginfo: target-specific siginfo struct
+ * @siginfo_len: target-specific siginfo struct length
  *
  * This function yields control to gdb, when a user-mode-only target
  * needs to stop execution. If @sig is non-zero, then we will send a
@@ -25,7 +29,7 @@
  * or 0 if no signal should be delivered, ie the signal that caused
  * us to stop should be ignored.
  */
-int gdb_handlesig(CPUState *, int, const char *);
+int gdb_handlesig(CPUState *, int, const char *, void *, int);
 
 /**
  * gdb_signalled() - inform remote gdb of sig exit

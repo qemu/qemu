@@ -95,6 +95,8 @@ typedef struct {
     enum GDBForkState fork_state;
     int fork_sockets[2];
     pid_t fork_peer_pid, fork_peer_tid;
+    uint8_t siginfo[MAX_SIGINFO_LENGTH];
+    unsigned long siginfo_len;
 } GDBUserState;
 
 static GDBUserState gdbserver_user_state;
@@ -190,13 +192,26 @@ void gdb_qemu_exit(int code)
     exit(code);
 }
 
-int gdb_handlesig(CPUState *cpu, int sig, const char *reason)
+int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
+                  int siginfo_len)
 {
     char buf[256];
     int n;
 
     if (!gdbserver_state.init || gdbserver_user_state.fd < 0) {
         return sig;
+    }
+
+    if (siginfo) {
+        /*
+         * Save target-specific siginfo.
+         *
+         * siginfo size, i.e. siginfo_len, is asserted at compile-time to fit in
+         * gdbserver_user_state.siginfo, usually in the source file calling
+         * gdb_handlesig. See, for instance, {linux,bsd}-user/signal.c.
+         */
+        memcpy(gdbserver_user_state.siginfo, siginfo, siginfo_len);
+        gdbserver_user_state.siginfo_len = siginfo_len;
     }
 
     /* disable single step if it was enabled */
@@ -746,7 +761,7 @@ void gdb_breakpoint_remove_all(CPUState *cs)
 void gdb_syscall_handling(const char *syscall_packet)
 {
     gdb_put_packet(syscall_packet);
-    gdb_handlesig(gdbserver_state.c_cpu, 0, NULL);
+    gdb_handlesig(gdbserver_state.c_cpu, 0, NULL, NULL, 0);
 }
 
 static bool should_catch_syscall(int num)
@@ -764,7 +779,7 @@ void gdb_syscall_entry(CPUState *cs, int num)
 {
     if (should_catch_syscall(num)) {
         g_autofree char *reason = g_strdup_printf("syscall_entry:%x;", num);
-        gdb_handlesig(cs, gdb_target_sigtrap(), reason);
+        gdb_handlesig(cs, gdb_target_sigtrap(), reason, NULL, 0);
     }
 }
 
@@ -772,7 +787,7 @@ void gdb_syscall_return(CPUState *cs, int num)
 {
     if (should_catch_syscall(num)) {
         g_autofree char *reason = g_strdup_printf("syscall_return:%x;", num);
-        gdb_handlesig(cs, gdb_target_sigtrap(), reason);
+        gdb_handlesig(cs, gdb_target_sigtrap(), reason, NULL, 0);
     }
 }
 
