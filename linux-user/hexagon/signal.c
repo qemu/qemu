@@ -162,7 +162,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     setup_ucontext(&frame->uc, env, set);
-    tswap_siginfo(&frame->info, info);
+    frame->info = *info;
     /*
      * The on-stack signal trampoline is no longer executed;
      * however, the libgcc signal frame unwinding code checks

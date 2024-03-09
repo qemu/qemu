@@ -493,7 +493,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     if (!lock_user_struct(VERIFY_WRITE, rt_sf, rt_sf_addr, 1))
         goto sigsegv;
 
-    tswap_siginfo(&rt_sf->info, info);
+    rt_sf->info = *info;
 
     __put_user(0, &rt_sf->uc.tuc_flags);
     __put_user(0, &rt_sf->uc.tuc_link);
@@ -502,7 +502,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user(h2g (&rt_sf->uc.tuc_mcontext),
                &rt_sf->uc.tuc_regs);
 #endif
-    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &rt_sf->uc.tuc_sigmask.sig[i]);
     }
 

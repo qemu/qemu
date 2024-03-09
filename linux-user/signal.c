@@ -409,8 +409,8 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_code = deposit32(si_code, 16, 16, si_type);
 }
 
-void tswap_siginfo(target_siginfo_t *tinfo,
-                   const target_siginfo_t *info)
+static void tswap_siginfo(target_siginfo_t *tinfo,
+                          const target_siginfo_t *info)
 {
     int si_type = extract32(info->si_code, 16, 16);
     int si_code = sextract32(info->si_code, 0, 16);
@@ -1177,6 +1177,12 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
     k->pending = 0;
+
+    /*
+     * Writes out siginfo values byteswapped, accordingly to the target. It also
+     * cleans the si_type from si_code making it correct for the target.
+     */
+    tswap_siginfo(&k->info, &k->info);
 
     sig = gdb_handlesig(cpu, sig, NULL);
     if (!sig) {

@@ -376,7 +376,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         extctx.end.haddr = (void *)frame + (extctx.end.gaddr - frame_addr);
     }
 
-    tswap_siginfo(&frame->rs_info, info);
+    frame->rs_info = *info;
 
     __put_user(0, &frame->rs_uc.tuc_flags);
     __put_user(0, &frame->rs_uc.tuc_link);
