@@ -1178,7 +1178,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     /* dequeue signal */
     k->pending = 0;
 
-    sig = gdb_handlesig(cpu, sig);
+    sig = gdb_handlesig(cpu, sig, NULL);
     if (!sig) {
         sa = NULL;
         handler = TARGET_SIG_IGN;
