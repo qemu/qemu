@@ -52,3 +52,7 @@ void hyperv_x86_synic_reset(X86CPU *cpu)
 void hyperv_x86_synic_update(X86CPU *cpu)
 {
 }
+
+void hyperv_x86_set_vmbus_recommended_features_enabled(void)
+{
+}

@@ -1650,6 +1650,13 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         }
     }
 
+    /* Skip SynIC and VP_INDEX since they are hard deps already */
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_STIMER) &&
+        hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC) &&
+        hyperv_feat_enabled(cpu, HYPERV_FEAT_RUNTIME)) {
+        hyperv_x86_set_vmbus_recommended_features_enabled();
+    }
+
     return 0;
 }
 

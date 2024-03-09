@@ -951,3 +951,15 @@ uint64_t hyperv_syndbg_query_options(void)
 
     return msg.u.query_options.options;
 }
+
+static bool vmbus_recommended_features_enabled;
+
+bool hyperv_are_vmbus_recommended_features_enabled(void)
+{
+    return vmbus_recommended_features_enabled;
+}
+
+void hyperv_set_vmbus_recommended_features_enabled(void)
+{
+    vmbus_recommended_features_enabled = true;
+}

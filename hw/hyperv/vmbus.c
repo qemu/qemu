@@ -2631,6 +2631,12 @@ static void vmbus_bridge_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!hyperv_are_vmbus_recommended_features_enabled()) {
+        warn_report("VMBus enabled without the recommended set of Hyper-V features: "
+                    "hv-stimer, hv-vapic and hv-runtime. "
+                    "Some Windows versions might not boot or enable the VMBus device");
+    }
+
     bridge->bus = VMBUS(qbus_new(TYPE_VMBUS, dev, "vmbus"));
 }
 
