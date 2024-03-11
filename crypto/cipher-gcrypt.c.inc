@@ -93,6 +93,11 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
         return false;
     }
 
+    if (gcry_cipher_algo_info(qcrypto_cipher_alg_to_gcry_alg(alg),
+                              GCRYCTL_TEST_ALGO, NULL, NULL) != 0) {
+        return false;
+    }
+
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
