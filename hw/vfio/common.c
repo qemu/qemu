@@ -152,7 +152,7 @@ static void vfio_set_migration_error(int err)
 {
     MigrationState *ms = migrate_get_current();
 
-    if (migration_is_setup_or_active(ms->state)) {
+    if (migration_is_setup_or_active()) {
         WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
             if (ms->to_dst_file) {
                 qemu_file_set_error(ms->to_dst_file, err);
