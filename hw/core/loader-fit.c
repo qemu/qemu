@@ -120,6 +120,7 @@ static int fit_load_kernel(const struct fit_loader *ldr, const void *itb,
                            int cfg, void *opaque, hwaddr *pend,
                            Error **errp)
 {
+    ERRP_GUARD();
     const char *name;
     const void *data;
     const void *load_data;
@@ -178,6 +179,7 @@ static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
                         int cfg, void *opaque, const void *match_data,
                         hwaddr kernel_end, Error **errp)
 {
+    ERRP_GUARD();
     Error *err = NULL;
     const char *name;
     const void *data;
