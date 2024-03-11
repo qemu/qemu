@@ -738,6 +738,7 @@ static int coroutine_fn GRAPH_UNLOCKED
 vdi_co_do_create(BlockdevCreateOptions *create_options, size_t block_size,
                  Error **errp)
 {
+    ERRP_GUARD();
     BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
     uint64_t bytes = 0;
