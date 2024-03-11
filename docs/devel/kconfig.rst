@@ -211,6 +211,8 @@ declares its dependencies in different ways:
 
     config SUN4M
       bool
+      default y
+      depends on SPARC && !SPARC64
       imply TCX
       imply CG3
       select CS4231
@@ -228,8 +230,16 @@ declares its dependencies in different ways:
   directives.  A device should be listed under ``select`` if the board
   cannot be started at all without it.  It should be listed under
   ``imply`` if (depending on the QEMU command line) the board may or
-  may not be started without it.  Boards also default to false; they are
-  enabled by the ``default-configs/*.mak`` for the target they apply to.
+  may not be started without it.  Boards default to true, but also
+  have a ``depends on`` clause to limit them to the appropriate targets.
+  For some targets, not all boards may be supported by hardware
+  virtualization, in which case they also depend on the ``TCG`` symbol,
+  Other symbols that are commonly used as dependencies for boards
+  include libraries (such as ``FDT``) or ``TARGET_BIG_ENDIAN``
+  (possibly negated).
+
+  Boards are listed for convenience in the ``default-configs/*.mak``
+  for the target they apply to.
 
 **internal elements**
 
