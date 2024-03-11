@@ -105,13 +105,10 @@ void migration_add_notifier_mode(NotifierWithReturn *notify,
 void migration_remove_notifier(NotifierWithReturn *notify);
 int migration_call_notifiers(MigrationState *s, MigrationEventType type,
                              Error **errp);
-bool migration_in_setup(MigrationState *);
-bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
 bool migration_is_running(void);
 void migration_file_set_error(int err);
 
-/* ...and after the device transmission */
 /* True if incoming migration entered POSTCOPY_INCOMING_DISCARD */
 bool migration_in_incoming_postcopy(void);
 /* True if incoming migration entered POSTCOPY_INCOMING_ADVISE */
