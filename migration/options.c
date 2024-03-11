@@ -1085,6 +1085,8 @@ void migrate_params_init(MigrationParameters *params)
  */
 bool migrate_params_check(MigrationParameters *params, Error **errp)
 {
+    ERRP_GUARD();
+
     if (params->has_compress_level &&
         (params->compress_level > 9)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
