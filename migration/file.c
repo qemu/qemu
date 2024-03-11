@@ -191,7 +191,7 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
          */
         offset = (uintptr_t) iov[slice_idx].iov_base - (uintptr_t) block->host;
         if (offset >= block->used_length) {
-            error_setg(errp, "offset " RAM_ADDR_FMT
+            error_setg(errp, "offset %" PRIxPTR
                        "outside of ramblock %s range", offset, block->idstr);
             ret = -1;
             break;
