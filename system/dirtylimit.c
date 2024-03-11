@@ -25,7 +25,6 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "migration/misc.h"
-#include "migration/migration.h"
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -448,10 +447,8 @@ static void dirtylimit_cleanup(void)
  */
 static bool dirtylimit_is_allowed(void)
 {
-    MigrationState *ms = migrate_get_current();
-
     if (migration_is_running() &&
-        (!qemu_thread_is_self(&ms->thread)) &&
+        !migration_thread_is_self() &&
         migrate_dirty_limit() &&
         dirtylimit_in_service()) {
         return false;

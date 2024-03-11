@@ -1647,6 +1647,13 @@ bool migration_is_active(void)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
+bool migration_thread_is_self(void)
+{
+    MigrationState *s = current_migration;
+
+    return qemu_thread_is_self(&s->thread);
+}
+
 bool migrate_mode_is_cpr(MigrationState *s)
 {
     return s->parameters.mode == MIG_MODE_CPR_REBOOT;
