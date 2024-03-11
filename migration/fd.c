@@ -80,6 +80,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
 void fd_start_incoming_migration(const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
+    QIOChannelFile *fioc;
     int fd = monitor_fd_param(monitor_cur(), fdname, errp);
     if (fd == -1) {
         return;
@@ -103,15 +104,13 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
         int channels = migrate_multifd_channels();
 
         while (channels--) {
-            ioc = QIO_CHANNEL(qio_channel_file_new_fd(dup(fd)));
-
-            if (QIO_CHANNEL_FILE(ioc)->fd == -1) {
-                error_setg(errp, "Failed to duplicate fd %d", fd);
+            fioc = qio_channel_file_new_dupfd(fd, errp);
+            if (!fioc) {
                 return;
             }
 
             qio_channel_set_name(ioc, "migration-fd-incoming");
-            qio_channel_add_watch_full(ioc, G_IO_IN,
+            qio_channel_add_watch_full(QIO_CHANNEL(fioc), G_IO_IN,
                                        fd_accept_incoming_migration,
                                        NULL, NULL,
                                        g_main_context_get_thread_default());

@@ -58,12 +58,13 @@ bool file_send_channel_create(gpointer opaque, Error **errp)
     int fd = fd_args_get_fd();
 
     if (fd && fd != -1) {
-        ioc = qio_channel_file_new_fd(dup(fd));
+        ioc = qio_channel_file_new_dupfd(fd, errp);
     } else {
         ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
-        if (!ioc) {
-            goto out;
-        }
+    }
+
+    if (!ioc) {
+        goto out;
     }
 
     multifd_channel_connect(opaque, QIO_CHANNEL(ioc));
@@ -147,10 +148,9 @@ void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
                                    NULL, NULL,
                                    g_main_context_get_thread_default());
 
-        fioc = qio_channel_file_new_fd(dup(fioc->fd));
+        fioc = qio_channel_file_new_dupfd(fioc->fd, errp);
 
-        if (!fioc || fioc->fd == -1) {
-            error_setg(errp, "Error creating migration incoming channel");
+        if (!fioc) {
             break;
         }
     } while (++i < channels);
