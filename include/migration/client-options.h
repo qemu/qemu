@@ -20,5 +20,6 @@ bool migrate_switchover_ack(void);
 /* parameters */
 
 MigMode migrate_mode(void);
+uint64_t migrate_vcpu_dirty_limit_period(void);
 
 #endif

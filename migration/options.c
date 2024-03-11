@@ -924,6 +924,13 @@ const char *migrate_tls_hostname(void)
     return s->parameters.tls_hostname;
 }
 
+uint64_t migrate_vcpu_dirty_limit_period(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.x_vcpu_dirty_limit_period;
+}
+
 uint64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s = migrate_get_current();
