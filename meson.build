@@ -66,7 +66,7 @@ if host_os == 'windows' and add_languages('cpp', required: false, native: false)
   cxx = meson.get_compiler('cpp')
 endif
 if host_os == 'darwin' and \
-   add_languages('objc', required: get_option('cocoa'), native: false)
+   add_languages('objc', required: true, native: false)
   all_languages += ['objc']
   objc = meson.get_compiler('objc')
 endif
