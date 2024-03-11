@@ -696,7 +696,7 @@ const PropertyInfo qdev_prop_granule_mode = {
 const PropertyInfo qdev_prop_zero_page_detection = {
     .name = "ZeroPageDetection",
     .description = "zero_page_detection values, "
-                   "none,legacy",
+                   "none,legacy,multifd",
     .enum_table = &ZeroPageDetection_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
