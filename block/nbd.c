@@ -852,6 +852,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
         BDRVNBDState *s, uint64_t cookie, bool only_structured,
         int *request_ret, QEMUIOVector *qiov, void **payload, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     int i = COOKIE_TO_INDEX(cookie);
     void *local_payload = NULL;
