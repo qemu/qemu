@@ -75,7 +75,8 @@ bool ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *rb, Error **errp);
 bool ramblock_page_is_discarded(RAMBlock *rb, ram_addr_t start);
 void postcopy_preempt_shutdown_file(MigrationState *s);
 void *postcopy_preempt_thread(void *opaque);
-void ramblock_set_file_bmap_atomic(RAMBlock *block, ram_addr_t offset);
+void ramblock_set_file_bmap_atomic(RAMBlock *block, ram_addr_t offset,
+                                   bool set);
 
 /* ram cache */
 int colo_init_ram_cache(void);

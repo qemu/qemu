@@ -3149,9 +3149,13 @@ static void ram_save_file_bmap(QEMUFile *f)
     }
 }
 
-void ramblock_set_file_bmap_atomic(RAMBlock *block, ram_addr_t offset)
+void ramblock_set_file_bmap_atomic(RAMBlock *block, ram_addr_t offset, bool set)
 {
-    set_bit_atomic(offset >> TARGET_PAGE_BITS, block->file_bmap);
+    if (set) {
+        set_bit_atomic(offset >> TARGET_PAGE_BITS, block->file_bmap);
+    } else {
+        clear_bit_atomic(offset >> TARGET_PAGE_BITS, block->file_bmap);
+    }
 }
 
 /**

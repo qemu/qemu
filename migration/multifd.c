@@ -115,7 +115,7 @@ static void multifd_set_file_bitmap(MultiFDSendParams *p)
     assert(pages->block);
 
     for (int i = 0; i < p->pages->num; i++) {
-        ramblock_set_file_bmap_atomic(pages->block, pages->offset[i]);
+        ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], true);
     }
 }
 
