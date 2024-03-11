@@ -1579,6 +1579,7 @@ bdrv_qed_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
 static void coroutine_fn GRAPH_RDLOCK
 bdrv_qed_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    ERRP_GUARD();
     BDRVQEDState *s = bs->opaque;
     int ret;
 
