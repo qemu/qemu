@@ -676,9 +676,8 @@ static void test_cipher(const void *opaque)
     cipher = qcrypto_cipher_new(
         data->alg, data->mode,
         key, nkey,
-        &err);
+        data->plaintext ? &error_abort : &err);
     if (data->plaintext) {
-        g_assert(err == NULL);
         g_assert(cipher != NULL);
     } else {
         error_free_or_abort(&err);
