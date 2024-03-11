@@ -909,7 +909,7 @@
 #        (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'legacy'.
+#     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
 # Features:
@@ -1106,7 +1106,7 @@
 #        (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'legacy'.
+#     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
 # Features:
@@ -1339,7 +1339,7 @@
 #        (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'legacy'.
+#     See description in @ZeroPageDetection.  Default is 'multifd'.
 #     (since 9.0)
 #
 # Features:
