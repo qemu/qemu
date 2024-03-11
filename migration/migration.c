@@ -1406,7 +1406,7 @@ static void migrate_fd_cleanup(MigrationState *s)
         qemu_fclose(tmp);
     }
 
-    assert(!migration_is_active(s));
+    assert(!migration_is_active());
 
     if (s->state == MIGRATION_STATUS_CANCELLING) {
         migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
@@ -1637,8 +1637,10 @@ bool migration_is_idle(void)
     return false;
 }
 
-bool migration_is_active(MigrationState *s)
+bool migration_is_active(void)
 {
+    MigrationState *s = current_migration;
+
     return (s->state == MIGRATION_STATUS_ACTIVE ||
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
@@ -3461,7 +3463,7 @@ static void *migration_thread(void *opaque)
 
     trace_migration_thread_setup_complete();
 
-    while (migration_is_active(s)) {
+    while (migration_is_active()) {
         if (urgent || !migration_rate_exceeded(s->to_dst_file)) {
             MigIterateState iter_state = migration_iteration_run(s);
             if (iter_state == MIG_ITERATE_SKIP) {
@@ -3607,7 +3609,7 @@ static void *bg_migration_thread(void *opaque)
     migration_bh_schedule(bg_migration_vm_start_bh, s);
     bql_unlock();
 
-    while (migration_is_active(s)) {
+    while (migration_is_active()) {
         MigIterateState iter_state = bg_migration_iteration_run(s);
         if (iter_state == MIG_ITERATE_SKIP) {
             continue;

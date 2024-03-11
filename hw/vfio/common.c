@@ -182,7 +182,7 @@ static bool vfio_devices_all_dirty_tracking(VFIOContainerBase *bcontainer)
     VFIODevice *vbasedev;
     MigrationState *ms = migrate_get_current();
 
-    if (ms->state != MIGRATION_STATUS_ACTIVE &&
+    if (!migration_is_active() &&
         ms->state != MIGRATION_STATUS_DEVICE) {
         return false;
     }
@@ -225,7 +225,7 @@ vfio_devices_all_running_and_mig_active(const VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
 
-    if (!migration_is_active(migrate_get_current())) {
+    if (!migration_is_active()) {
         return false;
     }
 
