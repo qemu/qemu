@@ -69,6 +69,24 @@ QIOChannelFile *
 qio_channel_file_new_fd(int fd);
 
 /**
+ * qio_channel_file_new_dupfd:
+ * @fd: the file descriptor
+ * @errp: pointer to initialized error object
+ *
+ * Create a new IO channel object for a file represented by the @fd
+ * parameter. Like qio_channel_file_new_fd(), but the @fd is first
+ * duplicated with dup().
+ *
+ * The channel will own the duplicated file descriptor and will take
+ * responsibility for closing it, the original FD is owned by the
+ * caller.
+ *
+ * Returns: the new channel object
+ */
+QIOChannelFile *
+qio_channel_file_new_dupfd(int fd, Error **errp);
+
+/**
  * qio_channel_file_new_path:
  * @path: the file path
  * @flags: the open flags (O_RDONLY|O_WRONLY|O_RDWR, etc)
