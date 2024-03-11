@@ -26,6 +26,7 @@
 #include "qom/object.h"
 #include "postcopy-ram.h"
 #include "sysemu/runstate.h"
+#include "migration/misc.h"
 
 struct PostcopyBlocktimeContext;
 
@@ -479,12 +480,17 @@ bool migrate_has_error(MigrationState *s);
 
 void migrate_fd_connect(MigrationState *s, Error *error_in);
 
+int migration_call_notifiers(MigrationState *s, MigrationEventType type,
+                             Error **errp);
+
 int migrate_init(MigrationState *s, Error **errp);
 bool migration_is_blocked(Error **errp);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(void);
 bool migration_postcopy_is_alive(int state);
 MigrationState *migrate_get_current(void);
+bool migration_has_failed(MigrationState *);
+bool migrate_mode_is_cpr(MigrationState *);
 
 uint64_t ram_get_total_transferred_pages(void);
 
