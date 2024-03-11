@@ -17,6 +17,7 @@
 #include "qemu/notify.h"
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-types-net.h"
+#include "migration/client-options.h"
 
 /* migration/ram.c */
 

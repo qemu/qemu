@@ -26,7 +26,6 @@
 #include "trace.h"
 #include "migration/misc.h"
 #include "migration/migration.h"
-#include "migration/options.h"
 
 /*
  * Dirtylimit stop working if dirty page rate error
