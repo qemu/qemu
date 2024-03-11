@@ -451,7 +451,7 @@ static bool dirtylimit_is_allowed(void)
 {
     MigrationState *ms = migrate_get_current();
 
-    if (migration_is_running(ms->state) &&
+    if (migration_is_running() &&
         (!qemu_thread_is_self(&ms->thread)) &&
         migrate_dirty_limit() &&
         dirtylimit_in_service()) {

@@ -1103,9 +1103,11 @@ bool migration_is_setup_or_active(void)
     }
 }
 
-bool migration_is_running(int state)
+bool migration_is_running(void)
 {
-    switch (state) {
+    MigrationState *s = current_migration;
+
+    switch (s->state) {
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
@@ -1477,7 +1479,7 @@ static void migrate_fd_cancel(MigrationState *s)
 
     do {
         old_state = s->state;
-        if (!migration_is_running(old_state)) {
+        if (!migration_is_running()) {
             break;
         }
         /* If the migration is paused, kick it out of the pause */
@@ -1962,7 +1964,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         return true;
     }
 
-    if (migration_is_running(s->state)) {
+    if (migration_is_running()) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return false;
     }

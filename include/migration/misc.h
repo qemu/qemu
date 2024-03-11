@@ -106,6 +106,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
+bool migration_is_running(void);
 /* ...and after the device transmission */
 /* True if incoming migration entered POSTCOPY_INCOMING_DISCARD */
 bool migration_in_incoming_postcopy(void);
