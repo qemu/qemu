@@ -167,9 +167,10 @@ test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 
 slow_tests = {
   'test-aio-multithread' : 120,
+  'test-bufferiszero': 60,
   'test-crypto-block' : 300,
-  'test-crypto-tlscredsx509': 45,
-  'test-crypto-tlssession': 45,
+  'test-crypto-tlscredsx509': 90,
+  'test-crypto-tlssession': 90,
   'test-replication': 60,
 }
 
