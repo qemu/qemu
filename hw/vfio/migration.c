@@ -17,14 +17,12 @@
 
 #include "sysemu/runstate.h"
 #include "hw/vfio/vfio-common.h"
-#include "migration/migration.h"
-#include "migration/options.h"
+#include "migration/misc.h"
 #include "migration/savevm.h"
 #include "migration/vmstate.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "migration/blocker.h"
-#include "migration/misc.h"
 #include "qapi/error.h"
 #include "exec/ramlist.h"
 #include "exec/ram_addr.h"
@@ -505,6 +503,12 @@ static bool vfio_is_active_iterate(void *opaque)
     return vfio_device_state_is_precopy(vbasedev);
 }
 
+/*
+ * Note about migration rate limiting: VFIO migration buffer size is currently
+ * limited to 1MB, so there is no need to check if migration rate exceeded (as
+ * in the worst case it will exceed by 1MB). However, if the buffer size is
+ * later changed to a bigger value, migration rate should be enforced here.
+ */
 static int vfio_save_iterate(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
@@ -529,11 +533,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
     trace_vfio_save_iterate(vbasedev->name, migration->precopy_init_size,
                             migration->precopy_dirty_size);
 
-    /*
-     * A VFIO device's pre-copy dirty_bytes is not guaranteed to reach zero.
-     * Return 1 so following handlers will not be potentially blocked.
-     */
-    return 1;
+    return !migration->precopy_init_size && !migration->precopy_dirty_size;
 }
 
 static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
@@ -713,9 +713,7 @@ static void vfio_vmstate_change_prepare(void *opaque, bool running,
          * Migration should be aborted in this case, but vm_state_notify()
          * currently does not support reporting failures.
          */
-        if (migrate_get_current()->to_dst_file) {
-            qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
-        }
+        migration_file_set_error(ret);
     }
 
     trace_vfio_vmstate_change_prepare(vbasedev->name, running,
@@ -745,9 +743,7 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
          * Migration should be aborted in this case, but vm_state_notify()
          * currently does not support reporting failures.
          */
-        if (migrate_get_current()->to_dst_file) {
-            qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
-        }
+        migration_file_set_error(ret);
     }
 
     trace_vfio_vmstate_change(vbasedev->name, running, RunState_str(state),

@@ -26,7 +26,6 @@
 #include "qemu/sockets.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cryptodev.h"
-#include "migration/migration.h"
 #include "migration/postcopy-ram.h"
 #include "trace.h"
 #include "exec/ramblock.h"

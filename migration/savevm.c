@@ -1317,7 +1317,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
     MigrationState *ms = migrate_get_current();
     SaveStateEntry *se;
     Error *local_err = NULL;
-    int ret;
+    int ret = 0;
 
     json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
     json_writer_start_array(ms->vmdesc, "devices");
@@ -1349,6 +1349,10 @@ void qemu_savevm_state_setup(QEMUFile *f)
             qemu_file_set_error(f, ret);
             break;
         }
+    }
+
+    if (ret) {
+        return;
     }
 
     if (precopy_notify(PRECOPY_NOTIFY_SETUP, &local_err)) {
@@ -1390,7 +1394,8 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
 int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
 {
     SaveStateEntry *se;
-    int ret = 1;
+    bool all_finished = true;
+    int ret;
 
     trace_savevm_state_iterate();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -1431,16 +1436,12 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
                          "%d(%s): %d",
                          se->section_id, se->idstr, ret);
             qemu_file_set_error(f, ret);
-        }
-        if (ret <= 0) {
-            /* Do not proceed to the next vmstate before this one reported
-               completion of the current stage. This serializes the migration
-               and reduces the probability that a faster changing state is
-               synchronized over and over again. */
-            break;
+            return ret;
+        } else if (!ret) {
+            all_finished = false;
         }
     }
-    return ret;
+    return all_finished;
 }
 
 static bool should_send_vmdesc(void)
@@ -1705,7 +1706,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     MigrationState *ms = migrate_get_current();
     MigrationStatus status;
 
-    if (migration_is_running(ms->state)) {
+    if (migration_is_running()) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return -EINVAL;
     }

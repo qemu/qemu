@@ -16,6 +16,7 @@
 
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "migration/client-options.h"
 
 /* migration properties */
 
@@ -24,12 +25,10 @@ extern Property migration_properties[];
 /* capabilities */
 
 bool migrate_auto_converge(void);
-bool migrate_background_snapshot(void);
 bool migrate_block(void);
 bool migrate_colo(void);
 bool migrate_compress(void);
 bool migrate_dirty_bitmaps(void);
-bool migrate_dirty_limit(void);
 bool migrate_events(void);
 bool migrate_mapped_ram(void);
 bool migrate_ignore_shared(void);
@@ -38,11 +37,9 @@ bool migrate_multifd(void);
 bool migrate_pause_before_switchover(void);
 bool migrate_postcopy_blocktime(void);
 bool migrate_postcopy_preempt(void);
-bool migrate_postcopy_ram(void);
 bool migrate_rdma_pin_all(void);
 bool migrate_release_ram(void);
 bool migrate_return_path(void);
-bool migrate_switchover_ack(void);
 bool migrate_validate_uuid(void);
 bool migrate_xbzrle(void);
 bool migrate_zero_blocks(void);
@@ -84,7 +81,6 @@ uint8_t migrate_max_cpu_throttle(void);
 uint64_t migrate_max_bandwidth(void);
 uint64_t migrate_avail_switchover_bandwidth(void);
 uint64_t migrate_max_postcopy_bandwidth(void);
-MigMode migrate_mode(void);
 int migrate_multifd_channels(void);
 MultiFDCompression migrate_multifd_compression(void);
 int migrate_multifd_zlib_level(void);
@@ -94,6 +90,7 @@ const char *migrate_tls_authz(void);
 const char *migrate_tls_creds(void);
 const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
+ZeroPageDetection migrate_zero_page_detection(void);
 
 /* parameters setters */
 

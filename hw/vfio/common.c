@@ -39,7 +39,6 @@
 #include "sysemu/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "migration/migration.h"
 #include "migration/misc.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
@@ -150,14 +149,8 @@ bool vfio_viommu_preset(VFIODevice *vbasedev)
 
 static void vfio_set_migration_error(int err)
 {
-    MigrationState *ms = migrate_get_current();
-
-    if (migration_is_setup_or_active(ms->state)) {
-        WITH_QEMU_LOCK_GUARD(&ms->qemu_file_lock) {
-            if (ms->to_dst_file) {
-                qemu_file_set_error(ms->to_dst_file, err);
-            }
-        }
+    if (migration_is_setup_or_active()) {
+        migration_file_set_error(err);
     }
 }
 
@@ -180,10 +173,8 @@ bool vfio_device_state_is_precopy(VFIODevice *vbasedev)
 static bool vfio_devices_all_dirty_tracking(VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
-    MigrationState *ms = migrate_get_current();
 
-    if (ms->state != MIGRATION_STATUS_ACTIVE &&
-        ms->state != MIGRATION_STATUS_DEVICE) {
+    if (!migration_is_active() && !migration_is_device()) {
         return false;
     }
 
@@ -225,7 +216,7 @@ vfio_devices_all_running_and_mig_active(const VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
 
-    if (!migration_is_active(migrate_get_current())) {
+    if (!migration_is_active()) {
         return false;
     }
 

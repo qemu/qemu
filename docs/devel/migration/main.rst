@@ -44,7 +44,8 @@ over any transport.
 - file migration: do the migration using a file that is passed to QEMU
   by path. A file offset option is supported to allow a management
   application to add its own metadata to the start of the file without
-  QEMU interference.
+  QEMU interference. Note that QEMU does not flush cached file
+  data/metadata at the end of migration.
 
 In addition, support is included for migration using RDMA, which
 transports the page data using ``RDMA``, where the hardware takes care of

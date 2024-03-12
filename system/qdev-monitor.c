@@ -38,7 +38,6 @@
 #include "qemu/option_int.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
-#include "migration/migration.h"
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"

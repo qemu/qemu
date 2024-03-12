@@ -32,7 +32,6 @@
 #include "sysemu/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "migration/migration.h"
 #include "pci.h"
 
 VFIOGroupList vfio_group_list =

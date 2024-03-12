@@ -3357,7 +3357,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         goto err_rdma_dest_wait;
     }
 
-    isock->host = rdma->host;
+    isock->host = g_strdup(rdma->host);
     isock->port = g_strdup_printf("%d", rdma->port);
 
     /*

@@ -25,8 +25,6 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "migration/misc.h"
-#include "migration/migration.h"
-#include "migration/options.h"
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -78,14 +76,13 @@ static bool dirtylimit_quit;
 
 static void vcpu_dirty_rate_stat_collect(void)
 {
-    MigrationState *s = migrate_get_current();
     VcpuStat stat;
     int i = 0;
     int64_t period = DIRTYLIMIT_CALC_TIME_MS;
 
     if (migrate_dirty_limit() &&
-        migration_is_active(s)) {
-        period = s->parameters.x_vcpu_dirty_limit_period;
+        migration_is_active()) {
+        period = migrate_vcpu_dirty_limit_period();
     }
 
     /* calculate vcpu dirtyrate */
@@ -450,10 +447,8 @@ static void dirtylimit_cleanup(void)
  */
 static bool dirtylimit_is_allowed(void)
 {
-    MigrationState *ms = migrate_get_current();
-
-    if (migration_is_running(ms->state) &&
-        (!qemu_thread_is_self(&ms->thread)) &&
+    if (migration_is_running() &&
+        !migration_thread_is_self() &&
         migrate_dirty_limit() &&
         dirtylimit_in_service()) {
         return false;

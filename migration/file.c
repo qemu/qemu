@@ -159,7 +159,7 @@ void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
 int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
                             int niov, RAMBlock *block, Error **errp)
 {
-    ssize_t ret = -1;
+    ssize_t ret = 0;
     int i, slice_idx, slice_num;
     uintptr_t base, next, offset;
     size_t len;
@@ -191,7 +191,7 @@ int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
          */
         offset = (uintptr_t) iov[slice_idx].iov_base - (uintptr_t) block->host;
         if (offset >= block->used_length) {
-            error_setg(errp, "offset " RAM_ADDR_FMT
+            error_setg(errp, "offset %" PRIxPTR
                        "outside of ramblock %s range", offset, block->idstr);
             ret = -1;
             break;

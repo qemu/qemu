@@ -26,7 +26,6 @@
 #include <err.h>
 #include "standard-headers/linux/virtio_net.h"
 #include "monitor/monitor.h"
-#include "migration/migration.h"
 #include "migration/misc.h"
 #include "hw/virtio/vhost.h"
 
@@ -355,7 +354,7 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
     if (s->always_svq ||
-        migration_is_setup_or_active(migrate_get_current()->state)) {
+        migration_is_setup_or_active()) {
         v->shadow_vqs_enabled = true;
     } else {
         v->shadow_vqs_enabled = false;
