@@ -23,9 +23,6 @@
 #define QERR_IO_ERROR \
     "An IO error has occurred"
 
-#define QERR_MIGRATION_ACTIVE \
-    "There's a migration process in progress"
-
 #define QERR_MISSING_PARAMETER \
     "Parameter '%s' is missing"
 
