@@ -1931,7 +1931,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
     }
 
     qkbd_state_key_event(vs->vd->kbd, qcode, down);
-    if (!qemu_console_is_graphic(NULL)) {
+    if (!qemu_console_is_graphic(vs->vd->dcl.con)) {
+        QemuTextConsole *con = QEMU_TEXT_CONSOLE(vs->vd->dcl.con);
         bool numlock = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_NUMLOCK);
         bool control = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_CTRL);
         /* QEMU console emulation */
@@ -1945,88 +1946,88 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             case 0xb8:                          /* Right ALT */
                 break;
             case 0xc8:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_UP);
+                qemu_text_console_put_keysym(con, QEMU_KEY_UP);
                 break;
             case 0xd0:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_DOWN);
+                qemu_text_console_put_keysym(con, QEMU_KEY_DOWN);
                 break;
             case 0xcb:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_LEFT);
+                qemu_text_console_put_keysym(con, QEMU_KEY_LEFT);
                 break;
             case 0xcd:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_RIGHT);
+                qemu_text_console_put_keysym(con, QEMU_KEY_RIGHT);
                 break;
             case 0xd3:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_DELETE);
+                qemu_text_console_put_keysym(con, QEMU_KEY_DELETE);
                 break;
             case 0xc7:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_HOME);
+                qemu_text_console_put_keysym(con, QEMU_KEY_HOME);
                 break;
             case 0xcf:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_END);
+                qemu_text_console_put_keysym(con, QEMU_KEY_END);
                 break;
             case 0xc9:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_PAGEUP);
+                qemu_text_console_put_keysym(con, QEMU_KEY_PAGEUP);
                 break;
             case 0xd1:
-                qemu_text_console_put_keysym(NULL, QEMU_KEY_PAGEDOWN);
+                qemu_text_console_put_keysym(con, QEMU_KEY_PAGEDOWN);
                 break;
 
             case 0x47:
-                qemu_text_console_put_keysym(NULL, numlock ? '7' : QEMU_KEY_HOME);
+                qemu_text_console_put_keysym(con, numlock ? '7' : QEMU_KEY_HOME);
                 break;
             case 0x48:
-                qemu_text_console_put_keysym(NULL, numlock ? '8' : QEMU_KEY_UP);
+                qemu_text_console_put_keysym(con, numlock ? '8' : QEMU_KEY_UP);
                 break;
             case 0x49:
-                qemu_text_console_put_keysym(NULL, numlock ? '9' : QEMU_KEY_PAGEUP);
+                qemu_text_console_put_keysym(con, numlock ? '9' : QEMU_KEY_PAGEUP);
                 break;
             case 0x4b:
-                qemu_text_console_put_keysym(NULL, numlock ? '4' : QEMU_KEY_LEFT);
+                qemu_text_console_put_keysym(con, numlock ? '4' : QEMU_KEY_LEFT);
                 break;
             case 0x4c:
-                qemu_text_console_put_keysym(NULL, '5');
+                qemu_text_console_put_keysym(con, '5');
                 break;
             case 0x4d:
-                qemu_text_console_put_keysym(NULL, numlock ? '6' : QEMU_KEY_RIGHT);
+                qemu_text_console_put_keysym(con, numlock ? '6' : QEMU_KEY_RIGHT);
                 break;
             case 0x4f:
-                qemu_text_console_put_keysym(NULL, numlock ? '1' : QEMU_KEY_END);
+                qemu_text_console_put_keysym(con, numlock ? '1' : QEMU_KEY_END);
                 break;
             case 0x50:
-                qemu_text_console_put_keysym(NULL, numlock ? '2' : QEMU_KEY_DOWN);
+                qemu_text_console_put_keysym(con, numlock ? '2' : QEMU_KEY_DOWN);
                 break;
             case 0x51:
-                qemu_text_console_put_keysym(NULL, numlock ? '3' : QEMU_KEY_PAGEDOWN);
+                qemu_text_console_put_keysym(con, numlock ? '3' : QEMU_KEY_PAGEDOWN);
                 break;
             case 0x52:
-                qemu_text_console_put_keysym(NULL, '0');
+                qemu_text_console_put_keysym(con, '0');
                 break;
             case 0x53:
-                qemu_text_console_put_keysym(NULL, numlock ? '.' : QEMU_KEY_DELETE);
+                qemu_text_console_put_keysym(con, numlock ? '.' : QEMU_KEY_DELETE);
                 break;
 
             case 0xb5:
-                qemu_text_console_put_keysym(NULL, '/');
+                qemu_text_console_put_keysym(con, '/');
                 break;
             case 0x37:
-                qemu_text_console_put_keysym(NULL, '*');
+                qemu_text_console_put_keysym(con, '*');
                 break;
             case 0x4a:
-                qemu_text_console_put_keysym(NULL, '-');
+                qemu_text_console_put_keysym(con, '-');
                 break;
             case 0x4e:
-                qemu_text_console_put_keysym(NULL, '+');
+                qemu_text_console_put_keysym(con, '+');
                 break;
             case 0x9c:
-                qemu_text_console_put_keysym(NULL, '\n');
+                qemu_text_console_put_keysym(con, '\n');
                 break;
 
             default:
                 if (control) {
-                    qemu_text_console_put_keysym(NULL, sym & 0x1f);
+                    qemu_text_console_put_keysym(con, sym & 0x1f);
                 } else {
-                    qemu_text_console_put_keysym(NULL, sym);
+                    qemu_text_console_put_keysym(con, sym);
                 }
                 break;
             }
@@ -2044,7 +2045,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
     int lsym = sym;
 
-    if (lsym >= 'A' && lsym <= 'Z' && qemu_console_is_graphic(NULL)) {
+    if (lsym >= 'A' && lsym <= 'Z' && qemu_console_is_graphic(vs->vd->dcl.con)) {
         lsym = lsym - 'A' + 'a';
     }
 
