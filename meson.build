@@ -2006,19 +2006,23 @@ elif get_option('vduse_blk_export').disabled()
 endif
 
 # libbpf
-libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
+bpf_version = '1.1.0'
+libbpf = dependency('libbpf', version: '>=' + bpf_version, required: get_option('bpf'), method: 'pkg-config')
 if libbpf.found() and not cc.links('''
    #include <bpf/libbpf.h>
+   #include <linux/bpf.h>
    int main(void)
    {
+     // check flag availability
+     int flag = BPF_F_MMAPABLE;
      bpf_object__destroy_skeleton(NULL);
      return 0;
    }''', dependencies: libbpf)
   libbpf = not_found
   if get_option('bpf').enabled()
-    error('libbpf skeleton test failed')
+    error('libbpf skeleton/mmaping test failed')
   else
-    warning('libbpf skeleton test failed, disabling')
+    warning('libbpf skeleton/mmaping test failed, disabling')
   endif
 endif
 
