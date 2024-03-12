@@ -79,7 +79,7 @@ static const char *resp_get_error(QDict *resp)
     g_assert(_resp);                                                   \
     _error = resp_get_error(_resp);                                    \
     g_assert(_error);                                                  \
-    g_assert(g_str_equal(_error, expected_error));                     \
+    g_assert_cmpstr(_error, ==, expected_error);                       \
     qobject_unref(_resp);                                              \
 })
 
@@ -194,8 +194,8 @@ static void assert_type_full(QTestState *qts)
     g_assert(resp);
     error = resp_get_error(resp);
     g_assert(error);
-    g_assert(g_str_equal(error,
-                         "The requested expansion type is not supported"));
+    g_assert_cmpstr(error, ==,
+                    "The requested expansion type is not supported");
     qobject_unref(resp);
 }
 
@@ -212,8 +212,9 @@ static void assert_bad_props(QTestState *qts, const char *cpu_type)
     g_assert(resp);
     error = resp_get_error(resp);
     g_assert(error);
-    g_assert(g_str_equal(error,
-                         "Invalid parameter type for 'props', expected: dict"));
+    g_assert_cmpstr(error, ==,
+                    "Invalid parameter type for 'model.props',"
+                    " expected: object");
     qobject_unref(resp);
 }
 
@@ -446,7 +447,7 @@ static void test_query_cpu_model_expansion(const void *data)
     assert_bad_props(qts, "max");
     assert_error(qts, "foo", "The CPU type 'foo' is not a recognized "
                  "ARM CPU type", NULL);
-    assert_error(qts, "max", "Parameter 'not-a-prop' is unexpected",
+    assert_error(qts, "max", "Parameter 'model.props.not-a-prop' is unexpected",
                  "{ 'not-a-prop': false }");
     assert_error(qts, "host", "The CPU type 'host' requires KVM", NULL);
 

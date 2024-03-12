@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-run-state.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qom/qom-qobject.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "hw/qdev-properties.h"
@@ -129,20 +130,36 @@ static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
     }
 }
 
-static void object_apply_props(Object *obj, QDict *props, Error **errp)
+static void object_apply_props(Object *obj, QObject *props,
+                               const char *props_arg_name, Error **errp)
 {
+    Visitor *visitor;
+    QDict *qdict;
     const QDictEntry *prop;
 
-    for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
-        if (!object_property_set_qobject(obj, qdict_entry_key(prop),
-                                         qdict_entry_value(prop), errp)) {
-            break;
+    visitor = qobject_input_visitor_new(props);
+    if (!visit_start_struct(visitor, props_arg_name, NULL, 0, errp)) {
+        visit_free(visitor);
+        return;
+    }
+
+    qdict = qobject_to(QDict, props);
+    for (prop = qdict_first(qdict); prop; prop = qdict_next(qdict, prop)) {
+        if (!object_property_set(obj, qdict_entry_key(prop),
+                                 visitor, errp)) {
+            goto out;
         }
     }
+
+    visit_check_struct(visitor, errp);
+out:
+    visit_end_struct(visitor, NULL);
+    visit_free(visitor);
 }
 
 /* Create X86CPU object according to model+props specification */
-static X86CPU *x86_cpu_from_model(const char *model, QDict *props, Error **errp)
+static X86CPU *x86_cpu_from_model(const char *model, QObject *props,
+                                  const char *props_arg_name, Error **errp)
 {
     X86CPU *xc = NULL;
     X86CPUClass *xcc;
@@ -156,7 +173,7 @@ static X86CPU *x86_cpu_from_model(const char *model, QDict *props, Error **errp)
 
     xc = X86_CPU(object_new_with_class(OBJECT_CLASS(xcc)));
     if (props) {
-        object_apply_props(OBJECT(xc), props, &err);
+        object_apply_props(OBJECT(xc), props, props_arg_name, &err);
         if (err) {
             goto out;
         }
@@ -187,8 +204,7 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     QDict *props = NULL;
     const char *base_name;
 
-    xc = x86_cpu_from_model(model->name, qobject_to(QDict, model->props),
-                            &err);
+    xc = x86_cpu_from_model(model->name, model->props, "model.props", &err);
     if (err) {
         goto out;
     }

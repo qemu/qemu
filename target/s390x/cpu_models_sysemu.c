@@ -17,7 +17,6 @@
 #include "sysemu/kvm.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qapi-commands-machine-target.h"
@@ -98,23 +97,15 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 }
 
 static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
-                                Error **errp)
+                                const char *info_arg_name, Error **errp)
 {
     Error *err = NULL;
-    const QDict *qdict = NULL;
+    const QDict *qdict;
     const QDictEntry *e;
     Visitor *visitor;
     ObjectClass *oc;
     S390CPU *cpu;
     Object *obj;
-
-    if (info->props) {
-        qdict = qobject_to(QDict, info->props);
-        if (!qdict) {
-            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
-            return;
-        }
-    }
 
     oc = cpu_class_by_name(TYPE_S390_CPU, info->name);
     if (!oc) {
@@ -135,13 +126,17 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
         return;
     }
 
-    if (qdict) {
+    if (info->props) {
+        g_autofree const char *props_name = g_strdup_printf("%s.props",
+                                                            info_arg_name);
+
         visitor = qobject_input_visitor_new(info->props);
-        if (!visit_start_struct(visitor, NULL, NULL, 0, errp)) {
+        if (!visit_start_struct(visitor, props_name, NULL, 0, errp)) {
             visit_free(visitor);
             object_unref(obj);
             return;
         }
+        qdict = qobject_to(QDict, info->props);
         for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
             if (!object_property_set(obj, e->key, visitor, &err)) {
                 break;
@@ -223,7 +218,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     bool delta_changes = false;
 
     /* convert it to our internal representation */
-    cpu_model_from_info(&s390_model, model, &err);
+    cpu_model_from_info(&s390_model, model, "model", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
@@ -261,12 +256,12 @@ CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
     S390CPUModel modela, modelb;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, &err);
+    cpu_model_from_info(&modela, infoa, "modela", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
     }
-    cpu_model_from_info(&modelb, infob, &err);
+    cpu_model_from_info(&modelb, infob, "modelb", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
@@ -338,13 +333,13 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
     uint8_t max_gen;
 
     /* convert both models to our internal representation */
-    cpu_model_from_info(&modela, infoa, &err);
+    cpu_model_from_info(&modela, infoa, "modela", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;
     }
 
-    cpu_model_from_info(&modelb, infob, &err);
+    cpu_model_from_info(&modelb, infob, "modelb", &err);
     if (err) {
         error_propagate(errp, err);
         return NULL;

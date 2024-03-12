@@ -28,7 +28,6 @@
 #include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
@@ -129,18 +128,20 @@ static void riscv_obj_add_profiles_qdict(Object *obj, QDict *qdict_out)
 }
 
 static void riscv_cpuobj_validate_qdict_in(Object *obj, QObject *props,
-                                           const QDict *qdict_in,
+                                           const char *props_arg_name,
                                            Error **errp)
 {
+    const QDict *qdict_in;
     const QDictEntry *qe;
     Visitor *visitor;
     Error *local_err = NULL;
 
     visitor = qobject_input_visitor_new(props);
-    if (!visit_start_struct(visitor, NULL, NULL, 0, &local_err)) {
+    if (!visit_start_struct(visitor, props_arg_name, NULL, 0, &local_err)) {
         goto err;
     }
 
+    qdict_in = qobject_to(QDict, props);
     for (qe = qdict_first(qdict_in); qe; qe = qdict_next(qdict_in, qe)) {
         object_property_find_err(obj, qe->key, &local_err);
         if (local_err) {
@@ -170,7 +171,6 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
-    const QDict *qdict_in = NULL;
     QDict *qdict_out;
     ObjectClass *oc;
     Object *obj;
@@ -188,14 +188,6 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         return NULL;
     }
 
-    if (model->props) {
-        qdict_in = qobject_to(QDict, model->props);
-        if (!qdict_in) {
-            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
-            return NULL;
-        }
-    }
-
     obj = object_new(object_class_get_name(oc));
 
     riscv_check_if_cpu_available(RISCV_CPU(obj), &local_err);
@@ -205,8 +197,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         return NULL;
     }
 
-    if (qdict_in) {
-        riscv_cpuobj_validate_qdict_in(obj, model->props, qdict_in,
+    if (model->props) {
+        riscv_cpuobj_validate_qdict_in(obj, model->props, "model.props",
                                        &local_err);
         if (local_err) {
             error_propagate(errp, local_err);

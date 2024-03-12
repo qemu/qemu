@@ -28,7 +28,6 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qapi-commands-misc-target.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
 
@@ -104,7 +103,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                      Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
-    const QDict *qdict_in = NULL;
+    const QDict *qdict_in;
     QDict *qdict_out;
     ObjectClass *oc;
     Object *obj;
@@ -151,27 +150,20 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         }
     }
 
-    if (model->props) {
-        qdict_in = qobject_to(QDict, model->props);
-        if (!qdict_in) {
-            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
-            return NULL;
-        }
-    }
-
     obj = object_new(object_class_get_name(oc));
 
-    if (qdict_in) {
+    if (model->props) {
         Visitor *visitor;
         Error *err = NULL;
 
         visitor = qobject_input_visitor_new(model->props);
-        if (!visit_start_struct(visitor, NULL, NULL, 0, errp)) {
+        if (!visit_start_struct(visitor, "model.props", NULL, 0, errp)) {
             visit_free(visitor);
             object_unref(obj);
             return NULL;
         }
 
+        qdict_in = qobject_to(QDict, model->props);
         i = 0;
         while ((name = cpu_model_advertised_features[i++]) != NULL) {
             if (qdict_get(qdict_in, name)) {
