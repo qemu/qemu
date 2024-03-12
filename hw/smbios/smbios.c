@@ -1592,12 +1592,15 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             t = g_new0(struct type9_instance, 1);
             save_opt(&t->slot_designation, opts, "slot_designation");
             t->slot_type = qemu_opt_get_number(opts, "slot_type", 0);
-            t->slot_data_bus_width = qemu_opt_get_number(opts, "slot_data_bus_width", 0);
+            t->slot_data_bus_width =
+                qemu_opt_get_number(opts, "slot_data_bus_width", 0);
             t->current_usage = qemu_opt_get_number(opts, "current_usage", 0);
             t->slot_length = qemu_opt_get_number(opts, "slot_length", 0);
             t->slot_id = qemu_opt_get_number(opts, "slot_id", 0);
-            t->slot_characteristics1 = qemu_opt_get_number(opts, "slot_characteristics1", 0);
-            t->slot_characteristics2 = qemu_opt_get_number(opts, "slot_characteristics2", 0);
+            t->slot_characteristics1 =
+                qemu_opt_get_number(opts, "slot_characteristics1", 0);
+            t->slot_characteristics2 =
+                qemu_opt_get_number(opts, "slot_characteristics2", 0);
             save_opt(&t->pcidev, opts, "pcidev");
             QTAILQ_INSERT_TAIL(&type9, t, next);
             return;
