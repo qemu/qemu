@@ -183,9 +183,9 @@ static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
 
 static void mb_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(s);
-    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(obj);
     CPUMBState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {

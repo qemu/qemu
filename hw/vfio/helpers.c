@@ -110,6 +110,7 @@ static const char *index_to_str(VFIODevice *vbasedev, int index)
 int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
                            int action, int fd, Error **errp)
 {
+    ERRP_GUARD();
     struct vfio_irq_set *irq_set;
     int argsz, ret = 0;
     const char *name;
@@ -613,6 +614,7 @@ bool vfio_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
 
 int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
 {
+    ERRP_GUARD();
     struct stat st;
 
     if (vbasedev->fd < 0) {
@@ -644,6 +646,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
 
 void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)
 {
+    ERRP_GUARD();
     int fd = monitor_fd_param(monitor_cur(), str, errp);
 
     if (fd < 0) {

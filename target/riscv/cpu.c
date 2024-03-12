@@ -926,7 +926,7 @@ static void riscv_cpu_reset_hold(Object *obj)
 #endif
     CPUState *cs = CPU(obj);
     RISCVCPU *cpu = RISCV_CPU(cs);
-    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(obj);
     CPURISCVState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {

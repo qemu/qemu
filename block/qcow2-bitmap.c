@@ -1710,6 +1710,7 @@ bool coroutine_fn qcow2_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                                       uint32_t granularity,
                                                       Error **errp)
 {
+    ERRP_GUARD();
     BDRVQcow2State *s = bs->opaque;
     BdrvDirtyBitmap *bitmap;
     uint64_t bitmap_directory_size = 0;

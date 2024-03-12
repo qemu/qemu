@@ -218,8 +218,7 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
 
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
-    CPULoongArchState *env = &cpu->env;
+    CPULoongArchState *env = cpu_env(cs);
     hwaddr phys_addr;
     int prot;
 

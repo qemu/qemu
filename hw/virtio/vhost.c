@@ -2199,6 +2199,7 @@ int vhost_check_device_state(struct vhost_dev *dev, Error **errp)
 
 int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp)
 {
+    ERRP_GUARD();
     /* Maximum chunk size in which to transfer the state */
     const size_t chunk_size = 1 * 1024 * 1024;
     g_autofree void *transfer_buf = NULL;
@@ -2291,6 +2292,7 @@ fail:
 
 int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp)
 {
+    ERRP_GUARD();
     size_t transfer_buf_size = 0;
     g_autofree void *transfer_buf = NULL;
     g_autoptr(GError) g_err = NULL;

@@ -155,6 +155,7 @@ static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
 
 static void vfio_ap_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     Error *err = NULL;
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);

@@ -7108,9 +7108,9 @@ static int ppc_cpu_mmu_index(CPUState *cs, bool ifetch)
 
 static void ppc_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(obj);
-    PowerPCCPU *cpu = POWERPC_CPU(s);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(obj);
     CPUPPCState *env = &cpu->env;
     target_ulong msr;
     int i;
@@ -7159,8 +7159,8 @@ static void ppc_cpu_reset_hold(Object *obj)
     env->nip = env->hreset_vector | env->excp_prefix;
 
     if (tcg_enabled()) {
-        cpu_breakpoint_remove_all(s, BP_CPU);
-        cpu_watchpoint_remove_all(s, BP_CPU);
+        cpu_breakpoint_remove_all(cs, BP_CPU);
+        cpu_watchpoint_remove_all(cs, BP_CPU);
         if (env->mmu_model != POWERPC_MMU_REAL) {
             ppc_tlb_invalidate_all(env);
         }
@@ -7174,7 +7174,7 @@ static void ppc_cpu_reset_hold(Object *obj)
     env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
     env->pending_interrupts = 0;
-    s->exception_index = POWERPC_EXCP_NONE;
+    cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
     ppc_irq_reset(cpu);
 
@@ -7196,12 +7196,9 @@ static void ppc_cpu_reset_hold(Object *obj)
 
 static bool ppc_cpu_is_big_endian(CPUState *cs)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
-
     cpu_synchronize_state(cs);
 
-    return !FIELD_EX64(env->msr, MSR, LE);
+    return !FIELD_EX64(cpu_env(cs)->msr, MSR, LE);
 }
 
 static bool ppc_get_irq_stats(InterruptStatsProvider *obj,
@@ -7288,8 +7285,7 @@ static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 
 static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
+    CPUPPCState *env = cpu_env(cs);
 
     if ((env->hflags >> MSR_LE) & 1) {
         info->endian = BFD_ENDIAN_LITTLE;
@@ -7445,8 +7441,7 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 #define RGPL  4
 #define RFPL  4
 
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
+    CPUPPCState *env = cpu_env(cs);
     int i;
 
     qemu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "

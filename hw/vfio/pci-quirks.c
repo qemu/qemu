@@ -1538,6 +1538,7 @@ static bool is_valid_std_cap_offset(uint8_t pos)
 
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_GUARD();
     PCIDevice *pdev = &vdev->pdev;
     int ret, pos;
     bool c8_conflict = false, d4_conflict = false;
@@ -1630,6 +1631,7 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 #define VMD_SHADOW_CAP_LEN 24
 static int vfio_add_vmd_shadow_cap(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_GUARD();
     uint8_t membar_phys[16];
     int ret, pos = 0xE8;
 

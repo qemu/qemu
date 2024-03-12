@@ -225,7 +225,7 @@ void x86_cpu_plug(HotplugHandler *hotplug_dev,
     }
 
     found_cpu = x86_find_cpu_slot(MACHINE(x86ms), cpu->apic_id, NULL);
-    found_cpu->cpu = OBJECT(dev);
+    found_cpu->cpu = CPU(dev);
 out:
     error_propagate(errp, local_err);
 }

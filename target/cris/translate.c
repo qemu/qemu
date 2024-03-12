@@ -3002,7 +3002,6 @@ static void cris_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    CPUCRISState *env = cpu_env(cs);
     unsigned int insn_len;
 
     /* Pretty disas.  */
@@ -3010,7 +3009,7 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     dc->clear_x = 1;
 
-    insn_len = dc->decoder(env, dc);
+    insn_len = dc->decoder(cpu_env(cs), dc);
     dc->ppc = dc->pc;
     dc->pc += insn_len;
     dc->base.pc_next += insn_len;
@@ -3176,8 +3175,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 
 void cris_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
-    CRISCPU *cpu = CRIS_CPU(cs);
-    CPUCRISState *env = &cpu->env;
+    CPUCRISState *env = cpu_env(cs);
     const char * const *regnames;
     const char * const *pregnames;
     int i;
