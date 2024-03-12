@@ -270,6 +270,7 @@ static void tosapda_machine_init(MachineClass *mc)
     mc->init = tosa_init;
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
+    mc->deprecation_reason = "machine is old and unmaintained";
 }
 
 DEFINE_MACHINE("tosa", tosapda_machine_init)

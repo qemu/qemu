@@ -1041,6 +1041,7 @@ static void spitz_common_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
     mc->init = spitz_common_init;
+    mc->deprecation_reason = "machine is old and unmaintained";
 
     machine_add_audiodev_property(mc);
 }

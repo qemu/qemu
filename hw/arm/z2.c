@@ -347,6 +347,7 @@ static void z2_machine_init(MachineClass *mc)
     mc->init = z2_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
+    mc->deprecation_reason = "machine is old and unmaintained";
 
     machine_add_audiodev_property(mc);
 }

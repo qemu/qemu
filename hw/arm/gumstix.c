@@ -106,6 +106,7 @@ static void connex_class_init(ObjectClass *oc, void *data)
     mc->desc = "Gumstix Connex (PXA255)";
     mc->init = connex_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->deprecation_reason = "machine is old and unmaintained";
 }
 
 static const TypeInfo connex_type = {
@@ -121,6 +122,7 @@ static void verdex_class_init(ObjectClass *oc, void *data)
     mc->desc = "Gumstix Verdex Pro XL6P COMs (PXA270)";
     mc->init = verdex_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->deprecation_reason = "machine is old and unmaintained";
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
 }
 

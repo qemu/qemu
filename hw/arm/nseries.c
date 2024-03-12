@@ -1430,6 +1430,7 @@ static void n800_class_init(ObjectClass *oc, void *data)
     /* Actually two chips of 0x4000000 bytes each */
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "omap2.dram";
+    mc->deprecation_reason = "machine is old and unmaintained";
 
     machine_add_audiodev_property(mc);
 }
@@ -1452,6 +1453,7 @@ static void n810_class_init(ObjectClass *oc, void *data)
     /* Actually two chips of 0x4000000 bytes each */
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "omap2.dram";
+    mc->deprecation_reason = "machine is old and unmaintained";
 
     machine_add_audiodev_property(mc);
 }
