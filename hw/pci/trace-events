@@ -16,3 +16,9 @@ msix_write_config(char *name, bool enabled, bool masked) "dev %s enabled %d mask
 sriov_register_vfs(const char *name, int slot, int function, int num_vfs) "%s %02x:%x: creating %d vf devs"
 sriov_unregister_vfs(const char *name, int slot, int function, int num_vfs) "%s %02x:%x: Unregistering %d vf devs"
 sriov_config_write(const char *name, int slot, int fun, uint32_t offset, uint32_t val, uint32_t len) "%s %02x:%x: sriov offset 0x%x val 0x%x len %d"
+
+# pcie.c
+pcie_cap_slot_write_config(const char *parent, const char *child, const char *pds, const char *old_pic, const char *new_pic, const char *old_aic, const char *new_aic, const char *old_power, const char *new_power) "%s > %s: pds: %s, pic: %s->%s, aic: %s->%s, power: %s->%s"
+
+# shpc.c
+shpc_slot_command(const char *parent, int pci_slot, const char *child, const char *old_pic, const char *new_pic, const char *old_aic, const char *new_aic, const char *old_state, const char *new_state) "%s[%d] > %s: pic: %s->%s, aic: %s->%s, state: %s->%s"

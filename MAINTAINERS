@@ -2503,6 +2503,12 @@ S: Maintained
 F: hw/i2c/i2c_mux_pca954x.c
 F: include/hw/i2c/i2c_mux_pca954x.h
 
+pcf8574
+M: Dmitrii Sharikhin <d.sharikhin@yadro.com>
+S: Maintained
+F: hw/gpio/pcf8574.c
+F: include/gpio/pcf8574.h
+
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained

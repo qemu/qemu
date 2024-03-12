@@ -47,16 +47,6 @@ as short-form boolean values, and passed to plugins as ``arg_name=on``.
 However, short-form booleans are deprecated and full explicit ``arg_name=on``
 form is preferred.
 
-User-mode emulator command line arguments
------------------------------------------
-
-``-p`` (since 9.0)
-''''''''''''''''''
-
-The ``-p`` option pretends to control the host page size.  However,
-it is not possible to change the host page size, and using the
-option only causes failures.
-
 ``-smp`` (Unsupported "parameter=1" SMP configurations) (since 9.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -70,6 +60,16 @@ topology parameter as "1", which is meaningless. So support for this kind of
 configurations (e.g. -smp drawers=1,books=1,clusters=1 for x86 PC machine) is
 marked deprecated since 9.0, users have to ensure that all the topology members
 described with -smp are supported by the target machine.
+
+User-mode emulator command line arguments
+-----------------------------------------
+
+``-p`` (since 9.0)
+''''''''''''''''''
+
+The ``-p`` option pretends to control the host page size.  However,
+it is not possible to change the host page size, and using the
+option only causes failures.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

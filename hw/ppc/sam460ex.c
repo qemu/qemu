@@ -33,6 +33,7 @@
 #include "hw/char/serial.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/i2c/smbus_eeprom.h"
+#include "hw/ide/pci.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
 #include "hw/qdev-properties.h"
@@ -449,15 +450,27 @@ static void sam460ex_init(MachineState *machine)
 
     /* PCI devices */
     pci_create_simple(pci_bus, PCI_DEVFN(6, 0), "sm501");
-    /* SoC has a single SATA port but we don't emulate that yet
+    /*
+     * SoC has a single SATA port but we don't emulate that
      * However, firmware and usual clients have driver for SiI311x
-     * so add one for convenience by default */
+     * PCI SATA card so add one for convenience by default
+     */
     if (defaults_enabled()) {
-        pci_create_simple(pci_bus, -1, "sii3112");
+        PCIIDEState *s = PCI_IDE(pci_create_simple(pci_bus, -1, "sii3112"));
+        DriveInfo *di;
+
+        di = drive_get_by_index(IF_IDE, 0);
+        if (di) {
+            ide_bus_create_drive(&s->bus[0], 0, di);
+        }
+        /* Use index 2 only if 1 does not exist, this allows -cdrom */
+        di = drive_get_by_index(IF_IDE, 1) ?: drive_get_by_index(IF_IDE, 2);
+        if (di) {
+            ide_bus_create_drive(&s->bus[1], 0, di);
+        }
     }
 
-    /* SoC has 4 UARTs
-     * but board has only one wired and two are present in fdt */
+    /* SoC has 4 UARTs but board has only one wired and two described in fdt */
     if (serial_hd(0) != NULL) {
         serial_mm_init(get_system_memory(), 0x4ef600300, 0,
                        qdev_get_gpio_in(uic[1], 1),
@@ -531,6 +544,7 @@ static void sam460ex_machine_init(MachineClass *mc)
 {
     mc->desc = "aCube Sam460ex";
     mc->init = sam460ex_init;
+    mc->block_default_type = IF_IDE;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("460exb");
     mc->default_ram_size = 512 * MiB;
     mc->default_ram_id = "ppc4xx.sdram";

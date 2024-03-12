@@ -360,8 +360,13 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     pci_dev->config[0x09] = 0x00; // programming i/f
     pci_dev->config[0x0D] = 0x0a; // latency_timer
 
-    memory_region_init_alias(&s->bar0, OBJECT(s), "bar0",
-                             pci_address_space_io(pci_dev), 0, 0x1000000);
+    /*
+     * BAR0 is accessed by OpenBSD but not for ebus device access: allow any
+     * memory access to this region to succeed which allows the OpenBSD kernel
+     * to boot.
+     */
+    memory_region_init_io(&s->bar0, OBJECT(s), &unassigned_io_ops, s,
+                          "bar0", 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1",
                              pci_address_space_io(pci_dev), 0, 0x8000);
