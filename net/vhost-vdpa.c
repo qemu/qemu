@@ -1557,13 +1557,12 @@ static const VhostShadowVirtqueueOps vhost_vdpa_net_svq_ops = {
 static int vhost_vdpa_probe_cvq_isolation(int device_fd, uint64_t features,
                                           int cvq_index, Error **errp)
 {
+    ERRP_GUARD();
     uint64_t backend_features;
     int64_t cvq_group;
     uint8_t status = VIRTIO_CONFIG_S_ACKNOWLEDGE |
                      VIRTIO_CONFIG_S_DRIVER;
     int r;
-
-    ERRP_GUARD();
 
     r = ioctl(device_fd, VHOST_GET_BACKEND_FEATURES, &backend_features);
     if (unlikely(r < 0)) {

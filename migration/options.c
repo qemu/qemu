@@ -478,9 +478,9 @@ static bool migrate_incoming_started(void)
  */
 bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
+    ERRP_GUARD();
     MigrationIncomingState *mis = migration_incoming_get_current();
 
-    ERRP_GUARD();
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
     if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
         error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "

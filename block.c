@@ -534,9 +534,9 @@ typedef struct CreateCo {
 int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
                                 QemuOpts *opts, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     GLOBAL_STATE_CODE();
-    ERRP_GUARD();
 
     if (!drv->bdrv_co_create_opts) {
         error_setg(errp, "Driver '%s' does not support image creation",

@@ -46,11 +46,11 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         bool flat,
                                         Error **errp)
 {
+    ERRP_GUARD();
     ImageInfo **p_image_info;
     ImageInfo *backing_info;
     BlockDriverState *backing;
     BlockDeviceInfo *info;
-    ERRP_GUARD();
 
     if (!bs->drv) {
         error_setg(errp, "Block device %s is ejected", bs->node_name);
@@ -330,8 +330,8 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            bool skip_implicit_filters,
                            Error **errp)
 {
-    ImageInfo *info;
     ERRP_GUARD();
+    ImageInfo *info;
 
     info = g_new0(ImageInfo, 1);
     bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), errp);
@@ -382,10 +382,10 @@ void bdrv_query_block_graph_info(BlockDriverState *bs,
                                  BlockGraphInfo **p_info,
                                  Error **errp)
 {
+    ERRP_GUARD();
     BlockGraphInfo *info;
     BlockChildInfoList **children_list_tail;
     BdrvChild *c;
-    ERRP_GUARD();
 
     info = g_new0(BlockGraphInfo, 1);
     bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), errp);
