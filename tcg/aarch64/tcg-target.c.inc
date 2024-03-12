@@ -1388,8 +1388,7 @@ static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGCond cond, TCGReg a,
         if (!const_b) {
             tcg_out_insn(s, 3510, ANDS, ext, TCG_REG_XZR, a, b);
         } else {
-            tcg_debug_assert(is_limm(b));
-            tcg_out_logicali(s, I3404_ANDSI, 0, TCG_REG_XZR, a, b);
+            tcg_out_logicali(s, I3404_ANDSI, ext, TCG_REG_XZR, a, b);
         }
     } else {
         if (!const_b) {
@@ -1465,6 +1464,7 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
     case TCG_COND_TSTNE:
         /* tst xN,0xffffffff; b.ne L -> cbnz wN,L */
         if (b_const && b == UINT32_MAX) {
+            c = tcg_tst_eqne_cond(c);
             ext = TCG_TYPE_I32;
             need_cmp = false;
             break;

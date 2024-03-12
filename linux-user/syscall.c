@@ -6450,16 +6450,28 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
     case PR_SET_NO_NEW_PRIVS:
     case PR_GET_IO_FLUSHER:
     case PR_SET_IO_FLUSHER:
+    case PR_SET_CHILD_SUBREAPER:
+    case PR_GET_SPECULATION_CTRL:
+    case PR_SET_SPECULATION_CTRL:
         /* Some prctl options have no pointer arguments and we can pass on. */
         return get_errno(prctl(option, arg2, arg3, arg4, arg5));
 
     case PR_GET_CHILD_SUBREAPER:
-    case PR_SET_CHILD_SUBREAPER:
-    case PR_GET_SPECULATION_CTRL:
-    case PR_SET_SPECULATION_CTRL:
+        {
+            int val;
+            ret = get_errno(prctl(PR_GET_CHILD_SUBREAPER, &val,
+                                  arg3, arg4, arg5));
+            if (!is_error(ret) && put_user_s32(val, arg2)) {
+                return -TARGET_EFAULT;
+            }
+            return ret;
+        }
+
     case PR_GET_TID_ADDRESS:
-        /* TODO */
-        return -TARGET_EINVAL;
+        {
+            TaskState *ts = env_cpu(env)->opaque;
+            return put_user_ual(ts->child_tidptr, arg2);
+        }
 
     case PR_GET_FPEXC:
     case PR_SET_FPEXC:
