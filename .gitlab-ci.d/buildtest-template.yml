@@ -14,6 +14,7 @@
     - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
     - export CCACHE_MAXSIZE="500M"
     - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - du -sh .git
     - mkdir build
     - cd build
     - ccache --zero-stats
