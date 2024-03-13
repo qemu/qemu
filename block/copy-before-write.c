@@ -325,14 +325,24 @@ static int coroutine_fn GRAPH_RDLOCK
 cbw_co_pdiscard_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
+    uint32_t cluster_size = block_copy_cluster_size(s->bcs);
+    int64_t aligned_offset = QEMU_ALIGN_UP(offset, cluster_size);
+    int64_t aligned_end = QEMU_ALIGN_DOWN(offset + bytes, cluster_size);
+    int64_t aligned_bytes;
+
+    if (aligned_end <= aligned_offset) {
+        return 0;
+    }
+    aligned_bytes = aligned_end - aligned_offset;
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
-        bdrv_reset_dirty_bitmap(s->access_bitmap, offset, bytes);
+        bdrv_reset_dirty_bitmap(s->access_bitmap, aligned_offset,
+                                aligned_bytes);
     }
 
-    block_copy_reset(s->bcs, offset, bytes);
+    block_copy_reset(s->bcs, aligned_offset, aligned_bytes);
 
-    return bdrv_co_pdiscard(s->target, offset, bytes);
+    return bdrv_co_pdiscard(s->target, aligned_offset, aligned_bytes);
 }
 
 static void GRAPH_RDLOCK cbw_refresh_filename(BlockDriverState *bs)
