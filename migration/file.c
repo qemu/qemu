@@ -115,13 +115,46 @@ static gboolean file_accept_incoming_migration(QIOChannel *ioc,
     return G_SOURCE_REMOVE;
 }
 
+void file_create_incoming_channels(QIOChannel *ioc, Error **errp)
+{
+    int i, fd, channels = 1;
+    g_autofree QIOChannel **iocs = NULL;
+
+    if (migrate_multifd()) {
+        channels += migrate_multifd_channels();
+    }
+
+    iocs = g_new0(QIOChannel *, channels);
+    fd = QIO_CHANNEL_FILE(ioc)->fd;
+    iocs[0] = ioc;
+
+    for (i = 1; i < channels; i++) {
+        QIOChannelFile *fioc = qio_channel_file_new_dupfd(fd, errp);
+
+        if (!fioc) {
+            while (i) {
+                object_unref(iocs[--i]);
+            }
+            return;
+        }
+
+        iocs[i] = QIO_CHANNEL(fioc);
+    }
+
+    for (i = 0; i < channels; i++) {
+        qio_channel_set_name(iocs[i], "migration-file-incoming");
+        qio_channel_add_watch_full(iocs[i], G_IO_IN,
+                                   file_accept_incoming_migration,
+                                   NULL, NULL,
+                                   g_main_context_get_thread_default());
+    }
+}
+
 void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
 {
     g_autofree char *filename = g_strdup(file_args->filename);
     QIOChannelFile *fioc = NULL;
     uint64_t offset = file_args->offset;
-    int channels = 1;
-    int i = 0;
 
     trace_migration_file_incoming(filename);
 
@@ -132,28 +165,11 @@ void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
 
     if (offset &&
         qio_channel_io_seek(QIO_CHANNEL(fioc), offset, SEEK_SET, errp) < 0) {
+        object_unref(OBJECT(fioc));
         return;
     }
 
-    if (migrate_multifd()) {
-        channels += migrate_multifd_channels();
-    }
-
-    do {
-        QIOChannel *ioc = QIO_CHANNEL(fioc);
-
-        qio_channel_set_name(ioc, "migration-file-incoming");
-        qio_channel_add_watch_full(ioc, G_IO_IN,
-                                   file_accept_incoming_migration,
-                                   NULL, NULL,
-                                   g_main_context_get_thread_default());
-
-        fioc = qio_channel_file_new_dupfd(fioc->fd, errp);
-
-        if (!fioc) {
-            break;
-        }
-    } while (++i < channels);
+    file_create_incoming_channels(QIO_CHANNEL(fioc), errp);
 }
 
 int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
