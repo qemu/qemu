@@ -708,7 +708,7 @@ void hvf_arch_update_guest_debug(CPUState *cpu)
 {
 }
 
-inline bool hvf_arch_supports_guest_debug(void)
+bool hvf_arch_supports_guest_debug(void)
 {
     return false;
 }
