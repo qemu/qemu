@@ -120,16 +120,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -596,16 +596,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -865,16 +865,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -1341,16 +1341,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -1610,16 +1610,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -2086,16 +2086,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -2355,16 +2355,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -2831,16 +2831,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -3100,16 +3100,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -3576,16 +3576,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -3845,16 +3845,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -4321,16 +4321,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -4590,16 +4590,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
@@ -5066,16 +5066,16 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      }
-    ],
-    "drive0": [
+      },
       {
         "busy": false,
         "count": 0,
         "granularity": 65536,
         "persistent": false,
         "recording": false
-      },
+      }
+    ],
+    "drive0": [
       {
         "busy": false,
         "count": 458752,
