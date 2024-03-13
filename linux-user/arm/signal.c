@@ -357,7 +357,7 @@ void setup_rt_frame(int usig, struct target_sigaction *ka,
 
     info_addr = frame_addr + offsetof(struct rt_sigframe, info);
     uc_addr = frame_addr + offsetof(struct rt_sigframe, sig.uc);
-    tswap_siginfo(&frame->info, info);
+    frame->info = *info;
 
     setup_sigframe(&frame->sig.uc, set, env);
 

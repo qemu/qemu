@@ -267,7 +267,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     /* Create siginfo on the signal stack. */
-    tswap_siginfo(&frame->info, info);
+    frame->info = *info;
 
     /* Create ucontext on the signal stack. */
     uc_flags = 0;

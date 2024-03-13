@@ -127,7 +127,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
     }
 
-    tswap_siginfo(&frame->info, info);
+    frame->info = *info;
     frame->uc.tuc_flags = 0;
     frame->uc.tuc_link = 0;
 
