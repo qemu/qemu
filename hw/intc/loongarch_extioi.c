@@ -151,7 +151,7 @@ static inline void extioi_update_sw_coremap(LoongArchExtIOI *s, int irq,
             continue;
         }
 
-        if (notify && test_bit(irq, (unsigned long *)s->isr)) {
+        if (notify && test_bit(irq + i, (unsigned long *)s->isr)) {
             /*
              * lower irq at old cpu and raise irq at new cpu
              */
