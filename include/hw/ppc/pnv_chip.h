@@ -147,7 +147,7 @@ struct PnvChipClass {
 
     DeviceRealize parent_realize;
 
-    uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
+    uint32_t (*chip_pir)(PnvChip *chip, uint32_t core_id, uint32_t thread_id);
     void (*intc_create)(PnvChip *chip, PowerPCCPU *cpu, Error **errp);
     void (*intc_reset)(PnvChip *chip, PowerPCCPU *cpu);
     void (*intc_destroy)(PnvChip *chip, PowerPCCPU *cpu);

@@ -1,0 +1,119 @@
+Nested PAPR API (aka KVM on PowerVM)
+====================================
+
+This API aims at providing support to enable nested virtualization with
+KVM on PowerVM. While the existing support for nested KVM on PowerNV was
+introduced with cap-nested-hv option, however, with a slight design change,
+to enable this on papr/pseries, a new cap-nested-papr option is added. eg:
+
+  qemu-system-ppc64 -cpu POWER10 -machine pseries,cap-nested-papr=true ...
+
+Work by:
+    Michael Neuling <mikey@neuling.org>
+    Vaibhav Jain <vaibhav@linux.ibm.com>
+    Jordan Niethe <jniethe5@gmail.com>
+    Harsh Prateek Bora <harshpb@linux.ibm.com>
+    Shivaprasad G Bhat <sbhat@linux.ibm.com>
+    Kautuk Consul <kconsul@linux.vnet.ibm.com>
+
+Below taken from the kernel documentation:
+
+Introduction
+============
+
+This document explains how a guest operating system can act as a
+hypervisor and run nested guests through the use of hypercalls, if the
+hypervisor has implemented them. The terms L0, L1, and L2 are used to
+refer to different software entities. L0 is the hypervisor mode entity
+that would normally be called the "host" or "hypervisor". L1 is a
+guest virtual machine that is directly run under L0 and is initiated
+and controlled by L0. L2 is a guest virtual machine that is initiated
+and controlled by L1 acting as a hypervisor. A significant design change
+wrt existing API is that now the entire L2 state is maintained within L0.
+
+Existing Nested-HV API
+======================
+
+Linux/KVM has had support for Nesting as an L0 or L1 since 2018
+
+The L0 code was added::
+
+   commit 8e3f5fc1045dc49fd175b978c5457f5f51e7a2ce
+   Author: Paul Mackerras <paulus@ozlabs.org>
+   Date:   Mon Oct 8 16:31:03 2018 +1100
+   KVM: PPC: Book3S HV: Framework and hcall stubs for nested virtualization
+
+The L1 code was added::
+
+   commit 360cae313702cdd0b90f82c261a8302fecef030a
+   Author: Paul Mackerras <paulus@ozlabs.org>
+   Date:   Mon Oct 8 16:31:04 2018 +1100
+   KVM: PPC: Book3S HV: Nested guest entry via hypercall
+
+This API works primarily using a signal hcall h_enter_nested(). This
+call made by the L1 to tell the L0 to start an L2 vCPU with the given
+state. The L0 then starts this L2 and runs until an L2 exit condition
+is reached. Once the L2 exits, the state of the L2 is given back to
+the L1 by the L0. The full L2 vCPU state is always transferred from
+and to L1 when the L2 is run. The L0 doesn't keep any state on the L2
+vCPU (except in the short sequence in the L0 on L1 -> L2 entry and L2
+-> L1 exit).
+
+The only state kept by the L0 is the partition table. The L1 registers
+it's partition table using the h_set_partition_table() hcall. All
+other state held by the L0 about the L2s is cached state (such as
+shadow page tables).
+
+The L1 may run any L2 or vCPU without first informing the L0. It
+simply starts the vCPU using h_enter_nested(). The creation of L2s and
+vCPUs is done implicitly whenever h_enter_nested() is called.
+
+In this document, we call this existing API the v1 API.
+
+New PAPR API
+===============
+
+The new PAPR API changes from the v1 API such that the creating L2 and
+associated vCPUs is explicit. In this document, we call this the v2
+API.
+
+h_enter_nested() is replaced with H_GUEST_VCPU_RUN().  Before this can
+be called the L1 must explicitly create the L2 using h_guest_create()
+and any associated vCPUs() created with h_guest_create_vCPU(). Getting
+and setting vCPU state can also be performed using h_guest_{g|s}et
+hcall.
+
+The basic execution flow is for an L1 to create an L2, run it, and
+delete it is:
+
+- L1 and L0 negotiate capabilities with H_GUEST_{G,S}ET_CAPABILITIES()
+  (normally at L1 boot time).
+
+- L1 requests the L0 to create an L2 with H_GUEST_CREATE() and receives a token
+
+- L1 requests the L0 to create an L2 vCPU with H_GUEST_CREATE_VCPU()
+
+- L1 and L0 communicate the vCPU state using the H_GUEST_{G,S}ET() hcall
+
+- L1 requests the L0 to run the vCPU using H_GUEST_RUN_VCPU() hcall
+
+- L1 deletes L2 with H_GUEST_DELETE()
+
+For more details, please refer:
+
+[1] Linux Kernel documentation (upstream documentation commit):
+
+commit 476652297f94a2e5e5ef29e734b0da37ade94110
+Author: Michael Neuling <mikey@neuling.org>
+Date:   Thu Sep 14 13:06:00 2023 +1000
+
+    docs: powerpc: Document nested KVM on POWER
+
+    Document support for nested KVM on POWER using the existing API as well
+    as the new PAPR API. This includes the new HCALL interface and how it
+    used by KVM.
+
+    Signed-off-by: Michael Neuling <mikey@neuling.org>
+    Signed-off-by: Jordan Niethe <jniethe5@gmail.com>
+    Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+    Link: https://msgid.link/20230914030600.16993-12-jniethe5@gmail.com

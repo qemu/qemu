@@ -325,6 +325,76 @@ static bool trans_ADDPCIS(DisasContext *ctx, arg_DX *a)
     return true;
 }
 
+static bool trans_ADDEX(DisasContext *ctx, arg_X *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    gen_op_arith_add(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                     cpu_ov, cpu_ov32, true, true, false, false);
+    return true;
+}
+
+static bool do_add_D(DisasContext *ctx, arg_D *a, bool add_ca, bool compute_ca,
+                     bool compute_ov, bool compute_rc0)
+{
+    gen_op_arith_add(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra],
+                     tcg_constant_tl(a->si), cpu_ca, cpu_ca32,
+                     add_ca, compute_ca, compute_ov, compute_rc0);
+    return true;
+}
+
+static bool do_add_XO(DisasContext *ctx, arg_XO *a, bool add_ca,
+                      bool compute_ca)
+{
+    gen_op_arith_add(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                     cpu_ca, cpu_ca32, add_ca, compute_ca, a->oe, a->rc);
+    return true;
+}
+
+static bool do_add_const_XO(DisasContext *ctx, arg_XO_ta *a, TCGv const_val,
+                            bool add_ca, bool compute_ca)
+{
+    gen_op_arith_add(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], const_val,
+                     cpu_ca, cpu_ca32, add_ca, compute_ca, a->oe, a->rc);
+    return true;
+}
+
+TRANS(ADD, do_add_XO, false, false);
+TRANS(ADDC, do_add_XO, false, true);
+TRANS(ADDE, do_add_XO, true, true);
+TRANS(ADDME, do_add_const_XO, tcg_constant_tl(-1LL), true, true);
+TRANS(ADDZE, do_add_const_XO, tcg_constant_tl(0), true, true);
+TRANS(ADDIC, do_add_D, false, true, false, false);
+TRANS(ADDIC_, do_add_D, false, true, false, true);
+
+static bool trans_SUBFIC(DisasContext *ctx, arg_D *a)
+{
+    gen_op_arith_subf(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra],
+                      tcg_constant_tl(a->si), false, true, false, false);
+    return true;
+}
+
+static bool do_subf_XO(DisasContext *ctx, arg_XO *a, bool add_ca,
+                       bool compute_ca)
+{
+    gen_op_arith_subf(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                      add_ca, compute_ca, a->oe, a->rc);
+    return true;
+}
+
+static bool do_subf_const_XO(DisasContext *ctx, arg_XO_ta *a, TCGv const_val,
+                             bool add_ca, bool compute_ca)
+{
+    gen_op_arith_subf(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], const_val,
+                      add_ca, compute_ca, a->oe, a->rc);
+    return true;
+}
+
+TRANS(SUBF, do_subf_XO, false, false)
+TRANS(SUBFC, do_subf_XO, false, true)
+TRANS(SUBFE, do_subf_XO, true, true)
+TRANS(SUBFME, do_subf_const_XO, tcg_constant_tl(-1LL), true, true)
+TRANS(SUBFZE, do_subf_const_XO, tcg_constant_tl(0), true, true)
+
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
     gen_invalid(ctx);

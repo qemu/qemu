@@ -133,7 +133,7 @@ static int get_cpus_node(void *fdt)
  * device tree, used in XSCOM to address cores and in interrupt
  * servers.
  */
-static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
+static int pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 {
     PowerPCCPU *cpu = pc->threads[0];
     CPUState *cs = CPU(cpu);
@@ -141,32 +141,31 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     int smt_threads = CPU_CORE(pc)->nr_threads;
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+    PnvChipClass *pnv_cc = PNV_CHIP_GET_CLASS(chip);
     g_autofree uint32_t *servers_prop = g_new(uint32_t, smt_threads);
     int i;
+    uint32_t pir;
     uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                        0xffffffff, 0xffffffff};
     uint32_t tbfreq = PNV_TIMEBASE_FREQ;
     uint32_t cpufreq = 1000000000;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
-    const uint8_t pa_features[] = { 24, 0,
-                                    0xf6, 0x3f, 0xc7, 0xc0, 0x80, 0xf0,
-                                    0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                    0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
-                                    0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
     int offset;
     char *nodename;
     int cpus_offset = get_cpus_node(fdt);
 
-    nodename = g_strdup_printf("%s@%x", dc->fw_name, pc->pir);
+    pir = pnv_cc->chip_pir(chip, pc->hwid, 0);
+
+    nodename = g_strdup_printf("%s@%x", dc->fw_name, pir);
     offset = fdt_add_subnode(fdt, cpus_offset, nodename);
     _FDT(offset);
     g_free(nodename);
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id", chip->chip_id)));
 
-    _FDT((fdt_setprop_cell(fdt, offset, "reg", pc->pir)));
-    _FDT((fdt_setprop_cell(fdt, offset, "ibm,pir", pc->pir)));
+    _FDT((fdt_setprop_cell(fdt, offset, "reg", pir)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,pir", pir)));
     _FDT((fdt_setprop_string(fdt, offset, "device_type", "cpu")));
 
     _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", env->spr[SPR_PVR])));
@@ -236,20 +235,21 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
                            page_sizes_prop, page_sizes_prop_size)));
     }
 
-    _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
-                       pa_features, sizeof(pa_features))));
-
     /* Build interrupt servers properties */
     for (i = 0; i < smt_threads; i++) {
-        servers_prop[i] = cpu_to_be32(pc->pir + i);
+        servers_prop[i] = cpu_to_be32(pnv_cc->chip_pir(chip, pc->hwid, i));
     }
     _FDT((fdt_setprop(fdt, offset, "ibm,ppc-interrupt-server#s",
                        servers_prop, sizeof(*servers_prop) * smt_threads)));
+
+    return offset;
 }
 
-static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
+static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t hwid,
                        uint32_t nr_threads)
 {
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    uint32_t pir = pcc->chip_pir(chip, hwid, 0);
     uint64_t addr = PNV_ICP_BASE(chip) | (pir << 12);
     char *name;
     const char compat[] = "IBM,power8-icp\0IBM,ppc-xicp";
@@ -263,6 +263,7 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
     rsize = sizeof(uint64_t) * 2 * nr_threads;
     reg = g_malloc(rsize);
     for (i = 0; i < nr_threads; i++) {
+        /* We know P8 PIR is linear with thread id */
         reg[i * 2] = cpu_to_be64(addr | ((pir + i) * 0x1000));
         reg[i * 2 + 1] = cpu_to_be64(0x1000);
     }
@@ -299,6 +300,17 @@ PnvChip *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb)
     return chip;
 }
 
+/*
+ * Same as spapr pa_features_207 except pnv always enables CI largepages bit.
+ * HTM is always enabled because TCG does implement HTM, it's just a
+ * degenerate implementation.
+ */
+static const uint8_t pa_features_207[] = { 24, 0,
+                 0xf6, 0x3f, 0xc7, 0xc0, 0x00, 0xf0,
+                 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+                 0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
     static const char compat[] = "ibm,power8-xscom\0ibm,xscom";
@@ -311,17 +323,50 @@ static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_207, sizeof(pa_features_207))));
 
         /* Interrupt Control Presenters (ICP). One per core. */
-        pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
+        pnv_dt_icp(chip, fdt, pnv_core->hwid, CPU_CORE(pnv_core)->nr_threads);
     }
 
     if (chip->ram_size) {
         pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
     }
 }
+
+/*
+ * Same as spapr pa_features_300 except pnv always enables CI largepages bit.
+ */
+static const uint8_t pa_features_300[] = { 66, 0,
+    /* 0: MMU|FPU|SLB|RUN|DABR|NX, 1: CILRG|fri[nzpm]|DABRX|SPRG3|SLB0|PP110 */
+    /* 2: VPM|DS205|PPR|DS202|DS206, 3: LSD|URG, 5: LE|CFAR|EB|LSQ */
+    0xf6, 0x3f, 0xc7, 0xc0, 0x00, 0xf0, /* 0 - 5 */
+    /* 6: DS207 */
+    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, /* 6 - 11 */
+    /* 16: Vector */
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 12 - 17 */
+    /* 18: Vec. Scalar, 20: Vec. XOR, 22: HTM */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 18 - 23 */
+    /* 24: Ext. Dec, 26: 64 bit ftrs, 28: PM ftrs */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 24 - 29 */
+    /* 32: LE atomic, 34: EBB + ext EBB */
+    0x00, 0x00, 0x80, 0x00, 0xC0, 0x00, /* 30 - 35 */
+    /* 40: Radix MMU */
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 36 - 41 */
+    /* 42: PM, 44: PC RA, 46: SC vec'd */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 42 - 47 */
+    /* 48: SIMD, 50: QP BFP, 52: String */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 48 - 53 */
+    /* 54: DecFP, 56: DecI, 58: SHA */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 54 - 59 */
+    /* 60: NM atomic, 62: RNG */
+    0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 60 - 65 */
+};
 
 static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 {
@@ -335,8 +380,12 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_300, sizeof(pa_features_300))));
     }
 
     if (chip->ram_size) {
@@ -345,6 +394,40 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
 
     pnv_dt_lpc(chip, fdt, 0, PNV9_LPCM_BASE(chip), PNV9_LPCM_SIZE);
 }
+
+/*
+ * Same as spapr pa_features_31 except pnv always enables CI largepages bit,
+ * always disables copy/paste.
+ */
+static const uint8_t pa_features_31[] = { 74, 0,
+    /* 0: MMU|FPU|SLB|RUN|DABR|NX, 1: CILRG|fri[nzpm]|DABRX|SPRG3|SLB0|PP110 */
+    /* 2: VPM|DS205|PPR|DS202|DS206, 3: LSD|URG, 5: LE|CFAR|EB|LSQ */
+    0xf6, 0x3f, 0xc7, 0xc0, 0x00, 0xf0, /* 0 - 5 */
+    /* 6: DS207 */
+    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, /* 6 - 11 */
+    /* 16: Vector */
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 12 - 17 */
+    /* 18: Vec. Scalar, 20: Vec. XOR */
+    0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 18 - 23 */
+    /* 24: Ext. Dec, 26: 64 bit ftrs, 28: PM ftrs */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 24 - 29 */
+    /* 32: LE atomic, 34: EBB + ext EBB */
+    0x00, 0x00, 0x80, 0x00, 0xC0, 0x00, /* 30 - 35 */
+    /* 40: Radix MMU */
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 36 - 41 */
+    /* 42: PM, 44: PC RA, 46: SC vec'd */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 42 - 47 */
+    /* 48: SIMD, 50: QP BFP, 52: String */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 48 - 53 */
+    /* 54: DecFP, 56: DecI, 58: SHA */
+    0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 54 - 59 */
+    /* 60: NM atomic, 62: RNG */
+    0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 60 - 65 */
+    /* 68: DEXCR[SBHE|IBRTPDUS|SRAPD|NPHIE|PHIE] */
+    0x00, 0x00, 0xce, 0x00, 0x00, 0x00, /* 66 - 71 */
+    /* 72: [P]HASHST/[P]HASHCHK */
+    0x80, 0x00,                         /* 72 - 73 */
+};
 
 static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
 {
@@ -358,8 +441,12 @@ static void pnv_chip_power10_dt_populate(PnvChip *chip, void *fdt)
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = chip->cores[i];
+        int offset;
 
-        pnv_dt_core(chip, pnv_core, fdt);
+        offset = pnv_dt_core(chip, pnv_core, fdt);
+
+        _FDT((fdt_setprop(fdt, offset, "ibm,pa-features",
+                           pa_features_31, sizeof(pa_features_31))));
     }
 
     if (chip->ram_size) {
@@ -995,9 +1082,10 @@ static void pnv_init(MachineState *machine)
  *   25:28  Core number
  *   29:31  Thread ID
  */
-static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
+static uint32_t pnv_chip_pir_p8(PnvChip *chip, uint32_t core_id,
+                                uint32_t thread_id)
 {
-    return (chip->chip_id << 7) | (core_id << 3);
+    return (chip->chip_id << 7) | (core_id << 3) | thread_id;
 }
 
 static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1049,14 +1137,37 @@ static void pnv_chip_power8_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
  *
  * We only care about the lower bits. uint32_t is fine for the moment.
  */
-static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
+static uint32_t pnv_chip_pir_p9(PnvChip *chip, uint32_t core_id,
+                                uint32_t thread_id)
 {
-    return (chip->chip_id << 8) | (core_id << 2);
+    if (chip->nr_threads == 8) {
+        return (chip->chip_id << 8) | ((thread_id & 1) << 2) | (core_id << 3) |
+               (thread_id >> 1);
+    } else {
+        return (chip->chip_id << 8) | (core_id << 2) | thread_id;
+    }
 }
 
-static uint32_t pnv_chip_core_pir_p10(PnvChip *chip, uint32_t core_id)
+/*
+ *    0:48  Reserved - Read as zeroes
+ *   49:52  Node ID
+ *   53:55  Chip ID
+ *   56     Reserved - Read as zero
+ *   57:59  Quad ID
+ *   60     Core Chiplet Pair ID
+ *   61:63  Thread/Core Chiplet ID t0-t2
+ *
+ * We only care about the lower bits. uint32_t is fine for the moment.
+ */
+static uint32_t pnv_chip_pir_p10(PnvChip *chip, uint32_t core_id,
+                                 uint32_t thread_id)
 {
-    return (chip->chip_id << 8) | (core_id << 2);
+    if (chip->nr_threads == 8) {
+        return (chip->chip_id << 8) | ((core_id / 4) << 4) |
+               ((core_id % 2) << 3) | thread_id;
+    } else {
+        return (chip->chip_id << 8) | (core_id << 2) | thread_id;
+    }
 }
 
 static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1235,7 +1346,7 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
         int core_hwid = CPU_CORE(pnv_core)->core_id;
 
         for (j = 0; j < CPU_CORE(pnv_core)->nr_threads; j++) {
-            uint32_t pir = pcc->core_pir(chip, core_hwid) + j;
+            uint32_t pir = pcc->chip_pir(chip, core_hwid, j);
             PnvICPState *icp = PNV_ICP(xics_icp_get(chip8->xics, pir));
 
             memory_region_add_subregion(&chip8->icp_mmio, pir << 12,
@@ -1348,7 +1459,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->num_phbs = 3;
-    k->core_pir = pnv_chip_core_pir_p8;
+    k->chip_pir = pnv_chip_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1372,7 +1483,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 3;
-    k->core_pir = pnv_chip_core_pir_p8;
+    k->chip_pir = pnv_chip_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1396,7 +1507,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->num_phbs = 4;
-    k->core_pir = pnv_chip_core_pir_p8;
+    k->chip_pir = pnv_chip_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
     k->intc_destroy = pnv_chip_power8_intc_destroy;
@@ -1669,7 +1780,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 
     k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
-    k->core_pir = pnv_chip_core_pir_p9;
+    k->chip_pir = pnv_chip_pir_p9;
     k->intc_create = pnv_chip_power9_intc_create;
     k->intc_reset = pnv_chip_power9_intc_reset;
     k->intc_destroy = pnv_chip_power9_intc_destroy;
@@ -1981,7 +2092,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
 
     k->chip_cfam_id = 0x120da04900008000ull; /* P10 DD1.0 (with NX) */
     k->cores_mask = POWER10_CORE_MASK;
-    k->core_pir = pnv_chip_core_pir_p10;
+    k->chip_pir = pnv_chip_pir_p10;
     k->intc_create = pnv_chip_power10_intc_create;
     k->intc_reset = pnv_chip_power10_intc_reset;
     k->intc_destroy = pnv_chip_power10_intc_destroy;
@@ -2071,8 +2182,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                 chip->nr_threads, &error_fatal);
         object_property_set_int(OBJECT(pnv_core), CPU_CORE_PROP_CORE_ID,
                                 core_hwid, &error_fatal);
-        object_property_set_int(OBJECT(pnv_core), "pir",
-                                pcc->core_pir(chip, core_hwid), &error_fatal);
+        object_property_set_int(OBJECT(pnv_core), "hwid", core_hwid,
+                                &error_fatal);
         object_property_set_int(OBJECT(pnv_core), "hrmor", pnv->fw_load_addr,
                                 &error_fatal);
         object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),

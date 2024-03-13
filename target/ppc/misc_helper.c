@@ -49,9 +49,6 @@ void helper_spr_core_write_generic(CPUPPCState *env, uint32_t sprn,
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
     uint32_t nr_threads = cs->nr_threads;
-    uint32_t core_id = env->spr[SPR_PIR] & ~(nr_threads - 1);
-
-    assert(core_id == env->spr[SPR_PIR] - env->spr[SPR_TIR]);
 
     if (nr_threads == 1) {
         env->spr[sprn] = val;

@@ -226,7 +226,7 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
                                  int thread_index)
 {
     CPUPPCState *env = &cpu->env;
-    int core_pir;
+    int core_hwid;
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
     ppc_spr_t *tir = &env->spr_cb[SPR_TIR];
     Error *local_err = NULL;
@@ -242,10 +242,10 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
         return;
     }
 
-    core_pir = object_property_get_uint(OBJECT(pc), "pir", &error_abort);
+    core_hwid = object_property_get_uint(OBJECT(pc), "hwid", &error_abort);
 
     tir->default_value = thread_index;
-    pir->default_value = core_pir + thread_index;
+    pir->default_value = pcc->chip_pir(pc->chip, core_hwid, thread_index);
 
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, PNV_TIMEBASE_FREQ);
@@ -342,7 +342,7 @@ static void pnv_core_unrealize(DeviceState *dev)
 }
 
 static Property pnv_core_properties[] = {
-    DEFINE_PROP_UINT32("pir", PnvCore, pir, 0),
+    DEFINE_PROP_UINT32("hwid", PnvCore, hwid, 0),
     DEFINE_PROP_UINT64("hrmor", PnvCore, hrmor, 0),
     DEFINE_PROP_LINK("chip", PnvCore, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),

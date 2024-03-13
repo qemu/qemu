@@ -36,6 +36,7 @@ struct PnvCore {
     /*< public >*/
     PowerPCCPU **threads;
     uint32_t pir;
+    uint32_t hwid;
     uint64_t hrmor;
     PnvChip *chip;
 
