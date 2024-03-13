@@ -483,7 +483,7 @@ void job_enter(Job *job);
  *
  * Called with job_mutex *not* held.
  */
-void coroutine_fn job_pause_point(Job *job);
+void coroutine_fn GRAPH_UNLOCKED job_pause_point(Job *job);
 
 /**
  * @job: The job that calls the function.
