@@ -137,6 +137,7 @@ typedef struct BlockCopyState {
     CoMutex lock;
     int64_t in_flight_bytes;
     BlockCopyMethod method;
+    bool discard_source;
     BlockReqList reqs;
     QLIST_HEAD(, BlockCopyCallState) calls;
     /*
@@ -353,6 +354,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      BlockDriverState *copy_bitmap_bs,
                                      const BdrvDirtyBitmap *bitmap,
+                                     bool discard_source,
                                      Error **errp)
 {
     ERRP_GUARD();
@@ -418,6 +420,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                     cluster_size),
     };
 
+    s->discard_source = discard_source;
     block_copy_set_copy_opts(s, false, false);
 
     ratelimit_init(&s->rate_limit);
@@ -588,6 +591,12 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     }
     co_put_to_shres(s->mem, t->req.bytes);
     block_copy_task_end(t, ret);
+
+    if (s->discard_source && ret == 0) {
+        int64_t nbytes =
+            MIN(t->req.offset + t->req.bytes, s->len) - t->req.offset;
+        bdrv_co_pdiscard(s->source, t->req.offset, nbytes);
+    }
 
     return ret;
 }

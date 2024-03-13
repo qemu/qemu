@@ -356,7 +356,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   BitmapSyncMode bitmap_mode,
-                  bool compress,
+                  bool compress, bool discard_source,
                   const char *filter_node_name,
                   BackupPerf *perf,
                   BlockdevOnError on_source_error,
@@ -457,7 +457,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    cbw = bdrv_cbw_append(bs, target, filter_node_name, &bcs, errp);
+    cbw = bdrv_cbw_append(bs, target, filter_node_name, discard_source,
+                          &bcs, errp);
     if (!cbw) {
         goto error;
     }

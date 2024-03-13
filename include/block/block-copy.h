@@ -27,6 +27,7 @@ typedef struct BlockCopyCallState BlockCopyCallState;
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      BlockDriverState *copy_bitmap_bs,
                                      const BdrvDirtyBitmap *bitmap,
+                                     bool discard_source,
                                      Error **errp);
 
 /* Function should be called prior any actual copy request */

@@ -243,6 +243,8 @@ typedef enum {
                                       read-write fails */
 #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
 
+#define BDRV_O_CBW_DISCARD_SOURCE 0x80000 /* for copy-before-write filter */
+
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
