@@ -1642,7 +1642,7 @@ static void register_8xx_sprs(CPUPPCState *env)
 
 /*****************************************************************************/
 /* Exception vectors models                                                  */
-static void init_excp_4xx_softmmu(CPUPPCState *env)
+static void init_excp_4xx(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000100;
@@ -2120,7 +2120,7 @@ static void init_proc_405(CPUPPCState *env)
     env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
-    init_excp_4xx_softmmu(env);
+    init_excp_4xx(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
