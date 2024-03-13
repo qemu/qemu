@@ -3769,49 +3769,20 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     }
 }
 
-static void expand_vec_shi(TCGType type, unsigned vece, TCGOpcode opc,
+static void expand_vec_shi(TCGType type, unsigned vece, bool right,
                            TCGv_vec v0, TCGv_vec v1, TCGArg imm)
 {
-    TCGv_vec t1, t2;
+    uint8_t mask;
 
     tcg_debug_assert(vece == MO_8);
-
-    t1 = tcg_temp_new_vec(type);
-    t2 = tcg_temp_new_vec(type);
-
-    /*
-     * Unpack to W, shift, and repack.  Tricky bits:
-     * (1) Use punpck*bw x,x to produce DDCCBBAA,
-     *     i.e. duplicate in other half of the 16-bit lane.
-     * (2) For right-shift, add 8 so that the high half of the lane
-     *     becomes zero.  For left-shift, and left-rotate, we must
-     *     shift up and down again.
-     * (3) Step 2 leaves high half zero such that PACKUSWB
-     *     (pack with unsigned saturation) does not modify
-     *     the quantity.
-     */
-    vec_gen_3(INDEX_op_x86_punpckl_vec, type, MO_8,
-              tcgv_vec_arg(t1), tcgv_vec_arg(v1), tcgv_vec_arg(v1));
-    vec_gen_3(INDEX_op_x86_punpckh_vec, type, MO_8,
-              tcgv_vec_arg(t2), tcgv_vec_arg(v1), tcgv_vec_arg(v1));
-
-    if (opc != INDEX_op_rotli_vec) {
-        imm += 8;
-    }
-    if (opc == INDEX_op_shri_vec) {
-        tcg_gen_shri_vec(MO_16, t1, t1, imm);
-        tcg_gen_shri_vec(MO_16, t2, t2, imm);
+    if (right) {
+        mask = 0xff >> imm;
+        tcg_gen_shri_vec(MO_16, v0, v1, imm);
     } else {
-        tcg_gen_shli_vec(MO_16, t1, t1, imm);
-        tcg_gen_shli_vec(MO_16, t2, t2, imm);
-        tcg_gen_shri_vec(MO_16, t1, t1, 8);
-        tcg_gen_shri_vec(MO_16, t2, t2, 8);
+        mask = 0xff << imm;
+        tcg_gen_shli_vec(MO_16, v0, v1, imm);
     }
-
-    vec_gen_3(INDEX_op_x86_packus_vec, type, MO_8,
-              tcgv_vec_arg(v0), tcgv_vec_arg(t1), tcgv_vec_arg(t2));
-    tcg_temp_free_vec(t1);
-    tcg_temp_free_vec(t2);
+    tcg_gen_and_vec(MO_8, v0, v0, tcg_constant_vec(type, MO_8, mask));
 }
 
 static void expand_vec_sari(TCGType type, unsigned vece,
@@ -3821,7 +3792,7 @@ static void expand_vec_sari(TCGType type, unsigned vece,
 
     switch (vece) {
     case MO_8:
-        /* Unpack to W, shift, and repack, as in expand_vec_shi.  */
+        /* Unpack to 16-bit, shift, and repack.  */
         t1 = tcg_temp_new_vec(type);
         t2 = tcg_temp_new_vec(type);
         vec_gen_3(INDEX_op_x86_punpckl_vec, type, MO_8,
@@ -3874,12 +3845,7 @@ static void expand_vec_rotli(TCGType type, unsigned vece,
 {
     TCGv_vec t;
 
-    if (vece == MO_8) {
-        expand_vec_shi(type, vece, INDEX_op_rotli_vec, v0, v1, imm);
-        return;
-    }
-
-    if (have_avx512vbmi2) {
+    if (vece != MO_8 && have_avx512vbmi2) {
         vec_gen_4(INDEX_op_x86_vpshldi_vec, type, vece,
                   tcgv_vec_arg(v0), tcgv_vec_arg(v1), tcgv_vec_arg(v1), imm);
         return;
@@ -4155,10 +4121,11 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
 
     switch (opc) {
     case INDEX_op_shli_vec:
-    case INDEX_op_shri_vec:
-        expand_vec_shi(type, vece, opc, v0, v1, a2);
+        expand_vec_shi(type, vece, false, v0, v1, a2);
         break;
-
+    case INDEX_op_shri_vec:
+        expand_vec_shi(type, vece, true, v0, v1, a2);
+        break;
     case INDEX_op_sari_vec:
         expand_vec_sari(type, vece, v0, v1, a2);
         break;
