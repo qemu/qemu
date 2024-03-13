@@ -92,8 +92,9 @@ typedef struct CXLDVSECDevice {
     uint32_t range2_base_hi;
     uint32_t range2_base_lo;
     uint16_t cap3;
+    uint16_t resv;
 } QEMU_PACKED CXLDVSECDevice;
-QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != 0x3A);
+QEMU_BUILD_BUG_ON(sizeof(CXLDVSECDevice) != PCIE_CXL_DEVICE_DVSEC_LENGTH);
 
 /*
  * CXL r3.1 Section 8.1.5: CXL Extensions DVSEC for Ports

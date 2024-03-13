@@ -31,10 +31,12 @@
 #define VHOST_MEMORY_BASELINE_NREGIONS 8
 
 /*
- * Set a reasonable maximum number of ram slots, which will be supported by
- * any architecture.
+ * vhost in the kernel usually supports 509 mem slots. 509 used to be the
+ * KVM limit, it supported 512, but 3 were used for internal purposes. This
+ * limit is sufficient to support many DIMMs and virtio-mem in
+ * "dynamic-memslots" mode.
  */
-#define VHOST_USER_MAX_RAM_SLOTS 32
+#define VHOST_USER_MAX_RAM_SLOTS 509
 
 #define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
 
@@ -398,7 +400,7 @@ typedef struct VuDevInflightInfo {
 struct VuDev {
     int sock;
     uint32_t nregions;
-    VuDevRegion regions[VHOST_USER_MAX_RAM_SLOTS];
+    VuDevRegion *regions;
     VuVirtq *vq;
     VuDevInflightInfo inflight_info;
     int log_call_fd;

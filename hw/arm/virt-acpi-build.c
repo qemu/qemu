@@ -57,6 +57,7 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/viot.h"
+#include "hw/acpi/acpi_generic_initiator.h"
 #include "hw/virtio/virtio-acpi.h"
 #include "target/arm/multiprocessing.h"
 
@@ -503,6 +504,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
             mem_base += ms->numa_state->nodes[i].node_mem;
         }
     }
+
+    build_srat_generic_pci_initiator(table_data);
 
     if (ms->nvdimms_state->is_enabled) {
         nvdimm_build_srat(table_data);

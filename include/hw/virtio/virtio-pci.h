@@ -43,6 +43,7 @@ enum {
     VIRTIO_PCI_FLAG_INIT_FLR_BIT,
     VIRTIO_PCI_FLAG_AER_BIT,
     VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT,
+    VIRTIO_PCI_FLAG_VDPA_BIT,
 };
 
 /* Need to activate work-arounds for buggy guests at vmstate load. */
@@ -88,6 +89,9 @@ enum {
 /* Page Aligned Address space Translation Service */
 #define VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED \
   (1 << VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT)
+
+/* VDPA supported flags */
+#define VIRTIO_PCI_FLAG_VDPA (1 << VIRTIO_PCI_FLAG_VDPA_BIT)
 
 typedef struct {
     MSIMessage msg;
@@ -140,6 +144,7 @@ struct VirtIOPCIProxy {
         };
         VirtIOPCIRegion regs[5];
     };
+    VirtIOPCIRegion lm;
     MemoryRegion modern_bar;
     MemoryRegion io_bar;
     uint32_t legacy_io_bar_idx;

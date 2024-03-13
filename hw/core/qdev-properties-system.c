@@ -966,7 +966,7 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
     .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
-/* --- PCIELinkSpeed 2_5/5/8/16 -- */
+/* --- PCIELinkSpeed 2_5/5/8/16/32/64 -- */
 
 static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
@@ -987,6 +987,12 @@ static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
         break;
     case QEMU_PCI_EXP_LNK_16GT:
         speed = PCIE_LINK_SPEED_16;
+        break;
+    case QEMU_PCI_EXP_LNK_32GT:
+        speed = PCIE_LINK_SPEED_32;
+        break;
+    case QEMU_PCI_EXP_LNK_64GT:
+        speed = PCIE_LINK_SPEED_64;
         break;
     default:
         /* Unreachable */
@@ -1021,6 +1027,12 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
     case PCIE_LINK_SPEED_16:
         *p = QEMU_PCI_EXP_LNK_16GT;
         break;
+    case PCIE_LINK_SPEED_32:
+        *p = QEMU_PCI_EXP_LNK_32GT;
+        break;
+    case PCIE_LINK_SPEED_64:
+        *p = QEMU_PCI_EXP_LNK_64GT;
+        break;
     default:
         /* Unreachable */
         abort();
@@ -1029,7 +1041,7 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_pcie_link_speed = {
     .name = "PCIELinkSpeed",
-    .description = "2_5/5/8/16",
+    .description = "2_5/5/8/16/32/64",
     .enum_table = &PCIELinkSpeed_lookup,
     .get = get_prop_pcielinkspeed,
     .set = set_prop_pcielinkspeed,

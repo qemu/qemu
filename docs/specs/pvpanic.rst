@@ -29,6 +29,8 @@ bit 1
   a guest panic has happened and will be handled by the guest;
   the host should record it or report it, but should not affect
   the execution of the guest.
+bit 2
+  a regular guest shutdown has happened and should be processed by the host
 
 PCI Interface
 -------------
