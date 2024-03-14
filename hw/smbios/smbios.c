@@ -19,7 +19,6 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
-#include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "sysemu/sysemu.h"
@@ -511,23 +510,25 @@ opts_init(smbios_register_config);
  */
 #define SMBIOS_21_MAX_TABLES_LEN 0xffff
 
-static void smbios_check_type4_count(uint32_t expected_t4_count)
+static bool smbios_check_type4_count(uint32_t expected_t4_count, Error **errp)
 {
     if (smbios_type4_count && smbios_type4_count != expected_t4_count) {
-        error_report("Expected %d SMBIOS Type 4 tables, got %d instead",
-                     expected_t4_count, smbios_type4_count);
-        exit(1);
+        error_setg(errp, "Expected %d SMBIOS Type 4 tables, got %d instead",
+                   expected_t4_count, smbios_type4_count);
+        return false;
     }
+    return true;
 }
 
-void smbios_validate_table(void)
+bool smbios_validate_table(Error **errp)
 {
     if (smbios_ep_type == SMBIOS_ENTRY_POINT_TYPE_32 &&
         smbios_tables_len > SMBIOS_21_MAX_TABLES_LEN) {
-        error_report("SMBIOS 2.1 table length %zu exceeds %d",
-                     smbios_tables_len, SMBIOS_21_MAX_TABLES_LEN);
-        exit(1);
+        error_setg(errp, "SMBIOS 2.1 table length %zu exceeds %d",
+                   smbios_tables_len, SMBIOS_21_MAX_TABLES_LEN);
+        return false;
     }
+    return true;
 }
 
 bool smbios_skip_table(uint8_t type, bool required_table)
@@ -1151,15 +1152,18 @@ void smbios_get_tables(MachineState *ms,
     smbios_build_type_41_table(errp);
     smbios_build_type_127_table();
 
-    smbios_check_type4_count(ms->smp.sockets);
-    smbios_validate_table();
+    if (!smbios_check_type4_count(ms->smp.sockets, errp)) {
+        goto err_exit;
+    }
+    if (!smbios_validate_table(errp)) {
+        goto err_exit;
+    }
     smbios_entry_point_setup();
 
     /* return tables blob and entry point (anchor), and their sizes */
     *tables = smbios_tables;
     *tables_len = smbios_tables_len;
     *anchor = (uint8_t *)&ep;
-
     /* calculate length based on anchor string */
     if (!strncmp((char *)&ep, "_SM_", 4)) {
         *anchor_len = sizeof(struct smbios_21_entry_point);
@@ -1168,6 +1172,12 @@ void smbios_get_tables(MachineState *ms,
     } else {
         abort();
     }
+
+    return;
+err_exit:
+    g_free(smbios_tables);
+    smbios_tables = NULL;
+    return;
 }
 
 static void save_opt(const char **dest, QemuOpts *opts, const char *name)

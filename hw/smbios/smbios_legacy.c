@@ -19,7 +19,7 @@
 #include "qemu/bswap.h"
 #include "hw/firmware/smbios.h"
 #include "sysemu/sysemu.h"
-#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 struct smbios_header {
     uint16_t length;
@@ -128,7 +128,7 @@ static void smbios_build_type_1_fields(void)
     }
 }
 
-uint8_t *smbios_get_table_legacy(size_t *length)
+uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
 {
     int i;
     size_t usr_offset;
@@ -136,15 +136,15 @@ uint8_t *smbios_get_table_legacy(size_t *length)
     /* complain if fields were given for types > 1 */
     if (find_next_bit(smbios_have_fields_bitmap,
                       SMBIOS_MAX_TYPE + 1, 2) < SMBIOS_MAX_TYPE + 1) {
-        error_report("can't process fields for smbios "
+        error_setg(errp, "can't process fields for smbios "
                      "types > 1 on machine versions < 2.1!");
-        exit(1);
+        goto err_exit;
     }
 
     if (test_bit(4, smbios_have_binfile_bitmap)) {
-        error_report("can't process table for smbios "
-                     "type 4 on machine versions < 2.1!");
-        exit(1);
+        error_setg(errp, "can't process table for smbios "
+                   "type 4 on machine versions < 2.1!");
+        goto err_exit;
     }
 
     g_free(smbios_entries);
@@ -173,7 +173,13 @@ uint8_t *smbios_get_table_legacy(size_t *length)
 
     smbios_build_type_0_fields();
     smbios_build_type_1_fields();
-    smbios_validate_table();
+    if (!smbios_validate_table(errp)) {
+        goto err_exit;
+    }
+
     *length = smbios_entries_len;
     return smbios_entries;
+err_exit:
+    g_free(smbios_entries);
+    return NULL;
 }
