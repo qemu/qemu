@@ -151,6 +151,9 @@ uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
     smbios_entries_len = sizeof(uint16_t);
     smbios_entries = g_malloc0(smbios_entries_len);
 
+    /*
+     * build a set of legacy smbios_table entries using user provided blobs
+     */
     for (i = 0, usr_offset = 0; usr_blobs_sizes && i < usr_blobs_sizes->len;
          i++)
     {
@@ -166,6 +169,10 @@ uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
         table->header.length = cpu_to_le16(sizeof(*table) + size);
         memcpy(table->data, header, size);
         smbios_entries_len += sizeof(*table) + size;
+        /*
+         * update number of entries in the blob,
+         * see SeaBIOS: qemu_cfg_legacy():QEMU_CFG_SMBIOS_ENTRIES
+         */
         (*(uint16_t *)smbios_entries) =
             cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
         usr_offset += size;
