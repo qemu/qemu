@@ -1651,13 +1651,13 @@ static void virt_build_smbios(VirtMachineState *vms)
 
     smbios_set_defaults("QEMU", product,
                         vmc->smbios_old_sys_ver ? "1.0" : mc->name,
-                        true, SMBIOS_ENTRY_POINT_TYPE_64);
+                        true);
 
     /* build the array of physical mem area from base_memmap */
     mem_array.address = vms->memmap[VIRT_MEM].base;
     mem_array.length = ms->ram_size;
 
-    smbios_get_tables(ms, &mem_array, 1,
+    smbios_get_tables(ms, SMBIOS_ENTRY_POINT_TYPE_64, &mem_array, 1,
                       &smbios_tables, &smbios_tables_len,
                       &smbios_anchor, &smbios_anchor_len,
                       &error_fatal);

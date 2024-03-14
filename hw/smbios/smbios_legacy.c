@@ -173,7 +173,7 @@ uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
 
     smbios_build_type_0_fields();
     smbios_build_type_1_fields();
-    if (!smbios_validate_table(errp)) {
+    if (!smbios_validate_table(SMBIOS_ENTRY_POINT_TYPE_32, errp)) {
         goto err_exit;
     }
 

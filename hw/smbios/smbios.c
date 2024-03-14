@@ -43,7 +43,6 @@ uint8_t *smbios_tables;
 size_t smbios_tables_len;
 unsigned smbios_table_max;
 unsigned smbios_table_cnt;
-static SmbiosEntryPointType smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_32;
 
 static SmbiosEntryPoint ep;
 
@@ -520,9 +519,9 @@ static bool smbios_check_type4_count(uint32_t expected_t4_count, Error **errp)
     return true;
 }
 
-bool smbios_validate_table(Error **errp)
+bool smbios_validate_table(SmbiosEntryPointType ep_type, Error **errp)
 {
-    if (smbios_ep_type == SMBIOS_ENTRY_POINT_TYPE_32 &&
+    if (ep_type == SMBIOS_ENTRY_POINT_TYPE_32 &&
         smbios_tables_len > SMBIOS_21_MAX_TABLES_LEN) {
         error_setg(errp, "SMBIOS 2.1 table length %zu exceeds %d",
                    smbios_tables_len, SMBIOS_21_MAX_TABLES_LEN);
@@ -669,14 +668,15 @@ static void smbios_build_type_3_table(void)
     SMBIOS_BUILD_TABLE_POST;
 }
 
-static void smbios_build_type_4_table(MachineState *ms, unsigned instance)
+static void smbios_build_type_4_table(MachineState *ms, unsigned instance,
+                                      SmbiosEntryPointType ep_type)
 {
     char sock_str[128];
     size_t tbl_len = SMBIOS_TYPE_4_LEN_V28;
     unsigned threads_per_socket;
     unsigned cores_per_socket;
 
-    if (smbios_ep_type == SMBIOS_ENTRY_POINT_TYPE_64) {
+    if (ep_type == SMBIOS_ENTRY_POINT_TYPE_64) {
         tbl_len = SMBIOS_TYPE_4_LEN_V30;
     }
 
@@ -1011,11 +1011,10 @@ void smbios_set_default_processor_family(uint16_t processor_family)
 
 void smbios_set_defaults(const char *manufacturer, const char *product,
                          const char *version,
-                         bool uuid_encoded, SmbiosEntryPointType ep_type)
+                         bool uuid_encoded)
 {
     smbios_have_defaults = true;
     smbios_uuid_encoded = uuid_encoded;
-    smbios_ep_type = ep_type;
 
     SMBIOS_SET_DEFAULT(smbios_type1.manufacturer, manufacturer);
     SMBIOS_SET_DEFAULT(smbios_type1.product, product);
@@ -1032,9 +1031,9 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
     SMBIOS_SET_DEFAULT(type17.manufacturer, manufacturer);
 }
 
-static void smbios_entry_point_setup(void)
+static void smbios_entry_point_setup(SmbiosEntryPointType ep_type)
 {
-    switch (smbios_ep_type) {
+    switch (ep_type) {
     case SMBIOS_ENTRY_POINT_TYPE_32:
         memcpy(ep.ep21.anchor_string, "_SM_", 4);
         memcpy(ep.ep21.intermediate_anchor_string, "_DMI_", 5);
@@ -1084,6 +1083,7 @@ static void smbios_entry_point_setup(void)
 }
 
 void smbios_get_tables(MachineState *ms,
+                       SmbiosEntryPointType ep_type,
                        const struct smbios_phys_mem_area *mem_array,
                        const unsigned int mem_array_size,
                        uint8_t **tables, size_t *tables_len,
@@ -1091,6 +1091,9 @@ void smbios_get_tables(MachineState *ms,
                        Error **errp)
 {
     unsigned i, dimm_cnt, offset;
+
+    assert(ep_type == SMBIOS_ENTRY_POINT_TYPE_32 ||
+           ep_type == SMBIOS_ENTRY_POINT_TYPE_64);
 
     g_free(smbios_tables);
     smbios_tables = g_memdup2(usr_blobs, usr_blobs_len);
@@ -1106,7 +1109,7 @@ void smbios_get_tables(MachineState *ms,
     assert(ms->smp.sockets >= 1);
 
     for (i = 0; i < ms->smp.sockets; i++) {
-        smbios_build_type_4_table(ms, i);
+        smbios_build_type_4_table(ms, i, ep_type);
     }
 
     smbios_build_type_8_table();
@@ -1155,10 +1158,10 @@ void smbios_get_tables(MachineState *ms,
     if (!smbios_check_type4_count(ms->smp.sockets, errp)) {
         goto err_exit;
     }
-    if (!smbios_validate_table(errp)) {
+    if (!smbios_validate_table(ep_type, errp)) {
         goto err_exit;
     }
-    smbios_entry_point_setup();
+    smbios_entry_point_setup(ep_type);
 
     /* return tables blob and entry point (anchor), and their sizes */
     *tables = smbios_tables;
