@@ -307,7 +307,7 @@ static struct qemu_plugin_dyn_cb *plugin_get_dyn_cb(GArray **arr)
     GArray *cbs = *arr;
 
     if (!cbs) {
-        cbs = g_array_sized_new(false, false,
+        cbs = g_array_sized_new(false, true,
                                 sizeof(struct qemu_plugin_dyn_cb), 1);
         *arr = cbs;
     }
