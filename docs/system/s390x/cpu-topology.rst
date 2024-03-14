@@ -25,17 +25,19 @@ monitor polarization changes, see ``docs/devel/s390-cpu-topology.rst``.
 Prerequisites
 -------------
 
-To use the CPU topology, you need to run with KVM on a s390x host that
-uses the Linux kernel v6.0 or newer (which provide the so-called
+To use the CPU topology, you currently need to choose the KVM accelerator.
+See :ref:`Accelerators` for more details about accelerators and how to select them.
+
+The s390x host needs to use a Linux kernel v6.0 or newer (which provides the so-called
 ``KVM_CAP_S390_CPU_TOPOLOGY`` capability that allows QEMU to signal the
 CPU topology facility via the so-called STFLE bit 11 to the VM).
 
 Enabling CPU topology
 ---------------------
 
-Currently, CPU topology is only enabled in the host model by default.
+Currently, CPU topology is enabled by default only in the "host" CPU model.
 
-Enabling CPU topology in a CPU model is done by setting the CPU flag
+Enabling CPU topology in another CPU model is done by setting the CPU flag
 ``ctop`` to ``on`` as in:
 
 .. code-block:: bash
@@ -132,7 +134,7 @@ In the following machine we define 8 sockets with 4 cores each.
 
 .. code-block:: bash
 
-  $ qemu-system-s390x -m 2G \
+  $ qemu-system-s390x -accel kvm -m 2G \
     -cpu gen16b,ctop=on \
     -smp cpus=5,sockets=8,cores=4,maxcpus=32 \
     -device host-s390x-cpu,core-id=14 \
@@ -227,7 +229,7 @@ with vertical high entitlement.
 
 .. code-block:: bash
 
-  $ qemu-system-s390x -m 2G \
+  $ qemu-system-s390x -accel kvm -m 2G \
     -cpu gen16b,ctop=on \
     -smp cpus=1,sockets=8,cores=4,maxcpus=32 \
     \
