@@ -1650,7 +1650,7 @@ static void virt_build_smbios(VirtMachineState *vms)
     }
 
     smbios_set_defaults("QEMU", product,
-                        vmc->smbios_old_sys_ver ? "1.0" : mc->name, false,
+                        vmc->smbios_old_sys_ver ? "1.0" : mc->name,
                         true, SMBIOS_ENTRY_POINT_TYPE_64);
 
     /* build the array of physical mem area from base_memmap */

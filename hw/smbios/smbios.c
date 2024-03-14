@@ -54,7 +54,6 @@ struct smbios_table {
 
 static uint8_t *smbios_entries;
 static size_t smbios_entries_len;
-static bool smbios_legacy = true;
 static bool smbios_uuid_encoded = true;
 /* end: legacy structures & constants for <= 2.0 machines */
 
@@ -633,9 +632,16 @@ static void smbios_build_type_1_fields(void)
 
 uint8_t *smbios_get_table_legacy(uint32_t expected_t4_count, size_t *length)
 {
-    if (!smbios_legacy) {
-        *length = 0;
-        return NULL;
+    /* drop unwanted version of command-line file blob(s) */
+    g_free(smbios_tables);
+    smbios_tables = NULL;
+
+    /* also complain if fields were given for types > 1 */
+    if (find_next_bit(have_fields_bitmap,
+                      SMBIOS_MAX_TYPE + 1, 2) < SMBIOS_MAX_TYPE + 1) {
+        error_report("can't process fields for smbios "
+                     "types > 1 on machine versions < 2.1!");
+        exit(1);
     }
 
     if (!smbios_immutable) {
@@ -1129,27 +1135,12 @@ void smbios_set_default_processor_family(uint16_t processor_family)
 }
 
 void smbios_set_defaults(const char *manufacturer, const char *product,
-                         const char *version, bool legacy_mode,
+                         const char *version,
                          bool uuid_encoded, SmbiosEntryPointType ep_type)
 {
     smbios_have_defaults = true;
-    smbios_legacy = legacy_mode;
     smbios_uuid_encoded = uuid_encoded;
     smbios_ep_type = ep_type;
-
-    /* drop unwanted version of command-line file blob(s) */
-    if (smbios_legacy) {
-        g_free(smbios_tables);
-        /* in legacy mode, also complain if fields were given for types > 1 */
-        if (find_next_bit(have_fields_bitmap,
-                          SMBIOS_MAX_TYPE+1, 2) < SMBIOS_MAX_TYPE+1) {
-            error_report("can't process fields for smbios "
-                         "types > 1 on machine versions < 2.1!");
-            exit(1);
-        }
-    } else {
-        g_free(smbios_entries);
-    }
 
     SMBIOS_SET_DEFAULT(type1.manufacturer, manufacturer);
     SMBIOS_SET_DEFAULT(type1.product, product);
@@ -1225,6 +1216,10 @@ void smbios_get_tables(MachineState *ms,
                        Error **errp)
 {
     unsigned i, dimm_cnt, offset;
+
+    /* drop unwanted (legacy) version of command-line file blob(s) */
+    g_free(smbios_entries);
+    smbios_entries = NULL;
 
     if (!smbios_immutable) {
         smbios_build_type_0_table();
