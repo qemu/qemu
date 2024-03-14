@@ -572,6 +572,11 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     uint32_t vlenb = riscv_cpu_cfg(env)->vlenb;
     uint32_t max_elems = vlenb >> log2_esz;
 
+    if (env->vstart >= ((vlenb * nf) >> log2_esz)) {
+        env->vstart = 0;
+        return;
+    }
+
     k = env->vstart / max_elems;
     off = env->vstart % max_elems;
 
