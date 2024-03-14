@@ -858,6 +858,27 @@ static void test_vm_prepare(const char *params, test_data *data)
     g_free(args);
 }
 
+static void process_smbios_tables_noexit(test_data *data)
+{
+    /*
+     * TODO: make SMBIOS tests work with UEFI firmware,
+     * Bug on uefi-test-tools to provide entry point:
+     * https://bugs.launchpad.net/qemu/+bug/1821884
+     */
+    if (!(data->uefi_fl1 && data->uefi_fl2)) {
+        SmbiosEntryPointType ep_type = test_smbios_entry_point(data);
+        test_smbios_structs(data, ep_type);
+    }
+}
+
+static void test_smbios(const char *params, test_data *data)
+{
+    test_vm_prepare(params, data);
+    boot_sector_test(data->qts);
+    process_smbios_tables_noexit(data);
+    qtest_quit(data->qts);
+}
+
 static void process_acpi_tables_noexit(test_data *data)
 {
     test_acpi_load_tables(data);
@@ -868,15 +889,7 @@ static void process_acpi_tables_noexit(test_data *data)
         test_acpi_asl(data);
     }
 
-    /*
-     * TODO: make SMBIOS tests work with UEFI firmware,
-     * Bug on uefi-test-tools to provide entry point:
-     * https://bugs.launchpad.net/qemu/+bug/1821884
-     */
-    if (!(data->uefi_fl1 && data->uefi_fl2)) {
-        SmbiosEntryPointType ep_type = test_smbios_entry_point(data);
-        test_smbios_structs(data, ep_type);
-    }
+    process_smbios_tables_noexit(data);
 }
 
 static void process_acpi_tables(test_data *data)
@@ -2064,6 +2077,20 @@ static void test_acpi_q35_pvpanic_isa(void)
     free_test_data(&data);
 }
 
+static void test_acpi_pc_smbios_options(void)
+{
+    uint8_t req_type11[] = { 11 };
+    test_data data = {
+        .machine = MACHINE_PC,
+        .variant = ".pc_smbios_options",
+        .required_struct_types = req_type11,
+        .required_struct_types_len = ARRAY_SIZE(req_type11),
+    };
+
+    test_smbios("-smbios type=11,value=TEST", &data);
+    free_test_data(&data);
+}
+
 static void test_oem_fields(test_data *data)
 {
     int i;
@@ -2215,6 +2242,8 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_POSIX
             qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_acpi_erst);
 #endif
+            qtest_add_func("acpi/piix4/smbios-options",
+                           test_acpi_pc_smbios_options);
         }
         if (qtest_has_machine(MACHINE_Q35)) {
             qtest_add_func("acpi/q35", test_acpi_q35_tcg);
