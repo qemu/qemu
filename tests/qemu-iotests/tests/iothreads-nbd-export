@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Copyright (C) 2024 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+
+import time
+import qemu
+import iotests
+
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
+
+with iotests.FilePath('disk1.img') as path, \
+     iotests.FilePath('nbd.sock', base_dir=iotests.sock_dir) as nbd_sock, \
+     qemu.machine.QEMUMachine(iotests.qemu_prog) as vm:
+
+    img_size = '10M'
+
+    iotests.log('Preparing disk...')
+    iotests.qemu_img_create('-f', iotests.imgfmt, path, img_size)
+    vm.add_args('-blockdev', f'file,node-name=disk-file,filename={path}')
+    vm.add_args('-blockdev', 'qcow2,node-name=disk,file=disk-file')
+    vm.add_args('-object', 'iothread,id=iothread0')
+    vm.add_args('-device',
+                'virtio-blk,drive=disk,iothread=iothread0,share-rw=on')
+
+    iotests.log('Launching VM...')
+    vm.add_args('-accel', 'kvm', '-accel', 'tcg')
+    #vm.add_args('-accel', 'qtest')
+    vm.launch()
+
+    iotests.log('Exporting to NBD...')
+    iotests.log(vm.qmp('nbd-server-start',
+                       addr={'type': 'unix', 'data': {'path': nbd_sock}}))
+    iotests.log(vm.qmp('block-export-add', type='nbd', id='exp0',
+                       node_name='disk', writable=True))
+
+    iotests.log('Connecting qemu-img...')
+    qemu_io = iotests.QemuIoInteractive('-f', 'raw',
+                                        f'nbd+unix:///disk?socket={nbd_sock}')
+
+    iotests.log('Moving the NBD export to a different iothread...')
+    for i in range(0, 10):
+        iotests.log(vm.qmp('system_reset'))
+        time.sleep(0.1)
+
+    iotests.log('Checking that it is still alive...')
+    iotests.log(vm.qmp('query-status'))
+
+    qemu_io.close()
+    vm.shutdown()
