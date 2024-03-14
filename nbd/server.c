@@ -3007,8 +3007,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 /* Owns a reference to the NBDClient passed as opaque.  */
 static coroutine_fn void nbd_trip(void *opaque)
 {
-    NBDClient *client = opaque;
-    NBDRequestData *req = NULL;
+    NBDRequestData *req = opaque;
+    NBDClient *client = req->client;
     NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
     int ret;
     Error *local_err = NULL;
@@ -3036,8 +3036,6 @@ static coroutine_fn void nbd_trip(void *opaque)
         aio_wait_kick();
         goto done;
     }
-
-    req = nbd_request_get(client);
 
     /*
      * nbd_co_receive_request() returns -EAGAIN when nbd_drained_begin() has
@@ -3112,9 +3110,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     }
 
 done:
-    if (req) {
-        nbd_request_put(req);
-    }
+    nbd_request_put(req);
 
     qemu_mutex_unlock(&client->lock);
 
@@ -3143,10 +3139,13 @@ disconnect:
  */
 static void nbd_client_receive_next_request(NBDClient *client)
 {
+    NBDRequestData *req;
+
     if (!client->recv_coroutine && client->nb_requests < MAX_NBD_REQUESTS &&
         !client->quiescing) {
         nbd_client_get(client);
-        client->recv_coroutine = qemu_coroutine_create(nbd_trip, client);
+        req = nbd_request_get(client);
+        client->recv_coroutine = qemu_coroutine_create(nbd_trip, req);
         aio_co_schedule(client->exp->common.ctx, client->recv_coroutine);
     }
 }
