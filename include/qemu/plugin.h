@@ -93,6 +93,7 @@ struct qemu_plugin_dyn_cb {
     union {
         struct {
             union qemu_plugin_cb_sig f;
+            TCGHelperInfo *info;
         } regular;
         struct {
             qemu_plugin_u64 entry;
