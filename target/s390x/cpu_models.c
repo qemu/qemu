@@ -500,6 +500,16 @@ static void error_prepend_missing_feat(const char *name, void *opaque)
     error_prepend((Error **) opaque, "%s ", name);
 }
 
+static void check_compat_model_failed(Error **errp,
+                                      const S390CPUModel *max_model,
+                                      const char *msg)
+{
+    error_setg(errp, "%s. Maximum supported model in the current configuration: \'%s\'",
+               msg, max_model->def->name);
+    error_append_hint(errp, "Consider a different accelerator, try \"-accel help\"\n");
+    return;
+}
+
 static void check_compatibility(const S390CPUModel *max_model,
                                 const S390CPUModel *model, Error **errp)
 {
@@ -507,15 +517,11 @@ static void check_compatibility(const S390CPUModel *max_model,
     S390FeatBitmap missing;
 
     if (model->def->gen > max_model->def->gen) {
-        error_setg(errp, "Selected CPU generation is too new. Maximum "
-                   "supported model in the configuration: \'%s\'",
-                   max_model->def->name);
+        check_compat_model_failed(errp, max_model, "Selected CPU generation is too new");
         return;
     } else if (model->def->gen == max_model->def->gen &&
                model->def->ec_ga > max_model->def->ec_ga) {
-        error_setg(errp, "Selected CPU GA level is too new. Maximum "
-                   "supported model in the configuration: \'%s\'",
-                   max_model->def->name);
+        check_compat_model_failed(errp, max_model, "Selected CPU GA level is too new");
         return;
     }
 
@@ -537,7 +543,9 @@ static void check_compatibility(const S390CPUModel *max_model,
     error_setg(errp, " ");
     s390_feat_bitmap_to_ascii(missing, errp, error_prepend_missing_feat);
     error_prepend(errp, "Some features requested in the CPU model are not "
-                  "available in the configuration: ");
+                  "available in the current configuration: ");
+    error_append_hint(errp,
+                      "Consider a different accelerator, QEMU, or kernel version\n");
 }
 
 S390CPUModel *get_max_cpu_model(Error **errp)
