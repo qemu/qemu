@@ -118,10 +118,12 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
 {
     ERRP_GUARD();
     long int ret = -ENOTTY;
-    char *path, *vfio_dev_path = NULL, *vfio_path = NULL;
+    g_autofree char *path = NULL;
+    g_autofree char *vfio_dev_path = NULL;
+    g_autofree char *vfio_path = NULL;
     DIR *dir = NULL;
     struct dirent *dent;
-    gchar *contents;
+    g_autofree gchar *contents = NULL;
     gsize length;
     int major, minor;
     dev_t vfio_devt;
@@ -130,7 +132,7 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     dir = opendir(path);
     if (!dir) {
         error_setg_errno(errp, errno, "couldn't open directory %s", path);
-        goto out_free_path;
+        goto out;
     }
 
     while ((dent = readdir(dir))) {
@@ -147,14 +149,13 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
 
     if (!g_file_get_contents(vfio_dev_path, &contents, &length, NULL)) {
         error_setg(errp, "failed to load \"%s\"", vfio_dev_path);
-        goto out_free_dev_path;
+        goto out_close_dir;
     }
 
     if (sscanf(contents, "%d:%d", &major, &minor) != 2) {
         error_setg(errp, "failed to get major:minor for \"%s\"", vfio_dev_path);
-        goto out_free_dev_path;
+        goto out_close_dir;
     }
-    g_free(contents);
     vfio_devt = makedev(major, minor);
 
     vfio_path = g_strdup_printf("/dev/vfio/devices/%s", dent->d_name);
@@ -164,17 +165,13 @@ static int iommufd_cdev_getfd(const char *sysfs_path, Error **errp)
     }
 
     trace_iommufd_cdev_getfd(vfio_path, ret);
-    g_free(vfio_path);
 
-out_free_dev_path:
-    g_free(vfio_dev_path);
 out_close_dir:
     closedir(dir);
-out_free_path:
+out:
     if (*errp) {
         error_prepend(errp, VFIO_MSG_PREFIX, path);
     }
-    g_free(path);
 
     return ret;
 }
