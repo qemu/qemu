@@ -201,8 +201,7 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
 {
     switch (from) {
     case PLUGIN_GEN_AFTER_INSN:
-        gen_wrapped(from, PLUGIN_GEN_DISABLE_MEM_HELPER,
-                    gen_empty_mem_helper);
+        tcg_gen_plugin_cb(from);
         break;
     case PLUGIN_GEN_FROM_INSN:
         /*
@@ -608,16 +607,6 @@ static void inject_mem_enable_helper(struct qemu_plugin_tb *ptb,
     inject_mem_helper(begin_op, arr);
 }
 
-static void inject_mem_disable_helper(struct qemu_plugin_insn *plugin_insn,
-                                      TCGOp *begin_op)
-{
-    if (likely(!plugin_insn->mem_helper)) {
-        rm_ops(begin_op);
-        return;
-    }
-    inject_mem_helper(begin_op, NULL);
-}
-
 /* called before finishing a TB with exit_tb, goto_tb or goto_ptr */
 void plugin_gen_disable_mem_helpers(void)
 {
@@ -703,11 +692,14 @@ static void plugin_gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
     inject_mem_enable_helper(ptb, insn, begin_op);
 }
 
-static void plugin_gen_disable_mem_helper(struct qemu_plugin_tb *ptb,
-                                          TCGOp *begin_op, int insn_idx)
+static void gen_disable_mem_helper(struct qemu_plugin_tb *ptb,
+                                   struct qemu_plugin_insn *insn)
 {
-    struct qemu_plugin_insn *insn = g_ptr_array_index(ptb->insns, insn_idx);
-    inject_mem_disable_helper(insn, begin_op);
+    if (insn->mem_helper) {
+        tcg_gen_st_ptr(tcg_constant_ptr(0), tcg_env,
+                       offsetof(CPUState, plugin_mem_cbs) -
+                       offsetof(ArchCPU, env));
+    }
 }
 
 /* #define DEBUG_PLUGIN_GEN_OPS */
@@ -766,16 +758,49 @@ static void pr_ops(void)
 
 static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 {
-    TCGOp *op;
+    TCGOp *op, *next;
     int insn_idx = -1;
 
     pr_ops();
 
-    QTAILQ_FOREACH(op, &tcg_ctx->ops, link) {
+    /*
+     * While injecting code, we cannot afford to reuse any ebb temps
+     * that might be live within the existing opcode stream.
+     * The simplest solution is to release them all and create new.
+     */
+    memset(tcg_ctx->free_temps, 0, sizeof(tcg_ctx->free_temps));
+
+    QTAILQ_FOREACH_SAFE(op, &tcg_ctx->ops, link, next) {
         switch (op->opc) {
         case INDEX_op_insn_start:
             insn_idx++;
             break;
+
+        case INDEX_op_plugin_cb:
+        {
+            enum plugin_gen_from from = op->args[0];
+            struct qemu_plugin_insn *insn = NULL;
+
+            if (insn_idx >= 0) {
+                insn = g_ptr_array_index(plugin_tb->insns, insn_idx);
+            }
+
+            tcg_ctx->emit_before_op = op;
+
+            switch (from) {
+            case PLUGIN_GEN_AFTER_INSN:
+                assert(insn != NULL);
+                gen_disable_mem_helper(plugin_tb, insn);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            tcg_ctx->emit_before_op = NULL;
+            tcg_op_remove(tcg_ctx, op);
+            break;
+        }
+
         case INDEX_op_plugin_cb_start:
         {
             enum plugin_gen_from from = op->args[0];
@@ -838,19 +863,6 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
                     g_assert_not_reached();
                 }
 
-                break;
-            }
-            case PLUGIN_GEN_AFTER_INSN:
-            {
-                g_assert(insn_idx >= 0);
-
-                switch (type) {
-                case PLUGIN_GEN_DISABLE_MEM_HELPER:
-                    plugin_gen_disable_mem_helper(plugin_tb, op, insn_idx);
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
                 break;
             }
             default:
