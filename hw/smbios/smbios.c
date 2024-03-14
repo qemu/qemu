@@ -78,19 +78,11 @@ static int smbios_type4_count = 0;
 static bool smbios_have_defaults;
 static uint32_t smbios_cpuid_version, smbios_cpuid_features;
 
-static DECLARE_BITMAP(have_binfile_bitmap, SMBIOS_MAX_TYPE+1);
-static DECLARE_BITMAP(have_fields_bitmap, SMBIOS_MAX_TYPE+1);
+DECLARE_BITMAP(smbios_have_binfile_bitmap, SMBIOS_MAX_TYPE + 1);
+DECLARE_BITMAP(smbios_have_fields_bitmap, SMBIOS_MAX_TYPE + 1);
 
-static struct {
-    const char *vendor, *version, *date;
-    bool have_major_minor, uefi;
-    uint8_t major, minor;
-} type0;
-
-static struct {
-    const char *manufacturer, *product, *version, *serial, *sku, *family;
-    /* uuid is in qemu_uuid */
-} type1;
+smbios_type0_t smbios_type0;
+smbios_type1_t smbios_type1;
 
 static struct {
     const char *manufacturer, *product, *version, *serial, *asset, *location;
@@ -599,36 +591,36 @@ static void smbios_maybe_add_str(int type, int offset, const char *data)
 static void smbios_build_type_0_fields(void)
 {
     smbios_maybe_add_str(0, offsetof(struct smbios_type_0, vendor_str),
-                         type0.vendor);
+                         smbios_type0.vendor);
     smbios_maybe_add_str(0, offsetof(struct smbios_type_0, bios_version_str),
-                         type0.version);
+                         smbios_type0.version);
     smbios_maybe_add_str(0, offsetof(struct smbios_type_0,
                                      bios_release_date_str),
-                         type0.date);
-    if (type0.have_major_minor) {
+                         smbios_type0.date);
+    if (smbios_type0.have_major_minor) {
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      system_bios_major_release),
-                         &type0.major, 1);
+                         &smbios_type0.major, 1);
         smbios_add_field(0, offsetof(struct smbios_type_0,
                                      system_bios_minor_release),
-                         &type0.minor, 1);
+                         &smbios_type0.minor, 1);
     }
 }
 
 static void smbios_build_type_1_fields(void)
 {
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, manufacturer_str),
-                         type1.manufacturer);
+                         smbios_type1.manufacturer);
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, product_name_str),
-                         type1.product);
+                         smbios_type1.product);
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, version_str),
-                         type1.version);
+                         smbios_type1.version);
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, serial_number_str),
-                         type1.serial);
+                         smbios_type1.serial);
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, sku_number_str),
-                         type1.sku);
+                         smbios_type1.sku);
     smbios_maybe_add_str(1, offsetof(struct smbios_type_1, family_str),
-                         type1.family);
+                         smbios_type1.family);
     if (qemu_uuid_set) {
         /* We don't encode the UUID in the "wire format" here because this
          * function is for legacy mode and needs to keep the guest ABI, and
@@ -646,14 +638,14 @@ uint8_t *smbios_get_table_legacy(size_t *length)
     size_t usr_offset;
 
     /* also complain if fields were given for types > 1 */
-    if (find_next_bit(have_fields_bitmap,
+    if (find_next_bit(smbios_have_fields_bitmap,
                       SMBIOS_MAX_TYPE + 1, 2) < SMBIOS_MAX_TYPE + 1) {
         error_report("can't process fields for smbios "
                      "types > 1 on machine versions < 2.1!");
         exit(1);
     }
 
-    if (test_bit(4, have_binfile_bitmap)) {
+    if (test_bit(4, smbios_have_binfile_bitmap)) {
         error_report("can't process table for smbios "
                      "type 4 on machine versions < 2.1!");
         exit(1);
@@ -694,10 +686,10 @@ uint8_t *smbios_get_table_legacy(size_t *length)
 
 bool smbios_skip_table(uint8_t type, bool required_table)
 {
-    if (test_bit(type, have_binfile_bitmap)) {
+    if (test_bit(type, smbios_have_binfile_bitmap)) {
         return true; /* user provided their own binary blob(s) */
     }
-    if (test_bit(type, have_fields_bitmap)) {
+    if (test_bit(type, smbios_have_fields_bitmap)) {
         return false; /* user provided fields via command line */
     }
     if (smbios_have_defaults && required_table) {
@@ -725,25 +717,25 @@ static void smbios_build_type_0_table(void)
 {
     SMBIOS_BUILD_TABLE_PRE(0, T0_BASE, false); /* optional, leave up to BIOS */
 
-    SMBIOS_TABLE_SET_STR(0, vendor_str, type0.vendor);
-    SMBIOS_TABLE_SET_STR(0, bios_version_str, type0.version);
+    SMBIOS_TABLE_SET_STR(0, vendor_str, smbios_type0.vendor);
+    SMBIOS_TABLE_SET_STR(0, bios_version_str, smbios_type0.version);
 
     t->bios_starting_address_segment = cpu_to_le16(0xE800); /* from SeaBIOS */
 
-    SMBIOS_TABLE_SET_STR(0, bios_release_date_str, type0.date);
+    SMBIOS_TABLE_SET_STR(0, bios_release_date_str, smbios_type0.date);
 
     t->bios_rom_size = 0; /* hardcoded in SeaBIOS with FIXME comment */
 
     t->bios_characteristics = cpu_to_le64(0x08); /* Not supported */
     t->bios_characteristics_extension_bytes[0] = 0;
     t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
-    if (type0.uefi) {
+    if (smbios_type0.uefi) {
         t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
     }
 
-    if (type0.have_major_minor) {
-        t->system_bios_major_release = type0.major;
-        t->system_bios_minor_release = type0.minor;
+    if (smbios_type0.have_major_minor) {
+        t->system_bios_major_release = smbios_type0.major;
+        t->system_bios_minor_release = smbios_type0.minor;
     } else {
         t->system_bios_major_release = 0;
         t->system_bios_minor_release = 0;
@@ -773,18 +765,18 @@ static void smbios_build_type_1_table(void)
 {
     SMBIOS_BUILD_TABLE_PRE(1, T1_BASE, true); /* required */
 
-    SMBIOS_TABLE_SET_STR(1, manufacturer_str, type1.manufacturer);
-    SMBIOS_TABLE_SET_STR(1, product_name_str, type1.product);
-    SMBIOS_TABLE_SET_STR(1, version_str, type1.version);
-    SMBIOS_TABLE_SET_STR(1, serial_number_str, type1.serial);
+    SMBIOS_TABLE_SET_STR(1, manufacturer_str, smbios_type1.manufacturer);
+    SMBIOS_TABLE_SET_STR(1, product_name_str, smbios_type1.product);
+    SMBIOS_TABLE_SET_STR(1, version_str, smbios_type1.version);
+    SMBIOS_TABLE_SET_STR(1, serial_number_str, smbios_type1.serial);
     if (qemu_uuid_set) {
         smbios_encode_uuid(&t->uuid, &qemu_uuid);
     } else {
         memset(&t->uuid, 0, 16);
     }
     t->wake_up_type = 0x06; /* power switch */
-    SMBIOS_TABLE_SET_STR(1, sku_number_str, type1.sku);
-    SMBIOS_TABLE_SET_STR(1, family_str, type1.family);
+    SMBIOS_TABLE_SET_STR(1, sku_number_str, smbios_type1.sku);
+    SMBIOS_TABLE_SET_STR(1, family_str, smbios_type1.family);
 
     SMBIOS_BUILD_TABLE_POST;
 }
@@ -1178,9 +1170,9 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
     smbios_uuid_encoded = uuid_encoded;
     smbios_ep_type = ep_type;
 
-    SMBIOS_SET_DEFAULT(type1.manufacturer, manufacturer);
-    SMBIOS_SET_DEFAULT(type1.product, product);
-    SMBIOS_SET_DEFAULT(type1.version, version);
+    SMBIOS_SET_DEFAULT(smbios_type1.manufacturer, manufacturer);
+    SMBIOS_SET_DEFAULT(smbios_type1.product, product);
+    SMBIOS_SET_DEFAULT(smbios_type1.version, version);
     SMBIOS_SET_DEFAULT(type2.manufacturer, manufacturer);
     SMBIOS_SET_DEFAULT(type2.product, product);
     SMBIOS_SET_DEFAULT(type2.version, version);
@@ -1453,13 +1445,13 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
         }
 
         if (header->type <= SMBIOS_MAX_TYPE) {
-            if (test_bit(header->type, have_fields_bitmap)) {
+            if (test_bit(header->type, smbios_have_fields_bitmap)) {
                 error_setg(errp,
                            "can't load type %d struct, fields already specified!",
                            header->type);
                 return;
             }
-            set_bit(header->type, have_binfile_bitmap);
+            set_bit(header->type, smbios_have_binfile_bitmap);
         }
 
         if (header->type == 4) {
@@ -1490,41 +1482,42 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             return;
         }
 
-        if (test_bit(type, have_binfile_bitmap)) {
+        if (test_bit(type, smbios_have_binfile_bitmap)) {
             error_setg(errp, "can't add fields, binary file already loaded!");
             return;
         }
-        set_bit(type, have_fields_bitmap);
+        set_bit(type, smbios_have_fields_bitmap);
 
         switch (type) {
         case 0:
             if (!qemu_opts_validate(opts, qemu_smbios_type0_opts, errp)) {
                 return;
             }
-            save_opt(&type0.vendor, opts, "vendor");
-            save_opt(&type0.version, opts, "version");
-            save_opt(&type0.date, opts, "date");
-            type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
+            save_opt(&smbios_type0.vendor, opts, "vendor");
+            save_opt(&smbios_type0.version, opts, "version");
+            save_opt(&smbios_type0.date, opts, "date");
+            smbios_type0.uefi = qemu_opt_get_bool(opts, "uefi", false);
 
             val = qemu_opt_get(opts, "release");
             if (val) {
-                if (sscanf(val, "%hhu.%hhu", &type0.major, &type0.minor) != 2) {
+                if (sscanf(val, "%hhu.%hhu", &smbios_type0.major,
+                           &smbios_type0.minor) != 2) {
                     error_setg(errp, "Invalid release");
                     return;
                 }
-                type0.have_major_minor = true;
+                smbios_type0.have_major_minor = true;
             }
             return;
         case 1:
             if (!qemu_opts_validate(opts, qemu_smbios_type1_opts, errp)) {
                 return;
             }
-            save_opt(&type1.manufacturer, opts, "manufacturer");
-            save_opt(&type1.product, opts, "product");
-            save_opt(&type1.version, opts, "version");
-            save_opt(&type1.serial, opts, "serial");
-            save_opt(&type1.sku, opts, "sku");
-            save_opt(&type1.family, opts, "family");
+            save_opt(&smbios_type1.manufacturer, opts, "manufacturer");
+            save_opt(&smbios_type1.product, opts, "product");
+            save_opt(&smbios_type1.version, opts, "version");
+            save_opt(&smbios_type1.serial, opts, "serial");
+            save_opt(&smbios_type1.sku, opts, "sku");
+            save_opt(&smbios_type1.family, opts, "family");
 
             val = qemu_opt_get(opts, "uuid");
             if (val) {
