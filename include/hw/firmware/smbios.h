@@ -17,6 +17,9 @@
  *
  */
 
+extern uint8_t *usr_blobs;
+extern GArray *usr_blobs_sizes;
+
 typedef struct {
     const char *vendor, *version, *date;
     bool have_major_minor, uefi;
@@ -323,6 +326,8 @@ struct smbios_type_127 {
     struct smbios_structure_header header;
 } QEMU_PACKED;
 
+void smbios_validate_table(void);
+void smbios_add_usr_blob_size(size_t size);
 void smbios_entry_add(QemuOpts *opts, Error **errp);
 void smbios_set_cpuid(uint32_t version, uint32_t features);
 void smbios_set_defaults(const char *manufacturer, const char *product,
