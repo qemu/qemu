@@ -5064,6 +5064,11 @@ void HELPER(vmvr_v)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
     uint32_t startb = env->vstart * sewb;
     uint32_t i = startb;
 
+    if (startb >= maxsz) {
+        env->vstart = 0;
+        return;
+    }
+
     if (HOST_BIG_ENDIAN && i % 8 != 0) {
         uint32_t j = ROUND_UP(i, 8);
         memcpy((uint8_t *)vd + H1(j - 1),
