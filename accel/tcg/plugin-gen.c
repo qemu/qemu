@@ -51,11 +51,6 @@
 #include "exec/exec-all.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
-#include "exec/helper-proto-common.h"
-
-#define HELPER_H  "accel/tcg/plugin-helpers.h"
-#include "exec/helper-info.c.inc"
-#undef  HELPER_H
 
 /*
  * plugin_cb_start TCG op args[]:
@@ -81,21 +76,6 @@ enum plugin_gen_cb {
     PLUGIN_GEN_DISABLE_MEM_HELPER,
     PLUGIN_GEN_N_CBS,
 };
-
-/*
- * These helpers are stubs that get dynamically switched out for calls
- * direct to the plugin if they are subscribed to.
- */
-void HELPER(plugin_vcpu_udata_cb_no_wg)(uint32_t cpu_index, void *udata)
-{ }
-
-void HELPER(plugin_vcpu_udata_cb_no_rwg)(uint32_t cpu_index, void *udata)
-{ }
-
-void HELPER(plugin_vcpu_mem_cb)(unsigned int vcpu_index,
-                                qemu_plugin_meminfo_t info, uint64_t vaddr,
-                                void *userdata)
-{ }
 
 static void plugin_gen_empty_callback(enum plugin_gen_from from)
 {
