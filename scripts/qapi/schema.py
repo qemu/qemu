@@ -16,6 +16,7 @@
 
 # TODO catching name collisions in generated code would be nice
 
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 import os
 import re
@@ -245,9 +246,10 @@ class QAPISchemaInclude(QAPISchemaEntity):
         visitor.visit_include(self._sub_module.name, self.info)
 
 
-class QAPISchemaType(QAPISchemaDefinition):
+class QAPISchemaType(QAPISchemaDefinition, ABC):
     # Return the C type for common use.
     # For the types we commonly box, this is a pointer type.
+    @abstractmethod
     def c_type(self):
         pass
 
@@ -259,6 +261,7 @@ class QAPISchemaType(QAPISchemaDefinition):
     def c_unboxed_type(self):
         return self.c_type()
 
+    @abstractmethod
     def json_type(self):
         pass
 
