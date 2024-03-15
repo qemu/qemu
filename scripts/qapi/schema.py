@@ -1297,8 +1297,9 @@ class QAPISchema:
             return None
         # See also QAPISchemaObjectTypeMember.describe()
         name = 'q_obj_%s-%s' % (name, role)
-        typ = self.lookup_entity(name, QAPISchemaObjectType)
+        typ = self.lookup_entity(name)
         if typ:
+            assert(isinstance(typ, QAPISchemaObjectType))
             # The implicit object type has multiple users.  This can
             # only be a duplicate definition, which will be flagged
             # later.
