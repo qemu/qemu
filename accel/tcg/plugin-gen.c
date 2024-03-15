@@ -187,6 +187,37 @@ static void gen_mem_cb(struct qemu_plugin_dyn_cb *cb,
     tcg_temp_free_i32(cpu_index);
 }
 
+static void inject_cb(struct qemu_plugin_dyn_cb *cb)
+
+{
+    switch (cb->type) {
+    case PLUGIN_CB_REGULAR:
+        gen_udata_cb(cb);
+        break;
+    case PLUGIN_CB_INLINE:
+        gen_inline_cb(cb);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void inject_mem_cb(struct qemu_plugin_dyn_cb *cb,
+                          enum qemu_plugin_mem_rw rw,
+                          qemu_plugin_meminfo_t meminfo, TCGv_i64 addr)
+{
+    if (cb->rw & rw) {
+        switch (cb->type) {
+        case PLUGIN_CB_MEM_REGULAR:
+            gen_mem_cb(cb, meminfo, addr);
+            break;
+        default:
+            inject_cb(cb);
+            break;
+        }
+    }
+}
+
 static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 {
     TCGOp *op, *next;
@@ -248,19 +279,8 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
                 cbs = plugin_tb->cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                    struct qemu_plugin_dyn_cb *cb =
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-
-                    switch (cb->type) {
-                    case PLUGIN_CB_REGULAR:
-                        gen_udata_cb(cb);
-                        break;
-                    case PLUGIN_CB_INLINE:
-                        gen_inline_cb(cb);
-                        break;
-                    default:
-                        g_assert_not_reached();
-                    }
+                    inject_cb(
+                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i));
                 }
                 break;
 
@@ -271,19 +291,8 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
                 cbs = insn->insn_cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                    struct qemu_plugin_dyn_cb *cb =
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-
-                    switch (cb->type) {
-                    case PLUGIN_CB_REGULAR:
-                        gen_udata_cb(cb);
-                        break;
-                    case PLUGIN_CB_INLINE:
-                        gen_inline_cb(cb);
-                        break;
-                    default:
-                        g_assert_not_reached();
-                    }
+                    inject_cb(
+                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i));
                 }
                 break;
 
@@ -300,33 +309,22 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
         {
             TCGv_i64 addr = temp_tcgv_i64(arg_temp(op->args[0]));
             qemu_plugin_meminfo_t meminfo = op->args[1];
+            enum qemu_plugin_mem_rw rw =
+                (qemu_plugin_mem_is_store(meminfo)
+                 ? QEMU_PLUGIN_MEM_W : QEMU_PLUGIN_MEM_R);
             struct qemu_plugin_insn *insn;
             const GArray *cbs;
-            int i, n, rw;
+            int i, n;
 
             assert(insn_idx >= 0);
             insn = g_ptr_array_index(plugin_tb->insns, insn_idx);
-            rw = qemu_plugin_mem_is_store(meminfo) ? 2 : 1;
 
             tcg_ctx->emit_before_op = op;
 
             cbs = insn->mem_cbs;
             for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                struct qemu_plugin_dyn_cb *cb =
-                    &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-
-                if (cb->rw & rw) {
-                    switch (cb->type) {
-                    case PLUGIN_CB_MEM_REGULAR:
-                        gen_mem_cb(cb, meminfo, addr);
-                        break;
-                    case PLUGIN_CB_INLINE:
-                        gen_inline_cb(cb);
-                        break;
-                    default:
-                        g_assert_not_reached();
-                    }
-                }
+                inject_mem_cb(&g_array_index(cbs, struct qemu_plugin_dyn_cb, i),
+                              rw, meminfo, addr);
             }
 
             tcg_ctx->emit_before_op = NULL;
