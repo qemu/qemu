@@ -2540,6 +2540,15 @@ static const char bswap_flag_name[][6] = {
     [TCG_BSWAP_IZ | TCG_BSWAP_OS] = "iz,os",
 };
 
+#ifdef CONFIG_PLUGIN
+static const char * const plugin_from_name[] = {
+    "from-tb",
+    "from-insn",
+    "after-insn",
+    "after-tb",
+};
+#endif
+
 static inline bool tcg_regset_single(TCGRegSet d)
 {
     return (d & (d - 1)) == 0;
@@ -2558,7 +2567,7 @@ static inline TCGReg tcg_regset_first(TCGRegSet d)
 #define ne_fprintf(...) \
     ({ int ret_ = fprintf(__VA_ARGS__); ret_ >= 0 ? ret_ : 0; })
 
-static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
+void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
 {
     char buf[128];
     TCGOp *op;
@@ -2714,6 +2723,24 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                     i = k = 1;
                 }
                 break;
+#ifdef CONFIG_PLUGIN
+            case INDEX_op_plugin_cb:
+                {
+                    TCGArg from = op->args[k++];
+                    const char *name = NULL;
+
+                    if (from < ARRAY_SIZE(plugin_from_name)) {
+                        name = plugin_from_name[from];
+                    }
+                    if (name) {
+                        col += ne_fprintf(f, "%s", name);
+                    } else {
+                        col += ne_fprintf(f, "$0x%" TCG_PRIlx, from);
+                    }
+                    i = 1;
+                }
+                break;
+#endif
             default:
                 i = 0;
                 break;

@@ -44,6 +44,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-temp-internal.h"
@@ -186,66 +187,21 @@ static void gen_mem_cb(struct qemu_plugin_dyn_cb *cb,
     tcg_temp_free_i32(cpu_index);
 }
 
-/* #define DEBUG_PLUGIN_GEN_OPS */
-static void pr_ops(void)
-{
-#ifdef DEBUG_PLUGIN_GEN_OPS
-    TCGOp *op;
-    int i = 0;
-
-    QTAILQ_FOREACH(op, &tcg_ctx->ops, link) {
-        const char *name = "";
-        const char *type = "";
-
-        if (op->opc == INDEX_op_plugin_cb_start) {
-            switch (op->args[0]) {
-            case PLUGIN_GEN_FROM_TB:
-                name = "tb";
-                break;
-            case PLUGIN_GEN_FROM_INSN:
-                name = "insn";
-                break;
-            case PLUGIN_GEN_FROM_MEM:
-                name = "mem";
-                break;
-            case PLUGIN_GEN_AFTER_INSN:
-                name = "after insn";
-                break;
-            default:
-                break;
-            }
-            switch (op->args[1]) {
-            case PLUGIN_GEN_CB_UDATA:
-                type = "udata";
-                break;
-            case PLUGIN_GEN_CB_INLINE:
-                type = "inline";
-                break;
-            case PLUGIN_GEN_CB_MEM:
-                type = "mem";
-                break;
-            case PLUGIN_GEN_ENABLE_MEM_HELPER:
-                type = "enable mem helper";
-                break;
-            case PLUGIN_GEN_DISABLE_MEM_HELPER:
-                type = "disable mem helper";
-                break;
-            default:
-                break;
-            }
-        }
-        printf("op[%2i]: %s %s %s\n", i, tcg_op_defs[op->opc].name, name, type);
-        i++;
-    }
-#endif
-}
-
 static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 {
     TCGOp *op, *next;
     int insn_idx = -1;
 
-    pr_ops();
+    if (unlikely(qemu_loglevel_mask(LOG_TB_OP_PLUGIN)
+                 && qemu_log_in_addr_range(plugin_tb->vaddr))) {
+        FILE *logfile = qemu_log_trylock();
+        if (logfile) {
+            fprintf(logfile, "OP before plugin injection:\n");
+            tcg_dump_ops(tcg_ctx, logfile, false);
+            fprintf(logfile, "\n");
+            qemu_log_unlock(logfile);
+        }
+    }
 
     /*
      * While injecting code, we cannot afford to reuse any ebb temps
@@ -383,7 +339,6 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
             break;
         }
     }
-    pr_ops();
 }
 
 bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
