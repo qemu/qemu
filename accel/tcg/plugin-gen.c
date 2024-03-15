@@ -52,29 +52,11 @@
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
 
-/*
- * plugin_cb_start TCG op args[]:
- * 0: enum plugin_gen_from
- * 1: enum plugin_gen_cb
- * 2: set to 1 for mem callback that is a write, 0 otherwise.
- */
-
 enum plugin_gen_from {
     PLUGIN_GEN_FROM_TB,
     PLUGIN_GEN_FROM_INSN,
     PLUGIN_GEN_AFTER_INSN,
     PLUGIN_GEN_AFTER_TB,
-    PLUGIN_GEN_N_FROMS,
-};
-
-enum plugin_gen_cb {
-    PLUGIN_GEN_CB_UDATA,
-    PLUGIN_GEN_CB_UDATA_R,
-    PLUGIN_GEN_CB_INLINE,
-    PLUGIN_GEN_CB_MEM,
-    PLUGIN_GEN_ENABLE_MEM_HELPER,
-    PLUGIN_GEN_DISABLE_MEM_HELPER,
-    PLUGIN_GEN_N_CBS,
 };
 
 static void plugin_gen_empty_callback(enum plugin_gen_from from)
