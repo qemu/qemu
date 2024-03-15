@@ -123,9 +123,9 @@ do_test 512 "write -P 1 0 0x200" "$TEST_IMG" | _filter_qemu_io
 # next L2 table
 do_test 512 "write -P 1 $L2_COVERAGE 0x200" "$TEST_IMG" | _filter_qemu_io
 
-# only interested in qcow2 here; also other formats might respond with
-#  "not supported" error message
-if [ $IMGFMT = "qcow2" ]; then
+# only interested in qcow2 with file protocol here; also other formats
+# might respond with "not supported" error message
+if [ $IMGFMT = "qcow2" ] && [ $IMGPROTO = "file" ]; then
     do_test 512 "truncate $L2_COVERAGE" "$TEST_IMG" | _filter_qemu_io
 fi
 
