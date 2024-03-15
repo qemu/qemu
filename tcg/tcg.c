@@ -2269,9 +2269,7 @@ static void tcg_gen_callN(void *func, TCGHelperInfo *info,
 
 #ifdef CONFIG_PLUGIN
     /* Flag helpers that may affect guest state */
-    if (tcg_ctx->plugin_insn &&
-        !(info->flags & TCG_CALL_PLUGIN) &&
-        !(info->flags & TCG_CALL_NO_SIDE_EFFECTS)) {
+    if (tcg_ctx->plugin_insn && !(info->flags & TCG_CALL_NO_SIDE_EFFECTS)) {
         tcg_ctx->plugin_insn->calls_helpers = true;
     }
 #endif
