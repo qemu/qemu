@@ -49,8 +49,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
 {
     QIOChannel *ioc;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
-
-    outgoing_args.fd = -1;
+    int newfd;
 
     if (fd == -1) {
         return;
@@ -63,7 +62,17 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    outgoing_args.fd = fd;
+    /*
+     * This is dup()ed just to avoid referencing an fd that might
+     * be already closed by the iochannel.
+     */
+    newfd = dup(fd);
+    if (newfd == -1) {
+        error_setg_errno(errp, errno, "Could not dup FD %d", fd);
+        object_unref(ioc);
+        return;
+    }
+    outgoing_args.fd = newfd;
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
     migration_channel_connect(s, ioc, NULL, NULL);
