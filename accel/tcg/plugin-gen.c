@@ -60,19 +60,6 @@ enum plugin_gen_from {
     PLUGIN_GEN_AFTER_TB,
 };
 
-static void plugin_gen_empty_callback(enum plugin_gen_from from)
-{
-    switch (from) {
-    case PLUGIN_GEN_AFTER_INSN:
-    case PLUGIN_GEN_FROM_TB:
-    case PLUGIN_GEN_FROM_INSN:
-        tcg_gen_plugin_cb(from);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
 /* called before finishing a TB with exit_tb, goto_tb or goto_ptr */
 void plugin_gen_disable_mem_helpers(void)
 {
@@ -362,7 +349,7 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
         ptb->mem_only = mem_only;
         ptb->mem_helper = false;
 
-        plugin_gen_empty_callback(PLUGIN_GEN_FROM_TB);
+        tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
     }
 
     tcg_ctx->plugin_insn = NULL;
@@ -419,12 +406,12 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
         insn->haddr = ptb->haddr2 + pc - ptb->vaddr2;
     }
 
-    plugin_gen_empty_callback(PLUGIN_GEN_FROM_INSN);
+    tcg_gen_plugin_cb(PLUGIN_GEN_FROM_INSN);
 }
 
 void plugin_gen_insn_end(void)
 {
-    plugin_gen_empty_callback(PLUGIN_GEN_AFTER_INSN);
+    tcg_gen_plugin_cb(PLUGIN_GEN_AFTER_INSN);
 }
 
 /*
