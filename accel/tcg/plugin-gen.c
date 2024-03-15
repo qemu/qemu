@@ -83,9 +83,8 @@ void plugin_gen_disable_mem_helpers(void)
 static void gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
                                   struct qemu_plugin_insn *insn)
 {
-    GArray *cbs[2];
     GArray *arr;
-    size_t n_cbs;
+    size_t len;
 
     /*
      * Tracking memory accesses performed from helpers requires extra work.
@@ -104,22 +103,25 @@ static void gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
         return;
     }
 
-    cbs[0] = insn->cbs[PLUGIN_CB_MEM][PLUGIN_CB_REGULAR];
-    cbs[1] = insn->cbs[PLUGIN_CB_MEM][PLUGIN_CB_INLINE];
-    n_cbs = cbs[0]->len + cbs[1]->len;
-
-    if (n_cbs == 0) {
+    if (!insn->mem_cbs || !insn->mem_cbs->len) {
         insn->mem_helper = false;
         return;
     }
     insn->mem_helper = true;
     ptb->mem_helper = true;
 
+    /*
+     * TODO: It seems like we should be able to use ref/unref
+     * to avoid needing to actually copy this array.
+     * Alternately, perhaps we could allocate new memory adjacent
+     * to the TranslationBlock itself, so that we do not have to
+     * actively manage the lifetime after this.
+     */
+    len = insn->mem_cbs->len;
     arr = g_array_sized_new(false, false,
-                            sizeof(struct qemu_plugin_dyn_cb), n_cbs);
-    g_array_append_vals(arr, cbs[0]->data, cbs[0]->len);
-    g_array_append_vals(arr, cbs[1]->data, cbs[1]->len);
-
+                            sizeof(struct qemu_plugin_dyn_cb), len);
+    memcpy(arr->data, insn->mem_cbs->data,
+           len * sizeof(struct qemu_plugin_dyn_cb));
     qemu_plugin_add_dyn_cb_arr(arr);
 
     tcg_gen_st_ptr(tcg_constant_ptr((intptr_t)arr), tcg_env,
@@ -288,18 +290,21 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
             case PLUGIN_GEN_FROM_TB:
                 assert(insn == NULL);
 
-                cbs = plugin_tb->cbs[PLUGIN_CB_REGULAR];
+                cbs = plugin_tb->cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                     struct qemu_plugin_dyn_cb *cb =
                         &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-                    gen_udata_cb(cb);
-                }
 
-                cbs = plugin_tb->cbs[PLUGIN_CB_INLINE];
-                for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                    struct qemu_plugin_dyn_cb *cb =
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-                    gen_inline_cb(cb);
+                    switch (cb->type) {
+                    case PLUGIN_CB_REGULAR:
+                        gen_udata_cb(cb);
+                        break;
+                    case PLUGIN_CB_INLINE:
+                        gen_inline_cb(cb);
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
                 }
                 break;
 
@@ -308,18 +313,21 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
                 gen_enable_mem_helper(plugin_tb, insn);
 
-                cbs = insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_REGULAR];
+                cbs = insn->insn_cbs;
                 for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                     struct qemu_plugin_dyn_cb *cb =
                         &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-                    gen_udata_cb(cb);
-                }
 
-                cbs = insn->cbs[PLUGIN_CB_INSN][PLUGIN_CB_INLINE];
-                for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                    struct qemu_plugin_dyn_cb *cb =
-                        &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-                    gen_inline_cb(cb);
+                    switch (cb->type) {
+                    case PLUGIN_CB_REGULAR:
+                        gen_udata_cb(cb);
+                        break;
+                    case PLUGIN_CB_INLINE:
+                        gen_inline_cb(cb);
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
                 }
                 break;
 
@@ -346,21 +354,22 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
             tcg_ctx->emit_before_op = op;
 
-            cbs = insn->cbs[PLUGIN_CB_MEM][PLUGIN_CB_REGULAR];
+            cbs = insn->mem_cbs;
             for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
                 struct qemu_plugin_dyn_cb *cb =
                     &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
-                if (cb->rw & rw) {
-                    gen_mem_cb(cb, meminfo, addr);
-                }
-            }
 
-            cbs = insn->cbs[PLUGIN_CB_MEM][PLUGIN_CB_INLINE];
-            for (i = 0, n = (cbs ? cbs->len : 0); i < n; i++) {
-                struct qemu_plugin_dyn_cb *cb =
-                    &g_array_index(cbs, struct qemu_plugin_dyn_cb, i);
                 if (cb->rw & rw) {
-                    gen_inline_cb(cb);
+                    switch (cb->type) {
+                    case PLUGIN_CB_REGULAR:
+                        gen_mem_cb(cb, meminfo, addr);
+                        break;
+                    case PLUGIN_CB_INLINE:
+                        gen_inline_cb(cb);
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
                 }
             }
 
@@ -384,13 +393,10 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
 
     if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_state->event_mask)) {
         struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
-        int i;
 
         /* reset callbacks */
-        for (i = 0; i < PLUGIN_N_CB_SUBTYPES; i++) {
-            if (ptb->cbs[i]) {
-                g_array_set_size(ptb->cbs[i], 0);
-            }
+        if (ptb->cbs) {
+            g_array_set_size(ptb->cbs, 0);
         }
         ptb->n = 0;
 
