@@ -68,6 +68,7 @@ union qemu_plugin_cb_sig {
 
 enum plugin_dyn_cb_type {
     PLUGIN_CB_REGULAR,
+    PLUGIN_CB_MEM_REGULAR,
     PLUGIN_CB_INLINE,
 };
 

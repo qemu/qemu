@@ -361,7 +361,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
                 if (cb->rw & rw) {
                     switch (cb->type) {
-                    case PLUGIN_CB_REGULAR:
+                    case PLUGIN_CB_MEM_REGULAR:
                         gen_mem_cb(cb, meminfo, addr);
                         break;
                     case PLUGIN_CB_INLINE:

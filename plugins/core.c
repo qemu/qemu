@@ -391,7 +391,7 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
 
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
     dyn_cb->userp = udata;
-    dyn_cb->type = PLUGIN_CB_REGULAR;
+    dyn_cb->type = PLUGIN_CB_MEM_REGULAR;
     dyn_cb->rw = rw;
     dyn_cb->regular.f.vcpu_mem = cb;
 
@@ -547,7 +547,7 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
                 break;
         }
         switch (cb->type) {
-        case PLUGIN_CB_REGULAR:
+        case PLUGIN_CB_MEM_REGULAR:
             cb->regular.f.vcpu_mem(cpu->cpu_index, make_plugin_meminfo(oi, rw),
                                    vaddr, cb->userp);
             break;
