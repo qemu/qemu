@@ -651,25 +651,25 @@ class QAPISchemaAlternateType(QAPISchemaType):
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond],
         features: List[QAPISchemaFeature],
-        variants: QAPISchemaAlternatives,
+        alternatives: QAPISchemaAlternatives,
     ):
         super().__init__(name, info, doc, ifcond, features)
-        assert variants.tag_member
-        variants.set_defined_in(name)
-        variants.tag_member.set_defined_in(self.name)
-        self.variants = variants
+        assert alternatives.tag_member
+        alternatives.set_defined_in(name)
+        alternatives.tag_member.set_defined_in(self.name)
+        self.alternatives = alternatives
 
     def check(self, schema: QAPISchema) -> None:
         super().check(schema)
-        self.variants.tag_member.check(schema)
-        # Not calling self.variants.check_clash(), because there's nothing
-        # to clash with
-        self.variants.check(schema, {})
+        self.alternatives.tag_member.check(schema)
+        # Not calling self.alternatives.check_clash(), because there's
+        # nothing to clash with
+        self.alternatives.check(schema, {})
         # Alternate branch names have no relation to the tag enum values;
         # so we have to check for potential name collisions ourselves.
         seen: Dict[str, QAPISchemaMember] = {}
         types_seen: Dict[str, str] = {}
-        for v in self.variants.variants:
+        for v in self.alternatives.variants:
             v.check_clash(self.info, seen)
             qtype = v.type.alternate_qtype()
             if not qtype:
@@ -700,7 +700,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
         doc = doc or self.doc
-        for v in self.variants.variants:
+        for v in self.alternatives.variants:
             v.connect_doc(doc)
 
     def c_type(self) -> str:
@@ -712,7 +712,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         super().visit(visitor)
         visitor.visit_alternate_type(
-            self.name, self.info, self.ifcond, self.features, self.variants)
+            self.name, self.info, self.ifcond, self.features,
+            self.alternatives)
 
 
 class QAPISchemaVariants:
