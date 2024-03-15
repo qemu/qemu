@@ -14,33 +14,10 @@
  * Injecting the desired instrumentation could be done with a second
  * translation pass that combined the instrumentation requests, but that
  * would be ugly and inefficient since we would decode the guest code twice.
- * Instead, during TB translation we add "empty" instrumentation calls for all
- * possible instrumentation events, and then once we collect the instrumentation
- * requests from plugins, we either "fill in" those empty events or remove them
- * if they have no requests.
- *
- * When "filling in" an event we first copy the empty callback's TCG ops. This
- * might seem unnecessary, but it is done to support an arbitrary number
- * of callbacks per event. Take for example a regular instruction callback.
- * We first generate a callback to an empty helper function. Then, if two
- * plugins register one callback each for this instruction, we make two copies
- * of the TCG ops generated for the empty callback, substituting the function
- * pointer that points to the empty helper function with the plugins' desired
- * callback functions. After that we remove the empty callback's ops.
- *
- * Note that the location in TCGOp.args[] of the pointer to a helper function
- * varies across different guest and host architectures. Instead of duplicating
- * the logic that figures this out, we rely on the fact that the empty
- * callbacks point to empty functions that are unique pointers in the program.
- * Thus, to find the right location we just have to look for a match in
- * TCGOp.args[]. This is the main reason why we first copy an empty callback's
- * TCG ops and then fill them in; regardless of whether we have one or many
- * callbacks for that event, the logic to add all of them is the same.
- *
- * When generating more than one callback per event, we make a small
- * optimization to avoid generating redundant operations. For instance, for the
- * second and all subsequent callbacks of an event, we do not need to reload the
- * CPU's index into a TCG temp, since the first callback did it already.
+ * Instead, during TB translation we add "plugin_cb" marker opcodes
+ * for all possible instrumentation events, and then once we collect the
+ * instrumentation requests from plugins, we generate code for those markers
+ * or remove them if they have no requests.
  */
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
