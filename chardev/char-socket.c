@@ -33,6 +33,7 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/yank.h"
+#include "trace.h"
 
 #include "chardev/char-io.h"
 #include "chardev/char-socket.h"
@@ -126,6 +127,7 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
         if (ret < 0 && errno != EAGAIN) {
             if (tcp_chr_read_poll(chr) <= 0) {
                 /* Perform disconnect and return error. */
+                trace_chr_socket_poll_err(chr, chr->label);
                 tcp_chr_disconnect_locked(chr);
             } /* else let the read handler finish it properly */
         }
@@ -279,15 +281,16 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
     size_t i;
     int *msgfds = NULL;
     size_t msgfds_num = 0;
+    Error *err = NULL;
 
     if (qio_channel_has_feature(s->ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         ret = qio_channel_readv_full(s->ioc, &iov, 1,
                                      &msgfds, &msgfds_num,
-                                     0, NULL);
+                                     0, &err);
     } else {
         ret = qio_channel_readv_full(s->ioc, &iov, 1,
                                      NULL, NULL,
-                                     0, NULL);
+                                     0, &err);
     }
 
     if (msgfds_num) {
@@ -322,7 +325,11 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
         errno = EAGAIN;
         ret = -1;
     } else if (ret == -1) {
+        trace_chr_socket_recv_err(chr, chr->label, error_get_pretty(err));
+        error_free(err);
         errno = EIO;
+    } else if (ret == 0) {
+        trace_chr_socket_recv_eof(chr, chr->label);
     }
 
     return ret;
@@ -463,6 +470,7 @@ static void tcp_chr_disconnect_locked(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     bool emit_close = s->state == TCP_CHARDEV_STATE_CONNECTED;
 
+    trace_chr_socket_disconnect(chr, chr->label);
     tcp_chr_free_connection(chr);
 
     if (s->listener) {
@@ -521,6 +529,7 @@ static gboolean tcp_chr_hup(QIOChannel *channel,
                                void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
+    trace_chr_socket_hangup(chr, chr->label);
     tcp_chr_disconnect(chr);
     return G_SOURCE_REMOVE;
 }
@@ -672,15 +681,18 @@ static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
     SocketChardev *s = user_data;
     Chardev *chr = CHARDEV(s);
     TCPChardevTelnetInit *init = s->telnet_init;
+    Error *err = NULL;
     ssize_t ret;
 
     assert(init);
 
-    ret = qio_channel_write(ioc, init->buf, init->buflen, NULL);
+    ret = qio_channel_write(ioc, init->buf, init->buflen, &err);
     if (ret < 0) {
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             ret = 0;
         } else {
+            trace_chr_socket_write_err(chr, chr->label, error_get_pretty(err));
+            error_free(err);
             tcp_chr_disconnect(chr);
             goto end;
         }
@@ -765,9 +777,9 @@ static void tcp_chr_websock_handshake(QIOTask *task, gpointer user_data)
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        error_reportf_err(err,
-                          "websock handshake of character device %s failed: ",
-                          chr->label);
+        trace_chr_socket_ws_handshake_err(chr, chr->label,
+                                          error_get_pretty(err));
+        error_free(err);
         tcp_chr_disconnect(chr);
     } else {
         if (s->do_telnetopt) {
@@ -805,9 +817,9 @@ static void tcp_chr_tls_handshake(QIOTask *task,
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        error_reportf_err(err,
-                          "TLS handshake of character device %s failed: ",
-                          chr->label);
+        trace_chr_socket_tls_handshake_err(chr, chr->label,
+                                           error_get_pretty(err));
+        error_free(err);
         tcp_chr_disconnect(chr);
     } else {
         if (s->is_websock) {
@@ -826,19 +838,22 @@ static void tcp_chr_tls_init(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelTLS *tioc;
     gchar *name;
+    Error *err = NULL;
 
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
             s->ioc, s->tls_creds,
             s->tls_authz,
-            NULL);
+            &err);
     } else {
         tioc = qio_channel_tls_new_client(
             s->ioc, s->tls_creds,
             s->addr->u.inet.host,
-            NULL);
+            &err);
     }
     if (tioc == NULL) {
+        trace_chr_socket_tls_init_err(chr, chr->label, error_get_pretty(err));
+        error_free(err);
         tcp_chr_disconnect(chr);
         return;
     }
