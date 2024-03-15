@@ -12,6 +12,8 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+# pylint: disable=too-many-lines
+
 # TODO catching name collisions in generated code would be nice
 
 from collections import OrderedDict
@@ -83,6 +85,7 @@ class QAPISchemaEntity:
         return c_name(self.name)
 
     def check(self, schema):
+        # pylint: disable=unused-argument
         assert not self._checked
         seen = {}
         for f in self.features:
@@ -113,6 +116,7 @@ class QAPISchemaEntity:
         return not self.info
 
     def visit(self, visitor):
+        # pylint: disable=unused-argument
         assert self._checked
 
     def describe(self):
@@ -131,6 +135,7 @@ class QAPISchemaVisitor:
         pass
 
     def visit_needed(self, entity):
+        # pylint: disable=unused-argument
         # Default to visiting everything
         return True
 
