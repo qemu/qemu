@@ -395,7 +395,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         super().check(schema)
         self.element_type = schema.resolve_type(
             self._element_type_name, self.info,
-            self.info and self.info.defn_meta)
+            self.info.defn_meta if self.info else None)
         assert not isinstance(self.element_type, QAPISchemaArrayType)
 
     def set_module(self, schema):
