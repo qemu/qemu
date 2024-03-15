@@ -69,6 +69,7 @@ enum plugin_gen_from {
     PLUGIN_GEN_FROM_INSN,
     PLUGIN_GEN_FROM_MEM,
     PLUGIN_GEN_AFTER_INSN,
+    PLUGIN_GEN_AFTER_TB,
     PLUGIN_GEN_N_FROMS,
 };
 
@@ -609,20 +610,9 @@ static void inject_mem_enable_helper(struct qemu_plugin_tb *ptb,
 /* called before finishing a TB with exit_tb, goto_tb or goto_ptr */
 void plugin_gen_disable_mem_helpers(void)
 {
-    /*
-     * We could emit the clearing unconditionally and be done. However, this can
-     * be wasteful if for instance plugins don't track memory accesses, or if
-     * most TBs don't use helpers. Instead, emit the clearing iff the TB calls
-     * helpers that might access guest memory.
-     *
-     * Note: we do not reset plugin_tb->mem_helper here; a TB might have several
-     * exit points, and we want to emit the clearing from all of them.
-     */
-    if (!tcg_ctx->plugin_tb->mem_helper) {
-        return;
+    if (tcg_ctx->plugin_insn) {
+        tcg_gen_plugin_cb(PLUGIN_GEN_AFTER_TB);
     }
-    tcg_gen_st_ptr(tcg_constant_ptr(NULL), tcg_env,
-                   offsetof(CPUState, plugin_mem_cbs) - offsetof(ArchCPU, env));
 }
 
 static void plugin_gen_insn_udata(const struct qemu_plugin_tb *ptb,
@@ -673,14 +663,11 @@ static void plugin_gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
     inject_mem_enable_helper(ptb, insn, begin_op);
 }
 
-static void gen_disable_mem_helper(struct qemu_plugin_tb *ptb,
-                                   struct qemu_plugin_insn *insn)
+static void gen_disable_mem_helper(void)
 {
-    if (insn->mem_helper) {
-        tcg_gen_st_ptr(tcg_constant_ptr(0), tcg_env,
-                       offsetof(CPUState, plugin_mem_cbs) -
-                       offsetof(ArchCPU, env));
-    }
+    tcg_gen_st_ptr(tcg_constant_ptr(0), tcg_env,
+                   offsetof(CPUState, plugin_mem_cbs) -
+                   offsetof(ArchCPU, env));
 }
 
 static void gen_udata_cb(struct qemu_plugin_dyn_cb *cb)
@@ -806,9 +793,17 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
             tcg_ctx->emit_before_op = op;
 
             switch (from) {
+            case PLUGIN_GEN_AFTER_TB:
+                if (plugin_tb->mem_helper) {
+                    gen_disable_mem_helper();
+                }
+                break;
+
             case PLUGIN_GEN_AFTER_INSN:
                 assert(insn != NULL);
-                gen_disable_mem_helper(plugin_tb, insn);
+                if (insn->mem_helper) {
+                    gen_disable_mem_helper();
+                }
                 break;
 
             case PLUGIN_GEN_FROM_TB:
