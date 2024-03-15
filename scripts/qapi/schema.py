@@ -716,7 +716,10 @@ class QAPISchemaVariants:
     def check_clash(self, info, seen):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
-            # branch do not affect another branch
+            # branch do not affect another branch.
+            #
+            # v.type's typing is enforced in check() above.
+            assert isinstance(v.type, QAPISchemaObjectType)
             v.type.check_clash(info, dict(seen))
 
 
