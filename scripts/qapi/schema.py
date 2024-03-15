@@ -719,20 +719,11 @@ class QAPISchemaAlternateType(QAPISchemaType):
 class QAPISchemaVariants:
     def __init__(
         self,
-        tag_name: Optional[str],
         info: QAPISourceInfo,
-        tag_member: Optional[QAPISchemaObjectTypeMember],
         variants: List[QAPISchemaVariant],
     ):
-        # Unions pass tag_name but not tag_member.
-        # Alternates pass tag_member but not tag_name.
-        # After check(), tag_member is always set.
-        assert bool(tag_member) != bool(tag_name)
-        assert (isinstance(tag_name, str) or
-                isinstance(tag_member, QAPISchemaObjectTypeMember))
-        self._tag_name = tag_name
         self.info = info
-        self._tag_member = tag_member
+        self._tag_member: Optional[QAPISchemaObjectTypeMember] = None
         self.variants = variants
 
     @property
@@ -749,58 +740,66 @@ class QAPISchemaVariants:
             v.set_defined_in(name)
 
     def check(
-        self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
     ) -> None:
-        if self._tag_name:      # union
-            # We need to narrow the member type:
-            tmp = seen.get(c_name(self._tag_name))
-            assert tmp is None or isinstance(tmp, QAPISchemaObjectTypeMember)
-            self._tag_member = tmp
+        for v in self.variants:
+            v.check(schema)
 
-            base = "'base'"
-            # Pointing to the base type when not implicit would be
-            # nice, but we don't know it here
-            if not self._tag_member or self._tag_name != self._tag_member.name:
-                raise QAPISemError(
-                    self.info,
-                    "discriminator '%s' is not a member of %s"
-                    % (self._tag_name, base))
-            # Here we do:
-            assert self.tag_member.defined_in
-            base_type = schema.lookup_type(self.tag_member.defined_in)
-            assert base_type
-            if not base_type.is_implicit():
-                base = "base type '%s'" % self.tag_member.defined_in
-            if not isinstance(self.tag_member.type, QAPISchemaEnumType):
-                raise QAPISemError(
-                    self.info,
-                    "discriminator member '%s' of %s must be of enum type"
-                    % (self._tag_name, base))
-            if self.tag_member.optional:
-                raise QAPISemError(
-                    self.info,
-                    "discriminator member '%s' of %s must not be optional"
-                    % (self._tag_name, base))
-            if self.tag_member.ifcond.is_present():
-                raise QAPISemError(
-                    self.info,
-                    "discriminator member '%s' of %s must not be conditional"
-                    % (self._tag_name, base))
-        else:                   # alternate
-            assert self._tag_member
-            assert isinstance(self.tag_member.type, QAPISchemaEnumType)
-            assert not self.tag_member.optional
-            assert not self.tag_member.ifcond.is_present()
-        if self._tag_name:      # union
-            # branches that are not explicitly covered get an empty type
-            assert self.tag_member.defined_in
-            cases = {v.name for v in self.variants}
-            for m in self.tag_member.type.members:
-                if m.name not in cases:
-                    v = QAPISchemaVariant(m.name, self.info,
-                                          'q_empty', m.ifcond)
-                    v.set_defined_in(self.tag_member.defined_in)
-                    self.variants.append(v)
+
+class QAPISchemaBranches(QAPISchemaVariants):
+    def __init__(self,
+                 info: QAPISourceInfo,
+                 variants: List[QAPISchemaVariant],
+                 tag_name: str):
+        super().__init__(info, variants)
+        self._tag_name = tag_name
+
+    def check(
+            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+    ) -> None:
+        # We need to narrow the member type:
+        tmp = seen.get(c_name(self._tag_name))
+        assert tmp is None or isinstance(tmp, QAPISchemaObjectTypeMember)
+        self._tag_member = tmp
+
+        base = "'base'"
+        # Pointing to the base type when not implicit would be
+        # nice, but we don't know it here
+        if not self._tag_member or self._tag_name != self._tag_member.name:
+            raise QAPISemError(
+                self.info,
+                "discriminator '%s' is not a member of %s"
+                % (self._tag_name, base))
+        # Here we do:
+        assert self.tag_member.defined_in
+        base_type = schema.lookup_type(self.tag_member.defined_in)
+        assert base_type
+        if not base_type.is_implicit():
+            base = "base type '%s'" % self.tag_member.defined_in
+        if not isinstance(self.tag_member.type, QAPISchemaEnumType):
+            raise QAPISemError(
+                self.info,
+                "discriminator member '%s' of %s must be of enum type"
+                % (self._tag_name, base))
+        if self.tag_member.optional:
+            raise QAPISemError(
+                self.info,
+                "discriminator member '%s' of %s must not be optional"
+                % (self._tag_name, base))
+        if self.tag_member.ifcond.is_present():
+            raise QAPISemError(
+                self.info,
+                "discriminator member '%s' of %s must not be conditional"
+                % (self._tag_name, base))
+        # branches that are not explicitly covered get an empty type
+        assert self.tag_member.defined_in
+        cases = {v.name for v in self.variants}
+        for m in self.tag_member.type.members:
+            if m.name not in cases:
+                v = QAPISchemaVariant(m.name, self.info,
+                                      'q_empty', m.ifcond)
+                v.set_defined_in(self.tag_member.defined_in)
+                self.variants.append(v)
         if not self.variants:
             raise QAPISemError(self.info, "union has no branches")
         for v in self.variants:
@@ -834,20 +833,21 @@ class QAPISchemaVariants:
             v.type.check_clash(info, dict(seen))
 
 
-class QAPISchemaBranches(QAPISchemaVariants):
-    def __init__(self,
-                 info: QAPISourceInfo,
-                 variants: List[QAPISchemaVariant],
-                 tag_name: str):
-        super().__init__(tag_name, info, None, variants)
-
-
 class QAPISchemaAlternatives(QAPISchemaVariants):
     def __init__(self,
                  info: QAPISourceInfo,
                  variants: List[QAPISchemaVariant],
                  tag_member: QAPISchemaObjectTypeMember):
-        super().__init__(None, info, tag_member, variants)
+        super().__init__(info, variants)
+        self._tag_member = tag_member
+
+    def check(
+            self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
+    ) -> None:
+        super().check(schema, seen)
+        assert isinstance(self.tag_member.type, QAPISchemaEnumType)
+        assert not self.tag_member.optional
+        assert not self.tag_member.ifcond.is_present()
 
 
 class QAPISchemaMember:
