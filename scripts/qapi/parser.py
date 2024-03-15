@@ -733,7 +733,7 @@ class QAPIDoc:
                     "'Returns' section is only valid for commands")
             if self.errors:
                 raise QAPISemError(
-                    self.returns.info,
+                    self.errors.info,
                     "'Errors' section is only valid for commands")
 
     def check(self) -> None:
