@@ -996,6 +996,7 @@ class QAPISchema:
     def resolve_type(self, name, info, what):
         typ = self.lookup_type(name)
         if not typ:
+            assert info and what  # built-in types must not fail lookup
             if callable(what):
                 what = what(info)
             raise QAPISemError(
