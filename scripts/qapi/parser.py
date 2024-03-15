@@ -707,6 +707,7 @@ class QAPIDoc:
 
     def connect_member(self, member: 'QAPISchemaMember') -> None:
         if member.name not in self.args:
+            assert member.info
             if self.symbol not in member.info.pragma.documentation_exceptions:
                 raise QAPISemError(member.info,
                                    "%s '%s' lacks documentation"
