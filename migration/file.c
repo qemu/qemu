@@ -15,6 +15,7 @@
 #include "file.h"
 #include "migration.h"
 #include "io/channel-file.h"
+#include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "options.h"
 #include "trace.h"
@@ -58,6 +59,12 @@ bool file_send_channel_create(gpointer opaque, Error **errp)
     int fd = fd_args_get_fd();
 
     if (fd && fd != -1) {
+        if (fd_is_socket(fd)) {
+            error_setg(errp,
+                       "Multifd migration to a socket FD is not supported");
+            goto out;
+        }
+
         ioc = qio_channel_file_new_dupfd(fd, errp);
     } else {
         ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);

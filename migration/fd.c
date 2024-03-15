@@ -22,6 +22,7 @@
 #include "migration.h"
 #include "monitor/monitor.h"
 #include "io/channel-file.h"
+#include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "options.h"
 #include "trace.h"
@@ -95,6 +96,13 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
     }
 
     if (migrate_multifd()) {
+        if (fd_is_socket(fd)) {
+            error_setg(errp,
+                       "Multifd migration to a socket FD is not supported");
+            object_unref(ioc);
+            return;
+        }
+
         file_create_incoming_channels(ioc, errp);
     } else {
         qio_channel_set_name(ioc, "migration-fd-incoming");
