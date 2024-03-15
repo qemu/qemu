@@ -178,12 +178,18 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSSession, qcrypto_tls_session_free)
 int qcrypto_tls_session_check_credentials(QCryptoTLSSession *sess,
                                           Error **errp);
 
+/*
+ * These must return QCRYPTO_TLS_SESSION_ERR_BLOCK if the I/O
+ * would block, but on other errors, must fill 'errp'
+ */
 typedef ssize_t (*QCryptoTLSSessionWriteFunc)(const char *buf,
                                               size_t len,
-                                              void *opaque);
+                                              void *opaque,
+                                              Error **errp);
 typedef ssize_t (*QCryptoTLSSessionReadFunc)(char *buf,
                                              size_t len,
-                                             void *opaque);
+                                             void *opaque,
+                                             Error **errp);
 
 /**
  * qcrypto_tls_session_set_callbacks:
