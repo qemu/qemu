@@ -381,7 +381,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         super().__init__(name, info, None)
         assert isinstance(element_type, str)
         self._element_type_name = element_type
-        self.element_type = None
+        self.element_type: QAPISchemaType
 
     def need_has_if_optional(self):
         # When FOO is an array, we still need has_FOO to distinguish
