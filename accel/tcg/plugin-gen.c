@@ -425,7 +425,7 @@ static TCGOp *append_udata_cb(const struct qemu_plugin_dyn_cb *cb,
     }
 
     /* call */
-    op = copy_call(&begin_op, op, cb->f.vcpu_udata, cb_idx);
+    op = copy_call(&begin_op, op, cb->regular.f.vcpu_udata, cb_idx);
 
     return op;
 }
@@ -473,7 +473,7 @@ static TCGOp *append_mem_cb(const struct qemu_plugin_dyn_cb *cb,
 
     if (type == PLUGIN_GEN_CB_MEM) {
         /* call */
-        op = copy_call(&begin_op, op, cb->f.vcpu_udata, cb_idx);
+        op = copy_call(&begin_op, op, cb->regular.f.vcpu_udata, cb_idx);
     }
 
     return op;

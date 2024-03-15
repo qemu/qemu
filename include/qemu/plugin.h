@@ -85,13 +85,15 @@ enum plugin_dyn_cb_subtype {
  * instance of a callback to be called upon the execution of a particular TB.
  */
 struct qemu_plugin_dyn_cb {
-    union qemu_plugin_cb_sig f;
     void *userp;
     enum plugin_dyn_cb_subtype type;
     /* @rw applies to mem callbacks only (both regular and inline) */
     enum qemu_plugin_mem_rw rw;
     /* fields specific to each dyn_cb type go here */
     union {
+        struct {
+            union qemu_plugin_cb_sig f;
+        } regular;
         struct {
             qemu_plugin_u64 entry;
             enum qemu_plugin_op op;

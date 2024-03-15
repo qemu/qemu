@@ -342,7 +342,7 @@ void plugin_register_dyn_cb__udata(GArray **arr,
 
     dyn_cb->userp = udata;
     /* Note flags are discarded as unused. */
-    dyn_cb->f.vcpu_udata = cb;
+    dyn_cb->regular.f.vcpu_udata = cb;
     dyn_cb->type = PLUGIN_CB_REGULAR;
 }
 
@@ -359,7 +359,7 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
     /* Note flags are discarded as unused. */
     dyn_cb->type = PLUGIN_CB_REGULAR;
     dyn_cb->rw = rw;
-    dyn_cb->f.generic = cb;
+    dyn_cb->regular.f.vcpu_mem = cb;
 }
 
 /*
@@ -511,8 +511,8 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
         }
         switch (cb->type) {
         case PLUGIN_CB_REGULAR:
-            cb->f.vcpu_mem(cpu->cpu_index, make_plugin_meminfo(oi, rw),
-                           vaddr, cb->userp);
+            cb->regular.f.vcpu_mem(cpu->cpu_index, make_plugin_meminfo(oi, rw),
+                                   vaddr, cb->userp);
             break;
         case PLUGIN_CB_INLINE:
             exec_inline_op(cb, cpu->cpu_index);
