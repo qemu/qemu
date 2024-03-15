@@ -118,7 +118,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
         ret += '%s arg' % arg_type.c_param_type()
         sep = ', '
     elif arg_type:
-        assert not arg_type.variants
+        assert not arg_type.branches
         for memb in arg_type.members:
             assert not memb.ifcond.is_present()
             ret += sep

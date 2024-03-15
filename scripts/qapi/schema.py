@@ -524,20 +524,20 @@ class QAPISchemaObjectType(QAPISchemaType):
         features: Optional[List[QAPISchemaFeature]],
         base: Optional[str],
         local_members: List[QAPISchemaObjectTypeMember],
-        variants: Optional[QAPISchemaBranches],
+        branches: Optional[QAPISchemaBranches],
     ):
-        # struct has local_members, optional base, and no variants
-        # union has base, variants, and no local_members
+        # struct has local_members, optional base, and no branches
+        # union has base, branches, and no local_members
         super().__init__(name, info, doc, ifcond, features)
-        self.meta = 'union' if variants else 'struct'
+        self.meta = 'union' if branches else 'struct'
         for m in local_members:
             m.set_defined_in(name)
-        if variants is not None:
-            variants.set_defined_in(name)
+        if branches is not None:
+            branches.set_defined_in(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
-        self.variants = variants
+        self.branches = branches
         self.members: List[QAPISchemaObjectTypeMember]
         self._check_complete = False
 
@@ -561,7 +561,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.base = schema.resolve_type(self._base_name, self.info,
                                             "'base'")
             if (not isinstance(self.base, QAPISchemaObjectType)
-                    or self.base.variants):
+                    or self.base.branches):
                 raise QAPISemError(
                     self.info,
                     "'base' requires a struct type, %s isn't"
@@ -577,9 +577,9 @@ class QAPISchemaObjectType(QAPISchemaType):
         # Cast down to the subtype.
         members = cast(List[QAPISchemaObjectTypeMember], list(seen.values()))
 
-        if self.variants:
-            self.variants.check(schema, seen)
-            self.variants.check_clash(self.info, seen)
+        if self.branches:
+            self.branches.check(schema, seen)
+            self.branches.check_clash(self.info, seen)
 
         self.members = members
         self._check_complete = True  # mark completed
@@ -595,8 +595,8 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert self._checked
         for m in self.members:
             m.check_clash(info, seen)
-        if self.variants:
-            self.variants.check_clash(info, seen)
+        if self.branches:
+            self.branches.check_clash(info, seen)
 
     def connect_doc(self, doc: Optional[QAPIDoc] = None) -> None:
         super().connect_doc(doc)
@@ -612,7 +612,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         return self.name.startswith('q_')
 
     def is_empty(self) -> bool:
-        return not self.members and not self.variants
+        return not self.members and not self.branches
 
     def has_conditional_members(self) -> bool:
         return any(m.ifcond.is_present() for m in self.members)
@@ -635,10 +635,10 @@ class QAPISchemaObjectType(QAPISchemaType):
         super().visit(visitor)
         visitor.visit_object_type(
             self.name, self.info, self.ifcond, self.features,
-            self.base, self.local_members, self.variants)
+            self.base, self.local_members, self.branches)
         visitor.visit_object_type_flat(
             self.name, self.info, self.ifcond, self.features,
-            self.members, self.variants)
+            self.members, self.branches)
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
@@ -1035,7 +1035,7 @@ class QAPISchemaCommand(QAPISchemaDefinition):
                     "command's 'data' cannot take %s"
                     % arg_type.describe())
             self.arg_type = arg_type
-            if self.arg_type.variants and not self.boxed:
+            if self.arg_type.branches and not self.boxed:
                 raise QAPISemError(
                     self.info,
                     "command's 'data' can take %s only with 'boxed': true"
@@ -1103,7 +1103,7 @@ class QAPISchemaEvent(QAPISchemaDefinition):
                     "event's 'data' cannot take %s"
                     % typ.describe())
             self.arg_type = typ
-            if self.arg_type.variants and not self.boxed:
+            if self.arg_type.branches and not self.boxed:
                 raise QAPISemError(
                     self.info,
                     "event's 'data' can take %s only with 'boxed': true"

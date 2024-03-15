@@ -171,7 +171,7 @@ def gen_object(name: str, ifcond: QAPISchemaIfCond,
         if not isinstance(obj, QAPISchemaObjectType):
             continue
         ret += gen_object(obj.name, obj.ifcond, obj.base,
-                          obj.local_members, obj.variants)
+                          obj.local_members, obj.branches)
 
     ret += mcgen('''
 
