@@ -373,11 +373,34 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
 void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
 {
     struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
-    struct qemu_plugin_insn *pinsn;
+    struct qemu_plugin_insn *insn;
+    size_t n = db->num_insns;
+    vaddr pc;
 
-    pinsn = qemu_plugin_tb_insn_get(ptb, db->pc_next);
-    tcg_ctx->plugin_insn = pinsn;
-    plugin_gen_empty_callback(PLUGIN_GEN_FROM_INSN);
+    assert(n >= 1);
+    ptb->n = n;
+    if (n <= ptb->insns->len) {
+        insn = g_ptr_array_index(ptb->insns, n - 1);
+        g_byte_array_set_size(insn->data, 0);
+    } else {
+        assert(n - 1 == ptb->insns->len);
+        insn = g_new0(struct qemu_plugin_insn, 1);
+        insn->data = g_byte_array_sized_new(4);
+        g_ptr_array_add(ptb->insns, insn);
+    }
+
+    tcg_ctx->plugin_insn = insn;
+    insn->calls_helpers = false;
+    insn->mem_helper = false;
+    if (insn->insn_cbs) {
+        g_array_set_size(insn->insn_cbs, 0);
+    }
+    if (insn->mem_cbs) {
+        g_array_set_size(insn->mem_cbs, 0);
+    }
+
+    pc = db->pc_next;
+    insn->vaddr = pc;
 
     /*
      * Detect page crossing to get the new host address.
@@ -385,16 +408,18 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
      * fetching instructions from a region not backed by RAM.
      */
     if (ptb->haddr1 == NULL) {
-        pinsn->haddr = NULL;
+        insn->haddr = NULL;
     } else if (is_same_page(db, db->pc_next)) {
-        pinsn->haddr = ptb->haddr1 + pinsn->vaddr - ptb->vaddr;
+        insn->haddr = ptb->haddr1 + pc - ptb->vaddr;
     } else {
         if (ptb->vaddr2 == -1) {
             ptb->vaddr2 = TARGET_PAGE_ALIGN(db->pc_first);
             get_page_addr_code_hostp(cpu_env(cpu), ptb->vaddr2, &ptb->haddr2);
         }
-        pinsn->haddr = ptb->haddr2 + pinsn->vaddr - ptb->vaddr2;
+        insn->haddr = ptb->haddr2 + pc - ptb->vaddr2;
     }
+
+    plugin_gen_empty_callback(PLUGIN_GEN_FROM_INSN);
 }
 
 void plugin_gen_insn_end(void)

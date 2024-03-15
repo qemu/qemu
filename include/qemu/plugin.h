@@ -129,14 +129,6 @@ static inline void qemu_plugin_insn_cleanup_fn(gpointer data)
     g_byte_array_free(insn->data, true);
 }
 
-static inline struct qemu_plugin_insn *qemu_plugin_insn_alloc(void)
-{
-    struct qemu_plugin_insn *insn = g_new0(struct qemu_plugin_insn, 1);
-
-    insn->data = g_byte_array_sized_new(4);
-    return insn;
-}
-
 /* Internal context for this TranslationBlock */
 struct qemu_plugin_tb {
     GPtrArray *insns;
@@ -152,37 +144,6 @@ struct qemu_plugin_tb {
 
     GArray *cbs;
 };
-
-/**
- * qemu_plugin_tb_insn_get(): get next plugin record for translation.
- * @tb: the internal tb context
- * @pc: address of instruction
- */
-static inline
-struct qemu_plugin_insn *qemu_plugin_tb_insn_get(struct qemu_plugin_tb *tb,
-                                                 uint64_t pc)
-{
-    struct qemu_plugin_insn *insn;
-
-    if (unlikely(tb->n == tb->insns->len)) {
-        struct qemu_plugin_insn *new_insn = qemu_plugin_insn_alloc();
-        g_ptr_array_add(tb->insns, new_insn);
-    }
-
-    insn = g_ptr_array_index(tb->insns, tb->n++);
-    g_byte_array_set_size(insn->data, 0);
-    insn->calls_helpers = false;
-    insn->mem_helper = false;
-    insn->vaddr = pc;
-    if (insn->insn_cbs) {
-        g_array_set_size(insn->insn_cbs, 0);
-    }
-    if (insn->mem_cbs) {
-        g_array_set_size(insn->mem_cbs, 0);
-    }
-
-    return insn;
-}
 
 /**
  * struct CPUPluginState - per-CPU state for plugins
