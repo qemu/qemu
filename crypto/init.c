@@ -34,14 +34,11 @@
 
 #include "crypto/random.h"
 
-/* #define DEBUG_GNUTLS */
-#ifdef DEBUG_GNUTLS
-static void qcrypto_gnutls_log(int level, const char *str)
-{
-    fprintf(stderr, "%d: %s", level, str);
-}
-#endif
 
+/*
+ * To debug GNUTLS see env vars listed in
+ * https://gnutls.org/manual/html_node/Debugging-and-auditing.html
+ */
 int qcrypto_init(Error **errp)
 {
 #ifdef CONFIG_GNUTLS
@@ -53,10 +50,6 @@ int qcrypto_init(Error **errp)
                    gnutls_strerror(ret));
         return -1;
     }
-#ifdef DEBUG_GNUTLS
-    gnutls_global_set_log_level(10);
-    gnutls_global_set_log_function(qcrypto_gnutls_log);
-#endif
 #endif
 
 #ifdef CONFIG_GCRYPT
