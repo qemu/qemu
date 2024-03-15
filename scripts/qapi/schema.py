@@ -55,14 +55,13 @@ class QAPISchemaIfCond:
 
 
 class QAPISchemaEntity:
-    meta: Optional[str] = None
+    """
+    A schema entity.
 
-    def __init__(self, name: str, info, doc, ifcond=None, features=None):
-        assert name is None or isinstance(name, str)
-        for f in features or []:
-            assert isinstance(f, QAPISchemaFeature)
-            f.set_defined_in(name)
-        self.name = name
+    This is either a directive, such as include, or a definition.
+    The latter uses sub-class `QAPISchemaDefinition`.
+    """
+    def __init__(self, info):
         self._module = None
         # For explicitly defined entities, info points to the (explicit)
         # definition.  For builtins (and their arrays), info is None.
@@ -70,33 +69,17 @@ class QAPISchemaEntity:
         # triggered the implicit definition (there may be more than one
         # such place).
         self.info = info
-        self.doc = doc
-        self._ifcond = ifcond or QAPISchemaIfCond()
-        self.features = features or []
         self._checked = False
 
     def __repr__(self):
-        if self.name is None:
-            return "<%s at 0x%x>" % (type(self).__name__, id(self))
-        return "<%s:%s at 0x%x>" % (type(self).__name__, self.name,
-                                    id(self))
-
-    def c_name(self):
-        return c_name(self.name)
+        return "<%s at 0x%x>" % (type(self).__name__, id(self))
 
     def check(self, schema):
         # pylint: disable=unused-argument
-        assert not self._checked
-        seen = {}
-        for f in self.features:
-            f.check_clash(self.info, seen)
         self._checked = True
 
     def connect_doc(self, doc=None):
-        doc = doc or self.doc
-        if doc:
-            for f in self.features:
-                doc.connect_feature(f)
+        pass
 
     def _set_module(self, schema, info):
         assert self._checked
@@ -107,6 +90,46 @@ class QAPISchemaEntity:
     def set_module(self, schema):
         self._set_module(schema, self.info)
 
+    def visit(self, visitor):
+        # pylint: disable=unused-argument
+        assert self._checked
+
+
+class QAPISchemaDefinition(QAPISchemaEntity):
+    meta: Optional[str] = None
+
+    def __init__(self, name: str, info, doc, ifcond=None, features=None):
+        assert isinstance(name, str)
+        super().__init__(info)
+        for f in features or []:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_defined_in(name)
+        self.name = name
+        self.doc = doc
+        self._ifcond = ifcond or QAPISchemaIfCond()
+        self.features = features or []
+
+    def __repr__(self):
+        return "<%s:%s at 0x%x>" % (type(self).__name__, self.name,
+                                    id(self))
+
+    def c_name(self):
+        return c_name(self.name)
+
+    def check(self, schema):
+        assert not self._checked
+        super().check(schema)
+        seen = {}
+        for f in self.features:
+            f.check_clash(self.info, seen)
+
+    def connect_doc(self, doc=None):
+        super().connect_doc(doc)
+        doc = doc or self.doc
+        if doc:
+            for f in self.features:
+                doc.connect_feature(f)
+
     @property
     def ifcond(self):
         assert self._checked
@@ -114,10 +137,6 @@ class QAPISchemaEntity:
 
     def is_implicit(self):
         return not self.info
-
-    def visit(self, visitor):
-        # pylint: disable=unused-argument
-        assert self._checked
 
     def describe(self):
         assert self.meta
@@ -218,7 +237,7 @@ class QAPISchemaModule:
 
 class QAPISchemaInclude(QAPISchemaEntity):
     def __init__(self, sub_module, info):
-        super().__init__(None, info, None)
+        super().__init__(info)
         self._sub_module = sub_module
 
     def visit(self, visitor):
@@ -226,7 +245,7 @@ class QAPISchemaInclude(QAPISchemaEntity):
         visitor.visit_include(self._sub_module.name, self.info)
 
 
-class QAPISchemaType(QAPISchemaEntity):
+class QAPISchemaType(QAPISchemaDefinition):
     # Return the C type for common use.
     # For the types we commonly box, this is a pointer type.
     def c_type(self):
@@ -797,7 +816,7 @@ class QAPISchemaVariant(QAPISchemaObjectTypeMember):
         super().__init__(name, info, typ, False, ifcond)
 
 
-class QAPISchemaCommand(QAPISchemaEntity):
+class QAPISchemaCommand(QAPISchemaDefinition):
     meta = 'command'
 
     def __init__(self, name, info, doc, ifcond, features,
@@ -868,7 +887,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
             self.coroutine)
 
 
-class QAPISchemaEvent(QAPISchemaEntity):
+class QAPISchemaEvent(QAPISchemaDefinition):
     meta = 'event'
 
     def __init__(self, name, info, doc, ifcond, features, arg_type, boxed):
@@ -939,23 +958,24 @@ class QAPISchema:
         self.check()
 
     def _def_entity(self, ent):
-        # Only the predefined types are allowed to not have info
-        assert ent.info or self._predefining
         self._entity_list.append(ent)
-        if ent.name is None:
-            return
+
+    def _def_definition(self, defn):
+        # Only the predefined types are allowed to not have info
+        assert defn.info or self._predefining
+        self._def_entity(defn)
         # TODO reject names that differ only in '_' vs. '.'  vs. '-',
         # because they're liable to clash in generated C.
-        other_ent = self._entity_dict.get(ent.name)
-        if other_ent:
-            if other_ent.info:
-                where = QAPISourceError(other_ent.info, "previous definition")
+        other_defn = self._entity_dict.get(defn.name)
+        if other_defn:
+            if other_defn.info:
+                where = QAPISourceError(other_defn.info, "previous definition")
                 raise QAPISemError(
-                    ent.info,
-                    "'%s' is already defined\n%s" % (ent.name, where))
+                    defn.info,
+                    "'%s' is already defined\n%s" % (defn.name, where))
             raise QAPISemError(
-                ent.info, "%s is already defined" % other_ent.describe())
-        self._entity_dict[ent.name] = ent
+                defn.info, "%s is already defined" % other_defn.describe())
+        self._entity_dict[defn.name] = defn
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)
@@ -997,7 +1017,7 @@ class QAPISchema:
             QAPISchemaInclude(self._make_module(include), expr.info))
 
     def _def_builtin_type(self, name, json_type, c_type):
-        self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
+        self._def_definition(QAPISchemaBuiltinType(name, json_type, c_type))
         # Instantiating only the arrays that are actually used would
         # be nice, but we can't as long as their generated code
         # (qapi-builtin-types.[ch]) may be shared by some other
@@ -1023,15 +1043,15 @@ class QAPISchema:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType(
             'q_empty', None, None, None, None, None, [], None)
-        self._def_entity(self.the_empty_object_type)
+        self._def_definition(self.the_empty_object_type)
 
         qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
                   'qbool']
         qtype_values = self._make_enum_members(
             [{'name': n} for n in qtypes], None)
 
-        self._def_entity(QAPISchemaEnumType('QType', None, None, None, None,
-                                            qtype_values, 'QTYPE'))
+        self._def_definition(QAPISchemaEnumType(
+            'QType', None, None, None, None, qtype_values, 'QTYPE'))
 
     def _make_features(self, features, info):
         if features is None:
@@ -1053,7 +1073,8 @@ class QAPISchema:
     def _make_array_type(self, element_type, info):
         name = element_type + 'List'    # reserved by check_defn_name_str()
         if not self.lookup_type(name):
-            self._def_entity(QAPISchemaArrayType(name, info, element_type))
+            self._def_definition(QAPISchemaArrayType(
+                name, info, element_type))
         return name
 
     def _make_implicit_object_type(self, name, info, ifcond, role, members):
@@ -1068,7 +1089,7 @@ class QAPISchema:
             # later.
             pass
         else:
-            self._def_entity(QAPISchemaObjectType(
+            self._def_definition(QAPISchemaObjectType(
                 name, info, None, ifcond, None, None, members, None))
         return name
 
@@ -1079,7 +1100,7 @@ class QAPISchema:
         ifcond = QAPISchemaIfCond(expr.get('if'))
         info = expr.info
         features = self._make_features(expr.get('features'), info)
-        self._def_entity(QAPISchemaEnumType(
+        self._def_definition(QAPISchemaEnumType(
             name, info, expr.doc, ifcond, features,
             self._make_enum_members(data, info), prefix))
 
@@ -1107,7 +1128,7 @@ class QAPISchema:
         info = expr.info
         ifcond = QAPISchemaIfCond(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
-        self._def_entity(QAPISchemaObjectType(
+        self._def_definition(QAPISchemaObjectType(
             name, info, expr.doc, ifcond, features, base,
             self._make_members(data, info),
             None))
@@ -1137,7 +1158,7 @@ class QAPISchema:
                                info)
             for (key, value) in data.items()]
         members: List[QAPISchemaObjectTypeMember] = []
-        self._def_entity(
+        self._def_definition(
             QAPISchemaObjectType(name, info, expr.doc, ifcond, features,
                                  base, members,
                                  QAPISchemaVariants(
@@ -1156,7 +1177,7 @@ class QAPISchema:
                                info)
             for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', info, 'QType', False)
-        self._def_entity(
+        self._def_definition(
             QAPISchemaAlternateType(
                 name, info, expr.doc, ifcond, features,
                 QAPISchemaVariants(None, info, tag_member, variants)))
@@ -1181,11 +1202,10 @@ class QAPISchema:
         if isinstance(rets, list):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
-        self._def_entity(QAPISchemaCommand(name, info, expr.doc, ifcond,
-                                           features, data, rets,
-                                           gen, success_response,
-                                           boxed, allow_oob, allow_preconfig,
-                                           coroutine))
+        self._def_definition(
+            QAPISchemaCommand(name, info, expr.doc, ifcond, features, data,
+                              rets, gen, success_response, boxed, allow_oob,
+                              allow_preconfig, coroutine))
 
     def _def_event(self, expr: QAPIExpression):
         name = expr['event']
@@ -1198,8 +1218,8 @@ class QAPISchema:
             data = self._make_implicit_object_type(
                 name, info, ifcond,
                 'arg', self._make_members(data, info))
-        self._def_entity(QAPISchemaEvent(name, info, expr.doc, ifcond,
-                                         features, data, boxed))
+        self._def_definition(QAPISchemaEvent(name, info, expr.doc, ifcond,
+                                             features, data, boxed))
 
     def _def_exprs(self, exprs):
         for expr in exprs:
