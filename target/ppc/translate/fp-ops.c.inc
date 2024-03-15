@@ -1,36 +1,6 @@
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)
-#define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type),                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type)
-#define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
-#define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
-_GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
-GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)
-#define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type),               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type)
 #define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
 GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)
-#define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
-GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)
 
-GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT),
-GEN_FLOAT_BS(re, 0x3F, 0x18, 1, PPC_FLOAT_EXT),
-GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES),
-GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE),
-GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(madd, 0x1D, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(msub, 0x1C, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(nmadd, 0x1F, 1, PPC_FLOAT),
-GEN_FLOAT_ACB(nmsub, 0x1E, 1, PPC_FLOAT),
-GEN_HANDLER_E(ftdiv, 0x3F, 0x00, 0x04, 1, PPC_NONE, PPC2_FP_TST_ISA206),
-GEN_HANDLER_E(ftsqrt, 0x3F, 0x00, 0x05, 1, PPC_NONE, PPC2_FP_TST_ISA206),
 GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT),
 GEN_HANDLER_E(fctiwu, 0x3F, 0x0E, 0x04, 0, PPC_NONE, PPC2_FP_CVT_ISA206),
 GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT),
@@ -61,7 +31,6 @@ GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX)
 GEN_HANDLER_E(stfdepx, 0x1F, 0x1F, 0x16, 0x00000001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER_E(stfdpx, 0x1F, 0x17, 0x1C, 0x00200001, PPC_NONE, PPC2_ISA205),
 
-GEN_HANDLER(frsqrtes, 0x3B, 0x1A, 0xFF, 0x001F07C0, PPC_FLOAT_FRSQRTES),
 GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT),
 GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT),
 GEN_HANDLER(fabs, 0x3F, 0x08, 0x08, 0x001F0000, PPC_FLOAT),

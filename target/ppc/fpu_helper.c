@@ -673,7 +673,7 @@ static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
     uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,            \
                          uint64_t arg2, uint64_t arg3)               \
     { return do_fmadd(env, arg1, arg2, arg3, madd_flags, GETPC()); } \
-    uint64_t helper_##op##s(CPUPPCState *env, uint64_t arg1,         \
+    uint64_t helper_##op##S(CPUPPCState *env, uint64_t arg1,         \
                          uint64_t arg2, uint64_t arg3)               \
     { return do_fmadds(env, arg1, arg2, arg3, madd_flags, GETPC()); }
 
@@ -682,10 +682,10 @@ static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
 #define NMADD_FLGS float_muladd_negate_result
 #define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
 
-FPU_FMADD(fmadd, MADD_FLGS)
-FPU_FMADD(fnmadd, NMADD_FLGS)
-FPU_FMADD(fmsub, MSUB_FLGS)
-FPU_FMADD(fnmsub, NMSUB_FLGS)
+FPU_FMADD(FMADD, MADD_FLGS)
+FPU_FMADD(FNMADD, NMADD_FLGS)
+FPU_FMADD(FMSUB, MSUB_FLGS)
+FPU_FMADD(FNMSUB, NMSUB_FLGS)
 
 /* frsp - frsp. */
 static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
@@ -778,18 +778,18 @@ float64 helper_##name(CPUPPCState *env, float64 arg1, float64 arg2)           \
     return ret;                                                               \
 }
 
-FPU_FRE(fre, float64_div)
-FPU_FRE(fres, float64r32_div)
-FPU_FRSQRTE(frsqrte, float64_div)
-FPU_FRSQRTE(frsqrtes, float64r32_div)
-FPU_HELPER(fadd, float64_add, addsub_flags_handler)
-FPU_HELPER(fadds, float64r32_add, addsub_flags_handler)
-FPU_HELPER(fsub, float64_sub, addsub_flags_handler)
-FPU_HELPER(fsubs, float64r32_sub, addsub_flags_handler)
-FPU_HELPER(fmul, float64_mul, mul_flags_handler)
-FPU_HELPER(fmuls, float64r32_mul, mul_flags_handler)
-FPU_HELPER(fdiv, float64_div, div_flags_handler)
-FPU_HELPER(fdivs, float64r32_div, div_flags_handler)
+FPU_FRE(FRE, float64_div)
+FPU_FRE(FRES, float64r32_div)
+FPU_FRSQRTE(FRSQRTE, float64_div)
+FPU_FRSQRTE(FRSQRTES, float64r32_div)
+FPU_HELPER(FADD, float64_add, addsub_flags_handler)
+FPU_HELPER(FADDS, float64r32_add, addsub_flags_handler)
+FPU_HELPER(FSUB, float64_sub, addsub_flags_handler)
+FPU_HELPER(FSUBS, float64r32_sub, addsub_flags_handler)
+FPU_HELPER(FMUL, float64_mul, mul_flags_handler)
+FPU_HELPER(FMULS, float64r32_mul, mul_flags_handler)
+FPU_HELPER(FDIV, float64_div, div_flags_handler)
+FPU_HELPER(FDIVS, float64r32_div, div_flags_handler)
 
 /* fsel - fsel. */
 uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
@@ -806,7 +806,7 @@ uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
     }
 }
 
-uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
+uint32_t helper_FTDIV(uint64_t fra, uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;
@@ -842,7 +842,7 @@ uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
     return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
-uint32_t helper_ftsqrt(uint64_t frb)
+uint32_t helper_FTSQRT(uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;
