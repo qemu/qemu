@@ -786,7 +786,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
             assert isinstance(f, QAPISchemaFeature)
             f.set_defined_in(name)
         self._type_name = typ
-        self.type = None
+        self.type: QAPISchemaType  # set during check()
         self.optional = optional
         self.features = features or []
 
