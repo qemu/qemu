@@ -989,7 +989,9 @@ class QAPISchema:
         return ent
 
     def lookup_type(self, name):
-        return self.lookup_entity(name, QAPISchemaType)
+        typ = self.lookup_entity(name, QAPISchemaType)
+        assert typ is None or isinstance(typ, QAPISchemaType)
+        return typ
 
     def resolve_type(self, name, info, what):
         typ = self.lookup_type(name)
