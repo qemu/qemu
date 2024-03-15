@@ -215,7 +215,7 @@ class QAPISchemaVisitor:
         features: List[QAPISchemaFeature],
         base: Optional[QAPISchemaObjectType],
         members: List[QAPISchemaObjectTypeMember],
-        variants: Optional[QAPISchemaVariants],
+        variants: Optional[QAPISchemaBranches],
     ) -> None:
         pass
 
@@ -226,7 +226,7 @@ class QAPISchemaVisitor:
         ifcond: QAPISchemaIfCond,
         features: List[QAPISchemaFeature],
         members: List[QAPISchemaObjectTypeMember],
-        variants: Optional[QAPISchemaVariants],
+        variants: Optional[QAPISchemaBranches],
     ) -> None:
         pass
 
@@ -236,7 +236,7 @@ class QAPISchemaVisitor:
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
         features: List[QAPISchemaFeature],
-        variants: QAPISchemaVariants,
+        variants: QAPISchemaAlternatives,
     ) -> None:
         pass
 
@@ -524,7 +524,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         features: Optional[List[QAPISchemaFeature]],
         base: Optional[str],
         local_members: List[QAPISchemaObjectTypeMember],
-        variants: Optional[QAPISchemaVariants],
+        variants: Optional[QAPISchemaBranches],
     ):
         # struct has local_members, optional base, and no variants
         # union has base, variants, and no local_members
@@ -651,7 +651,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         doc: Optional[QAPIDoc],
         ifcond: Optional[QAPISchemaIfCond],
         features: List[QAPISchemaFeature],
-        variants: QAPISchemaVariants,
+        variants: QAPISchemaAlternatives,
     ):
         super().__init__(name, info, doc, ifcond, features)
         assert variants.tag_member
@@ -831,6 +831,22 @@ class QAPISchemaVariants:
             # v.type's typing is enforced in check() above.
             assert isinstance(v.type, QAPISchemaObjectType)
             v.type.check_clash(info, dict(seen))
+
+
+class QAPISchemaBranches(QAPISchemaVariants):
+    def __init__(self,
+                 info: QAPISourceInfo,
+                 variants: List[QAPISchemaVariant],
+                 tag_name: str):
+        super().__init__(tag_name, info, None, variants)
+
+
+class QAPISchemaAlternatives(QAPISchemaVariants):
+    def __init__(self,
+                 info: QAPISourceInfo,
+                 variants: List[QAPISchemaVariant],
+                 tag_member: QAPISchemaObjectTypeMember):
+        super().__init__(None, info, tag_member, variants)
 
 
 class QAPISchemaMember:
@@ -1388,8 +1404,8 @@ class QAPISchema:
         self._def_definition(
             QAPISchemaObjectType(name, info, expr.doc, ifcond, features,
                                  base, members,
-                                 QAPISchemaVariants(
-                                     tag_name, info, None, variants)))
+                                 QAPISchemaBranches(
+                                     info, variants, tag_name)))
 
     def _def_alternate_type(self, expr: QAPIExpression) -> None:
         name = expr['alternate']
@@ -1407,7 +1423,7 @@ class QAPISchema:
         self._def_definition(
             QAPISchemaAlternateType(
                 name, info, expr.doc, ifcond, features,
-                QAPISchemaVariants(None, info, tag_member, variants)))
+                QAPISchemaAlternatives(info, variants, tag_member)))
 
     def _def_command(self, expr: QAPIExpression) -> None:
         name = expr['command']

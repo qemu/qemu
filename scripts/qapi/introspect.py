@@ -26,6 +26,8 @@ from .common import c_name, mcgen
 from .gen import QAPISchemaMonolithicCVisitor
 from .schema import (
     QAPISchema,
+    QAPISchemaAlternatives,
+    QAPISchemaBranches,
     QAPISchemaArrayType,
     QAPISchemaBuiltinType,
     QAPISchemaEntity,
@@ -36,7 +38,6 @@ from .schema import (
     QAPISchemaObjectTypeMember,
     QAPISchemaType,
     QAPISchemaVariant,
-    QAPISchemaVariants,
 )
 from .source import QAPISourceInfo
 
@@ -335,7 +336,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                                ifcond: QAPISchemaIfCond,
                                features: List[QAPISchemaFeature],
                                members: List[QAPISchemaObjectTypeMember],
-                               variants: Optional[QAPISchemaVariants]) -> None:
+                               variants: Optional[QAPISchemaBranches]) -> None:
         obj: SchemaInfoObject = {
             'members': [self._gen_object_member(m) for m in members]
         }
@@ -347,7 +348,7 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
                              ifcond: QAPISchemaIfCond,
                              features: List[QAPISchemaFeature],
-                             variants: QAPISchemaVariants) -> None:
+                             variants: QAPISchemaAlternatives) -> None:
         self._gen_tree(
             name, 'alternate',
             {'members': [Annotated({'type': self._use_type(m.type)},

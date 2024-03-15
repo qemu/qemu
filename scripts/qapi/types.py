@@ -23,6 +23,8 @@ from .gen import (
 )
 from .schema import (
     QAPISchema,
+    QAPISchemaAlternatives,
+    QAPISchemaBranches,
     QAPISchemaEnumMember,
     QAPISchemaFeature,
     QAPISchemaIfCond,
@@ -348,7 +350,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                           features: List[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
                           members: List[QAPISchemaObjectTypeMember],
-                          variants: Optional[QAPISchemaVariants]) -> None:
+                          variants: Optional[QAPISchemaBranches]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
@@ -369,7 +371,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                              info: Optional[QAPISourceInfo],
                              ifcond: QAPISchemaIfCond,
                              features: List[QAPISchemaFeature],
-                             variants: QAPISchemaVariants) -> None:
+                             variants: QAPISchemaAlternatives) -> None:
         with ifcontext(ifcond, self._genh):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_object(name, ifcond, None,
