@@ -1157,20 +1157,14 @@ class QAPISchema:
                 defn.info, "%s is already defined" % other_defn.describe())
         self._entity_dict[defn.name] = defn
 
-    def lookup_entity(
-        self,
-        name: str,
-        typ: Optional[type] = None,
-    ) -> Optional[QAPISchemaDefinition]:
-        ent = self._entity_dict.get(name)
-        if typ and not isinstance(ent, typ):
-            return None
-        return ent
+    def lookup_entity(self,name: str) -> Optional[QAPISchemaEntity]:
+        return self._entity_dict.get(name)
 
     def lookup_type(self, name: str) -> Optional[QAPISchemaType]:
-        typ = self.lookup_entity(name, QAPISchemaType)
-        assert typ is None or isinstance(typ, QAPISchemaType)
-        return typ
+        typ = self.lookup_entity(name)
+        if isinstance(typ, QAPISchemaType):
+            return typ
+        return None
 
     def resolve_type(
         self,
