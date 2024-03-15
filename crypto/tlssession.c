@@ -441,23 +441,20 @@ qcrypto_tls_session_set_callbacks(QCryptoTLSSession *session,
 ssize_t
 qcrypto_tls_session_write(QCryptoTLSSession *session,
                           const char *buf,
-                          size_t len)
+                          size_t len,
+                          Error **errp)
 {
     ssize_t ret = gnutls_record_send(session->handle, buf, len);
 
     if (ret < 0) {
-        switch (ret) {
-        case GNUTLS_E_AGAIN:
-            errno = EAGAIN;
-            break;
-        case GNUTLS_E_INTERRUPTED:
-            errno = EINTR;
-            break;
-        default:
-            errno = EIO;
-            break;
+        if (ret == GNUTLS_E_AGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else {
+            error_setg(errp,
+                       "Cannot write to TLS channel: %s",
+                       gnutls_strerror(ret));
+            return -1;
         }
-        ret = -1;
     }
 
     return ret;
@@ -467,26 +464,24 @@ qcrypto_tls_session_write(QCryptoTLSSession *session,
 ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *session,
                          char *buf,
-                         size_t len)
+                         size_t len,
+                         bool gracefulTermination,
+                         Error **errp)
 {
     ssize_t ret = gnutls_record_recv(session->handle, buf, len);
 
     if (ret < 0) {
-        switch (ret) {
-        case GNUTLS_E_AGAIN:
-            errno = EAGAIN;
-            break;
-        case GNUTLS_E_INTERRUPTED:
-            errno = EINTR;
-            break;
-        case GNUTLS_E_PREMATURE_TERMINATION:
-            errno = ECONNABORTED;
-            break;
-        default:
-            errno = EIO;
-            break;
+        if (ret == GNUTLS_E_AGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else if ((ret == GNUTLS_E_PREMATURE_TERMINATION) &&
+                   gracefulTermination){
+            return 0;
+        } else {
+            error_setg(errp,
+                       "Cannot read from TLS channel: %s",
+                       gnutls_strerror(ret));
+            return -1;
         }
-        ret = -1;
     }
 
     return ret;
@@ -605,9 +600,10 @@ qcrypto_tls_session_set_callbacks(
 ssize_t
 qcrypto_tls_session_write(QCryptoTLSSession *sess,
                           const char *buf,
-                          size_t len)
+                          size_t len,
+                          Error **errp)
 {
-    errno = -EIO;
+    error_setg(errp, "TLS requires GNUTLS support");
     return -1;
 }
 
@@ -615,9 +611,11 @@ qcrypto_tls_session_write(QCryptoTLSSession *sess,
 ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *sess,
                          char *buf,
-                         size_t len)
+                         size_t len,
+                         bool gracefulTermination,
+                         Error **errp)
 {
-    errno = -EIO;
+    error_setg(errp, "TLS requires GNUTLS support");
     return -1;
 }
 
