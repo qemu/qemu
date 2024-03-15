@@ -450,12 +450,13 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.local_members = local_members
         self.variants = variants
         self.members = None
+        self._check_complete = False
 
     def check(self, schema):
         # This calls another type T's .check() exactly when the C
         # struct emitted by gen_object() contains that T's C struct
         # (pointers don't count).
-        if self.members is not None:
+        if self._check_complete:
             # A previous .check() completed: nothing to do
             return
         if self._checked:
@@ -464,7 +465,7 @@ class QAPISchemaObjectType(QAPISchemaType):
                                "object %s contains itself" % self.name)
 
         super().check(schema)
-        assert self._checked and self.members is None
+        assert self._checked and not self._check_complete
 
         seen = OrderedDict()
         if self._base_name:
@@ -487,7 +488,8 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.variants.check(schema, seen)
             self.variants.check_clash(self.info, seen)
 
-        self.members = members  # mark completed
+        self.members = members
+        self._check_complete = True  # mark completed
 
     # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
