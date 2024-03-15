@@ -64,7 +64,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 def gen_visit_object_members(name: str,
                              base: Optional[QAPISchemaObjectType],
                              members: List[QAPISchemaObjectTypeMember],
-                             variants: Optional[QAPISchemaBranches]) -> str:
+                             branches: Optional[QAPISchemaBranches]) -> str:
     ret = mcgen('''
 
 bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
@@ -132,8 +132,8 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''')
         ret += memb.ifcond.gen_endif()
 
-    if variants:
-        tag_member = variants.tag_member
+    if branches:
+        tag_member = branches.tag_member
         assert isinstance(tag_member.type, QAPISchemaEnumType)
 
         ret += mcgen('''
@@ -141,7 +141,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_name=c_name(tag_member.name))
 
-        for var in variants.variants:
+        for var in branches.variants:
             case_str = c_enum_const(tag_member.type.name, var.name,
                                     tag_member.type.prefix)
             ret += var.ifcond.gen_if()
@@ -394,14 +394,14 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                           features: List[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
                           members: List[QAPISchemaObjectTypeMember],
-                          variants: Optional[QAPISchemaBranches]) -> None:
+                          branches: Optional[QAPISchemaBranches]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_visit_members_decl(name))
             self._genc.add(gen_visit_object_members(name, base,
-                                                    members, variants))
+                                                    members, branches))
             # TODO Worth changing the visitor signature, so we could
             # directly use rather than repeat type.is_implicit()?
             if not name.startswith('q_'):

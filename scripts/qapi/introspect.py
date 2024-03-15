@@ -336,13 +336,13 @@ const QLitObject %(c_name)s = %(c_string)s;
                                ifcond: QAPISchemaIfCond,
                                features: List[QAPISchemaFeature],
                                members: List[QAPISchemaObjectTypeMember],
-                               variants: Optional[QAPISchemaBranches]) -> None:
+                               branches: Optional[QAPISchemaBranches]) -> None:
         obj: SchemaInfoObject = {
             'members': [self._gen_object_member(m) for m in members]
         }
-        if variants:
-            obj['tag'] = variants.tag_member.name
-            obj['variants'] = [self._gen_variant(v) for v in variants.variants]
+        if branches:
+            obj['tag'] = branches.tag_member.name
+            obj['variants'] = [self._gen_variant(v) for v in branches.variants]
         self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
