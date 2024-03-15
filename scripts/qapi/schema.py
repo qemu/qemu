@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from .common import (
     POINTER_SUFFIX,
@@ -449,7 +449,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.base = None
         self.local_members = local_members
         self.variants = variants
-        self.members = None
+        self.members: List[QAPISchemaObjectTypeMember]
         self._check_complete = False
 
     def check(self, schema):
@@ -482,7 +482,11 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
-        members = seen.values()
+
+        # self.check_clash() works in terms of the supertype, but
+        # self.members is declared List[QAPISchemaObjectTypeMember].
+        # Cast down to the subtype.
+        members = cast(List[QAPISchemaObjectTypeMember], list(seen.values()))
 
         if self.variants:
             self.variants.check(schema, seen)
@@ -515,11 +519,9 @@ class QAPISchemaObjectType(QAPISchemaType):
         return self.name.startswith('q_')
 
     def is_empty(self):
-        assert self.members is not None
         return not self.members and not self.variants
 
     def has_conditional_members(self):
-        assert self.members is not None
         return any(m.ifcond.is_present() for m in self.members)
 
     def c_name(self):
