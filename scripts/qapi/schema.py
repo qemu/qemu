@@ -236,7 +236,7 @@ class QAPISchemaVisitor:
         info: Optional[QAPISourceInfo],
         ifcond: QAPISchemaIfCond,
         features: List[QAPISchemaFeature],
-        variants: QAPISchemaAlternatives,
+        alternatives: QAPISchemaAlternatives,
     ) -> None:
         pass
 
