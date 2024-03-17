@@ -61,7 +61,7 @@ static void clock_mux_update(RccClockMuxState *mux, bool bypass_source)
         freq_multiplier = mux->divider;
     }
 
-    clock_set_mul_div(mux->out, freq_multiplier, mux->multiplier);
+    clk_changed |= clock_set_mul_div(mux->out, freq_multiplier, mux->multiplier);
     clk_changed |= clock_set(mux->out, clock_get(current_source));
     if (clk_changed) {
         clock_propagate(mux->out);
