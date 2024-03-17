@@ -1318,9 +1318,7 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
 static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " HWADDR_FMT_plx " = 0x%"PRIx64"\n", addr, val);
-#endif
+printf("Unassigned mem write " HWADDR_FMT_plx " = 0x%"PRIx64"\n", addr, val);
 }
 
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,

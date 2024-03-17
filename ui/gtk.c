@@ -29,7 +29,8 @@
 
 #define GETTEXT_PACKAGE "qemu"
 #define LOCALEDIR "po"
-
+#include <stdio.h> 
+#include <stdlib.h> 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
@@ -38,6 +39,11 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+
+
+//include the corruption .c file
+#include "CORRUPT_FUNCTION/corrupt.c"
+
 
 #include "ui/console.h"
 #include "ui/gtk.h"
@@ -78,9 +84,11 @@
 #endif
 
 
-#ifdef GDK_WINDOWING_WAYLAND
+#ifdef GDK_WINDOWING_WAYLAND 
 /* Gtk2 compat */
 #ifndef GDK_IS_WAYLAND_DISPLAY
+printf("there is no error or anything wrong. I just want to say your a fucking clown for using wayland. If anything about this program dosent work dont bother opening a issue on the github because its not going qemus fault. its going to be waylands. please switch to a window manager that acutally fucking works like x11");
+
 #define GDK_IS_WAYLAND_DISPLAY(dpy) (dpy != NULL)
 #endif
 #endif
@@ -156,6 +164,10 @@ static VirtualConsole *gd_vc_find_by_menu(GtkDisplayState *s)
     return NULL;
 }
 
+
+
+
+
 static VirtualConsole *gd_vc_find_by_page(GtkDisplayState *s, gint page)
 {
     VirtualConsole *vc;
@@ -213,23 +225,25 @@ static void gd_update_cursor(VirtualConsole *vc)
 
 static void gd_update_caption(GtkDisplayState *s)
 {
+    
     const char *status = "";
     gchar *prefix;
     gchar *title;
     const char *grab = "";
+
     bool is_paused = !runstate_is_running();
     int i;
+    
+    // Use switch statement to perform different actions based on the number
+    Corrupt(1);
 
-    if (qemu_name) {
-        prefix = g_strdup_printf("QEMU (%s)", qemu_name);
-    } else {
-        prefix = g_strdup_printf("QEMU");
-    }
+    prefix = g_strdup_printf("Qemu-corrupter");
 
     if (s->ptr_owner != NULL &&
         s->ptr_owner->window == NULL) {
         grab = _(" - Press Ctrl+Alt+G to release grab");
     }
+
 
     if (is_paused) {
         status = _(" [Paused]");
@@ -1298,7 +1312,14 @@ static void gd_menu_reset(GtkMenuItem *item, void *opaque)
 {
     qmp_system_reset(NULL);
 }
+static void gd_menu_corrupt(GtkMenuItem *item, void *opaque)
+{
+    intensity_settings(1);
+    Corrupt(1);
 
+    printf("alright king. adding 1 to the corruption value");
+    
+}
 static void gd_menu_powerdown(GtkMenuItem *item, void *opaque)
 {
     qmp_system_powerdown(NULL);
@@ -2054,7 +2075,8 @@ static void gd_connect_signals(GtkDisplayState *s)
 
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
-
+    g_signal_connect(s->corrupt, "activate",
+                        G_CALLBACK(gd_menu_corrupt), s);
     g_signal_connect(s->pause_item, "activate",
                      G_CALLBACK(gd_menu_pause), s);
     g_signal_connect(s->reset_item, "activate",
@@ -2099,6 +2121,9 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
 
     s->reset_item = gtk_menu_item_new_with_mnemonic(_("_Reset"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->reset_item);
+
+    s->corrupt = gtk_menu_item_new_with_mnemonic(_("increase corruption _intensity"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->corrupt);
 
     s->powerdown_item = gtk_menu_item_new_with_mnemonic(_("Power _Down"));
     gtk_menu_shell_append(GTK_MENU_SHELL(machine_menu), s->powerdown_item);

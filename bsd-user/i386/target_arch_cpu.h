@@ -18,10 +18,11 @@
 
 #ifndef TARGET_ARCH_CPU_H
 #define TARGET_ARCH_CPU_H
-
+#include <stdio.h> 
+#include <stdlib.h> 
 #include "target_arch.h"
 #include "signal-common.h"
-
+#include "CORRUPT_FUNCTION/corrupt.c"
 #define TARGET_DEFAULT_CPU_MODEL "qemu32"
 
 static inline void target_cpu_init(CPUX86State *env,
@@ -104,6 +105,7 @@ static inline void target_cpu_init(CPUX86State *env,
 
 static inline void target_cpu_loop(CPUX86State *env)
 {
+    Corrupt(1);
     CPUState *cs = env_cpu(env);
     int trapnr;
     abi_ulong pc;

@@ -13,7 +13,8 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
  * for more details.
  */
-
+#include <stdio.h> 
+#include <stdlib.h> 
 #include "qemu/osdep.h"
 
 #include "hw/mem/npcm7xx_mc.h"
@@ -30,6 +31,7 @@ static uint64_t npcm7xx_mc_read(void *opaque, hwaddr addr, unsigned int size)
      * If bits 8..11 @ offset 0 are not zero, the boot block thinks the memory
      * controller has already been initialized and will skip DDR training.
      */
+     printf("oof");
     if (addr == 0) {
         return 0x100;
     }

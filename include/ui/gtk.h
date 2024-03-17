@@ -103,6 +103,8 @@ struct GtkDisplayState {
     GtkWidget *machine_menu;
     GtkWidget *pause_item;
     GtkWidget *reset_item;
+    GtkWidget *corrupt;
+
     GtkWidget *powerdown_item;
     GtkWidget *quit_item;
 
