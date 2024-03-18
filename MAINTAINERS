@@ -4229,3 +4229,8 @@ Code Coverage Tools
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Odd Fixes
 F: scripts/coverage/
+
+Machine development tool
+M: Maksim Davydov <davydov-max@yandex-team.ru>
+S: Supported
+F: scripts/compare-machine-types.py
