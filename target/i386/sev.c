@@ -35,7 +35,7 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp-target.h"
 #include "qapi/qapi-commands-misc-target.h"
-#include "exec/confidential-guest-support.h"
+#include "confidential-guest.h"
 #include "hw/i386/pc.h"
 #include "exec/address-spaces.h"
 
@@ -54,7 +54,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
  *         -machine ...,memory-encryption=sev0
  */
 struct SevGuestState {
-    ConfidentialGuestSupport parent_obj;
+    X86ConfidentialGuest parent_obj;
 
     /* configuration parameters */
     char *sev_device;
@@ -1372,7 +1372,7 @@ sev_guest_instance_init(Object *obj)
 
 /* sev guest info */
 static const TypeInfo sev_guest_info = {
-    .parent = TYPE_CONFIDENTIAL_GUEST_SUPPORT,
+    .parent = TYPE_X86_CONFIDENTIAL_GUEST,
     .name = TYPE_SEV_GUEST,
     .instance_size = sizeof(SevGuestState),
     .instance_finalize = sev_guest_finalize,
