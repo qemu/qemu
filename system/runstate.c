@@ -501,7 +501,20 @@ void qemu_system_reset(ShutdownCause reason)
     default:
         qapi_event_send_reset(shutdown_caused_by_guest(reason), reason);
     }
-    cpu_synchronize_all_post_reset();
+
+    /*
+     * Some boards use the machine reset callback to point CPUs to the firmware
+     * entry point.  Assume that this is not the case for boards that support
+     * non-resettable CPUs (currently used only for confidential guests), in
+     * which case cpu_synchronize_all_post_init() is enough because
+     * it does _more_  than cpu_synchronize_all_post_reset().
+     */
+    if (cpus_are_resettable()) {
+        cpu_synchronize_all_post_reset();
+    } else {
+        assert(runstate_check(RUN_STATE_PRELAUNCH));
+    }
+
     vm_set_suspended(false);
 }
 
