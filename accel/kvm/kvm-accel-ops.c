@@ -82,7 +82,7 @@ static bool kvm_vcpu_thread_is_idle(CPUState *cpu)
 
 static bool kvm_cpus_are_resettable(void)
 {
-    return !kvm_enabled() || kvm_cpu_check_are_resettable();
+    return !kvm_enabled() || !kvm_state->guest_state_protected;
 }
 
 #ifdef TARGET_KVM_HAVE_GUEST_DEBUG

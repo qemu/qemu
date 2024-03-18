@@ -1475,11 +1475,6 @@ void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level)
     }
 }
 
-bool kvm_arch_cpu_check_are_resettable(void)
-{
-    return true;
-}
-
 static int aia_mode;
 
 static const char *kvm_aia_mode_str(uint64_t mode)
