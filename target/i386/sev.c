@@ -755,6 +755,7 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
         if (ret) {
             exit(1);
         }
+        kvm_mark_guest_state_protected();
     }
 
     /* query the measurement blob length */
