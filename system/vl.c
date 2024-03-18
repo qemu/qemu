@@ -2676,11 +2676,10 @@ static bool qemu_machine_creation_done(Error **errp)
 
     qdev_machine_creation_done();
 
-    if (machine->cgs) {
-        /*
-         * Verify that Confidential Guest Support has actually been initialized
-         */
-        assert(machine->cgs->ready);
+    if (machine->cgs && !machine->cgs->ready) {
+        error_setg(errp, "accelerator does not support confidential guest %s",
+                   object_get_typename(OBJECT(machine->cgs)));
+        exit(1);
     }
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
