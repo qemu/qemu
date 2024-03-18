@@ -655,6 +655,7 @@ static inline void mmap_unlock(void) {}
 
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
 void tlb_set_dirty(CPUState *cpu, vaddr addr);
+void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length);
 
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,

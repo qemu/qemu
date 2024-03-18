@@ -45,6 +45,18 @@ qio_channel_file_new_fd(int fd)
     return ioc;
 }
 
+QIOChannelFile *
+qio_channel_file_new_dupfd(int fd, Error **errp)
+{
+    int newfd = dup(fd);
+
+    if (newfd < 0) {
+        error_setg_errno(errp, errno, "Could not dup FD %d", fd);
+        return NULL;
+    }
+
+    return qio_channel_file_new_fd(newfd);
+}
 
 QIOChannelFile *
 qio_channel_file_new_path(const char *path,

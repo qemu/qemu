@@ -18,9 +18,11 @@
 #include "qapi/error.h"
 #include "channel.h"
 #include "fd.h"
+#include "file.h"
 #include "migration.h"
 #include "monitor/monitor.h"
 #include "io/channel-file.h"
+#include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "options.h"
 #include "trace.h"
@@ -47,8 +49,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
 {
     QIOChannel *ioc;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
-
-    outgoing_args.fd = -1;
+    int newfd;
 
     if (fd == -1) {
         return;
@@ -61,7 +62,17 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    outgoing_args.fd = fd;
+    /*
+     * This is dup()ed just to avoid referencing an fd that might
+     * be already closed by the iochannel.
+     */
+    newfd = dup(fd);
+    if (newfd == -1) {
+        error_setg_errno(errp, errno, "Could not dup FD %d", fd);
+        object_unref(ioc);
+        return;
+    }
+    outgoing_args.fd = newfd;
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
     migration_channel_connect(s, ioc, NULL, NULL);
@@ -93,28 +104,20 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
         return;
     }
 
-    qio_channel_set_name(ioc, "migration-fd-incoming");
-    qio_channel_add_watch_full(ioc, G_IO_IN,
-                               fd_accept_incoming_migration,
-                               NULL, NULL,
-                               g_main_context_get_thread_default());
-
     if (migrate_multifd()) {
-        int channels = migrate_multifd_channels();
-
-        while (channels--) {
-            ioc = QIO_CHANNEL(qio_channel_file_new_fd(dup(fd)));
-
-            if (QIO_CHANNEL_FILE(ioc)->fd == -1) {
-                error_setg(errp, "Failed to duplicate fd %d", fd);
-                return;
-            }
-
-            qio_channel_set_name(ioc, "migration-fd-incoming");
-            qio_channel_add_watch_full(ioc, G_IO_IN,
-                                       fd_accept_incoming_migration,
-                                       NULL, NULL,
-                                       g_main_context_get_thread_default());
+        if (fd_is_socket(fd)) {
+            error_setg(errp,
+                       "Multifd migration to a socket FD is not supported");
+            object_unref(ioc);
+            return;
         }
+
+        file_create_incoming_channels(ioc, errp);
+    } else {
+        qio_channel_set_name(ioc, "migration-fd-incoming");
+        qio_channel_add_watch_full(ioc, G_IO_IN,
+                                   fd_accept_incoming_migration,
+                                   NULL, NULL,
+                                   g_main_context_get_thread_default());
     }
 }
