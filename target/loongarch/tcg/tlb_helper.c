@@ -17,6 +17,34 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 
+static void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
+                               uint64_t *dir_width, target_ulong level)
+{
+    switch (level) {
+    case 1:
+        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
+        break;
+    case 2:
+        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
+        break;
+    case 3:
+        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
+        break;
+    case 4:
+        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_BASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
+        break;
+    default:
+        /* level may be zero for ldpte */
+        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
+        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+        break;
+    }
+}
+
 static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
                                 MMUAccessType access_type, int tlb_error)
 {
@@ -485,7 +513,25 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     target_ulong badvaddr, index, phys, ret;
     int shift;
     uint64_t dir_base, dir_width;
-    bool huge = (base >> LOONGARCH_PAGE_HUGE_SHIFT) & 0x1;
+
+    if (unlikely((level == 0) || (level > 4))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Attepted LDDIR with level %"PRId64"\n", level);
+        return base;
+    }
+
+    if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+        if (unlikely(level == 4)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Attempted use of level 4 huge page\n");
+        }
+
+        if (FIELD_EX64(base, TLBENTRY, LEVEL)) {
+            return base;
+        } else {
+            return FIELD_DP64(base, TLBENTRY, LEVEL, level);
+        }
+    }
 
     badvaddr = env->CSR_TLBRBADV;
     base = base & TARGET_PHYS_MASK;
@@ -494,30 +540,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
     shift = (shift + 1) * 3;
 
-    if (huge) {
-        return base;
-    }
-    switch (level) {
-    case 1:
-        dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
-        break;
-    case 2:
-        dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
-        break;
-    case 3:
-        dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
-        break;
-    case 4:
-        dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_BASE);
-        dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
-        break;
-    default:
-        do_raise_exception(env, EXCCODE_INE, GETPC());
-        return 0;
-    }
+    get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << shift;
     ret = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
@@ -530,20 +553,42 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     CPUState *cs = env_cpu(env);
     target_ulong phys, tmp0, ptindex, ptoffset0, ptoffset1, ps, badv;
     int shift;
-    bool huge = (base >> LOONGARCH_PAGE_HUGE_SHIFT) & 0x1;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+    uint64_t dir_base, dir_width;
 
+    /*
+     * The parameter "base" has only two types,
+     * one is the page table base address,
+     * whose bit 6 should be 0,
+     * and the other is the huge page entry,
+     * whose bit 6 should be 1.
+     */
     base = base & TARGET_PHYS_MASK;
+    if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+        /*
+         * Gets the huge page level and Gets huge page size.
+         * Clears the huge page level information in the entry.
+         * Clears huge page bit.
+         * Move HGLOBAL bit to GLOBAL bit.
+         */
+        get_dir_base_width(env, &dir_base, &dir_width,
+                           FIELD_EX64(base, TLBENTRY, LEVEL));
 
-    if (huge) {
-        /* Huge Page. base is paddr */
-        tmp0 = base ^ (1 << LOONGARCH_PAGE_HUGE_SHIFT);
-        /* Move Global bit */
-        tmp0 = ((tmp0 & (1 << LOONGARCH_HGLOBAL_SHIFT))  >>
-                LOONGARCH_HGLOBAL_SHIFT) << R_TLBENTRY_G_SHIFT |
-                (tmp0 & (~(1 << LOONGARCH_HGLOBAL_SHIFT)));
-        ps = ptbase + ptwidth - 1;
+        base = FIELD_DP64(base, TLBENTRY, LEVEL, 0);
+        base = FIELD_DP64(base, TLBENTRY, HUGE, 0);
+        if (FIELD_EX64(base, TLBENTRY, HGLOBAL)) {
+            base = FIELD_DP64(base, TLBENTRY, HGLOBAL, 0);
+            base = FIELD_DP64(base, TLBENTRY, G, 1);
+        }
+
+        ps = dir_base + dir_width - 1;
+        /*
+         * Huge pages are evenly split into parity pages
+         * when loaded into the tlb,
+         * so the tlb page size needs to be divided by 2.
+         */
+        tmp0 = base;
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
         }
