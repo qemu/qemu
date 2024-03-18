@@ -37,8 +37,8 @@ Offset          Length          File
 0x7ffe0000      0x20000         TEST_DIR/t.IMGFMT.itmd
 0x83400000      0x200           TEST_DIR/t.IMGFMT.itmd
 Snapshot list:
-ID        TAG
-1         snap
+ID      TAG
+1       snap
 
 === Test pass snapshot.1 ===
 
@@ -78,8 +78,8 @@ Offset          Length          File
 0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
 0x83400000      0x200           TEST_DIR/t.IMGFMT
 Snapshot list:
-ID        TAG
-1         snap
+ID      TAG
+1       snap
 
 === Test pass snapshot.2 ===
 
@@ -119,8 +119,8 @@ Offset          Length          File
 0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
 0x83400000      0x200           TEST_DIR/t.IMGFMT
 Snapshot list:
-ID        TAG
-1         snap
+ID      TAG
+1       snap
 
 === Test pass snapshot.3 ===
 
@@ -157,8 +157,8 @@ Offset          Length          File
 0x7fff0000      0x10000         TEST_DIR/t.IMGFMT
 0x83400000      0x200           TEST_DIR/t.IMGFMT
 Snapshot list:
-ID        TAG
-1         snap
+ID      TAG
+1       snap
 
 === Test pass bitmap.0 ===
 

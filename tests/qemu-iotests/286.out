@@ -4,5 +4,5 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
 (qemu) quit
 Output structure:
-(snapshot ID) (snapshot name) (VM state size value) (VM state size unit) (snapshot date) (snapshot time) (VM clock)
+(snapshot ID) (snapshot name) (VM state size value) (VM state size unit) (snapshot date) (snapshot time) (VM clock) (icount)
 *** done

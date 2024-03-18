@@ -14,8 +14,8 @@ wrote 524288/524288 bytes at offset 0
 (qemu) quit
 
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 No errors were found on the image.
 
 === Verify that loading the snapshot reverts to the old content ===
@@ -47,9 +47,9 @@ read 64512/64512 bytes at offset 66560
 (qemu) quit
 
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
-2         snap1                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
+2       snap1                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 No errors were found on the image.
 
 === qemu-img snapshot can revert to snapshots ===
@@ -79,8 +79,8 @@ read 64512/64512 bytes at offset 66560
 (qemu) quit
 
 Snapshot list:
-ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
-1         snap0                SIZE yyyy-mm-dd hh:mm:ss 00:00:00.000
+ID      TAG               VM_SIZE                DATE        VM_CLOCK     ICOUNT
+1       snap0                SIZE yyyy-mm-dd hh:mm:ss  0000:00:00.000         --
 No errors were found on the image.
 
 === Error cases ===

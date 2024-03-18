@@ -1,0 +1,19 @@
+Preparing disk...
+Launching VM...
+Exporting to NBD...
+{"return": {}}
+{"return": {}}
+Connecting qemu-img...
+Moving the NBD export to a different iothread...
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+Checking that it is still alive...
+{"return": {"running": true, "status": "running"}}

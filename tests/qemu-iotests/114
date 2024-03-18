@@ -38,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2
-_supported_proto generic
+_supported_proto file
 # At least OpenBSD doesn't seem to have truncate
 _supported_os Linux
 # qcow2.py does not work too well with external data files

@@ -34,6 +34,8 @@ _cleanup()
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
+IMGOPTSSYNTAX=true
+
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
@@ -73,7 +75,7 @@ echo "testing LUKS qcow2 encryption"
 echo
 
 _make_test_img --object $SECRET -o "encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10,cluster_size=64K" $size
-_run_test "driver=$IMGFMT,encrypt.key-secret=sec0,file.filename=$TEST_IMG"
+_run_test "$TEST_IMG,encrypt.key-secret=sec0"
 _cleanup_test_img
 
 echo
@@ -82,7 +84,7 @@ echo
 
 
 _make_test_img --object $SECRET -o "encrypt.format=aes,encrypt.key-secret=sec0,cluster_size=64K" $size
-_run_test "driver=$IMGFMT,encrypt.key-secret=sec0,file.filename=$TEST_IMG"
+_run_test "$TEST_IMG,encrypt.key-secret=sec0"
 _cleanup_test_img
 
 
