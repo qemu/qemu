@@ -496,9 +496,9 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
         s->max_size <= 0) {
         return TRUE;
     }
-    len = tcp_chr_read_poll(opaque);
-    if (len > sizeof(buf)) {
-        len = sizeof(buf);
+    len = sizeof(buf);
+    if (len > s->max_size) {
+        len = s->max_size;
     }
     size = tcp_chr_recv(chr, (void *)buf, len);
     if (size == 0 || (size == -1 && errno != EAGAIN)) {
