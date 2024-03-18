@@ -2653,7 +2653,7 @@ static void qemu_create_cli_devices(void)
     rom_reset_order_override();
 }
 
-static void qemu_machine_creation_done(void)
+static bool qemu_machine_creation_done(Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
 
@@ -2684,7 +2684,8 @@ static void qemu_machine_creation_done(void)
     }
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
-        exit(1);
+        error_setg(errp, "could not start gdbserver");
+        return false;
     }
     if (!vga_interface_created && !default_vga &&
         vga_interface_type != VGA_NONE) {
@@ -2692,6 +2693,7 @@ static void qemu_machine_creation_done(void)
                     "type does not use that option; "
                     "No VGA device has been created");
     }
+    return true;
 }
 
 void qmp_x_exit_preconfig(Error **errp)
@@ -2703,7 +2705,9 @@ void qmp_x_exit_preconfig(Error **errp)
 
     qemu_init_board();
     qemu_create_cli_devices();
-    qemu_machine_creation_done();
+    if (!qemu_machine_creation_done(errp)) {
+        return;
+    }
 
     if (loadvm) {
         RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
