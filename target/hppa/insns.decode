@@ -144,9 +144,9 @@ getshadowregs   1111 1111 1111 1101 1110 1010 1101 0010
 nop             000001 ----- ----- -- 11001010 0 -----         # fdc, disp
 nop_addrx       000001 ..... ..... -- 01001010 . -----  @addrx # fdc, index
 nop_addrx       000001 ..... ..... -- 01001011 . -----  @addrx # fdce
-nop_addrx       000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
-nop_addrx       000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
-nop_addrx       000001 ..... ..... --- 0001011 . -----  @addrx # fice
+fic             000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
+fic             000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
+fic             000001 ..... ..... --- 0001011 . -----  @addrx # fice
 nop_addrx       000001 ..... ..... -- 01001110 . 00000  @addrx # pdc
 
 probe           000001 b:5 ri:5 sp:2 imm:1 100011 write:1 0 t:5

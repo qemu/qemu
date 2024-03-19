@@ -2337,6 +2337,13 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
     return true;
 }
 
+static bool trans_fic(DisasContext *ctx, arg_ldst *a)
+{
+    /* End TB for flush instruction cache, so we pick up new insns. */
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    return trans_nop_addrx(ctx, a);
+}
+
 static bool trans_probe(DisasContext *ctx, arg_probe *a)
 {
     TCGv_i64 dest, ofs;
