@@ -300,8 +300,8 @@ static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
 
         if (nlb & mask) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                "%s: misaligned page dir/table base: 0x"TARGET_FMT_lx
-                " page dir size: 0x"TARGET_FMT_lx"\n",
+                "%s: misaligned page dir/table base: 0x%" PRIx64
+                " page dir size: 0x%" PRIx64 "\n",
                 __func__, nlb, mask + 1);
             nlb &= ~mask;
         }
@@ -324,8 +324,8 @@ static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
 
     if (base_addr & mask) {
         qemu_log_mask(LOG_GUEST_ERROR,
-            "%s: misaligned page dir base: 0x"TARGET_FMT_lx
-            " page dir size: 0x"TARGET_FMT_lx"\n",
+            "%s: misaligned page dir base: 0x%" PRIx64
+            " page dir size: 0x%" PRIx64 "\n",
             __func__, base_addr, mask + 1);
         base_addr &= ~mask;
     }
