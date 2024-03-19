@@ -15,42 +15,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "channel.h"
 #include "fd.h"
 #include "file.h"
 #include "migration.h"
 #include "monitor/monitor.h"
-#include "io/channel-file.h"
-#include "io/channel-socket.h"
 #include "io/channel-util.h"
-#include "options.h"
 #include "trace.h"
 
-
-static struct FdOutgoingArgs {
-    int fd;
-} outgoing_args;
-
-int fd_args_get_fd(void)
-{
-    return outgoing_args.fd;
-}
-
-void fd_cleanup_outgoing_migration(void)
-{
-    if (outgoing_args.fd > 0) {
-        close(outgoing_args.fd);
-        outgoing_args.fd = -1;
-    }
-}
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
-    int newfd;
-
     if (fd == -1) {
         return;
     }
@@ -61,18 +38,6 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         close(fd);
         return;
     }
-
-    /*
-     * This is dup()ed just to avoid referencing an fd that might
-     * be already closed by the iochannel.
-     */
-    newfd = dup(fd);
-    if (newfd == -1) {
-        error_setg_errno(errp, errno, "Could not dup FD %d", fd);
-        object_unref(ioc);
-        return;
-    }
-    outgoing_args.fd = newfd;
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
     migration_channel_connect(s, ioc, NULL, NULL);
@@ -104,20 +69,9 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
         return;
     }
 
-    if (migrate_multifd()) {
-        if (fd_is_socket(fd)) {
-            error_setg(errp,
-                       "Multifd migration to a socket FD is not supported");
-            object_unref(ioc);
-            return;
-        }
-
-        file_create_incoming_channels(ioc, errp);
-    } else {
-        qio_channel_set_name(ioc, "migration-fd-incoming");
-        qio_channel_add_watch_full(ioc, G_IO_IN,
-                                   fd_accept_incoming_migration,
-                                   NULL, NULL,
-                                   g_main_context_get_thread_default());
-    }
+    qio_channel_set_name(ioc, "migration-fd-incoming");
+    qio_channel_add_watch_full(ioc, G_IO_IN,
+                               fd_accept_incoming_migration,
+                               NULL, NULL,
+                               g_main_context_get_thread_default());
 }
