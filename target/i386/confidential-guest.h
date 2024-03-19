@@ -36,5 +36,24 @@ struct X86ConfidentialGuest {
 struct X86ConfidentialGuestClass {
     /* <private> */
     ConfidentialGuestSupportClass parent;
+
+    /* <public> */
+    int (*kvm_type)(X86ConfidentialGuest *cg);
 };
+
+/**
+ * x86_confidential_guest_kvm_type:
+ *
+ * Calls #X86ConfidentialGuestClass.unplug callback of @plug_handler.
+ */
+static inline int x86_confidential_guest_kvm_type(X86ConfidentialGuest *cg)
+{
+    X86ConfidentialGuestClass *klass = X86_CONFIDENTIAL_GUEST_GET_CLASS(cg);
+
+    if (klass->kvm_type) {
+        return klass->kvm_type(cg);
+    } else {
+        return 0;
+    }
+}
 #endif

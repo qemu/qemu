@@ -31,6 +31,7 @@
 #include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
 #include "kvm_i386.h"
+#include "../confidential-guest.h"
 #include "sev.h"
 #include "xen-emu.h"
 #include "hyperv.h"
@@ -160,6 +161,49 @@ static KVMMSRHandlers msr_handlers[KVM_MSR_FILTER_MAX_RANGES];
 #define BUS_LOCK_SLICE_TIME 1000000000ULL /* ns */
 static RateLimit bus_lock_ratelimit_ctrl;
 static int kvm_get_one_msr(X86CPU *cpu, int index, uint64_t *value);
+
+static const char *vm_type_name[] = {
+    [KVM_X86_DEFAULT_VM] = "default",
+};
+
+bool kvm_is_vm_type_supported(int type)
+{
+    uint32_t machine_types;
+
+    /*
+     * old KVM doesn't support KVM_CAP_VM_TYPES but KVM_X86_DEFAULT_VM
+     * is always supported
+     */
+    if (type == KVM_X86_DEFAULT_VM) {
+        return true;
+    }
+
+    machine_types = kvm_check_extension(KVM_STATE(current_machine->accelerator),
+                                        KVM_CAP_VM_TYPES);
+    return !!(machine_types & BIT(type));
+}
+
+int kvm_get_vm_type(MachineState *ms)
+{
+    int kvm_type = KVM_X86_DEFAULT_VM;
+
+    if (ms->cgs) {
+        if (!object_dynamic_cast(OBJECT(ms->cgs), TYPE_X86_CONFIDENTIAL_GUEST)) {
+            error_report("configuration type %s not supported for x86 guests",
+                         object_get_typename(OBJECT(ms->cgs)));
+            exit(1);
+        }
+        kvm_type = x86_confidential_guest_kvm_type(
+            X86_CONFIDENTIAL_GUEST(ms->cgs));
+    }
+
+    if (!kvm_is_vm_type_supported(kvm_type)) {
+        error_report("vm-type %s not supported by KVM", vm_type_name[kvm_type]);
+        exit(1);
+    }
+
+    return kvm_type;
+}
 
 bool kvm_has_smm(void)
 {
