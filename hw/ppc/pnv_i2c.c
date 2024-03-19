@@ -557,6 +557,9 @@ static void pnv_i2c_class_init(ObjectClass *klass, void *data)
 
     xscomc->dt_xscom = pnv_i2c_dt_xscom;
 
+    /* Reason: This device is part of the CPU and cannot be used separately */
+    dc->user_creatable = false;
+
     dc->desc = "PowerNV I2C";
     dc->realize = pnv_i2c_realize;
     device_class_set_props(dc, pnv_i2c_properties);

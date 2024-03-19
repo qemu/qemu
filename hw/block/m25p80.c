@@ -515,7 +515,6 @@ struct M25P80Class {
     FlashPartInfo *pi;
 };
 
-#define TYPE_M25P80 "m25p80-generic"
 OBJECT_DECLARE_TYPE(Flash, M25P80Class, M25P80)
 
 static inline Manufacturer get_man(Flash *s)
