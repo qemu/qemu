@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "crypto/hash.h"
 #include "sysemu/kvm.h"
+#include "kvm/kvm_i386.h"
 #include "sev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
@@ -55,6 +56,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
  */
 struct SevGuestState {
     X86ConfidentialGuest parent_obj;
+
+    int kvm_type;
 
     /* configuration parameters */
     char *sev_device;
@@ -850,6 +853,26 @@ sev_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+static int sev_kvm_type(X86ConfidentialGuest *cg)
+{
+    SevGuestState *sev = SEV_GUEST(cg);
+    int kvm_type;
+
+    if (sev->kvm_type != -1) {
+        goto out;
+    }
+
+    kvm_type = (sev->policy & SEV_POLICY_ES) ? KVM_X86_SEV_ES_VM : KVM_X86_SEV_VM;
+    if (kvm_is_vm_type_supported(kvm_type)) {
+        sev->kvm_type = kvm_type;
+    } else {
+        sev->kvm_type = KVM_X86_DEFAULT_VM;
+    }
+
+out:
+    return sev->kvm_type;
+}
+
 static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     SevGuestState *sev = SEV_GUEST(cgs);
@@ -929,13 +952,19 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
                          __func__);
             goto err;
         }
-        cmd = KVM_SEV_ES_INIT;
-    } else {
-        cmd = KVM_SEV_INIT;
     }
 
     trace_kvm_sev_init();
-    ret = sev_ioctl(sev->sev_fd, cmd, NULL, &fw_error);
+    if (sev_kvm_type(X86_CONFIDENTIAL_GUEST(sev)) == KVM_X86_DEFAULT_VM) {
+        cmd = sev_es_enabled() ? KVM_SEV_ES_INIT : KVM_SEV_INIT;
+
+        ret = sev_ioctl(sev->sev_fd, cmd, NULL, &fw_error);
+    } else {
+        struct kvm_sev_init args = { 0 };
+
+        ret = sev_ioctl(sev->sev_fd, KVM_SEV_INIT2, &args, &fw_error);
+    }
+
     if (ret) {
         error_setg(errp, "%s: failed to initialize ret=%d fw_error=%d '%s'",
                    __func__, ret, fw_error, fw_error_to_str(fw_error));
@@ -1327,8 +1356,10 @@ static void
 sev_guest_class_init(ObjectClass *oc, void *data)
 {
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
+    X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
 
     klass->kvm_init = sev_kvm_init;
+    x86_klass->kvm_type = sev_kvm_type;
 
     object_class_property_add_str(oc, "sev-device",
                                   sev_guest_get_sev_device,
@@ -1356,6 +1387,8 @@ static void
 sev_guest_instance_init(Object *obj)
 {
     SevGuestState *sev = SEV_GUEST(obj);
+
+    sev->kvm_type = -1;
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
