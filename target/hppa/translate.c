@@ -2011,7 +2011,7 @@ static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
     unsigned rt = a->t;
     TCGv_i64 tmp = dest_gpr(ctx, rt);
-    tcg_gen_movi_i64(tmp, ctx->iaoq_f);
+    tcg_gen_movi_i64(tmp, ctx->iaoq_f & ~3ULL);
     save_gpr(ctx, rt, tmp);
 
     cond_free(&ctx->null_cond);
