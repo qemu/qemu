@@ -1345,9 +1345,10 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
              * clear (e.g., see FWNMI in PAPR).
              */
             new_msr |= (target_ulong)MSR_HVB;
+
+            /* HV machine check exceptions don't have ME set */
+            new_msr &= ~((target_ulong)1 << MSR_ME);
         }
-        /* machine check exceptions don't have ME set */
-        new_msr &= ~((target_ulong)1 << MSR_ME);
 
         msr |= env->error_code;
         break;
