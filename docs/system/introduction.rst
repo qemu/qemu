@@ -1,6 +1,8 @@
 Introduction
 ============
 
+.. _Accelerators:
+
 Virtualisation Accelerators
 ---------------------------
 

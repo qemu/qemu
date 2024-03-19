@@ -574,9 +574,10 @@ void sparc_cpu_list(void)
 {
     unsigned int i;
 
+    qemu_printf("Available CPU types:\n");
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
-        qemu_printf("Sparc %16s IU " TARGET_FMT_lx
-                    " FPU %08x MMU %08x NWINS %d ",
+        qemu_printf(" %-20s (IU " TARGET_FMT_lx
+                    " FPU %08x MMU %08x NWINS %d) ",
                     sparc_defs[i].name,
                     sparc_defs[i].iu_version,
                     sparc_defs[i].fpu_version,
