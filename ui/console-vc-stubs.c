@@ -10,7 +10,7 @@
 #include "chardev/char.h"
 #include "ui/console-priv.h"
 
-void qemu_text_console_select(QemuTextConsole *c)
+void qemu_text_console_update_size(QemuTextConsole *c)
 {
 }
 
