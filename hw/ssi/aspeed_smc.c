@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/block/flash.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -695,6 +696,14 @@ static void aspeed_smc_reset(DeviceState *d)
     for (i = 0; i < asc->cs_num_max; i++) {
         DeviceState *dev = ssi_get_cs(s->spi, i);
         if (dev) {
+            Object *o = OBJECT(dev);
+
+            if (!object_dynamic_cast(o, TYPE_M25P80)) {
+                warn_report("Aspeed SMC %s.%d : Invalid %s device type",
+                            BUS(s->spi)->name, i, object_get_typename(o));
+                continue;
+            }
+
             qemu_irq cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
             qdev_connect_gpio_out_named(DEVICE(s), "cs", i, cs_line);
         }

@@ -78,6 +78,8 @@ extern const VMStateDescription vmstate_ecc_state;
 
 /* m25p80.c */
 
+#define TYPE_M25P80 "m25p80-generic"
+
 BlockBackend *m25p80_get_blk(DeviceState *dev);
 
 #endif
