@@ -2727,44 +2727,41 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
  * For every allocation, we will try not to crash the VM if the
  * allocation failed.
  */
-static int xbzrle_init(void)
+static bool xbzrle_init(Error **errp)
 {
-    Error *local_err = NULL;
-
     if (!migrate_xbzrle()) {
-        return 0;
+        return true;
     }
 
     XBZRLE_cache_lock();
 
     XBZRLE.zero_target_page = g_try_malloc0(TARGET_PAGE_SIZE);
     if (!XBZRLE.zero_target_page) {
-        error_report("%s: Error allocating zero page", __func__);
+        error_setg(errp, "%s: Error allocating zero page", __func__);
         goto err_out;
     }
 
     XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
-                              TARGET_PAGE_SIZE, &local_err);
+                              TARGET_PAGE_SIZE, errp);
     if (!XBZRLE.cache) {
-        error_report_err(local_err);
         goto free_zero_page;
     }
 
     XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
     if (!XBZRLE.encoded_buf) {
-        error_report("%s: Error allocating encoded_buf", __func__);
+        error_setg(errp, "%s: Error allocating encoded_buf", __func__);
         goto free_cache;
     }
 
     XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
     if (!XBZRLE.current_buf) {
-        error_report("%s: Error allocating current_buf", __func__);
+        error_setg(errp, "%s: Error allocating current_buf", __func__);
         goto free_encoded_buf;
     }
 
     /* We are all good */
     XBZRLE_cache_unlock();
-    return 0;
+    return true;
 
 free_encoded_buf:
     g_free(XBZRLE.encoded_buf);
@@ -2777,7 +2774,7 @@ free_zero_page:
     XBZRLE.zero_target_page = NULL;
 err_out:
     XBZRLE_cache_unlock();
-    return -ENOMEM;
+    return false;
 }
 
 static bool ram_state_init(RAMState **rsp, Error **errp)
@@ -2904,7 +2901,8 @@ static int ram_init_all(RAMState **rsp)
         return -1;
     }
 
-    if (xbzrle_init()) {
+    if (!xbzrle_init(&local_err)) {
+        error_report_err(local_err);
         ram_state_cleanup(rsp);
         return -1;
     }
