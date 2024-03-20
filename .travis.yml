@@ -12,8 +12,6 @@ cache:
   timeout: 1200
   ccache: true
   pip: true
-  directories:
-  - $HOME/avocado/data/cache
 
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
