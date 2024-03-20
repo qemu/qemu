@@ -187,6 +187,7 @@ clean:
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C edk2/BaseTools clean
+	rm -rf edk2/Conf/{.cache,BuildEnv.sh,build_rule.txt,target.txt,tools_def.txt}
 	$(MAKE) -C SLOF clean
 	rm -rf u-boot/build-e500
 	$(MAKE) -C u-boot-sam460ex distclean
