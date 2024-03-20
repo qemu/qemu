@@ -39,7 +39,7 @@ struct S390StAttribClass {
     int (*set_stattr)(S390StAttribState *sa, uint64_t start_gfn,
                       uint32_t count, uint8_t *values);
     void (*synchronize)(S390StAttribState *sa);
-    int (*set_migrationmode)(S390StAttribState *sa, bool value);
+    int (*set_migrationmode)(S390StAttribState *sa, bool value, Error **errp);
     int (*get_active)(S390StAttribState *sa);
     long long (*get_dirtycount)(S390StAttribState *sa);
 };
