@@ -113,8 +113,9 @@ jobs:
         - CONFIG="--disable-containers --enable-fdt=system
                   --target-list=${MAIN_SYSTEM_TARGETS} --cxx=/bin/false"
 
-    - name: "[ppc64] GCC check-tcg"
+    - name: "[ppc64] Clang check-tcg"
       arch: ppc64le
+      compiler: clang
       addons:
         apt_packages:
           - libaio-dev
@@ -190,8 +191,9 @@ jobs:
               $(exit $BUILD_RC);
           fi
 
-    - name: "[s390x] GCC (other-system)"
+    - name: "[s390x] Clang (other-system)"
       arch: s390x
+      compiler: clang
       addons:
         apt_packages:
           - libaio-dev
