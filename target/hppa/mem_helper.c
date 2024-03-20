@@ -152,6 +152,49 @@ static HPPATLBEntry *hppa_alloc_tlb_ent(CPUHPPAState *env)
     return ent;
 }
 
+#define ACCESS_ID_MASK 0xffff
+
+/* Return the set of protections allowed by a PID match. */
+static int match_prot_id_1(uint32_t access_id, uint32_t prot_id)
+{
+    if (((access_id ^ (prot_id >> 1)) & ACCESS_ID_MASK) == 0) {
+        return (prot_id & 1
+                ? PAGE_EXEC | PAGE_READ
+                : PAGE_EXEC | PAGE_READ | PAGE_WRITE);
+    }
+    return 0;
+}
+
+static int match_prot_id32(CPUHPPAState *env, uint32_t access_id)
+{
+    int r, i;
+
+    for (i = CR_PID1; i <= CR_PID4; ++i) {
+        r = match_prot_id_1(access_id, env->cr[i]);
+        if (r) {
+            return r;
+        }
+    }
+    return 0;
+}
+
+static int match_prot_id64(CPUHPPAState *env, uint32_t access_id)
+{
+    int r, i;
+
+    for (i = CR_PID1; i <= CR_PID4; ++i) {
+        r = match_prot_id_1(access_id, env->cr[i]);
+        if (r) {
+            return r;
+        }
+        r = match_prot_id_1(access_id, env->cr[i] >> 32);
+        if (r) {
+            return r;
+        }
+    }
+    return 0;
+}
+
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot,
                               HPPATLBEntry **tlb_entry)
@@ -224,29 +267,30 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         break;
     }
 
-    /* access_id == 0 means public page and no check is performed */
-    if (ent->access_id && MMU_IDX_TO_P(mmu_idx)) {
-        /* If bits [31:1] match, and bit 0 is set, suppress write.  */
-        int match = ent->access_id * 2 + 1;
-
-        if (match == env->cr[CR_PID1] || match == env->cr[CR_PID2] ||
-            match == env->cr[CR_PID3] || match == env->cr[CR_PID4]) {
-            prot &= PAGE_READ | PAGE_EXEC;
-            if (type == PAGE_WRITE) {
-                ret = EXCP_DMPI;
-                goto egress;
-            }
-        }
-    }
-
-    /* No guest access type indicates a non-architectural access from
-       within QEMU.  Bypass checks for access, D, B and T bits.  */
+    /*
+     * No guest access type indicates a non-architectural access from
+     * within QEMU.  Bypass checks for access, D, B, P and T bits.
+     */
     if (type == 0) {
         goto egress;
     }
 
+    /* access_id == 0 means public page and no check is performed */
+    if (ent->access_id && MMU_IDX_TO_P(mmu_idx)) {
+        int access_prot = (hppa_is_pa20(env)
+                           ? match_prot_id64(env, ent->access_id)
+                           : match_prot_id32(env, ent->access_id));
+        if (unlikely(!(type & access_prot))) {
+            /* Not allowed -- Inst/Data Memory Protection Id Fault. */
+            ret = type & PAGE_EXEC ? EXCP_IMP : EXCP_DMPI;
+            goto egress;
+        }
+        /* Otherwise exclude permissions not allowed (i.e WD). */
+        prot &= access_prot;
+    }
+
     if (unlikely(!(prot & type))) {
-        /* The access isn't allowed -- Inst/Data Memory Protection Fault.  */
+        /* Not allowed -- Inst/Data Memory Access Rights Fault. */
         ret = (type & PAGE_EXEC) ? EXCP_IMP : EXCP_DMAR;
         goto egress;
     }

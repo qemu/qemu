@@ -24,16 +24,17 @@
 %assemble_sr3   13:1 14:2
 %assemble_sr3x  13:1 14:2 !function=expand_sr3x
 
-%assemble_11a   0:s1 4:10            !function=expand_shl3
+%assemble_11a   4:12 0:1             !function=expand_11a
 %assemble_12    0:s1 2:1 3:10        !function=expand_shl2
-%assemble_12a   0:s1 3:11            !function=expand_shl2
+%assemble_12a   3:13 0:1             !function=expand_12a
+%assemble_16    0:16                 !function=expand_16
 %assemble_17    0:s1 16:5 2:1 3:10   !function=expand_shl2
 %assemble_22    0:s1 16:10 2:1 3:10  !function=expand_shl2
+%assemble_sp    14:2                 !function=sp0_if_wide
 
 %assemble_21    0:s1 1:11 14:2 16:5 12:2  !function=expand_shl11
 
 %lowsign_11     0:s1 1:10
-%lowsign_14     0:s1 1:13
 
 %sm_imm         16:10 !function=expand_sm_imm
 
@@ -143,9 +144,9 @@ getshadowregs   1111 1111 1111 1101 1110 1010 1101 0010
 nop             000001 ----- ----- -- 11001010 0 -----         # fdc, disp
 nop_addrx       000001 ..... ..... -- 01001010 . -----  @addrx # fdc, index
 nop_addrx       000001 ..... ..... -- 01001011 . -----  @addrx # fdce
-nop_addrx       000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
-nop_addrx       000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
-nop_addrx       000001 ..... ..... --- 0001011 . -----  @addrx # fice
+fic             000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
+fic             000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
+fic             000001 ..... ..... --- 0001011 . -----  @addrx # fice
 nop_addrx       000001 ..... ..... -- 01001110 . 00000  @addrx # pdc
 
 probe           000001 b:5 ri:5 sp:2 imm:1 100011 write:1 0 t:5
@@ -221,7 +222,7 @@ sub_b_tsv       000010 ..... ..... .... 110100 . .....  @rrr_cf_d
 
 ldil            001000 t:5 .....................        i=%assemble_21
 addil           001010 r:5 .....................        i=%assemble_21
-ldo             001101 b:5 t:5 -- ..............        i=%lowsign_14
+ldo             001101 b:5 t:5  ................        i=%assemble_16
 
 addi            101101 ..... ..... .... 0 ...........   @rri_cf
 addi_tsv        101101 ..... ..... .... 1 ...........   @rri_cf
@@ -304,14 +305,18 @@ fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
 # Offset Mem
 ####
 
-@ldstim11       ...... b:5 t:5 sp:2 ..............      \
-                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
-@ldstim14       ...... b:5 t:5 sp:2 ..............      \
-                &ldst disp=%lowsign_14 x=0 scale=0 m=0
-@ldstim14m      ...... b:5 t:5 sp:2 ..............      \
-                &ldst disp=%lowsign_14 x=0 scale=0 m=%neg_to_m
-@ldstim12m      ...... b:5 t:5 sp:2 ..............      \
-                &ldst disp=%assemble_12a x=0 scale=0 m=%pos_to_m
+@ldstim11       ...... b:5 t:5 ................          \
+                &ldst sp=%assemble_sp disp=%assemble_11a \
+                m=%ma2_to_m x=0 scale=0 size=3
+@ldstim14       ...... b:5 t:5 ................          \
+                &ldst sp=%assemble_sp disp=%assemble_16  \
+                x=0 scale=0 m=0
+@ldstim14m      ...... b:5 t:5 ................          \
+                &ldst sp=%assemble_sp disp=%assemble_16  \
+                x=0 scale=0 m=%neg_to_m
+@ldstim12m      ...... b:5 t:5 ................          \
+                &ldst sp=%assemble_sp disp=%assemble_12a \
+                x=0 scale=0 m=%pos_to_m
 
 # LDB, LDH, LDW, LDWM
 ld              010000 ..... ..... .. ..............    @ldstim14  size=0
@@ -327,15 +332,19 @@ st              011010 ..... ..... .. ..............    @ldstim14  size=2
 st              011011 ..... ..... .. ..............    @ldstim14m size=2
 st              011111 ..... ..... .. ...........10.    @ldstim12m size=2
 
-fldw            010110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
-fldw            010111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+fldw            010110 b:5 ..... ................        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fldw            010111 b:5 ..... .............0..        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=0 x=0 scale=0 size=2
 
-fstw            011110 b:5 ..... sp:2 ..............    \
-                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
-fstw            011111 b:5 ..... sp:2 ...........0..    \
-                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+fstw            011110 b:5 ..... ................        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fstw            011111 b:5 ..... .............0..        \
+                &ldst disp=%assemble_12a sp=%assemble_sp \
+                t=%rm64 m=0 x=0 scale=0 size=2
 
 ld              010100 ..... ..... .. ............0.    @ldstim11
 fldd            010100 ..... ..... .. ............1.    @ldstim11

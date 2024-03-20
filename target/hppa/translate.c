@@ -121,12 +121,6 @@ static int expand_shl2(DisasContext *ctx, int val)
     return val << 2;
 }
 
-/* Used for fp memory ops.  */
-static int expand_shl3(DisasContext *ctx, int val)
-{
-    return val << 3;
-}
-
 /* Used for assemble_21.  */
 static int expand_shl11(DisasContext *ctx, int val)
 {
@@ -142,6 +136,62 @@ static int assemble_6(DisasContext *ctx, int val)
      * with the overflow from bit 4 summing with x.
      */
     return (val ^ 31) + 1;
+}
+
+/* Expander for assemble_16a(s,cat(im10a,0),i). */
+static int expand_11a(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bit 0 and bits [4:15].
+     * Swizzle thing around depending on PSW.W.
+     */
+    int im10a = extract32(val, 1, 10);
+    int s = extract32(val, 11, 2);
+    int i = (-(val & 1) << 13) | (im10a << 3);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
+}
+
+/* Expander for assemble_16a(s,im11a,i). */
+static int expand_12a(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bit 0 and bits [3:15].
+     * Swizzle thing around depending on PSW.W.
+     */
+    int im11a = extract32(val, 1, 11);
+    int s = extract32(val, 12, 2);
+    int i = (-(val & 1) << 13) | (im11a << 2);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
+}
+
+/* Expander for assemble_16(s,im14). */
+static int expand_16(DisasContext *ctx, int val)
+{
+    /*
+     * @val is bits [0:15], containing both im14 and s.
+     * Swizzle thing around depending on PSW.W.
+     */
+    int s = extract32(val, 14, 2);
+    int i = (-(val & 1) << 13) | extract32(val, 1, 13);
+
+    if (ctx->tb_flags & PSW_W) {
+        i ^= s << 13;
+    }
+    return i;
+}
+
+/* The sp field is only present with !PSW_W. */
+static int sp0_if_wide(DisasContext *ctx, int sp)
+{
+    return ctx->tb_flags & PSW_W ? 0 : sp;
 }
 
 /* Translate CMPI doubleword conditions to standard. */
@@ -1961,7 +2011,7 @@ static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
     unsigned rt = a->t;
     TCGv_i64 tmp = dest_gpr(ctx, rt);
-    tcg_gen_movi_i64(tmp, ctx->iaoq_f);
+    tcg_gen_movi_i64(tmp, ctx->iaoq_f & ~3ULL);
     save_gpr(ctx, rt, tmp);
 
     cond_free(&ctx->null_cond);
@@ -2291,6 +2341,13 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
     }
     cond_free(&ctx->null_cond);
     return true;
+}
+
+static bool trans_fic(DisasContext *ctx, arg_ldst *a)
+{
+    /* End TB for flush instruction cache, so we pick up new insns. */
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    return trans_nop_addrx(ctx, a);
 }
 
 static bool trans_probe(DisasContext *ctx, arg_probe *a)
@@ -3085,7 +3142,7 @@ static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
         dest = dest_gpr(ctx, a->t);
     }
 
-    form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? a->size : 0,
+    form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? 3 : 0,
              a->disp, a->sp, a->m, MMU_DISABLED(ctx));
 
     /*
@@ -3462,7 +3519,7 @@ static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
@@ -3505,7 +3562,7 @@ static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, false, dest);
+        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     }
     return nullify_end(ctx);
 }
