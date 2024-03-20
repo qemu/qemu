@@ -662,9 +662,10 @@ static bool gen_illegal(DisasContext *ctx)
     } while (0)
 #endif
 
-static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+static bool use_goto_tb(DisasContext *ctx, uint64_t bofs, uint64_t nofs)
 {
-    return translator_use_goto_tb(&ctx->base, dest);
+    return (bofs != -1 && nofs != -1 &&
+            translator_use_goto_tb(&ctx->base, bofs));
 }
 
 /* If the next insn is to be nullified, and it's on the same page,
@@ -678,16 +679,16 @@ static bool use_nullify_skip(DisasContext *ctx)
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
-                        uint64_t f, uint64_t b)
+                        uint64_t b, uint64_t n)
 {
-    if (f != -1 && b != -1 && use_goto_tb(ctx, f)) {
+    if (use_goto_tb(ctx, b, n)) {
         tcg_gen_goto_tb(which);
-        copy_iaoq_entry(ctx, cpu_iaoq_f, f, NULL);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, b, NULL);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, b, NULL);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, n, NULL);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        copy_iaoq_entry(ctx, cpu_iaoq_f, f, cpu_iaoq_b);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, b, ctx->iaoq_n_var);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, b, cpu_iaoq_b);
+        copy_iaoq_entry(ctx, cpu_iaoq_b, n, ctx->iaoq_n_var);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -4744,8 +4745,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     /* Advance the insn queue.  Note that this check also detects
        a priority change within the instruction queue.  */
     if (ret == DISAS_NEXT && ctx->iaoq_b != ctx->iaoq_f + 4) {
-        if (ctx->iaoq_b != -1 && ctx->iaoq_n != -1
-            && use_goto_tb(ctx, ctx->iaoq_b)
+        if (use_goto_tb(ctx, ctx->iaoq_b, ctx->iaoq_n)
             && (ctx->null_cond.c == TCG_COND_NEVER
                 || ctx->null_cond.c == TCG_COND_ALWAYS)) {
             nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
