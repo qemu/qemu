@@ -381,6 +381,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
     uint64_t stop_copy_size = VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE;
+    int ret;
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
 
@@ -395,13 +396,13 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
     }
 
     if (vfio_precopy_supported(vbasedev)) {
-        int ret;
-
         switch (migration->device_state) {
         case VFIO_DEVICE_STATE_RUNNING:
             ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_PRE_COPY,
                                            VFIO_DEVICE_STATE_RUNNING);
             if (ret) {
+                error_report("%s: Failed to set new PRE_COPY state",
+                             vbasedev->name);
                 return ret;
             }
 
@@ -412,6 +413,8 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
             /* vfio_save_complete_precopy() will go to STOP_COPY */
             break;
         default:
+            error_report("%s: Invalid device state %d", vbasedev->name,
+                         migration->device_state);
             return -EINVAL;
         }
     }
@@ -420,7 +423,13 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
 
-    return qemu_file_get_error(f);
+    ret = qemu_file_get_error(f);
+    if (ret < 0) {
+        error_report("%s: save setup failed : %s", vbasedev->name,
+                     strerror(-ret));
+    }
+
+    return ret;
 }
 
 static void vfio_save_cleanup(void *opaque)
