@@ -167,9 +167,9 @@ static gint cmp_exec_count(gconstpointer a, gconstpointer b)
 static void free_record(gpointer data)
 {
     InsnExecCount *rec = (InsnExecCount *) data;
+    qemu_plugin_scoreboard_free(rec->count.score);
     g_free(rec->insn);
     g_free(rec);
-    qemu_plugin_scoreboard_free(rec->count.score);
 }
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
