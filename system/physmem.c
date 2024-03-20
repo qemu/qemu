@@ -1846,6 +1846,13 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         assert(kvm_enabled());
         assert(new_block->guest_memfd < 0);
 
+        if (ram_block_discard_require(true) < 0) {
+            error_setg_errno(errp, errno,
+                             "cannot set up private guest memory: discard currently blocked");
+            error_append_hint(errp, "Are you using assigned devices?\n");
+            goto out_free;
+        }
+
         new_block->guest_memfd = kvm_create_guest_memfd(new_block->max_length,
                                                         0, errp);
         if (new_block->guest_memfd < 0) {
@@ -2109,6 +2116,7 @@ static void reclaim_ramblock(RAMBlock *block)
 
     if (block->guest_memfd >= 0) {
         close(block->guest_memfd);
+        ram_block_discard_require(false);
     }
 
     g_free(block);
