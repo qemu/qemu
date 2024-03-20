@@ -2438,10 +2438,23 @@ static void xbzrle_cleanup(void)
     XBZRLE_cache_unlock();
 }
 
+static void ram_bitmaps_destroy(void)
+{
+    RAMBlock *block;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        g_free(block->clear_bmap);
+        block->clear_bmap = NULL;
+        g_free(block->bmap);
+        block->bmap = NULL;
+        g_free(block->file_bmap);
+        block->file_bmap = NULL;
+    }
+}
+
 static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
-    RAMBlock *block;
 
     /* We don't use dirty log with background snapshots */
     if (!migrate_background_snapshot()) {
@@ -2458,12 +2471,7 @@ static void ram_save_cleanup(void *opaque)
         }
     }
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        g_free(block->clear_bmap);
-        block->clear_bmap = NULL;
-        g_free(block->bmap);
-        block->bmap = NULL;
-    }
+    ram_bitmaps_destroy();
 
     xbzrle_cleanup();
     compress_threads_save_cleanup();
