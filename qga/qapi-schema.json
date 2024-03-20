@@ -1026,7 +1026,10 @@
 #
 # @used-bytes: file system used bytes (since 3.0)
 #
-# @total-bytes: non-root file system total bytes (since 3.0)
+# @total-bytes: filesystem capacity in bytes for unprivileged users (since 3.0)
+#
+# @total-bytes-privileged: filesystem capacity in bytes for privileged users
+#     (since 9.1)
 #
 # @disk: an array of disk hardware information that the volume lies
 #     on, which may be empty if the disk type is not supported
@@ -1036,7 +1039,7 @@
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
            '*used-bytes': 'uint64', '*total-bytes': 'uint64',
-           'disk': ['GuestDiskAddress']} }
+           '*total-bytes-privileged': 'uint64', 'disk': ['GuestDiskAddress']} }
 
 ##
 # @guest-get-fsinfo:
