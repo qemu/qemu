@@ -20,6 +20,56 @@
 
 #include <gcrypt.h>
 
+static int qcrypto_cipher_alg_to_gcry_alg(QCryptoCipherAlgorithm alg)
+{
+    switch (alg) {
+    case QCRYPTO_CIPHER_ALG_DES:
+        return GCRY_CIPHER_DES;
+    case QCRYPTO_CIPHER_ALG_3DES:
+        return GCRY_CIPHER_3DES;
+    case QCRYPTO_CIPHER_ALG_AES_128:
+        return GCRY_CIPHER_AES128;
+    case QCRYPTO_CIPHER_ALG_AES_192:
+        return GCRY_CIPHER_AES192;
+    case QCRYPTO_CIPHER_ALG_AES_256:
+        return GCRY_CIPHER_AES256;
+    case QCRYPTO_CIPHER_ALG_CAST5_128:
+        return GCRY_CIPHER_CAST5;
+    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+        return GCRY_CIPHER_SERPENT128;
+    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+        return GCRY_CIPHER_SERPENT192;
+    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+        return GCRY_CIPHER_SERPENT256;
+    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
+        return GCRY_CIPHER_TWOFISH128;
+    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+        return GCRY_CIPHER_TWOFISH;
+#ifdef CONFIG_CRYPTO_SM4
+    case QCRYPTO_CIPHER_ALG_SM4:
+        return GCRY_CIPHER_SM4;
+#endif
+    default:
+        return GCRY_CIPHER_NONE;
+    }
+}
+
+static int qcrypto_cipher_mode_to_gcry_mode(QCryptoCipherMode mode)
+{
+    switch (mode) {
+    case QCRYPTO_CIPHER_MODE_ECB:
+        return GCRY_CIPHER_MODE_ECB;
+    case QCRYPTO_CIPHER_MODE_XTS:
+        return GCRY_CIPHER_MODE_XTS;
+    case QCRYPTO_CIPHER_MODE_CBC:
+        return GCRY_CIPHER_MODE_CBC;
+    case QCRYPTO_CIPHER_MODE_CTR:
+        return GCRY_CIPHER_MODE_CTR;
+    default:
+        return GCRY_CIPHER_MODE_NONE;
+    }
+}
+
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
@@ -40,6 +90,11 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
 #endif
         break;
     default:
+        return false;
+    }
+
+    if (gcry_cipher_algo_info(qcrypto_cipher_alg_to_gcry_alg(alg),
+                              GCRYCTL_TEST_ALGO, NULL, NULL) != 0) {
         return false;
     }
 
@@ -188,70 +243,24 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         return NULL;
     }
 
-    switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES:
-        gcryalg = GCRY_CIPHER_DES;
-        break;
-    case QCRYPTO_CIPHER_ALG_3DES:
-        gcryalg = GCRY_CIPHER_3DES;
-        break;
-    case QCRYPTO_CIPHER_ALG_AES_128:
-        gcryalg = GCRY_CIPHER_AES128;
-        break;
-    case QCRYPTO_CIPHER_ALG_AES_192:
-        gcryalg = GCRY_CIPHER_AES192;
-        break;
-    case QCRYPTO_CIPHER_ALG_AES_256:
-        gcryalg = GCRY_CIPHER_AES256;
-        break;
-    case QCRYPTO_CIPHER_ALG_CAST5_128:
-        gcryalg = GCRY_CIPHER_CAST5;
-        break;
-    case QCRYPTO_CIPHER_ALG_SERPENT_128:
-        gcryalg = GCRY_CIPHER_SERPENT128;
-        break;
-    case QCRYPTO_CIPHER_ALG_SERPENT_192:
-        gcryalg = GCRY_CIPHER_SERPENT192;
-        break;
-    case QCRYPTO_CIPHER_ALG_SERPENT_256:
-        gcryalg = GCRY_CIPHER_SERPENT256;
-        break;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
-        gcryalg = GCRY_CIPHER_TWOFISH128;
-        break;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
-        gcryalg = GCRY_CIPHER_TWOFISH;
-        break;
-#ifdef CONFIG_CRYPTO_SM4
-    case QCRYPTO_CIPHER_ALG_SM4:
-        gcryalg = GCRY_CIPHER_SM4;
-        break;
-#endif
-    default:
+    gcryalg = qcrypto_cipher_alg_to_gcry_alg(alg);
+    if (gcryalg == GCRY_CIPHER_NONE) {
         error_setg(errp, "Unsupported cipher algorithm %s",
                    QCryptoCipherAlgorithm_str(alg));
         return NULL;
     }
 
-    drv = &qcrypto_gcrypt_driver;
-    switch (mode) {
-    case QCRYPTO_CIPHER_MODE_ECB:
-        gcrymode = GCRY_CIPHER_MODE_ECB;
-        break;
-    case QCRYPTO_CIPHER_MODE_XTS:
-        gcrymode = GCRY_CIPHER_MODE_XTS;
-        break;
-    case QCRYPTO_CIPHER_MODE_CBC:
-        gcrymode = GCRY_CIPHER_MODE_CBC;
-        break;
-    case QCRYPTO_CIPHER_MODE_CTR:
-        drv = &qcrypto_gcrypt_ctr_driver;
-        gcrymode = GCRY_CIPHER_MODE_CTR;
-        break;
-    default:
+    gcrymode = qcrypto_cipher_mode_to_gcry_mode(mode);
+    if (gcrymode == GCRY_CIPHER_MODE_NONE) {
         error_setg(errp, "Unsupported cipher mode %s",
                    QCryptoCipherMode_str(mode));
         return NULL;
+    }
+
+    if (mode == QCRYPTO_CIPHER_MODE_CTR) {
+        drv = &qcrypto_gcrypt_ctr_driver;
+    } else {
+        drv = &qcrypto_gcrypt_driver;
     }
 
     ctx = g_new0(QCryptoCipherGcrypt, 1);

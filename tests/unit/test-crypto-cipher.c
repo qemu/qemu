@@ -676,9 +676,8 @@ static void test_cipher(const void *opaque)
     cipher = qcrypto_cipher_new(
         data->alg, data->mode,
         key, nkey,
-        &err);
+        data->plaintext ? &error_abort : &err);
     if (data->plaintext) {
-        g_assert(err == NULL);
         g_assert(cipher != NULL);
     } else {
         error_free_or_abort(&err);
@@ -822,6 +821,10 @@ int main(int argc, char **argv)
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
         if (qcrypto_cipher_supports(test_data[i].alg, test_data[i].mode)) {
             g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
+        } else {
+            g_printerr("# skip unsupported %s:%s\n",
+                       QCryptoCipherAlgorithm_str(test_data[i].alg),
+                       QCryptoCipherMode_str(test_data[i].mode));
         }
     }
 
