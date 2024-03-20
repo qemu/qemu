@@ -66,7 +66,6 @@ struct DisplayState {
 };
 
 static DisplayState *display_state;
-static QemuConsole *active_console;
 static QTAILQ_HEAD(, QemuConsole) consoles =
     QTAILQ_HEAD_INITIALIZER(consoles);
 
@@ -135,7 +134,6 @@ void graphic_hw_update_done(QemuConsole *con)
 void graphic_hw_update(QemuConsole *con)
 {
     bool async = false;
-    con = con ? con : active_console;
     if (!con) {
         return;
     }
@@ -209,9 +207,6 @@ void qemu_console_set_window_id(QemuConsole *con, int window_id)
 
 void graphic_hw_invalidate(QemuConsole *con)
 {
-    if (!con) {
-        con = active_console;
-    }
     if (con && con->hw_ops->invalidate) {
         con->hw_ops->invalidate(con->hw);
     }
@@ -219,9 +214,6 @@ void graphic_hw_invalidate(QemuConsole *con)
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
 {
-    if (!con) {
-        con = active_console;
-    }
     if (con && con->hw_ops->text_update) {
         con->hw_ops->text_update(con->hw, chardata);
     }
@@ -265,12 +257,12 @@ static void dpy_gfx_update_texture(QemuConsole *con, DisplaySurface *surface,
 }
 
 static void displaychangelistener_display_console(DisplayChangeListener *dcl,
-                                                  QemuConsole *con,
                                                   Error **errp)
 {
     static const char nodev[] =
         "This VM has no graphic display device.";
     static DisplaySurface *dummy;
+    QemuConsole *con = dcl->con;
 
     if (!con || !console_compatible_with(con, dcl, errp)) {
         if (!dummy) {
@@ -305,39 +297,8 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
     }
 }
 
-void console_select(unsigned int index)
-{
-    DisplayChangeListener *dcl;
-    QemuConsole *s;
-
-    trace_console_select(index);
-    s = qemu_console_lookup_by_index(index);
-    if (s) {
-        DisplayState *ds = s->ds;
-
-        active_console = s;
-        QLIST_FOREACH (dcl, &ds->listeners, next) {
-            if (dcl->con != NULL) {
-                continue;
-            }
-            displaychangelistener_display_console(dcl, s, NULL);
-        }
-
-        if (QEMU_IS_TEXT_CONSOLE(s)) {
-            qemu_text_console_select(QEMU_TEXT_CONSOLE(s));
-        }
-    }
-}
-
 void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym)
 {
-    if (!s) {
-        if (!QEMU_IS_TEXT_CONSOLE(active_console)) {
-            return;
-        }
-        s = QEMU_TEXT_CONSOLE(active_console);
-    }
-
     qemu_text_console_handle_keysym(s, keysym);
 }
 
@@ -391,11 +352,6 @@ static void
 qemu_console_register(QemuConsole *c)
 {
     int i;
-
-    if (!active_console || (!QEMU_IS_GRAPHIC_CONSOLE(active_console) &&
-                            QEMU_IS_GRAPHIC_CONSOLE(c))) {
-        active_console = c;
-    }
 
     if (QTAILQ_EMPTY(&consoles)) {
         c->index = 0;
@@ -751,8 +707,6 @@ dcl_set_graphic_cursor(DisplayChangeListener *dcl, QemuGraphicConsole *con)
 
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
-    QemuConsole *con;
-
     assert(!dcl->ds);
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
@@ -761,13 +715,12 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     gui_setup_refresh(dcl->ds);
     if (dcl->con) {
         dcl->con->dcls++;
-        con = dcl->con;
-    } else {
-        con = active_console;
     }
-    displaychangelistener_display_console(dcl, con, dcl->con ? &error_fatal : NULL);
-    if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
-        dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(con));
+    displaychangelistener_display_console(dcl, &error_fatal);
+    if (QEMU_IS_GRAPHIC_CONSOLE(dcl->con)) {
+        dcl_set_graphic_cursor(dcl, QEMU_GRAPHIC_CONSOLE(dcl->con));
+    } else if (QEMU_IS_TEXT_CONSOLE(dcl->con)) {
+        qemu_text_console_update_size(QEMU_TEXT_CONSOLE(dcl->con));
     }
     qemu_text_console_update_cursor();
 }
@@ -806,9 +759,6 @@ static void dpy_set_ui_info_timer(void *opaque)
 bool dpy_ui_info_supported(const QemuConsole *con)
 {
     if (con == NULL) {
-        con = active_console;
-    }
-    if (con == NULL) {
         return false;
     }
 
@@ -819,19 +769,11 @@ const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
 {
     assert(dpy_ui_info_supported(con));
 
-    if (con == NULL) {
-        con = active_console;
-    }
-
     return &con->ui_info;
 }
 
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info, bool delay)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
-
     if (!dpy_ui_info_supported(con)) {
         return -1;
     }
@@ -870,7 +812,7 @@ void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
     }
     dpy_gfx_update_texture(con, con->surface, x, y, w, h);
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gfx_update) {
@@ -916,7 +858,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     con->surface = new_surface;
     dpy_gfx_create_texture(con, new_surface);
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         displaychangelistener_gfx_switch(dcl, new_surface, surface ? FALSE : TRUE);
@@ -970,7 +912,7 @@ void dpy_text_cursor(QemuConsole *con, int x, int y)
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_text_cursor) {
@@ -988,7 +930,7 @@ void dpy_text_update(QemuConsole *con, int x, int y, int w, int h)
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_text_update) {
@@ -1006,7 +948,7 @@ void dpy_text_resize(QemuConsole *con, int w, int h)
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_text_resize) {
@@ -1028,7 +970,7 @@ void dpy_mouse_set(QemuConsole *c, int x, int y, int on)
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (c != (dcl->con ? dcl->con : active_console)) {
+        if (c != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_mouse_set) {
@@ -1049,7 +991,7 @@ void dpy_cursor_define(QemuConsole *c, QEMUCursor *cursor)
         return;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (c != (dcl->con ? dcl->con : active_console)) {
+        if (c != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_cursor_define) {
@@ -1099,7 +1041,7 @@ void dpy_gl_scanout_disable(QemuConsole *con)
         con->scanout.kind = SCANOUT_NONE;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_scanout_disable) {
@@ -1126,7 +1068,7 @@ void dpy_gl_scanout_texture(QemuConsole *con,
         x, y, width, height, d3d_tex2d,
     };
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_scanout_texture) {
@@ -1148,7 +1090,7 @@ void dpy_gl_scanout_dmabuf(QemuConsole *con,
     con->scanout.kind = SCANOUT_DMABUF;
     con->scanout.dmabuf = dmabuf;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_scanout_dmabuf) {
@@ -1164,7 +1106,7 @@ void dpy_gl_cursor_dmabuf(QemuConsole *con, QemuDmaBuf *dmabuf,
     DisplayChangeListener *dcl;
 
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_cursor_dmabuf) {
@@ -1181,7 +1123,7 @@ void dpy_gl_cursor_position(QemuConsole *con,
     DisplayChangeListener *dcl;
 
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_cursor_position) {
@@ -1197,7 +1139,7 @@ void dpy_gl_release_dmabuf(QemuConsole *con,
     DisplayChangeListener *dcl;
 
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_release_dmabuf) {
@@ -1216,7 +1158,7 @@ void dpy_gl_update(QemuConsole *con,
 
     graphic_hw_gl_block(con, true);
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (con != (dcl->con ? dcl->con : active_console)) {
+        if (con != dcl->con) {
             continue;
         }
         if (dcl->ops->dpy_gl_update) {
@@ -1325,6 +1267,18 @@ void graphic_console_close(QemuConsole *con)
     dpy_gfx_replace_surface(con, surface);
 }
 
+QemuConsole *qemu_console_lookup_default(void)
+{
+    QemuConsole *con;
+
+    QTAILQ_FOREACH(con, &consoles, next) {
+        if (QEMU_IS_GRAPHIC_CONSOLE(con)) {
+            return con;
+        }
+    }
+    return QTAILQ_FIRST(&consoles);
+}
+
 QemuConsole *qemu_console_lookup_by_index(unsigned int index)
 {
     QemuConsole *con;
@@ -1403,30 +1357,21 @@ static QemuConsole *qemu_graphic_console_lookup_unused(void)
 
 QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     return QEMU_IS_GRAPHIC_CONSOLE(con) ? QEMU_GRAPHIC_CONSOLE(con)->cursor : NULL;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)
 {
-    return (con == active_console) || (con->dcls > 0);
+    return con->dcls > 0;
 }
 
 bool qemu_console_is_graphic(QemuConsole *con)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     return con && QEMU_IS_GRAPHIC_CONSOLE(con);
 }
 
 bool qemu_console_is_fixedsize(QemuConsole *con)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     return con && (QEMU_IS_GRAPHIC_CONSOLE(con) || QEMU_IS_FIXED_TEXT_CONSOLE(con));
 }
 
@@ -1493,17 +1438,11 @@ char *qemu_console_get_label(QemuConsole *con)
 
 int qemu_console_get_index(QemuConsole *con)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     return con ? con->index : -1;
 }
 
 uint32_t qemu_console_get_head(QemuConsole *con)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     if (con == NULL) {
         return -1;
     }
@@ -1515,9 +1454,6 @@ uint32_t qemu_console_get_head(QemuConsole *con)
 
 int qemu_console_get_width(QemuConsole *con, int fallback)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     if (con == NULL) {
         return fallback;
     }
@@ -1535,9 +1471,6 @@ int qemu_console_get_width(QemuConsole *con, int fallback)
 
 int qemu_console_get_height(QemuConsole *con, int fallback)
 {
-    if (con == NULL) {
-        con = active_console;
-    }
     if (con == NULL) {
         return fallback;
     }

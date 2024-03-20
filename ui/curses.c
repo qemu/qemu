@@ -98,7 +98,7 @@ static void curses_update(DisplayChangeListener *dcl,
 
 static void curses_calc_pad(void)
 {
-    if (qemu_console_is_fixedsize(NULL)) {
+    if (qemu_console_is_fixedsize(dcl->con)) {
         width = gwidth;
         height = gheight;
     } else {
@@ -201,7 +201,7 @@ static void curses_cursor_position(DisplayChangeListener *dcl,
             curs_set(1);
             /* it seems that curs_set(1) must always be called before
              * curs_set(2) for the latter to have effect */
-            if (!qemu_console_is_graphic(NULL)) {
+            if (!qemu_console_is_graphic(dcl->con)) {
                 curs_set(2);
             }
             return;
@@ -274,11 +274,11 @@ static void curses_refresh(DisplayChangeListener *dcl)
         clear();
         refresh();
         curses_calc_pad();
-        graphic_hw_invalidate(NULL);
+        graphic_hw_invalidate(dcl->con);
         invalidate = 0;
     }
 
-    graphic_hw_text_update(NULL, screen);
+    graphic_hw_text_update(dcl->con, screen);
 
     while (1) {
         /* while there are any pending key strokes to process */
@@ -318,11 +318,16 @@ static void curses_refresh(DisplayChangeListener *dcl)
                     /* process keys reserved for qemu */
                     if (keycode >= QEMU_KEY_CONSOLE0 &&
                             keycode < QEMU_KEY_CONSOLE0 + 9) {
-                        erase();
-                        wnoutrefresh(stdscr);
-                        console_select(keycode - QEMU_KEY_CONSOLE0);
+                        QemuConsole *con = qemu_console_lookup_by_index(keycode - QEMU_KEY_CONSOLE0);
+                        if (con) {
+                            erase();
+                            wnoutrefresh(stdscr);
+                            unregister_displaychangelistener(dcl);
+                            dcl->con = con;
+                            register_displaychangelistener(dcl);
 
-                        invalidate = 1;
+                            invalidate = 1;
+                        }
                         continue;
                     }
                 }
@@ -354,45 +359,45 @@ static void curses_refresh(DisplayChangeListener *dcl)
         if (keycode == -1)
             continue;
 
-        if (qemu_console_is_graphic(NULL)) {
+        if (qemu_console_is_graphic(dcl->con)) {
             /* since terminals don't know about key press and release
              * events, we need to emit both for each key received */
             if (keycode & SHIFT) {
-                qemu_input_event_send_key_number(NULL, SHIFT_CODE, true);
+                qemu_input_event_send_key_number(dcl->con, SHIFT_CODE, true);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & CNTRL) {
-                qemu_input_event_send_key_number(NULL, CNTRL_CODE, true);
+                qemu_input_event_send_key_number(dcl->con, CNTRL_CODE, true);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALT) {
-                qemu_input_event_send_key_number(NULL, ALT_CODE, true);
+                qemu_input_event_send_key_number(dcl->con, ALT_CODE, true);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALTGR) {
-                qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, true);
+                qemu_input_event_send_key_number(dcl->con, GREY | ALT_CODE, true);
                 qemu_input_event_send_key_delay(0);
             }
 
-            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, true);
+            qemu_input_event_send_key_number(dcl->con, keycode & KEY_MASK, true);
             qemu_input_event_send_key_delay(0);
-            qemu_input_event_send_key_number(NULL, keycode & KEY_MASK, false);
+            qemu_input_event_send_key_number(dcl->con, keycode & KEY_MASK, false);
             qemu_input_event_send_key_delay(0);
 
             if (keycode & ALTGR) {
-                qemu_input_event_send_key_number(NULL, GREY | ALT_CODE, false);
+                qemu_input_event_send_key_number(dcl->con, GREY | ALT_CODE, false);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & ALT) {
-                qemu_input_event_send_key_number(NULL, ALT_CODE, false);
+                qemu_input_event_send_key_number(dcl->con, ALT_CODE, false);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & CNTRL) {
-                qemu_input_event_send_key_number(NULL, CNTRL_CODE, false);
+                qemu_input_event_send_key_number(dcl->con, CNTRL_CODE, false);
                 qemu_input_event_send_key_delay(0);
             }
             if (keycode & SHIFT) {
-                qemu_input_event_send_key_number(NULL, SHIFT_CODE, false);
+                qemu_input_event_send_key_number(dcl->con, SHIFT_CODE, false);
                 qemu_input_event_send_key_delay(0);
             }
         } else {
@@ -400,7 +405,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
             if (keysym == -1)
                 keysym = chr;
 
-            qemu_text_console_put_keysym(NULL, keysym);
+            qemu_text_console_put_keysym(QEMU_TEXT_CONSOLE(dcl->con), keysym);
         }
     }
 }
@@ -798,6 +803,7 @@ static void curses_display_init(DisplayState *ds, DisplayOptions *opts)
     curses_winch_init();
 
     dcl = g_new0(DisplayChangeListener, 1);
+    dcl->con = qemu_console_lookup_default();
     dcl->ops = &dcl_ops;
     register_displaychangelistener(dcl);
 

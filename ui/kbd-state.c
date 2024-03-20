@@ -117,6 +117,12 @@ void qkbd_state_lift_all_keys(QKbdState *kbd)
     }
 }
 
+void qkbd_state_switch_console(QKbdState *kbd, QemuConsole *con)
+{
+    qkbd_state_lift_all_keys(kbd);
+    kbd->con = con;
+}
+
 void qkbd_state_set_delay(QKbdState *kbd, int delay_ms)
 {
     kbd->key_delay_ms = delay_ms;

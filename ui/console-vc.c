@@ -958,10 +958,9 @@ static void vc_chr_set_echo(Chardev *chr, bool echo)
     drv->console->echo = echo;
 }
 
-void qemu_text_console_select(QemuTextConsole *c)
+void qemu_text_console_update_size(QemuTextConsole *c)
 {
     dpy_text_resize(QEMU_CONSOLE(c), c->width, c->height);
-    qemu_text_console_update_cursor();
 }
 
 static void vc_chr_open(Chardev *chr,
@@ -990,8 +989,8 @@ static void vc_chr_open(Chardev *chr,
     trace_console_txt_new(width, height);
     if (width == 0 || height == 0) {
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_TEXT_CONSOLE));
-        width = qemu_console_get_width(NULL, 80 * FONT_WIDTH);
-        height = qemu_console_get_height(NULL, 24 * FONT_HEIGHT);
+        width = 80 * FONT_WIDTH;
+        height = 24 * FONT_HEIGHT;
     } else {
         s = QEMU_TEXT_CONSOLE(object_new(TYPE_QEMU_FIXED_TEXT_CONSOLE));
     }
