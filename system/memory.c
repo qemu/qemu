@@ -2937,10 +2937,9 @@ err:
     return false;
 }
 
-void memory_global_dirty_log_start(unsigned int flags)
+bool memory_global_dirty_log_start(unsigned int flags, Error **errp)
 {
     unsigned int old_flags;
-    Error *local_err = NULL;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
 
@@ -2952,7 +2951,7 @@ void memory_global_dirty_log_start(unsigned int flags)
 
     flags &= ~global_dirty_tracking;
     if (!flags) {
-        return;
+        return true;
     }
 
     old_flags = global_dirty_tracking;
@@ -2960,17 +2959,17 @@ void memory_global_dirty_log_start(unsigned int flags)
     trace_global_dirty_changed(global_dirty_tracking);
 
     if (!old_flags) {
-        if (!memory_global_dirty_log_do_start(&local_err)) {
+        if (!memory_global_dirty_log_do_start(errp)) {
             global_dirty_tracking &= ~flags;
             trace_global_dirty_changed(global_dirty_tracking);
-            error_report_err(local_err);
-            return;
+            return false;
         }
 
         memory_region_transaction_begin();
         memory_region_update_pending = true;
         memory_region_transaction_commit();
     }
+    return true;
 }
 
 static void memory_global_dirty_log_do_stop(unsigned int flags)
