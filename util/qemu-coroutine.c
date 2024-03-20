@@ -377,12 +377,17 @@ static unsigned int get_global_pool_hard_max_size(void)
                             NULL) &&
         qemu_strtoi(contents, NULL, 10, &max_map_count) == 0) {
         /*
-         * This is a conservative upper bound that avoids exceeding
-         * max_map_count. Leave half for non-coroutine users like library
-         * dependencies, vhost-user, etc. Each coroutine takes up 2 VMAs so
-         * halve the amount again.
+         * This is an upper bound that avoids exceeding max_map_count. Leave a
+         * fixed amount for non-coroutine users like library dependencies,
+         * vhost-user, etc. Each coroutine takes up 2 VMAs so halve the
+         * remaining amount.
          */
-        return max_map_count / 4;
+        if (max_map_count > 5000) {
+            return (max_map_count - 5000) / 2;
+        } else {
+            /* Disable the global pool but threads still have local pools */
+            return 0;
+        }
     }
 #endif
 
