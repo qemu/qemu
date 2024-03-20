@@ -711,10 +711,9 @@ static void block_migration_cleanup(void *opaque)
     blk_mig_unlock();
 }
 
-static int block_save_setup(QEMUFile *f, void *opaque)
+static int block_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     int ret;
-    Error *local_err = NULL;
 
     trace_migration_block_save("setup", block_mig_state.submitted,
                                block_mig_state.transferred);
@@ -722,25 +721,21 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     warn_report("block migration is deprecated;"
                 " use blockdev-mirror with NBD instead");
 
-    ret = init_blk_migration(f, &local_err);
+    ret = init_blk_migration(f, errp);
     if (ret < 0) {
-        error_report_err(local_err);
         return ret;
     }
 
     /* start track dirty blocks */
     ret = set_dirty_tracking();
     if (ret) {
-        error_setg_errno(&local_err, -ret,
-                         "Failed to start block dirty tracking");
-        error_report_err(local_err);
+        error_setg_errno(errp, -ret, "Failed to start block dirty tracking");
         return ret;
     }
 
     ret = flush_blks(f);
     if (ret) {
-        error_setg_errno(&local_err, -ret, "Flushing block failed");
-        error_report_err(local_err);
+        error_setg_errno(errp, -ret, "Flushing block failed");
         return ret;
     }
     blk_mig_reset_dirty_cursor();

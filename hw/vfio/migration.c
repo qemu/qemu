@@ -376,7 +376,7 @@ static int vfio_save_prepare(void *opaque, Error **errp)
     return 0;
 }
 
-static int vfio_save_setup(QEMUFile *f, void *opaque)
+static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
@@ -390,8 +390,8 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
                                       stop_copy_size);
     migration->data_buffer = g_try_malloc0(migration->data_buffer_size);
     if (!migration->data_buffer) {
-        error_report("%s: Failed to allocate migration data buffer",
-                     vbasedev->name);
+        error_setg(errp, "%s: Failed to allocate migration data buffer",
+                   vbasedev->name);
         return -ENOMEM;
     }
 
@@ -401,8 +401,8 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
             ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_PRE_COPY,
                                            VFIO_DEVICE_STATE_RUNNING);
             if (ret) {
-                error_report("%s: Failed to set new PRE_COPY state",
-                             vbasedev->name);
+                error_setg(errp, "%s: Failed to set new PRE_COPY state",
+                           vbasedev->name);
                 return ret;
             }
 
@@ -413,8 +413,8 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
             /* vfio_save_complete_precopy() will go to STOP_COPY */
             break;
         default:
-            error_report("%s: Invalid device state %d", vbasedev->name,
-                         migration->device_state);
+            error_setg(errp, "%s: Invalid device state %d", vbasedev->name,
+                       migration->device_state);
             return -EINVAL;
         }
     }
@@ -425,8 +425,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
-        error_report("%s: save setup failed : %s", vbasedev->name,
-                     strerror(-ret));
+        error_setg_errno(errp, -ret, "%s: save setup failed", vbasedev->name);
     }
 
     return ret;

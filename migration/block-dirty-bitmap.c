@@ -1213,12 +1213,14 @@ fail:
     return ret;
 }
 
-static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     DBMSaveState *s = &((DBMState *)opaque)->save;
     SaveBitmapState *dbms = NULL;
 
     if (init_dirty_bitmap_migration(s) < 0) {
+        error_setg(errp,
+                   "Failed to initialize dirty tracking bitmap for blocks");
         return -1;
     }
 
