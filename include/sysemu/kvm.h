@@ -542,4 +542,6 @@ int kvm_create_guest_memfd(uint64_t size, uint64_t flags, Error **errp);
 int kvm_set_memory_attributes_private(hwaddr start, uint64_t size);
 int kvm_set_memory_attributes_shared(hwaddr start, uint64_t size);
 
+int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private);
+
 #endif
