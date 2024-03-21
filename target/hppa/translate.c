@@ -1766,9 +1766,11 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
 
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
-static bool do_dbranch(DisasContext *ctx, uint64_t dest,
+static bool do_dbranch(DisasContext *ctx, int64_t disp,
                        unsigned link, bool is_n)
 {
+    uint64_t dest = iaoq_dest(ctx, disp);
+
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         if (link != 0) {
             copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
@@ -1815,10 +1817,7 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
 
     /* Handle TRUE and NEVER as direct branches.  */
     if (c == TCG_COND_ALWAYS) {
-        return do_dbranch(ctx, dest, 0, is_n && disp >= 0);
-    }
-    if (c == TCG_COND_NEVER) {
-        return do_dbranch(ctx, ctx->iaoq_n, 0, is_n && disp < 0);
+        return do_dbranch(ctx, disp, 0, is_n && disp >= 0);
     }
 
     taken = gen_new_label();
@@ -3914,22 +3913,6 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
 {
     TCGv_i64 tmp;
 
-#ifdef CONFIG_USER_ONLY
-    /* ??? It seems like there should be a good way of using
-       "be disp(sr2, r0)", the canonical gateway entry mechanism
-       to our advantage.  But that appears to be inconvenient to
-       manage along side branch delay slots.  Therefore we handle
-       entry into the gateway page via absolute address.  */
-    /* Since we don't implement spaces, just branch.  Do notice the special
-       case of "be disp(*,r0)" using a direct branch to disp, so that we can
-       goto_tb to the TB containing the syscall.  */
-    if (a->b == 0) {
-        return do_dbranch(ctx, a->disp, a->l, a->n);
-    }
-#else
-    nullify_over(ctx);
-#endif
-
     tmp = tcg_temp_new_i64();
     tcg_gen_addi_i64(tmp, load_gpr(ctx, a->b), a->disp);
     tmp = do_ibranch_priv(ctx, tmp);
@@ -3938,6 +3921,8 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     return do_ibranch(ctx, tmp, a->l, a->n);
 #else
     TCGv_i64 new_spc = tcg_temp_new_i64();
+
+    nullify_over(ctx);
 
     load_spr(ctx, new_spc, a->sp);
     if (a->l) {
@@ -3968,7 +3953,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
 
 static bool trans_bl(DisasContext *ctx, arg_bl *a)
 {
-    return do_dbranch(ctx, iaoq_dest(ctx, a->disp), a->l, a->n);
+    return do_dbranch(ctx, a->disp, a->l, a->n);
 }
 
 static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
@@ -4022,7 +4007,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         save_gpr(ctx, a->l, tmp);
     }
 
-    return do_dbranch(ctx, dest, 0, a->n);
+    return do_dbranch(ctx, dest - iaoq_dest(ctx, 0), 0, a->n);
 }
 
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
@@ -4035,7 +4020,7 @@ static bool trans_blr(DisasContext *ctx, arg_blr *a)
         return do_ibranch(ctx, tmp, a->l, a->n);
     } else {
         /* BLR R0,RX is a good way to load PC+8 into RX.  */
-        return do_dbranch(ctx, ctx->iaoq_f + 8, a->l, a->n);
+        return do_dbranch(ctx, 0, a->l, a->n);
     }
 }
 
