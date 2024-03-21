@@ -3880,7 +3880,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         }
         /* No change for non-gateway pages or for priv decrease.  */
         if (type >= 4 && type - 4 < ctx->privilege) {
-            dest = deposit32(dest, 0, 2, type - 4);
+            dest = deposit64(dest, 0, 2, type - 4);
         }
     } else {
         dest &= -4;  /* priv = 0 */
