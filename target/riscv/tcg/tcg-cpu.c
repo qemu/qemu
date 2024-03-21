@@ -417,11 +417,6 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (cpu->cfg.ext_zvfbfmin && !cpu->cfg.ext_zfbfmin) {
-        error_setg(errp, "Zvfbfmin extension depends on Zfbfmin extension");
-        return;
-    }
-
     if (cpu->cfg.ext_zvfbfmin && !cpu->cfg.ext_zve32f) {
         error_setg(errp, "Zvfbfmin extension depends on Zve32f extension");
         return;
