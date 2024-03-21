@@ -28,6 +28,8 @@ msys2-64bit:
     # qTests don't run successfully with "--without-default-devices",
     # so let's exclude the qtests from CI for now.
     TEST_ARGS: --no-suite qtest
+    # The Windows git is a bit older so override the default
+    GIT_FETCH_EXTRA_FLAGS: --no-tags --prune --quiet
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     expire_in: 7 days

@@ -24,6 +24,10 @@ variables:
     # Each script line from will be in a collapsible section in the job output
     # and show the duration of each line.
     FF_SCRIPT_SECTIONS: 1
+    # The project has a fairly fat GIT repo so we try and avoid bringing in things
+    # we don't need. The --filter options avoid blobs and tree references we aren't going to use
+    # and we also avoid fetching tags.
+    GIT_FETCH_EXTRA_FLAGS: --filter=blob:none --filter=tree:0 --no-tags --prune --quiet
 
   interruptible: true
 
