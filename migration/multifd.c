@@ -111,7 +111,6 @@ void multifd_send_channel_created(void)
 static void multifd_set_file_bitmap(MultiFDSendParams *p)
 {
     MultiFDPages_t *pages = p->pages;
-    uint32_t zero_num = p->pages->num - p->pages->normal_num;
 
     assert(pages->block);
 
@@ -119,7 +118,7 @@ static void multifd_set_file_bitmap(MultiFDSendParams *p)
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], true);
     }
 
-    for (int i = p->pages->num; i < zero_num; i++) {
+    for (int i = p->pages->normal_num; i < p->pages->num; i++) {
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], false);
     }
 }
