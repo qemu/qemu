@@ -967,9 +967,20 @@ static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_i64 res,
 
     switch (cf >> 1) {
     case 0: /* never / TR */
-    case 1: /* undefined */
-    case 5: /* undefined */
         cond = cond_make_f();
+        break;
+
+    case 1: /* SBW / NBW */
+        if (d) {
+            tmp = tcg_temp_new_i64();
+            tcg_gen_subi_i64(tmp, res, d_repl * 0x00000001u);
+            tcg_gen_andc_i64(tmp, tmp, res);
+            tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80000000u);
+            cond = cond_make_0(TCG_COND_NE, tmp);
+        } else {
+            /* undefined */
+            cond = cond_make_f();
+        }
         break;
 
     case 2: /* SBZ / NBZ */
@@ -994,6 +1005,16 @@ static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_i64 res,
     case 4: /* SDC / NDC */
         tcg_gen_andi_i64(cb, cb, d_repl * 0x88888888u);
         cond = cond_make_0(TCG_COND_NE, cb);
+        break;
+
+    case 5: /* SWC / NWC */
+        if (d) {
+            tcg_gen_andi_i64(cb, cb, d_repl * 0x80000000u);
+            cond = cond_make_0(TCG_COND_NE, cb);
+        } else {
+            /* undefined */
+            cond = cond_make_f();
+        }
         break;
 
     case 6: /* SBC / NBC */
