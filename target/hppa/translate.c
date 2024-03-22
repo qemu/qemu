@@ -634,6 +634,24 @@ static void install_iaq_entries(DisasContext *ctx, uint64_t bi, TCGv_i64 bv,
     }
 }
 
+static void install_link(DisasContext *ctx, unsigned link, bool with_sr0)
+{
+    tcg_debug_assert(ctx->null_cond.c == TCG_COND_NEVER);
+    if (!link) {
+        return;
+    }
+    if (ctx->iaoq_b == -1) {
+        tcg_gen_addi_i64(cpu_gr[link], cpu_iaoq_b, 4);
+    } else {
+        tcg_gen_movi_i64(cpu_gr[link], ctx->iaoq_b + 4);
+    }
+#ifndef CONFIG_USER_ONLY
+    if (with_sr0) {
+        tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_b);
+    }
+#endif
+}
+
 static inline uint64_t iaoq_dest(DisasContext *ctx, int64_t disp)
 {
     return ctx->iaoq_f + disp + 8;
@@ -1787,9 +1805,7 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
     uint64_t dest = iaoq_dest(ctx, disp);
 
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
+        install_link(ctx, link, false);
         ctx->iaoq_n = dest;
         if (is_n) {
             ctx->null_cond.c = TCG_COND_ALWAYS;
@@ -1797,10 +1813,7 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
     } else {
         nullify_over(ctx);
 
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
-
+        install_link(ctx, link, false);
         if (is_n && use_nullify_skip(ctx)) {
             nullify_set(ctx, 0);
             gen_goto_tb(ctx, 0, dest, dest + 4);
@@ -1892,9 +1905,7 @@ static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
         next = tcg_temp_new_i64();
         tcg_gen_mov_i64(next, dest);
 
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
+        install_link(ctx, link, false);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
                 install_iaq_entries(ctx, -1, next, -1, NULL);
@@ -1911,15 +1922,16 @@ static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
 
     nullify_over(ctx);
 
+    next = tcg_temp_new_i64();
+    tcg_gen_mov_i64(next, dest);
+
+    install_link(ctx, link, false);
     if (is_n && use_nullify_skip(ctx)) {
-        install_iaq_entries(ctx, -1, dest, -1, NULL);
+        install_iaq_entries(ctx, -1, next, -1, NULL);
         nullify_set(ctx, 0);
     } else {
-        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, dest);
+        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, next);
         nullify_set(ctx, is_n);
-    }
-    if (link != 0) {
-        copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
     }
 
     tcg_gen_lookup_and_goto_ptr();
@@ -3899,10 +3911,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     nullify_over(ctx);
 
     load_spr(ctx, new_spc, a->sp);
-    if (a->l) {
-        copy_iaoq_entry(ctx, cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
-        tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_b);
-    }
+    install_link(ctx, a->l, true);
     if (a->n && use_nullify_skip(ctx)) {
         install_iaq_entries(ctx, -1, tmp, -1, NULL);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
@@ -4019,16 +4028,16 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
     return do_ibranch(ctx, dest, a->l, a->n);
 #else
     nullify_over(ctx);
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
+    dest = tcg_temp_new_i64();
+    tcg_gen_mov_i64(dest, load_gpr(ctx, a->b));
+    dest = do_ibranch_priv(ctx, dest);
 
+    install_link(ctx, a->l, false);
     install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, dest);
     if (ctx->iaoq_b == -1) {
         tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
     }
     tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
-    if (a->l) {
-        copy_iaoq_entry(ctx, cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
-    }
     nullify_set(ctx, a->n);
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
