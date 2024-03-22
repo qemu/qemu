@@ -674,8 +674,9 @@ static bool use_goto_tb(DisasContext *ctx, uint64_t bofs, uint64_t nofs)
    executing a TB that merely branches to the next TB.  */
 static bool use_nullify_skip(DisasContext *ctx)
 {
-    return (((ctx->iaoq_b ^ ctx->iaoq_f) & TARGET_PAGE_MASK) == 0
-            && !cpu_breakpoint_test(ctx->cs, ctx->iaoq_b, BP_ANY));
+    return (!(tb_cflags(ctx->base.tb) & CF_BP_PAGE)
+            && ctx->iaoq_b != -1
+            && is_same_page(&ctx->base, ctx->iaoq_b));
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
