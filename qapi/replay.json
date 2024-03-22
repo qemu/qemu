@@ -105,8 +105,8 @@
 # replaying the execution.  The command automatically loads nearest
 # snapshot and replays the execution to find the desired instruction.
 # When there is no preceding snapshot or the execution is not
-# replayed, then the command fails.  icount for the reference may be
-# obtained with @query-replay command.
+# replayed, then the command fails.  Instruction count can be obtained
+# with the @query-replay command.
 #
 # @icount: target instruction count
 #
