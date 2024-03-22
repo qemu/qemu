@@ -45,9 +45,9 @@ typedef struct DisasCond {
 typedef struct DisasIAQE {
     /* IASQ; may be null for no change from TB. */
     TCGv_i64 space;
-    /* IAOQ base; may be null for immediate absolute address. */
+    /* IAOQ base; may be null for relative address. */
     TCGv_i64 base;
-    /* IAOQ addend; absolute immedate address if base is null. */
+    /* IAOQ addend; if base is null, relative to ctx->iaoq_first. */
     int64_t disp;
 } DisasIAQE;
 
@@ -59,6 +59,9 @@ typedef struct DisasContext {
     DisasIAQE iaq_f, iaq_b;
     /* IAQ_Next, for jumps, otherwise null for simple advance. */
     DisasIAQE iaq_j, *iaq_n;
+
+    /* IAOQ_Front at entry to TB. */
+    uint64_t iaoq_first;
 
     DisasCond null_cond;
     TCGLabel *null_lab;
@@ -640,7 +643,7 @@ static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
     uint64_t mask = gva_offset_mask(ctx->tb_flags);
 
     if (src->base == NULL) {
-        tcg_gen_movi_i64(dest, src->disp & mask);
+        tcg_gen_movi_i64(dest, (ctx->iaoq_first + src->disp) & mask);
     } else if (src->disp == 0) {
         tcg_gen_andi_i64(dest, src->base, mask);
     } else {
@@ -674,12 +677,8 @@ static void install_link(DisasContext *ctx, unsigned link, bool with_sr0)
     if (!link) {
         return;
     }
-    if (ctx->iaq_b.base) {
-        tcg_gen_addi_i64(cpu_gr[link], ctx->iaq_b.base,
-                         ctx->iaq_b.disp + 4);
-    } else {
-        tcg_gen_movi_i64(cpu_gr[link], ctx->iaq_b.disp + 4);
-    }
+    DisasIAQE next = iaqe_incr(&ctx->iaq_b, 4);
+    copy_iaoq_entry(ctx, cpu_gr[link], &next);
 #ifndef CONFIG_USER_ONLY
     if (with_sr0) {
         tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_b);
@@ -731,7 +730,7 @@ static bool use_goto_tb(DisasContext *ctx, const DisasIAQE *f,
 {
     return (!iaqe_variable(f) &&
             (b == NULL || !iaqe_variable(b)) &&
-            translator_use_goto_tb(&ctx->base, f->disp));
+            translator_use_goto_tb(&ctx->base, ctx->iaoq_first + f->disp));
 }
 
 /* If the next insn is to be nullified, and it's on the same page,
@@ -742,7 +741,8 @@ static bool use_nullify_skip(DisasContext *ctx)
 {
     return (!(tb_cflags(ctx->base.tb) & CF_BP_PAGE)
             && !iaqe_variable(&ctx->iaq_b)
-            && is_same_page(&ctx->base, ctx->iaq_b.disp));
+            && (((ctx->iaoq_first + ctx->iaq_b.disp) ^ ctx->iaoq_first)
+                & TARGET_PAGE_MASK) == 0);
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
@@ -2005,6 +2005,8 @@ static TCGv_i64 do_ibranch_priv(DisasContext *ctx, TCGv_i64 offset)
    aforementioned BE.  */
 static void do_page_zero(DisasContext *ctx)
 {
+    assert(ctx->iaq_f.disp == 0);
+
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
        next insn within the privileged page.  */
@@ -2024,11 +2026,11 @@ static void do_page_zero(DisasContext *ctx)
        non-sequential instruction execution.  Normally the PSW[B] bit
        detects this by disallowing the B,GATE instruction to execute
        under such conditions.  */
-    if (iaqe_variable(&ctx->iaq_b) || ctx->iaq_b.disp != ctx->iaq_f.disp + 4) {
+    if (iaqe_variable(&ctx->iaq_b) || ctx->iaq_b.disp != 4) {
         goto do_sigill;
     }
 
-    switch (ctx->iaq_f.disp & -4) {
+    switch (ctx->base.pc_first) {
     case 0x00: /* Null pointer call */
         gen_excp_1(EXCP_IMP);
         ctx->base.is_jmp = DISAS_NORETURN;
@@ -4619,8 +4621,8 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = MMU_IDX_TO_PRIV(MMU_USER_IDX);
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->iaq_f.disp = ctx->base.pc_first | ctx->privilege;
-    ctx->iaq_b.disp = ctx->base.tb->cs_base | ctx->privilege;
+    ctx->iaoq_first = ctx->base.pc_first | ctx->privilege;
+    ctx->iaq_b.disp = ctx->base.tb->cs_base - ctx->base.pc_first;
     ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
@@ -4633,9 +4635,10 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     uint64_t iasq_f = cs_base & ~0xffffffffull;
     int32_t diff = cs_base;
 
-    ctx->iaq_f.disp = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
+    ctx->iaoq_first = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
+
     if (diff) {
-        ctx->iaq_b.disp = ctx->iaq_f.disp + diff;
+        ctx->iaq_b.disp = diff;
     } else {
         ctx->iaq_b.base = cpu_iaoq_b;
         ctx->iaq_b.space = cpu_iasq_b;
@@ -4668,9 +4671,9 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     tcg_debug_assert(!iaqe_variable(&ctx->iaq_f));
-    tcg_gen_insn_start(ctx->iaq_f.disp,
-                       iaqe_variable(&ctx->iaq_b) ? -1 : ctx->iaq_b.disp,
-                       0);
+    tcg_gen_insn_start(ctx->iaoq_first + ctx->iaq_f.disp,
+                       (iaqe_variable(&ctx->iaq_b) ? -1 :
+                        ctx->iaoq_first + ctx->iaq_b.disp), 0);
     ctx->insn_start_updated = false;
 }
 
