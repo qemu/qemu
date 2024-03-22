@@ -809,16 +809,19 @@
 #     for establishing a TLS connection over the migration data
 #     channel.  On the outgoing side of the migration, the credentials
 #     must be for a 'client' endpoint, while for the incoming side the
-#     credentials must be for a 'server' endpoint.  Setting this will
-#     enable TLS for all migrations.  The default is unset, resulting
-#     in unsecured migration at the QEMU level.  (Since 2.7)
+#     credentials must be for a 'server' endpoint.  Setting this to a
+#     non-empty string enables TLS for all migrations.  An empty
+#     string means that QEMU will use plain text mode for migration,
+#     rather than TLS.  (Since 2.7)
 #
-# @tls-hostname: hostname of the target host for the migration.  This
-#     is required when using x509 based TLS credentials and the
-#     migration URI does not already include a hostname.  For example
-#     if using fd: or exec: based migration, the hostname must be
-#     provided so that the server's x509 certificate identity can be
-#     validated.  (Since 2.7)
+# @tls-hostname: migration target's hostname for validating the
+#     server's x509 certificate identity.  If empty, QEMU will use the
+#     hostname from the migration URI, if any.  A non-empty value is
+#     required when using x509 based TLS credentials and the migration
+#     URI does not include a hostname, such as fd: or exec: based
+#     migration.  (Since 2.7)
+#
+#     Note: empty value works only since 2.9.
 #
 # @tls-authz: ID of the 'authz' object subclass that provides access
 #     control checking of the TLS x509 certificate distinguished name.
@@ -1006,22 +1009,22 @@
 #     credentials must be for a 'server' endpoint.  Setting this to a
 #     non-empty string enables TLS for all migrations.  An empty
 #     string means that QEMU will use plain text mode for migration,
-#     rather than TLS (Since 2.9) Previously (since 2.7), this was
-#     reported by omitting tls-creds instead.
+#     rather than TLS.  This is the default.  (Since 2.7)
 #
-# @tls-hostname: hostname of the target host for the migration.  This
-#     is required when using x509 based TLS credentials and the
-#     migration URI does not already include a hostname.  For example
-#     if using fd: or exec: based migration, the hostname must be
-#     provided so that the server's x509 certificate identity can be
-#     validated.  (Since 2.7) An empty string means that QEMU will use
-#     the hostname associated with the migration URI, if any.  (Since
-#     2.9) Previously (since 2.7), this was reported by omitting
-#     tls-hostname instead.
+# @tls-hostname: migration target's hostname for validating the
+#     server's x509 certificate identity.  If empty, QEMU will use the
+#     hostname from the migration URI, if any.  A non-empty value is
+#     required when using x509 based TLS credentials and the migration
+#     URI does not include a hostname, such as fd: or exec: based
+#     migration.  (Since 2.7)
+#
+#     Note: empty value works only since 2.9.
 #
 # @tls-authz: ID of the 'authz' object subclass that provides access
 #     control checking of the TLS x509 certificate distinguished name.
-#     (Since 4.0)
+#     This object is only resolved at time of use, so can be deleted
+#     and recreated on the fly while the migration server is active.
+#     If missing, it will default to denying access (Since 4.0)
 #
 # @max-bandwidth: to set maximum speed for migration.  maximum speed
 #     in bytes per second.  (Since 2.8)
@@ -1240,17 +1243,15 @@
 #     must be for a 'client' endpoint, while for the incoming side the
 #     credentials must be for a 'server' endpoint.  An empty string
 #     means that QEMU will use plain text mode for migration, rather
-#     than TLS (Since 2.7) Note: 2.8 reports this by omitting
-#     tls-creds instead.
+#     than TLS.  (Since 2.7)
 #
-# @tls-hostname: hostname of the target host for the migration.  This
-#     is required when using x509 based TLS credentials and the
-#     migration URI does not already include a hostname.  For example
-#     if using fd: or exec: based migration, the hostname must be
-#     provided so that the server's x509 certificate identity can be
-#     validated.  (Since 2.7) An empty string means that QEMU will use
-#     the hostname associated with the migration URI, if any.  (Since
-#     2.9) Note: 2.8 reports this by omitting tls-hostname instead.
+#     Note: 2.8 omits empty @tls-creds instead.
+#
+# @tls-hostname: migration target's hostname for validating the
+#     server's x509 certificate identity.  If empty, QEMU will use the
+#     hostname from the migration URI, if any.  (Since 2.7)
+#
+#     Note: 2.8 omits empty @tls-hostname instead.
 #
 # @tls-authz: ID of the 'authz' object subclass that provides access
 #     control checking of the TLS x509 certificate distinguished name.
