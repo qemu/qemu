@@ -32,9 +32,9 @@
 #
 # Example:
 #
-#         -> { "execute": "add_client", "arguments": { "protocol": "vnc",
-#                                                      "fdname": "myclient" } }
-#         <- { "return": {} }
+#     -> { "execute": "add_client", "arguments": { "protocol": "vnc",
+#                                                  "fdname": "myclient" } }
+#     <- { "return": {} }
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
