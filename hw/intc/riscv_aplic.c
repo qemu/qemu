@@ -488,6 +488,7 @@ static uint32_t riscv_aplic_idc_claimi(RISCVAPLICState *aplic, uint32_t idc)
 
     if (!topi) {
         aplic->iforce[idc] = 0;
+        riscv_aplic_idc_update(aplic, idc);
         return 0;
     }
 

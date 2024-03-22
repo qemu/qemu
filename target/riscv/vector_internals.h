@@ -24,6 +24,13 @@
 #include "tcg/tcg-gvec-desc.h"
 #include "internals.h"
 
+#define VSTART_CHECK_EARLY_EXIT(env) do { \
+    if (env->vstart >= env->vl) {         \
+        env->vstart = 0;                  \
+        return;                           \
+    }                                     \
+} while (0)
+
 static inline uint32_t vext_nf(uint32_t desc)
 {
     return FIELD_EX32(simd_data(desc), VDATA, NF);
@@ -150,6 +157,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     uint32_t vta = vext_vta(desc);                     \
     uint32_t vma = vext_vma(desc);                     \
     uint32_t i;                                        \
+                                                       \
+    VSTART_CHECK_EARLY_EXIT(env);                      \
                                                        \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
