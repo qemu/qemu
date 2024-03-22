@@ -829,8 +829,8 @@
 #     and recreated on the fly while the migration server is active.
 #     If missing, it will default to denying access (Since 4.0)
 #
-# @max-bandwidth: to set maximum speed for migration.  maximum speed
-#     in bytes per second.  (Since 2.8)
+# @max-bandwidth: maximum speed for migration, in bytes per second.
+#     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
@@ -1036,8 +1036,8 @@
 #     and recreated on the fly while the migration server is active.
 #     If missing, it will default to denying access (Since 4.0)
 #
-# @max-bandwidth: to set maximum speed for migration.  maximum speed
-#     in bytes per second.  (Since 2.8)
+# @max-bandwidth: maximum speed for migration, in bytes per second.
+#     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
@@ -1267,8 +1267,8 @@
 #     control checking of the TLS x509 certificate distinguished name.
 #     (Since 4.0)
 #
-# @max-bandwidth: to set maximum speed for migration.  maximum speed
-#     in bytes per second.  (Since 2.8)
+# @max-bandwidth: maximum speed for migration, in bytes per second.
+#     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
@@ -1960,8 +1960,8 @@
 #
 # @primary: true for primary or false for secondary.
 #
-# @failover: true to do failover, false to stop.  but cannot be
-#     specified if 'enable' is true.  default value is false.
+# @failover: true to do failover, false to stop.  Cannot be specified
+#     if 'enable' is true.  Default value is false.
 #
 # Example:
 #

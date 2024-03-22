@@ -290,7 +290,7 @@
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
 # @migrated: true if the last guest migration completed and spice
-#     migration had completed as well.  false otherwise.  (since 1.4)
+#     migration had completed as well, false otherwise (since 1.4)
 #
 # @host: The hostname the SPICE server is bound to.  This depends on
 #     the name resolution on the host and may be an IP address.
