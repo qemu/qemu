@@ -51,7 +51,7 @@
 # @request-ebpf:
 #
 # Retrieve an eBPF object that can be loaded with libbpf.  Management
-# applications (g.e. libvirt) may load it and pass file descriptors to
+# applications (e.g. libvirt) may load it and pass file descriptors to
 # QEMU, so they can run running QEMU without BPF capabilities.
 #
 # @id: The ID of the program to return.
