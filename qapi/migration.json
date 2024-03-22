@@ -2419,9 +2419,7 @@
 #
 # Returns information of migration threads
 #
-# data: migration thread name
-#
-# Returns: information about migration threads
+# Returns: @MigrationThreadInfo
 #
 # Since: 7.2
 ##
