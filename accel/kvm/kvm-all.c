@@ -2360,7 +2360,7 @@ static int kvm_init(MachineState *ms)
     s->sigmask_len = 8;
     accel_blocker_init();
 
-#ifdef KVM_CAP_SET_GUEST_DEBUG
+#ifdef TARGET_KVM_HAVE_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
 #endif
     QLIST_INIT(&s->kvm_parked_vcpus);
@@ -2544,7 +2544,7 @@ static int kvm_init(MachineState *ms)
     kvm_vm_attributes_allowed =
         (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
 
-#ifdef KVM_CAP_SET_GUEST_DEBUG
+#ifdef TARGET_KVM_HAVE_GUEST_DEBUG
     kvm_has_guest_debug =
         (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0);
 #endif
@@ -2553,7 +2553,7 @@ static int kvm_init(MachineState *ms)
     if (kvm_has_guest_debug) {
         kvm_sstep_flags = SSTEP_ENABLE;
 
-#if defined KVM_CAP_SET_GUEST_DEBUG2
+#if defined TARGET_KVM_HAVE_GUEST_DEBUG
         int guest_debug_flags =
             kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG2);
 
@@ -3157,7 +3157,7 @@ bool kvm_arm_supports_user_irq(void)
     return kvm_check_extension(kvm_state, KVM_CAP_ARM_USER_IRQ);
 }
 
-#ifdef KVM_CAP_SET_GUEST_DEBUG
+#ifdef TARGET_KVM_HAVE_GUEST_DEBUG
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu, vaddr pc)
 {
     struct kvm_sw_breakpoint *bp;
@@ -3317,7 +3317,7 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
     }
 }
 
-#endif /* !KVM_CAP_SET_GUEST_DEBUG */
+#endif /* !TARGET_KVM_HAVE_GUEST_DEBUG */
 
 static int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
