@@ -2117,7 +2117,7 @@
 # Start mirroring a block device's writes to a new destination.
 # target specifies the target of the new image.  If the file exists,
 # or if it is a device, it will be used as the new destination for
-# writes.  If it does not exist, a new file will be created.  format
+# writes.  If it does not exist, a new file will be created.  @format
 # specifies the format of the mirror image, default is to probe if
 # mode='existing', else the format of the source.
 #
