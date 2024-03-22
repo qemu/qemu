@@ -568,11 +568,9 @@
 #
 # @recipient: recipient is defined as @MemoryFailureRecipient.
 #
-# @action: action that has been taken.  action is defined as
-#     @MemoryFailureAction.
+# @action: action that has been taken.
 #
-# @flags: flags for MemoryFailureAction.  action is defined as
-#     @MemoryFailureFlags.
+# @flags: flags for MemoryFailureAction.
 #
 # Since: 5.2
 #
