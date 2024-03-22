@@ -649,14 +649,14 @@
 #
 # @offset: the offset into the target file that the region starts at.
 #     You can use this option to back multiple regions with a single
-#     file. Must be a multiple of the page size.
+#     file.  Must be a multiple of the page size.
 #     (default: 0) (since 8.1)
 #
 # @discard-data: if true, the file contents can be destroyed when QEMU
 #     exits, to avoid unnecessarily flushing data to the backing file.
 #     Note that @discard-data is only an optimization, and QEMU might
 #     not discard file contents if it aborts unexpectedly or is
-#     terminated using SIGKILL. (default: false)
+#     terminated using SIGKILL.  (default: false)
 #
 # @mem-path: the path to either a shared memory or huge page
 #     filesystem mount

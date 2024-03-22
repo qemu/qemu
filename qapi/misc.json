@@ -142,7 +142,7 @@
 #     option was passed on the command line.
 #
 #     In the "suspended" state, it will completely stop the VM and
-#     cause a transition to the "paused" state. (Since 9.0)
+#     cause a transition to the "paused" state.  (Since 9.0)
 #
 # Example:
 #

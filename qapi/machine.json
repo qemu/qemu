@@ -920,7 +920,7 @@
 # @socket-id: socket number within parent container the CPU belongs to
 #
 # @die-id: die number within the parent container the CPU belongs to
-#    (since 4.1)
+#     (since 4.1)
 #
 # @cluster-id: cluster number within the parent container the CPU
 #     belongs to (since 7.1)
@@ -1190,7 +1190,6 @@
 #     <- { "event": "HV_BALLOON_STATUS_REPORT",
 #          "data": { "committed": 816640000, "available": 3333054464 },
 #          "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
-#
 ##
 { 'event': 'HV_BALLOON_STATUS_REPORT',
   'data': 'HvBalloonInfo' }

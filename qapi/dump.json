@@ -77,7 +77,7 @@
 #
 # @detach: if true, QMP will return immediately rather than waiting
 #     for the dump to finish.  The user can track progress using
-#     "query-dump". (since 2.6).
+#     "query-dump".  (since 2.6).
 #
 # @begin: if specified, the starting physical address.
 #
