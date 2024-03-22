@@ -125,6 +125,8 @@ static void xlnx_zynqmp_pmu_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    /* xlnx-zynqmp-pmu-soc causes crashes when cold-plugged twice */
+    dc->user_creatable = false;
     dc->realize = xlnx_zynqmp_pmu_soc_realize;
 }
 
