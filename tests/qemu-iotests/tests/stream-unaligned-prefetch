@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test what happens when a stream job does an unaligned prefetch read
+# which requires padding while having a NULL qiov.
+#
+# Copyright (C) Proxmox Server Solutions GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import imgfmt, qemu_img_create, qemu_io, QMPTestCase
+
+image_size = 1 * 1024 * 1024
+cluster_size = 64 * 1024
+base = os.path.join(iotests.test_dir, 'base.img')
+top = os.path.join(iotests.test_dir, 'top.img')
+
+class TestStreamUnalignedPrefetch(QMPTestCase):
+    def setUp(self) -> None:
+        """
+        Create two images:
+        - base image {base} with {cluster_size // 2} bytes allocated
+        - top image {top} without any data allocated and coarser
+          cluster size
+
+        Attach a compress filter for the top image, because that
+        requires that the request alignment is the top image's cluster
+        size.
+        """
+        qemu_img_create('-f', imgfmt,
+                        '-o', 'cluster_size={}'.format(cluster_size // 2),
+                        base, str(image_size))
+        qemu_io('-c', f'write 0 {cluster_size // 2}', base)
+        qemu_img_create('-f', imgfmt,
+                        '-o', 'cluster_size={}'.format(cluster_size),
+                        top, str(image_size))
+
+        self.vm = iotests.VM()
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': imgfmt,
+            'node-name': 'base',
+            'file': {
+                'driver': 'file',
+                'filename': base
+            }
+        }))
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': 'compress',
+            'node-name': 'compress-top',
+            'file': {
+                'driver': imgfmt,
+                'node-name': 'top',
+                'file': {
+                    'driver': 'file',
+                    'filename': top
+                },
+                'backing': 'base'
+            }
+        }))
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        os.remove(top)
+        os.remove(base)
+
+    def test_stream_unaligned_prefetch(self) -> None:
+        self.vm.cmd('block-stream', job_id='stream', device='compress-top')
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'], supported_protocols=['file'])
