@@ -1220,13 +1220,13 @@
 # @signal: signal number (linux) or unhandled exception code (windows)
 #     if the process was abnormally terminated.
 #
-# @out-data: base64-encoded stdout of the process. This field will only
-#     be populated after the process exits.
+# @out-data: base64-encoded stdout of the process.  This field will
+#     only be populated after the process exits.
 #
-# @err-data: base64-encoded stderr of the process. Note: @out-data and
-#     @err-data are present only if 'capture-output' was specified for
-#     'guest-exec'. This field will only be populated after the process
-#     exits.
+# @err-data: base64-encoded stderr of the process.  Note: @out-data
+#     and @err-data are present only if 'capture-output' was specified
+#     for 'guest-exec'.  This field will only be populated after the
+#     process exits.
 #
 # @out-truncated: true if stdout was not fully captured due to size
 #     limitation.
@@ -1273,12 +1273,16 @@
 # An enumeration of guest-exec capture modes.
 #
 # @none: do not capture any output
+#
 # @stdout: only capture stdout
+#
 # @stderr: only capture stderr
+#
 # @separated: capture both stdout and stderr, but separated into
-#             GuestExecStatus out-data and err-data, respectively
-# @merged: capture both stdout and stderr, but merge together
-#          into out-data. not effective on windows guests.
+#     GuestExecStatus out-data and err-data, respectively
+#
+# @merged: capture both stdout and stderr, but merge together into
+#     out-data.  Not effective on windows guests.
 #
 # Since: 8.0
 ##
@@ -1291,8 +1295,9 @@
 #
 # Controls what guest-exec output gets captures.
 #
-# @flag: captures both stdout and stderr if true. Equivalent
-#        to GuestExecCaptureOutputMode::all. (since 2.5)
+# @flag: captures both stdout and stderr if true.  Equivalent to
+#     GuestExecCaptureOutputMode::all.  (since 2.5)
+#
 # @mode: capture mode; preferred interface
 #
 # Since: 8.0
@@ -1315,7 +1320,7 @@
 # @input-data: data to be passed to process stdin (base64 encoded)
 #
 # @capture-output: bool flag to enable capture of stdout/stderr of
-#     running process.  defaults to false.
+#     running process.  Defaults to false.
 #
 # Returns: PID
 #
