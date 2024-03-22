@@ -371,7 +371,7 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
      * breakpoints are removed.
      */
     if (match_page) {
-        *cflags = (*cflags & ~CF_COUNT_MASK) | CF_NO_GOTO_TB | 1;
+        *cflags = (*cflags & ~CF_COUNT_MASK) | CF_NO_GOTO_TB | CF_BP_PAGE | 1;
     }
     return false;
 }
