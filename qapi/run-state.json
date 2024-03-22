@@ -144,8 +144,8 @@
 #     hardware-specific action) rather than a host request (such as
 #     sending qemu a SIGINT). (since 2.10)
 #
-# @reason: The @ShutdownCause which resulted in the SHUTDOWN. (since
-#     4.0)
+# @reason: The @ShutdownCause which resulted in the SHUTDOWN.
+#     (since 4.0)
 #
 # Note: If the command-line option "-no-shutdown" has been specified,
 #     qemu will not exit, and a STOP event will eventually follow the

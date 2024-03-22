@@ -394,9 +394,9 @@
 ##
 # @set-cpu-topology:
 #
-# Modify the topology by moving the CPU inside the topology tree,
-# or by changing a modifier attribute of a CPU.
-# Absent values will not be modified.
+# Modify the topology by moving the CPU inside the topology tree, or
+# by changing a modifier attribute of a CPU.  Absent values will not
+# be modified.
 #
 # @core-id: the vCPU ID to be moved
 #
@@ -408,7 +408,8 @@
 #
 # @entitlement: entitlement to set
 #
-# @dedicated: whether the provisioning of real to virtual CPU is dedicated
+# @dedicated: whether the provisioning of real to virtual CPU is
+#     dedicated
 #
 # Features:
 #
@@ -435,14 +436,15 @@
 # Emitted when the guest asks to change the polarization.
 #
 # The guest can tell the host (via the PTF instruction) whether the
-# CPUs should be provisioned using horizontal or vertical polarization.
+# CPUs should be provisioned using horizontal or vertical
+# polarization.
 #
-# On horizontal polarization the host is expected to provision all vCPUs
-# equally.
+# On horizontal polarization the host is expected to provision all
+# vCPUs equally.
 #
-# On vertical polarization the host can provision each vCPU differently.
-# The guest will get information on the details of the provisioning
-# the next time it uses the STSI(15) instruction.
+# On vertical polarization the host can provision each vCPU
+# differently.  The guest will get information on the details of the
+# provisioning the next time it uses the STSI(15) instruction.
 #
 # @polarization: polarization specified by the guest
 #

@@ -23,8 +23,8 @@
 #
 # @duplicate: number of duplicate (zero) pages (since 1.2)
 #
-# @skipped: number of skipped zero pages. Always zero, only provided for
-#     compatibility (since 1.5)
+# @skipped: number of skipped zero pages.  Always zero, only provided
+#     for compatibility (since 1.5)
 #
 # @normal: number of normal pages (since 1.2)
 #
@@ -501,8 +501,8 @@
 #
 # @background-snapshot: If enabled, the migration stream will be a
 #     snapshot of the VM exactly at the point when the migration
-#     procedure starts.  The VM RAM is saved with running VM. (since
-#     6.0)
+#     procedure starts.  The VM RAM is saved with running VM.
+#     (since 6.0)
 #
 # @zero-copy-send: Controls behavior on sending memory pages on
 #     migration.  When true, enables a zero-copy mechanism for sending
@@ -640,9 +640,9 @@
 #
 # @normal: the original form of migration. (since 8.2)
 #
-# @cpr-reboot: The migrate command stops the VM and saves state to
-#     the URI.  After quitting QEMU, the user resumes by running
-#     QEMU -incoming.
+# @cpr-reboot: The migrate command stops the VM and saves state to the
+#     URI.  After quitting QEMU, the user resumes by running QEMU
+#     -incoming.
 #
 #     This mode allows the user to quit QEMU, optionally update and
 #     reboot the OS, and restart QEMU.  If the user reboots, the URI
@@ -652,8 +652,8 @@
 #     does not block the migration, but the user must not modify the
 #     contents of guest block devices between the quit and restart.
 #
-#     This mode supports VFIO devices provided the user first puts
-#     the guest in the suspended runstate, such as by issuing
+#     This mode supports VFIO devices provided the user first puts the
+#     guest in the suspended runstate, such as by issuing
 #     guest-suspend-ram to the QEMU guest agent.
 #
 #     Best performance is achieved when the memory backend is shared
@@ -678,11 +678,10 @@
 # @legacy: Perform zero page checking in main migration thread.
 #
 # @multifd: Perform zero page checking in multifd sender thread if
-#     multifd migration is enabled, else in the main migration
-#     thread as for @legacy.
+#     multifd migration is enabled, else in the main migration thread
+#     as for @legacy.
 #
 # Since: 9.0
-#
 ##
 { 'enum': 'ZeroPageDetection',
   'data': [ 'none', 'legacy', 'multifd' ] }
@@ -834,13 +833,14 @@
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations when
-#     making decisions to switchover.  By default, this value is zero,
-#     which means QEMU will estimate the bandwidth automatically.  This can
-#     be set when the estimated value is not accurate, while the user is
-#     able to guarantee such bandwidth is available when switching over.
-#     When specified correctly, this can make the switchover decision much
-#     more accurate.  (Since 8.2)
+#     limit the bandwidth during switchover, but only for calculations
+#     when making decisions to switchover.  By default, this value is
+#     zero, which means QEMU will estimate the bandwidth
+#     automatically.  This can be set when the estimated value is not
+#     accurate, while the user is able to guarantee such bandwidth is
+#     available when switching over.  When specified correctly, this
+#     can make the switchover decision much more accurate.
+#     (Since 8.2)
 #
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
@@ -902,14 +902,14 @@
 #     to their node name otherwise.  (Since 5.2)
 #
 # @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
-#     limit during live migration.  Should be in the range 1 to 1000ms.
-#     Defaults to 1000ms.  (Since 8.1)
+#     limit during live migration.  Should be in the range 1 to
+#     1000ms.  Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
-#        (Since 8.2)
+# @mode: Migration mode.  See description in @MigMode.  Default is
+#     'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
@@ -922,8 +922,8 @@
 #     @compress-threads, @decompress-threads and @compress-wait-thread
 #     are deprecated because @compression is deprecated.
 #
-# @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#     are experimental.
+# @unstable: Members @x-checkpoint-delay and
+#     @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
 ##
@@ -1041,13 +1041,14 @@
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations when
-#     making decisions to switchover.  By default, this value is zero,
-#     which means QEMU will estimate the bandwidth automatically.  This can
-#     be set when the estimated value is not accurate, while the user is
-#     able to guarantee such bandwidth is available when switching over.
-#     When specified correctly, this can make the switchover decision much
-#     more accurate.  (Since 8.2)
+#     limit the bandwidth during switchover, but only for calculations
+#     when making decisions to switchover.  By default, this value is
+#     zero, which means QEMU will estimate the bandwidth
+#     automatically.  This can be set when the estimated value is not
+#     accurate, while the user is able to guarantee such bandwidth is
+#     available when switching over.  When specified correctly, this
+#     can make the switchover decision much more accurate.
+#     (Since 8.2)
 #
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
@@ -1109,14 +1110,14 @@
 #     to their node name otherwise.  (Since 5.2)
 #
 # @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
-#     limit during live migration.  Should be in the range 1 to 1000ms.
-#     Defaults to 1000ms.  (Since 8.1)
+#     limit during live migration.  Should be in the range 1 to
+#     1000ms.  Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
-#        (Since 8.2)
+# @mode: Migration mode.  See description in @MigMode.  Default is
+#     'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
@@ -1129,8 +1130,8 @@
 #     @compress-threads, @decompress-threads and @compress-wait-thread
 #     are deprecated because @compression is deprecated.
 #
-# @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#     are experimental.
+# @unstable: Members @x-checkpoint-delay and
+#     @x-vcpu-dirty-limit-period are experimental.
 #
 # TODO: either fuse back into MigrationParameters, or make
 #     MigrationParameters members mandatory
@@ -1272,13 +1273,14 @@
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
 #     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations when
-#     making decisions to switchover.  By default, this value is zero,
-#     which means QEMU will estimate the bandwidth automatically.  This can
-#     be set when the estimated value is not accurate, while the user is
-#     able to guarantee such bandwidth is available when switching over.
-#     When specified correctly, this can make the switchover decision much
-#     more accurate.  (Since 8.2)
+#     limit the bandwidth during switchover, but only for calculations
+#     when making decisions to switchover.  By default, this value is
+#     zero, which means QEMU will estimate the bandwidth
+#     automatically.  This can be set when the estimated value is not
+#     accurate, while the user is able to guarantee such bandwidth is
+#     available when switching over.  When specified correctly, this
+#     can make the switchover decision much more accurate.
+#     (Since 8.2)
 #
 # @downtime-limit: set maximum tolerated downtime for migration.
 #     maximum downtime in milliseconds (Since 2.8)
@@ -1340,14 +1342,14 @@
 #     to their node name otherwise.  (Since 5.2)
 #
 # @x-vcpu-dirty-limit-period: Periodic time (in milliseconds) of dirty
-#     limit during live migration.  Should be in the range 1 to 1000ms.
-#     Defaults to 1000ms.  (Since 8.1)
+#     limit during live migration.  Should be in the range 1 to
+#     1000ms.  Defaults to 1000ms.  (Since 8.1)
 #
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode. See description in @MigMode. Default is 'normal'.
-#        (Since 8.2)
+# @mode: Migration mode.  See description in @MigMode.  Default is
+#        'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
 #     See description in @ZeroPageDetection.  Default is 'multifd'.
@@ -1360,8 +1362,8 @@
 #     @compress-threads, @decompress-threads and @compress-wait-thread
 #     are deprecated because @compression is deprecated.
 #
-# @unstable: Members @x-checkpoint-delay and @x-vcpu-dirty-limit-period
-#     are experimental.
+# @unstable: Members @x-checkpoint-delay and
+#     @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
 ##

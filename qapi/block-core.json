@@ -1819,10 +1819,10 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
-# @backing-mask-protocol: If true, replace any protocol mentioned in the
-#     'backing file format' with 'raw', rather than storing the protocol
-#     name as the backing format.  Can be used even when no image header
-#     will be updated (default false; since 9.0).
+# @backing-mask-protocol: If true, replace any protocol mentioned in
+#     the 'backing file format' with 'raw', rather than storing the
+#     protocol name as the backing format.  Can be used even when no
+#     image header will be updated (default false; since 9.0).
 #
 # @speed: the maximum speed, in bytes per second
 #
@@ -2825,10 +2825,10 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
-# @backing-mask-protocol: If true, replace any protocol mentioned in the
-#     'backing file format' with 'raw', rather than storing the protocol
-#     name as the backing format.  Can be used even when no image header
-#     will be updated (default false; since 9.0).
+# @backing-mask-protocol: If true, replace any protocol mentioned in
+#     the 'backing file format' with 'raw', rather than storing the
+#     protocol name as the backing format.  Can be used even when no
+#     image header will be updated (default false; since 9.0).
 #
 # @speed: the maximum speed, in bytes per second
 #
@@ -3547,10 +3547,10 @@
 #     re-allocating them later.  Besides potential performance
 #     degradation, such fragmentation can lead to increased allocation
 #     of clusters past the end of the image file, resulting in image
-#     files whose file length can grow much larger than their guest disk
-#     size would suggest.  If image file length is of concern (e.g. when
-#     storing qcow2 images directly on block devices), you should
-#     consider enabling this option.  (since 8.1)
+#     files whose file length can grow much larger than their guest
+#     disk size would suggest.  If image file length is of concern
+#     (e.g. when storing qcow2 images directly on block devices), you
+#     should consider enabling this option.  (since 8.1)
 #
 # @overlap-check: which overlap checks to perform for writes to the
 #     image, defaults to 'cached' (since 2.2)

@@ -555,8 +555,8 @@
 #
 # Example:
 #
-#     Set new histogram only for write, other histograms will remain not
-#     changed (or not created):
+#     Set new histogram only for write, other histograms will remain
+#     not changed (or not created):
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",

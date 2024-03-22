@@ -425,8 +425,8 @@
 #
 # @skb: generic mode, no driver support necessary
 #
-# @native: DRV mode, program is attached to a driver, packets are passed to
-#     the socket without allocation of skb.
+# @native: DRV mode, program is attached to a driver, packets are
+#     passed to the socket without allocation of skb.
 #
 # Since: 8.2
 ##
@@ -441,23 +441,26 @@
 #
 # @ifname: The name of an existing network interface.
 #
-# @mode: Attach mode for a default XDP program.  If not specified, then
-#     'native' will be tried first, then 'skb'.
+# @mode: Attach mode for a default XDP program.  If not specified,
+#     then 'native' will be tried first, then 'skb'.
 #
 # @force-copy: Force XDP copy mode even if device supports zero-copy.
 #     (default: false)
 #
-# @queues: number of queues to be used for multiqueue interfaces (default: 1).
+# @queues: number of queues to be used for multiqueue interfaces
+#     (default: 1).
 #
-# @start-queue: Use @queues starting from this queue number (default: 0).
+# @start-queue: Use @queues starting from this queue number
+#     (default: 0).
 #
-# @inhibit: Don't load a default XDP program, use one already loaded to
-#     the interface (default: false).  Requires @sock-fds.
+# @inhibit: Don't load a default XDP program, use one already loaded
+#     to the interface (default: false).  Requires @sock-fds.
 #
-# @sock-fds: A colon (:) separated list of file descriptors for already open
-#     but not bound AF_XDP sockets in the queue order.  One fd per queue.
-#     These descriptors should already be added into XDP socket map for
-#     corresponding queues.  Requires @inhibit.
+# @sock-fds: A colon (:) separated list of file descriptors for
+#     already open but not bound AF_XDP sockets in the queue order.
+#     One fd per queue.  These descriptors should already be added
+#     into XDP socket map for corresponding queues.  Requires
+#     @inhibit.
 #
 # Since: 8.2
 ##

@@ -15,20 +15,20 @@
 #
 # @elf: elf format
 #
-# @kdump-zlib: makedumpfile flattened, kdump-compressed format with zlib
-#     compression
+# @kdump-zlib: makedumpfile flattened, kdump-compressed format with
+#     zlib compression
 #
 # @kdump-lzo: makedumpfile flattened, kdump-compressed format with lzo
 #     compression
 #
-# @kdump-snappy: makedumpfile flattened, kdump-compressed format with snappy
-#     compression
+# @kdump-snappy: makedumpfile flattened, kdump-compressed format with
+#     snappy compression
 #
-# @kdump-raw-zlib: raw assembled kdump-compressed format with zlib compression
-#     (since 8.2)
+# @kdump-raw-zlib: raw assembled kdump-compressed format with zlib
+#     compression (since 8.2)
 #
-# @kdump-raw-lzo: raw assembled kdump-compressed format with lzo compression
-#     (since 8.2)
+# @kdump-raw-lzo: raw assembled kdump-compressed format with lzo
+#     compression (since 8.2)
 #
 # @kdump-raw-snappy: raw assembled kdump-compressed format with snappy
 #     compression (since 8.2)

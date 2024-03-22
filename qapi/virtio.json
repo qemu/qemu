@@ -938,10 +938,11 @@
 #
 # @iothread: the id of IOThread object
 #
-# @vqs: an optional array of virtqueue indices that will be handled by this
-#     IOThread.  When absent, virtqueues are assigned round-robin across all
-#     IOThreadVirtQueueMappings provided.  Either all IOThreadVirtQueueMappings
-#     must have @vqs or none of them must have it.
+# @vqs: an optional array of virtqueue indices that will be handled by
+#     this IOThread.  When absent, virtqueues are assigned round-robin
+#     across all IOThreadVirtQueueMappings provided.  Either all
+#     IOThreadVirtQueueMappings must have @vqs or none of them must
+#     have it.
 #
 # Since: 9.0
 ##
@@ -952,7 +953,8 @@
 ##
 # @DummyVirtioForceArrays:
 #
-# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList internally
+# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList
+# internally
 #
 # Since: 9.0
 ##
