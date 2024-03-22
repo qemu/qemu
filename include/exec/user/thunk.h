@@ -21,7 +21,7 @@
 #define THUNK_H
 
 #include "cpu.h"
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 /* types enums definitions */
 

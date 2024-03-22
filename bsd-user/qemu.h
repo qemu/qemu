@@ -22,7 +22,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 extern char **environ;
 
