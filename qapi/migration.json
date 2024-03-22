@@ -1773,7 +1773,7 @@
 #        default network.
 #
 #     5. For now, number of migration streams is restricted to one,
-#        i.e number of items in 'channels' list is just 1.
+#        i.e. number of items in 'channels' list is just 1.
 #
 #     6. The 'uri' and 'channels' arguments are mutually exclusive;
 #        exactly one of the two should be present.
@@ -1850,7 +1850,7 @@
 #     3. The uri format is the same as for -incoming
 #
 #     4. For now, number of migration streams is restricted to one,
-#        i.e number of items in 'channels' list is just 1.
+#        i.e. number of items in 'channels' list is just 1.
 #
 #     5. The 'uri' and 'channels' arguments are mutually exclusive;
 #        exactly one of the two should be present.
