@@ -307,7 +307,6 @@ static void handleAnyDeviceErrors(Error * err)
 */
 @interface QemuCocoaView : NSView
 {
-    NSTrackingArea *trackingArea;
     QEMUScreen screen;
     pixman_image_t *pixman_image;
     BOOL isMouseGrabbed;
@@ -359,6 +358,19 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     self = [super initWithFrame:frameRect];
     if (self) {
 
+        NSTrackingAreaOptions options = NSTrackingActiveInKeyWindow |
+                                        NSTrackingMouseEnteredAndExited |
+                                        NSTrackingMouseMoved |
+                                        NSTrackingInVisibleRect;
+
+        NSTrackingArea *trackingArea =
+            [[NSTrackingArea alloc] initWithRect:CGRectZero
+                                         options:options
+                                           owner:self
+                                        userInfo:nil];
+
+        [self addTrackingArea:trackingArea];
+        [trackingArea release];
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_14_0
@@ -389,41 +401,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     return YES;
 }
 
-- (void) removeTrackingRect
-{
-    if (trackingArea) {
-        [self removeTrackingArea:trackingArea];
-        [trackingArea release];
-        trackingArea = nil;
-    }
-}
-
-- (void) frameUpdated
-{
-    [self removeTrackingRect];
-
-    if ([self window]) {
-        NSTrackingAreaOptions options = NSTrackingActiveInKeyWindow |
-                                        NSTrackingMouseEnteredAndExited |
-                                        NSTrackingMouseMoved;
-        trackingArea = [[NSTrackingArea alloc] initWithRect:[self frame]
-                                                    options:options
-                                                      owner:self
-                                                   userInfo:nil];
-        [self addTrackingArea:trackingArea];
-        [self updateUIInfo];
-    }
-}
-
 - (void) viewDidMoveToWindow
 {
     [self resizeWindow];
-    [self frameUpdated];
-}
-
-- (void) viewWillMoveToWindow:(NSWindow *)newWindow
-{
-    [self removeTrackingRect];
 }
 
 - (void) selectConsoleLocked:(unsigned int)index
@@ -1314,7 +1294,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 - (void)windowDidResize:(NSNotification *)notification
 {
     [cocoaView updateBounds];
-    [cocoaView frameUpdated];
+    [cocoaView updateUIInfo];
 }
 
 /* Called when the user clicks on a window's close button */
