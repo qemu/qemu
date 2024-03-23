@@ -2082,11 +2082,9 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
         nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
         if (translator_io_start(&ctx->base)) {
-            gen_helper_read_interval_timer(tmp);
             ctx->base.is_jmp = DISAS_IAQ_N_STALE;
-        } else {
-            gen_helper_read_interval_timer(tmp);
         }
+        gen_helper_read_interval_timer(tmp);
         save_gpr(ctx, rt, tmp);
         return nullify_end(ctx);
     case 26:
