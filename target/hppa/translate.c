@@ -4700,54 +4700,31 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         }
     }
 
-    /* Advance the insn queue.  Note that this check also detects
-       a priority change within the instruction queue.  */
-    if (ret == DISAS_NEXT && ctx->iaoq_b != ctx->iaoq_f + 4) {
-        if (use_goto_tb(ctx, ctx->iaoq_b, ctx->iaoq_n)
-            && (ctx->null_cond.c == TCG_COND_NEVER
-                || ctx->null_cond.c == TCG_COND_ALWAYS)) {
-            nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
-            gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
-            ctx->base.is_jmp = ret = DISAS_NORETURN;
-        } else {
-            ctx->base.is_jmp = ret = DISAS_IAQ_N_STALE;
-        }
+    /* If the TranslationBlock must end, do so. */
+    ctx->base.pc_next += 4;
+    if (ret != DISAS_NEXT) {
+        return;
     }
+    /* Note this also detects a priority change. */
+    if (ctx->iaoq_b != ctx->iaoq_f + 4) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+        return;
+    }
+
+    /*
+     * Advance the insn queue.
+     * The only exit now is DISAS_TOO_MANY from the translator loop.
+     */
     ctx->iaoq_f = ctx->iaoq_b;
     ctx->iaoq_b = ctx->iaoq_n;
-    ctx->base.pc_next += 4;
-
-    switch (ret) {
-    case DISAS_NORETURN:
-    case DISAS_IAQ_N_UPDATED:
-        break;
-
-    case DISAS_NEXT:
-    case DISAS_IAQ_N_STALE:
-    case DISAS_IAQ_N_STALE_EXIT:
-        if (ctx->iaoq_f == -1) {
-            install_iaq_entries(ctx, -1, cpu_iaoq_b,
-                                ctx->iaoq_n, ctx->iaoq_n_var);
-#ifndef CONFIG_USER_ONLY
-            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
-#endif
-            nullify_save(ctx);
-            ctx->base.is_jmp = (ret == DISAS_IAQ_N_STALE_EXIT
-                                ? DISAS_EXIT
-                                : DISAS_IAQ_N_UPDATED);
-        } else if (ctx->iaoq_b == -1) {
-            if (ctx->iaoq_n_var) {
-                copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
-            } else {
-                tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_b, 4);
-                tcg_gen_andi_i64(cpu_iaoq_b, cpu_iaoq_b,
-                                 gva_offset_mask(ctx->tb_flags));
-            }
+    if (ctx->iaoq_b == -1) {
+        if (ctx->iaoq_n_var) {
+            copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
+        } else {
+            tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_b, 4);
+            tcg_gen_andi_i64(cpu_iaoq_b, cpu_iaoq_b,
+                             gva_offset_mask(ctx->tb_flags));
         }
-        break;
-
-    default:
-        g_assert_not_reached();
     }
 }
 
@@ -4755,23 +4732,51 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     DisasJumpType is_jmp = ctx->base.is_jmp;
+    uint64_t fi, bi;
+    TCGv_i64 fv, bv;
+    TCGv_i64 fs;
+
+    /* Assume the insn queue has not been advanced. */
+    fi = ctx->iaoq_b;
+    fv = cpu_iaoq_b;
+    fs = fi == -1 ? cpu_iasq_b : NULL;
+    bi = ctx->iaoq_n;
+    bv = ctx->iaoq_n_var;
 
     switch (is_jmp) {
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-    case DISAS_IAQ_N_STALE:
-    case DISAS_IAQ_N_STALE_EXIT:
-        install_iaq_entries(ctx, ctx->iaoq_f, cpu_iaoq_f,
-                            ctx->iaoq_b, cpu_iaoq_b);
-        nullify_save(ctx);
+        /* The insn queue has not been advanced. */
+        bi = fi;
+        bv = fv;
+        fi = ctx->iaoq_f;
+        fv = NULL;
+        fs = NULL;
         /* FALLTHRU */
-    case DISAS_IAQ_N_UPDATED:
-        if (is_jmp != DISAS_IAQ_N_STALE_EXIT) {
-            tcg_gen_lookup_and_goto_ptr();
+    case DISAS_IAQ_N_STALE:
+        if (use_goto_tb(ctx, fi, bi)
+            && (ctx->null_cond.c == TCG_COND_NEVER
+                || ctx->null_cond.c == TCG_COND_ALWAYS)) {
+            nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
+            gen_goto_tb(ctx, 0, fi, bi);
             break;
         }
         /* FALLTHRU */
+    case DISAS_IAQ_N_STALE_EXIT:
+        install_iaq_entries(ctx, fi, fv, bi, bv);
+        if (fs) {
+            tcg_gen_mov_i64(cpu_iasq_f, fs);
+        }
+        nullify_save(ctx);
+        if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
+            tcg_gen_exit_tb(NULL, 0);
+            break;
+        }
+        /* FALLTHRU */
+    case DISAS_IAQ_N_UPDATED:
+        tcg_gen_lookup_and_goto_ptr();
+        break;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
