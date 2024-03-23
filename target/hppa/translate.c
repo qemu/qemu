@@ -1807,6 +1807,7 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         install_link(ctx, link, false);
         ctx->iaoq_n = dest;
+        ctx->iaoq_n_var = NULL;
         if (is_n) {
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
@@ -1863,11 +1864,6 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
             ctx->null_lab = NULL;
         }
         nullify_set(ctx, n);
-        if (ctx->iaoq_n == -1) {
-            /* The temporary iaoq_n_var died at the branch above.
-               Regenerate it here instead of saving it.  */
-            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
-        }
         gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
     }
 
@@ -4631,8 +4627,6 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->iaoq_f = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
     ctx->iaoq_b = (diff ? ctx->iaoq_f + diff : -1);
 #endif
-    ctx->iaoq_n = -1;
-    ctx->iaoq_n_var = NULL;
 
     ctx->zero = tcg_constant_i64(0);
 
@@ -4684,14 +4678,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
         /* Set up the IA queue for the next insn.
            This will be overwritten by a branch.  */
-        if (ctx->iaoq_b == -1) {
-            ctx->iaoq_n = -1;
-            ctx->iaoq_n_var = tcg_temp_new_i64();
-            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
-        } else {
-            ctx->iaoq_n = ctx->iaoq_b + 4;
-            ctx->iaoq_n_var = NULL;
-        }
+        ctx->iaoq_n_var = NULL;
+        ctx->iaoq_n = ctx->iaoq_b == -1 ? -1 : ctx->iaoq_b + 4;
 
         if (unlikely(ctx->null_cond.c == TCG_COND_ALWAYS)) {
             ctx->null_cond.c = TCG_COND_NEVER;
@@ -4742,7 +4730,13 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                                 ? DISAS_EXIT
                                 : DISAS_IAQ_N_UPDATED);
         } else if (ctx->iaoq_b == -1) {
-            copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
+            if (ctx->iaoq_n_var) {
+                copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
+            } else {
+                tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_b, 4);
+                tcg_gen_andi_i64(cpu_iaoq_b, cpu_iaoq_b,
+                                 gva_offset_mask(ctx->tb_flags));
+            }
         }
         break;
 
