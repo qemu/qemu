@@ -2162,6 +2162,9 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 
     switch (ctl) {
     case CR_IT:
+        if (translator_io_start(&ctx->base)) {
+            ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+        }
         gen_helper_write_interval_timer(tcg_env, reg);
         break;
     case CR_EIRR:
