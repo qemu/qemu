@@ -2166,10 +2166,10 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
         gen_helper_write_interval_timer(tcg_env, reg);
         break;
     case CR_EIRR:
+        /* Helper modifies interrupt lines and is therefore IO. */
+        translator_io_start(&ctx->base);
         gen_helper_write_eirr(tcg_env, reg);
-        break;
-    case CR_EIEM:
-        gen_helper_write_eiem(tcg_env, reg);
+        /* Exit to re-evaluate interrupts in the main loop. */
         ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
         break;
 
@@ -2195,6 +2195,10 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 #endif
         break;
 
+    case CR_EIEM:
+        /* Exit to re-evaluate interrupts in the main loop. */
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+        /* FALLTHRU */
     default:
         tcg_gen_st_i64(reg, tcg_env, offsetof(CPUHPPAState, cr[ctl]));
         break;
