@@ -624,8 +624,9 @@ static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
     }
 }
 
-static void install_iaq_entries(DisasContext *ctx, uint64_t bi, TCGv_i64 bv,
-                                uint64_t ni, TCGv_i64 nv)
+static void install_iaq_entries(DisasContext *ctx,
+                                uint64_t bi, TCGv_i64 bv, TCGv_i64 bs,
+                                uint64_t ni, TCGv_i64 nv, TCGv_i64 ns)
 {
     copy_iaoq_entry(ctx, cpu_iaoq_f, bi, bv);
 
@@ -638,6 +639,12 @@ static void install_iaq_entries(DisasContext *ctx, uint64_t bi, TCGv_i64 bv,
         tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_f, 4);
         tcg_gen_andi_i64(cpu_iaoq_b, cpu_iaoq_b,
                          gva_offset_mask(ctx->tb_flags));
+    }
+    if (bs) {
+        tcg_gen_mov_i64(cpu_iasq_f, bs);
+    }
+    if (ns || bs) {
+        tcg_gen_mov_i64(cpu_iasq_b, ns ? ns : bs);
     }
 }
 
@@ -671,7 +678,8 @@ static void gen_excp_1(int exception)
 
 static void gen_excp(DisasContext *ctx, int exception)
 {
-    install_iaq_entries(ctx, ctx->iaoq_f, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+    install_iaq_entries(ctx, ctx->iaoq_f, cpu_iaoq_f, NULL,
+                        ctx->iaoq_b, cpu_iaoq_b, NULL);
     nullify_save(ctx);
     gen_excp_1(exception);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -725,10 +733,11 @@ static void gen_goto_tb(DisasContext *ctx, int which,
 {
     if (use_goto_tb(ctx, b, n)) {
         tcg_gen_goto_tb(which);
-        install_iaq_entries(ctx, b, NULL, n, NULL);
+        install_iaq_entries(ctx, b, NULL, NULL, n, NULL, NULL);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        install_iaq_entries(ctx, b, cpu_iaoq_b, n, ctx->iaoq_n_var);
+        install_iaq_entries(ctx, b, cpu_iaoq_b, ctx->iasq_b,
+                            n, ctx->iaoq_n_var, ctx->iasq_n);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -1917,7 +1926,7 @@ static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
         install_link(ctx, link, false);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
-                install_iaq_entries(ctx, -1, next, -1, NULL);
+                install_iaq_entries(ctx, -1, next, NULL, -1, NULL, NULL);
                 nullify_set(ctx, 0);
                 ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
                 return true;
@@ -1936,10 +1945,11 @@ static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
 
     install_link(ctx, link, false);
     if (is_n && use_nullify_skip(ctx)) {
-        install_iaq_entries(ctx, -1, next, -1, NULL);
+        install_iaq_entries(ctx, -1, next, NULL, -1, NULL, NULL);
         nullify_set(ctx, 0);
     } else {
-        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, next);
+        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, ctx->iasq_b,
+                            -1, next, NULL);
         nullify_set(ctx, is_n);
     }
 
@@ -2027,7 +2037,7 @@ static void do_page_zero(DisasContext *ctx)
         tcg_gen_st_i64(cpu_gr[26], tcg_env, offsetof(CPUHPPAState, cr[27]));
         tmp = tcg_temp_new_i64();
         tcg_gen_ori_i64(tmp, cpu_gr[31], 3);
-        install_iaq_entries(ctx, -1, tmp, -1, NULL);
+        install_iaq_entries(ctx, -1, tmp, NULL, -1, NULL, NULL);
         ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
         break;
 
@@ -2771,8 +2781,8 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
             nullify_over(ctx);
 
             /* Advance the instruction queue.  */
-            install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b,
-                                ctx->iaoq_n, ctx->iaoq_n_var);
+            install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, ctx->iasq_b,
+                                ctx->iaoq_n, ctx->iaoq_n_var, ctx->iasq_n);
             nullify_set(ctx, 0);
 
             /* Tell the qemu main loop to halt until this cpu has work.  */
@@ -3922,16 +3932,11 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     load_spr(ctx, new_spc, a->sp);
     install_link(ctx, a->l, true);
     if (a->n && use_nullify_skip(ctx)) {
-        install_iaq_entries(ctx, -1, tmp, -1, NULL);
-        tcg_gen_mov_i64(cpu_iasq_f, new_spc);
-        tcg_gen_mov_i64(cpu_iasq_b, new_spc);
+        install_iaq_entries(ctx, -1, tmp, new_spc, -1, NULL, new_spc);
         nullify_set(ctx, 0);
     } else {
-        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, tmp);
-        if (ctx->iasq_b) {
-            tcg_gen_mov_i64(cpu_iasq_f, ctx->iasq_b);
-        }
-        tcg_gen_mov_i64(cpu_iasq_b, new_spc);
+        install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, ctx->iasq_b,
+                            -1, tmp, new_spc);
         nullify_set(ctx, a->n);
     }
     tcg_gen_lookup_and_goto_ptr();
@@ -4042,11 +4047,8 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
     dest = do_ibranch_priv(ctx, dest);
 
     install_link(ctx, a->l, false);
-    install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, dest);
-    if (ctx->iasq_b) {
-        tcg_gen_mov_i64(cpu_iasq_f, ctx->iasq_b);
-    }
-    tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
+    install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, ctx->iasq_b,
+                        -1, dest, space_select(ctx, 0, dest));
     nullify_set(ctx, a->n);
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -4782,13 +4784,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         }
         /* FALLTHRU */
     case DISAS_IAQ_N_STALE_EXIT:
-        install_iaq_entries(ctx, fi, fv, bi, bv);
-        if (fs) {
-            tcg_gen_mov_i64(cpu_iasq_f, fs);
-        }
-        if (bs) {
-            tcg_gen_mov_i64(cpu_iasq_b, bs);
-        }
+        install_iaq_entries(ctx, fi, fv, fs, bi, bv, bs);
         nullify_save(ctx);
         if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
             tcg_gen_exit_tb(NULL, 0);
