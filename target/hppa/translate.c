@@ -50,6 +50,13 @@ typedef struct DisasContext {
     uint64_t iaoq_b;
     uint64_t iaoq_n;
     TCGv_i64 iaoq_n_var;
+    /*
+     * Null when IASQ_Back unchanged from IASQ_Front,
+     * or cpu_iasq_b, when IASQ_Back has been changed.
+     */
+    TCGv_i64 iasq_b;
+    /* Null when IASQ_Next unchanged from IASQ_Back, or set by branch. */
+    TCGv_i64 iasq_n;
 
     DisasCond null_cond;
     TCGLabel *null_lab;
@@ -3917,12 +3924,12 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
     if (a->n && use_nullify_skip(ctx)) {
         install_iaq_entries(ctx, -1, tmp, -1, NULL);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
-        tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
+        tcg_gen_mov_i64(cpu_iasq_b, new_spc);
         nullify_set(ctx, 0);
     } else {
         install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, tmp);
-        if (ctx->iaoq_b == -1) {
-            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+        if (ctx->iasq_b) {
+            tcg_gen_mov_i64(cpu_iasq_f, ctx->iasq_b);
         }
         tcg_gen_mov_i64(cpu_iasq_b, new_spc);
         nullify_set(ctx, a->n);
@@ -4036,8 +4043,8 @@ static bool trans_bve(DisasContext *ctx, arg_bve *a)
 
     install_link(ctx, a->l, false);
     install_iaq_entries(ctx, ctx->iaoq_b, cpu_iaoq_b, -1, dest);
-    if (ctx->iaoq_b == -1) {
-        tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+    if (ctx->iasq_b) {
+        tcg_gen_mov_i64(cpu_iasq_f, ctx->iasq_b);
     }
     tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
     nullify_set(ctx, a->n);
@@ -4618,6 +4625,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mmu_idx = MMU_USER_IDX;
     ctx->iaoq_f = ctx->base.pc_first | ctx->privilege;
     ctx->iaoq_b = ctx->base.tb->cs_base | ctx->privilege;
+    ctx->iasq_b = NULL;
     ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
@@ -4632,6 +4640,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     ctx->iaoq_f = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
     ctx->iaoq_b = (diff ? ctx->iaoq_f + diff : -1);
+    ctx->iasq_b = (diff ? NULL : cpu_iasq_b);
 #endif
 
     ctx->zero = tcg_constant_i64(0);
@@ -4684,6 +4693,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
         /* Set up the IA queue for the next insn.
            This will be overwritten by a branch.  */
+        ctx->iasq_n = NULL;
         ctx->iaoq_n_var = NULL;
         ctx->iaoq_n = ctx->iaoq_b == -1 ? -1 : ctx->iaoq_b + 4;
 
@@ -4706,7 +4716,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         return;
     }
     /* Note this also detects a priority change. */
-    if (ctx->iaoq_b != ctx->iaoq_f + 4) {
+    if (ctx->iaoq_b != ctx->iaoq_f + 4 || ctx->iasq_b) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
         return;
     }
@@ -4726,6 +4736,10 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                              gva_offset_mask(ctx->tb_flags));
         }
     }
+    if (ctx->iasq_n) {
+        tcg_gen_mov_i64(cpu_iasq_b, ctx->iasq_n);
+        ctx->iasq_b = cpu_iasq_b;
+    }
 }
 
 static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
@@ -4734,14 +4748,15 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     DisasJumpType is_jmp = ctx->base.is_jmp;
     uint64_t fi, bi;
     TCGv_i64 fv, bv;
-    TCGv_i64 fs;
+    TCGv_i64 fs, bs;
 
     /* Assume the insn queue has not been advanced. */
     fi = ctx->iaoq_b;
     fv = cpu_iaoq_b;
-    fs = fi == -1 ? cpu_iasq_b : NULL;
+    fs = ctx->iasq_b;
     bi = ctx->iaoq_n;
     bv = ctx->iaoq_n_var;
+    bs = ctx->iasq_n;
 
     switch (is_jmp) {
     case DISAS_NORETURN:
@@ -4750,12 +4765,15 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         /* The insn queue has not been advanced. */
         bi = fi;
         bv = fv;
+        bs = fs;
         fi = ctx->iaoq_f;
         fv = NULL;
         fs = NULL;
         /* FALLTHRU */
     case DISAS_IAQ_N_STALE:
-        if (use_goto_tb(ctx, fi, bi)
+        if (fs == NULL
+            && bs == NULL
+            && use_goto_tb(ctx, fi, bi)
             && (ctx->null_cond.c == TCG_COND_NEVER
                 || ctx->null_cond.c == TCG_COND_ALWAYS)) {
             nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
@@ -4767,6 +4785,9 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         install_iaq_entries(ctx, fi, fv, bi, bv);
         if (fs) {
             tcg_gen_mov_i64(cpu_iasq_f, fs);
+        }
+        if (bs) {
+            tcg_gen_mov_i64(cpu_iasq_b, bs);
         }
         nullify_save(ctx);
         if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
