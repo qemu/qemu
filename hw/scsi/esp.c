@@ -124,6 +124,48 @@ void esp_request_cancelled(SCSIRequest *req)
     }
 }
 
+static void esp_update_drq(ESPState *s)
+{
+    bool to_device;
+
+    switch (esp_get_phase(s)) {
+    case STAT_MO:
+    case STAT_CD:
+    case STAT_DO:
+        to_device = true;
+        break;
+
+    case STAT_DI:
+    case STAT_ST:
+    case STAT_MI:
+        to_device = false;
+        break;
+
+    default:
+        return;
+    }
+
+    if (s->dma) {
+        /* DMA request so update DRQ according to transfer direction */
+        if (to_device) {
+            if (fifo8_num_free(&s->fifo) < 2) {
+                esp_lower_drq(s);
+            } else {
+                esp_raise_drq(s);
+            }
+        } else {
+            if (fifo8_num_used(&s->fifo) < 2) {
+                esp_lower_drq(s);
+            } else {
+                esp_raise_drq(s);
+            }
+        }
+    } else {
+        /* Not a DMA request */
+        esp_lower_drq(s);
+    }
+}
+
 static void esp_fifo_push(ESPState *s, uint8_t val)
 {
     if (fifo8_num_used(&s->fifo) == s->fifo.capacity) {
@@ -137,6 +179,7 @@ static void esp_fifo_push(ESPState *s, uint8_t val)
 static void esp_fifo_push_buf(ESPState *s, uint8_t *buf, int len)
 {
     fifo8_push_all(&s->fifo, buf, len);
+    esp_update_drq(s);
 }
 
 static uint8_t esp_fifo_pop(ESPState *s)
@@ -180,7 +223,10 @@ static uint32_t esp_fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
 
 static uint32_t esp_fifo_pop_buf(ESPState *s, uint8_t *dest, int maxlen)
 {
-    return esp_fifo8_pop_buf(&s->fifo, dest, maxlen);
+    uint32_t len = esp_fifo8_pop_buf(&s->fifo, dest, maxlen);
+
+    esp_update_drq(s);
+    return len;
 }
 
 static uint32_t esp_get_tc(ESPState *s)
