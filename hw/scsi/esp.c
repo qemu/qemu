@@ -858,7 +858,7 @@ static void esp_do_nodma(ESPState *s)
             return;
         }
         if (fifo8_is_empty(&s->fifo)) {
-            fifo8_push(&s->fifo, s->async_buf[0]);
+            esp_fifo_push(s, s->async_buf[0]);
             s->async_buf++;
             s->async_len--;
             s->ti_size--;
@@ -881,7 +881,7 @@ static void esp_do_nodma(ESPState *s)
     case STAT_ST:
         switch (s->rregs[ESP_CMD]) {
         case CMD_ICCS:
-            fifo8_push(&s->fifo, s->status);
+            esp_fifo_push(s, s->status);
             esp_set_phase(s, STAT_MI);
 
             /* Process any message in phase data */
@@ -893,7 +893,7 @@ static void esp_do_nodma(ESPState *s)
     case STAT_MI:
         switch (s->rregs[ESP_CMD]) {
         case CMD_ICCS:
-            fifo8_push(&s->fifo, 0);
+            esp_fifo_push(s, 0);
 
             /* Raise end of command interrupt */
             s->rregs[ESP_RINTR] |= INTR_FC;
