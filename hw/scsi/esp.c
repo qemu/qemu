@@ -282,14 +282,12 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
 {
     uint32_t dmalen = esp_get_tc(s);
 
-    if (dmalen == 0) {
-        return;
-    }
-
     esp_fifo_push(s, val);
 
-    dmalen--;
-    esp_set_tc(s, dmalen);
+    if (dmalen && s->drq_state) {
+        dmalen--;
+        esp_set_tc(s, dmalen);
+    }
 }
 
 static int esp_select(ESPState *s)
