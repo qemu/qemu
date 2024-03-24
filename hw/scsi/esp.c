@@ -425,20 +425,20 @@ static void write_response(ESPState *s)
     }
 }
 
-static int esp_cdb_length(ESPState *s)
+static bool esp_cdb_ready(ESPState *s)
 {
+    int len = fifo8_num_used(&s->cmdfifo) - s->cmdfifo_cdb_offset;
     const uint8_t *pbuf;
-    int cmdlen, len;
+    int cdblen;
 
-    cmdlen = fifo8_num_used(&s->cmdfifo);
-    if (cmdlen < s->cmdfifo_cdb_offset) {
-        return 0;
+    if (len <= 0) {
+        return false;
     }
 
-    pbuf = fifo8_peek_buf(&s->cmdfifo, cmdlen, NULL);
-    len = scsi_cdb_length((uint8_t *)&pbuf[s->cmdfifo_cdb_offset]);
+    pbuf = fifo8_peek_buf(&s->cmdfifo, len, NULL);
+    cdblen = scsi_cdb_length((uint8_t *)&pbuf[s->cmdfifo_cdb_offset]);
 
-    return len;
+    return cdblen < 0 ? false : (len >= cdblen);
 }
 
 static void esp_dma_ti_check(ESPState *s)
@@ -806,10 +806,9 @@ static void esp_do_nodma(ESPState *s)
             trace_esp_handle_ti_cmd(cmdlen);
 
             /* CDB may be transferred in one or more TI commands */
-            if (esp_cdb_length(s) && esp_cdb_length(s) ==
-                fifo8_num_used(&s->cmdfifo) - s->cmdfifo_cdb_offset) {
-                    /* Command has been received */
-                    do_cmd(s);
+            if (esp_cdb_ready(s)) {
+                /* Command has been received */
+                do_cmd(s);
             } else {
                 /*
                  * If data was transferred from the FIFO then raise bus
@@ -832,10 +831,9 @@ static void esp_do_nodma(ESPState *s)
             fifo8_push_all(&s->cmdfifo, buf, len);
 
             /* Handle when DMA transfer is terminated by non-DMA FIFO write */
-            if (esp_cdb_length(s) && esp_cdb_length(s) ==
-                fifo8_num_used(&s->cmdfifo) - s->cmdfifo_cdb_offset) {
-                    /* Command has been received */
-                    do_cmd(s);
+            if (esp_cdb_ready(s)) {
+                /* Command has been received */
+                do_cmd(s);
             }
             break;
 
