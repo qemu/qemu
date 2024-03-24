@@ -116,6 +116,11 @@ static void esp_fifo_push(ESPState *s, uint8_t val)
     fifo8_push(&s->fifo, val);
 }
 
+static void esp_fifo_push_buf(ESPState *s, uint8_t *buf, int len)
+{
+    fifo8_push_all(&s->fifo, buf, len);
+}
+
 static uint8_t esp_fifo_pop(ESPState *s)
 {
     if (fifo8_is_empty(&s->fifo)) {
@@ -601,7 +606,7 @@ static void esp_do_dma(ESPState *s)
             } else {
                 /* Copy device data to FIFO */
                 len = MIN(len, fifo8_num_free(&s->fifo));
-                fifo8_push_all(&s->fifo, s->async_buf, len);
+                esp_fifo_push_buf(s, s->async_buf, len);
                 esp_raise_drq(s);
             }
 
@@ -650,7 +655,7 @@ static void esp_do_dma(ESPState *s)
                 if (s->dma_memory_write) {
                     s->dma_memory_write(s->dma_opaque, buf, len);
                 } else {
-                    fifo8_push_all(&s->fifo, buf, len);
+                    esp_fifo_push_buf(s, buf, len);
                 }
 
                 esp_set_tc(s, esp_get_tc(s) - len);
@@ -685,7 +690,7 @@ static void esp_do_dma(ESPState *s)
                 if (s->dma_memory_write) {
                     s->dma_memory_write(s->dma_opaque, buf, len);
                 } else {
-                    fifo8_push_all(&s->fifo, buf, len);
+                    esp_fifo_push_buf(s, buf, len);
                 }
 
                 esp_set_tc(s, esp_get_tc(s) - len);
