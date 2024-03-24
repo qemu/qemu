@@ -762,7 +762,8 @@ static void esp_do_nodma(ESPState *s)
 
         case CMD_SELATNS:
             /* Copy one byte from FIFO into cmdfifo */
-            len = esp_fifo_pop_buf(s, buf, 1);
+            len = esp_fifo_pop_buf(s, buf,
+                                   MIN(fifo8_num_used(&s->fifo), 1));
             len = MIN(fifo8_num_free(&s->cmdfifo), len);
             fifo8_push_all(&s->cmdfifo, buf, len);
 
