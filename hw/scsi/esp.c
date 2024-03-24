@@ -116,13 +116,13 @@ static void esp_fifo_push(ESPState *s, uint8_t val)
     fifo8_push(&s->fifo, val);
 }
 
-static uint8_t esp_fifo_pop(Fifo8 *fifo)
+static uint8_t esp_fifo_pop(ESPState *s)
 {
-    if (fifo8_is_empty(fifo)) {
+    if (fifo8_is_empty(&s->fifo)) {
         return 0;
     }
 
-    return fifo8_pop(fifo);
+    return fifo8_pop(&s->fifo);
 }
 
 static uint32_t esp_fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
@@ -217,7 +217,7 @@ static uint8_t esp_pdma_read(ESPState *s)
 {
     uint8_t val;
 
-    val = esp_fifo_pop(&s->fifo);
+    val = esp_fifo_pop(s);
     return val;
 }
 
@@ -1184,7 +1184,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 
     switch (saddr) {
     case ESP_FIFO:
-        s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
+        s->rregs[ESP_FIFO] = esp_fifo_pop(s);
         val = s->rregs[ESP_FIFO];
         break;
     case ESP_RINTR:
