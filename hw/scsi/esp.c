@@ -106,14 +106,14 @@ void esp_request_cancelled(SCSIRequest *req)
     }
 }
 
-static void esp_fifo_push(Fifo8 *fifo, uint8_t val)
+static void esp_fifo_push(ESPState *s, uint8_t val)
 {
-    if (fifo8_num_used(fifo) == fifo->capacity) {
+    if (fifo8_num_used(&s->fifo) == s->fifo.capacity) {
         trace_esp_error_fifo_overrun();
         return;
     }
 
-    fifo8_push(fifo, val);
+    fifo8_push(&s->fifo, val);
 }
 
 static uint8_t esp_fifo_pop(Fifo8 *fifo)
@@ -229,7 +229,7 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
         return;
     }
 
-    esp_fifo_push(&s->fifo, val);
+    esp_fifo_push(s, val);
 
     dmalen--;
     esp_set_tc(s, dmalen);
@@ -1240,7 +1240,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (!fifo8_is_full(&s->fifo)) {
-            esp_fifo_push(&s->fifo, val);
+            esp_fifo_push(s, val);
         }
         esp_do_nodma(s);
         break;
