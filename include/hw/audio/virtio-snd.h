@@ -151,7 +151,6 @@ struct VirtIOSoundPCMStream {
     QemuMutex queue_mutex;
     bool active;
     QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) queue;
-    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) invalid;
 };
 
 /*
@@ -223,6 +222,21 @@ struct VirtIOSound {
     QemuMutex cmdq_mutex;
     QTAILQ_HEAD(, virtio_snd_ctrl_command) cmdq;
     bool processing_cmdq;
+    /*
+     * Convenience queue to keep track of invalid tx/rx queue messages inside
+     * the tx/rx callbacks.
+     *
+     * In the callbacks as a first step we are emptying the virtqueue to handle
+     * each message and we cannot add an invalid message back to the queue: we
+     * would re-process it in subsequent loop iterations.
+     *
+     * Instead, we add them to this queue and after finishing examining every
+     * virtqueue element, we inform the guest for each invalid message.
+     *
+     * This queue must be empty at all times except for inside the tx/rx
+     * callbacks.
+     */
+    QSIMPLEQ_HEAD(, VirtIOSoundPCMBuffer) invalid;
 };
 
 struct virtio_snd_ctrl_command {
