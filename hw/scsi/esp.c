@@ -170,10 +170,11 @@ static void esp_fifo_push(ESPState *s, uint8_t val)
 {
     if (fifo8_num_used(&s->fifo) == s->fifo.capacity) {
         trace_esp_error_fifo_overrun();
-        return;
+    } else {
+        fifo8_push(&s->fifo, val);
     }
 
-    fifo8_push(&s->fifo, val);
+    esp_update_drq(s);
 }
 
 static void esp_fifo_push_buf(ESPState *s, uint8_t *buf, int len)
@@ -184,11 +185,16 @@ static void esp_fifo_push_buf(ESPState *s, uint8_t *buf, int len)
 
 static uint8_t esp_fifo_pop(ESPState *s)
 {
+    uint8_t val;
+
     if (fifo8_is_empty(&s->fifo)) {
-        return 0;
+        val = 0;
+    } else {
+        val = fifo8_pop(&s->fifo);
     }
 
-    return fifo8_pop(&s->fifo);
+    esp_update_drq(s);
+    return val;
 }
 
 static uint32_t esp_fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
