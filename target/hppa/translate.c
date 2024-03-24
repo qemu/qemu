@@ -586,17 +586,10 @@ static bool nullify_end(DisasContext *ctx)
     return true;
 }
 
-static uint64_t gva_offset_mask(DisasContext *ctx)
-{
-    return (ctx->tb_flags & PSW_W
-            ? MAKE_64BIT_MASK(0, 62)
-            : MAKE_64BIT_MASK(0, 32));
-}
-
 static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
                             uint64_t ival, TCGv_i64 vval)
 {
-    uint64_t mask = gva_offset_mask(ctx);
+    uint64_t mask = gva_offset_mask(ctx->tb_flags);
 
     if (ival != -1) {
         tcg_gen_movi_i64(dest, ival & mask);
@@ -1430,7 +1423,8 @@ static void form_gva(DisasContext *ctx, TCGv_i64 *pgva, TCGv_i64 *pofs,
 
     *pofs = ofs;
     *pgva = addr = tcg_temp_new_i64();
-    tcg_gen_andi_i64(addr, modify <= 0 ? ofs : base, gva_offset_mask(ctx));
+    tcg_gen_andi_i64(addr, modify <= 0 ? ofs : base,
+                     gva_offset_mask(ctx->tb_flags));
 #ifndef CONFIG_USER_ONLY
     if (!is_phys) {
         tcg_gen_or_i64(addr, addr, space_select(ctx, sp, base));
