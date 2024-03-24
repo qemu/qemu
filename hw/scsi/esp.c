@@ -506,7 +506,6 @@ static void esp_dma_ti_check(ESPState *s)
     if (esp_get_tc(s) == 0 && fifo8_num_used(&s->fifo) < 2) {
         s->rregs[ESP_RINTR] |= INTR_BS;
         esp_raise_irq(s);
-        esp_lower_drq(s);
     }
 }
 
@@ -526,7 +525,6 @@ static void esp_do_dma(ESPState *s)
         } else {
             len = esp_fifo_pop_buf(s, buf, fifo8_num_used(&s->fifo));
             len = MIN(fifo8_num_free(&s->cmdfifo), len);
-            esp_raise_drq(s);
         }
 
         fifo8_push_all(&s->cmdfifo, buf, len);
@@ -583,7 +581,6 @@ static void esp_do_dma(ESPState *s)
             len = esp_fifo_pop_buf(s, buf, fifo8_num_used(&s->fifo));
             len = MIN(fifo8_num_free(&s->cmdfifo), len);
             fifo8_push_all(&s->cmdfifo, buf, len);
-            esp_raise_drq(s);
         }
         trace_esp_handle_ti_cmd(cmdlen);
         s->ti_size = 0;
@@ -615,7 +612,6 @@ static void esp_do_dma(ESPState *s)
                 len = MIN(s->async_len, ESP_FIFO_SZ);
                 len = MIN(len, fifo8_num_used(&s->fifo));
                 len = esp_fifo_pop_buf(s, s->async_buf, len);
-                esp_raise_drq(s);
             }
 
             s->async_buf += len;
@@ -667,7 +663,6 @@ static void esp_do_dma(ESPState *s)
                 /* Copy device data to FIFO */
                 len = MIN(len, fifo8_num_free(&s->fifo));
                 esp_fifo_push_buf(s, s->async_buf, len);
-                esp_raise_drq(s);
             }
 
             s->async_buf += len;
@@ -733,7 +728,6 @@ static void esp_do_dma(ESPState *s)
             if (fifo8_num_used(&s->fifo) < 2) {
                 s->rregs[ESP_RINTR] |= INTR_BS;
                 esp_raise_irq(s);
-                esp_lower_drq(s);
             }
             break;
         }
@@ -1020,9 +1014,6 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
     esp_set_phase(s, STAT_ST);
     s->rregs[ESP_RINTR] |= INTR_BS;
     esp_raise_irq(s);
-
-    /* Ensure DRQ is set correctly for TC underflow or normal completion */
-    esp_dma_ti_check(s);
 
     if (s->current_req) {
         scsi_req_unref(s->current_req);
