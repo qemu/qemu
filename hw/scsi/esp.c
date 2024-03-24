@@ -79,6 +79,24 @@ static void esp_lower_drq(ESPState *s)
     }
 }
 
+static const char *esp_phase_names[8] = {
+    "DATA OUT", "DATA IN", "COMMAND", "STATUS",
+    "(reserved)", "(reserved)", "MESSAGE OUT", "MESSAGE IN"
+};
+
+static void esp_set_phase(ESPState *s, uint8_t phase)
+{
+    s->rregs[ESP_RSTAT] &= ~7;
+    s->rregs[ESP_RSTAT] |= phase;
+
+    trace_esp_set_phase(esp_phase_names[phase]);
+}
+
+static uint8_t esp_get_phase(ESPState *s)
+{
+    return s->rregs[ESP_RSTAT] & 7;
+}
+
 void esp_dma_enable(ESPState *s, int irq, int level)
 {
     if (level) {
@@ -198,24 +216,6 @@ static uint32_t esp_get_stc(ESPState *s)
     dmalen |= s->wregs[ESP_TCHI] << 16;
 
     return dmalen;
-}
-
-static const char *esp_phase_names[8] = {
-    "DATA OUT", "DATA IN", "COMMAND", "STATUS",
-    "(reserved)", "(reserved)", "MESSAGE OUT", "MESSAGE IN"
-};
-
-static void esp_set_phase(ESPState *s, uint8_t phase)
-{
-    s->rregs[ESP_RSTAT] &= ~7;
-    s->rregs[ESP_RSTAT] |= phase;
-
-    trace_esp_set_phase(esp_phase_names[phase]);
-}
-
-static uint8_t esp_get_phase(ESPState *s)
-{
-    return s->rregs[ESP_RSTAT] & 7;
 }
 
 static uint8_t esp_pdma_read(ESPState *s)
