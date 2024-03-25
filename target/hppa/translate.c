@@ -936,98 +936,44 @@ static DisasCond do_sed_cond(DisasContext *ctx, unsigned orig, bool d,
     return do_log_cond(ctx, c * 2 + f, d, res);
 }
 
-/* Similar, but for unit conditions.  */
-
-static DisasCond do_unit_cond(unsigned cf, bool d, TCGv_i64 res,
-                              TCGv_i64 in1, TCGv_i64 in2)
+/* Similar, but for unit zero conditions.  */
+static DisasCond do_unit_zero_cond(unsigned cf, bool d, TCGv_i64 res)
 {
-    DisasCond cond;
-    TCGv_i64 tmp, cb = NULL;
+    TCGv_i64 tmp;
     uint64_t d_repl = d ? 0x0000000100000001ull : 1;
-
-    if (cf & 8) {
-        /* Since we want to test lots of carry-out bits all at once, do not
-         * do our normal thing and compute carry-in of bit B+1 since that
-         * leaves us with carry bits spread across two words.
-         */
-        cb = tcg_temp_new_i64();
-        tmp = tcg_temp_new_i64();
-        tcg_gen_or_i64(cb, in1, in2);
-        tcg_gen_and_i64(tmp, in1, in2);
-        tcg_gen_andc_i64(cb, cb, res);
-        tcg_gen_or_i64(cb, cb, tmp);
-    }
+    uint64_t ones = 0, sgns = 0;
 
     switch (cf >> 1) {
-    case 0: /* never / TR */
-        cond = cond_make_f();
-        break;
-
     case 1: /* SBW / NBW */
         if (d) {
-            tmp = tcg_temp_new_i64();
-            tcg_gen_subi_i64(tmp, res, d_repl * 0x00000001u);
-            tcg_gen_andc_i64(tmp, tmp, res);
-            tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80000000u);
-            cond = cond_make_0(TCG_COND_NE, tmp);
-        } else {
-            /* undefined */
-            cond = cond_make_f();
+            ones = d_repl;
+            sgns = d_repl << 31;
         }
         break;
-
     case 2: /* SBZ / NBZ */
-        /* See hasless(v,1) from
-         * https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
-         */
-        tmp = tcg_temp_new_i64();
-        tcg_gen_subi_i64(tmp, res, d_repl * 0x01010101u);
-        tcg_gen_andc_i64(tmp, tmp, res);
-        tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80808080u);
-        cond = cond_make_0(TCG_COND_NE, tmp);
+        ones = d_repl * 0x01010101u;
+        sgns = ones << 7;
         break;
-
     case 3: /* SHZ / NHZ */
-        tmp = tcg_temp_new_i64();
-        tcg_gen_subi_i64(tmp, res, d_repl * 0x00010001u);
-        tcg_gen_andc_i64(tmp, tmp, res);
-        tcg_gen_andi_i64(tmp, tmp, d_repl * 0x80008000u);
-        cond = cond_make_0(TCG_COND_NE, tmp);
+        ones = d_repl * 0x00010001u;
+        sgns = ones << 15;
         break;
-
-    case 4: /* SDC / NDC */
-        tcg_gen_andi_i64(cb, cb, d_repl * 0x88888888u);
-        cond = cond_make_0(TCG_COND_NE, cb);
-        break;
-
-    case 5: /* SWC / NWC */
-        if (d) {
-            tcg_gen_andi_i64(cb, cb, d_repl * 0x80000000u);
-            cond = cond_make_0(TCG_COND_NE, cb);
-        } else {
-            /* undefined */
-            cond = cond_make_f();
-        }
-        break;
-
-    case 6: /* SBC / NBC */
-        tcg_gen_andi_i64(cb, cb, d_repl * 0x80808080u);
-        cond = cond_make_0(TCG_COND_NE, cb);
-        break;
-
-    case 7: /* SHC / NHC */
-        tcg_gen_andi_i64(cb, cb, d_repl * 0x80008000u);
-        cond = cond_make_0(TCG_COND_NE, cb);
-        break;
-
-    default:
-        g_assert_not_reached();
     }
-    if (cf & 1) {
-        cond.c = tcg_invert_cond(cond.c);
+    if (ones == 0) {
+        /* Undefined, or 0/1 (never/always). */
+        return cf & 1 ? cond_make_t() : cond_make_f();
     }
 
-    return cond;
+    /*
+     * See hasless(v,1) from
+     * https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+     */
+    tmp = tcg_temp_new_i64();
+    tcg_gen_subi_i64(tmp, res, ones);
+    tcg_gen_andc_i64(tmp, tmp, res);
+    tcg_gen_andi_i64(tmp, tmp, sgns);
+
+    return cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, tmp);
 }
 
 static TCGv_i64 get_carry(DisasContext *ctx, bool d,
@@ -1330,34 +1276,86 @@ static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
     return nullify_end(ctx);
 }
 
-static void do_unit(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
-                    TCGv_i64 in2, unsigned cf, bool d, bool is_tc,
-                    void (*fn)(TCGv_i64, TCGv_i64, TCGv_i64))
+static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+                           TCGv_i64 in2, unsigned cf, bool d,
+                           bool is_tc, bool is_add)
 {
-    TCGv_i64 dest;
+    TCGv_i64 dest = tcg_temp_new_i64();
+    uint64_t test_cb = 0;
     DisasCond cond;
 
-    if (cf == 0) {
-        dest = dest_gpr(ctx, rt);
-        fn(dest, in1, in2);
-        save_gpr(ctx, rt, dest);
-        cond_free(&ctx->null_cond);
-    } else {
-        dest = tcg_temp_new_i64();
-        fn(dest, in1, in2);
-
-        cond = do_unit_cond(cf, d, dest, in1, in2);
-
-        if (is_tc) {
-            TCGv_i64 tmp = tcg_temp_new_i64();
-            tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-            gen_helper_tcond(tcg_env, tmp);
+    /* Select which carry-out bits to test. */
+    switch (cf >> 1) {
+    case 4: /* NDC / SDC -- 4-bit carries */
+        test_cb = dup_const(MO_8, 0x88);
+        break;
+    case 5: /* NWC / SWC -- 32-bit carries */
+        if (d) {
+            test_cb = dup_const(MO_32, INT32_MIN);
+        } else {
+            cf &= 1; /* undefined -- map to never/always */
         }
-        save_gpr(ctx, rt, dest);
-
-        cond_free(&ctx->null_cond);
-        ctx->null_cond = cond;
+        break;
+    case 6: /* NBC / SBC -- 8-bit carries */
+        test_cb = dup_const(MO_8, INT8_MIN);
+        break;
+    case 7: /* NHC / SHC -- 16-bit carries */
+        test_cb = dup_const(MO_16, INT16_MIN);
+        break;
     }
+    if (!d) {
+        test_cb = (uint32_t)test_cb;
+    }
+
+    if (!test_cb) {
+        /* No need to compute carries if we don't need to test them. */
+        if (is_add) {
+            tcg_gen_add_i64(dest, in1, in2);
+        } else {
+            tcg_gen_sub_i64(dest, in1, in2);
+        }
+        cond = do_unit_zero_cond(cf, d, dest);
+    } else {
+        TCGv_i64 cb = tcg_temp_new_i64();
+
+        if (d) {
+            TCGv_i64 cb_msb = tcg_temp_new_i64();
+            if (is_add) {
+                tcg_gen_add2_i64(dest, cb_msb, in1, ctx->zero, in2, ctx->zero);
+                tcg_gen_xor_i64(cb, in1, in2);
+            } else {
+                /* See do_sub, !is_b. */
+                TCGv_i64 one = tcg_constant_i64(1);
+                tcg_gen_sub2_i64(dest, cb_msb, in1, one, in2, ctx->zero);
+                tcg_gen_eqv_i64(cb, in1, in2);
+            }
+            tcg_gen_xor_i64(cb, cb, dest);
+            tcg_gen_extract2_i64(cb, cb, cb_msb, 1);
+        } else {
+            if (is_add) {
+                tcg_gen_add_i64(dest, in1, in2);
+                tcg_gen_xor_i64(cb, in1, in2);
+            } else {
+                tcg_gen_sub_i64(dest, in1, in2);
+                tcg_gen_eqv_i64(cb, in1, in2);
+            }
+            tcg_gen_xor_i64(cb, cb, dest);
+            tcg_gen_shri_i64(cb, cb, 1);
+        }
+
+        tcg_gen_andi_i64(cb, cb, test_cb);
+        cond = cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, cb);
+    }
+
+    if (is_tc) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
+        gen_helper_tcond(tcg_env, tmp);
+    }
+    save_gpr(ctx, rt, dest);
+
+    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -2748,14 +2746,24 @@ static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf_d *a)
 
 static bool trans_uxor(DisasContext *ctx, arg_rrr_cf_d *a)
 {
-    TCGv_i64 tcg_r1, tcg_r2;
+    TCGv_i64 tcg_r1, tcg_r2, dest;
 
     if (a->cf) {
         nullify_over(ctx);
     }
+
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
-    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, a->d, false, tcg_gen_xor_i64);
+    dest = dest_gpr(ctx, a->t);
+
+    tcg_gen_xor_i64(dest, tcg_r1, tcg_r2);
+    save_gpr(ctx, a->t, dest);
+
+    cond_free(&ctx->null_cond);
+    if (a->cf) {
+        ctx->null_cond = do_unit_zero_cond(a->cf, a->d, dest);
+    }
+
     return nullify_end(ctx);
 }
 
@@ -2790,7 +2798,7 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
     tcg_r2 = load_gpr(ctx, a->r2);
     tmp = tcg_temp_new_i64();
     tcg_gen_not_i64(tmp, tcg_r2);
-    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, a->d, is_tc, tcg_gen_add_i64);
+    do_unit_addsub(ctx, a->t, tcg_r1, tmp, a->cf, a->d, is_tc, true);
     return nullify_end(ctx);
 }
 
@@ -2817,8 +2825,8 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf_d *a, bool is_i)
     }
     tcg_gen_andi_i64(tmp, tmp, (uint64_t)0x1111111111111111ull);
     tcg_gen_muli_i64(tmp, tmp, 6);
-    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, a->d, false,
-            is_i ? tcg_gen_add_i64 : tcg_gen_sub_i64);
+    do_unit_addsub(ctx, a->t, load_gpr(ctx, a->r), tmp,
+                   a->cf, a->d, false, is_i);
     return nullify_end(ctx);
 }
 
