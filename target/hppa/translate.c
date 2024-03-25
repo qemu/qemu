@@ -1006,9 +1006,8 @@ static DisasCond do_unit_zero_cond(unsigned cf, bool d, TCGv_i64 res)
     tmp = tcg_temp_new_i64();
     tcg_gen_subi_i64(tmp, res, ones);
     tcg_gen_andc_i64(tmp, tmp, res);
-    tcg_gen_andi_i64(tmp, tmp, sgns);
 
-    return cond_make_ti(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, tmp, 0);
+    return cond_make_ti(cf & 1 ? TCG_COND_TSTEQ : TCG_COND_TSTNE, tmp, sgns);
 }
 
 static TCGv_i64 get_carry(DisasContext *ctx, bool d,
