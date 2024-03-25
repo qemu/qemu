@@ -1080,6 +1080,16 @@
 #
 # Type of a multi-touch event.
 #
+# @begin: A new touch event sequence has just started.
+#
+# @update: A touch event sequence has been updated.
+#
+# @end: A touch event sequence has finished.
+#
+# @cancel: A touch event sequence has been canceled.
+#
+# @data: Absolute position data.
+#
 # Since: 8.1
 ##
 { 'enum'  : 'InputMultiTouchType',
@@ -1136,6 +1146,8 @@
 # @InputMultiTouchEvent:
 #
 # MultiTouch input event.
+#
+# @type: The type of multi-touch event.
 #
 # @slot: Which slot has generated the event.
 #

@@ -62,8 +62,6 @@
         'ImageInfoSpecificKind',
         'InputAxis',
         'InputButton',
-        'InputMultiTouchEvent',
-        'InputMultiTouchType',
         'IscsiHeaderDigest',
         'IscsiTransport',
         'JSONType',
