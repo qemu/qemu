@@ -57,7 +57,6 @@
         'DummyForceArrays',
         'DummyVirtioForceArrays',
         'GrabToggleKeys',
-        'GuestPanicInformationHyperV',
         'HotKeyMod',
         'ImageInfoSpecificKind',
         'InputAxis',
@@ -93,8 +92,7 @@
         'query-cpu-model-expansion',
         'query-rocker',
         'query-rocker-ports',
-        'query-stats-schemas',
-        'watchdog-set-action' ],
+        'query-stats-schemas' ],
     # Externally visible types whose member names may use uppercase
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status

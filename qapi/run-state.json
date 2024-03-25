@@ -376,9 +376,17 @@
 ##
 # @watchdog-set-action:
 #
-# Set watchdog action
+# Set watchdog action.
+#
+# @action: @WatchdogAction action taken when watchdog timer expires.
 #
 # Since: 2.11
+#
+# Example:
+#
+#     -> { "execute": "watchdog-set-action",
+#          "arguments": { "action": "inject-nmi" } }
+#     <- { "return": {} }
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
 
@@ -503,6 +511,22 @@
 # @GuestPanicInformationHyperV:
 #
 # Hyper-V specific guest panic information (HV crash MSRs)
+#
+# @arg1: for Windows, STOP code for the guest crash.  For Linux,
+#        an error code.
+#
+# @arg2: for Windows, first argument of the STOP.  For Linux, the
+#        guest OS ID, which has the kernel version in bits 16-47
+#        and 0x8100 in bits 48-63.
+#
+# @arg3: for Windows, second argument of the STOP.  For Linux, the
+#        program counter of the guest.
+#
+# @arg4: for Windows, third argument of the STOP.  For Linux, the
+#        RAX register (x86) or the stack pointer (aarch64) of the guest.
+#
+# @arg5: for Windows, fourth argument of the STOP.  For x86 Linux, the
+#        stack pointer of the guest.
 #
 # Since: 2.9
 ##
