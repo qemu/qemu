@@ -4324,29 +4324,28 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 
         switch (a->c) {
         case 0: /* simple */
-            tcg_gen_andi_i64(t, t, 0x4000000);
-            ctx->null_cond = cond_make_ti(TCG_COND_NE, t, 0);
-            goto done;
+            mask = R_FPSR_C_MASK;
+            break;
         case 2: /* rej */
             inv = true;
             /* fallthru */
         case 1: /* acc */
-            mask = 0x43ff800;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ_MASK;
             break;
         case 6: /* rej8 */
             inv = true;
             /* fallthru */
         case 5: /* acc8 */
-            mask = 0x43f8000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_6_MASK;
             break;
         case 9: /* acc6 */
-            mask = 0x43e0000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_4_MASK;
             break;
         case 13: /* acc4 */
-            mask = 0x4380000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_2_MASK;
             break;
         case 17: /* acc2 */
-            mask = 0x4200000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_MASK;
             break;
         default:
             gen_illegal(ctx);
@@ -4363,11 +4362,10 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
     } else {
         unsigned cbit = (a->y ^ 1) - 1;
 
-        tcg_gen_extract_i64(t, t, 21 - cbit, 1);
+        tcg_gen_extract_i64(t, t, R_FPSR_CA0_SHIFT - cbit, 1);
         ctx->null_cond = cond_make_ti(TCG_COND_NE, t, 0);
     }
 
- done:
     return nullify_end(ctx);
 }
 

@@ -24,6 +24,7 @@
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 #include "qemu/interval-tree.h"
+#include "hw/registerfields.h"
 
 #define MMU_ABS_W_IDX     6
 #define MMU_ABS_IDX       7
@@ -151,6 +152,30 @@
 #define CR_IOR           21
 #define CR_IPSW          22
 #define CR_EIRR          23
+
+FIELD(FPSR, ENA_I, 0, 1)
+FIELD(FPSR, ENA_U, 1, 1)
+FIELD(FPSR, ENA_O, 2, 1)
+FIELD(FPSR, ENA_Z, 3, 1)
+FIELD(FPSR, ENA_V, 4, 1)
+FIELD(FPSR, ENABLES, 0, 5)
+FIELD(FPSR, D, 5, 1)
+FIELD(FPSR, T, 6, 1)
+FIELD(FPSR, RM, 9, 2)
+FIELD(FPSR, CQ, 11, 11)
+FIELD(FPSR, CQ0_6, 15, 7)
+FIELD(FPSR, CQ0_4, 17, 5)
+FIELD(FPSR, CQ0_2, 19, 3)
+FIELD(FPSR, CQ0, 21, 1)
+FIELD(FPSR, CA, 15, 7)
+FIELD(FPSR, CA0, 21, 1)
+FIELD(FPSR, C, 26, 1)
+FIELD(FPSR, FLG_I, 27, 1)
+FIELD(FPSR, FLG_U, 28, 1)
+FIELD(FPSR, FLG_O, 29, 1)
+FIELD(FPSR, FLG_Z, 30, 1)
+FIELD(FPSR, FLG_V, 31, 1)
+FIELD(FPSR, FLAGS, 27, 5)
 
 typedef struct HPPATLBEntry {
     union {
