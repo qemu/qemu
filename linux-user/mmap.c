@@ -1354,7 +1354,7 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
         if (h_len != t_len) {
             int mmap_p = PROT_READ | (shmflg & SHM_RDONLY ? 0 : PROT_WRITE);
             int mmap_f = MAP_PRIVATE | MAP_ANONYMOUS
-                       | (reserved_va || (shmflg & SHM_REMAP)
+                       | (reserved_va || mapped || (shmflg & SHM_REMAP)
                           ? MAP_FIXED : MAP_FIXED_NOREPLACE);
 
             test = mmap(want, m_len, mmap_p, mmap_f, -1, 0);
