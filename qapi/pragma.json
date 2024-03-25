@@ -72,7 +72,6 @@
         'QCryptoAkCipherKeyType',
         'QCryptodevBackendServiceType',
         'QKeyCode',
-        'Qcow2OverlapCheckFlags',
         'RbdAuthMode',
         'RbdImageEncryptionFormat',
         'String',

@@ -3403,14 +3403,31 @@
 # @Qcow2OverlapCheckFlags:
 #
 # Structure of flags for each metadata structure.  Setting a field to
-# 'true' makes qemu guard that structure against unintended
-# overwriting.  The default value is chosen according to the template
-# given.
+# 'true' makes QEMU guard that Qcow2 format structure against
+# unintended overwriting.  See Qcow2 format specification for detailed
+# information on these structures.  The default value is chosen
+# according to the template given.
 #
 # @template: Specifies a template mode which can be adjusted using the
 #     other flags, defaults to 'cached'
 #
-# @bitmap-directory: since 3.0
+# @main-header: Qcow2 format header
+#
+# @active-l1: Qcow2 active L1 table
+#
+# @active-l2: Qcow2 active L2 table
+#
+# @refcount-table: Qcow2 refcount table
+#
+# @refcount-block: Qcow2 refcount blocks
+#
+# @snapshot-table: Qcow2 snapshot table
+#
+# @inactive-l1: Qcow2 inactive L1 tables
+#
+# @inactive-l2: Qcow2 inactive L2 tables
+#
+# @bitmap-directory: Qcow2 bitmap directory (since 3.0)
 #
 # Since: 2.9
 ##
