@@ -1420,8 +1420,8 @@ static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
             tcg_gen_shri_i64(cb, cb, 1);
         }
 
-        tcg_gen_andi_i64(cb, cb, test_cb);
-        cond = cond_make_ti(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, cb, 0);
+        cond = cond_make_ti(cf & 1 ? TCG_COND_TSTEQ : TCG_COND_TSTNE,
+                            cb, test_cb);
     }
 
     if (is_tc) {
