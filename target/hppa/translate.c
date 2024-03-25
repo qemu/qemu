@@ -2791,7 +2791,7 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf_d *a, bool is_i)
     nullify_over(ctx);
 
     tmp = tcg_temp_new_i64();
-    tcg_gen_shri_i64(tmp, cpu_psw_cb, 3);
+    tcg_gen_extract2_i64(tmp, cpu_psw_cb, cpu_psw_cb_msb, 4);
     if (!is_i) {
         tcg_gen_not_i64(tmp, tmp);
     }
