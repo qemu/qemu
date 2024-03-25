@@ -1549,8 +1549,8 @@ M: Glenn Miles <milesg@linux.vnet.ibm.com>
 L: qemu-ppc@nongnu.org
 L: qemu-arm@nongnu.org
 S: Odd Fixes
-F: hw/misc/pca955*.c
-F: include/hw/misc/pca955*.h
+F: hw/gpio/pca955*.c
+F: include/hw/gpio/pca955*.h
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>

@@ -394,7 +394,7 @@ void qvirtqueue_kick(QTestState *qts, QVirtioDevice *d, QVirtQueue *vq,
     qvirtio_writew(d, qts, vq->avail + 2, idx + 1);
 
     /* Must read after idx is updated */
-    flags = qvirtio_readw(d, qts, vq->avail);
+    flags = qvirtio_readw(d, qts, vq->used);
     avail_event = qvirtio_readw(d, qts, vq->used + 4 +
                                 sizeof(struct vring_used_elem) * vq->size);
 

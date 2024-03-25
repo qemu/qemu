@@ -656,6 +656,8 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
     AspeedSoCClass *sc = ASPEED_SOC_CLASS(oc);
 
     dc->realize      = aspeed_soc_ast2600_realize;
+    /* Reason: The Aspeed SoC can only be instantiated from a board */
+    dc->user_creatable = false;
 
     sc->name         = "ast2600-a3";
     sc->valid_cpu_types = valid_cpu_types;

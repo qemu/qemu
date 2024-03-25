@@ -424,6 +424,8 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSoCClass *sc = ASPEED_SOC_CLASS(dc);
 
+    /* Reason: The Aspeed SoC can only be instantiated from a board */
+    dc->user_creatable = false;
     dc->realize = aspeed_soc_ast1030_realize;
 
     sc->name = "ast1030-a1";

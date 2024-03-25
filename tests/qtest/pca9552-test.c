@@ -12,7 +12,7 @@
 #include "libqtest.h"
 #include "libqos/qgraph.h"
 #include "libqos/i2c.h"
-#include "hw/misc/pca9552_regs.h"
+#include "hw/gpio/pca9552_regs.h"
 
 #define PCA9552_TEST_ID   "pca9552-test"
 #define PCA9552_TEST_ADDR 0x60

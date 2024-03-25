@@ -13,6 +13,10 @@ nrf51_gpio_write(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x
 nrf51_gpio_set(int64_t line, int64_t value) "line %" PRIi64 " value %" PRIi64
 nrf51_gpio_update_output_irq(int64_t line, int64_t value) "line %" PRIi64 " value %" PRIi64
 
+# pca9552.c
+pca955x_gpio_status(const char *description, const char *buf) "%s GPIOs 0-15 [%s]"
+pca955x_gpio_change(const char *description, unsigned id, unsigned prev_state, unsigned current_state) "%s GPIO id:%u status: %u -> %u"
+
 # pl061.c
 pl061_update(const char *id, uint32_t dir, uint32_t data, uint32_t pullups, uint32_t floating) "%s GPIODIR 0x%x GPIODATA 0x%x pullups 0x%x floating 0x%x"
 pl061_set_output(const char *id, int gpio, int level) "%s setting output %d to %d"

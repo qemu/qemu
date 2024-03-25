@@ -8,8 +8,8 @@
  */
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "hw/misc/pca9554_regs.h"
-#include "hw/misc/pca9552_regs.h"
+#include "hw/gpio/pca9554_regs.h"
+#include "hw/gpio/pca9552_regs.h"
 #include "pnv-xscom.h"
 
 #define PPC_BIT(bit)            (0x8000000000000000ULL >> (bit))

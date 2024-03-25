@@ -184,8 +184,8 @@ jobs:
           - genisoimage
       env:
         - TEST_CMD="make check check-tcg V=1"
-        - CONFIG="--disable-containers --enable-fdt=system
-                  --target-list=${MAIN_SYSTEM_TARGETS},s390x-linux-user"
+        - CONFIG="--disable-containers
+            --target-list=hppa-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
         - UNRELIABLE=true
       script:
         - BUILD_RC=0 && make -j${JOBS} || BUILD_RC=$?
@@ -220,13 +220,12 @@ jobs:
           - libsnappy-dev
           - libzstd-dev
           - nettle-dev
-          - xfslibs-dev
           - ninja-build
           # Tests dependencies
           - genisoimage
       env:
-        - CONFIG="--disable-containers --enable-fdt=system --audio-drv-list=sdl
-                  --disable-user --target-list-exclude=${MAIN_SYSTEM_TARGETS}"
+        - CONFIG="--disable-containers --audio-drv-list=sdl --disable-user
+            --target-list=arm-softmmu,avr-softmmu,microblaze-softmmu,sh4eb-softmmu,sparc64-softmmu,xtensaeb-softmmu"
 
     - name: "[s390x] GCC (user)"
       arch: s390x
@@ -240,6 +239,7 @@ jobs:
           - flex
           - bison
       env:
+        - TEST_CMD="make check check-tcg V=1"
         - CONFIG="--disable-containers --disable-system"
 
     - name: "[s390x] Clang (disable-tcg)"
