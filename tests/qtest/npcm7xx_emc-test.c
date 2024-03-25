@@ -789,7 +789,7 @@ static void emc_test_ptle(QTestState *qts, const EMCModule *mod, int fd)
 static void test_tx(gconstpointer test_data)
 {
     const TestData *td = test_data;
-    GString *cmd_line = g_string_new("-machine quanta-gsj");
+    g_autoptr(GString) cmd_line = g_string_new("-machine quanta-gsj");
     int *test_sockets = packet_test_init(emc_module_index(td->module),
                                          cmd_line);
     QTestState *qts = qtest_init(cmd_line->str);
@@ -814,7 +814,7 @@ static void test_tx(gconstpointer test_data)
 static void test_rx(gconstpointer test_data)
 {
     const TestData *td = test_data;
-    GString *cmd_line = g_string_new("-machine quanta-gsj");
+    g_autoptr(GString) cmd_line = g_string_new("-machine quanta-gsj");
     int *test_sockets = packet_test_init(emc_module_index(td->module),
                                          cmd_line);
     QTestState *qts = qtest_init(cmd_line->str);

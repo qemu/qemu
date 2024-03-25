@@ -1814,7 +1814,11 @@ QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
      * way, qtest_get_arch works for inproc qtest.
      */
     gchar *bin_path = g_strconcat("/qemu-system-", arch, NULL);
-    g_setenv("QTEST_QEMU_BINARY", bin_path, 0);
+    if (!g_setenv("QTEST_QEMU_BINARY", bin_path, 0)) {
+        fprintf(stderr,
+                "Could not set environment variable QTEST_QEMU_BINARY\n");
+        exit(1);
+    }
     g_free(bin_path);
 
     return qts;

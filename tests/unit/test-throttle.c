@@ -127,13 +127,13 @@ static void test_compute_wait(void)
     bkt.avg = 10;
     bkt.max = 200;
     for (i = 0; i < 22; i++) {
-        double units = bkt.max / 10;
+        double units = bkt.max / 10.0;
         bkt.level += units;
         bkt.burst_level += units;
         throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 10);
         wait = throttle_compute_wait(&bkt);
         g_assert(double_cmp(bkt.burst_level, 0));
-        g_assert(double_cmp(bkt.level, (i + 1) * (bkt.max - bkt.avg) / 10));
+        g_assert(double_cmp(bkt.level, (i + 1) * (bkt.max - bkt.avg) / 10.0));
         /* We can do bursts for the 2 seconds we have configured in
          * burst_length. We have 100 extra milliseconds of burst
          * because bkt.level has been leaking during this time.

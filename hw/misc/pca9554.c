@@ -160,7 +160,7 @@ static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin > PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
@@ -187,7 +187,7 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin > PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }

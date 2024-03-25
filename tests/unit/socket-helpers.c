@@ -160,7 +160,6 @@ void socket_check_afunix_support(bool *has_afunix)
     int fd;
 
     fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    close(fd);
 
 #ifdef _WIN32
     *has_afunix = (fd != (int)INVALID_SOCKET);
@@ -168,5 +167,8 @@ void socket_check_afunix_support(bool *has_afunix)
     *has_afunix = (fd >= 0);
 #endif
 
+    if (*has_afunix) {
+        close(fd);
+    }
     return;
 }
