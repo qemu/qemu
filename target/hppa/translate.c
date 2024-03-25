@@ -915,65 +915,41 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
                              TCGv_i64 res)
 {
     TCGCond tc;
-    bool ext_uns;
+    uint64_t imm;
 
-    switch (cf) {
-    case 0:  /* never */
-    case 9:  /* undef, C */
-    case 11: /* undef, C & !Z */
-    case 12: /* undef, V */
-        return cond_make_f();
-
-    case 1:  /* true */
-    case 8:  /* undef, !C */
-    case 10: /* undef, !C | Z */
-    case 13: /* undef, !V */
-        return cond_make_t();
-
-    case 2:  /* == */
-        tc = TCG_COND_EQ;
-        ext_uns = true;
+    switch (cf >> 1) {
+    case 0:  /* never / always */
+    case 4:  /* undef, C */
+    case 5:  /* undef, C & !Z */
+    case 6:  /* undef, V */
+        return cf & 1 ? cond_make_t() : cond_make_f();
+    case 1:  /* == / <> */
+        tc = d ? TCG_COND_EQ : TCG_COND_TSTEQ;
+        imm = d ? 0 : UINT32_MAX;
         break;
-    case 3:  /* <> */
-        tc = TCG_COND_NE;
-        ext_uns = true;
+    case 2:  /* < / >= */
+        tc = d ? TCG_COND_LT : TCG_COND_TSTNE;
+        imm = d ? 0 : 1ull << 31;
         break;
-    case 4:  /* < */
-        tc = TCG_COND_LT;
-        ext_uns = false;
+    case 3:  /* <= / > */
+        tc = cf & 1 ? TCG_COND_GT : TCG_COND_LE;
+        if (!d) {
+            TCGv_i64 tmp = tcg_temp_new_i64();
+            tcg_gen_ext32s_i64(tmp, res);
+            return cond_make_ti(tc, tmp, 0);
+        }
+        return cond_make_vi(tc, res, 0);
+    case 7: /* OD / EV */
+        tc = TCG_COND_TSTNE;
+        imm = 1;
         break;
-    case 5:  /* >= */
-        tc = TCG_COND_GE;
-        ext_uns = false;
-        break;
-    case 6:  /* <= */
-        tc = TCG_COND_LE;
-        ext_uns = false;
-        break;
-    case 7:  /* > */
-        tc = TCG_COND_GT;
-        ext_uns = false;
-        break;
-
-    case 14: /* OD */
-    case 15: /* EV */
-        return do_cond(ctx, cf, d, res, NULL, NULL);
-
     default:
         g_assert_not_reached();
     }
-
-    if (!d) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-
-        if (ext_uns) {
-            tcg_gen_ext32u_i64(tmp, res);
-        } else {
-            tcg_gen_ext32s_i64(tmp, res);
-        }
-        return cond_make_ti(tc, tmp, 0);
+    if (cf & 1) {
+        tc = tcg_invert_cond(tc);
     }
-    return cond_make_vi(tc, res, 0);
+    return cond_make_vi(tc, res, imm);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
