@@ -701,7 +701,7 @@ print_ipc(CPUArchState *cpu_env, const struct syscallname *name,
         break;
     case IPCOP_shmat:
         print_shmat(cpu_env, &(const struct syscallname){ .name = "shmat" },
-                    arg1, arg4, arg2, 0, 0, 0);
+                    arg2, arg5, arg3, 0, 0, 0);
         break;
     default:
         qemu_log(("%s("
