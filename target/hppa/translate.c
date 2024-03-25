@@ -776,28 +776,36 @@ static bool cond_need_cb(int c)
 static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
                          TCGv_i64 res, TCGv_i64 uv, TCGv_i64 sv)
 {
+    TCGCond sign_cond, zero_cond;
+    uint64_t sign_imm, zero_imm;
     DisasCond cond;
     TCGv_i64 tmp;
+
+    if (d) {
+        /* 64-bit condition. */
+        sign_imm = 0;
+        sign_cond = TCG_COND_LT;
+        zero_imm = 0;
+        zero_cond = TCG_COND_EQ;
+    } else {
+        /* 32-bit condition. */
+        sign_imm = 1ull << 31;
+        sign_cond = TCG_COND_TSTNE;
+        zero_imm = UINT32_MAX;
+        zero_cond = TCG_COND_TSTEQ;
+    }
 
     switch (cf >> 1) {
     case 0: /* Never / TR    (0 / 1) */
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
-        if (!d) {
-            tmp = tcg_temp_new_i64();
-            tcg_gen_ext32u_i64(tmp, res);
-            res = tmp;
-        }
-        cond = cond_make_vi(TCG_COND_EQ, res, 0);
+        cond = cond_make_vi(zero_cond, res, zero_imm);
         break;
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
         tmp = tcg_temp_new_i64();
         tcg_gen_xor_i64(tmp, res, sv);
-        if (!d) {
-            tcg_gen_ext32s_i64(tmp, tmp);
-        }
-        cond = cond_make_ti(TCG_COND_LT, tmp, 0);
+        cond = cond_make_ti(sign_cond, tmp, sign_imm);
         break;
     case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
         /*
@@ -805,21 +813,15 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
          *   (N ^ V) | Z
          *   ((res < 0) ^ (sv < 0)) | !res
          *   ((res ^ sv) < 0) | !res
-         *   (~(res ^ sv) >= 0) | !res
-         *   !(~(res ^ sv) >> 31) | !res
-         *   !(~(res ^ sv) >> 31 & res)
+         *   ((res ^ sv) < 0 ? 1 : !res)
+         *   !((res ^ sv) < 0 ? 0 : res)
          */
         tmp = tcg_temp_new_i64();
-        tcg_gen_eqv_i64(tmp, res, sv);
-        if (!d) {
-            tcg_gen_sextract_i64(tmp, tmp, 31, 1);
-            tcg_gen_and_i64(tmp, tmp, res);
-            tcg_gen_ext32u_i64(tmp, tmp);
-        } else {
-            tcg_gen_sari_i64(tmp, tmp, 63);
-            tcg_gen_and_i64(tmp, tmp, res);
-        }
-        cond = cond_make_ti(TCG_COND_EQ, tmp, 0);
+        tcg_gen_xor_i64(tmp, res, sv);
+        tcg_gen_movcond_i64(sign_cond, tmp,
+                            tmp, tcg_constant_i64(sign_imm),
+                            ctx->zero, res);
+        cond = cond_make_ti(zero_cond, tmp, zero_imm);
         break;
     case 4: /* NUV / UV      (!UV / UV) */
         cond = cond_make_vi(TCG_COND_EQ, uv, 0);
@@ -827,23 +829,13 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
     case 5: /* ZNV / VNZ     (!UV | Z / UV & !Z) */
         tmp = tcg_temp_new_i64();
         tcg_gen_movcond_i64(TCG_COND_EQ, tmp, uv, ctx->zero, ctx->zero, res);
-        if (!d) {
-            tcg_gen_ext32u_i64(tmp, tmp);
-        }
-        cond = cond_make_ti(TCG_COND_EQ, tmp, 0);
+        cond = cond_make_ti(zero_cond, tmp, zero_imm);
         break;
     case 6: /* SV / NSV      (V / !V) */
-        if (!d) {
-            tmp = tcg_temp_new_i64();
-            tcg_gen_ext32s_i64(tmp, sv);
-            sv = tmp;
-        }
-        cond = cond_make_ti(TCG_COND_LT, sv, 0);
+        cond = cond_make_vi(sign_cond, sv, sign_imm);
         break;
     case 7: /* OD / EV */
-        tmp = tcg_temp_new_i64();
-        tcg_gen_andi_i64(tmp, res, 1);
-        cond = cond_make_ti(TCG_COND_NE, tmp, 0);
+        cond = cond_make_vi(TCG_COND_TSTNE, res, 1);
         break;
     default:
         g_assert_not_reached();
