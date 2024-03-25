@@ -2763,9 +2763,29 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
 {
     TCGv_i64 tcg_r1, tcg_r2, tmp;
 
-    if (a->cf) {
-        nullify_over(ctx);
+    if (a->cf == 0) {
+        tcg_r2 = load_gpr(ctx, a->r2);
+        tmp = dest_gpr(ctx, a->t);
+
+        if (a->r1 == 0) {
+            /* UADDCM r0,src,dst is the common idiom for dst = ~src. */
+            tcg_gen_not_i64(tmp, tcg_r2);
+        } else {
+            /*
+             * Recall that r1 - r2 == r1 + ~r2 + 1.
+             * Thus r1 + ~r2 == r1 - r2 - 1,
+             * which does not require an extra temporary.
+             */
+            tcg_r1 = load_gpr(ctx, a->r1);
+            tcg_gen_sub_i64(tmp, tcg_r1, tcg_r2);
+            tcg_gen_subi_i64(tmp, tmp, 1);
+        }
+        save_gpr(ctx, a->t, tmp);
+        cond_free(&ctx->null_cond);
+        return true;
     }
+
+    nullify_over(ctx);
     tcg_r1 = load_gpr(ctx, a->r1);
     tcg_r2 = load_gpr(ctx, a->r2);
     tmp = tcg_temp_new_i64();
