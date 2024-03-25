@@ -140,10 +140,6 @@ static bool transport_supports_multi_channels(MigrationAddress *addr)
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
         SocketAddress *saddr = &addr->u.socket;
 
-        if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            return migrate_mapped_ram();
-        }
-
         return (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
                 saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
                 saddr->type == SOCKET_ADDRESS_TYPE_VSOCK);
@@ -163,15 +159,6 @@ static bool transport_supports_seeking(MigrationAddress *addr)
 {
     if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
         return true;
-    }
-
-    /*
-     * At this point QEMU has not yet fetched the fd passed in by the
-     * user, so we cannot know for sure whether it refers to a plain
-     * file or a socket. Let it through anyway and check at fd.c.
-     */
-    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
-        return addr->u.socket.type == SOCKET_ADDRESS_TYPE_FD;
     }
 
     return false;
@@ -3212,17 +3199,16 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
-    uint64_t must_precopy, can_postcopy;
+    uint64_t must_precopy, can_postcopy, pending_size;
     Error *local_err = NULL;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
     bool can_switchover = migration_can_switchover(s);
 
     qemu_savevm_state_pending_estimate(&must_precopy, &can_postcopy);
-    uint64_t pending_size = must_precopy + can_postcopy;
-
+    pending_size = must_precopy + can_postcopy;
     trace_migrate_pending_estimate(pending_size, must_precopy, can_postcopy);
 
-    if (must_precopy <= s->threshold_size) {
+    if (pending_size < s->threshold_size) {
         qemu_savevm_state_pending_exact(&must_precopy, &can_postcopy);
         pending_size = must_precopy + can_postcopy;
         trace_migrate_pending_exact(pending_size, must_precopy, can_postcopy);

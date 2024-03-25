@@ -2536,13 +2536,6 @@ static void *migrate_precopy_fd_file_start(QTestState *from, QTestState *to)
     return NULL;
 }
 
-static void *migrate_fd_file_mapped_ram_start(QTestState *from, QTestState *to)
-{
-    migrate_mapped_ram_start(from, to);
-
-    return migrate_precopy_fd_file_start(from, to);
-}
-
 static void test_migrate_precopy_fd_file(void)
 {
     MigrateCommon args = {
@@ -2551,36 +2544,6 @@ static void test_migrate_precopy_fd_file(void)
         .start_hook = migrate_precopy_fd_file_start,
         .finish_hook = test_migrate_fd_finish_hook
     };
-    test_file_common(&args, true);
-}
-
-static void test_migrate_precopy_fd_file_mapped_ram(void)
-{
-    MigrateCommon args = {
-        .listen_uri = "defer",
-        .connect_uri = "fd:fd-mig",
-        .start_hook = migrate_fd_file_mapped_ram_start,
-        .finish_hook = test_migrate_fd_finish_hook
-    };
-    test_file_common(&args, true);
-}
-
-static void *migrate_multifd_fd_mapped_ram_start(QTestState *from,
-                                                QTestState *to)
-{
-    migrate_multifd_mapped_ram_start(from, to);
-    return migrate_precopy_fd_file_start(from, to);
-}
-
-static void test_multifd_fd_mapped_ram(void)
-{
-    MigrateCommon args = {
-        .connect_uri = "fd:fd-mig",
-        .listen_uri = "defer",
-        .start_hook = migrate_multifd_fd_mapped_ram_start,
-        .finish_hook = test_migrate_fd_finish_hook
-    };
-
     test_file_common(&args, true);
 }
 #endif /* _WIN32 */
@@ -3687,10 +3650,6 @@ int main(int argc, char **argv)
                        test_multifd_file_mapped_ram);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
-#ifndef _WIN32
-    migration_test_add("/migration/multifd/fd/mapped-ram",
-                       test_multifd_fd_mapped_ram);
-#endif
 
 #ifdef CONFIG_GNUTLS
     migration_test_add("/migration/precopy/unix/tls/psk",
@@ -3753,8 +3712,6 @@ int main(int argc, char **argv)
                        test_migrate_precopy_fd_socket);
     migration_test_add("/migration/precopy/fd/file",
                        test_migrate_precopy_fd_file);
-    migration_test_add("/migration/precopy/fd/file/mapped-ram",
-                       test_migrate_precopy_fd_file_mapped_ram);
 #endif
     migration_test_add("/migration/validate_uuid", test_validate_uuid);
     migration_test_add("/migration/validate_uuid_error",

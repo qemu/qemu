@@ -11,7 +11,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "channel.h"
-#include "fd.h"
 #include "file.h"
 #include "migration.h"
 #include "io/channel-file.h"
@@ -55,27 +54,15 @@ bool file_send_channel_create(gpointer opaque, Error **errp)
 {
     QIOChannelFile *ioc;
     int flags = O_WRONLY;
-    bool ret = false;
-    int fd = fd_args_get_fd();
+    bool ret = true;
 
-    if (fd && fd != -1) {
-        if (fd_is_socket(fd)) {
-            error_setg(errp,
-                       "Multifd migration to a socket FD is not supported");
-            goto out;
-        }
-
-        ioc = qio_channel_file_new_dupfd(fd, errp);
-    } else {
-        ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
-    }
-
+    ioc = qio_channel_file_new_path(outgoing_args.fname, flags, 0, errp);
     if (!ioc) {
+        ret = false;
         goto out;
     }
 
     multifd_channel_connect(opaque, QIO_CHANNEL(ioc));
-    ret = true;
 
 out:
     /*

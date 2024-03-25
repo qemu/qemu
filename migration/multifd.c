@@ -18,7 +18,6 @@
 #include "exec/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "fd.h"
 #include "file.h"
 #include "migration.h"
 #include "migration-stats.h"
@@ -112,7 +111,6 @@ void multifd_send_channel_created(void)
 static void multifd_set_file_bitmap(MultiFDSendParams *p)
 {
     MultiFDPages_t *pages = p->pages;
-    uint32_t zero_num = p->pages->num - p->pages->normal_num;
 
     assert(pages->block);
 
@@ -120,7 +118,7 @@ static void multifd_set_file_bitmap(MultiFDSendParams *p)
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], true);
     }
 
-    for (int i = p->pages->num; i < zero_num; i++) {
+    for (int i = p->pages->normal_num; i < p->pages->num; i++) {
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], false);
     }
 }
@@ -794,7 +792,6 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
 static void multifd_send_cleanup_state(void)
 {
     file_cleanup_outgoing_migration();
-    fd_cleanup_outgoing_migration();
     socket_cleanup_outgoing_migration();
     qemu_sem_destroy(&multifd_send_state->channels_created);
     qemu_sem_destroy(&multifd_send_state->channels_ready);
