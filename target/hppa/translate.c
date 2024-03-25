@@ -345,32 +345,32 @@ static DisasCond cond_make_n(void)
     };
 }
 
-static DisasCond cond_make_tmp(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
+static DisasCond cond_make_tt(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
     assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
     return (DisasCond){ .c = c, .a0 = a0, .a1 = a1 };
 }
 
-static DisasCond cond_make_0_tmp(TCGCond c, TCGv_i64 a0)
+static DisasCond cond_make_ti(TCGCond c, TCGv_i64 a0, uint64_t imm)
 {
-    return cond_make_tmp(c, a0, tcg_constant_i64(0));
+    return cond_make_tt(c, a0, tcg_constant_i64(imm));
 }
 
-static DisasCond cond_make_0(TCGCond c, TCGv_i64 a0)
+static DisasCond cond_make_vi(TCGCond c, TCGv_i64 a0, uint64_t imm)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     tcg_gen_mov_i64(tmp, a0);
-    return cond_make_0_tmp(c, tmp);
+    return cond_make_ti(c, tmp, imm);
 }
 
-static DisasCond cond_make(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
+static DisasCond cond_make_vv(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
 
     tcg_gen_mov_i64(t0, a0);
     tcg_gen_mov_i64(t1, a1);
-    return cond_make_tmp(c, t0, t1);
+    return cond_make_tt(c, t0, t1);
 }
 
 static void cond_free(DisasCond *cond)
@@ -789,7 +789,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_ext32u_i64(tmp, res);
             res = tmp;
         }
-        cond = cond_make_0(TCG_COND_EQ, res);
+        cond = cond_make_vi(TCG_COND_EQ, res, 0);
         break;
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
         tmp = tcg_temp_new_i64();
@@ -797,7 +797,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
         if (!d) {
             tcg_gen_ext32s_i64(tmp, tmp);
         }
-        cond = cond_make_0_tmp(TCG_COND_LT, tmp);
+        cond = cond_make_ti(TCG_COND_LT, tmp, 0);
         break;
     case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
         /*
@@ -819,10 +819,10 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_sari_i64(tmp, tmp, 63);
             tcg_gen_and_i64(tmp, tmp, res);
         }
-        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
+        cond = cond_make_ti(TCG_COND_EQ, tmp, 0);
         break;
     case 4: /* NUV / UV      (!UV / UV) */
-        cond = cond_make_0(TCG_COND_EQ, uv);
+        cond = cond_make_vi(TCG_COND_EQ, uv, 0);
         break;
     case 5: /* ZNV / VNZ     (!UV | Z / UV & !Z) */
         tmp = tcg_temp_new_i64();
@@ -830,7 +830,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
         if (!d) {
             tcg_gen_ext32u_i64(tmp, tmp);
         }
-        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
+        cond = cond_make_ti(TCG_COND_EQ, tmp, 0);
         break;
     case 6: /* SV / NSV      (V / !V) */
         if (!d) {
@@ -838,12 +838,12 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_ext32s_i64(tmp, sv);
             sv = tmp;
         }
-        cond = cond_make_0(TCG_COND_LT, sv);
+        cond = cond_make_ti(TCG_COND_LT, sv, 0);
         break;
     case 7: /* OD / EV */
         tmp = tcg_temp_new_i64();
         tcg_gen_andi_i64(tmp, res, 1);
-        cond = cond_make_0_tmp(TCG_COND_NE, tmp);
+        cond = cond_make_ti(TCG_COND_NE, tmp, 0);
         break;
     default:
         g_assert_not_reached();
@@ -905,9 +905,9 @@ static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_ext32s_i64(t1, in1);
             tcg_gen_ext32s_i64(t2, in2);
         }
-        return cond_make_tmp(tc, t1, t2);
+        return cond_make_tt(tc, t1, t2);
     }
-    return cond_make(tc, in1, in2);
+    return cond_make_vv(tc, in1, in2);
 }
 
 /*
@@ -979,9 +979,9 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
         } else {
             tcg_gen_ext32s_i64(tmp, res);
         }
-        return cond_make_0_tmp(tc, tmp);
+        return cond_make_ti(tc, tmp, 0);
     }
-    return cond_make_0(tc, res);
+    return cond_make_vi(tc, res, 0);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
@@ -1040,7 +1040,7 @@ static DisasCond do_unit_zero_cond(unsigned cf, bool d, TCGv_i64 res)
     tcg_gen_andc_i64(tmp, tmp, res);
     tcg_gen_andi_i64(tmp, tmp, sgns);
 
-    return cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, tmp);
+    return cond_make_ti(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, tmp, 0);
 }
 
 static TCGv_i64 get_carry(DisasContext *ctx, bool d,
@@ -1454,7 +1454,7 @@ static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
         }
 
         tcg_gen_andi_i64(cb, cb, test_cb);
-        cond = cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, cb);
+        cond = cond_make_ti(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, cb, 0);
     }
 
     if (is_tc) {
@@ -3543,7 +3543,7 @@ static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
         tcg_gen_shl_i64(tmp, tcg_r, tmp);
     }
 
-    cond = cond_make_0_tmp(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_ti(a->c ? TCG_COND_GE : TCG_COND_LT, tmp, 0);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
@@ -3560,7 +3560,7 @@ static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
     p = a->p | (a->d ? 0 : 32);
     tcg_gen_shli_i64(tmp, tcg_r, p);
 
-    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_ti(a->c ? TCG_COND_GE : TCG_COND_LT, tmp, 0);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
@@ -4364,7 +4364,7 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
         switch (a->c) {
         case 0: /* simple */
             tcg_gen_andi_i64(t, t, 0x4000000);
-            ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+            ctx->null_cond = cond_make_ti(TCG_COND_NE, t, 0);
             goto done;
         case 2: /* rej */
             inv = true;
@@ -4394,16 +4394,16 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
         if (inv) {
             TCGv_i64 c = tcg_constant_i64(mask);
             tcg_gen_or_i64(t, t, c);
-            ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
+            ctx->null_cond = cond_make_tt(TCG_COND_EQ, t, c);
         } else {
             tcg_gen_andi_i64(t, t, mask);
-            ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
+            ctx->null_cond = cond_make_ti(TCG_COND_EQ, t, 0);
         }
     } else {
         unsigned cbit = (a->y ^ 1) - 1;
 
         tcg_gen_extract_i64(t, t, 21 - cbit, 1);
-        ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+        ctx->null_cond = cond_make_ti(TCG_COND_NE, t, 0);
     }
 
  done:
