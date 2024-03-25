@@ -373,21 +373,6 @@ static DisasCond cond_make_vv(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
     return cond_make_tt(c, t0, t1);
 }
 
-static void cond_free(DisasCond *cond)
-{
-    switch (cond->c) {
-    default:
-        cond->a0 = NULL;
-        cond->a1 = NULL;
-        /* fallthru */
-    case TCG_COND_ALWAYS:
-        cond->c = TCG_COND_NEVER;
-        break;
-    case TCG_COND_NEVER:
-        break;
-    }
-}
-
 static TCGv_i64 load_gpr(DisasContext *ctx, unsigned reg)
 {
     if (reg == 0) {
@@ -537,7 +522,7 @@ static void nullify_over(DisasContext *ctx)
 
         tcg_gen_brcond_i64(ctx->null_cond.c, ctx->null_cond.a0,
                            ctx->null_cond.a1, ctx->null_lab);
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
     }
 }
 
@@ -555,7 +540,7 @@ static void nullify_save(DisasContext *ctx)
                             ctx->null_cond.a0, ctx->null_cond.a1);
         ctx->psw_n_nonzero = true;
     }
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
 }
 
 /* Set a PSW[N] to X.  The intention is that this is used immediately
@@ -1166,7 +1151,6 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1263,7 +1247,6 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1318,7 +1301,6 @@ static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1333,10 +1315,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (cf) {
-        ctx->null_cond = do_log_cond(ctx, cf, d, dest);
-    }
+    ctx->null_cond = do_log_cond(ctx, cf, d, dest);
 }
 
 static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
@@ -1431,7 +1410,6 @@ static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     }
     save_gpr(ctx, rt, dest);
 
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1854,7 +1832,6 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
 
     taken = gen_new_label();
     tcg_gen_brcond_i64(c, cond->a0, cond->a1, taken);
-    cond_free(cond);
 
     /* Not taken: Condition not satisfied; nullify on backward branches. */
     n = is_n && disp < 0;
@@ -2036,7 +2013,7 @@ static void do_page_zero(DisasContext *ctx)
 
 static bool trans_nop(DisasContext *ctx, arg_nop *a)
 {
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2050,7 +2027,7 @@ static bool trans_sync(DisasContext *ctx, arg_sync *a)
     /* No point in nullifying the memory barrier.  */
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2062,7 +2039,7 @@ static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
     tcg_gen_andi_i64(dest, dest, -4);
 
     save_gpr(ctx, a->t, dest);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2077,7 +2054,7 @@ static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
 
     save_gpr(ctx, rt, t0);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2122,7 +2099,7 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
     save_gpr(ctx, rt, tmp);
 
  done:
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2162,7 +2139,7 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
         tcg_gen_andi_i64(tmp, reg, ctx->is_pa20 ? 63 : 31);
         save_or_nullify(ctx, cpu_sar, tmp);
 
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
         return true;
     }
 
@@ -2236,7 +2213,7 @@ static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
     tcg_gen_andi_i64(tmp, tmp, ctx->is_pa20 ? 63 : 31);
     save_or_nullify(ctx, cpu_sar, tmp);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2253,7 +2230,7 @@ static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
 #endif
     save_gpr(ctx, a->t, dest);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2415,7 +2392,7 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
         tcg_gen_add_i64(dest, src1, src2);
         save_gpr(ctx, a->b, dest);
     }
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2657,7 +2634,7 @@ static bool trans_lci(DisasContext *ctx, arg_lci *a)
        since the entire address space is coherent.  */
     save_gpr(ctx, a->t, ctx->zero);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2734,7 +2711,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
         unsigned rt = a->t;
 
         if (rt == 0) { /* NOP */
-            cond_free(&ctx->null_cond);
+            ctx->null_cond = cond_make_f();
             return true;
         }
         if (r2 == 0) { /* COPY */
@@ -2745,7 +2722,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
             } else {
                 save_gpr(ctx, rt, cpu_gr[r1]);
             }
-            cond_free(&ctx->null_cond);
+            ctx->null_cond = cond_make_f();
             return true;
         }
 #ifndef CONFIG_USER_ONLY
@@ -2810,11 +2787,7 @@ static bool trans_uxor(DisasContext *ctx, arg_rrr_cf_d *a)
     tcg_gen_xor_i64(dest, tcg_r1, tcg_r2);
     save_gpr(ctx, a->t, dest);
 
-    cond_free(&ctx->null_cond);
-    if (a->cf) {
-        ctx->null_cond = do_unit_zero_cond(a->cf, a->d, dest);
-    }
-
+    ctx->null_cond = do_unit_zero_cond(a->cf, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -2840,7 +2813,7 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
             tcg_gen_subi_i64(tmp, tmp, 1);
         }
         save_gpr(ctx, a->t, tmp);
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
         return true;
     }
 
@@ -3366,7 +3339,7 @@ static bool trans_ldil(DisasContext *ctx, arg_ldil *a)
 
     tcg_gen_movi_i64(tcg_rt, a->i);
     save_gpr(ctx, a->t, tcg_rt);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3377,7 +3350,7 @@ static bool trans_addil(DisasContext *ctx, arg_addil *a)
 
     tcg_gen_addi_i64(tcg_r1, tcg_rt, a->i);
     save_gpr(ctx, 1, tcg_r1);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3393,7 +3366,7 @@ static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
         tcg_gen_addi_i64(tcg_rt, cpu_gr[a->b], a->i);
     }
     save_gpr(ctx, a->t, tcg_rt);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3619,10 +3592,7 @@ static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3662,10 +3632,7 @@ static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3707,10 +3674,7 @@ static bool trans_extr_sar(DisasContext *ctx, arg_extr_sar *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3743,10 +3707,7 @@ static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3783,10 +3744,7 @@ static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3819,10 +3777,7 @@ static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3856,10 +3811,7 @@ static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(ctx, c, d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, c, d, dest);
     return nullify_end(ctx);
 }
 
