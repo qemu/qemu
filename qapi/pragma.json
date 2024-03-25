@@ -84,9 +84,6 @@
         'XDbgBlockGraph',
         'YankInstanceType',
         'blockdev-reopen',
-        'query-cpu-model-baseline',
-        'query-cpu-model-comparison',
-        'query-cpu-model-expansion',
         'query-rocker',
         'query-rocker-ports' ],
     # Externally visible types whose member names may use uppercase
