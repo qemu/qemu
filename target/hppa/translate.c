@@ -3516,18 +3516,12 @@ static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
 
 static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 {
-    TCGv_i64 tmp, tcg_r;
     DisasCond cond;
-    int p;
+    int p = a->p | (a->d ? 0 : 32);
 
     nullify_over(ctx);
-
-    tmp = tcg_temp_new_i64();
-    tcg_r = load_gpr(ctx, a->r);
-    p = a->p | (a->d ? 0 : 32);
-    tcg_gen_shli_i64(tmp, tcg_r, p);
-
-    cond = cond_make_ti(a->c ? TCG_COND_GE : TCG_COND_LT, tmp, 0);
+    cond = cond_make_vi(a->c ? TCG_COND_TSTEQ : TCG_COND_TSTNE,
+                        load_gpr(ctx, a->r), 1ull << (63 - p));
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
