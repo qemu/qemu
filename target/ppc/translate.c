@@ -3494,6 +3494,13 @@ static inline void gen_check_tlb_flush(DisasContext *ctx, bool global)
         gen_helper_check_tlb_flush_local(tcg_env);
     }
     gen_set_label(l);
+    if (global) {
+        /*
+         * Global TLB flush uses async-work which must run before the
+         * next instruction, so this must be the last in the TB.
+         */
+        ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+    }
 }
 #else
 static inline void gen_check_tlb_flush(DisasContext *ctx, bool global) { }

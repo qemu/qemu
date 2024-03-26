@@ -224,6 +224,13 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
                                  a->prs << TLBIE_F_PRS_SHIFT |
                                  a->r << TLBIE_F_R_SHIFT |
                                  local << TLBIE_F_LOCAL_SHIFT));
+        if (!local) {
+            /*
+             * Global TLB flush uses async-work which must run before the
+             * next instruction, so this must be the last in the TB.
+             */
+            ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+        }
         return true;
 #endif
 
