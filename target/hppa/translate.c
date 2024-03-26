@@ -1117,6 +1117,25 @@ static TCGv_i64 do_sub_sv(DisasContext *ctx, TCGv_i64 res,
     return sv;
 }
 
+static void gen_tc(DisasContext *ctx, DisasCond *cond)
+{
+    DisasDelayException *e;
+
+    switch (cond->c) {
+    case TCG_COND_NEVER:
+        break;
+    case TCG_COND_ALWAYS:
+        gen_excp_iir(ctx, EXCP_COND);
+        break;
+    default:
+        e = delay_excp(ctx, EXCP_COND);
+        tcg_gen_brcond_i64(cond->c, cond->a0, cond->a1, e->lab);
+        /* In the non-trap path, the condition is known false. */
+        *cond = cond_make_f();
+        break;
+    }
+}
+
 static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
                    TCGv_i64 in2, unsigned shift, bool is_l,
                    bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
@@ -1175,9 +1194,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     /* Emit any conditional trap before any writeback.  */
     cond = do_cond(ctx, cf, d, dest, uv, sv);
     if (is_tc) {
-        tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
 
     /* Write back the result.  */
@@ -1196,6 +1213,10 @@ static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_d_sh *a,
 {
     TCGv_i64 tcg_r1, tcg_r2;
 
+    if (unlikely(is_tc && a->cf == 1)) {
+        /* Unconditional trap on condition. */
+        return gen_excp_iir(ctx, EXCP_COND);
+    }
     if (a->cf) {
         nullify_over(ctx);
     }
@@ -1211,6 +1232,10 @@ static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
 {
     TCGv_i64 tcg_im, tcg_r2;
 
+    if (unlikely(is_tc && a->cf == 1)) {
+        /* Unconditional trap on condition. */
+        return gen_excp_iir(ctx, EXCP_COND);
+    }
     if (a->cf) {
         nullify_over(ctx);
     }
@@ -1225,7 +1250,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
                    TCGv_i64 in2, bool is_tsv, bool is_b,
                    bool is_tc, unsigned cf, bool d)
 {
-    TCGv_i64 dest, sv, cb, cb_msb, tmp;
+    TCGv_i64 dest, sv, cb, cb_msb;
     unsigned c = cf >> 1;
     DisasCond cond;
 
@@ -1273,9 +1298,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
 
     /* Emit any conditional trap before any writeback.  */
     if (is_tc) {
-        tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
 
     /* Write back the result.  */
@@ -1441,9 +1464,7 @@ static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     }
 
     if (is_tc) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
     save_gpr(ctx, rt, dest);
 

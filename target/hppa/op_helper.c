@@ -49,13 +49,6 @@ void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
     }
 }
 
-void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
-{
-    if (unlikely(cond)) {
-        hppa_dynamic_excp(env, EXCP_COND, GETPC());
-    }
-}
-
 static void atomic_store_mask32(CPUHPPAState *env, target_ulong addr,
                                 uint32_t val, uint32_t mask, uintptr_t ra)
 {
