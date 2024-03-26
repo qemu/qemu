@@ -1136,6 +1136,17 @@ static void gen_tc(DisasContext *ctx, DisasCond *cond)
     }
 }
 
+static void gen_tsv(DisasContext *ctx, TCGv_i64 *sv, bool d)
+{
+    DisasCond cond = do_cond(ctx, /* SV */ 12, d, NULL, NULL, *sv);
+    DisasDelayException *e = delay_excp(ctx, EXCP_OVERFLOW);
+
+    tcg_gen_brcond_i64(cond.c, cond.a0, cond.a1, e->lab);
+
+    /* In the non-trap path, V is known zero. */
+    *sv = tcg_constant_i64(0);
+}
+
 static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
                    TCGv_i64 in2, unsigned shift, bool is_l,
                    bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
@@ -1178,10 +1189,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     if (is_tsv || cond_need_sv(c)) {
         sv = do_add_sv(ctx, dest, in1, in2, orig_in1, shift, d);
         if (is_tsv) {
-            if (!d) {
-                tcg_gen_ext32s_i64(sv, sv);
-            }
-            gen_helper_tsv(tcg_env, sv);
+            gen_tsv(ctx, &sv, d);
         }
     }
 
@@ -1282,10 +1290,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     if (is_tsv || cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
         if (is_tsv) {
-            if (!d) {
-                tcg_gen_ext32s_i64(sv, sv);
-            }
-            gen_helper_tsv(tcg_env, sv);
+            gen_tsv(ctx, &sv, d);
         }
     }
 
