@@ -65,6 +65,8 @@
 # Argument set definitions
 ####
 
+&empty
+
 # All insns that need to form a virtual address should use this set.
 &ldst           t b x disp sp m scale size
 
@@ -638,6 +640,14 @@ xmpyu           001110 ..... ..... 010 .0111 .00 t:5    r1=%ra64 r2=%rb64
   [
     diag_btlb               000101 00 0000 0000 0000 0001 0000 0000
     diag_cout               000101 00 0000 0000 0000 0001 0000 0001
+
+    # For 32-bit PA-7300LC (PCX-L2)
+    diag_getshadowregs_pa1  000101 00 0000 0000 0001 1010 0000 0000
+    diag_putshadowregs_pa1  000101 00 0000 0000 0001 1010 0100 0000
+
+    # For 64-bit PA8700 (PCX-W2)
+    diag_getshadowregs_pa2  000101 00 0111 1000 0001 1000 0100 0000
+    diag_putshadowregs_pa2  000101 00 0111 0000 0001 1000 0100 0000
   ]
   diag_unimp                000101 i:26
 }

@@ -2399,6 +2399,20 @@ static bool do_getshadowregs(DisasContext *ctx)
     return nullify_end(ctx);
 }
 
+static bool do_putshadowregs(DisasContext *ctx)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+    tcg_gen_st_i64(cpu_gr[1], tcg_env, offsetof(CPUHPPAState, shadow[0]));
+    tcg_gen_st_i64(cpu_gr[8], tcg_env, offsetof(CPUHPPAState, shadow[1]));
+    tcg_gen_st_i64(cpu_gr[9], tcg_env, offsetof(CPUHPPAState, shadow[2]));
+    tcg_gen_st_i64(cpu_gr[16], tcg_env, offsetof(CPUHPPAState, shadow[3]));
+    tcg_gen_st_i64(cpu_gr[17], tcg_env, offsetof(CPUHPPAState, shadow[4]));
+    tcg_gen_st_i64(cpu_gr[24], tcg_env, offsetof(CPUHPPAState, shadow[5]));
+    tcg_gen_st_i64(cpu_gr[25], tcg_env, offsetof(CPUHPPAState, shadow[6]));
+    return nullify_end(ctx);
+}
+
 static bool trans_getshadowregs(DisasContext *ctx, arg_getshadowregs *a)
 {
     return do_getshadowregs(ctx);
@@ -4592,6 +4606,26 @@ static bool trans_diag_cout(DisasContext *ctx, arg_diag_cout *a)
     gen_helper_diag_console_output(tcg_env);
     return nullify_end(ctx);
 #endif
+}
+
+static bool trans_diag_getshadowregs_pa1(DisasContext *ctx, arg_empty *a)
+{
+    return !ctx->is_pa20 && do_getshadowregs(ctx);
+}
+
+static bool trans_diag_getshadowregs_pa2(DisasContext *ctx, arg_empty *a)
+{
+    return ctx->is_pa20 && do_getshadowregs(ctx);
+}
+
+static bool trans_diag_putshadowregs_pa1(DisasContext *ctx, arg_empty *a)
+{
+    return !ctx->is_pa20 && do_putshadowregs(ctx);
+}
+
+static bool trans_diag_putshadowregs_pa2(DisasContext *ctx, arg_empty *a)
+{
+    return ctx->is_pa20 && do_putshadowregs(ctx);
 }
 
 static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
