@@ -1907,7 +1907,7 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
          * will not reduced the number of input sign repetitions.
          */
         sign = (s_mask & -s_mask) >> 1;
-        if (!(z_mask & sign)) {
+        if (sign && !(z_mask & sign)) {
             ctx->s_mask = s_mask;
         }
         break;

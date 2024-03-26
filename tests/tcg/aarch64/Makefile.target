@@ -10,6 +10,7 @@ VPATH 		+= $(AARCH64_SRC)
 
 # Base architecture tests
 AARCH64_TESTS=fcvt pcalign-a64
+AARCH64_TESTS += test-2248
 
 fcvt: LDFLAGS+=-lm
 
