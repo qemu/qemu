@@ -51,6 +51,17 @@ typedef struct DisasIAQE {
     int64_t disp;
 } DisasIAQE;
 
+typedef struct DisasDelayException {
+    struct DisasDelayException *next;
+    TCGLabel *lab;
+    uint32_t insn;
+    bool set_iir;
+    int8_t set_n;
+    uint8_t excp;
+    /* Saved state at parent insn. */
+    DisasIAQE iaq_f, iaq_b;
+} DisasDelayException;
+
 typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
@@ -66,6 +77,7 @@ typedef struct DisasContext {
     DisasCond null_cond;
     TCGLabel *null_lab;
 
+    DisasDelayException *delay_excp_list;
     TCGv_i64 zero;
 
     uint32_t insn;
@@ -684,13 +696,38 @@ static void gen_excp(DisasContext *ctx, int exception)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
+static DisasDelayException *delay_excp(DisasContext *ctx, uint8_t excp)
+{
+    DisasDelayException *e = tcg_malloc(sizeof(DisasDelayException));
+
+    memset(e, 0, sizeof(*e));
+    e->next = ctx->delay_excp_list;
+    ctx->delay_excp_list = e;
+
+    e->lab = gen_new_label();
+    e->insn = ctx->insn;
+    e->set_iir = true;
+    e->set_n = ctx->psw_n_nonzero ? 0 : -1;
+    e->excp = excp;
+    e->iaq_f = ctx->iaq_f;
+    e->iaq_b = ctx->iaq_b;
+
+    return e;
+}
+
 static bool gen_excp_iir(DisasContext *ctx, int exc)
 {
-    nullify_over(ctx);
-    tcg_gen_st_i64(tcg_constant_i64(ctx->insn),
-                   tcg_env, offsetof(CPUHPPAState, cr[CR_IIR]));
-    gen_excp(ctx, exc);
-    return nullify_end(ctx);
+    if (ctx->null_cond.c == TCG_COND_NEVER) {
+        tcg_gen_st_i64(tcg_constant_i64(ctx->insn),
+                       tcg_env, offsetof(CPUHPPAState, cr[CR_IIR]));
+        gen_excp(ctx, exc);
+    } else {
+        DisasDelayException *e = delay_excp(ctx, exc);
+        tcg_gen_brcond_i64(tcg_invert_cond(ctx->null_cond.c),
+                           ctx->null_cond.a0, ctx->null_cond.a1, e->lab);
+        ctx->null_cond = cond_make_f();
+    }
+    return true;
 }
 
 static bool gen_illegal(DisasContext *ctx)
@@ -4696,6 +4733,19 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         break;
     default:
         g_assert_not_reached();
+    }
+
+    for (DisasDelayException *e = ctx->delay_excp_list; e ; e = e->next) {
+        gen_set_label(e->lab);
+        if (e->set_n >= 0) {
+            tcg_gen_movi_i64(cpu_psw_n, e->set_n);
+        }
+        if (e->set_iir) {
+            tcg_gen_st_i64(tcg_constant_i64(e->insn), tcg_env,
+                           offsetof(CPUHPPAState, cr[CR_IIR]));
+        }
+        install_iaq_entries(ctx, &e->iaq_f, &e->iaq_b);
+        gen_excp_1(e->excp);
     }
 }
 
