@@ -545,8 +545,8 @@
 #
 # Example:
 #
-#     Set new histograms for all io types with intervals [0, 10), [10,
-#     50), [50, 100), [100, +inf):
+#     Set new histograms for all io types with intervals
+#     [0, 10), [10, 50), [50, 100), [100, +inf):
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",
@@ -555,8 +555,8 @@
 #
 # Example:
 #
-#     Set new histogram only for write, other histograms will remain not
-#     changed (or not created):
+#     Set new histogram only for write, other histograms will remain
+#     not changed (or not created):
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",
@@ -565,9 +565,9 @@
 #
 # Example:
 #
-#     Set new histograms with the following intervals:   read, flush: [0,
-#     10), [10, 50), [50, 100), [100, +inf)   write: [0, 1000), [1000,
-#     5000), [5000, +inf)
+#     Set new histograms with the following intervals:
+#       read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
+#       write: [0, 1000), [1000, 5000), [5000, +inf)
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",

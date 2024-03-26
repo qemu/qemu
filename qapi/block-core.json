@@ -1819,10 +1819,10 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
-# @backing-mask-protocol: If true, replace any protocol mentioned in the
-#     'backing file format' with 'raw', rather than storing the protocol
-#     name as the backing format.  Can be used even when no image header
-#     will be updated (default false; since 9.0).
+# @backing-mask-protocol: If true, replace any protocol mentioned in
+#     the 'backing file format' with 'raw', rather than storing the
+#     protocol name as the backing format.  Can be used even when no
+#     image header will be updated (default false; since 9.0).
 #
 # @speed: the maximum speed, in bytes per second
 #
@@ -2117,7 +2117,7 @@
 # Start mirroring a block device's writes to a new destination.
 # target specifies the target of the new image.  If the file exists,
 # or if it is a device, it will be used as the new destination for
-# writes.  If it does not exist, a new file will be created.  format
+# writes.  If it does not exist, a new file will be created.  @format
 # specifies the format of the mirror image, default is to probe if
 # mode='existing', else the format of the source.
 #
@@ -2593,27 +2593,27 @@
 #
 # @bps_max_length: maximum length of the @bps_max burst period, in
 #     seconds.  It must only be set if @bps_max is set as well.
-#     Defaults to 1. (Since 2.6)
+#     Defaults to 1.  (Since 2.6)
 #
 # @bps_rd_max_length: maximum length of the @bps_rd_max burst period,
 #     in seconds.  It must only be set if @bps_rd_max is set as well.
-#     Defaults to 1. (Since 2.6)
+#     Defaults to 1.  (Since 2.6)
 #
 # @bps_wr_max_length: maximum length of the @bps_wr_max burst period,
 #     in seconds.  It must only be set if @bps_wr_max is set as well.
-#     Defaults to 1. (Since 2.6)
+#     Defaults to 1.  (Since 2.6)
 #
 # @iops_max_length: maximum length of the @iops burst period, in
 #     seconds.  It must only be set if @iops_max is set as well.
-#     Defaults to 1. (Since 2.6)
+#     Defaults to 1.  (Since 2.6)
 #
 # @iops_rd_max_length: maximum length of the @iops_rd_max burst
 #     period, in seconds.  It must only be set if @iops_rd_max is set
-#     as well.  Defaults to 1. (Since 2.6)
+#     as well.  Defaults to 1.  (Since 2.6)
 #
 # @iops_wr_max_length: maximum length of the @iops_wr_max burst
 #     period, in seconds.  It must only be set if @iops_wr_max is set
-#     as well.  Defaults to 1. (Since 2.6)
+#     as well.  Defaults to 1.  (Since 2.6)
 #
 # @iops_size: an I/O size in bytes (Since 1.7)
 #
@@ -2825,10 +2825,10 @@
 #     Care should be taken when specifying the string, to specify a
 #     valid filename or protocol.  (Since 2.1)
 #
-# @backing-mask-protocol: If true, replace any protocol mentioned in the
-#     'backing file format' with 'raw', rather than storing the protocol
-#     name as the backing format.  Can be used even when no image header
-#     will be updated (default false; since 9.0).
+# @backing-mask-protocol: If true, replace any protocol mentioned in
+#     the 'backing file format' with 'raw', rather than storing the
+#     protocol name as the backing format.  Can be used even when no
+#     image header will be updated (default false; since 9.0).
 #
 # @speed: the maximum speed, in bytes per second
 #
@@ -3354,7 +3354,7 @@
 #     decryption key (since 2.6). Mandatory except when doing a
 #     metadata-only probe of the image.
 #
-# @header: block device holding a detached LUKS header. (since 9.0)
+# @header: block device holding a detached LUKS header.  (since 9.0)
 #
 # Since: 2.9
 ##
@@ -3403,14 +3403,31 @@
 # @Qcow2OverlapCheckFlags:
 #
 # Structure of flags for each metadata structure.  Setting a field to
-# 'true' makes qemu guard that structure against unintended
-# overwriting.  The default value is chosen according to the template
-# given.
+# 'true' makes QEMU guard that Qcow2 format structure against
+# unintended overwriting.  See Qcow2 format specification for detailed
+# information on these structures.  The default value is chosen
+# according to the template given.
 #
 # @template: Specifies a template mode which can be adjusted using the
 #     other flags, defaults to 'cached'
 #
-# @bitmap-directory: since 3.0
+# @main-header: Qcow2 format header
+#
+# @active-l1: Qcow2 active L1 table
+#
+# @active-l2: Qcow2 active L2 table
+#
+# @refcount-table: Qcow2 refcount table
+#
+# @refcount-block: Qcow2 refcount blocks
+#
+# @snapshot-table: Qcow2 snapshot table
+#
+# @inactive-l1: Qcow2 inactive L1 tables
+#
+# @inactive-l2: Qcow2 inactive L2 tables
+#
+# @bitmap-directory: Qcow2 bitmap directory (since 3.0)
 #
 # Since: 2.9
 ##
@@ -3547,10 +3564,10 @@
 #     re-allocating them later.  Besides potential performance
 #     degradation, such fragmentation can lead to increased allocation
 #     of clusters past the end of the image file, resulting in image
-#     files whose file length can grow much larger than their guest disk
-#     size would suggest.  If image file length is of concern (e.g. when
-#     storing qcow2 images directly on block devices), you should
-#     consider enabling this option.  (since 8.1)
+#     files whose file length can grow much larger than their guest
+#     disk size would suggest.  If image file length is of concern
+#     (e.g. when storing qcow2 images directly on block devices), you
+#     should consider enabling this option.  (since 8.1)
 #
 # @overlap-check: which overlap checks to perform for writes to the
 #     image, defaults to 'cached' (since 2.2)
@@ -4619,7 +4636,7 @@
 #     seconds for copy-before-write operation.  When a timeout occurs,
 #     the respective copy-before-write operation will fail, and the
 #     @on-cbw-error parameter will decide how this failure is handled.
-#     Default 0. (Since 7.1)
+#     Default 0.  (Since 7.1)
 #
 # Since: 6.2
 ##
@@ -4953,9 +4970,9 @@
 # Driver specific image creation options for LUKS.
 #
 # @file: Node to create the image format on, mandatory except when
-#        'preallocation' is not requested
+#     'preallocation' is not requested
 #
-# @header: Block device holding a detached LUKS header. (since 9.0)
+# @header: Block device holding a detached LUKS header.  (since 9.0)
 #
 # @size: Size of the virtual disk in bytes
 #

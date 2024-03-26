@@ -181,7 +181,7 @@
 # @head: head to use in case the device supports multiple heads.  If
 #     this parameter is missing, head #0 will be used.  Also note that
 #     the head can only be specified in conjunction with the device
-#     ID. (Since 2.12)
+#     ID.  (Since 2.12)
 #
 # @format: image format for screendump.  (default: ppm) (Since 7.1)
 #
@@ -290,7 +290,7 @@
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
 # @migrated: true if the last guest migration completed and spice
-#     migration had completed as well.  false otherwise.  (since 1.4)
+#     migration had completed as well, false otherwise (since 1.4)
 #
 # @host: The hostname the SPICE server is bound to.  This depends on
 #     the name resolution on the host and may be an IP address.
@@ -303,7 +303,7 @@
 #
 # @auth: the current authentication type used by the server
 #
-#     - 'none'  if no authentication is being used
+#     - 'none' if no authentication is being used
 #     - 'spice' uses SASL or direct TLS authentication, depending on
 #       command line options
 #
@@ -1080,6 +1080,16 @@
 #
 # Type of a multi-touch event.
 #
+# @begin: A new touch event sequence has just started.
+#
+# @update: A touch event sequence has been updated.
+#
+# @end: A touch event sequence has finished.
+#
+# @cancel: A touch event sequence has been canceled.
+#
+# @data: Absolute position data.
+#
 # Since: 8.1
 ##
 { 'enum'  : 'InputMultiTouchType',
@@ -1136,6 +1146,8 @@
 # @InputMultiTouchEvent:
 #
 # MultiTouch input event.
+#
+# @type: The type of multi-touch event.
 #
 # @slot: Which slot has generated the event.
 #
@@ -1314,7 +1326,7 @@
 #     display device can notify the guest on window resizes
 #     (virtio-gpu) this will default to "on", assuming the guest will
 #     resize the display to match the window size then.  Otherwise it
-#     defaults to "off". (Since 3.1)
+#     defaults to "off".  (Since 3.1)
 #
 # @show-tabs: Display the tab bar for switching between the various
 #     graphical interfaces (e.g. VGA and virtual console character
@@ -1417,12 +1429,12 @@
 #     codes match their position on non-Mac keyboards and you can use
 #     Meta/Super and Alt where you expect them.  (default: off)
 #
-# @zoom-to-fit: Zoom guest display to fit into the host window. When
-#     turned off the host window will be resized instead. Defaults to
-#     "off". (Since 8.2)
+# @zoom-to-fit: Zoom guest display to fit into the host window.  When
+#     turned off the host window will be resized instead.  Defaults to
+#     "off".  (Since 8.2)
 #
 # @zoom-interpolation: Apply interpolation to smooth output when
-#     zoom-to-fit is enabled. Defaults to "off". (Since 9.0)
+#     zoom-to-fit is enabled. Defaults to "off".  (Since 9.0)
 #
 # Since: 7.0
 ##

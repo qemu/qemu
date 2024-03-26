@@ -7,15 +7,13 @@
 ##
 # = eBPF Objects
 #
-# eBPF object is an ELF binary that contains the eBPF
-# program and eBPF map description(BTF). Overall, eBPF
-# object should contain the program and enough metadata
-# to create/load eBPF with libbpf. As the eBPF maps/program
-# should correspond to QEMU, the eBPF can't be used from
-# different QEMU build.
+# eBPF object is an ELF binary that contains the eBPF program and eBPF
+# map description(BTF). Overall, eBPF object should contain the
+# program and enough metadata to create/load eBPF with libbpf.  As the
+# eBPF maps/program should correspond to QEMU, the eBPF can't be used
+# from different QEMU build.
 #
 # Currently, there is a possible eBPF for receive-side scaling (RSS).
-#
 ##
 
 ##
@@ -51,7 +49,7 @@
 # @request-ebpf:
 #
 # Retrieve an eBPF object that can be loaded with libbpf.  Management
-# applications (g.e. libvirt) may load it and pass file descriptors to
+# applications (e.g. libvirt) may load it and pass file descriptors to
 # QEMU, so they can run running QEMU without BPF capabilities.
 #
 # @id: The ID of the program to return.

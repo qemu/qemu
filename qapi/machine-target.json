@@ -124,11 +124,12 @@
 ##
 # @query-cpu-model-comparison:
 #
-# Compares two CPU models, returning how they compare in a specific
-# configuration.  The results indicates how both models compare
-# regarding runnability.  This result can be used by tooling to make
-# decisions if a certain CPU model will run in a certain configuration
-# or if a compatible CPU model has to be created by baselining.
+# Compares two CPU models, @modela and @modelb, returning how they
+# compare in a specific configuration.  The results indicates how
+# both models compare regarding runnability.  This result can be
+# used by tooling to make decisions if a certain CPU model will
+# run in a certain configuration or if a compatible CPU model has
+# to be created by baselining.
 #
 # Usually, a CPU model is compared against the maximum possible CPU
 # model of a certain configuration (e.g. the "host" model for KVM).
@@ -154,7 +155,14 @@
 # Some architectures may not support comparing CPU models.  s390x
 # supports comparing CPU models.
 #
-# Returns: a CpuModelBaselineInfo
+# @modela: description of the first CPU model to compare, referred to as
+#     "model A" in CpuModelCompareResult
+#
+# @modelb: description of the second CPU model to compare, referred to as
+#     "model B" in CpuModelCompareResult
+#
+# Returns: a CpuModelCompareInfo describing how both CPU models
+#     compare
 #
 # Errors:
 #     - if comparing CPU models is not supported
@@ -175,9 +183,9 @@
 ##
 # @query-cpu-model-baseline:
 #
-# Baseline two CPU models, creating a compatible third model.  The
-# created model will always be a static, migration-safe CPU model (see
-# "static" CPU model expansion for details).
+# Baseline two CPU models, @modela and @modelb, creating a compatible
+# third model.  The created model will always be a static,
+# migration-safe CPU model (see "static" CPU model expansion for details).
 #
 # This interface can be used by tooling to create a compatible CPU
 # model out two CPU models.  The created CPU model will be identical
@@ -204,7 +212,11 @@
 # Some architectures may not support baselining CPU models.  s390x
 # supports baselining CPU models.
 #
-# Returns: a CpuModelBaselineInfo
+# @modela: description of the first CPU model to baseline
+#
+# @modelb: description of the second CPU model to baseline
+#
+# Returns: a CpuModelBaselineInfo describing the baselined CPU model
 #
 # Errors:
 #     - if baselining CPU models is not supported
@@ -243,10 +255,10 @@
 ##
 # @query-cpu-model-expansion:
 #
-# Expands a given CPU model (or a combination of CPU model +
-# additional options) to different granularities, allowing tooling to
-# get an understanding what a specific CPU model looks like in QEMU
-# under a certain configuration.
+# Expands a given CPU model, @model, (or a combination of CPU model +
+# additional options) to different granularities, specified by
+# @type, allowing tooling to get an understanding what a specific
+# CPU model looks like in QEMU under a certain configuration.
 #
 # This interface can be used to query the "host" CPU model.
 #
@@ -269,7 +281,11 @@
 # Some architectures may not support all expansion types.  s390x
 # supports "full" and "static". Arm only supports "full".
 #
-# Returns: a CpuModelExpansionInfo
+# @model: description of the CPU model to expand
+#
+# @type: expansion type, specifying how to expand the CPU model
+#
+# Returns: a CpuModelExpansionInfo describing the expanded CPU model
 #
 # Errors:
 #     - if expanding CPU models is not supported
@@ -394,9 +410,9 @@
 ##
 # @set-cpu-topology:
 #
-# Modify the topology by moving the CPU inside the topology tree,
-# or by changing a modifier attribute of a CPU.
-# Absent values will not be modified.
+# Modify the topology by moving the CPU inside the topology tree, or
+# by changing a modifier attribute of a CPU.  Absent values will not
+# be modified.
 #
 # @core-id: the vCPU ID to be moved
 #
@@ -408,7 +424,8 @@
 #
 # @entitlement: entitlement to set
 #
-# @dedicated: whether the provisioning of real to virtual CPU is dedicated
+# @dedicated: whether the provisioning of real to virtual CPU is
+#     dedicated
 #
 # Features:
 #
@@ -435,14 +452,15 @@
 # Emitted when the guest asks to change the polarization.
 #
 # The guest can tell the host (via the PTF instruction) whether the
-# CPUs should be provisioned using horizontal or vertical polarization.
+# CPUs should be provisioned using horizontal or vertical
+# polarization.
 #
-# On horizontal polarization the host is expected to provision all vCPUs
-# equally.
+# On horizontal polarization the host is expected to provision all
+# vCPUs equally.
 #
-# On vertical polarization the host can provision each vCPU differently.
-# The guest will get information on the details of the provisioning
-# the next time it uses the STSI(15) instruction.
+# On vertical polarization the host can provision each vCPU
+# differently.  The guest will get information on the details of the
+# provisioning the next time it uses the STSI(15) instruction.
 #
 # @polarization: polarization specified by the guest
 #

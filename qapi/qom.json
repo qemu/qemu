@@ -649,14 +649,14 @@
 #
 # @offset: the offset into the target file that the region starts at.
 #     You can use this option to back multiple regions with a single
-#     file. Must be a multiple of the page size.
+#     file.  Must be a multiple of the page size.
 #     (default: 0) (since 8.1)
 #
 # @discard-data: if true, the file contents can be destroyed when QEMU
 #     exits, to avoid unnecessarily flushing data to the backing file.
 #     Note that @discard-data is only an optimization, and QEMU might
 #     not discard file contents if it aborts unexpectedly or is
-#     terminated using SIGKILL. (default: false)
+#     terminated using SIGKILL.  (default: false)
 #
 # @mem-path: the path to either a shared memory or huge page
 #     filesystem mount
@@ -668,19 +668,20 @@
 # @readonly: if true, the backing file is opened read-only; if false,
 #     it is opened read-write.  (default: false)
 #
-# @rom: whether to create Read Only Memory (ROM) that cannot be modified
-#       by the VM.  Any write attempts to such ROM will be denied.  Most
-#       use cases want writable RAM instead of ROM.  However, selected use
-#       cases, like R/O NVDIMMs, can benefit from ROM.  If set to 'on',
-#       create ROM; if set to 'off', create writable RAM;  if set to
-#       'auto', the value of the @readonly property is used.  This
-#       property is primarily helpful when we want to have proper RAM in
-#       configurations that would traditionally create ROM before this
-#       property was introduced: VM templating, where we want to open a
-#       file readonly (@readonly set to true) and mark the memory to be
-#       private for QEMU (@share set to false).  For this use case, we need
-#       writable RAM instead of ROM, and want to set this property to 'off'.
-#       (default: auto, since 8.2)
+# @rom: whether to create Read Only Memory (ROM) that cannot be
+#     modified by the VM.  Any write attempts to such ROM will be
+#     denied.  Most use cases want writable RAM instead of ROM.
+#     However, selected use cases, like R/O NVDIMMs, can benefit from
+#     ROM.  If set to 'on', create ROM; if set to 'off', create
+#     writable RAM; if set to 'auto', the value of the @readonly
+#     property is used.  This property is primarily helpful when we
+#     want to have proper RAM in configurations that would
+#     traditionally create ROM before this property was introduced: VM
+#     templating, where we want to open a file readonly (@readonly set
+#     to true) and mark the memory to be private for QEMU (@share set
+#     to false).  For this use case, we need writable RAM instead of
+#     ROM, and want to set this property to 'off'.  (default: auto,
+#     since 8.2)
 #
 # Since: 2.1
 ##
@@ -801,10 +802,9 @@
 #
 # @fd: file descriptor name previously passed via 'getfd' command,
 #     which represents a pre-opened /dev/iommu.  This allows the
-#     iommufd object to be shared accross several subsystems
-#     (VFIO, VDPA, ...), and the file descriptor to be shared
-#     with other process, e.g. DPDK.  (default: QEMU opens
-#     /dev/iommu by itself)
+#     iommufd object to be shared accross several subsystems (VFIO,
+#     VDPA, ...), and the file descriptor to be shared with other
+#     process, e.g. DPDK.  (default: QEMU opens /dev/iommu by itself)
 #
 # Since: 9.0
 ##

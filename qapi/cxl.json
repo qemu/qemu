@@ -144,8 +144,8 @@
 # @cxl-inject-memory-module-event:
 #
 # Inject an event record for a Memory Module Event (CXL r3.0
-# 8.2.9.2.1.3).  This event includes a copy of the Device Health
-# info at the time of the event.
+# 8.2.9.2.1.3).  This event includes a copy of the Device Health info
+# at the time of the event.
 #
 # @path: CXL type 3 device canonical QOM path
 #

@@ -48,15 +48,15 @@
 #
 # @sha1: SHA-1. Should not be used in any new code, legacy compat only
 #
-# @sha224: SHA-224. (since 2.7)
+# @sha224: SHA-224.  (since 2.7)
 #
 # @sha256: SHA-256. Current recommended strong hash.
 #
-# @sha384: SHA-384. (since 2.7)
+# @sha384: SHA-384.  (since 2.7)
 #
-# @sha512: SHA-512. (since 2.7)
+# @sha512: SHA-512.  (since 2.7)
 #
-# @ripemd160: RIPEMD-160. (since 2.7)
+# @ripemd160: RIPEMD-160.  (since 2.7)
 #
 # Since: 2.6
 ##
@@ -224,9 +224,9 @@
 #     'sha256'
 #
 # @iter-time: number of milliseconds to spend in PBKDF passphrase
-#     processing.  Currently defaults to 2000. (since 2.8)
+#     processing.  Currently defaults to 2000.  (since 2.8)
 #
-# @detached-header: create a detached LUKS header. (since 9.0)
+# @detached-header: create a detached LUKS header.  (since 9.0)
 #
 # Since: 2.6
 ##

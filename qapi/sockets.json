@@ -58,7 +58,7 @@
 # @keep-alive: enable keep-alive when connecting to this socket.  Not
 #     supported for passive sockets.  (Since 4.2)
 #
-# @mptcp: enable multi-path TCP. (Since 6.1)
+# @mptcp: enable multi-path TCP.  (Since 6.1)
 #
 # Since: 1.3
 ##
@@ -124,7 +124,6 @@
 #     monitor commands, in combination with the 'getfd' command.
 #     Decimal file descriptors are permitted at startup or other
 #     contexts where no monitor context is active.
-#
 #
 # Since: 1.2
 ##

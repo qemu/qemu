@@ -32,9 +32,9 @@
 #
 # Example:
 #
-#         -> { "execute": "add_client", "arguments": { "protocol": "vnc",
-#                                                      "fdname": "myclient" } }
-#         <- { "return": {} }
+#     -> { "execute": "add_client", "arguments": { "protocol": "vnc",
+#                                                  "fdname": "myclient" } }
+#     <- { "return": {} }
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
@@ -142,7 +142,7 @@
 #     option was passed on the command line.
 #
 #     In the "suspended" state, it will completely stop the VM and
-#     cause a transition to the "paused" state. (Since 9.0)
+#     cause a transition to the "paused" state.  (Since 9.0)
 #
 # Example:
 #

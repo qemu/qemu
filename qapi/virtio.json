@@ -642,15 +642,17 @@
 #
 # @num: vhost_virtqueue num
 #
-# @desc-phys: vhost_virtqueue desc_phys (descriptor area phys. addr.)
+# @desc-phys: vhost_virtqueue desc_phys (descriptor area physical
+#     address)
 #
 # @desc-size: vhost_virtqueue desc_size
 #
-# @avail-phys: vhost_virtqueue avail_phys (driver area phys. addr.)
+# @avail-phys: vhost_virtqueue avail_phys (driver area physical
+#     address)
 #
 # @avail-size: vhost_virtqueue avail_size
 #
-# @used-phys: vhost_virtqueue used_phys (device area phys. addr.)
+# @used-phys: vhost_virtqueue used_phys (device area physical address)
 #
 # @used-size: vhost_virtqueue used_size
 #
@@ -936,10 +938,11 @@
 #
 # @iothread: the id of IOThread object
 #
-# @vqs: an optional array of virtqueue indices that will be handled by this
-#     IOThread.  When absent, virtqueues are assigned round-robin across all
-#     IOThreadVirtQueueMappings provided.  Either all IOThreadVirtQueueMappings
-#     must have @vqs or none of them must have it.
+# @vqs: an optional array of virtqueue indices that will be handled by
+#     this IOThread.  When absent, virtqueues are assigned round-robin
+#     across all IOThreadVirtQueueMappings provided.  Either all
+#     IOThreadVirtQueueMappings must have @vqs or none of them must
+#     have it.
 #
 # Since: 9.0
 ##
@@ -950,7 +953,8 @@
 ##
 # @DummyVirtioForceArrays:
 #
-# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList internally
+# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList
+# internally
 #
 # Since: 9.0
 ##

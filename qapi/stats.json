@@ -114,13 +114,13 @@
 #
 # The arguments to the query-stats command; specifies a target for
 # which to request statistics and optionally the required subset of
-# information for that target:
+# information for that target.
 #
-# - which vCPUs to request statistics for
-# - which providers to request statistics from
-# - which named values to return within each provider
+# @target: the kind of objects to query.  Note that each possible
+#          target may enable additional filtering options
 #
-# @target: the kind of objects to query
+# @providers: which providers to request statistics from, and optionally
+#             which named values to return within each provider
 #
 # Since: 7.1
 ##
@@ -135,6 +135,8 @@
 # @StatsValue:
 #
 # @scalar: single unsigned 64-bit integers.
+#
+# @boolean: single boolean value.
 #
 # @list: list of unsigned 64-bit integers (used for histograms).
 #
@@ -253,6 +255,8 @@
 # @query-stats-schemas:
 #
 # Return the schema for all available runtime-collected statistics.
+#
+# @provider: a provider to restrict the query to.
 #
 # Note: runtime-collected statistics and their names fall outside
 #     QEMU's usual deprecation policies.  QEMU will try to keep the
