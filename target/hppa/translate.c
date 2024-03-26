@@ -4572,23 +4572,31 @@ static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
     return nullify_end(ctx);
 }
 
-static bool trans_diag(DisasContext *ctx, arg_diag *a)
+/* Emulate PDC BTLB, called by SeaBIOS-hppa */
+static bool trans_diag_btlb(DisasContext *ctx, arg_diag_btlb *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-    if (a->i == 0x100) {
-        /* emulate PDC BTLB, called by SeaBIOS-hppa */
-        nullify_over(ctx);
-        gen_helper_diag_btlb(tcg_env);
-        return nullify_end(ctx);
-    }
-    if (a->i == 0x101) {
-        /* print char in %r26 to first serial console, used by SeaBIOS-hppa */
-        nullify_over(ctx);
-        gen_helper_diag_console_output(tcg_env);
-        return nullify_end(ctx);
-    }
+    nullify_over(ctx);
+    gen_helper_diag_btlb(tcg_env);
+    return nullify_end(ctx);
 #endif
+}
+
+/* Print char in %r26 to first serial console, used by SeaBIOS-hppa */
+static bool trans_diag_cout(DisasContext *ctx, arg_diag_cout *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    gen_helper_diag_console_output(tcg_env);
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     qemu_log_mask(LOG_UNIMP, "DIAG opcode 0x%04x ignored\n", a->i);
     return true;
 }
