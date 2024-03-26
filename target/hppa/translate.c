@@ -200,6 +200,14 @@ static int cmpbid_c(DisasContext *ctx, int val)
     return val ? val : 4; /* 0 == "*<<" */
 }
 
+/*
+ * In many places pa1.x did not decode the bit that later became
+ * the pa2.0 D bit.  Suppress D unless the cpu is pa2.0.
+ */
+static int pa20_d(DisasContext *ctx, int val)
+{
+    return ctx->is_pa20 & val;
+}
 
 /* Include the auto-generated decoder.  */
 #include "decode-insns.c.inc"
@@ -693,12 +701,6 @@ static bool cond_need_cb(int c)
     return c == 4 || c == 5;
 }
 
-/* Need extensions from TCGv_i32 to TCGv_i64. */
-static bool cond_need_ext(DisasContext *ctx, bool d)
-{
-    return !(ctx->is_pa20 && d);
-}
-
 /*
  * Compute conditional for arithmetic.  See Page 5-3, Table 5-1, of
  * the Parisc 1.1 Architecture Reference Manual for details.
@@ -715,7 +717,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
-        if (cond_need_ext(ctx, d)) {
+        if (!d) {
             tmp = tcg_temp_new_i64();
             tcg_gen_ext32u_i64(tmp, res);
             res = tmp;
@@ -725,7 +727,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
         tmp = tcg_temp_new_i64();
         tcg_gen_xor_i64(tmp, res, sv);
-        if (cond_need_ext(ctx, d)) {
+        if (!d) {
             tcg_gen_ext32s_i64(tmp, tmp);
         }
         cond = cond_make_0_tmp(TCG_COND_LT, tmp);
@@ -742,7 +744,7 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
          */
         tmp = tcg_temp_new_i64();
         tcg_gen_eqv_i64(tmp, res, sv);
-        if (cond_need_ext(ctx, d)) {
+        if (!d) {
             tcg_gen_sextract_i64(tmp, tmp, 31, 1);
             tcg_gen_and_i64(tmp, tmp, res);
             tcg_gen_ext32u_i64(tmp, tmp);
@@ -760,13 +762,13 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
         tmp = tcg_temp_new_i64();
         tcg_gen_neg_i64(tmp, cb_msb);
         tcg_gen_and_i64(tmp, tmp, res);
-        if (cond_need_ext(ctx, d)) {
+        if (!d) {
             tcg_gen_ext32u_i64(tmp, tmp);
         }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 6: /* SV / NSV      (V / !V) */
-        if (cond_need_ext(ctx, d)) {
+        if (!d) {
             tmp = tcg_temp_new_i64();
             tcg_gen_ext32s_i64(tmp, sv);
             sv = tmp;
@@ -827,7 +829,7 @@ static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, bool d,
     if (cf & 1) {
         tc = tcg_invert_cond(tc);
     }
-    if (cond_need_ext(ctx, d)) {
+    if (!d) {
         TCGv_i64 t1 = tcg_temp_new_i64();
         TCGv_i64 t2 = tcg_temp_new_i64();
 
@@ -904,7 +906,7 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
         g_assert_not_reached();
     }
 
-    if (cond_need_ext(ctx, d)) {
+    if (!d) {
         TCGv_i64 tmp = tcg_temp_new_i64();
 
         if (ext_uns) {
@@ -979,7 +981,7 @@ static DisasCond do_unit_zero_cond(unsigned cf, bool d, TCGv_i64 res)
 static TCGv_i64 get_carry(DisasContext *ctx, bool d,
                           TCGv_i64 cb, TCGv_i64 cb_msb)
 {
-    if (cond_need_ext(ctx, d)) {
+    if (!d) {
         TCGv_i64 t = tcg_temp_new_i64();
         tcg_gen_extract_i64(t, cb, 32, 1);
         return t;
@@ -3448,12 +3450,12 @@ static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
 
     tmp = tcg_temp_new_i64();
     tcg_r = load_gpr(ctx, a->r);
-    if (cond_need_ext(ctx, a->d)) {
+    if (a->d) {
+        tcg_gen_shl_i64(tmp, tcg_r, cpu_sar);
+    } else {
         /* Force shift into [32,63] */
         tcg_gen_ori_i64(tmp, cpu_sar, 32);
         tcg_gen_shl_i64(tmp, tcg_r, tmp);
-    } else {
-        tcg_gen_shl_i64(tmp, tcg_r, cpu_sar);
     }
 
     cond = cond_make_0_tmp(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
@@ -3470,7 +3472,7 @@ static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 
     tmp = tcg_temp_new_i64();
     tcg_r = load_gpr(ctx, a->r);
-    p = a->p | (cond_need_ext(ctx, a->d) ? 32 : 0);
+    p = a->p | (a->d ? 0 : 32);
     tcg_gen_shli_i64(tmp, tcg_r, p);
 
     cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
