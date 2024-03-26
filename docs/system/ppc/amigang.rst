@@ -16,7 +16,7 @@ firmware to support AmigaOS 4.
 Emulated devices
 ----------------
 
- * PowerPC 7457 CPU (can also use``-cpu g3, 750cxe, 750fx`` or ``750gx``)
+ * PowerPC 7457 CPU (can also use ``-cpu g3, 750cxe, 750fx`` or ``750gx``)
  * Articia S north bridge
  * VIA VT82C686B south bridge
  * PCI VGA compatible card (guests may need other card instead)
@@ -73,7 +73,7 @@ https://www.powerdeveloper.org/platforms/pegasos/schematics.
 Emulated devices
 ----------------
 
- * PowerPC 7457 CPU (can also use``-cpu g3`` or ``750cxe``)
+ * PowerPC 7457 CPU (can also use ``-cpu g3`` or ``750cxe``)
  * Marvell MV64361 Discovery II north bridge
  * VIA VT8231 south bridge
  * PCI VGA compatible card (guests may need other card instead)
