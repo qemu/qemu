@@ -431,21 +431,6 @@ void tlb_flush(CPUState *cpu)
     tlb_flush_by_mmuidx(cpu, ALL_MMUIDX_BITS);
 }
 
-void tlb_flush_by_mmuidx_all_cpus(CPUState *src_cpu, uint16_t idxmap)
-{
-    const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
-
-    tlb_debug("mmu_idx: 0x%"PRIx16"\n", idxmap);
-
-    flush_all_helper(src_cpu, fn, RUN_ON_CPU_HOST_INT(idxmap));
-    fn(src_cpu, RUN_ON_CPU_HOST_INT(idxmap));
-}
-
-void tlb_flush_all_cpus(CPUState *src_cpu)
-{
-    tlb_flush_by_mmuidx_all_cpus(src_cpu, ALL_MMUIDX_BITS);
-}
-
 void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *src_cpu, uint16_t idxmap)
 {
     const run_on_cpu_func fn = tlb_flush_by_mmuidx_async_work;
@@ -656,46 +641,6 @@ void tlb_flush_page(CPUState *cpu, vaddr addr)
     tlb_flush_page_by_mmuidx(cpu, addr, ALL_MMUIDX_BITS);
 }
 
-void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, vaddr addr,
-                                       uint16_t idxmap)
-{
-    tlb_debug("addr: %016" VADDR_PRIx " mmu_idx:%"PRIx16"\n", addr, idxmap);
-
-    /* This should already be page aligned */
-    addr &= TARGET_PAGE_MASK;
-
-    /*
-     * Allocate memory to hold addr+idxmap only when needed.
-     * See tlb_flush_page_by_mmuidx for details.
-     */
-    if (idxmap < TARGET_PAGE_SIZE) {
-        flush_all_helper(src_cpu, tlb_flush_page_by_mmuidx_async_1,
-                         RUN_ON_CPU_TARGET_PTR(addr | idxmap));
-    } else {
-        CPUState *dst_cpu;
-
-        /* Allocate a separate data block for each destination cpu.  */
-        CPU_FOREACH(dst_cpu) {
-            if (dst_cpu != src_cpu) {
-                TLBFlushPageByMMUIdxData *d
-                    = g_new(TLBFlushPageByMMUIdxData, 1);
-
-                d->addr = addr;
-                d->idxmap = idxmap;
-                async_run_on_cpu(dst_cpu, tlb_flush_page_by_mmuidx_async_2,
-                                 RUN_ON_CPU_HOST_PTR(d));
-            }
-        }
-    }
-
-    tlb_flush_page_by_mmuidx_async_0(src_cpu, addr, idxmap);
-}
-
-void tlb_flush_page_all_cpus(CPUState *src, vaddr addr)
-{
-    tlb_flush_page_by_mmuidx_all_cpus(src, addr, ALL_MMUIDX_BITS);
-}
-
 void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                               vaddr addr,
                                               uint16_t idxmap)
@@ -885,54 +830,6 @@ void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, vaddr addr,
                                    uint16_t idxmap, unsigned bits)
 {
     tlb_flush_range_by_mmuidx(cpu, addr, TARGET_PAGE_SIZE, idxmap, bits);
-}
-
-void tlb_flush_range_by_mmuidx_all_cpus(CPUState *src_cpu,
-                                        vaddr addr, vaddr len,
-                                        uint16_t idxmap, unsigned bits)
-{
-    TLBFlushRangeData d;
-    CPUState *dst_cpu;
-
-    /*
-     * If all bits are significant, and len is small,
-     * this devolves to tlb_flush_page.
-     */
-    if (bits >= TARGET_LONG_BITS && len <= TARGET_PAGE_SIZE) {
-        tlb_flush_page_by_mmuidx_all_cpus(src_cpu, addr, idxmap);
-        return;
-    }
-    /* If no page bits are significant, this devolves to tlb_flush. */
-    if (bits < TARGET_PAGE_BITS) {
-        tlb_flush_by_mmuidx_all_cpus(src_cpu, idxmap);
-        return;
-    }
-
-    /* This should already be page aligned */
-    d.addr = addr & TARGET_PAGE_MASK;
-    d.len = len;
-    d.idxmap = idxmap;
-    d.bits = bits;
-
-    /* Allocate a separate data block for each destination cpu.  */
-    CPU_FOREACH(dst_cpu) {
-        if (dst_cpu != src_cpu) {
-            TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
-            async_run_on_cpu(dst_cpu,
-                             tlb_flush_range_by_mmuidx_async_1,
-                             RUN_ON_CPU_HOST_PTR(p));
-        }
-    }
-
-    tlb_flush_range_by_mmuidx_async_0(src_cpu, d);
-}
-
-void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
-                                            vaddr addr, uint16_t idxmap,
-                                            unsigned bits)
-{
-    tlb_flush_range_by_mmuidx_all_cpus(src_cpu, addr, TARGET_PAGE_SIZE,
-                                       idxmap, bits);
 }
 
 void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
