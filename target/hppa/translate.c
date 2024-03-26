@@ -994,7 +994,8 @@ static TCGv_i64 get_psw_carry(DisasContext *ctx, bool d)
 
 /* Compute signed overflow for addition.  */
 static TCGv_i64 do_add_sv(DisasContext *ctx, TCGv_i64 res,
-                          TCGv_i64 in1, TCGv_i64 in2)
+                          TCGv_i64 in1, TCGv_i64 in2,
+                          TCGv_i64 orig_in1, int shift, bool d)
 {
     TCGv_i64 sv = tcg_temp_new_i64();
     TCGv_i64 tmp = tcg_temp_new_i64();
@@ -1003,7 +1004,47 @@ static TCGv_i64 do_add_sv(DisasContext *ctx, TCGv_i64 res,
     tcg_gen_xor_i64(tmp, in1, in2);
     tcg_gen_andc_i64(sv, sv, tmp);
 
+    switch (shift) {
+    case 0:
+        break;
+    case 1:
+        /* Shift left by one and compare the sign. */
+        tcg_gen_add_i64(tmp, orig_in1, orig_in1);
+        tcg_gen_xor_i64(tmp, tmp, orig_in1);
+        /* Incorporate into the overflow. */
+        tcg_gen_or_i64(sv, sv, tmp);
+        break;
+    default:
+        {
+            int sign_bit = d ? 63 : 31;
+
+            /* Compare the sign against all lower bits. */
+            tcg_gen_sextract_i64(tmp, orig_in1, sign_bit, 1);
+            tcg_gen_xor_i64(tmp, tmp, orig_in1);
+            /*
+             * If one of the bits shifting into or through the sign
+             * differs, then we have overflow.
+             */
+            tcg_gen_extract_i64(tmp, tmp, sign_bit - shift, shift);
+            tcg_gen_movcond_i64(TCG_COND_NE, sv, tmp, ctx->zero,
+                                tcg_constant_i64(-1), sv);
+        }
+    }
     return sv;
+}
+
+/* Compute unsigned overflow for addition.  */
+static TCGv_i64 do_add_uv(DisasContext *ctx, TCGv_i64 cb, TCGv_i64 cb_msb,
+                          TCGv_i64 in1, int shift, bool d)
+{
+    if (shift == 0) {
+        return get_carry(ctx, d, cb, cb_msb);
+    } else {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_extract_i64(tmp, in1, (d ? 63 : 31) - shift, shift);
+        tcg_gen_or_i64(tmp, tmp, get_carry(ctx, d, cb, cb_msb));
+        return tmp;
+    }
 }
 
 /* Compute signed overflow for subtraction.  */
@@ -1020,19 +1061,19 @@ static TCGv_i64 do_sub_sv(DisasContext *ctx, TCGv_i64 res,
     return sv;
 }
 
-static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
+static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
                    TCGv_i64 in2, unsigned shift, bool is_l,
                    bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
 {
-    TCGv_i64 dest, cb, cb_msb, cb_cond, sv, tmp;
+    TCGv_i64 dest, cb, cb_msb, in1, uv, sv, tmp;
     unsigned c = cf >> 1;
     DisasCond cond;
 
     dest = tcg_temp_new_i64();
     cb = NULL;
     cb_msb = NULL;
-    cb_cond = NULL;
 
+    in1 = orig_in1;
     if (shift) {
         tmp = tcg_temp_new_i64();
         tcg_gen_shli_i64(tmp, in1, shift);
@@ -1050,9 +1091,6 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
         }
         tcg_gen_xor_i64(cb, in1, in2);
         tcg_gen_xor_i64(cb, cb, dest);
-        if (cond_need_cb(c)) {
-            cb_cond = get_carry(ctx, d, cb, cb_msb);
-        }
     } else {
         tcg_gen_add_i64(dest, in1, in2);
         if (is_c) {
@@ -1063,18 +1101,23 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     /* Compute signed overflow if required.  */
     sv = NULL;
     if (is_tsv || cond_need_sv(c)) {
-        sv = do_add_sv(ctx, dest, in1, in2);
+        sv = do_add_sv(ctx, dest, in1, in2, orig_in1, shift, d);
         if (is_tsv) {
             if (!d) {
                 tcg_gen_ext32s_i64(sv, sv);
             }
-            /* ??? Need to include overflow from shift.  */
             gen_helper_tsv(tcg_env, sv);
         }
     }
 
+    /* Compute unsigned overflow if required.  */
+    uv = NULL;
+    if (cond_need_cb(c)) {
+        uv = do_add_uv(ctx, cb, cb_msb, orig_in1, shift, d);
+    }
+
     /* Emit any conditional trap before any writeback.  */
-    cond = do_cond(ctx, cf, d, dest, cb_cond, sv);
+    cond = do_cond(ctx, cf, d, dest, uv, sv);
     if (is_tc) {
         tmp = tcg_temp_new_i64();
         tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
@@ -2843,7 +2886,6 @@ static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf_d *a)
 static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
 {
     TCGv_i64 dest, add1, add2, addc, in1, in2;
-    TCGv_i64 cout;
 
     nullify_over(ctx);
 
@@ -2880,19 +2922,23 @@ static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
     tcg_gen_xor_i64(cpu_psw_cb, add1, add2);
     tcg_gen_xor_i64(cpu_psw_cb, cpu_psw_cb, dest);
 
-    /* Write back PSW[V] for the division step.  */
-    cout = get_psw_carry(ctx, false);
-    tcg_gen_neg_i64(cpu_psw_v, cout);
+    /*
+     * Write back PSW[V] for the division step.
+     * Shift cb{8} from where it lives in bit 32 to bit 31,
+     * so that it overlaps r2{32} in bit 31.
+     */
+    tcg_gen_shri_i64(cpu_psw_v, cpu_psw_cb, 1);
     tcg_gen_xor_i64(cpu_psw_v, cpu_psw_v, in2);
 
     /* Install the new nullification.  */
     if (a->cf) {
-        TCGv_i64 sv = NULL;
+        TCGv_i64 sv = NULL, uv = NULL;
         if (cond_need_sv(a->cf >> 1)) {
-            /* ??? The lshift is supposed to contribute to overflow.  */
-            sv = do_add_sv(ctx, dest, add1, add2);
+            sv = do_add_sv(ctx, dest, add1, add2, in1, 1, false);
+        } else if (cond_need_cb(a->cf >> 1)) {
+            uv = do_add_uv(ctx, cpu_psw_cb, NULL, in1, 1, false);
         }
-        ctx->null_cond = do_cond(ctx, a->cf, false, dest, cout, sv);
+        ctx->null_cond = do_cond(ctx, a->cf, false, dest, uv, sv);
     }
 
     return nullify_end(ctx);
@@ -3419,7 +3465,7 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_i64 in1,
         tcg_gen_add_i64(dest, in1, in2);
     }
     if (cond_need_sv(c)) {
-        sv = do_add_sv(ctx, dest, in1, in2);
+        sv = do_add_sv(ctx, dest, in1, in2, in1, 0, d);
     }
 
     cond = do_cond(ctx, c * 2 + f, d, dest, cb_cond, sv);
