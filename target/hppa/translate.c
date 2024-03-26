@@ -3473,6 +3473,7 @@ static bool trans_be(DisasContext *ctx, arg_be *a)
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
         tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
+        nullify_set(ctx, 0);
     } else {
         copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
         if (ctx->iaoq_b == -1) {
