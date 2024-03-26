@@ -707,7 +707,7 @@ static bool cond_need_cb(int c)
  */
 
 static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
-                         TCGv_i64 res, TCGv_i64 cb_msb, TCGv_i64 sv)
+                         TCGv_i64 res, TCGv_i64 uv, TCGv_i64 sv)
 {
     DisasCond cond;
     TCGv_i64 tmp;
@@ -754,14 +754,12 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
         }
         cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
-    case 4: /* NUV / UV      (!C / C) */
-        /* Only bit 0 of cb_msb is ever set. */
-        cond = cond_make_0(TCG_COND_EQ, cb_msb);
+    case 4: /* NUV / UV      (!UV / UV) */
+        cond = cond_make_0(TCG_COND_EQ, uv);
         break;
-    case 5: /* ZNV / VNZ     (!C | Z / C & !Z) */
+    case 5: /* ZNV / VNZ     (!UV | Z / UV & !Z) */
         tmp = tcg_temp_new_i64();
-        tcg_gen_neg_i64(tmp, cb_msb);
-        tcg_gen_and_i64(tmp, tmp, res);
+        tcg_gen_movcond_i64(TCG_COND_EQ, tmp, uv, ctx->zero, ctx->zero, res);
         if (!d) {
             tcg_gen_ext32u_i64(tmp, tmp);
         }
