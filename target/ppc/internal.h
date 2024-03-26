@@ -18,6 +18,7 @@
 #ifndef PPC_INTERNAL_H
 #define PPC_INTERNAL_H
 
+#include "exec/breakpoint.h"
 #include "hw/registerfields.h"
 
 /* PM instructions */
