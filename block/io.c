@@ -1730,7 +1730,7 @@ static int bdrv_pad_request(BlockDriverState *bs,
      * For prefetching in stream_populate(), no qiov is passed along, because
      * only copy-on-read matters.
      */
-    if (qiov && *qiov) {
+    if (*qiov) {
         sliced_iov = qemu_iovec_slice(*qiov, *qiov_offset, *bytes,
                                       &sliced_head, &sliced_tail,
                                       &sliced_niov);
