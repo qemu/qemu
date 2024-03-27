@@ -770,12 +770,11 @@ static bool use_nullify_skip(DisasContext *ctx)
 static void gen_goto_tb(DisasContext *ctx, int which,
                         const DisasIAQE *f, const DisasIAQE *b)
 {
+    install_iaq_entries(ctx, f, b);
     if (use_goto_tb(ctx, f, b)) {
         tcg_gen_goto_tb(which);
-        install_iaq_entries(ctx, f, b);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        install_iaq_entries(ctx, f, b);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -4576,6 +4575,7 @@ static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint64_t cs_base, iaoq_f, iaoq_b;
     int bound;
 
     ctx->cs = cs;
@@ -4585,29 +4585,30 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = PRIV_USER;
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->iaoq_first = ctx->base.pc_first | ctx->privilege;
-    ctx->iaq_b.disp = ctx->base.tb->cs_base - ctx->base.pc_first;
     ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D
                     ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
                     : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
+#endif
 
     /* Recover the IAOQ values from the GVA + PRIV.  */
-    uint64_t cs_base = ctx->base.tb->cs_base;
-    uint64_t iasq_f = cs_base & ~0xffffffffull;
-    int32_t diff = cs_base;
+    cs_base = ctx->base.tb->cs_base;
+    iaoq_f = cs_base & MAKE_64BIT_MASK(32, 32);
+    iaoq_f |= ctx->base.pc_first & MAKE_64BIT_MASK(2, 30);
+    iaoq_f |= ctx->privilege;
+    ctx->iaoq_first = iaoq_f;
 
-    ctx->iaoq_first = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
-
-    if (diff) {
-        ctx->iaq_b.disp = diff;
-    } else {
-        ctx->iaq_b.base = cpu_iaoq_b;
+    if (unlikely(cs_base & CS_BASE_DIFFSPACE)) {
         ctx->iaq_b.space = cpu_iasq_b;
+        ctx->iaq_b.base = cpu_iaoq_b;
+    } else if (unlikely(cs_base & CS_BASE_DIFFPAGE)) {
+        ctx->iaq_b.base = cpu_iaoq_b;
+    } else {
+        iaoq_b = (iaoq_f & TARGET_PAGE_MASK) | (cs_base & ~TARGET_PAGE_MASK);
+        ctx->iaq_b.disp = iaoq_b - iaoq_f;
     }
-#endif
 
     ctx->zero = tcg_constant_i64(0);
 
