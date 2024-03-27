@@ -637,15 +637,10 @@ static DisasIAQE iaqe_next_absv(DisasContext *ctx, TCGv_i64 var)
 static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
                             const DisasIAQE *src)
 {
-    uint64_t mask = gva_offset_mask(ctx->tb_flags);
-
     if (src->base == NULL) {
-        tcg_gen_movi_i64(dest, (ctx->iaoq_first + src->disp) & mask);
-    } else if (src->disp == 0) {
-        tcg_gen_andi_i64(dest, src->base, mask);
+        tcg_gen_movi_i64(dest, ctx->iaoq_first + src->disp);
     } else {
         tcg_gen_addi_i64(dest, src->base, src->disp);
-        tcg_gen_andi_i64(dest, dest, mask);
     }
 }
 
