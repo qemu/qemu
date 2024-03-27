@@ -7611,9 +7611,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
         cs->nr_threads > 1) {
             warn_report_once("This family of AMD CPU doesn't support "
-                             "hyperthreading(%d).", cs->nr_threads);
-            error_report_once("Please configure -smp options properly"
-                              " or try enabling topoext feature.");
+                             "hyperthreading(%d). Please configure -smp "
+                             "options properly or try enabling topoext "
+                             "feature.", cs->nr_threads);
     }
 
 #ifndef CONFIG_USER_ONLY
