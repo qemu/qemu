@@ -41,8 +41,8 @@ x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
 riscv32_cross_prefix := $(call find-cross-prefix,riscv32)
 riscv64_cross_prefix := $(call find-cross-prefix,riscv64)
 
-# tag our seabios builds
-SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
+# tag our firmware builds
+FIRMWARE_EXTRAVERSION = -prebuilt.qemu.org
 
 #
 # EfiRom utility is shipped with edk2 / tianocore, in BaseTools/
@@ -93,12 +93,12 @@ build-seabios-config-%: config.%
 	mkdir -p seabios/builds/$*
 	cp $< seabios/builds/$*/.config
 	$(MAKE) -C seabios \
-		EXTRAVERSION=$(SEABIOS_EXTRAVERSION) \
+		EXTRAVERSION=$(FIRMWARE_EXTRAVERSION) \
 		CROSS_PREFIX=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ oldnoconfig
 	$(MAKE) -C seabios \
-		EXTRAVERSION=$(SEABIOS_EXTRAVERSION) \
+		EXTRAVERSION=$(FIRMWARE_EXTRAVERSION) \
 		CROSS_PREFIX=$(x86_64_cross_prefix) \
 		KCONFIG_CONFIG=$(CURDIR)/seabios/builds/$*/.config \
 		OUT=$(CURDIR)/seabios/builds/$*/ all
@@ -159,7 +159,7 @@ edk2-version: edk2
 
 efi: edk2-version
 	$(PYTHON) edk2-build.py --config edk2-build.config \
-		--version-override "$(EDK2_STABLE)-for-qemu" \
+		--version-override "$(EDK2_STABLE)$(FIRMWARE_EXTRAVERSION)" \
 		--release-date "$(EDK2_DATE)" \
 		--silent --no-logs
 	rm -f ../pc-bios/edk2-*.fd.bz2
