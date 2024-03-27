@@ -7367,7 +7367,6 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
-    static bool ht_warned;
     unsigned requested_lbr_fmt;
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
@@ -7610,13 +7609,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      */
     if (IS_AMD_CPU(env) &&
         !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
-        cs->nr_threads > 1 && !ht_warned) {
-            warn_report("This family of AMD CPU doesn't support "
-                        "hyperthreading(%d)",
-                        cs->nr_threads);
-            error_printf("Please configure -smp options properly"
-                         " or try enabling topoext feature.\n");
-            ht_warned = true;
+        cs->nr_threads > 1) {
+            warn_report_once("This family of AMD CPU doesn't support "
+                             "hyperthreading(%d).", cs->nr_threads);
+            error_report_once("Please configure -smp options properly"
+                              " or try enabling topoext feature.");
     }
 
 #ifndef CONFIG_USER_ONLY
