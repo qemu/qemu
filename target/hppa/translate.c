@@ -2054,7 +2054,7 @@ static void do_page_zero(DisasContext *ctx)
 
             tcg_gen_st_i64(cpu_gr[26], tcg_env,
                            offsetof(CPUHPPAState, cr[27]));
-            tcg_gen_ori_i64(next.base, cpu_gr[31], 3);
+            tcg_gen_ori_i64(next.base, cpu_gr[31], PRIV_USER);
             install_iaq_entries(ctx, &next, NULL);
             ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
         }
@@ -4583,7 +4583,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->is_pa20 = hppa_is_pa20(cpu_env(cs));
 
 #ifdef CONFIG_USER_ONLY
-    ctx->privilege = MMU_IDX_TO_PRIV(MMU_USER_IDX);
+    ctx->privilege = PRIV_USER;
     ctx->mmu_idx = MMU_USER_IDX;
     ctx->iaoq_first = ctx->base.pc_first | ctx->privilege;
     ctx->iaq_b.disp = ctx->base.tb->cs_base - ctx->base.pc_first;

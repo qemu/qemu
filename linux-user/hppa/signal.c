@@ -101,7 +101,9 @@ static void restore_sigcontext(CPUArchState *env, struct target_sigcontext *sc)
     cpu_hppa_loaded_fr0(env);
 
     __get_user(env->iaoq_f, &sc->sc_iaoq[0]);
+    env->iaoq_f |= PRIV_USER;
     __get_user(env->iaoq_b, &sc->sc_iaoq[1]);
+    env->iaoq_b |= PRIV_USER;
     __get_user(env->cr[CR_SAR], &sc->sc_sar);
 }
 
@@ -162,8 +164,8 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         unlock_user(fdesc, haddr, 0);
         haddr = dest;
     }
-    env->iaoq_f = haddr;
-    env->iaoq_b = haddr + 4;
+    env->iaoq_f = haddr | PRIV_USER;
+    env->iaoq_b = env->iaoq_f + 4;
     env->psw_n = 0;
     return;
 

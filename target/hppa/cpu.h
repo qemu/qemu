@@ -42,6 +42,9 @@
 #define MMU_IDX_TO_P(MIDX)          (((MIDX) - MMU_KERNEL_IDX) & 1)
 #define PRIV_P_TO_MMU_IDX(PRIV, P)  ((PRIV) * 2 + !!(P) + MMU_KERNEL_IDX)
 
+#define PRIV_KERNEL       0
+#define PRIV_USER         3
+
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
 /* No need to flush MMU_ABS*_IDX  */

@@ -163,12 +163,18 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->cr[CR_SAR] = val & (hppa_is_pa20(env) ? 63 : 31);
         break;
     case 33:
+#ifdef CONFIG_USER_ONLY
+        val |= PRIV_USER;
+#endif
         env->iaoq_f = val;
         break;
     case 34:
         env->iasq_f = (uint64_t)val << 32;
         break;
     case 35:
+#ifdef CONFIG_USER_ONLY
+        val |= PRIV_USER;
+#endif
         env->iaoq_b = val;
         break;
     case 36:

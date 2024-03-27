@@ -32,6 +32,9 @@ static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
+#ifdef CONFIG_USER_ONLY
+    value |= PRIV_USER;
+#endif
     cpu->env.iaoq_f = value;
     cpu->env.iaoq_b = value + 4;
 }
@@ -93,8 +96,8 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
     tcg_debug_assert(!tcg_cflags_has(cs, CF_PCREL));
 
 #ifdef CONFIG_USER_ONLY
-    cpu->env.iaoq_f = tb->pc;
-    cpu->env.iaoq_b = tb->cs_base;
+    cpu->env.iaoq_f = tb->pc | PRIV_USER;
+    cpu->env.iaoq_b = tb->cs_base | PRIV_USER;
 #else
     /* Recover the IAOQ values from the GVA + PRIV.  */
     uint32_t priv = (tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;

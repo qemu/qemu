@@ -28,8 +28,8 @@ static inline void cpu_clone_regs_child(CPUHPPAState *env, target_ulong newsp,
     /* Indicate child in return value.  */
     env->gr[28] = 0;
     /* Return from the syscall.  */
-    env->iaoq_f = env->gr[31];
-    env->iaoq_b = env->gr[31] + 4;
+    env->iaoq_f = env->gr[31] | PRIV_USER;
+    env->iaoq_b = env->iaoq_f + 4;
 }
 
 static inline void cpu_clone_regs_parent(CPUHPPAState *env, unsigned flags)
