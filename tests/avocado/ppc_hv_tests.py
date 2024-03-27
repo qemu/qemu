@@ -42,10 +42,11 @@ def missing_deps():
 # QEMU packages are downloaded and installed on each test. That's not a
 # large download, but it may be more polite to create qcow2 image with
 # QEMU already installed and use that.
+# XXX: The order of these tests seems to matter, see git blame.
+@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
 @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test sometimes gets stuck due to console handling problem')
 @skipUnless(os.getenv('AVOCADO_ALLOW_LARGE_STORAGE'), 'storage limited')
 @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
-@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
 class HypervisorTest(QemuSystemTest):
 
     timeout = 1000
