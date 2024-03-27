@@ -3370,7 +3370,7 @@ static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc;
     assert(n->vhost_started);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_MQ) && idx == 2) {
+    if (!n->multiqueue && idx == 2) {
         /* Must guard against invalid features and bogus queue index
          * from being set by malicious guest, or penetrated through
          * buggy migration stream.
@@ -3402,7 +3402,7 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc;
     assert(n->vhost_started);
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_MQ) && idx == 2) {
+    if (!n->multiqueue && idx == 2) {
         /* Must guard against invalid features and bogus queue index
          * from being set by malicious guest, or penetrated through
          * buggy migration stream.
