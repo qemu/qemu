@@ -58,10 +58,6 @@ depending on the guest architecture.
     - :ref:`Yes<MIPS-System-emulator>`
     - Yes
     - Venerable RISC architecture originally out of Stanford University
-  * - Nios2
-    - Yes
-    - Yes
-    - 32 bit embedded soft-core by Altera
   * - OpenRISC
     - :ref:`Yes<OpenRISC-System-emulator>`
     - Yes
@@ -180,9 +176,6 @@ for that architecture.
   * - MIPS
     - System
     - Unified Hosting Interface (MD01069)
-  * - Nios II
-    - System
-    - https://sourceware.org/git/gitweb.cgi?p=newlib-cygwin.git;a=blob;f=libgloss/nios2/nios2-semi.txt;hb=HEAD
   * - RISC-V
     - System and User-mode
     - https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc

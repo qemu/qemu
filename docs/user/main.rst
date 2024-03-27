@@ -159,10 +159,6 @@ Other binaries
    * ``qemu-mipsn32el`` executes 32-bit little endian MIPS binaries (MIPS N32
      ABI).
 
--  user mode (NiosII)
-
-   * ``qemu-nios2`` TODO.
-
 -  user mode (PowerPC)
 
    * ``qemu-ppc64`` TODO.

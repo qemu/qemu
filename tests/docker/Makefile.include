@@ -114,13 +114,8 @@ docker-image-debian-microblaze-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docke
     $(DOCKER_FILES_DIR)/debian-microblaze-cross.d/build-toolchain.sh
 	$(call debian-toolchain, $@)
 
-docker-image-debian-nios2-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docker \
-    $(DOCKER_FILES_DIR)/debian-nios2-cross.d/build-toolchain.sh
-	$(call debian-toolchain, $@)
-
 # These images may be good enough for building tests but not for test builds
 DOCKER_PARTIAL_IMAGES += debian-microblaze-cross
-DOCKER_PARTIAL_IMAGES += debian-nios2-cross
 DOCKER_PARTIAL_IMAGES += debian-xtensa-cross
 DOCKER_PARTIAL_IMAGES += fedora-cris-cross
 

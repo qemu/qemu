@@ -37,7 +37,6 @@ mappings = {
     "m68k" : "m68k",
     "MicroBlaze" : "microblaze",
     "mips:isa64" : ["mips64", "mips64el"],
-    "nios2" : "nios2",
     "or1k" : "or1k",
     "powerpc:common" : "ppc",
     "powerpc:common64" : ["ppc64", "ppc64le"],

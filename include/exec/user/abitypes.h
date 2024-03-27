@@ -25,8 +25,7 @@
 #if (defined(TARGET_I386) && !defined(TARGET_X86_64)) \
     || defined(TARGET_SH4) \
     || defined(TARGET_OPENRISC) \
-    || defined(TARGET_MICROBLAZE) \
-    || defined(TARGET_NIOS2)
+    || defined(TARGET_MICROBLAZE)
 #define ABI_LLONG_ALIGNMENT 4
 #endif
 

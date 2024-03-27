@@ -185,12 +185,6 @@ it. Since all recent x86 hardware from the past >10 years is capable of the
 System emulator CPUs
 --------------------
 
-Nios II CPU (since 8.2)
-'''''''''''''''''''''''
-
-The Nios II architecture is orphan. The ``nios2`` guest CPU support is
-deprecated and will be removed in a future version of QEMU.
-
 ``power5+`` and ``power7+`` CPU names (since 9.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -225,11 +219,6 @@ the device tree blob, not just the ``kaslr-seed`` node.
 These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
-
-Nios II ``10m50-ghrd`` and ``nios2-generic-nommu`` machines (since 8.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The Nios II architecture is orphan.
 
 ``shix`` (since 9.0)
 ''''''''''''''''''''
