@@ -1982,7 +1982,7 @@ static TCGv_i64 do_ibranch_priv(DisasContext *ctx, TCGv_i64 offset)
         dest = tcg_temp_new_i64();
         tcg_gen_andi_i64(dest, offset, -4);
         tcg_gen_ori_i64(dest, dest, ctx->privilege);
-        tcg_gen_movcond_i64(TCG_COND_GTU, dest, dest, offset, dest, offset);
+        tcg_gen_umax_i64(dest, dest, offset);
         break;
     }
     return dest;
