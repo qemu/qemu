@@ -1658,6 +1658,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
                             TCGArg dest, TCGArg arg1, TCGArg arg2,
                             int const_arg2, bool neg)
 {
+    int cmp_rexw = rexw;
     bool inv = false;
     bool cleared;
     int jcc;
@@ -1670,6 +1671,18 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
         /* If arg2 is 0, convert to LTU/GEU vs 1. */
         if (const_arg2 && arg2 == 0) {
             arg2 = 1;
+            goto do_ltu;
+        }
+        break;
+
+    case TCG_COND_TSTNE:
+        inv = true;
+        /* fall through */
+    case TCG_COND_TSTEQ:
+        /* If arg2 is -1, convert to LTU/GEU vs 1. */
+        if (const_arg2 && arg2 == 0xffffffffu) {
+            arg2 = 1;
+            cmp_rexw = 0;
             goto do_ltu;
         }
         break;
@@ -1697,7 +1710,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
          * We can then use NEG or INC to produce the desired result.
          * This is always smaller than the SETCC expansion.
          */
-        tcg_out_cmp(s, TCG_COND_LTU, arg1, arg2, const_arg2, rexw);
+        tcg_out_cmp(s, TCG_COND_LTU, arg1, arg2, const_arg2, cmp_rexw);
 
         /* X - X - C = -C = (C ? -1 : 0) */
         tgen_arithr(s, ARITH_SBB + (neg ? rexw : 0), dest, dest);
@@ -1744,7 +1757,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
         cleared = true;
     }
 
-    jcc = tcg_out_cmp(s, cond, arg1, arg2, const_arg2, rexw);
+    jcc = tcg_out_cmp(s, cond, arg1, arg2, const_arg2, cmp_rexw);
     tcg_out_modrm(s, OPC_SETCC | jcc, 0, dest);
 
     if (!cleared) {
