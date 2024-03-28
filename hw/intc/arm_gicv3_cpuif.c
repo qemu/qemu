@@ -1065,7 +1065,7 @@ static uint64_t icc_hppir0_value(GICv3CPUState *cs, CPUARMState *env)
      */
     bool irq_is_secure;
 
-    if (cs->hppi.prio == 0xff) {
+    if (icc_no_enabled_hppi(cs)) {
         return INTID_SPURIOUS;
     }
 
@@ -1102,7 +1102,7 @@ static uint64_t icc_hppir1_value(GICv3CPUState *cs, CPUARMState *env)
      */
     bool irq_is_secure;
 
-    if (cs->hppi.prio == 0xff) {
+    if (icc_no_enabled_hppi(cs)) {
         return INTID_SPURIOUS;
     }
 
