@@ -5113,9 +5113,6 @@ SRST
         allows a co-operating external process to access the QEMU memory
         region.
 
-        The ``share`` is also required for pvrdma devices due to
-        limitations in the RDMA API provided by Linux.
-
         Setting share=on might affect the ability to configure NUMA
         bindings for the memory backend under some circumstances, see
         Documentation/vm/numa\_memory\_policy.txt on the Linux kernel

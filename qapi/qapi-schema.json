@@ -54,7 +54,6 @@
 { 'include': 'dump.json' }
 { 'include': 'net.json' }
 { 'include': 'ebpf.json' }
-{ 'include': 'rdma.json' }
 { 'include': 'rocker.json' }
 { 'include': 'tpm.json' }
 { 'include': 'ui.json' }

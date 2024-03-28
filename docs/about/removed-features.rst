@@ -925,6 +925,10 @@ contains native support for this feature and thus use of the option
 ROM approach was obsolete. The native SeaBIOS support can be activated
 by using ``-machine graphics=off``.
 
+``pvrdma`` and the RDMA subsystem (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The 'pvrdma' device and the whole RDMA subsystem have been removed.
 
 Related binaries
 ----------------

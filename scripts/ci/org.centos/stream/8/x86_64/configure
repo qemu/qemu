@@ -99,7 +99,6 @@
 --disable-opengl \
 --disable-parallels \
 --disable-pie \
---disable-pvrdma \
 --disable-qcow1 \
 --disable-qed \
 --disable-qom-cast-debug \

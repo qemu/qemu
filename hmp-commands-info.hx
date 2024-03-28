@@ -183,19 +183,6 @@ SRST
 ERST
 
     {
-        .name       = "rdma",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show RDMA state",
-        .cmd_info_hrt = qmp_x_query_rdma,
-    },
-
-SRST
-  ``info rdma``
-    Show RDMA state.
-ERST
-
-    {
         .name       = "pci",
         .args_type  = "",
         .params     = "",

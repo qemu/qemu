@@ -62,7 +62,6 @@ if have_system
     'cryptodev',
     'qdev',
     'pci',
-    'rdma',
     'rocker',
     'tpm',
   ]

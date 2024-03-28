@@ -55,7 +55,6 @@ cp_portable() {
                                      -e 'linux/if_ether' \
                                      -e 'input-event-codes' \
                                      -e 'sys/' \
-                                     -e 'pvrdma_verbs' \
                                      -e 'drm.h' \
                                      -e 'limits' \
                                      -e 'linux/const' \
@@ -225,32 +224,6 @@ done
 mkdir -p "$output/include/standard-headers/drm"
 cp_portable "$tmpdir/include/drm/drm_fourcc.h" \
             "$output/include/standard-headers/drm"
-
-rm -rf "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma"
-mkdir -p "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma"
-
-# Remove the unused functions from pvrdma_verbs.h avoiding the unnecessary
-# import of several infiniband/networking/other headers
-tmp_pvrdma_verbs="$tmpdir/pvrdma_verbs.h"
-# Parse the entire file instead of single lines to match
-# function declarations expanding over multiple lines
-# and strip the declarations starting with pvrdma prefix.
-sed  -e '1h;2,$H;$!d;g'  -e 's/[^};]*pvrdma[^(| ]*([^)]*);//g' \
-    "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_verbs.h" > \
-    "$tmp_pvrdma_verbs";
-
-for i in "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h" \
-         "$tmp_pvrdma_verbs"; do \
-    cp_portable "$i" \
-         "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma/"
-done
-
-rm -rf "$output/include/standard-headers/rdma/"
-mkdir -p "$output/include/standard-headers/rdma/"
-for i in "$tmpdir/include/rdma/vmw_pvrdma-abi.h"; do
-    cp_portable "$i" \
-         "$output/include/standard-headers/rdma/"
-done
 
 cat <<EOF >$output/include/standard-headers/linux/types.h
 /* For QEMU all types are already defined via osdep.h, so this
