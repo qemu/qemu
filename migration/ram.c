@@ -1793,7 +1793,7 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
 {
     RAMBlock  *block;
     ram_addr_t offset;
-    bool dirty;
+    bool dirty = false;
 
     do {
         block = unqueue_page(rs, &offset);
