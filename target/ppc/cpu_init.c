@@ -6142,6 +6142,28 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x8000;
 }
 
+static void bhrb_init_state(CPUPPCState *env, target_long num_entries_log2)
+{
+    if (env->flags & POWERPC_FLAG_BHRB) {
+        if (num_entries_log2 > BHRB_MAX_NUM_ENTRIES_LOG2) {
+            num_entries_log2 = BHRB_MAX_NUM_ENTRIES_LOG2;
+        }
+        env->bhrb_num_entries = 1 << num_entries_log2;
+        env->bhrb_base = (intptr_t)&env->bhrb[0];
+        env->bhrb_offset_mask = (env->bhrb_num_entries * sizeof(uint64_t)) - 1;
+    }
+}
+
+static void bhrb_reset_state(CPUPPCState *env)
+{
+    if (env->flags & POWERPC_FLAG_BHRB) {
+        env->bhrb_offset = 0;
+        env->bhrb_filter = 0;
+        memset(env->bhrb, 0, sizeof(env->bhrb));
+    }
+}
+
+#define POWER8_BHRB_ENTRIES_LOG2 5
 static void init_proc_POWER8(CPUPPCState *env)
 {
     /* Common Registers */
@@ -6182,6 +6204,8 @@ static void init_proc_POWER8(CPUPPCState *env)
     /* env variables */
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
+
+    bhrb_init_state(env, POWER8_BHRB_ENTRIES_LOG2);
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER8(env);
@@ -6307,6 +6331,7 @@ static struct ppc_radix_page_info POWER9_radix_page_info = {
 };
 #endif /* CONFIG_USER_ONLY */
 
+#define POWER9_BHRB_ENTRIES_LOG2 5
 static void init_proc_POWER9(CPUPPCState *env)
 {
     /* Common Registers */
@@ -6356,6 +6381,8 @@ static void init_proc_POWER9(CPUPPCState *env)
     /* env variables */
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
+
+    bhrb_init_state(env, POWER9_BHRB_ENTRIES_LOG2);
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER9(env);
@@ -6497,6 +6524,7 @@ static struct ppc_radix_page_info POWER10_radix_page_info = {
 };
 #endif /* !CONFIG_USER_ONLY */
 
+#define POWER10_BHRB_ENTRIES_LOG2 5
 static void init_proc_POWER10(CPUPPCState *env)
 {
     /* Common Registers */
@@ -6545,6 +6573,8 @@ static void init_proc_POWER10(CPUPPCState *env)
     /* env variables */
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
+
+    bhrb_init_state(env, POWER10_BHRB_ENTRIES_LOG2);
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER10(env);
@@ -6650,7 +6680,8 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
                  POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
-                 POWERPC_FLAG_VSX | POWERPC_FLAG_SCV;
+                 POWERPC_FLAG_VSX | POWERPC_FLAG_SCV |
+                 POWERPC_FLAG_BHRB;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
 }
@@ -7222,6 +7253,10 @@ static void ppc_cpu_reset_hold(Object *obj, ResetType type)
         }
         env->spr[i] = spr->default_value;
     }
+
+#if defined(TARGET_PPC64)
+    bhrb_reset_state(env);
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
