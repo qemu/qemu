@@ -931,7 +931,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
-    BlockDeviceIoStatus iostatus;
+    BlockDeviceIoStatus iostatus = BLOCK_DEVICE_IO_STATUS__MAX;
     int64_t length;
     int64_t target_length;
     BlockDriverInfo bdi;
