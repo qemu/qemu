@@ -1545,7 +1545,7 @@ F: pc-bios/skiboot.lid
 F: tests/qtest/pnv*
 
 pca955x
-M: Glenn Miles <milesg@linux.vnet.ibm.com>
+M: Glenn Miles <milesg@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 L: qemu-arm@nongnu.org
 S: Odd Fixes
