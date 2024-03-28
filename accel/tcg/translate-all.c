@@ -634,7 +634,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cpu->cflags_next_tb = curr_cflags(cpu) | CF_MEMI_ONLY | n;
 
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
-        vaddr pc = log_pc(cpu, tb);
+        vaddr pc = cpu->cc->get_pc(cpu);
         if (qemu_log_in_addr_range(pc)) {
             qemu_log("cpu_io_recompile: rewound execution of TB to %016"
                      VADDR_PRIx "\n", pc);
