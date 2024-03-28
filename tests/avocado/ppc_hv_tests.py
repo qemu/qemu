@@ -14,6 +14,7 @@ from avocado_qemu import wait_for_console_pattern, exec_command
 import os
 import time
 import subprocess
+from datetime import datetime
 
 deps = ["xorriso"] # dependent tools needed in the test setup/box.
 
@@ -107,6 +108,8 @@ class HypervisorTest(QemuSystemTest):
         exec_command(self, 'root')
         wait_for_console_pattern(self, 'localhost login:')
         wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
+        # If the time is wrong, SSL certificates can fail.
+        exec_command(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'))
         exec_command(self, 'setup-alpine -qe')
         wait_for_console_pattern(self, 'Updating repository indexes... done.')
 
