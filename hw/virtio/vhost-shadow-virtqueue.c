@@ -526,10 +526,10 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
 size_t vhost_svq_poll(VhostShadowVirtqueue *svq, size_t num)
 {
     size_t len = 0;
-    uint32_t r;
 
     while (num--) {
         int64_t start_us = g_get_monotonic_time();
+        uint32_t r = 0;
 
         do {
             if (vhost_svq_more_used(svq)) {
