@@ -737,7 +737,6 @@ Examples
   |qemu_system| -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
   |qemu_system| -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
   |qemu_system| -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
-  |qemu_system| -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
   |qemu_system| -drive file=gluster://1.2.3.4/testvol/a.img,file.debug=9,file.logfile=/var/log/qemu-gluster.log
   |qemu_system| 'json:{"driver":"qcow2",
                            "file":{"driver":"gluster",
