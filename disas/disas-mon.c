@@ -34,6 +34,7 @@ void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
     disas_initialize_debug_target(&s, cpu);
     s.info.fprintf_func = disas_gstring_printf;
     s.info.stream = (FILE *)ds;  /* abuse this slot */
+    s.info.show_opcodes = true;
 
     if (is_physical) {
         s.info.read_memory_func = physical_read_memory;
