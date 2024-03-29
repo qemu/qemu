@@ -91,7 +91,6 @@ static void vhost_user_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
 {
     int ret;
-    struct virtio_blk_config blkcfg;
     VirtIODevice *vdev = dev->vdev;
     VHostUserBlk *s = VHOST_USER_BLK(dev->vdev);
     Error *local_err = NULL;
@@ -100,19 +99,15 @@ static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
         return 0;
     }
 
-    ret = vhost_dev_get_config(dev, (uint8_t *)&blkcfg,
+    ret = vhost_dev_get_config(dev, (uint8_t *)&s->blkcfg,
                                vdev->config_len, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
     }
 
-    /* valid for resize only */
-    if (blkcfg.capacity != s->blkcfg.capacity) {
-        s->blkcfg.capacity = blkcfg.capacity;
-        memcpy(dev->vdev->config, &s->blkcfg, vdev->config_len);
-        virtio_notify_config(dev->vdev);
-    }
+    memcpy(dev->vdev->config, &s->blkcfg, vdev->config_len);
+    virtio_notify_config(dev->vdev);
 
     return 0;
 }
