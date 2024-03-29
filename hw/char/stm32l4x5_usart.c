@@ -271,6 +271,92 @@ static void usart_cancel_transmit(Stm32l4x5UsartBaseState *s)
     }
 }
 
+static void stm32l4x5_update_params(Stm32l4x5UsartBaseState *s)
+{
+    int speed, parity, data_bits, stop_bits;
+    uint32_t value, usart_div;
+    QEMUSerialSetParams ssp;
+
+    /* Select the parity type */
+    if (s->cr1 & R_CR1_PCE_MASK) {
+        if (s->cr1 & R_CR1_PS_MASK) {
+            parity = 'O';
+        } else {
+            parity = 'E';
+        }
+    } else {
+        parity = 'N';
+    }
+
+    /* Select the number of stop bits */
+    switch (FIELD_EX32(s->cr2, CR2, STOP)) {
+    case 0:
+        stop_bits = 1;
+        break;
+    case 2:
+        stop_bits = 2;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+            "UNIMPLEMENTED: fractionnal stop bits; CR2[13:12] = %u",
+            FIELD_EX32(s->cr2, CR2, STOP));
+        return;
+    }
+
+    /* Select the length of the word */
+    switch ((FIELD_EX32(s->cr1, CR1, M1) << 1) | FIELD_EX32(s->cr1, CR1, M0)) {
+    case 0:
+        data_bits = 8;
+        break;
+    case 1:
+        data_bits = 9;
+        break;
+    case 2:
+        data_bits = 7;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "UNDEFINED: invalid word length, CR1.M = 0b11");
+        return;
+    }
+
+    /* Select the baud rate */
+    value = FIELD_EX32(s->brr, BRR, BRR);
+    if (value < 16) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "UNDEFINED: BRR less than 16: %u", value);
+        return;
+    }
+
+    if (FIELD_EX32(s->cr1, CR1, OVER8) == 0) {
+        /*
+         * Oversampling by 16
+         * BRR = USARTDIV
+         */
+        usart_div = value;
+    } else {
+        /*
+         * Oversampling by 8
+         * - BRR[2:0] = USARTDIV[3:0] shifted 1 bit to the right.
+         * - BRR[3] must be kept cleared.
+         * - BRR[15:4] = USARTDIV[15:4]
+         * - The frequency is multiplied by 2
+         */
+        usart_div = ((value & 0xFFF0) | ((value & 0x0007) << 1)) / 2;
+    }
+
+    speed = clock_get_hz(s->clk) / usart_div;
+
+    ssp.speed     = speed;
+    ssp.parity    = parity;
+    ssp.data_bits = data_bits;
+    ssp.stop_bits = stop_bits;
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+
+    trace_stm32l4x5_usart_update_params(speed, parity, data_bits, stop_bits);
+}
+
 static void stm32l4x5_usart_base_reset_hold(Object *obj, ResetType type)
 {
     Stm32l4x5UsartBaseState *s = STM32L4X5_USART_BASE(obj);
@@ -369,16 +455,19 @@ static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
     switch (addr) {
     case A_CR1:
         s->cr1 = value;
+        stm32l4x5_update_params(s);
         stm32l4x5_update_irq(s);
         return;
     case A_CR2:
         s->cr2 = value;
+        stm32l4x5_update_params(s);
         return;
     case A_CR3:
         s->cr3 = value;
         return;
     case A_BRR:
         s->brr = value;
+        stm32l4x5_update_params(s);
         return;
     case A_GTPR:
         s->gtpr = value;
@@ -447,10 +536,19 @@ static void stm32l4x5_usart_base_init(Object *obj)
     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
 }
 
+static int stm32l4x5_usart_base_post_load(void *opaque, int version_id)
+{
+    Stm32l4x5UsartBaseState *s = (Stm32l4x5UsartBaseState *)opaque;
+
+    stm32l4x5_update_params(s);
+    return 0;
+}
+
 static const VMStateDescription vmstate_stm32l4x5_usart_base = {
     .name = TYPE_STM32L4X5_USART_BASE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = stm32l4x5_usart_base_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
         VMSTATE_UINT32(cr2, Stm32l4x5UsartBaseState),
