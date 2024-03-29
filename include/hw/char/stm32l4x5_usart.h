@@ -55,6 +55,7 @@ struct Stm32l4x5UsartBaseState {
     Clock *clk;
     CharBackend chr;
     qemu_irq irq;
+    guint watch_tag;
 };
 
 struct Stm32l4x5UsartBaseClass {
