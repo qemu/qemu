@@ -211,6 +211,7 @@ void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size)
     s.info.stream = out;
     s.info.buffer_vma = code;
     s.info.buffer_length = size;
+    s.info.show_opcodes = true;
 
     if (s.info.cap_arch >= 0 && cap_disas_target(&s.info, code, size)) {
         return;
