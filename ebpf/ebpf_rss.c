@@ -185,13 +185,18 @@ static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
                                             uint16_t *indirections_table,
                                             size_t len)
 {
+    char *cursor = ctx->mmap_indirections_table;
+
     if (!ebpf_rss_is_loaded(ctx) || indirections_table == NULL ||
        len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
         return false;
     }
 
-    memcpy(ctx->mmap_indirections_table, indirections_table,
-            sizeof(*indirections_table) * len);
+    for (size_t i = 0; i < len; i++) {
+        *(uint16_t *)cursor = indirections_table[i];
+        cursor += 8;
+    }
+
     return true;
 }
 
