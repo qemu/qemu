@@ -279,7 +279,7 @@ You can change the multiplier and divider of a clock at runtime,
 so you can use this to model clock controller devices which
 have guest-programmable frequency multipliers or dividers.
 
-Similary to ``clock_set()``, ``clock_set_mul_div()`` returns ``true`` if
+Similarly to ``clock_set()``, ``clock_set_mul_div()`` returns ``true`` if
 the clock state was modified; that is, if the multiplier or the diviser
 or both were changed by the call.
 
