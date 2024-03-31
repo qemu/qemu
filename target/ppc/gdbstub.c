@@ -305,6 +305,25 @@ static void gdb_gen_spr_feature(CPUState *cs)
     unsigned int num_regs = 0;
     int i;
 
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (!spr->name) {
+            continue;
+        }
+
+        /*
+         * GDB identifies registers based on the order they are
+         * presented in the XML. These ids will not match QEMU's
+         * representation (which follows the PowerISA).
+         *
+         * Store the position of the current register description so
+         * we can make the correspondence later.
+         */
+        spr->gdb_id = num_regs;
+        num_regs++;
+    }
+
     if (pcc->gdb_spr.xml) {
         return;
     }
@@ -321,18 +340,8 @@ static void gdb_gen_spr_feature(CPUState *cs)
         }
 
         gdb_feature_builder_append_reg(&builder, g_ascii_strdown(spr->name, -1),
-                                       TARGET_LONG_BITS, num_regs,
+                                       TARGET_LONG_BITS, spr->gdb_id,
                                        "int", "spr");
-        /*
-         * GDB identifies registers based on the order they are
-         * presented in the XML. These ids will not match QEMU's
-         * representation (which follows the PowerISA).
-         *
-         * Store the position of the current register description so
-         * we can make the correspondence later.
-         */
-        spr->gdb_id = num_regs;
-        num_regs++;
     }
 
     gdb_feature_builder_end(&builder);

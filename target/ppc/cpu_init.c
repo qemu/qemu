@@ -5820,7 +5820,7 @@ static void register_power10_dexcr_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_DEXCR, "DEXCR",
             SPR_NOACCESS, SPR_NOACCESS,
-            &spr_read_generic, &spr_write_generic32,
+            &spr_read_generic, &spr_write_generic,
             0);
 
     spr_register(env, SPR_UDEXCR, "UDEXCR",
@@ -5831,7 +5831,7 @@ static void register_power10_dexcr_sprs(CPUPPCState *env)
     spr_register_hv(env, SPR_HDEXCR, "HDEXCR",
             SPR_NOACCESS, SPR_NOACCESS,
             SPR_NOACCESS, SPR_NOACCESS,
-            &spr_read_generic, &spr_write_generic32,
+            &spr_read_generic, &spr_write_generic,
             0);
 
     spr_register(env, SPR_UHDEXCR, "UHDEXCR",

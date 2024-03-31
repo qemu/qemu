@@ -14,6 +14,7 @@ from avocado_qemu import wait_for_console_pattern, exec_command
 import os
 import time
 import subprocess
+from datetime import datetime
 
 deps = ["xorriso"] # dependent tools needed in the test setup/box.
 
@@ -42,10 +43,11 @@ def missing_deps():
 # QEMU packages are downloaded and installed on each test. That's not a
 # large download, but it may be more polite to create qcow2 image with
 # QEMU already installed and use that.
+# XXX: The order of these tests seems to matter, see git blame.
+@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
 @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test sometimes gets stuck due to console handling problem')
 @skipUnless(os.getenv('AVOCADO_ALLOW_LARGE_STORAGE'), 'storage limited')
 @skipUnless(os.getenv('SPEED') == 'slow', 'runtime limited')
-@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
 class HypervisorTest(QemuSystemTest):
 
     timeout = 1000
@@ -106,6 +108,8 @@ class HypervisorTest(QemuSystemTest):
         exec_command(self, 'root')
         wait_for_console_pattern(self, 'localhost login:')
         wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
+        # If the time is wrong, SSL certificates can fail.
+        exec_command(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'))
         exec_command(self, 'setup-alpine -qe')
         wait_for_console_pattern(self, 'Updating repository indexes... done.')
 

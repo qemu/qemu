@@ -1511,7 +1511,7 @@ static target_ulong h_guest_getset_state(PowerPCCPU *cpu,
     if (flags & H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE) {
         gsr.flags |= GUEST_STATE_REQUEST_GUEST_WIDE;
     }
-    if (flags & !H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE) {
+    if (flags & ~H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE) {
         return H_PARAMETER; /* flag not supported yet */
     }
 
