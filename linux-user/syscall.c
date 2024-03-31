@@ -1615,24 +1615,6 @@ static abi_long do_pipe(CPUArchState *cpu_env, abi_ulong pipedes,
     return get_errno(ret);
 }
 
-static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
-                                              abi_ulong target_addr,
-                                              socklen_t len)
-{
-    struct target_ip_mreqn *target_smreqn;
-
-    target_smreqn = lock_user(VERIFY_READ, target_addr, len, 1);
-    if (!target_smreqn)
-        return -TARGET_EFAULT;
-    mreqn->imr_multiaddr.s_addr = target_smreqn->imr_multiaddr.s_addr;
-    mreqn->imr_address.s_addr = target_smreqn->imr_address.s_addr;
-    if (len == sizeof(struct target_ip_mreqn))
-        mreqn->imr_ifindex = tswapal(target_smreqn->imr_ifindex);
-    unlock_user(target_smreqn, target_addr, 0);
-
-    return 0;
-}
-
 static inline abi_long target_to_host_sockaddr(int fd, struct sockaddr *addr,
                                                abi_ulong target_addr,
                                                socklen_t len)
@@ -2067,7 +2049,6 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 {
     abi_long ret;
     int val;
-    struct ip_mreqn *ip_mreq;
     struct ip_mreq_source *ip_mreq_source;
 
     switch(level) {
@@ -2111,15 +2092,33 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             break;
         case IP_ADD_MEMBERSHIP:
         case IP_DROP_MEMBERSHIP:
+        {
+            struct ip_mreqn ip_mreq;
+            struct target_ip_mreqn *target_smreqn;
+
+            QEMU_BUILD_BUG_ON(sizeof(struct ip_mreq) !=
+                              sizeof(struct target_ip_mreq));
+
             if (optlen < sizeof (struct target_ip_mreq) ||
-                optlen > sizeof (struct target_ip_mreqn))
+                optlen > sizeof (struct target_ip_mreqn)) {
                 return -TARGET_EINVAL;
+            }
 
-            ip_mreq = (struct ip_mreqn *) alloca(optlen);
-            target_to_host_ip_mreq(ip_mreq, optval_addr, optlen);
-            ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq, optlen));
+            target_smreqn = lock_user(VERIFY_READ, optval_addr, optlen, 1);
+            if (!target_smreqn) {
+                return -TARGET_EFAULT;
+            }
+            ip_mreq.imr_multiaddr.s_addr = target_smreqn->imr_multiaddr.s_addr;
+            ip_mreq.imr_address.s_addr = target_smreqn->imr_address.s_addr;
+            if (optlen == sizeof(struct target_ip_mreqn)) {
+                ip_mreq.imr_ifindex = tswapal(target_smreqn->imr_ifindex);
+                optlen = sizeof(struct ip_mreqn);
+            }
+            unlock_user(target_smreqn, optval_addr, 0);
+
+            ret = get_errno(setsockopt(sockfd, level, optname, &ip_mreq, optlen));
             break;
-
+        }
         case IP_BLOCK_SOURCE:
         case IP_UNBLOCK_SOURCE:
         case IP_ADD_SOURCE_MEMBERSHIP:
