@@ -693,9 +693,20 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     g_assert(stat(real_file, &st_real) == 0);
 }
 
+static void cleanup_9p_local_driver(void *data)
+{
+    /* remove previously created test dir when test is completed */
+    virtio_9p_remove_local_test_dir();
+}
+
 static void *assign_9p_local_driver(GString *cmd_line, void *arg)
 {
+    /* make sure test dir for the 'local' tests exists */
+    virtio_9p_create_local_test_dir();
+
     virtio_9p_assign_local_driver(cmd_line, "security_model=mapped-xattr");
+
+    g_test_queue_destroy(cleanup_9p_local_driver, NULL);
     return arg;
 }
 
@@ -735,15 +746,6 @@ static void register_virtio_9p_test(void)
 
 
     /* 9pfs test cases using the 'local' filesystem driver */
-
-    /*
-     * XXX: Until we are sure that these tests can run everywhere,
-     * keep them as "slow" so that they aren't run with "make check".
-     */
-    if (!g_test_slow()) {
-        return;
-    }
-
     opts.before = assign_9p_local_driver;
     qos_add_test("local/config", "virtio-9p", pci_config,  &opts);
     qos_add_test("local/create_dir", "virtio-9p", fs_create_dir, &opts);
@@ -759,15 +761,3 @@ static void register_virtio_9p_test(void)
 }
 
 libqos_init(register_virtio_9p_test);
-
-static void __attribute__((constructor)) construct_9p_test(void)
-{
-    /* make sure test dir for the 'local' tests exists */
-    virtio_9p_create_local_test_dir();
-}
-
-static void __attribute__((destructor)) destruct_9p_test(void)
-{
-    /* remove previously created test dir when test suite completed */
-    virtio_9p_remove_local_test_dir();
-}
