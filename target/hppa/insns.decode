@@ -57,10 +57,15 @@
 %neg_to_m       0:1      !function=neg_to_m
 %a_to_m         2:1      !function=neg_to_m
 %cmpbid_c       13:2     !function=cmpbid_c
+%d_5            5:1      !function=pa20_d
+%d_11           11:1     !function=pa20_d
+%d_13           13:1     !function=pa20_d
 
 ####
 # Argument set definitions
 ####
+
+&empty
 
 # All insns that need to form a virtual address should use this set.
 &ldst           t b x disp sp m scale size
@@ -84,15 +89,16 @@
 # Format definitions
 ####
 
-@rr_cf_d        ...... r:5 ..... cf:4 ...... d:1 t:5    &rr_cf_d
+@rr_cf_d        ...... r:5 ..... cf:4 ...... . t:5      &rr_cf_d d=%d_5
 @rrr            ...... r2:5 r1:5 .... ....... t:5       &rrr
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
-@rrr_cf_d       ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d
+@rrr_cf_d       ...... r2:5 r1:5 cf:4 ...... . t:5      &rrr_cf_d d=%d_5
 @rrr_sh         ...... r2:5 r1:5 ........ sh:2 . t:5    &rrr_sh
-@rrr_cf_d_sh    ...... r2:5 r1:5 cf:4 .... sh:2 d:1 t:5 &rrr_cf_d_sh
-@rrr_cf_d_sh0   ...... r2:5 r1:5 cf:4 ...... d:1 t:5    &rrr_cf_d_sh sh=0
+@rrr_cf_d_sh    ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_d_sh d=%d_5
+@rrr_cf_d_sh0   ...... r2:5 r1:5 cf:4 ...... . t:5      &rrr_cf_d_sh d=%d_5 sh=0
 @rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
-@rri_cf_d       ...... r:5  t:5  cf:4 d:1 ...........   &rri_cf_d i=%lowsign_11
+@rri_cf_d       ...... r:5  t:5  cf:4 . ...........     \
+                &rri_cf_d d=%d_11 i=%lowsign_11
 
 @rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
                 &rrb_c_f disp=%assemble_12
@@ -368,8 +374,10 @@ fmpysub_d       100110 ..... ..... ..... ..... 1 .....  @mpyadd
 # Conditional Branches
 ####
 
-bb_sar          110000 00000 r:5 c:1 1 d:1 ........... n:1 . disp=%assemble_12
-bb_imm          110001 p:5   r:5 c:1 1 d:1 ........... n:1 . disp=%assemble_12
+bb_sar          110000 00000 r:5 c:1 1 . ........... n:1 . \
+                disp=%assemble_12 d=%d_13
+bb_imm          110001 p:5   r:5 c:1 1 . ........... n:1 . \
+                disp=%assemble_12 d=%d_13
 
 movb            110010 ..... ..... ... ........... . .  @rrb_cf f=0
 movbi           110011 ..... ..... ... ........... . .  @rib_cf f=0
@@ -628,4 +636,18 @@ fdiv_d          001110 ..... ..... 011 ..... ... .....  @f0e_d_3
 xmpyu           001110 ..... ..... 010 .0111 .00 t:5    r1=%ra64 r2=%rb64
 
 # diag
-diag            000101 i:26
+{
+  [
+    diag_btlb               000101 00 0000 0000 0000 0001 0000 0000
+    diag_cout               000101 00 0000 0000 0000 0001 0000 0001
+
+    # For 32-bit PA-7300LC (PCX-L2)
+    diag_getshadowregs_pa1  000101 00 0000 0000 0001 1010 0000 0000
+    diag_putshadowregs_pa1  000101 00 0000 0000 0001 1010 0100 0000
+
+    # For 64-bit PA8700 (PCX-W2)
+    diag_getshadowregs_pa2  000101 00 0111 1000 0001 1000 0100 0000
+    diag_putshadowregs_pa2  000101 00 0111 0000 0001 1000 0100 0000
+  ]
+  diag_unimp                000101 i:26
+}
