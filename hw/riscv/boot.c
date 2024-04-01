@@ -209,8 +209,8 @@ static void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
     /* Some RISC-V machines (e.g. opentitan) don't have a fdt. */
     if (fdt) {
         end = start + size;
-        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", start);
-        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end", end);
+        qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-start", start);
+        qemu_fdt_setprop_u64(fdt, "/chosen", "linux,initrd-end", end);
     }
 }
 
