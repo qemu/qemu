@@ -1412,7 +1412,7 @@ ERST
     {
         .name       = "watchdog_action",
         .args_type  = "action:s",
-        .params     = "[reset|shutdown|poweroff|pause|debug|none]",
+        .params     = "[reset|shutdown|poweroff|pause|debug|none|inject-nmi]",
         .help       = "change watchdog action",
         .cmd        = hmp_watchdog_action,
         .command_completion = watchdog_action_completion,
