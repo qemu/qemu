@@ -13,7 +13,7 @@
 .cirrus_build_job:
   extends: .base_job_template
   stage: build
-  image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
+  image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:latest
   needs: []
   timeout: 80m
   allow_failure: true
