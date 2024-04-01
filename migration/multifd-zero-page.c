@@ -80,8 +80,10 @@ void multifd_recv_zero_page_process(MultiFDRecvParams *p)
 {
     for (int i = 0; i < p->zero_num; i++) {
         void *page = p->host + p->zero[i];
-        if (!buffer_is_zero(page, p->page_size)) {
+        if (ramblock_recv_bitmap_test_byte_offset(p->block, p->zero[i])) {
             memset(page, 0, p->page_size);
+        } else {
+            ramblock_recv_bitmap_set_offset(p->block, p->zero[i]);
         }
     }
 }

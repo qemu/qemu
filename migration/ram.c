@@ -275,6 +275,10 @@ void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
                       nr);
 }
 
+void ramblock_recv_bitmap_set_offset(RAMBlock *rb, uint64_t byte_offset)
+{
+    set_bit_atomic(byte_offset >> TARGET_PAGE_BITS, rb->receivedmap);
+}
 #define  RAMBLOCK_RECV_BITMAP_ENDING  (0x0123456789abcdefULL)
 
 /*

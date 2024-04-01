@@ -284,6 +284,7 @@ static int zlib_recv(MultiFDRecvParams *p, Error **errp)
         int flush = Z_NO_FLUSH;
         unsigned long start = zs->total_out;
 
+        ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
         if (i == p->normal_num - 1) {
             flush = Z_SYNC_FLUSH;
         }
