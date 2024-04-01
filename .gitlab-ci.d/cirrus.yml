@@ -13,7 +13,7 @@
 .cirrus_build_job:
   extends: .base_job_template
   stage: build
-  image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
+  image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:latest
   needs: []
   # 20 mins larger than "timeout_in" in cirrus/build.yml
   # as there's often a 5-10 minute delay before Cirrus CI
