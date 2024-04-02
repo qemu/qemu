@@ -107,14 +107,10 @@ void hppa_cpu_do_interrupt(CPUState *cs)
 
     /* step 3 */
     /*
-     * For pa1.x, IIASQ is simply a copy of IASQ.
-     * For pa2.0, IIASQ is the top bits of the virtual address,
-     *            or zero if translation is disabled.
+     * IIASQ is the top bits of the virtual address, or zero if translation
+     * is disabled -- with PSW_W == 0, this will reduce to the space.
      */
-    if (!hppa_is_pa20(env)) {
-        env->cr[CR_IIASQ] = env->iasq_f >> 32;
-        env->cr_back[0] = env->iasq_b >> 32;
-    } else if (old_psw & PSW_C) {
+    if (old_psw & PSW_C) {
         env->cr[CR_IIASQ] =
             hppa_form_gva_psw(old_psw, env->iasq_f, env->iaoq_f) >> 32;
         env->cr_back[0] =
@@ -123,8 +119,14 @@ void hppa_cpu_do_interrupt(CPUState *cs)
         env->cr[CR_IIASQ] = 0;
         env->cr_back[0] = 0;
     }
-    env->cr[CR_IIAOQ] = env->iaoq_f;
-    env->cr_back[1] = env->iaoq_b;
+    /* IIAOQ is the full offset for wide mode, or 32 bits for narrow mode. */
+    if (old_psw & PSW_W) {
+        env->cr[CR_IIAOQ] = env->iaoq_f;
+        env->cr_back[1] = env->iaoq_b;
+    } else {
+        env->cr[CR_IIAOQ] = (uint32_t)env->iaoq_f;
+        env->cr_back[1] = (uint32_t)env->iaoq_b;
+    }
 
     if (old_psw & PSW_Q) {
         /* step 5 */

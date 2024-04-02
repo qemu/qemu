@@ -78,21 +78,21 @@ target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
 
 void HELPER(rfi)(CPUHPPAState *env)
 {
-    env->iasq_f = (uint64_t)env->cr[CR_IIASQ] << 32;
-    env->iasq_b = (uint64_t)env->cr_back[0] << 32;
-    env->iaoq_f = env->cr[CR_IIAOQ];
-    env->iaoq_b = env->cr_back[1];
+    uint64_t mask;
+
+    cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
 
     /*
      * For pa2.0, IIASQ is the top bits of the virtual address.
      * To recreate the space identifier, remove the offset bits.
+     * For pa1.x, the mask reduces to no change to space.
      */
-    if (hppa_is_pa20(env)) {
-        env->iasq_f &= ~env->iaoq_f;
-        env->iasq_b &= ~env->iaoq_b;
-    }
+    mask = gva_offset_mask(env->psw);
 
-    cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
+    env->iaoq_f = env->cr[CR_IIAOQ];
+    env->iaoq_b = env->cr_back[1];
+    env->iasq_f = (env->cr[CR_IIASQ] << 32) & ~(env->iaoq_f & mask);
+    env->iasq_b = (env->cr_back[0] << 32) & ~(env->iaoq_b & mask);
 }
 
 static void getshadowregs(CPUHPPAState *env)
