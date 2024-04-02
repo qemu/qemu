@@ -599,7 +599,6 @@ void ahci_port_check_cmd_sanity(AHCIQState *ahci, AHCICommand *cmd);
 
 /* Misc */
 bool is_atapi(AHCIQState *ahci, uint8_t port);
-unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd);
 
 /* Command: Macro level execution */
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,

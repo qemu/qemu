@@ -115,7 +115,7 @@ void gdb_read_byte(uint8_t ch);
 
 /*
  * Packet acknowledgement - we handle this slightly differently
- * between user and softmmu mode, mainly to deal with the differences
+ * between user and system mode, mainly to deal with the differences
  * between the flexible chardev and the direct fd approaches.
  *
  * We currently don't support a negotiated QStartNoAckMode
@@ -125,7 +125,7 @@ void gdb_read_byte(uint8_t ch);
  * gdb_got_immediate_ack() - check ok to continue
  *
  * Returns true to continue, false to re-transmit for user only, the
- * softmmu stub always returns true.
+ * system stub always returns true.
  */
 bool gdb_got_immediate_ack(void);
 /* utility helpers */
@@ -135,12 +135,12 @@ CPUState *gdb_first_attached_cpu(void);
 void gdb_append_thread_id(CPUState *cpu, GString *buf);
 int gdb_get_cpu_index(CPUState *cpu);
 unsigned int gdb_get_max_cpus(void); /* both */
-bool gdb_can_reverse(void); /* softmmu, stub for user */
+bool gdb_can_reverse(void); /* system emulation, stub for user */
 int gdb_target_sigtrap(void); /* user */
 
 void gdb_create_default_process(GDBState *s);
 
-/* signal mapping, common for softmmu, specialised for user-mode */
+/* signal mapping, common for system, specialised for user-mode */
 int gdb_signal_to_target(int sig);
 int gdb_target_signal_to_gdb(int sig);
 
@@ -157,12 +157,12 @@ void gdb_continue(void);
 int gdb_continue_partial(char *newstates);
 
 /*
- * Helpers with separate softmmu and user implementations
+ * Helpers with separate system and user implementations
  */
 void gdb_put_buffer(const uint8_t *buf, int len);
 
 /*
- * Command handlers - either specialised or softmmu or user only
+ * Command handlers - either specialised or system or user only
  */
 void gdb_init_gdbserver_state(void);
 
@@ -187,7 +187,7 @@ typedef union GdbCmdVariant {
 
 #define get_param(p, i)    (&g_array_index(p, GdbCmdVariant, i))
 
-void gdb_handle_query_rcmd(GArray *params, void *user_ctx); /* softmmu */
+void gdb_handle_query_rcmd(GArray *params, void *ctx); /* system */
 void gdb_handle_query_offsets(GArray *params, void *user_ctx); /* user */
 void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx); /*user */
 void gdb_handle_query_xfer_siginfo(GArray *params, void *user_ctx); /*user */
@@ -201,11 +201,11 @@ void gdb_handle_query_supported_user(const char *gdb_supported); /* user */
 bool gdb_handle_set_thread_user(uint32_t pid, uint32_t tid); /* user */
 bool gdb_handle_detach_user(uint32_t pid); /* user */
 
-void gdb_handle_query_attached(GArray *params, void *user_ctx); /* both */
+void gdb_handle_query_attached(GArray *params, void *ctx); /* both */
 
-/* softmmu only */
-void gdb_handle_query_qemu_phy_mem_mode(GArray *params, void *user_ctx);
-void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *user_ctx);
+/* system only */
+void gdb_handle_query_qemu_phy_mem_mode(GArray *params, void *ctx);
+void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *ctx);
 
 /* sycall handling */
 void gdb_handle_file_io(GArray *params, void *user_ctx);
@@ -213,11 +213,11 @@ bool gdb_handled_syscall(void);
 void gdb_disable_syscalls(void);
 void gdb_syscall_reset(void);
 
-/* user/softmmu specific syscall handling */
+/* user/system specific syscall handling */
 void gdb_syscall_handling(const char *syscall_packet);
 
 /*
- * Break/Watch point support - there is an implementation for softmmu
+ * Break/Watch point support - there is an implementation for system
  * and user mode.
  */
 bool gdb_supports_guest_debug(void);

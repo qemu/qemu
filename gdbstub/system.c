@@ -1,5 +1,5 @@
 /*
- * gdb server stub - softmmu specific bits
+ * gdb server stub - system specific bits
  *
  * Debug integration depends on support from the individual
  * accelerators so most of this involves calling the ops helpers.
@@ -488,13 +488,13 @@ bool gdb_can_reverse(void)
  */
 
 void gdb_handle_query_qemu_phy_mem_mode(GArray *params,
-                                        void *user_ctx)
+                                        void *ctx)
 {
     g_string_printf(gdbserver_state.str_buf, "%d", phy_memory_mode);
     gdb_put_strbuf();
 }
 
-void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *user_ctx)
+void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *ctx)
 {
     if (!params->len) {
         gdb_put_packet("E22");
@@ -509,7 +509,7 @@ void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *user_ctx)
     gdb_put_packet("OK");
 }
 
-void gdb_handle_query_rcmd(GArray *params, void *user_ctx)
+void gdb_handle_query_rcmd(GArray *params, void *ctx)
 {
     const guint8 zero = 0;
     int len;
@@ -539,7 +539,7 @@ void gdb_handle_query_rcmd(GArray *params, void *user_ctx)
  * Execution state helpers
  */
 
-void gdb_handle_query_attached(GArray *params, void *user_ctx)
+void gdb_handle_query_attached(GArray *params, void *ctx)
 {
     gdb_put_packet("1");
 }

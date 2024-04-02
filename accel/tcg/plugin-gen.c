@@ -57,12 +57,6 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
-#ifdef CONFIG_SOFTMMU
-# define CONFIG_SOFTMMU_GATE 1
-#else
-# define CONFIG_SOFTMMU_GATE 0
-#endif
-
 /*
  * plugin_cb_start TCG op args[]:
  * 0: enum plugin_gen_from
