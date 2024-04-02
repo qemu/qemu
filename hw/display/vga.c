@@ -1596,6 +1596,10 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         region_end = s->vbe_size;
         force_shadow = true;
     }
+    if (s->params.line_compare < height) {
+        /* split screen mode */
+        region_start = 0;
+    }
 
     /*
      * Check whether we can share the surface with the backend
@@ -1667,10 +1671,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     y1 = 0;
 
     if (!full_update) {
-        if (s->params.line_compare < height) {
-            /* split screen mode */
-            region_start = 0;
-        }
         snap = memory_region_snapshot_and_clear_dirty(&s->vram, region_start,
                                                       region_end - region_start,
                                                       DIRTY_MEMORY_VGA);
