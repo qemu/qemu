@@ -802,7 +802,7 @@
 #
 # @fd: file descriptor name previously passed via 'getfd' command,
 #     which represents a pre-opened /dev/iommu.  This allows the
-#     iommufd object to be shared accross several subsystems (VFIO,
+#     iommufd object to be shared across several subsystems (VFIO,
 #     VDPA, ...), and the file descriptor to be shared with other
 #     process, e.g. DPDK.  (default: QEMU opens /dev/iommu by itself)
 #

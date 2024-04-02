@@ -115,7 +115,7 @@ CI pipeline.
 QEMU_JOB_SKIPPED
 ~~~~~~~~~~~~~~~~
 
-The job is not reliably successsful in general, so is not
+The job is not reliably successful in general, so is not
 currently suitable to be run by default. Ideally this should
 be a temporary marker until the problems can be addressed, or
 the job permanently removed.

@@ -152,7 +152,7 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
     /*
      * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
      * S390, SH4, TriCore, and Xtensa.  Our other supported targets,
-     * CRIS, Nios2, and Tile, do not have floating-point.
+     * CRIS and Nios2, do not have floating-point.
      */
     if (snan_bit_is_one(status)) {
         /* set all bits other than msb */

@@ -119,7 +119,7 @@ The only guarantees that you can rely upon in this case are:
   ordinary accesses instead cause data races if they are concurrent with
   other accesses of which at least one is a write.  In order to ensure this,
   the compiler will not optimize accesses out of existence, create unsolicited
-  accesses, or perform other similar optimzations.
+  accesses, or perform other similar optimizations.
 
 - acquire operations will appear to happen, with respect to the other
   components of the system, before all the LOAD or STORE operations

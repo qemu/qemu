@@ -6,7 +6,7 @@ Overview
 
 Intel Software Guard eXtensions (SGX) is a set of instructions and mechanisms
 for memory accesses in order to provide security accesses for sensitive
-applications and data. SGX allows an application to use it's pariticular
+applications and data. SGX allows an application to use its particular
 address space as an *enclave*, which is a protected area provides confidentiality
 and integrity even in the presence of privileged malware. Accesses to the
 enclave memory area from any software not resident in the enclave are prevented,
