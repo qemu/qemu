@@ -1571,11 +1571,15 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             break;
         }
     }
+    hpel = bits <= 8 ? s->params.hpel : 0;
 
     region_start = (s->params.start_addr * 4);
     region_end = region_start + (ram_addr_t)s->params.line_offset * height;
     region_end += width * depth / 8; /* scanline length */
     region_end -= s->params.line_offset;
+    if (hpel) {
+        region_end += 4;
+    }
     if (region_end > s->vbe_size || depth == 0 || depth == 15) {
         /*
          * We land here on:
@@ -1660,7 +1664,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
            s->params.line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
-    hpel = bits <= 8 ? s->params.hpel : 0;
     addr1 = (s->params.start_addr * 4);
     bwidth = DIV_ROUND_UP(width * bits, 8);
     if (hpel) {
