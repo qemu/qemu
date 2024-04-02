@@ -1571,7 +1571,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             break;
         }
     }
-    hpel = bits <= 8 ? s->params.hpel : 0;
+
+    /* Horizontal pel panning bit 3 is only used in text mode.  */
+    hpel = bits <= 8 ? s->params.hpel & 7 : 0;
 
     region_start = (s->params.start_addr * 4);
     region_end = region_start + (ram_addr_t)s->params.line_offset * height;
