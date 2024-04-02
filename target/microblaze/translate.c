@@ -25,7 +25,6 @@
 #include "tcg/tcg-op.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 #include "qemu/qemu-print.h"
 
@@ -1637,7 +1636,7 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 
     dc->tb_flags_to_set = 0;
 
-    ir = cpu_ldl_code(cpu_env(cs), dc->base.pc_next);
+    ir = translator_ldl(cpu_env(cs), &dc->base, dc->base.pc_next);
     if (!decode(dc, ir)) {
         trap_illegal(dc, true);
     }
