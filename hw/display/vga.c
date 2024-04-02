@@ -1546,12 +1546,54 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
 
     if (shift_control == 0) {
+        full_update |= update_palette16(s);
         if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
+            v = VGA_DRAW_LINE4D2;
+        } else {
+            v = VGA_DRAW_LINE4;
         }
+        bits = 4;
+
     } else if (shift_control == 1) {
+        full_update |= update_palette16(s);
         if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
+            v = VGA_DRAW_LINE2D2;
+        } else {
+            v = VGA_DRAW_LINE2;
+        }
+        bits = 4;
+
+    } else {
+        switch (depth) {
+        default:
+        case 0:
+            full_update |= update_palette256(s);
+            v = VGA_DRAW_LINE8D2;
+            bits = 4;
+            break;
+        case 8:
+            full_update |= update_palette256(s);
+            v = VGA_DRAW_LINE8;
+            bits = 8;
+            break;
+        case 15:
+            v = s->big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
+            bits = 16;
+            break;
+        case 16:
+            v = s->big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
+            bits = 16;
+            break;
+        case 24:
+            v = s->big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
+            bits = 24;
+            break;
+        case 32:
+            v = s->big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
+            bits = 32;
+            break;
         }
     }
 
@@ -1607,53 +1649,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         }
     }
 
-    if (shift_control == 0) {
-        full_update |= update_palette16(s);
-        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
-            v = VGA_DRAW_LINE4D2;
-        } else {
-            v = VGA_DRAW_LINE4;
-        }
-        bits = 4;
-    } else if (shift_control == 1) {
-        full_update |= update_palette16(s);
-        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
-            v = VGA_DRAW_LINE2D2;
-        } else {
-            v = VGA_DRAW_LINE2;
-        }
-        bits = 4;
-    } else {
-        switch(s->get_bpp(s)) {
-        default:
-        case 0:
-            full_update |= update_palette256(s);
-            v = VGA_DRAW_LINE8D2;
-            bits = 4;
-            break;
-        case 8:
-            full_update |= update_palette256(s);
-            v = VGA_DRAW_LINE8;
-            bits = 8;
-            break;
-        case 15:
-            v = s->big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
-            bits = 16;
-            break;
-        case 16:
-            v = s->big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
-            bits = 16;
-            break;
-        case 24:
-            v = s->big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
-            bits = 24;
-            break;
-        case 32:
-            v = s->big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
-            bits = 32;
-            break;
-        }
-    }
     vga_draw_line = vga_draw_line_table[v];
 
     if (!is_buffer_shared(surface) && s->cursor_invalidate) {
