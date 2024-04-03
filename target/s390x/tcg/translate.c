@@ -6200,11 +6200,11 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
         /* Extract the values saved by EXECUTE.  */
         insn = s->ex_value & 0xffffffffffff0000ull;
         ilen = s->ex_value & 0xf;
+        op = insn >> 56;
 
         /* Register insn bytes with translator so plugins work. */
         be_insn = cpu_to_be64(insn);
-        translator_fake_ld(&s->base, &be_insn, ilen);
-        op = insn >> 56;
+        translator_fake_ld(&s->base, &be_insn, get_ilen(op));
     } else {
         insn = ld_code2(env, s, pc);
         op = (insn >> 8) & 0xff;
