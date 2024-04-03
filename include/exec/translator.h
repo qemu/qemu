@@ -246,6 +246,29 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
  */
 void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8);
 
+/**
+ * translator_st
+ * @db: disassembly context
+ * @dest: address to copy into
+ * @addr: virtual address within TB
+ * @len: length
+ *
+ * Copy @len bytes from @addr into @dest.
+ * All bytes must have been read during translation.
+ * Return true on success or false on failure.
+ */
+bool translator_st(const DisasContextBase *db, void *dest,
+                   vaddr addr, size_t len);
+
+/**
+ * translator_st_len
+ * @db: disassembly context
+ *
+ * Return the number of bytes available to copy from the
+ * current translation block with translator_st.
+ */
+size_t translator_st_len(const DisasContextBase *db);
+
 #ifdef COMPILING_PER_TARGET
 /*
  * Return whether addr is on the same page as where disassembly started.

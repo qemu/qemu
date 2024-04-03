@@ -354,6 +354,61 @@ static void record_save(DisasContextBase *db, vaddr pc,
     memcpy(db->record + (offset - db->record_start), from, size);
 }
 
+size_t translator_st_len(const DisasContextBase *db)
+{
+    return db->fake_insn ? db->record_len : db->tb->size;
+}
+
+bool translator_st(const DisasContextBase *db, void *dest,
+                   vaddr addr, size_t len)
+{
+    size_t offset, offset_end;
+
+    if (addr < db->pc_first) {
+        return false;
+    }
+    offset = addr - db->pc_first;
+    offset_end = offset + len;
+    if (offset_end > translator_st_len(db)) {
+        return false;
+    }
+
+    if (!db->fake_insn) {
+        size_t offset_page1 = -(db->pc_first | TARGET_PAGE_MASK);
+
+        /* Get all the bytes from the first page. */
+        if (db->host_addr[0]) {
+            if (offset_end <= offset_page1) {
+                memcpy(dest, db->host_addr[0] + offset, len);
+                return true;
+            }
+            if (offset < offset_page1) {
+                size_t len0 = offset_page1 - offset;
+                memcpy(dest, db->host_addr[0] + offset, len0);
+                offset += len0;
+                dest += len0;
+            }
+        }
+
+        /* Get any bytes from the second page. */
+        if (db->host_addr[1] && offset >= offset_page1) {
+            memcpy(dest, db->host_addr[1] + (offset - offset_page1),
+                   offset_end - offset);
+            return true;
+        }
+    }
+
+    /* Else get recorded bytes. */
+    if (db->record_len != 0 &&
+        offset >= db->record_start &&
+        offset_end <= db->record_start + db->record_len) {
+        memcpy(dest, db->record + (offset - db->record_start),
+               offset_end - offset);
+        return true;
+    }
+    return false;
+}
+
 static void plugin_insn_append(vaddr pc, const void *from, size_t size)
 {
 #ifdef CONFIG_PLUGIN
