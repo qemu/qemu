@@ -130,6 +130,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->max_insns = *max_insns;
     db->singlestep_enabled = cflags & CF_SINGLE_STEP;
     db->insn_start = NULL;
+    db->fake_insn = false;
     db->host_addr[0] = host_pc;
     db->host_addr[1] = NULL;
     db->record_start = 0;
@@ -434,6 +435,7 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
 void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
 {
     assert(pc >= db->pc_first);
+    db->fake_insn = true;
     record_save(db, pc, &insn8, sizeof(insn8));
     plugin_insn_append(pc, &insn8, sizeof(insn8));
 }

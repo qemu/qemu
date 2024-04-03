@@ -72,8 +72,8 @@ typedef enum DisasJumpType {
  * @num_insns: Number of translated instructions (including current).
  * @max_insns: Maximum number of instructions to be translated in this TB.
  * @singlestep_enabled: "Hardware" single stepping enabled.
- * @saved_can_do_io: Known value of cpu->neg.can_do_io, or -1 for unknown.
  * @plugin_enabled: TCG plugin enabled in this TB.
+ * @fake_insn: True if translator_fake_ldb used.
  * @insn_start: The last op emitted by the insn_start hook,
  *              which is expected to be INDEX_op_insn_start.
  *
@@ -88,6 +88,7 @@ typedef struct DisasContextBase {
     int max_insns;
     bool singlestep_enabled;
     bool plugin_enabled;
+    bool fake_insn;
     struct TCGOp *insn_start;
     void *host_addr[2];
 
