@@ -19,10 +19,7 @@
  */
 
 #include "qemu/bswap.h"
-#include "exec/cpu-common.h"
-#include "exec/cpu-defs.h"
-#include "exec/abi_ptr.h"
-#include "cpu.h"
+#include "exec/vaddr.h"
 
 /**
  * gen_intermediate_code
@@ -185,14 +182,14 @@ bool translator_io_start(DisasContextBase *db);
  * the relevant information at translation time.
  */
 
-uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, abi_ptr pc);
-uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, abi_ptr pc);
-uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, abi_ptr pc);
-uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, abi_ptr pc);
+uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc);
+uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc);
+uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc);
+uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc);
 
 static inline uint16_t
 translator_lduw_swap(CPUArchState *env, DisasContextBase *db,
-                     abi_ptr pc, bool do_swap)
+                     vaddr pc, bool do_swap)
 {
     uint16_t ret = translator_lduw(env, db, pc);
     if (do_swap) {
@@ -203,7 +200,7 @@ translator_lduw_swap(CPUArchState *env, DisasContextBase *db,
 
 static inline uint32_t
 translator_ldl_swap(CPUArchState *env, DisasContextBase *db,
-                    abi_ptr pc, bool do_swap)
+                    vaddr pc, bool do_swap)
 {
     uint32_t ret = translator_ldl(env, db, pc);
     if (do_swap) {
@@ -214,7 +211,7 @@ translator_ldl_swap(CPUArchState *env, DisasContextBase *db,
 
 static inline uint64_t
 translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
-                    abi_ptr pc, bool do_swap)
+                    vaddr pc, bool do_swap)
 {
     uint64_t ret = translator_ldq(env, db, pc);
     if (do_swap) {
@@ -233,7 +230,7 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
  * re-synthesised for s390x "ex"). It ensures we update other areas of
  * the translator with details of the executed instruction.
  */
-void translator_fake_ldb(uint8_t insn8, abi_ptr pc);
+void translator_fake_ldb(uint8_t insn8, vaddr pc);
 
 /*
  * Return whether addr is on the same page as where disassembly started.
