@@ -98,11 +98,11 @@ struct qemu_plugin_dyn_cb {
 
 /* Internal context for instrumenting an instruction */
 struct qemu_plugin_insn {
-    GByteArray *data;
     uint64_t vaddr;
     void *haddr;
     GArray *insn_cbs;
     GArray *mem_cbs;
+    uint8_t len;
     bool calls_helpers;
 
     /* if set, the instruction calls helpers that might access guest memory */
@@ -116,18 +116,6 @@ struct qemu_plugin_scoreboard {
     GArray *data;
     QLIST_ENTRY(qemu_plugin_scoreboard) entry;
 };
-
-/*
- * qemu_plugin_insn allocate and cleanup functions. We don't expect to
- * cleanup many of these structures. They are reused for each fresh
- * translation.
- */
-
-static inline void qemu_plugin_insn_cleanup_fn(gpointer data)
-{
-    struct qemu_plugin_insn *insn = (struct qemu_plugin_insn *) data;
-    g_byte_array_free(insn->data, true);
-}
 
 /* Internal context for this TranslationBlock */
 struct qemu_plugin_tb {

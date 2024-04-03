@@ -409,27 +409,6 @@ bool translator_st(const DisasContextBase *db, void *dest,
     return false;
 }
 
-static void plugin_insn_append(vaddr pc, const void *from, size_t size)
-{
-#ifdef CONFIG_PLUGIN
-    struct qemu_plugin_insn *insn = tcg_ctx->plugin_insn;
-    size_t off;
-
-    if (insn == NULL) {
-        return;
-    }
-    off = pc - insn->vaddr;
-    if (off < insn->data->len) {
-        g_byte_array_set_size(insn->data, off);
-    } else if (off > insn->data->len) {
-        /* we have an unexpected gap */
-        g_assert_not_reached();
-    }
-
-    insn->data = g_byte_array_append(insn->data, from, size);
-#endif
-}
-
 uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
     uint8_t raw;
@@ -438,7 +417,6 @@ uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
         raw = cpu_ldub_code(env, pc);
         record_save(db, pc, &raw, sizeof(raw));
     }
-    plugin_insn_append(pc, &raw, sizeof(raw));
     return raw;
 }
 
@@ -453,7 +431,6 @@ uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
         raw = tswap16(tgt);
         record_save(db, pc, &raw, sizeof(raw));
     }
-    plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
 }
 
@@ -468,7 +445,6 @@ uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
         raw = tswap32(tgt);
         record_save(db, pc, &raw, sizeof(raw));
     }
-    plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
 }
 
@@ -483,7 +459,6 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
         raw = tswap64(tgt);
         record_save(db, pc, &raw, sizeof(raw));
     }
-    plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
 }
 
@@ -492,5 +467,4 @@ void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
     assert(pc >= db->pc_first);
     db->fake_insn = true;
     record_save(db, pc, &insn8, sizeof(insn8));
-    plugin_insn_append(pc, &insn8, sizeof(insn8));
 }

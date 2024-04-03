@@ -346,11 +346,9 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
     ptb->n = n;
     if (n <= ptb->insns->len) {
         insn = g_ptr_array_index(ptb->insns, n - 1);
-        g_byte_array_set_size(insn->data, 0);
     } else {
         assert(n - 1 == ptb->insns->len);
         insn = g_new0(struct qemu_plugin_insn, 1);
-        insn->data = g_byte_array_sized_new(4);
         g_ptr_array_add(ptb->insns, insn);
     }
 
@@ -389,6 +387,11 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
 
 void plugin_gen_insn_end(void)
 {
+    const DisasContextBase *db = tcg_ctx->plugin_db;
+    struct qemu_plugin_insn *pinsn = tcg_ctx->plugin_insn;
+
+    pinsn->len = db->fake_insn ? db->record_len : db->pc_next - pinsn->vaddr;
+
     tcg_gen_plugin_cb(PLUGIN_GEN_AFTER_INSN);
 }
 

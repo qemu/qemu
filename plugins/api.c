@@ -42,6 +42,7 @@
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
+#include "exec/translator.h"
 #include "disas/disas.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
@@ -219,14 +220,15 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
 size_t qemu_plugin_insn_data(const struct qemu_plugin_insn *insn,
                              void *dest, size_t len)
 {
-    len = MIN(len, insn->data->len);
-    memcpy(dest, insn->data->data, len);
-    return len;
+    const DisasContextBase *db = tcg_ctx->plugin_db;
+
+    len = MIN(len, insn->len);
+    return translator_st(db, dest, insn->vaddr, len) ? len : 0;
 }
 
 size_t qemu_plugin_insn_size(const struct qemu_plugin_insn *insn)
 {
-    return insn->data->len;
+    return insn->len;
 }
 
 uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn)
@@ -242,7 +244,7 @@ void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn)
 char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn)
 {
     CPUState *cpu = current_cpu;
-    return plugin_disas(cpu, insn->vaddr, insn->data->len);
+    return plugin_disas(cpu, insn->vaddr, insn->len);
 }
 
 const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn)
