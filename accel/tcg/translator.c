@@ -240,6 +240,8 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
 
     /* Use slow path if first page is MMIO. */
     if (unlikely(tb_page_addr0(tb) == -1)) {
+        /* We capped translation with first page MMIO in tb_gen_code. */
+        tcg_debug_assert(db->max_insns == 1);
         return false;
     }
 
@@ -288,6 +290,8 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
         if (unlikely(new_page1 == -1)) {
             tb_unlock_pages(tb);
             tb_set_page_addr0(tb, -1);
+            /* Require that this be the final insn. */
+            db->max_insns = db->num_insns;
             return false;
         }
 
