@@ -329,6 +329,7 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
         tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
     }
 
+    tcg_ctx->plugin_db = db;
     tcg_ctx->plugin_insn = NULL;
 
     return ret;
