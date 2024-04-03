@@ -1076,21 +1076,12 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 }
 
-static void hexagon_tr_disas_log(const DisasContextBase *dcbase,
-                                 CPUState *cpu, FILE *logfile)
-{
-    fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
-    target_disas(logfile, cpu, dcbase->pc_first, dcbase->tb->size);
-}
-
-
 static const TranslatorOps hexagon_tr_ops = {
     .init_disas_context = hexagon_tr_init_disas_context,
     .tb_start           = hexagon_tr_tb_start,
     .insn_start         = hexagon_tr_insn_start,
     .translate_insn     = hexagon_tr_translate_packet,
     .tb_stop            = hexagon_tr_tb_stop,
-    .disas_log          = hexagon_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,

@@ -17,6 +17,7 @@
 #include "exec/cpu_ldst.h"
 #include "tcg/tcg-op-common.h"
 #include "internal-target.h"
+#include "disas/disas.h"
 
 static void set_can_do_io(DisasContextBase *db, bool val)
 {
@@ -226,7 +227,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             fprintf(logfile, "----------------\n");
-            ops->disas_log(db, cpu, logfile);
+
+            if (ops->disas_log) {
+                ops->disas_log(db, cpu, logfile);
+            } else {
+                fprintf(logfile, "IN: %s\n", lookup_symbol(db->pc_first));
+                target_disas(logfile, cpu, db->pc_first, db->tb->size);
+            }
             fprintf(logfile, "\n");
             qemu_log_unlock(logfile);
         }

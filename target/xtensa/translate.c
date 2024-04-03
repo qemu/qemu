@@ -32,7 +32,6 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "disas/disas.h"
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
@@ -1221,20 +1220,12 @@ static void xtensa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 }
 
-static void xtensa_tr_disas_log(const DisasContextBase *dcbase,
-                                CPUState *cpu, FILE *logfile)
-{
-    fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
-    target_disas(logfile, cpu, dcbase->pc_first, dcbase->tb->size);
-}
-
 static const TranslatorOps xtensa_translator_ops = {
     .init_disas_context = xtensa_tr_init_disas_context,
     .tb_start           = xtensa_tr_tb_start,
     .insn_start         = xtensa_tr_insn_start,
     .translate_insn     = xtensa_tr_translate_insn,
     .tb_stop            = xtensa_tr_tb_stop,
-    .disas_log          = xtensa_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
