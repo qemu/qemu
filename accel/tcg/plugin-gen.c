@@ -303,8 +303,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
     }
 }
 
-bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
-                         bool mem_only)
+bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db)
 {
     bool ret = false;
 
@@ -323,7 +322,6 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
         ptb->vaddr2 = -1;
         ptb->haddr1 = db->host_addr[0];
         ptb->haddr2 = NULL;
-        ptb->mem_only = mem_only;
         ptb->mem_helper = false;
 
         tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);

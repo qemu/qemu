@@ -107,8 +107,6 @@ struct qemu_plugin_insn {
 
     /* if set, the instruction calls helpers that might access guest memory */
     bool mem_helper;
-
-    bool mem_only;
 };
 
 /* A scoreboard is an array of values, indexed by vcpu_index */
@@ -125,7 +123,6 @@ struct qemu_plugin_tb {
     uint64_t vaddr2;
     void *haddr1;
     void *haddr2;
-    bool mem_only;
 
     /* if set, the TB calls helpers that might access guest memory */
     bool mem_helper;

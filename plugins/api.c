@@ -87,12 +87,17 @@ void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id,
     plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb);
 }
 
+static bool tb_is_mem_only(void)
+{
+    return tb_cflags(tcg_ctx->gen_tb) & CF_MEMI_ONLY;
+}
+
 void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb,
                                           qemu_plugin_vcpu_udata_cb_t cb,
                                           enum qemu_plugin_cb_flags flags,
                                           void *udata)
 {
-    if (!tb->mem_only) {
+    if (!tb_is_mem_only()) {
         plugin_register_dyn_cb__udata(&tb->cbs, cb, flags, udata);
     }
 }
@@ -103,7 +108,7 @@ void qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
     qemu_plugin_u64 entry,
     uint64_t imm)
 {
-    if (!tb->mem_only) {
+    if (!tb_is_mem_only()) {
         plugin_register_inline_op_on_entry(&tb->cbs, 0, op, entry, imm);
     }
 }
@@ -113,7 +118,7 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
                                             enum qemu_plugin_cb_flags flags,
                                             void *udata)
 {
-    if (!insn->mem_only) {
+    if (!tb_is_mem_only()) {
         plugin_register_dyn_cb__udata(&insn->insn_cbs, cb, flags, udata);
     }
 }
@@ -124,7 +129,7 @@ void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
     qemu_plugin_u64 entry,
     uint64_t imm)
 {
-    if (!insn->mem_only) {
+    if (!tb_is_mem_only()) {
         plugin_register_inline_op_on_entry(&insn->insn_cbs, 0, op, entry, imm);
     }
 }
@@ -206,7 +211,6 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
         return NULL;
     }
     insn = g_ptr_array_index(tb->insns, idx);
-    insn->mem_only = tb->mem_only;
     return insn;
 }
 
