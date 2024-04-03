@@ -107,7 +107,9 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
     acpi_table_begin(&table, table_data);
     /* Local APIC Address */
     build_append_int_noprefix(table_data, APIC_DEFAULT_ADDRESS, 4);
-    build_append_int_noprefix(table_data, 1 /* PCAT_COMPAT */, 4); /* Flags */
+    /* Flags. bit 0: PCAT_COMPAT */
+    build_append_int_noprefix(table_data,
+                              x86ms->pic != ON_OFF_AUTO_OFF ? 1 : 0 , 4);
 
     for (i = 0; i < apic_ids->len; i++) {
         pc_madt_cpu_entry(i, apic_ids, table_data, false);
