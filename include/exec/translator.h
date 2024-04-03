@@ -79,7 +79,7 @@ typedef enum DisasJumpType {
  *
  * Architecture-agnostic disassembly context.
  */
-typedef struct DisasContextBase {
+struct DisasContextBase {
     TranslationBlock *tb;
     vaddr pc_first;
     vaddr pc_next;
@@ -103,7 +103,7 @@ typedef struct DisasContextBase {
     int record_start;
     int record_len;
     uint8_t record[32];
-} DisasContextBase;
+};
 
 /**
  * TranslatorOps:

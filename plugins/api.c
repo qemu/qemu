@@ -271,8 +271,8 @@ void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn)
 
 char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn)
 {
-    CPUState *cpu = current_cpu;
-    return plugin_disas(cpu, insn->vaddr, insn->len);
+    return plugin_disas(tcg_ctx->cpu, tcg_ctx->plugin_db,
+                        insn->vaddr, insn->len);
 }
 
 const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn)

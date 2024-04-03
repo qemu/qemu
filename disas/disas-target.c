@@ -6,16 +6,28 @@
 #include "qemu/osdep.h"
 #include "disas/disas.h"
 #include "disas/capstone.h"
+#include "exec/translator.h"
 #include "disas-internal.h"
 
 
-void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size)
+static int translator_read_memory(bfd_vma memaddr, bfd_byte *myaddr,
+                                  int length, struct disassemble_info *info)
 {
+    const DisasContextBase *db = info->application_data;
+    return translator_st(db, myaddr, memaddr, length) ? 0 : EIO;
+}
+
+void target_disas(FILE *out, CPUState *cpu, const struct DisasContextBase *db)
+{
+    uint64_t code = db->pc_first;
+    size_t size = translator_st_len(db);
     uint64_t pc;
     int count;
     CPUDebug s;
 
     disas_initialize_debug_target(&s, cpu);
+    s.info.read_memory_func = translator_read_memory;
+    s.info.application_data = (void *)db;
     s.info.fprintf_func = fprintf;
     s.info.stream = out;
     s.info.buffer_vma = code;
@@ -58,12 +70,15 @@ static void plugin_print_address(bfd_vma addr, struct disassemble_info *info)
  * there is left over it usually indicates the front end has read more
  * bytes than it needed.
  */
-char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
+char *plugin_disas(CPUState *cpu, const DisasContextBase *db,
+                   uint64_t addr, size_t size)
 {
     CPUDebug s;
     GString *ds = g_string_new(NULL);
 
     disas_initialize_debug_target(&s, cpu);
+    s.info.read_memory_func = translator_read_memory;
+    s.info.application_data = (void *)db;
     s.info.fprintf_func = disas_gstring_printf;
     s.info.stream = (FILE *)ds;  /* abuse this slot */
     s.info.buffer_vma = addr;

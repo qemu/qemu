@@ -8,24 +8,11 @@
 #include "disas/capstone.h"
 #include "hw/core/cpu.h"
 #include "exec/tswap.h"
-#include "exec/memory.h"
 #include "disas-internal.h"
 
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 struct syminfo *syminfos = NULL;
-
-/*
- * Get LENGTH bytes from info's buffer, at target address memaddr.
- * Transfer them to myaddr.
- */
-static int target_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
-                              struct disassemble_info *info)
-{
-    CPUDebug *s = container_of(info, CPUDebug, info);
-    int r = cpu_memory_rw_debug(s->cpu, memaddr, myaddr, length, 0);
-    return r ? EIO : 0;
-}
 
 /*
  * Print an error message.  We can assume that this is in response to
@@ -73,7 +60,6 @@ void disas_initialize_debug_target(CPUDebug *s, CPUState *cpu)
     disas_initialize_debug(s);
 
     s->cpu = cpu;
-    s->info.read_memory_func = target_read_memory;
     s->info.print_address_func = print_address;
     if (target_words_bigendian()) {
         s->info.endian = BFD_ENDIAN_BIG;
