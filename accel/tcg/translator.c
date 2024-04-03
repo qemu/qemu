@@ -468,9 +468,8 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
     return tgt;
 }
 
-void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
+void translator_fake_ld(DisasContextBase *db, const void *data, size_t len)
 {
-    assert(pc >= db->pc_first);
     db->fake_insn = true;
-    record_save(db, pc, &insn8, sizeof(insn8));
+    record_save(db, db->pc_first, data, len);
 }
