@@ -242,7 +242,30 @@ uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn)
 
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn)
 {
-    return insn->haddr;
+    const DisasContextBase *db = tcg_ctx->plugin_db;
+    vaddr page0_last = db->pc_first | ~TARGET_PAGE_MASK;
+
+    if (db->fake_insn) {
+        return NULL;
+    }
+
+    /*
+     * ??? The return value is not intended for use of host memory,
+     * but as a proxy for address space and physical address.
+     * Thus we are only interested in the first byte and do not
+     * care about spanning pages.
+     */
+    if (insn->vaddr <= page0_last) {
+        if (db->host_addr[0] == NULL) {
+            return NULL;
+        }
+        return db->host_addr[0] + insn->vaddr - db->pc_first;
+    } else {
+        if (db->host_addr[1] == NULL) {
+            return NULL;
+        }
+        return db->host_addr[1] + insn->vaddr - (page0_last + 1);
+    }
 }
 
 char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn)

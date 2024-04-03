@@ -319,9 +319,6 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db)
         ret = true;
 
         ptb->vaddr = db->pc_first;
-        ptb->vaddr2 = -1;
-        ptb->haddr1 = db->host_addr[0];
-        ptb->haddr2 = NULL;
         ptb->mem_helper = false;
 
         tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
@@ -362,23 +359,6 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
 
     pc = db->pc_next;
     insn->vaddr = pc;
-
-    /*
-     * Detect page crossing to get the new host address.
-     * Note that we skip this when haddr1 == NULL, e.g. when we're
-     * fetching instructions from a region not backed by RAM.
-     */
-    if (ptb->haddr1 == NULL) {
-        insn->haddr = NULL;
-    } else if (is_same_page(db, db->pc_next)) {
-        insn->haddr = ptb->haddr1 + pc - ptb->vaddr;
-    } else {
-        if (ptb->vaddr2 == -1) {
-            ptb->vaddr2 = TARGET_PAGE_ALIGN(db->pc_first);
-            get_page_addr_code_hostp(cpu_env(cpu), ptb->vaddr2, &ptb->haddr2);
-        }
-        insn->haddr = ptb->haddr2 + pc - ptb->vaddr2;
-    }
 
     tcg_gen_plugin_cb(PLUGIN_GEN_FROM_INSN);
 }
