@@ -222,15 +222,16 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
 
 /**
  * translator_fake_ldb - fake instruction load
- * @insn8: byte of instruction
+ * @db: Disassembly context
  * @pc: program counter of instruction
+ * @insn8: byte of instruction
  *
  * This is a special case helper used where the instruction we are
  * about to translate comes from somewhere else (e.g. being
  * re-synthesised for s390x "ex"). It ensures we update other areas of
  * the translator with details of the executed instruction.
  */
-void translator_fake_ldb(uint8_t insn8, vaddr pc);
+void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8);
 
 #ifdef COMPILING_PER_TARGET
 /*

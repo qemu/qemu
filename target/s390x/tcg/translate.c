@@ -6203,7 +6203,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
         /* Register insn bytes with translator so plugins work. */
         for (int i = 0; i < ilen; i++) {
             uint8_t byte = extract64(insn, 56 - (i * 8), 8);
-            translator_fake_ldb(byte, pc + i);
+            translator_fake_ldb(&s->base, pc + i, byte);
         }
         op = insn >> 56;
     } else {

@@ -375,7 +375,7 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
     return ret;
 }
 
-void translator_fake_ldb(uint8_t insn8, vaddr pc)
+void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
 {
     plugin_insn_append(pc, &insn8, sizeof(insn8));
 }
