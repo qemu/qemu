@@ -118,7 +118,6 @@ struct qemu_plugin_scoreboard {
 struct qemu_plugin_tb {
     GPtrArray *insns;
     size_t n;
-    uint64_t vaddr;
 
     /* if set, the TB calls helpers that might access guest memory */
     bool mem_helper;

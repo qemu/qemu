@@ -200,7 +200,8 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb)
 
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 {
-    return tb->vaddr;
+    const DisasContextBase *db = tcg_ctx->plugin_db;
+    return db->pc_first;
 }
 
 struct qemu_plugin_insn *

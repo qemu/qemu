@@ -188,7 +188,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
     int insn_idx = -1;
 
     if (unlikely(qemu_loglevel_mask(LOG_TB_OP_PLUGIN)
-                 && qemu_log_in_addr_range(plugin_tb->vaddr))) {
+                 && qemu_log_in_addr_range(tcg_ctx->plugin_db->pc_first))) {
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             fprintf(logfile, "OP before plugin injection:\n");
@@ -318,7 +318,6 @@ bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db)
 
         ret = true;
 
-        ptb->vaddr = db->pc_first;
         ptb->mem_helper = false;
 
         tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
