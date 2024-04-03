@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "disas/disas.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
@@ -4817,7 +4816,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 }
 
 #ifdef CONFIG_USER_ONLY
-static void hppa_tr_disas_log(const DisasContextBase *dcbase,
+static bool hppa_tr_disas_log(const DisasContextBase *dcbase,
                               CPUState *cs, FILE *logfile)
 {
     target_ulong pc = dcbase->pc_first;
@@ -4825,20 +4824,18 @@ static void hppa_tr_disas_log(const DisasContextBase *dcbase,
     switch (pc) {
     case 0x00:
         fprintf(logfile, "IN:\n0x00000000:  (null)\n");
-        return;
+        return true;
     case 0xb0:
         fprintf(logfile, "IN:\n0x000000b0:  light-weight-syscall\n");
-        return;
+        return true;
     case 0xe0:
         fprintf(logfile, "IN:\n0x000000e0:  set-thread-pointer-syscall\n");
-        return;
+        return true;
     case 0x100:
         fprintf(logfile, "IN:\n0x00000100:  syscall\n");
-        return;
+        return true;
     }
-
-    fprintf(logfile, "IN: %s\n", lookup_symbol(pc));
-    target_disas(logfile, cs, pc, dcbase->tb->size);
+    return false;
 }
 #endif
 

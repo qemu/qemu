@@ -228,9 +228,8 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
         if (logfile) {
             fprintf(logfile, "----------------\n");
 
-            if (ops->disas_log) {
-                ops->disas_log(db, cpu, logfile);
-            } else {
+            if (!ops->disas_log ||
+                !ops->disas_log(db, cpu, logfile)) {
                 fprintf(logfile, "IN: %s\n", lookup_symbol(db->pc_first));
                 target_disas(logfile, cpu, db->pc_first, db->tb->size);
             }

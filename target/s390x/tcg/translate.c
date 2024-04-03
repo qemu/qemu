@@ -31,7 +31,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "s390x-internal.h"
-#include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
@@ -6520,7 +6519,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void s390x_tr_disas_log(const DisasContextBase *dcbase,
+static bool s390x_tr_disas_log(const DisasContextBase *dcbase,
                                CPUState *cs, FILE *logfile)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
@@ -6528,10 +6527,9 @@ static void s390x_tr_disas_log(const DisasContextBase *dcbase,
     if (unlikely(dc->ex_value)) {
         /* ??? Unfortunately target_disas can't use host memory.  */
         fprintf(logfile, "IN: EXECUTE %016" PRIx64, dc->ex_value);
-    } else {
-        fprintf(logfile, "IN: %s\n", lookup_symbol(dc->base.pc_first));
-        target_disas(logfile, cs, dc->base.pc_first, dc->base.tb->size);
+        return true;
     }
+    return false;
 }
 
 static const TranslatorOps s390x_tr_ops = {
