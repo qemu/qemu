@@ -6525,8 +6525,9 @@ static bool s390x_tr_disas_log(const DisasContextBase *dcbase,
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     if (unlikely(dc->ex_value)) {
-        /* ??? Unfortunately target_disas can't use host memory.  */
-        fprintf(logfile, "IN: EXECUTE %016" PRIx64, dc->ex_value);
+        /* The ex_value has been recorded with translator_fake_ld. */
+        fprintf(logfile, "IN: EXECUTE\n");
+        target_disas(logfile, cs, &dc->base);
         return true;
     }
     return false;
