@@ -61,7 +61,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 2
+#define QEMU_PLUGIN_VERSION 3
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -394,17 +394,16 @@ struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);
 
 /**
- * qemu_plugin_insn_data() - return ptr to instruction data
+ * qemu_plugin_insn_data() - copy instruction data
  * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ * @dest: destination into which data is copied
+ * @len: length of dest
  *
- * Note: data is only valid for duration of callback. See
- * qemu_plugin_insn_size() to calculate size of stream.
- *
- * Returns: pointer to a stream of bytes containing the value of this
- * instructions opcode.
+ * Returns the number of bytes copied, minimum of @len and insn size.
  */
 QEMU_PLUGIN_API
-const void *qemu_plugin_insn_data(const struct qemu_plugin_insn *insn);
+size_t qemu_plugin_insn_data(const struct qemu_plugin_insn *insn,
+                             void *dest, size_t len);
 
 /**
  * qemu_plugin_insn_size() - return size of instruction

@@ -216,9 +216,12 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
  * instruction being translated.
  */
 
-const void *qemu_plugin_insn_data(const struct qemu_plugin_insn *insn)
+size_t qemu_plugin_insn_data(const struct qemu_plugin_insn *insn,
+                             void *dest, size_t len)
 {
-    return insn->data->data;
+    len = MIN(len, insn->data->len);
+    memcpy(dest, insn->data->data, len);
+    return len;
 }
 
 size_t qemu_plugin_insn_size(const struct qemu_plugin_insn *insn)
