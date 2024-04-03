@@ -1501,31 +1501,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     disp_width = width;
     depth = s->get_bpp(s);
 
-    region_start = (s->params.start_addr * 4);
-    region_end = region_start + (ram_addr_t)s->params.line_offset * height;
-    region_end += width * depth / 8; /* scanline length */
-    region_end -= s->params.line_offset;
-    if (region_end > s->vbe_size || depth == 0 || depth == 15) {
-        /*
-         * We land here on:
-         *  - wraps around (can happen with cirrus vbe modes)
-         *  - depth == 0 (256 color palette video mode)
-         *  - depth == 15
-         *
-         * Take the safe and slow route:
-         *   - create a dirty bitmap snapshot for all vga memory.
-         *   - force shadowing (so all vga memory access goes
-         *     through vga_read_*() helpers).
-         *
-         * Given this affects only vga features which are pretty much
-         * unused by modern guests there should be no performance
-         * impact.
-         */
-        region_start = 0;
-        region_end = s->vbe_size;
-        force_shadow = true;
-    }
-
     /* bits 5-6: 0 = 16-color mode, 1 = 4-color mode, 2 = 256-color mode.  */
     shift_control = (s->gr[VGA_GFX_MODE] >> 5) & 3;
     double_scan = (s->cr[VGA_CRTC_MAX_SCAN] >> 7);
@@ -1546,13 +1521,86 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
 
     if (shift_control == 0) {
+        full_update |= update_palette16(s);
         if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
+            v = VGA_DRAW_LINE4D2;
+        } else {
+            v = VGA_DRAW_LINE4;
         }
+        bits = 4;
+
     } else if (shift_control == 1) {
+        full_update |= update_palette16(s);
         if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
             disp_width <<= 1;
+            v = VGA_DRAW_LINE2D2;
+        } else {
+            v = VGA_DRAW_LINE2;
         }
+        bits = 4;
+
+    } else {
+        switch (depth) {
+        default:
+        case 0:
+            full_update |= update_palette256(s);
+            v = VGA_DRAW_LINE8D2;
+            bits = 4;
+            break;
+        case 8:
+            full_update |= update_palette256(s);
+            v = VGA_DRAW_LINE8;
+            bits = 8;
+            break;
+        case 15:
+            v = s->big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
+            bits = 16;
+            break;
+        case 16:
+            v = s->big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
+            bits = 16;
+            break;
+        case 24:
+            v = s->big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
+            bits = 24;
+            break;
+        case 32:
+            v = s->big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
+            bits = 32;
+            break;
+        }
+    }
+
+    /* Horizontal pel panning bit 3 is only used in text mode.  */
+    hpel = bits <= 8 ? s->params.hpel & 7 : 0;
+
+    region_start = (s->params.start_addr * 4);
+    region_end = region_start + (ram_addr_t)s->params.line_offset * height;
+    region_end += width * depth / 8; /* scanline length */
+    region_end -= s->params.line_offset;
+    if (hpel) {
+        region_end += 4;
+    }
+    if (region_end > s->vbe_size || depth == 0 || depth == 15) {
+        /*
+         * We land here on:
+         *  - wraps around (can happen with cirrus vbe modes)
+         *  - depth == 0 (256 color palette video mode)
+         *  - depth == 15
+         *
+         * Take the safe and slow route:
+         *   - create a dirty bitmap snapshot for all vga memory.
+         *   - force shadowing (so all vga memory access goes
+         *     through vga_read_*() helpers).
+         *
+         * Given this affects only vga features which are pretty much
+         * unused by modern guests there should be no performance
+         * impact.
+         */
+        region_start = 0;
+        region_end = s->vbe_size;
+        force_shadow = true;
     }
 
     /*
@@ -1607,53 +1655,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         }
     }
 
-    if (shift_control == 0) {
-        full_update |= update_palette16(s);
-        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
-            v = VGA_DRAW_LINE4D2;
-        } else {
-            v = VGA_DRAW_LINE4;
-        }
-        bits = 4;
-    } else if (shift_control == 1) {
-        full_update |= update_palette16(s);
-        if (sr(s, VGA_SEQ_CLOCK_MODE) & 8) {
-            v = VGA_DRAW_LINE2D2;
-        } else {
-            v = VGA_DRAW_LINE2;
-        }
-        bits = 4;
-    } else {
-        switch(s->get_bpp(s)) {
-        default:
-        case 0:
-            full_update |= update_palette256(s);
-            v = VGA_DRAW_LINE8D2;
-            bits = 4;
-            break;
-        case 8:
-            full_update |= update_palette256(s);
-            v = VGA_DRAW_LINE8;
-            bits = 8;
-            break;
-        case 15:
-            v = s->big_endian_fb ? VGA_DRAW_LINE15_BE : VGA_DRAW_LINE15_LE;
-            bits = 16;
-            break;
-        case 16:
-            v = s->big_endian_fb ? VGA_DRAW_LINE16_BE : VGA_DRAW_LINE16_LE;
-            bits = 16;
-            break;
-        case 24:
-            v = s->big_endian_fb ? VGA_DRAW_LINE24_BE : VGA_DRAW_LINE24_LE;
-            bits = 24;
-            break;
-        case 32:
-            v = s->big_endian_fb ? VGA_DRAW_LINE32_BE : VGA_DRAW_LINE32_LE;
-            bits = 32;
-            break;
-        }
-    }
     vga_draw_line = vga_draw_line_table[v];
 
     if (!is_buffer_shared(surface) && s->cursor_invalidate) {
@@ -1665,7 +1666,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
            s->params.line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
-    hpel = bits <= 8 ? s->params.hpel : 0;
     addr1 = (s->params.start_addr * 4);
     bwidth = DIV_ROUND_UP(width * bits, 8);
     if (hpel) {
