@@ -230,69 +230,88 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     }
 }
 
-static void *translator_access(CPUArchState *env, DisasContextBase *db,
-                               vaddr pc, size_t len)
+static bool translator_ld(CPUArchState *env, DisasContextBase *db,
+                          void *dest, vaddr pc, size_t len)
 {
+    TranslationBlock *tb = db->tb;
+    vaddr last = pc + len - 1;
     void *host;
-    vaddr base, end;
-    TranslationBlock *tb;
-
-    tb = db->tb;
+    vaddr base;
 
     /* Use slow path if first page is MMIO. */
     if (unlikely(tb_page_addr0(tb) == -1)) {
-        return NULL;
+        return false;
     }
 
-    end = pc + len - 1;
-    if (likely(is_same_page(db, end))) {
-        host = db->host_addr[0];
-        base = db->pc_first;
-    } else {
+    host = db->host_addr[0];
+    base = db->pc_first;
+
+    if (likely(((base ^ last) & TARGET_PAGE_MASK) == 0)) {
+        /* Entire read is from the first page. */
+        memcpy(dest, host + (pc - base), len);
+        return true;
+    }
+
+    if (unlikely(((base ^ pc) & TARGET_PAGE_MASK) == 0)) {
+        /* Read begins on the first page and extends to the second. */
+        size_t len0 = -(pc | TARGET_PAGE_MASK);
+        memcpy(dest, host + (pc - base), len0);
+        pc += len0;
+        dest += len0;
+        len -= len0;
+    }
+
+    /*
+     * The read must conclude on the second page and not extend to a third.
+     *
+     * TODO: We could allow the two pages to be virtually discontiguous,
+     * since we already allow the two pages to be physically discontiguous.
+     * The only reasonable use case would be executing an insn at the end
+     * of the address space wrapping around to the beginning.  For that,
+     * we would need to know the current width of the address space.
+     * In the meantime, assert.
+     */
+    base = (base & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    assert(((base ^ pc) & TARGET_PAGE_MASK) == 0);
+    assert(((base ^ last) & TARGET_PAGE_MASK) == 0);
+    host = db->host_addr[1];
+
+    if (host == NULL) {
+        tb_page_addr_t page0, old_page1, new_page1;
+
+        new_page1 = get_page_addr_code_hostp(env, base, &db->host_addr[1]);
+
+        /*
+         * If the second page is MMIO, treat as if the first page
+         * was MMIO as well, so that we do not cache the TB.
+         */
+        if (unlikely(new_page1 == -1)) {
+            tb_unlock_pages(tb);
+            tb_set_page_addr0(tb, -1);
+            return false;
+        }
+
+        /*
+         * If this is not the first time around, and page1 matches,
+         * then we already have the page locked.  Alternately, we're
+         * not doing anything to prevent the PTE from changing, so
+         * we might wind up with a different page, requiring us to
+         * re-do the locking.
+         */
+        old_page1 = tb_page_addr1(tb);
+        if (likely(new_page1 != old_page1)) {
+            page0 = tb_page_addr0(tb);
+            if (unlikely(old_page1 != -1)) {
+                tb_unlock_page1(page0, old_page1);
+            }
+            tb_set_page_addr1(tb, new_page1);
+            tb_lock_page1(page0, new_page1);
+        }
         host = db->host_addr[1];
-        base = TARGET_PAGE_ALIGN(db->pc_first);
-        if (host == NULL) {
-            tb_page_addr_t page0, old_page1, new_page1;
-
-            new_page1 = get_page_addr_code_hostp(env, base, &db->host_addr[1]);
-
-            /*
-             * If the second page is MMIO, treat as if the first page
-             * was MMIO as well, so that we do not cache the TB.
-             */
-            if (unlikely(new_page1 == -1)) {
-                tb_unlock_pages(tb);
-                tb_set_page_addr0(tb, -1);
-                return NULL;
-            }
-
-            /*
-             * If this is not the first time around, and page1 matches,
-             * then we already have the page locked.  Alternately, we're
-             * not doing anything to prevent the PTE from changing, so
-             * we might wind up with a different page, requiring us to
-             * re-do the locking.
-             */
-            old_page1 = tb_page_addr1(tb);
-            if (likely(new_page1 != old_page1)) {
-                page0 = tb_page_addr0(tb);
-                if (unlikely(old_page1 != -1)) {
-                    tb_unlock_page1(page0, old_page1);
-                }
-                tb_set_page_addr1(tb, new_page1);
-                tb_lock_page1(page0, new_page1);
-            }
-            host = db->host_addr[1];
-        }
-
-        /* Use slow path when crossing pages. */
-        if (is_same_page(db, pc)) {
-            return NULL;
-        }
     }
 
-    tcg_debug_assert(pc >= base);
-    return host + (pc - base);
+    memcpy(dest, host + (pc - base), len);
+    return true;
 }
 
 static void plugin_insn_append(vaddr pc, const void *from, size_t size)
@@ -318,61 +337,55 @@ static void plugin_insn_append(vaddr pc, const void *from, size_t size)
 
 uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
-    uint8_t ret;
-    void *p = translator_access(env, db, pc, sizeof(ret));
+    uint8_t raw;
 
-    if (p) {
-        plugin_insn_append(pc, p, sizeof(ret));
-        return ldub_p(p);
+    if (!translator_ld(env, db, &raw, pc, sizeof(raw))) {
+        raw = cpu_ldub_code(env, pc);
     }
-    ret = cpu_ldub_code(env, pc);
-    plugin_insn_append(pc, &ret, sizeof(ret));
-    return ret;
+    plugin_insn_append(pc, &raw, sizeof(raw));
+    return raw;
 }
 
 uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
-    uint16_t ret, plug;
-    void *p = translator_access(env, db, pc, sizeof(ret));
+    uint16_t raw, tgt;
 
-    if (p) {
-        plugin_insn_append(pc, p, sizeof(ret));
-        return lduw_p(p);
+    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
+        tgt = tswap16(raw);
+    } else {
+        tgt = cpu_lduw_code(env, pc);
+        raw = tswap16(tgt);
     }
-    ret = cpu_lduw_code(env, pc);
-    plug = tswap16(ret);
-    plugin_insn_append(pc, &plug, sizeof(ret));
-    return ret;
+    plugin_insn_append(pc, &raw, sizeof(raw));
+    return tgt;
 }
 
 uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
-    uint32_t ret, plug;
-    void *p = translator_access(env, db, pc, sizeof(ret));
+    uint32_t raw, tgt;
 
-    if (p) {
-        plugin_insn_append(pc, p, sizeof(ret));
-        return ldl_p(p);
+    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
+        tgt = tswap32(raw);
+    } else {
+        tgt = cpu_ldl_code(env, pc);
+        raw = tswap32(tgt);
     }
-    ret = cpu_ldl_code(env, pc);
-    plug = tswap32(ret);
-    plugin_insn_append(pc, &plug, sizeof(ret));
-    return ret;
+    plugin_insn_append(pc, &raw, sizeof(raw));
+    return tgt;
 }
 
 uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
-    uint64_t ret, plug;
-    void *p = translator_access(env, db, pc, sizeof(ret));
+    uint64_t raw, tgt;
 
-    if (p) {
-        plugin_insn_append(pc, p, sizeof(ret));
-        return ldq_p(p);
+    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
+        tgt = tswap64(raw);
+    } else {
+        tgt = cpu_ldq_code(env, pc);
+        raw = tswap64(tgt);
     }
-    ret = cpu_ldq_code(env, pc);
-    plug = tswap64(ret);
-    plugin_insn_append(pc, &plug, sizeof(ret));
-    return ret;
+    plugin_insn_append(pc, &raw, sizeof(raw));
+    return tgt;
 }
 
 void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
