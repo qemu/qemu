@@ -1,5 +1,5 @@
 /*
- *  Software MMU support
+ *  Software MMU support (per-target)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -61,6 +61,10 @@
  */
 #ifndef CPU_LDST_H
 #define CPU_LDST_H
+
+#ifndef CONFIG_TCG
+#error Can only include this header with TCG
+#endif
 
 #include "exec/memopidx.h"
 #include "exec/abi_ptr.h"
