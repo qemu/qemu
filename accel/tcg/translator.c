@@ -132,6 +132,8 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->insn_start = NULL;
     db->host_addr[0] = host_pc;
     db->host_addr[1] = NULL;
+    db->record_start = 0;
+    db->record_len = 0;
 
     ops->init_disas_context(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
@@ -318,6 +320,39 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     return true;
 }
 
+static void record_save(DisasContextBase *db, vaddr pc,
+                        const void *from, int size)
+{
+    int offset;
+
+    /* Do not record probes before the start of TB. */
+    if (pc < db->pc_first) {
+        return;
+    }
+
+    /*
+     * In translator_access, we verified that pc is within 2 pages
+     * of pc_first, thus this will never overflow.
+     */
+    offset = pc - db->pc_first;
+
+    /*
+     * Either the first or second page may be I/O.  If it is the second,
+     * then the first byte we need to record will be at a non-zero offset.
+     * In either case, we should not need to record but a single insn.
+     */
+    if (db->record_len == 0) {
+        db->record_start = offset;
+        db->record_len = size;
+    } else {
+        assert(offset == db->record_start + db->record_len);
+        assert(db->record_len + size <= sizeof(db->record));
+        db->record_len += size;
+    }
+
+    memcpy(db->record + (offset - db->record_start), from, size);
+}
+
 static void plugin_insn_append(vaddr pc, const void *from, size_t size)
 {
 #ifdef CONFIG_PLUGIN
@@ -345,6 +380,7 @@ uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
 
     if (!translator_ld(env, db, &raw, pc, sizeof(raw))) {
         raw = cpu_ldub_code(env, pc);
+        record_save(db, pc, &raw, sizeof(raw));
     }
     plugin_insn_append(pc, &raw, sizeof(raw));
     return raw;
@@ -359,6 +395,7 @@ uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
     } else {
         tgt = cpu_lduw_code(env, pc);
         raw = tswap16(tgt);
+        record_save(db, pc, &raw, sizeof(raw));
     }
     plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
@@ -373,6 +410,7 @@ uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
     } else {
         tgt = cpu_ldl_code(env, pc);
         raw = tswap32(tgt);
+        record_save(db, pc, &raw, sizeof(raw));
     }
     plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
@@ -387,6 +425,7 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
     } else {
         tgt = cpu_ldq_code(env, pc);
         raw = tswap64(tgt);
+        record_save(db, pc, &raw, sizeof(raw));
     }
     plugin_insn_append(pc, &raw, sizeof(raw));
     return tgt;
@@ -394,5 +433,7 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
 
 void translator_fake_ldb(DisasContextBase *db, vaddr pc, uint8_t insn8)
 {
+    assert(pc >= db->pc_first);
+    record_save(db, pc, &insn8, sizeof(insn8));
     plugin_insn_append(pc, &insn8, sizeof(insn8));
 }

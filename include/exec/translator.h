@@ -90,6 +90,18 @@ typedef struct DisasContextBase {
     bool plugin_enabled;
     struct TCGOp *insn_start;
     void *host_addr[2];
+
+    /*
+     * Record insn data that we cannot read directly from host memory.
+     * There are only two reasons we cannot use host memory:
+     * (1) We are executing from I/O,
+     * (2) We are executing a synthetic instruction (s390x EX).
+     * In both cases we need record exactly one instruction,
+     * and thus the maximum amount of data we record is limited.
+     */
+    int record_start;
+    int record_len;
+    uint8_t record[32];
 } DisasContextBase;
 
 /**
