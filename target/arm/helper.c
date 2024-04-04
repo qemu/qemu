@@ -3452,7 +3452,8 @@ static CPAccessResult gt_cntpoff_access(CPUARMState *env,
                                         const ARMCPRegInfo *ri,
                                         bool isread)
 {
-    if (arm_current_el(env) == 2 && !(env->cp15.scr_el3 & SCR_ECVEN)) {
+    if (arm_current_el(env) == 2 && arm_feature(env, ARM_FEATURE_EL3) &&
+        !(env->cp15.scr_el3 & SCR_ECVEN)) {
         return CP_ACCESS_TRAP_EL3;
     }
     return CP_ACCESS_OK;
