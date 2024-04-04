@@ -305,28 +305,32 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
 
 bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db)
 {
-    bool ret = false;
+    struct qemu_plugin_tb *ptb;
 
-    if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_state->event_mask)) {
-        struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
-
-        /* reset callbacks */
-        if (ptb->cbs) {
-            g_array_set_size(ptb->cbs, 0);
-        }
-        ptb->n = 0;
-
-        ret = true;
-
-        ptb->mem_helper = false;
-
-        tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
+    if (!test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS,
+                  cpu->plugin_state->event_mask)) {
+        return false;
     }
 
     tcg_ctx->plugin_db = db;
     tcg_ctx->plugin_insn = NULL;
+    ptb = tcg_ctx->plugin_tb;
 
-    return ret;
+    if (ptb) {
+        /* Reset callbacks */
+        if (ptb->cbs) {
+            g_array_set_size(ptb->cbs, 0);
+        }
+        ptb->n = 0;
+        ptb->mem_helper = false;
+    } else {
+        ptb = g_new0(struct qemu_plugin_tb, 1);
+        tcg_ctx->plugin_tb = ptb;
+        ptb->insns = g_ptr_array_new();
+    }
+
+    tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
+    return true;
 }
 
 void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
