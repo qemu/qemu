@@ -1830,16 +1830,10 @@ static bool fold_nand(OptContext *ctx, TCGOp *op)
     return false;
 }
 
-static bool fold_neg(OptContext *ctx, TCGOp *op)
+static bool fold_neg_no_const(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask;
-
-    if (fold_const1(ctx, op)) {
-        return true;
-    }
-
     /* Set to 1 all bits to the left of the rightmost.  */
-    z_mask = arg_info(op->args[1])->z_mask;
+    uint64_t z_mask = arg_info(op->args[1])->z_mask;
     ctx->z_mask = -(z_mask & -z_mask);
 
     /*
@@ -1848,6 +1842,11 @@ static bool fold_neg(OptContext *ctx, TCGOp *op)
      */
     finish_folding(ctx, op);
     return true;
+}
+
+static bool fold_neg(OptContext *ctx, TCGOp *op)
+{
+    return fold_const1(ctx, op) || fold_neg_no_const(ctx, op);
 }
 
 static bool fold_nor(OptContext *ctx, TCGOp *op)
@@ -2165,7 +2164,7 @@ static bool fold_sub_to_neg(OptContext *ctx, TCGOp *op)
     if (have_neg) {
         op->opc = neg_op;
         op->args[1] = op->args[2];
-        return fold_neg(ctx, op);
+        return fold_neg_no_const(ctx, op);
     }
     return false;
 }
