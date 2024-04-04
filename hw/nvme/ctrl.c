@@ -7805,6 +7805,11 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         return false;
     }
 
+    if (params->mqes < 1) {
+        error_setg(errp, "mqes property cannot be less than 1");
+        return false;
+    }
+
     if (n->pmr.dev) {
         if (params->msix_exclusive_bar) {
             error_setg(errp, "not enough BARs available to enable PMR");
@@ -8289,7 +8294,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->ctratt = cpu_to_le32(ctratt);
 
-    NVME_CAP_SET_MQES(cap, 0x7ff);
+    NVME_CAP_SET_MQES(cap, n->params.mqes);
     NVME_CAP_SET_CQR(cap, 1);
     NVME_CAP_SET_TO(cap, 0xf);
     NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_NVM);
@@ -8459,6 +8464,7 @@ static Property nvme_props[] = {
                       params.sriov_max_vq_per_vf, 0),
     DEFINE_PROP_BOOL("msix-exclusive-bar", NvmeCtrl, params.msix_exclusive_bar,
                      false),
+    DEFINE_PROP_UINT16("mqes", NvmeCtrl, params.mqes, 0x7ff),
     DEFINE_PROP_END_OF_LIST(),
 };
 
