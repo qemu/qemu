@@ -165,20 +165,7 @@ static int dec10_prep_move_m(CPUCRISState *env, DisasContext *dc,
 
     /* Load [$rs] onto T1.  */
     if (is_imm) {
-        if (memsize != 4) {
-            if (s_ext) {
-                if (memsize == 1)
-                    imm = cpu_ldsb_code(env, dc->pc + 2);
-                else
-                    imm = cpu_ldsw_code(env, dc->pc + 2);
-            } else {
-                if (memsize == 1)
-                    imm = cpu_ldub_code(env, dc->pc + 2);
-                else
-                    imm = cpu_lduw_code(env, dc->pc + 2);
-            }
-        } else
-            imm = cpu_ldl_code(env, dc->pc + 2);
+        imm = cris_fetch(env, dc, dc->pc + 2, memsize, s_ext);
 
         tcg_gen_movi_tl(dst, imm);
 
@@ -929,10 +916,11 @@ static int dec10_dip(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("dip pc=%x opcode=%d r%d r%d\n",
               dc->pc, dc->opcode, dc->src, dc->dst);
     if (dc->src == 15) {
-        imm = cpu_ldl_code(env, dc->pc + 2);
+        imm = cris_fetch(env, dc, dc->pc + 2, 4, 0);
         tcg_gen_movi_tl(cpu_PR[PR_PREFIX], imm);
-        if (dc->postinc)
+        if (dc->postinc) {
             insn_len += 4;
+        }
         tcg_gen_addi_tl(cpu_R[15], cpu_R[15], insn_len - 2);
     } else {
         gen_load(dc, cpu_PR[PR_PREFIX], cpu_R[dc->src], 4, 0);
@@ -1095,10 +1083,10 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             if (dc->src == 15) {
                 LOG_DIS("jump.%d %d r%d r%d direct\n", size,
                          dc->opcode, dc->src, dc->dst);
-                imm = cpu_ldl_code(env, dc->pc + 2);
-                if (dc->mode == CRISV10_MODE_AUTOINC)
+                imm = cris_fetch(env, dc, dc->pc + 2, size, 0);
+                if (dc->mode == CRISV10_MODE_AUTOINC) {
                     insn_len += size;
-
+                }
                 c = tcg_constant_tl(dc->pc + insn_len);
                 t_gen_mov_preg_TN(dc, dc->dst, c);
                 dc->jmp_pc = imm;
@@ -1164,7 +1152,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
         case CRISV10_IND_BCC_M:
 
             cris_cc_mask(dc, 0);
-            simm = cpu_ldsw_code(env, dc->pc + 2);
+            simm = cris_fetch(env, dc, dc->pc + 2, 2, 1);
             simm += 4;
 
             LOG_DIS("bcc_m: b%s %x\n", cc_name(dc->cond), dc->pc + simm);
@@ -1185,7 +1173,7 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
     unsigned int insn_len = 2;
 
     /* Load a halfword onto the instruction register.  */
-    dc->ir = cpu_lduw_code(env, dc->pc);
+    dc->ir = cris_fetch(env, dc, dc->pc, 2, 0);
 
     /* Now decode it.  */
     dc->opcode   = EXTRACT_FIELD(dc->ir, 6, 9);
