@@ -232,6 +232,7 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
  */
 void translator_fake_ldb(uint8_t insn8, vaddr pc);
 
+#ifdef COMPILING_PER_TARGET
 /*
  * Return whether addr is on the same page as where disassembly started.
  * Translators can use this to enforce the rule that only single-insn
@@ -241,5 +242,6 @@ static inline bool is_same_page(const DisasContextBase *db, vaddr addr)
 {
     return ((addr ^ db->pc_first) & TARGET_PAGE_MASK) == 0;
 }
+#endif
 
 #endif /* EXEC__TRANSLATOR_H */
