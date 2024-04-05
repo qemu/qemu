@@ -35,7 +35,6 @@
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
-#include "exec/cpu_ldst.h"
 #include "semihosting/semihost.h"
 #include "exec/translator.h"
 
@@ -1118,7 +1117,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
 static inline unsigned xtensa_insn_len(CPUXtensaState *env, DisasContext *dc)
 {
-    uint8_t b0 = cpu_ldub_code(env, dc->pc);
+    uint8_t b0 = translator_ldub(env, &dc->base, dc->pc);
     return xtensa_op0_insn_len(dc, b0);
 }
 
