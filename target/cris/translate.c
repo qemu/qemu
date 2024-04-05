@@ -222,37 +222,28 @@ static int sign_extend(unsigned int val, unsigned int width)
 }
 
 static int cris_fetch(CPUCRISState *env, DisasContext *dc, uint32_t addr,
-              unsigned int size, unsigned int sign)
+                      unsigned int size, bool sign)
 {
     int r;
 
     switch (size) {
     case 4:
-    {
-        r = cpu_ldl_code(env, addr);
+        r = translator_ldl(env, &dc->base, addr);
         break;
-    }
     case 2:
-    {
+        r = translator_lduw(env, &dc->base, addr);
         if (sign) {
-            r = cpu_ldsw_code(env, addr);
-        } else {
-            r = cpu_lduw_code(env, addr);
+            r = (int16_t)r;
         }
         break;
-    }
     case 1:
-    {
+        r = translator_ldub(env, &dc->base, addr);
         if (sign) {
-            r = cpu_ldsb_code(env, addr);
-        } else {
-            r = cpu_ldub_code(env, addr);
+            r = (int8_t)r;
         }
         break;
-    }
     default:
-        cpu_abort(CPU(dc->cpu), "Invalid fetch size %d\n", size);
-        break;
+        g_assert_not_reached();
     }
     return r;
 }
@@ -2868,7 +2859,7 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
     int i;
 
     /* Load a halfword onto the instruction register.  */
-        dc->ir = cris_fetch(env, dc, dc->pc, 2, 0);
+    dc->ir = cris_fetch(env, dc, dc->pc, 2, 0);
 
     /* Now decode it.  */
     dc->opcode   = EXTRACT_FIELD(dc->ir, 4, 11);
