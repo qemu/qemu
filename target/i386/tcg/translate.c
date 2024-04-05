@@ -23,7 +23,6 @@
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
-#include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 #include "fpu/softfloat.h"
 
@@ -1579,9 +1578,8 @@ static uint64_t advance_pc(CPUX86State *env, DisasContext *s, int num_bytes)
          * This can happen even if the operand is only one byte long!
          */
         if (((s->pc - 1) ^ (pc - 1)) & TARGET_PAGE_MASK) {
-            volatile uint8_t unused =
-                cpu_ldub_code(env, (s->pc - 1) & TARGET_PAGE_MASK);
-            (void) unused;
+            (void)translator_ldub(env, &s->base,
+                                  (s->pc - 1) & TARGET_PAGE_MASK);
         }
         siglongjmp(s->jmpbuf, 1);
     }
@@ -2177,7 +2175,7 @@ static void gen_unknown_opcode(CPUX86State *env, DisasContext *s)
 
             fprintf(logfile, "ILLOPC: " TARGET_FMT_lx ":", pc);
             for (; pc < end; ++pc) {
-                fprintf(logfile, " %02x", cpu_ldub_code(env, pc));
+                fprintf(logfile, " %02x", translator_ldub(env, &s->base, pc));
             }
             fprintf(logfile, "\n");
             qemu_log_unlock(logfile);
