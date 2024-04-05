@@ -36,7 +36,6 @@
 #include "tcg/tcg-op-gvec.h"
 #include "qemu/log.h"
 #include "qemu/host-utils.h"
-#include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
@@ -6471,7 +6470,7 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
                                 uint64_t pc)
 {
-    uint64_t insn = cpu_lduw_code(env, pc);
+    uint64_t insn = translator_lduw(env, &s->base, pc);
 
     return pc + get_ilen((insn >> 8) & 0xff);
 }
