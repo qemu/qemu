@@ -139,6 +139,7 @@ typedef struct DisasContext {
     TCGv_i64 tmp1_i64;
 
     sigjmp_buf jmpbuf;
+    TCGOp *prev_insn_start;
     TCGOp *prev_insn_end;
 } DisasContext;
 
@@ -3123,6 +3124,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         /* END TODO */
         s->base.num_insns--;
         tcg_remove_ops_after(s->prev_insn_end);
+        s->base.insn_start = s->prev_insn_start;
         s->base.is_jmp = DISAS_TOO_MANY;
         return false;
     default:
@@ -6995,6 +6997,7 @@ static void i386_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     target_ulong pc_arg = dc->base.pc_next;
 
+    dc->prev_insn_start = dc->base.insn_start;
     dc->prev_insn_end = tcg_last_op();
     if (tb_cflags(dcbase->tb) & CF_PCREL) {
         pc_arg &= ~TARGET_PAGE_MASK;
