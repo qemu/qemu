@@ -165,10 +165,10 @@ typedef struct DisasContext {
     uint8_t gm_blocksize;
     /* True if this page is guarded.  */
     bool guarded_page;
+    /* True if the current insn_start has been updated. */
+    bool insn_start_updated;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */
     int c15_cpar;
-    /* TCG op of the current insn_start.  */
-    TCGOp *insn_start;
     /* Offset from VNCR_EL2 when FEAT_NV2 redirects this reg to memory */
     uint32_t nv2_redirect_offset;
 } DisasContext;
@@ -276,10 +276,10 @@ static inline void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
     syn &= ARM_INSN_START_WORD2_MASK;
     syn >>= ARM_INSN_START_WORD2_SHIFT;
 
-    /* We check and clear insn_start_idx to catch multiple updates.  */
-    assert(s->insn_start != NULL);
-    tcg_set_insn_start_param(s->insn_start, 2, syn);
-    s->insn_start = NULL;
+    /* Check for multiple updates.  */
+    assert(!s->insn_start_updated);
+    s->insn_start_updated = true;
+    tcg_set_insn_start_param(s->base.insn_start, 2, syn);
 }
 
 static inline int curr_insn_len(DisasContext *s)
