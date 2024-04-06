@@ -87,7 +87,6 @@ typedef struct DisasContextBase {
     int num_insns;
     int max_insns;
     bool singlestep_enabled;
-    int8_t saved_can_do_io;
     bool plugin_enabled;
     struct TCGOp *insn_start;
     void *host_addr[2];
