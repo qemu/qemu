@@ -17,3 +17,6 @@ VPATH += $(SRC_PATH)/tests/tcg/sh4
 
 test-macl: CFLAGS += -O -g
 TESTS += test-macl
+
+test-macw: CFLAGS += -O -g
+TESTS += test-macw
