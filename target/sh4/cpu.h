@@ -155,11 +155,21 @@ typedef struct CPUArchState {
     uint32_t pc;                /* program counter */
     uint32_t delayed_pc;        /* target of delayed branch */
     uint32_t delayed_cond;      /* condition of delayed branch */
-    uint32_t mach;              /* multiply and accumulate high */
-    uint32_t macl;              /* multiply and accumulate low */
     uint32_t pr;                /* procedure register */
     uint32_t fpscr;             /* floating point status/control register */
     uint32_t fpul;              /* floating point communication register */
+
+    /* multiply and accumulate: high, low and combined. */
+    union {
+        uint64_t mac;
+        struct {
+#if HOST_BIG_ENDIAN
+            uint32_t mach, macl;
+#else
+            uint32_t macl, mach;
+#endif
+        };
+    };
 
     /* float point status register */
     float_status fp_status;
