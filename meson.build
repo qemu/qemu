@@ -3451,8 +3451,12 @@ subdir('qom')
 subdir('authz')
 subdir('crypto')
 subdir('ui')
-subdir('hw')
 subdir('gdbstub')
+if have_system
+  subdir('hw')
+else
+  subdir('hw/core')
+endif
 
 if enable_modules
   libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
