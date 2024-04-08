@@ -564,12 +564,12 @@ static int xrstor_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxsave,
     return 0;
 }
 
-static int
-restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
+static bool restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
 {
-    int err = 1;
     abi_ulong fpstate_addr;
     unsigned int tmpflags;
+    struct target_fpstate *fpstate;
+    bool ok;
 
 #ifndef TARGET_X86_64
     cpu_x86_load_seg(env, R_GS, tswap16(sc->gs));
@@ -617,29 +617,27 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
     //          regs->orig_eax = -1;            /* disable syscall checks */
 
     fpstate_addr = tswapl(sc->fpstate);
-    if (fpstate_addr != 0) {
-        struct target_fpstate *fpstate;
-        if (!lock_user_struct(VERIFY_READ, fpstate, fpstate_addr,
-                              sizeof(struct target_fpstate))) {
-            return err;
-        }
-#ifndef TARGET_X86_64
-        if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
-            cpu_x86_frstor(env, fpstate_addr, 1);
-            err = 0;
-        } else {
-            err = xrstor_sigcontext(env, &fpstate->fxstate,
-                                    fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
-        }
-#else
-        err = xrstor_sigcontext(env, fpstate, fpstate_addr);
-#endif
-        unlock_user_struct(fpstate, fpstate_addr, 0);
-    } else {
-        err = 0;
+    if (fpstate_addr == 0) {
+        return true;
     }
+    if (!lock_user_struct(VERIFY_READ, fpstate, fpstate_addr,
+                          sizeof(struct target_fpstate))) {
+        return false;
+    }
+#ifndef TARGET_X86_64
+    if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
+        cpu_x86_frstor(env, fpstate_addr, 1);
+        ok = true;
+    } else {
+        ok = !xrstor_sigcontext(env, &fpstate->fxstate,
+                                fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
+    }
+#else
+    ok = !xrstor_sigcontext(env, fpstate, fpstate_addr);
+#endif
+    unlock_user_struct(fpstate, fpstate_addr, 0);
 
-    return err;
+    return ok;
 }
 
 /* Note: there is no sigreturn on x86_64, there is only rt_sigreturn */
@@ -665,8 +663,9 @@ long do_sigreturn(CPUX86State *env)
     set_sigmask(&set);
 
     /* restore registers */
-    if (restore_sigcontext(env, &frame->sc))
+    if (!restore_sigcontext(env, &frame->sc)) {
         goto badframe;
+    }
     unlock_user_struct(frame, frame_addr, 0);
     return -QEMU_ESIGRETURN;
 
@@ -690,7 +689,7 @@ long do_rt_sigreturn(CPUX86State *env)
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
     set_sigmask(&set);
 
-    if (restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
+    if (!restore_sigcontext(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
     }
 
