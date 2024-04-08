@@ -2039,22 +2039,6 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
             goto err;
         }
 
-        /* Mark dirty page's bitmap of guest memory */
-        if (vdev->lm_logging_ctrl == LM_ENABLE) {
-            uint64_t chunk = elem->in_addr[i] / VHOST_LOG_CHUNK;
-            /* Get chunk index */
-            BitmapMemoryRegionCaches *caches = qatomic_rcu_read(&vdev->caches);
-            uint64_t index = chunk / 8;
-            uint64_t shift = chunk % 8;
-            uint8_t val = 0;
-            address_space_read_cached(&caches->bitmap, index, &val,
-                                      sizeof(val));
-            val |= 1 << shift;
-            address_space_write_cached(&caches->bitmap, index, &val,
-                                       sizeof(val));
-            address_space_cache_invalidate(&caches->bitmap, index, sizeof(val));
-        }
-
         elems[i] = elem;
         lens[i] = total;
         i++;
