@@ -22,13 +22,11 @@ stub_ss.add(files('iothread-lock.c'))
 if have_block
   stub_ss.add(files('iothread-lock-block.c'))
 endif
-stub_ss.add(files('isa-bus.c'))
 stub_ss.add(files('is-daemonized.c'))
 if libaio.found()
   stub_ss.add(files('linux-aio.c'))
 endif
 stub_ss.add(files('migr-blocker.c'))
-stub_ss.add(files('module-opts.c'))
 stub_ss.add(files('monitor.c'))
 stub_ss.add(files('monitor-core.c'))
 stub_ss.add(files('physmem.c'))
@@ -57,7 +55,6 @@ if have_block or have_ga
 endif
 if have_system
   stub_ss.add(files('fw_cfg.c'))
-  stub_ss.add(files('pci-bus.c'))
   stub_ss.add(files('semihost.c'))
   stub_ss.add(files('usb-dev-stub.c'))
   stub_ss.add(files('xen-hw-stub.c'))

@@ -26,8 +26,3 @@ HumanReadableText *qmp_x_query_usb(Error **errp)
     error_setg(errp, "Support for USB devices not built-in");
     return NULL;
 }
-
-void hmp_info_usb(Monitor *mon, const QDict *qdict)
-{
-    monitor_printf(mon, "Support for USB devices not built-in\n");
-}
