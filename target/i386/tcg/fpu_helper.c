@@ -2725,39 +2725,41 @@ void helper_xsaveopt(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     do_xsave(env, ptr, rfbm, inuse, inuse, GETPC());
 }
 
-static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xrstor_fpu(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     int i, fpuc, fpus, fptag;
     target_ulong addr;
-    X86Access ac;
 
-    fpuc = cpu_lduw_data_ra(env, ptr + XO(legacy.fcw), ra);
-    fpus = cpu_lduw_data_ra(env, ptr + XO(legacy.fsw), ra);
-    fptag = cpu_lduw_data_ra(env, ptr + XO(legacy.ftw), ra);
+    fpuc = access_ldw(ac, ptr + XO(legacy.fcw));
+    fpus = access_ldw(ac, ptr + XO(legacy.fsw));
+    fptag = access_ldw(ac, ptr + XO(legacy.ftw));
     cpu_set_fpuc(env, fpuc);
     cpu_set_fpus(env, fpus);
+
     fptag ^= 0xff;
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag >> i) & 1);
     }
 
     addr = ptr + XO(legacy.fpregs);
-    access_prepare(&ac, env, addr, 8 * 16, MMU_DATA_LOAD, ra);
 
     for (i = 0; i < 8; i++) {
-        floatx80 tmp = do_fldt(&ac, addr);
+        floatx80 tmp = do_fldt(ac, addr);
         ST(i) = tmp;
         addr += 16;
     }
 }
 
-static void do_xrstor_mxcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xrstor_mxcsr(X86Access *ac, target_ulong ptr)
 {
-    cpu_set_mxcsr(env, cpu_ldl_data_ra(env, ptr + XO(legacy.mxcsr), ra));
+    CPUX86State *env = ac->env;
+    cpu_set_mxcsr(env, access_ldl(ac, ptr + XO(legacy.mxcsr)));
 }
 
-static void do_xrstor_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xrstor_sse(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     int i, nb_xmm_regs;
     target_ulong addr;
 
@@ -2769,8 +2771,8 @@ static void do_xrstor_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
     addr = ptr + XO(legacy.xmm_regs);
     for (i = 0; i < nb_xmm_regs; i++) {
-        env->xmm_regs[i].ZMM_Q(0) = cpu_ldq_data_ra(env, addr, ra);
-        env->xmm_regs[i].ZMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, ra);
+        env->xmm_regs[i].ZMM_Q(0) = access_ldq(ac, addr);
+        env->xmm_regs[i].ZMM_Q(1) = access_ldq(ac, addr + 8);
         addr += 16;
     }
 }
@@ -2850,20 +2852,24 @@ static void do_xrstor_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
 static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
+    X86Access ac;
+
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
         raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
-    do_xrstor_fpu(env, ptr, ra);
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_LOAD, ra);
+    do_xrstor_fpu(&ac, ptr);
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        do_xrstor_mxcsr(env, ptr, ra);
+        do_xrstor_mxcsr(&ac, ptr);
         /* Fast FXRSTOR leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR)
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
-            do_xrstor_sse(env, ptr, ra);
+            do_xrstor_sse(&ac, ptr);
         }
     }
 }
@@ -2876,6 +2882,7 @@ void helper_fxrstor(CPUX86State *env, target_ulong ptr)
 static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr_t ra)
 {
     uint64_t xstate_bv, xcomp_bv, reserve0;
+    X86Access ac;
 
     rfbm &= env->xcr0;
 
@@ -2914,9 +2921,12 @@ static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr
         raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_LOAD, ra);
+
     if (rfbm & XSTATE_FP_MASK) {
         if (xstate_bv & XSTATE_FP_MASK) {
-            do_xrstor_fpu(env, ptr, ra);
+            do_xrstor_fpu(&ac, ptr);
         } else {
             do_fninit(env);
             memset(env->fpregs, 0, sizeof(env->fpregs));
@@ -2925,9 +2935,9 @@ static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr
     if (rfbm & XSTATE_SSE_MASK) {
         /* Note that the standard form of XRSTOR loads MXCSR from memory
            whether or not the XSTATE_BV bit is set.  */
-        do_xrstor_mxcsr(env, ptr, ra);
+        do_xrstor_mxcsr(&ac, ptr);
         if (xstate_bv & XSTATE_SSE_MASK) {
-            do_xrstor_sse(env, ptr, ra);
+            do_xrstor_sse(&ac, ptr);
         } else {
             do_clear_sse(env);
         }
