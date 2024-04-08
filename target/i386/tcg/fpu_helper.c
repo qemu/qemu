@@ -2675,16 +2675,6 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     X86Access ac;
     unsigned size;
 
-    /* The OS must have enabled XSAVE.  */
-    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
-        raise_exception_ra(env, EXCP06_ILLOP, ra);
-    }
-
-    /* The operand must be 64 byte aligned.  */
-    if (ptr & 63) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
-    }
-
     /* Never save anything not enabled by XCR0.  */
     rfbm &= env->xcr0;
     opt &= rfbm;
@@ -2721,15 +2711,35 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     access_stq(&ac, ptr + XO(header.xstate_bv), new_bv);
 }
 
+static void do_xsave_chk(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+{
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, ra);
+    }
+
+    /* The operand must be 64 byte aligned.  */
+    if (ptr & 63) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+}
+
 void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, GETPC());
+    uintptr_t ra = GETPC();
+
+    do_xsave_chk(env, ptr, ra);
+    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, ra);
 }
 
 void helper_xsaveopt(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    uint64_t inuse = get_xinuse(env);
-    do_xsave(env, ptr, rfbm, inuse, inuse, GETPC());
+    uintptr_t ra = GETPC();
+    uint64_t inuse;
+
+    do_xsave_chk(env, ptr, ra);
+    inuse = get_xinuse(env);
+    do_xsave(env, ptr, rfbm, inuse, inuse, ra);
 }
 
 static void do_xrstor_fpu(X86Access *ac, target_ulong ptr)
@@ -2900,16 +2910,6 @@ static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr
 
     rfbm &= env->xcr0;
 
-    /* The OS must have enabled XSAVE.  */
-    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
-        raise_exception_ra(env, EXCP06_ILLOP, ra);
-    }
-
-    /* The operand must be 64 byte aligned.  */
-    if (ptr & 63) {
-        raise_exception_ra(env, EXCP0D_GPF, ra);
-    }
-
     size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader);
     access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, ra);
 
@@ -3004,7 +3004,10 @@ static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr
 
 void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_xrstor(env, ptr, rfbm, GETPC());
+    uintptr_t ra = GETPC();
+
+    do_xsave_chk(env, ptr, ra);
+    do_xrstor(env, ptr, rfbm, ra);
 }
 
 #if defined(CONFIG_USER_ONLY)
