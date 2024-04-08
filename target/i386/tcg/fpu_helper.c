@@ -27,6 +27,7 @@
 #include "fpu/softfloat.h"
 #include "fpu/softfloat-macros.h"
 #include "helper-tcg.h"
+#include "access.h"
 
 /* float macros */
 #define FT0    (env->ft0)
@@ -84,23 +85,22 @@ static inline void fpop(CPUX86State *env)
     env->fpstt = (env->fpstt + 1) & 7;
 }
 
-static floatx80 do_fldt(CPUX86State *env, target_ulong ptr, uintptr_t retaddr)
+static floatx80 do_fldt(X86Access *ac, target_ulong ptr)
 {
     CPU_LDoubleU temp;
 
-    temp.l.lower = cpu_ldq_data_ra(env, ptr, retaddr);
-    temp.l.upper = cpu_lduw_data_ra(env, ptr + 8, retaddr);
+    temp.l.lower = access_ldq(ac, ptr);
+    temp.l.upper = access_ldw(ac, ptr + 8);
     return temp.d;
 }
 
-static void do_fstt(CPUX86State *env, floatx80 f, target_ulong ptr,
-                    uintptr_t retaddr)
+static void do_fstt(X86Access *ac, target_ulong ptr, floatx80 f)
 {
     CPU_LDoubleU temp;
 
     temp.d = f;
-    cpu_stq_data_ra(env, ptr, temp.l.lower, retaddr);
-    cpu_stw_data_ra(env, ptr + 8, temp.l.upper, retaddr);
+    access_stq(ac, ptr, temp.l.lower);
+    access_stw(ac, ptr + 8, temp.l.upper);
 }
 
 /* x87 FPU helpers */
@@ -382,16 +382,22 @@ int64_t helper_fisttll_ST0(CPUX86State *env)
 void helper_fldt_ST0(CPUX86State *env, target_ulong ptr)
 {
     int new_fpstt;
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, 10, MMU_DATA_LOAD, GETPC());
 
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = do_fldt(env, ptr, GETPC());
+    env->fpregs[new_fpstt].d = do_fldt(&ac, ptr);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fstt_ST0(CPUX86State *env, target_ulong ptr)
 {
-    do_fstt(env, ST0, ptr, GETPC());
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, 10, MMU_DATA_STORE, GETPC());
+    do_fstt(&ac, ptr, ST0);
 }
 
 void helper_fpush(CPUX86State *env)
@@ -2460,15 +2466,18 @@ void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
 static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
                      uintptr_t retaddr)
 {
+    X86Access ac;
     floatx80 tmp;
     int i;
 
     do_fstenv(env, ptr, data32, retaddr);
 
     ptr += (target_ulong)14 << data32;
+    access_prepare(&ac, env, ptr, 80, MMU_DATA_STORE, retaddr);
+
     for (i = 0; i < 8; i++) {
         tmp = ST(i);
-        do_fstt(env, tmp, ptr, retaddr);
+        do_fstt(&ac, ptr, tmp);
         ptr += 10;
     }
 
@@ -2483,14 +2492,17 @@ void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
 static void do_frstor(CPUX86State *env, target_ulong ptr, int data32,
                       uintptr_t retaddr)
 {
+    X86Access ac;
     floatx80 tmp;
     int i;
 
     do_fldenv(env, ptr, data32, retaddr);
     ptr += (target_ulong)14 << data32;
 
+    access_prepare(&ac, env, ptr, 80, MMU_DATA_LOAD, retaddr);
+
     for (i = 0; i < 8; i++) {
-        tmp = do_fldt(env, ptr, retaddr);
+        tmp = do_fldt(&ac, ptr);
         ST(i) = tmp;
         ptr += 10;
     }
@@ -2507,6 +2519,7 @@ static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     int fpus, fptag, i;
     target_ulong addr;
+    X86Access ac;
 
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
@@ -2525,9 +2538,11 @@ static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     cpu_stq_data_ra(env, ptr + XO(legacy.fpdp), 0, ra); /* edp+sel; rdp */
 
     addr = ptr + XO(legacy.fpregs);
+    access_prepare(&ac, env, addr, 8 * 16, MMU_DATA_STORE, ra);
+
     for (i = 0; i < 8; i++) {
         floatx80 tmp = ST(i);
-        do_fstt(env, tmp, addr, ra);
+        do_fstt(&ac, addr, tmp);
         addr += 16;
     }
 }
@@ -2700,6 +2715,7 @@ static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     int i, fpuc, fpus, fptag;
     target_ulong addr;
+    X86Access ac;
 
     fpuc = cpu_lduw_data_ra(env, ptr + XO(legacy.fcw), ra);
     fpus = cpu_lduw_data_ra(env, ptr + XO(legacy.fsw), ra);
@@ -2712,8 +2728,10 @@ static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     }
 
     addr = ptr + XO(legacy.fpregs);
+    access_prepare(&ac, env, addr, 8 * 16, MMU_DATA_LOAD, ra);
+
     for (i = 0; i < 8; i++) {
-        floatx80 tmp = do_fldt(env, addr, ra);
+        floatx80 tmp = do_fldt(&ac, addr);
         ST(i) = tmp;
         addr += 16;
     }
