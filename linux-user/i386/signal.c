@@ -34,6 +34,23 @@ struct target_fpreg {
     uint16_t exponent;
 };
 
+/* Legacy x87 fpu state format for FSAVE/FRESTOR. */
+struct target_fregs_state {
+    uint32_t cwd;
+    uint32_t swd;
+    uint32_t twd;
+    uint32_t fip;
+    uint32_t fcs;
+    uint32_t foo;
+    uint32_t fos;
+    struct target_fpreg st[8];
+
+    /* Software status information [not touched by FSAVE]. */
+    uint16_t status;
+    uint16_t magic;   /* 0xffff: FPU data only, 0x0000: FXSR FPU data */
+};
+QEMU_BUILD_BUG_ON(sizeof(struct target_fregs_state) != 32 + 80);
+
 struct target_fpx_sw_bytes {
     uint32_t magic1;
     uint32_t extended_size;
@@ -44,29 +61,19 @@ struct target_fpx_sw_bytes {
 QEMU_BUILD_BUG_ON(sizeof(struct target_fpx_sw_bytes) != 12*4);
 
 struct target_fpstate_32 {
-    /* Regular FPU environment */
-    uint32_t cw;
-    uint32_t sw;
-    uint32_t tag;
-    uint32_t ipoff;
-    uint32_t cssel;
-    uint32_t dataoff;
-    uint32_t datasel;
-    struct target_fpreg st[8];
-    uint16_t  status;
-    uint16_t  magic;          /* 0xffff = regular FPU data only */
-    X86LegacyXSaveArea fxsave;
+    struct target_fregs_state fpstate;
+    X86LegacyXSaveArea fxstate;
 };
 
 /*
  * For simplicity, setup_frame aligns struct target_fpstate_32 to
  * 16 bytes, so ensure that the FXSAVE area is also aligned.
  */
-QEMU_BUILD_BUG_ON(offsetof(struct target_fpstate_32, fxsave) & 15);
+QEMU_BUILD_BUG_ON(offsetof(struct target_fpstate_32, fxstate) & 15);
 
 #ifndef TARGET_X86_64
 # define target_fpstate target_fpstate_32
-# define TARGET_FPSTATE_FXSAVE_OFFSET offsetof(struct target_fpstate_32, fxsave)
+# define TARGET_FPSTATE_FXSAVE_OFFSET offsetof(struct target_fpstate_32, fxstate)
 #else
 # define target_fpstate X86LegacyXSaveArea
 # define TARGET_FPSTATE_FXSAVE_OFFSET 0
@@ -279,15 +286,15 @@ static void setup_sigcontext(struct target_sigcontext *sc,
     __put_user(env->segs[R_SS].selector, (unsigned int *)&sc->ss);
 
     cpu_x86_fsave(env, fpstate_addr, 1);
-    fpstate->status = fpstate->sw;
+    fpstate->fpstate.status = fpstate->fpstate.swd;
     if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
         magic = 0xffff;
     } else {
-        xsave_sigcontext(env, &fpstate->fxsave,
+        xsave_sigcontext(env, &fpstate->fxstate,
                          fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
         magic = 0;
     }
-    __put_user(magic, &fpstate->magic);
+    __put_user(magic, &fpstate->fpstate.magic);
 #else
     __put_user(env->regs[R_EDI], &sc->rdi);
     __put_user(env->regs[R_ESI], &sc->rsi);
@@ -623,7 +630,7 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
             cpu_x86_frstor(env, fpstate_addr, 1);
             err = 0;
         } else {
-            err = xrstor_sigcontext(env, &fpstate->fxsave,
+            err = xrstor_sigcontext(env, &fpstate->fxstate,
                                     fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
         }
 #else
