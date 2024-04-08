@@ -2442,20 +2442,15 @@ static void cpu_set_fpus(CPUX86State *env, uint16_t fpus)
 #endif
 }
 
-static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
-                      uintptr_t retaddr)
+static void do_fldenv(X86Access *ac, target_ulong ptr, int data32)
 {
     int i, fpus, fptag;
+    CPUX86State *env = ac->env;
 
-    if (data32) {
-        cpu_set_fpuc(env, cpu_lduw_data_ra(env, ptr, retaddr));
-        fpus = cpu_lduw_data_ra(env, ptr + 4, retaddr);
-        fptag = cpu_lduw_data_ra(env, ptr + 8, retaddr);
-    } else {
-        cpu_set_fpuc(env, cpu_lduw_data_ra(env, ptr, retaddr));
-        fpus = cpu_lduw_data_ra(env, ptr + 2, retaddr);
-        fptag = cpu_lduw_data_ra(env, ptr + 4, retaddr);
-    }
+    cpu_set_fpuc(env, access_ldw(ac, ptr));
+    fpus = access_ldw(ac, ptr + (2 << data32));
+    fptag = access_ldw(ac, ptr + (4 << data32));
+
     cpu_set_fpus(env, fpus);
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag & 3) == 3);
@@ -2465,7 +2460,10 @@ static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
 
 void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_fldenv(env, ptr, data32, GETPC());
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, 14 << data32, MMU_DATA_STORE, GETPC());
+    do_fldenv(&ac, ptr, data32);
 }
 
 static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
@@ -2499,12 +2497,12 @@ static void do_frstor(CPUX86State *env, target_ulong ptr, int data32,
 {
     X86Access ac;
     floatx80 tmp;
-    int i;
+    int i, envsize = 14 << data32;
 
-    do_fldenv(env, ptr, data32, retaddr);
-    ptr += (target_ulong)14 << data32;
+    access_prepare(&ac, env, ptr, envsize + 80, MMU_DATA_LOAD, retaddr);
 
-    access_prepare(&ac, env, ptr, 80, MMU_DATA_LOAD, retaddr);
+    do_fldenv(&ac, ptr, data32);
+    ptr += envsize;
 
     for (i = 0; i < 8; i++) {
         tmp = do_fldt(&ac, ptr);
