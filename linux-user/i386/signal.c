@@ -268,7 +268,7 @@ static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
 
         /* Zero the header, XSAVE *adds* features to an existing save state.  */
         memset(fxsave->xfeatures, 0, 64);
-        cpu_x86_xsave(env, fxsave_addr);
+        cpu_x86_xsave(env, fxsave_addr, -1);
         __put_user(TARGET_FP_XSTATE_MAGIC1, &fxsave->sw_reserved.magic1);
         __put_user(extended_size, &fxsave->sw_reserved.extended_size);
         __put_user(env->xcr0, &fxsave->sw_reserved.xfeatures);
@@ -569,7 +569,7 @@ static int xrstor_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
                 return 1;
             }
             if (tswapl(*(uint32_t *) &fxsave->xfeatures[xfeatures_size]) == TARGET_FP_XSTATE_MAGIC2) {
-                cpu_x86_xrstor(env, fxsave_addr);
+                cpu_x86_xrstor(env, fxsave_addr, -1);
                 return 0;
             }
         }

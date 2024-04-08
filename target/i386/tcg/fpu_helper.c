@@ -3047,14 +3047,14 @@ void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
     do_fxrstor(&ac, ptr);
 }
 
-void cpu_x86_xsave(CPUX86State *env, target_ulong ptr)
+void cpu_x86_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_xsave(env, ptr, -1, get_xinuse(env), -1, 0);
+    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, 0);
 }
 
-void cpu_x86_xrstor(CPUX86State *env, target_ulong ptr)
+void cpu_x86_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_xrstor(env, ptr, -1, 0);
+    do_xrstor(env, ptr, rfbm, 0);
 }
 #endif
 
