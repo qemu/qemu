@@ -72,16 +72,6 @@ static inline int nbd_write(QIOChannel *ioc, const void *buffer, size_t size,
     return qio_channel_write_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
 }
 
-struct NBDTLSHandshakeData {
-    GMainLoop *loop;
-    bool complete;
-    Error *error;
-};
-
-
-void nbd_tls_handshake(QIOTask *task,
-                       void *opaque);
-
 int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 
 #endif
