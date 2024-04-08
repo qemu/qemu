@@ -530,8 +530,8 @@ give_sigsegv:
     force_sigsegv(sig);
 }
 
-static int xrstor_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxsave,
-                             abi_ulong fxsave_addr)
+static bool xrstor_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxsave,
+                              abi_ulong fxsave_addr)
 {
     struct target_fpx_sw_bytes *sw = (void *)&fxsave->sw_reserved;
 
@@ -549,19 +549,19 @@ static int xrstor_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxsave,
             && extended_size >= minimum_size) {
             if (!access_ok(env_cpu(env), VERIFY_READ, fxsave_addr,
                            extended_size - TARGET_FPSTATE_FXSAVE_OFFSET)) {
-                return 1;
+                return false;
             }
             magic2 = tswapl(*(uint32_t *)((void *)fxsave + xstate_size));
             if (magic2 == TARGET_FP_XSTATE_MAGIC2) {
                 cpu_x86_xrstor(env, fxsave_addr, -1);
-                return 0;
+                return true;
             }
         }
         /* fall through to fxrstor */
     }
 
     cpu_x86_fxrstor(env, fxsave_addr);
-    return 0;
+    return true;
 }
 
 static bool restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
@@ -629,11 +629,11 @@ static bool restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
         cpu_x86_frstor(env, fpstate_addr, 1);
         ok = true;
     } else {
-        ok = !xrstor_sigcontext(env, &fpstate->fxstate,
-                                fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
+        ok = xrstor_sigcontext(env, &fpstate->fxstate,
+                               fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
     }
 #else
-    ok = !xrstor_sigcontext(env, fpstate, fpstate_addr);
+    ok = xrstor_sigcontext(env, fpstate, fpstate_addr);
 #endif
     unlock_user_struct(fpstate, fpstate_addr, 0);
 
