@@ -819,8 +819,6 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
     }
 }
 
-#define BLK_READ_BLOCK(a, len)  sd_blk_read(sd, a, len)
-#define BLK_WRITE_BLOCK(a, len) sd_blk_write(sd, a, len)
 #define APP_READ_BLOCK(a, len)  memset(sd->data, 0xec, len)
 #define APP_WRITE_BLOCK(a, len)
 
@@ -872,7 +870,7 @@ static void sd_erase(SDState *sd)
                 continue;
             }
         }
-        BLK_WRITE_BLOCK(erase_addr, erase_len);
+        sd_blk_write(sd, erase_addr, erase_len);
     }
 }
 
@@ -1903,7 +1901,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         if (sd->data_offset >= sd->blk_len) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
-            BLK_WRITE_BLOCK(sd->data_start, sd->data_offset);
+            sd_blk_write(sd, sd->data_start, sd->data_offset);
             sd->blk_written ++;
             sd->csd[14] |= 0x40;
             /* Bzzzzzzztt .... Operation complete.  */
@@ -1929,7 +1927,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         if (sd->data_offset >= sd->blk_len) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
-            BLK_WRITE_BLOCK(sd->data_start, sd->data_offset);
+            sd_blk_write(sd, sd->data_start, sd->data_offset);
             sd->blk_written++;
             sd->data_start += sd->blk_len;
             sd->data_offset = 0;
@@ -2077,8 +2075,9 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     case 17:  /* CMD17:  READ_SINGLE_BLOCK */
-        if (sd->data_offset == 0)
-            BLK_READ_BLOCK(sd->data_start, io_len);
+        if (sd->data_offset == 0) {
+            sd_blk_read(sd, sd->data_start, io_len);
+        }
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= io_len)
@@ -2091,7 +2090,7 @@ uint8_t sd_read_byte(SDState *sd)
                                   sd->data_start, io_len)) {
                 return 0x00;
             }
-            BLK_READ_BLOCK(sd->data_start, io_len);
+            sd_blk_read(sd, sd->data_start, io_len);
         }
         ret = sd->data[sd->data_offset ++];
 
