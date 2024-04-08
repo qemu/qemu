@@ -2619,8 +2619,25 @@ static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     cpu_stq_data_ra(env, ptr, env->pkru, ra);
 }
 
-static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_fxsave(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
+
+    do_xsave_fpu(ac, ptr);
+    if (env->cr[4] & CR4_OSFXSR_MASK) {
+        do_xsave_mxcsr(ac, ptr);
+        /* Fast FXSAVE leaves out the XMM registers */
+        if (!(env->efer & MSR_EFER_FFXSR)
+            || (env->hflags & HF_CPL_MASK)
+            || !(env->hflags & HF_LMA_MASK)) {
+            do_xsave_sse(ac, ptr);
+        }
+    }
+}
+
+void helper_fxsave(CPUX86State *env, target_ulong ptr)
+{
+    uintptr_t ra = GETPC();
     X86Access ac;
 
     /* The operand must be 16 byte aligned */
@@ -2630,22 +2647,7 @@ static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
     access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
                    MMU_DATA_STORE, ra);
-    do_xsave_fpu(&ac, ptr);
-
-    if (env->cr[4] & CR4_OSFXSR_MASK) {
-        do_xsave_mxcsr(&ac, ptr);
-        /* Fast FXSAVE leaves out the XMM registers */
-        if (!(env->efer & MSR_EFER_FFXSR)
-            || (env->hflags & HF_CPL_MASK)
-            || !(env->hflags & HF_LMA_MASK)) {
-            do_xsave_sse(&ac, ptr);
-        }
-    }
-}
-
-void helper_fxsave(CPUX86State *env, target_ulong ptr)
-{
-    do_fxsave(env, ptr, GETPC());
+    do_fxsave(&ac, ptr);
 }
 
 static uint64_t get_xinuse(CPUX86State *env)
@@ -2850,8 +2852,25 @@ static void do_xrstor_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     env->pkru = cpu_ldq_data_ra(env, ptr, ra);
 }
 
-static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_fxrstor(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
+
+    do_xrstor_fpu(ac, ptr);
+    if (env->cr[4] & CR4_OSFXSR_MASK) {
+        do_xrstor_mxcsr(ac, ptr);
+        /* Fast FXRSTOR leaves out the XMM registers */
+        if (!(env->efer & MSR_EFER_FFXSR)
+            || (env->hflags & HF_CPL_MASK)
+            || !(env->hflags & HF_LMA_MASK)) {
+            do_xrstor_sse(ac, ptr);
+        }
+    }
+}
+
+void helper_fxrstor(CPUX86State *env, target_ulong ptr)
+{
+    uintptr_t ra = GETPC();
     X86Access ac;
 
     /* The operand must be 16 byte aligned */
@@ -2861,22 +2880,7 @@ static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
     access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
                    MMU_DATA_LOAD, ra);
-    do_xrstor_fpu(&ac, ptr);
-
-    if (env->cr[4] & CR4_OSFXSR_MASK) {
-        do_xrstor_mxcsr(&ac, ptr);
-        /* Fast FXRSTOR leaves out the XMM registers */
-        if (!(env->efer & MSR_EFER_FFXSR)
-            || (env->hflags & HF_CPL_MASK)
-            || !(env->hflags & HF_LMA_MASK)) {
-            do_xrstor_sse(&ac, ptr);
-        }
-    }
-}
-
-void helper_fxrstor(CPUX86State *env, target_ulong ptr)
-{
-    do_fxrstor(env, ptr, GETPC());
+    do_fxrstor(&ac, ptr);
 }
 
 static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr_t ra)
@@ -3008,12 +3012,20 @@ void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
 
 void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
 {
-    do_fxsave(env, ptr, 0);
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_STORE, 0);
+    do_fxsave(&ac, ptr);
 }
 
 void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
 {
-    do_fxrstor(env, ptr, 0);
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_LOAD, 0);
+    do_fxrstor(&ac, ptr);
 }
 
 void cpu_x86_xsave(CPUX86State *env, target_ulong ptr)
