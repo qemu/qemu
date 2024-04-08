@@ -2579,8 +2579,9 @@ static void do_xsave_sse(X86Access *ac, target_ulong ptr)
     }
 }
 
-static void do_xsave_ymmh(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_ymmh(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     int i, nb_xmm_regs;
 
     if (env->hflags & HF_CS64_MASK) {
@@ -2590,33 +2591,36 @@ static void do_xsave_ymmh(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     }
 
     for (i = 0; i < nb_xmm_regs; i++, ptr += 16) {
-        cpu_stq_data_ra(env, ptr, env->xmm_regs[i].ZMM_Q(2), ra);
-        cpu_stq_data_ra(env, ptr + 8, env->xmm_regs[i].ZMM_Q(3), ra);
+        access_stq(ac, ptr, env->xmm_regs[i].ZMM_Q(2));
+        access_stq(ac, ptr + 8, env->xmm_regs[i].ZMM_Q(3));
     }
 }
 
-static void do_xsave_bndregs(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_bndregs(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     target_ulong addr = ptr + offsetof(XSaveBNDREG, bnd_regs);
     int i;
 
     for (i = 0; i < 4; i++, addr += 16) {
-        cpu_stq_data_ra(env, addr, env->bnd_regs[i].lb, ra);
-        cpu_stq_data_ra(env, addr + 8, env->bnd_regs[i].ub, ra);
+        access_stq(ac, addr, env->bnd_regs[i].lb);
+        access_stq(ac, addr + 8, env->bnd_regs[i].ub);
     }
 }
 
-static void do_xsave_bndcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_bndcsr(X86Access *ac, target_ulong ptr)
 {
-    cpu_stq_data_ra(env, ptr + offsetof(XSaveBNDCSR, bndcsr.cfgu),
-                    env->bndcs_regs.cfgu, ra);
-    cpu_stq_data_ra(env, ptr + offsetof(XSaveBNDCSR, bndcsr.sts),
-                    env->bndcs_regs.sts, ra);
+    CPUX86State *env = ac->env;
+
+    access_stq(ac, ptr + offsetof(XSaveBNDCSR, bndcsr.cfgu),
+               env->bndcs_regs.cfgu);
+    access_stq(ac, ptr + offsetof(XSaveBNDCSR, bndcsr.sts),
+               env->bndcs_regs.sts);
 }
 
-static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_pkru(X86Access *ac, target_ulong ptr)
 {
-    cpu_stq_data_ra(env, ptr, env->pkru, ra);
+    access_stq(ac, ptr, ac->env->pkru);
 }
 
 static void do_fxsave(X86Access *ac, target_ulong ptr)
@@ -2669,6 +2673,7 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
 {
     uint64_t old_bv, new_bv;
     X86Access ac;
+    unsigned size;
 
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
@@ -2684,8 +2689,8 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     rfbm &= env->xcr0;
     opt &= rfbm;
 
-    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
-                   MMU_DATA_STORE, ra);
+    size = xsave_area_size(opt, false);
+    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, ra);
 
     if (opt & XSTATE_FP_MASK) {
         do_xsave_fpu(&ac, ptr);
@@ -2698,22 +2703,22 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
         do_xsave_sse(&ac, ptr);
     }
     if (opt & XSTATE_YMM_MASK) {
-        do_xsave_ymmh(env, ptr + XO(avx_state), ra);
+        do_xsave_ymmh(&ac, ptr + XO(avx_state));
     }
     if (opt & XSTATE_BNDREGS_MASK) {
-        do_xsave_bndregs(env, ptr + XO(bndreg_state), ra);
+        do_xsave_bndregs(&ac, ptr + XO(bndreg_state));
     }
     if (opt & XSTATE_BNDCSR_MASK) {
-        do_xsave_bndcsr(env, ptr + XO(bndcsr_state), ra);
+        do_xsave_bndcsr(&ac, ptr + XO(bndcsr_state));
     }
     if (opt & XSTATE_PKRU_MASK) {
-        do_xsave_pkru(env, ptr + XO(pkru_state), ra);
+        do_xsave_pkru(&ac, ptr + XO(pkru_state));
     }
 
     /* Update the XSTATE_BV field.  */
-    old_bv = cpu_ldq_data_ra(env, ptr + XO(header.xstate_bv), ra);
+    old_bv = access_ldq(&ac, ptr + XO(header.xstate_bv));
     new_bv = (old_bv & ~rfbm) | (inuse & rfbm);
-    cpu_stq_data_ra(env, ptr + XO(header.xstate_bv), new_bv, ra);
+    access_stq(&ac, ptr + XO(header.xstate_bv), new_bv);
 }
 
 void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
