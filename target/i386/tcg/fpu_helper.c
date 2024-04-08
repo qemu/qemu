@@ -773,18 +773,21 @@ void helper_fninit(CPUX86State *env)
 
 void helper_fbld_ST0(CPUX86State *env, target_ulong ptr)
 {
+    X86Access ac;
     floatx80 tmp;
     uint64_t val;
     unsigned int v;
     int i;
 
+    access_prepare(&ac, env, ptr, 10, MMU_DATA_LOAD, GETPC());
+
     val = 0;
     for (i = 8; i >= 0; i--) {
-        v = cpu_ldub_data_ra(env, ptr + i, GETPC());
+        v = access_ldb(&ac, ptr + i);
         val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
     }
     tmp = int64_to_floatx80(val, &env->fp_status);
-    if (cpu_ldub_data_ra(env, ptr + 9, GETPC()) & 0x80) {
+    if (access_ldb(&ac, ptr + 9) & 0x80) {
         tmp = floatx80_chs(tmp);
     }
     fpush(env);
@@ -798,7 +801,9 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
     target_ulong mem_ref, mem_end;
     int64_t val;
     CPU_LDoubleU temp;
+    X86Access ac;
 
+    access_prepare(&ac, env, ptr, 10, MMU_DATA_STORE, GETPC());
     temp.d = ST0;
 
     val = floatx80_to_int64(ST0, &env->fp_status);
@@ -806,20 +811,20 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
     if (val >= 1000000000000000000LL || val <= -1000000000000000000LL) {
         set_float_exception_flags(float_flag_invalid, &env->fp_status);
         while (mem_ref < ptr + 7) {
-            cpu_stb_data_ra(env, mem_ref++, 0, GETPC());
+            access_stb(&ac, mem_ref++, 0);
         }
-        cpu_stb_data_ra(env, mem_ref++, 0xc0, GETPC());
-        cpu_stb_data_ra(env, mem_ref++, 0xff, GETPC());
-        cpu_stb_data_ra(env, mem_ref++, 0xff, GETPC());
+        access_stb(&ac, mem_ref++, 0xc0);
+        access_stb(&ac, mem_ref++, 0xff);
+        access_stb(&ac, mem_ref++, 0xff);
         merge_exception_flags(env, old_flags);
         return;
     }
     mem_end = mem_ref + 9;
     if (SIGND(temp)) {
-        cpu_stb_data_ra(env, mem_end, 0x80, GETPC());
+        access_stb(&ac, mem_end, 0x80);
         val = -val;
     } else {
-        cpu_stb_data_ra(env, mem_end, 0x00, GETPC());
+        access_stb(&ac, mem_end, 0x00);
     }
     while (mem_ref < mem_end) {
         if (val == 0) {
@@ -828,10 +833,10 @@ void helper_fbst_ST0(CPUX86State *env, target_ulong ptr)
         v = val % 100;
         val = val / 100;
         v = ((v / 10) << 4) | (v % 10);
-        cpu_stb_data_ra(env, mem_ref++, v, GETPC());
+        access_stb(&ac, mem_ref++, v);
     }
     while (mem_ref < mem_end) {
-        cpu_stb_data_ra(env, mem_ref++, 0, GETPC());
+        access_stb(&ac, mem_ref++, 0);
     }
     merge_exception_flags(env, old_flags);
 }
