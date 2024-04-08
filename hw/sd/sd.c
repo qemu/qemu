@@ -1826,6 +1826,13 @@ send_response:
         break;
 
     case sd_r0:
+        /*
+         * Invalid state transition, reset implementation
+         * fields to avoid OOB abuse.
+         */
+        sd->data_start = 0;
+        sd->data_offset = 0;
+        /* fall-through */
     case sd_illegal:
         rsplen = 0;
         break;
