@@ -145,7 +145,7 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     s->data_pos = 0;
 }
 
-static struct AppleSMCData *applesmc_find_key(AppleSMCState *s)
+static const struct AppleSMCData *applesmc_find_key(AppleSMCState *s)
 {
     struct AppleSMCData *d;
 
@@ -161,7 +161,7 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
                                    unsigned size)
 {
     AppleSMCState *s = opaque;
-    struct AppleSMCData *d;
+    const struct AppleSMCData *d;
 
     smc_debug("DATA received: 0x%02x\n", (uint8_t)val);
     switch (s->cmd) {
@@ -269,23 +269,10 @@ static void applesmc_add_key(AppleSMCState *s, const char *key,
 static void qdev_applesmc_isa_reset(DeviceState *dev)
 {
     AppleSMCState *s = APPLE_SMC(dev);
-    struct AppleSMCData *d, *next;
 
-    /* Remove existing entries */
-    QLIST_FOREACH_SAFE(d, &s->data_def, node, next) {
-        QLIST_REMOVE(d, node);
-        g_free(d);
-    }
     s->status = 0x00;
     s->status_1e = 0x00;
     s->last_ret = 0x00;
-
-    applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
-    applesmc_add_key(s, "OSK0", 32, s->osk);
-    applesmc_add_key(s, "OSK1", 32, s->osk + 32);
-    applesmc_add_key(s, "NATJ", 1, "\0");
-    applesmc_add_key(s, "MSSP", 1, "\0");
-    applesmc_add_key(s, "MSSD", 1, "\0x3");
 }
 
 static const MemoryRegionOps applesmc_data_io_ops = {
@@ -343,6 +330,24 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
+    applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
+    applesmc_add_key(s, "OSK0", 32, s->osk);
+    applesmc_add_key(s, "OSK1", 32, s->osk + 32);
+    applesmc_add_key(s, "NATJ", 1, "\0");
+    applesmc_add_key(s, "MSSP", 1, "\0");
+    applesmc_add_key(s, "MSSD", 1, "\0x3");
+}
+
+static void applesmc_unrealize(DeviceState *dev)
+{
+    AppleSMCState *s = APPLE_SMC(dev);
+    struct AppleSMCData *d, *next;
+
+    /* Remove existing entries */
+    QLIST_FOREACH_SAFE(d, &s->data_def, node, next) {
+        QLIST_REMOVE(d, node);
+        g_free(d);
+    }
 }
 
 static Property applesmc_isa_properties[] = {
@@ -377,6 +382,7 @@ static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     dc->realize = applesmc_isa_realize;
+    dc->unrealize = applesmc_unrealize;
     dc->reset = qdev_applesmc_isa_reset;
     device_class_set_props(dc, applesmc_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
