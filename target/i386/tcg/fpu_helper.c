@@ -2469,21 +2469,16 @@ void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
     do_fldenv(&ac, ptr, data32);
 }
 
-static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
-                     uintptr_t retaddr)
+static void do_fsave(X86Access *ac, target_ulong ptr, int data32)
 {
-    X86Access ac;
-    floatx80 tmp;
-    int i, envsize = 14 << data32;
+    CPUX86State *env = ac->env;
 
-    access_prepare(&ac, env, ptr, envsize + 80, MMU_DATA_STORE, retaddr);
+    do_fstenv(ac, ptr, data32);
+    ptr += 14 << data32;
 
-    do_fstenv(&ac, ptr, data32);
-    ptr += envsize;
-
-    for (i = 0; i < 8; i++) {
-        tmp = ST(i);
-        do_fstt(&ac, ptr, tmp);
+    for (int i = 0; i < 8; i++) {
+        floatx80 tmp = ST(i);
+        do_fstt(ac, ptr, tmp);
         ptr += 10;
     }
 
@@ -2492,23 +2487,22 @@ static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
 
 void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_fsave(env, ptr, data32, GETPC());
+    int size = (14 << data32) + 80;
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, GETPC());
+    do_fsave(&ac, ptr, data32);
 }
 
-static void do_frstor(CPUX86State *env, target_ulong ptr, int data32,
-                      uintptr_t retaddr)
+static void do_frstor(X86Access *ac, target_ulong ptr, int data32)
 {
-    X86Access ac;
-    floatx80 tmp;
-    int i, envsize = 14 << data32;
+    CPUX86State *env = ac->env;
 
-    access_prepare(&ac, env, ptr, envsize + 80, MMU_DATA_LOAD, retaddr);
+    do_fldenv(ac, ptr, data32);
+    ptr += 14 << data32;
 
-    do_fldenv(&ac, ptr, data32);
-    ptr += envsize;
-
-    for (i = 0; i < 8; i++) {
-        tmp = do_fldt(&ac, ptr);
+    for (int i = 0; i < 8; i++) {
+        floatx80 tmp = do_fldt(ac, ptr);
         ST(i) = tmp;
         ptr += 10;
     }
@@ -2516,7 +2510,11 @@ static void do_frstor(CPUX86State *env, target_ulong ptr, int data32,
 
 void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_frstor(env, ptr, data32, GETPC());
+    int size = (14 << data32) + 80;
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, GETPC());
+    do_frstor(&ac, ptr, data32);
 }
 
 #define XO(X)  offsetof(X86XSaveArea, X)
@@ -2972,12 +2970,20 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 #if defined(CONFIG_USER_ONLY)
 void cpu_x86_fsave(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_fsave(env, ptr, data32, 0);
+    int size = (14 << data32) + 80;
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, 0);
+    do_fsave(&ac, ptr, data32);
 }
 
 void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_frstor(env, ptr, data32, 0);
+    int size = (14 << data32) + 80;
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, 0);
+    do_frstor(&ac, ptr, data32);
 }
 
 void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
