@@ -253,7 +253,6 @@ static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
         __put_user(0, &fxsave->sw_reserved.magic1);
     } else {
         uint32_t xstate_size = xsave_area_size(env->xcr0, false);
-        uint32_t xfeatures_size = xstate_size - TARGET_FXSAVE_SIZE;
 
         /*
          * extended_size is the offset from fpstate_addr to right after the end
@@ -273,7 +272,8 @@ static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
         __put_user(extended_size, &fxsave->sw_reserved.extended_size);
         __put_user(env->xcr0, &fxsave->sw_reserved.xfeatures);
         __put_user(xstate_size, &fxsave->sw_reserved.xstate_size);
-        __put_user(TARGET_FP_XSTATE_MAGIC2, (uint32_t *) &fxsave->xfeatures[xfeatures_size]);
+        __put_user(TARGET_FP_XSTATE_MAGIC2,
+                   (uint32_t *)((void *)fxsave + xstate_size));
     }
 }
 
@@ -559,7 +559,6 @@ static int xrstor_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
     if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
         uint32_t extended_size = tswapl(fxsave->sw_reserved.extended_size);
         uint32_t xstate_size = tswapl(fxsave->sw_reserved.xstate_size);
-        uint32_t xfeatures_size = xstate_size - TARGET_FXSAVE_SIZE;
 
         /* Linux checks MAGIC2 using xstate_size, not extended_size.  */
         if (tswapl(fxsave->sw_reserved.magic1) == TARGET_FP_XSTATE_MAGIC1 &&
@@ -568,7 +567,7 @@ static int xrstor_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxs
                            extended_size - TARGET_FPSTATE_FXSAVE_OFFSET)) {
                 return 1;
             }
-            if (tswapl(*(uint32_t *) &fxsave->xfeatures[xfeatures_size]) == TARGET_FP_XSTATE_MAGIC2) {
+            if (tswapl(*(uint32_t *)((void *)fxsave + xstate_size)) == TARGET_FP_XSTATE_MAGIC2) {
                 cpu_x86_xrstor(env, fxsave_addr, -1);
                 return 0;
             }
