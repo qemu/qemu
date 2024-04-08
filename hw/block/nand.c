@@ -255,7 +255,9 @@ static unsigned nand_load_block(NANDFlashState *s, unsigned offset)
 {
     unsigned iolen;
 
-    s->blk_load(s, s->addr, offset);
+    if (!s->blk_load(s, s->addr, offset)) {
+        return 0;
+    }
 
     iolen = (1 << s->page_shift);
     if (s->gnd) {
@@ -780,6 +782,10 @@ static bool glue(nand_blk_load_, NAND_PAGE_SIZE)(NANDFlashState *s,
                                                  uint64_t addr, unsigned offset)
 {
     if (PAGE(addr) >= s->pages) {
+        return false;
+    }
+
+    if (offset > NAND_PAGE_SIZE + OOB_SIZE) {
         return false;
     }
 
