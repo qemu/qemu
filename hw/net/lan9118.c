@@ -798,8 +798,22 @@ static void tx_fifo_push(lan9118_state *s, uint32_t val)
             /* Documentation is somewhat unclear on the ordering of bytes
                in FIFO words.  Empirical results show it to be little-endian.
                */
-            /* TODO: FIFO overflow checking.  */
             while (n--) {
+                if (s->txp->len == MIL_TXFIFO_SIZE) {
+                    /*
+                     * No more space in the FIFO. The datasheet is not
+                     * precise about this case. We choose what is easiest
+                     * to model: the packet is truncated, and TXE is raised.
+                     *
+                     * Note, it could be a fragmented packet, but we currently
+                     * do not handle that (see earlier TX_B case).
+                     */
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "MIL TX FIFO overrun, discarding %u byte%s\n",
+                                  n, n > 1 ? "s" : "");
+                    s->int_sts |= TXE_INT;
+                    break;
+                }
                 s->txp->data[s->txp->len] = val & 0xff;
                 s->txp->len++;
                 val >>= 8;
