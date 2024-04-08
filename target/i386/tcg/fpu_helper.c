@@ -2519,11 +2519,11 @@ void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
 
 #define XO(X)  offsetof(X86XSaveArea, X)
 
-static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_fpu(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     int fpus, fptag, i;
     target_ulong addr;
-    X86Access ac;
 
     fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
     fptag = 0;
@@ -2531,35 +2531,37 @@ static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
         fptag |= (env->fptags[i] << i);
     }
 
-    cpu_stw_data_ra(env, ptr + XO(legacy.fcw), env->fpuc, ra);
-    cpu_stw_data_ra(env, ptr + XO(legacy.fsw), fpus, ra);
-    cpu_stw_data_ra(env, ptr + XO(legacy.ftw), fptag ^ 0xff, ra);
+    access_stw(ac, ptr + XO(legacy.fcw), env->fpuc);
+    access_stw(ac, ptr + XO(legacy.fsw), fpus);
+    access_stw(ac, ptr + XO(legacy.ftw), fptag ^ 0xff);
 
     /* In 32-bit mode this is eip, sel, dp, sel.
        In 64-bit mode this is rip, rdp.
        But in either case we don't write actual data, just zeros.  */
-    cpu_stq_data_ra(env, ptr + XO(legacy.fpip), 0, ra); /* eip+sel; rip */
-    cpu_stq_data_ra(env, ptr + XO(legacy.fpdp), 0, ra); /* edp+sel; rdp */
+    access_stq(ac, ptr + XO(legacy.fpip), 0); /* eip+sel; rip */
+    access_stq(ac, ptr + XO(legacy.fpdp), 0); /* edp+sel; rdp */
 
     addr = ptr + XO(legacy.fpregs);
-    access_prepare(&ac, env, addr, 8 * 16, MMU_DATA_STORE, ra);
 
     for (i = 0; i < 8; i++) {
         floatx80 tmp = ST(i);
-        do_fstt(&ac, addr, tmp);
+        do_fstt(ac, addr, tmp);
         addr += 16;
     }
 }
 
-static void do_xsave_mxcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_mxcsr(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
+
     update_mxcsr_from_sse_status(env);
-    cpu_stl_data_ra(env, ptr + XO(legacy.mxcsr), env->mxcsr, ra);
-    cpu_stl_data_ra(env, ptr + XO(legacy.mxcsr_mask), 0x0000ffff, ra);
+    access_stl(ac, ptr + XO(legacy.mxcsr), env->mxcsr);
+    access_stl(ac, ptr + XO(legacy.mxcsr_mask), 0x0000ffff);
 }
 
-static void do_xsave_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
+static void do_xsave_sse(X86Access *ac, target_ulong ptr)
 {
+    CPUX86State *env = ac->env;
     int i, nb_xmm_regs;
     target_ulong addr;
 
@@ -2571,8 +2573,8 @@ static void do_xsave_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
     addr = ptr + XO(legacy.xmm_regs);
     for (i = 0; i < nb_xmm_regs; i++) {
-        cpu_stq_data_ra(env, addr, env->xmm_regs[i].ZMM_Q(0), ra);
-        cpu_stq_data_ra(env, addr + 8, env->xmm_regs[i].ZMM_Q(1), ra);
+        access_stq(ac, addr, env->xmm_regs[i].ZMM_Q(0));
+        access_stq(ac, addr + 8, env->xmm_regs[i].ZMM_Q(1));
         addr += 16;
     }
 }
@@ -2619,20 +2621,24 @@ static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
 static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
+    X86Access ac;
+
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
         raise_exception_ra(env, EXCP0D_GPF, ra);
     }
 
-    do_xsave_fpu(env, ptr, ra);
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_STORE, ra);
+    do_xsave_fpu(&ac, ptr);
 
     if (env->cr[4] & CR4_OSFXSR_MASK) {
-        do_xsave_mxcsr(env, ptr, ra);
+        do_xsave_mxcsr(&ac, ptr);
         /* Fast FXSAVE leaves out the XMM registers */
         if (!(env->efer & MSR_EFER_FFXSR)
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
-            do_xsave_sse(env, ptr, ra);
+            do_xsave_sse(&ac, ptr);
         }
     }
 }
@@ -2660,6 +2666,7 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
                      uint64_t inuse, uint64_t opt, uintptr_t ra)
 {
     uint64_t old_bv, new_bv;
+    X86Access ac;
 
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
@@ -2675,15 +2682,18 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     rfbm &= env->xcr0;
     opt &= rfbm;
 
+    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
+                   MMU_DATA_STORE, ra);
+
     if (opt & XSTATE_FP_MASK) {
-        do_xsave_fpu(env, ptr, ra);
+        do_xsave_fpu(&ac, ptr);
     }
     if (rfbm & XSTATE_SSE_MASK) {
         /* Note that saving MXCSR is not suppressed by XSAVEOPT.  */
-        do_xsave_mxcsr(env, ptr, ra);
+        do_xsave_mxcsr(&ac, ptr);
     }
     if (opt & XSTATE_SSE_MASK) {
-        do_xsave_sse(env, ptr, ra);
+        do_xsave_sse(&ac, ptr);
     }
     if (opt & XSTATE_YMM_MASK) {
         do_xsave_ymmh(env, ptr + XO(avx_state), ra);
