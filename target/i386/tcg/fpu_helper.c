@@ -2373,9 +2373,9 @@ void helper_fxam_ST0(CPUX86State *env)
     }
 }
 
-static void do_fstenv(CPUX86State *env, target_ulong ptr, int data32,
-                      uintptr_t retaddr)
+static void do_fstenv(X86Access *ac, target_ulong ptr, int data32)
 {
+    CPUX86State *env = ac->env;
     int fpus, fptag, exp, i;
     uint64_t mant;
     CPU_LDoubleU tmp;
@@ -2402,28 +2402,31 @@ static void do_fstenv(CPUX86State *env, target_ulong ptr, int data32,
     }
     if (data32) {
         /* 32 bit */
-        cpu_stl_data_ra(env, ptr, env->fpuc, retaddr);
-        cpu_stl_data_ra(env, ptr + 4, fpus, retaddr);
-        cpu_stl_data_ra(env, ptr + 8, fptag, retaddr);
-        cpu_stl_data_ra(env, ptr + 12, env->fpip, retaddr); /* fpip */
-        cpu_stl_data_ra(env, ptr + 16, env->fpcs, retaddr); /* fpcs */
-        cpu_stl_data_ra(env, ptr + 20, env->fpdp, retaddr); /* fpoo */
-        cpu_stl_data_ra(env, ptr + 24, env->fpds, retaddr); /* fpos */
+        access_stl(ac, ptr, env->fpuc);
+        access_stl(ac, ptr + 4, fpus);
+        access_stl(ac, ptr + 8, fptag);
+        access_stl(ac, ptr + 12, env->fpip); /* fpip */
+        access_stl(ac, ptr + 16, env->fpcs); /* fpcs */
+        access_stl(ac, ptr + 20, env->fpdp); /* fpoo */
+        access_stl(ac, ptr + 24, env->fpds); /* fpos */
     } else {
         /* 16 bit */
-        cpu_stw_data_ra(env, ptr, env->fpuc, retaddr);
-        cpu_stw_data_ra(env, ptr + 2, fpus, retaddr);
-        cpu_stw_data_ra(env, ptr + 4, fptag, retaddr);
-        cpu_stw_data_ra(env, ptr + 6, env->fpip, retaddr);
-        cpu_stw_data_ra(env, ptr + 8, env->fpcs, retaddr);
-        cpu_stw_data_ra(env, ptr + 10, env->fpdp, retaddr);
-        cpu_stw_data_ra(env, ptr + 12, env->fpds, retaddr);
+        access_stw(ac, ptr, env->fpuc);
+        access_stw(ac, ptr + 2, fpus);
+        access_stw(ac, ptr + 4, fptag);
+        access_stw(ac, ptr + 6, env->fpip);
+        access_stw(ac, ptr + 8, env->fpcs);
+        access_stw(ac, ptr + 10, env->fpdp);
+        access_stw(ac, ptr + 12, env->fpds);
     }
 }
 
 void helper_fstenv(CPUX86State *env, target_ulong ptr, int data32)
 {
-    do_fstenv(env, ptr, data32, GETPC());
+    X86Access ac;
+
+    access_prepare(&ac, env, ptr, 14 << data32, MMU_DATA_STORE, GETPC());
+    do_fstenv(&ac, ptr, data32);
 }
 
 static void cpu_set_fpus(CPUX86State *env, uint16_t fpus)
@@ -2471,12 +2474,12 @@ static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
 {
     X86Access ac;
     floatx80 tmp;
-    int i;
+    int i, envsize = 14 << data32;
 
-    do_fstenv(env, ptr, data32, retaddr);
+    access_prepare(&ac, env, ptr, envsize + 80, MMU_DATA_STORE, retaddr);
 
-    ptr += (target_ulong)14 << data32;
-    access_prepare(&ac, env, ptr, 80, MMU_DATA_STORE, retaddr);
+    do_fstenv(&ac, ptr, data32);
+    ptr += envsize;
 
     for (i = 0; i < 8; i++) {
         tmp = ST(i);
