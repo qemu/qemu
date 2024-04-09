@@ -957,12 +957,20 @@ static void virtqueue_packed_flush(VirtQueue *vq, unsigned int count)
         return;
     }
 
+    /*
+     * For indirect element's 'ndescs' is 1.
+     * For all other elemment's 'ndescs' is the
+     * number of descriptors chained by NEXT (as set in virtqueue_packed_pop).
+     * So When the 'elem' be filled into the descriptor ring,
+     * The 'idx' of this 'elem' shall be
+     * the value of 'vq->used_idx' plus the 'ndescs'.
+     */
+    ndescs += vq->used_elems[0].ndescs;
     for (i = 1; i < count; i++) {
-        virtqueue_packed_fill_desc(vq, &vq->used_elems[i], i, false);
+        virtqueue_packed_fill_desc(vq, &vq->used_elems[i], ndescs, false);
         ndescs += vq->used_elems[i].ndescs;
     }
     virtqueue_packed_fill_desc(vq, &vq->used_elems[0], 0, true);
-    ndescs += vq->used_elems[0].ndescs;
 
     vq->inuse -= ndescs;
     vq->used_idx += ndescs;
@@ -3368,51 +3376,12 @@ static uint16_t virtio_queue_split_get_last_avail_idx(VirtIODevice *vdev,
     return vdev->vq[n].last_avail_idx;
 }
 
-static uint32_t virtio_queue_split_get_vring_states(VirtIODevice *vdev,
-                                                      int n)
-{
-    struct VirtQueue *vq = &vdev->vq[n];
-    uint16_t avail, used;
-
-    avail = vq->last_avail_idx;
-    used = vq->used_idx;
-
-    return avail | (uint32_t)used << 16;
-}
-
 unsigned int virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
 {
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
         return virtio_queue_packed_get_last_avail_idx(vdev, n);
     } else {
         return virtio_queue_split_get_last_avail_idx(vdev, n);
-    }
-}
-
-unsigned int virtio_queue_get_vring_states(VirtIODevice *vdev, int n)
-{
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
-        return -1;
-    } else {
-        return virtio_queue_split_get_vring_states(vdev, n);
-    }
-}
-
-static void virtio_queue_split_set_vring_states(VirtIODevice *vdev,
-                                                int n, uint32_t idx)
-{
-    struct VirtQueue *vq = &vdev->vq[n];
-    vq->last_avail_idx = (uint16_t)(idx & 0xffff);
-    vq->shadow_avail_idx = (uint16_t)(idx & 0xffff);
-    vq->used_idx = (uint16_t)(idx >> 16);
-}
-
-void virtio_queue_set_vring_states(VirtIODevice *vdev, int n, uint32_t idx)
-{
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
-        return;
-    } else {
-        virtio_queue_split_set_vring_states(vdev, n, idx);
     }
 }
 

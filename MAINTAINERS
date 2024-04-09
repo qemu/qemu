@@ -2371,11 +2371,6 @@ F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
 F: tests/qtest/libqos/virtio-scmi.*
 
-vdpa-net
-M: Hao Chen <chenh@yusur.tech>
-S: Maintained
-F: docs/system/devices/vdpa-net.rst
-
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
 S: Supported
