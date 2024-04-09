@@ -1173,6 +1173,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     CPUState *cpu = env_cpu(cpu_env);
     abi_ulong handler;
     sigset_t set;
+    target_siginfo_t unswapped;
     target_sigset_t target_old_set;
     struct target_sigaction *sa;
     TaskState *ts = get_task_state(cpu);
@@ -1182,9 +1183,14 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     k->pending = 0;
 
     /*
-     * Writes out siginfo values byteswapped, accordingly to the target. It also
-     * cleans the si_type from si_code making it correct for the target.
+     * Writes out siginfo values byteswapped, accordingly to the target.
+     * It also cleans the si_type from si_code making it correct for
+     * the target.  We must hold on to the original unswapped copy for
+     * strace below, because si_type is still required there.
      */
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
+        unswapped = k->info;
+    }
     tswap_siginfo(&k->info, &k->info);
 
     sig = gdb_handlesig(cpu, sig, NULL, &k->info, sizeof(k->info));
@@ -1197,7 +1203,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     }
 
     if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
-        print_taken_signal(sig, &k->info);
+        print_taken_signal(sig, &unswapped);
     }
 
     if (handler == TARGET_SIG_DFL) {
