@@ -373,7 +373,7 @@ static void setup_sigcontext(CPUX86State *env,
     __put_user(env->regs[R_ESP], &sc->esp_at_signal);
     __put_user(env->segs[R_SS].selector, (uint32_t *)&sc->ss);
 
-    cpu_x86_fsave(env, fpstate_addr, 1);
+    cpu_x86_fsave(env, fpstate, sizeof(*fpstate));
     fpstate->status = fpstate->swd;
     magic = (fpkind == FPSTATE_FSAVE ? 0 : 0xffff);
     __put_user(magic, &fpstate->magic);
@@ -702,7 +702,7 @@ static bool frstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
      * the merge within ENV by loading XSTATE/FXSTATE first, then
      * overriding with the FSTATE afterward.
      */
-    cpu_x86_frstor(env, fpstate_addr, 1);
+    cpu_x86_frstor(env, fpstate, sizeof(*fpstate));
     return true;
 }
 #endif

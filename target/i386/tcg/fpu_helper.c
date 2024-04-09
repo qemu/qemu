@@ -3017,22 +3017,28 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 }
 
 #if defined(CONFIG_USER_ONLY)
-void cpu_x86_fsave(CPUX86State *env, target_ulong ptr, int data32)
+void cpu_x86_fsave(CPUX86State *env, void *host, size_t len)
 {
-    int size = (14 << data32) + 80;
-    X86Access ac;
+    X86Access ac = {
+        .haddr1 = host,
+        .size = 4 * 7 + 8 * 10,
+        .env = env,
+    };
 
-    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, 0);
-    do_fsave(&ac, ptr, data32);
+    assert(ac.size <= len);
+    do_fsave(&ac, 0, true);
 }
 
-void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
+void cpu_x86_frstor(CPUX86State *env, void *host, size_t len)
 {
-    int size = (14 << data32) + 80;
-    X86Access ac;
+    X86Access ac = {
+        .haddr1 = host,
+        .size = 4 * 7 + 8 * 10,
+        .env = env,
+    };
 
-    access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, 0);
-    do_frstor(&ac, ptr, data32);
+    assert(ac.size <= len);
+    do_frstor(&ac, 0, true);
 }
 
 void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
