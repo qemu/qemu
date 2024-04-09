@@ -326,7 +326,7 @@ static void xsave_sigcontext(CPUX86State *env,
 
     /* Zero the header, XSAVE *adds* features to an existing save state.  */
     memset(fxstate + 1, 0, sizeof(X86XSaveHeader));
-    cpu_x86_xsave(env, xstate_addr, env->xcr0);
+    cpu_x86_xsave(env, fxstate, fpend_addr - xstate_addr, env->xcr0);
 
     __put_user(TARGET_FP_XSTATE_MAGIC1, &sw->magic1);
     __put_user(extended_size, &sw->extended_size);
@@ -611,6 +611,8 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
     uint32_t magic1, magic2;
     uint32_t extended_size, xstate_size, min_size, max_size;
     uint64_t xfeatures;
+    void *xstate;
+    bool ok;
 
     switch (fpkind) {
     case FPSTATE_XSAVE:
@@ -641,8 +643,10 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
             return false;
         }
 
-        if (!access_ok(env_cpu(env), VERIFY_READ, fxstate_addr,
-                       xstate_size + TARGET_FP_XSTATE_MAGIC2_SIZE)) {
+        /* Re-lock the entire xstate area, with the extensions and magic. */
+        xstate = lock_user(VERIFY_READ, fxstate_addr,
+                           xstate_size + TARGET_FP_XSTATE_MAGIC2_SIZE, 1);
+        if (!xstate) {
             return false;
         }
 
@@ -652,15 +656,15 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
          * fpstate layout with out copying the extended state information
          * in the memory layout.
          */
-        if (get_user_u32(magic2, fxstate_addr + xstate_size)) {
-            return false;
-        }
+        magic2 = tswap32(*(uint32_t *)(xstate + xstate_size));
         if (magic2 != TARGET_FP_XSTATE_MAGIC2) {
+            unlock_user(xstate, fxstate_addr, 0);
             break;
         }
 
-        cpu_x86_xrstor(env, fxstate_addr, xfeatures);
-        return true;
+        ok = cpu_x86_xrstor(env, xstate, xstate_size, xfeatures);
+        unlock_user(xstate, fxstate_addr, 0);
+        return ok;
 
     default:
         break;

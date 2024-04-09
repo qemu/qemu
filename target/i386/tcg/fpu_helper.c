@@ -3065,42 +3065,44 @@ void cpu_x86_fxrstor(CPUX86State *env, void *host, size_t len)
     do_fxrstor(&ac, 0);
 }
 
-void cpu_x86_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+void cpu_x86_xsave(CPUX86State *env, void *host, size_t len, uint64_t rfbm)
 {
-    X86Access ac;
-    unsigned size;
+    X86Access ac = {
+        .haddr1 = host,
+        .env = env,
+    };
 
     /*
      * Since this is only called from user-level signal handling,
      * we should have done the job correctly there.
      */
     assert((rfbm & ~env->xcr0) == 0);
-    size = xsave_area_size(rfbm, false);
-
-    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, 0);
-    do_xsave_access(&ac, ptr, rfbm, get_xinuse(env), rfbm);
+    ac.size = xsave_area_size(rfbm, false);
+    assert(ac.size <= len);
+    do_xsave_access(&ac, 0, rfbm, get_xinuse(env), rfbm);
 }
 
-void cpu_x86_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+bool cpu_x86_xrstor(CPUX86State *env, void *host, size_t len, uint64_t rfbm)
 {
-    X86Access ac;
+    X86Access ac = {
+        .haddr1 = host,
+        .env = env,
+    };
     uint64_t xstate_bv;
-    unsigned size;
 
     /*
      * Since this is only called from user-level signal handling,
      * we should have done the job correctly there.
      */
     assert((rfbm & ~env->xcr0) == 0);
-    size = xsave_area_size(rfbm, false);
-    access_prepare(&ac, env, ptr, size, MMU_DATA_LOAD, 0);
+    ac.size = xsave_area_size(rfbm, false);
+    assert(ac.size <= len);
 
-    if (!valid_xrstor_header(&ac, &xstate_bv, ptr)) {
-        /* TODO: Report failure to caller. */
-        xstate_bv &= env->xcr0;
+    if (!valid_xrstor_header(&ac, &xstate_bv, 0)) {
+        return false;
     }
-
-    do_xrstor(&ac, ptr, rfbm, xstate_bv);
+    do_xrstor(&ac, 0, rfbm, xstate_bv);
+    return true;
 }
 #endif
 
