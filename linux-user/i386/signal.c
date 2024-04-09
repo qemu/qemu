@@ -294,14 +294,11 @@ static abi_ptr get_sigframe(struct target_sigaction *ka, CPUX86State *env,
  * Set up a signal frame.
  */
 
-static void fxsave_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxstate,
-                              abi_ptr fxstate_addr)
+static void fxsave_sigcontext(CPUX86State *env, X86LegacyXSaveArea *fxstate)
 {
     struct target_fpx_sw_bytes *sw = (void *)&fxstate->sw_reserved;
 
-    /* fxstate_addr must be 16 byte aligned for fxsave */
-    assert(!(fxstate_addr & 0xf));
-    cpu_x86_fxsave(env, fxstate_addr);
+    cpu_x86_fxsave(env, fxstate, sizeof(*fxstate));
     __put_user(0, &sw->magic1);
 }
 
@@ -412,7 +409,7 @@ static void setup_sigcontext(CPUX86State *env,
         xsave_sigcontext(env, fxstate, fpstate_addr, fxstate_addr, fpend_addr);
         break;
     case FPSTATE_FXSAVE:
-        fxsave_sigcontext(env, fxstate, fxstate_addr);
+        fxsave_sigcontext(env, fxstate);
         break;
     default:
         break;
@@ -669,7 +666,7 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
         break;
     }
 
-    cpu_x86_fxrstor(env, fxstate_addr);
+    cpu_x86_fxrstor(env, fxstate, sizeof(*fxstate));
     return true;
 }
 
@@ -687,7 +684,7 @@ static bool frstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
         }
         break;
     case FPSTATE_FXSAVE:
-        cpu_x86_fxrstor(env, fxstate_addr);
+        cpu_x86_fxrstor(env, fxstate, sizeof(*fxstate));
         break;
     case FPSTATE_FSAVE:
         break;

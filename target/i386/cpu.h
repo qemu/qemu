@@ -2273,8 +2273,8 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
 void cpu_x86_load_seg(CPUX86State *s, X86Seg seg_reg, int selector);
 void cpu_x86_fsave(CPUX86State *s, void *host, size_t len);
 void cpu_x86_frstor(CPUX86State *s, void *host, size_t len);
-void cpu_x86_fxsave(CPUX86State *s, target_ulong ptr);
-void cpu_x86_fxrstor(CPUX86State *s, target_ulong ptr);
+void cpu_x86_fxsave(CPUX86State *s, void *host, size_t len);
+void cpu_x86_fxrstor(CPUX86State *s, void *host, size_t len);
 void cpu_x86_xsave(CPUX86State *s, target_ulong ptr, uint64_t rbfm);
 void cpu_x86_xrstor(CPUX86State *s, target_ulong ptr, uint64_t rbfm);
 

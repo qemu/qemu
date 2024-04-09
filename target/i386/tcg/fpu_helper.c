@@ -3041,22 +3041,28 @@ void cpu_x86_frstor(CPUX86State *env, void *host, size_t len)
     do_frstor(&ac, 0, true);
 }
 
-void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
+void cpu_x86_fxsave(CPUX86State *env, void *host, size_t len)
 {
-    X86Access ac;
+    X86Access ac = {
+        .haddr1 = host,
+        .size = sizeof(X86LegacyXSaveArea),
+        .env = env,
+    };
 
-    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
-                   MMU_DATA_STORE, 0);
-    do_fxsave(&ac, ptr);
+    assert(ac.size <= len);
+    do_fxsave(&ac, 0);
 }
 
-void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
+void cpu_x86_fxrstor(CPUX86State *env, void *host, size_t len)
 {
-    X86Access ac;
+    X86Access ac = {
+        .haddr1 = host,
+        .size = sizeof(X86LegacyXSaveArea),
+        .env = env,
+    };
 
-    access_prepare(&ac, env, ptr, sizeof(X86LegacyXSaveArea),
-                   MMU_DATA_LOAD, 0);
-    do_fxrstor(&ac, ptr);
+    assert(ac.size <= len);
+    do_fxrstor(&ac, 0);
 }
 
 void cpu_x86_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
