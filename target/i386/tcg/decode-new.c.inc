@@ -2219,22 +2219,31 @@ illegal:
  * Convert one instruction. s->base.is_jmp is set if the translation must
  * be stopped.
  */
-static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
+static void disas_insn(DisasContext *s, CPUState *cpu)
 {
     CPUX86State *env = cpu_env(cpu);
-    bool first = true;
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
-    uint8_t cc_live;
+    uint8_t cc_live, b;
 
+    s->pc = s->base.pc_next;
+    s->override = -1;
+    s->popl_esp_hack = 0;
+#ifdef TARGET_X86_64
+    s->rex_r = 0;
+    s->rex_x = 0;
+    s->rex_b = 0;
+#endif
+    s->rip_offset = 0; /* for relative ip address */
+    s->vex_l = 0;
+    s->vex_v = 0;
+    s->vex_w = false;
     s->has_modrm = false;
+    s->prefix = 0;
 
  next_byte:
-    if (first) {
-        first = false;
-    } else {
-        b = x86_ldub_code(env, s);
-    }
+    b = x86_ldub_code(env, s);
+
     /* Collect prefixes.  */
     switch (b) {
     case 0xf3:
@@ -2346,10 +2355,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         }
         break;
     default:
-        if (b >= 0x100) {
-            b -= 0x100;
-            decode_func = do_decode_0F;
-        }
         break;
     }
 
@@ -2375,6 +2380,40 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
             s->aflag = MO_32;
         }  else {
             s->aflag = MO_16;
+        }
+    }
+
+    /* Go back to old decoder for unconverted opcodes.  */
+    if (!(s->prefix & PREFIX_VEX)) {
+        if ((b & ~7) == 0xd8) {
+            if (!disas_insn_x87(s, cpu, b)) {
+                goto unknown_op;
+            }
+            return;
+        }
+
+        if (b == 0x0f) {
+            b = x86_ldub_code(env, s);
+            switch (b) {
+            case 0x00 ... 0x03: /* mostly privileged instructions */
+            case 0x05 ... 0x09:
+            case 0x0d:          /* 3DNow! prefetch */
+            case 0x18 ... 0x23: /* prefetch, MPX, mov from/to CR and DR */
+            case 0x30 ... 0x35: /* more privileged instructions */
+            case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
+            case 0xaa ... 0xae: /* RSM, SHRD, grp15 */
+            case 0xb0 ... 0xb1: /* cmpxchg */
+            case 0xb3:          /* btr */
+            case 0xb8:          /* integer ops */
+            case 0xba ... 0xbd: /* integer ops */
+            case 0xc0 ... 0xc1: /* xadd */
+            case 0xc7:          /* grp9 */
+                disas_insn_old(s, cpu, b + 0x100);
+                return;
+            default:
+                decode_func = do_decode_0F;
+                break;
+            }
         }
     }
 

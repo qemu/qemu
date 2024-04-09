@@ -2451,10 +2451,6 @@ static void gen_sty_env_A0(DisasContext *s, int offset, bool align)
     tcg_gen_qemu_st_i128(t, s->tmp0, mem_index, mop);
 }
 
-#include "decode-new.h"
-#include "emit.c.inc"
-#include "decode-new.c.inc"
-
 static void gen_cmpxchg8b(DisasContext *s, CPUX86State *env, int modrm)
 {
     TCGv_i64 cmp, val, old;
@@ -3117,183 +3113,6 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
     return true;
 }
 
-static void disas_insn_old(DisasContext *s, CPUState *cpu, int b);
-
-/* convert one instruction. s->base.is_jmp is set if the translation must
-   be stopped. Return the next pc value */
-static bool disas_insn(DisasContext *s, CPUState *cpu)
-{
-    CPUX86State *env = cpu_env(cpu);
-    int b, prefixes;
-    MemOp aflag, dflag;
-    bool orig_cc_op_dirty = s->cc_op_dirty;
-    CCOp orig_cc_op = s->cc_op;
-    target_ulong orig_pc_save = s->pc_save;
-
-    s->pc = s->base.pc_next;
-    s->override = -1;
-    s->popl_esp_hack = 0;
-#ifdef TARGET_X86_64
-    s->rex_r = 0;
-    s->rex_x = 0;
-    s->rex_b = 0;
-#endif
-    s->rip_offset = 0; /* for relative ip address */
-    s->vex_l = 0;
-    s->vex_v = 0;
-    s->vex_w = false;
-    switch (sigsetjmp(s->jmpbuf, 0)) {
-    case 0:
-        break;
-    case 1:
-        gen_exception_gpf(s);
-        return true;
-    case 2:
-        /* Restore state that may affect the next instruction. */
-        s->pc = s->base.pc_next;
-        /*
-         * TODO: These save/restore can be removed after the table-based
-         * decoder is complete; we will be decoding the insn completely
-         * before any code generation that might affect these variables.
-         */
-        s->cc_op_dirty = orig_cc_op_dirty;
-        s->cc_op = orig_cc_op;
-        s->pc_save = orig_pc_save;
-        /* END TODO */
-        s->base.num_insns--;
-        tcg_remove_ops_after(s->prev_insn_end);
-        s->base.insn_start = s->prev_insn_start;
-        s->base.is_jmp = DISAS_TOO_MANY;
-        return false;
-    default:
-        g_assert_not_reached();
-    }
-
-    prefixes = 0;
-
- next_byte:
-    s->prefix = prefixes;
-    b = x86_ldub_code(env, s);
-    /* Collect prefixes.  */
-    switch (b) {
-    case 0x0f:
-        b = x86_ldub_code(env, s) + 0x100;
-        break;
-    case 0xf3:
-        prefixes |= PREFIX_REPZ;
-        prefixes &= ~PREFIX_REPNZ;
-        goto next_byte;
-    case 0xf2:
-        prefixes |= PREFIX_REPNZ;
-        prefixes &= ~PREFIX_REPZ;
-        goto next_byte;
-    case 0xf0:
-        prefixes |= PREFIX_LOCK;
-        goto next_byte;
-    case 0x2e:
-        s->override = R_CS;
-        goto next_byte;
-    case 0x36:
-        s->override = R_SS;
-        goto next_byte;
-    case 0x3e:
-        s->override = R_DS;
-        goto next_byte;
-    case 0x26:
-        s->override = R_ES;
-        goto next_byte;
-    case 0x64:
-        s->override = R_FS;
-        goto next_byte;
-    case 0x65:
-        s->override = R_GS;
-        goto next_byte;
-    case 0x66:
-        prefixes |= PREFIX_DATA;
-        goto next_byte;
-    case 0x67:
-        prefixes |= PREFIX_ADR;
-        goto next_byte;
-#ifdef TARGET_X86_64
-    case 0x40 ... 0x4f:
-        if (CODE64(s)) {
-            /* REX prefix */
-            prefixes |= PREFIX_REX;
-            s->vex_w = (b >> 3) & 1;
-            s->rex_r = (b & 0x4) << 1;
-            s->rex_x = (b & 0x2) << 2;
-            s->rex_b = (b & 0x1) << 3;
-            goto next_byte;
-        }
-        break;
-#endif
-    case 0xc5: /* 2-byte VEX */
-    case 0xc4: /* 3-byte VEX */
-        if (CODE32(s) && !VM86(s)) {
-            int vex2 = x86_ldub_code(env, s);
-            s->pc--; /* rewind the advance_pc() x86_ldub_code() did */
-
-            if (!CODE64(s) && (vex2 & 0xc0) != 0xc0) {
-                /* 4.1.4.6: In 32-bit mode, bits [7:6] must be 11b,
-                   otherwise the instruction is LES or LDS.  */
-                break;
-            }
-            disas_insn_new(s, cpu, b);
-            return s->pc;
-        }
-        break;
-    }
-
-    /* Post-process prefixes.  */
-    if (CODE64(s)) {
-        /* In 64-bit mode, the default data size is 32-bit.  Select 64-bit
-           data with rex_w, and 16-bit data with 0x66; rex_w takes precedence
-           over 0x66 if both are present.  */
-        dflag = (REX_W(s) ? MO_64 : prefixes & PREFIX_DATA ? MO_16 : MO_32);
-        /* In 64-bit mode, 0x67 selects 32-bit addressing.  */
-        aflag = (prefixes & PREFIX_ADR ? MO_32 : MO_64);
-    } else {
-        /* In 16/32-bit mode, 0x66 selects the opposite data size.  */
-        if (CODE32(s) ^ ((prefixes & PREFIX_DATA) != 0)) {
-            dflag = MO_32;
-        } else {
-            dflag = MO_16;
-        }
-        /* In 16/32-bit mode, 0x67 selects the opposite addressing.  */
-        if (CODE32(s) ^ ((prefixes & PREFIX_ADR) != 0)) {
-            aflag = MO_32;
-        }  else {
-            aflag = MO_16;
-        }
-    }
-
-    s->prefix = prefixes;
-    s->aflag = aflag;
-    s->dflag = dflag;
-
-    switch (b) {
-    case 0     ... 0xd7:
-    case 0xe0  ... 0xff:
-    case 0x10e ... 0x117:
-    case 0x128 ... 0x12f:
-    case 0x138 ... 0x19f:
-    case 0x1a0 ... 0x1a1:
-    case 0x1a8 ... 0x1a9:
-    case 0x1af:
-    case 0x1b2:
-    case 0x1b4 ... 0x1b7:
-    case 0x1be ... 0x1bf:
-    case 0x1c2 ... 0x1c6:
-    case 0x1c8 ... 0x1ff:
-        disas_insn_new(s, cpu, b);
-        break;
-    default:
-        disas_insn_old(s, cpu, b);
-        break;
-    }
-    return true;
-}
-
 static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
 {
     CPUX86State *env = cpu_env(cpu);
@@ -3499,14 +3318,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_shiftd_rm_T1(s, ot, opreg, op, imm);
         } else {
             gen_shiftd_rm_T1(s, ot, opreg, op, cpu_regs[R_ECX]);
-        }
-        break;
-
-        /************************/
-        /* floats */
-    case 0xd8 ... 0xdf:
-        if (!disas_insn_x87(s, cpu, b)) {
-            goto unknown_op;
         }
         break;
 
@@ -4759,7 +4570,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         set_cc_op(s, CC_OP_POPCNT);
         break;
     default:
-        goto unknown_op;
+        g_assert_not_reached();
     }
     return;
  illegal_op:
@@ -4768,6 +4579,10 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
  unknown_op:
     gen_unknown_opcode(env, s);
 }
+
+#include "decode-new.h"
+#include "emit.c.inc"
+#include "decode-new.c.inc"
 
 void tcg_x86_init(void)
 {
@@ -4890,7 +4705,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cc_op_dirty = false;
-    dc->popl_esp_hack = 0;
     /* select memory access functions */
     dc->mem_index = cpu_mmu_index(cpu, false);
     dc->cpuid_features = env->features[FEAT_1_EDX];
@@ -4942,6 +4756,9 @@ static void i386_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    bool orig_cc_op_dirty = dc->cc_op_dirty;
+    CCOp orig_cc_op = dc->cc_op;
+    target_ulong orig_pc_save = dc->pc_save;
 
 #ifdef TARGET_VSYSCALL_PAGE
     /*
@@ -4954,23 +4771,51 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 #endif
 
-    if (disas_insn(dc, cpu)) {
-        target_ulong pc_next = dc->pc;
-        dc->base.pc_next = pc_next;
+    switch (sigsetjmp(dc->jmpbuf, 0)) {
+    case 0:
+        disas_insn(dc, cpu);
+        break;
+    case 1:
+        gen_exception_gpf(dc);
+        break;
+    case 2:
+        /* Restore state that may affect the next instruction. */
+        dc->pc = dc->base.pc_next;
+        /*
+         * TODO: These save/restore can be removed after the table-based
+         * decoder is complete; we will be decoding the insn completely
+         * before any code generation that might affect these variables.
+         */
+        dc->cc_op_dirty = orig_cc_op_dirty;
+        dc->cc_op = orig_cc_op;
+        dc->pc_save = orig_pc_save;
+        /* END TODO */
+        dc->base.num_insns--;
+        tcg_remove_ops_after(dc->prev_insn_end);
+        dc->base.insn_start = dc->prev_insn_start;
+        dc->base.is_jmp = DISAS_TOO_MANY;
+        return;
+    default:
+        g_assert_not_reached();
+    }
 
-        if (dc->base.is_jmp == DISAS_NEXT) {
-            if (dc->flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)) {
-                /*
-                 * If single step mode, we generate only one instruction and
-                 * generate an exception.
-                 * If irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
-                 * the flag and abort the translation to give the irqs a
-                 * chance to happen.
-                 */
-                dc->base.is_jmp = DISAS_EOB_NEXT;
-            } else if (!is_same_page(&dc->base, pc_next)) {
-                dc->base.is_jmp = DISAS_TOO_MANY;
-            }
+    /*
+     * Instruction decoding completed (possibly with #GP if the
+     * 15-byte boundary was exceeded).
+     */
+    dc->base.pc_next = dc->pc;
+    if (dc->base.is_jmp == DISAS_NEXT) {
+        if (dc->flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)) {
+            /*
+             * If single step mode, we generate only one instruction and
+             * generate an exception.
+             * If irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
+             * the flag and abort the translation to give the irqs a
+             * chance to happen.
+             */
+            dc->base.is_jmp = DISAS_EOB_NEXT;
+        } else if (!is_same_page(&dc->base, dc->base.pc_next)) {
+            dc->base.is_jmp = DISAS_TOO_MANY;
         }
     }
 }
