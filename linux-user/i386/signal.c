@@ -613,6 +613,7 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
     struct target_fpx_sw_bytes *sw = (void *)&fxstate->sw_reserved;
     uint32_t magic1, magic2;
     uint32_t extended_size, xstate_size, min_size, max_size;
+    uint64_t xfeatures;
 
     switch (fpkind) {
     case FPSTATE_XSAVE:
@@ -629,10 +630,25 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
             xstate_size > extended_size) {
             break;
         }
+
+        /*
+         * Restore the features indicated in the frame, masked by
+         * those currently enabled.  Re-check the frame size.
+         * ??? It is not clear where the kernel does this, but it
+         * is not in check_xstate_in_sigframe, and so (probably)
+         * does not fall back to fxrstor.
+         */
+        xfeatures = tswap64(sw->xfeatures) & env->xcr0;
+        min_size = xsave_area_size(xfeatures, false);
+        if (xstate_size < min_size) {
+            return false;
+        }
+
         if (!access_ok(env_cpu(env), VERIFY_READ, fxstate_addr,
                        xstate_size + TARGET_FP_XSTATE_MAGIC2_SIZE)) {
             return false;
         }
+
         /*
          * Check for the presence of second magic word at the end of memory
          * layout. This detects the case where the user just copied the legacy
@@ -645,7 +661,8 @@ static bool xrstor_sigcontext(CPUX86State *env, FPStateKind fpkind,
         if (magic2 != TARGET_FP_XSTATE_MAGIC2) {
             break;
         }
-        cpu_x86_xrstor(env, fxstate_addr, -1);
+
+        cpu_x86_xrstor(env, fxstate_addr, xfeatures);
         return true;
 
     default:
