@@ -898,6 +898,14 @@
 #     designated guest firmware page for measured boot with -kernel
 #     (default: false) (since 6.2)
 #
+# @legacy-vm-type: Use legacy KVM_SEV_INIT KVM interface for creating the VM.
+#                  The newer KVM_SEV_INIT2 interface syncs additional vCPU
+#                  state when initializing the VMSA structures, which will
+#                  result in a different guest measurement. Set this to
+#                  maintain compatibility with older QEMU or kernel versions
+#                  that rely on legacy KVM_SEV_INIT behavior.
+#                  (default: false) (since 9.1)
+#
 # Since: 2.12
 ##
 { 'struct': 'SevGuestProperties',
@@ -908,7 +916,8 @@
             '*handle': 'uint32',
             '*cbitpos': 'uint32',
             'reduced-phys-bits': 'uint32',
-            '*kernel-hashes': 'bool' } }
+            '*kernel-hashes': 'bool',
+            '*legacy-vm-type': 'bool' } }
 
 ##
 # @ThreadContextProperties:
