@@ -62,9 +62,6 @@ typedef struct DisasContext {
     DisasContextBase base;
     const MicroBlazeCPUConfig *cfg;
 
-    /* TCG op of the current insn_start.  */
-    TCGOp *insn_start;
-
     TCGv_i32 r0;
     bool r0_set;
 
@@ -699,14 +696,14 @@ static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
 static void record_unaligned_ess(DisasContext *dc, int rd,
                                  MemOp size, bool store)
 {
-    uint32_t iflags = tcg_get_insn_start_param(dc->insn_start, 1);
+    uint32_t iflags = tcg_get_insn_start_param(dc->base.insn_start, 1);
 
     iflags |= ESR_ESS_FLAG;
     iflags |= rd << 5;
     iflags |= store * ESR_S;
     iflags |= (size == MO_32) * ESR_W;
 
-    tcg_set_insn_start_param(dc->insn_start, 1, iflags);
+    tcg_set_insn_start_param(dc->base.insn_start, 1, iflags);
 }
 #endif
 
@@ -1624,7 +1621,6 @@ static void mb_tr_insn_start(DisasContextBase *dcb, CPUState *cs)
     DisasContext *dc = container_of(dcb, DisasContext, base);
 
     tcg_gen_insn_start(dc->base.pc_next, dc->tb_flags & ~MSR_TB_MASK);
-    dc->insn_start = tcg_last_op();
 }
 
 static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)

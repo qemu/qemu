@@ -928,11 +928,7 @@ int main(int argc, char **argv, char **envp)
      * Prepare copy of argv vector for target.
      */
     target_argc = argc - optind;
-    target_argv = calloc(target_argc + 1, sizeof (char *));
-    if (target_argv == NULL) {
-        (void) fprintf(stderr, "Unable to allocate memory for target_argv\n");
-        exit(EXIT_FAILURE);
-    }
+    target_argv = g_new0(char *, target_argc + 1);
 
     /*
      * If argv0 is specified (using '-0' switch) we replace

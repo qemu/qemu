@@ -115,8 +115,7 @@ typedef struct DisasContext {
     bool itrigger;
     /* FRM is known to contain a valid value. */
     bool frm_valid;
-    /* TCG of the current insn_start */
-    TCGOp *insn_start;
+    bool insn_start_updated;
 } DisasContext;
 
 static inline bool has_ext(DisasContext *ctx, uint32_t ext)
@@ -207,9 +206,9 @@ static void gen_check_nanbox_s(TCGv_i64 out, TCGv_i64 in)
 
 static void decode_save_opc(DisasContext *ctx)
 {
-    assert(ctx->insn_start != NULL);
-    tcg_set_insn_start_param(ctx->insn_start, 1, ctx->opcode);
-    ctx->insn_start = NULL;
+    assert(!ctx->insn_start_updated);
+    ctx->insn_start_updated = true;
+    tcg_set_insn_start_param(ctx->base.insn_start, 1, ctx->opcode);
 }
 
 static void gen_pc_plus_diff(TCGv target, DisasContext *ctx,
@@ -1224,7 +1223,7 @@ static void riscv_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     tcg_gen_insn_start(pc_next, 0);
-    ctx->insn_start = tcg_last_op();
+    ctx->insn_start_updated = false;
 }
 
 static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)

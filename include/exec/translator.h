@@ -74,6 +74,8 @@ typedef enum DisasJumpType {
  * @singlestep_enabled: "Hardware" single stepping enabled.
  * @saved_can_do_io: Known value of cpu->neg.can_do_io, or -1 for unknown.
  * @plugin_enabled: TCG plugin enabled in this TB.
+ * @insn_start: The last op emitted by the insn_start hook,
+ *              which is expected to be INDEX_op_insn_start.
  *
  * Architecture-agnostic disassembly context.
  */
@@ -85,8 +87,8 @@ typedef struct DisasContextBase {
     int num_insns;
     int max_insns;
     bool singlestep_enabled;
-    int8_t saved_can_do_io;
     bool plugin_enabled;
+    struct TCGOp *insn_start;
     void *host_addr[2];
 } DisasContextBase;
 

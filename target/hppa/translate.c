@@ -44,7 +44,6 @@ typedef struct DisasCond {
 typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
-    TCGOp *insn_start;
 
     uint64_t iaoq_f;
     uint64_t iaoq_b;
@@ -62,6 +61,7 @@ typedef struct DisasContext {
     int privilege;
     bool psw_n_nonzero;
     bool is_pa20;
+    bool insn_start_updated;
 
 #ifdef CONFIG_USER_ONLY
     MemOp unalign;
@@ -300,9 +300,9 @@ void hppa_translate_init(void)
 
 static void set_insn_breg(DisasContext *ctx, int breg)
 {
-    assert(ctx->insn_start != NULL);
-    tcg_set_insn_start_param(ctx->insn_start, 2, breg);
-    ctx->insn_start = NULL;
+    assert(!ctx->insn_start_updated);
+    ctx->insn_start_updated = true;
+    tcg_set_insn_start_param(ctx->base.insn_start, 2, breg);
 }
 
 static DisasCond cond_make_f(void)
@@ -4694,7 +4694,7 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b, 0);
-    ctx->insn_start = tcg_last_op();
+    ctx->insn_start_updated = false;
 }
 
 static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

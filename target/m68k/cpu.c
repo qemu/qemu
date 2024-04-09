@@ -390,12 +390,19 @@ static const VMStateDescription vmstate_freg = {
     }
 };
 
+static int fpu_pre_save(void *opaque)
+{
+    M68kCPU *s = opaque;
+
+    s->env.fpsr = cpu_m68k_get_fpsr(&s->env);
+    return 0;
+}
+
 static int fpu_post_load(void *opaque, int version)
 {
     M68kCPU *s = opaque;
 
-    cpu_m68k_restore_fp_status(&s->env);
-
+    cpu_m68k_set_fpsr(&s->env, s->env.fpsr);
     return 0;
 }
 
@@ -404,6 +411,7 @@ const VMStateDescription vmmstate_fpu = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = fpu_needed,
+    .pre_save = fpu_pre_save,
     .post_load = fpu_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(env.fpcr, M68kCPU),
