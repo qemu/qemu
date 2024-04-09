@@ -1999,12 +1999,17 @@ int kvm_irqchip_add_msi_route(KVMRouteChange *c, int vector, PCIDevice *dev)
         return -EINVAL;
     }
 
-    trace_kvm_irqchip_add_msi_route(dev ? dev->name : (char *)"N/A",
-                                    vector, virq);
+    if (s->irq_routes->nr < s->gsi_count) {
+        trace_kvm_irqchip_add_msi_route(dev ? dev->name : (char *)"N/A",
+                                        vector, virq);
 
-    kvm_add_routing_entry(s, &kroute);
-    kvm_arch_add_msi_route_post(&kroute, vector, dev);
-    c->changes++;
+        kvm_add_routing_entry(s, &kroute);
+        kvm_arch_add_msi_route_post(&kroute, vector, dev);
+        c->changes++;
+    } else {
+        kvm_irqchip_release_virq(s, virq);
+        return -ENOSPC;
+    }
 
     return virq;
 }

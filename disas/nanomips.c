@@ -36,57 +36,12 @@ typedef uint32_t uint32;
 typedef uint16_t uint16;
 typedef uint64_t img_address;
 
-typedef enum  {
-    instruction,
-    call_instruction,
-    branch_instruction,
-    return_instruction,
-    reserved_block,
-    pool,
-} TABLE_ENTRY_TYPE;
-
-typedef enum {
-    MIPS64_    = 0x00000001,
-    XNP_       = 0x00000002,
-    XMMS_      = 0x00000004,
-    EVA_       = 0x00000008,
-    DSP_       = 0x00000010,
-    MT_        = 0x00000020,
-    EJTAG_     = 0x00000040,
-    TLBINV_    = 0x00000080,
-    CP0_       = 0x00000100,
-    CP1_       = 0x00000200,
-    CP2_       = 0x00000400,
-    UDI_       = 0x00000800,
-    MCU_       = 0x00001000,
-    VZ_        = 0x00002000,
-    TLB_       = 0x00004000,
-    MVH_       = 0x00008000,
-    ALL_ATTRIBUTES = 0xffffffffull,
-} TABLE_ATTRIBUTE_TYPE;
-
 typedef struct Dis_info {
   img_address m_pc;
   fprintf_function fprintf_func;
   FILE *stream;
   sigjmp_buf buf;
 } Dis_info;
-
-typedef bool (*conditional_function)(uint64 instruction);
-typedef char * (*disassembly_function)(uint64 instruction,
-                                            Dis_info *info);
-
-typedef struct Pool {
-    TABLE_ENTRY_TYPE     type;
-    const struct Pool    *next_table;
-    int                  next_table_size;
-    int                  instructions_size;
-    uint64               mask;
-    uint64               value;
-    disassembly_function disassembly;
-    conditional_function condition;
-    uint64               attributes;
-} Pool;
 
 #define IMGASSERTONCE(test)
 
@@ -541,58 +496,6 @@ static uint64 extract_op_code_value(const uint16 *data, int size)
     default:
         return data[0];
     }
-}
-
-
-/*
- * Recurse through tables until the instruction is found then return
- * the string and size
- *
- * inputs:
- *      pointer to a word stream,
- *      disassember table and size
- * returns:
- *      instruction size    - negative is error
- *      disassembly string  - on error will constain error string
- */
-static int Disassemble(const uint16 *data, char **dis,
-                     TABLE_ENTRY_TYPE *type, const Pool *table,
-                     int table_size, Dis_info *info)
-{
-    for (int i = 0; i < table_size; i++) {
-        uint64 op_code = extract_op_code_value(data,
-                             table[i].instructions_size);
-        if ((op_code & table[i].mask) == table[i].value) {
-            /* possible match */
-            conditional_function cond = table[i].condition;
-            if ((cond == NULL) || cond(op_code)) {
-                if (table[i].type == pool) {
-                    return Disassemble(data, dis, type,
-                                       table[i].next_table,
-                                       table[i].next_table_size,
-                                       info);
-                } else if ((table[i].type == instruction) ||
-                           (table[i].type == call_instruction) ||
-                           (table[i].type == branch_instruction) ||
-                           (table[i].type == return_instruction)) {
-                    disassembly_function dis_fn = table[i].disassembly;
-                    if (dis_fn == 0) {
-                        *dis = g_strdup(
-                            "disassembler failure - bad table entry");
-                        return -6;
-                    }
-                    *type = table[i].type;
-                    *dis = dis_fn(op_code, info);
-                    return table[i].instructions_size;
-                } else {
-                    *dis = g_strdup("reserved instruction");
-                    return -2;
-                }
-            }
-        }
-    }
-    *dis = g_strdup("failed to disassemble");
-    return -1;      /* failed to disassemble        */
 }
 
 
@@ -16213,6 +16116,51 @@ static char *YIELD(uint64 instruction, Dis_info *info)
  *
  */
 
+typedef enum  {
+    instruction,
+    call_instruction,
+    branch_instruction,
+    return_instruction,
+    reserved_block,
+    pool,
+} TABLE_ENTRY_TYPE;
+
+typedef enum {
+    MIPS64_    = 0x00000001,
+    XNP_       = 0x00000002,
+    XMMS_      = 0x00000004,
+    EVA_       = 0x00000008,
+    DSP_       = 0x00000010,
+    MT_        = 0x00000020,
+    EJTAG_     = 0x00000040,
+    TLBINV_    = 0x00000080,
+    CP0_       = 0x00000100,
+    CP1_       = 0x00000200,
+    CP2_       = 0x00000400,
+    UDI_       = 0x00000800,
+    MCU_       = 0x00001000,
+    VZ_        = 0x00002000,
+    TLB_       = 0x00004000,
+    MVH_       = 0x00008000,
+    ALL_ATTRIBUTES = 0xffffffffull,
+} TABLE_ATTRIBUTE_TYPE;
+
+typedef bool (*conditional_function)(uint64 instruction);
+typedef char * (*disassembly_function)(uint64 instruction,
+                                            Dis_info *info);
+
+typedef struct Pool {
+    TABLE_ENTRY_TYPE     type;
+    const struct Pool    *next_table;
+    int                  next_table_size;
+    int                  instructions_size;
+    uint64               mask;
+    uint64               value;
+    disassembly_function disassembly;
+    conditional_function condition;
+    uint64               attributes;
+} Pool;
+
 static const Pool P_SYSCALL[2] = {
     { instruction         , 0                   , 0   , 32,
        0xfffc0000, 0x00080000, &SYSCALL_32_      , 0,
@@ -21906,6 +21854,58 @@ static const Pool MAJOR[2] = {
        0x1000    , 0x1000    , 0                      , 0,
        0x0                 },        /* P16 */
 };
+
+/*
+ * Recurse through tables until the instruction is found then return
+ * the string and size
+ *
+ * inputs:
+ *      pointer to a word stream,
+ *      disassember table and size
+ * returns:
+ *      instruction size    - negative is error
+ *      disassembly string  - on error will constain error string
+ */
+static int Disassemble(const uint16 *data, char **dis,
+                     TABLE_ENTRY_TYPE *type, const Pool *table,
+                     int table_size, Dis_info *info)
+{
+    for (int i = 0; i < table_size; i++) {
+        uint64 op_code = extract_op_code_value(data,
+                             table[i].instructions_size);
+        if ((op_code & table[i].mask) == table[i].value) {
+            /* possible match */
+            conditional_function cond = table[i].condition;
+            if ((cond == NULL) || cond(op_code)) {
+                if (table[i].type == pool) {
+                    return Disassemble(data, dis, type,
+                                       table[i].next_table,
+                                       table[i].next_table_size,
+                                       info);
+                } else if ((table[i].type == instruction) ||
+                           (table[i].type == call_instruction) ||
+                           (table[i].type == branch_instruction) ||
+                           (table[i].type == return_instruction)) {
+                    disassembly_function dis_fn = table[i].disassembly;
+                    if (dis_fn == 0) {
+                        *dis = g_strdup(
+                            "disassembler failure - bad table entry");
+                        return -6;
+                    }
+                    *type = table[i].type;
+                    *dis = dis_fn(op_code, info);
+                    return table[i].instructions_size;
+                } else {
+                    *dis = g_strdup("reserved instruction");
+                    return -2;
+                }
+            }
+        }
+    }
+    *dis = g_strdup("failed to disassemble");
+    return -1;      /* failed to disassemble        */
+}
+
 
 static bool nanomips_dis(const uint16_t *data, char **buf, Dis_info *info)
 {
