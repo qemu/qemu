@@ -2668,47 +2668,38 @@ static uint64_t get_xinuse(CPUX86State *env)
     return inuse;
 }
 
-static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
-                     uint64_t inuse, uint64_t opt, uintptr_t ra)
+static void do_xsave_access(X86Access *ac, target_ulong ptr, uint64_t rfbm,
+                            uint64_t inuse, uint64_t opt)
 {
     uint64_t old_bv, new_bv;
-    X86Access ac;
-    unsigned size;
-
-    /* Never save anything not enabled by XCR0.  */
-    rfbm &= env->xcr0;
-    opt &= rfbm;
-
-    size = xsave_area_size(opt, false);
-    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, ra);
 
     if (opt & XSTATE_FP_MASK) {
-        do_xsave_fpu(&ac, ptr);
+        do_xsave_fpu(ac, ptr);
     }
     if (rfbm & XSTATE_SSE_MASK) {
         /* Note that saving MXCSR is not suppressed by XSAVEOPT.  */
-        do_xsave_mxcsr(&ac, ptr);
+        do_xsave_mxcsr(ac, ptr);
     }
     if (opt & XSTATE_SSE_MASK) {
-        do_xsave_sse(&ac, ptr);
+        do_xsave_sse(ac, ptr);
     }
     if (opt & XSTATE_YMM_MASK) {
-        do_xsave_ymmh(&ac, ptr + XO(avx_state));
+        do_xsave_ymmh(ac, ptr + XO(avx_state));
     }
     if (opt & XSTATE_BNDREGS_MASK) {
-        do_xsave_bndregs(&ac, ptr + XO(bndreg_state));
+        do_xsave_bndregs(ac, ptr + XO(bndreg_state));
     }
     if (opt & XSTATE_BNDCSR_MASK) {
-        do_xsave_bndcsr(&ac, ptr + XO(bndcsr_state));
+        do_xsave_bndcsr(ac, ptr + XO(bndcsr_state));
     }
     if (opt & XSTATE_PKRU_MASK) {
-        do_xsave_pkru(&ac, ptr + XO(pkru_state));
+        do_xsave_pkru(ac, ptr + XO(pkru_state));
     }
 
     /* Update the XSTATE_BV field.  */
-    old_bv = access_ldq(&ac, ptr + XO(header.xstate_bv));
+    old_bv = access_ldq(ac, ptr + XO(header.xstate_bv));
     new_bv = (old_bv & ~rfbm) | (inuse & rfbm);
-    access_stq(&ac, ptr + XO(header.xstate_bv), new_bv);
+    access_stq(ac, ptr + XO(header.xstate_bv), new_bv);
 }
 
 static void do_xsave_chk(CPUX86State *env, target_ulong ptr, uintptr_t ra)
@@ -2724,22 +2715,32 @@ static void do_xsave_chk(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     }
 }
 
-void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
+                     uint64_t inuse, uint64_t opt, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
+    X86Access ac;
+    unsigned size;
 
     do_xsave_chk(env, ptr, ra);
-    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, ra);
+
+    /* Never save anything not enabled by XCR0.  */
+    rfbm &= env->xcr0;
+    opt &= rfbm;
+    size = xsave_area_size(opt, false);
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, ra);
+    do_xsave_access(&ac, ptr, rfbm, inuse, opt);
+}
+
+void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    do_xsave(env, ptr, rfbm, get_xinuse(env), rfbm, GETPC());
 }
 
 void helper_xsaveopt(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    uintptr_t ra = GETPC();
-    uint64_t inuse;
-
-    do_xsave_chk(env, ptr, ra);
-    inuse = get_xinuse(env);
-    do_xsave(env, ptr, rfbm, inuse, inuse, ra);
+    uint64_t inuse = get_xinuse(env);
+    do_xsave(env, ptr, rfbm, inuse, inuse, GETPC());
 }
 
 static void do_xrstor_fpu(X86Access *ac, target_ulong ptr)
@@ -3049,7 +3050,18 @@ void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
 
 void cpu_x86_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 {
-    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, 0);
+    X86Access ac;
+    unsigned size;
+
+    /*
+     * Since this is only called from user-level signal handling,
+     * we should have done the job correctly there.
+     */
+    assert((rfbm & ~env->xcr0) == 0);
+    size = xsave_area_size(rfbm, false);
+
+    access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, 0);
+    do_xsave_access(&ac, ptr, rfbm, get_xinuse(env), rfbm);
 }
 
 void cpu_x86_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
