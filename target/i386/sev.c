@@ -1417,6 +1417,7 @@ sev_guest_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "reduced-phys-bits",
                                    &sev->reduced_phys_bits,
                                    OBJ_PROP_FLAG_READWRITE);
+    object_apply_compat_props(obj);
 }
 
 /* sev guest info */
