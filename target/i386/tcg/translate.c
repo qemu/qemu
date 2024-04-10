@@ -2853,6 +2853,8 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     target_ulong new_pc = s->pc + diff;
     target_ulong new_eip = new_pc - s->cs_base;
 
+    assert(!s->cc_op_dirty);
+
     /* In 64-bit mode, operand size is fixed at 64 bits. */
     if (!CODE64(s)) {
         if (ot == MO_16) {
@@ -2865,9 +2867,6 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
         }
     }
     new_eip &= mask;
-
-    gen_update_cc_op(s);
-    set_cc_op(s, CC_OP_DYNAMIC);
 
     if (tb_cflags(s->base.tb) & CF_PCREL) {
         tcg_gen_addi_tl(cpu_eip, cpu_eip, new_pc - s->pc_save);
@@ -5146,6 +5145,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                         : (int16_t)insn_get(env, s, MO_16));
             gen_push_v(s, eip_next_tl(s));
             gen_bnd_jmp(s);
+            gen_update_cc_op(s);
             gen_jmp_rel(s, dflag, diff, 0);
         }
         break;
@@ -5169,6 +5169,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                         ? (int32_t)insn_get(env, s, MO_32)
                         : (int16_t)insn_get(env, s, MO_16));
             gen_bnd_jmp(s);
+            gen_update_cc_op(s);
             gen_jmp_rel(s, dflag, diff, 0);
         }
         break;
@@ -5189,6 +5190,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0xeb: /* jmp Jb */
         {
             int diff = (int8_t)insn_get(env, s, MO_8);
+            gen_update_cc_op(s);
             gen_jmp_rel(s, dflag, diff, 0);
         }
         break;
