@@ -998,6 +998,9 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
        /* The need to compute only C from CC_OP_DYNAMIC is important
           in efficiently implementing e.g. INC at the start of a TB.  */
        gen_update_cc_op(s);
+       if (!reg) {
+           reg = tcg_temp_new();
+       }
        gen_helper_cc_compute_c(reg, cpu_cc_dst, cpu_cc_src,
                                cpu_cc_src2, cpu_cc_op);
        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
@@ -1152,8 +1155,8 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             break;
         case JCC_L:
             gen_compute_eflags(s);
-            if (reg == cpu_cc_src) {
-                reg = s->tmp0;
+            if (!reg || reg == cpu_cc_src) {
+                reg = tcg_temp_new();
             }
             tcg_gen_addi_tl(reg, cpu_cc_src, CC_O - CC_S);
             cc = (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = reg,
@@ -1162,8 +1165,8 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         default:
         case JCC_LE:
             gen_compute_eflags(s);
-            if (reg == cpu_cc_src) {
-                reg = s->tmp0;
+            if (!reg || reg == cpu_cc_src) {
+                reg = tcg_temp_new();
             }
             tcg_gen_addi_tl(reg, cpu_cc_src, CC_O - CC_S);
             cc = (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = reg,
@@ -1208,7 +1211,7 @@ static inline void gen_compute_eflags_c(DisasContext *s, TCGv reg)
    value 'b'. In the fast case, T0 is guaranteed not to be used. */
 static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
 {
-    CCPrepare cc = gen_prepare_cc(s, b, s->T0);
+    CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
     if (cc.use_reg2) {
         tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
@@ -1223,7 +1226,7 @@ static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
    cc_op is clean.  */
 static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
 {
-    CCPrepare cc = gen_prepare_cc(s, b, s->T0);
+    CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
     gen_update_cc_op(s);
     if (cc.use_reg2) {
@@ -2493,7 +2496,7 @@ static void gen_jcc(DisasContext *s, int b, int diff)
 
 static void gen_cmovcc1(DisasContext *s, int b, TCGv dest, TCGv src)
 {
-    CCPrepare cc = gen_prepare_cc(s, b, s->T1);
+    CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
     if (!cc.use_reg2) {
         cc.reg2 = tcg_constant_tl(cc.imm);
