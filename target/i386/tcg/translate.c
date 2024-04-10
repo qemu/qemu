@@ -1227,13 +1227,13 @@ static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
 
 /* Generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranteed not to be used.
-   A translation block must end soon.  */
+   One or both of the branches will call gen_jmp_rel, so ensure
+   cc_op is clean.  */
 static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, s->T0);
 
     gen_update_cc_op(s);
-    set_cc_op(s, CC_OP_DYNAMIC);
     if (cc.use_reg2) {
         tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
     } else {
