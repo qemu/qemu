@@ -274,6 +274,7 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
     /* Remove existing entries */
     QLIST_FOREACH_SAFE(d, &s->data_def, node, next) {
         QLIST_REMOVE(d, node);
+        g_free(d);
     }
     s->status = 0x00;
     s->status_1e = 0x00;
@@ -342,7 +343,6 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
-    qdev_applesmc_isa_reset(dev);
 }
 
 static Property applesmc_isa_properties[] = {
