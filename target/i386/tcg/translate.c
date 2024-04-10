@@ -1242,11 +1242,15 @@ static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
 }
 
 /* XXX: does not work with gdbstub "ice" single step - not a
-   serious problem */
+   serious problem.  The caller can jump to the returned label
+   to stop the REP but, if the flags have changed, it has to call
+   gen_update_cc_op before doing so.  */
 static TCGLabel *gen_jz_ecx_string(DisasContext *s)
 {
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
+
+    gen_update_cc_op(s);
     gen_op_jnz_ecx(s, l1);
     gen_set_label(l2);
     gen_jmp_rel_csize(s, 0, 1);
@@ -1342,7 +1346,6 @@ static void gen_repz(DisasContext *s, MemOp ot,
                      void (*fn)(DisasContext *s, MemOp ot))
 {
     TCGLabel *l2;
-    gen_update_cc_op(s);
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
@@ -1364,15 +1367,18 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
                       void (*fn)(DisasContext *s, MemOp ot))
 {
     TCGLabel *l2;
-    gen_update_cc_op(s);
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-    gen_update_cc_op(s);
     gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);
     if (s->repz_opt) {
         gen_op_jz_ecx(s, l2);
     }
+    /*
+     * Only one iteration is done at a time, so the translation
+     * block ends unconditionally after this instruction and there
+     * is no control flow junction - no need to set CC_OP_DYNAMIC.
+     */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
 
