@@ -937,7 +937,7 @@ static CCPrepare gen_prepare_sign_nz(TCGv src, MemOp size)
     }
 }
 
-/* compute eflags.C to reg */
+/* compute eflags.C, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 {
     MemOp size;
@@ -1008,7 +1008,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     }
 }
 
-/* compute eflags.P to reg */
+/* compute eflags.P, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_p(DisasContext *s, TCGv reg)
 {
     gen_compute_eflags(s);
@@ -1016,7 +1016,7 @@ static CCPrepare gen_prepare_eflags_p(DisasContext *s, TCGv reg)
                          .imm = CC_P };
 }
 
-/* compute eflags.S to reg */
+/* compute eflags.S, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
 {
     switch (s->cc_op) {
@@ -1040,7 +1040,7 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     }
 }
 
-/* compute eflags.O to reg */
+/* compute eflags.O, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
 {
     switch (s->cc_op) {
@@ -1060,7 +1060,7 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     }
 }
 
-/* compute eflags.Z to reg */
+/* compute eflags.Z, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
 {
     switch (s->cc_op) {
@@ -1090,8 +1090,9 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     }
 }
 
-/* perform a conditional store into register 'reg' according to jump opcode
-   value 'b'. In the fast case, T0 is guaranteed not to be used. */
+/* return how to compute jump opcode 'b'.  'reg' can be clobbered
+ * if needed; it may be used for CCPrepare.reg if that will
+ * provide more freedom in the translation of a subsequent setcond. */
 static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
 {
     int inv, jcc_op, cond;
