@@ -2783,7 +2783,7 @@ static void gen_bnd_jmp(DisasContext *s)
    If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
    S->TF.  This is used by the syscall/sysret insns.  */
 static void
-do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
+gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
 {
     bool inhibit_reset;
 
@@ -2817,28 +2817,27 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
 }
 
 static inline void
-gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
+gen_eob_syscall(DisasContext *s)
 {
-    do_gen_eob_worker(s, inhibit, recheck_tf, false);
+    gen_eob_worker(s, false, true, false);
 }
 
-/* End of block.
-   If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
-static void gen_eob_inhibit_irq(DisasContext *s, bool inhibit)
+/* End of block.  Set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
+static void gen_eob_inhibit_irq(DisasContext *s)
 {
-    gen_eob_worker(s, inhibit, false);
+    gen_eob_worker(s, true, false, false);
 }
 
 /* End of block, resetting the inhibit irq flag.  */
 static void gen_eob(DisasContext *s)
 {
-    gen_eob_worker(s, false, false);
+    gen_eob_worker(s, false, false, false);
 }
 
 /* Jump to register */
 static void gen_jr(DisasContext *s)
 {
-    do_gen_eob_worker(s, false, false, true);
+    gen_eob_worker(s, false, false, true);
 }
 
 /* Jump to eip+diff, truncating the result to OT. */
@@ -5591,7 +5590,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_set_eflags(s, IF_MASK);
             /* interruptions are enabled only the first insn after sti */
             gen_update_eip_next(s);
-            gen_eob_inhibit_irq(s, true);
+            gen_eob_inhibit_irq(s);
         }
         break;
     case 0x62: /* bound */
@@ -5725,7 +5724,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         /* TF handling for the syscall insn is different. The TF bit is  checked
            after the syscall insn completes. This allows #DB to not be
            generated after one has entered CPL0 if TF is set in FMASK.  */
-        gen_eob_worker(s, false, true);
+        gen_eob_syscall(s);
         break;
     case 0x107: /* sysret */
         /* For Intel SYSRET is only valid in long mode */
@@ -5744,7 +5743,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                checked after the sysret insn completes. This allows #DB to be
                generated "as if" the syscall insn in userspace has just
                completed.  */
-            gen_eob_worker(s, false, true);
+            gen_eob_syscall(s);
         }
         break;
     case 0x1a2: /* cpuid */
@@ -7059,7 +7058,7 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_EOB_INHIBIT_IRQ:
         gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
-        gen_eob_inhibit_irq(dc, true);
+        gen_eob_inhibit_irq(dc);
         break;
     case DISAS_JUMP:
         gen_jr(dc);
