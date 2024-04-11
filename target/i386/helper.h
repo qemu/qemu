@@ -207,15 +207,4 @@ DEF_HELPER_1(emms, void, env)
 #define SHIFT 2
 #include "tcg/ops_sse_header.h.inc"
 
-DEF_HELPER_3(rclb, tl, env, tl, tl)
-DEF_HELPER_3(rclw, tl, env, tl, tl)
-DEF_HELPER_3(rcll, tl, env, tl, tl)
-DEF_HELPER_3(rcrb, tl, env, tl, tl)
-DEF_HELPER_3(rcrw, tl, env, tl, tl)
-DEF_HELPER_3(rcrl, tl, env, tl, tl)
-#ifdef TARGET_X86_64
-DEF_HELPER_3(rclq, tl, env, tl, tl)
-DEF_HELPER_3(rcrq, tl, env, tl, tl)
-#endif
-
 DEF_HELPER_1(rdrand, tl, env)
