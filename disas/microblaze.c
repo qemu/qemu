@@ -600,7 +600,8 @@ static char *
 get_field (long instr, long mask, unsigned short low)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%s%d", register_prefix, (int)((instr & mask) >> low));
+  snprintf(tmpstr, sizeof(tmpstr), "%s%d", register_prefix,
+           (int)((instr & mask) >> low));
   return(strdup(tmpstr));
 }
 
@@ -608,7 +609,8 @@ static char *
 get_field_imm (long instr)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%d", (short)((instr & IMM_MASK) >> IMM_LOW));
+  snprintf(tmpstr, sizeof(tmpstr), "%d",
+           (short)((instr & IMM_MASK) >> IMM_LOW));
   return(strdup(tmpstr));
 }
 
@@ -616,7 +618,8 @@ static char *
 get_field_imm5 (long instr)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%d", (short)((instr & IMM5_MASK) >> IMM_LOW));
+  snprintf(tmpstr, sizeof(tmpstr), "%d",
+           (short)((instr & IMM5_MASK) >> IMM_LOW));
   return(strdup(tmpstr));
 }
 
@@ -624,7 +627,8 @@ static char *
 get_field_rfsl (long instr)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%s%d", fsl_register_prefix, (short)((instr & RFSL_MASK) >> IMM_LOW));
+  snprintf(tmpstr, sizeof(tmpstr), "%s%d", fsl_register_prefix,
+           (short)((instr & RFSL_MASK) >> IMM_LOW));
   return(strdup(tmpstr));
 }
 
@@ -632,7 +636,8 @@ static char *
 get_field_imm15 (long instr)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%d", (short)((instr & IMM15_MASK) >> IMM_LOW));
+  snprintf(tmpstr, sizeof(tmpstr), "%d",
+           (short)((instr & IMM15_MASK) >> IMM_LOW));
   return(strdup(tmpstr));
 }
 
@@ -641,7 +646,8 @@ static char *
 get_field_unsigned_imm (long instr)
 {
   char tmpstr[25];
-  sprintf(tmpstr, "%d", (int)((instr & IMM_MASK) >> IMM_LOW));
+  snprintf(tmpstr, sizeof(tmpstr), "%d",
+           (int)((instr & IMM_MASK) >> IMM_LOW));
   return(strdup(tmpstr));
 }
 #endif
@@ -653,7 +659,8 @@ get_field_unsigned_imm (long instr)
   {
   char tmpstr[25];
   
-  sprintf(tmpstr, "%s%s", register_prefix, (((instr & IMM_MASK) >> IMM_LOW) & REG_MSR_MASK) == 0 ? "pc" : "msr");
+  snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix,
+          (((instr & IMM_MASK) >> IMM_LOW) & REG_MSR_MASK) == 0 ? "pc" : "msr");
   
   return(strdup(tmpstr));
   }
@@ -709,7 +716,7 @@ get_field_special(long instr, const struct op_code_struct *op)
    default :
      {
        if ( ((((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) & 0xE000) == REG_PVR_MASK) {
-	  sprintf(tmpstr, "%s%u", pvr_register_prefix,
+          snprintf(tmpstr, sizeof(tmpstr), "%s%u", pvr_register_prefix,
                  (unsigned short)(((instr & IMM_MASK) >> IMM_LOW) ^
                                   op->immval_mask) ^ REG_PVR_MASK);
 	 return(strdup(tmpstr));
@@ -720,7 +727,7 @@ get_field_special(long instr, const struct op_code_struct *op)
      break;
    }
    
-   sprintf(tmpstr, "%s%s", register_prefix, spr);
+   snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix, spr);
    return(strdup(tmpstr));
 }
 
