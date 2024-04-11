@@ -29,8 +29,6 @@
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
 
-/* ??? ZFLAT and shared library support is currently disabled.  */
-
 /****************************************************************************/
 
 #include "qemu/osdep.h"
@@ -63,10 +61,6 @@ struct lib_info {
     abi_ulong build_date;       /* When this one was compiled */
     short loaded;		/* Has this library been loaded? */
 };
-
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-static int load_flat_shared_library(int id, struct lib_info *p);
-#endif
 
 struct linux_binprm;
 
@@ -108,153 +102,6 @@ static int target_pread(int fd, abi_ulong ptr, abi_ulong len,
     unlock_user(buf, ptr, len);
     return ret;
 }
-/****************************************************************************/
-
-#ifdef CONFIG_BINFMT_ZFLAT
-
-#include <linux/zlib.h>
-
-#define LBUFSIZE	4000
-
-/* gzip flag byte */
-#define ASCII_FLAG   0x01 /* bit 0 set: file probably ASCII text */
-#define CONTINUATION 0x02 /* bit 1 set: continuation of multi-part gzip file */
-#define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
-#define ORIG_NAME    0x08 /* bit 3 set: original file name present */
-#define COMMENT      0x10 /* bit 4 set: file comment present */
-#define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
-#define RESERVED     0xC0 /* bit 6,7:   reserved */
-
-static int decompress_exec(
-	struct linux_binprm *bprm,
-	unsigned long offset,
-	char *dst,
-	long len,
-	int fd)
-{
-	unsigned char *buf;
-	z_stream strm;
-	loff_t fpos;
-	int ret, retval;
-
-	DBG_FLT("decompress_exec(offset=%x,buf=%x,len=%x)\n",(int)offset, (int)dst, (int)len);
-
-	memset(&strm, 0, sizeof(strm));
-	strm.workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-	if (strm.workspace == NULL) {
-		DBG_FLT("binfmt_flat: no memory for decompress workspace\n");
-		return -ENOMEM;
-	}
-	buf = kmalloc(LBUFSIZE, GFP_KERNEL);
-	if (buf == NULL) {
-		DBG_FLT("binfmt_flat: no memory for read buffer\n");
-		retval = -ENOMEM;
-		goto out_free;
-	}
-
-	/* Read in first chunk of data and parse gzip header. */
-	fpos = offset;
-	ret = bprm->file->f_op->read(bprm->file, buf, LBUFSIZE, &fpos);
-
-	strm.next_in = buf;
-	strm.avail_in = ret;
-	strm.total_in = 0;
-
-	retval = -ENOEXEC;
-
-	/* Check minimum size -- gzip header */
-	if (ret < 10) {
-		DBG_FLT("binfmt_flat: file too small?\n");
-		goto out_free_buf;
-	}
-
-	/* Check gzip magic number */
-	if ((buf[0] != 037) || ((buf[1] != 0213) && (buf[1] != 0236))) {
-		DBG_FLT("binfmt_flat: unknown compression magic?\n");
-		goto out_free_buf;
-	}
-
-	/* Check gzip method */
-	if (buf[2] != 8) {
-		DBG_FLT("binfmt_flat: unknown compression method?\n");
-		goto out_free_buf;
-	}
-	/* Check gzip flags */
-	if ((buf[3] & ENCRYPTED) || (buf[3] & CONTINUATION) ||
-	    (buf[3] & RESERVED)) {
-		DBG_FLT("binfmt_flat: unknown flags?\n");
-		goto out_free_buf;
-	}
-
-	ret = 10;
-	if (buf[3] & EXTRA_FIELD) {
-		ret += 2 + buf[10] + (buf[11] << 8);
-		if (unlikely(LBUFSIZE == ret)) {
-			DBG_FLT("binfmt_flat: buffer overflow (EXTRA)?\n");
-			goto out_free_buf;
-		}
-	}
-	if (buf[3] & ORIG_NAME) {
-		for (; ret < LBUFSIZE && (buf[ret] != 0); ret++)
-			;
-		if (unlikely(LBUFSIZE == ret)) {
-			DBG_FLT("binfmt_flat: buffer overflow (ORIG_NAME)?\n");
-			goto out_free_buf;
-		}
-	}
-	if (buf[3] & COMMENT) {
-		for (;  ret < LBUFSIZE && (buf[ret] != 0); ret++)
-			;
-		if (unlikely(LBUFSIZE == ret)) {
-			DBG_FLT("binfmt_flat: buffer overflow (COMMENT)?\n");
-			goto out_free_buf;
-		}
-	}
-
-	strm.next_in += ret;
-	strm.avail_in -= ret;
-
-	strm.next_out = dst;
-	strm.avail_out = len;
-	strm.total_out = 0;
-
-	if (zlib_inflateInit2(&strm, -MAX_WBITS) != Z_OK) {
-		DBG_FLT("binfmt_flat: zlib init failed?\n");
-		goto out_free_buf;
-	}
-
-	while ((ret = zlib_inflate(&strm, Z_NO_FLUSH)) == Z_OK) {
-		ret = bprm->file->f_op->read(bprm->file, buf, LBUFSIZE, &fpos);
-		if (ret <= 0)
-			break;
-                if (is_error(ret)) {
-			break;
-                }
-		len -= ret;
-
-		strm.next_in = buf;
-		strm.avail_in = ret;
-		strm.total_in = 0;
-	}
-
-	if (ret < 0) {
-		DBG_FLT("binfmt_flat: decompression failed (%d), %s\n",
-			ret, strm.msg);
-		goto out_zlib;
-	}
-
-	retval = 0;
-out_zlib:
-	zlib_inflateEnd(&strm);
-out_free_buf:
-	kfree(buf);
-out_free:
-	kfree(strm.workspace);
-out:
-	return retval;
-}
-
-#endif /* CONFIG_BINFMT_ZFLAT */
 
 /****************************************************************************/
 
@@ -268,40 +115,7 @@ calc_reloc(abi_ulong r, struct lib_info *p, int curid, int internalp)
     abi_ulong text_len;
     abi_ulong start_code;
 
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-#error needs checking
-    if (r == 0)
-        id = curid;	/* Relocs of 0 are always self referring */
-    else {
-        id = (r >> 24) & 0xff;	/* Find ID for this reloc */
-        r &= 0x00ffffff;	/* Trim ID off here */
-    }
-    if (id >= MAX_SHARED_LIBS) {
-        fprintf(stderr, "BINFMT_FLAT: reference 0x%x to shared library %d\n",
-                (unsigned) r, id);
-        goto failed;
-    }
-    if (curid != id) {
-        if (internalp) {
-            fprintf(stderr, "BINFMT_FLAT: reloc address 0x%x not "
-                    "in same module (%d != %d)\n",
-                    (unsigned) r, curid, id);
-            goto failed;
-        } else if (!p[id].loaded && is_error(load_flat_shared_library(id, p))) {
-            fprintf(stderr, "BINFMT_FLAT: failed to load library %d\n", id);
-            goto failed;
-        }
-        /* Check versioning information (i.e. time stamps) */
-        if (p[id].build_date && p[curid].build_date
-            && p[curid].build_date < p[id].build_date) {
-            fprintf(stderr, "BINFMT_FLAT: library %d is younger than %d\n",
-                    id, curid);
-            goto failed;
-        }
-    }
-#else
     id = 0;
-#endif
 
     start_brk = p[id].start_brk;
     start_data = p[id].start_data;
@@ -425,12 +239,10 @@ static int load_flat_file(struct linux_binprm * bprm,
     if (rev == OLD_FLAT_VERSION && flat_old_ram_flag(flags))
         flags = FLAT_FLAG_RAM;
 
-#ifndef CONFIG_BINFMT_ZFLAT
     if (flags & (FLAT_FLAG_GZIP|FLAT_FLAG_GZDATA)) {
-        fprintf(stderr, "Support for ZFLAT executables is not enabled\n");
+        fprintf(stderr, "ZFLAT executables are not supported\n");
         return -ENOEXEC;
     }
-#endif
 
     /*
      * calculate the extra space we need to map in
@@ -483,17 +295,9 @@ static int load_flat_file(struct linux_binprm * bprm,
                         (int)(data_len + bss_len + stack_len), (int)datapos);
 
         fpos = ntohl(hdr->data_start);
-#ifdef CONFIG_BINFMT_ZFLAT
-        if (flags & FLAT_FLAG_GZDATA) {
-            result = decompress_exec(bprm, fpos, (char *) datapos,
-                                     data_len + (relocs * sizeof(abi_ulong)))
-        } else
-#endif
-        {
-            result = target_pread(bprm->src.fd, datapos,
-                                  data_len + (relocs * sizeof(abi_ulong)),
-                                  fpos);
-        }
+        result = target_pread(bprm->src.fd, datapos,
+                              data_len + (relocs * sizeof(abi_ulong)),
+                              fpos);
         if (result < 0) {
             fprintf(stderr, "Unable to read data+bss\n");
             return result;
@@ -515,38 +319,12 @@ static int load_flat_file(struct linux_binprm * bprm,
         datapos = realdatastart + indx_len;
         reloc = (textpos + ntohl(hdr->reloc_start) + indx_len);
 
-#ifdef CONFIG_BINFMT_ZFLAT
-#error code needs checking
-        /*
-         * load it all in and treat it like a RAM load from now on
-         */
-        if (flags & FLAT_FLAG_GZIP) {
-                result = decompress_exec(bprm, sizeof (struct flat_hdr),
-                                 (((char *) textpos) + sizeof (struct flat_hdr)),
-                                 (text_len + data_len + (relocs * sizeof(unsigned long))
-                                          - sizeof (struct flat_hdr)),
-                                 0);
-                memmove((void *) datapos, (void *) realdatastart,
-                                data_len + (relocs * sizeof(unsigned long)));
-        } else if (flags & FLAT_FLAG_GZDATA) {
-                fpos = 0;
-                result = bprm->file->f_op->read(bprm->file,
-                                (char *) textpos, text_len, &fpos);
-                if (!is_error(result)) {
-                        result = decompress_exec(bprm, text_len, (char *) datapos,
-                                         data_len + (relocs * sizeof(unsigned long)), 0);
-                }
-        }
-        else
-#endif
-        {
-            result = target_pread(bprm->src.fd, textpos,
-                                  text_len, 0);
-            if (result >= 0) {
-                result = target_pread(bprm->src.fd, datapos,
-                    data_len + (relocs * sizeof(abi_ulong)),
-                    ntohl(hdr->data_start));
-            }
+        result = target_pread(bprm->src.fd, textpos,
+                              text_len, 0);
+        if (result >= 0) {
+            result = target_pread(bprm->src.fd, datapos,
+                                  data_len + (relocs * sizeof(abi_ulong)),
+                                  ntohl(hdr->data_start));
         }
         if (result < 0) {
             fprintf(stderr, "Unable to read code+data+bss\n");
@@ -678,44 +456,6 @@ static int load_flat_file(struct linux_binprm * bprm,
 
 
 /****************************************************************************/
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-
-/*
- * Load a shared library into memory.  The library gets its own data
- * segment (including bss) but not argv/argc/environ.
- */
-
-static int load_flat_shared_library(int id, struct lib_info *libs)
-{
-	struct linux_binprm bprm;
-	int res;
-	char buf[16];
-
-	/* Create the file name */
-	sprintf(buf, "/lib/lib%d.so", id);
-
-	/* Open the file up */
-	bprm.filename = buf;
-	bprm.file = open_exec(bprm.filename);
-	res = PTR_ERR(bprm.file);
-	if (IS_ERR(bprm.file))
-		return res;
-
-	res = prepare_binprm(&bprm);
-
-        if (!is_error(res)) {
-		res = load_flat_file(&bprm, libs, id, NULL);
-        }
-	if (bprm.file) {
-		allow_write_access(bprm.file);
-		fput(bprm.file);
-		bprm.file = NULL;
-	}
-	return(res);
-}
-
-#endif /* CONFIG_BINFMT_SHARED_FLAT */
-
 int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
 {
     struct lib_info libinfo[MAX_SHARED_LIBS];
@@ -792,19 +532,6 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
      * lib 1 first, then 2, ... and finally the main program (id 0).
      */
     start_addr = libinfo[0].entry;
-
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-#error here
-    for (i = MAX_SHARED_LIBS-1; i>0; i--) {
-            if (libinfo[i].loaded) {
-                    /* Push previous first to call address */
-                    --sp;
-                    if (put_user_ual(start_addr, sp))
-                        return -EFAULT;
-                    start_addr = libinfo[i].entry;
-            }
-    }
-#endif
 
     /* Stash our initial stack pointer into the mm structure */
     info->start_code = libinfo[0].start_code;
