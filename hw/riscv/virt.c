@@ -1617,10 +1617,8 @@ static void virt_machine_instance_init(Object *obj)
 static char *virt_get_aia_guests(Object *obj, Error **errp)
 {
     RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
-    char val[32];
 
-    sprintf(val, "%d", s->aia_guests);
-    return g_strdup(val);
+    return g_strdup_printf("%d", s->aia_guests);
 }
 
 static void virt_set_aia_guests(Object *obj, const char *val, Error **errp)
@@ -1741,7 +1739,6 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
-    char str[128];
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
@@ -1767,7 +1764,6 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
 
-
     object_class_property_add_bool(oc, "aclint", virt_get_aclint,
                                    virt_set_aclint);
     object_class_property_set_description(oc, "aclint",
@@ -1785,9 +1781,14 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "aia-guests",
                                   virt_get_aia_guests,
                                   virt_set_aia_guests);
-    sprintf(str, "Set number of guest MMIO pages for AIA IMSIC. Valid value "
-                 "should be between 0 and %d.", VIRT_IRQCHIP_MAX_GUESTS);
-    object_class_property_set_description(oc, "aia-guests", str);
+    {
+        g_autofree char *str =
+            g_strdup_printf("Set number of guest MMIO pages for AIA IMSIC. "
+                            "Valid value should be between 0 and %d.",
+                            VIRT_IRQCHIP_MAX_GUESTS);
+        object_class_property_set_description(oc, "aia-guests", str);
+    }
+
     object_class_property_add(oc, "acpi", "OnOffAuto",
                               virt_get_acpi, virt_set_acpi,
                               NULL, NULL);
