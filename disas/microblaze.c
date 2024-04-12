@@ -564,8 +564,6 @@ static const struct op_code_struct {
 
 /* prefix for register names */
 #define register_prefix "r"
-static const char pvr_register_prefix[] = "rpvr";
-
 
 /* #defines for valid immediate range */
 #define MIN_IMM  ((int) 0x80000000)
@@ -580,6 +578,7 @@ static const char pvr_register_prefix[] = "rpvr";
 
 #define PRIreg    register_prefix "%ld"
 #define PRIrfsl   register_prefix "fsl%ld"
+#define PRIpvr    register_prefix "pvr%d"
 #define PRIimm    "%d"
 
 #define get_field_rd(instr)      ((instr & RD_MASK) >> RD_LOW)
@@ -593,83 +592,48 @@ static const char pvr_register_prefix[] = "rpvr";
 #define get_int_field_imm(instr) ((instr & IMM_MASK) >> IMM_LOW)
 #define get_int_field_r1(instr) ((instr & RA_MASK) >> RA_LOW)
 
-/*
-  char *
-  get_field_special (instr) 
-  long instr;
-  {
-  char tmpstr[25];
-  
-  snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix,
-          (((instr & IMM_MASK) >> IMM_LOW) & REG_MSR_MASK) == 0 ? "pc" : "msr");
-  
-  return(strdup(tmpstr));
-  }
-*/
-
-static char *
-get_field_special(long instr, const struct op_code_struct *op)
+static int get_field_special(long instr, const struct op_code_struct *op)
 {
-   char tmpstr[25];
-   char spr[6];
+    return ((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask;
+}
 
-   switch ( (((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) ) {
-
-   case REG_MSR_MASK :
-      strcpy(spr, "msr");
-      break;
-   case REG_PC_MASK :
-      strcpy(spr, "pc");
-      break;
-   case REG_EAR_MASK :
-      strcpy(spr, "ear");
-      break;
-   case REG_ESR_MASK :
-      strcpy(spr, "esr");
-      break;
-   case REG_FSR_MASK :
-      strcpy(spr, "fsr");
-      break;
-   case REG_BTR_MASK :
-      strcpy(spr, "btr");
-      break;      
-   case REG_EDR_MASK :
-      strcpy(spr, "edr");
-      break;
-   case REG_PID_MASK :
-      strcpy(spr, "pid");
-      break;
-   case REG_ZPR_MASK :
-      strcpy(spr, "zpr");
-      break;
-   case REG_TLBX_MASK :
-      strcpy(spr, "tlbx");
-      break;
-   case REG_TLBLO_MASK :
-      strcpy(spr, "tlblo");
-      break;
-   case REG_TLBHI_MASK :
-      strcpy(spr, "tlbhi");
-      break;
-   case REG_TLBSX_MASK :
-      strcpy(spr, "tlbsx");
-      break;
-   default :
-     {
-       if ( ((((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) & 0xE000) == REG_PVR_MASK) {
-          snprintf(tmpstr, sizeof(tmpstr), "%s%u", pvr_register_prefix,
-                 (unsigned short)(((instr & IMM_MASK) >> IMM_LOW) ^
-                                  op->immval_mask) ^ REG_PVR_MASK);
-	 return(strdup(tmpstr));
-       } else {
-	 strcpy(spr, "pc");
-       }
-     }
-     break;
-   }
-   
-   snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix, spr);
-   return(strdup(tmpstr));
+/* Returns NULL for PVR registers, which should be rendered differently. */
+static const char *get_special_name(int special)
+{
+    switch (special) {
+    case REG_MSR_MASK:
+        return register_prefix "msr";
+    case REG_PC_MASK:
+        return register_prefix "pc";
+    case REG_EAR_MASK:
+        return register_prefix "ear";
+    case REG_ESR_MASK:
+        return register_prefix "esr";
+    case REG_FSR_MASK:
+        return register_prefix "fsr";
+    case REG_BTR_MASK:
+        return register_prefix "btr";
+    case REG_EDR_MASK:
+        return register_prefix "edr";
+    case REG_PID_MASK:
+        return register_prefix "pid";
+    case REG_ZPR_MASK:
+        return register_prefix "zpr";
+    case REG_TLBX_MASK:
+        return register_prefix "tlbx";
+    case REG_TLBLO_MASK:
+        return register_prefix "tlblo";
+    case REG_TLBHI_MASK:
+        return register_prefix "tlbhi";
+    case REG_TLBSX_MASK:
+        return register_prefix "tlbsx";
+    default:
+        if ((special & 0xE000) == REG_PVR_MASK) {
+            /* pvr register */
+            return NULL;
+        }
+        return register_prefix "pc";
+    }
 }
 
 static unsigned long
@@ -739,6 +703,8 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
     static bfd_vma prev_insn_addr = -1; /*init the prev insn addr */
     static int prev_insn_vma = -1;  /*init the prev insn vma */
     int curr_insn_vma = info->buffer_vma;
+    int special;
+    const char *special_name;
 
     info->bytes_per_chunk = 4;
 
@@ -799,12 +765,26 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
                      op->name, get_field_r1(inst), get_field_rfsl(inst));
         break;
     case INST_TYPE_RD_SPECIAL:
-        fprintf_func(stream, "%s\t" PRIreg ", %s",
-                     op->name, get_field_rd(inst), get_field_special(inst, op));
+        special = get_field_special(inst, op);
+        special_name = get_special_name(special);
+        if (special_name) {
+            fprintf_func(stream, "%s\t" PRIreg ", %s",
+                         op->name, get_field_rd(inst), special_name);
+        } else {
+            fprintf_func(stream, "%s\t" PRIreg ", " PRIpvr,
+                         op->name, get_field_rd(inst), special ^ REG_PVR_MASK);
+        }
         break;
     case INST_TYPE_SPECIAL_R1:
-        fprintf_func(stream, "%s\t%s, " PRIreg,
-                     op->name, get_field_special(inst, op), get_field_r1(inst));
+        special = get_field_special(inst, op);
+        special_name = get_special_name(special);
+        if (special_name) {
+            fprintf_func(stream, "%s\t%s, " PRIreg,
+                         op->name, special_name, get_field_r1(inst));
+        } else {
+            fprintf_func(stream, "%s\t" PRIpvr ", " PRIreg,
+                         op->name, special ^ REG_PVR_MASK, get_field_r1(inst));
+        }
         break;
     case INST_TYPE_RD_R1:
         fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
