@@ -1,5 +1,5 @@
 /*
- * Helper to hexdump a buffer
+* Helper to hexdump a buffer
  *
  * Copyright (c) 2013 Red Hat, Inc.
  * Copyright (c) 2013 Gerd Hoffmann <kraxel@redhat.com>
@@ -16,22 +16,34 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 
-GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len)
+GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
+                           size_t unit_len, size_t block_len)
 {
     const uint8_t *buf = vbuf;
-    size_t i;
+    size_t u, b;
 
     if (str == NULL) {
         /* Estimate the length of the output to avoid reallocs. */
-        i = len * 3 + len / 4;
-        str = g_string_sized_new(i + 1);
+        size_t est = len * 2;
+        if (unit_len) {
+            est += len / unit_len;
+        }
+        if (block_len) {
+            est += len / block_len;
+        }
+        str = g_string_sized_new(est + 1);
     }
 
-    for (i = 0; i < len; i++) {
-        if (i != 0 && (i % 4) == 0) {
+    for (u = 0, b = 0; len; u++, b++, len--, buf++) {
+        if (unit_len && u == unit_len) {
             g_string_append_c(str, ' ');
+            u = 0;
         }
-        g_string_append_printf(str, " %02x", buf[i]);
+        if (block_len && b == block_len) {
+            g_string_append_c(str, ' ');
+            b = 0;
+        }
+        g_string_append_printf(str, "%02x", *buf);
     }
 
     return str;
@@ -67,7 +79,7 @@ void qemu_hexdump(FILE *fp, const char *prefix,
         len = MIN(size - b, QEMU_HEXDUMP_LINE_BYTES);
 
         g_string_truncate(str, 0);
-        qemu_hexdump_line(str, bufptr + b, len);
+        qemu_hexdump_line(str, bufptr + b, len, 1, 4);
         asciidump_line(ascii, bufptr + b, len);
 
         fprintf(fp, "%s: %04zx: %-*s %s\n",

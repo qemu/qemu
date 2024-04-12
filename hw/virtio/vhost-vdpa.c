@@ -951,7 +951,7 @@ static void vhost_vdpa_dump_config(struct vhost_dev *dev, const uint8_t *config,
         len = MIN(config_len - b, 16);
 
         g_string_truncate(str, 0);
-        qemu_hexdump_line(str, config + b, len);
+        qemu_hexdump_line(str, config + b, len, 1, 4);
         trace_vhost_vdpa_dump_config(dev, b, str->str);
     }
 }

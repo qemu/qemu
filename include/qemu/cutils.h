@@ -287,12 +287,16 @@ int parse_debug_env(const char *name, int max, int initial);
  * @str: GString into which to append
  * @buf: buffer to dump
  * @len: number of bytes to dump
+ * @unit_len: add a space between every @unit_len bytes
+ * @block_len: add an extra space between every @block_len bytes
  *
  * Append @len bytes of @buf as hexadecimal into @str.
+ * Add spaces between every @unit_len and @block_len bytes.
  * If @str is NULL, allocate a new string and return it;
  * otherwise return @str.
  */
-GString *qemu_hexdump_line(GString *str, const void *buf, size_t len);
+GString *qemu_hexdump_line(GString *str, const void *buf, size_t len,
+                           size_t unit_len, size_t block_len);
 
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line
