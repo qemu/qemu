@@ -4820,272 +4820,249 @@ static size_t inst_length(rv_inst inst)
 
 /* format instruction */
 
-static void append(char *s1, const char *s2, size_t n)
-{
-    size_t l1 = strlen(s1);
-    if (n - l1 - 1 > 0) {
-        strncat(s1, s2, n - l1);
-    }
-}
-
-static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
+static GString *format_inst(size_t tab, rv_decode *dec)
 {
     const rv_opcode_data *opcode_data = dec->opcode_data;
-    char tmp[64];
+    GString *buf = g_string_sized_new(64);
     const char *fmt;
 
     fmt = opcode_data[dec->op].format;
     while (*fmt) {
         switch (*fmt) {
         case 'O':
-            append(buf, opcode_data[dec->op].name, buflen);
+            g_string_append(buf, opcode_data[dec->op].name);
             break;
         case '(':
-            append(buf, "(", buflen);
-            break;
         case ',':
-            append(buf, ",", buflen);
-            break;
         case ')':
-            append(buf, ")", buflen);
-            break;
         case '-':
-            append(buf, "-", buflen);
+            g_string_append_c(buf, *fmt);
             break;
         case 'b':
-            snprintf(tmp, sizeof(tmp), "%d", dec->bs);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->bs);
             break;
         case 'n':
-            snprintf(tmp, sizeof(tmp), "%d", dec->rnum);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->rnum);
             break;
         case '0':
-            append(buf, rv_ireg_name_sym[dec->rd], buflen);
+            g_string_append(buf, rv_ireg_name_sym[dec->rd]);
             break;
         case '1':
-            append(buf, rv_ireg_name_sym[dec->rs1], buflen);
+            g_string_append(buf, rv_ireg_name_sym[dec->rs1]);
             break;
         case '2':
-            append(buf, rv_ireg_name_sym[dec->rs2], buflen);
+            g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
             break;
         case '3':
-            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rd] :
-                                              rv_freg_name_sym[dec->rd],
-                   buflen);
+            if (dec->cfg->ext_zfinx) {
+                g_string_append(buf, rv_ireg_name_sym[dec->rd]);
+            } else {
+                g_string_append(buf, rv_freg_name_sym[dec->rd]);
+            }
             break;
         case '4':
-            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs1] :
-                                              rv_freg_name_sym[dec->rs1],
-                   buflen);
+            if (dec->cfg->ext_zfinx) {
+                g_string_append(buf, rv_ireg_name_sym[dec->rs1]);
+            } else {
+                g_string_append(buf, rv_freg_name_sym[dec->rs1]);
+            }
             break;
         case '5':
-            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs2] :
-                                              rv_freg_name_sym[dec->rs2],
-                   buflen);
+            if (dec->cfg->ext_zfinx) {
+                g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
+            } else {
+                g_string_append(buf, rv_freg_name_sym[dec->rs2]);
+            }
             break;
         case '6':
-            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs3] :
-                                              rv_freg_name_sym[dec->rs3],
-                   buflen);
+            if (dec->cfg->ext_zfinx) {
+                g_string_append(buf, rv_ireg_name_sym[dec->rs3]);
+            } else {
+                g_string_append(buf, rv_freg_name_sym[dec->rs3]);
+            }
             break;
         case '7':
-            snprintf(tmp, sizeof(tmp), "%d", dec->rs1);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->rs1);
             break;
         case 'i':
-            snprintf(tmp, sizeof(tmp), "%d", dec->imm);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->imm);
             break;
         case 'u':
-            snprintf(tmp, sizeof(tmp), "%u", ((uint32_t)dec->imm & 0b111111));
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%u", ((uint32_t)dec->imm & 0b111111));
             break;
         case 'j':
-            snprintf(tmp, sizeof(tmp), "%d", dec->imm1);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->imm1);
             break;
         case 'o':
-            snprintf(tmp, sizeof(tmp), "%d", dec->imm);
-            append(buf, tmp, buflen);
-            while (strlen(buf) < tab * 2) {
-                append(buf, " ", buflen);
+            g_string_append_printf(buf, "%d", dec->imm);
+            while (buf->len < tab * 2) {
+                g_string_append_c(buf, ' ');
             }
-            snprintf(tmp, sizeof(tmp), "# 0x%" PRIx64,
-                dec->pc + dec->imm);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "# 0x%" PRIx64, dec->pc + dec->imm);
             break;
         case 'U':
             fmt++;
-            snprintf(tmp, sizeof(tmp), "%d", dec->imm >> 12);
-            append(buf, tmp, buflen);
+            g_string_append_printf(buf, "%d", dec->imm >> 12);
             if (*fmt == 'o') {
-                while (strlen(buf) < tab * 2) {
-                    append(buf, " ", buflen);
+                while (buf->len < tab * 2) {
+                    g_string_append_c(buf, ' ');
                 }
-                snprintf(tmp, sizeof(tmp), "# 0x%" PRIx64,
-                    dec->pc + dec->imm);
-                append(buf, tmp, buflen);
+                g_string_append_printf(buf, "# 0x%" PRIx64, dec->pc + dec->imm);
             }
             break;
         case 'c': {
             const char *name = csr_name(dec->imm & 0xfff);
             if (name) {
-                append(buf, name, buflen);
+                g_string_append(buf, name);
             } else {
-                snprintf(tmp, sizeof(tmp), "0x%03x", dec->imm & 0xfff);
-                append(buf, tmp, buflen);
+                g_string_append_printf(buf, "0x%03x", dec->imm & 0xfff);
             }
             break;
         }
         case 'r':
             switch (dec->rm) {
             case rv_rm_rne:
-                append(buf, "rne", buflen);
+                g_string_append(buf, "rne");
                 break;
             case rv_rm_rtz:
-                append(buf, "rtz", buflen);
+                g_string_append(buf, "rtz");
                 break;
             case rv_rm_rdn:
-                append(buf, "rdn", buflen);
+                g_string_append(buf, "rdn");
                 break;
             case rv_rm_rup:
-                append(buf, "rup", buflen);
+                g_string_append(buf, "rup");
                 break;
             case rv_rm_rmm:
-                append(buf, "rmm", buflen);
+                g_string_append(buf, "rmm");
                 break;
             case rv_rm_dyn:
-                append(buf, "dyn", buflen);
+                g_string_append(buf, "dyn");
                 break;
             default:
-                append(buf, "inv", buflen);
+                g_string_append(buf, "inv");
                 break;
             }
             break;
         case 'p':
             if (dec->pred & rv_fence_i) {
-                append(buf, "i", buflen);
+                g_string_append_c(buf, 'i');
             }
             if (dec->pred & rv_fence_o) {
-                append(buf, "o", buflen);
+                g_string_append_c(buf, 'o');
             }
             if (dec->pred & rv_fence_r) {
-                append(buf, "r", buflen);
+                g_string_append_c(buf, 'r');
             }
             if (dec->pred & rv_fence_w) {
-                append(buf, "w", buflen);
+                g_string_append_c(buf, 'w');
             }
             break;
         case 's':
             if (dec->succ & rv_fence_i) {
-                append(buf, "i", buflen);
+                g_string_append_c(buf, 'i');
             }
             if (dec->succ & rv_fence_o) {
-                append(buf, "o", buflen);
+                g_string_append_c(buf, 'o');
             }
             if (dec->succ & rv_fence_r) {
-                append(buf, "r", buflen);
+                g_string_append_c(buf, 'r');
             }
             if (dec->succ & rv_fence_w) {
-                append(buf, "w", buflen);
+                g_string_append_c(buf, 'w');
             }
             break;
         case '\t':
-            while (strlen(buf) < tab) {
-                append(buf, " ", buflen);
+            while (buf->len < tab) {
+                g_string_append_c(buf, ' ');
             }
             break;
         case 'A':
             if (dec->aq) {
-                append(buf, ".aq", buflen);
+                g_string_append(buf, ".aq");
             }
             break;
         case 'R':
             if (dec->rl) {
-                append(buf, ".rl", buflen);
+                g_string_append(buf, ".rl");
             }
             break;
         case 'l':
-            append(buf, ",v0", buflen);
+            g_string_append(buf, ",v0");
             break;
         case 'm':
             if (dec->vm == 0) {
-                append(buf, ",v0.t", buflen);
+                g_string_append(buf, ",v0.t");
             }
             break;
         case 'D':
-            append(buf, rv_vreg_name_sym[dec->rd], buflen);
+            g_string_append(buf, rv_vreg_name_sym[dec->rd]);
             break;
         case 'E':
-            append(buf, rv_vreg_name_sym[dec->rs1], buflen);
+            g_string_append(buf, rv_vreg_name_sym[dec->rs1]);
             break;
         case 'F':
-            append(buf, rv_vreg_name_sym[dec->rs2], buflen);
+            g_string_append(buf, rv_vreg_name_sym[dec->rs2]);
             break;
         case 'G':
-            append(buf, rv_vreg_name_sym[dec->rs3], buflen);
+            g_string_append(buf, rv_vreg_name_sym[dec->rs3]);
             break;
         case 'v': {
-            char nbuf[32] = {0};
             const int sew = 1 << (((dec->vzimm >> 3) & 0b111) + 3);
-            sprintf(nbuf, "%d", sew);
             const int lmul = dec->vzimm & 0b11;
             const int flmul = (dec->vzimm >> 2) & 1;
             const char *vta = (dec->vzimm >> 6) & 1 ? "ta" : "tu";
             const char *vma = (dec->vzimm >> 7) & 1 ? "ma" : "mu";
-            append(buf, "e", buflen);
-            append(buf, nbuf, buflen);
-            append(buf, ",m", buflen);
+
+            g_string_append_printf(buf, "e%d,m", sew);
             if (flmul) {
                 switch (lmul) {
                 case 3:
-                    sprintf(nbuf, "f2");
+                    g_string_append(buf, "f2");
                     break;
                 case 2:
-                    sprintf(nbuf, "f4");
+                    g_string_append(buf, "f4");
                     break;
                 case 1:
-                    sprintf(nbuf, "f8");
-                break;
+                    g_string_append(buf, "f8");
+                    break;
                 }
-                append(buf, nbuf, buflen);
             } else {
-                sprintf(nbuf, "%d", 1 << lmul);
-                append(buf, nbuf, buflen);
+                g_string_append_printf(buf, "%d", 1 << lmul);
             }
-            append(buf, ",", buflen);
-            append(buf, vta, buflen);
-            append(buf, ",", buflen);
-            append(buf, vma, buflen);
+            g_string_append_c(buf, ',');
+            g_string_append(buf, vta);
+            g_string_append_c(buf, ',');
+            g_string_append(buf, vma);
             break;
         }
         case 'x': {
             switch (dec->rlist) {
             case 4:
-                snprintf(tmp, sizeof(tmp), "{ra}");
+                g_string_append(buf, "{ra}");
                 break;
             case 5:
-                snprintf(tmp, sizeof(tmp), "{ra, s0}");
+                g_string_append(buf, "{ra, s0}");
                 break;
             case 15:
-                snprintf(tmp, sizeof(tmp), "{ra, s0-s11}");
+                g_string_append(buf, "{ra, s0-s11}");
                 break;
             default:
-                snprintf(tmp, sizeof(tmp), "{ra, s0-s%d}", dec->rlist - 5);
+                g_string_append_printf(buf, "{ra, s0-s%d}", dec->rlist - 5);
                 break;
             }
-            append(buf, tmp, buflen);
             break;
         }
         case 'h':
-            append(buf, rv_fli_name_const[dec->imm], buflen);
+            g_string_append(buf, rv_fli_name_const[dec->imm]);
             break;
         default:
             break;
         }
         fmt++;
     }
+
+    return buf;
 }
 
 /* lift instruction to pseudo-instruction */
@@ -5171,9 +5148,8 @@ static void decode_inst_decompress(rv_decode *dec, rv_isa isa)
 
 /* disassemble instruction */
 
-static void
-disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
-            RISCVCPUConfig *cfg)
+static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
+                            RISCVCPUConfig *cfg)
 {
     rv_decode dec = { 0 };
     dec.pc = pc;
@@ -5220,7 +5196,7 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
     decode_inst_operands(&dec, isa);
     decode_inst_decompress(&dec, isa);
     decode_inst_lift_pseudo(&dec);
-    format_inst(buf, buflen, 24, &dec);
+    return format_inst(24, &dec);
 }
 
 #define INST_FMT_2 "%04" PRIx64 "              "
@@ -5231,7 +5207,6 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
 static int
 print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
 {
-    char buf[128] = { 0 };
     bfd_byte packet[2];
     rv_inst inst = 0;
     size_t len = 2;
@@ -5272,9 +5247,9 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         }
     }
 
-    disasm_inst(buf, sizeof(buf), isa, memaddr, inst,
-                (RISCVCPUConfig *)info->target_info);
-    (*info->fprintf_func)(info->stream, "%s", buf);
+    g_autoptr(GString) str =
+        disasm_inst(isa, memaddr, inst, (RISCVCPUConfig *)info->target_info);
+    (*info->fprintf_func)(info->stream, "%s", str->str);
 
     return len;
 }
