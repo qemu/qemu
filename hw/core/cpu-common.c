@@ -113,7 +113,7 @@ void cpu_reset(CPUState *cpu)
     trace_cpu_reset(cpu->cpu_index);
 }
 
-static void cpu_common_reset_hold(Object *obj)
+static void cpu_common_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(cpu);

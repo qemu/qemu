@@ -542,7 +542,7 @@ static void cframe_reg_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void cframe_reg_reset_hold(Object *obj)
+static void cframe_reg_reset_hold(Object *obj, ResetType type)
 {
     XlnxVersalCFrameReg *s = XLNX_VERSAL_CFRAME_REG(obj);
 

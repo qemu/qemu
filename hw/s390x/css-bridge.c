@@ -56,7 +56,7 @@ static void ccw_device_unplug(HotplugHandler *hotplug_dev,
     qdev_unrealize(dev);
 }
 
-static void virtual_css_bus_reset_hold(Object *obj)
+static void virtual_css_bus_reset_hold(Object *obj, ResetType type)
 {
     /* This should actually be modelled via the generic css */
     css_reset();

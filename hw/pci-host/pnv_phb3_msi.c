@@ -228,13 +228,13 @@ static void phb3_msi_resend(ICSState *ics)
     }
 }
 
-static void phb3_msi_reset_hold(Object *obj)
+static void phb3_msi_reset_hold(Object *obj, ResetType type)
 {
     Phb3MsiState *msi = PHB3_MSI(obj);
     ICSStateClass *icsc = ICS_GET_CLASS(obj);
 
     if (icsc->parent_phases.hold) {
-        icsc->parent_phases.hold(obj);
+        icsc->parent_phases.hold(obj, type);
     }
 
     memset(msi->rba, 0, sizeof(msi->rba));

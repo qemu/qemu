@@ -352,7 +352,7 @@ static void npcm7xx_gpio_enter_reset(Object *obj, ResetType type)
     s->regs[NPCM7XX_GPIO_ODSC] = s->reset_odsc;
 }
 
-static void npcm7xx_gpio_hold_reset(Object *obj)
+static void npcm7xx_gpio_hold_reset(Object *obj, ResetType type)
 {
     NPCM7xxGPIOState *s = NPCM7XX_GPIO(obj);
 

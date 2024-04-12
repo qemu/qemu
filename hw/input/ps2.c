@@ -1007,7 +1007,7 @@ void ps2_write_mouse(PS2MouseState *s, int val)
     }
 }
 
-static void ps2_reset_hold(Object *obj)
+static void ps2_reset_hold(Object *obj, ResetType type)
 {
     PS2State *s = PS2_DEVICE(obj);
 
@@ -1015,7 +1015,7 @@ static void ps2_reset_hold(Object *obj)
     ps2_reset_queue(s);
 }
 
-static void ps2_reset_exit(Object *obj)
+static void ps2_reset_exit(Object *obj, ResetType type)
 {
     PS2State *s = PS2_DEVICE(obj);
 
@@ -1048,7 +1048,7 @@ static void ps2_common_post_load(PS2State *s)
     q->cwptr = ccount ? (q->rptr + ccount) & (PS2_BUFFER_SIZE - 1) : -1;
 }
 
-static void ps2_kbd_reset_hold(Object *obj)
+static void ps2_kbd_reset_hold(Object *obj, ResetType type)
 {
     PS2DeviceClass *ps2dc = PS2_DEVICE_GET_CLASS(obj);
     PS2KbdState *s = PS2_KBD_DEVICE(obj);
@@ -1056,7 +1056,7 @@ static void ps2_kbd_reset_hold(Object *obj)
     trace_ps2_kbd_reset(s);
 
     if (ps2dc->parent_phases.hold) {
-        ps2dc->parent_phases.hold(obj);
+        ps2dc->parent_phases.hold(obj, type);
     }
 
     s->scan_enabled = 1;
@@ -1065,7 +1065,7 @@ static void ps2_kbd_reset_hold(Object *obj)
     s->modifiers = 0;
 }
 
-static void ps2_mouse_reset_hold(Object *obj)
+static void ps2_mouse_reset_hold(Object *obj, ResetType type)
 {
     PS2DeviceClass *ps2dc = PS2_DEVICE_GET_CLASS(obj);
     PS2MouseState *s = PS2_MOUSE_DEVICE(obj);
@@ -1073,7 +1073,7 @@ static void ps2_mouse_reset_hold(Object *obj)
     trace_ps2_mouse_reset(s);
 
     if (ps2dc->parent_phases.hold) {
-        ps2dc->parent_phases.hold(obj);
+        ps2dc->parent_phases.hold(obj, type);
     }
 
     s->mouse_status = 0;

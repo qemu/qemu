@@ -220,7 +220,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
     assert(oldvalue == newvalue);
 }
 
-static void arm_cpu_reset_hold(Object *obj)
+static void arm_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(cs);
@@ -228,7 +228,7 @@ static void arm_cpu_reset_hold(Object *obj)
     CPUARMState *env = &cpu->env;
 
     if (acc->parent_phases.hold) {
-        acc->parent_phases.hold(obj);
+        acc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUARMState, end_reset_fields));

@@ -311,7 +311,7 @@ static void crl_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void crl_reset_hold(Object *obj)
+static void crl_reset_hold(Object *obj, ResetType type)
 {
     XlnxVersalCRL *s = XLNX_VERSAL_CRL(obj);
 

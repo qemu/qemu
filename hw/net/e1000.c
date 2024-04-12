@@ -373,7 +373,7 @@ static bool e1000_vet_init_need(void *opaque)
     return chkflag(VET);
 }
 
-static void e1000_reset_hold(Object *obj)
+static void e1000_reset_hold(Object *obj, ResetType type)
 {
     E1000State *d = E1000(obj);
     E1000BaseClass *edc = E1000_GET_CLASS(d);

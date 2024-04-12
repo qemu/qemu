@@ -483,7 +483,7 @@ static void npcm7xx_fiu_enter_reset(Object *obj, ResetType type)
     s->regs[NPCM7XX_FIU_CFG] = 0x0000000b;
 }
 
-static void npcm7xx_fiu_hold_reset(Object *obj)
+static void npcm7xx_fiu_hold_reset(Object *obj, ResetType type)
 {
     NPCM7xxFIUState *s = NPCM7XX_FIU(obj);
     int i;

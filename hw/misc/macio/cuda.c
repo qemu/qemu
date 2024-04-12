@@ -586,13 +586,13 @@ static void mos6522_cuda_portB_write(MOS6522State *s)
     cuda_update(cs);
 }
 
-static void mos6522_cuda_reset_hold(Object *obj)
+static void mos6522_cuda_reset_hold(Object *obj, ResetType type)
 {
     MOS6522State *ms = MOS6522(obj);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
     if (mdc->parent_phases.hold) {
-        mdc->parent_phases.hold(obj);
+        mdc->parent_phases.hold(obj, type);
     }
 
     ms->timers[0].frequency = CUDA_TIMER_FREQ;

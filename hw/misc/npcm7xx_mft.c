@@ -467,7 +467,7 @@ static void npcm7xx_mft_enter_reset(Object *obj, ResetType type)
     npcm7xx_mft_reset(s);
 }
 
-static void npcm7xx_mft_hold_reset(Object *obj)
+static void npcm7xx_mft_hold_reset(Object *obj, ResetType type)
 {
     NPCM7xxMFTState *s = NPCM7XX_MFT(obj);
 

@@ -1006,7 +1006,7 @@ static void xlnx_zynqmp_can_reset_init(Object *obj, ResetType type)
     ptimer_transaction_commit(s->can_timer);
 }
 
-static void xlnx_zynqmp_can_reset_hold(Object *obj)
+static void xlnx_zynqmp_can_reset_hold(Object *obj, ResetType type)
 {
     XlnxZynqMPCANState *s = XLNX_ZYNQMP_CAN(obj);
     unsigned int i;

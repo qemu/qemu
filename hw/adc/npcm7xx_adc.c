@@ -218,7 +218,7 @@ static void npcm7xx_adc_enter_reset(Object *obj, ResetType type)
     npcm7xx_adc_reset(s);
 }
 
-static void npcm7xx_adc_hold_reset(Object *obj)
+static void npcm7xx_adc_hold_reset(Object *obj, ResetType type)
 {
     NPCM7xxADCState *s = NPCM7XX_ADC(obj);
 

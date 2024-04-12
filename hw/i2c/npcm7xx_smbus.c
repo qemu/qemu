@@ -1022,7 +1022,7 @@ static void npcm7xx_smbus_enter_reset(Object *obj, ResetType type)
     s->rx_cur = 0;
 }
 
-static void npcm7xx_smbus_hold_reset(Object *obj)
+static void npcm7xx_smbus_hold_reset(Object *obj, ResetType type)
 {
     NPCM7xxSMBusState *s = NPCM7XX_SMBUS(obj);
 

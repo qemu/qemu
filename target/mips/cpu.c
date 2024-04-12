@@ -185,7 +185,7 @@ static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
 
 #include "cpu-defs.c.inc"
 
-static void mips_cpu_reset_hold(Object *obj)
+static void mips_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     MIPSCPU *cpu = MIPS_CPU(cs);
@@ -193,7 +193,7 @@ static void mips_cpu_reset_hold(Object *obj)
     CPUMIPSState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {
-        mcc->parent_phases.hold(obj);
+        mcc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUMIPSState, end_reset_fields));

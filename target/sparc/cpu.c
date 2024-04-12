@@ -29,14 +29,14 @@
 
 //#define DEBUG_FEATURES
 
-static void sparc_cpu_reset_hold(Object *obj)
+static void sparc_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(obj);
     CPUSPARCState *env = cpu_env(cs);
 
     if (scc->parent_phases.hold) {
-        scc->parent_phases.hold(obj);
+        scc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUSPARCState, end_reset_fields));

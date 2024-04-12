@@ -70,7 +70,7 @@ static bool is_push_pull(Stm32l4x5GpioState *s, unsigned pin)
     return extract32(s->otyper, pin, 1) == 0;
 }
 
-static void stm32l4x5_gpio_reset_hold(Object *obj)
+static void stm32l4x5_gpio_reset_hold(Object *obj, ResetType type)
 {
     Stm32l4x5GpioState *s = STM32L4X5_GPIO(obj);
 

@@ -760,10 +760,10 @@ static void device_phases_reset(DeviceState *dev)
         rc->phases.enter(OBJECT(dev), RESET_TYPE_COLD);
     }
     if (rc->phases.hold) {
-        rc->phases.hold(OBJECT(dev));
+        rc->phases.hold(OBJECT(dev), RESET_TYPE_COLD);
     }
     if (rc->phases.exit) {
-        rc->phases.exit(OBJECT(dev));
+        rc->phases.exit(OBJECT(dev), RESET_TYPE_COLD);
     }
 }
 

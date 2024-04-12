@@ -1305,7 +1305,7 @@ static void dwc2_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void dwc2_reset_hold(Object *obj)
+static void dwc2_reset_hold(Object *obj, ResetType type)
 {
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
     DWC2State *s = DWC2_USB(obj);
@@ -1313,13 +1313,13 @@ static void dwc2_reset_hold(Object *obj)
     trace_usb_dwc2_reset_hold();
 
     if (c->parent_phases.hold) {
-        c->parent_phases.hold(obj);
+        c->parent_phases.hold(obj, type);
     }
 
     dwc2_update_irq(s);
 }
 
-static void dwc2_reset_exit(Object *obj)
+static void dwc2_reset_exit(Object *obj, ResetType type)
 {
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
     DWC2State *s = DWC2_USB(obj);
@@ -1327,7 +1327,7 @@ static void dwc2_reset_exit(Object *obj)
     trace_usb_dwc2_reset_exit();
 
     if (c->parent_phases.exit) {
-        c->parent_phases.exit(obj);
+        c->parent_phases.exit(obj, type);
     }
 
     s->hprt0 = HPRT0_PWR;

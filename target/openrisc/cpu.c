@@ -85,14 +85,14 @@ static void openrisc_disas_set_info(CPUState *cpu, disassemble_info *info)
     info->print_insn = print_insn_or1k;
 }
 
-static void openrisc_cpu_reset_hold(Object *obj)
+static void openrisc_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     OpenRISCCPUClass *occ = OPENRISC_CPU_GET_CLASS(obj);
 
     if (occ->parent_phases.hold) {
-        occ->parent_phases.hold(obj);
+        occ->parent_phases.hold(obj, type);
     }
 
     memset(&cpu->env, 0, offsetof(CPUOpenRISCState, end_reset_fields));

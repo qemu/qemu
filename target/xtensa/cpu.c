@@ -93,7 +93,7 @@ bool xtensa_abi_call0(void)
 }
 #endif
 
-static void xtensa_cpu_reset_hold(Object *obj)
+static void xtensa_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
@@ -102,7 +102,7 @@ static void xtensa_cpu_reset_hold(Object *obj)
                                       XTENSA_OPTION_DFP_COPROCESSOR);
 
     if (xcc->parent_phases.hold) {
-        xcc->parent_phases.hold(obj);
+        xcc->parent_phases.hold(obj, type);
     }
 
     env->pc = env->config->exception_vector[EXC_RESET0 + env->static_vectors];

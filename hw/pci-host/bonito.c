@@ -590,7 +590,7 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
     }
 }
 
-static void bonito_reset_hold(Object *obj)
+static void bonito_reset_hold(Object *obj, ResetType type)
 {
     PCIBonitoState *s = PCI_BONITO(obj);
     uint32_t val = 0;

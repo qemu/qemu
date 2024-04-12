@@ -7136,7 +7136,7 @@ static int ppc_cpu_mmu_index(CPUState *cs, bool ifetch)
     return ppc_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-static void ppc_cpu_reset_hold(Object *obj)
+static void ppc_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -7146,7 +7146,7 @@ static void ppc_cpu_reset_hold(Object *obj)
     int i;
 
     if (pcc->parent_phases.hold) {
-        pcc->parent_phases.hold(obj);
+        pcc->parent_phases.hold(obj, type);
     }
 
     msr = (target_ulong)0;

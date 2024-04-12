@@ -180,14 +180,14 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 }
 
-static void virtio_vga_base_reset_hold(Object *obj)
+static void virtio_vga_base_reset_hold(Object *obj, ResetType type)
 {
     VirtIOVGABaseClass *klass = VIRTIO_VGA_BASE_GET_CLASS(obj);
     VirtIOVGABase *vvga = VIRTIO_VGA_BASE(obj);
 
     /* reset virtio-gpu */
     if (klass->parent_phases.hold) {
-        klass->parent_phases.hold(obj);
+        klass->parent_phases.hold(obj, type);
     }
 
     /* reset vga */

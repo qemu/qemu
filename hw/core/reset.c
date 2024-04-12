@@ -73,7 +73,7 @@ static ResettableState *legacy_reset_get_state(Object *obj)
     return &lr->reset_state;
 }
 
-static void legacy_reset_hold(Object *obj)
+static void legacy_reset_hold(Object *obj, ResetType type)
 {
     LegacyReset *lr = LEGACY_RESET(obj);
 

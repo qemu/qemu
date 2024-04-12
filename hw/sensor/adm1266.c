@@ -76,7 +76,7 @@ static const uint8_t adm1266_ic_device_id[] = {0x03, 0x41, 0x12, 0x66};
 static const uint8_t adm1266_ic_device_rev[] = {0x08, 0x01, 0x08, 0x07, 0x0,
                                                 0x0, 0x07, 0x41, 0x30};
 
-static void adm1266_exit_reset(Object *obj)
+static void adm1266_exit_reset(Object *obj, ResetType type)
 {
     ADM1266State *s = ADM1266(obj);
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);

@@ -263,7 +263,7 @@ static inline void arm_gic_common_reset_irq_state(GICState *s, int cidx,
     }
 }
 
-static void arm_gic_common_reset_hold(Object *obj)
+static void arm_gic_common_reset_hold(Object *obj, ResetType type)
 {
     GICState *s = ARM_GIC_COMMON(obj);
     int i, j;

@@ -282,7 +282,7 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
     pcie_ari_init(dev, 0x150);
 }
 
-static void igbvf_qdev_reset_hold(Object *obj)
+static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 {
     PCIDevice *vf = PCI_DEVICE(obj);
 

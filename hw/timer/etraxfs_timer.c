@@ -357,7 +357,7 @@ static void etraxfs_timer_reset_enter(Object *obj, ResetType type)
     t->rw_intr_mask = 0;
 }
 
-static void etraxfs_timer_reset_hold(Object *obj)
+static void etraxfs_timer_reset_hold(Object *obj, ResetType type)
 {
     ETRAXTimerState *t = ETRAX_TIMER(obj);
 

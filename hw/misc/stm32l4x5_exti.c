@@ -77,7 +77,7 @@ static unsigned configurable_mask(unsigned bank)
      return valid_mask(bank) & ~exti_romask[bank];
 }
 
-static void stm32l4x5_exti_reset_hold(Object *obj)
+static void stm32l4x5_exti_reset_hold(Object *obj, ResetType type)
 {
     Stm32l4x5ExtiState *s = STM32L4X5_EXTI(obj);
 

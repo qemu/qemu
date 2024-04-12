@@ -579,7 +579,7 @@ static void ics_reset_irq(ICSIRQState *irq)
     irq->saved_priority = 0xff;
 }
 
-static void ics_reset_hold(Object *obj)
+static void ics_reset_hold(Object *obj, ResetType type)
 {
     ICSState *ics = ICS(obj);
     g_autofree uint8_t *flags = g_malloc(ics->nr_irqs);

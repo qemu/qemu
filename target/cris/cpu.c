@@ -61,7 +61,7 @@ static int cris_cpu_mmu_index(CPUState *cs, bool ifetch)
     return !!(cpu_env(cs)->pregs[PR_CCS] & U_FLAG);
 }
 
-static void cris_cpu_reset_hold(Object *obj)
+static void cris_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
@@ -69,7 +69,7 @@ static void cris_cpu_reset_hold(Object *obj)
     uint32_t vr;
 
     if (ccc->parent_phases.hold) {
-        ccc->parent_phases.hold(obj);
+        ccc->parent_phases.hold(obj, type);
     }
 
     vr = env->pregs[PR_VR];

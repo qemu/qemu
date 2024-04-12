@@ -69,7 +69,7 @@ static int riscv_cpu_mmu_index(CPUState *cs, bool ifunc)
     return 0;
 }
 
-static void rx_cpu_reset_hold(Object *obj)
+static void rx_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     RXCPUClass *rcc = RX_CPU_GET_CLASS(obj);
@@ -77,7 +77,7 @@ static void rx_cpu_reset_hold(Object *obj)
     uint32_t *resetvec;
 
     if (rcc->parent_phases.hold) {
-        rcc->parent_phases.hold(obj);
+        rcc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPURXState, end_reset_fields));
