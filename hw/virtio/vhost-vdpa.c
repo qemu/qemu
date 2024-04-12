@@ -949,7 +949,7 @@ static void vhost_vdpa_dump_config(struct vhost_dev *dev, const uint8_t *config,
 
     for (b = 0; b < config_len; b += 16) {
         len = config_len - b;
-        qemu_hexdump_line(line, config + b, len, false);
+        qemu_hexdump_line(line, config + b, len);
         trace_vhost_vdpa_dump_config(dev, b, line);
     }
 }

@@ -16,49 +16,57 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 
-void qemu_hexdump_line(char *line, const void *bufptr,
-                       unsigned int len, bool ascii)
+void qemu_hexdump_line(char *line, const void *bufptr, size_t len)
 {
     const char *buf = bufptr;
-    int i, c;
+    int i;
 
     if (len > QEMU_HEXDUMP_LINE_BYTES) {
         len = QEMU_HEXDUMP_LINE_BYTES;
     }
 
-    for (i = 0; i < QEMU_HEXDUMP_LINE_BYTES; i++) {
+    for (i = 0; i < len; i++) {
         if (i != 0 && (i % 4) == 0) {
             *line++ = ' ';
         }
-        if (i < len) {
-            line += sprintf(line, " %02x", (unsigned char)buf[i]);
-        } else {
-            line += sprintf(line, "   ");
-        }
-    }
-    if (ascii) {
-        *line++ = ' ';
-        for (i = 0; i < len; i++) {
-            c = buf[i];
-            if (c < ' ' || c > '~') {
-                c = '.';
-            }
-            *line++ = c;
-        }
+        line += sprintf(line, " %02x", (unsigned char)buf[i]);
     }
     *line = '\0';
 }
 
+static void asciidump_line(char *line, const void *bufptr, size_t len)
+{
+    const char *buf = bufptr;
+
+    for (size_t i = 0; i < len; i++) {
+        char c = buf[i];
+
+        if (c < ' ' || c > '~') {
+            c = '.';
+        }
+        *line++ = c;
+    }
+    *line = '\0';
+}
+
+#define QEMU_HEXDUMP_LINE_WIDTH \
+    (QEMU_HEXDUMP_LINE_BYTES * 2 + QEMU_HEXDUMP_LINE_BYTES / 4)
+
 void qemu_hexdump(FILE *fp, const char *prefix,
                   const void *bufptr, size_t size)
 {
-    unsigned int b, len;
     char line[QEMU_HEXDUMP_LINE_LEN];
+    char ascii[QEMU_HEXDUMP_LINE_BYTES + 1];
+    size_t b, len;
 
-    for (b = 0; b < size; b += QEMU_HEXDUMP_LINE_BYTES) {
-        len = size - b;
-        qemu_hexdump_line(line, bufptr + b, len, true);
-        fprintf(fp, "%s: %04x: %s\n", prefix, b, line);
+    for (b = 0; b < size; b += len) {
+        len = MIN(size - b, QEMU_HEXDUMP_LINE_BYTES);
+
+        qemu_hexdump_line(line, bufptr + b, len);
+        asciidump_line(ascii, bufptr + b, len);
+
+        fprintf(fp, "%s: %04zx: %-*s %s\n",
+                prefix, b, QEMU_HEXDUMP_LINE_WIDTH, line, ascii);
     }
 
 }
