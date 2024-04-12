@@ -16,6 +16,11 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 
+static inline char hexdump_nibble(unsigned x)
+{
+    return (x < 10 ? '0' : 'a' - 10) + x;
+}
+
 GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
                            size_t unit_len, size_t block_len)
 {
@@ -35,6 +40,8 @@ GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
     }
 
     for (u = 0, b = 0; len; u++, b++, len--, buf++) {
+        uint8_t c;
+
         if (unit_len && u == unit_len) {
             g_string_append_c(str, ' ');
             u = 0;
@@ -43,7 +50,10 @@ GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
             g_string_append_c(str, ' ');
             b = 0;
         }
-        g_string_append_printf(str, "%02x", *buf);
+
+        c = *buf;
+        g_string_append_c(str, hexdump_nibble(c / 16));
+        g_string_append_c(str, hexdump_nibble(c % 16));
     }
 
     return str;
