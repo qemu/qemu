@@ -562,7 +562,11 @@ hardening_flags = [
 #
 # NB: Clang 17 is broken and SEGVs
 # https://github.com/llvm/llvm-project/issues/75168
-if cc.compiles('extern struct { void (*cb)(void); } s; void f(void) { s.cb(); }',
+#
+# NB2: This clashes with the "retguard" extension of OpenBSD's Clang
+# https://gitlab.com/qemu-project/qemu/-/issues/2278
+if host_os != 'openbsd' and \
+   cc.compiles('extern struct { void (*cb)(void); } s; void f(void) { s.cb(); }',
                name: '-fzero-call-used-regs=used-gpr',
                args: ['-O2', '-fzero-call-used-regs=used-gpr'])
     hardening_flags += '-fzero-call-used-regs=used-gpr'
