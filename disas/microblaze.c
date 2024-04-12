@@ -563,7 +563,7 @@ static const struct op_code_struct {
 };
 
 /* prefix for register names */
-static const char register_prefix[] = "r";
+#define register_prefix "r"
 static const char fsl_register_prefix[] = "rfsl";
 static const char pvr_register_prefix[] = "rpvr";
 
@@ -579,15 +579,16 @@ static const char pvr_register_prefix[] = "rpvr";
 
 #include "disas/dis-asm.h"
 
-#define get_field_rd(instr) get_field(instr, RD_MASK, RD_LOW)
-#define get_field_r1(instr) get_field(instr, RA_MASK, RA_LOW)
-#define get_field_r2(instr) get_field(instr, RB_MASK, RB_LOW)
+#define PRIreg    register_prefix "%ld"
+
+#define get_field_rd(instr)      ((instr & RD_MASK) >> RD_LOW)
+#define get_field_r1(instr)      ((instr & RA_MASK) >> RA_LOW)
+#define get_field_r2(instr)      ((instr & RB_MASK) >> RB_LOW)
 #define get_int_field_imm(instr) ((instr & IMM_MASK) >> IMM_LOW)
 #define get_int_field_r1(instr) ((instr & RA_MASK) >> RA_LOW)
 
 /* Local function prototypes. */
 
-static char * get_field (long instr, long mask, unsigned short low);
 static char * get_field_imm (long instr);
 static char * get_field_imm5 (long instr);
 static char * get_field_rfsl (long instr);
@@ -595,15 +596,6 @@ static char * get_field_imm15 (long instr);
 #if 0
 static char * get_field_unsigned_imm (long instr);
 #endif
-
-static char *
-get_field (long instr, long mask, unsigned short low)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%s%d", register_prefix,
-           (int)((instr & mask) >> low));
-  return(strdup(tmpstr));
-}
 
 static char *
 get_field_imm (long instr)
@@ -832,12 +824,12 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
 
     switch (op->inst_type) {
     case INST_TYPE_RD_R1_R2:
-        fprintf_func(stream, "%s\t%s, %s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", " PRIreg,
                      op->name, get_field_rd(inst), get_field_r1(inst),
                      get_field_r2(inst));
         break;
     case INST_TYPE_RD_R1_IMM:
-        fprintf_func(stream, "%s\t%s, %s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_r1(inst),
                      get_field_imm(inst));
         if (get_int_field_r1(inst) == 0) {
@@ -845,36 +837,36 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
         }
         break;
     case INST_TYPE_RD_R1_IMM5:
-        fprintf_func(stream, "%s\t%s, %s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_r1(inst),
                      get_field_imm5(inst));
         break;
     case INST_TYPE_RD_RFSL:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_rfsl(inst));
         break;
     case INST_TYPE_R1_RFSL:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_r1(inst), get_field_rfsl(inst));
         break;
     case INST_TYPE_RD_SPECIAL:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_special(inst, op));
         break;
     case INST_TYPE_SPECIAL_R1:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t%s, " PRIreg,
                      op->name, get_field_special(inst, op), get_field_r1(inst));
         break;
     case INST_TYPE_RD_R1:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
                      op->name, get_field_rd(inst), get_field_r1(inst));
         break;
     case INST_TYPE_R1_R2:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
                      op->name, get_field_r1(inst), get_field_r2(inst));
         break;
     case INST_TYPE_R1_IMM:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_r1(inst), get_field_imm(inst));
         /*
          * The non-pc relative instructions are returns,
@@ -885,7 +877,7 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
         }
         break;
     case INST_TYPE_RD_IMM:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_imm(inst));
         print_immval_addr(info, immfound, immval, inst,
                           op->inst_offset_type == INST_PC_OFFSET
@@ -901,28 +893,28 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
         }
         break;
     case INST_TYPE_RD_R2:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
                      op->name, get_field_rd(inst), get_field_r2(inst));
         break;
     case INST_TYPE_R2:
-        fprintf_func(stream, "%s\t%s",
+        fprintf_func(stream, "%s\t" PRIreg,
                      op->name, get_field_r2(inst));
         break;
     case INST_TYPE_R1:
-        fprintf_func(stream, "%s\t%s",
+        fprintf_func(stream, "%s\t" PRIreg,
                      op->name, get_field_r1(inst));
         break;
     case INST_TYPE_RD_R1_SPECIAL:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
                      op->name, get_field_rd(inst), get_field_r2(inst));
         break;
     case INST_TYPE_RD_IMM15:
-        fprintf_func(stream, "%s\t%s, %s",
+        fprintf_func(stream, "%s\t" PRIreg ", %s",
                      op->name, get_field_rd(inst), get_field_imm15(inst));
         break;
         /* For tuqula instruction */
     case INST_TYPE_RD:
-        fprintf_func(stream, "%s\t%s",
+        fprintf_func(stream, "%s\t" PRIreg,
                      op->name, get_field_rd(inst));
         break;
     case INST_TYPE_RFSL:
