@@ -767,6 +767,24 @@ read_insn_microblaze (bfd_vma memaddr,
   return inst;
 }
 
+static void print_immval_addr(struct disassemble_info *info, bool immfound,
+                              int immval, unsigned inst, int addend)
+{
+    if (info->print_address_func && info->symbol_at_address_func) {
+        if (immfound) {
+            immval |= get_int_field_imm(inst) & 0x0000ffff;
+        } else {
+            immval = (int16_t)get_int_field_imm(inst);
+        }
+        immval += addend;
+        if (immval != 0 && info->symbol_at_address_func(immval, info)) {
+            info->fprintf_func(info->stream, "\t// ");
+            info->print_address_func (immval, info);
+        } else if (addend) {
+            info->fprintf_func(info->stream, "\t// %x", immval);
+        }
+    }
+}
 
 int 
 print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
@@ -821,18 +839,8 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
      break;
         case INST_TYPE_RD_R1_IMM:
 	  fprintf_func(stream, "\t%s, %s, %s", get_field_rd(inst), get_field_r1(inst), get_field_imm(inst));
-	  if (info->print_address_func && get_int_field_r1(inst) == 0 && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    }
+	  if (get_int_field_r1(inst) == 0) {
+              print_immval_addr(info, immfound, immval, inst, 0);
 	  }
 	  break;
 	case INST_TYPE_RD_R1_IMM5:
@@ -860,61 +868,22 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 	  fprintf_func(stream, "\t%s, %s", get_field_r1(inst), get_field_imm(inst));
 	  /* The non-pc relative instructions are returns, which shouldn't 
 	     have a label printed */
-	  if (info->print_address_func && op->inst_offset_type == INST_PC_OFFSET && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    immval += memaddr;
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } else {
-	      fprintf_func (stream, "\t\t// ");
-	      fprintf_func (stream, "%x", immval);
-	    }
+	  if (op->inst_offset_type == INST_PC_OFFSET) {
+              print_immval_addr(info, immfound, immval, inst, memaddr);
 	  }
 	  break;
         case INST_TYPE_RD_IMM:
 	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_imm(inst));
-	  if (info->print_address_func && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (op->inst_offset_type == INST_PC_OFFSET)
-	      immval += (int) memaddr;
-	    if (info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } 
-	  }
+          print_immval_addr(info, immfound, immval, inst,
+                            op->inst_offset_type == INST_PC_OFFSET
+                            ? memaddr : 0);
 	  break;
         case INST_TYPE_IMM:
 	  fprintf_func(stream, "\t%s", get_field_imm(inst));
-	  if (info->print_address_func && info->symbol_at_address_func && op->instr != imm) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (op->inst_offset_type == INST_PC_OFFSET)
-	      immval += (int) memaddr;
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } else if (op->inst_offset_type == INST_PC_OFFSET) {
-	      fprintf_func (stream, "\t\t// ");
-	      fprintf_func (stream, "%x", immval);
-	    }
+	  if (op->instr != imm) {
+              print_immval_addr(info, immfound, immval, inst,
+                                op->inst_offset_type == INST_PC_OFFSET
+                                ? memaddr : 0);
 	  }
 	  break;
         case INST_TYPE_RD_R2:
