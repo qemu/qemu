@@ -1117,6 +1117,7 @@ typedef enum {
     GET_ASI_EXCP,
     GET_ASI_DIRECT,
     GET_ASI_DTWINX,
+    GET_ASI_CODE,
     GET_ASI_BLOCK,
     GET_ASI_SHORT,
     GET_ASI_BCOPY,
@@ -1159,13 +1160,21 @@ static DisasASI resolve_asi(DisasContext *dc, int asi, MemOp memop)
                || (asi == ASI_USERDATA
                    && (dc->def->features & CPU_FEATURE_CASA))) {
         switch (asi) {
-        case ASI_USERDATA:   /* User data access */
+        case ASI_USERDATA:    /* User data access */
             mem_idx = MMU_USER_IDX;
             type = GET_ASI_DIRECT;
             break;
-        case ASI_KERNELDATA: /* Supervisor data access */
+        case ASI_KERNELDATA:  /* Supervisor data access */
             mem_idx = MMU_KERNEL_IDX;
             type = GET_ASI_DIRECT;
+            break;
+        case ASI_USERTXT:     /* User text access */
+            mem_idx = MMU_USER_IDX;
+            type = GET_ASI_CODE;
+            break;
+        case ASI_KERNELTXT:   /* Supervisor text access */
+            mem_idx = MMU_KERNEL_IDX;
+            type = GET_ASI_CODE;
             break;
         case ASI_M_BYPASS:    /* MMU passthrough */
         case ASI_LEON_BYPASS: /* LEON MMU passthrough */
@@ -1379,6 +1388,21 @@ static void gen_ld_asi(DisasContext *dc, DisasASI *da, TCGv dst, TCGv addr)
     case GET_ASI_DIRECT:
         tcg_gen_qemu_ld_tl(dst, addr, da->mem_idx, da->memop | MO_ALIGN);
         break;
+
+    case GET_ASI_CODE:
+#if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
+        {
+            MemOpIdx oi = make_memop_idx(da->memop, da->mem_idx);
+            TCGv_i64 t64 = tcg_temp_new_i64();
+
+            gen_helper_ld_code(t64, tcg_env, addr, tcg_constant_i32(oi));
+            tcg_gen_trunc_i64_tl(dst, t64);
+        }
+        break;
+#else
+        g_assert_not_reached();
+#endif
+
     default:
         {
             TCGv_i32 r_asi = tcg_constant_i32(da->asi);
@@ -1790,6 +1814,26 @@ static void gen_ldda_asi(DisasContext *dc, DisasASI *da, TCGv addr, int rd)
             }
         }
         break;
+
+    case GET_ASI_CODE:
+#if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
+        {
+            MemOpIdx oi = make_memop_idx(da->memop, da->mem_idx);
+            TCGv_i64 tmp = tcg_temp_new_i64();
+
+            gen_helper_ld_code(tmp, tcg_env, addr, tcg_constant_i32(oi));
+
+            /* See above.  */
+            if ((da->memop & MO_BSWAP) == MO_TE) {
+                tcg_gen_extr_i64_tl(lo, hi, tmp);
+            } else {
+                tcg_gen_extr_i64_tl(hi, lo, tmp);
+            }
+        }
+        break;
+#else
+        g_assert_not_reached();
+#endif
 
     default:
         /* ??? In theory we've handled all of the ASIs that are valid
