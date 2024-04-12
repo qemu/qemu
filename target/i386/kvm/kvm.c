@@ -5329,7 +5329,6 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     uint64_t code;
     int ret;
     bool ctx_invalid;
-    char str[256];
     KVMState *state;
 
     switch (run->exit_reason) {
@@ -5389,15 +5388,15 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_NOTIFY:
         ctx_invalid = !!(run->notify.flags & KVM_NOTIFY_CONTEXT_INVALID);
         state = KVM_STATE(current_accel());
-        sprintf(str, "Encounter a notify exit with %svalid context in"
-                     " guest. There can be possible misbehaves in guest."
-                     " Please have a look.", ctx_invalid ? "in" : "");
         if (ctx_invalid ||
             state->notify_vmexit == NOTIFY_VMEXIT_OPTION_INTERNAL_ERROR) {
-            warn_report("KVM internal error: %s", str);
+            warn_report("KVM internal error: Encountered a notify exit "
+                        "with invalid context in guest.");
             ret = -1;
         } else {
-            warn_report_once("KVM: %s", str);
+            warn_report_once("KVM: Encountered a notify exit with valid "
+                             "context in guest. "
+                             "The guest could be misbehaving.");
             ret = 0;
         }
         break;
