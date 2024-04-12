@@ -386,7 +386,7 @@ static int adm1272_write_data(PMBusDevice *pmdev, const uint8_t *buf,
         break;
 
     case ADM1272_MFR_POWER_CYCLE:
-        adm1272_exit_reset((Object *)s);
+        device_cold_reset(DEVICE(s));
         break;
 
     case ADM1272_HYSTERESIS_LOW:
