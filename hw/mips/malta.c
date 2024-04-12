@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "qemu/bitops.h"
 #include "qemu/datadir.h"
+#include "qemu/cutils.h"
 #include "qemu/guest-random.h"
 #include "hw/clock.h"
 #include "hw/southbridge/piix.h"
@@ -850,15 +851,18 @@ static void G_GNUC_PRINTF(3, 4) prom_set(uint32_t *prom_buf, int index,
     va_end(ap);
 }
 
-static void reinitialize_rng_seed(void *opaque)
+static GString *rng_seed_hex_new(void)
 {
-    char *rng_seed_hex = opaque;
     uint8_t rng_seed[32];
 
     qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
-    for (size_t i = 0; i < sizeof(rng_seed); ++i) {
-        sprintf(rng_seed_hex + i * 2, "%02x", rng_seed[i]);
-    }
+    return qemu_hexdump_line(NULL, rng_seed, sizeof(rng_seed), 0, 0);
+}
+
+static void reinitialize_rng_seed(void *opaque)
+{
+    g_autoptr(GString) hex = rng_seed_hex_new();
+    memcpy(opaque, hex->str, hex->len);
 }
 
 /* Kernel */
@@ -870,8 +874,6 @@ static uint64_t load_kernel(void)
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
-    uint8_t rng_seed[32];
-    char rng_seed_hex[sizeof(rng_seed) * 2 + 1];
     size_t rng_seed_prom_offset;
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
@@ -946,14 +948,13 @@ static uint64_t load_kernel(void)
     prom_set(prom_buf, prom_index++, "modetty0");
     prom_set(prom_buf, prom_index++, "38400n8r");
 
-    qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
-    for (size_t i = 0; i < sizeof(rng_seed); ++i) {
-        sprintf(rng_seed_hex + i * 2, "%02x", rng_seed[i]);
-    }
     prom_set(prom_buf, prom_index++, "rngseed");
     rng_seed_prom_offset = prom_index * ENVP_ENTRY_SIZE +
                            sizeof(uint32_t) * ENVP_NB_ENTRIES;
-    prom_set(prom_buf, prom_index++, "%s", rng_seed_hex);
+    {
+        g_autoptr(GString) hex = rng_seed_hex_new();
+        prom_set(prom_buf, prom_index++, "%s", hex->str);
+    }
 
     prom_set(prom_buf, prom_index++, NULL);
 
