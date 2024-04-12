@@ -564,7 +564,6 @@ static const struct op_code_struct {
 
 /* prefix for register names */
 #define register_prefix "r"
-static const char fsl_register_prefix[] = "rfsl";
 static const char pvr_register_prefix[] = "rpvr";
 
 
@@ -580,30 +579,19 @@ static const char pvr_register_prefix[] = "rpvr";
 #include "disas/dis-asm.h"
 
 #define PRIreg    register_prefix "%ld"
+#define PRIrfsl   register_prefix "fsl%ld"
 #define PRIimm    "%d"
 
 #define get_field_rd(instr)      ((instr & RD_MASK) >> RD_LOW)
 #define get_field_r1(instr)      ((instr & RA_MASK) >> RA_LOW)
 #define get_field_r2(instr)      ((instr & RB_MASK) >> RB_LOW)
+#define get_field_rfsl(instr)    (instr & RFSL_MASK)
 #define get_field_imm(instr)     ((int16_t)instr)
 #define get_field_imm5(instr)    ((int)instr & IMM5_MASK)
 #define get_field_imm15(instr)   ((int)instr & IMM15_MASK)
 
 #define get_int_field_imm(instr) ((instr & IMM_MASK) >> IMM_LOW)
 #define get_int_field_r1(instr) ((instr & RA_MASK) >> RA_LOW)
-
-/* Local function prototypes. */
-
-static char * get_field_rfsl (long instr);
-
-static char *
-get_field_rfsl (long instr)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%s%d", fsl_register_prefix,
-           (short)((instr & RFSL_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
 
 /*
   char *
@@ -803,11 +791,11 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
                      get_field_imm5(inst));
         break;
     case INST_TYPE_RD_RFSL:
-        fprintf_func(stream, "%s\t" PRIreg ", %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIrfsl,
                      op->name, get_field_rd(inst), get_field_rfsl(inst));
         break;
     case INST_TYPE_R1_RFSL:
-        fprintf_func(stream, "%s\t" PRIreg ", %s",
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIrfsl,
                      op->name, get_field_r1(inst), get_field_rfsl(inst));
         break;
     case INST_TYPE_RD_SPECIAL:
@@ -879,7 +867,7 @@ print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
                      op->name, get_field_rd(inst));
         break;
     case INST_TYPE_RFSL:
-        fprintf_func(stream, "%s\t%s",
+        fprintf_func(stream, "%s\t" PRIrfsl,
                      op->name, get_field_rfsl(inst));
         break;
     default:
