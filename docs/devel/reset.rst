@@ -150,25 +150,25 @@ in reset.
         mydev->var = 0;
     }
 
-    static void mydev_reset_hold(Object *obj)
+    static void mydev_reset_hold(Object *obj, ResetType type)
     {
         MyDevClass *myclass = MYDEV_GET_CLASS(obj);
         MyDevState *mydev = MYDEV(obj);
         /* call parent class hold phase */
         if (myclass->parent_phases.hold) {
-            myclass->parent_phases.hold(obj);
+            myclass->parent_phases.hold(obj, type);
         }
         /* set an IO */
         qemu_set_irq(mydev->irq, 1);
     }
 
-    static void mydev_reset_exit(Object *obj)
+    static void mydev_reset_exit(Object *obj, ResetType type)
     {
         MyDevClass *myclass = MYDEV_GET_CLASS(obj);
         MyDevState *mydev = MYDEV(obj);
         /* call parent class exit phase */
         if (myclass->parent_phases.exit) {
-            myclass->parent_phases.exit(obj);
+            myclass->parent_phases.exit(obj, type);
         }
         /* clear an IO */
         qemu_set_irq(mydev->irq, 0);
