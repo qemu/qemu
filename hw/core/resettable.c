@@ -48,8 +48,6 @@ void resettable_reset(Object *obj, ResetType type)
 
 void resettable_assert_reset(Object *obj, ResetType type)
 {
-    /* TODO: change this assert when adding support for other reset types */
-    assert(type == RESET_TYPE_COLD);
     trace_resettable_reset_assert_begin(obj, type);
     assert(!enter_phase_in_progress);
 
@@ -64,8 +62,6 @@ void resettable_assert_reset(Object *obj, ResetType type)
 
 void resettable_release_reset(Object *obj, ResetType type)
 {
-    /* TODO: change this assert when adding support for other reset types */
-    assert(type == RESET_TYPE_COLD);
     trace_resettable_reset_release_begin(obj, type);
     assert(!enter_phase_in_progress);
 
