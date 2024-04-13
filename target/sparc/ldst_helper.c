@@ -585,7 +585,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
 #if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
     uint32_t last_addr = addr;
 #endif
-    MemOpIdx oi;
 
     do_check_align(env, addr, size - 1, GETPC());
     switch (asi) {
@@ -684,24 +683,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_M_DIAGS:   /* Turbosparc DTLB Diagnostic */
     case ASI_M_IODIAG:  /* Turbosparc IOTLB Diagnostic */
         break;
-    case ASI_KERNELTXT: /* Supervisor code access */
-        oi = make_memop_idx(memop, cpu_mmu_index(env_cpu(env), true));
-        switch (size) {
-        case 1:
-            ret = cpu_ldb_code_mmu(env, addr, oi, GETPC());
-            break;
-        case 2:
-            ret = cpu_ldw_code_mmu(env, addr, oi, GETPC());
-            break;
-        default:
-        case 4:
-            ret = cpu_ldl_code_mmu(env, addr, oi, GETPC());
-            break;
-        case 8:
-            ret = cpu_ldq_code_mmu(env, addr, oi, GETPC());
-            break;
-        }
-        break;
     case ASI_M_TXTC_TAG:   /* SparcStation 5 I-cache tag */
     case ASI_M_TXTC_DATA:  /* SparcStation 5 I-cache data */
     case ASI_M_DATAC_TAG:  /* SparcStation 5 D-cache tag */
@@ -779,7 +760,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case 0x4c: /* SuperSPARC MMU Breakpoint Action */
         ret = env->mmubpaction;
         break;
-    case ASI_USERTXT: /* User code access, XXX */
     default:
         sparc_raise_mmu_fault(cs, addr, false, false, asi, size, GETPC());
         ret = 0;
@@ -787,6 +767,8 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
 
     case ASI_USERDATA: /* User data access */
     case ASI_KERNELDATA: /* Supervisor data access */
+    case ASI_USERTXT: /* User code access */
+    case ASI_KERNELTXT: /* Supervisor code access */
     case ASI_P: /* Implicit primary context data access (v9 only?) */
     case ASI_M_BYPASS:    /* MMU passthrough */
     case ASI_LEON_BYPASS: /* LEON MMU passthrough */
@@ -1159,6 +1141,49 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
 #endif
+}
+
+uint64_t helper_ld_code(CPUSPARCState *env, target_ulong addr, uint32_t oi)
+{
+    MemOp mop = get_memop(oi);
+    uintptr_t ra = GETPC();
+    uint64_t ret;
+
+    switch (mop & MO_SIZE) {
+    case MO_8:
+        ret = cpu_ldb_code_mmu(env, addr, oi, ra);
+        if (mop & MO_SIGN) {
+            ret = (int8_t)ret;
+        }
+        break;
+    case MO_16:
+        ret = cpu_ldw_code_mmu(env, addr, oi, ra);
+        if ((mop & MO_BSWAP) != MO_TE) {
+            ret = bswap16(ret);
+        }
+        if (mop & MO_SIGN) {
+            ret = (int16_t)ret;
+        }
+        break;
+    case MO_32:
+        ret = cpu_ldl_code_mmu(env, addr, oi, ra);
+        if ((mop & MO_BSWAP) != MO_TE) {
+            ret = bswap32(ret);
+        }
+        if (mop & MO_SIGN) {
+            ret = (int32_t)ret;
+        }
+        break;
+    case MO_64:
+        ret = cpu_ldq_code_mmu(env, addr, oi, ra);
+        if ((mop & MO_BSWAP) != MO_TE) {
+            ret = bswap64(ret);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
 }
 
 #endif /* CONFIG_USER_ONLY */
