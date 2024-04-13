@@ -1806,11 +1806,17 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
 
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         install_link(ctx, link, false);
-        ctx->iaoq_n = dest;
-        ctx->iaoq_n_var = NULL;
         if (is_n) {
+            if (use_nullify_skip(ctx)) {
+                nullify_set(ctx, 0);
+                gen_goto_tb(ctx, 0, dest, dest + 4);
+                ctx->base.is_jmp = DISAS_NORETURN;
+                return true;
+            }
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
+        ctx->iaoq_n = dest;
+        ctx->iaoq_n_var = NULL;
     } else {
         nullify_over(ctx);
 
