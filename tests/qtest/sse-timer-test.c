@@ -181,12 +181,12 @@ static void test_timer(void)
     writel(TIMER_BASE + CNTP_AIVAL_CTL, 0);
     clock_step_ticks(0x42ULL << 32);
     g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_LO), ==, 4400);
-    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_HI), ==, 0x42);
+    g_assert_cmphex(readl(TIMER_BASE + CNTPCT_HI), ==, 0x42);
 
     /* Turn on the autoinc again to check AIVAL_HI */
     writel(TIMER_BASE + CNTP_AIVAL_CTL, 1);
     g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_LO), ==, 4600);
-    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0x42);
+    g_assert_cmphex(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0x42);
 }
 
 static void test_timer_scale_change(void)

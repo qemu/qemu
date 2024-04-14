@@ -70,44 +70,44 @@ static void test_reg_write_read(void)
     /* Test that non-reserved bits in xMR and xTSR can be set and cleared */
 
     exti_writel(EXTI_IMR1, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_IMR1), ==, 0xFFFFFFFF);
+    g_assert_cmphex(exti_readl(EXTI_IMR1), ==, 0xFFFFFFFF);
     exti_writel(EXTI_IMR1, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_IMR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_IMR1), ==, 0x00000000);
 
     exti_writel(EXTI_EMR1, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_EMR1), ==, 0xFFFFFFFF);
+    g_assert_cmphex(exti_readl(EXTI_EMR1), ==, 0xFFFFFFFF);
     exti_writel(EXTI_EMR1, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_EMR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_EMR1), ==, 0x00000000);
 
     exti_writel(EXTI_RTSR1, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR1), ==, 0x007DFFFF);
+    g_assert_cmphex(exti_readl(EXTI_RTSR1), ==, 0x007DFFFF);
     exti_writel(EXTI_RTSR1, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_RTSR1), ==, 0x00000000);
 
     exti_writel(EXTI_FTSR1, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR1), ==, 0x007DFFFF);
+    g_assert_cmphex(exti_readl(EXTI_FTSR1), ==, 0x007DFFFF);
     exti_writel(EXTI_FTSR1, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_FTSR1), ==, 0x00000000);
 
     exti_writel(EXTI_IMR2, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_IMR2), ==, 0x000000FF);
+    g_assert_cmphex(exti_readl(EXTI_IMR2), ==, 0x000000FF);
     exti_writel(EXTI_IMR2, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_IMR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_IMR2), ==, 0x00000000);
 
     exti_writel(EXTI_EMR2, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_EMR2), ==, 0x000000FF);
+    g_assert_cmphex(exti_readl(EXTI_EMR2), ==, 0x000000FF);
     exti_writel(EXTI_EMR2, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_EMR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_EMR2), ==, 0x00000000);
 
     exti_writel(EXTI_RTSR2, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR2), ==, 0x00000078);
+    g_assert_cmphex(exti_readl(EXTI_RTSR2), ==, 0x00000078);
     exti_writel(EXTI_RTSR2, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_RTSR2), ==, 0x00000000);
 
     exti_writel(EXTI_FTSR2, 0xFFFFFFFF);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR2), ==, 0x00000078);
+    g_assert_cmphex(exti_readl(EXTI_FTSR2), ==, 0x00000078);
     exti_writel(EXTI_FTSR2, 0x00000000);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_FTSR2), ==, 0x00000000);
 }
 
 static void test_direct_lines_write(void)
@@ -115,28 +115,28 @@ static void test_direct_lines_write(void)
     /* Test that direct lines reserved bits are not written to */
 
     exti_writel(EXTI_RTSR1, 0xFF820000);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_RTSR1), ==, 0x00000000);
 
     exti_writel(EXTI_FTSR1, 0xFF820000);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_FTSR1), ==, 0x00000000);
 
     exti_writel(EXTI_SWIER1, 0xFF820000);
-    g_assert_cmpuint(exti_readl(EXTI_SWIER1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_SWIER1), ==, 0x00000000);
 
     exti_writel(EXTI_PR1, 0xFF820000);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
 
     exti_writel(EXTI_RTSR2, 0x00000087);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_RTSR2), ==, 0x00000000);
 
     exti_writel(EXTI_FTSR2, 0x00000087);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_FTSR2), ==, 0x00000000);
 
     exti_writel(EXTI_SWIER2, 0x00000087);
-    g_assert_cmpuint(exti_readl(EXTI_SWIER2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_SWIER2), ==, 0x00000000);
 
     exti_writel(EXTI_PR2, 0x00000087);
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
 }
 
 static void test_reserved_bits_write(void)
@@ -144,22 +144,22 @@ static void test_reserved_bits_write(void)
     /* Test that reserved bits stay are not written to */
 
     exti_writel(EXTI_IMR2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_IMR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_IMR2), ==, 0x00000000);
 
     exti_writel(EXTI_EMR2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_EMR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_EMR2), ==, 0x00000000);
 
     exti_writel(EXTI_RTSR2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_RTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_RTSR2), ==, 0x00000000);
 
     exti_writel(EXTI_FTSR2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_FTSR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_FTSR2), ==, 0x00000000);
 
     exti_writel(EXTI_SWIER2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_SWIER2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_SWIER2), ==, 0x00000000);
 
     exti_writel(EXTI_PR2, 0xFFFFFF00);
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
 }
 
 static void test_software_interrupt(void)
@@ -180,7 +180,7 @@ static void test_software_interrupt(void)
 
     enable_nvic_irq(EXTI0_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -191,9 +191,9 @@ static void test_software_interrupt(void)
     exti_writel(EXTI_SWIER1, 0x00000001);
 
     /* Check that the write in SWIER was effective */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_SWIER1), ==, 0x00000001);
     /* Check that the corresponding pending bit in PR is set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000001);
     /* Check that the corresponding interrupt is pending in the NVIC */
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
@@ -201,9 +201,9 @@ static void test_software_interrupt(void)
     exti_writel(EXTI_PR1, 0x00000001);
 
     /* Check that the write in PR was effective */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the corresponding bit in SWIER was cleared */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_SWIER1), ==, 0x00000000);
     /* Check that the interrupt is still pending in the NVIC */
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
@@ -214,7 +214,7 @@ static void test_software_interrupt(void)
 
     enable_nvic_irq(EXTI35_IRQ);
     /* Check that there are no interrupts already pending */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
     g_assert_false(check_nvic_pending(EXTI35_IRQ));
 
     /* Enable interrupt line EXTI0 */
@@ -224,9 +224,9 @@ static void test_software_interrupt(void)
     exti_writel(EXTI_SWIER2, 0x00000008);
 
     /* Check that the write in SWIER was effective */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER2), ==, 0x00000008);
+    g_assert_cmphex(exti_readl(EXTI_SWIER2), ==, 0x00000008);
     /* Check that the corresponding pending bit in PR is set */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000008);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000008);
     /* Check that the corresponding interrupt is pending in the NVIC */
     g_assert_true(check_nvic_pending(EXTI35_IRQ));
 
@@ -234,9 +234,9 @@ static void test_software_interrupt(void)
     exti_writel(EXTI_PR2, 0x00000008);
 
     /* Check that the write in PR was effective */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
     /* Check that the corresponding bit in SWIER was cleared */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_SWIER2), ==, 0x00000000);
     /* Check that the interrupt is still pending in the NVIC */
     g_assert_true(check_nvic_pending(EXTI35_IRQ));
 
@@ -259,16 +259,16 @@ static void test_edge_selector(void)
 
     /* Test that an irq is raised on rising edge only */
     exti_set_irq(0, 0);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
     exti_set_irq(0, 1);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000001);
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
     /* Clean the test */
     exti_writel(EXTI_PR1, 0x00000001);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     unpend_nvic_irq(EXTI0_IRQ);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -280,16 +280,16 @@ static void test_edge_selector(void)
 
     /* Test that an irq is raised on falling edge only */
     exti_set_irq(0, 1);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
     exti_set_irq(0, 0);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000001);
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
     /* Clean the test */
     exti_writel(EXTI_PR1, 0x00000001);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     unpend_nvic_irq(EXTI0_IRQ);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -300,23 +300,23 @@ static void test_edge_selector(void)
 
     /* Test that an irq is raised on rising edge */
     exti_set_irq(0, 1);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000001);
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
     /* Clean the test */
     exti_writel(EXTI_PR1, 0x00000001);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     unpend_nvic_irq(EXTI0_IRQ);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
     /* Test that an irq is raised on falling edge */
     exti_set_irq(0, 0);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000001);
     g_assert_true(check_nvic_pending(EXTI0_IRQ));
 
     /* Clean the test */
     exti_writel(EXTI_PR1, 0x00000001);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     unpend_nvic_irq(EXTI0_IRQ);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -327,11 +327,11 @@ static void test_edge_selector(void)
 
     /* Test that no irq is raised */
     exti_set_irq(0, 1);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
     exti_set_irq(0, 0);
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 }
 
@@ -350,7 +350,7 @@ static void test_no_software_interrupt(void)
 
     enable_nvic_irq(EXTI0_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -361,9 +361,9 @@ static void test_no_software_interrupt(void)
     exti_writel(EXTI_SWIER1, 0x00000001);
 
     /* Check that the write in SWIER was effective */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER1), ==, 0x00000001);
+    g_assert_cmphex(exti_readl(EXTI_SWIER1), ==, 0x00000001);
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -371,7 +371,7 @@ static void test_no_software_interrupt(void)
     exti_writel(EXTI_IMR1, 0x00000001);
 
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI0_IRQ));
 
@@ -382,7 +382,7 @@ static void test_no_software_interrupt(void)
 
     enable_nvic_irq(EXTI35_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI35_IRQ));
 
@@ -393,9 +393,9 @@ static void test_no_software_interrupt(void)
     exti_writel(EXTI_SWIER2, 0x00000008);
 
     /* Check that the write in SWIER was effective */
-    g_assert_cmpuint(exti_readl(EXTI_SWIER2), ==, 0x00000008);
+    g_assert_cmphex(exti_readl(EXTI_SWIER2), ==, 0x00000008);
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI35_IRQ));
 
@@ -403,7 +403,7 @@ static void test_no_software_interrupt(void)
     exti_writel(EXTI_IMR2, 0x00000008);
 
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR2), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR2), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI35_IRQ));
 }
@@ -423,7 +423,7 @@ static void test_masked_interrupt(void)
 
     enable_nvic_irq(EXTI1_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 
@@ -437,7 +437,7 @@ static void test_masked_interrupt(void)
     exti_set_irq(1, 1);
 
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 
@@ -445,7 +445,7 @@ static void test_masked_interrupt(void)
     exti_writel(EXTI_IMR1, 0x00000002);
 
     /* Check that the pending bit in PR wasn't set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 }
@@ -469,7 +469,7 @@ static void test_interrupt(void)
 
     enable_nvic_irq(EXTI1_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
 
@@ -483,7 +483,7 @@ static void test_interrupt(void)
     exti_set_irq(1, 1);
 
     /* Check that the pending bit in PR was set */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000002);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000002);
     /* Check that the interrupt is pending in NVIC */
     g_assert_true(check_nvic_pending(EXTI1_IRQ));
 
@@ -491,7 +491,7 @@ static void test_interrupt(void)
     exti_writel(EXTI_PR1, 0x00000002);
 
     /* Check that the write in PR was effective */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt is still pending in the NVIC */
     g_assert_true(check_nvic_pending(EXTI1_IRQ));
 
@@ -509,7 +509,7 @@ static void test_orred_interrupts(void)
      */
     enable_nvic_irq(EXTI5_9_IRQ);
     /* Check that there are no interrupts already pending in PR */
-    g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+    g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that this specific interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI5_9_IRQ));
 
@@ -522,11 +522,11 @@ static void test_orred_interrupts(void)
     /* Raise GPIO line i, check that the interrupt is pending */
     for (unsigned i = 5; i < 10; i++) {
         exti_set_irq(i, 1);
-        g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 1 << i);
+        g_assert_cmphex(exti_readl(EXTI_PR1), ==, 1 << i);
         g_assert_true(check_nvic_pending(EXTI5_9_IRQ));
 
         exti_writel(EXTI_PR1, 1 << i);
-        g_assert_cmpuint(exti_readl(EXTI_PR1), ==, 0x00000000);
+        g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
         g_assert_true(check_nvic_pending(EXTI5_9_IRQ));
 
         unpend_nvic_irq(EXTI5_9_IRQ);
