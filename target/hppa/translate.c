@@ -3961,6 +3961,7 @@ static bool trans_bl(DisasContext *ctx, arg_bl *a)
 static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
     int64_t disp = a->disp;
+    bool indirect = false;
 
     /* Trap if PSW[B] is set. */
     if (ctx->psw_xb & PSW_B) {
@@ -3970,24 +3971,22 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
     nullify_over(ctx);
 
 #ifndef CONFIG_USER_ONLY
-    if (ctx->tb_flags & PSW_C) {
-        int type = hppa_artype_for_page(cpu_env(ctx->cs), ctx->base.pc_next);
-        /* If we could not find a TLB entry, then we need to generate an
-           ITLB miss exception so the kernel will provide it.
-           The resulting TLB fill operation will invalidate this TB and
-           we will re-translate, at which point we *will* be able to find
-           the TLB entry and determine if this is in fact a gateway page.  */
-        if (type < 0) {
-            gen_excp(ctx, EXCP_ITLB_MISS);
-            return true;
-        }
-        /* No change for non-gateway pages or for priv decrease.  */
-        if (type >= 4 && type - 4 < ctx->privilege) {
-            disp -= ctx->privilege;
-            disp += type - 4;
-        }
+    if (ctx->privilege == 0) {
+        /* Privilege cannot decrease. */
+    } else if (!(ctx->tb_flags & PSW_C)) {
+        /* With paging disabled, priv becomes 0. */
+        disp -= ctx->privilege;
     } else {
-        disp -= ctx->privilege;  /* priv = 0 */
+        /* Adjust the dest offset for the privilege change from the PTE. */
+        TCGv_i64 off = tcg_temp_new_i64();
+
+        gen_helper_b_gate_priv(off, tcg_env,
+                               tcg_constant_i64(ctx->iaoq_first
+                                                + ctx->iaq_f.disp));
+
+        ctx->iaq_j.base = off;
+        ctx->iaq_j.disp = disp + 8;
+        indirect = true;
     }
 #endif
 
@@ -4000,6 +3999,9 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         save_gpr(ctx, a->l, tmp);
     }
 
+    if (indirect) {
+        return do_ibranch(ctx, 0, false, a->n);
+    }
     return do_dbranch(ctx, disp, 0, a->n);
 }
 

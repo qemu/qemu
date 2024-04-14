@@ -691,13 +691,6 @@ target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
     return phys;
 }
 
-/* Return the ar_type of the TLB at VADDR, or -1.  */
-int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
-{
-    HPPATLBEntry *ent = hppa_find_tlb(env, vaddr);
-    return ent ? ent->ar_type : -1;
-}
-
 /*
  * diag_btlb() emulates the PDC PDC_BLOCK_TLB firmware call to
  * allow operating systems to modify the Block TLB (BTLB) entries.
@@ -792,4 +785,31 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         env->gr[28] = -2; /* nonexistent option */
         break;
     }
+}
+
+uint64_t HELPER(b_gate_priv)(CPUHPPAState *env, uint64_t iaoq_f)
+{
+    uint64_t gva = hppa_form_gva(env, env->iasq_f, iaoq_f);
+    HPPATLBEntry *ent = hppa_find_tlb(env, gva);
+
+    if (ent == NULL) {
+        raise_exception_with_ior(env, EXCP_ITLB_MISS, GETPC(), gva, false);
+    }
+
+    /*
+     * There should be no need to check page permissions, as that will
+     * already have been done by tb_lookup via get_page_addr_code.
+     * All we need at this point is to check the ar_type.
+     *
+     * No change for non-gateway pages or for priv decrease.
+     */
+    if (ent->ar_type & 4) {
+        int old_priv = iaoq_f & 3;
+        int new_priv = ent->ar_type & 3;
+
+        if (new_priv < old_priv) {
+            iaoq_f = (iaoq_f & -4) | new_priv;
+        }
+    }
+    return iaoq_f;
 }
