@@ -47,7 +47,7 @@ typedef struct DisasIAQE {
     TCGv_i64 space;
     /* IAOQ base; may be null for relative address. */
     TCGv_i64 base;
-    /* IAOQ addend; if base is null, relative to ctx->iaoq_first. */
+    /* IAOQ addend; if base is null, relative to cpu_iaoq_f. */
     int64_t disp;
 } DisasIAQE;
 
@@ -664,11 +664,7 @@ static DisasIAQE iaqe_next_absv(DisasContext *ctx, TCGv_i64 var)
 static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
                             const DisasIAQE *src)
 {
-    if (src->base == NULL) {
-        tcg_gen_movi_i64(dest, ctx->iaoq_first + src->disp);
-    } else {
-        tcg_gen_addi_i64(dest, src->base, src->disp);
-    }
+    tcg_gen_addi_i64(dest, src->base ? : cpu_iaoq_f, src->disp);
 }
 
 static void install_iaq_entries(DisasContext *ctx, const DisasIAQE *f,
@@ -680,8 +676,28 @@ static void install_iaq_entries(DisasContext *ctx, const DisasIAQE *f,
         b_next = iaqe_incr(f, 4);
         b = &b_next;
     }
-    copy_iaoq_entry(ctx, cpu_iaoq_f, f);
-    copy_iaoq_entry(ctx, cpu_iaoq_b, b);
+
+    /*
+     * There is an edge case
+     *    bv   r0(rN)
+     *    b,l  disp,r0
+     * for which F will use cpu_iaoq_b (from the indirect branch),
+     * and B will use cpu_iaoq_f (from the direct branch).
+     * In this case we need an extra temporary.
+     */
+    if (f->base != cpu_iaoq_b) {
+        copy_iaoq_entry(ctx, cpu_iaoq_b, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+    } else if (f->base == b->base) {
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+        tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_f, b->disp - f->disp);
+    } else {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        copy_iaoq_entry(ctx, tmp, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+        tcg_gen_mov_i64(cpu_iaoq_b, tmp);
+    }
+
     if (f->space) {
         tcg_gen_mov_i64(cpu_iasq_f, f->space);
     }
@@ -3980,9 +3996,8 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         /* Adjust the dest offset for the privilege change from the PTE. */
         TCGv_i64 off = tcg_temp_new_i64();
 
-        gen_helper_b_gate_priv(off, tcg_env,
-                               tcg_constant_i64(ctx->iaoq_first
-                                                + ctx->iaq_f.disp));
+        copy_iaoq_entry(ctx, off, &ctx->iaq_f);
+        gen_helper_b_gate_priv(off, tcg_env, off);
 
         ctx->iaq_j.base = off;
         ctx->iaq_j.disp = disp + 8;
@@ -4603,7 +4618,7 @@ static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    uint64_t cs_base, iaoq_f, iaoq_b;
+    uint64_t cs_base;
     int bound;
 
     ctx->cs = cs;
@@ -4622,12 +4637,8 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
                     : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 #endif
 
-    /* Recover the IAOQ values from the GVA + PRIV.  */
     cs_base = ctx->base.tb->cs_base;
-    iaoq_f = cs_base & MAKE_64BIT_MASK(32, 32);
-    iaoq_f |= ctx->base.pc_first & MAKE_64BIT_MASK(2, 30);
-    iaoq_f |= ctx->privilege;
-    ctx->iaoq_first = iaoq_f;
+    ctx->iaoq_first = ctx->base.pc_first + ctx->privilege;
 
     if (unlikely(cs_base & CS_BASE_DIFFSPACE)) {
         ctx->iaq_b.space = cpu_iasq_b;
@@ -4635,8 +4646,9 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     } else if (unlikely(cs_base & CS_BASE_DIFFPAGE)) {
         ctx->iaq_b.base = cpu_iaoq_b;
     } else {
-        iaoq_b = (iaoq_f & TARGET_PAGE_MASK) | (cs_base & ~TARGET_PAGE_MASK);
-        ctx->iaq_b.disp = iaoq_b - iaoq_f;
+        uint64_t iaoq_f_pgofs = ctx->iaoq_first & ~TARGET_PAGE_MASK;
+        uint64_t iaoq_b_pgofs = cs_base & ~TARGET_PAGE_MASK;
+        ctx->iaq_b.disp = iaoq_b_pgofs - iaoq_f_pgofs;
     }
 
     ctx->zero = tcg_constant_i64(0);
@@ -4663,11 +4675,23 @@ static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint64_t iaoq_f, iaoq_b;
+    int64_t diff;
 
     tcg_debug_assert(!iaqe_variable(&ctx->iaq_f));
-    tcg_gen_insn_start(ctx->iaoq_first + ctx->iaq_f.disp,
-                       (iaqe_variable(&ctx->iaq_b) ? -1 :
-                        ctx->iaoq_first + ctx->iaq_b.disp), 0);
+
+    iaoq_f = ctx->iaoq_first + ctx->iaq_f.disp;
+    if (iaqe_variable(&ctx->iaq_b)) {
+        diff = INT32_MIN;
+    } else {
+        iaoq_b = ctx->iaoq_first + ctx->iaq_b.disp;
+        diff = iaoq_b - iaoq_f;
+        /* Direct branches can only produce a 24-bit displacement. */
+        tcg_debug_assert(diff == (int32_t)diff);
+        tcg_debug_assert(diff != INT32_MIN);
+    }
+
+    tcg_gen_insn_start(iaoq_f & ~TARGET_PAGE_MASK, diff, 0);
     ctx->insn_start_updated = false;
 }
 
