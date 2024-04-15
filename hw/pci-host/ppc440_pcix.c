@@ -52,7 +52,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PPC440PCIXState, PPC440_PCIX_HOST)
 struct PPC440PCIXState {
     PCIHostState parent_obj;
 
-    PCIDevice *dev;
+    uint8_t config[PCI_CONFIG_SPACE_SIZE];
     struct PLBOutMap pom[PPC440_PCIX_NR_POMS];
     struct PLBInMap pim[PPC440_PCIX_NR_PIMS];
     uint32_t sts;
@@ -171,7 +171,7 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
     trace_ppc440_pcix_reg_write(addr, val, size);
     switch (addr) {
     case PCI_VENDOR_ID ... PCI_MAX_LAT:
-        stl_le_p(s->dev->config + addr, val);
+        stl_le_p(s->config + addr, val);
         break;
 
     case PCIX0_POM0LAL:
@@ -302,7 +302,7 @@ static uint64_t ppc440_pcix_reg_read4(void *opaque, hwaddr addr,
 
     switch (addr) {
     case PCI_VENDOR_ID ... PCI_MAX_LAT:
-        val = ldl_le_p(s->dev->config + addr);
+        val = ldl_le_p(s->config + addr);
         break;
 
     case PCIX0_POM0LAL:
@@ -498,10 +498,7 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
     memory_region_init(&s->iomem, OBJECT(dev), "pci-io", 64 * KiB);
     h->bus = pci_register_root_bus(dev, NULL, ppc440_pcix_set_irq,
                          ppc440_pcix_map_irq, &s->irq, &s->busmem, &s->iomem,
-                         PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
-
-    s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0),
-                               TYPE_PPC4xx_HOST_BRIDGE);
+                         PCI_DEVFN(1, 0), 1, TYPE_PCI_BUS);
 
     memory_region_init(&s->bm, OBJECT(s), "bm-ppc440-pcix", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);

@@ -658,7 +658,7 @@ void via_isa_set_irq(PCIDevice *d, int pin, int level)
     ViaISAState *s = VIA_ISA(pci_get_function_0(d));
     uint8_t irq = d->config[PCI_INTERRUPT_LINE], max_irq = 15;
     int f = PCI_FUNC(d->devfn);
-    uint16_t mask = BIT(f);
+    uint16_t mask;
 
     switch (f) {
     case 0: /* PIRQ/PINT inputs */
@@ -673,6 +673,7 @@ void via_isa_set_irq(PCIDevice *d, int pin, int level)
     }
 
     /* Keep track of the state of all sources */
+    mask = BIT(f);
     if (level) {
         s->irq_state[0] |= mask;
     } else {
