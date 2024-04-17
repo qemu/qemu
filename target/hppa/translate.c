@@ -2062,11 +2062,8 @@ static void do_page_zero(DisasContext *ctx)
         g_assert_not_reached();
     }
 
-    /* Check that we didn't arrive here via some means that allowed
-       non-sequential instruction execution.  Normally the PSW[B] bit
-       detects this by disallowing the B,GATE instruction to execute
-       under such conditions.  */
-    if (iaqe_variable(&ctx->iaq_b) || ctx->iaq_b.disp != 4) {
+    /* If PSW[B] is set, the B,GATE insn would trap. */
+    if (ctx->psw_xb & PSW_B) {
         goto do_sigill;
     }
 
@@ -3965,22 +3962,12 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
     int64_t disp = a->disp;
 
-    nullify_over(ctx);
-
-    /* Make sure the caller hasn't done something weird with the queue.
-     * ??? This is not quite the same as the PSW[B] bit, which would be
-     * expensive to track.  Real hardware will trap for
-     *    b  gateway
-     *    b  gateway+4  (in delay slot of first branch)
-     * However, checking for a non-sequential instruction queue *will*
-     * diagnose the security hole
-     *    b  gateway
-     *    b  evil
-     * in which instructions at evil would run with increased privs.
-     */
-    if (iaqe_variable(&ctx->iaq_b) || ctx->iaq_b.disp != ctx->iaq_f.disp + 4) {
+    /* Trap if PSW[B] is set. */
+    if (ctx->psw_xb & PSW_B) {
         return gen_illegal(ctx);
     }
+
+    nullify_over(ctx);
 
 #ifndef CONFIG_USER_ONLY
     if (ctx->tb_flags & PSW_C) {
