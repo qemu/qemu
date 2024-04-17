@@ -296,30 +296,38 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         goto egress;
     }
 
-    /* In reverse priority order, check for conditions which raise faults.
-       As we go, remove PROT bits that cover the condition we want to check.
-       In this way, the resulting PROT will force a re-check of the
-       architectural TLB entry for the next access.  */
-    if (unlikely(!ent->d)) {
-        if (type & PAGE_WRITE) {
-            /* The D bit is not set -- TLB Dirty Bit Fault.  */
-            ret = EXCP_TLB_DIRTY;
-        }
-        prot &= PAGE_READ | PAGE_EXEC;
-    }
-    if (unlikely(ent->b)) {
-        if (type & PAGE_WRITE) {
-            /* The B bit is set -- Data Memory Break Fault.  */
-            ret = EXCP_DMB;
-        }
-        prot &= PAGE_READ | PAGE_EXEC;
-    }
+    /*
+     * In priority order, check for conditions which raise faults.
+     * Remove PROT bits that cover the condition we want to check,
+     * so that the resulting PROT will force a re-check of the
+     * architectural TLB entry for the next access.
+     */
     if (unlikely(ent->t)) {
+        prot &= PAGE_EXEC;
         if (!(type & PAGE_EXEC)) {
             /* The T bit is set -- Page Reference Fault.  */
             ret = EXCP_PAGE_REF;
         }
-        prot &= PAGE_EXEC;
+    } else if (!ent->d) {
+        prot &= PAGE_READ | PAGE_EXEC;
+        if (type & PAGE_WRITE) {
+            /* The D bit is not set -- TLB Dirty Bit Fault.  */
+            ret = EXCP_TLB_DIRTY;
+        }
+    } else if (unlikely(ent->b)) {
+        prot &= PAGE_READ | PAGE_EXEC;
+        if (type & PAGE_WRITE) {
+            /*
+             * The B bit is set -- Data Memory Break Fault.
+             * Except when PSW_X is set, allow this single access to succeed.
+             * The write bit will be invalidated for subsequent accesses.
+             */
+            if (env->psw_xb & PSW_X) {
+                prot |= PAGE_WRITE_INV;
+            } else {
+                ret = EXCP_DMB;
+            }
+        }
     }
 
  egress:
