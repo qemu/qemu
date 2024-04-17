@@ -84,7 +84,9 @@ typedef struct DisasContext {
     uint32_t tb_flags;
     int mmu_idx;
     int privilege;
+    uint32_t psw_xb;
     bool psw_n_nonzero;
+    bool psw_b_next;
     bool is_pa20;
     bool insn_start_updated;
 
@@ -263,6 +265,7 @@ static TCGv_i64 cpu_psw_n;
 static TCGv_i64 cpu_psw_v;
 static TCGv_i64 cpu_psw_cb;
 static TCGv_i64 cpu_psw_cb_msb;
+static TCGv_i32 cpu_psw_xb;
 
 void hppa_translate_init(void)
 {
@@ -315,6 +318,9 @@ void hppa_translate_init(void)
         *v->var = tcg_global_mem_new(tcg_env, v->ofs, v->name);
     }
 
+    cpu_psw_xb = tcg_global_mem_new_i32(tcg_env,
+                                        offsetof(CPUHPPAState, psw_xb),
+                                        "psw_xb");
     cpu_iasq_f = tcg_global_mem_new_i64(tcg_env,
                                         offsetof(CPUHPPAState, iasq_f),
                                         "iasq_f");
@@ -509,6 +515,25 @@ static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
 #endif
 }
 
+/*
+ * Write a value to psw_xb, bearing in mind the known value.
+ * To be used just before exiting the TB, so do not update the known value.
+ */
+static void store_psw_xb(DisasContext *ctx, uint32_t xb)
+{
+    tcg_debug_assert(xb == 0 || xb == PSW_B);
+    if (ctx->psw_xb != xb) {
+        tcg_gen_movi_i32(cpu_psw_xb, xb);
+    }
+}
+
+/* Write a value to psw_xb, and update the known value. */
+static void set_psw_xb(DisasContext *ctx, uint32_t xb)
+{
+    store_psw_xb(ctx, xb);
+    ctx->psw_xb = xb;
+}
+
 /* Skip over the implementation of an insn that has been nullified.
    Use this when the insn is too complex for a conditional move.  */
 static void nullify_over(DisasContext *ctx)
@@ -576,6 +601,8 @@ static bool nullify_end(DisasContext *ctx)
     /* For NEXT, NORETURN, STALE, we can easily continue (or exit).
        For UPDATED, we cannot update on the nullified path.  */
     assert(status != DISAS_IAQ_N_UPDATED);
+    /* Taken branches are handled manually. */
+    assert(!ctx->psw_b_next);
 
     if (likely(null_lab == NULL)) {
         /* The current insn wasn't conditional or handled the condition
@@ -1843,6 +1870,7 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
         if (is_n) {
             if (use_nullify_skip(ctx)) {
                 nullify_set(ctx, 0);
+                store_psw_xb(ctx, 0);
                 gen_goto_tb(ctx, 0, &ctx->iaq_j, NULL);
                 ctx->base.is_jmp = DISAS_NORETURN;
                 return true;
@@ -1850,20 +1878,24 @@ static bool do_dbranch(DisasContext *ctx, int64_t disp,
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
         ctx->iaq_n = &ctx->iaq_j;
+        ctx->psw_b_next = true;
     } else {
         nullify_over(ctx);
 
         install_link(ctx, link, false);
         if (is_n && use_nullify_skip(ctx)) {
             nullify_set(ctx, 0);
+            store_psw_xb(ctx, 0);
             gen_goto_tb(ctx, 0, &ctx->iaq_j, NULL);
         } else {
             nullify_set(ctx, is_n);
+            store_psw_xb(ctx, PSW_B);
             gen_goto_tb(ctx, 0, &ctx->iaq_b, &ctx->iaq_j);
         }
         nullify_end(ctx);
 
         nullify_set(ctx, 0);
+        store_psw_xb(ctx, 0);
         gen_goto_tb(ctx, 1, &ctx->iaq_b, NULL);
         ctx->base.is_jmp = DISAS_NORETURN;
     }
@@ -1894,6 +1926,7 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
     n = is_n && disp < 0;
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
+        store_psw_xb(ctx, 0);
         next = iaqe_incr(&ctx->iaq_b, 4);
         gen_goto_tb(ctx, 0, &next, NULL);
     } else {
@@ -1902,6 +1935,7 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
             ctx->null_lab = NULL;
         }
         nullify_set(ctx, n);
+        store_psw_xb(ctx, 0);
         gen_goto_tb(ctx, 0, &ctx->iaq_b, NULL);
     }
 
@@ -1913,9 +1947,11 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
     next = iaqe_branchi(ctx, disp);
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
+        store_psw_xb(ctx, 0);
         gen_goto_tb(ctx, 1, &next, NULL);
     } else {
         nullify_set(ctx, n);
+        store_psw_xb(ctx, PSW_B);
         gen_goto_tb(ctx, 1, &ctx->iaq_b, &next);
     }
 
@@ -1949,6 +1985,7 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
         ctx->iaq_n = &ctx->iaq_j;
+        ctx->psw_b_next = true;
         return true;
     }
 
@@ -1958,9 +1995,11 @@ static bool do_ibranch(DisasContext *ctx, unsigned link,
     if (is_n && use_nullify_skip(ctx)) {
         install_iaq_entries(ctx, &ctx->iaq_j, NULL);
         nullify_set(ctx, 0);
+        store_psw_xb(ctx, 0);
     } else {
         install_iaq_entries(ctx, &ctx->iaq_b, &ctx->iaq_j);
         nullify_set(ctx, is_n);
+        store_psw_xb(ctx, PSW_B);
     }
 
     tcg_gen_lookup_and_goto_ptr();
@@ -2387,6 +2426,7 @@ static bool trans_halt(DisasContext *ctx, arg_halt *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
+    set_psw_xb(ctx, 0);
     nullify_over(ctx);
     gen_helper_halt(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2398,6 +2438,7 @@ static bool trans_reset(DisasContext *ctx, arg_reset *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
+    set_psw_xb(ctx, 0);
     nullify_over(ctx);
     gen_helper_reset(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2792,6 +2833,9 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
         if ((rt == 10 || rt == 31) && r1 == rt && r2 == rt) { /* PAUSE */
             /* No need to check for supervisor, as userland can only pause
                until the next timer interrupt.  */
+
+            set_psw_xb(ctx, 0);
+
             nullify_over(ctx);
 
             /* Advance the instruction queue.  */
@@ -4576,6 +4620,7 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cs = cs;
     ctx->tb_flags = ctx->base.tb->flags;
     ctx->is_pa20 = hppa_is_pa20(cpu_env(cs));
+    ctx->psw_xb = ctx->tb_flags & (PSW_X | PSW_B);
 
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = PRIV_USER;
@@ -4662,6 +4707,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
          */
         ctx->iaq_n = NULL;
         memset(&ctx->iaq_j, 0, sizeof(ctx->iaq_j));
+        ctx->psw_b_next = false;
 
         if (unlikely(ctx->null_cond.c == TCG_COND_ALWAYS)) {
             ctx->null_cond.c = TCG_COND_NEVER;
@@ -4673,6 +4719,10 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             }
             ret = ctx->base.is_jmp;
             assert(ctx->null_lab == NULL);
+        }
+
+        if (ret != DISAS_NORETURN) {
+            set_psw_xb(ctx, ctx->psw_b_next ? PSW_B : 0);
         }
     }
 

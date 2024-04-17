@@ -50,7 +50,7 @@ static vaddr hppa_cpu_get_pc(CPUState *cs)
 void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
                           uint64_t *pcsbase, uint32_t *pflags)
 {
-    uint32_t flags = env->psw_n * PSW_N;
+    uint32_t flags = 0;
     uint64_t cs_base = 0;
 
     /*
@@ -80,11 +80,14 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
         cs_base |= env->iaoq_b & ~TARGET_PAGE_MASK;
     }
 
+    /* ??? E, T, H, L bits need to be here, when implemented.  */
+    flags |= env->psw_n * PSW_N;
+    flags |= env->psw_xb;
+    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
+
 #ifdef CONFIG_USER_ONLY
     flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
 #else
-    /* ??? E, T, H, L, B bits need to be here, when implemented.  */
-    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
     if ((env->sr[4] == env->sr[5])
         & (env->sr[4] == env->sr[6])
         & (env->sr[4] == env->sr[7])) {
@@ -103,6 +106,7 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
 
     /* IAQ is always up-to-date before goto_tb. */
     cpu->env.psw_n = (tb->flags & PSW_N) != 0;
+    cpu->env.psw_xb = tb->flags & (PSW_X | PSW_B);
 }
 
 static void hppa_restore_state_to_opc(CPUState *cs,
