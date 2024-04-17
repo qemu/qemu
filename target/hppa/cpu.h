@@ -208,7 +208,8 @@ typedef struct CPUArchState {
     uint64_t fr[32];
     uint64_t sr[8];          /* stored shifted into place for gva */
 
-    target_ulong psw;        /* All psw bits except the following:  */
+    uint32_t psw;            /* All psw bits except the following:  */
+    uint32_t psw_xb;         /* X and B, in their normal positions */
     target_ulong psw_n;      /* boolean */
     target_long psw_v;       /* in most significant bit */
 
