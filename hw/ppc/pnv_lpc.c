@@ -236,16 +236,16 @@ int pnv_dt_lpc(PnvChip *chip, void *fdt, int root_offset, uint64_t lpcm_addr,
  * TODO: rework to use address_space_stq() and address_space_ldq()
  * instead.
  */
-static bool opb_read(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
-                     int sz)
+bool pnv_lpc_opb_read(PnvLpcController *lpc, uint32_t addr,
+                      uint8_t *data, int sz)
 {
     /* XXX Handle access size limits and FW read caching here */
     return !address_space_read(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
                                data, sz);
 }
 
-static bool opb_write(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
-                      int sz)
+bool pnv_lpc_opb_write(PnvLpcController *lpc, uint32_t addr,
+                       uint8_t *data, int sz)
 {
     /* XXX Handle access size limits here */
     return !address_space_write(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
@@ -277,7 +277,7 @@ static void pnv_lpc_do_eccb(PnvLpcController *lpc, uint64_t cmd)
     }
 
     if (cmd & ECCB_CTL_READ) {
-        success = opb_read(lpc, opb_addr, data, sz);
+        success = pnv_lpc_opb_read(lpc, opb_addr, data, sz);
         if (success) {
             lpc->eccb_stat_reg = ECCB_STAT_OP_DONE |
                     (((uint64_t)data[0]) << 24 |
@@ -294,7 +294,7 @@ static void pnv_lpc_do_eccb(PnvLpcController *lpc, uint64_t cmd)
         data[2] = lpc->eccb_data_reg >>  8;
         data[3] = lpc->eccb_data_reg;
 
-        success = opb_write(lpc, opb_addr, data, sz);
+        success = pnv_lpc_opb_write(lpc, opb_addr, data, sz);
         lpc->eccb_stat_reg = ECCB_STAT_OP_DONE;
     }
     /* XXX Which error bit (if any) to signal OPB error ? */

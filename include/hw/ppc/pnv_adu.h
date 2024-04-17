@@ -10,6 +10,7 @@
 #define PPC_PNV_ADU_H
 
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_lpc.h"
 #include "hw/qdev-core.h"
 
 #define TYPE_PNV_ADU "pnv-adu"
@@ -18,6 +19,12 @@ OBJECT_DECLARE_TYPE(PnvADU, PnvADUClass, PNV_ADU)
 
 struct PnvADU {
     DeviceState xd;
+
+    /* LPCMC (LPC Master Controller) access engine */
+    PnvLpcController *lpc;
+    uint64_t     lpc_base_reg;
+    uint64_t     lpc_cmd_reg;
+    uint64_t     lpc_data_reg;
 
     MemoryRegion xscom_regs;
 };

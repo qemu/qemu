@@ -1663,6 +1663,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
 
     /* ADU */
+    object_property_set_link(OBJECT(&chip9->adu), "lpc", OBJECT(&chip9->lpc),
+                             &error_abort);
     if (!qdev_realize(DEVICE(&chip9->adu), NULL, errp)) {
         return;
     }
@@ -1929,6 +1931,8 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     }
 
     /* ADU */
+    object_property_set_link(OBJECT(&chip10->adu), "lpc", OBJECT(&chip10->lpc),
+                             &error_abort);
     if (!qdev_realize(DEVICE(&chip10->adu), NULL, errp)) {
         return;
     }
