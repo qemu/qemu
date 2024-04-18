@@ -50,7 +50,7 @@ the following architecture extensions:
 - FEAT_EL2 (Support for execution at EL2)
 - FEAT_EL3 (Support for execution at EL3)
 - FEAT_EPAC (Enhanced pointer authentication)
-- FEAT_ETS (Enhanced Translation Synchronization)
+- FEAT_ETS2 (Enhanced Translation Synchronization)
 - FEAT_EVT (Enhanced Virtualization Traps)
 - FEAT_F32MM (Single-precision Matrix Multiplication)
 - FEAT_F64MM (Double-precision Matrix Multiplication)
