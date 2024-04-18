@@ -36,7 +36,7 @@ test_get_passwd_entry(const gchar *user_name, GError **error)
     return p;
 }
 
-#define g_unix_get_passwd_entry_qemu(username, err) \
+#define g_unix_get_passwd_entry(username, err) \
    test_get_passwd_entry(username, err)
 #endif
 
@@ -46,7 +46,7 @@ get_passwd_entry(const char *username, Error **errp)
     g_autoptr(GError) err = NULL;
     struct passwd *p;
 
-    p = g_unix_get_passwd_entry_qemu(username, &err);
+    p = g_unix_get_passwd_entry(username, &err);
     if (p == NULL) {
         error_setg(errp, "failed to lookup user '%s': %s",
                    username, err->message);
