@@ -13,6 +13,7 @@
 #include "qemu/queue.h"
 #include "qemu/option.h"
 #include "qemu/plugin-event.h"
+#include "qemu/bitmap.h"
 #include "exec/memopidx.h"
 #include "hw/core/cpu.h"
 
