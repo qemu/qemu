@@ -44,7 +44,7 @@ static void cdat_len_check(CDATSubHeader *hdr, Error **errp)
     }
 }
 
-static void ct3_build_cdat(CDATObject *cdat, Error **errp)
+static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
 {
     g_autofree CDATTableHeader *cdat_header = NULL;
     g_autofree CDATEntry *cdat_st = NULL;
@@ -58,7 +58,7 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat_header = g_malloc0(sizeof(*cdat_header));
     if (!cdat_header) {
         error_setg(errp, "Failed to allocate CDAT header");
-        return;
+        return false;
     }
 
     cdat->built_buf_len = cdat->build_cdat_table(&cdat->built_buf,
@@ -67,14 +67,14 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     if (cdat->built_buf_len <= 0) {
         /* Build later as not all data available yet */
         cdat->to_update = true;
-        return;
+        return true;
     }
     cdat->to_update = false;
 
     cdat_st = g_malloc0(sizeof(*cdat_st) * (cdat->built_buf_len + 1));
     if (!cdat_st) {
         error_setg(errp, "Failed to allocate CDAT entry array");
-        return;
+        return false;
     }
 
     /* Entry 0 for CDAT header, starts with Entry 1 */
@@ -109,6 +109,7 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat_st[0].length = sizeof(*cdat_header);
     cdat->entry_len = 1 + cdat->built_buf_len;
     cdat->entry = g_steal_pointer(&cdat_st);
+    return true;
 }
 
 static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
