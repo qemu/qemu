@@ -189,14 +189,14 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
     return true;
 }
 
-void cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
+bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
 {
     CDATObject *cdat = &cxl_cstate->cdat;
 
     if (cdat->filename) {
-        ct3_load_cdat(cdat, errp);
+        return ct3_load_cdat(cdat, errp);
     } else {
-        ct3_build_cdat(cdat, errp);
+        return ct3_build_cdat(cdat, errp);
     }
 }
 
