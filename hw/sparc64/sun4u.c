@@ -793,6 +793,12 @@ static void sun4v_init(MachineState *machine)
     sun4uv_init(get_system_memory(), machine, &hwdefs[1]);
 }
 
+static GlobalProperty hw_compat_sparc64[] = {
+    { "virtio-pci", "disable-legacy", "on", .optional = true },
+    { "virtio-device", "iommu_platform", "on" },
+};
+static const size_t hw_compat_sparc64_len = G_N_ELEMENTS(hw_compat_sparc64);
+
 static void sun4u_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -810,6 +816,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->default_nic = "sunhme";
     mc->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
     fwc->get_dev_path = sun4u_fw_dev_path;
+    compat_props_add(mc->compat_props, hw_compat_sparc64, hw_compat_sparc64_len);
 }
 
 static const TypeInfo sun4u_type = {
