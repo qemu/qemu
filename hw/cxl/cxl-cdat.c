@@ -111,7 +111,7 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat->entry = g_steal_pointer(&cdat_st);
 }
 
-static void ct3_load_cdat(CDATObject *cdat, Error **errp)
+static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
 {
     g_autofree CDATEntry *cdat_st = NULL;
     g_autofree uint8_t *buf = NULL;
@@ -127,11 +127,11 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
                              &file_size, &error)) {
         error_setg(errp, "CDAT: File read failed: %s", error->message);
         g_error_free(error);
-        return;
+        return false;
     }
     if (file_size < sizeof(CDATTableHeader)) {
         error_setg(errp, "CDAT: File too short");
-        return;
+        return false;
     }
     i = sizeof(CDATTableHeader);
     num_ent = 1;
@@ -139,19 +139,19 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
         hdr = (CDATSubHeader *)(buf + i);
         if (i + sizeof(CDATSubHeader) > file_size) {
             error_setg(errp, "CDAT: Truncated table");
-            return;
+            return false;
         }
         cdat_len_check(hdr, errp);
         i += hdr->length;
         if (i > file_size) {
             error_setg(errp, "CDAT: Truncated table");
-            return;
+            return false;
         }
         num_ent++;
     }
     if (i != file_size) {
         error_setg(errp, "CDAT: File length mismatch");
-        return;
+        return false;
     }
 
     cdat_st = g_new0(CDATEntry, num_ent);
@@ -185,6 +185,7 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
     cdat->entry_len = num_ent;
     cdat->entry = g_steal_pointer(&cdat_st);
     cdat->buf = g_steal_pointer(&buf);
+    return true;
 }
 
 void cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
