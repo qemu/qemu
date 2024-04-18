@@ -38,7 +38,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
-#include "qemu/uri.h"
 #include "qemu/cutils.h"
 #include "sysemu/replay.h"
 #include "qapi/qapi-visit-block-core.h"
@@ -79,77 +78,76 @@ typedef struct NFSRPC {
 
 static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
 {
-    URI *uri = NULL;
-    QueryParams *qp = NULL;
-    int ret = -EINVAL, i;
+    g_autoptr(GUri) uri = g_uri_parse(filename, G_URI_FLAGS_NONE, NULL);
+    GUriParamsIter qp;
+    const char *uri_server, *uri_path, *uri_query;
+    char *qp_name, *qp_value;
+    GError *gerror = NULL;
 
-    uri = uri_parse(filename);
     if (!uri) {
         error_setg(errp, "Invalid URI specified");
-        goto out;
+        return -EINVAL;
     }
-    if (g_strcmp0(uri->scheme, "nfs") != 0) {
+    if (!g_str_equal(g_uri_get_scheme(uri), "nfs")) {
         error_setg(errp, "URI scheme must be 'nfs'");
-        goto out;
+        return -EINVAL;
     }
 
-    if (!uri->server) {
+    uri_server = g_uri_get_host(uri);
+    if (!uri_server || !uri_server[0]) {
         error_setg(errp, "missing hostname in URI");
-        goto out;
+        return -EINVAL;
     }
 
-    if (!uri->path) {
+    uri_path = g_uri_get_path(uri);
+    if (!uri_path || !uri_path[0]) {
         error_setg(errp, "missing file path in URI");
-        goto out;
+        return -EINVAL;
     }
 
-    qp = query_params_parse(uri->query);
-    if (!qp) {
-        error_setg(errp, "could not parse query parameters");
-        goto out;
-    }
-
-    qdict_put_str(options, "server.host", uri->server);
+    qdict_put_str(options, "server.host", uri_server);
     qdict_put_str(options, "server.type", "inet");
-    qdict_put_str(options, "path", uri->path);
+    qdict_put_str(options, "path", uri_path);
 
-    for (i = 0; i < qp->n; i++) {
-        uint64_t val;
-        if (!qp->p[i].value) {
-            error_setg(errp, "Value for NFS parameter expected: %s",
-                       qp->p[i].name);
-            goto out;
-        }
-        if (parse_uint_full(qp->p[i].value, 0, &val)) {
-            error_setg(errp, "Illegal value for NFS parameter: %s",
-                       qp->p[i].name);
-            goto out;
-        }
-        if (!strcmp(qp->p[i].name, "uid")) {
-            qdict_put_str(options, "user", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "gid")) {
-            qdict_put_str(options, "group", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
-            qdict_put_str(options, "tcp-syn-count", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "readahead")) {
-            qdict_put_str(options, "readahead-size", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "pagecache")) {
-            qdict_put_str(options, "page-cache-size", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "debug")) {
-            qdict_put_str(options, "debug", qp->p[i].value);
-        } else {
-            error_setg(errp, "Unknown NFS parameter name: %s",
-                       qp->p[i].name);
-            goto out;
+    uri_query = g_uri_get_query(uri);
+    if (uri_query) {
+        g_uri_params_iter_init(&qp, uri_query, -1, "&", G_URI_PARAMS_NONE);
+        while (g_uri_params_iter_next(&qp, &qp_name, &qp_value, &gerror)) {
+            uint64_t val;
+            if (!qp_name || gerror) {
+                error_setg(errp, "Failed to parse NFS parameter");
+                return -EINVAL;
+            }
+            if (!qp_value) {
+                error_setg(errp, "Value for NFS parameter expected: %s",
+                           qp_name);
+                return -EINVAL;
+            }
+            if (parse_uint_full(qp_value, 0, &val)) {
+                error_setg(errp, "Invalid value for NFS parameter: %s",
+                           qp_name);
+                return -EINVAL;
+            }
+            if (g_str_equal(qp_name, "uid")) {
+                qdict_put_str(options, "user", qp_value);
+            } else if (g_str_equal(qp_name, "gid")) {
+                qdict_put_str(options, "group", qp_value);
+            } else if (g_str_equal(qp_name, "tcp-syncnt")) {
+                qdict_put_str(options, "tcp-syn-count", qp_value);
+            } else if (g_str_equal(qp_name, "readahead")) {
+                qdict_put_str(options, "readahead-size", qp_value);
+            } else if (g_str_equal(qp_name, "pagecache")) {
+                qdict_put_str(options, "page-cache-size", qp_value);
+            } else if (g_str_equal(qp_name, "debug")) {
+                qdict_put_str(options, "debug", qp_value);
+            } else {
+                error_setg(errp, "Unknown NFS parameter name: %s", qp_name);
+                return -EINVAL;
+            }
         }
     }
-    ret = 0;
-out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    uri_free(uri);
-    return ret;
+
+    return 0;
 }
 
 static bool nfs_has_filename_options_conflict(QDict *options, Error **errp)
