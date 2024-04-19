@@ -194,6 +194,10 @@ FIELD(GICR_VPENDBASER, VALID, 63, 1)
 #define ICC_CTLR_EL3_A3V (1U << 15)
 #define ICC_CTLR_EL3_NDS (1U << 17)
 
+#define ICC_AP1R_EL1_NMI (1ULL << 63)
+#define ICC_RPR_EL1_NSNMI (1ULL << 62)
+#define ICC_RPR_EL1_NMI (1ULL << 63)
+
 #define ICH_VMCR_EL2_VENG0_SHIFT 0
 #define ICH_VMCR_EL2_VENG0 (1U << ICH_VMCR_EL2_VENG0_SHIFT)
 #define ICH_VMCR_EL2_VENG1_SHIFT 1
@@ -511,6 +515,7 @@ FIELD(VTE, RDBASE, 42, RDBASE_PROCNUM_LENGTH)
 /* Special interrupt IDs */
 #define INTID_SECURE 1020
 #define INTID_NONSECURE 1021
+#define INTID_NMI 1022
 #define INTID_SPURIOUS 1023
 
 /* Functions internal to the emulated GICv3 */

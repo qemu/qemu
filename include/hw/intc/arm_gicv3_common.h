@@ -225,6 +225,13 @@ struct GICv3CPUState {
 
     /* This is temporary working state, to avoid a malloc in gicv3_update() */
     bool seenbetter;
+
+    /*
+     * Whether the CPU interface has NMI support (FEAT_GICv3_NMI). The
+     * CPU interface may support NMIs even when the GIC proper (what the
+     * spec calls the IRI; the redistributors and distributor) does not.
+     */
+    bool nmi_support;
 };
 
 /*
