@@ -536,8 +536,11 @@ static void arm_gicv3_common_reset_hold(Object *obj)
         memset(cs->gicr_ipriorityr, 0, sizeof(cs->gicr_ipriorityr));
 
         cs->hppi.prio = 0xff;
+        cs->hppi.nmi = false;
         cs->hpplpi.prio = 0xff;
+        cs->hpplpi.nmi = false;
         cs->hppvlpi.prio = 0xff;
+        cs->hppvlpi.nmi = false;
 
         /* State in the CPU interface must *not* be reset here, because it
          * is part of the CPU's reset domain, not the GIC device's.
