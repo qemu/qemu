@@ -27,7 +27,7 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
 
 #ifdef CONFIG_USER_ONLY
 void page_protect(tb_page_addr_t page_addr);
-int page_unprotect(target_ulong address, uintptr_t pc);
+int page_unprotect(tb_page_addr_t address, uintptr_t pc);
 #endif
 
 #endif /* TRANSLATE_ALL_H */

@@ -696,7 +696,7 @@ void page_protect(tb_page_addr_t address)
  * immediately exited. (We can only return 2 if the 'pc' argument is
  * non-zero.)
  */
-int page_unprotect(target_ulong address, uintptr_t pc)
+int page_unprotect(tb_page_addr_t address, uintptr_t pc)
 {
     PageFlagsNode *p;
     bool current_tb_invalidated;
