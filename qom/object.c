@@ -157,14 +157,6 @@ static bool type_name_is_valid(const char *name)
                         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                         "0123456789-_.");
 
-    /* Allow some legacy names with '+' in it for compatibility reasons */
-    if (name[plen] == '+') {
-        if (plen >= 17 && g_str_has_prefix(name, "Sun-UltraSparc-I")) {
-            /* Allow "Sun-UltraSparc-IV+" and "Sun-UltraSparc-IIIi+" */
-            return true;
-        }
-    }
-
     return plen == slen;
 }
 

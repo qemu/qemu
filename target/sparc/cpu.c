@@ -314,7 +314,7 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES,
     },
     {
-        .name = "Sun UltraSparc IV+",
+        .name = "Sun UltraSparc IV plus",
         .iu_version = ((0x3eULL << 48) | (0x19ULL << 32) | (0x22ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
@@ -323,7 +323,7 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_CMT,
     },
     {
-        .name = "Sun UltraSparc IIIi+",
+        .name = "Sun UltraSparc IIIi plus",
         .iu_version = ((0x3eULL << 48) | (0x22ULL << 32) | (0ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_3,
@@ -762,6 +762,16 @@ static ObjectClass *sparc_cpu_class_by_name(const char *cpu_model)
     char *typename;
 
     typename = sparc_cpu_type_name(cpu_model);
+
+    /* Fix up legacy names with '+' in it */
+    if (g_str_equal(typename, SPARC_CPU_TYPE_NAME("Sun-UltraSparc-IV+"))) {
+        g_free(typename);
+        typename = g_strdup(SPARC_CPU_TYPE_NAME("Sun-UltraSparc-IV-plus"));
+    } else if (g_str_equal(typename, SPARC_CPU_TYPE_NAME("Sun-UltraSparc-IIIi+"))) {
+        g_free(typename);
+        typename = g_strdup(SPARC_CPU_TYPE_NAME("Sun-UltraSparc-IIIi-plus"));
+    }
+
     oc = object_class_by_name(typename);
     g_free(typename);
     return oc;
