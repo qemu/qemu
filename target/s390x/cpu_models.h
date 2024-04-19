@@ -114,23 +114,8 @@ static inline uint64_t s390_cpuid_from_cpu_model(const S390CPUModel *model)
 S390CPUDef const *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
                                     S390FeatBitmap features);
 
-#ifdef CONFIG_KVM
 bool kvm_s390_cpu_models_supported(void);
 void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp);
 void kvm_s390_apply_cpu_model(const S390CPUModel *model,  Error **errp);
-#else
-static inline void kvm_s390_get_host_cpu_model(S390CPUModel *model,
-                                               Error **errp)
-{
-}
-static inline void kvm_s390_apply_cpu_model(const S390CPUModel *model,
-                                            Error **errp)
-{
-}
-static inline bool kvm_s390_cpu_models_supported(void)
-{
-    return false;
-}
-#endif
 
 #endif /* TARGET_S390X_CPU_MODELS_H */
