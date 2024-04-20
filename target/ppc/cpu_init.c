@@ -7063,7 +7063,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     }
 
     name = cpu_model_from_type(typename);
-    qemu_printf("PowerPC %-16s PVR %08x\n", name, pcc->pvr);
+    qemu_printf("  %-16s PVR %08x\n", name, pcc->pvr);
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
@@ -7076,10 +7076,10 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
          * avoid printing the wrong alias here and use "preferred" instead
          */
         if (strcmp(alias->alias, family->desc) == 0) {
-            qemu_printf("PowerPC %-16s (alias for preferred %s CPU)\n",
+            qemu_printf("  %-16s (alias for preferred %s CPU)\n",
                         alias->alias, family->desc);
         } else {
-            qemu_printf("PowerPC %-16s (alias for %s)\n",
+            qemu_printf("  %-16s (alias for %s)\n",
                         alias->alias, name);
         }
     }
@@ -7090,6 +7090,7 @@ void ppc_cpu_list(void)
 {
     GSList *list;
 
+    qemu_printf("Available CPUs:\n");
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     list = g_slist_sort(list, ppc_cpu_list_compare);
     g_slist_foreach(list, ppc_cpu_list_entry, NULL);
@@ -7097,7 +7098,7 @@ void ppc_cpu_list(void)
 
 #ifdef CONFIG_KVM
     qemu_printf("\n");
-    qemu_printf("PowerPC %s\n", "host");
+    qemu_printf("  %s\n", "host");
 #endif
 }
 
