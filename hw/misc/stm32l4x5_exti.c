@@ -59,22 +59,22 @@ static const uint32_t exti_romask[EXTI_NUM_REGISTER] = {
 
 static unsigned regbank_index_by_irq(unsigned irq)
 {
-     return irq >= EXTI_MAX_IRQ_PER_BANK ? 1 : 0;
+    return irq >= EXTI_MAX_IRQ_PER_BANK ? 1 : 0;
 }
 
 static unsigned regbank_index_by_addr(hwaddr addr)
 {
-     return addr >= EXTI_IMR2 ? 1 : 0;
+    return addr >= EXTI_IMR2 ? 1 : 0;
 }
 
 static unsigned valid_mask(unsigned bank)
 {
-     return MAKE_64BIT_MASK(0, irqs_per_bank[bank]);
+    return MAKE_64BIT_MASK(0, irqs_per_bank[bank]);
 }
 
 static unsigned configurable_mask(unsigned bank)
 {
-     return valid_mask(bank) & ~exti_romask[bank];
+    return valid_mask(bank) & ~exti_romask[bank];
 }
 
 static void stm32l4x5_exti_reset_hold(Object *obj)
