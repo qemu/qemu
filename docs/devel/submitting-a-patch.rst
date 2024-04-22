@@ -177,7 +177,7 @@ add an additional line with "Fixes: <at-least-12-digits-of-SHA-commit-id>
 
 If your patch fixes a bug in the gitlab bug tracker, please add a line
 with "Resolves: <URL-of-the-bug>" to the commit message, too. Gitlab can
-close bugs automatically once commits with the "Resolved:" keyword get
+close bugs automatically once commits with the "Resolves:" keyword get
 merged into the master branch of the project. And if your patch addresses
 a bug in another public bug tracker, you can also use a line with
 "Buglink: <URL-of-the-bug>" for reference here, too.
