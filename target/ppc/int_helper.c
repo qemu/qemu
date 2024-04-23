@@ -159,7 +159,7 @@ uint64_t helper_DIVDE(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 /* When you XOR the pattern and there is a match, that byte will be zero */
 #define hasvalue(x, n)  (haszero((x) ^ pattern(n)))
 
-uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
+uint32_t helper_CMPEQB(target_ulong ra, target_ulong rb)
 {
     return hasvalue(rb, ra) ? CRF_GT : 0;
 }

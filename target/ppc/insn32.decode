@@ -29,6 +29,9 @@
 &A_tb           frt frb rc:bool
 @A_tb           ...... frt:5 ..... frb:5 ..... ..... rc:1       &A_tb
 
+&A_tab_bc       rt ra rb bc
+@A_tab_bc       ...... rt:5 ra:5 rb:5 bc:5 ..... .              &A_tab_bc
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                         &D
 
@@ -340,6 +343,19 @@ CMP             011111 ... - . ..... ..... 0000000000 - @X_bfl
 CMPL            011111 ... - . ..... ..... 0000100000 - @X_bfl
 CMPI            001011 ... - . ..... ................   @D_bfs
 CMPLI           001010 ... - . ..... ................   @D_bfu
+CMPRB           011111 ... - . ..... ..... 0011000000 - @X_bfl
+CMPEQB          011111 ... -- ..... ..... 0011100000 -  @X_bf
+
+### Fixed-Point Trap Instructions
+
+TW              011111 ..... ..... ..... 0000000100 -   @X
+TD              011111 ..... ..... ..... 0001000100 -   @X
+TWI             000011 ..... ..... ................     @D
+TDI             000010 ..... ..... ................     @D
+
+### Fixed-Point Select Instruction
+
+ISEL            011111 ..... ..... ..... ..... 01111 -  @A_tab_bc
 
 ### Fixed-Point Arithmetic Instructions
 

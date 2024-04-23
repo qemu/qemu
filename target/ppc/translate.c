@@ -1563,66 +1563,6 @@ static inline void gen_set_Rc0(DisasContext *ctx, TCGv reg)
     }
 }
 
-/* cmprb - range comparison: isupper, isaplha, islower*/
-static void gen_cmprb(DisasContext *ctx)
-{
-    TCGv_i32 src1 = tcg_temp_new_i32();
-    TCGv_i32 src2 = tcg_temp_new_i32();
-    TCGv_i32 src2lo = tcg_temp_new_i32();
-    TCGv_i32 src2hi = tcg_temp_new_i32();
-    TCGv_i32 crf = cpu_crf[crfD(ctx->opcode)];
-
-    tcg_gen_trunc_tl_i32(src1, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_trunc_tl_i32(src2, cpu_gpr[rB(ctx->opcode)]);
-
-    tcg_gen_andi_i32(src1, src1, 0xFF);
-    tcg_gen_ext8u_i32(src2lo, src2);
-    tcg_gen_shri_i32(src2, src2, 8);
-    tcg_gen_ext8u_i32(src2hi, src2);
-
-    tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
-    tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
-    tcg_gen_and_i32(crf, src2lo, src2hi);
-
-    if (ctx->opcode & 0x00200000) {
-        tcg_gen_shri_i32(src2, src2, 8);
-        tcg_gen_ext8u_i32(src2lo, src2);
-        tcg_gen_shri_i32(src2, src2, 8);
-        tcg_gen_ext8u_i32(src2hi, src2);
-        tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
-        tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
-        tcg_gen_and_i32(src2lo, src2lo, src2hi);
-        tcg_gen_or_i32(crf, crf, src2lo);
-    }
-    tcg_gen_shli_i32(crf, crf, CRF_GT_BIT);
-}
-
-#if defined(TARGET_PPC64)
-/* cmpeqb */
-static void gen_cmpeqb(DisasContext *ctx)
-{
-    gen_helper_cmpeqb(cpu_crf[crfD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                      cpu_gpr[rB(ctx->opcode)]);
-}
-#endif
-
-/* isel (PowerPC 2.03 specification) */
-static void gen_isel(DisasContext *ctx)
-{
-    uint32_t bi = rC(ctx->opcode);
-    uint32_t mask = 0x08 >> (bi & 0x03);
-    TCGv t0 = tcg_temp_new();
-    TCGv zr;
-
-    tcg_gen_extu_i32_tl(t0, cpu_crf[bi >> 2]);
-    tcg_gen_andi_tl(t0, t0, mask);
-
-    zr = tcg_constant_tl(0);
-    tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[rD(ctx->opcode)], t0, zr,
-                       rA(ctx->opcode) ? cpu_gpr[rA(ctx->opcode)] : zr,
-                       cpu_gpr[rB(ctx->opcode)]);
-}
-
 /* cmpb: PowerPC 2.05 specification */
 static void gen_cmpb(DisasContext *ctx)
 {
@@ -4187,75 +4127,19 @@ static void gen_scv(DisasContext *ctx)
 /***                                Trap                                   ***/
 
 /* Check for unconditional traps (always or never) */
-static bool check_unconditional_trap(DisasContext *ctx)
+static bool check_unconditional_trap(DisasContext *ctx, int to)
 {
     /* Trap never */
-    if (TO(ctx->opcode) == 0) {
+    if (to == 0) {
         return true;
     }
     /* Trap always */
-    if (TO(ctx->opcode) == 31) {
+    if (to == 31) {
         gen_exception_err(ctx, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
         return true;
     }
     return false;
 }
-
-/* tw */
-static void gen_tw(DisasContext *ctx)
-{
-    TCGv_i32 t0;
-
-    if (check_unconditional_trap(ctx)) {
-        return;
-    }
-    t0 = tcg_constant_i32(TO(ctx->opcode));
-    gen_helper_tw(tcg_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                  t0);
-}
-
-/* twi */
-static void gen_twi(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1;
-
-    if (check_unconditional_trap(ctx)) {
-        return;
-    }
-    t0 = tcg_constant_tl(SIMM(ctx->opcode));
-    t1 = tcg_constant_i32(TO(ctx->opcode));
-    gen_helper_tw(tcg_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
-}
-
-#if defined(TARGET_PPC64)
-/* td */
-static void gen_td(DisasContext *ctx)
-{
-    TCGv_i32 t0;
-
-    if (check_unconditional_trap(ctx)) {
-        return;
-    }
-    t0 = tcg_constant_i32(TO(ctx->opcode));
-    gen_helper_td(tcg_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                  t0);
-}
-
-/* tdi */
-static void gen_tdi(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1;
-
-    if (check_unconditional_trap(ctx)) {
-        return;
-    }
-    t0 = tcg_constant_tl(SIMM(ctx->opcode));
-    t1 = tcg_constant_i32(TO(ctx->opcode));
-    gen_helper_td(tcg_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
-}
-#endif
 
 /***                          Processor control                            ***/
 
@@ -6058,12 +5942,7 @@ GEN_HANDLER_E(brw, 0x1F, 0x1B, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA310),
 GEN_HANDLER_E(brh, 0x1F, 0x1B, 0x06, 0x0000F801, PPC_NONE, PPC2_ISA310),
 #endif
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
-#endif
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
-GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
 GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
@@ -6160,12 +6039,6 @@ GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H),
 /* Top bit of opc2 corresponds with low bit of LEV, so use two handlers */
 GEN_HANDLER(sc, 0x11, 0x11, 0xFF, 0x03FFF01D, PPC_FLOW),
 GEN_HANDLER(sc, 0x11, 0x01, 0xFF, 0x03FFF01D, PPC_FLOW),
-GEN_HANDLER(tw, 0x1F, 0x04, 0x00, 0x00000001, PPC_FLOW),
-GEN_HANDLER(twi, 0x03, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
-#if defined(TARGET_PPC64)
-GEN_HANDLER(td, 0x1F, 0x04, 0x02, 0x00000001, PPC_64B),
-GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B),
-#endif
 GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC),
 GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC),
 GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC),

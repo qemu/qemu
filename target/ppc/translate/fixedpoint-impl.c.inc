@@ -289,6 +289,50 @@ TRANS(CMPL, do_cmp_X, false);
 TRANS(CMPI, do_cmp_D, true);
 TRANS(CMPLI, do_cmp_D, false);
 
+static bool trans_CMPRB(DisasContext *ctx, arg_CMPRB *a)
+{
+    TCGv_i32 src1 = tcg_temp_new_i32();
+    TCGv_i32 src2 = tcg_temp_new_i32();
+    TCGv_i32 src2lo = tcg_temp_new_i32();
+    TCGv_i32 src2hi = tcg_temp_new_i32();
+    TCGv_i32 crf = cpu_crf[a->bf];
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    tcg_gen_trunc_tl_i32(src1, cpu_gpr[a->ra]);
+    tcg_gen_trunc_tl_i32(src2, cpu_gpr[a->rb]);
+
+    tcg_gen_andi_i32(src1, src1, 0xFF);
+    tcg_gen_ext8u_i32(src2lo, src2);
+    tcg_gen_extract_i32(src2hi, src2, 8, 8);
+
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+    tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+    tcg_gen_and_i32(crf, src2lo, src2hi);
+
+    if (a->l) {
+        tcg_gen_extract_i32(src2lo, src2, 16, 8);
+        tcg_gen_extract_i32(src2hi, src2, 24, 8);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2lo, src2lo, src1);
+        tcg_gen_setcond_i32(TCG_COND_LEU, src2hi, src1, src2hi);
+        tcg_gen_and_i32(src2lo, src2lo, src2hi);
+        tcg_gen_or_i32(crf, crf, src2lo);
+    }
+    tcg_gen_shli_i32(crf, crf, CRF_GT_BIT);
+    return true;
+}
+
+static bool trans_CMPEQB(DisasContext *ctx, arg_CMPEQB *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    gen_helper_CMPEQB(cpu_crf[a->bf], cpu_gpr[a->ra], cpu_gpr[a->rb]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 /*
  * Fixed-Point Arithmetic Instructions
  */
@@ -689,6 +733,94 @@ static bool trans_DIVDEU(DisasContext *ctx, arg_DIVDEU *a)
 
 TRANS64(MODSD, do_modd, true);
 TRANS64(MODUD, do_modd, false);
+
+/*
+ * Fixed-Point Select Instructions
+ */
+
+static bool trans_ISEL(DisasContext *ctx, arg_ISEL *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, ISEL);
+    uint32_t bi = a->bc;
+    uint32_t mask = 0x08 >> (bi & 0x03);
+    TCGv t0 = tcg_temp_new();
+    TCGv zr;
+
+    tcg_gen_extu_i32_tl(t0, cpu_crf[bi >> 2]);
+    tcg_gen_andi_tl(t0, t0, mask);
+
+    zr = tcg_constant_tl(0);
+    tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[a->rt], t0, zr,
+                       a->ra ? cpu_gpr[a->ra] : zr,
+                       cpu_gpr[a->rb]);
+    return true;
+}
+
+/*
+ * Fixed-Point Trap Instructions
+ */
+
+static bool trans_TW(DisasContext *ctx, arg_TW *a)
+{
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx, a->rt)) {
+        return true;
+    }
+    t0 = tcg_constant_i32(a->rt);
+    gen_helper_TW(tcg_env, cpu_gpr[a->ra], cpu_gpr[a->rb], t0);
+    return true;
+}
+
+static bool trans_TWI(DisasContext *ctx, arg_TWI *a)
+{
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx, a->rt)) {
+        return true;
+    }
+    t0 = tcg_constant_tl(a->si);
+    t1 = tcg_constant_i32(a->rt);
+    gen_helper_TW(tcg_env, cpu_gpr[a->ra], t0, t1);
+    return true;
+}
+
+static bool trans_TD(DisasContext *ctx, arg_TD *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    TCGv_i32 t0;
+
+    if (check_unconditional_trap(ctx, a->rt)) {
+        return true;
+    }
+    t0 = tcg_constant_i32(a->rt);
+    gen_helper_TD(tcg_env, cpu_gpr[a->ra], cpu_gpr[a->rb], t0);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_TDI(DisasContext *ctx, arg_TDI *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    TCGv t0;
+    TCGv_i32 t1;
+
+    if (check_unconditional_trap(ctx, a->rt)) {
+        return true;
+    }
+    t0 = tcg_constant_tl(a->si);
+    t1 = tcg_constant_i32(a->rt);
+    gen_helper_TD(tcg_env, cpu_gpr[a->ra], t0, t1);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
 
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {

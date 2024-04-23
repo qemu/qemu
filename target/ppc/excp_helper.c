@@ -2742,7 +2742,7 @@ void helper_rfmci(CPUPPCState *env)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-void helper_tw(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+void helper_TW(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                uint32_t flags)
 {
     if (!likely(!(((int32_t)arg1 < (int32_t)arg2 && (flags & 0x10)) ||
@@ -2756,7 +2756,7 @@ void helper_tw(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
 }
 
 #ifdef TARGET_PPC64
-void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+void helper_TD(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                uint32_t flags)
 {
     if (!likely(!(((int64_t)arg1 < (int64_t)arg2 && (flags & 0x10)) ||
