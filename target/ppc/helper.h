@@ -52,8 +52,8 @@ DEF_HELPER_FLAGS_2(icbiep, TCG_CALL_NO_WG, void, env, tl)
 DEF_HELPER_5(lscbx, tl, env, tl, i32, i32, i32)
 
 #if defined(TARGET_PPC64)
-DEF_HELPER_4(divdeu, i64, env, i64, i64, i32)
-DEF_HELPER_4(divde, i64, env, i64, i64, i32)
+DEF_HELPER_4(DIVDEU, i64, env, i64, i64, i32)
+DEF_HELPER_4(DIVDE, i64, env, i64, i64, i32)
 #endif
 DEF_HELPER_4(DIVWEU, tl, env, tl, tl, i32)
 DEF_HELPER_4(DIVWE, tl, env, tl, tl, i32)
