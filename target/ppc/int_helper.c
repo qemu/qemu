@@ -201,7 +201,7 @@ uint64_t helper_DARN64(void)
     return ret;
 }
 
-uint64_t helper_bpermd(uint64_t rs, uint64_t rb)
+uint64_t helper_BPERMD(uint64_t rs, uint64_t rb)
 {
     int i;
     uint64_t ra = 0;
@@ -219,7 +219,7 @@ uint64_t helper_bpermd(uint64_t rs, uint64_t rb)
 
 #endif
 
-target_ulong helper_cmpb(target_ulong rs, target_ulong rb)
+target_ulong helper_CMPB(target_ulong rs, target_ulong rb)
 {
     target_ulong mask = 0xff;
     target_ulong ra = 0;
@@ -288,7 +288,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
 #endif
 
 #if defined(TARGET_PPC64)
-target_ulong helper_popcntb(target_ulong val)
+target_ulong helper_POPCNTB(target_ulong val)
 {
     /* Note that we don't fold past bytes */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
@@ -300,7 +300,7 @@ target_ulong helper_popcntb(target_ulong val)
     return val;
 }
 
-target_ulong helper_popcntw(target_ulong val)
+target_ulong helper_POPCNTW(target_ulong val)
 {
     /* Note that we don't fold past words.  */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
@@ -316,7 +316,7 @@ target_ulong helper_popcntw(target_ulong val)
     return val;
 }
 #else
-target_ulong helper_popcntb(target_ulong val)
+target_ulong helper_POPCNTB(target_ulong val)
 {
     /* Note that we don't fold past bytes */
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);

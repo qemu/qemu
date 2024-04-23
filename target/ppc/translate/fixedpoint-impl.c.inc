@@ -856,6 +856,285 @@ TRANS(SETBCR, do_set_bool_cond, false, true)
 TRANS(SETNBC, do_set_bool_cond, true, false)
 TRANS(SETNBCR, do_set_bool_cond, true, true)
 
+/*
+ * Fixed-Point Logical Instructions
+ */
+
+static bool do_addi_(DisasContext *ctx, arg_D_ui *a, bool shift)
+{
+    tcg_gen_andi_tl(cpu_gpr[a->ra], cpu_gpr[a->rt], shift ? a->ui << 16 : a->ui);
+    gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    return true;
+}
+
+static bool do_ori(DisasContext *ctx, arg_D_ui *a, bool shift)
+{
+    if (a->rt == a->ra && a->ui == 0) {
+        /* NOP */
+        return true;
+    }
+    tcg_gen_ori_tl(cpu_gpr[a->ra], cpu_gpr[a->rt], shift ? a->ui << 16 : a->ui);
+    return true;
+}
+
+static bool do_xori(DisasContext *ctx, arg_D_ui *a, bool shift)
+{
+    if (a->rt == a->ra && a->ui == 0) {
+        /* NOP */
+        return true;
+    }
+    tcg_gen_xori_tl(cpu_gpr[a->ra], cpu_gpr[a->rt], shift ? a->ui << 16 : a->ui);
+    return true;
+}
+
+static bool do_logical1(DisasContext *ctx, arg_X_sa_rc *a,
+                        void (*helper)(TCGv, TCGv))
+{
+    helper(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+    return true;
+}
+
+static bool do_logical2(DisasContext *ctx, arg_X_rc *a,
+                        void (*helper)(TCGv, TCGv, TCGv))
+{
+    helper(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+    return true;
+}
+
+static bool trans_OR(DisasContext *ctx, arg_OR *a)
+{
+    /* Optimisation for mr. ri case */
+    if (a->rt != a->ra || a->rt != a->rb) {
+        if (a->rt != a->rb) {
+            tcg_gen_or_tl(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+        } else {
+            tcg_gen_mov_tl(cpu_gpr[a->ra], cpu_gpr[a->rt]);
+        }
+        if (unlikely(a->rc)) {
+            gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+        }
+    } else if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+#if defined(TARGET_PPC64)
+    } else if (a->rt != 0) { /* 0 is nop */
+        int prio = 0;
+
+        switch (a->rt) {
+        case 1:
+            /* Set process priority to low */
+            prio = 2;
+            break;
+        case 6:
+            /* Set process priority to medium-low */
+            prio = 3;
+            break;
+        case 2:
+            /* Set process priority to normal */
+            prio = 4;
+            break;
+#if !defined(CONFIG_USER_ONLY)
+        case 31:
+            if (!ctx->pr) {
+                /* Set process priority to very low */
+                prio = 1;
+            }
+            break;
+        case 5:
+            if (!ctx->pr) {
+                /* Set process priority to medium-hight */
+                prio = 5;
+            }
+            break;
+        case 3:
+            if (!ctx->pr) {
+                /* Set process priority to high */
+                prio = 6;
+            }
+            break;
+        case 7:
+            if (ctx->hv && !ctx->pr) {
+                /* Set process priority to very high */
+                prio = 7;
+            }
+            break;
+#endif
+        default:
+            break;
+        }
+        if (prio) {
+            TCGv t0 = tcg_temp_new();
+            gen_load_spr(t0, SPR_PPR);
+            tcg_gen_andi_tl(t0, t0, ~0x001C000000000000ULL);
+            tcg_gen_ori_tl(t0, t0, ((uint64_t)prio) << 50);
+            gen_store_spr(SPR_PPR, t0);
+        }
+#if !defined(CONFIG_USER_ONLY)
+        /*
+         * Pause out of TCG otherwise spin loops with smt_low eat too
+         * much CPU and the kernel hangs.  This applies to all
+         * encodings other than no-op, e.g., miso(rs=26), yield(27),
+         * mdoio(29), mdoom(30), and all currently undefined.
+         */
+        gen_pause(ctx);
+#endif
+#endif
+    }
+
+    return true;
+}
+
+static bool trans_XOR(DisasContext *ctx, arg_XOR *a)
+{
+    /* Optimisation for "set to zero" case */
+    if (a->rt != a->rb) {
+        tcg_gen_xor_tl(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[a->ra], 0);
+    }
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+    return true;
+}
+
+static bool trans_CMPB(DisasContext *ctx, arg_CMPB *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    gen_helper_CMPB(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+    return true;
+}
+
+static bool do_cntzw(DisasContext *ctx, arg_X_sa_rc *a,
+                    void (*helper)(TCGv_i32, TCGv_i32, uint32_t))
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(t, cpu_gpr[a->rs]);
+    helper(t, t, 32);
+    tcg_gen_extu_i32_tl(cpu_gpr[a->ra], t);
+
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+    return true;
+}
+
+#if defined(TARGET_PPC64)
+static bool do_cntzd(DisasContext *ctx, arg_X_sa_rc *a,
+                    void (*helper)(TCGv_i64, TCGv_i64, uint64_t))
+{
+    helper(cpu_gpr[a->ra], cpu_gpr[a->rs], 64);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+    return true;
+}
+#endif
+
+static bool trans_CNTLZD(DisasContext *ctx, arg_CNTLZD *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    do_cntzd(ctx, a, tcg_gen_clzi_i64);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_CNTTZD(DisasContext *ctx, arg_CNTTZD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    do_cntzd(ctx, a, tcg_gen_ctzi_i64);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_POPCNTB(DisasContext *ctx, arg_POPCNTB *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, POPCNTB);
+    gen_helper_POPCNTB(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+    return true;
+}
+
+static bool trans_POPCNTW(DisasContext *ctx, arg_POPCNTW *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, POPCNTWD);
+#if defined(TARGET_PPC64)
+    gen_helper_POPCNTW(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+#else
+    tcg_gen_ctpop_i32(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+#endif
+    return true;
+}
+
+static bool trans_POPCNTD(DisasContext *ctx, arg_POPCNTD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS(ctx, POPCNTWD);
+#if defined(TARGET_PPC64)
+    tcg_gen_ctpop_i64(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_PRTYW(DisasContext *ctx, arg_PRTYW *a)
+{
+    TCGv ra = cpu_gpr[a->ra];
+    TCGv rs = cpu_gpr[a->rs];
+    TCGv t0 = tcg_temp_new();
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    tcg_gen_shri_tl(t0, rs, 16);
+    tcg_gen_xor_tl(ra, rs, t0);
+    tcg_gen_shri_tl(t0, ra, 8);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_andi_tl(ra, ra, (target_ulong)0x100000001ULL);
+    return true;
+}
+
+static bool trans_PRTYD(DisasContext *ctx, arg_PRTYD *a)
+{
+    TCGv ra = cpu_gpr[a->ra];
+    TCGv rs = cpu_gpr[a->rs];
+    TCGv t0 = tcg_temp_new();
+
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA205);
+    tcg_gen_shri_tl(t0, rs, 32);
+    tcg_gen_xor_tl(ra, rs, t0);
+    tcg_gen_shri_tl(t0, ra, 16);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_shri_tl(t0, ra, 8);
+    tcg_gen_xor_tl(ra, ra, t0);
+    tcg_gen_andi_tl(ra, ra, 1);
+    return true;
+}
+
+static bool trans_BPERMD(DisasContext *ctx, arg_BPERMD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, PERM_ISA206);
+#if defined(TARGET_PPC64)
+    gen_helper_BPERMD(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 static bool trans_CFUGED(DisasContext *ctx, arg_X *a)
 {
     REQUIRE_64BIT(ctx);
@@ -943,6 +1222,27 @@ static bool trans_PEXTD(DisasContext *ctx, arg_X *a)
 #endif
     return true;
 }
+
+TRANS(ANDI_, do_addi_, false);
+TRANS(ANDIS_, do_addi_, true);
+TRANS(ORI, do_ori, false);
+TRANS(ORIS, do_ori, true);
+TRANS(XORI, do_xori, false);
+TRANS(XORIS, do_xori, true);
+
+TRANS(AND, do_logical2, tcg_gen_and_tl);
+TRANS(ANDC, do_logical2, tcg_gen_andc_tl);
+TRANS(NAND, do_logical2, tcg_gen_nand_tl);
+TRANS(ORC, do_logical2, tcg_gen_orc_tl);
+TRANS(NOR, do_logical2, tcg_gen_nor_tl);
+TRANS(EQV, do_logical2, tcg_gen_eqv_tl);
+TRANS(EXTSB, do_logical1, tcg_gen_ext8s_tl);
+TRANS(EXTSH, do_logical1, tcg_gen_ext16s_tl);
+
+TRANS(CNTLZW, do_cntzw, tcg_gen_clzi_i32);
+TRANS_FLAGS2(ISA300, CNTTZW, do_cntzw, tcg_gen_ctzi_i32);
+
+TRANS64(EXTSW, do_logical1, tcg_gen_ext32s_tl);
 
 static bool trans_ADDG6S(DisasContext *ctx, arg_X *a)
 {
