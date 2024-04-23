@@ -202,6 +202,9 @@
 &XO_ta          rt ra oe:bool rc:bool
 @XO_ta          ...... rt:5 ra:5 ..... oe:1 ......... rc:1      &XO_ta
 
+&XO_tab_rc      rt ra rb rc:bool
+@XO_tab_rc      ...... rt:5 ra:5 rb:5 . ......... rc:1          &XO_tab_rc
+
 %xx_xt          0:1 21:5
 %xx_xb          1:1 11:5
 %xx_xa          2:1 16:5
@@ -361,6 +364,12 @@ SUBFE           011111 ..... ..... ..... . 010001000 .  @XO
 
 SUBFME          011111 ..... ..... ----- . 011101000 .  @XO_ta
 SUBFZE          011111 ..... ..... ----- . 011001000 .  @XO_ta
+
+MULLI           000111 ..... ..... ................     @D
+MULLW           011111 ..... ..... ..... 0 011101011 .  @XO_tab_rc
+MULLWO          011111 ..... ..... ..... 1 011101011 .  @XO_tab_rc
+MULHW           011111 ..... ..... ..... - 001001011 .  @XO_tab_rc
+MULHWU          011111 ..... ..... ..... - 000001011 .  @XO_tab_rc
 
 ## Fixed-Point Logical Instructions
 

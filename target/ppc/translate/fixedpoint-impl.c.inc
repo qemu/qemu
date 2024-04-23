@@ -395,6 +395,72 @@ TRANS(SUBFE, do_subf_XO, true, true)
 TRANS(SUBFME, do_subf_const_XO, tcg_constant_tl(-1LL), true, true)
 TRANS(SUBFZE, do_subf_const_XO, tcg_constant_tl(0), true, true)
 
+static bool trans_MULLI(DisasContext *ctx, arg_MULLI *a)
+{
+    tcg_gen_muli_tl(cpu_gpr[a->rt], cpu_gpr[a->ra], a->si);
+    return true;
+}
+
+static bool trans_MULLW(DisasContext *ctx, arg_MULLW *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    tcg_gen_ext32s_tl(t0, cpu_gpr[a->ra]);
+    tcg_gen_ext32s_tl(t1, cpu_gpr[a->rb]);
+    tcg_gen_mul_tl(cpu_gpr[a->rt], t0, t1);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+    return true;
+}
+
+static bool trans_MULLWO(DisasContext *ctx, arg_MULLWO *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+#if defined(TARGET_PPC64)
+    tcg_gen_ext32s_i64(t0, cpu_gpr[a->ra]);
+    tcg_gen_ext32s_i64(t1, cpu_gpr[a->rb]);
+    tcg_gen_mul_i64(cpu_gpr[a->rt], t0, t1);
+    tcg_gen_sextract_i64(t0, cpu_gpr[a->rt], 31, 1);
+    tcg_gen_sari_i64(t1, cpu_gpr[a->rt], 32);
+#else
+    tcg_gen_muls2_i32(cpu_gpr[a->rt], t1, cpu_gpr[a->ra], cpu_gpr[a->rb]);
+    tcg_gen_sari_i32(t0, cpu_gpr[a->rt], 31);
+#endif
+    tcg_gen_setcond_tl(TCG_COND_NE, cpu_ov, t0, t1);
+    if (is_isa300(ctx)) {
+        tcg_gen_mov_tl(cpu_ov32, cpu_ov);
+    }
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
+
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+    return true;
+}
+
+static bool do_mulhw(DisasContext *ctx, arg_XO_tab_rc *a,
+                     void (*helper)(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 arg1,
+                                    TCGv_i32 arg2))
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[a->ra]);
+    tcg_gen_trunc_tl_i32(t1, cpu_gpr[a->rb]);
+    helper(t0, t1, t0, t1);
+    tcg_gen_extu_i32_tl(cpu_gpr[a->rt], t1);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+    return true;
+}
+
+TRANS(MULHW, do_mulhw, tcg_gen_muls2_i32)
+TRANS(MULHWU, do_mulhw, tcg_gen_mulu2_i32)
+
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
     gen_invalid(ctx);
