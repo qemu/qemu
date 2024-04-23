@@ -1777,21 +1777,6 @@ static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret,
         gen_set_Rc0(ctx, ret);
     }
 }
-/* Div functions */
-#define GEN_INT_ARITH_DIVW(name, opc3, sign, compute_ov)                      \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    gen_op_arith_divw(ctx, cpu_gpr[rD(ctx->opcode)],                          \
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],      \
-                     sign, compute_ov, Rc(ctx->opcode));                      \
-}
-/* divwu  divwu.  divwuo  divwuo.   */
-GEN_INT_ARITH_DIVW(divwu, 0x0E, 0, 0);
-GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1);
-/* divw  divw.  divwo  divwo.   */
-GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0);
-GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1);
-
 /* div[wd]eu[o][.] */
 #define GEN_DIVE(name, hlpr, compute_ov)                                      \
 static void gen_##name(DisasContext *ctx)                                     \
@@ -1803,11 +1788,6 @@ static void gen_##name(DisasContext *ctx)                                     \
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);                           \
     }                                                                         \
 }
-
-GEN_DIVE(divweu, divweu, 0);
-GEN_DIVE(divweuo, divweu, 1);
-GEN_DIVE(divwe, divwe, 0);
-GEN_DIVE(divweo, divwe, 1);
 
 #if defined(TARGET_PPC64)
 static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret, TCGv arg1,
@@ -6470,17 +6450,6 @@ GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
 GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 #endif
 
-#undef GEN_INT_ARITH_DIVW
-#define GEN_INT_ARITH_DIVW(name, opc3, sign, compute_ov)                      \
-GEN_HANDLER(name, 0x1F, 0x0B, opc3, 0x00000000, PPC_INTEGER)
-GEN_INT_ARITH_DIVW(divwu, 0x0E, 0, 0),
-GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1),
-GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0),
-GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1),
-GEN_HANDLER_E(divwe, 0x1F, 0x0B, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
-GEN_HANDLER_E(divweo, 0x1F, 0x0B, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
-GEN_HANDLER_E(divweu, 0x1F, 0x0B, 0x0C, 0, PPC_NONE, PPC2_DIVE_ISA206),
-GEN_HANDLER_E(divweuo, 0x1F, 0x0B, 0x1C, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(modsw, 0x1F, 0x0B, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(moduw, 0x1F, 0x0B, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
 

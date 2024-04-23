@@ -461,6 +461,30 @@ static bool do_mulhw(DisasContext *ctx, arg_XO_tab_rc *a,
 TRANS(MULHW, do_mulhw, tcg_gen_muls2_i32)
 TRANS(MULHWU, do_mulhw, tcg_gen_mulu2_i32)
 
+static bool do_divw(DisasContext *ctx, arg_XO *a, int sign)
+{
+    gen_op_arith_divw(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                      sign, a->oe, a->rc);
+    return true;
+}
+
+static bool do_divwe(DisasContext *ctx, arg_XO *a,
+                     void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv, TCGv_i32))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, DIVE_ISA206);
+    helper(cpu_gpr[a->rt], tcg_env, cpu_gpr[a->ra], cpu_gpr[a->rb],
+           tcg_constant_i32(a->oe));
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+    return true;
+}
+
+TRANS(DIVW, do_divw, 1);
+TRANS(DIVWU, do_divw, 0);
+TRANS(DIVWE, do_divwe, gen_helper_DIVWE);
+TRANS(DIVWEU, do_divwe, gen_helper_DIVWEU);
+
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
     gen_invalid(ctx);
