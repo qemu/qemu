@@ -533,6 +533,111 @@ static bool trans_DARN(DisasContext *ctx, arg_DARN *a)
     return true;
 }
 
+static bool trans_MULLD(DisasContext *ctx, arg_MULLD *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    tcg_gen_mul_tl(cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb]);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_MULLDO(DisasContext *ctx, arg_MULLD *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_muls2_i64(t0, t1, cpu_gpr[a->ra], cpu_gpr[a->rb]);
+    tcg_gen_mov_i64(cpu_gpr[a->rt], t0);
+
+    tcg_gen_sari_i64(t0, t0, 63);
+    tcg_gen_setcond_i64(TCG_COND_NE, cpu_ov, t0, t1);
+    if (is_isa300(ctx)) {
+        tcg_gen_mov_tl(cpu_ov32, cpu_ov);
+    }
+    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
+
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool do_mulhd(DisasContext *ctx, arg_XO_tab_rc *a,
+                     void (*helper)(TCGv, TCGv, TCGv, TCGv))
+{
+    TCGv lo = tcg_temp_new();
+    helper(lo, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb]);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+    }
+    return true;
+}
+
+TRANS64(MULHD, do_mulhd, tcg_gen_muls2_tl);
+TRANS64(MULHDU, do_mulhd, tcg_gen_mulu2_tl);
+
+static bool trans_MADDLD(DisasContext *ctx, arg_MADDLD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t1, cpu_gpr[a->vra], cpu_gpr[a->vrb]);
+    tcg_gen_add_i64(cpu_gpr[a->vrt], t1, cpu_gpr[a->rc]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_MADDHD(DisasContext *ctx, arg_MADDHD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    TCGv_i64 lo = tcg_temp_new_i64();
+    TCGv_i64 hi = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_muls2_i64(lo, hi, cpu_gpr[a->vra], cpu_gpr[a->vrb]);
+    tcg_gen_sari_i64(t1, cpu_gpr[a->rc], 63);
+    tcg_gen_add2_i64(t1, cpu_gpr[a->vrt], lo, hi, cpu_gpr[a->rc], t1);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_MADDHDU(DisasContext *ctx, arg_MADDHDU *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    TCGv_i64 lo = tcg_temp_new_i64();
+    TCGv_i64 hi = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_mulu2_i64(lo, hi, cpu_gpr[a->vra], cpu_gpr[a->vrb]);
+    tcg_gen_add2_i64(t1, cpu_gpr[a->vrt], lo, hi, cpu_gpr[a->rc],
+                     tcg_constant_i64(0));
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
     gen_invalid(ctx);

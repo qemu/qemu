@@ -1917,62 +1917,6 @@ GEN_INT_ARITH_MODD(modud, 0x08, 0);
 GEN_INT_ARITH_MODD(modsd, 0x18, 1);
 #endif
 
-#if defined(TARGET_PPC64)
-/* mulhd  mulhd. */
-static void gen_mulhd(DisasContext *ctx)
-{
-    TCGv lo = tcg_temp_new();
-    tcg_gen_muls2_tl(lo, cpu_gpr[rD(ctx->opcode)],
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
-    }
-}
-
-/* mulhdu  mulhdu. */
-static void gen_mulhdu(DisasContext *ctx)
-{
-    TCGv lo = tcg_temp_new();
-    tcg_gen_mulu2_tl(lo, cpu_gpr[rD(ctx->opcode)],
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
-    }
-}
-
-/* mulld  mulld. */
-static void gen_mulld(DisasContext *ctx)
-{
-    tcg_gen_mul_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
-                   cpu_gpr[rB(ctx->opcode)]);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
-    }
-}
-
-/* mulldo  mulldo. */
-static void gen_mulldo(DisasContext *ctx)
-{
-    TCGv_i64 t0 = tcg_temp_new_i64();
-    TCGv_i64 t1 = tcg_temp_new_i64();
-
-    tcg_gen_muls2_i64(t0, t1, cpu_gpr[rA(ctx->opcode)],
-                      cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_gpr[rD(ctx->opcode)], t0);
-
-    tcg_gen_sari_i64(t0, t0, 63);
-    tcg_gen_setcond_i64(TCG_COND_NE, cpu_ov, t0, t1);
-    if (is_isa300(ctx)) {
-        tcg_gen_mov_tl(cpu_ov32, cpu_ov);
-    }
-    tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
-
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
-    }
-}
-#endif
-
 /* Common subf function */
 static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
                                      TCGv arg2, bool add_ca, bool compute_ca,
@@ -5795,36 +5739,6 @@ static void gen_icbt_440(DisasContext *ctx)
      */
 }
 
-#if defined(TARGET_PPC64)
-static void gen_maddld(DisasContext *ctx)
-{
-    TCGv_i64 t1 = tcg_temp_new_i64();
-
-    tcg_gen_mul_i64(t1, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_add_i64(cpu_gpr[rD(ctx->opcode)], t1, cpu_gpr[rC(ctx->opcode)]);
-}
-
-/* maddhd maddhdu */
-static void gen_maddhd_maddhdu(DisasContext *ctx)
-{
-    TCGv_i64 lo = tcg_temp_new_i64();
-    TCGv_i64 hi = tcg_temp_new_i64();
-    TCGv_i64 t1 = tcg_temp_new_i64();
-
-    if (Rc(ctx->opcode)) {
-        tcg_gen_mulu2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
-                          cpu_gpr[rB(ctx->opcode)]);
-        tcg_gen_movi_i64(t1, 0);
-    } else {
-        tcg_gen_muls2_i64(lo, hi, cpu_gpr[rA(ctx->opcode)],
-                          cpu_gpr[rB(ctx->opcode)]);
-        tcg_gen_sari_i64(t1, cpu_gpr[rC(ctx->opcode)], 63);
-    }
-    tcg_gen_add2_i64(t1, cpu_gpr[rD(ctx->opcode)], lo, hi,
-                     cpu_gpr[rC(ctx->opcode)], t1);
-}
-#endif /* defined(TARGET_PPC64) */
-
 static void gen_tbegin(DisasContext *ctx)
 {
     if (unlikely(!ctx->tm_enabled)) {
@@ -6190,9 +6104,6 @@ GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
-#if defined(TARGET_PPC64)
-GEN_HANDLER(mulld, 0x1F, 0x09, 0x07, 0x00000000, PPC_64B),
-#endif
 GEN_HANDLER2(andi_, "andi.", 0x1C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(andis_, "andis.", 0x1D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER),
@@ -6391,11 +6302,6 @@ GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
-              PPC2_ISA300),
-GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
-#endif
 
 #if defined(TARGET_PPC64)
 #undef GEN_INT_ARITH_DIVD
@@ -6412,13 +6318,6 @@ GEN_HANDLER_E(divde, 0x1F, 0x09, 0x0D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(divdeo, 0x1F, 0x09, 0x1D, 0, PPC_NONE, PPC2_DIVE_ISA206),
 GEN_HANDLER_E(modsd, 0x1F, 0x09, 0x18, 0x00000001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(modud, 0x1F, 0x09, 0x08, 0x00000001, PPC_NONE, PPC2_ISA300),
-
-#undef GEN_INT_ARITH_MUL_HELPER
-#define GEN_INT_ARITH_MUL_HELPER(name, opc3)                                  \
-GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B)
-GEN_INT_ARITH_MUL_HELPER(mulhdu, 0x00),
-GEN_INT_ARITH_MUL_HELPER(mulhd, 0x02),
-GEN_INT_ARITH_MUL_HELPER(mulldo, 0x17),
 #endif
 
 #undef GEN_LOGICAL1
