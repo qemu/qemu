@@ -171,7 +171,7 @@ uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
 /*
  * Return a random number.
  */
-uint64_t helper_darn32(void)
+uint64_t helper_DARN32(void)
 {
     Error *err = NULL;
     uint32_t ret;
@@ -186,7 +186,7 @@ uint64_t helper_darn32(void)
     return ret;
 }
 
-uint64_t helper_darn64(void)
+uint64_t helper_DARN64(void)
 {
     Error *err = NULL;
     uint64_t ret;

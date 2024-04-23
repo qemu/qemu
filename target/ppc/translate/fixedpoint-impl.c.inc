@@ -485,6 +485,54 @@ TRANS(DIVWU, do_divw, 0);
 TRANS(DIVWE, do_divwe, gen_helper_DIVWE);
 TRANS(DIVWEU, do_divwe, gen_helper_DIVWEU);
 
+static bool do_modw(DisasContext *ctx, arg_X *a, bool sign)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    gen_op_arith_modw(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], cpu_gpr[a->rb],
+                      sign);
+    return true;
+}
+
+TRANS(MODUW, do_modw, false);
+TRANS(MODSW, do_modw, true);
+
+static bool trans_NEG(DisasContext *ctx, arg_NEG *a)
+{
+    if (a->oe) {
+        TCGv zero = tcg_constant_tl(0);
+        gen_op_arith_subf(ctx, cpu_gpr[a->rt], cpu_gpr[a->ra], zero,
+                          false, false, true, a->rc);
+    } else {
+        tcg_gen_neg_tl(cpu_gpr[a->rt], cpu_gpr[a->ra]);
+        if (unlikely(a->rc)) {
+            gen_set_Rc0(ctx, cpu_gpr[a->rt]);
+        }
+    }
+    return true;
+}
+
+static bool trans_DARN(DisasContext *ctx, arg_DARN *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+#if defined(TARGET_PPC64)
+    if (a->l > 2) {
+        tcg_gen_movi_i64(cpu_gpr[a->rt], -1);
+    } else {
+        translator_io_start(&ctx->base);
+        if (a->l == 0) {
+            gen_helper_DARN32(cpu_gpr[a->rt]);
+        } else {
+            /* Return 64-bit random for both CRN and RRN */
+            gen_helper_DARN64(cpu_gpr[a->rt]);
+        }
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
 {
     gen_invalid(ctx);
