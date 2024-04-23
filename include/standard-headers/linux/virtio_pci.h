@@ -240,7 +240,7 @@ struct virtio_pci_cfg_cap {
 #define VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_READ		0x5
 #define VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO		0x6
 
-struct QEMU_PACKED virtio_admin_cmd_hdr {
+struct virtio_admin_cmd_hdr {
 	uint16_t opcode;
 	/*
 	 * 1 - SR-IOV
@@ -252,20 +252,20 @@ struct QEMU_PACKED virtio_admin_cmd_hdr {
 	uint64_t group_member_id;
 };
 
-struct QEMU_PACKED virtio_admin_cmd_status {
+struct virtio_admin_cmd_status {
 	uint16_t status;
 	uint16_t status_qualifier;
 	/* Unused, reserved for future extensions. */
 	uint8_t reserved2[4];
 };
 
-struct QEMU_PACKED virtio_admin_cmd_legacy_wr_data {
+struct virtio_admin_cmd_legacy_wr_data {
 	uint8_t offset; /* Starting offset of the register(s) to write. */
 	uint8_t reserved[7];
 	uint8_t registers[];
 };
 
-struct QEMU_PACKED virtio_admin_cmd_legacy_rd_data {
+struct virtio_admin_cmd_legacy_rd_data {
 	uint8_t offset; /* Starting offset of the register(s) to read. */
 };
 
@@ -275,7 +275,7 @@ struct QEMU_PACKED virtio_admin_cmd_legacy_rd_data {
 
 #define VIRTIO_ADMIN_CMD_MAX_NOTIFY_INFO 4
 
-struct QEMU_PACKED virtio_admin_cmd_notify_info_data {
+struct virtio_admin_cmd_notify_info_data {
 	uint8_t flags; /* 0 = end of list, 1 = owner device, 2 = member device */
 	uint8_t bar; /* BAR of the member or the owner device */
 	uint8_t padding[6];

@@ -679,14 +679,6 @@ DeviceState *ioapic_init_secondary(GSIState *gsi_state)
     return dev;
 }
 
-struct setup_data {
-    uint64_t next;
-    uint32_t type;
-    uint32_t len;
-    uint8_t data[];
-} __attribute__((packed));
-
-
 /*
  * The entry point into the kernel for PVH boot is different from
  * the native entry point.  The PVH entry is defined by the x86/HVM
