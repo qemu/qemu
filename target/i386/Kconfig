@@ -1,5 +1,7 @@
 config I386
     bool
+    # kvm_arch_fixup_msi_route() needs to access PCIDevice
+    select PCI if KVM
 
 config X86_64
     bool
