@@ -2831,46 +2831,62 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
             }
             break;
         case 0x1d: /* fucomi */
+        case 0x3d: /* fucomip */
             if (!(s->cpuid_features & CPUID_CMOV)) {
                 goto illegal_op;
             }
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucomi_ST0_FT0(tcg_env);
+            if (op >= 0x30) {
+                gen_helper_fpop(tcg_env);
+            }
             assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x1e: /* fcomi */
+        case 0x3e: /* fcomip */
             if (!(s->cpuid_features & CPUID_CMOV)) {
                 goto illegal_op;
             }
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcomi_ST0_FT0(tcg_env);
+            if (op >= 0x30) {
+                gen_helper_fpop(tcg_env);
+            }
             assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x28: /* ffree sti */
+        case 0x38: /* ffreep sti, undocumented op */
             gen_helper_ffree_STN(tcg_env, tcg_constant_i32(opreg));
+            if (op >= 0x30) {
+                gen_helper_fpop(tcg_env);
+            }
             break;
         case 0x2a: /* fst sti */
-            gen_helper_fmov_STN_ST0(tcg_env, tcg_constant_i32(opreg));
-            break;
         case 0x2b: /* fstp sti */
         case 0x0b: /* fstp1 sti, undocumented op */
         case 0x3a: /* fstp8 sti, undocumented op */
         case 0x3b: /* fstp9 sti, undocumented op */
             gen_helper_fmov_STN_ST0(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fpop(tcg_env);
+            if (op != 0x2a) {
+                gen_helper_fpop(tcg_env);
+            }
             break;
         case 0x2c: /* fucom st(i) */
-            gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fucom_ST0_FT0(tcg_env);
-            break;
         case 0x2d: /* fucomp st(i) */
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucom_ST0_FT0(tcg_env);
-            gen_helper_fpop(tcg_env);
+            if (op == 0x2d) {
+                gen_helper_fpop(tcg_env);
+            }
             break;
         case 0x33: /* de/3 */
+	    /*
+	     * TODO: does 0x32 also have the same limitation of requiring
+	     * rm == 1?  If so, worth bundling it here and switch the fcom
+	     * helper to gen_helper_fp_arith_ST0_FT0(op & 7).
+	     */
             switch (rm) {
             case 1: /* fcompp */
                 gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(1));
@@ -2882,10 +2898,6 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 goto illegal_op;
             }
             break;
-        case 0x38: /* ffreep sti, undocumented op */
-            gen_helper_ffree_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fpop(tcg_env);
-            break;
         case 0x3c: /* df/4 */
             switch (rm) {
             case 0:
@@ -2896,26 +2908,6 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
             default:
                 goto illegal_op;
             }
-            break;
-        case 0x3d: /* fucomip */
-            if (!(s->cpuid_features & CPUID_CMOV)) {
-                goto illegal_op;
-            }
-            gen_update_cc_op(s);
-            gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fucomi_ST0_FT0(tcg_env);
-            gen_helper_fpop(tcg_env);
-            assume_cc_op(s, CC_OP_EFLAGS);
-            break;
-        case 0x3e: /* fcomip */
-            if (!(s->cpuid_features & CPUID_CMOV)) {
-                goto illegal_op;
-            }
-            gen_update_cc_op(s);
-            gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fcomi_ST0_FT0(tcg_env);
-            gen_helper_fpop(tcg_env);
-            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x10 ... 0x13: /* fcmovxx */
         case 0x18 ... 0x1b:
