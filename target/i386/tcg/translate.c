@@ -2777,7 +2777,7 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 break;
             }
             break;
-        case 0x00: case 0x01: case 0x04 ... 0x07: /* fxxx st, sti */
+        case 0x00 ... 0x07: /* fxxx st, sti */
             gen_helper_fmov_FT0_STN(tcg_env,
                                     tcg_constant_i32(opreg));
             gen_helper_fp_arith_ST0_FT0(op & 7);
@@ -2790,12 +2790,10 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 gen_helper_fpop(tcg_env);
             }
             break;
-        case 0x02: /* fcom */
         case 0x22: /* fcom2, undocumented op */
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcom_ST0_FT0(tcg_env);
             break;
-        case 0x03: /* fcomp */
         case 0x23: /* fcomp3, undocumented op */
         case 0x32: /* fcomp5, undocumented op */
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
