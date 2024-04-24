@@ -2777,10 +2777,18 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 break;
             }
             break;
+            /* map to fcomp; op & 7 == 2 would not pop  */
+            op = 0x03;
+            /* fallthrough */
         case 0x00 ... 0x07: /* fxxx st, sti */
+        case 0x22 ... 0x23: /* fcom2 and fcomp3, undocumented ops */
+        case 0x32: /* fcomp5, undocumented op */
             gen_helper_fmov_FT0_STN(tcg_env,
                                     tcg_constant_i32(opreg));
             gen_helper_fp_arith_ST0_FT0(op & 7);
+            if (op >= 0x30) {
+                gen_helper_fpop(tcg_env);
+            }
             break;
 
         case 0x20: case 0x21: case 0x24 ... 0x27: /* fxxx sti, st */
@@ -2789,16 +2797,6 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
             if (op >= 0x30) {
                 gen_helper_fpop(tcg_env);
             }
-            break;
-        case 0x22: /* fcom2, undocumented op */
-            gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fcom_ST0_FT0(tcg_env);
-            break;
-        case 0x23: /* fcomp3, undocumented op */
-        case 0x32: /* fcomp5, undocumented op */
-            gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
-            gen_helper_fcom_ST0_FT0(tcg_env);
-            gen_helper_fpop(tcg_env);
             break;
         case 0x15: /* da/5 */
             switch (rm) {
