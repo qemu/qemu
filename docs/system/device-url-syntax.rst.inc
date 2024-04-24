@@ -87,8 +87,8 @@ These are specified using a special URL syntax.
 
 ``GlusterFS``
    GlusterFS is a user space distributed file system. QEMU supports the
-   use of GlusterFS volumes for hosting VM disk images using TCP, Unix
-   Domain Sockets and RDMA transport protocols.
+   use of GlusterFS volumes for hosting VM disk images using TCP and Unix
+   Domain Sockets transport protocols.
 
    Syntax for specifying a VM disk image on GlusterFS volume is
 

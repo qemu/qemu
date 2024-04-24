@@ -36,9 +36,6 @@ microblaze
 mips
   ~ (/qemu)?((/include)?/hw/mips/.*|/target/mips/.*)
 
-nios2
-  ~ (/qemu)?((/include)?/hw/nios2/.*|/target/nios2/.*)
-
 openrisc
   ~ (/qemu)?((/include)?/hw/openrisc/.*|/target/openrisc/.*)
 

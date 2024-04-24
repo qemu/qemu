@@ -18,7 +18,6 @@ enum {
     QEMU_ARCH_XTENSA = (1 << 12),
     QEMU_ARCH_OPENRISC = (1 << 13),
     QEMU_ARCH_TRICORE = (1 << 16),
-    QEMU_ARCH_NIOS2 = (1 << 17),
     QEMU_ARCH_HPPA = (1 << 18),
     QEMU_ARCH_RISCV = (1 << 19),
     QEMU_ARCH_RX = (1 << 20),

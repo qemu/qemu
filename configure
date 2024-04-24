@@ -1169,7 +1169,6 @@ fi
 : ${cross_prefix_mips64="mips64-linux-gnuabi64-"}
 : ${cross_prefix_mipsel="mipsel-linux-gnu-"}
 : ${cross_prefix_mips="mips-linux-gnu-"}
-: ${cross_prefix_nios2="nios2-linux-gnu-"}
 : ${cross_prefix_ppc="powerpc-linux-gnu-"}
 : ${cross_prefix_ppc64="powerpc64-linux-gnu-"}
 : ${cross_prefix_ppc64le="$cross_prefix_ppc64"}
@@ -1258,7 +1257,6 @@ probe_target_compiler() {
     mips64) container_hosts=x86_64 ;;
     mipsel) container_hosts=x86_64 ;;
     mips) container_hosts=x86_64 ;;
-    nios2) container_hosts=x86_64 ;;
     ppc) container_hosts=x86_64 ;;
     ppc64|ppc64le) container_hosts=x86_64 ;;
     riscv64) container_hosts=x86_64 ;;

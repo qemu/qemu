@@ -167,7 +167,7 @@ cross-win64-system:
     IMAGE: fedora-win64-cross
     EXTRA_CONFIGURE_OPTS: --enable-fdt=internal --disable-plugins
     CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu
-                        m68k-softmmu microblazeel-softmmu nios2-softmmu
+                        m68k-softmmu microblazeel-softmmu
                         or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
                         tricore-softmmu xtensaeb-softmmu
   artifacts:

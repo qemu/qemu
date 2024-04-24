@@ -33,7 +33,7 @@
 { 'enum' : 'SysEmuTarget',
   'data' : [ 'aarch64', 'alpha', 'arm', 'avr', 'cris', 'hppa', 'i386',
              'loongarch64', 'm68k', 'microblaze', 'microblazeel', 'mips', 'mips64',
-             'mips64el', 'mipsel', 'nios2', 'or1k', 'ppc',
+             'mips64el', 'mipsel', 'or1k', 'ppc',
              'ppc64', 'riscv32', 'riscv64', 'rx', 's390x', 'sh4',
              'sh4eb', 'sparc', 'sparc64', 'tricore',
              'x86_64', 'xtensa', 'xtensaeb' ] }
@@ -1734,23 +1734,6 @@
 # Since: 6.2
 ##
 { 'command': 'x-query-ramblock',
-  'returns': 'HumanReadableText',
-  'features': [ 'unstable' ] }
-
-##
-# @x-query-rdma:
-#
-# Query RDMA state
-#
-# Features:
-#
-# @unstable: This command is meant for debugging.
-#
-# Returns: RDMA state
-#
-# Since: 6.2
-##
-{ 'command': 'x-query-rdma',
   'returns': 'HumanReadableText',
   'features': [ 'unstable' ] }
 

@@ -291,19 +291,6 @@ F: disas/*mips.c
 F: docs/system/cpu-models-mips.rst.inc
 F: tests/tcg/mips/
 
-NiosII TCG CPUs
-R: Chris Wulff <crwulff@gmail.com>
-R: Marek Vasut <marex@denx.de>
-S: Orphan
-F: target/nios2/
-F: hw/nios2/
-F: hw/intc/nios2_vic.c
-F: disas/nios2.c
-F: include/hw/intc/nios2_vic.h
-F: configs/devices/nios2-softmmu/default.mak
-F: tests/docker/dockerfiles/debian-nios2-cross.d/build-toolchain.sh
-F: tests/tcg/nios2/
-
 OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
@@ -2478,7 +2465,7 @@ F: tests/qtest/libqos/e1000e.*
 
 igb
 M: Akihiko Odaki <akihiko.odaki@daynix.com>
-R: Sriram Yagnaraman <sriram.yagnaraman@est.tech>
+R: Sriram Yagnaraman <sriram.yagnaraman@ericsson.com>
 S: Maintained
 F: docs/system/devices/igb.rst
 F: hw/net/igb*
@@ -4056,16 +4043,6 @@ F: replication*
 F: block/replication.c
 F: tests/unit/test-replication.c
 F: docs/block-replication.txt
-
-PVRDMA
-M: Yuval Shaia <yuval.shaia.ml@gmail.com>
-M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
-S: Odd Fixes
-F: hw/rdma/*
-F: hw/rdma/vmw/*
-F: docs/pvrdma.txt
-F: contrib/rdmacm-mux/*
-F: qapi/rdma.json
 
 Semihosting
 M: Alex Bennée <alex.bennee@linaro.org>

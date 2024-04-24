@@ -1426,14 +1426,6 @@ class BootLinuxConsole(LinuxKernelTest):
         tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
         self.do_test_advcal_2018('20', tar_hash, 'vmlinux')
 
-    def test_nios2_10m50(self):
-        """
-        :avocado: tags=arch:nios2
-        :avocado: tags=machine:10m50-ghrd
-        """
-        tar_hash = 'e4251141726c412ac0407c5a6bceefbbff018918'
-        self.do_test_advcal_2018('14', tar_hash, 'vmlinux.elf')
-
     def test_ppc64_e500(self):
         """
         :avocado: tags=arch:ppc64

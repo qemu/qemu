@@ -94,7 +94,6 @@ mkdir "$TMP/asm"
 > "$TMP/asm/bitsperlong.h"
 
 generate_syscall_nr arm64 64 "$output/linux-user/aarch64/syscall_nr.h"
-generate_syscall_nr nios2 32 "$output/linux-user/nios2/syscall_nr.h"
 generate_syscall_nr openrisc 32 "$output/linux-user/openrisc/syscall_nr.h"
 
 generate_syscall_nr riscv 32 "$output/linux-user/riscv/syscall32_nr.h"

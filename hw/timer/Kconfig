@@ -17,10 +17,6 @@ config I8254
     bool
     depends on ISA_BUS
 
-config ALTERA_TIMER
-    bool
-    select PTIMER
-
 config ALLWINNER_A10_PIT
     bool
     select PTIMER

@@ -371,9 +371,6 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
     } else if (!strcmp(uri->scheme, "gluster+unix")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_UNIX;
         is_unix = true;
-    } else if (!strcmp(uri->scheme, "gluster+rdma")) {
-        gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-        warn_report("rdma feature is not supported, falling back to tcp");
     } else {
         ret = -EINVAL;
         goto out;
@@ -1638,44 +1635,8 @@ static BlockDriver bdrv_gluster_unix = {
     .strong_runtime_opts          = gluster_strong_open_opts,
 };
 
-/* rdma is deprecated (actually never supported for volfile fetch).
- * Let's maintain it for the protocol compatibility, to make sure things
- * won't break immediately. For now, gluster+rdma will fall back to gluster+tcp
- * protocol with a warning.
- * TODO: remove gluster+rdma interface support
- */
-static BlockDriver bdrv_gluster_rdma = {
-    .format_name                  = "gluster",
-    .protocol_name                = "gluster+rdma",
-    .instance_size                = sizeof(BDRVGlusterState),
-    .bdrv_file_open               = qemu_gluster_open,
-    .bdrv_reopen_prepare          = qemu_gluster_reopen_prepare,
-    .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
-    .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
-    .bdrv_close                   = qemu_gluster_close,
-    .bdrv_co_create               = qemu_gluster_co_create,
-    .bdrv_co_create_opts          = qemu_gluster_co_create_opts,
-    .bdrv_co_getlength            = qemu_gluster_co_getlength,
-    .bdrv_co_get_allocated_file_size = qemu_gluster_co_get_allocated_file_size,
-    .bdrv_co_truncate             = qemu_gluster_co_truncate,
-    .bdrv_co_readv                = qemu_gluster_co_readv,
-    .bdrv_co_writev               = qemu_gluster_co_writev,
-    .bdrv_co_flush_to_disk        = qemu_gluster_co_flush_to_disk,
-#ifdef CONFIG_GLUSTERFS_DISCARD
-    .bdrv_co_pdiscard             = qemu_gluster_co_pdiscard,
-#endif
-#ifdef CONFIG_GLUSTERFS_ZEROFILL
-    .bdrv_co_pwrite_zeroes        = qemu_gluster_co_pwrite_zeroes,
-#endif
-    .bdrv_co_block_status         = qemu_gluster_co_block_status,
-    .bdrv_refresh_limits          = qemu_gluster_refresh_limits,
-    .create_opts                  = &qemu_gluster_create_opts,
-    .strong_runtime_opts          = gluster_strong_open_opts,
-};
-
 static void bdrv_gluster_init(void)
 {
-    bdrv_register(&bdrv_gluster_rdma);
     bdrv_register(&bdrv_gluster_unix);
     bdrv_register(&bdrv_gluster_tcp);
     bdrv_register(&bdrv_gluster);
