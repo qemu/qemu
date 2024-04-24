@@ -19,6 +19,7 @@ import os
 import re
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     List,
     Mapping,
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
 _ExprValue = Union[List[object], Dict[str, object], str, bool]
 
 
-class QAPIExpression(Dict[str, object]):
+class QAPIExpression(Dict[str, Any]):
     # pylint: disable=too-few-public-methods
     def __init__(self,
                  data: Mapping[str, object],
@@ -607,6 +608,7 @@ class QAPIDoc:
     """
 
     class Section:
+        # pylint: disable=too-few-public-methods
         def __init__(self, info: QAPISourceInfo,
                      tag: Optional[str] = None):
             # section source info, i.e. where it begins
@@ -705,6 +707,7 @@ class QAPIDoc:
 
     def connect_member(self, member: 'QAPISchemaMember') -> None:
         if member.name not in self.args:
+            assert member.info
             if self.symbol not in member.info.pragma.documentation_exceptions:
                 raise QAPISemError(member.info,
                                    "%s '%s' lacks documentation"
@@ -733,7 +736,7 @@ class QAPIDoc:
                     "'Returns' section is only valid for commands")
             if self.errors:
                 raise QAPISemError(
-                    self.returns.info,
+                    self.errors.info,
                     "'Errors' section is only valid for commands")
 
     def check(self) -> None:

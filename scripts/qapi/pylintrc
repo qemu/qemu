@@ -1,10 +1,5 @@
 [MASTER]
 
-# Add files or directories matching the regex patterns to the ignore list.
-# The regex matches against base names, not paths.
-ignore-patterns=schema.py,
-
-
 [MESSAGES CONTROL]
 
 # Disable the message, report, category or checker with the given id(s). You
@@ -16,13 +11,13 @@ ignore-patterns=schema.py,
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
-disable=fixme,
+disable=consider-using-f-string,
+        fixme,
         missing-docstring,
         too-many-arguments,
         too-many-branches,
-        too-many-statements,
         too-many-instance-attributes,
-        consider-using-f-string,
+        too-many-statements,
         useless-option-value,
 
 [REPORTS]
