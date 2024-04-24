@@ -275,6 +275,10 @@ void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
                       nr);
 }
 
+void ramblock_recv_bitmap_set_offset(RAMBlock *rb, uint64_t byte_offset)
+{
+    set_bit_atomic(byte_offset >> TARGET_PAGE_BITS, rb->receivedmap);
+}
 #define  RAMBLOCK_RECV_BITMAP_ENDING  (0x0123456789abcdefULL)
 
 /*
@@ -2438,10 +2442,23 @@ static void xbzrle_cleanup(void)
     XBZRLE_cache_unlock();
 }
 
+static void ram_bitmaps_destroy(void)
+{
+    RAMBlock *block;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        g_free(block->clear_bmap);
+        block->clear_bmap = NULL;
+        g_free(block->bmap);
+        block->bmap = NULL;
+        g_free(block->file_bmap);
+        block->file_bmap = NULL;
+    }
+}
+
 static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
-    RAMBlock *block;
 
     /* We don't use dirty log with background snapshots */
     if (!migrate_background_snapshot()) {
@@ -2458,12 +2475,7 @@ static void ram_save_cleanup(void *opaque)
         }
     }
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        g_free(block->clear_bmap);
-        block->clear_bmap = NULL;
-        g_free(block->bmap);
-        block->bmap = NULL;
-    }
+    ram_bitmaps_destroy();
 
     xbzrle_cleanup();
     compress_threads_save_cleanup();
@@ -2719,44 +2731,41 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
  * For every allocation, we will try not to crash the VM if the
  * allocation failed.
  */
-static int xbzrle_init(void)
+static bool xbzrle_init(Error **errp)
 {
-    Error *local_err = NULL;
-
     if (!migrate_xbzrle()) {
-        return 0;
+        return true;
     }
 
     XBZRLE_cache_lock();
 
     XBZRLE.zero_target_page = g_try_malloc0(TARGET_PAGE_SIZE);
     if (!XBZRLE.zero_target_page) {
-        error_report("%s: Error allocating zero page", __func__);
+        error_setg(errp, "%s: Error allocating zero page", __func__);
         goto err_out;
     }
 
     XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
-                              TARGET_PAGE_SIZE, &local_err);
+                              TARGET_PAGE_SIZE, errp);
     if (!XBZRLE.cache) {
-        error_report_err(local_err);
         goto free_zero_page;
     }
 
     XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
     if (!XBZRLE.encoded_buf) {
-        error_report("%s: Error allocating encoded_buf", __func__);
+        error_setg(errp, "%s: Error allocating encoded_buf", __func__);
         goto free_cache;
     }
 
     XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
     if (!XBZRLE.current_buf) {
-        error_report("%s: Error allocating current_buf", __func__);
+        error_setg(errp, "%s: Error allocating current_buf", __func__);
         goto free_encoded_buf;
     }
 
     /* We are all good */
     XBZRLE_cache_unlock();
-    return 0;
+    return true;
 
 free_encoded_buf:
     g_free(XBZRLE.encoded_buf);
@@ -2769,16 +2778,16 @@ free_zero_page:
     XBZRLE.zero_target_page = NULL;
 err_out:
     XBZRLE_cache_unlock();
-    return -ENOMEM;
+    return false;
 }
 
-static int ram_state_init(RAMState **rsp)
+static bool ram_state_init(RAMState **rsp, Error **errp)
 {
     *rsp = g_try_new0(RAMState, 1);
 
     if (!*rsp) {
-        error_report("%s: Init ramstate fail", __func__);
-        return -1;
+        error_setg(errp, "%s: Init ramstate fail", __func__);
+        return false;
     }
 
     qemu_mutex_init(&(*rsp)->bitmap_mutex);
@@ -2794,7 +2803,7 @@ static int ram_state_init(RAMState **rsp)
     (*rsp)->migration_dirty_pages = (*rsp)->ram_bytes_total >> TARGET_PAGE_BITS;
     ram_state_reset(*rsp);
 
-    return 0;
+    return true;
 }
 
 static void ram_list_init_bitmaps(void)
@@ -2852,39 +2861,53 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
     }
 }
 
-static void ram_init_bitmaps(RAMState *rs)
+static bool ram_init_bitmaps(RAMState *rs, Error **errp)
 {
+    bool ret = true;
+
     qemu_mutex_lock_ramlist();
 
     WITH_RCU_READ_LOCK_GUARD() {
         ram_list_init_bitmaps();
         /* We don't use dirty log with background snapshots */
         if (!migrate_background_snapshot()) {
-            memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
+            ret = memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION, errp);
+            if (!ret) {
+                goto out_unlock;
+            }
             migration_bitmap_sync_precopy(rs, false);
         }
     }
+out_unlock:
     qemu_mutex_unlock_ramlist();
+
+    if (!ret) {
+        ram_bitmaps_destroy();
+        return false;
+    }
 
     /*
      * After an eventual first bitmap sync, fixup the initial bitmap
      * containing all 1s to exclude any discarded pages from migration.
      */
     migration_bitmap_clear_discarded_pages(rs);
+    return true;
 }
 
-static int ram_init_all(RAMState **rsp)
+static int ram_init_all(RAMState **rsp, Error **errp)
 {
-    if (ram_state_init(rsp)) {
+    if (!ram_state_init(rsp, errp)) {
         return -1;
     }
 
-    if (xbzrle_init()) {
+    if (!xbzrle_init(errp)) {
         ram_state_cleanup(rsp);
         return -1;
     }
 
-    ram_init_bitmaps(*rsp);
+    if (!ram_init_bitmaps(*rsp, errp)) {
+        return -1;
+    }
 
     return 0;
 }
@@ -3066,20 +3089,22 @@ static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
  *
  * @f: QEMUFile where to send the data
  * @opaque: RAMState pointer
+ * @errp: pointer to Error*, to store an error if it happens.
  */
-static int ram_save_setup(QEMUFile *f, void *opaque)
+static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     RAMState **rsp = opaque;
     RAMBlock *block;
     int ret, max_hg_page_size;
 
     if (compress_threads_save_setup()) {
+        error_setg(errp, "%s: failed to start compress threads", __func__);
         return -1;
     }
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_init_all(rsp) != 0) {
+        if (ram_init_all(rsp, errp) != 0) {
             compress_threads_save_cleanup();
             return -1;
         }
@@ -3116,12 +3141,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     ret = rdma_registration_start(f, RAM_CONTROL_SETUP);
     if (ret < 0) {
+        error_setg(errp, "%s: failed to start RDMA registration", __func__);
         qemu_file_set_error(f, ret);
         return ret;
     }
 
     ret = rdma_registration_stop(f, RAM_CONTROL_SETUP);
     if (ret < 0) {
+        error_setg(errp, "%s: failed to stop RDMA registration", __func__);
         qemu_file_set_error(f, ret);
         return ret;
     }
@@ -3138,6 +3165,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     ret = multifd_send_sync_main();
     bql_lock();
     if (ret < 0) {
+        error_setg(errp, "%s: multifd synchronization failed", __func__);
         return ret;
     }
 
@@ -3147,7 +3175,11 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     }
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-    return qemu_fflush(f);
+    ret = qemu_fflush(f);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "%s failed", __func__);
+    }
+    return ret;
 }
 
 static void ram_save_file_bmap(QEMUFile *f)
@@ -3592,7 +3624,11 @@ void ram_handle_zero(void *host, uint64_t size)
 
 static void colo_init_ram_state(void)
 {
-    ram_state_init(&ram_state);
+    Error *local_err = NULL;
+
+    if (!ram_state_init(&ram_state, &local_err)) {
+        error_report_err(local_err);
+    }
 }
 
 /*
@@ -3647,6 +3683,8 @@ int colo_init_ram_cache(void)
 void colo_incoming_start_dirty_log(void)
 {
     RAMBlock *block = NULL;
+    Error *local_err = NULL;
+
     /* For memory_global_dirty_log_start below. */
     bql_lock();
     qemu_mutex_lock_ramlist();
@@ -3658,7 +3696,10 @@ void colo_incoming_start_dirty_log(void)
             /* Discard this dirty bitmap record */
             bitmap_zero(block->bmap, block->max_length >> TARGET_PAGE_BITS);
         }
-        memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
+        if (!memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION,
+                                           &local_err)) {
+            error_report_err(local_err);
+        }
     }
     ram_state->migration_dirty_pages = 0;
     qemu_mutex_unlock_ramlist();
@@ -3694,8 +3735,9 @@ void colo_release_ram_cache(void)
  *
  * @f: QEMUFile where to receive the data
  * @opaque: RAMState pointer
+ * @errp: pointer to Error*, to store an error if it happens.
  */
-static int ram_load_setup(QEMUFile *f, void *opaque)
+static int ram_load_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     xbzrle_load_setup();
     ramblock_recv_map_init();

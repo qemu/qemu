@@ -58,7 +58,7 @@ struct RAMBlock {
     off_t bitmap_offset;
     uint64_t pages_offset;
 
-    /* bitmap of already received pages in postcopy */
+    /* Bitmap of already received pages.  Only used on destination side. */
     unsigned long *receivedmap;
 
     /*

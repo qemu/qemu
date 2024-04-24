@@ -278,6 +278,7 @@ static int zstd_recv(MultiFDRecvParams *p, Error **errp)
     z->in.pos = 0;
 
     for (i = 0; i < p->normal_num; i++) {
+        ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
         z->out.dst = p->host + p->normal[i];
         z->out.size = p->page_size;
         z->out.pos = 0;

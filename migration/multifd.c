@@ -277,6 +277,7 @@ static int nocomp_recv(MultiFDRecvParams *p, Error **errp)
     for (int i = 0; i < p->normal_num; i++) {
         p->iov[i].iov_base = p->host + p->normal[i];
         p->iov[i].iov_len = p->page_size;
+        ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
     }
     return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
 }

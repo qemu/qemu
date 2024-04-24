@@ -481,13 +481,13 @@ static void dirty_bitmap_do_save_cleanup(DBMSaveState *s)
 
 /* Called with the BQL taken. */
 static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
-                               const char *bs_name, GHashTable *alias_map)
+                               const char *bs_name, GHashTable *alias_map,
+                               Error **errp)
 {
     BdrvDirtyBitmap *bitmap;
     SaveBitmapState *dbms;
     GHashTable *bitmap_aliases;
     const char *node_alias, *bitmap_name, *bitmap_alias;
-    Error *local_err = NULL;
 
     /* When an alias map is given, @bs_name must be @bs's node name */
     assert(!alias_map || !strcmp(bs_name, bdrv_get_node_name(bs)));
@@ -504,8 +504,8 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     bitmap_name = bdrv_dirty_bitmap_name(bitmap);
 
     if (!bs_name || strcmp(bs_name, "") == 0) {
-        error_report("Bitmap '%s' in unnamed node can't be migrated",
-                     bitmap_name);
+        error_setg(errp, "Bitmap '%s' in unnamed node can't be migrated",
+                   bitmap_name);
         return -1;
     }
 
@@ -525,9 +525,9 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     }
 
     if (node_alias[0] == '#') {
-        error_report("Bitmap '%s' in a node with auto-generated "
-                     "name '%s' can't be migrated",
-                     bitmap_name, node_alias);
+        error_setg(errp, "Bitmap '%s' in a node with auto-generated "
+                   "name '%s' can't be migrated",
+                   bitmap_name, node_alias);
         return -1;
     }
 
@@ -538,8 +538,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
             continue;
         }
 
-        if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, &local_err)) {
-            error_report_err(local_err);
+        if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, errp)) {
             return -1;
         }
 
@@ -558,9 +557,9 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
             }
         } else {
             if (strlen(bitmap_name) > UINT8_MAX) {
-                error_report("Cannot migrate bitmap '%s' on node '%s': "
-                             "Name is longer than %u bytes",
-                             bitmap_name, bs_name, UINT8_MAX);
+                error_setg(errp, "Cannot migrate bitmap '%s' on node '%s': "
+                           "Name is longer than %u bytes",
+                           bitmap_name, bs_name, UINT8_MAX);
                 return -1;
             }
             bitmap_alias = bitmap_name;
@@ -599,7 +598,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
 }
 
 /* Called with the BQL taken. */
-static int init_dirty_bitmap_migration(DBMSaveState *s)
+static int init_dirty_bitmap_migration(DBMSaveState *s, Error **errp)
 {
     BlockDriverState *bs;
     SaveBitmapState *dbms;
@@ -643,7 +642,7 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
             }
 
             if (bs && bs->drv && !bs->drv->is_filter) {
-                if (add_bitmaps_to_list(s, bs, name, NULL)) {
+                if (add_bitmaps_to_list(s, bs, name, NULL, errp)) {
                     goto fail;
                 }
                 g_hash_table_add(handled_by_blk, bs);
@@ -656,7 +655,8 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
             continue;
         }
 
-        if (add_bitmaps_to_list(s, bs, bdrv_get_node_name(bs), alias_map)) {
+        if (add_bitmaps_to_list(s, bs, bdrv_get_node_name(bs), alias_map,
+                                errp)) {
             goto fail;
         }
     }
@@ -1213,12 +1213,12 @@ fail:
     return ret;
 }
 
-static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     DBMSaveState *s = &((DBMState *)opaque)->save;
     SaveBitmapState *dbms = NULL;
 
-    if (init_dirty_bitmap_migration(s) < 0) {
+    if (init_dirty_bitmap_migration(s, errp) < 0) {
         return -1;
     }
 
