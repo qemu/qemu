@@ -1,7 +1,12 @@
+/*
+ * CPU interfaces that are target independent.
+ *
+ *  Copyright (c) 2003 Fabrice Bellard
+ *
+ * SPDX-License-Identifier: LGPL-2.1+
+ */
 #ifndef CPU_COMMON_H
 #define CPU_COMMON_H
-
-/* CPU interfaces that are target independent.  */
 
 #include "exec/vaddr.h"
 #ifndef CONFIG_USER_ONLY
