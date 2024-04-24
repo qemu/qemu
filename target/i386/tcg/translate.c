@@ -1327,14 +1327,12 @@ static void gen_repz(DisasContext *s, MemOp ot,
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
 
-#define GEN_REPZ(op) \
-    static inline void gen_repz_ ## op(DisasContext *s, MemOp ot) \
-    { gen_repz(s, ot, gen_##op); }
-
-static void gen_repz2(DisasContext *s, MemOp ot, int nz,
-                      void (*fn)(DisasContext *s, MemOp ot))
+static void gen_repz_nz(DisasContext *s, MemOp ot,
+                        void (*fn)(DisasContext *s, MemOp ot))
 {
     TCGLabel *l2;
+    int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
+
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
@@ -1349,18 +1347,6 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
      */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
-
-#define GEN_REPZ2(op) \
-    static inline void gen_repz_ ## op(DisasContext *s, MemOp ot, int nz) \
-    { gen_repz2(s, ot, nz, gen_##op); }
-
-GEN_REPZ(movs)
-GEN_REPZ(stos)
-GEN_REPZ(lods)
-GEN_REPZ(ins)
-GEN_REPZ(outs)
-GEN_REPZ2(scas)
-GEN_REPZ2(cmps)
 
 static void gen_helper_fp_arith_ST0_FT0(int op)
 {

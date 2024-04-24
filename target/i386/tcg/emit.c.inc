@@ -1508,10 +1508,8 @@ static void gen_CMPccXADD(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
 static void gen_CMPS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
-    if (s->prefix & PREFIX_REPNZ) {
-        gen_repz_cmps(s, ot, 1);
-    } else if (s->prefix & PREFIX_REPZ) {
-        gen_repz_cmps(s, ot, 0);
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        gen_repz_nz(s, ot, gen_cmps);
     } else {
         gen_cmps(s, ot);
     }
@@ -1834,7 +1832,7 @@ static void gen_INS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
     translator_io_start(&s->base);
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_ins(s, ot);
+        gen_repz(s, ot, gen_ins);
     } else {
         gen_ins(s, ot);
     }
@@ -1993,7 +1991,7 @@ static void gen_LODS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_lods(s, ot);
+        gen_repz(s, ot, gen_lods);
     } else {
         gen_lods(s, ot);
     }
@@ -2155,7 +2153,7 @@ static void gen_MOVS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_movs(s, ot);
+        gen_repz(s, ot, gen_movs);
     } else {
         gen_movs(s, ot);
     }
@@ -2321,7 +2319,7 @@ static void gen_OUTS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
     translator_io_start(&s->base);
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_outs(s, ot);
+        gen_repz(s, ot, gen_outs);
     } else {
         gen_outs(s, ot);
     }
@@ -3329,10 +3327,8 @@ static void gen_SBB(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 static void gen_SCAS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
-    if (s->prefix & PREFIX_REPNZ) {
-        gen_repz_scas(s, ot, 1);
-    } else if (s->prefix & PREFIX_REPZ) {
-        gen_repz_scas(s, ot, 0);
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        gen_repz_nz(s, ot, gen_scas);
     } else {
         gen_scas(s, ot);
     }
@@ -3495,7 +3491,7 @@ static void gen_STOS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[1].ot;
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_stos(s, ot);
+        gen_repz(s, ot, gen_stos);
     } else {
         gen_stos(s, ot);
     }
