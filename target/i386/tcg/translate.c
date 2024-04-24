@@ -1822,12 +1822,6 @@ static void gen_bndck(CPUX86State *env, DisasContext *s, int modrm,
     gen_helper_bndck(tcg_env, s->tmp2_i32);
 }
 
-/* used for LEA and MOV AX, mem */
-static void gen_add_A0_ds_seg(DisasContext *s)
-{
-    gen_lea_v_seg(s, s->aflag, s->A0, R_DS, s->override);
-}
-
 /* generate modrm load of memory or register. */
 static void gen_ld_modrm(CPUX86State *env, DisasContext *s, int modrm, MemOp ot)
 {
@@ -3674,8 +3668,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
-            tcg_gen_mov_tl(s->A0, cpu_regs[R_EAX]);
-            gen_add_A0_ds_seg(s);
+            gen_lea_v_seg(s, s->aflag, cpu_regs[R_EAX], R_DS, s->override);
             gen_helper_monitor(tcg_env, s->A0);
             break;
 
