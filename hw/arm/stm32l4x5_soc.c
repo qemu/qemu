@@ -1,8 +1,8 @@
 /*
  * STM32L4x5 SoC family
  *
- * Copyright (c) 2023 Arnaud Minier <arnaud.minier@telecom-paris.fr>
- * Copyright (c) 2023 Inès Varhol <ines.varhol@telecom-paris.fr>
+ * Copyright (c) 2023-2024 Arnaud Minier <arnaud.minier@telecom-paris.fr>
+ * Copyright (c) 2023-2024 Inès Varhol <ines.varhol@telecom-paris.fr>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
@@ -249,6 +249,8 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
                                   pin_index));
         }
     }
+
+    qdev_pass_gpios(DEVICE(&s->syscfg), dev_soc, NULL);
 
     /* EXTI device */
     busdev = SYS_BUS_DEVICE(&s->exti);
