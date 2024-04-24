@@ -2261,6 +2261,21 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir)
     return NULL;
 }
 
+static void pnv_chip_foreach_cpu(PnvChip *chip,
+                   void (*fn)(PnvChip *chip, PowerPCCPU *cpu, void *opaque),
+                   void *opaque)
+{
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+
+        for (j = 0; j < CPU_CORE(pc)->nr_threads; j++) {
+            fn(chip, pc->threads[j], opaque);
+        }
+    }
+}
+
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
@@ -2329,22 +2344,25 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
     return cpu ? ICP(pnv_cpu_state(cpu)->intc) : NULL;
 }
 
+static void pnv_pic_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                    void *opaque)
+{
+    PNV_CHIP_GET_CLASS(chip)->intc_print_info(chip, cpu, opaque);
+}
+
 static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
     int i;
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        /* XXX: loop on each chip/core/thread instead of CPU_FOREACH() */
-        PNV_CHIP_GET_CLASS(pnv->chips[0])->intc_print_info(pnv->chips[0], cpu,
-                                                           buf);
-    }
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], buf);
+        PnvChip *chip = pnv->chips[i];
+
+        /* First CPU presenters */
+        pnv_chip_foreach_cpu(chip, pnv_pic_intc_print_info, buf);
+
+        /* Then other devices, PHB, PSI, XIVE */
+        PNV_CHIP_GET_CLASS(chip)->pic_print_info(chip, buf);
     }
 }
 
@@ -2545,12 +2563,18 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
     }
 }
 
+static void pnv_cpu_do_nmi(PnvChip *chip, PowerPCCPU *cpu, void *opaque)
+{
+    async_run_on_cpu(CPU(cpu), pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
+}
+
 static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
 {
-    CPUState *cs;
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    int i;
 
-    CPU_FOREACH(cs) {
-        async_run_on_cpu(cs, pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
+    for (i = 0; i < pnv->num_chips; i++) {
+        pnv_chip_foreach_cpu(pnv->chips[i], pnv_cpu_do_nmi, NULL);
     }
 }
 
