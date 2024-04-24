@@ -1828,10 +1828,9 @@ static void gen_add_A0_ds_seg(DisasContext *s)
     gen_lea_v_seg(s, s->aflag, s->A0, R_DS, s->override);
 }
 
-/* generate modrm memory load or store of 'reg'. TMP0 is used if reg ==
-   OR_TMP0 */
+/* generate modrm memory load or store of 'reg'. */
 static void gen_ldst_modrm(CPUX86State *env, DisasContext *s, int modrm,
-                           MemOp ot, int reg, int is_store)
+                           MemOp ot, int is_store)
 {
     int mod, rm;
 
@@ -1839,24 +1838,16 @@ static void gen_ldst_modrm(CPUX86State *env, DisasContext *s, int modrm,
     rm = (modrm & 7) | REX_B(s);
     if (mod == 3) {
         if (is_store) {
-            if (reg != OR_TMP0)
-                gen_op_mov_v_reg(s, ot, s->T0, reg);
             gen_op_mov_reg_v(s, ot, rm, s->T0);
         } else {
             gen_op_mov_v_reg(s, ot, s->T0, rm);
-            if (reg != OR_TMP0)
-                gen_op_mov_reg_v(s, ot, reg, s->T0);
         }
     } else {
         gen_lea_modrm(env, s, modrm);
         if (is_store) {
-            if (reg != OR_TMP0)
-                gen_op_mov_v_reg(s, ot, s->T0, reg);
             gen_op_st_v(s, ot, s->T0, s->A0);
         } else {
             gen_op_ld_v(s, ot, s->T0, s->A0);
-            if (reg != OR_TMP0)
-                gen_op_mov_reg_v(s, ot, reg, s->T0);
         }
     }
 }
@@ -3447,7 +3438,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         ot = dflag;
         modrm = x86_ldub_code(env, s);
         reg = ((modrm >> 3) & 7) | REX_R(s);
-        gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+        gen_ldst_modrm(env, s, modrm, ot, 0);
         gen_extu(ot, s->T0);
 
         /* Note that lzcnt and tzcnt are in different extensions.  */
@@ -3598,14 +3589,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_ld32u_tl(s->T0, tcg_env,
                              offsetof(CPUX86State, ldt.selector));
             ot = mod == 3 ? dflag : MO_16;
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_ldst_modrm(env, s, modrm, ot, 1);
             break;
         case 2: /* lldt */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
             if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, SVM_EXIT_LDTR_WRITE);
-                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_16, 0);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_lldt(tcg_env, s->tmp2_i32);
             }
@@ -3620,14 +3611,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_ld32u_tl(s->T0, tcg_env,
                              offsetof(CPUX86State, tr.selector));
             ot = mod == 3 ? dflag : MO_16;
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_ldst_modrm(env, s, modrm, ot, 1);
             break;
         case 3: /* ltr */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
             if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, SVM_EXIT_TR_WRITE);
-                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+                gen_ldst_modrm(env, s, modrm, MO_16, 0);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_ltr(tcg_env, s->tmp2_i32);
             }
@@ -3636,7 +3627,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         case 5: /* verw */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, 0);
             gen_update_cc_op(s);
             if (op == 4) {
                 gen_helper_verr(tcg_env, s->T0);
@@ -3900,7 +3891,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
              */
             mod = (modrm >> 6) & 3;
             ot = (mod != 3 ? MO_16 : s->dflag);
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_ldst_modrm(env, s, modrm, ot, 1);
             break;
         case 0xee: /* rdpkru */
             if (s->prefix & (PREFIX_LOCK | PREFIX_DATA
@@ -3927,7 +3918,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 break;
             }
             gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0);
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, 0);
             /*
              * Only the 4 lower bits of CR0 are modified.
              * PE cannot be set to zero if already set to one.
@@ -3999,7 +3990,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             ot = dflag != MO_16 ? MO_32 : MO_16;
             modrm = x86_ldub_code(env, s);
             reg = ((modrm >> 3) & 7) | REX_R(s);
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ldst_modrm(env, s, modrm, MO_16, 0);
             t0 = tcg_temp_new();
             gen_update_cc_op(s);
             if (b == 0x102) {
@@ -4503,7 +4494,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         reg = ((modrm >> 3) & 7) | REX_R(s);
 
         ot = dflag;
-        gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+        gen_ldst_modrm(env, s, modrm, ot, 0);
         gen_extu(ot, s->T0);
         tcg_gen_mov_tl(cpu_cc_src, s->T0);
         tcg_gen_ctpop_tl(s->T0, s->T0);
