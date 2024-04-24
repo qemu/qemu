@@ -55,6 +55,7 @@ struct AccelCPUState {
     bool vtimer_masked;
     sigset_t unblock_ipi_mask;
     bool guest_debug_enabled;
+    bool dirty;
 };
 
 void assert_hvf_ok(hv_return_t ret);
