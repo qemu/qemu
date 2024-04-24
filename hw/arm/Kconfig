@@ -468,6 +468,7 @@ config B_L475E_IOT01A
     default y
     depends on TCG && ARM
     select STM32L4X5_SOC
+    imply DM163
 
 config STM32L4X5_SOC
     bool
