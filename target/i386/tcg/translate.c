@@ -2075,12 +2075,12 @@ static inline void gen_pop_update(DisasContext *s, MemOp ot)
 
 static inline void gen_stack_A0(DisasContext *s)
 {
-    gen_lea_v_seg(s, SS32(s) ? MO_32 : MO_16, cpu_regs[R_ESP], R_SS, -1);
+    gen_lea_v_seg(s, mo_stacksize(s), cpu_regs[R_ESP], R_SS, -1);
 }
 
 static void gen_pusha(DisasContext *s)
 {
-    MemOp s_ot = SS32(s) ? MO_32 : MO_16;
+    MemOp s_ot = mo_stacksize(s);
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
@@ -2096,7 +2096,7 @@ static void gen_pusha(DisasContext *s)
 
 static void gen_popa(DisasContext *s)
 {
-    MemOp s_ot = SS32(s) ? MO_32 : MO_16;
+    MemOp s_ot = mo_stacksize(s);
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
@@ -2118,7 +2118,7 @@ static void gen_popa(DisasContext *s)
 static void gen_enter(DisasContext *s, int esp_addend, int level)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
-    MemOp a_ot = CODE64(s) ? MO_64 : SS32(s) ? MO_32 : MO_16;
+    MemOp a_ot = mo_stacksize(s);
     int size = 1 << d_ot;
 
     /* Push BP; compute FrameTemp into T1.  */
