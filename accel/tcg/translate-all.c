@@ -644,15 +644,6 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cpu_loop_exit_noexc(cpu);
 }
 
-#else /* CONFIG_USER_ONLY */
-
-void cpu_interrupt(CPUState *cpu, int mask)
-{
-    g_assert(bql_locked());
-    cpu->interrupt_request |= mask;
-    qatomic_set(&cpu->neg.icount_decr.u16.high, -1);
-}
-
 #endif /* CONFIG_USER_ONLY */
 
 /*
