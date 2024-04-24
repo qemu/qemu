@@ -278,10 +278,11 @@ static uint32_t num_threads_by_topo_level(X86CPUTopoInfo *topo_info,
     case CPU_TOPO_LEVEL_CORE:
         return topo_info->threads_per_core;
     case CPU_TOPO_LEVEL_DIE:
-        return topo_info->threads_per_core * topo_info->cores_per_die;
+        return topo_info->threads_per_core * topo_info->cores_per_module *
+               topo_info->modules_per_die;
     case CPU_TOPO_LEVEL_PACKAGE:
-        return topo_info->threads_per_core * topo_info->cores_per_die *
-               topo_info->dies_per_pkg;
+        return topo_info->threads_per_core * topo_info->cores_per_module *
+               topo_info->modules_per_die * topo_info->dies_per_pkg;
     default:
         g_assert_not_reached();
     }
@@ -6278,10 +6279,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t threads_per_pkg;
 
     topo_info.dies_per_pkg = env->nr_dies;
-    topo_info.cores_per_die = cs->nr_cores / env->nr_dies;
+    topo_info.modules_per_die = env->nr_modules;
+    topo_info.cores_per_module = cs->nr_cores / env->nr_dies / env->nr_modules;
     topo_info.threads_per_core = cs->nr_threads;
 
-    cores_per_pkg = topo_info.cores_per_die * topo_info.dies_per_pkg;
+    cores_per_pkg = topo_info.cores_per_module * topo_info.modules_per_die *
+                    topo_info.dies_per_pkg;
     threads_per_pkg = cores_per_pkg * topo_info.threads_per_core;
 
     /* Calculate & apply limits for different index ranges */
