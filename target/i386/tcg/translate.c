@@ -1485,6 +1485,7 @@ static void gen_helper_fp_arith_ST0_FT0(int op)
         break;
     case 3:
         gen_helper_fcom_ST0_FT0(tcg_env);
+        gen_helper_fpop(tcg_env);
         break;
     case 4:
         gen_helper_fsub_ST0_FT0(tcg_env);
@@ -2460,36 +2461,28 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
             tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0,
                                 s->mem_index, MO_LEUL);
             gen_helper_flds_FT0(tcg_env, s->tmp2_i32);
-            goto fp_arith_ST0_FT0;
+            gen_helper_fp_arith_ST0_FT0(op & 7);
+            break;
 
         case 0x10 ... 0x17: /* fixxxl */
             tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0,
                                 s->mem_index, MO_LEUL);
             gen_helper_fildl_FT0(tcg_env, s->tmp2_i32);
-            goto fp_arith_ST0_FT0;
+            gen_helper_fp_arith_ST0_FT0(op & 7);
+            break;
 
         case 0x20 ... 0x27: /* fxxxl */
             tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0,
                                 s->mem_index, MO_LEUQ);
             gen_helper_fldl_FT0(tcg_env, s->tmp1_i64);
-            goto fp_arith_ST0_FT0;
+            gen_helper_fp_arith_ST0_FT0(op & 7);
+            break;
 
         case 0x30 ... 0x37: /* fixxx */
             tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0,
                                 s->mem_index, MO_LESW);
             gen_helper_fildl_FT0(tcg_env, s->tmp2_i32);
-            goto fp_arith_ST0_FT0;
-
-fp_arith_ST0_FT0:
-            {
-                int op1 = op & 7;
-
-                gen_helper_fp_arith_ST0_FT0(op1);
-                if (op1 == 3) {
-                    /* fcomp needs pop */
-                    gen_helper_fpop(tcg_env);
-                }
-            }
+            gen_helper_fp_arith_ST0_FT0(op & 7);
             break;
 
         case 0x08: /* flds */
