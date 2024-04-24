@@ -22,8 +22,6 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 
-#undef DEBUG_REMAP
-
 #include "exec/user/abitypes.h"
 
 extern char **environ;
@@ -437,7 +435,7 @@ static inline void *lock_user(int type, abi_ulong guest_addr, long len,
     if (!access_ok(type, guest_addr, len)) {
         return NULL;
     }
-#ifdef DEBUG_REMAP
+#ifdef CONFIG_DEBUG_REMAP
     {
         void *addr;
         addr = g_malloc(len);
@@ -461,7 +459,7 @@ static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
                                long len)
 {
 
-#ifdef DEBUG_REMAP
+#ifdef CONFIG_DEBUG_REMAP
     if (!host_ptr) {
         return;
     }

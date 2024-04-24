@@ -29,6 +29,7 @@ meson_options_help() {
   printf "%s\n" '  --enable-debug-graph-lock'
   printf "%s\n" '                           graph lock debugging support'
   printf "%s\n" '  --enable-debug-mutex     mutex debugging support'
+  printf "%s\n" '  --enable-debug-remap     syscall buffer debugging support'
   printf "%s\n" '  --enable-debug-stack-usage'
   printf "%s\n" '                           measure coroutine stack usage'
   printf "%s\n" '  --enable-debug-tcg       TCG debugging'
@@ -294,6 +295,8 @@ _meson_option_parse() {
     --disable-debug-graph-lock) printf "%s" -Ddebug_graph_lock=false ;;
     --enable-debug-mutex) printf "%s" -Ddebug_mutex=true ;;
     --disable-debug-mutex) printf "%s" -Ddebug_mutex=false ;;
+    --enable-debug-remap) printf "%s" -Ddebug_remap=true ;;
+    --disable-debug-remap) printf "%s" -Ddebug_remap=false ;;
     --enable-debug-stack-usage) printf "%s" -Ddebug_stack_usage=true ;;
     --disable-debug-stack-usage) printf "%s" -Ddebug_stack_usage=false ;;
     --enable-debug-tcg) printf "%s" -Ddebug_tcg=true ;;

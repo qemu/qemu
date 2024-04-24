@@ -341,6 +341,11 @@ STRUCT(file_clone_range,
        TYPE_ULONGLONG, /* src_length */
        TYPE_ULONGLONG) /* dest_offset */
 
+STRUCT(fstrim_range,
+       TYPE_ULONGLONG, /* start */
+       TYPE_ULONGLONG, /* len */
+       TYPE_ULONGLONG) /* minlen */
+
 STRUCT(fiemap_extent,
        TYPE_ULONGLONG, /* fe_logical */
        TYPE_ULONGLONG, /* fe_physical */

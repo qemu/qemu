@@ -66,7 +66,7 @@
 #define EXCP_MMU_ACCESS     58  /* MMU Access Level Violation Error */
 
 #define EXCP_RTE            0x100
-#define EXCP_HALT_INSN      0x101
+#define EXCP_SEMIHOSTING    0x101
 
 #define M68K_DTTR0   0
 #define M68K_DTTR1   1

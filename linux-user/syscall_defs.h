@@ -945,6 +945,7 @@ struct target_rtc_pll_info {
 
 #define TARGET_FIFREEZE    TARGET_IOWR('X', 119, abi_int)
 #define TARGET_FITHAW    TARGET_IOWR('X', 120, abi_int)
+#define TARGET_FITRIM    TARGET_IOWR('X', 121, struct fstrim_range)
 
 /*
  * Note that the ioctl numbers for FS_IOC_<GET|SET><FLAGS|VERSION>
