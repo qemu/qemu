@@ -3077,7 +3077,7 @@ static void gen_RETF(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     int16_t adjust = decode->e.op2 == X86_TYPE_I ? decode->immediate : 0;
 
     if (!PE(s) || VM86(s)) {
-        gen_stack_A0(s);
+        gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], 0);
         /* pop offset */
         gen_op_ld_v(s, s->dflag, s->T0, s->A0);
         /* NOTE: keeping EIP updated is not a problem in case of

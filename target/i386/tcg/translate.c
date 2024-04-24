@@ -2035,24 +2035,27 @@ static inline void gen_stack_update(DisasContext *s, int addend)
     gen_op_add_reg_im(s, mo_stacksize(s), R_ESP, addend);
 }
 
+static void gen_lea_ss_ofs(DisasContext *s, TCGv dest, TCGv src, target_ulong offset)
+{
+    if (offset) {
+        tcg_gen_addi_tl(dest, src, offset);
+        src = dest;
+    }
+    gen_lea_v_seg_dest(s, mo_stacksize(s), dest, src, R_SS, -1);
+}
+
 /* Generate a push. It depends on ss32, addseg and dflag.  */
 static void gen_push_v(DisasContext *s, TCGv val)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
     MemOp a_ot = mo_stacksize(s);
     int size = 1 << d_ot;
-    TCGv new_esp = s->A0;
+    TCGv new_esp = tcg_temp_new();
 
-    tcg_gen_subi_tl(s->A0, cpu_regs[R_ESP], size);
+    tcg_gen_subi_tl(new_esp, cpu_regs[R_ESP], size);
 
-    if (!CODE64(s)) {
-        if (ADDSEG(s)) {
-            new_esp = tcg_temp_new();
-            tcg_gen_mov_tl(new_esp, s->A0);
-        }
-        gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
-    }
-
+    /* Now reduce the value to the address size and apply SS base.  */
+    gen_lea_ss_ofs(s, s->A0, new_esp, 0);
     gen_op_st_v(s, d_ot, val, s->A0);
     gen_op_mov_reg_v(s, a_ot, R_ESP, new_esp);
 }
@@ -2062,7 +2065,7 @@ static MemOp gen_pop_T0(DisasContext *s)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
 
-    gen_lea_v_seg_dest(s, mo_stacksize(s), s->T0, cpu_regs[R_ESP], R_SS, -1);
+    gen_lea_ss_ofs(s, s->T0, cpu_regs[R_ESP], 0);
     gen_op_ld_v(s, d_ot, s->T0, s->T0);
 
     return d_ot;
@@ -2073,21 +2076,14 @@ static inline void gen_pop_update(DisasContext *s, MemOp ot)
     gen_stack_update(s, 1 << ot);
 }
 
-static inline void gen_stack_A0(DisasContext *s)
-{
-    gen_lea_v_seg(s, mo_stacksize(s), cpu_regs[R_ESP], R_SS, -1);
-}
-
 static void gen_pusha(DisasContext *s)
 {
-    MemOp s_ot = mo_stacksize(s);
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
 
     for (i = 0; i < 8; i++) {
-        tcg_gen_addi_tl(s->A0, cpu_regs[R_ESP], (i - 8) * size);
-        gen_lea_v_seg(s, s_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], (i - 8) * size);
         gen_op_st_v(s, d_ot, cpu_regs[7 - i], s->A0);
     }
 
@@ -2096,7 +2092,6 @@ static void gen_pusha(DisasContext *s)
 
 static void gen_popa(DisasContext *s)
 {
-    MemOp s_ot = mo_stacksize(s);
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
@@ -2106,8 +2101,7 @@ static void gen_popa(DisasContext *s)
         if (7 - i == R_ESP) {
             continue;
         }
-        tcg_gen_addi_tl(s->A0, cpu_regs[R_ESP], i * size);
-        gen_lea_v_seg(s, s_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], i * size);
         gen_op_ld_v(s, d_ot, s->T0, s->A0);
         gen_op_mov_reg_v(s, d_ot, 7 - i, s->T0);
     }
@@ -2123,7 +2117,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 
     /* Push BP; compute FrameTemp into T1.  */
     tcg_gen_subi_tl(s->T1, cpu_regs[R_ESP], size);
-    gen_lea_v_seg(s, a_ot, s->T1, R_SS, -1);
+    gen_lea_ss_ofs(s, s->A0, s->T1, 0);
     gen_op_st_v(s, d_ot, cpu_regs[R_EBP], s->A0);
 
     level &= 31;
@@ -2132,18 +2126,15 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 
         /* Copy level-1 pointers from the previous frame.  */
         for (i = 1; i < level; ++i) {
-            tcg_gen_subi_tl(s->A0, cpu_regs[R_EBP], size * i);
-            gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+            gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], -size * i);
             gen_op_ld_v(s, d_ot, s->tmp0, s->A0);
 
-            tcg_gen_subi_tl(s->A0, s->T1, size * i);
-            gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+            gen_lea_ss_ofs(s, s->A0, s->T1, -size * i);
             gen_op_st_v(s, d_ot, s->tmp0, s->A0);
         }
 
         /* Push the current FrameTemp as the last level.  */
-        tcg_gen_subi_tl(s->A0, s->T1, size * level);
-        gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, s->T1, -size * level);
         gen_op_st_v(s, d_ot, s->T1, s->A0);
     }
 
@@ -2160,7 +2151,7 @@ static void gen_leave(DisasContext *s)
     MemOp d_ot = mo_pushpop(s, s->dflag);
     MemOp a_ot = mo_stacksize(s);
 
-    gen_lea_v_seg(s, a_ot, cpu_regs[R_EBP], R_SS, -1);
+    gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], 0);
     gen_op_ld_v(s, d_ot, s->T0, s->A0);
 
     tcg_gen_addi_tl(s->T1, cpu_regs[R_EBP], 1 << d_ot);
