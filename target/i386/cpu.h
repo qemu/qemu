@@ -2012,6 +2012,11 @@ struct ArchCPU {
     bool enable_l3_cache;
 
     /* Compatibility bits for old machine types.
+     * If true present L1 cache as per-thread, not per-core.
+     */
+    bool l1_cache_per_core;
+
+    /* Compatibility bits for old machine types.
      * If true present the old cache topology information
      */
     bool legacy_cache;
