@@ -8,6 +8,14 @@
 #include "standard-headers/linux/virtio_types.h"
 
 /*******************************************************************************
+ * FEATURE BITS
+ */
+enum {
+	/* device supports control elements */
+	VIRTIO_SND_F_CTLS = 0
+};
+
+/*******************************************************************************
  * CONFIGURATION SPACE
  */
 struct virtio_snd_config {
@@ -17,6 +25,8 @@ struct virtio_snd_config {
 	uint32_t streams;
 	/* # of available channel maps */
 	uint32_t chmaps;
+	/* # of available control elements */
+	uint32_t controls;
 };
 
 enum {
@@ -55,6 +65,15 @@ enum {
 	/* channel map control request types */
 	VIRTIO_SND_R_CHMAP_INFO = 0x0200,
 
+	/* control element request types */
+	VIRTIO_SND_R_CTL_INFO = 0x0300,
+	VIRTIO_SND_R_CTL_ENUM_ITEMS,
+	VIRTIO_SND_R_CTL_READ,
+	VIRTIO_SND_R_CTL_WRITE,
+	VIRTIO_SND_R_CTL_TLV_READ,
+	VIRTIO_SND_R_CTL_TLV_WRITE,
+	VIRTIO_SND_R_CTL_TLV_COMMAND,
+
 	/* jack event types */
 	VIRTIO_SND_EVT_JACK_CONNECTED = 0x1000,
 	VIRTIO_SND_EVT_JACK_DISCONNECTED,
@@ -62,6 +81,9 @@ enum {
 	/* PCM event types */
 	VIRTIO_SND_EVT_PCM_PERIOD_ELAPSED = 0x1100,
 	VIRTIO_SND_EVT_PCM_XRUN,
+
+	/* control element event types */
+	VIRTIO_SND_EVT_CTL_NOTIFY = 0x1200,
 
 	/* common status codes */
 	VIRTIO_SND_S_OK = 0x8000,
@@ -329,6 +351,138 @@ struct virtio_snd_chmap_info {
 	uint8_t channels;
 	/* channel position values (VIRTIO_SND_CHMAP_XXX) */
 	uint8_t positions[VIRTIO_SND_CHMAP_MAX_SIZE];
+};
+
+/*******************************************************************************
+ * CONTROL ELEMENTS MESSAGES
+ */
+struct virtio_snd_ctl_hdr {
+	/* VIRTIO_SND_R_CTL_XXX */
+	struct virtio_snd_hdr hdr;
+	/* 0 ... virtio_snd_config::controls - 1 */
+	uint32_t control_id;
+};
+
+/* supported roles for control elements */
+enum {
+	VIRTIO_SND_CTL_ROLE_UNDEFINED = 0,
+	VIRTIO_SND_CTL_ROLE_VOLUME,
+	VIRTIO_SND_CTL_ROLE_MUTE,
+	VIRTIO_SND_CTL_ROLE_GAIN
+};
+
+/* supported value types for control elements */
+enum {
+	VIRTIO_SND_CTL_TYPE_BOOLEAN = 0,
+	VIRTIO_SND_CTL_TYPE_INTEGER,
+	VIRTIO_SND_CTL_TYPE_INTEGER64,
+	VIRTIO_SND_CTL_TYPE_ENUMERATED,
+	VIRTIO_SND_CTL_TYPE_BYTES,
+	VIRTIO_SND_CTL_TYPE_IEC958
+};
+
+/* supported access rights for control elements */
+enum {
+	VIRTIO_SND_CTL_ACCESS_READ = 0,
+	VIRTIO_SND_CTL_ACCESS_WRITE,
+	VIRTIO_SND_CTL_ACCESS_VOLATILE,
+	VIRTIO_SND_CTL_ACCESS_INACTIVE,
+	VIRTIO_SND_CTL_ACCESS_TLV_READ,
+	VIRTIO_SND_CTL_ACCESS_TLV_WRITE,
+	VIRTIO_SND_CTL_ACCESS_TLV_COMMAND
+};
+
+struct virtio_snd_ctl_info {
+	/* common header */
+	struct virtio_snd_info hdr;
+	/* element role (VIRTIO_SND_CTL_ROLE_XXX) */
+	uint32_t role;
+	/* element value type (VIRTIO_SND_CTL_TYPE_XXX) */
+	uint32_t type;
+	/* element access right bit map (1 << VIRTIO_SND_CTL_ACCESS_XXX) */
+	uint32_t access;
+	/* # of members in the element value */
+	uint32_t count;
+	/* index for an element with a non-unique name */
+	uint32_t index;
+	/* name identifier string for the element */
+	uint8_t name[44];
+	/* additional information about the element's value */
+	union {
+		/* VIRTIO_SND_CTL_TYPE_INTEGER */
+		struct {
+			/* minimum supported value */
+			uint32_t min;
+			/* maximum supported value */
+			uint32_t max;
+			/* fixed step size for value (0 = variable size) */
+			uint32_t step;
+		} integer;
+		/* VIRTIO_SND_CTL_TYPE_INTEGER64 */
+		struct {
+			/* minimum supported value */
+			uint64_t min;
+			/* maximum supported value */
+			uint64_t max;
+			/* fixed step size for value (0 = variable size) */
+			uint64_t step;
+		} integer64;
+		/* VIRTIO_SND_CTL_TYPE_ENUMERATED */
+		struct {
+			/* # of options supported for value */
+			uint32_t items;
+		} enumerated;
+	} value;
+};
+
+struct virtio_snd_ctl_enum_item {
+	/* option name */
+	uint8_t item[64];
+};
+
+struct virtio_snd_ctl_iec958 {
+	/* AES/IEC958 channel status bits */
+	uint8_t status[24];
+	/* AES/IEC958 subcode bits */
+	uint8_t subcode[147];
+	/* nothing */
+	uint8_t pad;
+	/* AES/IEC958 subframe bits */
+	uint8_t dig_subframe[4];
+};
+
+struct virtio_snd_ctl_value {
+	union {
+		/* VIRTIO_SND_CTL_TYPE_BOOLEAN|INTEGER value */
+		uint32_t integer[128];
+		/* VIRTIO_SND_CTL_TYPE_INTEGER64 value */
+		uint64_t integer64[64];
+		/* VIRTIO_SND_CTL_TYPE_ENUMERATED value (option indexes) */
+		uint32_t enumerated[128];
+		/* VIRTIO_SND_CTL_TYPE_BYTES value */
+		uint8_t bytes[512];
+		/* VIRTIO_SND_CTL_TYPE_IEC958 value */
+		struct virtio_snd_ctl_iec958 iec958;
+	} value;
+};
+
+/* supported event reason types */
+enum {
+	/* element's value has changed */
+	VIRTIO_SND_CTL_EVT_MASK_VALUE = 0,
+	/* element's information has changed */
+	VIRTIO_SND_CTL_EVT_MASK_INFO,
+	/* element's metadata has changed */
+	VIRTIO_SND_CTL_EVT_MASK_TLV
+};
+
+struct virtio_snd_ctl_event {
+	/* VIRTIO_SND_EVT_CTL_NOTIFY */
+	struct virtio_snd_hdr hdr;
+	/* 0 ... virtio_snd_config::controls - 1 */
+	uint16_t control_id;
+	/* event reason bit map (1 << VIRTIO_SND_CTL_EVT_MASK_XXX) */
+	uint16_t mask;
 };
 
 #endif /* VIRTIO_SND_IF_H */

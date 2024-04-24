@@ -55,18 +55,15 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
 {
     uint32_t host_phys_bits = host_cpu_phys_bits();
     uint32_t phys_bits = cpu->phys_bits;
-    static bool warned;
 
     /*
      * Print a warning if the user set it to a value that's not the
      * host value.
      */
-    if (phys_bits != host_phys_bits && phys_bits != 0 &&
-        !warned) {
-        warn_report("Host physical bits (%u)"
-                    " does not match phys-bits property (%u)",
-                    host_phys_bits, phys_bits);
-        warned = true;
+    if (phys_bits != host_phys_bits && phys_bits != 0) {
+        warn_report_once("Host physical bits (%u)"
+                         " does not match phys-bits property (%u)",
+                         host_phys_bits, phys_bits);
     }
 
     if (cpu->host_phys_bits) {

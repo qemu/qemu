@@ -18,7 +18,6 @@ tests = {
   'test-forward-visitor': [testqapi],
   'test-string-input-visitor': [testqapi],
   'test-string-output-visitor': [testqapi],
-  'test-opts-visitor': [testqapi],
   'test-visitor-serialization': [testqapi],
   'test-bitmap': [],
   'test-resv-mem': [],
@@ -46,12 +45,8 @@ tests = {
   'test-qemu-opts': [],
   'test-keyval': [testqapi],
   'test-logging': [],
-  'test-uuid': [],
-  'ptimer-test': ['ptimer-test-stubs.c', meson.project_source_root() / 'hw/core/ptimer.c'],
   'test-qapi-util': [],
   'test-interval-tree': [],
-  'test-xs-node': [qom],
-  'test-virtio-dmabuf': [meson.project_source_root() / 'hw/display/virtio-dmabuf.c'],
 }
 
 if have_system or have_tools
@@ -97,6 +92,8 @@ if have_block
     'test-crypto-ivgen': [io],
     'test-crypto-afsplit': [io],
     'test-crypto-block': [io],
+    'test-timed-average': [],
+    'test-uuid': [],
   }
   if gnutls.found() and \
      tasn1.found() and \
@@ -131,10 +128,13 @@ endif
 
 if have_system
   tests += {
+    'ptimer-test': ['ptimer-test-stubs.c', meson.project_source_root() / 'hw/core/ptimer.c'],
     'test-iov': [],
+    'test-opts-visitor': [testqapi],
+    'test-xs-node': [qom],
+    'test-virtio-dmabuf': [meson.project_source_root() / 'hw/display/virtio-dmabuf.c'],
     'test-qmp-cmds': [testqapi],
     'test-xbzrle': [migration],
-    'test-timed-average': [],
     'test-util-sockets': ['socket-helpers.c'],
     'test-base64': [],
     'test-bufferiszero': [],

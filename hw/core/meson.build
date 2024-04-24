@@ -3,7 +3,6 @@ hwcore_ss.add(files(
   'bus.c',
   'qdev-properties.c',
   'qdev.c',
-  'reset.c',
   'resetcontainer.c',
   'resettable.c',
   'vmstate-if.c',
@@ -12,16 +11,6 @@ hwcore_ss.add(files(
   'clock.c',
   'qdev-clock.c',
 ))
-if have_system
-  hwcore_ss.add(files(
-    'hotplug.c',
-    'qdev-hotplug.c',
-  ))
-else
-  hwcore_ss.add(files(
-    'hotplug-stubs.c',
-  ))
-endif
 
 common_ss.add(files('cpu-common.c'))
 common_ss.add(files('machine-smp.c'))
@@ -40,6 +29,7 @@ system_ss.add(files(
   'cpu-sysemu.c',
   'fw-path-provider.c',
   'gpio.c',
+  'hotplug.c',
   'loader.c',
   'machine-hmp-cmds.c',
   'machine-qmp-cmds.c',
@@ -48,7 +38,9 @@ system_ss.add(files(
   'null-machine.c',
   'numa.c',
   'qdev-fw.c',
+  'qdev-hotplug.c',
   'qdev-properties-system.c',
+  'reset.c',
   'sysbus.c',
   'vm-change-state-handler.c',
   'clock-vmstate.c',

@@ -2622,11 +2622,6 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
     kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 
-bool kvm_arch_cpu_check_are_resettable(void)
-{
-    return true;
-}
-
 int kvm_s390_get_zpci_op(void)
 {
     return cap_zpci_op;

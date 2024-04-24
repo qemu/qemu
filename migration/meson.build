@@ -34,6 +34,8 @@ system_ss.add(files(
 
 if get_option('replication').allowed()
   system_ss.add(files('colo-failover.c', 'colo.c'))
+else
+  system_ss.add(files('colo-stubs.c'))
 endif
 
 system_ss.add(when: rdma, if_true: files('rdma.c'))

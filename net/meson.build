@@ -20,6 +20,8 @@ if get_option('replication').allowed() or \
     get_option('colo_proxy').allowed()
   system_ss.add(files('colo-compare.c'))
   system_ss.add(files('colo.c'))
+else
+  system_ss.add(files('colo-stubs.c'))
 endif
 
 if get_option('colo_proxy').allowed()

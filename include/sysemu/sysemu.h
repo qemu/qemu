@@ -71,8 +71,6 @@ Chardev *serial_hd(int i);
 
 extern Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 
-void hmp_info_usb(Monitor *mon, const QDict *qdict);
-
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(size_t *size);

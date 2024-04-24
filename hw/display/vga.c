@@ -1574,22 +1574,16 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     /* Horizontal pel panning bit 3 is only used in text mode.  */
     hpel = bits <= 8 ? s->params.hpel & 7 : 0;
+    bwidth = DIV_ROUND_UP(width * bits, 8); /* scanline length */
+    if (hpel) {
+        bwidth += 4;
+    }
 
     region_start = (s->params.start_addr * 4);
-    region_end = region_start + (ram_addr_t)s->params.line_offset * height;
-    region_end += width * depth / 8; /* scanline length */
-    region_end -= s->params.line_offset;
-    if (hpel) {
-        region_end += 4;
-    }
-    if (region_end > s->vbe_size || depth == 0 || depth == 15) {
+    region_end = region_start + (ram_addr_t)s->params.line_offset * (height - 1) + bwidth;
+    if (region_end > s->vbe_size) {
         /*
-         * We land here on:
-         *  - wraps around (can happen with cirrus vbe modes)
-         *  - depth == 0 (256 color palette video mode)
-         *  - depth == 15
-         *
-         * Take the safe and slow route:
+         * On wrap around take the safe and slow route:
          *   - create a dirty bitmap snapshot for all vga memory.
          *   - force shadowing (so all vga memory access goes
          *     through vga_read_*() helpers).
@@ -1601,6 +1595,10 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         region_start = 0;
         region_end = s->vbe_size;
         force_shadow = true;
+    }
+    if (s->params.line_compare < height) {
+        /* split screen mode */
+        region_start = 0;
     }
 
     /*
@@ -1667,20 +1665,12 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            s->params.line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
     addr1 = (s->params.start_addr * 4);
-    bwidth = DIV_ROUND_UP(width * bits, 8);
-    if (hpel) {
-        bwidth += 4;
-    }
     y_start = -1;
     d = surface_data(surface);
     linesize = surface_stride(surface);
     y1 = 0;
 
     if (!full_update) {
-        if (s->params.line_compare < height) {
-            /* split screen mode */
-            region_start = 0;
-        }
         snap = memory_region_snapshot_and_clear_dirty(&s->vram, region_start,
                                                       region_end - region_start,
                                                       DIRTY_MEMORY_VGA);

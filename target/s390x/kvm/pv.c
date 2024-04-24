@@ -334,10 +334,15 @@ static bool s390_pv_guest_check(ConfidentialGuestSupport *cgs, Error **errp)
     return s390_pv_check_cpus(errp);
 }
 
-int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
+static int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     if (!object_dynamic_cast(OBJECT(cgs), TYPE_S390_PV_GUEST)) {
         return 0;
+    }
+
+    if (!kvm_enabled()) {
+        error_setg(errp, "Protected Virtualization requires KVM");
+        return -1;
     }
 
     if (!s390_has_feat(S390_FEAT_UNPACK)) {
@@ -364,6 +369,9 @@ OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
 
 static void s390_pv_guest_class_init(ObjectClass *oc, void *data)
 {
+    ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
+
+    klass->kvm_init = s390_pv_kvm_init;
 }
 
 static void s390_pv_guest_init(Object *obj)

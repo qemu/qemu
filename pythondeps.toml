@@ -22,6 +22,7 @@
 meson = { accepted = ">=0.63.0", installed = "1.2.3", canary = "meson" }
 
 [docs]
+# Please keep the installed versions in sync with docs/requirements.txt
 sphinx = { accepted = ">=1.6", installed = "5.3.0", canary = "sphinx-build" }
 sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.1.1" }
 

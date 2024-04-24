@@ -33,6 +33,9 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "audio/audio.h"
 
+GlobalProperty hw_compat_9_0[] = {};
+const size_t hw_compat_9_0_len = G_N_ELEMENTS(hw_compat_9_0);
+
 GlobalProperty hw_compat_8_2[] = {
     { "migration", "zero-page-detection", "legacy"},
     { TYPE_VIRTIO_IOMMU_PCI, "granule", "4k" },
@@ -1196,6 +1199,11 @@ bool machine_dump_guest_core(MachineState *machine)
 bool machine_mem_merge(MachineState *machine)
 {
     return machine->mem_merge;
+}
+
+bool machine_require_guest_memfd(MachineState *machine)
+{
+    return machine->require_guest_memfd;
 }
 
 static char *cpu_slot_to_string(const CPUArchId *cpu)
