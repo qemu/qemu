@@ -12,7 +12,7 @@ USART, I2C, SPI, CAN and USB OTG, as well as a variety of sensors.
 Supported devices
 """""""""""""""""
 
-Currently B-L475E-IOT01A machine's only supports the following devices:
+Currently B-L475E-IOT01A machines support the following devices:
 
 - Cortex-M4F based STM32L4x5 SoC
 - STM32L4x5 EXTI (Extended interrupts and events controller)
@@ -20,6 +20,7 @@ Currently B-L475E-IOT01A machine's only supports the following devices:
 - STM32L4x5 RCC (Reset and clock control)
 - STM32L4x5 GPIOs (General-purpose I/Os)
 - STM32L4x5 USARTs, UARTs and LPUART (Serial ports)
+- optional 8x8 led display (based on DM163 driver)
 
 Missing devices
 """""""""""""""
