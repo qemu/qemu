@@ -70,7 +70,7 @@ static void vfio_ap_req_notifier_handler(void *opaque)
     }
 }
 
-static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
+static bool vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
                                           unsigned int irq, Error **errp)
 {
     int fd;
@@ -87,13 +87,13 @@ static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
         break;
     default:
         error_setg(errp, "vfio: Unsupported device irq(%d)", irq);
-        return;
+        return false;
     }
 
     if (vdev->num_irqs < irq + 1) {
         error_setg(errp, "vfio: IRQ %u not available (number of irqs %u)",
                    irq, vdev->num_irqs);
-        return;
+        return false;
     }
 
     argsz = sizeof(*irq_info);
@@ -104,14 +104,14 @@ static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
     if (ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO,
               irq_info) < 0 || irq_info->count < 1) {
         error_setg_errno(errp, errno, "vfio: Error getting irq info");
-        return;
+        return false;
     }
 
     if (event_notifier_init(notifier, 0)) {
         error_setg_errno(errp, errno,
                          "vfio: Unable to init event notifier for irq (%d)",
                          irq);
-        return;
+        return false;
     }
 
     fd = event_notifier_get_fd(notifier);
@@ -122,6 +122,8 @@ static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
         qemu_set_fd_handler(fd, NULL, NULL, vapdev);
         event_notifier_cleanup(notifier);
     }
+
+    return true;
 }
 
 static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
@@ -167,8 +169,7 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         goto error;
     }
 
-    vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err);
-    if (err) {
+    if (!vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err)) {
         /*
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
