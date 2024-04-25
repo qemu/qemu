@@ -36,6 +36,7 @@ extern char **environ;
 #include "exec/gdbstub.h"
 #include "exec/page-protection.h"
 #include "qemu/clang-tsa.h"
+#include "accel/tcg/vcpu-state.h"
 
 #include "qemu-os.h"
 /*
@@ -115,11 +116,6 @@ struct TaskState {
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
 } __attribute__((aligned(16)));
-
-static inline TaskState *get_task_state(CPUState *cs)
-{
-    return cs->opaque;
-}
 
 void stop_all_tasks(void);
 extern const char *interp_prefix;

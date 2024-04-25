@@ -8,6 +8,7 @@
 
 #include "syscall_defs.h"
 #include "target_syscall.h"
+#include "accel/tcg/vcpu-state.h"
 
 /*
  * This is the size of the host kernel's sigset_t, needed where we make
@@ -159,11 +160,6 @@ struct TaskState {
     /* Start time of task after system boot in clock ticks */
     uint64_t start_boottime;
 };
-
-static inline TaskState *get_task_state(CPUState *cs)
-{
-    return cs->opaque;
-}
 
 abi_long do_brk(abi_ulong new_brk);
 int do_guest_openat(CPUArchState *cpu_env, int dirfd, const char *pathname,
