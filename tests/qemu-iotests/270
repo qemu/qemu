@@ -60,8 +60,16 @@ _make_test_img -o cluster_size=2M,data_file="$TEST_IMG.orig" \
 # "write" 2G of data without using any space.
 # (qemu-img create does not like it, though, because null-co does not
 # support image creation.)
-$QEMU_IMG amend -o data_file="json:{'driver':'null-co',,'size':'4294967296'}" \
-    "$TEST_IMG"
+test_img_with_null_data="json:{
+    'driver': '$IMGFMT',
+    'file': {
+        'filename': '$TEST_IMG'
+    },
+    'data-file': {
+        'driver': 'null-co',
+        'size':'4294967296'
+    }
+}"
 
 # This gives us a range of:
 #   2^31 - 512 + 768 - 1 = 2^31 + 255 > 2^31
@@ -74,7 +82,7 @@ $QEMU_IMG amend -o data_file="json:{'driver':'null-co',,'size':'4294967296'}" \
 # on L2 boundaries, we need large L2 tables; hence the cluster size of
 # 2 MB.  (Anything from 256 kB should work, though, because then one L2
 # table covers 8 GB.)
-$QEMU_IO -c "write 768 $((2 ** 31 - 512))" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write 768 $((2 ** 31 - 512))" "$test_img_with_null_data" | _filter_qemu_io
 
 _check_test_img
 
