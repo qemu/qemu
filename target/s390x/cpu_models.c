@@ -551,7 +551,6 @@ static bool check_compatibility(const S390CPUModel *max_model,
 
 S390CPUModel *get_max_cpu_model(Error **errp)
 {
-    Error *err = NULL;
     static S390CPUModel max_model;
     static bool cached;
 
@@ -560,8 +559,7 @@ S390CPUModel *get_max_cpu_model(Error **errp)
     }
 
     if (kvm_enabled()) {
-        if (!kvm_s390_get_host_cpu_model(&max_model, &err)) {
-            error_propagate(errp, err);
+        if (!kvm_s390_get_host_cpu_model(&max_model, errp)) {
             return NULL;
         }
     } else {
