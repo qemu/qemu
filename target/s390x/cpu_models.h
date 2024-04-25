@@ -116,6 +116,6 @@ S390CPUDef const *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
 
 bool kvm_s390_cpu_models_supported(void);
 bool kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp);
-void kvm_s390_apply_cpu_model(const S390CPUModel *model,  Error **errp);
+bool kvm_s390_apply_cpu_model(const S390CPUModel *model,  Error **errp);
 
 #endif /* TARGET_S390X_CPU_MODELS_H */
