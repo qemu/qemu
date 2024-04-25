@@ -272,7 +272,7 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void pxa2xx_pic_reset_hold(Object *obj)
+static void pxa2xx_pic_reset_hold(Object *obj, ResetType type)
 {
     PXA2xxPICState *s = PXA2XX_PIC(obj);
 

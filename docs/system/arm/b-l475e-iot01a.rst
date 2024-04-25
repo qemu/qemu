@@ -19,13 +19,13 @@ Currently B-L475E-IOT01A machine's only supports the following devices:
 - STM32L4x5 SYSCFG (System configuration controller)
 - STM32L4x5 RCC (Reset and clock control)
 - STM32L4x5 GPIOs (General-purpose I/Os)
+- STM32L4x5 USARTs, UARTs and LPUART (Serial ports)
 
 Missing devices
 """""""""""""""
 
 The B-L475E-IOT01A does *not* support the following devices:
 
-- Serial ports (UART)
 - Analog to Digital Converter (ADC)
 - SPI controller
 - Timer controller (TIMER)

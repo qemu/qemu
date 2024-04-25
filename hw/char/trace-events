@@ -106,6 +106,18 @@ cadence_uart_baudrate(unsigned baudrate) "baudrate %u"
 sh_serial_read(char *id, unsigned size, uint64_t offs, uint64_t val) " %s size %d offs 0x%02" PRIx64 " -> 0x%02" PRIx64
 sh_serial_write(char *id, unsigned size, uint64_t offs, uint64_t val) "%s size %d offs 0x%02" PRIx64 " <- 0x%02" PRIx64
 
+# stm32l4x5_usart.c
+stm32l4x5_usart_read(uint64_t addr, uint32_t data) "USART: Read <0x%" PRIx64 "> -> 0x%" PRIx32 ""
+stm32l4x5_usart_write(uint64_t addr, uint32_t data) "USART: Write <0x%" PRIx64 "> <- 0x%" PRIx32 ""
+stm32l4x5_usart_rx(uint8_t c) "USART: got character 0x%x from backend"
+stm32l4x5_usart_tx(uint8_t c) "USART: character 0x%x sent to backend"
+stm32l4x5_usart_tx_pending(void) "USART: character send to backend pending"
+stm32l4x5_usart_irq_raised(uint32_t reg) "USART: IRQ raised: 0x%08"PRIx32
+stm32l4x5_usart_irq_lowered(void) "USART: IRQ lowered"
+stm32l4x5_usart_overrun_detected(uint8_t current, uint8_t received) "USART: Overrun detected, RDR='0x%x', received 0x%x"
+stm32l4x5_usart_receiver_not_enabled(uint8_t ue_bit, uint8_t re_bit) "USART: Receiver not enabled, UE=0x%x, RE=0x%x"
+stm32l4x5_usart_update_params(int speed, uint8_t parity, int data, int stop) "USART: speed: %d, parity: %c, data bits: %d, stop bits: %d"
+
 # xen_console.c
 xen_console_connect(unsigned int idx, unsigned int ring_ref, unsigned int port, unsigned int limit) "idx %u ring_ref %u port %u limit %u"
 xen_console_disconnect(unsigned int idx) "idx %u"

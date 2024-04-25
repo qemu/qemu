@@ -416,7 +416,7 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     s->regs[R_DDRIOB + 12] = 0x00000021;
 }
 
-static void zynq_slcr_reset_hold(Object *obj)
+static void zynq_slcr_reset_hold(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
@@ -425,7 +425,7 @@ static void zynq_slcr_reset_hold(Object *obj)
     zynq_slcr_propagate_clocks(s);
 }
 
-static void zynq_slcr_reset_exit(Object *obj)
+static void zynq_slcr_reset_exit(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 

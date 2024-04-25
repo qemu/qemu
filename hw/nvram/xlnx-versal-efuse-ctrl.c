@@ -658,7 +658,7 @@ static void efuse_ctrl_register_reset(RegisterInfo *reg)
     register_reset(reg);
 }
 
-static void efuse_ctrl_reset_hold(Object *obj)
+static void efuse_ctrl_reset_hold(Object *obj, ResetType type)
 {
     XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
     unsigned int i;

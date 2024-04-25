@@ -642,7 +642,7 @@ const VMStateDescription vmstate_mos6522 = {
     }
 };
 
-static void mos6522_reset_hold(Object *obj)
+static void mos6522_reset_hold(Object *obj, ResetType type)
 {
     MOS6522State *s = MOS6522(obj);
 

@@ -12,11 +12,8 @@
 
 #define	FLAT_VERSION			0x00000004L
 
-#ifdef CONFIG_BINFMT_SHARED_FLAT
-#define	MAX_SHARED_LIBS			(4)
-#else
+/* QEMU doesn't support bflt shared libraries */
 #define	MAX_SHARED_LIBS			(1)
-#endif
 
 /*
  * To make everything easier to port and manage cross platform

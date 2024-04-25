@@ -513,7 +513,7 @@ static void e1000e_pci_uninit(PCIDevice *pci_dev)
     msi_uninit(pci_dev);
 }
 
-static void e1000e_qdev_reset_hold(Object *obj)
+static void e1000e_qdev_reset_hold(Object *obj, ResetType type)
 {
     E1000EState *s = E1000E(obj);
 

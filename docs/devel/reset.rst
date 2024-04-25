@@ -27,15 +27,26 @@ instantly reset an object, without keeping it in reset state, just call
 ``resettable_reset()``. These functions take two parameters: a pointer to the
 object to reset and a reset type.
 
-Several types of reset will be supported. For now only cold reset is defined;
-others may be added later. The Resettable interface handles reset types with an
-enum:
+The Resettable interface handles reset types with an enum ``ResetType``:
 
 ``RESET_TYPE_COLD``
   Cold reset is supported by every resettable object. In QEMU, it means we reset
   to the initial state corresponding to the start of QEMU; this might differ
   from what is a real hardware cold reset. It differs from other resets (like
   warm or bus resets) which may keep certain parts untouched.
+
+``RESET_TYPE_SNAPSHOT_LOAD``
+  This is called for a reset which is being done to put the system into a
+  clean state prior to loading a snapshot. (This corresponds to a reset
+  with ``SHUTDOWN_CAUSE_SNAPSHOT_LOAD``.) Almost all devices should treat
+  this the same as ``RESET_TYPE_COLD``. The main exception is devices which
+  have some non-deterministic state they want to reinitialize to a different
+  value on each cold reset, such as RNG seed information, and which they
+  must not reinitialize on a snapshot-load reset.
+
+Devices which implement reset methods must treat any unknown ``ResetType``
+as equivalent to ``RESET_TYPE_COLD``; this will reduce the amount of
+existing code we need to change if we add more types in future.
 
 Calling ``resettable_reset()`` is equivalent to calling
 ``resettable_assert_reset()`` then ``resettable_release_reset()``. It is
@@ -150,25 +161,25 @@ in reset.
         mydev->var = 0;
     }
 
-    static void mydev_reset_hold(Object *obj)
+    static void mydev_reset_hold(Object *obj, ResetType type)
     {
         MyDevClass *myclass = MYDEV_GET_CLASS(obj);
         MyDevState *mydev = MYDEV(obj);
         /* call parent class hold phase */
         if (myclass->parent_phases.hold) {
-            myclass->parent_phases.hold(obj);
+            myclass->parent_phases.hold(obj, type);
         }
         /* set an IO */
         qemu_set_irq(mydev->irq, 1);
     }
 
-    static void mydev_reset_exit(Object *obj)
+    static void mydev_reset_exit(Object *obj, ResetType type)
     {
         MyDevClass *myclass = MYDEV_GET_CLASS(obj);
         MyDevState *mydev = MYDEV(obj);
         /* call parent class exit phase */
         if (myclass->parent_phases.exit) {
-            myclass->parent_phases.exit(obj);
+            myclass->parent_phases.exit(obj, type);
         }
         /* clear an IO */
         qemu_set_irq(mydev->irq, 0);

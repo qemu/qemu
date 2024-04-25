@@ -998,7 +998,7 @@ static void rtc_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void rtc_reset_hold(Object *obj)
+static void rtc_reset_hold(Object *obj, ResetType type)
 {
     MC146818RtcState *s = MC146818_RTC(obj);
 

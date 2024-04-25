@@ -610,7 +610,7 @@ static void asc_fifo_init(ASCFIFOState *fs, int index)
     g_free(name);
 }
 
-static void asc_reset_hold(Object *obj)
+static void asc_reset_hold(Object *obj, ResetType type)
 {
     ASCState *s = ASC(obj);
 

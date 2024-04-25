@@ -1350,7 +1350,7 @@ static void xlnx_versal_pmc_iou_slcr_reset_init(Object *obj, ResetType type)
     }
 }
 
-static void xlnx_versal_pmc_iou_slcr_reset_hold(Object *obj)
+static void xlnx_versal_pmc_iou_slcr_reset_hold(Object *obj, ResetType type)
 {
     XlnxVersalPmcIouSlcr *s = XILINX_VERSAL_PMC_IOU_SLCR(obj);
 

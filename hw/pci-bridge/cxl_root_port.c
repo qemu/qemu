@@ -186,13 +186,13 @@ static void cxl_rp_realize(DeviceState *dev, Error **errp)
                      component_bar);
 }
 
-static void cxl_rp_reset_hold(Object *obj)
+static void cxl_rp_reset_hold(Object *obj, ResetType type)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(obj);
     CXLRootPort *crp = CXL_ROOT_PORT(obj);
 
     if (rpc->parent_phases.hold) {
-        rpc->parent_phases.hold(obj);
+        rpc->parent_phases.hold(obj, type);
     }
 
     latch_registers(crp);

@@ -113,13 +113,13 @@ static void clock_mux_reset_enter(Object *obj, ResetType type)
     set_clock_mux_init_info(s, s->id);
 }
 
-static void clock_mux_reset_hold(Object *obj)
+static void clock_mux_reset_hold(Object *obj, ResetType type)
 {
     RccClockMuxState *s = RCC_CLOCK_MUX(obj);
     clock_mux_update(s, true);
 }
 
-static void clock_mux_reset_exit(Object *obj)
+static void clock_mux_reset_exit(Object *obj, ResetType type)
 {
     RccClockMuxState *s = RCC_CLOCK_MUX(obj);
     clock_mux_update(s, false);
@@ -263,13 +263,13 @@ static void pll_reset_enter(Object *obj, ResetType type)
     set_pll_init_info(s, s->id);
 }
 
-static void pll_reset_hold(Object *obj)
+static void pll_reset_hold(Object *obj, ResetType type)
 {
     RccPllState *s = RCC_PLL(obj);
     pll_update(s, true);
 }
 
-static void pll_reset_exit(Object *obj)
+static void pll_reset_exit(Object *obj, ResetType type)
 {
     RccPllState *s = RCC_PLL(obj);
     pll_update(s, false);
@@ -907,7 +907,7 @@ static void rcc_update_csr(Stm32l4x5RccState *s)
     rcc_update_irq(s);
 }
 
-static void stm32l4x5_rcc_reset_hold(Object *obj)
+static void stm32l4x5_rcc_reset_hold(Object *obj, ResetType type)
 {
     Stm32l4x5RccState *s = STM32L4X5_RCC(obj);
     s->cr = 0x00000063;

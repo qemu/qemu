@@ -1110,6 +1110,24 @@ void arm_cpu_update_virq(ARMCPU *cpu);
 void arm_cpu_update_vfiq(ARMCPU *cpu);
 
 /**
+ * arm_cpu_update_vinmi: Update CPU_INTERRUPT_VINMI bit in cs->interrupt_request
+ *
+ * Update the CPU_INTERRUPT_VINMI bit in cs->interrupt_request, following
+ * a change to either the input VNMI line from the GIC or the HCRX_EL2.VINMI.
+ * Must be called with the BQL held.
+ */
+void arm_cpu_update_vinmi(ARMCPU *cpu);
+
+/**
+ * arm_cpu_update_vfnmi: Update CPU_INTERRUPT_VFNMI bit in cs->interrupt_request
+ *
+ * Update the CPU_INTERRUPT_VFNMI bit in cs->interrupt_request, following
+ * a change to the HCRX_EL2.VFNMI.
+ * Must be called with the BQL held.
+ */
+void arm_cpu_update_vfnmi(ARMCPU *cpu);
+
+/**
  * arm_cpu_update_vserr: Update CPU_INTERRUPT_VSERR bit
  *
  * Update the CPU_INTERRUPT_VSERR bit in cs->interrupt_request,
@@ -1228,6 +1246,9 @@ static inline uint32_t aarch64_pstate_valid_mask(const ARMISARegisters *id)
     }
     if (isar_feature_aa64_mte(id)) {
         valid |= PSTATE_TCO;
+    }
+    if (isar_feature_aa64_nmi(id)) {
+        valid |= PSTATE_ALLINT;
     }
 
     return valid;

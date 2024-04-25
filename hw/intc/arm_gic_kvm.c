@@ -473,13 +473,13 @@ static void kvm_arm_gic_get(GICState *s)
     }
 }
 
-static void kvm_arm_gic_reset_hold(Object *obj)
+static void kvm_arm_gic_reset_hold(Object *obj, ResetType type)
 {
     GICState *s = ARM_GIC_COMMON(obj);
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
 
     if (kgc->parent_phases.hold) {
-        kgc->parent_phases.hold(obj);
+        kgc->parent_phases.hold(obj, type);
     }
 
     if (kvm_arm_gic_can_save_restore(s)) {

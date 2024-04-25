@@ -231,7 +231,7 @@ static const VMStateDescription vmstate_adb_bus = {
     }
 };
 
-static void adb_bus_reset_hold(Object *obj)
+static void adb_bus_reset_hold(Object *obj, ResetType type)
 {
     ADBBusState *adb_bus = ADB_BUS(obj);
 

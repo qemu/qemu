@@ -175,7 +175,7 @@ static void glue_nmi_release(void *opaque)
     GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 0);
 }
 
-static void glue_reset_hold(Object *obj)
+static void glue_reset_hold(Object *obj, ResetType type)
 {
     GLUEState *s = GLUE(obj);
 

@@ -103,14 +103,14 @@ static int sh4_cpu_mmu_index(CPUState *cs, bool ifetch)
     }
 }
 
-static void superh_cpu_reset_hold(Object *obj)
+static void superh_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(obj);
     CPUSH4State *env = cpu_env(cs);
 
     if (scc->parent_phases.hold) {
-        scc->parent_phases.hold(obj);
+        scc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUSH4State, end_reset_fields));

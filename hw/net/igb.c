@@ -486,7 +486,7 @@ static void igb_pci_uninit(PCIDevice *pci_dev)
     msi_uninit(pci_dev);
 }
 
-static void igb_qdev_reset_hold(Object *obj)
+static void igb_qdev_reset_hold(Object *obj, ResetType type)
 {
     IGBState *s = IGB(obj);
 

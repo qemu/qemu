@@ -137,7 +137,7 @@ static void xram_ctrl_reset_enter(Object *obj, ResetType type)
     ARRAY_FIELD_DP32(s->regs, XRAM_IMP, SIZE, s->cfg.encoded_size);
 }
 
-static void xram_ctrl_reset_hold(Object *obj)
+static void xram_ctrl_reset_hold(Object *obj, ResetType type)
 {
     XlnxXramCtrl *s = XLNX_XRAM_CTRL(obj);
 

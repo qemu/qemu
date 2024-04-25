@@ -770,7 +770,7 @@ static void zynqmp_efuse_register_reset(RegisterInfo *reg)
     register_reset(reg);
 }
 
-static void zynqmp_efuse_reset_hold(Object *obj)
+static void zynqmp_efuse_reset_hold(Object *obj, ResetType type)
 {
     XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
     unsigned int i;

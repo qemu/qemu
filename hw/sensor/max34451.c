@@ -608,7 +608,7 @@ static inline void *memset_word(void *s, uint16_t c, size_t n)
     return s;
 }
 
-static void max34451_exit_reset(Object *obj)
+static void max34451_exit_reset(Object *obj, ResetType type)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
     MAX34451State *s = MAX34451(obj);

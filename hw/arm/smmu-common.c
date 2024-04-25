@@ -682,7 +682,7 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void smmu_base_reset_hold(Object *obj)
+static void smmu_base_reset_hold(Object *obj, ResetType type)
 {
     SMMUState *s = ARM_SMMU(obj);
 

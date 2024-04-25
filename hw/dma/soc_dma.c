@@ -209,9 +209,9 @@ void soc_dma_set_request(struct soc_dma_ch_s *ch, int level)
     dma->enabled_count += level - ch->enable;
 
     if (level)
-        dma->ch_enable_mask |= 1 << ch->num;
+        dma->ch_enable_mask |= (uint64_t)1 << ch->num;
     else
-        dma->ch_enable_mask &= ~(1 << ch->num);
+        dma->ch_enable_mask &= ~((uint64_t)1 << ch->num);
 
     if (level != ch->enable) {
         soc_dma_ch_freq_update(dma);

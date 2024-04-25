@@ -525,7 +525,7 @@ static void cadence_uart_reset_init(Object *obj, ResetType type)
     s->r[R_TTRIG] = 0x00000020;
 }
 
-static void cadence_uart_reset_hold(Object *obj)
+static void cadence_uart_reset_hold(Object *obj, ResetType type)
 {
     CadenceUARTState *s = CADENCE_UART(obj);
 

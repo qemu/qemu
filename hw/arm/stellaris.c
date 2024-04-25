@@ -394,7 +394,7 @@ static void stellaris_sys_reset_enter(Object *obj, ResetType type)
     s->dcgc[0] = 1;
 }
 
-static void stellaris_sys_reset_hold(Object *obj)
+static void stellaris_sys_reset_hold(Object *obj, ResetType type)
 {
     ssys_state *s = STELLARIS_SYS(obj);
 
@@ -402,7 +402,7 @@ static void stellaris_sys_reset_hold(Object *obj)
     ssys_calculate_system_clock(s, true);
 }
 
-static void stellaris_sys_reset_exit(Object *obj)
+static void stellaris_sys_reset_exit(Object *obj, ResetType type)
 {
 }
 
@@ -618,7 +618,7 @@ static void stellaris_i2c_reset_enter(Object *obj, ResetType type)
         i2c_end_transfer(s->bus);
 }
 
-static void stellaris_i2c_reset_hold(Object *obj)
+static void stellaris_i2c_reset_hold(Object *obj, ResetType type)
 {
     stellaris_i2c_state *s = STELLARIS_I2C(obj);
 
@@ -631,7 +631,7 @@ static void stellaris_i2c_reset_hold(Object *obj)
     s->mcr = 0;
 }
 
-static void stellaris_i2c_reset_exit(Object *obj)
+static void stellaris_i2c_reset_exit(Object *obj, ResetType type)
 {
     stellaris_i2c_state *s = STELLARIS_I2C(obj);
 
@@ -787,7 +787,7 @@ static void stellaris_adc_trigger(void *opaque, int irq, int level)
     }
 }
 
-static void stellaris_adc_reset_hold(Object *obj)
+static void stellaris_adc_reset_hold(Object *obj, ResetType type)
 {
     StellarisADCState *s = STELLARIS_ADC(obj);
     int n;

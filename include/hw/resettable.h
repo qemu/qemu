@@ -35,6 +35,7 @@ typedef struct ResettableState ResettableState;
  */
 typedef enum ResetType {
     RESET_TYPE_COLD,
+    RESET_TYPE_SNAPSHOT_LOAD,
 } ResetType;
 
 /*
@@ -103,8 +104,8 @@ typedef enum ResetType {
  * the callback.
  */
 typedef void (*ResettableEnterPhase)(Object *obj, ResetType type);
-typedef void (*ResettableHoldPhase)(Object *obj);
-typedef void (*ResettableExitPhase)(Object *obj);
+typedef void (*ResettableHoldPhase)(Object *obj, ResetType type);
+typedef void (*ResettableExitPhase)(Object *obj, ResetType type);
 typedef ResettableState * (*ResettableGetState)(Object *obj);
 typedef void (*ResettableTrFunction)(Object *obj);
 typedef ResettableTrFunction (*ResettableGetTrFunction)(Object *obj);

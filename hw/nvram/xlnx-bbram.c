@@ -417,7 +417,7 @@ static RegisterAccessInfo bbram_ctrl_regs_info[] = {
     }
 };
 
-static void bbram_ctrl_reset_hold(Object *obj)
+static void bbram_ctrl_reset_hold(Object *obj, ResetType type)
 {
     XlnxBBRam *s = XLNX_BBRAM(obj);
     unsigned int i;

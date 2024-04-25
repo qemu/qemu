@@ -65,7 +65,7 @@
 
 #define NUM_LINES_PER_EXTICR_REG 4
 
-static void stm32l4x5_syscfg_hold_reset(Object *obj)
+static void stm32l4x5_syscfg_hold_reset(Object *obj, ResetType type)
 {
     Stm32l4x5SyscfgState *s = STM32L4X5_SYSCFG(obj);
 

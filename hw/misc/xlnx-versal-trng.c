@@ -632,7 +632,7 @@ static void trng_unrealize(DeviceState *dev)
     s->prng = NULL;
 }
 
-static void trng_reset_hold(Object *obj)
+static void trng_reset_hold(Object *obj, ResetType type)
 {
     trng_reset(XLNX_VERSAL_TRNG(obj));
 }

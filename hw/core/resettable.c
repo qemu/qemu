@@ -48,8 +48,6 @@ void resettable_reset(Object *obj, ResetType type)
 
 void resettable_assert_reset(Object *obj, ResetType type)
 {
-    /* TODO: change this assert when adding support for other reset types */
-    assert(type == RESET_TYPE_COLD);
     trace_resettable_reset_assert_begin(obj, type);
     assert(!enter_phase_in_progress);
 
@@ -64,8 +62,6 @@ void resettable_assert_reset(Object *obj, ResetType type)
 
 void resettable_release_reset(Object *obj, ResetType type)
 {
-    /* TODO: change this assert when adding support for other reset types */
-    assert(type == RESET_TYPE_COLD);
     trace_resettable_reset_release_begin(obj, type);
     assert(!enter_phase_in_progress);
 
@@ -181,7 +177,7 @@ static void resettable_phase_hold(Object *obj, void *opaque, ResetType type)
             trace_resettable_transitional_function(obj, obj_typename);
             tr_func(obj);
         } else if (rc->phases.hold) {
-            rc->phases.hold(obj);
+            rc->phases.hold(obj, type);
         }
     }
     trace_resettable_phase_hold_end(obj, obj_typename, s->count);
@@ -204,7 +200,7 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type)
     if (--s->count == 0) {
         trace_resettable_phase_exit_exec(obj, obj_typename, !!rc->phases.exit);
         if (rc->phases.exit && !resettable_get_tr_func(rc, obj)) {
-            rc->phases.exit(obj);
+            rc->phases.exit(obj, type);
         }
     }
     s->exit_phase_in_progress = false;

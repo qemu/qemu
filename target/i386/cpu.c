@@ -6830,7 +6830,7 @@ static void x86_cpu_set_sgxlepubkeyhash(CPUX86State *env)
 #endif
 }
 
-static void x86_cpu_reset_hold(Object *obj)
+static void x86_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
     X86CPU *cpu = X86_CPU(cs);
@@ -6841,7 +6841,7 @@ static void x86_cpu_reset_hold(Object *obj)
     int i;
 
     if (xcc->parent_phases.hold) {
-        xcc->parent_phases.hold(obj);
+        xcc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUX86State, end_reset_fields));

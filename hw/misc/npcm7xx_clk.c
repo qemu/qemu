@@ -873,20 +873,13 @@ static void npcm7xx_clk_enter_reset(Object *obj, ResetType type)
 
     QEMU_BUILD_BUG_ON(sizeof(s->regs) != sizeof(cold_reset_values));
 
-    switch (type) {
-    case RESET_TYPE_COLD:
-        memcpy(s->regs, cold_reset_values, sizeof(cold_reset_values));
-        s->ref_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        npcm7xx_clk_update_all_clocks(s);
-        return;
-    }
-
+    memcpy(s->regs, cold_reset_values, sizeof(cold_reset_values));
+    s->ref_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    npcm7xx_clk_update_all_clocks(s);
     /*
      * A small number of registers need to be reset on a core domain reset,
      * but no such reset type exists yet.
      */
-    qemu_log_mask(LOG_UNIMP, "%s: reset type %d not implemented.",
-                  __func__, type);
 }
 
 static void npcm7xx_clk_init_clock_hierarchy(NPCM7xxCLKState *s)

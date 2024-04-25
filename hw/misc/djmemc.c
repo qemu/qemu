@@ -96,7 +96,7 @@ static void djmemc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->mem_regs);
 }
 
-static void djmemc_reset_hold(Object *obj)
+static void djmemc_reset_hold(Object *obj, ResetType type)
 {
     DJMEMCState *s = DJMEMC(obj);
 

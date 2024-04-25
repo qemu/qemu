@@ -191,7 +191,7 @@ static void crf_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void crf_reset_hold(Object *obj)
+static void crf_reset_hold(Object *obj, ResetType type)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(obj);
     ir_update_irq(s);
