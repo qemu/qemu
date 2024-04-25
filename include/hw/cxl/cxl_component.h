@@ -273,7 +273,7 @@ hwaddr cxl_decode_ig(int ig);
 CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb);
 bool cxl_get_hb_passthrough(PCIHostState *hb);
 
-void cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp);
+bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp);
 void cxl_doe_cdat_release(CXLComponentState *cxl_cstate);
 void cxl_doe_cdat_update(CXLComponentState *cxl_cstate, Error **errp);
 

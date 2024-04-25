@@ -742,6 +742,9 @@ static QemuOptsList qemu_smp_opts = {
             .name = "clusters",
             .type = QEMU_OPT_NUMBER,
         }, {
+            .name = "modules",
+            .type = QEMU_OPT_NUMBER,
+        }, {
             .name = "cores",
             .type = QEMU_OPT_NUMBER,
         }, {

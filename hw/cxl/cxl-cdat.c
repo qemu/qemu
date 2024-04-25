@@ -44,7 +44,7 @@ static void cdat_len_check(CDATSubHeader *hdr, Error **errp)
     }
 }
 
-static void ct3_build_cdat(CDATObject *cdat, Error **errp)
+static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
 {
     g_autofree CDATTableHeader *cdat_header = NULL;
     g_autofree CDATEntry *cdat_st = NULL;
@@ -58,7 +58,7 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat_header = g_malloc0(sizeof(*cdat_header));
     if (!cdat_header) {
         error_setg(errp, "Failed to allocate CDAT header");
-        return;
+        return false;
     }
 
     cdat->built_buf_len = cdat->build_cdat_table(&cdat->built_buf,
@@ -67,14 +67,14 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     if (cdat->built_buf_len <= 0) {
         /* Build later as not all data available yet */
         cdat->to_update = true;
-        return;
+        return true;
     }
     cdat->to_update = false;
 
     cdat_st = g_malloc0(sizeof(*cdat_st) * (cdat->built_buf_len + 1));
     if (!cdat_st) {
         error_setg(errp, "Failed to allocate CDAT entry array");
-        return;
+        return false;
     }
 
     /* Entry 0 for CDAT header, starts with Entry 1 */
@@ -109,9 +109,10 @@ static void ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat_st[0].length = sizeof(*cdat_header);
     cdat->entry_len = 1 + cdat->built_buf_len;
     cdat->entry = g_steal_pointer(&cdat_st);
+    return true;
 }
 
-static void ct3_load_cdat(CDATObject *cdat, Error **errp)
+static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
 {
     g_autofree CDATEntry *cdat_st = NULL;
     g_autofree uint8_t *buf = NULL;
@@ -127,11 +128,11 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
                              &file_size, &error)) {
         error_setg(errp, "CDAT: File read failed: %s", error->message);
         g_error_free(error);
-        return;
+        return false;
     }
     if (file_size < sizeof(CDATTableHeader)) {
         error_setg(errp, "CDAT: File too short");
-        return;
+        return false;
     }
     i = sizeof(CDATTableHeader);
     num_ent = 1;
@@ -139,19 +140,19 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
         hdr = (CDATSubHeader *)(buf + i);
         if (i + sizeof(CDATSubHeader) > file_size) {
             error_setg(errp, "CDAT: Truncated table");
-            return;
+            return false;
         }
         cdat_len_check(hdr, errp);
         i += hdr->length;
         if (i > file_size) {
             error_setg(errp, "CDAT: Truncated table");
-            return;
+            return false;
         }
         num_ent++;
     }
     if (i != file_size) {
         error_setg(errp, "CDAT: File length mismatch");
-        return;
+        return false;
     }
 
     cdat_st = g_new0(CDATEntry, num_ent);
@@ -185,16 +186,17 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
     cdat->entry_len = num_ent;
     cdat->entry = g_steal_pointer(&cdat_st);
     cdat->buf = g_steal_pointer(&buf);
+    return true;
 }
 
-void cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
+bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
 {
     CDATObject *cdat = &cxl_cstate->cdat;
 
     if (cdat->filename) {
-        ct3_load_cdat(cdat, errp);
+        return ct3_load_cdat(cdat, errp);
     } else {
-        ct3_build_cdat(cdat, errp);
+        return ct3_build_cdat(cdat, errp);
     }
 }
 

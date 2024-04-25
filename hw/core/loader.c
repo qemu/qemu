@@ -305,7 +305,7 @@ static void *load_at(int fd, off_t offset, size_t size)
 #define elf_word        uint32_t
 #define elf_sword       int32_t
 #define bswapSZs        bswap32s
-#include "hw/elf_ops.h"
+#include "hw/elf_ops.h.inc"
 
 #undef elfhdr
 #undef elf_phdr
@@ -327,7 +327,7 @@ static void *load_at(int fd, off_t offset, size_t size)
 #define elf_sword       int64_t
 #define bswapSZs        bswap64s
 #define SZ              64
-#include "hw/elf_ops.h"
+#include "hw/elf_ops.h.inc"
 
 const char *load_elf_strerror(ssize_t error)
 {

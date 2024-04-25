@@ -41,7 +41,7 @@
 static const char *imx_default_reg_name(IMXFECState *s, uint32_t index)
 {
     static char tmp[20];
-    sprintf(tmp, "index %d", index);
+    snprintf(tmp, sizeof(tmp), "index %d", index);
     return tmp;
 }
 
