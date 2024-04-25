@@ -109,7 +109,7 @@ static void setup_vm_cmd(ERSTState *s, const char *cmd)
     g_assert_cmpuint(s->reg_barsize, ==, 16);
 
     s->mem_bar = qpci_iomap(s->dev, 1, &s->mem_barsize);
-    g_assert_cmpuint(s->mem_barsize, ==, 0x2000);
+    g_assert_cmphex(s->mem_barsize, ==, 0x2000);
 
     qpci_device_enable(s->dev);
 }

@@ -88,7 +88,7 @@ static void test_clock_change(void)
 
     /* Rewrite RCC.SYSDIV from 16 to 8, so the clock is now 40ns per tick */
     rcc = readl(SSYS_BASE + RCC);
-    g_assert_cmpuint(extract32(rcc, SYSDIV_SHIFT, SYSDIV_LENGTH), ==, 0xf);
+    g_assert_cmphex(extract32(rcc, SYSDIV_SHIFT, SYSDIV_LENGTH), ==, 0xf);
     rcc = deposit32(rcc, SYSDIV_SHIFT, SYSDIV_LENGTH, 7);
     writel(SSYS_BASE + RCC, rcc);
 

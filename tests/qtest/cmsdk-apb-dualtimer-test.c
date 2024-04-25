@@ -69,7 +69,7 @@ static void test_dualtimer(void)
      * tick VALUE should have wrapped round to 0xffff.
      */
     clock_step(40);
-    g_assert_cmpuint(readl(TIMER_BASE + TIMER1VALUE), ==, 0xffff);
+    g_assert_cmphex(readl(TIMER_BASE + TIMER1VALUE), ==, 0xffff);
 
     /* Check that any write to INTCLR clears interrupt */
     writel(TIMER_BASE + TIMER1INTCLR, 1);

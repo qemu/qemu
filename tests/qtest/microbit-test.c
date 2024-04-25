@@ -143,14 +143,14 @@ static void test_microbit_i2c(void)
 
     /* MMA8653 magnetometer detection */
     val = i2c_read_byte(qts, 0x3A, 0x0D);
-    g_assert_cmpuint(val, ==, 0x5A);
+    g_assert_cmphex(val, ==, 0x5A);
 
     val = i2c_read_byte(qts, 0x3A, 0x0D);
-    g_assert_cmpuint(val, ==, 0x5A);
+    g_assert_cmphex(val, ==, 0x5A);
 
     /* LSM303 accelerometer detection */
     val = i2c_read_byte(qts, 0x3C, 0x4F);
-    g_assert_cmpuint(val, ==, 0x40);
+    g_assert_cmphex(val, ==, 0x40);
 
     qtest_writel(qts, NRF51_TWI_BASE + NRF51_TWI_REG_ENABLE, 0);
 
@@ -171,7 +171,7 @@ static void fill_and_erase(QTestState *qts, hwaddr base, hwaddr size,
 
     /* Check memory */
     for (i = 0; i < size / 4; i++) {
-        g_assert_cmpuint(qtest_readl(qts, base + i * 4), ==, 0xFFFFFFFF);
+        g_assert_cmphex(qtest_readl(qts, base + i * 4), ==, 0xFFFFFFFF);
     }
 
     /* Fill memory */
@@ -191,7 +191,7 @@ static void test_nrf51_nvmc(void)
 
     /* Test always ready */
     value = qtest_readl(qts, NRF51_NVMC_BASE + NRF51_NVMC_READY);
-    g_assert_cmpuint(value & 0x01, ==, 0x01);
+    g_assert_cmphex(value & 0x01, ==, 0x01);
 
     /* Test write-read config register */
     qtest_writel(qts, NRF51_NVMC_BASE + NRF51_NVMC_CONFIG, 0x03);
@@ -302,19 +302,19 @@ static void test_nrf51_gpio(void)
     g_assert_cmpuint(actual, ==, expected);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START)
              & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_END) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
 
     /* Check clear via DIRCLR */
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_DIRCLR, 0x80000001);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_DIR);
-    g_assert_cmpuint(actual, ==, 0x00000000);
+    g_assert_cmphex(actual, ==, 0x00000000);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START)
              & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_END) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
 
     /* Check set via DIR */
     expected = 0x80000001;
@@ -323,9 +323,9 @@ static void test_nrf51_gpio(void)
     g_assert_cmpuint(actual, ==, expected);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START)
              & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_END) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
 
     /* Reset DIR */
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_DIR, 0x00000000);
@@ -334,33 +334,33 @@ static void test_nrf51_gpio(void)
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0x00);
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 0);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 1);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, -1);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0x02);
 
     /* Check pull-up working */
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 0);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0b0000);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0b1110);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0x02);
 
     /* Check pull-down working */
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, 1);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0b0000);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0b0110);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0x02);
     qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", 0, -1);
 
@@ -376,11 +376,11 @@ static void test_nrf51_gpio(void)
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_CNF_START, 0b01);
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_OUTSET, 0x01);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x01);
+    g_assert_cmphex(actual, ==, 0x01);
 
     qtest_writel(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_OUTCLR, 0x01);
     actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN) & 0x01;
-    g_assert_cmpuint(actual, ==, 0x00);
+    g_assert_cmphex(actual, ==, 0x00);
 
     /*
      * Check short-circuit - generates an guest_error which must be checked
@@ -410,7 +410,7 @@ static void test_nrf51_gpio_detect(void)
         /* Set pin high */
         qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", i, 1);
         uint32_t actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN);
-        g_assert_cmpuint(actual, ==, 1 << i);
+        g_assert_cmphex(actual, ==, 1 << i);
 
         /* Check that DETECT is high */
         g_assert_true(qtest_get_irq(qts, 0));
@@ -418,7 +418,7 @@ static void test_nrf51_gpio_detect(void)
         /* Set pin low, check that DETECT goes low. */
         qtest_set_irq_in(qts, "/machine/nrf51", "unnamed-gpio-in", i, 0);
         actual = qtest_readl(qts, NRF51_GPIO_BASE + NRF51_GPIO_REG_IN);
-        g_assert_cmpuint(actual, ==, 0x0);
+        g_assert_cmphex(actual, ==, 0x0);
         g_assert_false(qtest_get_irq(qts, 0));
     }
 

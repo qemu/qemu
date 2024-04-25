@@ -158,7 +158,7 @@ static void test_ivshmem_single(void)
 
     /* trigger interrupt via registers */
     out_reg(s, INTRMASK, 0xffffffff);
-    g_assert_cmpuint(in_reg(s, INTRMASK), ==, 0xffffffff);
+    g_assert_cmphex(in_reg(s, INTRMASK), ==, 0xffffffff);
     out_reg(s, INTRSTATUS, 1);
     /* check interrupt status */
     g_assert_cmpuint(in_reg(s, INTRSTATUS), ==, 1);
@@ -211,11 +211,11 @@ static void test_ivshmem_pair(void)
     memset(tmpshmem, 0x42, TMPSHMSIZE);
     read_mem(s1, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
-        g_assert_cmpuint(data[i], ==, 0x42);
+        g_assert_cmphex(data[i], ==, 0x42);
     }
     read_mem(s2, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
-        g_assert_cmpuint(data[i], ==, 0x42);
+        g_assert_cmphex(data[i], ==, 0x42);
     }
 
     /* guest 1 write, guest 2 read */
@@ -224,7 +224,7 @@ static void test_ivshmem_pair(void)
     memset(data, 0, TMPSHMSIZE);
     read_mem(s2, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
-        g_assert_cmpuint(data[i], ==, 0x43);
+        g_assert_cmphex(data[i], ==, 0x43);
     }
 
     /* guest 2 write, guest 1 read */
@@ -233,7 +233,7 @@ static void test_ivshmem_pair(void)
     memset(data, 0, TMPSHMSIZE);
     read_mem(s1, 0, data, TMPSHMSIZE);
     for (i = 0; i < TMPSHMSIZE; i++) {
-        g_assert_cmpuint(data[i], ==, 0x44);
+        g_assert_cmphex(data[i], ==, 0x44);
     }
 
     cleanup_vm(s1);

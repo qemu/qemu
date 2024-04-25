@@ -1,5 +1,5 @@
 os: linux
-dist: focal
+dist: jammy
 language: c
 compiler:
   - gcc
@@ -7,13 +7,11 @@ cache:
   # There is one cache per branch and compiler version.
   # characteristics of each job are used to identify the cache:
   # - OS name (currently only linux)
-  # - OS distribution (for Linux, bionic or focal)
+  # - OS distribution (e.g. "jammy" for Linux)
   # - Names and values of visible environment variables set in .travis.yml or Settings panel
   timeout: 1200
   ccache: true
   pip: true
-  directories:
-  - $HOME/avocado/data/cache
 
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
@@ -83,7 +81,6 @@ jobs:
 
     - name: "[aarch64] GCC check-tcg"
       arch: arm64
-      dist: focal
       addons:
         apt_packages:
           - libaio-dev
@@ -115,11 +112,10 @@ jobs:
         - TEST_CMD="make check check-tcg V=1"
         - CONFIG="--disable-containers --enable-fdt=system
                   --target-list=${MAIN_SYSTEM_TARGETS} --cxx=/bin/false"
-        - UNRELIABLE=true
 
-    - name: "[ppc64] GCC check-tcg"
+    - name: "[ppc64] Clang check-tcg"
       arch: ppc64le
-      dist: focal
+      compiler: clang
       addons:
         apt_packages:
           - libaio-dev
@@ -154,7 +150,6 @@ jobs:
 
     - name: "[s390x] GCC check-tcg"
       arch: s390x
-      dist: focal
       addons:
         apt_packages:
           - libaio-dev
@@ -186,7 +181,6 @@ jobs:
         - TEST_CMD="make check check-tcg V=1"
         - CONFIG="--disable-containers
             --target-list=hppa-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
-        - UNRELIABLE=true
       script:
         - BUILD_RC=0 && make -j${JOBS} || BUILD_RC=$?
         - |
@@ -197,9 +191,9 @@ jobs:
               $(exit $BUILD_RC);
           fi
 
-    - name: "[s390x] GCC (other-system)"
+    - name: "[s390x] Clang (other-system)"
       arch: s390x
-      dist: focal
+      compiler: clang
       addons:
         apt_packages:
           - libaio-dev
@@ -229,7 +223,6 @@ jobs:
 
     - name: "[s390x] GCC (user)"
       arch: s390x
-      dist: focal
       addons:
         apt_packages:
           - libgcrypt20-dev
@@ -244,8 +237,7 @@ jobs:
 
     - name: "[s390x] Clang (disable-tcg)"
       arch: s390x
-      dist: focal
-      compiler: clang-10
+      compiler: clang
       addons:
         apt_packages:
           - libaio-dev
@@ -271,9 +263,7 @@ jobs:
           - libvdeplug-dev
           - libvte-2.91-dev
           - ninja-build
-          - clang-10
       env:
         - TEST_CMD="make check-unit"
         - CONFIG="--disable-containers --disable-tcg --enable-kvm --disable-tools
                   --enable-fdt=system --host-cc=clang --cxx=clang++"
-        - UNRELIABLE=true

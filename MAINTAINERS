@@ -3805,7 +3805,7 @@ F: block/vmdk.c
 
 RBD
 M: Ilya Dryomov <idryomov@gmail.com>
-R: Peter Lieven <pl@kamp.de>
+R: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
@@ -3831,7 +3831,7 @@ F: block/blkio.c
 iSCSI
 M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
-M: Peter Lieven <pl@kamp.de>
+M: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Odd Fixes
 F: block/iscsi.c
@@ -3854,7 +3854,7 @@ T: git https://repo.or.cz/qemu/ericb.git nbd
 T: git https://gitlab.com/vsementsov/qemu.git block
 
 NFS
-M: Peter Lieven <pl@kamp.de>
+M: Peter Lieven <pl@dlhnet.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c

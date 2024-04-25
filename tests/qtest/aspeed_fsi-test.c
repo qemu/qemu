@@ -63,22 +63,22 @@ static void test_fsi_setup(QTestState *s, uint32_t base_addr)
         /* Unselect FSI1 */
         aspeed_fsi_writel(s, ASPEED_FSI_OPB1_BUS_SELECT, 0x0);
         curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB1_BUS_SELECT);
-        g_assert_cmpuint(curval, ==, 0x0);
+        g_assert_cmphex(curval, ==, 0x0);
 
         /* Select FSI0 */
         aspeed_fsi_writel(s, ASPEED_FSI_OPB0_BUS_SELECT, 0x1);
         curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB0_BUS_SELECT);
-        g_assert_cmpuint(curval, ==, 0x1);
+        g_assert_cmphex(curval, ==, 0x1);
     } else if (base_addr == AST2600_OPB_FSI1_BASE_ADDR) {
         /* Unselect FSI0 */
         aspeed_fsi_writel(s, ASPEED_FSI_OPB0_BUS_SELECT, 0x0);
         curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB0_BUS_SELECT);
-        g_assert_cmpuint(curval, ==, 0x0);
+        g_assert_cmphex(curval, ==, 0x0);
 
         /* Select FSI1 */
         aspeed_fsi_writel(s, ASPEED_FSI_OPB1_BUS_SELECT, 0x1);
         curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB1_BUS_SELECT);
-        g_assert_cmpuint(curval, ==, 0x1);
+        g_assert_cmphex(curval, ==, 0x1);
     } else {
         g_assert_not_reached();
     }
@@ -145,11 +145,11 @@ static void test_fsi0_getcfam_addr0(const void *data)
     aspeed_fsi_writel(s, ASPEED_FSI_ENGINER_TRIGGER, 0x1);
 
     curval = aspeed_fsi_readl(s, ASPEED_FSI_INTRRUPT_STATUS);
-    g_assert_cmpuint(curval, ==, 0x10000);
+    g_assert_cmphex(curval, ==, 0x10000);
     curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB0_BUS_STATUS);
-    g_assert_cmpuint(curval, ==, 0x0);
+    g_assert_cmphex(curval, ==, 0x0);
     curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB0_READ_DATA);
-    g_assert_cmpuint(curval, ==, 0x152d02c0);
+    g_assert_cmphex(curval, ==, 0x152d02c0);
 }
 
 static void test_fsi1_getcfam_addr0(const void *data)
@@ -168,11 +168,11 @@ static void test_fsi1_getcfam_addr0(const void *data)
     aspeed_fsi_writel(s, ASPEED_FSI_ENGINER_TRIGGER, 0x1);
 
     curval = aspeed_fsi_readl(s, ASPEED_FSI_INTRRUPT_STATUS);
-    g_assert_cmpuint(curval, ==, 0x20000);
+    g_assert_cmphex(curval, ==, 0x20000);
     curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB1_BUS_STATUS);
-    g_assert_cmpuint(curval, ==, 0x0);
+    g_assert_cmphex(curval, ==, 0x0);
     curval = aspeed_fsi_readl(s, ASPEED_FSI_OPB1_READ_DATA);
-    g_assert_cmpuint(curval, ==, 0x152d02c0);
+    g_assert_cmphex(curval, ==, 0x152d02c0);
 }
 
 int main(int argc, char **argv)
