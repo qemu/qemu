@@ -33,6 +33,7 @@
 #include "sysemu/dma.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "stdio.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
