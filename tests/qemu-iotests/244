@@ -215,9 +215,22 @@ $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
 $QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
 
 # blkdebug doesn't support copy offloading, so this tests the error path
-$QEMU_IMG amend -f $IMGFMT -o "data_file=blkdebug::$TEST_IMG.data" "$TEST_IMG"
-$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
-$QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
+test_img_with_blkdebug="json:{
+    'driver': 'qcow2',
+    'file': {
+        'driver': 'file',
+        'filename': '$TEST_IMG'
+    },
+    'data-file': {
+        'driver': 'blkdebug',
+        'image': {
+            'driver': 'file',
+            'filename': '$TEST_IMG.data'
+        }
+    }
+}"
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$test_img_with_blkdebug"
+$QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$test_img_with_blkdebug"
 
 echo
 echo "=== Flushing should flush the data file ==="
