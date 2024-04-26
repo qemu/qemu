@@ -543,6 +543,7 @@ static void create_wdt(const SBSAMachineState *sms)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     int irq = sbsa_ref_irqmap[SBSA_GWDT_WS0];
 
+    qdev_prop_set_uint64(dev, "clock-frequency", SBSA_GTIMER_HZ);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, rbase);
     sysbus_mmio_map(s, 1, cbase);
