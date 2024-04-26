@@ -727,7 +727,6 @@ static void loongarch_init(MachineState *machine)
     int nb_numa_nodes = machine->numa_state->num_nodes;
     NodeInfo *numa_info = machine->numa_state->nodes;
     int i;
-    hwaddr fdt_base;
     const CPUArchIdList *possible_cpus;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CPUState *cpu;
@@ -857,12 +856,11 @@ static void loongarch_init(MachineState *machine)
      * Put the FDT into the memory map as a ROM image: this will ensure
      * the FDT is copied again upon reset, even if addr points into RAM.
      */
-    fdt_base = 1 * MiB;
     qemu_fdt_dumpdtb(machine->fdt, lams->fdt_size);
-    rom_add_blob_fixed_as("fdt", machine->fdt, lams->fdt_size, fdt_base,
+    rom_add_blob_fixed_as("fdt", machine->fdt, lams->fdt_size, FDT_BASE,
                           &address_space_memory);
     qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
-            rom_ptr_for_as(&address_space_memory, fdt_base, lams->fdt_size));
+            rom_ptr_for_as(&address_space_memory, FDT_BASE, lams->fdt_size));
 
     lams->bootinfo.ram_size = ram_size;
     loongarch_load_kernel(machine, &lams->bootinfo);

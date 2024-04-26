@@ -35,6 +35,8 @@
 
 #define COMMAND_LINE_SIZE       512
 
+#define FDT_BASE                0x100000
+
 extern struct memmap_entry *memmap_table;
 extern unsigned memmap_entries;
 
