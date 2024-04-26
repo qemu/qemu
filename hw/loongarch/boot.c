@@ -63,6 +63,16 @@ static const unsigned int slave_boot_code[] = {
     0x4c000020,   /* jirl       $zero, $ra,0                   */
 };
 
+static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
+{
+    hwaddr cmdline_addr = p - start;
+
+    info->a0 = 1;
+    info->a1 = cmdline_addr;
+
+    memcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
+}
+
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 {
     return addr & MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS);
@@ -121,6 +131,10 @@ static void reset_load_elf(void *opaque)
 
     cpu_reset(CPU(cpu));
     if (env->load_elf) {
+	if (cpu == LOONGARCH_CPU(first_cpu)) {
+            env->gpr[4] = env->boot_info->a0;
+            env->gpr[5] = env->boot_info->a1;
+        }
         cpu_set_pc(CPU(cpu), env->elf_address);
     }
 }
@@ -158,8 +172,17 @@ static void loongarch_firmware_boot(LoongArchMachineState *lams,
     fw_cfg_add_kernel_info(info, lams->fw_cfg);
 }
 
+static void init_boot_rom(struct loongarch_boot_info *info, void *p)
+{
+    void *start = p;
+
+    init_cmdline(info, p, start);
+    p += COMMAND_LINE_SIZE;
+}
+
 static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 {
+    void *p, *bp;
     int64_t kernel_addr = 0;
     LoongArchCPU *lacpu;
     CPUState *cs;
@@ -172,6 +195,12 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
             exit(1);
         }
     }
+
+    /* Load cmdline and system tables at [0 - 1 MiB] */
+    p = g_malloc0(1 * MiB);
+    bp = p;
+    init_boot_rom(info, p);
+    rom_add_blob_fixed_as("boot_info", bp, 1 * MiB, 0, &address_space_memory);
 
     /* Load slave boot code at pflash0 . */
     void *boot_code = g_malloc0(VIRT_FLASH0_SIZE);
@@ -190,6 +219,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
     }
 
     g_free(boot_code);
+    g_free(bp);
 }
 
 void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info)
