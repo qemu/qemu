@@ -352,7 +352,62 @@ static void fdt_add_fw_cfg_node(const LoongArchMachineState *lams)
     g_free(nodename);
 }
 
-static void fdt_add_pcie_node(const LoongArchMachineState *lams)
+static void fdt_add_pcie_irq_map_node(const LoongArchMachineState *lams,
+                                      char *nodename,
+                                      uint32_t *pch_pic_phandle)
+{
+    int pin, dev;
+    uint32_t irq_map_stride = 0;
+    uint32_t full_irq_map[GPEX_NUM_IRQS *GPEX_NUM_IRQS * 10] = {};
+    uint32_t *irq_map = full_irq_map;
+    const MachineState *ms = MACHINE(lams);
+
+    /* This code creates a standard swizzle of interrupts such that
+     * each device's first interrupt is based on it's PCI_SLOT number.
+     * (See pci_swizzle_map_irq_fn())
+     *
+     * We only need one entry per interrupt in the table (not one per
+     * possible slot) seeing the interrupt-map-mask will allow the table
+     * to wrap to any number of devices.
+     */
+
+    for (dev = 0; dev < GPEX_NUM_IRQS; dev++) {
+        int devfn = dev * 0x8;
+
+        for (pin = 0; pin  < GPEX_NUM_IRQS; pin++) {
+            int irq_nr = 16 + ((pin + PCI_SLOT(devfn)) % GPEX_NUM_IRQS);
+            int i = 0;
+
+            /* Fill PCI address cells */
+            irq_map[i] = cpu_to_be32(devfn << 8);
+            i += 3;
+
+            /* Fill PCI Interrupt cells */
+            irq_map[i] = cpu_to_be32(pin + 1);
+            i += 1;
+
+            /* Fill interrupt controller phandle and cells */
+            irq_map[i++] = cpu_to_be32(*pch_pic_phandle);
+            irq_map[i++] = cpu_to_be32(irq_nr);
+
+            if (!irq_map_stride) {
+                irq_map_stride = i;
+            }
+            irq_map += irq_map_stride;
+        }
+    }
+
+
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-map", full_irq_map,
+                     GPEX_NUM_IRQS * GPEX_NUM_IRQS *
+                     irq_map_stride * sizeof(uint32_t));
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupt-map-mask",
+                     0x1800, 0, 0, 0x7);
+}
+
+static void fdt_add_pcie_node(const LoongArchMachineState *lams,
+                              uint32_t *pch_pic_phandle,
+                              uint32_t *pch_msi_phandle)
 {
     char *nodename;
     hwaddr base_mmio = VIRT_PCI_MEM_BASE;
@@ -383,6 +438,11 @@ static void fdt_add_pcie_node(const LoongArchMachineState *lams)
                                  2, base_pio, 2, size_pio,
                                  1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
                                  2, base_mmio, 2, size_mmio);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "msi-map",
+                           0, *pch_msi_phandle, 0, 0x10000);
+
+    fdt_add_pcie_irq_map_node(lams, nodename, pch_pic_phandle);
+
     g_free(nodename);
 }
 
@@ -542,7 +602,10 @@ static DeviceState *create_platform_bus(DeviceState *pch_pic)
     return dev;
 }
 
-static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *lams)
+static void loongarch_devices_init(DeviceState *pch_pic,
+                                   LoongArchMachineState *lams,
+                                   uint32_t *pch_pic_phandle,
+                                   uint32_t *pch_msi_phandle)
 {
     MachineClass *mc = MACHINE_GET_CLASS(lams);
     DeviceState *gpex_dev;
@@ -587,6 +650,9 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
                            qdev_get_gpio_in(pch_pic, 16 + i));
         gpex_set_irq_num(GPEX_HOST(gpex_dev), i, 16 + i);
     }
+
+    /* Add pcie node */
+    fdt_add_pcie_node(lams, pch_pic_phandle, pch_msi_phandle);
 
     serial_mm_init(get_system_memory(), VIRT_UART_BASE, 0,
                    qdev_get_gpio_in(pch_pic,
@@ -734,7 +800,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     /* Add PCH MSI node */
     fdt_add_pch_msi_node(lams, &eiointc_phandle, &pch_msi_phandle);
 
-    loongarch_devices_init(pch_pic, lams);
+    loongarch_devices_init(pch_pic, lams, &pch_pic_phandle, &pch_msi_phandle);
 }
 
 static void loongarch_firmware_init(LoongArchMachineState *lams)
@@ -956,7 +1022,6 @@ static void loongarch_init(MachineState *machine)
     lams->powerdown_notifier.notify = virt_powerdown_req;
     qemu_register_powerdown_notifier(&lams->powerdown_notifier);
 
-    fdt_add_pcie_node(lams);
     /*
      * Since lowmem region starts from 0 and Linux kernel legacy start address
      * at 2 MiB, FDT base address is located at 1 MiB to avoid NULL pointer
