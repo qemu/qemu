@@ -30,6 +30,10 @@ typedef struct {
         EFI_GUID(0x800f683f, 0xd08b, 0x423a,  0xa2, 0x93, \
                  0x96, 0x5c, 0x3c, 0x6f, 0xe2, 0xb4)
 
+#define LINUX_EFI_INITRD_MEDIA_GUID \
+        EFI_GUID(0x5568e427, 0x68fc, 0x4f3d,  0xac, 0x74, \
+                 0xca, 0x55, 0x52, 0x31, 0xcc, 0x68)
+
 struct efi_config_table {
     efi_guid_t guid;
     uint64_t *ptr;
@@ -81,6 +85,11 @@ struct efi_boot_memmap {
     uint64_t map_key;
     uint64_t buff_size;
     efi_memory_desc_t map[32];
+};
+
+struct efi_initrd {
+    uint64_t base;
+    uint64_t size;
 };
 
 struct loongarch_boot_info {
