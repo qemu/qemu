@@ -15,6 +15,54 @@
 #include "sysemu/reset.h"
 #include "sysemu/qtest.h"
 
+static const unsigned int slave_boot_code[] = {
+                  /* Configure reset ebase.                    */
+    0x0400302c,   /* csrwr      $t0, LOONGARCH_CSR_EENTRY      */
+
+                  /* Disable interrupt.                        */
+    0x0380100c,   /* ori        $t0, $zero,0x4                 */
+    0x04000180,   /* csrxchg    $zero, $t0, LOONGARCH_CSR_CRMD */
+
+                  /* Clear mailbox.                            */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20  */
+    0x06481da0,   /* iocsrwr.d  $zero, $t1                     */
+
+                  /* Enable IPI interrupt.                     */
+    0x1400002c,   /* lu12i.w    $t0, 1(0x1)                    */
+    0x0400118c,   /* csrxchg    $t0, $t0, LOONGARCH_CSR_ECFG   */
+    0x02fffc0c,   /* addi.d     $t0, $r0,-1(0xfff)             */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x038011ad,   /* ori        $t1, $t1, CORE_EN_OFF          */
+    0x064819ac,   /* iocsrwr.w  $t0, $t1                       */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20          */
+
+                  /* Wait for wakeup  <.L11>:                  */
+    0x06488000,   /* idle       0x0                            */
+    0x03400000,   /* andi       $zero, $zero, 0x0              */
+    0x064809ac,   /* iocsrrd.w  $t0, $t1                       */
+    0x43fff59f,   /* beqz       $t0, -12(0x7ffff4) # 48 <.L11> */
+
+                  /* Read and clear IPI interrupt.             */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x064809ac,   /* iocsrrd.w  $t0, $t1                       */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x038031ad,   /* ori        $t1, $t1, CORE_CLEAR_OFF       */
+    0x064819ac,   /* iocsrwr.w  $t0, $t1                       */
+
+                  /* Disable  IPI interrupt.                   */
+    0x1400002c,   /* lu12i.w    $t0, 1(0x1)                    */
+    0x04001180,   /* csrxchg    $zero, $t0, LOONGARCH_CSR_ECFG */
+
+                  /* Read mail buf and jump to specified entry */
+    0x1400002d,   /* lu12i.w    $t1, 1(0x1)                    */
+    0x038081ad,   /* ori        $t1, $t1, CORE_BUF_20          */
+    0x06480dac,   /* iocsrrd.d  $t0, $t1                       */
+    0x00150181,   /* move       $ra, $t0                       */
+    0x4c000020,   /* jirl       $zero, $ra,0                   */
+};
+
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
 {
     return addr & MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS);
@@ -125,11 +173,23 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
         }
     }
 
+    /* Load slave boot code at pflash0 . */
+    void *boot_code = g_malloc0(VIRT_FLASH0_SIZE);
+    memcpy(boot_code, &slave_boot_code, sizeof(slave_boot_code));
+    rom_add_blob_fixed("boot_code", boot_code, VIRT_FLASH0_SIZE, VIRT_FLASH0_BASE);
+
     CPU_FOREACH(cs) {
         lacpu = LOONGARCH_CPU(cs);
         lacpu->env.load_elf = true;
-        lacpu->env.elf_address = kernel_addr;
+        if (cs == first_cpu) {
+            lacpu->env.elf_address = kernel_addr;
+        } else {
+            lacpu->env.elf_address = VIRT_FLASH0_BASE;
+        }
+        lacpu->env.boot_info = info;
     }
+
+    g_free(boot_code);
 }
 
 void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info)
