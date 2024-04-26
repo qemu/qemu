@@ -25,6 +25,7 @@
 #define VIRT_IOAPIC_REG_BASE     (VIRT_PCH_REG_BASE)
 #define VIRT_PCH_MSI_ADDR_LOW    0x2FF00000UL
 #define VIRT_PCH_REG_SIZE        0x400
+#define VIRT_PCH_MSI_SIZE        0x8
 
 /*
  * GSI_BASE is hard-coded with 64 in linux kernel, else kernel fails to boot
