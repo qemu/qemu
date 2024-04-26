@@ -60,6 +60,19 @@
 #define NUM_SMMU_IRQS   4
 #define NUM_SATA_PORTS  6
 
+/*
+ * Generic timer frequency in Hz (which drives both the CPU generic timers
+ * and the SBSA watchdog-timer). Older versions of the TF-A firmware
+ * typically used with sbsa-ref (including the binaries in our Avocado test
+ * Aarch64SbsarefMachine.test_sbsaref_alpine_linux_max_pauth_impdef
+ * assume it is this value.
+ *
+ * TODO: this value is not architecturally correct for an Armv8.6 or
+ * better CPU, so we should move to 1GHz once the TF-A fix above has
+ * made it into a release and into our Avocado test.
+ */
+#define SBSA_GTIMER_HZ 62500000
+
 enum {
     SBSA_FLASH,
     SBSA_MEM,
@@ -766,6 +779,8 @@ static void sbsa_ref_init(MachineState *machine)
                                     sbsa_ref_memmap[SBSA_CPUPERIPHS].base,
                                     &error_abort);
         }
+
+        object_property_set_int(cpuobj, "cntfrq", SBSA_GTIMER_HZ, &error_abort);
 
         object_property_set_link(cpuobj, "memory", OBJECT(sysmem),
                                  &error_abort);
