@@ -9,8 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "host/load-extract-al16-al8.h"
-#include "host/store-insert-al16.h"
+#include "host/load-extract-al16-al8.h.inc"
+#include "host/store-insert-al16.h.inc"
 
 #ifdef CONFIG_ATOMIC64
 # define HAVE_al8          true

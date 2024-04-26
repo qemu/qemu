@@ -12,8 +12,12 @@
 #ifndef _GDBSTUB_HELPERS_H_
 #define _GDBSTUB_HELPERS_H_
 
-#ifdef NEED_CPU_H
-#include "cpu.h"
+#ifndef COMPILING_PER_TARGET
+#error "gdbstub helpers should only be included by target specific code"
+#endif
+
+#include "exec/tswap.h"
+#include "cpu-param.h"
 
 /*
  * The GDB remote protocol transfers values in target byte order. As
@@ -94,10 +98,6 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 #else
 #define gdb_get_regl(buf, val) gdb_get_reg32(buf, val)
 #define ldtul_p(addr) ldl_p(addr)
-#endif
-
-#else
-#error "gdbstub helpers should only be included by target specific code"
 #endif
 
 #endif /* _GDBSTUB_HELPERS_H_ */

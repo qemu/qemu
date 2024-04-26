@@ -22,9 +22,14 @@
 
 #include "exec/cpu-common.h"
 
+#ifdef CONFIG_TCG
+
 #if !defined(CONFIG_USER_ONLY)
 /* cputlb.c */
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
 #endif
+
+#endif /* CONFIG_TCG */
+
 #endif
