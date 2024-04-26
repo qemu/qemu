@@ -63,6 +63,25 @@ static const unsigned int slave_boot_code[] = {
     0x4c000020,   /* jirl       $zero, $ra,0                   */
 };
 
+static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
+{
+    struct efi_system_table *systab = p;
+
+    info->a2 = p - start;
+
+    systab->hdr.signature = EFI_SYSTEM_TABLE_SIGNATURE;
+    systab->hdr.revision = EFI_SPECIFICATION_VERSION;
+    systab->hdr.revision = sizeof(struct efi_system_table),
+    systab->fw_revision = FW_VERSION << 16 | FW_PATCHLEVEL << 8;
+    systab->runtime = 0;
+    systab->boottime = 0;
+    systab->nr_tables = 0;
+
+    p += ROUND_UP(sizeof(struct efi_system_table), 64 * KiB);
+
+    systab->tables = p;
+}
+
 static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
 {
     hwaddr cmdline_addr = p - start;
@@ -134,6 +153,7 @@ static void reset_load_elf(void *opaque)
 	if (cpu == LOONGARCH_CPU(first_cpu)) {
             env->gpr[4] = env->boot_info->a0;
             env->gpr[5] = env->boot_info->a1;
+            env->gpr[6] = env->boot_info->a2;
         }
         cpu_set_pc(CPU(cpu), env->elf_address);
     }
@@ -178,6 +198,8 @@ static void init_boot_rom(struct loongarch_boot_info *info, void *p)
 
     init_cmdline(info, p, start);
     p += COMMAND_LINE_SIZE;
+
+    init_systab(info, p, start);
 }
 
 static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
