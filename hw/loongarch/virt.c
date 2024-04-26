@@ -46,14 +46,6 @@
 #include "hw/block/flash.h"
 #include "qemu/error-report.h"
 
-
-struct loaderparams {
-    uint64_t ram_size;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
-};
-
 static PFlashCFI01 *virt_flash_create1(LoongArchMachineState *lams,
                                        const char *name,
                                        const char *alias_prop_name)
@@ -412,31 +404,6 @@ static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
     memmap_entries++;
 }
 
-static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
-{
-    return addr & MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS);
-}
-
-static int64_t load_kernel_info(const struct loaderparams *loaderparams)
-{
-    uint64_t kernel_entry, kernel_low, kernel_high;
-    ssize_t kernel_size;
-
-    kernel_size = load_elf(loaderparams->kernel_filename, NULL,
-                           cpu_loongarch_virt_to_phys, NULL,
-                           &kernel_entry, &kernel_low,
-                           &kernel_high, NULL, 0,
-                           EM_LOONGARCH, 1, 0);
-
-    if (kernel_size < 0) {
-        error_report("could not load kernel '%s': %s",
-                     loaderparams->kernel_filename,
-                     load_elf_strerror(kernel_size));
-        exit(1);
-    }
-    return kernel_entry;
-}
-
 static DeviceState *create_acpi_ged(DeviceState *pch_pic, LoongArchMachineState *lams)
 {
     DeviceState *dev;
@@ -717,67 +684,6 @@ static void loongarch_firmware_init(LoongArchMachineState *lams)
     }
 }
 
-static void reset_load_elf(void *opaque)
-{
-    LoongArchCPU *cpu = opaque;
-    CPULoongArchState *env = &cpu->env;
-
-    cpu_reset(CPU(cpu));
-    if (env->load_elf) {
-        cpu_set_pc(CPU(cpu), env->elf_address);
-    }
-}
-
-static void fw_cfg_add_kernel_info(const struct loaderparams *loaderparams,
-                                   FWCfgState *fw_cfg)
-{
-    /*
-     * Expose the kernel, the command line, and the initrd in fw_cfg.
-     * We don't process them here at all, it's all left to the
-     * firmware.
-     */
-    load_image_to_fw_cfg(fw_cfg,
-                         FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
-                         loaderparams->kernel_filename,
-                         false);
-
-    if (loaderparams->initrd_filename) {
-        load_image_to_fw_cfg(fw_cfg,
-                             FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
-                             loaderparams->initrd_filename, false);
-    }
-
-    if (loaderparams->kernel_cmdline) {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                       strlen(loaderparams->kernel_cmdline) + 1);
-        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
-                          loaderparams->kernel_cmdline);
-    }
-}
-
-static void loongarch_firmware_boot(LoongArchMachineState *lams,
-                                    const struct loaderparams *loaderparams)
-{
-    fw_cfg_add_kernel_info(loaderparams, lams->fw_cfg);
-}
-
-static void loongarch_direct_kernel_boot(LoongArchMachineState *lams,
-                                         const struct loaderparams *loaderparams)
-{
-    MachineState *machine = MACHINE(lams);
-    int64_t kernel_addr = 0;
-    LoongArchCPU *lacpu;
-    int i;
-
-    kernel_addr = load_kernel_info(loaderparams);
-    if (!machine->firmware) {
-        for (i = 0; i < machine->smp.cpus; i++) {
-            lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
-            lacpu->env.load_elf = true;
-            lacpu->env.elf_address = kernel_addr;
-        }
-    }
-}
 
 static void loongarch_qemu_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
@@ -833,7 +739,6 @@ static void loongarch_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CPUState *cpu;
     char *ramName = NULL;
-    struct loaderparams loaderparams = { };
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
@@ -936,24 +841,8 @@ static void loongarch_init(MachineState *machine)
                         sizeof(struct memmap_entry) * (memmap_entries));
     }
     fdt_add_fw_cfg_node(lams);
-    loaderparams.ram_size = ram_size;
-    loaderparams.kernel_filename = machine->kernel_filename;
-    loaderparams.kernel_cmdline = machine->kernel_cmdline;
-    loaderparams.initrd_filename = machine->initrd_filename;
-    /* load the kernel. */
-    if (loaderparams.kernel_filename) {
-        if (lams->bios_loaded) {
-            loongarch_firmware_boot(lams, &loaderparams);
-        } else {
-            loongarch_direct_kernel_boot(lams, &loaderparams);
-        }
-    }
     fdt_add_flash_node(lams);
-    /* register reset function */
-    for (i = 0; i < machine->smp.cpus; i++) {
-        lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
-        qemu_register_reset(reset_load_elf, lacpu);
-    }
+
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
     fdt_add_irqchip_node(lams);
@@ -977,7 +866,13 @@ static void loongarch_init(MachineState *machine)
      */
     fdt_base = 1 * MiB;
     qemu_fdt_dumpdtb(machine->fdt, lams->fdt_size);
-    rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, fdt_base);
+    rom_add_blob_fixed_as("fdt", machine->fdt, lams->fdt_size, fdt_base,
+                          &address_space_memory);
+    qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
+            rom_ptr_for_as(&address_space_memory, fdt_base, lams->fdt_size));
+
+    lams->bootinfo.ram_size = ram_size;
+    loongarch_load_kernel(machine, &lams->bootinfo);
 }
 
 bool loongarch_is_acpi_enabled(LoongArchMachineState *lams)

@@ -13,6 +13,7 @@
 #include "qemu/queue.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/block/flash.h"
+#include "hw/loongarch/boot.h"
 
 #define LOONGARCH_MAX_CPUS      256
 
@@ -55,6 +56,7 @@ struct LoongArchMachineState {
     MemoryRegion system_iocsr;
     MemoryRegion iocsr_mem;
     AddressSpace as_iocsr;
+    struct loongarch_boot_info bootinfo;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
