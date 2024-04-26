@@ -60,10 +60,11 @@ static inline bool excp_is_internal(int excp)
         || excp == EXCP_SEMIHOST;
 }
 
-/* Scale factor for generic timers, ie number of ns per tick.
- * This gives a 62.5MHz timer.
+/*
+ * Default frequency for the generic timer, in Hz.
+ * This is 62.5MHz, which gives a 16 ns tick period.
  */
-#define GTIMER_SCALE 16
+#define GTIMER_DEFAULT_HZ 62500000
 
 /* Bit definitions for the v7M CONTROL register */
 FIELD(V7M_CONTROL, NPRIV, 0, 1)
