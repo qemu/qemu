@@ -176,11 +176,17 @@ static void collect_memory_snapshot(void) {
   char *line = NULL;
   size_t len = 0;
   ssize_t read;
+  uint64_t afl_shm_inode = 0;
+  char *afl_shm_id_str = getenv(SHM_ENV_VAR);
 
   fp = fopen("/proc/self/maps", "r");
   if (fp == NULL) {
     fprintf(stderr, "[AFL] ERROR: cannot open /proc/self/maps\n");
     exit(1);
+  }
+
+  if (afl_shm_id_str) {
+    afl_shm_inode = atoi(afl_shm_id_str);
   }
   
   size_t memory_snapshot_allocd = 32;
@@ -207,6 +213,11 @@ static void collect_memory_snapshot(void) {
     max = h2g_valid(max - 1) ? max : (uintptr_t)AFL_G2H(GUEST_ADDR_MAX) + 1;
     if (page_check_range(h2g(min), max - min, flags) == -1)
         continue;
+
+    // When `libcompcov.so` is used, the shared memory used to track coverage
+    // is picked up here. Obviously, we don't want to reset that, as that
+    // would erase coverage tracking, so we skip it.
+    if (afl_shm_id_str && inode == afl_shm_inode) continue;
 
     if (lkm_snapshot) {
     
