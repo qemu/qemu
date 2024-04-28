@@ -31,7 +31,7 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt);
  * only part of data will be copied, up to the end of the iovec.
  * Number of bytes actually copied will be returned, which is
  *  min(bytes, iov_size(iov)-offset)
- * `Offset' must point to the inside of iovec.
+ * Returns 0 when `offset' points to the outside of iovec.
  */
 size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
                          size_t offset, const void *buf, size_t bytes);
@@ -67,11 +67,12 @@ iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
 /**
  * Set data bytes pointed out by iovec `iov' of size `iov_cnt' elements,
  * starting at byte offset `start', to value `fillc', repeating it
- * `bytes' number of times.  `Offset' must point to the inside of iovec.
+ * `bytes' number of times.
  * If `bytes' is large enough, only last bytes portion of iovec,
  * up to the end of it, will be filled with the specified value.
  * Function return actual number of bytes processed, which is
  * min(size, iov_size(iov) - offset).
+ * Returns 0 when `offset' points to the outside of iovec.
  */
 size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
                   size_t offset, int fillc, size_t bytes);
