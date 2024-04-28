@@ -338,9 +338,10 @@ typedef union IcountDecr {
     } u16;
 } IcountDecr;
 
-/*
- * Elements of CPUState most efficiently accessed from CPUArchState,
- * via small negative offsets.
+/**
+ * CPUNegativeOffsetState: Elements of CPUState most efficiently accessed
+ *                         from CPUArchState, via small negative offsets.
+ * @can_do_io: True if memory-mapped IO is allowed.
  */
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
@@ -400,7 +401,6 @@ struct qemu_work_item;
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
- * @neg.can_do_io: True if memory-mapped IO is allowed.
  * @cpu_ases: Pointer to array of CPUAddressSpaces (which define the
  *            AddressSpaces this CPU has)
  * @num_ases: number of CPUAddressSpaces in @cpu_ases
