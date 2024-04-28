@@ -587,6 +587,11 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
 
+    ret = kvm_loongarch_get_cpucfg(cs);
+    if (ret) {
+        return ret;
+    }
+
     ret = kvm_loongarch_get_csr(cs);
     if (ret) {
         return ret;
@@ -598,11 +603,6 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     ret = kvm_loongarch_get_mpstate(cs);
-    if (ret) {
-        return ret;
-    }
-
-    ret = kvm_loongarch_get_cpucfg(cs);
     return ret;
 }
 
@@ -611,6 +611,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     int ret;
 
     ret = kvm_loongarch_put_regs_core(cs);
+    if (ret) {
+        return ret;
+    }
+
+    ret = kvm_loongarch_put_cpucfg(cs);
     if (ret) {
         return ret;
     }
@@ -626,11 +631,6 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     ret = kvm_loongarch_put_mpstate(cs);
-    if (ret) {
-        return ret;
-    }
-
-    ret = kvm_loongarch_put_cpucfg(cs);
     return ret;
 }
 
