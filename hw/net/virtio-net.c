@@ -1329,24 +1329,22 @@ static void virtio_net_detach_epbf_rss(VirtIONet *n)
     virtio_net_attach_ebpf_to_backend(n->nic, -1);
 }
 
-static bool virtio_net_load_ebpf_fds(VirtIONet *n, Error **errp)
+static bool virtio_net_load_ebpf_fds(VirtIONet *n)
 {
     int fds[EBPF_RSS_MAX_FDS] = { [0 ... EBPF_RSS_MAX_FDS - 1] = -1};
     int ret = true;
     int i = 0;
 
-    ERRP_GUARD();
-
     if (n->nr_ebpf_rss_fds != EBPF_RSS_MAX_FDS) {
-        error_setg(errp,
-                  "Expected %d file descriptors but got %d",
-                  EBPF_RSS_MAX_FDS, n->nr_ebpf_rss_fds);
+        warn_report("Expected %d file descriptors but got %d",
+                    EBPF_RSS_MAX_FDS, n->nr_ebpf_rss_fds);
        return false;
    }
 
     for (i = 0; i < n->nr_ebpf_rss_fds; i++) {
-        fds[i] = monitor_fd_param(monitor_cur(), n->ebpf_rss_fds[i], errp);
-        if (*errp) {
+        fds[i] = monitor_fd_param(monitor_cur(), n->ebpf_rss_fds[i],
+                                  &error_warn);
+        if (fds[i] < 0) {
             ret = false;
             goto exit;
         }
@@ -1355,7 +1353,7 @@ static bool virtio_net_load_ebpf_fds(VirtIONet *n, Error **errp)
     ret = ebpf_rss_load_fds(&n->ebpf_rss, fds[0], fds[1], fds[2], fds[3]);
 
 exit:
-    if (!ret || *errp) {
+    if (!ret) {
         for (i = 0; i < n->nr_ebpf_rss_fds && fds[i] != -1; i++) {
             close(fds[i]);
         }
@@ -1364,13 +1362,12 @@ exit:
     return ret;
 }
 
-static bool virtio_net_load_ebpf(VirtIONet *n, Error **errp)
+static bool virtio_net_load_ebpf(VirtIONet *n)
 {
     bool ret = false;
 
     if (virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
-        if (!(n->ebpf_rss_fds
-                && virtio_net_load_ebpf_fds(n, errp))) {
+        if (!(n->ebpf_rss_fds && virtio_net_load_ebpf_fds(n))) {
             ret = ebpf_rss_load(&n->ebpf_rss);
         }
     }
@@ -3809,7 +3806,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     net_rx_pkt_init(&n->rx_pkt);
 
     if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
-        virtio_net_load_ebpf(n, errp);
+        virtio_net_load_ebpf(n);
     }
 }
 
