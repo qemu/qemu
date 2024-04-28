@@ -567,7 +567,7 @@ int tun_rss_steering_prog(struct __sk_buff *skb)
         return config->default_queue;
     }
 
-    return -1;
+    return 0;
 }
 
 char _license[] SEC("license") = "GPL v2";
