@@ -532,7 +532,7 @@ Guest CPU Cores (Xen)
 ---------------------
 X86 Xen CPUs
 M: Stefano Stabellini <sstabellini@kernel.org>
-M: Anthony Perard <anthony.perard@citrix.com>
+M: Anthony PERARD <anthony@xenproject.org>
 M: Paul Durrant <paul@xen.org>
 L: xen-devel@lists.xenproject.org
 S: Supported
