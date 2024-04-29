@@ -30,7 +30,9 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
+#ifdef CONFIG_PLUGIN
 #include "qemu/plugin.h"
+#endif
 
 CPUState *cpu_by_arch_id(int64_t id)
 {
@@ -236,9 +238,11 @@ static void cpu_common_unrealizefn(DeviceState *dev)
     CPUState *cpu = CPU(dev);
 
     /* Call the plugin hook before clearing the cpu is fully unrealized */
+#ifdef CONFIG_PLUGIN
     if (tcg_enabled()) {
         qemu_plugin_vcpu_exit_hook(cpu);
     }
+#endif
 
     /* NOTE: latest generic point before the cpu is fully unrealized */
     cpu_exec_unrealizefn(cpu);
