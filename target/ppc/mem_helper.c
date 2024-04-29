@@ -404,9 +404,9 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         }                                                       \
     }
 #define I(x) (x)
-LVE(lvebx, cpu_ldub_data_ra, I, u8)
-LVE(lvehx, cpu_lduw_data_ra, bswap16, u16)
-LVE(lvewx, cpu_ldl_data_ra, bswap32, u32)
+LVE(LVEBX, cpu_ldub_data_ra, I, u8)
+LVE(LVEHX, cpu_lduw_data_ra, bswap16, u16)
+LVE(LVEWX, cpu_ldl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
@@ -432,9 +432,9 @@ LVE(lvewx, cpu_ldl_data_ra, bswap32, u32)
         }                                                               \
     }
 #define I(x) (x)
-STVE(stvebx, cpu_stb_data_ra, I, u8)
-STVE(stvehx, cpu_stw_data_ra, bswap16, u16)
-STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
+STVE(STVEBX, cpu_stb_data_ra, I, u8)
+STVE(STVEHX, cpu_stw_data_ra, bswap16, u16)
+STVE(STVEWX, cpu_stl_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 

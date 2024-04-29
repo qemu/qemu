@@ -1,22 +1,3 @@
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_LVE(name, opc2, opc3)                                    \
-    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STVE(name, opc2, opc3)                                   \
-    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-GEN_VR_LDX(lvx, 0x07, 0x03),
-GEN_VR_LDX(lvxl, 0x07, 0x0B),
-GEN_VR_LVE(bx, 0x07, 0x00),
-GEN_VR_LVE(hx, 0x07, 0x01),
-GEN_VR_LVE(wx, 0x07, 0x02),
-GEN_VR_STX(svx, 0x07, 0x07),
-GEN_VR_STX(svxl, 0x07, 0x0F),
-GEN_VR_STVE(bx, 0x07, 0x04),
-GEN_VR_STVE(hx, 0x07, 0x05),
-GEN_VR_STVE(wx, 0x07, 0x06),
-
 #define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
 
