@@ -1112,23 +1112,6 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask);
 #endif
 
 /**
- * cpu_plugin_mem_cbs_enabled() - are plugin memory callbacks enabled?
- * @cs: CPUState pointer
- *
- * The memory callbacks are installed if a plugin has instrumented an
- * instruction for memory. This can be useful to know if you want to
- * force a slow path for a series of memory accesses.
- */
-static inline bool cpu_plugin_mem_cbs_enabled(const CPUState *cpu)
-{
-#ifdef CONFIG_PLUGIN
-    return !!cpu->plugin_mem_cbs;
-#else
-    return false;
-#endif
-}
-
-/**
  * cpu_get_address_space:
  * @cpu: CPU to get address space from
  * @asidx: index identifying which address space to get
