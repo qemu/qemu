@@ -982,7 +982,7 @@ nvmm_init_vcpu(CPUState *cpu)
         }
     }
 
-    cpu->accel->dirty = true;
+    qcpu->dirty = true;
     cpu->accel = qcpu;
 
     return 0;
