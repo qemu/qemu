@@ -205,16 +205,6 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
            16, 16);                                                     \
 }
 
-/* Logical operations */
-GEN_VXFORM_V(vand, MO_64, tcg_gen_gvec_and, 2, 16);
-GEN_VXFORM_V(vandc, MO_64, tcg_gen_gvec_andc, 2, 17);
-GEN_VXFORM_V(vor, MO_64, tcg_gen_gvec_or, 2, 18);
-GEN_VXFORM_V(vxor, MO_64, tcg_gen_gvec_xor, 2, 19);
-GEN_VXFORM_V(vnor, MO_64, tcg_gen_gvec_nor, 2, 20);
-GEN_VXFORM_V(veqv, MO_64, tcg_gen_gvec_eqv, 2, 26);
-GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
-GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
-
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 static void glue(gen_, name)(DisasContext *ctx)                         \
 {                                                                       \
@@ -726,6 +716,16 @@ TRANS_FLAGS(ALTIVEC, VRLB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_rotlv)
 TRANS_FLAGS2(ALTIVEC_207, VRLD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_rotlv)
+
+/* Logical operations */
+TRANS_FLAGS(ALTIVEC, VAND, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_and);
+TRANS_FLAGS(ALTIVEC, VANDC, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_andc);
+TRANS_FLAGS(ALTIVEC, VOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_or);
+TRANS_FLAGS(ALTIVEC, VXOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_xor);
+TRANS_FLAGS(ALTIVEC, VNOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_nor);
+TRANS_FLAGS2(ALTIVEC_207, VEQV, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_eqv);
+TRANS_FLAGS2(ALTIVEC_207, VNAND, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_nand);
+TRANS_FLAGS2(ALTIVEC_207, VORC, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_orc);
 
 static TCGv_vec do_vrl_mask_vec(unsigned vece, TCGv_vec vrb)
 {
@@ -3331,8 +3331,6 @@ TRANS_FLAGS2(ISA310, VMODUQ, do_vx_helper, gen_helper_VMODUQ)
 #undef DIVS64
 #undef DIVU64
 
-#undef GEN_VX_LOGICAL
-#undef GEN_VX_LOGICAL_207
 #undef GEN_VXFORM
 #undef GEN_VXFORM_207
 #undef GEN_VXFORM_DUAL
