@@ -718,7 +718,12 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *id)
 
 void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
-    struct in_addr host_addr = { .s_addr = INADDR_ANY };
+    struct sockaddr_in host_addr = {
+        .sin_family = AF_INET,
+        .sin_addr = {
+            .s_addr = INADDR_ANY,
+        },
+    };
     int host_port;
     char buf[256];
     const char *src_str, *p;
@@ -755,15 +760,21 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
         goto fail_syntax;
     }
-    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+    if (buf[0] != '\0' && !inet_aton(buf, &host_addr.sin_addr)) {
         goto fail_syntax;
     }
 
     if (qemu_strtoi(p, NULL, 10, &host_port)) {
         goto fail_syntax;
     }
+    host_addr.sin_port = htons(host_port);
 
-    err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr, host_port);
+#if SLIRP_CHECK_VERSION(4, 5, 0)
+    err = slirp_remove_hostxfwd(s->slirp, (struct sockaddr *) &host_addr,
+            sizeof(host_addr), is_udp ? SLIRP_HOSTFWD_UDP : 0);
+#else
+    err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr.sin_addr, host_port);
+#endif
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
                    err ? "not found" : "removed");
@@ -775,13 +786,24 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 {
-    struct in_addr host_addr = { .s_addr = INADDR_ANY };
-    struct in_addr guest_addr = { .s_addr = 0 };
+    struct sockaddr_in host_addr = {
+        .sin_family = AF_INET,
+        .sin_addr = {
+            .s_addr = INADDR_ANY,
+        },
+    };
+    struct sockaddr_in guest_addr = {
+        .sin_family = AF_INET,
+        .sin_addr = {
+            .s_addr = 0,
+        },
+    };
+    int err;
     int host_port, guest_port;
     const char *p;
     char buf[256];
     int is_udp;
-    char *end;
+    const char *end;
     const char *fail_reason = "Unknown reason";
 
     p = redir_str;
@@ -802,7 +824,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         fail_reason = "Missing : separator";
         goto fail_syntax;
     }
-    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+    if (buf[0] != '\0' && !inet_aton(buf, &host_addr.sin_addr)) {
         fail_reason = "Bad host address";
         goto fail_syntax;
     }
@@ -811,29 +833,41 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         fail_reason = "Bad host port separator";
         goto fail_syntax;
     }
-    host_port = strtol(buf, &end, 0);
-    if (*end != '\0' || host_port < 0 || host_port > 65535) {
+    err = qemu_strtoi(buf, &end, 0, &host_port);
+    if (err || host_port < 0 || host_port > 65535) {
         fail_reason = "Bad host port";
         goto fail_syntax;
     }
+    host_addr.sin_port = htons(host_port);
 
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
         fail_reason = "Missing guest address";
         goto fail_syntax;
     }
-    if (buf[0] != '\0' && !inet_aton(buf, &guest_addr)) {
+    if (buf[0] != '\0' && !inet_aton(buf, &guest_addr.sin_addr)) {
         fail_reason = "Bad guest address";
         goto fail_syntax;
     }
 
-    guest_port = strtol(p, &end, 0);
-    if (*end != '\0' || guest_port < 1 || guest_port > 65535) {
+    err = qemu_strtoi(p, &end, 0, &guest_port);
+    if (err || guest_port < 1 || guest_port > 65535) {
         fail_reason = "Bad guest port";
         goto fail_syntax;
     }
+    guest_addr.sin_port = htons(guest_port);
 
-    if (slirp_add_hostfwd(s->slirp, is_udp, host_addr, host_port, guest_addr,
-                          guest_port) < 0) {
+#if SLIRP_CHECK_VERSION(4, 5, 0)
+    err = slirp_add_hostxfwd(s->slirp,
+            (struct sockaddr *) &host_addr, sizeof(host_addr),
+            (struct sockaddr *) &guest_addr, sizeof(guest_addr),
+            is_udp ? SLIRP_HOSTFWD_UDP : 0);
+#else
+    err = slirp_add_hostfwd(s->slirp, is_udp,
+            host_addr.sin_addr, host_port,
+            guest_addr.sin_addr, guest_port);
+#endif
+
+    if (err < 0) {
         error_setg(errp, "Could not set up host forwarding rule '%s'",
                    redir_str);
         return -1;
