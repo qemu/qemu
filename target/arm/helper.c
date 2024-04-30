@@ -2665,7 +2665,7 @@ static CPAccessResult gt_stimer_access(CPUARMState *env,
     }
 }
 
-static uint64_t gt_get_countervalue(CPUARMState *env)
+uint64_t gt_get_countervalue(CPUARMState *env)
 {
     ARMCPU *cpu = env_archcpu(env);
 
@@ -2800,7 +2800,7 @@ static uint64_t gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return gt_get_countervalue(env) - gt_phys_cnt_offset(env);
 }
 
-static uint64_t gt_virt_cnt_offset(CPUARMState *env)
+uint64_t gt_virt_cnt_offset(CPUARMState *env)
 {
     uint64_t hcr;
 

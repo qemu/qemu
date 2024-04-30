@@ -1770,4 +1770,12 @@ bool check_watchpoint_in_range(int i, target_ulong addr);
 CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, target_ulong addr);
 int insert_hw_watchpoint(target_ulong addr, target_ulong len, int type);
 int delete_hw_watchpoint(target_ulong addr, target_ulong len, int type);
+
+/* Return the current value of the system counter in ticks */
+uint64_t gt_get_countervalue(CPUARMState *env);
+/*
+ * Return the currently applicable offset between the system counter
+ * and CNTVCT_EL0 (this will be either 0 or the value of CNTVOFF_EL2).
+ */
+uint64_t gt_virt_cnt_offset(CPUARMState *env);
 #endif

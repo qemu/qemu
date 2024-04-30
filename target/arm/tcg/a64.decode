@@ -230,6 +230,10 @@ ERETA           1101011 0100 11111 00001 m:1 11111 11111 &reta  # ERETAA, ERETAB
   NOP           1101 0101 0000 0011 0010 ---- --- 11111
 }
 
+# System instructions with register argument
+WFET            1101 0101 0000 0011 0001 0000 000 rd:5
+WFIT            1101 0101 0000 0011 0001 0000 001 rd:5
+
 # Barriers
 
 CLREX           1101 0101 0000 0011 0011 ---- 010 11111

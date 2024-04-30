@@ -1745,6 +1745,47 @@ static bool trans_WFE(DisasContext *s, arg_WFI *a)
     return true;
 }
 
+static bool trans_WFIT(DisasContext *s, arg_WFIT *a)
+{
+    if (!dc_isar_feature(aa64_wfxt, s)) {
+        return false;
+    }
+
+    /*
+     * Because we need to pass the register value to the helper,
+     * it's easier to emit the code now, unlike trans_WFI which
+     * defers it to aarch64_tr_tb_stop(). That means we need to
+     * check ss_active so that single-stepping a WFIT doesn't halt.
+     */
+    if (s->ss_active) {
+        /* Act like a NOP under architectural singlestep */
+        return true;
+    }
+
+    gen_a64_update_pc(s, 4);
+    gen_helper_wfit(tcg_env, cpu_reg(s, a->rd));
+    /* Go back to the main loop to check for interrupts */
+    s->base.is_jmp = DISAS_EXIT;
+    return true;
+}
+
+static bool trans_WFET(DisasContext *s, arg_WFET *a)
+{
+    if (!dc_isar_feature(aa64_wfxt, s)) {
+        return false;
+    }
+
+    /*
+     * We rely here on our WFE implementation being a NOP, so we
+     * don't need to do anything different to handle the WFET timeout
+     * from what trans_WFE does.
+     */
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        s->base.is_jmp = DISAS_WFE;
+    }
+    return true;
+}
+
 static bool trans_XPACLRI(DisasContext *s, arg_XPACLRI *a)
 {
     if (s->pauth_active) {

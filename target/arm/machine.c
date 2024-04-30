@@ -242,6 +242,25 @@ static const VMStateDescription vmstate_irq_line_state = {
     }
 };
 
+static bool wfxt_timer_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    /* We'll only have the timer object if FEAT_WFxT is implemented */
+    return cpu->wfxt_timer;
+}
+
+static const VMStateDescription vmstate_wfxt_timer = {
+    .name = "cpu/wfxt-timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = wfxt_timer_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_TIMER_PTR(wfxt_timer, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool m_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -957,6 +976,7 @@ const VMStateDescription vmstate_arm_cpu = {
 #endif
         &vmstate_serror,
         &vmstate_irq_line_state,
+        &vmstate_wfxt_timer,
         NULL
     }
 };
