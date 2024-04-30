@@ -239,11 +239,13 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
 
 static void s390_create_sclpconsole(const char *type, Chardev *chardev)
 {
+    BusState *ev_fac_bus = sclp_get_event_facility_bus();
     DeviceState *dev;
 
     dev = qdev_new(type);
+    object_property_add_child(OBJECT(ev_fac_bus->parent), type, OBJECT(dev));
     qdev_prop_set_chr(dev, "chardev", chardev);
-    qdev_realize_and_unref(dev, sclp_get_event_facility_bus(), &error_fatal);
+    qdev_realize_and_unref(dev, ev_fac_bus, &error_fatal);
 }
 
 static void ccw_init(MachineState *machine)
