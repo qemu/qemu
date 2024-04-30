@@ -486,7 +486,7 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
     if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
-        error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
+        error_setg(errp, "QEMU compiled without old-style (blk/-b) "
                    "block migration");
         error_append_hint(errp, "Use blockdev-mirror with NBD instead.\n");
         return false;
@@ -763,13 +763,6 @@ bool migrate_has_block_bitmap_mapping(void)
     return s->parameters.has_block_bitmap_mapping;
 }
 
-bool migrate_block_incremental(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.block_incremental;
-}
-
 uint32_t migrate_checkpoint_delay(void)
 {
     MigrationState *s = migrate_get_current();
@@ -948,15 +941,6 @@ ZeroPageDetection migrate_zero_page_detection(void)
     return s->parameters.zero_page_detection;
 }
 
-/* parameter setters */
-
-void migrate_set_block_incremental(bool value)
-{
-    MigrationState *s = migrate_get_current();
-
-    s->parameters.block_incremental = value;
-}
-
 /* parameters helpers */
 
 void block_cleanup_parameters(void)
@@ -966,7 +950,6 @@ void block_cleanup_parameters(void)
     if (s->must_remove_block_options) {
         /* setting to false can never fail */
         migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
-        migrate_set_block_incremental(false);
         s->must_remove_block_options = false;
     }
 }
@@ -1020,8 +1003,6 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
-    params->has_block_incremental = true;
-    params->block_incremental = s->parameters.block_incremental;
     params->has_multifd_channels = true;
     params->multifd_channels = s->parameters.multifd_channels;
     params->has_multifd_compression = true;
@@ -1081,7 +1062,6 @@ void migrate_params_init(MigrationParameters *params)
     params->has_max_bandwidth = true;
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
-    params->has_block_incremental = true;
     params->has_multifd_channels = true;
     params->has_multifd_compression = true;
     params->has_multifd_zlib_level = true;
@@ -1359,9 +1339,6 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->x_checkpoint_delay = params->x_checkpoint_delay;
     }
 
-    if (params->has_block_incremental) {
-        dest->block_incremental = params->block_incremental;
-    }
     if (params->has_multifd_channels) {
         dest->multifd_channels = params->multifd_channels;
     }
@@ -1502,11 +1479,6 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         colo_checkpoint_delay_set();
     }
 
-    if (params->has_block_incremental) {
-        warn_report("block migration is deprecated;"
-                    " use blockdev-mirror with NBD instead");
-        s->parameters.block_incremental = params->block_incremental;
-    }
     if (params->has_multifd_channels) {
         s->parameters.multifd_channels = params->multifd_channels;
     }

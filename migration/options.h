@@ -67,7 +67,6 @@ bool migrate_cap_set(int cap, bool value, Error **errp);
 const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void);
 bool migrate_has_block_bitmap_mapping(void);
 
-bool migrate_block_incremental(void);
 uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
@@ -91,10 +90,6 @@ const char *migrate_tls_creds(void);
 const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
 ZeroPageDetection migrate_zero_page_detection(void);
-
-/* parameters setters */
-
-void migrate_set_block_incremental(bool value);
 
 /* parameters helpers */
 

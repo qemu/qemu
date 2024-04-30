@@ -1935,14 +1935,9 @@ bool migration_is_blocked(Error **errp)
 }
 
 /* Returns true if continue to migrate, or false if error detected */
-static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
-                            bool resume, Error **errp)
+static bool migrate_prepare(MigrationState *s, bool blk, bool resume,
+                            Error **errp)
 {
-    if (blk_inc) {
-        warn_report("parameter 'inc' is deprecated;"
-                    " use blockdev-mirror with NBD instead");
-    }
-
     if (blk) {
         warn_report("parameter 'blk' is deprecated;"
                     " use blockdev-mirror with NBD instead");
@@ -2032,12 +2027,12 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         }
     }
 
-    if (blk || blk_inc) {
+    if (blk) {
         if (migrate_colo()) {
             error_setg(errp, "No disk migration is required in COLO mode");
             return false;
         }
-        if (migrate_block() || migrate_block_incremental()) {
+        if (migrate_block()) {
             error_setg(errp, "Command options are incompatible with "
                        "current migration capabilities");
             return false;
@@ -2046,10 +2041,6 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
             return false;
         }
         s->must_remove_block_options = true;
-    }
-
-    if (blk_inc) {
-        migrate_set_block_incremental(true);
     }
 
     if (migrate_init(s, errp)) {
@@ -2061,8 +2052,8 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
 void qmp_migrate(const char *uri, bool has_channels,
                  MigrationChannelList *channels, bool has_blk, bool blk,
-                 bool has_inc, bool inc, bool has_detach, bool detach,
-                 bool has_resume, bool resume, Error **errp)
+                 bool has_detach, bool detach, bool has_resume, bool resume,
+                 Error **errp)
 {
     bool resume_requested;
     Error *local_err = NULL;
@@ -2101,8 +2092,7 @@ void qmp_migrate(const char *uri, bool has_channels,
     }
 
     resume_requested = has_resume && resume;
-    if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
-                         resume_requested, errp)) {
+    if (!migrate_prepare(s, has_blk && blk, resume_requested, errp)) {
         /* Error detected, put into errp */
         return;
     }

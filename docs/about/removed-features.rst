@@ -620,6 +620,13 @@ was superseded by ``sections``.
 Member ``skipped`` of the ``MigrationStats`` struct hasn't been used
 for more than 10 years. Removed with no replacement.
 
+``migrate`` command option ``inc`` (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -679,6 +686,13 @@ This command didn't produce any output already. Removed with no replacement.
 
 The ``singlestep`` command has been replaced by the ``one-insn-per-tb``
 command, which has the same behaviour but a less misleading name.
+
+``migrate`` command ``-i`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
 
 Host Architectures
 ------------------
