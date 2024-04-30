@@ -93,23 +93,44 @@ static inline int test_bits(int nr, int size, const unsigned long *addr)
         return 0;
 }
 
-void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
+static MapCache *xen_map_cache_init_single(phys_offset_to_gaddr_t f,
+                                           void *opaque,
+                                           unsigned long max_size)
 {
     unsigned long size;
+    MapCache *mc;
+
+    mc = g_new0(MapCache, 1);
+
+    mc->phys_offset_to_gaddr = f;
+    mc->opaque = opaque;
+    qemu_mutex_init(&mc->lock);
+
+    QTAILQ_INIT(&mc->locked_entries);
+
+    mc->max_mcache_size = max_size;
+
+    mc->nr_buckets =
+        (((mc->max_mcache_size >> XC_PAGE_SHIFT) +
+          (1UL << (MCACHE_BUCKET_SHIFT - XC_PAGE_SHIFT)) - 1) >>
+         (MCACHE_BUCKET_SHIFT - XC_PAGE_SHIFT));
+
+    size = mc->nr_buckets * sizeof(MapCacheEntry);
+    size = (size + XC_PAGE_SIZE - 1) & ~(XC_PAGE_SIZE - 1);
+    trace_xen_map_cache_init(mc->nr_buckets, size);
+    mc->entry = g_malloc0(size);
+    return mc;
+}
+
+void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
+{
     struct rlimit rlimit_as;
-
-    mapcache = g_new0(MapCache, 1);
-
-    mapcache->phys_offset_to_gaddr = f;
-    mapcache->opaque = opaque;
-    qemu_mutex_init(&mapcache->lock);
-
-    QTAILQ_INIT(&mapcache->locked_entries);
+    unsigned long max_mcache_size;
 
     if (geteuid() == 0) {
         rlimit_as.rlim_cur = RLIM_INFINITY;
         rlimit_as.rlim_max = RLIM_INFINITY;
-        mapcache->max_mcache_size = MCACHE_MAX_SIZE;
+        max_mcache_size = MCACHE_MAX_SIZE;
     } else {
         getrlimit(RLIMIT_AS, &rlimit_as);
         rlimit_as.rlim_cur = rlimit_as.rlim_max;
@@ -119,24 +140,14 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
                         " memory is not infinity");
         }
         if (rlimit_as.rlim_max < MCACHE_MAX_SIZE + NON_MCACHE_MEMORY_SIZE) {
-            mapcache->max_mcache_size = rlimit_as.rlim_max -
-                NON_MCACHE_MEMORY_SIZE;
+            max_mcache_size = rlimit_as.rlim_max - NON_MCACHE_MEMORY_SIZE;
         } else {
-            mapcache->max_mcache_size = MCACHE_MAX_SIZE;
+            max_mcache_size = MCACHE_MAX_SIZE;
         }
     }
 
+    mapcache = xen_map_cache_init_single(f, opaque, max_mcache_size);
     setrlimit(RLIMIT_AS, &rlimit_as);
-
-    mapcache->nr_buckets =
-        (((mapcache->max_mcache_size >> XC_PAGE_SHIFT) +
-          (1UL << (MCACHE_BUCKET_SHIFT - XC_PAGE_SHIFT)) - 1) >>
-         (MCACHE_BUCKET_SHIFT - XC_PAGE_SHIFT));
-
-    size = mapcache->nr_buckets * sizeof (MapCacheEntry);
-    size = (size + XC_PAGE_SIZE - 1) & ~(XC_PAGE_SIZE - 1);
-    trace_xen_map_cache_init(mapcache->nr_buckets, size);
-    mapcache->entry = g_malloc0(size);
 }
 
 static void xen_remap_bucket(MapCache *mc,
