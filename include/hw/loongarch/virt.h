@@ -13,6 +13,7 @@
 #include "qemu/queue.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/block/flash.h"
+#include "hw/loongarch/boot.h"
 
 #define LOONGARCH_MAX_CPUS      256
 
@@ -31,6 +32,20 @@
 #define VIRT_GED_EVT_ADDR       0x100e0000
 #define VIRT_GED_MEM_ADDR       (VIRT_GED_EVT_ADDR + ACPI_GED_EVT_SEL_LEN)
 #define VIRT_GED_REG_ADDR       (VIRT_GED_MEM_ADDR + MEMORY_HOTPLUG_IO_LEN)
+
+#define COMMAND_LINE_SIZE       512
+
+#define FDT_BASE                0x100000
+
+extern struct memmap_entry *memmap_table;
+extern unsigned memmap_entries;
+
+struct memmap_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
 
 struct LoongArchMachineState {
     /*< private >*/
@@ -55,6 +70,7 @@ struct LoongArchMachineState {
     MemoryRegion system_iocsr;
     MemoryRegion iocsr_mem;
     AddressSpace as_iocsr;
+    struct loongarch_boot_info bootinfo;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
