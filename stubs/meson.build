@@ -21,12 +21,12 @@ if have_block
   stub_ss.add(files('migr-blocker.c'))
   stub_ss.add(files('physmem.c'))
   stub_ss.add(files('ram-block.c'))
-  stub_ss.add(files('replay-tools.c'))
   stub_ss.add(files('runstate-check.c'))
   stub_ss.add(files('uuid.c'))
 endif
 
 if have_block or have_ga
+  stub_ss.add(files('replay-tools.c'))
   # stubs for hooks in util/main-loop.c, util/async.c etc.
   stub_ss.add(files('cpus-get-virtual-clock.c'))
   stub_ss.add(files('icount.c'))
@@ -43,6 +43,10 @@ if have_block or have_ga
   stub_ss.add(files('monitor-internal.c'))
   stub_ss.add(files('qmp-command-available.c'))
   stub_ss.add(files('qmp-quit.c'))
+endif
+
+if have_ga
+  stub_ss.add(files('error-printf.c'))
 endif
 
 if have_block or have_user

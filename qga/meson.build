@@ -181,12 +181,11 @@ test_env = environment()
 test_env.set('G_TEST_SRCDIR', meson.current_source_dir())
 test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 
-# disable qga-ssh-test for now. glib's G_TEST_OPTION_ISOLATE_DIRS triggers
+# disable qga-ssh-test with fuzzing: glib's G_TEST_OPTION_ISOLATE_DIRS triggers
 # the leak detector in build-oss-fuzz Gitlab CI test. we should re-enable
 # this when an alternative is implemented or when the underlying glib
 # issue is identified/fix
-#if host_os != 'windows'
-if false
+if host_os != 'windows' and not get_option('fuzzing')
   srcs = [files('commands-posix-ssh.c')]
   i = 0
   foreach output: qga_qapi_outputs

@@ -2375,7 +2375,7 @@ bool kvm_s390_cpu_models_supported(void)
                              KVM_S390_VM_CPU_MACHINE_SUBFUNC);
 }
 
-void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
+bool kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
 {
     struct kvm_s390_vm_cpu_machine prop = {};
     struct kvm_device_attr attr = {
@@ -2390,14 +2390,14 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
 
     if (!kvm_s390_cpu_models_supported()) {
         error_setg(errp, "KVM doesn't support CPU models");
-        return;
+        return false;
     }
 
     /* query the basic cpu model properties */
     rc = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
     if (rc) {
         error_setg(errp, "KVM: Error querying host CPU model: %d", rc);
-        return;
+        return false;
     }
 
     cpu_type = cpuid_type(prop.cpuid);
@@ -2420,13 +2420,13 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     rc = query_cpu_feat(model->features);
     if (rc) {
         error_setg(errp, "KVM: Error querying CPU features: %d", rc);
-        return;
+        return false;
     }
     /* get supported cpu subfunctions indicated via query / test bit */
     rc = query_cpu_subfunc(model->features);
     if (rc) {
         error_setg(errp, "KVM: Error querying CPU subfunctions: %d", rc);
-        return;
+        return false;
     }
 
     /* PTFF subfunctions might be indicated although kernel support missing */
@@ -2482,7 +2482,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     }
     if (!model->def) {
         error_setg(errp, "KVM: host CPU model could not be identified");
-        return;
+        return false;
     }
     /* for now, we can only provide the AP feature with HW support */
     if (ap_available()) {
@@ -2506,6 +2506,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     /* strip of features that are not part of the maximum model */
     bitmap_and(model->features, model->features, model->def->full_feat,
                S390_FEAT_MAX);
+    return true;
 }
 
 static int configure_uv_feat_guest(const S390FeatBitmap features)
@@ -2542,7 +2543,7 @@ static void kvm_s390_configure_apie(bool interpret)
     }
 }
 
-void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
+bool kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
 {
     struct kvm_s390_vm_cpu_processor prop  = {
         .fac_list = { 0 },
@@ -2559,11 +2560,11 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
         if (kvm_s390_cmma_available()) {
             kvm_s390_enable_cmma();
         }
-        return;
+        return true;
     }
     if (!kvm_s390_cpu_models_supported()) {
         error_setg(errp, "KVM doesn't support CPU models");
-        return;
+        return false;
     }
     prop.cpuid = s390_cpuid_from_cpu_model(model);
     prop.ibc = s390_ibc_from_cpu_model(model);
@@ -2573,19 +2574,19 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
     rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
     if (rc) {
         error_setg(errp, "KVM: Error configuring the CPU model: %d", rc);
-        return;
+        return false;
     }
     /* configure cpu features indicated e.g. via SCLP */
     rc = configure_cpu_feat(model->features);
     if (rc) {
         error_setg(errp, "KVM: Error configuring CPU features: %d", rc);
-        return;
+        return false;
     }
     /* configure cpu subfunctions indicated via query / test bit */
     rc = configure_cpu_subfunc(model->features);
     if (rc) {
         error_setg(errp, "KVM: Error configuring CPU subfunctions: %d", rc);
-        return;
+        return false;
     }
     /* enable CMM via CMMA */
     if (test_bit(S390_FEAT_CMM, model->features)) {
@@ -2600,8 +2601,9 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
     rc = configure_uv_feat_guest(model->features);
     if (rc) {
         error_setg(errp, "KVM: Error configuring CPU UV features %d", rc);
-        return;
+        return false;
     }
+    return true;
 }
 
 void kvm_s390_restart_interrupt(S390CPU *cpu)

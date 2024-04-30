@@ -95,7 +95,6 @@
           - libpam0g-dev
           - libpcre2-dev
           - libpixman-1-dev
-          - libpmem-dev
           - libpng-dev
           - libpulse-dev
           - librbd-dev
@@ -107,7 +106,6 @@
           - libslirp-dev
           - libsnappy-dev
           - libspice-protocol-dev
-          - libspice-server-dev
           - libssh-dev
           - libsystemd-dev
           - libtasn1-6-dev
@@ -119,7 +117,6 @@
           - libvdeplug-dev
           - libvirglrenderer-dev
           - libvte-2.91-dev
-          - libxen-dev
           - libxml2-dev
           - libzstd-dev
           - llvm
@@ -155,6 +152,19 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['distribution_version'] == '22.04'
+
+    # not all packages are available for all architectures
+    - name: Install additional packages to build QEMU on Ubuntu 22.04
+      package:
+        name:
+          - libpmem-dev
+          - libspice-server-dev
+          - libxen-dev
+        state: present
+      when:
+        - ansible_facts['distribution'] == 'Ubuntu'
+        - ansible_facts['distribution_version'] == '22.04'
+        - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
 
     - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 22.04
       package:

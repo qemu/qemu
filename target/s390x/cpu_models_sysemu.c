@@ -389,7 +389,6 @@ CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
 
 void apply_cpu_model(const S390CPUModel *model, Error **errp)
 {
-    Error *err = NULL;
     static S390CPUModel applied_model;
     static bool applied;
 
@@ -405,9 +404,7 @@ void apply_cpu_model(const S390CPUModel *model, Error **errp)
     }
 
     if (kvm_enabled()) {
-        kvm_s390_apply_cpu_model(model, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!kvm_s390_apply_cpu_model(model, errp)) {
             return;
         }
     }

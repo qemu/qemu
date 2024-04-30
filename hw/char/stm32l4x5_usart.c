@@ -617,6 +617,7 @@ static const TypeInfo stm32l4x5_usart_types[] = {
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Stm32l4x5UsartBaseState),
         .instance_init  = stm32l4x5_usart_base_init,
+        .class_size     = sizeof(Stm32l4x5UsartBaseClass),
         .class_init     = stm32l4x5_usart_base_class_init,
         .abstract       = true,
     }, {

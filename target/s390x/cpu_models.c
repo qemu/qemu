@@ -511,7 +511,7 @@ static void check_compat_model_failed(Error **errp,
     return;
 }
 
-static void check_compatibility(const S390CPUModel *max_model,
+static bool check_compatibility(const S390CPUModel *max_model,
                                 const S390CPUModel *model, Error **errp)
 {
     ERRP_GUARD();
@@ -519,11 +519,11 @@ static void check_compatibility(const S390CPUModel *max_model,
 
     if (model->def->gen > max_model->def->gen) {
         check_compat_model_failed(errp, max_model, "Selected CPU generation is too new");
-        return;
+        return false;
     } else if (model->def->gen == max_model->def->gen &&
                model->def->ec_ga > max_model->def->ec_ga) {
         check_compat_model_failed(errp, max_model, "Selected CPU GA level is too new");
-        return;
+        return false;
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -531,14 +531,14 @@ static void check_compatibility(const S390CPUModel *max_model,
         error_setg(errp, "The unpack facility is not compatible with "
                    "the --only-migratable option. You must remove either "
                    "the 'unpack' facility or the --only-migratable option");
-        return;
+        return false;
     }
 #endif
 
     /* detect the missing features to properly report them */
     bitmap_andnot(missing, model->features, max_model->features, S390_FEAT_MAX);
     if (bitmap_empty(missing, S390_FEAT_MAX)) {
-        return;
+        return true;
     }
 
     error_setg(errp, " ");
@@ -547,11 +547,11 @@ static void check_compatibility(const S390CPUModel *max_model,
                   "available in the current configuration: ");
     error_append_hint(errp,
                       "Consider a different accelerator, QEMU, or kernel version\n");
+    return false;
 }
 
 S390CPUModel *get_max_cpu_model(Error **errp)
 {
-    Error *err = NULL;
     static S390CPUModel max_model;
     static bool cached;
 
@@ -560,15 +560,13 @@ S390CPUModel *get_max_cpu_model(Error **errp)
     }
 
     if (kvm_enabled()) {
-        kvm_s390_get_host_cpu_model(&max_model, &err);
+        if (!kvm_s390_get_host_cpu_model(&max_model, errp)) {
+            return NULL;
+        }
     } else {
         max_model.def = s390_find_cpu_def(QEMU_MAX_CPU_TYPE, QEMU_MAX_CPU_GEN,
                                           QEMU_MAX_CPU_EC_GA, NULL);
         bitmap_copy(max_model.features, qemu_max_cpu_feat, S390_FEAT_MAX);
-    }
-    if (err) {
-        error_propagate(errp, err);
-        return NULL;
     }
     cached = true;
     return &max_model;
@@ -577,7 +575,6 @@ S390CPUModel *get_max_cpu_model(Error **errp)
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
     ERRP_GUARD();
-    Error *err = NULL;
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
@@ -606,9 +603,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     cpu->model->cpu_ver = max_model->cpu_ver;
 
     check_consistency(cpu->model);
-    check_compatibility(max_model, cpu->model, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!check_compatibility(max_model, cpu->model, errp)) {
         return;
     }
 
