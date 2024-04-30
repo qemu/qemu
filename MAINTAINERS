@@ -237,6 +237,8 @@ F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdb-xml/hexagon*.xml
+F: docs/system/target-hexagon.rst
+F: docs/devel/hexagon-sys.rst
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
