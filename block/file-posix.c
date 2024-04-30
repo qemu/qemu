@@ -1039,8 +1039,7 @@ static int fcntl_setfl(int fd, int flag)
 }
 
 static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
-                                 int *open_flags, uint64_t perm, bool force_dup,
-                                 Error **errp)
+                                 int *open_flags, uint64_t perm, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int fd = -1;
@@ -1068,7 +1067,7 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
     assert((s->open_flags & O_ASYNC) == 0);
 #endif
 
-    if (!force_dup && *open_flags == s->open_flags) {
+    if (*open_flags == s->open_flags) {
         /* We're lucky, the existing fd is fine */
         return s->fd;
     }
@@ -3748,8 +3747,7 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
     int ret;
 
     /* We may need a new fd if auto-read-only switches the mode */
-    ret = raw_reconfigure_getfd(bs, input_flags, &open_flags, perm,
-                                false, errp);
+    ret = raw_reconfigure_getfd(bs, input_flags, &open_flags, perm, errp);
     if (ret < 0) {
         return ret;
     } else if (ret != s->fd) {
