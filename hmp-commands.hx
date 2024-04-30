@@ -909,21 +909,17 @@ ERST
 
     {
         .name       = "migrate",
-        .args_type  = "detach:-d,blk:-b,resume:-r,uri:s",
-        .params     = "[-d] [-b] [-r] uri",
+        .args_type  = "detach:-d,resume:-r,uri:s",
+        .params     = "[-d] [-r] uri",
         .help       = "migrate to URI (using -d to not wait for completion)"
-		      "\n\t\t\t -b for migration without shared storage with"
-		      " full copy of disk\n\t\t\t -r to resume a paused migration",
+		      "\n\t\t\t -r to resume a paused migration",
         .cmd        = hmp_migrate,
     },
 
 
 SRST
-``migrate [-d] [-b]`` *uri*
+``migrate [-d]`` *uri*
   Migrate to *uri* (using -d to not wait for completion).
-
-  ``-b``
-    for migration with full copy of disk
 ERST
 
     {

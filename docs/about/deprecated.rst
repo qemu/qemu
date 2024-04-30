@@ -477,15 +477,6 @@ option).
 Migration
 ---------
 
-``blk`` migrate command option (since 8.2)
-''''''''''''''''''''''''''''''''''''''''''
-
-Use blockdev-mirror with NBD instead.
-
-As an intermediate step the ``blk`` functionality can be achieved by
-setting the ``block`` migration capability to ``true``.  But this
-capability is also deprecated.
-
 block migration (since 8.2)
 '''''''''''''''''''''''''''
 
