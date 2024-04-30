@@ -139,7 +139,8 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
     mapcache->entry = g_malloc0(size);
 }
 
-static void xen_remap_bucket(MapCacheEntry *entry,
+static void xen_remap_bucket(MapCache *mc,
+                             MapCacheEntry *entry,
                              void *vaddr,
                              hwaddr size,
                              hwaddr address_index,
@@ -313,14 +314,14 @@ tryagain:
     if (!entry) {
         entry = g_new0(MapCacheEntry, 1);
         pentry->next = entry;
-        xen_remap_bucket(entry, NULL, cache_size, address_index, dummy);
+        xen_remap_bucket(mc, entry, NULL, cache_size, address_index, dummy);
     } else if (!entry->lock) {
         if (!entry->vaddr_base || entry->paddr_index != address_index ||
                 entry->size != cache_size ||
                 !test_bits(address_offset >> XC_PAGE_SHIFT,
                     test_bit_size >> XC_PAGE_SHIFT,
                     entry->valid_mapping)) {
-            xen_remap_bucket(entry, NULL, cache_size, address_index, dummy);
+            xen_remap_bucket(mc, entry, NULL, cache_size, address_index, dummy);
         }
     }
 
@@ -588,7 +589,7 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
 
     trace_xen_replace_cache_entry_dummy(old_phys_addr, new_phys_addr);
 
-    xen_remap_bucket(entry, entry->vaddr_base,
+    xen_remap_bucket(mapcache, entry, entry->vaddr_base,
                      cache_size, address_index, false);
     if (!test_bits(address_offset >> XC_PAGE_SHIFT,
                 test_bit_size >> XC_PAGE_SHIFT,
