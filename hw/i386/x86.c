@@ -1163,9 +1163,7 @@ void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
         load_image_size(filename, ptr, bios_size);
         x86_firmware_configure(ptr, bios_size);
     } else {
-        if (!isapc_ram_fw) {
-            memory_region_set_readonly(bios, true);
-        }
+        memory_region_set_readonly(bios, !isapc_ram_fw);
         ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
         if (ret != 0) {
             goto bios_error;
@@ -1182,9 +1180,7 @@ void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
-    if (!isapc_ram_fw) {
-        memory_region_set_readonly(isa_bios, true);
-    }
+    memory_region_set_readonly(isa_bios, !isapc_ram_fw);
 
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,
