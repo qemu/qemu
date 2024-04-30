@@ -377,7 +377,7 @@ uint8_t *xen_map_cache(hwaddr phys_addr, hwaddr size,
     return p;
 }
 
-ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
+static ram_addr_t xen_ram_addr_from_mapcache_single(MapCache *mc, void *ptr)
 {
     MapCacheEntry *entry = NULL;
     MapCacheRev *reventry;
@@ -386,8 +386,8 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     ram_addr_t raddr;
     int found = 0;
 
-    mapcache_lock(mapcache);
-    QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
+    mapcache_lock(mc);
+    QTAILQ_FOREACH(reventry, &mc->locked_entries, next) {
         if (reventry->vaddr_req == ptr) {
             paddr_index = reventry->paddr_index;
             size = reventry->size;
@@ -397,11 +397,11 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     }
     if (!found) {
         trace_xen_ram_addr_from_mapcache_not_found(ptr);
-        mapcache_unlock(mapcache);
+        mapcache_unlock(mc);
         return RAM_ADDR_INVALID;
     }
 
-    entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
+    entry = &mc->entry[paddr_index % mc->nr_buckets];
     while (entry && (entry->paddr_index != paddr_index || entry->size != size)) {
         entry = entry->next;
     }
@@ -412,8 +412,13 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
         raddr = (reventry->paddr_index << MCACHE_BUCKET_SHIFT) +
              ((unsigned long) ptr - (unsigned long) entry->vaddr_base);
     }
-    mapcache_unlock(mapcache);
+    mapcache_unlock(mc);
     return raddr;
+}
+
+ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
+{
+    return xen_ram_addr_from_mapcache_single(mapcache, ptr);
 }
 
 static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
