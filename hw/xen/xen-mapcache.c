@@ -240,7 +240,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     g_free(err);
 }
 
-static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
+static uint8_t *xen_map_cache_unlocked(MapCache *mc,
+                                       hwaddr phys_addr, hwaddr size,
                                        uint8_t lock, bool dma)
 {
     MapCacheEntry *entry, *pentry = NULL,
@@ -269,16 +270,16 @@ tryagain:
         test_bit_size = XC_PAGE_SIZE;
     }
 
-    if (mapcache->last_entry != NULL &&
-        mapcache->last_entry->paddr_index == address_index &&
+    if (mc->last_entry != NULL &&
+        mc->last_entry->paddr_index == address_index &&
         !lock && !size &&
         test_bits(address_offset >> XC_PAGE_SHIFT,
                   test_bit_size >> XC_PAGE_SHIFT,
-                  mapcache->last_entry->valid_mapping)) {
+                  mc->last_entry->valid_mapping)) {
         trace_xen_map_cache_return(
-            mapcache->last_entry->vaddr_base + address_offset
+            mc->last_entry->vaddr_base + address_offset
         );
-        return mapcache->last_entry->vaddr_base + address_offset;
+        return mc->last_entry->vaddr_base + address_offset;
     }
 
     /* size is always a multiple of MCACHE_BUCKET_SIZE */
@@ -291,7 +292,7 @@ tryagain:
         cache_size = MCACHE_BUCKET_SIZE;
     }
 
-    entry = &mapcache->entry[address_index % mapcache->nr_buckets];
+    entry = &mc->entry[address_index % mc->nr_buckets];
 
     while (entry && (lock || entry->lock) && entry->vaddr_base &&
             (entry->paddr_index != address_index || entry->size != cache_size ||
@@ -326,10 +327,10 @@ tryagain:
     if(!test_bits(address_offset >> XC_PAGE_SHIFT,
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
-        mapcache->last_entry = NULL;
+        mc->last_entry = NULL;
 #ifdef XEN_COMPAT_PHYSMAP
-        if (!translated && mapcache->phys_offset_to_gaddr) {
-            phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size);
+        if (!translated && mc->phys_offset_to_gaddr) {
+            phys_addr = mc->phys_offset_to_gaddr(phys_addr, size);
             translated = true;
             goto tryagain;
         }
@@ -342,7 +343,7 @@ tryagain:
         return NULL;
     }
 
-    mapcache->last_entry = entry;
+    mc->last_entry = entry;
     if (lock) {
         MapCacheRev *reventry = g_new0(MapCacheRev, 1);
         entry->lock++;
@@ -352,16 +353,16 @@ tryagain:
             abort();
         }
         reventry->dma = dma;
-        reventry->vaddr_req = mapcache->last_entry->vaddr_base + address_offset;
-        reventry->paddr_index = mapcache->last_entry->paddr_index;
+        reventry->vaddr_req = mc->last_entry->vaddr_base + address_offset;
+        reventry->paddr_index = mc->last_entry->paddr_index;
         reventry->size = entry->size;
-        QTAILQ_INSERT_HEAD(&mapcache->locked_entries, reventry, next);
+        QTAILQ_INSERT_HEAD(&mc->locked_entries, reventry, next);
     }
 
     trace_xen_map_cache_return(
-        mapcache->last_entry->vaddr_base + address_offset
+        mc->last_entry->vaddr_base + address_offset
     );
-    return mapcache->last_entry->vaddr_base + address_offset;
+    return mc->last_entry->vaddr_base + address_offset;
 }
 
 uint8_t *xen_map_cache(hwaddr phys_addr, hwaddr size,
@@ -370,7 +371,7 @@ uint8_t *xen_map_cache(hwaddr phys_addr, hwaddr size,
     uint8_t *p;
 
     mapcache_lock(mapcache);
-    p = xen_map_cache_unlocked(phys_addr, size, lock, dma);
+    p = xen_map_cache_unlocked(mapcache, phys_addr, size, lock, dma);
     mapcache_unlock(mapcache);
     return p;
 }
