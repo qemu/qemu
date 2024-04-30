@@ -15,6 +15,7 @@ config ARM_VIRT
     select ACPI
     select ARM_SMMUV3
     select GPIO_KEY
+    select DEVICE_TREE
     select FW_CFG_DMA
     select PCI_EXPRESS
     select PCI_EXPRESS_GENERIC_BRIDGE
@@ -265,6 +266,7 @@ config SBSA_REF
     default y
     depends on TCG && AARCH64
     imply PCI_DEVICES
+    select DEVICE_TREE
     select AHCI
     select ARM_SMMUV3
     select GPIO_KEY
@@ -347,6 +349,7 @@ config VEXPRESS
     bool
     default y
     depends on TCG && ARM
+    select DEVICE_TREE
     select A9MPCORE
     select A15MPCORE
     select ARM_MPTIMER
@@ -492,6 +495,7 @@ config XLNX_ZYNQMP_ARM
     select CPU_CLUSTER
     select DDC
     select DPCD
+    select DEVICE_TREE
     select SDHCI
     select SSI
     select SSI_M25P80
@@ -509,6 +513,7 @@ config XLNX_VERSAL
     depends on TCG && AARCH64
     select ARM_GIC
     select CPU_CLUSTER
+    select DEVICE_TREE
     select PL011
     select CADENCE
     select VIRTIO_MMIO

@@ -115,7 +115,8 @@ config Q35
 config MICROVM
     bool
     default y
-    depends on I386
+    depends on I386 && FDT
+    select DEVICE_TREE
     select SERIAL_ISA # for serial_hds_isa_init()
     select ISA_BUS
     select APIC

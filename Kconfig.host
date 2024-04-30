@@ -25,7 +25,6 @@ config TPM
 
 config FDT
     bool
-    select DEVICE_TREE
 
 config VHOST_USER
     bool

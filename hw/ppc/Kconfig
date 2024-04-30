@@ -1,7 +1,7 @@
 config PSERIES
     bool
     default y
-    depends on PPC64
+    depends on PPC64 && FDT
     imply USB_OHCI_PCI
     imply PCI_DEVICES
     imply TEST_DEVICES
@@ -26,7 +26,7 @@ config SPAPR_RNG
 config POWERNV
     bool
     default y
-    depends on PPC64
+    depends on PPC64 && FDT
     imply PCI_DEVICES
     imply TEST_DEVICES
     select ISA_IPMI_BT
@@ -52,7 +52,7 @@ config PPC405
 config PPC440
     bool
     default y
-    depends on PPC
+    depends on PPC && FDT
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply E1000_PCI
@@ -71,7 +71,7 @@ config PPC4XX
 config SAM460EX
     bool
     default y
-    depends on PPC
+    depends on PPC && FDT
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
@@ -168,19 +168,19 @@ config E500
 config E500PLAT
     bool
     default y
-    depends on PPC
+    depends on PPC && FDT
     select E500
 
 config MPC8544DS
     bool
     default y
-    depends on PPC
+    depends on PPC && FDT
     select E500
 
 config VIRTEX
     bool
     default y
-    depends on PPC
+    depends on PPC && FDT
     select PPC4XX
     select PFLASH_CFI01
     select SERIAL
@@ -193,6 +193,7 @@ config FW_CFG_PPC
     bool
 
 config FDT_PPC
+    select DEVICE_TREE
     bool
 
 config VOF

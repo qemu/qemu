@@ -15,6 +15,7 @@ config XTENSA_XTFPGA
     bool
     default y
     depends on XTENSA
+    imply DEVICE_TREE
     select OPENCORES_ETH
     select PFLASH_CFI01
     select SERIAL
