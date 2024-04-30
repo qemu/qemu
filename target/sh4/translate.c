@@ -933,16 +933,20 @@ static void _decode_opc(DisasContext * ctx)
         return;
     case 0x300b: /* subv Rm,Rn */
         {
-            TCGv t0, t1, t2;
-            t0 = tcg_temp_new();
-            tcg_gen_sub_i32(t0, REG(B11_8), REG(B7_4));
+            TCGv Rn = REG(B11_8);
+            TCGv Rm = REG(B7_4);
+            TCGv result, t1, t2;
+
+            result = tcg_temp_new();
             t1 = tcg_temp_new();
-            tcg_gen_xor_i32(t1, t0, REG(B11_8));
             t2 = tcg_temp_new();
-            tcg_gen_xor_i32(t2, REG(B11_8), REG(B7_4));
+            tcg_gen_sub_i32(result, Rn, Rm);
+            /* T = ((Rn ^ Rm) & (Result ^ Rn)) >> 31 */
+            tcg_gen_xor_i32(t1, result, Rn);
+            tcg_gen_xor_i32(t2, Rn, Rm);
             tcg_gen_and_i32(t1, t1, t2);
             tcg_gen_shri_i32(cpu_sr_t, t1, 31);
-            tcg_gen_mov_i32(REG(B11_8), t0);
+            tcg_gen_mov_i32(Rn, result);
         }
         return;
     case 0x2008: /* tst Rm,Rn */
