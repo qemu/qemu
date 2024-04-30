@@ -193,9 +193,6 @@
 # @ram: @MigrationStats containing detailed migration status, only
 #     returned if status is 'active' or 'completed'(since 1.2)
 #
-# @disk: @MigrationStats containing detailed disk migration status,
-#     only returned if status is 'active' and it is a block migration
-#
 # @xbzrle-cache: @XBZRLECacheStats containing detailed XBZRLE
 #     migration statistics, only returned if XBZRLE feature is on and
 #     status is 'active' or 'completed' (since 1.2)
@@ -262,17 +259,15 @@
 #
 # Features:
 #
-# @deprecated: Member @disk is deprecated because block migration is.
-#     Member @compression is deprecated because it is unreliable and
-#     untested.  It is recommended to use multifd migration, which
-#     offers an alternative compression implementation that is
-#     reliable and tested.
+# @deprecated: Member @compression is deprecated because it is
+#     unreliable and untested.  It is recommended to use multifd
+#     migration, which offers an alternative compression
+#     implementation that is reliable and tested.
 #
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
-           '*disk': { 'type': 'MigrationStats', 'features': [ 'deprecated' ] },
            '*vfio': 'VfioStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
@@ -294,8 +289,7 @@
 #
 # Returns information about current migration process.  If migration
 # is active there will be another json-object with RAM migration
-# status and if block migration is active another one with block
-# migration status.
+# status.
 #
 # Returns: @MigrationInfo
 #
@@ -333,7 +327,7 @@
 #     -> { "execute": "query-migrate" }
 #     <- { "return": { "status": "failed" } }
 #
-#     4. Migration is being performed and is not a block migration:
+#     4. Migration is being performed:
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -354,33 +348,7 @@
 #           }
 #        }
 #
-#     5. Migration is being performed and is a block migration:
-#
-#     -> { "execute": "query-migrate" }
-#     <- {
-#           "return":{
-#              "status":"active",
-#              "total-time":12345,
-#              "setup-time":12345,
-#              "expected-downtime":12345,
-#              "ram":{
-#                 "total":1057024,
-#                 "remaining":1053304,
-#                 "transferred":3720,
-#                 "duplicate":123,
-#                 "normal":123,
-#                 "normal-bytes":123456,
-#                 "dirty-sync-count":15
-#              },
-#              "disk":{
-#                 "total":20971520,
-#                 "remaining":20880384,
-#                 "transferred":91136
-#              }
-#           }
-#        }
-#
-#     6. Migration is being performed and XBZRLE is active:
+#     5. Migration is being performed and XBZRLE is active:
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -460,11 +428,6 @@
 # @release-ram: if enabled, qemu will free the migrated ram pages on
 #     the source during postcopy-ram migration.  (since 2.9)
 #
-# @block: If enabled, QEMU will also migrate the contents of all block
-#     devices.  Default is disabled.  A possible alternative uses
-#     mirror jobs to a builtin NBD server on the destination, which
-#     offers more flexibility.  (Since 2.10)
-#
 # @return-path: If enabled, migration will use the return path even
 #     for precopy.  (since 2.10)
 #
@@ -528,11 +491,10 @@
 #
 # Features:
 #
-# @deprecated: Member @block is deprecated.  Use blockdev-mirror with
-#     NBD instead.  Member @compress is deprecated because it is
-#     unreliable and untested.  It is recommended to use multifd
-#     migration, which offers an alternative compression
-#     implementation that is reliable and tested.
+# @deprecated: Member @compress is deprecated because it is unreliable
+#     and untested.  It is recommended to use multifd migration, which
+#     offers an alternative compression implementation that is
+#     reliable and tested.
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
@@ -544,7 +506,6 @@
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
-           { 'name': 'block', 'features': [ 'deprecated' ] },
            'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },

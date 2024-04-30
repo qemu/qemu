@@ -145,15 +145,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
         }
     }
 
-    if (info->disk) {
-        monitor_printf(mon, "transferred disk: %" PRIu64 " kbytes\n",
-                       info->disk->transferred >> 10);
-        monitor_printf(mon, "remaining disk: %" PRIu64 " kbytes\n",
-                       info->disk->remaining >> 10);
-        monitor_printf(mon, "total disk: %" PRIu64 " kbytes\n",
-                       info->disk->total >> 10);
-    }
-
     if (info->xbzrle_cache) {
         monitor_printf(mon, "cache size: %" PRIu64 " bytes\n",
                        info->xbzrle_cache->cache_size);
@@ -726,24 +717,8 @@ static void hmp_migrate_status_cb(void *opaque)
     info = qmp_query_migrate(NULL);
     if (!info->has_status || info->status == MIGRATION_STATUS_ACTIVE ||
         info->status == MIGRATION_STATUS_SETUP) {
-        if (info->disk) {
-            int progress;
-
-            if (info->disk->remaining) {
-                progress = info->disk->transferred * 100 / info->disk->total;
-            } else {
-                progress = 100;
-            }
-
-            monitor_printf(status->mon, "Completed %d %%\r", progress);
-            monitor_flush(status->mon);
-        }
-
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     } else {
-        if (migrate_block()) {
-            monitor_printf(status->mon, "\n");
-        }
         if (info->error_desc) {
             error_report("%s", info->error_desc);
         }

@@ -25,7 +25,6 @@ extern Property migration_properties[];
 /* capabilities */
 
 bool migrate_auto_converge(void);
-bool migrate_block(void);
 bool migrate_colo(void);
 bool migrate_compress(void);
 bool migrate_dirty_bitmaps(void);

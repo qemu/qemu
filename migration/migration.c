@@ -46,7 +46,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qnull.h"
 #include "qemu/rcu.h"
-#include "block.h"
 #include "postcopy-ram.h"
 #include "qemu/thread.h"
 #include "trace.h"
@@ -240,7 +239,6 @@ void migration_object_init(void)
 
     migration_object_check(current_migration, &error_fatal);
 
-    blk_mig_init();
     ram_mig_init();
     dirty_bitmap_mig_init();
 }
@@ -1206,16 +1204,6 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     }
 }
 
-static void populate_disk_info(MigrationInfo *info)
-{
-    if (blk_mig_active()) {
-        info->disk = g_malloc0(sizeof(*info->disk));
-        info->disk->transferred = blk_mig_bytes_transferred();
-        info->disk->remaining = blk_mig_bytes_remaining();
-        info->disk->total = blk_mig_bytes_total();
-    }
-}
-
 static void fill_source_migration_info(MigrationInfo *info)
 {
     MigrationState *s = migrate_get_current();
@@ -1258,7 +1246,6 @@ static void fill_source_migration_info(MigrationInfo *info)
         /* TODO add some postcopy stats */
         populate_time_info(info, s);
         populate_ram_info(info, s);
-        populate_disk_info(info);
         migration_populate_vfio_info(info);
         break;
     case MIGRATION_STATUS_COLO:
@@ -1423,7 +1410,6 @@ static void migrate_fd_cleanup(MigrationState *s)
     type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
                                      MIG_EVENT_PRECOPY_DONE;
     migration_call_notifiers(s, type, NULL);
-    block_cleanup_parameters();
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
@@ -2102,7 +2088,6 @@ void qmp_migrate(const char *uri, bool has_channels,
                    "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
-        block_cleanup_parameters();
     }
 
     if (local_err) {

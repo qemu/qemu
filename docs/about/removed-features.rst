@@ -634,6 +634,13 @@ Use blockdev-mirror with NBD instead. See "QMP invocation for live
 storage migration with ``blockdev-mirror`` + NBD" in
 docs/interop/live-block-operations.rst for a detailed explanation.
 
+``migrate-set-capabilities`` ``block`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Block migration has been removed. For a replacement, see "QMP
+invocation for live storage migration with ``blockdev-mirror`` + NBD"
+in docs/interop/live-block-operations.rst.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -707,6 +714,13 @@ docs/interop/live-block-operations.rst for a detailed explanation.
 Use blockdev-mirror with NBD instead. See "QMP invocation for live
 storage migration with ``blockdev-mirror`` + NBD" in
 docs/interop/live-block-operations.rst for a detailed explanation.
+
+``migrate_set_capability`` ``block`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Block migration has been removed. For a replacement, see "QMP
+invocation for live storage migration with ``blockdev-mirror`` + NBD"
+in docs/interop/live-block-operations.rst.
 
 Host Architectures
 ------------------

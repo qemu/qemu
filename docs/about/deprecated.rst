@@ -477,16 +477,6 @@ option).
 Migration
 ---------
 
-block migration (since 8.2)
-'''''''''''''''''''''''''''
-
-Block migration is too inflexible.  It needs to migrate all block
-devices or none.
-
-Please see "QMP invocation for live storage migration with
-``blockdev-mirror`` + NBD" in docs/interop/live-block-operations.rst
-for a detailed explanation.
-
 old compression method (since 8.2)
 ''''''''''''''''''''''''''''''''''
 

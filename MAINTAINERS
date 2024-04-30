@@ -2866,7 +2866,6 @@ F: util/aio-*.h
 F: util/defer-call.c
 F: util/fdmon-*.c
 F: block/io.c
-F: migration/block*
 F: include/block/aio.h
 F: include/block/aio-wait.h
 F: include/qemu/defer-call.h

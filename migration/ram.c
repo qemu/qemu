@@ -53,7 +53,6 @@
 #include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
-#include "block.h"
 #include "sysemu/cpu-throttle.h"
 #include "savevm.h"
 #include "qemu/iov.h"
@@ -1024,13 +1023,6 @@ static void migration_trigger_throttle(RAMState *rs)
         migration_transferred_bytes() - rs->bytes_xfer_prev;
     uint64_t bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
     uint64_t bytes_dirty_threshold = bytes_xfer_period * threshold / 100;
-
-    /* During block migration the auto-converge logic incorrectly detects
-     * that ram migration makes no progress. Avoid this by disabling the
-     * throttling logic during the bulk phase of block migration. */
-    if (blk_mig_bulk_active()) {
-        return;
-    }
 
     /*
      * The following detection logic can be refined later. For now:
@@ -3229,13 +3221,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int i;
     int64_t t0;
     int done = 0;
-
-    if (blk_mig_bulk_active()) {
-        /* Avoid transferring ram during bulk phase of block migration as
-         * the bulk phase will usually take a long time and transferring
-         * ram updates during that time is pointless. */
-        goto out;
-    }
 
     /*
      * We'll take this lock a little bit long, but it's okay for two reasons.

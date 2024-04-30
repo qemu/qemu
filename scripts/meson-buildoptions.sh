@@ -143,8 +143,6 @@ meson_options_help() {
   printf "%s\n" '  libvduse        build VDUSE Library'
   printf "%s\n" '  linux-aio       Linux AIO support'
   printf "%s\n" '  linux-io-uring  Linux io_uring support'
-  printf "%s\n" '  live-block-migration'
-  printf "%s\n" '                  block migration in the main migration stream'
   printf "%s\n" '  lzfse           lzfse support for DMG images'
   printf "%s\n" '  lzo             lzo compression support'
   printf "%s\n" '  malloc-trim     enable libc malloc_trim() for memory optimization'
@@ -382,8 +380,6 @@ _meson_option_parse() {
     --disable-linux-aio) printf "%s" -Dlinux_aio=disabled ;;
     --enable-linux-io-uring) printf "%s" -Dlinux_io_uring=enabled ;;
     --disable-linux-io-uring) printf "%s" -Dlinux_io_uring=disabled ;;
-    --enable-live-block-migration) printf "%s" -Dlive_block_migration=enabled ;;
-    --disable-live-block-migration) printf "%s" -Dlive_block_migration=disabled ;;
     --localedir=*) quote_sh "-Dlocaledir=$2" ;;
     --localstatedir=*) quote_sh "-Dlocalstatedir=$2" ;;
     --enable-lzfse) printf "%s" -Dlzfse=enabled ;;
