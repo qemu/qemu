@@ -435,8 +435,8 @@ if ($chk_branch) {
 	my @patches;
 	my %git_commits = ();
 	my $HASH;
-	open($HASH, "-|", "git", "log", "--reverse", "--no-merges", "--format=%H %s", $ARGV[0]) ||
-		die "$P: git log --reverse --no-merges --format='%H %s' $ARGV[0] failed - $!\n";
+	open($HASH, "-|", "git", "log", "--reverse", "--no-merges", "--no-mailmap", "--format=%H %s", $ARGV[0]) ||
+		die "$P: git log --reverse --no-merges --no-mailmap --format='%H %s' $ARGV[0] failed - $!\n";
 
 	for my $line (<$HASH>) {
 		$line =~ /^([0-9a-fA-F]{40,40}) (.*)$/;
@@ -460,7 +460,7 @@ if ($chk_branch) {
                      "-c", "diff.renamelimit=0",
                      "-c", "diff.renames=True",
                      "-c", "diff.algorithm=histogram",
-                     "show",
+                     "show", "--no-mailmap",
                      "--patch-with-stat", $hash) ||
 			die "$P: git show $hash - $!\n";
 		while (<$FILE>) {
@@ -1573,7 +1573,7 @@ sub process {
 			$is_patch = 1;
 		}
 
-		if ($line =~ /^(Author|From): .* via .*<qemu-devel\@nongnu.org>/) {
+		if ($line =~ /^(Author|From): .* via .*<qemu-\w+\@nongnu\.org>/) {
 		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
 		}
 
@@ -3077,6 +3077,9 @@ sub process {
 		}
 		if ($line =~ /\b(g_)?assert\(0\)/) {
 			ERROR("use g_assert_not_reached() instead of assert(0)\n" . $herecurr);
+		}
+		if ($line =~ /\bstrerrorname_np\(/) {
+			ERROR("use strerror() instead of strerrorname_np()\n" . $herecurr);
 		}
 		my $non_exit_glib_asserts = qr{g_assert_cmpstr|
 						g_assert_cmpint|

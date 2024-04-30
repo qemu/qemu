@@ -355,9 +355,9 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
     /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
     if (details->len) {
-        qemu_printf("s390 %-15s %-35s (%s)\n", name, scc->desc, details->str);
+        qemu_printf("  %-15s %-35s (%s)\n", name, scc->desc, details->str);
     } else {
-        qemu_printf("s390 %-15s %-35s\n", name, scc->desc);
+        qemu_printf("  %-15s %-35s\n", name, scc->desc);
     }
     g_free(name);
 }
@@ -402,6 +402,7 @@ void s390_cpu_list(void)
     S390Feat feat;
     GSList *list;
 
+    qemu_printf("Available CPUs:\n");
     list = object_class_get_list(TYPE_S390_CPU, false);
     list = g_slist_sort(list, s390_cpu_list_compare);
     g_slist_foreach(list, s390_print_cpu_model_list_entry, NULL);
@@ -411,14 +412,14 @@ void s390_cpu_list(void)
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
         const S390FeatDef *def = s390_feat_def(feat);
 
-        qemu_printf("%-20s %s\n", def->name, def->desc);
+        qemu_printf("  %-20s %s\n", def->name, def->desc);
     }
 
     qemu_printf("\nRecognized feature groups:\n");
     for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
         const S390FeatGroupDef *def = s390_feat_group_def(group);
 
-        qemu_printf("%-20s %s\n", def->name, def->desc);
+        qemu_printf("  %-20s %s\n", def->name, def->desc);
     }
 }
 
