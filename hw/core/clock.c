@@ -108,7 +108,6 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
 
 void clock_propagate(Clock *clk)
 {
-    assert(clk->source == NULL);
     trace_clock_propagate(CLOCK_PATH(clk));
     clock_propagate_period(clk, true);
 }

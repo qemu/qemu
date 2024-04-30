@@ -140,3 +140,6 @@ config XLNX_DISPLAYPORT
     bool
     # defaults to "N", enabled by specific boards
     depends on PIXMAN
+
+config DM163
+    bool

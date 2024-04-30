@@ -956,6 +956,9 @@ struct ArchCPU {
      */
     bool host_cpu_probe_failed;
 
+    /* QOM property to indicate we should use the back-compat CNTFRQ default */
+    bool backcompat_cntfrq;
+
     /* Specify the number of cores in this CPU cluster. Used for the L2CTLR
      * register.
      */
@@ -1011,6 +1014,7 @@ struct ArchCPU {
         uint64_t id_aa64mmfr0;
         uint64_t id_aa64mmfr1;
         uint64_t id_aa64mmfr2;
+        uint64_t id_aa64mmfr3;
         uint64_t id_aa64dfr0;
         uint64_t id_aa64dfr1;
         uint64_t id_aa64zfr0;
@@ -2206,6 +2210,22 @@ FIELD(ID_AA64MMFR2, BBM, 52, 4)
 FIELD(ID_AA64MMFR2, EVT, 56, 4)
 FIELD(ID_AA64MMFR2, E0PD, 60, 4)
 
+FIELD(ID_AA64MMFR3, TCRX, 0, 4)
+FIELD(ID_AA64MMFR3, SCTLRX, 4, 4)
+FIELD(ID_AA64MMFR3, S1PIE, 8, 4)
+FIELD(ID_AA64MMFR3, S2PIE, 12, 4)
+FIELD(ID_AA64MMFR3, S1POE, 16, 4)
+FIELD(ID_AA64MMFR3, S2POE, 20, 4)
+FIELD(ID_AA64MMFR3, AIE, 24, 4)
+FIELD(ID_AA64MMFR3, MEC, 28, 4)
+FIELD(ID_AA64MMFR3, D128, 32, 4)
+FIELD(ID_AA64MMFR3, D128_2, 36, 4)
+FIELD(ID_AA64MMFR3, SNERR, 40, 4)
+FIELD(ID_AA64MMFR3, ANERR, 44, 4)
+FIELD(ID_AA64MMFR3, SDERR, 52, 4)
+FIELD(ID_AA64MMFR3, ADERR, 56, 4)
+FIELD(ID_AA64MMFR3, SPEC_FPACC, 60, 4)
+
 FIELD(ID_AA64DFR0, DEBUGVER, 0, 4)
 FIELD(ID_AA64DFR0, TRACEVER, 4, 4)
 FIELD(ID_AA64DFR0, PMUVER, 8, 4)
@@ -2356,6 +2376,14 @@ enum arm_features {
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
     ARM_FEATURE_V8_1M, /* M profile extras only in v8.1M and later */
+    /*
+     * ARM_FEATURE_BACKCOMPAT_CNTFRQ makes the CPU default cntfrq be 62.5MHz
+     * if the board doesn't set a value, instead of 1GHz. It is for backwards
+     * compatibility and used only with CPU definitions that were already
+     * in QEMU before we changed the default. It should not be set on any
+     * CPU types added in future.
+     */
+    ARM_FEATURE_BACKCOMPAT_CNTFRQ, /* 62.5MHz timer default */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

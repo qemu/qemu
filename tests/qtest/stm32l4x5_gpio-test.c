@@ -43,6 +43,9 @@
 #define OTYPER_PUSH_PULL 0
 #define OTYPER_OPEN_DRAIN 1
 
+/* SoC forwards GPIOs to SysCfg */
+#define SYSCFG "/machine/soc"
+
 const uint32_t moder_reset[NUM_GPIOS] = {
     0xABFFFFFF,
     0xFFFFFEBF,
@@ -284,7 +287,7 @@ static void test_gpio_output_mode(const void *data)
     uint32_t gpio = test_gpio_addr(data);
     unsigned int gpio_id = get_gpio_id(gpio);
 
-    qtest_irq_intercept_in(global_qtest, "/machine/soc/syscfg");
+    qtest_irq_intercept_in(global_qtest, SYSCFG);
 
     /* Set a bit in ODR and check nothing happens */
     gpio_set_bit(gpio, ODR, pin, 1);
@@ -319,7 +322,7 @@ static void test_gpio_input_mode(const void *data)
     uint32_t gpio = test_gpio_addr(data);
     unsigned int gpio_id = get_gpio_id(gpio);
 
-    qtest_irq_intercept_in(global_qtest, "/machine/soc/syscfg");
+    qtest_irq_intercept_in(global_qtest, SYSCFG);
 
     /* Configure a line as input, raise it, and check that the pin is high */
     gpio_set_2bits(gpio, MODER, pin, MODER_INPUT);
@@ -348,7 +351,7 @@ static void test_pull_up_pull_down(const void *data)
     uint32_t gpio = test_gpio_addr(data);
     unsigned int gpio_id = get_gpio_id(gpio);
 
-    qtest_irq_intercept_in(global_qtest, "/machine/soc/syscfg");
+    qtest_irq_intercept_in(global_qtest, SYSCFG);
 
     /* Configure a line as input with pull-up, check the line is set high */
     gpio_set_2bits(gpio, MODER, pin, MODER_INPUT);
@@ -378,7 +381,7 @@ static void test_push_pull(const void *data)
     uint32_t gpio = test_gpio_addr(data);
     uint32_t gpio2 = GPIO_BASE_ADDR + (GPIO_H - gpio);
 
-    qtest_irq_intercept_in(global_qtest, "/machine/soc/syscfg");
+    qtest_irq_intercept_in(global_qtest, SYSCFG);
 
     /* Setting a line high externally, configuring it in push-pull output */
     /* And checking the pin was disconnected */
@@ -425,7 +428,7 @@ static void test_open_drain(const void *data)
     uint32_t gpio = test_gpio_addr(data);
     uint32_t gpio2 = GPIO_BASE_ADDR + (GPIO_H - gpio);
 
-    qtest_irq_intercept_in(global_qtest, "/machine/soc/syscfg");
+    qtest_irq_intercept_in(global_qtest, SYSCFG);
 
     /* Setting a line high externally, configuring it in open-drain output */
     /* And checking the pin was disconnected */

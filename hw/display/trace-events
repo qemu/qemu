@@ -177,3 +177,17 @@ macfb_ctrl_write(uint64_t addr, uint64_t value, unsigned int size) "addr 0x%"PRI
 macfb_sense_read(uint32_t value) "video sense: 0x%"PRIx32
 macfb_sense_write(uint32_t value) "video sense: 0x%"PRIx32
 macfb_update_mode(uint32_t width, uint32_t height, uint8_t depth) "setting mode to width %"PRId32 " height %"PRId32 " size %d"
+
+# dm163.c
+dm163_redraw(uint8_t redraw) "0x%02x"
+dm163_dck(unsigned new_state) "dck : %u"
+dm163_en_b(unsigned new_state) "en_b : %u"
+dm163_rst_b(unsigned new_state) "rst_b : %u"
+dm163_lat_b(unsigned new_state) "lat_b : %u"
+dm163_sin(unsigned new_state) "sin : %u"
+dm163_selbk(unsigned new_state) "selbk : %u"
+dm163_activated_rows(int new_state) "Activated rows : 0x%" PRIx32 ""
+dm163_bits_ppi(unsigned dest_width) "dest_width : %u"
+dm163_leds(int led, uint32_t value) "led %d: 0x%x"
+dm163_channels(int channel, uint8_t value) "channel %d: 0x%x"
+dm163_refresh_rate(uint32_t rr) "refresh rate %d"
