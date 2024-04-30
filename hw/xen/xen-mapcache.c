@@ -421,7 +421,8 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     return xen_ram_addr_from_mapcache_single(mapcache, ptr);
 }
 
-static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
+static void xen_invalidate_map_cache_entry_unlocked(MapCache *mc,
+                                                    uint8_t *buffer)
 {
     MapCacheEntry *entry = NULL, *pentry = NULL;
     MapCacheRev *reventry;
@@ -429,7 +430,7 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
     hwaddr size;
     int found = 0;
 
-    QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
+    QTAILQ_FOREACH(reventry, &mc->locked_entries, next) {
         if (reventry->vaddr_req == buffer) {
             paddr_index = reventry->paddr_index;
             size = reventry->size;
@@ -439,7 +440,7 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
     }
     if (!found) {
         trace_xen_invalidate_map_cache_entry_unlocked_not_found(buffer);
-        QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
+        QTAILQ_FOREACH(reventry, &mc->locked_entries, next) {
             trace_xen_invalidate_map_cache_entry_unlocked_found(
                 reventry->paddr_index,
                 reventry->vaddr_req
@@ -447,15 +448,15 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
         }
         return;
     }
-    QTAILQ_REMOVE(&mapcache->locked_entries, reventry, next);
+    QTAILQ_REMOVE(&mc->locked_entries, reventry, next);
     g_free(reventry);
 
-    if (mapcache->last_entry != NULL &&
-        mapcache->last_entry->paddr_index == paddr_index) {
-        mapcache->last_entry = NULL;
+    if (mc->last_entry != NULL &&
+        mc->last_entry->paddr_index == paddr_index) {
+        mc->last_entry = NULL;
     }
 
-    entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
+    entry = &mc->entry[paddr_index % mc->nr_buckets];
     while (entry && (entry->paddr_index != paddr_index || entry->size != size)) {
         pentry = entry;
         entry = entry->next;
@@ -489,7 +490,7 @@ static void xen_invalidate_map_cache_entry_bh(void *opaque)
     XenMapCacheData *data = opaque;
 
     mapcache_lock(mapcache);
-    xen_invalidate_map_cache_entry_unlocked(data->buffer);
+    xen_invalidate_map_cache_entry_unlocked(mapcache, data->buffer);
     mapcache_unlock(mapcache);
 
     aio_co_wake(data->co);
@@ -507,7 +508,7 @@ void coroutine_mixed_fn xen_invalidate_map_cache_entry(uint8_t *buffer)
         qemu_coroutine_yield();
     } else {
         mapcache_lock(mapcache);
-        xen_invalidate_map_cache_entry_unlocked(buffer);
+        xen_invalidate_map_cache_entry_unlocked(mapcache, buffer);
         mapcache_unlock(mapcache);
     }
 }
