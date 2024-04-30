@@ -46,8 +46,6 @@ static void migration_global_dump(Monitor *mon)
                    ms->send_configuration ? "on" : "off");
     monitor_printf(mon, "send-section-footer: %s\n",
                    ms->send_section_footer ? "on" : "off");
-    monitor_printf(mon, "decompress-error-check: %s\n",
-                   ms->decompress_error_check ? "on" : "off");
     monitor_printf(mon, "clear-bitmap-shift: %u\n",
                    ms->clear_bitmap_shift);
 }
@@ -162,19 +160,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->overflow);
     }
 
-    if (info->compression) {
-        monitor_printf(mon, "compression pages: %" PRIu64 " pages\n",
-                       info->compression->pages);
-        monitor_printf(mon, "compression busy: %" PRIu64 "\n",
-                       info->compression->busy);
-        monitor_printf(mon, "compression busy rate: %0.2f\n",
-                       info->compression->busy_rate);
-        monitor_printf(mon, "compressed size: %" PRIu64 " kbytes\n",
-                       info->compression->compressed_size >> 10);
-        monitor_printf(mon, "compression rate: %0.2f\n",
-                       info->compression->compression_rate);
-    }
-
     if (info->has_cpu_throttle_percentage) {
         monitor_printf(mon, "cpu throttle percentage: %" PRIu64 "\n",
                        info->cpu_throttle_percentage);
@@ -263,22 +248,6 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 " ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_STEP),
             params->announce_step);
-        assert(params->has_compress_level);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_LEVEL),
-            params->compress_level);
-        assert(params->has_compress_threads);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_THREADS),
-            params->compress_threads);
-        assert(params->has_compress_wait_thread);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD),
-            params->compress_wait_thread ? "on" : "off");
-        assert(params->has_decompress_threads);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_DECOMPRESS_THREADS),
-            params->decompress_threads);
         assert(params->has_throttle_trigger_threshold);
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD),
@@ -520,22 +489,6 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
     switch (val) {
-    case MIGRATION_PARAMETER_COMPRESS_LEVEL:
-        p->has_compress_level = true;
-        visit_type_uint8(v, param, &p->compress_level, &err);
-        break;
-    case MIGRATION_PARAMETER_COMPRESS_THREADS:
-        p->has_compress_threads = true;
-        visit_type_uint8(v, param, &p->compress_threads, &err);
-        break;
-    case MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD:
-        p->has_compress_wait_thread = true;
-        visit_type_bool(v, param, &p->compress_wait_thread, &err);
-        break;
-    case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
-        p->has_decompress_threads = true;
-        visit_type_uint8(v, param, &p->decompress_threads, &err);
-        break;
     case MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD:
         p->has_throttle_trigger_threshold = true;
         visit_type_uint8(v, param, &p->throttle_trigger_threshold, &err);

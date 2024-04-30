@@ -393,13 +393,6 @@ struct MigrationState {
     /* Needed by postcopy-pause state */
     QemuSemaphore postcopy_pause_sem;
     /*
-     * Whether we abort the migration if decompression errors are
-     * detected at the destination. It is left at false for qemu
-     * older than 3.0, since only newer qemu sends streams that
-     * do not trigger spurious decompression errors.
-     */
-    bool decompress_error_check;
-    /*
      * This variable only affects behavior when postcopy preempt mode is
      * enabled.
      *

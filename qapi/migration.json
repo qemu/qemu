@@ -229,10 +229,6 @@
 #     This is only present when the postcopy-blocktime migration
 #     capability is enabled.  (Since 3.0)
 #
-# @compression: migration compression statistics, only returned if
-#     compression feature is on and status is 'active' or 'completed'
-#     (Since 3.1)
-#
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
 #
@@ -257,13 +253,6 @@
 #     average memory load of the virtual CPU indirectly.  Note that
 #     zero means guest doesn't dirty memory.  (Since 8.1)
 #
-# Features:
-#
-# @deprecated: Member @compression is deprecated because it is
-#     unreliable and untested.  It is recommended to use multifd
-#     migration, which offers an alternative compression
-#     implementation that is reliable and tested.
-#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
@@ -279,7 +268,6 @@
            '*blocked-reasons': ['str'],
            '*postcopy-blocktime': 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
-           '*compression': { 'type': 'CompressionStats', 'features': [ 'deprecated' ] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
            '*dirty-limit-ring-full-time': 'uint64'} }
@@ -401,14 +389,6 @@
 #     capability on the source VM. The feature is disabled by default.
 #     (since 1.6)
 #
-# @compress: Use multiple compression threads to accelerate live
-#     migration.  This feature can help to reduce the migration
-#     traffic, by sending compressed pages.  Please note that if
-#     compress and xbzrle are both on, compress only takes effect in
-#     the ram bulk stage, after that, it will be disabled and only
-#     xbzrle takes effect, this can help to minimize migration
-#     traffic.  The feature is disabled by default.  (since 2.4)
-#
 # @events: generate events for each migration state change (since 2.4)
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down
@@ -491,18 +471,12 @@
 #
 # Features:
 #
-# @deprecated: Member @compress is deprecated because it is unreliable
-#     and untested.  It is recommended to use multifd migration, which
-#     offers an alternative compression implementation that is
-#     reliable and tested.
-#
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           { 'name': 'compress', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
@@ -562,7 +536,6 @@
 #           {"state": false, "capability": "rdma-pin-all"},
 #           {"state": false, "capability": "auto-converge"},
 #           {"state": false, "capability": "zero-blocks"},
-#           {"state": false, "capability": "compress"},
 #           {"state": true, "capability": "events"},
 #           {"state": false, "capability": "postcopy-ram"},
 #           {"state": false, "capability": "x-colo"}
@@ -710,27 +683,6 @@
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
 #
-# @compress-level: Set the compression level to be used in live
-#     migration, the compression level is an integer between 0 and 9,
-#     where 0 means no compression, 1 means the best compression
-#     speed, and 9 means best compression ratio which will consume
-#     more CPU.
-#
-# @compress-threads: Set compression thread count to be used in live
-#     migration, the compression thread count is an integer between 1
-#     and 255.
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: Set decompression thread count to be used in
-#     live migration, the decompression thread count is an integer
-#     between 1 and 255. Usually, decompression is at least 4 times as
-#     fast as compression, so set the decompress-threads to the number
-#     about 1/4 of compress-threads is adequate.
-#
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
 #     percentage.  The default value is 50.  (Since 5.0)
@@ -862,10 +814,6 @@
 #
 # Features:
 #
-# @deprecated: Members @compress-level, @compress-threads,
-#     @decompress-threads and @compress-wait-thread are deprecated
-#     because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -874,10 +822,6 @@
 { 'enum': 'MigrationParameter',
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
-           { 'name': 'compress-level', 'features': [ 'deprecated' ] },
-           { 'name': 'compress-threads', 'features': [ 'deprecated' ] },
-           { 'name': 'decompress-threads', 'features': [ 'deprecated' ] },
-           { 'name': 'compress-wait-thread', 'features': [ 'deprecated' ] },
            'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
@@ -908,27 +852,6 @@
 #
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
-#
-# @compress-level: Set the compression level to be used in live
-#     migration, the compression level is an integer between 0 and 9,
-#     where 0 means no compression, 1 means the best compression
-#     speed, and 9 means best compression ratio which will consume
-#     more CPU.
-#
-# @compress-threads: Set compression thread count to be used in live
-#     migration, the compression thread count is an integer between 1
-#     and 255.
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: Set decompression thread count to be used in
-#     live migration, the decompression thread count is an integer
-#     between 1 and 255. Usually, decompression is at least 4 times as
-#     fast as compression, so set the decompress-threads to the number
-#     about 1/4 of compress-threads is adequate.
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1061,10 +984,6 @@
 #
 # Features:
 #
-# @deprecated: Members @compress-level, @compress-threads,
-#     @decompress-threads and @compress-wait-thread are deprecated
-#     because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -1078,14 +997,6 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': { 'type': 'uint8',
-                                 'features': [ 'deprecated' ] },
-            '*compress-threads':  { 'type': 'uint8',
-                                    'features': [ 'deprecated' ] },
-            '*compress-wait-thread':  { 'type': 'bool',
-                                        'features': [ 'deprecated' ] },
-            '*decompress-threads':  { 'type': 'uint8',
-                                      'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -1144,17 +1055,6 @@
 #
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
-#
-# @compress-level: compression level
-#
-# @compress-threads: compression thread count
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: decompression thread count
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1283,10 +1183,6 @@
 #
 # Features:
 #
-# @deprecated: Members @compress-level, @compress-threads,
-#     @decompress-threads and @compress-wait-thread are deprecated
-#     because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -1297,14 +1193,6 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': { 'type': 'uint8',
-                                 'features': [ 'deprecated' ] },
-            '*compress-threads': { 'type': 'uint8',
-                                   'features': [ 'deprecated' ] },
-            '*compress-wait-thread': { 'type': 'bool',
-                                       'features': [ 'deprecated' ] },
-            '*decompress-threads': { 'type': 'uint8',
-                                     'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',

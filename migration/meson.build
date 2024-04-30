@@ -23,7 +23,6 @@ system_ss.add(files(
   'multifd.c',
   'multifd-zlib.c',
   'multifd-zero-page.c',
-  'ram-compress.c',
   'options.c',
   'postcopy-ram.c',
   'savevm.c',

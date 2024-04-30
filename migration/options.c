@@ -40,13 +40,6 @@
  * for sending the last part */
 #define DEFAULT_MIGRATE_SET_DOWNTIME 300
 
-/* Default compression thread count */
-#define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
-/* Default decompression thread count, usually decompression is at
- * least 4 times as fast as compression.*/
-#define DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT 2
-/*0: means nocompress, 1: best speed, ... 9: best compress ratio */
-#define DEFAULT_MIGRATE_COMPRESS_LEVEL 1
 /* Define default autoconverge cpu throttle migration parameters */
 #define DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD 50
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
@@ -92,8 +85,6 @@ Property migration_properties[] = {
                      send_configuration, true),
     DEFINE_PROP_BOOL("send-section-footer", MigrationState,
                      send_section_footer, true),
-    DEFINE_PROP_BOOL("decompress-error-check", MigrationState,
-                      decompress_error_check, true),
     DEFINE_PROP_BOOL("multifd-flush-after-each-section", MigrationState,
                       multifd_flush_after_each_section, false),
     DEFINE_PROP_UINT8("x-clear-bitmap-shift", MigrationState,
@@ -102,17 +93,6 @@ Property migration_properties[] = {
                      preempt_pre_7_2, false),
 
     /* Migration parameters */
-    DEFINE_PROP_UINT8("x-compress-level", MigrationState,
-                      parameters.compress_level,
-                      DEFAULT_MIGRATE_COMPRESS_LEVEL),
-    DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
-                      parameters.compress_threads,
-                      DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
-    DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
-                      parameters.compress_wait_thread, true),
-    DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
-                      parameters.decompress_threads,
-                      DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
     DEFINE_PROP_UINT8("x-throttle-trigger-threshold", MigrationState,
                       parameters.throttle_trigger_threshold,
                       DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD),
@@ -188,7 +168,6 @@ Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
     DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
     DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
-    DEFINE_PROP_MIG_CAP("x-compress", MIGRATION_CAPABILITY_COMPRESS),
     DEFINE_PROP_MIG_CAP("x-events", MIGRATION_CAPABILITY_EVENTS),
     DEFINE_PROP_MIG_CAP("x-postcopy-ram", MIGRATION_CAPABILITY_POSTCOPY_RAM),
     DEFINE_PROP_MIG_CAP("x-postcopy-preempt",
@@ -229,13 +208,6 @@ bool migrate_colo(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
-}
-
-bool migrate_compress(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 bool migrate_dirty_bitmaps(void)
@@ -451,7 +423,6 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
     MIGRATION_CAPABILITY_AUTO_CONVERGE,
     MIGRATION_CAPABILITY_RELEASE_RAM,
     MIGRATION_CAPABILITY_RDMA_PIN_ALL,
-    MIGRATION_CAPABILITY_COMPRESS,
     MIGRATION_CAPABILITY_XBZRLE,
     MIGRATION_CAPABILITY_X_COLO,
     MIGRATION_CAPABILITY_VALIDATE_UUID,
@@ -475,11 +446,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
     ERRP_GUARD();
     MigrationIncomingState *mis = migration_incoming_get_current();
-
-    if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
-        warn_report("old compression method is deprecated;"
-                    " use multifd compression methods instead");
-    }
 
 #ifndef CONFIG_REPLICATION
     if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
@@ -549,7 +515,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 #ifdef CONFIG_LINUX
     if (new_caps[MIGRATION_CAPABILITY_ZERO_COPY_SEND] &&
         (!new_caps[MIGRATION_CAPABILITY_MULTIFD] ||
-         new_caps[MIGRATION_CAPABILITY_COMPRESS] ||
          new_caps[MIGRATION_CAPABILITY_XBZRLE] ||
          migrate_multifd_compression() ||
          migrate_tls())) {
@@ -571,17 +536,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
             return false;
         }
 
-        /*
-         * Preempt mode requires urgent pages to be sent in separate
-         * channel, OTOH compression logic will disorder all pages into
-         * different compression channels, which is not compatible with the
-         * preempt assumptions on channel assignments.
-         */
-        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
-            error_setg(errp, "Postcopy preempt not compatible with compress");
-            return false;
-        }
-
         if (migrate_incoming_started()) {
             error_setg(errp,
                        "Postcopy preempt must be set before incoming starts");
@@ -590,10 +544,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     }
 
     if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
-        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
-            error_setg(errp, "Multifd is not compatible with compress");
-            return false;
-        }
         if (migrate_incoming_started()) {
             error_setg(errp, "Multifd must be set before incoming starts");
             return false;
@@ -628,23 +578,10 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         }
     }
 
-    if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
-        if (new_caps[MIGRATION_CAPABILITY_XBZRLE]) {
-            error_setg(errp, "Compression is not compatible with xbzrle");
-            return false;
-        }
-    }
-
     if (new_caps[MIGRATION_CAPABILITY_MAPPED_RAM]) {
         if (new_caps[MIGRATION_CAPABILITY_XBZRLE]) {
             error_setg(errp,
                        "Mapped-ram migration is incompatible with xbzrle");
-            return false;
-        }
-
-        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
-            error_setg(errp,
-                       "Mapped-ram migration is incompatible with compression");
             return false;
         }
 
@@ -744,27 +681,6 @@ uint32_t migrate_checkpoint_delay(void)
     return s->parameters.x_checkpoint_delay;
 }
 
-int migrate_compress_level(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.compress_level;
-}
-
-int migrate_compress_threads(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.compress_threads;
-}
-
-int migrate_compress_wait_thread(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.compress_wait_thread;
-}
-
 uint8_t migrate_cpu_throttle_increment(void)
 {
     MigrationState *s = migrate_get_current();
@@ -784,13 +700,6 @@ bool migrate_cpu_throttle_tailslow(void)
     MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_tailslow;
-}
-
-int migrate_decompress_threads(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->parameters.decompress_threads;
 }
 
 uint64_t migrate_downtime_limit(void)
@@ -938,14 +847,6 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
     params = g_malloc0(sizeof(*params));
-    params->has_compress_level = true;
-    params->compress_level = s->parameters.compress_level;
-    params->has_compress_threads = true;
-    params->compress_threads = s->parameters.compress_threads;
-    params->has_compress_wait_thread = true;
-    params->compress_wait_thread = s->parameters.compress_wait_thread;
-    params->has_decompress_threads = true;
-    params->decompress_threads = s->parameters.decompress_threads;
     params->has_throttle_trigger_threshold = true;
     params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
     params->has_cpu_throttle_initial = true;
@@ -1014,10 +915,6 @@ void migrate_params_init(MigrationParameters *params)
     params->tls_creds = g_strdup("");
 
     /* Set has_* up only for parameter checks */
-    params->has_compress_level = true;
-    params->has_compress_threads = true;
-    params->has_compress_wait_thread = true;
-    params->has_decompress_threads = true;
     params->has_throttle_trigger_threshold = true;
     params->has_cpu_throttle_initial = true;
     params->has_cpu_throttle_increment = true;
@@ -1049,27 +946,6 @@ void migrate_params_init(MigrationParameters *params)
 bool migrate_params_check(MigrationParameters *params, Error **errp)
 {
     ERRP_GUARD();
-
-    if (params->has_compress_level &&
-        (params->compress_level > 9)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                   "a value between 0 and 9");
-        return false;
-    }
-
-    if (params->has_compress_threads && (params->compress_threads < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "compress_threads",
-                   "a value between 1 and 255");
-        return false;
-    }
-
-    if (params->has_decompress_threads && (params->decompress_threads < 1)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "decompress_threads",
-                   "a value between 1 and 255");
-        return false;
-    }
 
     if (params->has_throttle_trigger_threshold &&
         (params->throttle_trigger_threshold < 1 ||
@@ -1244,22 +1120,6 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
 
-    if (params->has_compress_level) {
-        dest->compress_level = params->compress_level;
-    }
-
-    if (params->has_compress_threads) {
-        dest->compress_threads = params->compress_threads;
-    }
-
-    if (params->has_compress_wait_thread) {
-        dest->compress_wait_thread = params->compress_wait_thread;
-    }
-
-    if (params->has_decompress_threads) {
-        dest->decompress_threads = params->decompress_threads;
-    }
-
     if (params->has_throttle_trigger_threshold) {
         dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
     }
@@ -1363,30 +1223,6 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     MigrationState *s = migrate_get_current();
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
-
-    if (params->has_compress_level) {
-        warn_report("old compression is deprecated;"
-                    " use multifd compression methods instead");
-        s->parameters.compress_level = params->compress_level;
-    }
-
-    if (params->has_compress_threads) {
-        warn_report("old compression is deprecated;"
-                    " use multifd compression methods instead");
-        s->parameters.compress_threads = params->compress_threads;
-    }
-
-    if (params->has_compress_wait_thread) {
-        warn_report("old compression is deprecated;"
-                    " use multifd compression methods instead");
-        s->parameters.compress_wait_thread = params->compress_wait_thread;
-    }
-
-    if (params->has_decompress_threads) {
-        warn_report("old compression is deprecated;"
-                    " use multifd compression methods instead");
-        s->parameters.decompress_threads = params->decompress_threads;
-    }
 
     if (params->has_throttle_trigger_threshold) {
         s->parameters.throttle_trigger_threshold = params->throttle_trigger_threshold;
