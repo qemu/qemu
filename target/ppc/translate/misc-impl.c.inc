@@ -34,8 +34,7 @@ static bool trans_SYNC(DisasContext *ctx, arg_X_sync *a)
      */
     if (!(ctx->insns_flags & PPC_MEM_SYNC)) {
         if (ctx->insns_flags & PPC_BOOKE) {
-            /* msync replaces sync on 440, interpreted as nop */
-            /* XXX: this also catches e200 */
+            tcg_gen_mb(bar | TCG_BAR_SC);
             return true;
         }
 
@@ -75,6 +74,7 @@ static bool trans_EIEIO(DisasContext *ctx, arg_EIEIO *a)
     if (!(ctx->insns_flags & PPC_MEM_EIEIO)) {
         if ((ctx->insns_flags & PPC_BOOKE) ||
             (ctx->insns_flags2 & PPC2_BOOKE206)) {
+            tcg_gen_mb(bar | TCG_BAR_SC);
             return true;
         }
         return false;
