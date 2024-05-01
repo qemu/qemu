@@ -312,14 +312,14 @@ void tcg_gen_mb(TCGBar mb_type)
     }
 }
 
-void tcg_gen_plugin_cb_start(unsigned from, unsigned type, unsigned wr)
+void tcg_gen_plugin_cb(unsigned from)
 {
-    tcg_gen_op3(INDEX_op_plugin_cb_start, from, type, wr);
+    tcg_gen_op1(INDEX_op_plugin_cb, from);
 }
 
-void tcg_gen_plugin_cb_end(void)
+void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 {
-    tcg_emit_op(INDEX_op_plugin_cb_end, 0);
+    tcg_gen_op2(INDEX_op_plugin_mem_cb, tcgv_i64_arg(addr), meminfo);
 }
 
 /* 32 bit ops */
