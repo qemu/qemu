@@ -25,6 +25,7 @@ static bool trans_SYNC(DisasContext *ctx, arg_X_sync *a)
 {
     TCGBar bar = TCG_MO_ALL;
     uint32_t l = a->l;
+    uint32_t sc = a->sc;
 
     /*
      * BookE uses the msync mnemonic. This means hwsync, except in the
@@ -41,20 +42,36 @@ static bool trans_SYNC(DisasContext *ctx, arg_X_sync *a)
         return false;
     }
 
-    if ((l == 1) && (ctx->insns_flags2 & PPC2_MEM_LWSYNC)) {
-        bar = TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST;
+    /*
+     * In ISA v3.1, the L field grew one bit. Mask that out to ignore it in
+     * older processors. It also added the SC field, zero this to ignore
+     * it too.
+     */
+    if (!(ctx->insns_flags2 & PPC2_ISA310)) {
+        l &= 0x3;
+        sc = 0;
     }
 
-    /*
-     * We may need to check for a pending TLB flush.
-     *
-     * We do this on ptesync (l == 2) on ppc64 and any sync on ppc32.
-     *
-     * Additionally, this can only happen in kernel mode however so
-     * check MSR_PR as well.
-     */
-    if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
-        gen_check_tlb_flush(ctx, true);
+    if (sc) {
+        /* Store syncs [stsync, stcisync, stncisync]. These ignore L. */
+        bar = TCG_MO_ST_ST;
+    } else {
+        if (((l == 1) && (ctx->insns_flags2 & PPC2_MEM_LWSYNC)) || (l == 5)) {
+            /* lwsync, or plwsync on POWER10 and later */
+            bar = TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST;
+        }
+
+        /*
+         * We may need to check for a pending TLB flush.
+         *
+         * We do this on ptesync (l == 2) on ppc64 and any sync on ppc32.
+         *
+         * Additionally, this can only happen in kernel mode however so
+         * check MSR_PR as well.
+         */
+        if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
+            gen_check_tlb_flush(ctx, true);
+        }
     }
 
     tcg_gen_mb(bar | TCG_BAR_SC);
