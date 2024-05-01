@@ -3422,59 +3422,6 @@ static void gen_stswx(DisasContext *ctx)
     gen_helper_stsw(tcg_env, t0, t1, t2);
 }
 
-/***                        Memory synchronisation                         ***/
-/* eieio */
-static void gen_eieio(DisasContext *ctx)
-{
-    TCGBar bar = TCG_MO_ALL;
-
-    /*
-     * eieio has complex semanitcs. It provides memory ordering between
-     * operations in the set:
-     * - loads from CI memory.
-     * - stores to CI memory.
-     * - stores to WT memory.
-     *
-     * It separately also orders memory for operations in the set:
-     * - stores to cacheble memory.
-     *
-     * It also serializes instructions:
-     * - dcbt and dcbst.
-     *
-     * It separately serializes:
-     * - tlbie and tlbsync.
-     *
-     * And separately serializes:
-     * - slbieg, slbiag, and slbsync.
-     *
-     * The end result is that CI memory ordering requires TCG_MO_ALL
-     * and it is not possible to special-case more relaxed ordering for
-     * cacheable accesses. TCG_BAR_SC is required to provide this
-     * serialization.
-     */
-
-    /*
-     * POWER9 has a eieio instruction variant using bit 6 as a hint to
-     * tell the CPU it is a store-forwarding barrier.
-     */
-    if (ctx->opcode & 0x2000000) {
-        /*
-         * ISA says that "Reserved fields in instructions are ignored
-         * by the processor". So ignore the bit 6 on non-POWER9 CPU but
-         * as this is not an instruction software should be using,
-         * complain to the user.
-         */
-        if (!(ctx->insns_flags2 & PPC2_ISA300)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "invalid eieio using bit 6 at @"
-                          TARGET_FMT_lx "\n", ctx->cia);
-        } else {
-            bar = TCG_MO_ST_LD;
-        }
-    }
-
-    tcg_gen_mb(bar | TCG_BAR_SC);
-}
-
 #if !defined(CONFIG_USER_ONLY)
 static inline void gen_check_tlb_flush(DisasContext *ctx, bool global)
 {
@@ -3882,31 +3829,6 @@ static void gen_stqcx_(DisasContext *ctx)
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
 #endif /* defined(TARGET_PPC64) */
-
-/* sync */
-static void gen_sync(DisasContext *ctx)
-{
-    TCGBar bar = TCG_MO_ALL;
-    uint32_t l = (ctx->opcode >> 21) & 3;
-
-    if ((l == 1) && (ctx->insns_flags2 & PPC2_MEM_LWSYNC)) {
-        bar = TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST;
-    }
-
-    /*
-     * We may need to check for a pending TLB flush.
-     *
-     * We do this on ptesync (l == 2) on ppc64 and any sync pn ppc32.
-     *
-     * Additionally, this can only happen in kernel mode however so
-     * check MSR_PR as well.
-     */
-    if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
-        gen_check_tlb_flush(ctx, true);
-    }
-
-    tcg_gen_mb(bar | TCG_BAR_SC);
-}
 
 /* wait */
 static void gen_wait(DisasContext *ctx)
@@ -6016,23 +5938,6 @@ static void gen_dlmzb(DisasContext *ctx)
                      cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
 }
 
-/* mbar replaces eieio on 440 */
-static void gen_mbar(DisasContext *ctx)
-{
-    /* interpreted as no-op */
-}
-
-/* msync replaces sync on 440 */
-static void gen_msync_4xx(DisasContext *ctx)
-{
-    /* Only e500 seems to treat reserved bits as invalid */
-    if ((ctx->insns_flags2 & PPC2_BOOKE206) &&
-        (ctx->opcode & 0x03FFF801)) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-    }
-    /* otherwise interpreted as no-op */
-}
-
 /* icbt */
 static void gen_icbt_440(DisasContext *ctx)
 {
@@ -6370,6 +6275,8 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
 
 #include "translate/storage-ctrl-impl.c.inc"
 
+#include "translate/misc-impl.c.inc"
+
 /* Handles lfdp */
 static void gen_dform39(DisasContext *ctx)
 {
@@ -6498,7 +6405,6 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING),
 GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING),
 GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING),
 GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
-GEN_HANDLER(eieio, 0x1F, 0x16, 0x1A, 0x01FFF801, PPC_MEM_EIEIO),
 GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM),
 GEN_HANDLER_E(lbarx, 0x1F, 0x14, 0x01, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
 GEN_HANDLER_E(lharx, 0x1F, 0x14, 0x03, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
@@ -6516,7 +6422,6 @@ GEN_HANDLER_E(lqarx, 0x1F, 0x14, 0x08, 0, PPC_NONE, PPC2_LSQ_ISA207),
 GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B),
 GEN_HANDLER_E(stqcx_, 0x1F, 0x16, 0x05, 0, PPC_NONE, PPC2_LSQ_ISA207),
 #endif
-GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC),
 /* ISA v3.0 changed the extended opcode from 62 to 30 */
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x039FF801, PPC_WAIT),
 GEN_HANDLER_E(wait, 0x1F, 0x1E, 0x00, 0x039CF801, PPC_NONE, PPC2_ISA300),
@@ -6639,9 +6544,6 @@ GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
 GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
-GEN_HANDLER_E(mbar, 0x1F, 0x16, 0x1a, 0x001FF801,
-              PPC_BOOKE, PPC2_BOOKE206),
-GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x039FF801, PPC_BOOKE),
 GEN_HANDLER2_E(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001,
                PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x06, 0x08, 0x03E00001,
