@@ -21,13 +21,14 @@
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/cpu-topology.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
-static inline SCLPDevice *get_sclp_device(void)
+static SCLPDevice *get_sclp_device(void)
 {
     static SCLPDevice *sclp;
 
     if (!sclp) {
-        sclp = SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+        sclp = S390_CCW_MACHINE(qdev_get_machine())->sclp;
     }
     return sclp;
 }
