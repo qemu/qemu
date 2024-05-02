@@ -119,44 +119,23 @@ uint64_t helper_fmul8x16(uint32_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16al(uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8x16a(uint32_t src1, int32_t src2)
 {
-    VIS64 s, d;
+    VIS32 s;
+    VIS64 d;
     uint32_t tmp;
 
-    s.ll = src1;
-    d.ll = src2;
+    s.l = src1;
+    d.ll = 0;
 
-#define PMUL(r)                                                 \
-    tmp = (int32_t)d.VIS_SW64(1) * (int32_t)s.VIS_B64(r);       \
-    if ((tmp & 0xff) > 0x7f) {                                  \
-        tmp += 0x100;                                           \
-    }                                                           \
-    d.VIS_W64(r) = tmp >> 8;
-
-    PMUL(0);
-    PMUL(1);
-    PMUL(2);
-    PMUL(3);
-#undef PMUL
-
-    return d.ll;
-}
-
-uint64_t helper_fmul8x16au(uint64_t src1, uint64_t src2)
-{
-    VIS64 s, d;
-    uint32_t tmp;
-
-    s.ll = src1;
-    d.ll = src2;
-
-#define PMUL(r)                                                 \
-    tmp = (int32_t)d.VIS_SW64(0) * (int32_t)s.VIS_B64(r);       \
-    if ((tmp & 0xff) > 0x7f) {                                  \
-        tmp += 0x100;                                           \
-    }                                                           \
-    d.VIS_W64(r) = tmp >> 8;
+#define PMUL(r)                                \
+    do {                                       \
+        tmp = src2 * (int32_t)s.VIS_B32(r);    \
+        if ((tmp & 0xff) > 0x7f) {             \
+            tmp += 0x100;                      \
+        }                                      \
+        d.VIS_W64(r) = tmp >> 8;               \
+    } while (0)
 
     PMUL(0);
     PMUL(1);
