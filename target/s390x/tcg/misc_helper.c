@@ -627,18 +627,16 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
 
 void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_BRANCH)) {
-        if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
-            || get_per_in_range(env, to)) {
-            env->per_address = from;
-            env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
-        }
+    if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
+        || get_per_in_range(env, to)) {
+        env->per_address = from;
+        env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
     }
 }
 
 void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
+    if (get_per_in_range(env, addr)) {
         env->per_address = addr;
         env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
 
@@ -659,12 +657,9 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
 
 void HELPER(per_store_real)(CPUS390XState *env)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_STORE) &&
-        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
-        /* PSW is saved just before calling the helper.  */
-        env->per_address = env->psw.addr;
-        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
-    }
+    /* PSW is saved just before calling the helper.  */
+    env->per_address = env->psw.addr;
+    env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
 }
 #endif
 

@@ -325,8 +325,10 @@ static void s390_cpu_reset_full(DeviceState *dev)
 #include "hw/core/tcg-cpu-ops.h"
 
 void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags)
+                          uint64_t *cs_base, uint32_t *pflags)
 {
+    uint32_t flags;
+
     if (env->psw.addr & 1) {
         /*
          * Instructions must be at even addresses.
@@ -335,15 +337,27 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
         env->int_pgm_ilen = 2; /* see s390_cpu_tlb_fill() */
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, 0);
     }
+
     *pc = env->psw.addr;
     *cs_base = env->ex_value;
-    *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
+
+    flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
+    if (env->psw.mask & PSW_MASK_PER) {
+        flags |= env->cregs[9] & (FLAG_MASK_PER_BRANCH |
+                                  FLAG_MASK_PER_IFETCH |
+                                  FLAG_MASK_PER_IFETCH_NULLIFY);
+        if ((env->cregs[9] & PER_CR9_EVENT_STORE) &&
+            (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+            flags |= FLAG_MASK_PER_STORE_REAL;
+        }
+    }
     if (env->cregs[0] & CR0_AFP) {
-        *flags |= FLAG_MASK_AFP;
+        flags |= FLAG_MASK_AFP;
     }
     if (env->cregs[0] & CR0_VECTOR) {
-        *flags |= FLAG_MASK_VECTOR;
+        flags |= FLAG_MASK_VECTOR;
     }
+    *pflags = flags;
 }
 
 static const TCGCPUOps s390_tcg_ops = {

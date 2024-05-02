@@ -342,19 +342,32 @@ extern const VMStateDescription vmstate_s390_cpu;
 
 /* tb flags */
 
-#define FLAG_MASK_PSW_SHIFT     31
-#define FLAG_MASK_PER           (PSW_MASK_PER    >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_DAT           (PSW_MASK_DAT    >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_PSTATE        (PSW_MASK_PSTATE >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_ASC           (PSW_MASK_ASC    >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_64            (PSW_MASK_64     >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_32            (PSW_MASK_32     >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_PSW           (FLAG_MASK_PER | FLAG_MASK_DAT | FLAG_MASK_PSTATE \
-                                | FLAG_MASK_ASC | FLAG_MASK_64 | FLAG_MASK_32)
+#define FLAG_MASK_PSW_SHIFT             31
+#define FLAG_MASK_32                    0x00000001u
+#define FLAG_MASK_64                    0x00000002u
+#define FLAG_MASK_AFP                   0x00000004u
+#define FLAG_MASK_VECTOR                0x00000008u
+#define FLAG_MASK_ASC                   0x00018000u
+#define FLAG_MASK_PSTATE                0x00020000u
+#define FLAG_MASK_PER_IFETCH_NULLIFY    0x01000000u
+#define FLAG_MASK_DAT                   0x08000000u
+#define FLAG_MASK_PER_STORE_REAL        0x20000000u
+#define FLAG_MASK_PER_IFETCH            0x40000000u
+#define FLAG_MASK_PER_BRANCH            0x80000000u
 
-/* we'll use some unused PSW positions to store CR flags in tb flags */
-#define FLAG_MASK_AFP           (PSW_MASK_UNUSED_2 >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_VECTOR        (PSW_MASK_UNUSED_3 >> FLAG_MASK_PSW_SHIFT)
+QEMU_BUILD_BUG_ON(FLAG_MASK_32 != PSW_MASK_32 >> FLAG_MASK_PSW_SHIFT);
+QEMU_BUILD_BUG_ON(FLAG_MASK_64 != PSW_MASK_64 >> FLAG_MASK_PSW_SHIFT);
+QEMU_BUILD_BUG_ON(FLAG_MASK_ASC != PSW_MASK_ASC >> FLAG_MASK_PSW_SHIFT);
+QEMU_BUILD_BUG_ON(FLAG_MASK_PSTATE != PSW_MASK_PSTATE >> FLAG_MASK_PSW_SHIFT);
+QEMU_BUILD_BUG_ON(FLAG_MASK_DAT != PSW_MASK_DAT >> FLAG_MASK_PSW_SHIFT);
+
+#define FLAG_MASK_PSW           (FLAG_MASK_DAT | FLAG_MASK_PSTATE | \
+                                 FLAG_MASK_ASC | FLAG_MASK_64 | FLAG_MASK_32)
+#define FLAG_MASK_CR9           (FLAG_MASK_PER_BRANCH | FLAG_MASK_PER_IFETCH)
+#define FLAG_MASK_PER           (FLAG_MASK_PER_BRANCH | \
+                                 FLAG_MASK_PER_IFETCH | \
+                                 FLAG_MASK_PER_IFETCH_NULLIFY | \
+                                 FLAG_MASK_PER_STORE_REAL)
 
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
@@ -430,6 +443,11 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
 #define PER_CR9_CONTROL_BRANCH_ADDRESS          0x00800000
 #define PER_CR9_CONTROL_TRANSACTION_SUPRESS     0x00400000
 #define PER_CR9_CONTROL_STORAGE_ALTERATION      0x00200000
+
+QEMU_BUILD_BUG_ON(FLAG_MASK_PER_BRANCH != PER_CR9_EVENT_BRANCH);
+QEMU_BUILD_BUG_ON(FLAG_MASK_PER_IFETCH != PER_CR9_EVENT_IFETCH);
+QEMU_BUILD_BUG_ON(FLAG_MASK_PER_IFETCH_NULLIFY !=
+                  PER_CR9_EVENT_IFETCH_NULLIFICATION);
 
 /* PER bits from the PER CODE/ATMID/AI in lowcore */
 #define PER_CODE_EVENT_BRANCH          0x8000
