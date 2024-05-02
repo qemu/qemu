@@ -23,7 +23,6 @@
  */
 typedef struct AccelCPUState AccelCPUState;
 typedef struct AccelState AccelState;
-typedef struct AdapterInfo AdapterInfo;
 typedef struct AddressSpace AddressSpace;
 typedef struct AioContext AioContext;
 typedef struct Aml Aml;

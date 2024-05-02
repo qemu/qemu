@@ -470,10 +470,11 @@ static inline void kvm_irqchip_commit_route_changes(KVMRouteChange *c)
     }
 }
 
+int kvm_irqchip_get_virq(KVMState *s);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 
-int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
-int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint);
+void kvm_add_routing_entry(KVMState *s,
+                           struct kvm_irq_routing_entry *entry);
 
 int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
                                        EventNotifier *rn, int virq);

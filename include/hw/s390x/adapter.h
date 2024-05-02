@@ -12,12 +12,12 @@
 #ifndef S390X_ADAPTER_H
 #define S390X_ADAPTER_H
 
-struct AdapterInfo {
+typedef struct AdapterInfo {
     uint64_t ind_addr;
     uint64_t summary_addr;
     uint64_t ind_offset;
     uint32_t summary_offset;
     uint32_t adapter_id;
-};
+} AdapterInfo;
 
 #endif

@@ -1909,8 +1909,8 @@ void kvm_irqchip_commit_routes(KVMState *s)
     assert(ret == 0);
 }
 
-static void kvm_add_routing_entry(KVMState *s,
-                                  struct kvm_irq_routing_entry *entry)
+void kvm_add_routing_entry(KVMState *s,
+                           struct kvm_irq_routing_entry *entry)
 {
     struct kvm_irq_routing_entry *new;
     int n, size;
@@ -2007,7 +2007,7 @@ void kvm_irqchip_change_notify(void)
     notifier_list_notify(&kvm_irqchip_change_notifiers, NULL);
 }
 
-static int kvm_irqchip_get_virq(KVMState *s)
+int kvm_irqchip_get_virq(KVMState *s)
 {
     int next_virq;
 
@@ -2163,62 +2163,6 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, EventNotifier *event,
     }
 
     return kvm_vm_ioctl(s, KVM_IRQFD, &irqfd);
-}
-
-int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
-{
-    struct kvm_irq_routing_entry kroute = {};
-    int virq;
-
-    if (!kvm_gsi_routing_enabled()) {
-        return -ENOSYS;
-    }
-
-    virq = kvm_irqchip_get_virq(s);
-    if (virq < 0) {
-        return virq;
-    }
-
-    kroute.gsi = virq;
-    kroute.type = KVM_IRQ_ROUTING_S390_ADAPTER;
-    kroute.flags = 0;
-    kroute.u.adapter.summary_addr = adapter->summary_addr;
-    kroute.u.adapter.ind_addr = adapter->ind_addr;
-    kroute.u.adapter.summary_offset = adapter->summary_offset;
-    kroute.u.adapter.ind_offset = adapter->ind_offset;
-    kroute.u.adapter.adapter_id = adapter->adapter_id;
-
-    kvm_add_routing_entry(s, &kroute);
-
-    return virq;
-}
-
-int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint)
-{
-    struct kvm_irq_routing_entry kroute = {};
-    int virq;
-
-    if (!kvm_gsi_routing_enabled()) {
-        return -ENOSYS;
-    }
-    if (!kvm_check_extension(s, KVM_CAP_HYPERV_SYNIC)) {
-        return -ENOSYS;
-    }
-    virq = kvm_irqchip_get_virq(s);
-    if (virq < 0) {
-        return virq;
-    }
-
-    kroute.gsi = virq;
-    kroute.type = KVM_IRQ_ROUTING_HV_SINT;
-    kroute.flags = 0;
-    kroute.u.hv_sint.vcpu = vcpu;
-    kroute.u.hv_sint.sint = sint;
-
-    kvm_add_routing_entry(s, &kroute);
-    kvm_irqchip_commit_routes(s);
-
-    return virq;
 }
 
 #else /* !KVM_CAP_IRQ_ROUTING */
