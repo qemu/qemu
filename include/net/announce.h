@@ -12,12 +12,12 @@
 #include "qapi/qapi-types-net.h"
 #include "qemu/timer.h"
 
-struct AnnounceTimer {
+typedef struct AnnounceTimer {
     QEMUTimer *tm;
     AnnounceParameters params;
     QEMUClockType type;
     int round;
-};
+} AnnounceTimer;
 
 /* Returns: update the timer to the next time point */
 int64_t qemu_announce_timer_step(AnnounceTimer *timer);
