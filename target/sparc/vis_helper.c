@@ -194,52 +194,6 @@ uint64_t helper_fmul8ulx16(uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmuld8sux16(uint64_t src1, uint64_t src2)
-{
-    VIS64 s, d;
-    uint32_t tmp;
-
-    s.ll = src1;
-    d.ll = src2;
-
-#define PMUL(r)                                                         \
-    tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
-    if ((tmp & 0xff) > 0x7f) {                                          \
-        tmp += 0x100;                                                   \
-    }                                                                   \
-    d.VIS_L64(r) = tmp;
-
-    /* Reverse calculation order to handle overlap */
-    PMUL(1);
-    PMUL(0);
-#undef PMUL
-
-    return d.ll;
-}
-
-uint64_t helper_fmuld8ulx16(uint64_t src1, uint64_t src2)
-{
-    VIS64 s, d;
-    uint32_t tmp;
-
-    s.ll = src1;
-    d.ll = src2;
-
-#define PMUL(r)                                                         \
-    tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
-    if ((tmp & 0xff) > 0x7f) {                                          \
-        tmp += 0x100;                                                   \
-    }                                                                   \
-    d.VIS_L64(r) = tmp;
-
-    /* Reverse calculation order to handle overlap */
-    PMUL(1);
-    PMUL(0);
-#undef PMUL
-
-    return d.ll;
-}
-
 uint64_t helper_fexpand(uint32_t src2)
 {
     VIS32 s;
