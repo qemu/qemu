@@ -6424,13 +6424,14 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
 #ifndef CONFIG_USER_ONLY
     if (s->base.tb->flags & FLAG_MASK_PER) {
-        /* An exception might be triggered, save PSW if not already done.  */
-        if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {
-            tcg_gen_movi_i64(psw_addr, s->pc_tmp);
-        }
+        TCGv_i64 next_pc = psw_addr;
 
-        /* Call the helper to check for a possible PER exception.  */
-        gen_helper_per_check_exception(tcg_env);
+        if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {
+            next_pc = tcg_constant_i64(s->pc_tmp);
+        }
+        update_cc_op(s);
+        gen_helper_per_check_exception(tcg_env, next_pc,
+                                       tcg_constant_i32(s->ilen));
     }
 #endif
 

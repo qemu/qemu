@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "qemu/host-utils.h"
@@ -590,10 +591,26 @@ void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 #endif
 
 #ifndef CONFIG_USER_ONLY
-void HELPER(per_check_exception)(CPUS390XState *env)
+static G_NORETURN void per_raise_exception(CPUS390XState *env)
 {
-    if (env->per_perc_atmid) {
-        tcg_s390_program_interrupt(env, PGM_PER, GETPC());
+    trigger_pgm_exception(env, PGM_PER);
+    cpu_loop_exit(env_cpu(env));
+}
+
+static G_NORETURN void per_raise_exception_log(CPUS390XState *env)
+{
+    qemu_log_mask(CPU_LOG_INT, "PER interrupt after 0x%" PRIx64 "\n",
+                  env->per_address);
+    per_raise_exception(env);
+}
+
+void HELPER(per_check_exception)(CPUS390XState *env, uint64_t next_pc,
+                                 uint32_t ilen)
+{
+    if (unlikely(env->per_perc_atmid)) {
+        env->psw.addr = next_pc;
+        env->int_pgm_ilen = ilen;
+        per_raise_exception_log(env);
     }
 }
 
