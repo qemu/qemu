@@ -341,12 +341,11 @@ static void update_psw_addr(DisasContext *s)
     tcg_gen_movi_i64(psw_addr, s->base.pc_next);
 }
 
-static void per_branch(DisasContext *s, bool to_next)
+static void per_branch(DisasContext *s, TCGv_i64 dest)
 {
 #ifndef CONFIG_USER_ONLY
     if (s->base.tb->flags & FLAG_MASK_PER_BRANCH) {
-        TCGv_i64 next_pc = to_next ? tcg_constant_i64(s->pc_tmp) : psw_addr;
-        gen_helper_per_branch(tcg_env, gbea, next_pc);
+        gen_helper_per_branch(tcg_env, dest, tcg_constant_i32(s->ilen));
     }
 #endif
 }
@@ -635,9 +634,6 @@ static void gen_op_calc_cc(DisasContext *s)
 
 static bool use_goto_tb(DisasContext *s, uint64_t dest)
 {
-    if (unlikely(s->base.tb->flags & FLAG_MASK_PER_BRANCH)) {
-        return false;
-    }
     return translator_use_goto_tb(&s->base, dest);
 }
 
@@ -1079,37 +1075,38 @@ struct DisasInsn {
 
 static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
 {
+    update_cc_op(s);
     per_breaking_event(s);
+    per_branch(s, tcg_constant_i64(dest));
+
     if (dest == s->pc_tmp) {
-        per_branch(s, true);
         return DISAS_NEXT;
     }
     if (use_goto_tb(s, dest)) {
-        update_cc_op(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb(s->base.tb, 0);
         return DISAS_NORETURN;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
-        per_branch(s, false);
-        return DISAS_PC_UPDATED;
+        return DISAS_PC_CC_UPDATED;
     }
 }
 
 static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
 {
+    update_cc_op(s);
     per_breaking_event(s);
     tcg_gen_mov_i64(psw_addr, dest);
-    per_branch(s, false);
-    return DISAS_PC_UPDATED;
+    per_branch(s, psw_addr);
+    return DISAS_PC_CC_UPDATED;
 }
 
 static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
                                  bool is_imm, int imm, TCGv_i64 cdest)
 {
     uint64_t dest = s->base.pc_next + (int64_t)imm * 2;
-    TCGLabel *lab, *over;
+    TCGLabel *lab;
 
     /* Take care of the special cases first.  */
     if (c->cond == TCG_COND_NEVER) {
@@ -1143,12 +1140,6 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
      * which avoids an otherwise unnecessary spill to the stack.
      */
     lab = gen_new_label();
-    if (s->base.tb->flags & FLAG_MASK_PER_BRANCH) {
-        over = gen_new_label();
-    } else {
-        over = NULL;
-    }
-
     if (c->is_64) {
         tcg_gen_brcond_i64(tcg_invert_cond(c->cond),
                            c->u.s64.a, c->u.s64.b, lab);
@@ -1164,13 +1155,11 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     } else {
         tcg_gen_mov_i64(psw_addr, cdest);
     }
-    per_branch(s, false);
+    per_branch(s, psw_addr);
 
     if (is_imm && use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(0);
         tcg_gen_exit_tb(s->base.tb, 0);
-    } else if (over) {
-        tcg_gen_br(over);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
@@ -1182,15 +1171,9 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     if (use_goto_tb(s, s->pc_tmp)) {
         tcg_gen_goto_tb(1);
         tcg_gen_exit_tb(s->base.tb, 1);
+        return DISAS_NORETURN;
     }
-
-    if (over) {
-        gen_set_label(over);
-        return DISAS_PC_UPDATED;
-    }
-
-    tcg_gen_lookup_and_goto_ptr();
-    return DISAS_NORETURN;
+    return DISAS_PC_CC_UPDATED;
 }
 
 /* ====================================================================== */
@@ -6372,7 +6355,8 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
 
 #ifndef CONFIG_USER_ONLY
-    if (s->base.tb->flags & FLAG_MASK_PER) {
+    if (s->base.tb->flags & (FLAG_MASK_PER_STORE_REAL |
+                             FLAG_MASK_PER_IFETCH)) {
         TCGv_i64 next_pc = psw_addr;
 
         if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {
@@ -6402,7 +6386,7 @@ static void s390x_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     dc->cc_op = CC_OP_DYNAMIC;
     dc->ex_value = dc->base.tb->cs_base;
-    dc->exit_to_mainloop = (dc->base.tb->flags & FLAG_MASK_PER) || dc->ex_value;
+    dc->exit_to_mainloop = dc->ex_value;
 }
 
 static void s390x_tr_tb_start(DisasContextBase *db, CPUState *cs)

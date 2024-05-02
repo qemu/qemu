@@ -625,13 +625,18 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
     }
 }
 
-void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
+void HELPER(per_branch)(CPUS390XState *env, uint64_t dest, uint32_t ilen)
 {
-    if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
-        || get_per_in_range(env, to)) {
-        env->per_address = from;
-        env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+    if ((env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
+        && !get_per_in_range(env, dest)) {
+        return;
     }
+
+    env->psw.addr = dest;
+    env->int_pgm_ilen = ilen;
+    env->per_address = env->gbea;
+    env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+    per_raise_exception_log(env);
 }
 
 void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
