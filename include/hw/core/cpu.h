@@ -28,6 +28,7 @@
 #include "exec/memattrs.h"
 #include "exec/mmu-access-type.h"
 #include "exec/tlb-common.h"
+#include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/bitmap.h"
 #include "qemu/rcu_queue.h"
