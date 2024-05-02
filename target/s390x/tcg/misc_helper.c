@@ -604,12 +604,10 @@ static G_NORETURN void per_raise_exception_log(CPUS390XState *env)
     per_raise_exception(env);
 }
 
-void HELPER(per_check_exception)(CPUS390XState *env, uint64_t next_pc,
-                                 uint32_t ilen)
+void HELPER(per_check_exception)(CPUS390XState *env)
 {
+    /* psw_addr, per_address and int_pgm_ilen are already set. */
     if (unlikely(env->per_perc_atmid)) {
-        env->psw.addr = next_pc;
-        env->int_pgm_ilen = ilen;
         per_raise_exception_log(env);
     }
 }
@@ -639,23 +637,20 @@ void HELPER(per_branch)(CPUS390XState *env, uint64_t dest, uint32_t ilen)
     per_raise_exception_log(env);
 }
 
-void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
+void HELPER(per_ifetch)(CPUS390XState *env, uint32_t ilen)
 {
-    if (get_per_in_range(env, addr)) {
-        env->per_address = addr;
+    if (get_per_in_range(env, env->psw.addr)) {
+        env->per_address = env->psw.addr;
+        env->int_pgm_ilen = ilen;
         env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
 
         /* If the instruction has to be nullified, trigger the
            exception immediately. */
         if (env->cregs[9] & PER_CR9_EVENT_IFETCH_NULLIFICATION) {
-            CPUState *cs = env_cpu(env);
-
             env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
-            env->int_pgm_code = PGM_PER;
-            env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
-
-            cs->exception_index = EXCP_PGM;
-            cpu_loop_exit(cs);
+            qemu_log_mask(CPU_LOG_INT, "PER interrupt before 0x%" PRIx64 "\n",
+                          env->per_address);
+            per_raise_exception(env);
         }
     }
 }

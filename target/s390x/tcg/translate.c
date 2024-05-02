@@ -6258,8 +6258,8 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
 #ifndef CONFIG_USER_ONLY
     if (s->base.tb->flags & FLAG_MASK_PER_IFETCH) {
-        TCGv_i64 addr = tcg_constant_i64(s->base.pc_next);
-        gen_helper_per_ifetch(tcg_env, addr);
+        /* With ifetch set, psw_addr and cc_op are always up-to-date. */
+        gen_helper_per_ifetch(tcg_env, tcg_constant_i32(s->ilen));
     }
 #endif
 
@@ -6358,14 +6358,18 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
 #ifndef CONFIG_USER_ONLY
     if (s->base.tb->flags & FLAG_MASK_PER_IFETCH) {
-        TCGv_i64 next_pc = psw_addr;
-
-        if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {
-            next_pc = tcg_constant_i64(s->pc_tmp);
+        switch (ret) {
+        case DISAS_TOO_MANY:
+            s->base.is_jmp = DISAS_PC_CC_UPDATED;
+            /* fall through */
+        case DISAS_NEXT:
+            tcg_gen_movi_i64(psw_addr, s->pc_tmp);
+            break;
+        default:
+            break;
         }
         update_cc_op(s);
-        gen_helper_per_check_exception(tcg_env, next_pc,
-                                       tcg_constant_i32(s->ilen));
+        gen_helper_per_check_exception(tcg_env);
     }
 #endif
 
