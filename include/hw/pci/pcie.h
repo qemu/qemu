@@ -27,6 +27,9 @@
 #include "hw/pci/pcie_sriov.h"
 #include "hw/hotplug.h"
 
+typedef struct PCIEPort PCIEPort;
+typedef struct PCIESlot PCIESlot;
+
 typedef enum {
     /* these bits must match the bits in Slot Control/Status registers.
      * PCI_EXP_HP_EV_xxx = PCI_EXP_SLTCTL_xxxE = PCI_EXP_SLTSTA_xxx
