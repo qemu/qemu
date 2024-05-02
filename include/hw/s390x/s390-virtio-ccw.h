@@ -13,6 +13,7 @@
 
 #include "hw/boards.h"
 #include "qom/object.h"
+#include "hw/s390x/sclp.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -28,6 +29,8 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+
+    SCLPDevice *sclp;
 };
 
 #define S390_PTF_REASON_NONE (0x00 << 8)
