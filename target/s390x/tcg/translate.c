@@ -344,8 +344,6 @@ static void update_psw_addr(DisasContext *s)
 static void per_branch(DisasContext *s, bool to_next)
 {
 #ifndef CONFIG_USER_ONLY
-    tcg_gen_movi_i64(gbea, s->base.pc_next);
-
     if (s->base.tb->flags & FLAG_MASK_PER_BRANCH) {
         TCGv_i64 next_pc = to_next ? tcg_constant_i64(s->pc_tmp) : psw_addr;
         gen_helper_per_branch(tcg_env, gbea, next_pc);
@@ -1081,13 +1079,13 @@ struct DisasInsn {
 
 static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
 {
+    per_breaking_event(s);
     if (dest == s->pc_tmp) {
         per_branch(s, true);
         return DISAS_NEXT;
     }
     if (use_goto_tb(s, dest)) {
         update_cc_op(s);
-        per_breaking_event(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb(s->base.tb, 0);
@@ -1101,6 +1099,7 @@ static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
 
 static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
 {
+    per_breaking_event(s);
     tcg_gen_mov_i64(psw_addr, dest);
     per_branch(s, false);
     return DISAS_PC_UPDATED;
@@ -1159,6 +1158,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
     }
 
     /* Branch taken.  */
+    per_breaking_event(s);
     if (is_imm) {
         tcg_gen_movi_i64(psw_addr, dest);
     } else {
