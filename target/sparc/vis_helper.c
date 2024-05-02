@@ -74,22 +74,23 @@ typedef union {
     float32 f;
 } VIS32;
 
-uint64_t helper_fpmerge(uint64_t src1, uint64_t src2)
+uint64_t helper_fpmerge(uint32_t src1, uint32_t src2)
 {
-    VIS64 s, d;
+    VIS32 s1, s2;
+    VIS64 d;
 
-    s.ll = src1;
-    d.ll = src2;
+    s1.l = src1;
+    s2.l = src2;
+    d.ll = 0;
 
-    /* Reverse calculation order to handle overlap */
-    d.VIS_B64(7) = s.VIS_B64(3);
-    d.VIS_B64(6) = d.VIS_B64(3);
-    d.VIS_B64(5) = s.VIS_B64(2);
-    d.VIS_B64(4) = d.VIS_B64(2);
-    d.VIS_B64(3) = s.VIS_B64(1);
-    d.VIS_B64(2) = d.VIS_B64(1);
-    d.VIS_B64(1) = s.VIS_B64(0);
-    /* d.VIS_B64(0) = d.VIS_B64(0); */
+    d.VIS_B64(7) = s1.VIS_B32(3);
+    d.VIS_B64(6) = s2.VIS_B32(3);
+    d.VIS_B64(5) = s1.VIS_B32(2);
+    d.VIS_B64(4) = s2.VIS_B32(2);
+    d.VIS_B64(3) = s1.VIS_B32(1);
+    d.VIS_B64(2) = s2.VIS_B32(1);
+    d.VIS_B64(1) = s1.VIS_B32(0);
+    d.VIS_B64(0) = s2.VIS_B32(0);
 
     return d.ll;
 }
