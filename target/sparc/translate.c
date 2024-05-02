@@ -74,8 +74,6 @@
 # define gen_helper_fmul8sux16           ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fmul8ulx16           ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fmul8x16             ({ qemu_build_not_reached(); NULL; })
-# define gen_helper_fmuld8sux16          ({ qemu_build_not_reached(); NULL; })
-# define gen_helper_fmuld8ulx16          ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fpmerge              ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fqtox                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_fstox                ({ qemu_build_not_reached(); NULL; })
@@ -728,6 +726,48 @@ static void gen_op_fmul8x16au(TCGv_i64 dst, TCGv_i32 src1, TCGv_i32 src2)
 {
     tcg_gen_sari_i32(src2, src2, 16);
     gen_helper_fmul8x16a(dst, src1, src2);
+}
+
+static void gen_op_fmuld8ulx16(TCGv_i64 dst, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+
+    tcg_gen_ext8u_i32(t0, src1);
+    tcg_gen_ext16s_i32(t1, src2);
+    tcg_gen_mul_i32(t0, t0, t1);
+
+    tcg_gen_extract_i32(t1, src1, 16, 8);
+    tcg_gen_sextract_i32(t2, src2, 16, 16);
+    tcg_gen_mul_i32(t1, t1, t2);
+
+    tcg_gen_concat_i32_i64(dst, t0, t1);
+}
+
+static void gen_op_fmuld8sux16(TCGv_i64 dst, TCGv_i32 src1, TCGv_i32 src2)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+
+    /*
+     * The insn description talks about extracting the upper 8 bits
+     * of the signed 16-bit input rs1, performing the multiply, then
+     * shifting left by 8 bits.  Instead, zap the lower 8 bits of
+     * the rs1 input, which avoids the need for two shifts.
+     */
+    tcg_gen_ext16s_i32(t0, src1);
+    tcg_gen_andi_i32(t0, t0, ~0xff);
+    tcg_gen_ext16s_i32(t1, src2);
+    tcg_gen_mul_i32(t0, t0, t1);
+
+    tcg_gen_sextract_i32(t1, src1, 16, 16);
+    tcg_gen_andi_i32(t1, t1, ~0xff);
+    tcg_gen_sextract_i32(t2, src2, 16, 16);
+    tcg_gen_mul_i32(t1, t1, t2);
+
+    tcg_gen_concat_i32_i64(dst, t0, t1);
 }
 
 static void finishing_insn(DisasContext *dc)
@@ -4614,6 +4654,8 @@ static bool do_dff(DisasContext *dc, arg_r_r_r *a,
 
 TRANS(FMUL8x16AU, VIS1, do_dff, a, gen_op_fmul8x16au)
 TRANS(FMUL8x16AL, VIS1, do_dff, a, gen_op_fmul8x16al)
+TRANS(FMULD8SUx16, VIS1, do_dff, a, gen_op_fmuld8sux16)
+TRANS(FMULD8ULx16, VIS1, do_dff, a, gen_op_fmuld8ulx16)
 
 static bool do_dfd(DisasContext *dc, arg_r_r_r *a,
                    void (*func)(TCGv_i64, TCGv_i32, TCGv_i64))
@@ -4654,8 +4696,6 @@ static bool do_ddd(DisasContext *dc, arg_r_r_r *a,
 
 TRANS(FMUL8SUx16, VIS1, do_ddd, a, gen_helper_fmul8sux16)
 TRANS(FMUL8ULx16, VIS1, do_ddd, a, gen_helper_fmul8ulx16)
-TRANS(FMULD8SUx16, VIS1, do_ddd, a, gen_helper_fmuld8sux16)
-TRANS(FMULD8ULx16, VIS1, do_ddd, a, gen_helper_fmuld8ulx16)
 TRANS(FPMERGE, VIS1, do_ddd, a, gen_helper_fpmerge)
 
 TRANS(FPADD16, VIS1, do_ddd, a, tcg_gen_vec_add16_i64)
