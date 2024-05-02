@@ -44,7 +44,7 @@
  */
 #define MAX_DISCARDS_PER_COMMAND 12
 
-struct PostcopyDiscardState {
+typedef struct PostcopyDiscardState {
     const char *ramblock_name;
     uint16_t cur_entry;
     /*
@@ -54,7 +54,7 @@ struct PostcopyDiscardState {
     uint64_t length_list[MAX_DISCARDS_PER_COMMAND];
     unsigned int nsentwords;
     unsigned int nsentcmds;
-};
+} PostcopyDiscardState;
 
 static NotifierWithReturnList postcopy_notifier_list;
 
