@@ -105,7 +105,6 @@ typedef struct QEMUBH QEMUBH;
 typedef struct QemuConsole QemuConsole;
 typedef struct QEMUCursor QEMUCursor;
 typedef struct QEMUFile QEMUFile;
-typedef struct QemuLockable QemuLockable;
 typedef struct QemuMutex QemuMutex;
 typedef struct QemuOpts QemuOpts;
 typedef struct QemuOptsList QemuOptsList;
