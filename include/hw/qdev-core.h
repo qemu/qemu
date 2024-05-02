@@ -294,6 +294,7 @@ struct DeviceState {
     MemReentrancyGuard mem_reentrancy_guard;
 };
 
+typedef struct DeviceListener DeviceListener;
 struct DeviceListener {
     void (*realize)(DeviceListener *listener, DeviceState *dev);
     void (*unrealize)(DeviceListener *listener, DeviceState *dev);
