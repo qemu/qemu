@@ -644,7 +644,7 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
 
         /* If the instruction has to be nullified, trigger the
            exception immediately. */
-        if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
+        if (env->cregs[9] & PER_CR9_EVENT_IFETCH_NULLIFICATION) {
             CPUState *cs = env_cpu(env);
 
             env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
