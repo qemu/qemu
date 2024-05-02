@@ -353,25 +353,6 @@ static void per_branch(DisasContext *s, bool to_next)
 #endif
 }
 
-static void per_branch_cond(DisasContext *s, TCGCond cond,
-                            TCGv_i64 arg1, TCGv_i64 arg2)
-{
-#ifndef CONFIG_USER_ONLY
-    if (s->base.tb->flags & FLAG_MASK_PER_BRANCH) {
-        TCGLabel *lab = gen_new_label();
-        tcg_gen_brcond_i64(tcg_invert_cond(cond), arg1, arg2, lab);
-
-        tcg_gen_movi_i64(gbea, s->base.pc_next);
-        gen_helper_per_branch(tcg_env, gbea, psw_addr);
-
-        gen_set_label(lab);
-    } else {
-        TCGv_i64 pc = tcg_constant_i64(s->base.pc_next);
-        tcg_gen_movcond_i64(cond, gbea, arg1, arg2, gbea, pc);
-    }
-#endif
-}
-
 static void per_breaking_event(DisasContext *s)
 {
     tcg_gen_movi_i64(gbea, s->base.pc_next);
@@ -1128,14 +1109,12 @@ static DisasJumpType help_goto_indirect(DisasContext *s, TCGv_i64 dest)
 static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
                                  bool is_imm, int imm, TCGv_i64 cdest)
 {
-    DisasJumpType ret;
     uint64_t dest = s->base.pc_next + (int64_t)imm * 2;
-    TCGLabel *lab;
+    TCGLabel *lab, *over;
 
     /* Take care of the special cases first.  */
     if (c->cond == TCG_COND_NEVER) {
-        ret = DISAS_NEXT;
-        goto egress;
+        return DISAS_NEXT;
     }
     if (is_imm) {
         /*
@@ -1145,104 +1124,73 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
         if (c->cond == TCG_COND_ALWAYS
             || (dest == s->pc_tmp &&
                 !(s->base.tb->flags & FLAG_MASK_PER_BRANCH))) {
-            ret = help_goto_direct(s, dest);
-            goto egress;
+            return help_goto_direct(s, dest);
         }
     } else {
         if (!cdest) {
             /* E.g. bcr %r0 -> no branch.  */
-            ret = DISAS_NEXT;
-            goto egress;
+            return DISAS_NEXT;
         }
         if (c->cond == TCG_COND_ALWAYS) {
-            ret = help_goto_indirect(s, cdest);
-            goto egress;
+            return help_goto_indirect(s, cdest);
         }
     }
 
-    if (use_goto_tb(s, s->pc_tmp)) {
-        if (is_imm && use_goto_tb(s, dest)) {
-            /* Both exits can use goto_tb.  */
-            update_cc_op(s);
+    update_cc_op(s);
 
-            lab = gen_new_label();
-            if (c->is_64) {
-                tcg_gen_brcond_i64(c->cond, c->u.s64.a, c->u.s64.b, lab);
-            } else {
-                tcg_gen_brcond_i32(c->cond, c->u.s32.a, c->u.s32.b, lab);
-            }
-
-            /* Branch not taken.  */
-            tcg_gen_goto_tb(0);
-            tcg_gen_movi_i64(psw_addr, s->pc_tmp);
-            tcg_gen_exit_tb(s->base.tb, 0);
-
-            /* Branch taken.  */
-            gen_set_label(lab);
-            per_breaking_event(s);
-            tcg_gen_goto_tb(1);
-            tcg_gen_movi_i64(psw_addr, dest);
-            tcg_gen_exit_tb(s->base.tb, 1);
-
-            ret = DISAS_NORETURN;
-        } else {
-            /* Fallthru can use goto_tb, but taken branch cannot.  */
-            /* Store taken branch destination before the brcond.  This
-               avoids having to allocate a new local temp to hold it.
-               We'll overwrite this in the not taken case anyway.  */
-            if (!is_imm) {
-                tcg_gen_mov_i64(psw_addr, cdest);
-            }
-
-            lab = gen_new_label();
-            if (c->is_64) {
-                tcg_gen_brcond_i64(c->cond, c->u.s64.a, c->u.s64.b, lab);
-            } else {
-                tcg_gen_brcond_i32(c->cond, c->u.s32.a, c->u.s32.b, lab);
-            }
-
-            /* Branch not taken.  */
-            update_cc_op(s);
-            tcg_gen_goto_tb(0);
-            tcg_gen_movi_i64(psw_addr, s->pc_tmp);
-            tcg_gen_exit_tb(s->base.tb, 0);
-
-            gen_set_label(lab);
-            if (is_imm) {
-                tcg_gen_movi_i64(psw_addr, dest);
-            }
-            per_breaking_event(s);
-            ret = DISAS_PC_UPDATED;
-        }
+    /*
+     * Ensure the taken branch is fall-through of the tcg branch.
+     * This keeps @cdest usage within the extended basic block,
+     * which avoids an otherwise unnecessary spill to the stack.
+     */
+    lab = gen_new_label();
+    if (s->base.tb->flags & FLAG_MASK_PER_BRANCH) {
+        over = gen_new_label();
     } else {
-        /* Fallthru cannot use goto_tb.  This by itself is vanishingly rare.
-           Most commonly we're single-stepping or some other condition that
-           disables all use of goto_tb.  Just update the PC and exit.  */
-
-        TCGv_i64 next = tcg_constant_i64(s->pc_tmp);
-        if (is_imm) {
-            cdest = tcg_constant_i64(dest);
-        }
-
-        if (c->is_64) {
-            tcg_gen_movcond_i64(c->cond, psw_addr, c->u.s64.a, c->u.s64.b,
-                                cdest, next);
-            per_branch_cond(s, c->cond, c->u.s64.a, c->u.s64.b);
-        } else {
-            TCGv_i32 t0 = tcg_temp_new_i32();
-            TCGv_i64 t1 = tcg_temp_new_i64();
-            TCGv_i64 z = tcg_constant_i64(0);
-            tcg_gen_setcond_i32(c->cond, t0, c->u.s32.a, c->u.s32.b);
-            tcg_gen_extu_i32_i64(t1, t0);
-            tcg_gen_movcond_i64(TCG_COND_NE, psw_addr, t1, z, cdest, next);
-            per_branch_cond(s, TCG_COND_NE, t1, z);
-        }
-
-        ret = DISAS_PC_UPDATED;
+        over = NULL;
     }
 
- egress:
-    return ret;
+    if (c->is_64) {
+        tcg_gen_brcond_i64(tcg_invert_cond(c->cond),
+                           c->u.s64.a, c->u.s64.b, lab);
+    } else {
+        tcg_gen_brcond_i32(tcg_invert_cond(c->cond),
+                           c->u.s32.a, c->u.s32.b, lab);
+    }
+
+    /* Branch taken.  */
+    if (is_imm) {
+        tcg_gen_movi_i64(psw_addr, dest);
+    } else {
+        tcg_gen_mov_i64(psw_addr, cdest);
+    }
+    per_branch(s, false);
+
+    if (is_imm && use_goto_tb(s, dest)) {
+        tcg_gen_goto_tb(0);
+        tcg_gen_exit_tb(s->base.tb, 0);
+    } else if (over) {
+        tcg_gen_br(over);
+    } else {
+        tcg_gen_lookup_and_goto_ptr();
+    }
+
+    gen_set_label(lab);
+
+    /* Branch not taken.  */
+    tcg_gen_movi_i64(psw_addr, s->pc_tmp);
+    if (use_goto_tb(s, s->pc_tmp)) {
+        tcg_gen_goto_tb(1);
+        tcg_gen_exit_tb(s->base.tb, 1);
+    }
+
+    if (over) {
+        gen_set_label(over);
+        return DISAS_PC_UPDATED;
+    }
+
+    tcg_gen_lookup_and_goto_ptr();
+    return DISAS_NORETURN;
 }
 
 /* ====================================================================== */
