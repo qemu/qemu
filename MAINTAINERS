@@ -3484,7 +3484,7 @@ F: qapi/crypto.json
 F: tests/unit/test-crypto-*
 F: tests/bench/benchmark-crypto-*
 F: tests/unit/crypto-tls-*
-F: tests/unit/pkix_asn1_tab.c
+F: tests/unit/pkix_asn1_tab.c.inc
 F: qemu.sasl
 
 Coroutines
