@@ -6341,14 +6341,15 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
     if (insn->help_op) {
         ret = insn->help_op(s, &o);
+        if (ret == DISAS_NORETURN) {
+            goto out;
+        }
     }
-    if (ret != DISAS_NORETURN) {
-        if (insn->help_wout) {
-            insn->help_wout(s, &o);
-        }
-        if (insn->help_cout) {
-            insn->help_cout(s, &o);
-        }
+    if (insn->help_wout) {
+        insn->help_wout(s, &o);
+    }
+    if (insn->help_cout) {
+        insn->help_cout(s, &o);
     }
 
     /* io should be the last instruction in tb when icount is enabled */
