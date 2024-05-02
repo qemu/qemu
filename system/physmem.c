@@ -158,12 +158,12 @@ static void tcg_commit(MemoryListener *listener);
  * @memory_dispatch: its dispatch pointer (cached, RCU protected)
  * @tcg_as_listener: listener for tracking changes to the AddressSpace
  */
-struct CPUAddressSpace {
+typedef struct CPUAddressSpace {
     CPUState *cpu;
     AddressSpace *as;
     struct AddressSpaceDispatch *memory_dispatch;
     MemoryListener tcg_as_listener;
-};
+} CPUAddressSpace;
 
 struct DirtyBitmapSnapshot {
     ram_addr_t start;

@@ -85,6 +85,12 @@ DECLARE_CLASS_CHECKERS(CPUClass, CPU,
 
 typedef struct CPUWatchpoint CPUWatchpoint;
 
+/* see physmem.c */
+struct CPUAddressSpace;
+
+/* see accel/tcg/tb-jmp-cache.h */
+struct CPUJumpCache;
+
 /* see accel-cpu.h */
 struct AccelCPUClass;
 
@@ -473,12 +479,12 @@ struct CPUState {
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
 
-    CPUAddressSpace *cpu_ases;
+    struct CPUAddressSpace *cpu_ases;
     int num_ases;
     AddressSpace *as;
     MemoryRegion *memory;
 
-    CPUJumpCache *tb_jmp_cache;
+    struct CPUJumpCache *tb_jmp_cache;
 
     GArray *gdb_regs;
     int gdb_num_regs;
