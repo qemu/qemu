@@ -2087,7 +2087,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
     static const int i2c_ports_per_engine[PNV10_CHIP_MAX_I2C] = {14, 14, 2, 16};
 
-    k->chip_cfam_id = 0x120da04900008000ull; /* P10 DD1.0 (with NX) */
+    k->chip_cfam_id = 0x220da04980000000ull; /* P10 DD2.0 (with NX) */
     k->cores_mask = POWER10_CORE_MASK;
     k->chip_pir = pnv_chip_pir_p10;
     k->intc_create = pnv_chip_power10_intc_create;
