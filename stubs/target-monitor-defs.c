@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
-
-const MonitorDef *target_monitor_defs(void);
+#include "monitor/hmp-target.h"
 
 const MonitorDef *target_monitor_defs(void)
 {
