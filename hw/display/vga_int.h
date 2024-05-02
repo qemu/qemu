@@ -25,6 +25,7 @@
 #ifndef HW_VGA_INT_H
 #define HW_VGA_INT_H
 
+#include "ui/console.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
 
