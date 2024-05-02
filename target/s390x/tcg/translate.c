@@ -4342,8 +4342,10 @@ static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_st_tl(o->in1, o->in2, MMU_REAL_IDX, s->insn->data);
 
     if (s->base.tb->flags & FLAG_MASK_PER_STORE_REAL) {
+        update_cc_op(s);
         update_psw_addr(s);
-        gen_helper_per_store_real(tcg_env);
+        gen_helper_per_store_real(tcg_env, tcg_constant_i32(s->ilen));
+        return DISAS_NORETURN;
     }
     return DISAS_NEXT;
 }
@@ -6355,8 +6357,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
 
 #ifndef CONFIG_USER_ONLY
-    if (s->base.tb->flags & (FLAG_MASK_PER_STORE_REAL |
-                             FLAG_MASK_PER_IFETCH)) {
+    if (s->base.tb->flags & FLAG_MASK_PER_IFETCH) {
         TCGv_i64 next_pc = psw_addr;
 
         if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {

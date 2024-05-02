@@ -660,11 +660,13 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
     }
 }
 
-void HELPER(per_store_real)(CPUS390XState *env)
+void HELPER(per_store_real)(CPUS390XState *env, uint32_t ilen)
 {
     /* PSW is saved just before calling the helper.  */
     env->per_address = env->psw.addr;
+    env->int_pgm_ilen = ilen;
     env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    per_raise_exception_log(env);
 }
 #endif
 
