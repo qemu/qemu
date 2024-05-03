@@ -912,14 +912,20 @@ ERST
         .args_type  = "detach:-d,resume:-r,uri:s",
         .params     = "[-d] [-r] uri",
         .help       = "migrate to URI (using -d to not wait for completion)"
-		      "\n\t\t\t -r to resume a paused migration",
+		      "\n\t\t\t -r to resume a paused postcopy migration",
         .cmd        = hmp_migrate,
     },
 
 
 SRST
-``migrate [-d]`` *uri*
-  Migrate to *uri* (using -d to not wait for completion).
+``migrate [-d] [-r]`` *uri*
+  Migrate the VM to *uri*.
+
+  ``-d``
+    Start the migration process, but do not wait for its completion.  To
+    query an ongoing migration process, use "info migrate".
+  ``-r``
+    Resume a paused postcopy migration.
 ERST
 
     {
