@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 
 #include "qemu.h"
-#include "exec/user/thunk.h"
+#include "user/thunk.h"
 
 //#define DEBUG
 

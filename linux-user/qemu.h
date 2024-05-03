@@ -4,7 +4,7 @@
 #include "cpu.h"
 #include "exec/cpu_ldst.h"
 
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"

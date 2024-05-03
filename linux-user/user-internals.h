@@ -18,7 +18,7 @@
 #ifndef LINUX_USER_USER_INTERNALS_H
 #define LINUX_USER_USER_INTERNALS_H
 
-#include "exec/user/thunk.h"
+#include "user/thunk.h"
 #include "exec/exec-all.h"
 #include "exec/tb-flush.h"
 #include "qemu/log.h"

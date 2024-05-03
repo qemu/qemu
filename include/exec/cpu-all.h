@@ -64,7 +64,7 @@
 /* MMU memory access macros */
 
 #if defined(CONFIG_USER_ONLY)
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 /*
  * If non-zero, the guest virtual address space is a contiguous subset

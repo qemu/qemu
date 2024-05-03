@@ -22,11 +22,11 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 
-#include "exec/user/abitypes.h"
+#include "user/abitypes.h"
 
 extern char **environ;
 
-#include "exec/user/thunk.h"
+#include "user/thunk.h"
 #include "target_arch.h"
 #include "syscall_defs.h"
 #include "target_syscall.h"

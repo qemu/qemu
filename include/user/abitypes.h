@@ -1,5 +1,5 @@
-#ifndef EXEC_USER_ABITYPES_H
-#define EXEC_USER_ABITYPES_H
+#ifndef USER_ABITYPES_H
+#define USER_ABITYPES_H
 
 #ifndef CONFIG_USER_ONLY
 #error Cannot include this header from system emulation
