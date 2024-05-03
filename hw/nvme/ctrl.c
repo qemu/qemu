@@ -4352,7 +4352,7 @@ static uint16_t nvme_io_mgmt_send_ruh_update(NvmeCtrl *n, NvmeRequest *req)
     NvmeNamespace *ns = req->ns;
     uint32_t cdw10 = le32_to_cpu(cmd->cdw10);
     uint16_t ret = NVME_SUCCESS;
-    uint32_t npid = (cdw10 >> 1) + 1;
+    uint32_t npid = (cdw10 >> 16) + 1;
     unsigned int i = 0;
     g_autofree uint16_t *pids = NULL;
     uint32_t maxnpid;
