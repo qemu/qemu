@@ -461,23 +461,22 @@ static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
     uint64_t dest = ctx->base.pc_next + disp;
     TCGLabel *lab_true = gen_new_label();
 
-    if (use_goto_tb(ctx, dest)) {
-        tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
-
+    tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
+    if (use_goto_tb(ctx, ctx->base.pc_next)) {
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
         tcg_gen_exit_tb(ctx->base.tb, 0);
-
-        gen_set_label(lab_true);
+    } else {
+        tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
+        tcg_gen_lookup_and_goto_ptr();
+    }
+    gen_set_label(lab_true);
+    if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(1);
         tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_exit_tb(ctx->base.tb, 1);
     } else {
-        TCGv_i64 i = tcg_constant_i64(imm);
-        TCGv_i64 d = tcg_constant_i64(dest);
-        TCGv_i64 p = tcg_constant_i64(ctx->base.pc_next);
-
-        tcg_gen_movcond_i64(cond, cpu_pc, cmp, i, d, p);
+        tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_lookup_and_goto_ptr();
     }
 
