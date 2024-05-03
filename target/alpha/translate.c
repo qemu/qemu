@@ -450,7 +450,8 @@ static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
         return DISAS_NORETURN;
     } else {
         tcg_gen_movi_i64(cpu_pc, dest);
-        return DISAS_PC_UPDATED;
+        tcg_gen_lookup_and_goto_ptr();
+        return DISAS_NORETURN;
     }
 }
 
@@ -479,7 +480,8 @@ static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
         TCGv_i64 p = tcg_constant_i64(ctx->base.pc_next);
 
         tcg_gen_movcond_i64(cond, cpu_pc, cmp, i, d, p);
-        return DISAS_PC_UPDATED;
+        tcg_gen_lookup_and_goto_ptr();
+        return DISAS_NORETURN;
     }
 }
 
