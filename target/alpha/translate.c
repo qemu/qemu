@@ -447,12 +447,12 @@ static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_exit_tb(ctx->base.tb, 0);
-        return DISAS_NORETURN;
     } else {
         tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_lookup_and_goto_ptr();
-        return DISAS_NORETURN;
     }
+
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
@@ -472,8 +472,6 @@ static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
         tcg_gen_goto_tb(1);
         tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_exit_tb(ctx->base.tb, 1);
-
-        return DISAS_NORETURN;
     } else {
         TCGv_i64 i = tcg_constant_i64(imm);
         TCGv_i64 d = tcg_constant_i64(dest);
@@ -481,8 +479,9 @@ static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 
         tcg_gen_movcond_i64(cond, cpu_pc, cmp, i, d, p);
         tcg_gen_lookup_and_goto_ptr();
-        return DISAS_NORETURN;
     }
+
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
