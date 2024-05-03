@@ -28,25 +28,22 @@
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
 {
-    AlphaCPU *cpu = ALPHA_CPU(cs);
-
-    cpu->env.pc = value;
+    CPUAlphaState *env = cpu_env(cs);
+    env->pc = value;
 }
 
 static vaddr alpha_cpu_get_pc(CPUState *cs)
 {
-    AlphaCPU *cpu = ALPHA_CPU(cs);
-
-    return cpu->env.pc;
+    CPUAlphaState *env = cpu_env(cs);
+    return env->pc;
 }
 
 static void alpha_restore_state_to_opc(CPUState *cs,
                                        const TranslationBlock *tb,
                                        const uint64_t *data)
 {
-    AlphaCPU *cpu = ALPHA_CPU(cs);
-
-    cpu->env.pc = data[0];
+    CPUAlphaState *env = cpu_env(cs);
+    env->pc = data[0];
 }
 
 static bool alpha_cpu_has_work(CPUState *cs)
