@@ -262,11 +262,12 @@ int main(int argc, char **argv)
     base_setup();
 
     g_test_init(&argc, &argv, NULL);
-
-    if (g_test_slow()) {
-        /* Do not run this in timing-sensitive environments */
-        qtest_add_func("/rtc/bcd-check-time", bcd_check_time);
+    if (qtest_has_machine(base_machine)) {
+        if (g_test_slow()) {
+            /* Do not run this in timing-sensitive environments */
+            qtest_add_func("/rtc/bcd-check-time", bcd_check_time);
+        }
+        qtest_add_func("/rtc/fuzz-registers", fuzz_registers);
     }
-    qtest_add_func("/rtc/fuzz-registers", fuzz_registers);
     return g_test_run();
 }
