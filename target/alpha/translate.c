@@ -440,8 +440,10 @@ static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
 
     /* Notice branch-to-next; used to initialize RA with the PC.  */
     if (disp == 0) {
-        return 0;
-    } else if (use_goto_tb(ctx, dest)) {
+        return DISAS_NEXT;
+    }
+
+    if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(cpu_pc, dest);
         tcg_gen_exit_tb(ctx->base.tb, 0);
