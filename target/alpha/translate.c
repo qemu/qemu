@@ -54,6 +54,9 @@ struct DisasContext {
     uint32_t tbflags;
     int mem_idx;
 
+    /* True if generating pc-relative code.  */
+    bool pcrel;
+
     /* implver and amask values for this CPU.  */
     int implver;
     int amask;
@@ -254,7 +257,12 @@ static void st_flag_byte(TCGv val, unsigned shift)
 
 static void gen_pc_disp(DisasContext *ctx, TCGv dest, int32_t disp)
 {
-    tcg_gen_movi_i64(dest, ctx->base.pc_next + disp);
+    uint64_t addr = ctx->base.pc_next + disp;
+    if (ctx->pcrel) {
+        tcg_gen_addi_i64(dest, cpu_pc, addr - ctx->base.pc_first);
+    } else {
+        tcg_gen_movi_i64(dest, addr);
+    }
 }
 
 static void gen_excp_1(int exception, int error_code)
@@ -433,8 +441,14 @@ static DisasJumpType gen_store_conditional(DisasContext *ctx, int ra, int rb,
 static void gen_goto_tb(DisasContext *ctx, int idx, int32_t disp)
 {
     if (translator_use_goto_tb(&ctx->base, ctx->base.pc_next + disp)) {
-        tcg_gen_goto_tb(idx);
-        gen_pc_disp(ctx, cpu_pc, disp);
+        /* With PCREL, PC must always be up-to-date. */
+        if (ctx->pcrel) {
+            gen_pc_disp(ctx, cpu_pc, disp);
+            tcg_gen_goto_tb(idx);
+        } else {
+            tcg_gen_goto_tb(idx);
+            gen_pc_disp(ctx, cpu_pc, disp);
+        }
         tcg_gen_exit_tb(ctx->base.tb, idx);
     } else {
         gen_pc_disp(ctx, cpu_pc, disp);
@@ -2852,6 +2866,7 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     ctx->tbflags = ctx->base.tb->flags;
     ctx->mem_idx = alpha_env_mmu_index(env);
+    ctx->pcrel = ctx->base.tb->cflags & CF_PCREL;
     ctx->implver = env->implver;
     ctx->amask = env->amask;
 
@@ -2887,7 +2902,13 @@ static void alpha_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 
 static void alpha_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
-    tcg_gen_insn_start(dcbase->pc_next);
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    if (ctx->pcrel) {
+        tcg_gen_insn_start(dcbase->pc_next & ~TARGET_PAGE_MASK);
+    } else {
+        tcg_gen_insn_start(dcbase->pc_next);
+    }
 }
 
 static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
