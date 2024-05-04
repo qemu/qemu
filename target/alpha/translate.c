@@ -54,6 +54,9 @@ struct DisasContext {
     uint32_t tbflags;
     int mem_idx;
 
+    /* True if generating pc-relative code.  */
+    bool pcrel;
+
     /* implver and amask values for this CPU.  */
     int implver;
     int amask;
@@ -252,6 +255,16 @@ static void st_flag_byte(TCGv val, unsigned shift)
     tcg_gen_st8_i64(val, tcg_env, get_flag_ofs(shift));
 }
 
+static void gen_pc_disp(DisasContext *ctx, TCGv dest, int32_t disp)
+{
+    uint64_t addr = ctx->base.pc_next + disp;
+    if (ctx->pcrel) {
+        tcg_gen_addi_i64(dest, cpu_pc, addr - ctx->base.pc_first);
+    } else {
+        tcg_gen_movi_i64(dest, addr);
+    }
+}
+
 static void gen_excp_1(int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
@@ -263,7 +276,7 @@ static void gen_excp_1(int exception, int error_code)
 
 static DisasJumpType gen_excp(DisasContext *ctx, int exception, int error_code)
 {
-    tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
+    gen_pc_disp(ctx, cpu_pc, 0);
     gen_excp_1(exception, error_code);
     return DISAS_NORETURN;
 }
@@ -425,60 +438,49 @@ static DisasJumpType gen_store_conditional(DisasContext *ctx, int ra, int rb,
     return DISAS_NEXT;
 }
 
-static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+static void gen_goto_tb(DisasContext *ctx, int idx, int32_t disp)
 {
-    return translator_use_goto_tb(&ctx->base, dest);
+    if (translator_use_goto_tb(&ctx->base, ctx->base.pc_next + disp)) {
+        /* With PCREL, PC must always be up-to-date. */
+        if (ctx->pcrel) {
+            gen_pc_disp(ctx, cpu_pc, disp);
+            tcg_gen_goto_tb(idx);
+        } else {
+            tcg_gen_goto_tb(idx);
+            gen_pc_disp(ctx, cpu_pc, disp);
+        }
+        tcg_gen_exit_tb(ctx->base.tb, idx);
+    } else {
+        gen_pc_disp(ctx, cpu_pc, disp);
+        tcg_gen_lookup_and_goto_ptr();
+    }
 }
 
 static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
 {
-    uint64_t dest = ctx->base.pc_next + (disp << 2);
-
     if (ra != 31) {
-        tcg_gen_movi_i64(ctx->ir[ra], ctx->base.pc_next);
+        gen_pc_disp(ctx, ctx->ir[ra], 0);
     }
 
     /* Notice branch-to-next; used to initialize RA with the PC.  */
     if (disp == 0) {
-        return 0;
-    } else if (use_goto_tb(ctx, dest)) {
-        tcg_gen_goto_tb(0);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb(ctx->base.tb, 0);
-        return DISAS_NORETURN;
-    } else {
-        tcg_gen_movi_i64(cpu_pc, dest);
-        return DISAS_PC_UPDATED;
+        return DISAS_NEXT;
     }
+    gen_goto_tb(ctx, 0, disp);
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond_internal(DisasContext *ctx, TCGCond cond,
                                         TCGv cmp, uint64_t imm, int32_t disp)
 {
-    uint64_t dest = ctx->base.pc_next + (disp << 2);
     TCGLabel *lab_true = gen_new_label();
 
-    if (use_goto_tb(ctx, dest)) {
-        tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
+    tcg_gen_brcondi_i64(cond, cmp, imm, lab_true);
+    gen_goto_tb(ctx, 0, 0);
+    gen_set_label(lab_true);
+    gen_goto_tb(ctx, 1, disp);
 
-        tcg_gen_goto_tb(0);
-        tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
-        tcg_gen_exit_tb(ctx->base.tb, 0);
-
-        gen_set_label(lab_true);
-        tcg_gen_goto_tb(1);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb(ctx->base.tb, 1);
-
-        return DISAS_NORETURN;
-    } else {
-        TCGv_i64 i = tcg_constant_i64(imm);
-        TCGv_i64 d = tcg_constant_i64(dest);
-        TCGv_i64 p = tcg_constant_i64(ctx->base.pc_next);
-
-        tcg_gen_movcond_i64(cond, cpu_pc, cmp, i, d, p);
-        return DISAS_PC_UPDATED;
-    }
+    return DISAS_NORETURN;
 }
 
 static DisasJumpType gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
@@ -1106,7 +1108,7 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             }
 
             /* Allow interrupts to be recognized right away.  */
-            tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
+            gen_pc_disp(ctx, cpu_pc, 0);
             return DISAS_PC_UPDATED_NOCHAIN;
 
         case 0x36:
@@ -1153,19 +1155,17 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
 #else
     {
         TCGv tmp = tcg_temp_new();
-        uint64_t exc_addr = ctx->base.pc_next;
-        uint64_t entry = ctx->palbr;
+        uint64_t entry;
 
+        gen_pc_disp(ctx, tmp, 0);
         if (ctx->tbflags & ENV_FLAG_PAL_MODE) {
-            exc_addr |= 1;
+            tcg_gen_ori_i64(tmp, tmp, 1);
         } else {
-            tcg_gen_movi_i64(tmp, 1);
-            st_flag_byte(tmp, ENV_FLAG_PAL_SHIFT);
+            st_flag_byte(tcg_constant_i64(1), ENV_FLAG_PAL_SHIFT);
         }
-
-        tcg_gen_movi_i64(tmp, exc_addr);
         tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUAlphaState, exc_addr));
 
+        entry = ctx->palbr;
         entry += (palcode & 0x80
                   ? 0x2000 + (palcode - 0x80) * 64
                   : 0x1000 + palcode * 64);
@@ -1382,7 +1382,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
     real_islit = islit = extract32(insn, 12, 1);
     lit = extract32(insn, 13, 8);
 
-    disp21 = sextract32(insn, 0, 21);
+    disp21 = sextract32(insn, 0, 21) * 4;
     disp16 = sextract32(insn, 0, 16);
     disp12 = sextract32(insn, 0, 12);
 
@@ -2359,9 +2359,13 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
            prediction stack action, which of course we don't implement.  */
         vb = load_gpr(ctx, rb);
-        tcg_gen_andi_i64(cpu_pc, vb, ~3);
         if (ra != 31) {
-            tcg_gen_movi_i64(ctx->ir[ra], ctx->base.pc_next);
+            tmp = tcg_temp_new();
+            tcg_gen_andi_i64(tmp, vb, ~3);
+            gen_pc_disp(ctx, ctx->ir[ra], 0);
+            tcg_gen_mov_i64(cpu_pc, tmp);
+        } else {
+            tcg_gen_andi_i64(cpu_pc, vb, ~3);
         }
         ret = DISAS_PC_UPDATED;
         break;
@@ -2862,6 +2866,7 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     ctx->tbflags = ctx->base.tb->flags;
     ctx->mem_idx = alpha_env_mmu_index(env);
+    ctx->pcrel = ctx->base.tb->cflags & CF_PCREL;
     ctx->implver = env->implver;
     ctx->amask = env->amask;
 
@@ -2897,7 +2902,13 @@ static void alpha_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 
 static void alpha_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
-    tcg_gen_insn_start(dcbase->pc_next);
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    if (ctx->pcrel) {
+        tcg_gen_insn_start(dcbase->pc_next & ~TARGET_PAGE_MASK);
+    } else {
+        tcg_gen_insn_start(dcbase->pc_next);
+    }
 }
 
 static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
@@ -2920,14 +2931,10 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-        if (use_goto_tb(ctx, ctx->base.pc_next)) {
-            tcg_gen_goto_tb(0);
-            tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
-            tcg_gen_exit_tb(ctx->base.tb, 0);
-        }
-        /* FALLTHRU */
+        gen_goto_tb(ctx, 0, 0);
+        break;
     case DISAS_PC_STALE:
-        tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
+        gen_pc_disp(ctx, cpu_pc, 0);
         /* FALLTHRU */
     case DISAS_PC_UPDATED:
         tcg_gen_lookup_and_goto_ptr();
