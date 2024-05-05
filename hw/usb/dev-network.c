@@ -475,14 +475,6 @@ struct rndis_packet_msg_type {
     le32 Reserved;
 };
 
-struct rndis_config_parameter {
-    le32 ParameterNameOffset;
-    le32 ParameterNameLength;
-    le32 ParameterType;
-    le32 ParameterValueOffset;
-    le32 ParameterValueLength;
-};
-
 /* implementation specific */
 enum rndis_state
 {
