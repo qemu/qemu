@@ -546,11 +546,6 @@ void setup_sigtramp(abi_ulong sigtramp_page)
 typedef abi_ulong target_mc_greg_t;
 typedef target_mc_greg_t target_mc_gregset_t[SPARC_MC_NGREG];
 
-struct target_mc_fq {
-    abi_ulong mcfq_addr;
-    uint32_t mcfq_insn;
-};
-
 /*
  * Note the manual 16-alignment; the kernel gets this because it
  * includes a "long double qregs[16]" in the mcpu_fregs union,
