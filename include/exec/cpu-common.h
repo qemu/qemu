@@ -212,7 +212,7 @@ G_NORETURN void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 #define PAGE_READ      0x0001
 #define PAGE_WRITE     0x0002
 #define PAGE_EXEC      0x0004
-#define PAGE_BITS      (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
+#define PAGE_RWX       (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
 #define PAGE_VALID     0x0008
 /*
  * Original state of the write flag (used when tracking self-modifying code)

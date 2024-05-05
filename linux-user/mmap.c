@@ -117,7 +117,7 @@ static void shm_region_rm_complete(abi_ptr start, abi_ptr last)
 static int validate_prot_to_pageflags(int prot)
 {
     int valid = PROT_READ | PROT_WRITE | PROT_EXEC | TARGET_PROT_SEM;
-    int page_flags = (prot & PAGE_BITS) | PAGE_VALID;
+    int page_flags = (prot & PAGE_RWX) | PAGE_VALID;
 
 #ifdef TARGET_AARCH64
     {

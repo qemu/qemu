@@ -51,7 +51,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (mmu_idx == MMU_NOMMU_IDX) {
         /* MMU disabled or not available.  */
         address &= TARGET_PAGE_MASK;
-        prot = PAGE_BITS;
+        prot = PAGE_RWX;
         tlb_set_page_with_attrs(cs, address, address, attrs, prot, mmu_idx,
                                 TARGET_PAGE_SIZE);
         return true;

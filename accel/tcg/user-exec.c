@@ -765,7 +765,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
         if (prot & PAGE_EXEC) {
             prot = (prot & ~PAGE_EXEC) | PAGE_READ;
         }
-        mprotect((void *)g2h_untagged(start), len, prot & PAGE_BITS);
+        mprotect((void *)g2h_untagged(start), len, prot & PAGE_RWX);
     }
     mmap_unlock();
 
