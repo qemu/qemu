@@ -35,14 +35,6 @@ struct target_signal_frame {
     uint16_t retcode[4];      /* Trampoline code. */
 };
 
-struct rt_signal_frame {
-    siginfo_t *pinfo;
-    void *puc;
-    siginfo_t info;
-    ucontext_t uc;
-    uint16_t retcode[4];      /* Trampoline code. */
-};
-
 static void setup_sigcontext(struct target_sigcontext *sc, CPUCRISState *env)
 {
     __put_user(env->regs[0], &sc->regs.r0);
