@@ -145,22 +145,22 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             term.extend(self._nodes_for_ifcond(member.ifcond))
         return term
 
-    def _nodes_for_variant_when(self, variants, variant):
+    def _nodes_for_variant_when(self, branches, variant):
         """Return list of Text, literal nodes for variant 'when' clause
 
         Return a list of doctree nodes which give text like
         'when tagname is variant (If: ...)' suitable for use in
-        the 'variants' part of a definition list.
+        the 'branches' part of a definition list.
         """
         term = [nodes.Text(' when '),
-                nodes.literal('', variants.tag_member.name),
+                nodes.literal('', branches.tag_member.name),
                 nodes.Text(' is '),
                 nodes.literal('', '"%s"' % variant.name)]
         if variant.ifcond.is_present():
             term.extend(self._nodes_for_ifcond(variant.ifcond))
         return term
 
-    def _nodes_for_members(self, doc, what, base=None, variants=None):
+    def _nodes_for_members(self, doc, what, base=None, branches=None):
         """Return list of doctree nodes for the table of members"""
         dlnode = nodes.definition_list()
         for section in doc.args.values():
@@ -178,14 +178,14 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                                          nodes.literal('', base.doc_type())],
                                         None)
 
-        if variants:
-            for v in variants.variants:
+        if branches:
+            for v in branches.variants:
                 if v.type.name == 'q_empty':
                     continue
                 assert not v.type.is_implicit()
                 term = [nodes.Text('The members of '),
                         nodes.literal('', v.type.doc_type())]
-                term.extend(self._nodes_for_variant_when(variants, v))
+                term.extend(self._nodes_for_variant_when(branches, v))
                 dlnode += self._make_dlitem(term, None)
 
         if not dlnode.children:
@@ -308,17 +308,18 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                       + self._nodes_for_if_section(ifcond))
 
     def visit_object_type(self, name, info, ifcond, features,
-                          base, members, variants):
+                          base, members, branches):
         doc = self._cur_doc
         if base and base.is_implicit():
             base = None
         self._add_doc('Object',
-                      self._nodes_for_members(doc, 'Members', base, variants)
+                      self._nodes_for_members(doc, 'Members', base, branches)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
                       + self._nodes_for_if_section(ifcond))
 
-    def visit_alternate_type(self, name, info, ifcond, features, variants):
+    def visit_alternate_type(self, name, info, ifcond, features,
+                             alternatives):
         doc = self._cur_doc
         self._add_doc('Alternate',
                       self._nodes_for_members(doc, 'Members')
