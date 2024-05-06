@@ -4019,25 +4019,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             set_cc_op(s, CC_OP_EFLAGS);
         }
         break;
-    case 0x118:
-        modrm = x86_ldub_code(env, s);
-        mod = (modrm >> 6) & 3;
-        op = (modrm >> 3) & 7;
-        switch(op) {
-        case 0: /* prefetchnta */
-        case 1: /* prefetchnt0 */
-        case 2: /* prefetchnt0 */
-        case 3: /* prefetchnt0 */
-            if (mod == 3)
-                goto illegal_op;
-            gen_nop_modrm(env, s, modrm);
-            /* nothing more to do */
-            break;
-        default: /* nop (multi byte) */
-            gen_nop_modrm(env, s, modrm);
-            break;
-        }
-        break;
     case 0x11a:
         modrm = x86_ldub_code(env, s);
         if (s->flags & HF_MPX_EN_MASK) {
@@ -4227,10 +4208,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 }
             }
         }
-        gen_nop_modrm(env, s, modrm);
-        break;
-    case 0x119: case 0x11c ... 0x11f: /* nop (multi byte) */
-        modrm = x86_ldub_code(env, s);
         gen_nop_modrm(env, s, modrm);
         break;
 
@@ -4506,13 +4483,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         }
         break;
 
-    case 0x10d: /* 3DNow! prefetch(w) */
-        modrm = x86_ldub_code(env, s);
-        mod = (modrm >> 6) & 3;
-        if (mod == 3)
-            goto illegal_op;
-        gen_nop_modrm(env, s, modrm);
-        break;
     case 0x1aa: /* rsm */
         gen_svm_check_intercept(s, SVM_EXIT_RSM);
         if (!(s->flags & HF_SMM_MASK))

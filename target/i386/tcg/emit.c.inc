@@ -3517,6 +3517,11 @@ static void gen_SUB(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     prepare_update2_cc(decode, s, CC_OP_SUBB + ot);
 }
 
+static void gen_UD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_illegal_opcode(s);
+}
+
 static void gen_VAESIMC(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     assert(!s->vex_l);
