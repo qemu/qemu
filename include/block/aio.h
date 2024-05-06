@@ -629,6 +629,9 @@ void aio_co_schedule(AioContext *ctx, Coroutine *co);
  *
  * Move the currently running coroutine to new_ctx. If the coroutine is already
  * running in new_ctx, do nothing.
+ *
+ * Note that this function cannot reschedule from iohandler_ctx to
+ * qemu_aio_context.
  */
 void coroutine_fn aio_co_reschedule_self(AioContext *new_ctx);
 
@@ -661,6 +664,9 @@ void aio_co_enter(AioContext *ctx, Coroutine *co);
  * If called from an IOThread this will be the IOThread's AioContext.  If
  * called from the main thread or with the "big QEMU lock" taken it
  * will be the main loop AioContext.
+ *
+ * Note that the return value is never the main loop's iohandler_ctx and the
+ * return value is the main loop AioContext instead.
  */
 AioContext *qemu_get_current_aio_context(void);
 
