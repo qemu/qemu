@@ -2189,6 +2189,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
      */
     for (i = 1; i < max_insns; ++i) {
         tcg_gen_insn_start(pc + i * 2, ctx->envflags);
+        ctx->base.insn_start = tcg_last_op();
     }
 }
 #endif
