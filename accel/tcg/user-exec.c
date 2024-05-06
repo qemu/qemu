@@ -24,7 +24,9 @@
 #include "qemu/bitops.h"
 #include "qemu/rcu.h"
 #include "exec/cpu_ldst.h"
+#include "qemu/main-loop.h"
 #include "exec/translate-all.h"
+#include "exec/page-protection.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
@@ -36,6 +38,13 @@
 __thread uintptr_t helper_retaddr;
 
 //#define DEBUG_SIGNAL
+
+void cpu_interrupt(CPUState *cpu, int mask)
+{
+    g_assert(bql_locked());
+    cpu->interrupt_request |= mask;
+    qatomic_set(&cpu->neg.icount_decr.u16.high, -1);
+}
 
 /*
  * Adjust the pc to pass to cpu_restore_state; return the memop type.
@@ -765,7 +774,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
         if (prot & PAGE_EXEC) {
             prot = (prot & ~PAGE_EXEC) | PAGE_READ;
         }
-        mprotect((void *)g2h_untagged(start), len, prot & PAGE_BITS);
+        mprotect((void *)g2h_untagged(start), len, prot & PAGE_RWX);
     }
     mmap_unlock();
 

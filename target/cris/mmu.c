@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/page-protection.h"
 #include "mmu.h"
 
 #ifdef DEBUG
@@ -333,7 +334,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 
     if (!cris_mmu_enabled(env->sregs[SFR_RW_GC_CFG])) {
         res->phy = vaddr;
-        res->prot = PAGE_BITS;
+        res->prot = PAGE_RWX;
         goto done;
     }
 
@@ -344,7 +345,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
         miss = 0;
         base = cris_mmu_translate_seg(env, seg);
         res->phy = base | (0x0fffffff & vaddr);
-        res->prot = PAGE_BITS;
+        res->prot = PAGE_RWX;
     } else {
         miss = cris_mmu_translate_page(res, env, vaddr, access_type,
                                        is_user, debug);

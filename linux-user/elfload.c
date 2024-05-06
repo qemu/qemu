@@ -8,6 +8,7 @@
 
 #include "qemu.h"
 #include "user/tswap-target.h"
+#include "exec/page-protection.h"
 #include "user/guest-base.h"
 #include "user-internals.h"
 #include "signal-common.h"
@@ -2361,7 +2362,7 @@ static bool zero_bss(abi_ulong start_bss, abi_ulong end_bss,
     if (start_bss < align_bss) {
         int flags = page_get_flags(start_bss);
 
-        if (!(flags & PAGE_BITS)) {
+        if (!(flags & PAGE_RWX)) {
             /*
              * The whole address space of the executable was reserved
              * at the start, therefore all pages will be VALID.

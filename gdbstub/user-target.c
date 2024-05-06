@@ -216,7 +216,7 @@ void gdb_handle_query_offsets(GArray *params, void *user_ctx)
 {
     TaskState *ts;
 
-    ts = gdbserver_state.c_cpu->opaque;
+    ts = get_task_state(gdbserver_state.c_cpu);
     g_string_printf(gdbserver_state.str_buf,
                     "Text=" TARGET_ABI_FMT_lx
                     ";Data=" TARGET_ABI_FMT_lx
@@ -252,7 +252,7 @@ void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx)
 
     offset = get_param(params, 0)->val_ul;
     len = get_param(params, 1)->val_ul;
-    ts = gdbserver_state.c_cpu->opaque;
+    ts = get_task_state(gdbserver_state.c_cpu);
     saved_auxv = ts->info->saved_auxv;
     auxv_len = ts->info->auxv_len;
 

@@ -180,7 +180,7 @@ void qemu_plugin_add_dyn_cb_arr(GArray *arr);
 
 static inline void qemu_plugin_disable_mem_helpers(CPUState *cpu)
 {
-    cpu->plugin_mem_cbs = NULL;
+    cpu->neg.plugin_mem_cbs = NULL;
 }
 
 /**

@@ -96,7 +96,7 @@ static void riscv_cpu_synchronize_from_tb(CPUState *cs,
         CPURISCVState *env = &cpu->env;
         RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
 
-        tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+        tcg_debug_assert(!tcg_cflags_has(cs, CF_PCREL));
 
         if (xl == MXL_RV32) {
             env->pc = (int32_t) tb->pc;
@@ -890,7 +890,7 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
     CPURISCVState *env = &cpu->env;
     Error *local_err = NULL;
 
-    CPU(cs)->tcg_cflags |= CF_PCREL;
+    tcg_cflags_set(CPU(cs), CF_PCREL);
 
     if (cpu->cfg.ext_sstc) {
         riscv_timer_init(cpu);

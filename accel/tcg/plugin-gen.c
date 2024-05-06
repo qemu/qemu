@@ -55,7 +55,7 @@ static void gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
      * Tracking memory accesses performed from helpers requires extra work.
      * If an instruction is emulated with helpers, we do two things:
      * (1) copy the CB descriptors, and keep track of it so that they can be
-     * freed later on, and (2) point CPUState.plugin_mem_cbs to the
+     * freed later on, and (2) point CPUState.neg.plugin_mem_cbs to the
      * descriptors, so that we can read them at run-time
      * (i.e. when the helper executes).
      * This run-time access is performed from qemu_plugin_vcpu_mem_cb.
@@ -90,14 +90,14 @@ static void gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
     qemu_plugin_add_dyn_cb_arr(arr);
 
     tcg_gen_st_ptr(tcg_constant_ptr((intptr_t)arr), tcg_env,
-                   offsetof(CPUState, plugin_mem_cbs) -
+                   offsetof(CPUState, neg.plugin_mem_cbs) -
                    offsetof(ArchCPU, env));
 }
 
 static void gen_disable_mem_helper(void)
 {
     tcg_gen_st_ptr(tcg_constant_ptr(0), tcg_env,
-                   offsetof(CPUState, plugin_mem_cbs) -
+                   offsetof(CPUState, neg.plugin_mem_cbs) -
                    offsetof(ArchCPU, env));
 }
 

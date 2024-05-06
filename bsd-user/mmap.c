@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "exec/page-protection.h"
 
 #include "qemu.h"
 
@@ -96,7 +97,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
             end = host_end;
         }
         ret = mprotect(g2h_untagged(host_start),
-                       qemu_host_page_size, prot1 & PAGE_BITS);
+                       qemu_host_page_size, prot1 & PAGE_RWX);
         if (ret != 0)
             goto error;
         host_start += qemu_host_page_size;
@@ -107,7 +108,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
             prot1 |= page_get_flags(addr);
         }
         ret = mprotect(g2h_untagged(host_end - qemu_host_page_size),
-                       qemu_host_page_size, prot1 & PAGE_BITS);
+                       qemu_host_page_size, prot1 & PAGE_RWX);
         if (ret != 0)
             goto error;
         host_end -= qemu_host_page_size;
@@ -174,7 +175,7 @@ static int mmap_frag(abi_ulong real_start,
             return -1;
         prot1 = prot;
     }
-    prot1 &= PAGE_BITS;
+    prot1 &= PAGE_RWX;
 
     prot_new = prot | prot1;
     if (fd != -1) {

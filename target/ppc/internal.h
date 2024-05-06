@@ -20,6 +20,7 @@
 
 #include "exec/breakpoint.h"
 #include "hw/registerfields.h"
+#include "exec/page-protection.h"
 
 /* PM instructions */
 typedef enum {

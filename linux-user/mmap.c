@@ -20,6 +20,7 @@
 #include <sys/shm.h>
 #include "trace.h"
 #include "exec/log.h"
+#include "exec/page-protection.h"
 #include "qemu.h"
 #include "user-internals.h"
 #include "user-mmap.h"
@@ -117,7 +118,7 @@ static void shm_region_rm_complete(abi_ptr start, abi_ptr last)
 static int validate_prot_to_pageflags(int prot)
 {
     int valid = PROT_READ | PROT_WRITE | PROT_EXEC | TARGET_PROT_SEM;
-    int page_flags = (prot & PAGE_BITS) | PAGE_VALID;
+    int page_flags = (prot & PAGE_RWX) | PAGE_VALID;
 
 #ifdef TARGET_AARCH64
     {
@@ -959,8 +960,8 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
      */
     if (ret != -1 && (flags & MAP_TYPE) != MAP_PRIVATE) {
         CPUState *cpu = thread_cpu;
-        if (!(cpu->tcg_cflags & CF_PARALLEL)) {
-            cpu->tcg_cflags |= CF_PARALLEL;
+        if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
+            tcg_cflags_set(cpu, CF_PARALLEL);
             tb_flush(cpu);
         }
     }
@@ -1399,8 +1400,8 @@ abi_ulong target_shmat(CPUArchState *cpu_env, int shmid,
      * supported by the host -- anything that requires EXCP_ATOMIC will not
      * be atomic with respect to an external process.
      */
-    if (!(cpu->tcg_cflags & CF_PARALLEL)) {
-        cpu->tcg_cflags |= CF_PARALLEL;
+    if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
+        tcg_cflags_set(cpu, CF_PARALLEL);
         tb_flush(cpu);
     }
 

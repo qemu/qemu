@@ -167,6 +167,7 @@ F: include/exec/target_long.h
 F: include/exec/helper*.h
 F: include/exec/helper*.h.inc
 F: include/exec/helper-info.c.inc
+F: include/exec/page-protection.h
 F: include/sysemu/cpus.h
 F: include/sysemu/tcg.h
 F: include/hw/core/tcg-cpu-ops.h
@@ -284,7 +285,7 @@ MIPS TCG CPUs
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: target/mips/
 F: disas/*mips.c
@@ -319,7 +320,7 @@ F: tests/tcg/ppc*/*
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <alistair.francis@wdc.com>
-M: Bin Meng <bin.meng@windriver.com>
+M: Bin Meng <bmeng.cn@gmail.com>
 R: Weiwei Li <liwei1518@gmail.com>
 R: Daniel Henrique Barboza <dbarboza@ventanamicro.com>
 R: Liu Zhiwei <zhiwei_liu@linux.alibaba.com>
@@ -1334,7 +1335,7 @@ F: include/hw/mips/
 
 Jazz
 M: Hervé Poussineau <hpoussin@reactos.org>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Maintained
 F: hw/mips/jazz.c
 F: hw/display/g364fb.c
@@ -1356,7 +1357,7 @@ F: tests/avocado/linux_ssh_mips_malta.py
 F: tests/avocado/machine_mips_malta.py
 
 Mipssim
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Orphan
 F: hw/mips/mipssim.c
 F: hw/net/mipsnet.c
@@ -1384,7 +1385,7 @@ F: tests/avocado/machine_mips_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: hw/core/loader-fit.c
 F: hw/mips/boston.c
@@ -1602,7 +1603,7 @@ F: include/hw/riscv/opentitan.h
 F: include/hw/*/ibex_*.h
 
 Microchip PolarFire SoC Icicle Kit
-M: Bin Meng <bin.meng@windriver.com>
+M: Bin Meng <bmeng.cn@gmail.com>
 L: qemu-riscv@nongnu.org
 S: Supported
 F: docs/system/riscv/microchip-icicle-kit.rst
@@ -1629,7 +1630,7 @@ F: include/hw/char/shakti_uart.h
 
 SiFive Machines
 M: Alistair Francis <Alistair.Francis@wdc.com>
-M: Bin Meng <bin.meng@windriver.com>
+M: Bin Meng <bmeng.cn@gmail.com>
 M: Palmer Dabbelt <palmer@dabbelt.com>
 L: qemu-riscv@nongnu.org
 S: Supported
@@ -2125,7 +2126,7 @@ F: hw/ssi/xilinx_*
 
 SD (Secure Card)
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
-M: Bin Meng <bin.meng@windriver.com>
+M: Bin Meng <bmeng.cn@gmail.com>
 L: qemu-block@nongnu.org
 S: Odd Fixes
 F: include/hw/sd/sd*
@@ -3761,7 +3762,7 @@ M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+R: Aleksandar Rikalo <arikalo@gmail.com>
 S: Odd Fixes
 F: tcg/mips/
 
