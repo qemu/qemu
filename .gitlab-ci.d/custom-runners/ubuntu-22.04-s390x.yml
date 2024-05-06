@@ -15,13 +15,13 @@ ubuntu-22.04-s390x-all-linux:
  script:
  - mkdir build
  - cd build
- - ../configure --enable-debug --disable-system
+ - ../configure --enable-debug --disable-system --disable-tools --disable-docs
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync check-tcg
  - make --output-sync -j`nproc` check
 
-ubuntu-22.04-s390x-all:
+ubuntu-22.04-s390x-all-system:
  extends: .custom_runner_template
  needs: []
  stage: build
@@ -35,7 +35,7 @@ ubuntu-22.04-s390x-all:
  script:
  - mkdir build
  - cd build
- - ../configure
+ - ../configure --disable-user
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check
