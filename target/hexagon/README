@@ -43,11 +43,9 @@ target/hexagon/gen_semantics.c.  This step produces
 That file is consumed by the following python scripts to produce the indicated
 header files in <BUILD_DIR>/target/hexagon
         gen_opcodes_def.py              -> opcodes_def_generated.h.inc
-        gen_op_regs.py                  -> op_regs_generated.h.inc
         gen_printinsn.py                -> printinsn_generated.h.inc
         gen_op_attribs.py               -> op_attribs_generated.h.inc
         gen_helper_protos.py            -> helper_protos_generated.h.inc
-        gen_shortcode.py                -> shortcode_generated.h.inc
         gen_tcg_funcs.py                -> tcg_funcs_generated.c.inc
         gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
@@ -183,10 +181,11 @@ when the override is present.
     }
 
 We also generate an analyze_<tag> function for each instruction.  Currently,
-these functions record the writes to registers by calling ctx_log_*.  During
-gen_start_packet, we invoke the analyze_<tag> function for each instruction in
-the packet, and we mark the implicit writes.  After the analysis is performed,
-we initialize the result register for each of the predicated assignments.
+these functions record the reads and writes to registers by calling ctx_log_*.
+During gen_start_packet, we invoke the analyze_<tag> function for each instruction in
+the packet, and we mark the implicit writes.  The analysis determines if the packet
+semantics can be short-circuited.  If not, we initialize the result register for each
+of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is a four step process.

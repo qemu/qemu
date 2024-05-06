@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -343,7 +343,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fREAD_SP() (env->gpr[HEX_REG_SP])
+#define fREAD_SP() (SP)
 #define fREAD_LC0 (env->gpr[HEX_REG_LC0])
 #define fREAD_LC1 (env->gpr[HEX_REG_LC1])
 #define fREAD_SA0 (env->gpr[HEX_REG_SA0])
@@ -358,7 +358,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #endif
 #define fREAD_PC() (PC)
 
-#define fREAD_P0() (env->pred[0])
+#define fREAD_P0() (P0)
 
 #define fCHECK_PCALIGN(A)
 

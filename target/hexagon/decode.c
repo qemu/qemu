@@ -115,22 +115,13 @@ static void
 decode_fill_newvalue_regno(Packet *packet)
 {
     int i, use_regidx, offset, def_idx, dst_idx;
-    uint16_t def_opcode, use_opcode;
-    char *dststr;
 
     for (i = 1; i < packet->num_insns; i++) {
         if (GET_ATTRIB(packet->insn[i].opcode, A_DOTNEWVALUE) &&
             !GET_ATTRIB(packet->insn[i].opcode, A_EXTENSION)) {
-            use_opcode = packet->insn[i].opcode;
 
-            /* It's a store, so we're adjusting the Nt field */
-            if (GET_ATTRIB(use_opcode, A_STORE)) {
-                use_regidx = strchr(opcode_reginfo[use_opcode], 't') -
-                    opcode_reginfo[use_opcode];
-            } else {    /* It's a Jump, so we're adjusting the Ns field */
-                use_regidx = strchr(opcode_reginfo[use_opcode], 's') -
-                    opcode_reginfo[use_opcode];
-            }
+            g_assert(packet->insn[i].new_read_idx != -1);
+            use_regidx = packet->insn[i].new_read_idx;
 
             /*
              * What's encoded at the N-field is the offset to who's producing
@@ -151,37 +142,9 @@ decode_fill_newvalue_regno(Packet *packet)
              */
             g_assert(!((def_idx < 0) || (def_idx > (packet->num_insns - 1))));
 
-            /*
-             * packet->insn[def_idx] is the producer
-             * Figure out which type of destination it produces
-             * and the corresponding index in the reginfo
-             */
-            def_opcode = packet->insn[def_idx].opcode;
-            dststr = strstr(opcode_wregs[def_opcode], "Rd");
-            if (dststr) {
-                dststr = strchr(opcode_reginfo[def_opcode], 'd');
-            } else {
-                dststr = strstr(opcode_wregs[def_opcode], "Rx");
-                if (dststr) {
-                    dststr = strchr(opcode_reginfo[def_opcode], 'x');
-                } else {
-                    dststr = strstr(opcode_wregs[def_opcode], "Re");
-                    if (dststr) {
-                        dststr = strchr(opcode_reginfo[def_opcode], 'e');
-                    } else {
-                        dststr = strstr(opcode_wregs[def_opcode], "Ry");
-                        if (dststr) {
-                            dststr = strchr(opcode_reginfo[def_opcode], 'y');
-                        } else {
-                            g_assert_not_reached();
-                        }
-                    }
-                }
-            }
-            g_assert(dststr != NULL);
-
             /* Now patch up the consumer with the register number */
-            dst_idx = dststr - opcode_reginfo[def_opcode];
+            g_assert(packet->insn[def_idx].dest_idx != -1);
+            dst_idx = packet->insn[def_idx].dest_idx;
             packet->insn[i].regno[use_regidx] =
                 packet->insn[def_idx].regno[dst_idx];
             /*
@@ -362,8 +325,7 @@ static void decode_shuffle_for_execution(Packet *packet)
         for (flag = false, i = 0; i < last_insn + 1; i++) {
             int opcode = packet->insn[i].opcode;
 
-            if ((strstr(opcode_wregs[opcode], "Pd4") ||
-                 strstr(opcode_wregs[opcode], "Pe4")) &&
+            if (packet->insn[i].has_pred_dest &&
                 GET_ATTRIB(opcode, A_STORE) == 0) {
                 /* This should be a compare (not a store conditional) */
                 if (flag) {

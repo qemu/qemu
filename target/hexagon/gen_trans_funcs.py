@@ -68,6 +68,9 @@ def mark_which_imm_extended(f, tag):
 ##         insn->regno[0] = args->Rd;
 ##         insn->regno[1] = args->Rs;
 ##         insn->regno[2] = args->Rt;
+##         insn->new_read_idx = -1;
+##         insn->dest_idx = 0;
+##         insn->has_pred_dest = false;
 ##         return true;
 ##     }
 ##
@@ -84,14 +87,21 @@ def gen_trans_funcs(f):
                 insn->opcode = {tag};
         """))
 
-        regno = 0
-        for reg in regs:
-            reg_type = reg[0]
-            reg_id = reg[1]
+        new_read_idx = -1
+        dest_idx = -1
+        has_pred_dest = "false"
+        for regno, (reg_type, reg_id, *_) in enumerate(regs):
+            reg = hex_common.get_register(tag, reg_type, reg_id)
             f.write(code_fmt(f"""\
                 insn->regno[{regno}] = args->{reg_type}{reg_id};
             """))
-            regno += 1
+            if reg.is_read() and reg.is_new():
+                new_read_idx = regno
+            # dest_idx should be the first destination, so check for -1
+            if reg.is_written() and dest_idx == -1:
+                dest_idx = regno
+            if reg_type == "P" and reg.is_written() and not reg.is_read():
+                has_pred_dest = "true"
 
         if len(imms) != 0:
             mark_which_imm_extended(f, tag)
@@ -112,6 +122,11 @@ def gen_trans_funcs(f):
                     insn->immed[{immno}] = args->{imm_type}{imm_letter};
                 """))
 
+        f.write(code_fmt(f"""\
+            insn->new_read_idx = {new_read_idx};
+            insn->dest_idx = {dest_idx};
+            insn->has_pred_dest = {has_pred_dest};
+        """))
         f.write(textwrap.dedent(f"""\
                 return true;
             {close_curly}
@@ -120,5 +135,6 @@ def gen_trans_funcs(f):
 
 if __name__ == "__main__":
     hex_common.read_semantics_file(sys.argv[1])
+    hex_common.init_registers()
     with open(sys.argv[2], "w") as f:
         gen_trans_funcs(f)

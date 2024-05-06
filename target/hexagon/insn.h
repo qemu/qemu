@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@ struct Instruction {
     uint32_t slot:3;
     uint32_t which_extended:1;    /* If has an extender, which immediate */
     uint32_t new_value_producer_slot:4;
+    int32_t new_read_idx;
+    int32_t dest_idx;
+    bool has_pred_dest;
 
     bool part1;              /*
                               * cmp-jumps are split into two insns.

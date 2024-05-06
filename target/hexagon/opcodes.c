@@ -36,41 +36,6 @@ const char * const opcode_names[] = {
 #undef OPCODE
 };
 
-const char * const opcode_reginfo[] = {
-#define IMMINFO(TAG, SIGN, SIZE, SHAMT, SIGN2, SIZE2, SHAMT2)    /* nothing */
-#define REGINFO(TAG, REGINFO, RREGS, WREGS) REGINFO,
-#include "op_regs_generated.h.inc"
-    NULL
-#undef REGINFO
-#undef IMMINFO
-};
-
-
-const char * const opcode_rregs[] = {
-#define IMMINFO(TAG, SIGN, SIZE, SHAMT, SIGN2, SIZE2, SHAMT2)    /* nothing */
-#define REGINFO(TAG, REGINFO, RREGS, WREGS) RREGS,
-#include "op_regs_generated.h.inc"
-    NULL
-#undef REGINFO
-#undef IMMINFO
-};
-
-
-const char * const opcode_wregs[] = {
-#define IMMINFO(TAG, SIGN, SIZE, SHAMT, SIGN2, SIZE2, SHAMT2)    /* nothing */
-#define REGINFO(TAG, REGINFO, RREGS, WREGS) WREGS,
-#include "op_regs_generated.h.inc"
-    NULL
-#undef REGINFO
-#undef IMMINFO
-};
-
-const char * const opcode_short_semantics[] = {
-#define DEF_SHORTCODE(TAG, SHORTCODE)              [TAG] = #SHORTCODE,
-#include "shortcode_generated.h.inc"
-#undef DEF_SHORTCODE
-    NULL
-};
 
 DECLARE_BITMAP(opcode_attribs[XX_LAST_OPCODE], A_ZZ_LASTATTRIB);
 

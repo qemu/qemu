@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ behdict = {}  # tag ->behavior
 semdict = {}  # tag -> semantics
 attribdict = {}  # tag -> attributes
 macros = {}  # macro -> macro information...
-attribinfo = {}  # Register information and misc
 registers = {}  # register -> register functions
 new_registers = {}
 tags = []  # list of all tags
@@ -101,6 +100,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fLSBNEW1', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
     add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
+    add_qemu_macro_attrib('fREAD_SP', 'A_IMPLICIT_READS_SP')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
@@ -197,6 +197,26 @@ def get_tagimms():
     return dict(zip(tags, list(map(compute_tag_immediates, tags))))
 
 
+def need_p0(tag):
+    return "A_IMPLICIT_READS_P0" in attribdict[tag]
+
+
+def need_sp(tag):
+    return "A_IMPLICIT_READS_SP" in attribdict[tag]
+
+
+def is_hvx_insn(tag):
+    return "A_CVI" in attribdict[tag]
+
+
+def need_env(tag):
+    return ("A_STORE" in attribdict[tag] or
+            "A_LOAD" in attribdict[tag] or
+            "A_CVI_GATHER" in attribdict[tag] or
+            "A_CVI_SCATTER" in attribdict[tag] or
+            "A_IMPLICIT_WRITES_USR" in attribdict[tag])
+
+
 def need_slot(tag):
     if (
         "A_CVI_SCATTER" not in attribdict[tag]
@@ -241,6 +261,16 @@ def is_idef_parser_enabled(tag):
     return tag in idef_parser_enabled
 
 
+def is_hvx_insn(tag):
+    return "A_CVI" in attribdict[tag]
+
+
+def has_hvx_helper(tag):
+    return (is_hvx_insn(tag) and
+            not skip_qemu_helper(tag) and
+            not is_idef_parser_enabled(tag))
+
+
 def imm_name(immlett):
     return f"{immlett}iV"
 
@@ -255,19 +285,6 @@ def read_semantics_file(name):
             else:
                 eval(eval_line.strip())
                 eval_line = ""
-
-
-def read_attribs_file(name):
-    attribre = re.compile(
-        r"DEF_ATTRIB\(([A-Za-z0-9_]+), ([^,]*), "
-        + r'"([A-Za-z0-9_\.]*)", "([A-Za-z0-9_\.]*)"\)'
-    )
-    for line in open(name, "rt").readlines():
-        if not attribre.match(line):
-            continue
-        (attrib_base, descr, rreg, wreg) = attribre.findall(line)[0]
-        attrib_base = "A_" + attrib_base
-        attribinfo[attrib_base] = {"rreg": rreg, "wreg": wreg, "descr": descr}
 
 
 def read_overrides_file(name):
@@ -397,10 +414,18 @@ class Source:
 class OldSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}V"
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class NewSource(Source):
     def reg_tcg(self):
         return f"{self.regtype}{self.regid}N"
+    def is_old(self):
+        return False
+    def is_new(self):
+        return True
 
 class ReadWrite:
     def reg_tcg(self):
@@ -413,6 +438,10 @@ class ReadWrite:
         return True
     def is_readwrite(self):
         return True
+    def is_old(self):
+        return True
+    def is_new(self):
+        return False
 
 class GprDest(Register, Single, Dest):
     def decl_tcg(self, f, tag, regno):
@@ -425,7 +454,6 @@ class GprDest(Register, Single, Dest):
             gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
@@ -438,7 +466,6 @@ class GprSource(Register, Single, OldSource):
             TCGv {self.reg_tcg()} = hex_gpr[{self.reg_num}];
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_reg_read(ctx, {self.reg_num});
         """))
@@ -449,9 +476,8 @@ class GprNewSource(Register, Single, NewSource):
             TCGv {self.reg_tcg()} = get_result_gpr(ctx, insn->regno[{regno}]);
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_reg_read(ctx, {self.reg_num});
+            ctx_log_reg_read_new(ctx, {self.reg_num});
         """))
 
 class GprReadWrite(Register, Single, ReadWrite):
@@ -471,8 +497,11 @@ class GprReadWrite(Register, Single, ReadWrite):
         f.write(code_fmt(f"""\
             gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read(ctx, {self.reg_num});
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
@@ -493,7 +522,6 @@ class ControlDest(Register, Single, Dest):
             gen_write_ctrl_reg(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write(ctx, {self.reg_num}, {predicated});
@@ -511,7 +539,6 @@ class ControlSource(Register, Single, OldSource):
             gen_read_ctrl_reg(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_reg_read(ctx, {self.reg_num});
         """))
@@ -532,7 +559,6 @@ class ModifierSource(Register, Single, OldSource):
         declared.append(self.reg_tcg())
         declared.append("CS")
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_reg_read(ctx, {self.reg_num});
         """))
@@ -548,7 +574,6 @@ class PredDest(Register, Single, Dest):
             gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_pred_write(ctx, {self.reg_num});
         """))
@@ -560,7 +585,6 @@ class PredSource(Register, Single, OldSource):
             TCGv {self.reg_tcg()} = hex_pred[{self.reg_num}];
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_pred_read(ctx, {self.reg_num});
         """))
@@ -571,9 +595,8 @@ class PredNewSource(Register, Single, NewSource):
             TCGv {self.reg_tcg()} = get_result_pred(ctx, insn->regno[{regno}]);
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_pred_read(ctx, {self.reg_num});
+            ctx_log_pred_read_new(ctx, {self.reg_num});
         """))
 
 class PredReadWrite(Register, Single, ReadWrite):
@@ -587,8 +610,11 @@ class PredReadWrite(Register, Single, ReadWrite):
         f.write(code_fmt(f"""\
             gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_pred_read(ctx, {self.reg_num});
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_pred_write(ctx, {self.reg_num});
         """))
@@ -605,7 +631,6 @@ class PairDest(Register, Pair, Dest):
             gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
@@ -621,7 +646,6 @@ class PairSource(Register, Pair, OldSource):
                                     hex_gpr[{self.reg_num} + 1]);
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_reg_read_pair(ctx, {self.reg_num});
         """))
@@ -640,8 +664,11 @@ class PairReadWrite(Register, Pair, ReadWrite):
         f.write(code_fmt(f"""\
             gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_reg_read_pair(ctx, {self.reg_num});
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
@@ -663,7 +690,6 @@ class ControlPairDest(Register, Pair, Dest):
             gen_write_ctrl_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
             ctx_log_reg_write_pair(ctx, {self.reg_num}, {predicated});
@@ -681,7 +707,6 @@ class ControlPairSource(Register, Pair, OldSource):
             gen_read_ctrl_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
             ctx_log_reg_read_pair(ctx, {self.reg_num});
         """))
@@ -705,11 +730,11 @@ class VRegDest(Register, Hvx, Dest):
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg_name()}) */
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegSource(Register, Hvx, OldSource):
@@ -728,9 +753,8 @@ class VRegSource(Register, Hvx, OldSource):
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg_name()}) */
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read(ctx, {self.reg_num});
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegNewSource(Register, Hvx, NewSource):
@@ -746,9 +770,8 @@ class VRegNewSource(Register, Hvx, NewSource):
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg_name()}) */
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read(ctx, {self.reg_num});
+            ctx_log_vreg_read_new(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegReadWrite(Register, Hvx, ReadWrite):
@@ -772,12 +795,16 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg_name()}) */
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegTmp(Register, Hvx, ReadWrite):
@@ -803,12 +830,16 @@ class VRegTmp(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVector *)({self.helper_arg_name()}) */
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write(ctx, {self.reg_num}, {newv}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class VRegPairDest(Register, Hvx, Dest):
@@ -830,11 +861,11 @@ class VRegPairDest(Register, Hvx, Dest):
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg_name()}) */
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated},
+                                    insn_has_hvx_helper);
         """))
 
 class VRegPairSource(Register, Hvx, OldSource):
@@ -860,9 +891,8 @@ class VRegPairSource(Register, Hvx, OldSource):
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg_name()}) */
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_vreg_read_pair(ctx, {self.reg_num});
+            ctx_log_vreg_read_pair(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class VRegPairReadWrite(Register, Hvx, ReadWrite):
@@ -892,12 +922,16 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMVectorPair *)({self.helper_arg_name()}) */
         """))
+    def analyze_read(self, f, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_vreg_read_pair(ctx, {self.reg_num}, insn_has_hvx_helper);
+        """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         newv = hvx_newv(tag)
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated});
+            ctx_log_vreg_write_pair(ctx, {self.reg_num}, {newv}, {predicated},
+                                    insn_has_hvx_helper);
         """))
 
 class QRegDest(Register, Hvx, Dest):
@@ -919,9 +953,8 @@ class QRegDest(Register, Hvx, Dest):
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg_name()}) */
         """))
     def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num});
+            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class QRegSource(Register, Hvx, OldSource):
@@ -941,9 +974,8 @@ class QRegSource(Register, Hvx, OldSource):
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg_name()}) */
         """))
     def analyze_read(self, f, regno):
-        self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
-            ctx_log_qreg_read(ctx, {self.reg_num});
+            ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 class QRegReadWrite(Register, Hvx, ReadWrite):
@@ -967,10 +999,13 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
         f.write(code_fmt(f"""\
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg_name()}) */
         """))
-    def analyze_write(self, f, tag, regno):
-        self.decl_reg_num(f, regno)
+    def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num});
+            ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
 def init_registers():
@@ -1060,11 +1095,12 @@ def helper_args(tag, regs, imms):
     args = []
 
     ## First argument is the CPU state
-    args.append(HelperArg(
-        "env",
-        "tcg_env",
-        "CPUHexagonState *env"
-    ))
+    if need_env(tag):
+        args.append(HelperArg(
+            "env",
+            "tcg_env",
+            "CPUHexagonState *env"
+        ))
 
     ## For predicated instructions, we pass in the destination register
     if is_predicated(tag):
@@ -1118,6 +1154,18 @@ def helper_args(tag, regs, imms):
             "tcg_constant_tl(ctx->next_PC)",
             "target_ulong next_PC"
         ))
+    if need_p0(tag):
+        args.append(HelperArg(
+            "i32",
+            "hex_pred[0]",
+            "uint32_t P0"
+        ))
+    if need_sp(tag):
+        args.append(HelperArg(
+            "i32",
+            "hex_gpr[HEX_REG_SP]",
+            "uint32_t SP"
+        ))
     if need_slot(tag):
         args.append(HelperArg(
             "i32",
@@ -1131,3 +1179,24 @@ def helper_args(tag, regs, imms):
             "uint32_t part1"
         ))
     return args
+
+
+def read_common_files():
+    read_semantics_file(sys.argv[1])
+    read_overrides_file(sys.argv[2])
+    read_overrides_file(sys.argv[3])
+    ## Whether or not idef-parser is enabled is
+    ## determined by the number of arguments to
+    ## this script:
+    ##
+    ##   4 args. -> not enabled,
+    ##   5 args. -> idef-parser enabled.
+    ##
+    ## The 5:th arg. then holds a list of the successfully
+    ## parsed instructions.
+    is_idef_parser_enabled = len(sys.argv) > 5
+    if is_idef_parser_enabled:
+        read_idef_parser_enabled_file(sys.argv[4])
+    calculate_attribs()
+    init_registers()
+    return is_idef_parser_enabled

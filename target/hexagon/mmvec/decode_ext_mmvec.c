@@ -28,19 +28,15 @@ check_new_value(Packet *pkt)
 {
     /* .new value for a MMVector store */
     int i, j;
-    const char *reginfo;
-    const char *destletters;
-    const char *dststr = NULL;
     uint16_t def_opcode;
-    char letter;
 
     for (i = 1; i < pkt->num_insns; i++) {
         uint16_t use_opcode = pkt->insn[i].opcode;
         if (GET_ATTRIB(use_opcode, A_DOTNEWVALUE) &&
             GET_ATTRIB(use_opcode, A_CVI) &&
             GET_ATTRIB(use_opcode, A_STORE)) {
-            int use_regidx = strchr(opcode_reginfo[use_opcode], 's') -
-                opcode_reginfo[use_opcode];
+            int use_regidx = pkt->insn[i].new_read_idx;
+            g_assert(pkt->insn[i].new_read_idx != -1);
             /*
              * What's encoded at the N-field is the offset to who's producing
              * the value.
@@ -68,31 +64,19 @@ check_new_value(Packet *pkt)
 
             /* def_idx is the index of the producer */
             def_opcode = pkt->insn[def_idx].opcode;
-            reginfo = opcode_reginfo[def_opcode];
-            destletters = "dexy";
-            for (j = 0; (letter = destletters[j]) != 0; j++) {
-                dststr = strchr(reginfo, letter);
-                if (dststr != NULL) {
-                    break;
-                }
-            }
-            if ((dststr == NULL)  && GET_ATTRIB(def_opcode, A_CVI_GATHER)) {
+            if ((pkt->insn[def_idx].dest_idx == -1)  &&
+                GET_ATTRIB(def_opcode, A_CVI_GATHER)) {
                 pkt->insn[i].regno[use_regidx] = def_oreg;
                 pkt->insn[i].new_value_producer_slot = pkt->insn[def_idx].slot;
             } else {
-                if (dststr == NULL) {
+                if (pkt->insn[def_idx].dest_idx == -1) {
                     /* still not there, we have a bad packet */
                     g_assert_not_reached();
                 }
-                int def_regnum = pkt->insn[def_idx].regno[dststr - reginfo];
+                int def_regnum =
+                    pkt->insn[def_idx].regno[pkt->insn[def_idx].dest_idx];
                 /* Now patch up the consumer with the register number */
                 pkt->insn[i].regno[use_regidx] = def_regnum ^ def_oreg;
-                /* special case for (Vx,Vy) */
-                dststr = strchr(reginfo, 'y');
-                if (def_oreg && strchr(reginfo, 'x') && dststr) {
-                    def_regnum = pkt->insn[def_idx].regno[dststr - reginfo];
-                    pkt->insn[i].regno[use_regidx] = def_regnum;
-                }
                 /*
                  * We need to remember who produces this value to later
                  * check if it was dynamically cancelled
