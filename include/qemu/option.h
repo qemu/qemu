@@ -54,6 +54,8 @@ enum QemuOptType {
     QEMU_OPT_SIZE,        /* size, accepts (K)ilo, (M)ega, (G)iga, (T)era postfix */
 };
 
+typedef struct QemuOpt QemuOpt;
+
 typedef struct QemuOptDesc {
     const char *name;
     enum QemuOptType type;

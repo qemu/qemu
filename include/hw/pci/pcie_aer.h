@@ -25,8 +25,23 @@
 
 /* definitions which PCIExpressDevice uses */
 
+/* error */
+typedef struct PCIEAERErr {
+    uint32_t status;    /* error status bits */
+    uint16_t source_id; /* bdf */
+
+#define PCIE_AER_ERR_IS_CORRECTABLE     0x1     /* correctable/uncorrectable */
+#define PCIE_AER_ERR_MAYBE_ADVISORY     0x2     /* maybe advisory non-fatal */
+#define PCIE_AER_ERR_HEADER_VALID       0x4     /* TLP header is logged */
+#define PCIE_AER_ERR_TLP_PREFIX_PRESENT 0x8     /* TLP Prefix is logged */
+    uint16_t flags;
+
+    uint32_t header[4]; /* TLP header */
+    uint32_t prefix[4]; /* TLP header prefix */
+} PCIEAERErr;
+
 /* AER log */
-struct PCIEAERLog {
+typedef struct PCIEAERLog {
     /* This structure is saved/loaded.
        So explicitly size them instead of unsigned int */
 
@@ -48,11 +63,11 @@ struct PCIEAERLog {
 
     /* Error log. log_max-sized array */
     PCIEAERErr *log;
-};
+} PCIEAERLog;
 
 /* aer error message: error signaling message has only error severity and
    source id. See 2.2.8.3 error signaling messages */
-struct PCIEAERMsg {
+typedef struct PCIEAERMsg {
     /*
      * PCI_ERR_ROOT_CMD_{COR, NONFATAL, FATAL}_EN
      * = PCI_EXP_DEVCTL_{CERE, NFERE, FERE}
@@ -60,7 +75,7 @@ struct PCIEAERMsg {
     uint32_t severity;
 
     uint16_t source_id; /* bdf */
-};
+} PCIEAERMsg;
 
 static inline bool
 pcie_aer_msg_is_uncor(const PCIEAERMsg *msg)
@@ -68,21 +83,6 @@ pcie_aer_msg_is_uncor(const PCIEAERMsg *msg)
     return msg->severity == PCI_ERR_ROOT_CMD_NONFATAL_EN ||
         msg->severity == PCI_ERR_ROOT_CMD_FATAL_EN;
 }
-
-/* error */
-struct PCIEAERErr {
-    uint32_t status;    /* error status bits */
-    uint16_t source_id; /* bdf */
-
-#define PCIE_AER_ERR_IS_CORRECTABLE     0x1     /* correctable/uncorrectable */
-#define PCIE_AER_ERR_MAYBE_ADVISORY     0x2     /* maybe advisory non-fatal */
-#define PCIE_AER_ERR_HEADER_VALID       0x4     /* TLP header is logged */
-#define PCIE_AER_ERR_TLP_PREFIX_PRESENT 0x8     /* TLP Prefix is logged */
-    uint16_t flags;
-
-    uint32_t header[4]; /* TLP header */
-    uint32_t prefix[4]; /* TLP header prefix */
-};
 
 extern const VMStateDescription vmstate_pcie_aer_log;
 

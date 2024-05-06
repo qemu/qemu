@@ -1,5 +1,7 @@
 config S390_CCW_VIRTIO
     bool
+    default y
+    depends on S390X
     imply VIRTIO_PCI
     imply TERMINAL3270
     imply VFIO_AP

@@ -1,5 +1,7 @@
 config LOONGARCH_VIRT
     bool
+    default y
+    depends on LOONGARCH64
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
     imply VIRTIO_VGA

@@ -2173,7 +2173,7 @@ void qmp_guest_set_user_password(const char *username,
     }
 
 #ifdef __FreeBSD__
-    g_autofree char *chpasswdata = g_strdup(rawpasswddata);
+    g_autofree char *chpasswddata = g_strdup(rawpasswddata);
     const char *crypt_flag = crypted ? "-H" : "-h";
     const char *argv[] = {"pw", "usermod", "-n", username,
                           crypt_flag, "0", NULL};

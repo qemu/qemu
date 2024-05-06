@@ -1,5 +1,7 @@
 config OR1K_SIM
     bool
+    default y
+    depends on OPENRISC
     select SERIAL
     select OPENCORES_ETH
     select OMPIC
@@ -7,6 +9,8 @@ config OR1K_SIM
 
 config OR1K_VIRT
     bool
+    default y
+    depends on OPENRISC
     imply PCI_DEVICES
     imply VIRTIO_VGA
     imply TEST_DEVICES

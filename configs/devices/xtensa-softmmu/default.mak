@@ -1,7 +1,10 @@
 # Default configuration for Xtensa
 
-# Boards:
+# Uncomment the following lines to disable these optional devices:
 #
-CONFIG_XTENSA_SIM=y
-CONFIG_XTENSA_VIRT=y
-CONFIG_XTENSA_XTFPGA=y
+#CONFIG_PCI_DEVICES=n
+
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_XTENSA_SIM=n
+# CONFIG_XTENSA_VIRT=n
+# CONFIG_XTENSA_XTFPGA=n

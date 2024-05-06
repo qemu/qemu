@@ -9,3 +9,5 @@ config ARM
 config AARCH64
     bool
     select ARM
+    # kvm_arch_fixup_msi_route() needs to access PCIDevice
+    select PCI if KVM

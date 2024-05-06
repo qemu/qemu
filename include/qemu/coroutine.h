@@ -84,6 +84,8 @@ static inline coroutine_fn void qemu_co_mutex_assert_locked(CoMutex *mutex)
            mutex->holder == qemu_coroutine_self());
 }
 
+#include "qemu/lockable.h"
+
 /**
  * CoQueues are a mechanism to queue coroutines in order to continue executing
  * them later.  They are similar to condition variables, but they need help
@@ -280,8 +282,6 @@ void qemu_coroutine_inc_pool_size(unsigned int additional_pool_size);
  * Decrease coroutine pool size
  */
 void qemu_coroutine_dec_pool_size(unsigned int additional_pool_size);
-
-#include "qemu/lockable.h"
 
 /**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or

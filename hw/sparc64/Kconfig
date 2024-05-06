@@ -1,5 +1,7 @@
 config SUN4U
     bool
+    default y
+    depends on SPARC64
     imply PCI_DEVICES
     imply SUNHME
     imply TEST_DEVICES
@@ -16,6 +18,8 @@ config SUN4U
 
 config NIAGARA
     bool
+    default y
+    depends on SPARC64
     select EMPTY_SLOT
     select SUN4V_RTC
     select UNIMP

@@ -1,3 +1,4 @@
 # Default configuration for rx-softmmu
 
-CONFIG_RX_GDBSIM=y
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_RX_GDBSIM=n

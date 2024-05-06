@@ -1,5 +1,7 @@
 config AXIS
     bool
+    default y
+    depends on CRIS
     select ETRAXFS
     select PFLASH_CFI02
     select NAND

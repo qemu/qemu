@@ -18,11 +18,11 @@
 
 typedef void QemuLockUnlockFunc(void *);
 
-struct QemuLockable {
+typedef struct QemuLockable {
     void *object;
     QemuLockUnlockFunc *lock;
     QemuLockUnlockFunc *unlock;
-};
+} QemuLockable;
 
 static inline __attribute__((__always_inline__)) QemuLockable *
 qemu_make_lockable(void *x, QemuLockable *lockable)

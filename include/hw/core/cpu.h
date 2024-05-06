@@ -28,6 +28,7 @@
 #include "exec/memattrs.h"
 #include "exec/mmu-access-type.h"
 #include "exec/tlb-common.h"
+#include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/bitmap.h"
 #include "qemu/rcu_queue.h"
@@ -83,6 +84,12 @@ DECLARE_CLASS_CHECKERS(CPUClass, CPU,
     OBJECT_DECLARE_TYPE(ArchCPU, CpuClassType, CPU_MODULE_OBJ_NAME);
 
 typedef struct CPUWatchpoint CPUWatchpoint;
+
+/* see physmem.c */
+struct CPUAddressSpace;
+
+/* see accel/tcg/tb-jmp-cache.h */
+struct CPUJumpCache;
 
 /* see accel-cpu.h */
 struct AccelCPUClass;
@@ -472,12 +479,12 @@ struct CPUState {
     QemuMutex work_mutex;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
 
-    CPUAddressSpace *cpu_ases;
+    struct CPUAddressSpace *cpu_ases;
     int num_ases;
     AddressSpace *as;
     MemoryRegion *memory;
 
-    CPUJumpCache *tb_jmp_cache;
+    struct CPUJumpCache *tb_jmp_cache;
 
     GArray *gdb_regs;
     int gdb_num_regs;

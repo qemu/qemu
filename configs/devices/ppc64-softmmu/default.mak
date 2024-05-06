@@ -3,8 +3,6 @@
 # Include all 32-bit boards
 include ../ppc-softmmu/default.mak
 
-# For PowerNV
-CONFIG_POWERNV=y
-
-# For pSeries
-CONFIG_PSERIES=y
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_POWERNV=n
+# CONFIG_PSERIES=n

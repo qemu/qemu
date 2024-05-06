@@ -1,5 +1,7 @@
 config PETALOGIX_S3ADSP1800
     bool
+    default y
+    depends on MICROBLAZE
     select PFLASH_CFI01
     select XILINX
     select XILINX_AXI
@@ -8,6 +10,8 @@ config PETALOGIX_S3ADSP1800
 
 config PETALOGIX_ML605
     bool
+    default y
+    depends on MICROBLAZE
     select PFLASH_CFI01
     select SERIAL
     select SSI_M25P80
@@ -18,4 +22,6 @@ config PETALOGIX_ML605
 
 config XLNX_ZYNQMP_PMU
     bool
+    default y
+    depends on MICROBLAZE
     select XLNX_ZYNQMP

@@ -36,7 +36,7 @@ enum {
 
 #define UINT16_BITS       16
 
-struct NodeInfo {
+typedef struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;
@@ -45,12 +45,12 @@ struct NodeInfo {
     uint8_t lb_info_provided;
     uint16_t initiator;
     uint8_t distance[MAX_NODES];
-};
+} NodeInfo;
 
-struct NumaNodeMem {
+typedef struct NumaNodeMem {
     uint64_t node_mem;
     uint64_t node_plugged_mem;
-};
+} NumaNodeMem;
 
 struct HMAT_LB_Data {
     uint8_t     initiator;

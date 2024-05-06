@@ -15,17 +15,17 @@
 
 #include "hw/pci/pci.h"
 
-struct PCIESriovPF {
+typedef struct PCIESriovPF {
     uint16_t num_vfs;   /* Number of virtual functions created */
     uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
     const char *vfname; /* Reference to the device type used for the VFs */
     PCIDevice **vf;     /* Pointer to an array of num_vfs VF devices */
-};
+} PCIESriovPF;
 
-struct PCIESriovVF {
+typedef struct PCIESriovVF {
     PCIDevice *pf;      /* Pointer back to owner physical function */
     uint16_t vf_number; /* Logical VF number of this function */
-};
+} PCIESriovVF;
 
 void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
                         const char *vfname, uint16_t vf_dev_id,
