@@ -2,7 +2,7 @@
 # setup by the scripts/ci/setup/build-environment.yml task
 # "Install basic packages to build QEMU on Ubuntu 22.04"
 
-ubuntu-22.04-s390x-all-linux-static:
+ubuntu-22.04-s390x-all-linux:
  extends: .custom_runner_template
  needs: []
  stage: build
@@ -15,7 +15,7 @@ ubuntu-22.04-s390x-all-linux-static:
  script:
  - mkdir build
  - cd build
- - ../configure --enable-debug --static --disable-system
+ - ../configure --enable-debug --disable-system
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync check-tcg
