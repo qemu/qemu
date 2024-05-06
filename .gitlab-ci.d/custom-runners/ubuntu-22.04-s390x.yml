@@ -35,7 +35,7 @@ ubuntu-22.04-s390x-all:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-libssh
+ - ../configure
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check
@@ -57,7 +57,7 @@ ubuntu-22.04-s390x-alldbg:
  script:
  - mkdir build
  - cd build
- - ../configure --enable-debug --disable-libssh
+ - ../configure --enable-debug
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make clean
  - make --output-sync -j`nproc`
@@ -80,7 +80,7 @@ ubuntu-22.04-s390x-clang:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-libssh --cc=clang --cxx=clang++ --enable-sanitizers
+ - ../configure --cc=clang --cxx=clang++ --enable-sanitizers
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check
@@ -101,7 +101,7 @@ ubuntu-22.04-s390x-tci:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-libssh --enable-tcg-interpreter
+ - ../configure --enable-tcg-interpreter
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
 
@@ -122,7 +122,7 @@ ubuntu-22.04-s390x-notcg:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-libssh --disable-tcg
+ - ../configure --disable-tcg
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check
