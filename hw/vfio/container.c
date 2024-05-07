@@ -393,21 +393,20 @@ static const VFIOIOMMUClass *vfio_get_iommu_class(int iommu_type, Error **errp)
     return VFIO_IOMMU_CLASS(klass);
 }
 
-static int vfio_set_iommu(VFIOContainer *container, int group_fd,
-                          VFIOAddressSpace *space, Error **errp)
+static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
+                           VFIOAddressSpace *space, Error **errp)
 {
-    int iommu_type, ret;
+    int iommu_type;
     const VFIOIOMMUClass *vioc;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
-        return iommu_type;
+        return false;
     }
 
-    ret = ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd);
-    if (ret) {
+    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
         error_setg_errno(errp, errno, "Failed to set group container");
-        return -errno;
+        return false;
     }
 
     while (ioctl(container->fd, VFIO_SET_IOMMU, iommu_type)) {
@@ -422,7 +421,7 @@ static int vfio_set_iommu(VFIOContainer *container, int group_fd,
             continue;
         }
         error_setg_errno(errp, errno, "Failed to set iommu for container");
-        return -errno;
+        return false;
     }
 
     container->iommu_type = iommu_type;
@@ -430,11 +429,11 @@ static int vfio_set_iommu(VFIOContainer *container, int group_fd,
     vioc = vfio_get_iommu_class(iommu_type, errp);
     if (!vioc) {
         error_setg(errp, "No available IOMMU models");
-        return -EINVAL;
+        return false;
     }
 
     vfio_container_init(&container->bcontainer, space, vioc);
-    return 0;
+    return true;
 }
 
 static int vfio_get_iommu_info(VFIOContainer *container,
@@ -615,8 +614,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->fd = fd;
     bcontainer = &container->bcontainer;
 
-    ret = vfio_set_iommu(container, group->fd, space, errp);
-    if (ret) {
+    if (!vfio_set_iommu(container, group->fd, space, errp)) {
         goto free_container_exit;
     }
 
