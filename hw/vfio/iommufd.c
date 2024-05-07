@@ -258,7 +258,7 @@ static int iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
                                             uint32_t ioas_id, Error **errp)
 {
     VFIOContainerBase *bcontainer = &container->bcontainer;
-    struct iommu_ioas_iova_ranges *info;
+    g_autofree struct iommu_ioas_iova_ranges *info = NULL;
     struct iommu_iova_range *iova_ranges;
     int ret, sz, fd = container->be->fd;
 
@@ -291,12 +291,10 @@ static int iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
     }
     bcontainer->pgsizes = info->out_iova_alignment;
 
-    g_free(info);
     return 0;
 
 error:
     ret = -errno;
-    g_free(info);
     error_setg_errno(errp, errno, "Cannot get IOVA ranges");
     return ret;
 }
