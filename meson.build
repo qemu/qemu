@@ -3867,15 +3867,23 @@ foreach target : target_dirs
 
   target_common = common_ss.apply(config_target, strict: false)
   objects = common_all.extract_objects(target_common.sources())
-  deps = target_common.dependencies()
+  arch_deps += target_common.dependencies()
 
   target_specific = specific_ss.apply(config_target, strict: false)
   arch_srcs += target_specific.sources()
   arch_deps += target_specific.dependencies()
 
+  # allow using headers from the dependencies but do not include the sources,
+  # because this emulator only needs those in "objects".  For external
+  # dependencies, the full dependency is included below in the executable.
+  lib_deps = []
+  foreach dep : arch_deps
+    lib_deps += dep.partial_dependency(compile_args: true, includes: true)
+  endforeach
+
   lib = static_library('qemu-' + target,
                  sources: arch_srcs + genh,
-                 dependencies: arch_deps,
+                 dependencies: lib_deps,
                  objects: objects,
                  include_directories: target_inc,
                  c_args: c_args,
@@ -3923,7 +3931,7 @@ foreach target : target_dirs
     emulator = executable(exe_name, exe['sources'],
                install: true,
                c_args: c_args,
-               dependencies: arch_deps + deps + exe['dependencies'],
+               dependencies: arch_deps + exe['dependencies'],
                objects: lib.extract_all_objects(recursive: true),
                link_depends: [block_syms, qemu_syms],
                link_args: link_args,
