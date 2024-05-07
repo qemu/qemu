@@ -129,6 +129,37 @@
  *
  *    (^)  these are the two cases in which Intel and AMD disagree on the
  *         primary exception class
+ *
+ * Instructions still in translate.c
+ * ---------------------------------
+ * Generation of TCG opcodes for almost all instructions is in emit.c.inc;
+ * this file interprets the prefixes and opcode bytes down to individual
+ * instruction mnemonics.  There is only a handful of opcodes still using
+ * a switch statement to decode modrm bits 3-5 and prefixes after decoding
+ * is complete; these are relics of the older x86 decoder and their code
+ * generation is performed in translate.c.
+ *
+ * These unconverted opcodes also perform their own effective address
+ * generation using the gen_lea_modrm() function.
+ *
+ * There is nothing particularly complicated about them; simply, they don't
+ * need any nasty hacks in the decoder, and they shouldn't get in the way
+ * of the implementation of new x86 instructions, so they are left alone
+ * for the time being.
+ *
+ * x87:
+ * 0xD8 - 0xDF
+ *
+ * privileged/system:
+ * 0x0F 0x00               group 6 (SLDT, STR, LLDT, LTR, VERR, VERW)
+ * 0x0F 0x01               group 7 (SGDT, SIDT, LGDT, LIDT, SMSW, LMSW, INVLPG,
+ *                                  MONITOR, MWAIT, CLAC, STAC, XGETBV, XSETBV,
+ *                                  SWAPGS, RDTSCP)
+ * 0x0F 0xC7 (reg operand) group 9 (RDRAND, RDSEED, RDPID)
+ *
+ * MPX:
+ * 0x0F 0x1A               BNDLDX, BNDMOV, BNDCL, BNDCU
+ * 0x0F 0x1B               BNDSTX, BNDMOV, BNDMK, BNDCN
  */
 
 #define X86_OP_NONE { 0 },
