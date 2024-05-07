@@ -516,9 +516,6 @@ static void virt_powerdown_req(Notifier *notifier, void *opaque)
     acpi_send_event(s->acpi_ged, ACPI_POWER_DOWN_STATUS);
 }
 
-struct memmap_entry *memmap_table;
-unsigned memmap_entries;
-
 static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
     /* Ensure there are no duplicate entries. */

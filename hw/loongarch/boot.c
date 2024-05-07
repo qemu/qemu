@@ -15,6 +15,9 @@
 #include "sysemu/reset.h"
 #include "sysemu/qtest.h"
 
+struct memmap_entry *memmap_table;
+unsigned memmap_entries;
+
 ram_addr_t initrd_offset;
 uint64_t initrd_size;
 
