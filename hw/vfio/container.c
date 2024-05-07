@@ -910,8 +910,8 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
  * @name and @vbasedev->name are likely to be different depending
  * on the type of the device, hence the need for passing @name
  */
-static int vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
-                                     AddressSpace *as, Error **errp)
+static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
+                                      AddressSpace *as, Error **errp)
 {
     int groupid = vfio_device_groupid(vbasedev, errp);
     VFIODevice *vbasedev_iter;
@@ -920,27 +920,27 @@ static int vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     int ret;
 
     if (groupid < 0) {
-        return groupid;
+        return false;
     }
 
     trace_vfio_attach_device(vbasedev->name, groupid);
 
     group = vfio_get_group(groupid, as, errp);
     if (!group) {
-        return -ENOENT;
+        return false;
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
             error_setg(errp, "device is already attached");
             vfio_put_group(group);
-            return -EBUSY;
+            return false;
         }
     }
     ret = vfio_get_device(group, name, vbasedev, errp);
     if (ret) {
         vfio_put_group(group);
-        return ret;
+        return false;
     }
 
     bcontainer = &group->container->bcontainer;
@@ -948,7 +948,7 @@ static int vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 
-    return ret;
+    return true;
 }
 
 static void vfio_legacy_detach_device(VFIODevice *vbasedev)

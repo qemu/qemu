@@ -117,8 +117,8 @@ struct VFIOIOMMUClass {
     int (*dma_unmap)(const VFIOContainerBase *bcontainer,
                      hwaddr iova, ram_addr_t size,
                      IOMMUTLBEntry *iotlb);
-    int (*attach_device)(const char *name, VFIODevice *vbasedev,
-                         AddressSpace *as, Error **errp);
+    bool (*attach_device)(const char *name, VFIODevice *vbasedev,
+                          AddressSpace *as, Error **errp);
     void (*detach_device)(VFIODevice *vbasedev);
 
     /* migration feature */
