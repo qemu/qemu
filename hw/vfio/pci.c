@@ -2972,12 +2972,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     ERRP_GUARD();
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    char *tmp, *subsys;
+    char *subsys;
     Error *err = NULL;
     int i, ret;
     bool is_mdev;
     char uuid[UUID_STR_LEN];
-    char *name;
+    g_autofree char *name = NULL;
+    g_autofree char *tmp = NULL;
 
     if (vbasedev->fd < 0 && !vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -3008,7 +3009,6 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
      */
     tmp = g_strdup_printf("%s/subsystem", vbasedev->sysfsdev);
     subsys = realpath(tmp, NULL);
-    g_free(tmp);
     is_mdev = subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
     free(subsys);
 
@@ -3029,7 +3029,6 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     ret = vfio_attach_device(name, vbasedev,
                              pci_device_iommu_address_space(pdev), errp);
-    g_free(name);
     if (ret) {
         goto error;
     }
