@@ -33,6 +33,28 @@
  * ("cannot encode 16-bit or 32-bit size in 64-bit mode") as modifiers of the
  * "v" or "z" sizes.  The decoder simply makes them separate operand sizes.
  *
+ * The manual lists immediate far destinations as Ap (technically an implicit
+ * argument).  The decoder splits them into two immediates, using "Ip" for
+ * the offset part (that comes first in the instruction stream) and "Iw" for
+ * the segment/selector part.  The size of the offset is given by s->dflag
+ * and the instructions are illegal in 64-bit mode, so the choice of "Ip"
+ * is somewhat arbitrary; "Iv" or "Iz" would work just as well.
+ *
+ * Operand types
+ * -------------
+ *
+ * For memory-only operands, if the emitter functions wants to rely on
+ * generic load and writeback, the decoder needs to know the type of the
+ * operand.  Therefore, M is often replaced by the more specific EM and WM
+ * (respectively selecting an ALU operand, like the operand type E, or a
+ * vector operand like the operand type W).
+ *
+ * Immediates are almost always signed or masked away in helpers.  Two
+ * common exceptions are IN/OUT and absolute jumps.  For these, there is
+ * an additional custom operand type "I_unsigned".  Alternatively, the
+ * mask could be applied (and the original sign-extended value would be
+ * optimized away by TCG) in the emitter function.
+ *
  * Vector operands
  * ---------------
  *
@@ -119,8 +141,12 @@
     ## __VA_ARGS__                                                \
 }
 
+#define X86_OP_GROUP1(op, op0, s0, ...)                           \
+    X86_OP_GROUP3(op, op0, s0, 2op, s0, None, None, ## __VA_ARGS__)
 #define X86_OP_GROUP2(op, op0, s0, op1, s1, ...)                  \
     X86_OP_GROUP3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
+#define X86_OP_GROUPw(op, op0, s0, ...)                           \
+    X86_OP_GROUP3(op, op0, s0, None, None, None, None, ## __VA_ARGS__)
 #define X86_OP_GROUP0(op, ...)                                    \
     X86_OP_GROUP3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
@@ -140,16 +166,30 @@
         .op3 = X86_TYPE_I, .s3 = X86_SIZE_b,                      \
         ## __VA_ARGS__)
 
+/*
+ * Short forms that are mostly useful for ALU opcodes and other
+ * one-byte opcodes.  For vector instructions it is usually
+ * clearer to write all three operands explicitly, because the
+ * corresponding gen_* function will use OP_PTRn rather than s->T0
+ * and s->T1.
+ */
+#define X86_OP_ENTRYrr(op, op0, s0, op1, s1, ...)                 \
+    X86_OP_ENTRY3(op, None, None, op0, s0, op1, s1, ## __VA_ARGS__)
+#define X86_OP_ENTRYwr(op, op0, s0, op1, s1, ...)                 \
+    X86_OP_ENTRY3(op, op0, s0, None, None, op1, s1, ## __VA_ARGS__)
 #define X86_OP_ENTRY2(op, op0, s0, op1, s1, ...)                  \
     X86_OP_ENTRY3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
 #define X86_OP_ENTRYw(op, op0, s0, ...)                           \
     X86_OP_ENTRY3(op, op0, s0, None, None, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRYr(op, op0, s0, ...)                           \
     X86_OP_ENTRY3(op, None, None, None, None, op0, s0, ## __VA_ARGS__)
+#define X86_OP_ENTRY1(op, op0, s0, ...)                           \
+    X86_OP_ENTRY3(op, op0, s0, 2op, s0, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRY0(op, ...)                                    \
     X86_OP_ENTRY3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
 #define cpuid(feat) .cpuid = X86_FEAT_##feat,
+#define noseg .special = X86_SPECIAL_NoSeg,
 #define xchg .special = X86_SPECIAL_Locked,
 #define lock .special = X86_SPECIAL_HasLock,
 #define mmx .special = X86_SPECIAL_MMX,
@@ -195,6 +235,8 @@
 #define p_00_66_f3    .valid_prefix = P_00 | P_66 | P_F3,
 #define p_66_f3_f2    .valid_prefix = P_66 | P_F3 | P_F2,
 #define p_00_66_f3_f2 .valid_prefix = P_00 | P_66 | P_F3 | P_F2,
+
+#define UNKNOWN_OPCODE ((X86OpEntry) {})
 
 static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
 {
@@ -957,6 +999,15 @@ static const X86OpEntry opcodes_0F[256] = {
     /* Incorrectly listed as Mq,Vq in the manual */
     [0x17] = X86_OP_ENTRY3(VMOVHPx_st,  M,q, None,None, V,dq, vex5 p_00_66),
 
+    [0x40] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x41] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x42] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x43] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x44] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x45] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x46] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x47] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+
     [0x50] = X86_OP_ENTRY3(MOVMSK,     G,y, None,None, U,x, vex7 p_00_66),
     [0x51] = X86_OP_GROUP3(sse_unary,  V,x, H,x, W,x, vex2_rep3 p_00_66_f3_f2), /* sqrtps */
     [0x52] = X86_OP_GROUP3(sse_unary,  V,x, H,x, W,x, vex4_rep5 p_00_f3), /* rsqrtps */
@@ -984,6 +1035,27 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x76] = X86_OP_ENTRY3(PCMPEQD,    V,x, H,x, W,x,  vex4 mmx avx2_256 p_00_66),
     [0x77] = X86_OP_GROUP0(0F77),
 
+    [0x80] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x81] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x82] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x83] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x84] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x85] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x86] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x87] = X86_OP_ENTRYr(Jcc, J,z_f64),
+
+    [0x90] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x91] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x92] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x93] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x94] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x95] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x96] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x97] = X86_OP_ENTRYw(SETcc, E,b),
+
+    [0xa0] = X86_OP_ENTRYr(PUSH, FS, w),
+    [0xa1] = X86_OP_ENTRYw(POP, FS, w),
+
     [0x28] = X86_OP_ENTRY3(MOVDQ,      V,x,  None,None, W,x, vex1 p_00_66), /* MOVAPS */
     [0x29] = X86_OP_ENTRY3(MOVDQ,      W,x,  None,None, V,x, vex1 p_00_66), /* MOVAPS */
     [0x2A] = X86_OP_GROUP0(0F2A),
@@ -995,6 +1067,15 @@ static const X86OpEntry opcodes_0F[256] = {
 
     [0x38] = X86_OP_GROUP0(0F38),
     [0x3a] = X86_OP_GROUP0(0F3A),
+
+    [0x48] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x49] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4a] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4b] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4c] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4d] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4e] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
+    [0x4f] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
 
     [0x58] = X86_OP_ENTRY3(VADD,       V,x, H,x, W,x, vex2_rep3 p_00_66_f3_f2),
     [0x59] = X86_OP_ENTRY3(VMUL,       V,x, H,x, W,x, vex2_rep3 p_00_66_f3_f2),
@@ -1021,12 +1102,56 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x7e] = X86_OP_GROUP0(0F7E),
     [0x7f] = X86_OP_GROUP0(0F7F),
 
+    [0x88] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x89] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8a] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8b] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8c] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8d] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8e] = X86_OP_ENTRYr(Jcc, J,z_f64),
+    [0x8f] = X86_OP_ENTRYr(Jcc, J,z_f64),
+
+    [0x98] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x99] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9a] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9b] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9c] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9d] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9e] = X86_OP_ENTRYw(SETcc, E,b),
+    [0x9f] = X86_OP_ENTRYw(SETcc, E,b),
+
+    [0xa8] = X86_OP_ENTRYr(PUSH,   GS, w),
+    [0xa9] = X86_OP_ENTRYw(POP,    GS, w),
     [0xae] = X86_OP_GROUP0(group15),
+    /*
+     * It's slightly more efficient to put Ev operand in T0 and allow gen_IMUL3
+     * to assume sextT0.  Multiplication is commutative anyway.
+     */
+    [0xaf] = X86_OP_ENTRY3(IMUL3,  G,v, E,v, 2op,v, sextT0),
+
+    [0xb2] = X86_OP_ENTRY3(LSS,    G,v, EM,p, None, None),
+    [0xb4] = X86_OP_ENTRY3(LFS,    G,v, EM,p, None, None),
+    [0xb5] = X86_OP_ENTRY3(LGS,    G,v, EM,p, None, None),
+    [0xb6] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, zextT0), /* MOVZX */
+    [0xb7] = X86_OP_ENTRY3(MOV,    G,v, E,w, None, None, zextT0), /* MOVZX */
+
+    [0xbe] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, sextT0), /* MOVSX */
+    [0xbf] = X86_OP_ENTRY3(MOV,    G,v, E,w, None, None, sextT0), /* MOVSX */
 
     [0xc2] = X86_OP_ENTRY4(VCMP,       V,x, H,x, W,x,       vex2_rep3 p_00_66_f3_f2),
+    [0xc3] = X86_OP_ENTRY3(MOV,        EM,y,G,y, None,None, cpuid(SSE2)), /* MOVNTI */
     [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
     [0xc5] = X86_OP_ENTRY3(PEXTRW,     G,d, U,dq,I,b,       vex5 mmx p_00_66),
     [0xc6] = X86_OP_ENTRY4(VSHUF,      V,x, H,x, W,x,       vex4 p_00_66),
+
+    [0xc8] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xc9] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xca] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xcb] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xcc] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xcd] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xce] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
+    [0xcf] = X86_OP_ENTRY1(BSWAP,     LoBits,y),
 
     [0xd0] = X86_OP_ENTRY3(VADDSUB,   V,x, H,x, W,x,        vex2 cpuid(SSE3) p_66_f2),
     [0xd1] = X86_OP_ENTRY3(PSRLW_r,   V,x, H,x, W,x,        vex4 mmx avx2_256 p_00_66),
@@ -1095,8 +1220,405 @@ static void decode_0F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint
     do_decode_0F(s, env, entry, b);
 }
 
+static void decode_63(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry arpl = X86_OP_ENTRY2(ARPL, E,w, G,w, chk(prot));
+    static const X86OpEntry mov = X86_OP_ENTRY3(MOV, G,v, E,v, None, None);
+    static const X86OpEntry movsxd = X86_OP_ENTRY3(MOV, G,v, E,d, None, None, sextT0);
+    if (!CODE64(s)) {
+        *entry = arpl;
+    } else if (REX_W(s)) {
+        *entry = movsxd;
+    } else {
+        *entry = mov;
+    }
+}
+
+static void decode_group1(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group1_gen[8] = {
+        gen_ADD, gen_OR, gen_ADC, gen_SBB, gen_AND, gen_SUB, gen_XOR, gen_SUB,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group1_gen[op];
+
+    if (op == 7) {
+        /* prevent writeback for CMP */
+        entry->op1 = entry->op0;
+        entry->op0 = X86_TYPE_None;
+        entry->s0 = X86_SIZE_None;
+    } else {
+        entry->special = X86_SPECIAL_HasLock;
+    }
+}
+
+static void decode_group1A(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    int op = (get_modrm(s, env) >> 3) & 7;
+    if (op != 0) {
+        /* could be XOP prefix too */
+        *entry = UNKNOWN_OPCODE;
+    } else {
+        entry->gen = gen_POP;
+        /* The address must use the value of ESP after the pop.  */
+        s->popl_esp_hack = 1 << mo_pushpop(s, s->dflag);
+    }
+}
+
+static void decode_group2(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group2_gen[8] = {
+        gen_ROL, gen_ROR, gen_RCL, gen_RCR,
+        gen_SHL, gen_SHR, gen_SHL /* SAL, undocumented */, gen_SAR,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group2_gen[op];
+    if (op == 7) {
+        entry->special = X86_SPECIAL_SExtT0;
+    } else {
+        entry->special = X86_SPECIAL_ZExtT0;
+    }
+}
+
+static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry opcodes_grp3[16] = {
+        /* 0xf6 */
+        [0x00] = X86_OP_ENTRYrr(AND, E,b, I,b),
+        [0x02] = X86_OP_ENTRY1(NOT,  E,b,      lock),
+        [0x03] = X86_OP_ENTRY1(NEG,  E,b,      lock),
+        [0x04] = X86_OP_ENTRYrr(MUL, E,b, 0,b, zextT0),
+        [0x05] = X86_OP_ENTRYrr(IMUL,E,b, 0,b, sextT0),
+        [0x06] = X86_OP_ENTRYr(DIV,  E,b),
+        [0x07] = X86_OP_ENTRYr(IDIV, E,b),
+
+        /* 0xf7 */
+        [0x08] = X86_OP_ENTRYrr(AND, E,v, I,z),
+        [0x0a] = X86_OP_ENTRY1(NOT,  E,v,      lock),
+        [0x0b] = X86_OP_ENTRY1(NEG,  E,v,      lock),
+        [0x0c] = X86_OP_ENTRYrr(MUL, E,v, 0,v, zextT0),
+        [0x0d] = X86_OP_ENTRYrr(IMUL,E,v, 0,v, sextT0),
+        [0x0e] = X86_OP_ENTRYr(DIV,  E,v),
+        [0x0f] = X86_OP_ENTRYr(IDIV, E,v),
+    };
+
+    int w = (*b & 1);
+    int reg = (get_modrm(s, env) >> 3) & 7;
+
+    *entry = opcodes_grp3[(w << 3) | reg];
+}
+
+static void decode_group4_5(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry opcodes_grp4_5[16] = {
+        /* 0xfe */
+        [0x00] = X86_OP_ENTRY1(INC,     E,b,                           lock),
+        [0x01] = X86_OP_ENTRY1(DEC,     E,b,                           lock),
+
+        /* 0xff */
+        [0x08] = X86_OP_ENTRY1(INC,     E,v,                           lock),
+        [0x09] = X86_OP_ENTRY1(DEC,     E,v,                           lock),
+        [0x0a] = X86_OP_ENTRY3(CALL_m,  None, None, E,f64, None, None, zextT0),
+        [0x0b] = X86_OP_ENTRYr(CALLF_m, M,p),
+        [0x0c] = X86_OP_ENTRY3(JMP_m,   None, None, E,f64, None, None, zextT0),
+        [0x0d] = X86_OP_ENTRYr(JMPF_m,  M,p),
+        [0x0e] = X86_OP_ENTRYr(PUSH,    E,f64),
+    };
+
+    int w = (*b & 1);
+    int reg = (get_modrm(s, env) >> 3) & 7;
+
+    *entry = opcodes_grp4_5[(w << 3) | reg];
+}
+
+
+static void decode_group11(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    int op = (get_modrm(s, env) >> 3) & 7;
+    if (op != 0) {
+        *entry = UNKNOWN_OPCODE;
+    } else {
+        entry->gen = gen_MOV;
+    }
+}
+
 static const X86OpEntry opcodes_root[256] = {
+    [0x00] = X86_OP_ENTRY2(ADD, E,b, G,b, lock),
+    [0x01] = X86_OP_ENTRY2(ADD, E,v, G,v, lock),
+    [0x02] = X86_OP_ENTRY2(ADD, G,b, E,b, lock),
+    [0x03] = X86_OP_ENTRY2(ADD, G,v, E,v, lock),
+    [0x04] = X86_OP_ENTRY2(ADD, 0,b, I,b, lock),   /* AL, Ib */
+    [0x05] = X86_OP_ENTRY2(ADD, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x06] = X86_OP_ENTRYr(PUSH, ES, w, chk(i64)),
+    [0x07] = X86_OP_ENTRYw(POP, ES, w, chk(i64)),
+
+    [0x10] = X86_OP_ENTRY2(ADC, E,b, G,b, lock),
+    [0x11] = X86_OP_ENTRY2(ADC, E,v, G,v, lock),
+    [0x12] = X86_OP_ENTRY2(ADC, G,b, E,b, lock),
+    [0x13] = X86_OP_ENTRY2(ADC, G,v, E,v, lock),
+    [0x14] = X86_OP_ENTRY2(ADC, 0,b, I,b, lock),   /* AL, Ib */
+    [0x15] = X86_OP_ENTRY2(ADC, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x16] = X86_OP_ENTRYr(PUSH, SS, w, chk(i64)),
+    [0x17] = X86_OP_ENTRYw(POP, SS, w, chk(i64)),
+
+    [0x20] = X86_OP_ENTRY2(AND, E,b, G,b, lock),
+    [0x21] = X86_OP_ENTRY2(AND, E,v, G,v, lock),
+    [0x22] = X86_OP_ENTRY2(AND, G,b, E,b, lock),
+    [0x23] = X86_OP_ENTRY2(AND, G,v, E,v, lock),
+    [0x24] = X86_OP_ENTRY2(AND, 0,b, I,b, lock),   /* AL, Ib */
+    [0x25] = X86_OP_ENTRY2(AND, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x26] = {},
+    [0x27] = X86_OP_ENTRY0(DAA, chk(i64)),
+
+    [0x30] = X86_OP_ENTRY2(XOR, E,b, G,b, lock),
+    [0x31] = X86_OP_ENTRY2(XOR, E,v, G,v, lock),
+    [0x32] = X86_OP_ENTRY2(XOR, G,b, E,b, lock),
+    [0x33] = X86_OP_ENTRY2(XOR, G,v, E,v, lock),
+    [0x34] = X86_OP_ENTRY2(XOR, 0,b, I,b, lock),   /* AL, Ib */
+    [0x35] = X86_OP_ENTRY2(XOR, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x36] = {},
+    [0x37] = X86_OP_ENTRY0(AAA, chk(i64)),
+
+    [0x40] = X86_OP_ENTRY1(INC, 0,v, chk(i64)),
+    [0x41] = X86_OP_ENTRY1(INC, 1,v, chk(i64)),
+    [0x42] = X86_OP_ENTRY1(INC, 2,v, chk(i64)),
+    [0x43] = X86_OP_ENTRY1(INC, 3,v, chk(i64)),
+    [0x44] = X86_OP_ENTRY1(INC, 4,v, chk(i64)),
+    [0x45] = X86_OP_ENTRY1(INC, 5,v, chk(i64)),
+    [0x46] = X86_OP_ENTRY1(INC, 6,v, chk(i64)),
+    [0x47] = X86_OP_ENTRY1(INC, 7,v, chk(i64)),
+
+    [0x50] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x51] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x52] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x53] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x54] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x55] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x56] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+    [0x57] = X86_OP_ENTRYr(PUSH, LoBits,d64),
+
+    [0x60] = X86_OP_ENTRY0(PUSHA, chk(i64)),
+    [0x61] = X86_OP_ENTRY0(POPA, chk(i64)),
+    [0x62] = X86_OP_ENTRYrr(BOUND, G,v, M,a, chk(i64)),
+    [0x63] = X86_OP_GROUP0(63),
+    [0x64] = {},
+    [0x65] = {},
+    [0x66] = {},
+    [0x67] = {},
+
+    [0x70] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x71] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x72] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x73] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x74] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x75] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x76] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x77] = X86_OP_ENTRYr(Jcc, J,b),
+
+    [0x80] = X86_OP_GROUP2(group1, E,b, I,b),
+    [0x81] = X86_OP_GROUP2(group1, E,v, I,z),
+    [0x82] = X86_OP_GROUP2(group1, E,b, I,b, chk(i64)),
+    [0x83] = X86_OP_GROUP2(group1, E,v, I,b),
+    [0x84] = X86_OP_ENTRYrr(AND, E,b, G,b),
+    [0x85] = X86_OP_ENTRYrr(AND, E,v, G,v),
+    [0x86] = X86_OP_ENTRY2(XCHG, E,b, G,b, xchg),
+    [0x87] = X86_OP_ENTRY2(XCHG, E,v, G,v, xchg),
+
+    [0x90] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x91] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x92] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x93] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x94] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x95] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x96] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x97] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+
+    [0xA0] = X86_OP_ENTRY3(MOV, 0,b, O,b, None, None), /* AL, Ob */
+    [0xA1] = X86_OP_ENTRY3(MOV, 0,v, O,v, None, None), /* rAX, Ov */
+    [0xA2] = X86_OP_ENTRY3(MOV, O,b, 0,b, None, None), /* Ob, AL */
+    [0xA3] = X86_OP_ENTRY3(MOV, O,v, 0,v, None, None), /* Ov, rAX */
+    [0xA4] = X86_OP_ENTRYrr(MOVS, Y,b, X,b),
+    [0xA5] = X86_OP_ENTRYrr(MOVS, Y,v, X,v),
+    [0xA6] = X86_OP_ENTRYrr(CMPS, Y,b, X,b),
+    [0xA7] = X86_OP_ENTRYrr(CMPS, Y,v, X,v),
+
+    [0xB0] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB1] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB2] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB3] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB4] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB5] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB6] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+    [0xB7] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
+
+    [0xC0] = X86_OP_GROUP2(group2, E,b, I,b),
+    [0xC1] = X86_OP_GROUP2(group2, E,v, I,b),
+    [0xC2] = X86_OP_ENTRYr(RET, I,w),
+    [0xC3] = X86_OP_ENTRY0(RET),
+    [0xC4] = X86_OP_ENTRY3(LES, G,z, EM,p, None, None, chk(i64)),
+    [0xC5] = X86_OP_ENTRY3(LDS, G,z, EM,p, None, None, chk(i64)),
+    [0xC6] = X86_OP_GROUP3(group11, E,b, I,b, None, None), /* reg=000b */
+    [0xC7] = X86_OP_GROUP3(group11, E,v, I,z, None, None), /* reg=000b */
+
+    [0xD0] = X86_OP_GROUP1(group2, E,b),
+    [0xD1] = X86_OP_GROUP1(group2, E,v),
+    [0xD2] = X86_OP_GROUP2(group2, E,b, 1,b), /* CL */
+    [0xD3] = X86_OP_GROUP2(group2, E,v, 1,b), /* CL */
+    [0xD4] = X86_OP_ENTRYr(AAM, I,b),
+    [0xD5] = X86_OP_ENTRYr(AAD, I,b),
+    [0xD6] = X86_OP_ENTRYw(SALC, 0,b),
+    [0xD7] = X86_OP_ENTRY1(XLAT, 0,b, zextT0), /* AL read/written */
+
+    [0xE0] = X86_OP_ENTRYr(LOOPNE, J,b), /* implicit: CX with aflag size */
+    [0xE1] = X86_OP_ENTRYr(LOOPE,  J,b), /* implicit: CX with aflag size */
+    [0xE2] = X86_OP_ENTRYr(LOOP,   J,b), /* implicit: CX with aflag size */
+    [0xE3] = X86_OP_ENTRYr(JCXZ,   J,b), /* implicit: CX with aflag size */
+    [0xE4] = X86_OP_ENTRYwr(IN,    0,b, I_unsigned,b), /* AL */
+    [0xE5] = X86_OP_ENTRYwr(IN,    0,v, I_unsigned,b), /* AX/EAX */
+    [0xE6] = X86_OP_ENTRYrr(OUT,   0,b, I_unsigned,b), /* AL */
+    [0xE7] = X86_OP_ENTRYrr(OUT,   0,v, I_unsigned,b), /* AX/EAX */
+
+    [0xF1] = X86_OP_ENTRY0(INT1,   svm(ICEBP)),
+    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0)),
+    [0xF5] = X86_OP_ENTRY0(CMC),
+    [0xF6] = X86_OP_GROUP1(group3, E,b),
+    [0xF7] = X86_OP_GROUP1(group3, E,v),
+
+    [0x08] = X86_OP_ENTRY2(OR, E,b, G,b, lock),
+    [0x09] = X86_OP_ENTRY2(OR, E,v, G,v, lock),
+    [0x0A] = X86_OP_ENTRY2(OR, G,b, E,b, lock),
+    [0x0B] = X86_OP_ENTRY2(OR, G,v, E,v, lock),
+    [0x0C] = X86_OP_ENTRY2(OR, 0,b, I,b, lock),   /* AL, Ib */
+    [0x0D] = X86_OP_ENTRY2(OR, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x0E] = X86_OP_ENTRYr(PUSH, CS, w, chk(i64)),
     [0x0F] = X86_OP_GROUP0(0F),
+
+    [0x18] = X86_OP_ENTRY2(SBB, E,b, G,b, lock),
+    [0x19] = X86_OP_ENTRY2(SBB, E,v, G,v, lock),
+    [0x1A] = X86_OP_ENTRY2(SBB, G,b, E,b, lock),
+    [0x1B] = X86_OP_ENTRY2(SBB, G,v, E,v, lock),
+    [0x1C] = X86_OP_ENTRY2(SBB, 0,b, I,b, lock),   /* AL, Ib */
+    [0x1D] = X86_OP_ENTRY2(SBB, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x1E] = X86_OP_ENTRYr(PUSH, DS, w, chk(i64)),
+    [0x1F] = X86_OP_ENTRYw(POP, DS, w, chk(i64)),
+
+    [0x28] = X86_OP_ENTRY2(SUB, E,b, G,b, lock),
+    [0x29] = X86_OP_ENTRY2(SUB, E,v, G,v, lock),
+    [0x2A] = X86_OP_ENTRY2(SUB, G,b, E,b, lock),
+    [0x2B] = X86_OP_ENTRY2(SUB, G,v, E,v, lock),
+    [0x2C] = X86_OP_ENTRY2(SUB, 0,b, I,b, lock),   /* AL, Ib */
+    [0x2D] = X86_OP_ENTRY2(SUB, 0,v, I,z, lock),   /* rAX, Iz */
+    [0x2E] = {},
+    [0x2F] = X86_OP_ENTRY0(DAS, chk(i64)),
+
+    [0x38] = X86_OP_ENTRYrr(SUB, E,b, G,b),
+    [0x39] = X86_OP_ENTRYrr(SUB, E,v, G,v),
+    [0x3A] = X86_OP_ENTRYrr(SUB, G,b, E,b),
+    [0x3B] = X86_OP_ENTRYrr(SUB, G,v, E,v),
+    [0x3C] = X86_OP_ENTRYrr(SUB, 0,b, I,b),   /* AL, Ib */
+    [0x3D] = X86_OP_ENTRYrr(SUB, 0,v, I,z),   /* rAX, Iz */
+    [0x3E] = {},
+    [0x3F] = X86_OP_ENTRY0(AAS, chk(i64)),
+
+    [0x48] = X86_OP_ENTRY1(DEC, 0,v, chk(i64)),
+    [0x49] = X86_OP_ENTRY1(DEC, 1,v, chk(i64)),
+    [0x4A] = X86_OP_ENTRY1(DEC, 2,v, chk(i64)),
+    [0x4B] = X86_OP_ENTRY1(DEC, 3,v, chk(i64)),
+    [0x4C] = X86_OP_ENTRY1(DEC, 4,v, chk(i64)),
+    [0x4D] = X86_OP_ENTRY1(DEC, 5,v, chk(i64)),
+    [0x4E] = X86_OP_ENTRY1(DEC, 6,v, chk(i64)),
+    [0x4F] = X86_OP_ENTRY1(DEC, 7,v, chk(i64)),
+
+    [0x58] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x59] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5A] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5B] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5C] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5D] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5E] = X86_OP_ENTRYw(POP, LoBits,d64),
+    [0x5F] = X86_OP_ENTRYw(POP, LoBits,d64),
+
+    [0x68] = X86_OP_ENTRYr(PUSH, I,z),
+    [0x69] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,z, sextT0),
+    [0x6A] = X86_OP_ENTRYr(PUSH, I,b),
+    [0x6B] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,b, sextT0),
+    [0x6C] = X86_OP_ENTRYrr(INS, Y,b, 2,w), /* DX */
+    [0x6D] = X86_OP_ENTRYrr(INS, Y,z, 2,w), /* DX */
+    [0x6E] = X86_OP_ENTRYrr(OUTS, X,b, 2,w), /* DX */
+    [0x6F] = X86_OP_ENTRYrr(OUTS, X,z, 2,w), /* DX */
+
+    [0x78] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x79] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7A] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7B] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7C] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7D] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7E] = X86_OP_ENTRYr(Jcc, J,b),
+    [0x7F] = X86_OP_ENTRYr(Jcc, J,b),
+
+    [0x88] = X86_OP_ENTRY3(MOV, E,b, G,b, None, None),
+    [0x89] = X86_OP_ENTRY3(MOV, E,v, G,v, None, None),
+    [0x8A] = X86_OP_ENTRY3(MOV, G,b, E,b, None, None),
+    [0x8B] = X86_OP_ENTRY3(MOV, G,v, E,v, None, None),
+    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None),
+    [0x8D] = X86_OP_ENTRY3(LEA, G,v, M,v, None, None, noseg),
+    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,v, None, None),
+    [0x8F] = X86_OP_GROUPw(group1A, E,v),
+
+    [0x98] = X86_OP_ENTRY1(CBW,    0,v), /* rAX */
+    [0x99] = X86_OP_ENTRY3(CWD,    2,v, 0,v, None, None), /* rDX, rAX */
+    [0x9A] = X86_OP_ENTRYrr(CALLF, I_unsigned,p, I_unsigned,w, chk(i64)),
+    [0x9B] = X86_OP_ENTRY0(WAIT),
+    [0x9C] = X86_OP_ENTRY0(PUSHF,  chk(vm86_iopl) svm(PUSHF)),
+    [0x9D] = X86_OP_ENTRY0(POPF,   chk(vm86_iopl) svm(POPF)),
+    [0x9E] = X86_OP_ENTRY0(SAHF),
+    [0x9F] = X86_OP_ENTRY0(LAHF),
+
+    [0xA8] = X86_OP_ENTRYrr(AND, 0,b, I,b),   /* AL, Ib */
+    [0xA9] = X86_OP_ENTRYrr(AND, 0,v, I,z),   /* rAX, Iz */
+    [0xAA] = X86_OP_ENTRY3(STOS, Y,b, 0,b, None, None),
+    [0xAB] = X86_OP_ENTRY3(STOS, Y,v, 0,v, None, None),
+    /* Manual writeback because REP LODS (!) has to write EAX/RAX after every LODS.  */
+    [0xAC] = X86_OP_ENTRYr(LODS, X,b),
+    [0xAD] = X86_OP_ENTRYr(LODS, X,v),
+    [0xAE] = X86_OP_ENTRYrr(SCAS, 0,b, Y,b),
+    [0xAF] = X86_OP_ENTRYrr(SCAS, 0,v, Y,v),
+
+    [0xB8] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xB9] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBA] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBB] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBC] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBD] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBE] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xBF] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+
+    [0xC8] = X86_OP_ENTRYrr(ENTER, I,w, I,b),
+    [0xC9] = X86_OP_ENTRY1(LEAVE, A,d64),
+    [0xCA] = X86_OP_ENTRYr(RETF,  I,w),
+    [0xCB] = X86_OP_ENTRY0(RETF),
+    [0xCC] = X86_OP_ENTRY0(INT3),
+    [0xCD] = X86_OP_ENTRYr(INT, I,b,  chk(vm86_iopl)),
+    [0xCE] = X86_OP_ENTRY0(INTO),
+    [0xCF] = X86_OP_ENTRY0(IRET,      chk(vm86_iopl) svm(IRET)),
+
+    [0xE8] = X86_OP_ENTRYr(CALL,   J,z_f64),
+    [0xE9] = X86_OP_ENTRYr(JMP,    J,z_f64),
+    [0xEA] = X86_OP_ENTRYrr(JMPF,  I_unsigned,p, I_unsigned,w, chk(i64)),
+    [0xEB] = X86_OP_ENTRYr(JMP,    J,b),
+    [0xEC] = X86_OP_ENTRYwr(IN,    0,b, 2,w), /* AL, DX */
+    [0xED] = X86_OP_ENTRYwr(IN,    0,v, 2,w), /* AX/EAX, DX */
+    [0xEE] = X86_OP_ENTRYrr(OUT,   0,b, 2,w), /* DX, AL */
+    [0xEF] = X86_OP_ENTRYrr(OUT,   0,v, 2,w), /* DX, AX/EAX */
+
+    [0xF8] = X86_OP_ENTRY0(CLC),
+    [0xF9] = X86_OP_ENTRY0(STC),
+    [0xFA] = X86_OP_ENTRY0(CLI,    chk(iopl)),
+    [0xFB] = X86_OP_ENTRY0(STI,    chk(iopl)),
+    [0xFC] = X86_OP_ENTRY0(CLD),
+    [0xFD] = X86_OP_ENTRY0(STD),
+    [0xFE] = X86_OP_GROUP1(group4_5, E,b),
+    [0xFF] = X86_OP_GROUP1(group4_5, E,v),
 };
 
 #undef mmx
@@ -1174,6 +1696,10 @@ static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp
 
     case X86_SIZE_z:  /* 16-bit for 16-bit operand size, else 32-bit */
         *ot = s->dflag == MO_16 ? MO_16 : MO_32;
+        return true;
+
+    case X86_SIZE_z_f64:  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
+        *ot = !CODE64(s) && s->dflag == MO_16 ? MO_16 : MO_32;
         return true;
 
     case X86_SIZE_dq: /* SSE/AVX 128-bit */
@@ -1315,8 +1841,13 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 
     case X86_TYPE_WM:  /* modrm byte selects an XMM/YMM memory operand */
         op->unit = X86_OP_SSE;
+        goto get_modrm_mem;
+
+    case X86_TYPE_EM:  /* modrm byte selects an ALU memory operand */
+        op->unit = X86_OP_INT;
         /* fall through */
     case X86_TYPE_M:  /* modrm byte selects a memory operand */
+    get_modrm_mem:
         modrm = get_modrm(s, env);
         if ((modrm >> 6) == 3) {
             return false;
@@ -1353,7 +1884,12 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     case X86_TYPE_I:  /* Immediate */
     case X86_TYPE_J:  /* Relative offset for a jump */
         op->unit = X86_OP_IMM;
-        decode->immediate = insn_get_signed(env, s, op->ot);
+        decode->immediate = op->imm = insn_get_signed(env, s, op->ot);
+        break;
+
+    case X86_TYPE_I_unsigned:  /* Immediate */
+        op->unit = X86_OP_IMM;
+        decode->immediate = op->imm = insn_get(env, s, op->ot);
         break;
 
     case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
@@ -1476,6 +2012,8 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
     switch (cpuid) {
     case X86_FEAT_None:
         return true;
+    case X86_FEAT_CMOV:
+        return (s->cpuid_features & CPUID_CMOV);
     case X86_FEAT_F16C:
         return (s->cpuid_ext_features & CPUID_EXT_F16C);
     case X86_FEAT_FMA:
@@ -1681,22 +2219,31 @@ illegal:
  * Convert one instruction. s->base.is_jmp is set if the translation must
  * be stopped.
  */
-static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
+static void disas_insn(DisasContext *s, CPUState *cpu)
 {
     CPUX86State *env = cpu_env(cpu);
-    bool first = true;
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
-    uint8_t cc_live;
+    uint8_t cc_live, b;
 
+    s->pc = s->base.pc_next;
+    s->override = -1;
+    s->popl_esp_hack = 0;
+#ifdef TARGET_X86_64
+    s->rex_r = 0;
+    s->rex_x = 0;
+    s->rex_b = 0;
+#endif
+    s->rip_offset = 0; /* for relative ip address */
+    s->vex_l = 0;
+    s->vex_v = 0;
+    s->vex_w = false;
     s->has_modrm = false;
+    s->prefix = 0;
 
  next_byte:
-    if (first) {
-        first = false;
-    } else {
-        b = x86_ldub_code(env, s);
-    }
+    b = x86_ldub_code(env, s);
+
     /* Collect prefixes.  */
     switch (b) {
     case 0xf3:
@@ -1808,10 +2355,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         }
         break;
     default:
-        if (b >= 0x100) {
-            b -= 0x100;
-            decode_func = do_decode_0F;
-        }
         break;
     }
 
@@ -1837,6 +2380,40 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
             s->aflag = MO_32;
         }  else {
             s->aflag = MO_16;
+        }
+    }
+
+    /* Go back to old decoder for unconverted opcodes.  */
+    if (!(s->prefix & PREFIX_VEX)) {
+        if ((b & ~7) == 0xd8) {
+            if (!disas_insn_x87(s, cpu, b)) {
+                goto unknown_op;
+            }
+            return;
+        }
+
+        if (b == 0x0f) {
+            b = x86_ldub_code(env, s);
+            switch (b) {
+            case 0x00 ... 0x03: /* mostly privileged instructions */
+            case 0x05 ... 0x09:
+            case 0x0d:          /* 3DNow! prefetch */
+            case 0x18 ... 0x23: /* prefetch, MPX, mov from/to CR and DR */
+            case 0x30 ... 0x35: /* more privileged instructions */
+            case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
+            case 0xaa ... 0xae: /* RSM, SHRD, grp15 */
+            case 0xb0 ... 0xb1: /* cmpxchg */
+            case 0xb3:          /* btr */
+            case 0xb8:          /* integer ops */
+            case 0xba ... 0xbd: /* integer ops */
+            case 0xc0 ... 0xc1: /* xadd */
+            case 0xc7:          /* grp9 */
+                disas_insn_old(s, cpu, b + 0x100);
+                return;
+            default:
+                decode_func = do_decode_0F;
+                break;
+            }
         }
     }
 
@@ -1912,6 +2489,11 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     case X86_SPECIAL_ZExtT0:
         /* Handled in gen_load.  */
         assert(decode.op[1].unit == X86_OP_INT);
+        break;
+
+    case X86_SPECIAL_NoSeg:
+        decode.mem.def_seg = -1;
+        s->override = -1;
         break;
 
     default:

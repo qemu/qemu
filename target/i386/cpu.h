@@ -1994,6 +1994,12 @@ struct ArchCPU {
      */
     bool legacy_cache;
 
+    /* Compatibility bits for old machine types.
+     * If true decode the CPUID Function 0x8000001E_ECX to support multiple
+     * nodes per processor
+     */
+    bool legacy_multi_node;
+
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
 

@@ -29,22 +29,6 @@
 
 //#define DEBUG_MULDIV
 
-/* modulo 9 table */
-static const uint8_t rclb_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7,
-    8, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 0, 1, 2, 3, 4, 5,
-    6, 7, 8, 0, 1, 2, 3, 4,
-};
-
-/* modulo 17 table */
-static const uint8_t rclw_table[32] = {
-    0, 1, 2, 3, 4, 5, 6, 7,
-    8, 9, 10, 11, 12, 13, 14, 15,
-    16, 0, 1, 2, 3, 4, 5, 6,
-    7, 8, 9, 10, 11, 12, 13, 14,
-};
-
 /* division, flags are undefined */
 
 void helper_divb_AL(CPUX86State *env, target_ulong t0)
@@ -446,24 +430,6 @@ target_ulong helper_pext(target_ulong src, target_ulong mask)
     }
     return dest;
 }
-
-#define SHIFT 0
-#include "shift_helper_template.h.inc"
-#undef SHIFT
-
-#define SHIFT 1
-#include "shift_helper_template.h.inc"
-#undef SHIFT
-
-#define SHIFT 2
-#include "shift_helper_template.h.inc"
-#undef SHIFT
-
-#ifdef TARGET_X86_64
-#define SHIFT 3
-#include "shift_helper_template.h.inc"
-#undef SHIFT
-#endif
 
 /* Test that BIT is enabled in CR4.  If not, raise an illegal opcode
    exception.  This reduces the requirements for rare CR4 bits being

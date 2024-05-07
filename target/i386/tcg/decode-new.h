@@ -47,7 +47,9 @@ typedef enum X86OpType {
     X86_TYPE_Y, /* string destination */
 
     /* Custom */
+    X86_TYPE_EM, /* modrm byte selects an ALU memory operand */
     X86_TYPE_WM, /* modrm byte selects an XMM/YMM memory operand */
+    X86_TYPE_I_unsigned, /* Immediate, zero-extended */
     X86_TYPE_2op, /* 2-operand RMW instruction */
     X86_TYPE_LoBits, /* encoded in bits 0-2 of the operand + REX.B */
     X86_TYPE_0, /* Hard-coded GPRs (RAX..RDI) */
@@ -88,6 +90,7 @@ typedef enum X86OpSize {
     X86_SIZE_x,  /* 128/256-bit, based on operand size */
     X86_SIZE_y,  /* 32/64-bit, based on operand size */
     X86_SIZE_z,  /* 16-bit for 16-bit operand size, else 32-bit */
+    X86_SIZE_z_f64,  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
 
     /* Custom */
     X86_SIZE_d64,
@@ -104,6 +107,7 @@ typedef enum X86CPUIDFeature {
     X86_FEAT_AVX2,
     X86_FEAT_BMI1,
     X86_FEAT_BMI2,
+    X86_FEAT_CMOV,
     X86_FEAT_CMPCCXADD,
     X86_FEAT_F16C,
     X86_FEAT_FMA,
@@ -165,6 +169,8 @@ typedef enum X86InsnSpecial {
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
 
+    /* Do not apply segment base to effective address */
+    X86_SPECIAL_NoSeg,
     /*
      * Rd/Mb or Rd/Mw in the manual: register operand 0 is treated as 32 bits
      * (and writeback zero-extends it to 64 bits if applicable).  PREFIX_DATA
@@ -271,16 +277,23 @@ typedef struct X86DecodedOp {
     bool has_ea;
     int offset;   /* For MMX and SSE */
 
-    /*
-     * This field is used internally by macros OP0_PTR/OP1_PTR/OP2_PTR,
-     * do not access directly!
-     */
-    TCGv_ptr v_ptr;
+    union {
+	target_ulong imm;
+        /*
+         * This field is used internally by macros OP0_PTR/OP1_PTR/OP2_PTR,
+         * do not access directly!
+         */
+        TCGv_ptr v_ptr;
+    };
 } X86DecodedOp;
 
 struct X86DecodedInsn {
     X86OpEntry e;
     X86DecodedOp op[3];
+    /*
+     * Rightmost immediate, for convenience since most instructions have
+     * one (and also for 4-operand instructions).
+     */
     target_ulong immediate;
     AddressParts mem;
 
