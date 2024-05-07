@@ -536,8 +536,8 @@ static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
     return true;
 }
 
-static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
-                                  Error **errp)
+static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
+                                   Error **errp)
 {
     VFIOContainer *container;
     VFIOContainerBase *bcontainer;
@@ -589,19 +589,18 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                     error_report("vfio: error disconnecting group %d from"
                                  " container", group->groupid);
                 }
-                return ret;
+                return false;
             }
             group->container = container;
             QLIST_INSERT_HEAD(&container->group_list, group, container_next);
             vfio_kvm_device_add_group(group);
-            return 0;
+            return true;
         }
     }
 
     fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
     if (fd < 0) {
         error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
-        ret = -errno;
         goto put_space_exit;
     }
 
@@ -609,7 +608,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     if (ret != VFIO_API_VERSION) {
         error_setg(errp, "supported vfio version: %d, "
                    "reported version: %d", VFIO_API_VERSION, ret);
-        ret = -EINVAL;
         goto close_fd_exit;
     }
 
@@ -636,7 +634,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     assert(bcontainer->ops->setup);
 
     if (!bcontainer->ops->setup(bcontainer, errp)) {
-        ret = -EINVAL;
         goto enable_discards_exit;
     }
 
@@ -652,7 +649,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     memory_listener_register(&bcontainer->listener, bcontainer->space->as);
 
     if (bcontainer->error) {
-        ret = -1;
         error_propagate_prepend(errp, bcontainer->error,
             "memory listener initialization failed: ");
         goto listener_release_exit;
@@ -660,7 +656,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     bcontainer->initialized = true;
 
-    return 0;
+    return true;
 listener_release_exit:
     QLIST_REMOVE(group, container_next);
     QLIST_REMOVE(bcontainer, next);
@@ -685,7 +681,7 @@ close_fd_exit:
 put_space_exit:
     vfio_put_address_space(space);
 
-    return ret;
+    return false;
 }
 
 static void vfio_disconnect_container(VFIOGroup *group)
@@ -772,7 +768,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     group->groupid = groupid;
     QLIST_INIT(&group->device_list);
 
-    if (vfio_connect_container(group, as, errp)) {
+    if (!vfio_connect_container(group, as, errp)) {
         error_prepend(errp, "failed to setup container for group %d: ",
                       groupid);
         goto close_fd_exit;
