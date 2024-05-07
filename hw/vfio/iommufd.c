@@ -71,7 +71,7 @@ static bool iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
         .flags = 0,
     };
 
-    if (iommufd_backend_connect(iommufd, errp)) {
+    if (!iommufd_backend_connect(iommufd, errp)) {
         return false;
     }
 
@@ -346,8 +346,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     }
 
     /* Need to allocate a new dedicated container */
-    ret = iommufd_backend_alloc_ioas(vbasedev->iommufd, &ioas_id, errp);
-    if (ret < 0) {
+    if (!iommufd_backend_alloc_ioas(vbasedev->iommufd, &ioas_id, errp)) {
         goto err_alloc_ioas;
     }
 
