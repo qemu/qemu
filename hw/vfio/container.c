@@ -802,8 +802,8 @@ static void vfio_put_group(VFIOGroup *group)
     g_free(group);
 }
 
-static int vfio_get_device(VFIOGroup *group, const char *name,
-                           VFIODevice *vbasedev, Error **errp)
+static bool vfio_get_device(VFIOGroup *group, const char *name,
+                            VFIODevice *vbasedev, Error **errp)
 {
     g_autofree struct vfio_device_info *info = NULL;
     int fd;
@@ -815,14 +815,14 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
         error_append_hint(errp,
                       "Verify all devices in group %d are bound to vfio-<bus> "
                       "or pci-stub and not already in use\n", group->groupid);
-        return fd;
+        return false;
     }
 
     info = vfio_get_device_info(fd);
     if (!info) {
         error_setg_errno(errp, errno, "error getting device info");
         close(fd);
-        return -1;
+        return false;
     }
 
     /*
@@ -837,7 +837,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
             error_setg(errp, "Inconsistent setting of support for discarding "
                        "RAM (e.g., balloon) within group");
             close(fd);
-            return -1;
+            return false;
         }
 
         if (!group->ram_block_discard_allowed) {
@@ -858,7 +858,7 @@ static int vfio_get_device(VFIOGroup *group, const char *name,
 
     vbasedev->reset_works = !!(info->flags & VFIO_DEVICE_FLAGS_RESET);
 
-    return 0;
+    return true;
 }
 
 static void vfio_put_base_device(VFIODevice *vbasedev)
@@ -911,7 +911,6 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     VFIOContainerBase *bcontainer;
-    int ret;
 
     if (groupid < 0) {
         return false;
@@ -931,8 +930,7 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
             return false;
         }
     }
-    ret = vfio_get_device(group, name, vbasedev, errp);
-    if (ret) {
+    if (!vfio_get_device(group, name, vbasedev, errp)) {
         vfio_put_group(group);
         return false;
     }
