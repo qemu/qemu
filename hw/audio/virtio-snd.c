@@ -19,7 +19,7 @@
 #include "qemu/iov.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "include/qemu/lockable.h"
+#include "qemu/lockable.h"
 #include "exec/tswap.h"
 #include "sysemu/runstate.h"
 #include "trace.h"
