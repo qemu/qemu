@@ -761,7 +761,7 @@ for opt do
   --*) meson_option_parse "$opt" "$optarg"
   ;;
   # Pass through -Dxxxx options to meson
-  -D*) meson_options="$meson_options $opt"
+  -D*) meson_option_add "$opt"
   ;;
   esac
 done
