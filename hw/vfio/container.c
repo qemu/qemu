@@ -618,8 +618,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto free_container_exit;
     }
 
-    ret = vfio_cpr_register_container(bcontainer, errp);
-    if (ret) {
+    if (!vfio_cpr_register_container(bcontainer, errp)) {
         goto free_container_exit;
     }
 
