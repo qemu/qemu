@@ -183,6 +183,8 @@ typedef struct {
     bool prefer_i64;
     /* Load dest as a 3rd source operand.  */
     bool load_dest;
+    /* Write aofs as a 2nd dest operand.  */
+    bool write_aofs;
 } GVecGen3i;
 
 typedef struct {
