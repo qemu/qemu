@@ -1,9 +1,7 @@
 msys2-64bit:
   extends: .base_job_template
   tags:
-  - shared-windows
-  - windows
-  - windows-1809
+  - saas-windows-medium-amd64
   cache:
     key: "$CI_JOB_NAME"
     paths:
