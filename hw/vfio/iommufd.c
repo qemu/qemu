@@ -49,9 +49,9 @@ static int iommufd_cdev_unmap(const VFIOContainerBase *bcontainer,
                                      container->ioas_id, iova, size);
 }
 
-static int iommufd_cdev_kvm_device_add(VFIODevice *vbasedev, Error **errp)
+static bool iommufd_cdev_kvm_device_add(VFIODevice *vbasedev, Error **errp)
 {
-    return vfio_kvm_device_add_fd(vbasedev->fd, errp);
+    return !vfio_kvm_device_add_fd(vbasedev->fd, errp);
 }
 
 static void iommufd_cdev_kvm_device_del(VFIODevice *vbasedev)
@@ -63,18 +63,16 @@ static void iommufd_cdev_kvm_device_del(VFIODevice *vbasedev)
     }
 }
 
-static int iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
+static bool iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
 {
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
     struct vfio_device_bind_iommufd bind = {
         .argsz = sizeof(bind),
         .flags = 0,
     };
-    int ret;
 
-    ret = iommufd_backend_connect(iommufd, errp);
-    if (ret) {
-        return ret;
+    if (iommufd_backend_connect(iommufd, errp)) {
+        return false;
     }
 
     /*
@@ -82,15 +80,13 @@ static int iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
      * in KVM. Especially for some emulated devices, it requires
      * to have kvm information in the device open.
      */
-    ret = iommufd_cdev_kvm_device_add(vbasedev, errp);
-    if (ret) {
+    if (!iommufd_cdev_kvm_device_add(vbasedev, errp)) {
         goto err_kvm_device_add;
     }
 
     /* Bind device to iommufd */
     bind.iommufd = iommufd->fd;
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_BIND_IOMMUFD, &bind);
-    if (ret) {
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_BIND_IOMMUFD, &bind)) {
         error_setg_errno(errp, errno, "error bind device fd=%d to iommufd=%d",
                          vbasedev->fd, bind.iommufd);
         goto err_bind;
@@ -99,12 +95,12 @@ static int iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
     vbasedev->devid = bind.out_devid;
     trace_iommufd_cdev_connect_and_bind(bind.iommufd, vbasedev->name,
                                         vbasedev->fd, vbasedev->devid);
-    return ret;
+    return true;
 err_bind:
     iommufd_cdev_kvm_device_del(vbasedev);
 err_kvm_device_add:
     iommufd_backend_disconnect(iommufd);
-    return ret;
+    return false;
 }
 
 static void iommufd_cdev_unbind_and_disconnect(VFIODevice *vbasedev)
@@ -176,10 +172,10 @@ out:
     return ret;
 }
 
-static int iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
+static bool iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
                                          Error **errp)
 {
-    int ret, iommufd = vbasedev->iommufd->fd;
+    int iommufd = vbasedev->iommufd->fd;
     struct vfio_device_attach_iommufd_pt attach_data = {
         .argsz = sizeof(attach_data),
         .flags = 0,
@@ -187,38 +183,38 @@ static int iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
     };
 
     /* Attach device to an IOAS or hwpt within iommufd */
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_ATTACH_IOMMUFD_PT, &attach_data);
-    if (ret) {
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_ATTACH_IOMMUFD_PT, &attach_data)) {
         error_setg_errno(errp, errno,
                          "[iommufd=%d] error attach %s (%d) to id=%d",
                          iommufd, vbasedev->name, vbasedev->fd, id);
-    } else {
-        trace_iommufd_cdev_attach_ioas_hwpt(iommufd, vbasedev->name,
-                                            vbasedev->fd, id);
+        return false;
     }
-    return ret;
+
+    trace_iommufd_cdev_attach_ioas_hwpt(iommufd, vbasedev->name,
+                                        vbasedev->fd, id);
+    return true;
 }
 
-static int iommufd_cdev_detach_ioas_hwpt(VFIODevice *vbasedev, Error **errp)
+static bool iommufd_cdev_detach_ioas_hwpt(VFIODevice *vbasedev, Error **errp)
 {
-    int ret, iommufd = vbasedev->iommufd->fd;
+    int iommufd = vbasedev->iommufd->fd;
     struct vfio_device_detach_iommufd_pt detach_data = {
         .argsz = sizeof(detach_data),
         .flags = 0,
     };
 
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_DETACH_IOMMUFD_PT, &detach_data);
-    if (ret) {
+    if (ioctl(vbasedev->fd, VFIO_DEVICE_DETACH_IOMMUFD_PT, &detach_data)) {
         error_setg_errno(errp, errno, "detach %s failed", vbasedev->name);
-    } else {
-        trace_iommufd_cdev_detach_ioas_hwpt(iommufd, vbasedev->name);
+        return false;
     }
-    return ret;
+
+    trace_iommufd_cdev_detach_ioas_hwpt(iommufd, vbasedev->name);
+    return true;
 }
 
-static int iommufd_cdev_attach_container(VFIODevice *vbasedev,
-                                         VFIOIOMMUFDContainer *container,
-                                         Error **errp)
+static bool iommufd_cdev_attach_container(VFIODevice *vbasedev,
+                                          VFIOIOMMUFDContainer *container,
+                                          Error **errp)
 {
     return iommufd_cdev_attach_ioas_hwpt(vbasedev, container->ioas_id, errp);
 }
@@ -228,7 +224,7 @@ static void iommufd_cdev_detach_container(VFIODevice *vbasedev,
 {
     Error *err = NULL;
 
-    if (iommufd_cdev_detach_ioas_hwpt(vbasedev, &err)) {
+    if (!iommufd_cdev_detach_ioas_hwpt(vbasedev, &err)) {
         error_report_err(err);
     }
 }
@@ -254,20 +250,19 @@ static int iommufd_cdev_ram_block_discard_disable(bool state)
     return ram_block_uncoordinated_discard_disable(state);
 }
 
-static int iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
-                                            uint32_t ioas_id, Error **errp)
+static bool iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
+                                             uint32_t ioas_id, Error **errp)
 {
     VFIOContainerBase *bcontainer = &container->bcontainer;
     g_autofree struct iommu_ioas_iova_ranges *info = NULL;
     struct iommu_iova_range *iova_ranges;
-    int ret, sz, fd = container->be->fd;
+    int sz, fd = container->be->fd;
 
     info = g_malloc0(sizeof(*info));
     info->size = sizeof(*info);
     info->ioas_id = ioas_id;
 
-    ret = ioctl(fd, IOMMU_IOAS_IOVA_RANGES, info);
-    if (ret && errno != EMSGSIZE) {
+    if (ioctl(fd, IOMMU_IOAS_IOVA_RANGES, info) && errno != EMSGSIZE) {
         goto error;
     }
 
@@ -275,8 +270,7 @@ static int iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
     info = g_realloc(info, sizeof(*info) + sz);
     info->allowed_iovas = (uintptr_t)(info + 1);
 
-    ret = ioctl(fd, IOMMU_IOAS_IOVA_RANGES, info);
-    if (ret) {
+    if (ioctl(fd, IOMMU_IOAS_IOVA_RANGES, info)) {
         goto error;
     }
 
@@ -291,12 +285,11 @@ static int iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
     }
     bcontainer->pgsizes = info->out_iova_alignment;
 
-    return 0;
+    return true;
 
 error:
-    ret = -errno;
     error_setg_errno(errp, errno, "Cannot get IOVA ranges");
-    return ret;
+    return false;
 }
 
 static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
@@ -322,8 +315,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         devfd = vbasedev->fd;
     }
 
-    ret = iommufd_cdev_connect_and_bind(vbasedev, errp);
-    if (ret) {
+    if (!iommufd_cdev_connect_and_bind(vbasedev, errp)) {
         goto err_connect_bind;
     }
 
@@ -336,7 +328,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
             vbasedev->iommufd != container->be) {
             continue;
         }
-        if (iommufd_cdev_attach_container(vbasedev, container, &err)) {
+        if (!iommufd_cdev_attach_container(vbasedev, container, &err)) {
             const char *msg = error_get_pretty(err);
 
             trace_iommufd_cdev_fail_attach_existing_container(msg);
@@ -369,8 +361,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     vfio_container_init(bcontainer, space, iommufd_vioc);
     QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
 
-    ret = iommufd_cdev_attach_container(vbasedev, container, errp);
-    if (ret) {
+    if (!iommufd_cdev_attach_container(vbasedev, container, errp)) {
         goto err_attach_container;
     }
 
@@ -379,8 +370,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         goto err_discard_disable;
     }
 
-    ret = iommufd_cdev_get_info_iova_range(container, ioas_id, &err);
-    if (ret) {
+    if (!iommufd_cdev_get_info_iova_range(container, ioas_id, &err)) {
         error_append_hint(&err,
                    "Fallback to default 64bit IOVA range and 4K page size\n");
         warn_report_err(err);
