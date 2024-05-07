@@ -458,8 +458,8 @@ static void vfio_spapr_container_release(VFIOContainerBase *bcontainer)
     }
 }
 
-static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
-                                      Error **errp)
+static bool vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
+                                       Error **errp)
 {
     VFIOContainer *container = container_of(bcontainer, VFIOContainer,
                                             bcontainer);
@@ -480,7 +480,7 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
         ret = ioctl(fd, VFIO_IOMMU_ENABLE);
         if (ret) {
             error_setg_errno(errp, errno, "failed to enable container");
-            return -errno;
+            return false;
         }
     } else {
         scontainer->prereg_listener = vfio_prereg_listener;
@@ -488,7 +488,6 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
         memory_listener_register(&scontainer->prereg_listener,
                                  &address_space_memory);
         if (bcontainer->error) {
-            ret = -1;
             error_propagate_prepend(errp, bcontainer->error,
                     "RAM memory listener initialization failed: ");
             goto listener_unregister_exit;
@@ -500,7 +499,6 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
     if (ret) {
         error_setg_errno(errp, errno,
                          "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
-        ret = -errno;
         goto listener_unregister_exit;
     }
 
@@ -527,13 +525,13 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
                           0x1000);
     }
 
-    return 0;
+    return true;
 
 listener_unregister_exit:
     if (v2) {
         memory_listener_unregister(&scontainer->prereg_listener);
     }
-    return ret;
+    return false;
 }
 
 static void vfio_iommu_spapr_class_init(ObjectClass *klass, void *data)
