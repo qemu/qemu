@@ -76,6 +76,7 @@ struct AspeedSMCState {
     AddressSpace flash_as;
     MemoryRegion *dram_mr;
     AddressSpace dram_as;
+    uint64_t     dram_base;
 
     AspeedSMCFlash flashes[ASPEED_SMC_CS_MAX];
 
