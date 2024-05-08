@@ -262,10 +262,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         g->parent_obj.enable = 1;
         con = g->parent_obj.scanout[m->scanout_id].con;
         dmabuf = &g->dmabuf[m->scanout_id];
-        if (dmabuf->fd >= 0) {
-            close(dmabuf->fd);
-            dmabuf->fd = -1;
-        }
+        qemu_dmabuf_close(dmabuf);
         dpy_gl_release_dmabuf(con, dmabuf);
         if (fd == -1) {
             dpy_gl_scanout_disable(con);

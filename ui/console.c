@@ -1459,7 +1459,7 @@ int qemu_console_get_width(QemuConsole *con, int fallback)
     }
     switch (con->scanout.kind) {
     case SCANOUT_DMABUF:
-        return con->scanout.dmabuf->width;
+        return qemu_dmabuf_get_width(con->scanout.dmabuf);
     case SCANOUT_TEXTURE:
         return con->scanout.texture.width;
     case SCANOUT_SURFACE:
@@ -1476,7 +1476,7 @@ int qemu_console_get_height(QemuConsole *con, int fallback)
     }
     switch (con->scanout.kind) {
     case SCANOUT_DMABUF:
-        return con->scanout.dmabuf->height;
+        return qemu_dmabuf_get_height(con->scanout.dmabuf);
     case SCANOUT_TEXTURE:
         return con->scanout.texture.height;
     case SCANOUT_SURFACE:

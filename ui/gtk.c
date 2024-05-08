@@ -596,10 +596,12 @@ void gd_hw_gl_flushed(void *vcon)
 {
     VirtualConsole *vc = vcon;
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+    int fence_fd;
 
     if (dmabuf->fence_fd >= 0) {
-        qemu_set_fd_handler(dmabuf->fence_fd, NULL, NULL, NULL);
-        close(dmabuf->fence_fd);
+        fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
+        qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
+        close(fence_fd);
         dmabuf->fence_fd = -1;
         graphic_hw_gl_block(vc->gfx.dcl.con, false);
     }

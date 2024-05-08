@@ -278,29 +278,33 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     g_autoptr(GError) err = NULL;
     g_autoptr(GUnixFDList) fd_list = NULL;
+    int fd;
+    uint32_t width, height, stride, fourcc;
+    uint64_t modifier;
+    bool y0_top;
 
+    fd = qemu_dmabuf_get_fd(dmabuf);
     fd_list = g_unix_fd_list_new();
-    if (g_unix_fd_list_append(fd_list, dmabuf->fd, &err) != 0) {
+    if (g_unix_fd_list_append(fd_list, fd, &err) != 0) {
         error_report("Failed to setup dmabuf fdlist: %s", err->message);
         return;
     }
 
     ddl_discard_pending_messages(ddl);
 
+    width = qemu_dmabuf_get_width(dmabuf);
+    height = qemu_dmabuf_get_height(dmabuf);
+    stride = qemu_dmabuf_get_stride(dmabuf);
+    fourcc = qemu_dmabuf_get_fourcc(dmabuf);
+    modifier = qemu_dmabuf_get_modifier(dmabuf);
+    y0_top = qemu_dmabuf_get_y0_top(dmabuf);
+
     /* FIXME: add missing x/y/w/h support */
     qemu_dbus_display1_listener_call_scanout_dmabuf(
-        ddl->proxy,
-        g_variant_new_handle(0),
-        dmabuf->width,
-        dmabuf->height,
-        dmabuf->stride,
-        dmabuf->fourcc,
-        dmabuf->modifier,
-        dmabuf->y0_top,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        fd_list,
-        NULL, NULL, NULL);
+        ddl->proxy, g_variant_new_handle(0),
+        width, height, stride, fourcc, modifier,
+        y0_top, G_DBUS_CALL_FLAGS_NONE,
+        -1, fd_list, NULL, NULL, NULL);
 }
 #endif /* GBM */
 #endif /* OPENGL */
@@ -488,6 +492,7 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     DisplaySurface *ds;
     GVariant *v_data = NULL;
     egl_fb cursor_fb = EGL_FB_INIT;
+    uint32_t width, height, texture;
 
     if (!dmabuf) {
         qemu_dbus_display1_listener_call_mouse_set(
@@ -497,12 +502,16 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     }
 
     egl_dmabuf_import_texture(dmabuf);
-    if (!dmabuf->texture) {
+    texture = qemu_dmabuf_get_texture(dmabuf);
+    if (!texture) {
         return;
     }
-    egl_fb_setup_for_tex(&cursor_fb, dmabuf->width, dmabuf->height,
-                         dmabuf->texture, false);
-    ds = qemu_create_displaysurface(dmabuf->width, dmabuf->height);
+
+    width = qemu_dmabuf_get_width(dmabuf);
+    height = qemu_dmabuf_get_height(dmabuf);
+
+    egl_fb_setup_for_tex(&cursor_fb, width, height, texture, false);
+    ds = qemu_create_displaysurface(width, height);
     egl_fb_read(ds, &cursor_fb);
 
     v_data = g_variant_new_from_data(
