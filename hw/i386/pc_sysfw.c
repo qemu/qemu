@@ -135,6 +135,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
                                 MemoryRegion *rom_memory)
 {
     X86MachineState *x86ms = X86_MACHINE(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     hwaddr total_size = 0;
     int i;
     BlockBackend *blk;
@@ -184,7 +185,12 @@ static void pc_system_flash_map(PCMachineState *pcms,
 
         if (i == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
-            pc_isa_bios_init(&x86ms->isa_bios, rom_memory, flash_mem);
+            if (pcmc->isa_bios_alias) {
+                x86_isa_bios_init(&x86ms->isa_bios, rom_memory, flash_mem,
+                                  true);
+            } else {
+                pc_isa_bios_init(&x86ms->isa_bios, rom_memory, flash_mem);
+            }
 
             /* Encrypt the pflash boot ROM */
             if (sev_enabled()) {
