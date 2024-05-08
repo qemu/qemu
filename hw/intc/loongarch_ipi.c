@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/irq.h"
@@ -13,9 +14,8 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
-#include "hw/loongarch/virt.h"
 #include "migration/vmstate.h"
-#include "target/loongarch/internals.h"
+#include "target/loongarch/cpu.h"
 #include "trace.h"
 
 static MemTxResult loongarch_ipi_readl(void *opaque, hwaddr addr,
@@ -122,11 +122,6 @@ static MemTxResult mail_send(uint64_t val, MemTxAttrs attrs)
     CPUState *cs;
 
     cpuid = extract32(val, 16, 10);
-    if (cpuid >= LOONGARCH_MAX_CPUS) {
-        trace_loongarch_ipi_unsupported_cpuid("IOCSR_MAIL_SEND", cpuid);
-        return MEMTX_DECODE_ERROR;
-    }
-
     cs = ipi_getcpu(cpuid);
     if (cs == NULL) {
         return MEMTX_DECODE_ERROR;
@@ -146,11 +141,6 @@ static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
     CPUState *cs;
 
     cpuid = extract32(val, 16, 10);
-    if (cpuid >= LOONGARCH_MAX_CPUS) {
-        trace_loongarch_ipi_unsupported_cpuid("IOCSR_ANY_SEND", cpuid);
-        return MEMTX_DECODE_ERROR;
-    }
-
     cs = ipi_getcpu(cpuid);
     if (cs == NULL) {
         return MEMTX_DECODE_ERROR;
@@ -201,11 +191,6 @@ static MemTxResult loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
         break;
     case IOCSR_IPI_SEND:
         cpuid = extract32(val, 16, 10);
-        if (cpuid >= LOONGARCH_MAX_CPUS) {
-            trace_loongarch_ipi_unsupported_cpuid("IOCSR_IPI_SEND", cpuid);
-            return MEMTX_DECODE_ERROR;
-        }
-
         /* IPI status vector */
         vector = extract8(val, 0, 5);
         cs = ipi_getcpu(cpuid);
