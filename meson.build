@@ -3058,7 +3058,11 @@ foreach target : target_dirs
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
 
   if 'TARGET_NEED_FDT' in config_target and not fdt.found()
-    fdt_required += target
+    if default_targets
+      warning('Disabling ' + target + ' due to missing libfdt')
+    else
+      fdt_required += target
+    endif
     continue
   endif
 
