@@ -11,5 +11,5 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 
-FWCfgState *loongarch_fw_cfg_init(ram_addr_t ram_size, MachineState *ms);
+FWCfgState *virt_fw_cfg_init(ram_addr_t ram_size, MachineState *ms);
 #endif

@@ -37,7 +37,7 @@
 
 #define FDT_BASE                0x100000
 
-struct LoongArchMachineState {
+struct LoongArchVirtMachineState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -64,7 +64,6 @@ struct LoongArchMachineState {
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
-OBJECT_DECLARE_SIMPLE_TYPE(LoongArchMachineState, LOONGARCH_VIRT_MACHINE)
-bool loongarch_is_acpi_enabled(LoongArchMachineState *lams);
-void loongarch_acpi_setup(LoongArchMachineState *lams);
+OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
+void loongarch_acpi_setup(LoongArchVirtMachineState *lvms);
 #endif
