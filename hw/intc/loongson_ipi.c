@@ -23,16 +23,14 @@
 #endif
 #include "trace.h"
 
-static MemTxResult loongson_ipi_readl(void *opaque, hwaddr addr,
-                                       uint64_t *data,
-                                       unsigned size, MemTxAttrs attrs)
+static MemTxResult loongson_ipi_core_readl(void *opaque, hwaddr addr,
+                                           uint64_t *data,
+                                           unsigned size, MemTxAttrs attrs)
 {
-    IPICore *s;
-    LoongsonIPI *ipi = opaque;
+    IPICore *s = opaque;
     uint64_t ret = 0;
     int index = 0;
 
-    s = &ipi->cpu[attrs.requester_id];
     addr &= 0xff;
     switch (addr) {
     case CORE_STATUS_OFF:
@@ -59,6 +57,21 @@ static MemTxResult loongson_ipi_readl(void *opaque, hwaddr addr,
     trace_loongson_ipi_read(size, (uint64_t)addr, ret);
     *data = ret;
     return MEMTX_OK;
+}
+
+static MemTxResult loongson_ipi_iocsr_readl(void *opaque, hwaddr addr,
+                                            uint64_t *data,
+                                            unsigned size, MemTxAttrs attrs)
+{
+    LoongsonIPI *ipi = opaque;
+    IPICore *s;
+
+    if (attrs.requester_id >= ipi->num_cpu) {
+        return MEMTX_DECODE_ERROR;
+    }
+
+    s = &ipi->cpu[attrs.requester_id];
+    return loongson_ipi_core_readl(s, addr, data, size, attrs);
 }
 
 static AddressSpace *get_cpu_iocsr_as(CPUState *cpu)
@@ -174,17 +187,17 @@ static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
     return send_ipi_data(cs, val, addr, attrs);
 }
 
-static MemTxResult loongson_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
-                                        unsigned size, MemTxAttrs attrs)
+static MemTxResult loongson_ipi_core_writel(void *opaque, hwaddr addr,
+                                            uint64_t val, unsigned size,
+                                            MemTxAttrs attrs)
 {
-    LoongsonIPI *ipi = opaque;
-    IPICore *s;
+    IPICore *s = opaque;
+    LoongsonIPI *ipi = s->ipi;
     int index = 0;
     uint32_t cpuid;
     uint8_t vector;
     CPUState *cs;
 
-    s = &ipi->cpu[attrs.requester_id];
     addr &= 0xff;
     trace_loongson_ipi_write(size, (uint64_t)addr, val);
     switch (addr) {
@@ -215,13 +228,11 @@ static MemTxResult loongson_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
         /* IPI status vector */
         vector = extract8(val, 0, 5);
         cs = ipi_getcpu(cpuid);
-        if (cs == NULL) {
+        if (cs == NULL || cs->cpu_index >= ipi->num_cpu) {
             return MEMTX_DECODE_ERROR;
         }
-
-        /* override requester_id */
-        attrs.requester_id = cs->cpu_index;
-        loongson_ipi_writel(ipi, CORE_SET_OFF, BIT(vector), 4, attrs);
+        loongson_ipi_core_writel(&ipi->cpu[cs->cpu_index], CORE_SET_OFF,
+                                 BIT(vector), 4, attrs);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "invalid write: %x", (uint32_t)addr);
@@ -231,9 +242,34 @@ static MemTxResult loongson_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
     return MEMTX_OK;
 }
 
-static const MemoryRegionOps loongson_ipi_ops = {
-    .read_with_attrs = loongson_ipi_readl,
-    .write_with_attrs = loongson_ipi_writel,
+static MemTxResult loongson_ipi_iocsr_writel(void *opaque, hwaddr addr,
+                                            uint64_t val, unsigned size,
+                                            MemTxAttrs attrs)
+{
+    LoongsonIPI *ipi = opaque;
+    IPICore *s;
+
+    if (attrs.requester_id >= ipi->num_cpu) {
+        return MEMTX_DECODE_ERROR;
+    }
+
+    s = &ipi->cpu[attrs.requester_id];
+    return loongson_ipi_core_writel(s, addr, val, size, attrs);
+}
+
+static const MemoryRegionOps loongson_ipi_core_ops = {
+    .read_with_attrs = loongson_ipi_core_readl,
+    .write_with_attrs = loongson_ipi_core_writel,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 8,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps loongson_ipi_iocsr_ops = {
+    .read_with_attrs = loongson_ipi_iocsr_readl,
+    .write_with_attrs = loongson_ipi_iocsr_writel,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
     .valid.min_access_size = 4,
@@ -282,7 +318,8 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev), &loongson_ipi_ops,
+    memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev),
+                          &loongson_ipi_iocsr_ops,
                           s, "loongson_ipi_iocsr", 0x48);
 
     /* loongson_ipi_iocsr performs re-entrant IO through ipi_send */
@@ -297,11 +334,18 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
 
     s->cpu = g_new0(IPICore, s->num_cpu);
     if (s->cpu == NULL) {
-        error_setg(errp, "Memory allocation for ExtIOICore faile");
+        error_setg(errp, "Memory allocation for IPICore faile");
         return;
     }
 
     for (i = 0; i < s->num_cpu; i++) {
+        s->cpu[i].ipi = s;
+        s->cpu[i].ipi_mmio_mem = g_new0(MemoryRegion, 1);
+        g_autofree char *name = g_strdup_printf("loongson_ipi_cpu%d_mmio", i);
+        memory_region_init_io(s->cpu[i].ipi_mmio_mem, OBJECT(dev),
+                              &loongson_ipi_core_ops, &s->cpu[i], name, 0x48);
+        sysbus_init_mmio(sbd, s->cpu[i].ipi_mmio_mem);
+
         qdev_init_gpio_out(dev, &s->cpu[i].irq, 1);
     }
 }
