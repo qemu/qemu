@@ -15,7 +15,12 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
+#ifdef TARGET_LOONGARCH64
 #include "target/loongarch/cpu.h"
+#endif
+#ifdef TARGET_MIPS
+#include "target/mips/cpu.h"
+#endif
 #include "trace.h"
 
 static MemTxResult loongson_ipi_readl(void *opaque, hwaddr addr,
@@ -56,18 +61,35 @@ static MemTxResult loongson_ipi_readl(void *opaque, hwaddr addr,
     return MEMTX_OK;
 }
 
-static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr,
+static AddressSpace *get_cpu_iocsr_as(CPUState *cpu)
+{
+#ifdef TARGET_LOONGARCH64
+    return LOONGARCH_CPU(cpu)->env.address_space_iocsr;
+#endif
+#ifdef TARGET_MIPS
+    if (ase_lcsr_available(&MIPS_CPU(cpu)->env)) {
+        return &MIPS_CPU(cpu)->env.iocsr.as;
+    }
+#endif
+    return NULL;
+}
+
+static MemTxResult send_ipi_data(CPUState *cpu, uint64_t val, hwaddr addr,
                           MemTxAttrs attrs)
 {
     int i, mask = 0, data = 0;
+    AddressSpace *iocsr_as = get_cpu_iocsr_as(cpu);
+
+    if (!iocsr_as) {
+        return MEMTX_DECODE_ERROR;
+    }
 
     /*
      * bit 27-30 is mask for byte writing,
      * if the mask is 0, we need not to do anything.
      */
     if ((val >> 27) & 0xf) {
-        data = address_space_ldl(env->address_space_iocsr, addr,
-                                 attrs, NULL);
+        data = address_space_ldl(iocsr_as, addr, attrs, NULL);
         for (i = 0; i < 4; i++) {
             /* get mask for byte writing */
             if (val & (0x1 << (27 + i))) {
@@ -78,8 +100,9 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr,
 
     data &= mask;
     data |= (val >> 32) & ~mask;
-    address_space_stl(env->address_space_iocsr, addr,
-                      data, attrs, NULL);
+    address_space_stl(iocsr_as, addr, data, attrs, NULL);
+
+    return MEMTX_OK;
 }
 
 static int archid_cmp(const void *a, const void *b)
@@ -130,8 +153,7 @@ static MemTxResult mail_send(uint64_t val, MemTxAttrs attrs)
     /* override requester_id */
     addr = SMP_IPI_MAILBOX + CORE_BUF_20 + (val & 0x1c);
     attrs.requester_id = cs->cpu_index;
-    send_ipi_data(&LOONGARCH_CPU(cs)->env, val, addr, attrs);
-    return MEMTX_OK;
+    return send_ipi_data(cs, val, addr, attrs);
 }
 
 static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
@@ -149,8 +171,7 @@ static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
     /* override requester_id */
     addr = val & 0xffff;
     attrs.requester_id = cs->cpu_index;
-    send_ipi_data(&LOONGARCH_CPU(cs)->env, val, addr, attrs);
-    return MEMTX_OK;
+    return send_ipi_data(cs, val, addr, attrs);
 }
 
 static MemTxResult loongson_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
