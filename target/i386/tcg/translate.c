@@ -4487,17 +4487,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             goto unknown_op;
 
-        case 0xf8: /* sfence / pcommit */
-            if (prefixes & PREFIX_DATA) {
-                /* pcommit */
-                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_PCOMMIT)
-                    || (prefixes & PREFIX_LOCK)) {
-                    goto illegal_op;
-                }
-                break;
-            }
-            /* fallthru */
-        case 0xf9 ... 0xff: /* sfence */
+        case 0xf8 ... 0xff: /* sfence */
             if (!(s->cpuid_features & CPUID_SSE)
                 || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
