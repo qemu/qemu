@@ -319,7 +319,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 
 void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info)
 {
-    LoongArchMachineState *lams = LOONGARCH_MACHINE(ms);
+    LoongArchMachineState *lams = LOONGARCH_VIRT_MACHINE(ms);
     int i;
 
     /* register reset function */
