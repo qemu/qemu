@@ -54,6 +54,12 @@ struct X86MachineState {
     HotplugHandler *acpi_dev;
 
     /*
+     * Map the whole BIOS just underneath the 4 GiB address boundary. Only used
+     * in the ROM (-bios) case.
+     */
+    MemoryRegion bios;
+
+    /*
      * Map the upper 128 KiB of the BIOS just underneath the 1 MiB address
      * boundary.
      */
