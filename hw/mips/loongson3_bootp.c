@@ -148,4 +148,5 @@ void init_reset_system(struct efi_reset_system_t *reset)
     reset->Shutdown = cpu_to_le64(0xffffffffbfc000a8);
     reset->ResetCold = cpu_to_le64(0xffffffffbfc00080);
     reset->ResetWarm = cpu_to_le64(0xffffffffbfc00080);
+    reset->DoSuspend = cpu_to_le64(0xffffffffbfc000d0);
 }

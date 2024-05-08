@@ -127,6 +127,9 @@ static void loongson3_pm_write(void *opaque, hwaddr addr,
     case 0x00:
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         return;
+    case 0x01:
+        qemu_system_suspend_request();
+        return;
     case 0xff:
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         return;
@@ -250,6 +253,17 @@ static void init_boot_rom(void)
         0x240D00FF,   /* li      t1, 0xff                                     */
         0xA18D0000,   /* sb      t1, (t0)                                     */
         0x1000FFFF,   /* 1:  b   1b                                           */
+        0x00000000,   /* nop                                                  */
+                      /* Suspend                                              */
+        0x3C0C9000,   /* dli     t0, 0x9000000010080010                       */
+        0x358C0000,
+        0x000C6438,
+        0x358C1008,
+        0x000C6438,
+        0x358C0010,
+        0x240D0001,   /* li      t1, 0x01                                     */
+        0xA18D0000,   /* sb      t1, (t0)                                     */
+        0x03e00008,   /* jr      ra                                           */
         0x00000000    /* nop                                                  */
     };
 
@@ -265,6 +279,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
 
 static void fw_conf_init(unsigned long ram_size)
 {
+    static const uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
     FWCfgState *fw_cfg;
     hwaddr cfg_addr = virt_memmap[VIRT_FW_CFG].base;
 
@@ -274,6 +289,10 @@ static void fw_conf_init(unsigned long ram_size)
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i32(fw_cfg, FW_CFG_MACHINE_VERSION, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_CPU_FREQ, get_cpu_freq_hz());
+
+    fw_cfg_add_file(fw_cfg, "etc/system-states",
+                    g_memdup2(suspend, sizeof(suspend)), sizeof(suspend));
+
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
@@ -553,6 +572,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
                            machine->ram, 0, virt_memmap[VIRT_LOWMEM].size);
     memory_region_init_io(iomem, NULL, &loongson3_pm_ops,
                            NULL, "loongson3_pm", virt_memmap[VIRT_PM].size);
+    qemu_register_wakeup_support();
 
     memory_region_add_subregion(address_space_mem,
                       virt_memmap[VIRT_LOWMEM].base, ram);
