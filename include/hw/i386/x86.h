@@ -18,6 +18,7 @@
 #define HW_I386_X86_H
 
 #include "exec/hwaddr.h"
+#include "exec/memory.h"
 
 #include "hw/boards.h"
 #include "hw/intc/ioapic.h"
@@ -51,6 +52,12 @@ struct X86MachineState {
     DeviceState *ioapic2;
     GMappedFile *initrd_mapped_file;
     HotplugHandler *acpi_dev;
+
+    /*
+     * Map the upper 128 KiB of the BIOS just underneath the 1 MiB address
+     * boundary.
+     */
+    MemoryRegion isa_bios;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
