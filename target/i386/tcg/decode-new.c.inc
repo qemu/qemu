@@ -269,20 +269,41 @@ static inline const X86OpEntry *decode_by_prefix(DisasContext *s, const X86OpEnt
 
 static void decode_group15(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
-    /* only includes ldmxcsr and stmxcsr, because they have AVX variants.  */
     static const X86OpEntry group15_reg[8] = {
+        [0] = X86_OP_ENTRYw(RDxxBASE,   R,y, cpuid(FSGSBASE) chk(o64) p_f3),
+        [1] = X86_OP_ENTRYw(RDxxBASE,   R,y, cpuid(FSGSBASE) chk(o64) p_f3),
+        [2] = X86_OP_ENTRYr(WRxxBASE,   R,y, cpuid(FSGSBASE) chk(o64) p_f3 zextT0),
+        [3] = X86_OP_ENTRYr(WRxxBASE,   R,y, cpuid(FSGSBASE) chk(o64) p_f3 zextT0),
+        [5] = X86_OP_ENTRY0(LFENCE,          cpuid(SSE2) p_00),
+        [6] = X86_OP_ENTRY0(MFENCE,          cpuid(SSE2) p_00),
+        [7] = X86_OP_ENTRY0(SFENCE,          cpuid(SSE2) p_00),
     };
 
     static const X86OpEntry group15_mem[8] = {
-        [2] = X86_OP_ENTRYr(LDMXCSR,    E,d, vex5 chk(VEX128)),
-        [3] = X86_OP_ENTRYw(STMXCSR,    E,d, vex5 chk(VEX128)),
+        [0] = X86_OP_ENTRYw(FXSAVE,     M,y, cpuid(FXSR) p_00),
+        [1] = X86_OP_ENTRYr(FXRSTOR,    M,y, cpuid(FXSR) p_00),
+        [2] = X86_OP_ENTRYr(LDMXCSR,    E,d, vex5 chk(VEX128) p_00),
+        [3] = X86_OP_ENTRYw(STMXCSR,    E,d, vex5 chk(VEX128) p_00),
+        [4] = X86_OP_ENTRYw(XSAVE,      M,y, cpuid(XSAVE) p_00),
+        [5] = X86_OP_ENTRYr(XRSTOR,     M,y, cpuid(XSAVE) p_00),
+        [6] = X86_OP_ENTRYw(XSAVEOPT,   M,b, cpuid(XSAVEOPT) p_00),
+        [7] = X86_OP_ENTRYw(NOP,        M,b, cpuid(CLFLUSH) p_00),
+    };
+
+    static const X86OpEntry group15_mem_66[8] = {
+        [6] = X86_OP_ENTRYw(NOP,        M,b, cpuid(CLWB)),
+        [7] = X86_OP_ENTRYw(NOP,        M,b, cpuid(CLFLUSHOPT)),
     };
 
     uint8_t modrm = get_modrm(s, env);
+    int op = (modrm >> 3) & 7;
+
     if ((modrm >> 6) == 3) {
-        *entry = group15_reg[(modrm >> 3) & 7];
+        *entry = group15_reg[op];
+    } else if (s->prefix & PREFIX_DATA) {
+        *entry = group15_mem_66[op];
     } else {
-        *entry = group15_mem[(modrm >> 3) & 7];
+        *entry = group15_mem[op];
     }
 }
 
@@ -2102,6 +2123,10 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
         return true;
     case X86_FEAT_CMOV:
         return (s->cpuid_features & CPUID_CMOV);
+    case X86_FEAT_CLFLUSH:
+        return (s->cpuid_features & CPUID_CLFLUSH);
+    case X86_FEAT_FXSR:
+        return (s->cpuid_features & CPUID_FXSR);
     case X86_FEAT_F16C:
         return (s->cpuid_ext_features & CPUID_EXT_F16C);
     case X86_FEAT_FMA:
@@ -2135,6 +2160,8 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
 
     case X86_FEAT_AVX:
         return (s->cpuid_ext_features & CPUID_EXT_AVX);
+    case X86_FEAT_XSAVE:
+        return (s->cpuid_ext_features & CPUID_EXT_XSAVE);
 
     case X86_FEAT_3DNOW:
         return (s->cpuid_ext2_features & CPUID_EXT2_3DNOW);
@@ -2149,11 +2176,20 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
         return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2);
     case X86_FEAT_AVX2:
         return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_AVX2);
+    case X86_FEAT_CLFLUSHOPT:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLFLUSHOPT);
+    case X86_FEAT_CLWB:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLWB);
+    case X86_FEAT_FSGSBASE:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_FSGSBASE);
     case X86_FEAT_SHA_NI:
         return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SHA_NI);
 
     case X86_FEAT_CMPCCXADD:
         return (s->cpuid_7_1_eax_features & CPUID_7_1_EAX_CMPCCXADD);
+
+    case X86_FEAT_XSAVEOPT:
+        return (s->cpuid_xsave_features & CPUID_XSAVE_XSAVEOPT);
     }
     g_assert_not_reached();
 }
@@ -2488,7 +2524,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             case 0x1a ... 0x1b: /* MPX */
             case 0x30 ... 0x35: /* more privileged instructions */
             case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
-            case 0xaa ... 0xae: /* RSM, SHRD, grp15 */
+            case 0xaa ... 0xad: /* RSM, SHRD */
             case 0xb0 ... 0xb1: /* cmpxchg */
             case 0xb3:          /* btr */
             case 0xb8:          /* integer ops */

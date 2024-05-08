@@ -1657,6 +1657,22 @@ static void gen_EXTRQ_r(DisasContext *s, X86DecodedInsn *decode)
     gen_helper_extrq_r(tcg_env, OP_PTR0, OP_PTR2);
 }
 
+static void gen_FXRSTOR(DisasContext *s, X86DecodedInsn *decode)
+{
+    if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
+        gen_NM_exception(s);
+    }
+    gen_helper_fxrstor(tcg_env, s->A0);
+}
+
+static void gen_FXSAVE(DisasContext *s, X86DecodedInsn *decode)
+{
+    if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
+        gen_NM_exception(s);
+    }
+    gen_helper_fxsave(tcg_env, s->A0);
+}
+
 static void gen_HLT(DisasContext *s, X86DecodedInsn *decode)
 {
 #ifdef CONFIG_SYSTEM_ONLY
@@ -2004,6 +2020,11 @@ static void gen_LES(DisasContext *s, X86DecodedInsn *decode)
     gen_lxx_seg(s, decode, R_ES);
 }
 
+static void gen_LFENCE(DisasContext *s, X86DecodedInsn *decode)
+{
+    tcg_gen_mb(TCG_MO_LD_LD | TCG_BAR_SC);
+}
+
 static void gen_LFS(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_lxx_seg(s, decode, R_FS);
@@ -2061,6 +2082,11 @@ static void gen_LOOPNE(DisasContext *s, X86DecodedInsn *decode)
 static void gen_LSS(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_lxx_seg(s, decode, R_SS);
+}
+
+static void gen_MFENCE(DisasContext *s, X86DecodedInsn *decode)
+{
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
 }
 
 static void gen_MOV(DisasContext *s, X86DecodedInsn *decode)
@@ -3096,6 +3122,15 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+static void gen_RDxxBASE(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv base = cpu_seg_base[s->modrm & 8 ? R_GS : R_FS];
+
+    /* Preserve hflags bits by testing CR4 at runtime.  */
+    gen_helper_cr4_testbit(tcg_env, tcg_constant_i32(CR4_FSGSBASE_MASK));
+    tcg_gen_mov_tl(s->T0, base);
+}
+
 static void gen_RET(DisasContext *s, X86DecodedInsn *decode)
 {
     int16_t adjust = decode->e.op1 == X86_TYPE_I ? decode->immediate : 0;
@@ -3374,6 +3409,11 @@ static void gen_SCAS(DisasContext *s, X86DecodedInsn *decode)
 static void gen_SETcc(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_setcc1(s, decode->b & 0xf, s->T0);
+}
+
+static void gen_SFENCE(DisasContext *s, X86DecodedInsn *decode)
+{
+    tcg_gen_mb(TCG_MO_ST_ST | TCG_BAR_SC);
 }
 
 static void gen_SHA1NEXTE(DisasContext *s, X86DecodedInsn *decode)
@@ -4046,6 +4086,15 @@ static void gen_WAIT(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+static void gen_WRxxBASE(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv base = cpu_seg_base[s->modrm & 8 ? R_GS : R_FS];
+
+    /* Preserve hflags bits by testing CR4 at runtime.  */
+    gen_helper_cr4_testbit(tcg_env, tcg_constant_i32(CR4_FSGSBASE_MASK));
+    tcg_gen_mov_tl(base, s->T0);
+}
+
 static void gen_XCHG(DisasContext *s, X86DecodedInsn *decode)
 {
     if (s->prefix & PREFIX_LOCK) {
@@ -4087,4 +4136,35 @@ static void gen_XOR(DisasContext *s, X86DecodedInsn *decode)
         }
         prepare_update1_cc(decode, s, CC_OP_LOGICB + ot);
     }
+}
+
+static void gen_XRSTOR(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv_i64 features = tcg_temp_new_i64();
+
+    tcg_gen_concat_tl_i64(features, cpu_regs[R_EAX], cpu_regs[R_EDX]);
+    gen_helper_xrstor(tcg_env, s->A0, features);
+    if (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_MPX) {
+        /*
+         * XRSTOR is how MPX is enabled, which changes how
+         * we translate.  Thus we need to end the TB.
+         */
+        s->base.is_jmp = DISAS_EOB_NEXT;
+    }
+}
+
+static void gen_XSAVE(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv_i64 features = tcg_temp_new_i64();
+
+    tcg_gen_concat_tl_i64(features, cpu_regs[R_EAX], cpu_regs[R_EDX]);
+    gen_helper_xsave(tcg_env, s->A0, features);
+}
+
+static void gen_XSAVEOPT(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv_i64 features = tcg_temp_new_i64();
+
+    tcg_gen_concat_tl_i64(features, cpu_regs[R_EAX], cpu_regs[R_EDX]);
+    gen_helper_xsave(tcg_env, s->A0, features);
 }
