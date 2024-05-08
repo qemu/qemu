@@ -1796,7 +1796,7 @@ static void gen_IN(DisasContext *s, X86DecodedInsn *decode)
     MemOp ot = decode->op[0].ot;
     TCGv_i32 port = tcg_temp_new_i32();
 
-    tcg_gen_trunc_tl_i32(port, s->T1);
+    tcg_gen_trunc_tl_i32(port, s->T0);
     tcg_gen_ext16u_i32(port, port);
     if (!gen_check_io(s, ot, port, SVM_IOIO_TYPE_MASK)) {
         return;

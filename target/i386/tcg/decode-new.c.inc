@@ -180,7 +180,7 @@
 #define X86_OP_ENTRYrr(op, op0, s0, op1, s1, ...)                 \
     X86_OP_ENTRY3(op, None, None, op0, s0, op1, s1, ## __VA_ARGS__)
 #define X86_OP_ENTRYwr(op, op0, s0, op1, s1, ...)                 \
-    X86_OP_ENTRY3(op, op0, s0, None, None, op1, s1, ## __VA_ARGS__)
+    X86_OP_ENTRY3(op, op0, s0, op1, s1, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRY2(op, op0, s0, op1, s1, ...)                  \
     X86_OP_ENTRY3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
 #define X86_OP_ENTRYw(op, op0, s0, ...)                           \
@@ -612,15 +612,15 @@ static const X86OpEntry opcodes_0F38_00toEF[240] = {
 /* five rows for no prefix, 66, F3, F2, 66+F2  */
 static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
     [0] = {
-        X86_OP_ENTRY3(MOVBE, G,y, M,y, None,None, cpuid(MOVBE)),
-        X86_OP_ENTRY3(MOVBE, G,w, M,w, None,None, cpuid(MOVBE)),
+        X86_OP_ENTRYwr(MOVBE, G,y, M,y, cpuid(MOVBE)),
+        X86_OP_ENTRYwr(MOVBE, G,w, M,w, cpuid(MOVBE)),
         {},
         X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
         X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
     },
     [1] = {
-        X86_OP_ENTRY3(MOVBE, M,y, G,y, None,None, cpuid(MOVBE)),
-        X86_OP_ENTRY3(MOVBE, M,w, G,w, None,None, cpuid(MOVBE)),
+        X86_OP_ENTRYwr(MOVBE, M,y, G,y, cpuid(MOVBE)),
+        X86_OP_ENTRYwr(MOVBE, M,w, G,w, cpuid(MOVBE)),
         {},
         X86_OP_ENTRY2(CRC32, G,d, E,y, cpuid(SSE42)),
         X86_OP_ENTRY2(CRC32, G,d, E,w, cpuid(SSE42)),
@@ -1586,18 +1586,18 @@ static const X86OpEntry opcodes_root[256] = {
     [0x7E] = X86_OP_ENTRYr(Jcc, J,b),
     [0x7F] = X86_OP_ENTRYr(Jcc, J,b),
 
-    [0x88] = X86_OP_ENTRY3(MOV, E,b, G,b, None, None),
-    [0x89] = X86_OP_ENTRY3(MOV, E,v, G,v, None, None),
-    [0x8A] = X86_OP_ENTRY3(MOV, G,b, E,b, None, None),
-    [0x8B] = X86_OP_ENTRY3(MOV, G,v, E,v, None, None),
-    /* Missing in Table A-2: memory destination is always 16-bit.  */
-    [0x8C] = X86_OP_ENTRY3(MOV, E,v, S,w, None, None, op0_Mw),
-    [0x8D] = X86_OP_ENTRY3(LEA, G,v, M,v, None, None, noseg),
-    [0x8E] = X86_OP_ENTRY3(MOV, S,w, E,w, None, None),
+    [0x88] = X86_OP_ENTRYwr(MOV, E,b, G,b),
+    [0x89] = X86_OP_ENTRYwr(MOV, E,v, G,v),
+    [0x8A] = X86_OP_ENTRYwr(MOV, G,b, E,b),
+    [0x8B] = X86_OP_ENTRYwr(MOV, G,v, E,v),
+     /* Missing in Table A-2: memory destination is always 16-bit.  */
+    [0x8C] = X86_OP_ENTRYwr(MOV, E,v, S,w, op0_Mw),
+    [0x8D] = X86_OP_ENTRYwr(LEA, G,v, M,v, noseg),
+    [0x8E] = X86_OP_ENTRYwr(MOV, S,w, E,w),
     [0x8F] = X86_OP_GROUPw(group1A, E,v),
 
     [0x98] = X86_OP_ENTRY1(CBW,    0,v), /* rAX */
-    [0x99] = X86_OP_ENTRY3(CWD,    2,v, 0,v, None, None), /* rDX, rAX */
+    [0x99] = X86_OP_ENTRYwr(CWD,   2,v, 0,v), /* rDX, rAX */
     [0x9A] = X86_OP_ENTRYrr(CALLF, I_unsigned,p, I_unsigned,w, chk(i64)),
     [0x9B] = X86_OP_ENTRY0(WAIT),
     [0x9C] = X86_OP_ENTRY0(PUSHF,  chk(vm86_iopl) svm(PUSHF)),
@@ -1607,22 +1607,22 @@ static const X86OpEntry opcodes_root[256] = {
 
     [0xA8] = X86_OP_ENTRYrr(AND, 0,b, I,b),   /* AL, Ib */
     [0xA9] = X86_OP_ENTRYrr(AND, 0,v, I,z),   /* rAX, Iz */
-    [0xAA] = X86_OP_ENTRY3(STOS, Y,b, 0,b, None, None),
-    [0xAB] = X86_OP_ENTRY3(STOS, Y,v, 0,v, None, None),
+    [0xAA] = X86_OP_ENTRYwr(STOS, Y,b, 0,b),
+    [0xAB] = X86_OP_ENTRYwr(STOS, Y,v, 0,v),
     /* Manual writeback because REP LODS (!) has to write EAX/RAX after every LODS.  */
     [0xAC] = X86_OP_ENTRYr(LODS, X,b),
     [0xAD] = X86_OP_ENTRYr(LODS, X,v),
     [0xAE] = X86_OP_ENTRYrr(SCAS, 0,b, Y,b),
     [0xAF] = X86_OP_ENTRYrr(SCAS, 0,v, Y,v),
 
-    [0xB8] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xB9] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBA] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBB] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBC] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBD] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBE] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
-    [0xBF] = X86_OP_ENTRY3(MOV, LoBits,v, I,v, None, None),
+    [0xB8] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xB9] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBA] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBB] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBC] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBD] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBE] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
+    [0xBF] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
 
     [0xC8] = X86_OP_ENTRYrr(ENTER, I,w, I,b),
     [0xC9] = X86_OP_ENTRY1(LEAVE, A,d64),
