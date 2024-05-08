@@ -1363,7 +1363,7 @@ static void gen_CALLF(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_CALLF_m(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->op[1].ot;
 
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_add_A0_im(s, 1 << ot);
@@ -1593,22 +1593,22 @@ static void gen_DEC(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_DIV(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->op[1].ot;
 
     switch(ot) {
     case MO_8:
-        gen_helper_divb_AL(tcg_env, s->T1);
+        gen_helper_divb_AL(tcg_env, s->T0);
         break;
     case MO_16:
-        gen_helper_divw_AX(tcg_env, s->T1);
+        gen_helper_divw_AX(tcg_env, s->T0);
         break;
     default:
     case MO_32:
-        gen_helper_divl_EAX(tcg_env, s->T1);
+        gen_helper_divl_EAX(tcg_env, s->T0);
         break;
 #ifdef TARGET_X86_64
     case MO_64:
-        gen_helper_divq_EAX(tcg_env, s->T1);
+        gen_helper_divq_EAX(tcg_env, s->T0);
         break;
 #endif
     }
@@ -1649,22 +1649,22 @@ static void gen_HLT(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_IDIV(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->op[1].ot;
 
     switch(ot) {
     case MO_8:
-        gen_helper_idivb_AL(tcg_env, s->T1);
+        gen_helper_idivb_AL(tcg_env, s->T0);
         break;
     case MO_16:
-        gen_helper_idivw_AX(tcg_env, s->T1);
+        gen_helper_idivw_AX(tcg_env, s->T0);
         break;
     default:
     case MO_32:
-        gen_helper_idivl_EAX(tcg_env, s->T1);
+        gen_helper_idivl_EAX(tcg_env, s->T0);
         break;
 #ifdef TARGET_X86_64
     case MO_64:
-        gen_helper_idivq_EAX(tcg_env, s->T1);
+        gen_helper_idivq_EAX(tcg_env, s->T0);
         break;
 #endif
     }
@@ -1926,7 +1926,7 @@ static void gen_JMPF(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_JMPF_m(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->op[1].ot;
 
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_add_A0_im(s, 1 << ot);
@@ -1947,7 +1947,7 @@ static void gen_LAHF(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_LDMXCSR(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T1);
+    tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
     gen_helper_ldmxcsr(tcg_env, s->tmp2_i32);
 }
 
@@ -1995,7 +1995,7 @@ static void gen_LGS(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_LODS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->op[1].ot;
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
         gen_repz(s, ot, gen_lods);
     } else {
@@ -2765,7 +2765,7 @@ static void gen_PSLLDQ_i(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_PUSH(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_push_v(s, s->T1);
+    gen_push_v(s, s->T0);
 }
 
 static void gen_PUSHA(DisasContext *s, X86DecodedInsn *decode)
@@ -3077,7 +3077,7 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_RET(DisasContext *s, X86DecodedInsn *decode)
 {
-    int16_t adjust = decode->e.op2 == X86_TYPE_I ? decode->immediate : 0;
+    int16_t adjust = decode->e.op1 == X86_TYPE_I ? decode->immediate : 0;
 
     MemOp ot = gen_pop_T0(s);
     gen_stack_update(s, adjust + (1 << ot));
@@ -3088,7 +3088,7 @@ static void gen_RET(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_RETF(DisasContext *s, X86DecodedInsn *decode)
 {
-    int16_t adjust = decode->e.op2 == X86_TYPE_I ? decode->immediate : 0;
+    int16_t adjust = decode->e.op1 == X86_TYPE_I ? decode->immediate : 0;
 
     if (!PE(s) || VM86(s)) {
         gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], 0);

@@ -186,7 +186,7 @@
 #define X86_OP_ENTRYw(op, op0, s0, ...)                           \
     X86_OP_ENTRY3(op, op0, s0, None, None, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRYr(op, op0, s0, ...)                           \
-    X86_OP_ENTRY3(op, None, None, None, None, op0, s0, ## __VA_ARGS__)
+    X86_OP_ENTRY3(op, None, None, op0, s0, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRY1(op, op0, s0, ...)                           \
     X86_OP_ENTRY3(op, op0, s0, 2op, s0, None, None, ## __VA_ARGS__)
 #define X86_OP_ENTRY0(op, ...)                                    \
@@ -1335,9 +1335,9 @@ static void decode_group4_5(DisasContext *s, CPUX86State *env, X86OpEntry *entry
         /* 0xff */
         [0x08] = X86_OP_ENTRY1(INC,     E,v,                           lock),
         [0x09] = X86_OP_ENTRY1(DEC,     E,v,                           lock),
-        [0x0a] = X86_OP_ENTRY3(CALL_m,  None, None, E,f64, None, None, zextT0),
+        [0x0a] = X86_OP_ENTRYr(CALL_m,  E,f64,                         zextT0),
         [0x0b] = X86_OP_ENTRYr(CALLF_m, M,p),
-        [0x0c] = X86_OP_ENTRY3(JMP_m,   None, None, E,f64, None, None, zextT0),
+        [0x0c] = X86_OP_ENTRYr(JMP_m,   E,f64,                         zextT0),
         [0x0d] = X86_OP_ENTRYr(JMPF_m,  M,p),
         [0x0e] = X86_OP_ENTRYr(PUSH,    E,f64),
     };
