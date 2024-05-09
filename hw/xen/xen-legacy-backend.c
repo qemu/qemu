@@ -622,27 +622,11 @@ void xen_be_init(void)
     qbus_set_bus_hotplug_handler(xen_sysbus);
 
     xen_set_dynamic_sysbus();
-
-    xen_be_register("vkbd", &xen_kbdmouse_ops);
-#ifdef CONFIG_VIRTFS
-    xen_be_register("9pfs", &xen_9pfs_ops);
-#endif
-#ifdef CONFIG_USB_LIBUSB
-    xen_be_register("qusb", &xen_usb_ops);
-#endif
 }
 
 int xen_be_register(const char *type, struct XenDevOps *ops)
 {
     char path[50];
-    int rc;
-
-    if (ops->backend_register) {
-        rc = ops->backend_register();
-        if (rc) {
-            return rc;
-        }
-    }
 
     snprintf(path, sizeof(path), "device-model/%u/backends/%s", xen_domid,
              type);

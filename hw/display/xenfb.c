@@ -972,7 +972,7 @@ static void fb_event(struct XenLegacyDevice *xendev)
 
 /* -------------------------------------------------------------------- */
 
-struct XenDevOps xen_kbdmouse_ops = {
+static struct XenDevOps xen_kbdmouse_ops = {
     .size       = sizeof(struct XenInput),
     .init       = input_init,
     .initialise = input_initialise,
@@ -995,3 +995,9 @@ static const GraphicHwOps xenfb_ops = {
     .gfx_update  = xenfb_update,
     .ui_info     = xenfb_ui_info,
 };
+
+static void xen_vkbd_register_backend(void)
+{
+    xen_be_register("vkbd", &xen_kbdmouse_ops);
+}
+xen_backend_init(xen_vkbd_register_backend);
