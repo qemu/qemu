@@ -2869,7 +2869,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
         switch ((modrm >> 3) & 7) {
         case 7:
             if (mod != 3 ||
-                (s->prefix & (PREFIX_LOCK | PREFIX_REPNZ))) {
+                (s->prefix & PREFIX_REPNZ)) {
                 goto illegal_op;
             }
             if (s->prefix & PREFIX_REPZ) {
@@ -2889,7 +2889,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
 
         case 6: /* RDRAND */
             if (mod != 3 ||
-                (s->prefix & (PREFIX_LOCK | PREFIX_REPZ | PREFIX_REPNZ)) ||
+                (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) ||
                 !(s->cpuid_ext_features & CPUID_EXT_RDRAND)) {
                 goto illegal_op;
             }
@@ -3049,8 +3049,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
 
         case 0xd0: /* xgetbv */
             if ((s->cpuid_ext_features & CPUID_EXT_XSAVE) == 0
-                || (s->prefix & (PREFIX_LOCK | PREFIX_DATA
-                                 | PREFIX_REPZ | PREFIX_REPNZ))) {
+                || (s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
                 goto illegal_op;
             }
             tcg_gen_trunc_tl_i32(s->tmp2_i32, cpu_regs[R_ECX]);
@@ -3060,8 +3059,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
 
         case 0xd1: /* xsetbv */
             if ((s->cpuid_ext_features & CPUID_EXT_XSAVE) == 0
-                || (s->prefix & (PREFIX_LOCK | PREFIX_DATA
-                                 | PREFIX_REPZ | PREFIX_REPNZ))) {
+                || (s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
                 goto illegal_op;
             }
             gen_svm_check_intercept(s, SVM_EXIT_XSETBV);
@@ -3228,8 +3226,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             gen_st_modrm(s, decode, ot);
             break;
         case 0xee: /* rdpkru */
-            if (s->prefix & (PREFIX_LOCK | PREFIX_DATA
-                             | PREFIX_REPZ | PREFIX_REPNZ)) {
+            if (s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ)) {
                 goto illegal_op;
             }
             tcg_gen_trunc_tl_i32(s->tmp2_i32, cpu_regs[R_ECX]);
@@ -3237,8 +3234,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             tcg_gen_extr_i64_tl(cpu_regs[R_EAX], cpu_regs[R_EDX], s->tmp1_i64);
             break;
         case 0xef: /* wrpkru */
-            if (s->prefix & (PREFIX_LOCK | PREFIX_DATA
-                             | PREFIX_REPZ | PREFIX_REPNZ)) {
+            if (s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ)) {
                 goto illegal_op;
             }
             tcg_gen_concat_tl_i64(s->tmp1_i64, cpu_regs[R_EAX],
@@ -3314,7 +3310,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             if (prefixes & PREFIX_REPZ) {
                 /* bndcl */
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16) {
                     goto illegal_op;
                 }
@@ -3322,7 +3317,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             } else if (prefixes & PREFIX_REPNZ) {
                 /* bndcu */
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16) {
                     goto illegal_op;
                 }
@@ -3336,7 +3330,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
                 }
                 if (mod == 3) {
                     int reg2 = (modrm & 7) | REX_B(s);
-                    if (reg2 >= 4 || (prefixes & PREFIX_LOCK)) {
+                    if (reg2 >= 4) {
                         goto illegal_op;
                     }
                     if (s->flags & HF_MPX_IU_MASK) {
@@ -3365,7 +3359,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
                 /* bndldx */
                 AddressParts a = decode->mem;
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16
                     || a.base < -1) {
                     goto illegal_op;
@@ -3401,7 +3394,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             if (mod != 3 && (prefixes & PREFIX_REPZ)) {
                 /* bndmk */
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16) {
                     goto illegal_op;
                 }
@@ -3429,7 +3421,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
             } else if (prefixes & PREFIX_REPNZ) {
                 /* bndcn */
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16) {
                     goto illegal_op;
                 }
@@ -3441,7 +3432,7 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
                 }
                 if (mod == 3) {
                     int reg2 = (modrm & 7) | REX_B(s);
-                    if (reg2 >= 4 || (prefixes & PREFIX_LOCK)) {
+                    if (reg2 >= 4) {
                         goto illegal_op;
                     }
                     if (s->flags & HF_MPX_IU_MASK) {
@@ -3468,7 +3459,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
                 /* bndstx */
                 AddressParts a = decode->mem;
                 if (reg >= 4
-                    || (prefixes & PREFIX_LOCK)
                     || s->aflag == MO_16
                     || a.base < -1) {
                     goto illegal_op;
