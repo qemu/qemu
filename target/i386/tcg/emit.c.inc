@@ -76,7 +76,7 @@ static void gen_NM_exception(DisasContext *s)
 static void gen_load_ea(DisasContext *s, AddressParts *mem, bool is_vsib)
 {
     TCGv ea = gen_lea_modrm_1(s, *mem, is_vsib);
-    gen_lea_v_seg(s, s->aflag, ea, mem->def_seg, s->override);
+    gen_lea_v_seg(s, ea, mem->def_seg, s->override);
 }
 
 static inline int mmx_offset(MemOp ot)
@@ -2044,7 +2044,7 @@ static void gen_MOV(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_MASKMOV(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_lea_v_seg(s, s->aflag, cpu_regs[R_EDI], R_DS, s->override);
+    gen_lea_v_seg(s, cpu_regs[R_EDI], R_DS, s->override);
 
     if (s->prefix & PREFIX_DATA) {
         gen_helper_maskmov_xmm(tcg_env, OP_PTR1, OP_PTR2, s->A0);
@@ -4039,7 +4039,7 @@ static void gen_XLAT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     /* AL is already zero-extended into s->T0.  */
     tcg_gen_add_tl(s->A0, cpu_regs[R_EBX], s->T0);
-    gen_lea_v_seg(s, s->aflag, s->A0, R_DS, s->override);
+    gen_lea_v_seg(s, s->A0, R_DS, s->override);
     gen_op_ld_v(s, MO_8, s->T0, s->A0);
 }
 

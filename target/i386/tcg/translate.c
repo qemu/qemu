@@ -680,20 +680,20 @@ static void gen_lea_v_seg_dest(DisasContext *s, MemOp aflag, TCGv dest, TCGv a0,
     }
 }
 
-static void gen_lea_v_seg(DisasContext *s, MemOp aflag, TCGv a0,
+static void gen_lea_v_seg(DisasContext *s, TCGv a0,
                           int def_seg, int ovr_seg)
 {
-    gen_lea_v_seg_dest(s, aflag, s->A0, a0, def_seg, ovr_seg);
+    gen_lea_v_seg_dest(s, s->aflag, s->A0, a0, def_seg, ovr_seg);
 }
 
 static inline void gen_string_movl_A0_ESI(DisasContext *s)
 {
-    gen_lea_v_seg(s, s->aflag, cpu_regs[R_ESI], R_DS, s->override);
+    gen_lea_v_seg(s, cpu_regs[R_ESI], R_DS, s->override);
 }
 
 static inline void gen_string_movl_A0_EDI(DisasContext *s)
 {
-    gen_lea_v_seg(s, s->aflag, cpu_regs[R_EDI], R_ES, -1);
+    gen_lea_v_seg(s, cpu_regs[R_EDI], R_ES, -1);
 }
 
 static inline TCGv gen_compute_Dshift(DisasContext *s, MemOp ot)
@@ -1784,7 +1784,7 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
 {
     AddressParts a = gen_lea_modrm_0(env, s, modrm);
     TCGv ea = gen_lea_modrm_1(s, a, false);
-    gen_lea_v_seg(s, s->aflag, ea, a.def_seg, s->override);
+    gen_lea_v_seg(s, ea, a.def_seg, s->override);
 }
 
 static void gen_nop_modrm(CPUX86State *env, DisasContext *s, int modrm)
@@ -2523,7 +2523,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
         bool update_fdp = true;
 
         tcg_gen_mov_tl(last_addr, ea);
-        gen_lea_v_seg(s, s->aflag, ea, a.def_seg, s->override);
+        gen_lea_v_seg(s, ea, a.def_seg, s->override);
 
         switch (op) {
         case 0x00 ... 0x07: /* fxxxs */
@@ -3320,7 +3320,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_sari_tl(s->tmp0, s->T1, 3 + ot);
             tcg_gen_shli_tl(s->tmp0, s->tmp0, ot);
             tcg_gen_add_tl(s->A0, gen_lea_modrm_1(s, a, false), s->tmp0);
-            gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+            gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
             if (!(s->prefix & PREFIX_LOCK)) {
                 gen_op_ld_v(s, ot, s->T0, s->A0);
             }
@@ -3645,7 +3645,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
-            gen_lea_v_seg(s, s->aflag, cpu_regs[R_EAX], R_DS, s->override);
+            gen_lea_v_seg(s, cpu_regs[R_EAX], R_DS, s->override);
             gen_helper_monitor(tcg_env, s->A0);
             break;
 
@@ -4051,7 +4051,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 } else {
                     tcg_gen_movi_tl(s->A0, 0);
                 }
-                gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+                gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
                 if (a.index >= 0) {
                     tcg_gen_mov_tl(s->T0, cpu_regs[a.index]);
                 } else {
@@ -4156,7 +4156,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 } else {
                     tcg_gen_movi_tl(s->A0, 0);
                 }
-                gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+                gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
                 if (a.index >= 0) {
                     tcg_gen_mov_tl(s->T0, cpu_regs[a.index]);
                 } else {
