@@ -715,6 +715,30 @@ void test_mul(void)
     printf("%-10s A=" FMTLX " R=" FMTLX " %ld\n", #op, val, res, resz);\
 }
 
+void test_xcnt(void)
+{
+    TEST_BSX(tzcntw, "w", 0);
+    TEST_BSX(tzcntw, "w", 0x12340128);
+    TEST_BSX(lzcntw, "w", 0);
+    TEST_BSX(lzcntw, "w", 0x12340128);
+    TEST_BSX(popcntw, "w", 0);
+    TEST_BSX(popcntw, "w", 0x12340128);
+    TEST_BSX(tzcntl, "k", 0);
+    TEST_BSX(tzcntl, "k", 0x00340128);
+    TEST_BSX(lzcntl, "k", 0);
+    TEST_BSX(lzcntl, "k", 0x00340128);
+    TEST_BSX(popcntl, "k", 0);
+    TEST_BSX(popcntl, "k", 0x00340128);
+#if defined(__x86_64__)
+    TEST_BSX(tzcntq, "", 0);
+    TEST_BSX(tzcntq, "", 0x003401281234);
+    TEST_BSX(lzcntq, "", 0);
+    TEST_BSX(lzcntq, "", 0x003401281234);
+    TEST_BSX(popcntq, "", 0);
+    TEST_BSX(popcntq, "", 0x003401281234);
+#endif
+}
+
 void test_bsx(void)
 {
     TEST_BSX(bsrw, "w", 0);
@@ -2162,6 +2186,7 @@ int main(int argc, char **argv)
         func();
     }
     test_bsx();
+    test_xcnt();
     test_mul();
     test_jcc();
     test_loop();
