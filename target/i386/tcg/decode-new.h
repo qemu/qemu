@@ -150,8 +150,8 @@ typedef enum X86InsnCheck {
     X86_CHECK_i64 = 1,
     X86_CHECK_o64 = 2,
 
-    /* Fault outside protected mode */
-    X86_CHECK_prot = 4,
+    /* Fault in vm86 mode */
+    X86_CHECK_no_vm86 = 4,
 
     /* Privileged instruction checks */
     X86_CHECK_cpl0 = 8,
@@ -167,6 +167,10 @@ typedef enum X86InsnCheck {
 
     /* Fault if VEX.W=0 */
     X86_CHECK_W1 = 256,
+
+    /* Fault outside protected mode, possibly including vm86 mode */
+    X86_CHECK_prot_or_vm86 = 512,
+    X86_CHECK_prot = X86_CHECK_prot_or_vm86 | X86_CHECK_no_vm86,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {

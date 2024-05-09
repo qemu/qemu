@@ -2566,8 +2566,13 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
                 goto illegal_op;
             }
         }
-        if (decode.e.check & X86_CHECK_prot) {
-            if (!PE(s) || VM86(s)) {
+        if (decode.e.check & X86_CHECK_prot_or_vm86) {
+            if (!PE(s)) {
+                goto illegal_op;
+            }
+        }
+        if (decode.e.check & X86_CHECK_no_vm86) {
+            if (VM86(s)) {
                 goto illegal_op;
             }
         }
