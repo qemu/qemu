@@ -221,7 +221,7 @@
 #define vex13 .vex_class = 13,
 
 #define chk(a) .check = X86_CHECK_##a,
-#define svm(a) .intercept = SVM_EXIT_##a,
+#define svm(a) .intercept = SVM_EXIT_##a, .has_intercept = true,
 
 #define avx2_256 .vex_special = X86_VEX_AVX2_256,
 
@@ -2559,7 +2559,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             goto gp_fault;
         }
     }
-    if (decode.e.intercept && unlikely(GUEST(s))) {
+    if (decode.e.has_intercept && unlikely(GUEST(s))) {
         gen_helper_svm_check_intercept(tcg_env,
                                        tcg_constant_i32(decode.e.intercept));
     }

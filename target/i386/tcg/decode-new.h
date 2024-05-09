@@ -272,6 +272,7 @@ struct X86OpEntry {
     unsigned     valid_prefix:16;
     unsigned     check:16;
     unsigned     intercept:8;
+    bool         has_intercept:1;
     bool         is_decode:1;
 };
 
