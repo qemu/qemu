@@ -13,7 +13,7 @@
 #include "libqos/qgraph.h"
 #include "libqos/pci.h"
 #include "scsi/constants.h"
-#include "include/block/ufs.h"
+#include "block/ufs.h"
 
 /* Test images sizes in Bytes */
 #define TEST_IMAGE_SIZE (64 * 1024 * 1024)

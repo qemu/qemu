@@ -258,6 +258,14 @@ dropping the ``cheetah`` OMAP1 board, because we don't have any
 test images for it and don't know of anybody who does; the ``sx1``
 and ``sx1-v1`` OMAP1 machines remain supported for now.
 
+PPC 405 ``ref405ep`` machine (since 9.1)
+''''''''''''''''''''''''''''''''''''''''
+
+The ``ref405ep`` machine and PPC 405 CPU have no known users, firmware
+images are not available, OpenWRT dropped support in 2019, U-Boot in
+2017, Linux also is dropping support in 2024. It is time to let go of
+this ancient hardware and focus on newer CPUs and platforms.
+
 Backend options
 ---------------
 

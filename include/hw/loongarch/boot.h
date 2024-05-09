@@ -104,6 +104,16 @@ struct loongarch_boot_info {
     uint64_t a0, a1, a2;
 };
 
+extern struct memmap_entry *memmap_table;
+extern unsigned memmap_entries;
+
+struct memmap_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
+
 void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info);
 
 #endif /* HW_LOONGARCH_BOOT_H */

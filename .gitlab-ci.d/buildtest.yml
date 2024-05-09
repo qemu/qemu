@@ -650,7 +650,7 @@ build-tci:
 # Check our reduced build configurations
 # requires libfdt: aarch64, arm, i386, loongarch64, microblaze, microblazeel,
 #   mips64el, or1k, ppc, ppc64, riscv32, riscv64, rx, x86_64
-# does not build without boards: i386, loongarch64, s390x, sh4, sh4eb, x86_64
+# does not build without boards: i386, s390x, sh4, sh4eb, x86_64
 build-without-defaults:
   extends: .native_build_job_template
   needs:

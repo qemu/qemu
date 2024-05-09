@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * LoongArch ipi interrupt support
+ * Loongson ipi interrupt support
  *
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
@@ -8,22 +8,27 @@
 #include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
-#include "hw/intc/loongarch_ipi.h"
+#include "hw/intc/loongson_ipi.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
+#ifdef TARGET_LOONGARCH64
 #include "target/loongarch/cpu.h"
+#endif
+#ifdef TARGET_MIPS
+#include "target/mips/cpu.h"
+#endif
 #include "trace.h"
 
-static MemTxResult loongarch_ipi_readl(void *opaque, hwaddr addr,
+static MemTxResult loongson_ipi_readl(void *opaque, hwaddr addr,
                                        uint64_t *data,
                                        unsigned size, MemTxAttrs attrs)
 {
     IPICore *s;
-    LoongArchIPI *ipi = opaque;
+    LoongsonIPI *ipi = opaque;
     uint64_t ret = 0;
     int index = 0;
 
@@ -51,23 +56,40 @@ static MemTxResult loongarch_ipi_readl(void *opaque, hwaddr addr,
         break;
     }
 
-    trace_loongarch_ipi_read(size, (uint64_t)addr, ret);
+    trace_loongson_ipi_read(size, (uint64_t)addr, ret);
     *data = ret;
     return MEMTX_OK;
 }
 
-static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr,
+static AddressSpace *get_cpu_iocsr_as(CPUState *cpu)
+{
+#ifdef TARGET_LOONGARCH64
+    return LOONGARCH_CPU(cpu)->env.address_space_iocsr;
+#endif
+#ifdef TARGET_MIPS
+    if (ase_lcsr_available(&MIPS_CPU(cpu)->env)) {
+        return &MIPS_CPU(cpu)->env.iocsr.as;
+    }
+#endif
+    return NULL;
+}
+
+static MemTxResult send_ipi_data(CPUState *cpu, uint64_t val, hwaddr addr,
                           MemTxAttrs attrs)
 {
     int i, mask = 0, data = 0;
+    AddressSpace *iocsr_as = get_cpu_iocsr_as(cpu);
+
+    if (!iocsr_as) {
+        return MEMTX_DECODE_ERROR;
+    }
 
     /*
      * bit 27-30 is mask for byte writing,
      * if the mask is 0, we need not to do anything.
      */
     if ((val >> 27) & 0xf) {
-        data = address_space_ldl(env->address_space_iocsr, addr,
-                                 attrs, NULL);
+        data = address_space_ldl(iocsr_as, addr, attrs, NULL);
         for (i = 0; i < 4; i++) {
             /* get mask for byte writing */
             if (val & (0x1 << (27 + i))) {
@@ -78,8 +100,9 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr,
 
     data &= mask;
     data |= (val >> 32) & ~mask;
-    address_space_stl(env->address_space_iocsr, addr,
-                      data, attrs, NULL);
+    address_space_stl(iocsr_as, addr, data, attrs, NULL);
+
+    return MEMTX_OK;
 }
 
 static int archid_cmp(const void *a, const void *b)
@@ -130,8 +153,7 @@ static MemTxResult mail_send(uint64_t val, MemTxAttrs attrs)
     /* override requester_id */
     addr = SMP_IPI_MAILBOX + CORE_BUF_20 + (val & 0x1c);
     attrs.requester_id = cs->cpu_index;
-    send_ipi_data(&LOONGARCH_CPU(cs)->env, val, addr, attrs);
-    return MEMTX_OK;
+    return send_ipi_data(cs, val, addr, attrs);
 }
 
 static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
@@ -149,14 +171,13 @@ static MemTxResult any_send(uint64_t val, MemTxAttrs attrs)
     /* override requester_id */
     addr = val & 0xffff;
     attrs.requester_id = cs->cpu_index;
-    send_ipi_data(&LOONGARCH_CPU(cs)->env, val, addr, attrs);
-    return MEMTX_OK;
+    return send_ipi_data(cs, val, addr, attrs);
 }
 
-static MemTxResult loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
+static MemTxResult loongson_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
                                         unsigned size, MemTxAttrs attrs)
 {
-    LoongArchIPI *ipi = opaque;
+    LoongsonIPI *ipi = opaque;
     IPICore *s;
     int index = 0;
     uint32_t cpuid;
@@ -165,7 +186,7 @@ static MemTxResult loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
 
     s = &ipi->cpu[attrs.requester_id];
     addr &= 0xff;
-    trace_loongarch_ipi_write(size, (uint64_t)addr, val);
+    trace_loongson_ipi_write(size, (uint64_t)addr, val);
     switch (addr) {
     case CORE_STATUS_OFF:
         qemu_log_mask(LOG_GUEST_ERROR, "can not be written");
@@ -200,7 +221,7 @@ static MemTxResult loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
 
         /* override requester_id */
         attrs.requester_id = cs->cpu_index;
-        loongarch_ipi_writel(ipi, CORE_SET_OFF, BIT(vector), 4, attrs);
+        loongson_ipi_writel(ipi, CORE_SET_OFF, BIT(vector), 4, attrs);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "invalid write: %x", (uint32_t)addr);
@@ -210,9 +231,9 @@ static MemTxResult loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
     return MEMTX_OK;
 }
 
-static const MemoryRegionOps loongarch_ipi_ops = {
-    .read_with_attrs = loongarch_ipi_readl,
-    .write_with_attrs = loongarch_ipi_writel,
+static const MemoryRegionOps loongson_ipi_ops = {
+    .read_with_attrs = loongson_ipi_readl,
+    .write_with_attrs = loongson_ipi_writel,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
     .valid.min_access_size = 4,
@@ -221,7 +242,7 @@ static const MemoryRegionOps loongarch_ipi_ops = {
 };
 
 /* mail send and any send only support writeq */
-static MemTxResult loongarch_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
+static MemTxResult loongson_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
                                         unsigned size, MemTxAttrs attrs)
 {
     MemTxResult ret = MEMTX_OK;
@@ -241,8 +262,8 @@ static MemTxResult loongarch_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
     return ret;
 }
 
-static const MemoryRegionOps loongarch_ipi64_ops = {
-    .write_with_attrs = loongarch_ipi_writeq,
+static const MemoryRegionOps loongson_ipi64_ops = {
+    .write_with_attrs = loongson_ipi_writeq,
     .impl.min_access_size = 8,
     .impl.max_access_size = 8,
     .valid.min_access_size = 8,
@@ -250,9 +271,9 @@ static const MemoryRegionOps loongarch_ipi64_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
+static void loongson_ipi_realize(DeviceState *dev, Error **errp)
 {
-    LoongArchIPI *s = LOONGARCH_IPI(dev);
+    LoongsonIPI *s = LOONGSON_IPI(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
@@ -261,17 +282,17 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev), &loongarch_ipi_ops,
-                          s, "loongarch_ipi_iocsr", 0x48);
+    memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev), &loongson_ipi_ops,
+                          s, "loongson_ipi_iocsr", 0x48);
 
-    /* loongarch_ipi_iocsr performs re-entrant IO through ipi_send */
+    /* loongson_ipi_iocsr performs re-entrant IO through ipi_send */
     s->ipi_iocsr_mem.disable_reentrancy_guard = true;
 
     sysbus_init_mmio(sbd, &s->ipi_iocsr_mem);
 
     memory_region_init_io(&s->ipi64_iocsr_mem, OBJECT(dev),
-                          &loongarch_ipi64_ops,
-                          s, "loongarch_ipi64_iocsr", 0x118);
+                          &loongson_ipi64_ops,
+                          s, "loongson_ipi64_iocsr", 0x118);
     sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem);
 
     s->cpu = g_new0(IPICore, s->num_cpu);
@@ -299,49 +320,49 @@ static const VMStateDescription vmstate_ipi_core = {
     }
 };
 
-static const VMStateDescription vmstate_loongarch_ipi = {
-    .name = TYPE_LOONGARCH_IPI,
+static const VMStateDescription vmstate_loongson_ipi = {
+    .name = TYPE_LOONGSON_IPI,
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongArchIPI, num_cpu,
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongsonIPI, num_cpu,
                          vmstate_ipi_core, IPICore),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property ipi_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", LoongArchIPI, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-cpu", LoongsonIPI, num_cpu, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
+static void loongson_ipi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = loongarch_ipi_realize;
+    dc->realize = loongson_ipi_realize;
     device_class_set_props(dc, ipi_properties);
-    dc->vmsd = &vmstate_loongarch_ipi;
+    dc->vmsd = &vmstate_loongson_ipi;
 }
 
-static void loongarch_ipi_finalize(Object *obj)
+static void loongson_ipi_finalize(Object *obj)
 {
-    LoongArchIPI *s = LOONGARCH_IPI(obj);
+    LoongsonIPI *s = LOONGSON_IPI(obj);
 
     g_free(s->cpu);
 }
 
-static const TypeInfo loongarch_ipi_info = {
-    .name          = TYPE_LOONGARCH_IPI,
+static const TypeInfo loongson_ipi_info = {
+    .name          = TYPE_LOONGSON_IPI,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongArchIPI),
-    .class_init    = loongarch_ipi_class_init,
-    .instance_finalize = loongarch_ipi_finalize,
+    .instance_size = sizeof(LoongsonIPI),
+    .class_init    = loongson_ipi_class_init,
+    .instance_finalize = loongson_ipi_finalize,
 };
 
-static void loongarch_ipi_register_types(void)
+static void loongson_ipi_register_types(void)
 {
-    type_register_static(&loongarch_ipi_info);
+    type_register_static(&loongson_ipi_info);
 }
 
-type_init(loongarch_ipi_register_types)
+type_init(loongson_ipi_register_types)

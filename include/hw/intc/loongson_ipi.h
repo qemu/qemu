@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * LoongArch ipi interrupt header files
+ * Loongson ipi interrupt header files
  *
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
 
-#ifndef HW_LOONGARCH_IPI_H
-#define HW_LOONGARCH_IPI_H
+#ifndef HW_LOONGSON_IPI_H
+#define HW_LOONGSON_IPI_H
 
 #include "hw/sysbus.h"
 
@@ -30,8 +30,8 @@
 
 #define IPI_MBX_NUM           4
 
-#define TYPE_LOONGARCH_IPI "loongarch_ipi"
-OBJECT_DECLARE_SIMPLE_TYPE(LoongArchIPI, LOONGARCH_IPI)
+#define TYPE_LOONGSON_IPI "loongson_ipi"
+OBJECT_DECLARE_SIMPLE_TYPE(LoongsonIPI, LOONGSON_IPI)
 
 typedef struct IPICore {
     uint32_t status;
@@ -43,7 +43,7 @@ typedef struct IPICore {
     qemu_irq irq;
 } IPICore;
 
-struct LoongArchIPI {
+struct LoongsonIPI {
     SysBusDevice parent_obj;
     MemoryRegion ipi_iocsr_mem;
     MemoryRegion ipi64_iocsr_mem;

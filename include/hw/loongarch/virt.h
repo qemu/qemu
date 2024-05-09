@@ -11,7 +11,7 @@
 #include "target/loongarch/cpu.h"
 #include "hw/boards.h"
 #include "qemu/queue.h"
-#include "hw/intc/loongarch_ipi.h"
+#include "hw/intc/loongson_ipi.h"
 #include "hw/block/flash.h"
 #include "hw/loongarch/boot.h"
 
@@ -37,17 +37,7 @@
 
 #define FDT_BASE                0x100000
 
-extern struct memmap_entry *memmap_table;
-extern unsigned memmap_entries;
-
-struct memmap_entry {
-    uint64_t address;
-    uint64_t length;
-    uint32_t type;
-    uint32_t reserved;
-};
-
-struct LoongArchMachineState {
+struct LoongArchVirtMachineState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -73,8 +63,7 @@ struct LoongArchMachineState {
     struct loongarch_boot_info bootinfo;
 };
 
-#define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
-OBJECT_DECLARE_SIMPLE_TYPE(LoongArchMachineState, LOONGARCH_MACHINE)
-bool loongarch_is_acpi_enabled(LoongArchMachineState *lams);
-void loongarch_acpi_setup(LoongArchMachineState *lams);
+#define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
+OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
+void loongarch_acpi_setup(LoongArchVirtMachineState *lvms);
 #endif

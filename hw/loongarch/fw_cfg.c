@@ -17,7 +17,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-FWCfgState *loongarch_fw_cfg_init(ram_addr_t ram_size, MachineState *ms)
+FWCfgState *virt_fw_cfg_init(ram_addr_t ram_size, MachineState *ms)
 {
     FWCfgState *fw_cfg;
     int max_cpus = ms->smp.max_cpus;
