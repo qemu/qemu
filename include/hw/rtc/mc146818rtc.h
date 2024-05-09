@@ -55,6 +55,6 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
                                     qemu_irq intercept_irq);
 void mc146818rtc_set_cmos_data(MC146818RtcState *s, int addr, int val);
 int mc146818rtc_get_cmos_data(MC146818RtcState *s, int addr);
-void qmp_rtc_reset_reinjection(Error **errp);
+void rtc_reset_reinjection(MC146818RtcState *rtc);
 
 #endif /* HW_RTC_MC146818RTC_H */
