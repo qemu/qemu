@@ -264,12 +264,13 @@ typedef enum X86VEXSpecial {
 
 typedef struct X86OpEntry  X86OpEntry;
 typedef struct X86DecodedInsn X86DecodedInsn;
+struct DisasContext;
 
 /* Decode function for multibyte opcodes.  */
-typedef void (*X86DecodeFunc)(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b);
+typedef void (*X86DecodeFunc)(struct DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b);
 
 /* Code generation function.  */
-typedef void (*X86GenFunc)(DisasContext *s, X86DecodedInsn *decode);
+typedef void (*X86GenFunc)(struct DisasContext *s, X86DecodedInsn *decode);
 
 struct X86OpEntry {
     /* Based on the is_decode flags.  */
@@ -316,6 +317,14 @@ typedef struct X86DecodedOp {
     };
 } X86DecodedOp;
 
+typedef struct AddressParts {
+    int def_seg;
+    int base;
+    int index;
+    int scale;
+    target_long disp;
+} AddressParts;
+
 struct X86DecodedInsn {
     X86OpEntry e;
     X86DecodedOp op[3];
@@ -333,3 +342,4 @@ struct X86DecodedInsn {
     uint8_t b;
 };
 
+static void gen_lea_modrm(struct DisasContext *s, X86DecodedInsn *decode);

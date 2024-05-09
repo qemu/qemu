@@ -1092,6 +1092,8 @@ static void decode_MOV_CR_DR(DisasContext *s, CPUX86State *env, X86OpEntry *entr
 }
 
 static const X86OpEntry opcodes_0F[256] = {
+    [0x00] = X86_OP_ENTRY1(multi0F,     nop,v,                nolea), /* unconverted */
+    [0x01] = X86_OP_ENTRY1(multi0F,     nop,v,                nolea), /* unconverted */
     [0x02] = X86_OP_ENTRYwr(LAR,        G,v, E,w,             chk(prot)),
     [0x03] = X86_OP_ENTRYwr(LSL,        G,v, E,w,             chk(prot)),
     [0x05] = X86_OP_ENTRY0(SYSCALL,                           chk(o64_intel)),
@@ -1201,6 +1203,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
     [0xc5] = X86_OP_ENTRY3(PEXTRW,     G,d, U,dq,I,b,       vex5 mmx p_00_66),
     [0xc6] = X86_OP_ENTRY4(VSHUF,      V,x, H,x, W,x,       vex4 p_00_66),
+    [0xc7] = X86_OP_ENTRY1(multi0F,    nop,v,               nolea), /* unconverted */
 
     [0xd0] = X86_OP_ENTRY3(VADDSUB,   V,x, H,x, W,x,        vex2 cpuid(SSE3) p_66_f2),
     [0xd1] = X86_OP_ENTRY3(PSRLW_r,   V,x, H,x, W,x,        vex4 mmx avx2_256 p_00_66),
@@ -1243,6 +1246,8 @@ static const X86OpEntry opcodes_0F[256] = {
 
     [0x18] = X86_OP_ENTRY1(NOP,  nop,v),  /* prefetch/reserved NOP */
     [0x19] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
+    [0x1a] = X86_OP_ENTRY1(multi0F, nop,v, nolea),  /* unconverted MPX */
+    [0x1b] = X86_OP_ENTRY1(multi0F, nop,v, nolea),  /* unconverted MPX */
     [0x1c] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
     [0x1d] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
     [0x1e] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
@@ -1779,6 +1784,19 @@ static const X86OpEntry opcodes_root[256] = {
     [0xCD] = X86_OP_ENTRYr(INT, I,b,  chk(vm86_iopl)),
     [0xCE] = X86_OP_ENTRY0(INTO),
     [0xCF] = X86_OP_ENTRY0(IRET,      chk(vm86_iopl) svm(IRET)),
+
+    /*
+     * x87 is nolea because it needs the address without segment base,
+     * in order to store it in fdp.
+     */
+    [0xD8] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xD9] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDA] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDB] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDC] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDD] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDE] = X86_OP_ENTRY1(x87,    nop,v, nolea),
+    [0xDF] = X86_OP_ENTRY1(x87,    nop,v, nolea),
 
     [0xE8] = X86_OP_ENTRYr(CALL,   J,z_f64),
     [0xE9] = X86_OP_ENTRYr(JMP,    J,z_f64),
@@ -2612,30 +2630,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         }
     }
 
-    /* Go back to old decoder for unconverted opcodes.  */
-    if (!(s->prefix & PREFIX_VEX)) {
-        if ((b & ~7) == 0xd8) {
-            if (!disas_insn_x87(s, cpu, b)) {
-                goto unknown_op;
-            }
-            return;
-        }
-
-        if (b == 0x0f) {
-            b = x86_ldub_code(env, s);
-            switch (b) {
-            case 0x00 ... 0x01: /* mostly privileged instructions */
-            case 0x1a ... 0x1b: /* MPX */
-            case 0xc7:          /* grp9 */
-                disas_insn_old(s, cpu, b + 0x100);
-                return;
-            default:
-                decode_func = do_decode_0F;
-                break;
-            }
-        }
-    }
-
     memset(&decode, 0, sizeof(decode));
     decode.cc_op = -1;
     decode.b = b;
@@ -2732,6 +2726,15 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         break;
     }
 
+    /*
+     * hack for old decoder: 0F C7 has both instructions that accept LOCK
+     * and instructions that don't, but also needs X86_SPECIAL_NoLoadEA.
+     * Keep this here until CMPXCHG8B/CMPXCHG16B is separated from the
+     * other unconverted opcodes.
+     */
+    if (decode.e.gen == gen_multi0F) {
+        accept_lock = true;
+    }
     if ((s->prefix & PREFIX_LOCK) && !accept_lock) {
         goto illegal_op;
     }
@@ -2779,7 +2782,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     if (decode.e.special != X86_SPECIAL_NoLoadEA &&
         (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea)) {
-        gen_load_ea(s, &decode);
+        gen_lea_modrm(s, &decode);
     }
     if (s->prefix & PREFIX_LOCK) {
         assert(decode.op[0].has_ea && !decode.op[2].has_ea);

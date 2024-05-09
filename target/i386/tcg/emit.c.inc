@@ -78,7 +78,7 @@ static void gen_NM_exception(DisasContext *s)
     gen_exception(s, EXCP07_PREX);
 }
 
-static void gen_load_ea(DisasContext *s, X86DecodedInsn *decode)
+static void gen_lea_modrm(DisasContext *s, X86DecodedInsn *decode)
 {
     AddressParts *mem = &decode->mem;
     TCGv ea;
