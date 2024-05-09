@@ -2590,7 +2590,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
     }
     if (s->prefix & PREFIX_LOCK) {
         gen_load(s, &decode, 2, s->T1);
-        decode.e.gen(s, env, &decode);
+        decode.e.gen(s, &decode);
     } else {
         if (decode.op[0].unit == X86_OP_MMX) {
             compute_mmx_offset(&decode.op[0]);
@@ -2599,7 +2599,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         }
         gen_load(s, &decode, 1, s->T0);
         gen_load(s, &decode, 2, s->T1);
-        decode.e.gen(s, env, &decode);
+        decode.e.gen(s, &decode);
         gen_writeback(s, &decode, 0, s->T0);
     }
 
