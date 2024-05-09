@@ -443,7 +443,7 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
     numa_cpu_pre_plug(cpu_slot, dev, errp);
 }
 
-CpuInstanceProperties
+static CpuInstanceProperties
 x86_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -453,7 +453,7 @@ x86_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
     return possible_cpus->cpus[cpu_index].props;
 }
 
-int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
+static int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
    X86CPUTopoIDs topo_ids;
    X86MachineState *x86ms = X86_MACHINE(ms);
@@ -467,7 +467,7 @@ int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
    return topo_ids.pkg_id % ms->numa_state->num_nodes;
 }
 
-const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
+static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 {
     X86MachineState *x86ms = X86_MACHINE(ms);
     unsigned int max_cpus = ms->smp.max_cpus;

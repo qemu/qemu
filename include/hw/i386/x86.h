@@ -114,10 +114,6 @@ uint32_t x86_cpu_apic_id_from_index(X86MachineState *pcms,
 
 void x86_cpu_new(X86MachineState *pcms, int64_t apic_id, Error **errp);
 void x86_cpus_init(X86MachineState *pcms, int default_cpu_version);
-CpuInstanceProperties x86_cpu_index_to_props(MachineState *ms,
-                                             unsigned cpu_index);
-int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx);
-const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms);
 CPUArchId *x86_find_cpu_slot(MachineState *ms, uint32_t id, int *idx);
 void x86_rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count);
 void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
