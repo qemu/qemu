@@ -558,6 +558,9 @@ int main(int argc, char **argv)
     }
 
     if (g_str_equal(arch, "aarch64")) {
+        if (!qtest_has_machine("virt")) {
+            goto out;
+        }
         g_string_append(args, " -machine virt");
     }
 
@@ -590,5 +593,6 @@ int main(int argc, char **argv)
                             aarch64_numa_cpu);
     }
 
+out:
     return g_test_run();
 }
