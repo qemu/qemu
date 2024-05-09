@@ -1,12 +1,12 @@
 i386_ss = ss.source_set()
 i386_ss.add(files(
   'fw_cfg.c',
-  'vapic.c',
   'e820_memory_layout.c',
   'multiboot.c',
   'x86.c',
 ))
 
+i386_ss.add(when: 'CONFIG_APIC', if_true: files('vapic.c'))
 i386_ss.add(when: 'CONFIG_X86_IOMMU', if_true: files('x86-iommu.c'),
                                       if_false: files('x86-iommu-stub.c'))
 i386_ss.add(when: 'CONFIG_AMD_IOMMU', if_true: files('amd_iommu.c'),
