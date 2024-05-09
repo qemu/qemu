@@ -23,7 +23,6 @@ system_ss.add(files(
   'multifd.c',
   'multifd-zlib.c',
   'multifd-zero-page.c',
-  'ram-compress.c',
   'options.c',
   'postcopy-ram.c',
   'savevm.c',
@@ -39,9 +38,6 @@ else
 endif
 
 system_ss.add(when: rdma, if_true: files('rdma.c'))
-if get_option('live_block_migration').allowed()
-  system_ss.add(files('block.c'))
-endif
 system_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
 
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',

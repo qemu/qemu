@@ -454,7 +454,7 @@ Examples of such API functions are:
 Iterative device migration
 --------------------------
 
-Some devices, such as RAM, Block storage or certain platform devices,
+Some devices, such as RAM or certain platform devices,
 have large amounts of data that would mean that the CPUs would be
 paused for too long if they were sent in one section.  For these
 devices an *iterative* approach is taken.

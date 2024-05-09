@@ -46,8 +46,6 @@ static void migration_global_dump(Monitor *mon)
                    ms->send_configuration ? "on" : "off");
     monitor_printf(mon, "send-section-footer: %s\n",
                    ms->send_section_footer ? "on" : "off");
-    monitor_printf(mon, "decompress-error-check: %s\n",
-                   ms->decompress_error_check ? "on" : "off");
     monitor_printf(mon, "clear-bitmap-shift: %u\n",
                    ms->clear_bitmap_shift);
 }
@@ -105,8 +103,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->ram->total >> 10);
         monitor_printf(mon, "duplicate: %" PRIu64 " pages\n",
                        info->ram->duplicate);
-        monitor_printf(mon, "skipped: %" PRIu64 " pages\n",
-                       info->ram->skipped);
         monitor_printf(mon, "normal: %" PRIu64 " pages\n",
                        info->ram->normal);
         monitor_printf(mon, "normal bytes: %" PRIu64 " kbytes\n",
@@ -147,15 +143,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
         }
     }
 
-    if (info->disk) {
-        monitor_printf(mon, "transferred disk: %" PRIu64 " kbytes\n",
-                       info->disk->transferred >> 10);
-        monitor_printf(mon, "remaining disk: %" PRIu64 " kbytes\n",
-                       info->disk->remaining >> 10);
-        monitor_printf(mon, "total disk: %" PRIu64 " kbytes\n",
-                       info->disk->total >> 10);
-    }
-
     if (info->xbzrle_cache) {
         monitor_printf(mon, "cache size: %" PRIu64 " bytes\n",
                        info->xbzrle_cache->cache_size);
@@ -171,19 +158,6 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->encoding_rate);
         monitor_printf(mon, "xbzrle overflow: %" PRIu64 "\n",
                        info->xbzrle_cache->overflow);
-    }
-
-    if (info->compression) {
-        monitor_printf(mon, "compression pages: %" PRIu64 " pages\n",
-                       info->compression->pages);
-        monitor_printf(mon, "compression busy: %" PRIu64 "\n",
-                       info->compression->busy);
-        monitor_printf(mon, "compression busy rate: %0.2f\n",
-                       info->compression->busy_rate);
-        monitor_printf(mon, "compressed size: %" PRIu64 " kbytes\n",
-                       info->compression->compressed_size >> 10);
-        monitor_printf(mon, "compression rate: %0.2f\n",
-                       info->compression->compression_rate);
     }
 
     if (info->has_cpu_throttle_percentage) {
@@ -274,22 +248,6 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 " ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_STEP),
             params->announce_step);
-        assert(params->has_compress_level);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_LEVEL),
-            params->compress_level);
-        assert(params->has_compress_threads);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_THREADS),
-            params->compress_threads);
-        assert(params->has_compress_wait_thread);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD),
-            params->compress_wait_thread ? "on" : "off");
-        assert(params->has_decompress_threads);
-        monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_DECOMPRESS_THREADS),
-            params->decompress_threads);
         assert(params->has_throttle_trigger_threshold);
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD),
@@ -334,10 +292,6 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %u ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_X_CHECKPOINT_DELAY),
             params->x_checkpoint_delay);
-        assert(params->has_block_incremental);
-        monitor_printf(mon, "%s: %s\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_BLOCK_INCREMENTAL),
-            params->block_incremental ? "on" : "off");
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_CHANNELS),
             params->multifd_channels);
@@ -466,7 +420,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
     }
     QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
 
-    qmp_migrate_incoming(NULL, true, caps, &err);
+    qmp_migrate_incoming(NULL, true, caps, true, false, &err);
     qapi_free_MigrationChannelList(caps);
 
 end:
@@ -535,22 +489,6 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
     switch (val) {
-    case MIGRATION_PARAMETER_COMPRESS_LEVEL:
-        p->has_compress_level = true;
-        visit_type_uint8(v, param, &p->compress_level, &err);
-        break;
-    case MIGRATION_PARAMETER_COMPRESS_THREADS:
-        p->has_compress_threads = true;
-        visit_type_uint8(v, param, &p->compress_threads, &err);
-        break;
-    case MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD:
-        p->has_compress_wait_thread = true;
-        visit_type_bool(v, param, &p->compress_wait_thread, &err);
-        break;
-    case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
-        p->has_decompress_threads = true;
-        visit_type_uint8(v, param, &p->decompress_threads, &err);
-        break;
     case MIGRATION_PARAMETER_THROTTLE_TRIGGER_THRESHOLD:
         p->has_throttle_trigger_threshold = true;
         visit_type_uint8(v, param, &p->throttle_trigger_threshold, &err);
@@ -617,10 +555,6 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
         p->has_x_checkpoint_delay = true;
         visit_type_uint32(v, param, &p->x_checkpoint_delay, &err);
-        break;
-    case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
-        p->has_block_incremental = true;
-        visit_type_bool(v, param, &p->block_incremental, &err);
         break;
     case MIGRATION_PARAMETER_MULTIFD_CHANNELS:
         p->has_multifd_channels = true;
@@ -736,24 +670,8 @@ static void hmp_migrate_status_cb(void *opaque)
     info = qmp_query_migrate(NULL);
     if (!info->has_status || info->status == MIGRATION_STATUS_ACTIVE ||
         info->status == MIGRATION_STATUS_SETUP) {
-        if (info->disk) {
-            int progress;
-
-            if (info->disk->remaining) {
-                progress = info->disk->transferred * 100 / info->disk->total;
-            } else {
-                progress = 100;
-            }
-
-            monitor_printf(status->mon, "Completed %d %%\r", progress);
-            monitor_flush(status->mon);
-        }
-
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
     } else {
-        if (migrate_block()) {
-            monitor_printf(status->mon, "\n");
-        }
         if (info->error_desc) {
             error_report("%s", info->error_desc);
         }
@@ -768,23 +686,11 @@ static void hmp_migrate_status_cb(void *opaque)
 void hmp_migrate(Monitor *mon, const QDict *qdict)
 {
     bool detach = qdict_get_try_bool(qdict, "detach", false);
-    bool blk = qdict_get_try_bool(qdict, "blk", false);
-    bool inc = qdict_get_try_bool(qdict, "inc", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;
     g_autoptr(MigrationChannel) channel = NULL;
-
-    if (inc) {
-        warn_report("option '-i' is deprecated;"
-                    " use blockdev-mirror with NBD instead");
-    }
-
-    if (blk) {
-        warn_report("option '-b' is deprecated;"
-                    " use blockdev-mirror with NBD instead");
-    }
 
     if (!migrate_uri_parse(uri, &channel, &err)) {
         hmp_handle_error(mon, err);
@@ -792,8 +698,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     }
     QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
 
-    qmp_migrate(NULL, true, caps, !!blk, blk, !!inc, inc,
-                 false, false, true, resume, &err);
+    qmp_migrate(NULL, true, caps, false, false, true, resume, &err);
     if (hmp_handle_error(mon, err)) {
         return;
     }

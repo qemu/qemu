@@ -505,6 +505,11 @@ configurations (e.g. -smp 8,sockets=0) is removed since 9.0, users have
 to ensure that all the topology members described with -smp are greater
 than zero.
 
+``-global migration.decompress-error-check`` (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Removed along with the ``compression`` migration capability.
+
 User-mode emulator command line arguments
 -----------------------------------------
 
@@ -614,6 +619,58 @@ was superseded by ``sections``.
 Member ``section-size`` in the return value of ``query-sgx-capabilities``
 was superseded by ``sections``.
 
+``query-migrate`` return value member ``skipped`` (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``skipped`` of the ``MigrationStats`` struct hasn't been used
+for more than 10 years. Removed with no replacement.
+
+``migrate`` command option ``inc`` (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
+
+``migrate`` command option ``blk`` (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
+
+``migrate-set-capabilities`` ``block`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Block migration has been removed. For a replacement, see "QMP
+invocation for live storage migration with ``blockdev-mirror`` + NBD"
+in docs/interop/live-block-operations.rst.
+
+``migrate-set-parameter`` ``compress-level`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-zlib-level`` or ``multifd-zstd-level`` instead.
+
+``migrate-set-parameter`` ``compress-threads`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-channels`` instead.
+
+``migrate-set-parameter`` ``compress-wait-thread`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Removed with no replacement.
+
+``migrate-set-parameter`` ``decompress-threads`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-channels`` instead.
+
+``migrate-set-capability`` ``compress`` option (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-compression`` instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -673,6 +730,52 @@ This command didn't produce any output already. Removed with no replacement.
 
 The ``singlestep`` command has been replaced by the ``one-insn-per-tb``
 command, which has the same behaviour but a less misleading name.
+
+``migrate`` command ``-i`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
+
+``migrate`` command ``-b`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use blockdev-mirror with NBD instead. See "QMP invocation for live
+storage migration with ``blockdev-mirror`` + NBD" in
+docs/interop/live-block-operations.rst for a detailed explanation.
+
+``migrate_set_capability`` ``block`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Block migration has been removed. For a replacement, see "QMP
+invocation for live storage migration with ``blockdev-mirror`` + NBD"
+in docs/interop/live-block-operations.rst.
+
+``migrate_set_parameter`` ``compress-level`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-zlib-level`` or ``multifd-zstd-level`` instead.
+
+``migrate_set_parameter`` ``compress-threads`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-channels`` instead.
+
+``migrate_set_parameter`` ``compress-wait-thread`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Removed with no replacement.
+
+``migrate_set_parameter`` ``decompress-threads`` option (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-channels`` instead.
+
+``migrate_set_capability`` ``compress`` option (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``multifd-compression`` instead.
 
 Host Architectures
 ------------------

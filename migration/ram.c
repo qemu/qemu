@@ -33,7 +33,6 @@
 #include "qemu/madvise.h"
 #include "qemu/main-loop.h"
 #include "xbzrle.h"
-#include "ram-compress.h"
 #include "ram.h"
 #include "migration.h"
 #include "migration-stats.h"
@@ -53,7 +52,6 @@
 #include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
-#include "block.h"
 #include "sysemu/cpu-throttle.h"
 #include "savevm.h"
 #include "qemu/iov.h"
@@ -78,9 +76,10 @@
  * worked for pages that were filled with the same char.  We switched
  * it to only search for the zero value.  And to avoid confusion with
  * RAM_SAVE_FLAG_COMPRESS_PAGE just rename it.
- */
-/*
- * RAM_SAVE_FLAG_FULL was obsoleted in 2009, it can be reused now
+ *
+ * RAM_SAVE_FLAG_FULL was obsoleted in 2009.
+ *
+ * RAM_SAVE_FLAG_COMPRESS_PAGE (0x100) was removed in QEMU 9.1.
  */
 #define RAM_SAVE_FLAG_FULL     0x01
 #define RAM_SAVE_FLAG_ZERO     0x02
@@ -90,7 +89,6 @@
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in rdma.h for RAM_SAVE_FLAG_HOOK */
-#define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 #define RAM_SAVE_FLAG_MULTIFD_FLUSH    0x200
 /* We can't use any flag that is bigger than 0x200 */
 
@@ -691,8 +689,7 @@ static int save_xbzrle_page(RAMState *rs, PageSearchStatus *pss,
     qemu_put_buffer(file, XBZRLE.encoded_buf, encoded_len);
     bytes_xbzrle += encoded_len + 1 + 2;
     /*
-     * Like compressed_size (please see update_compress_thread_counts),
-     * the xbzrle encoded bytes don't count the 8 byte header with
+     * The xbzrle encoded bytes don't count the 8 byte header with
      * RAM_SAVE_FLAG_CONTINUE.
      */
     xbzrle_counters.bytes += bytes_xbzrle - 8;
@@ -950,7 +947,7 @@ uint64_t ram_get_total_transferred_pages(void)
 {
     return stat64_get(&mig_stats.normal_pages) +
         stat64_get(&mig_stats.zero_pages) +
-        compress_ram_pages() + xbzrle_counters.pages;
+        xbzrle_counters.pages;
 }
 
 static void migration_update_rates(RAMState *rs, int64_t end_time)
@@ -983,7 +980,6 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
         rs->xbzrle_pages_prev = xbzrle_counters.pages;
         rs->xbzrle_bytes_prev = xbzrle_counters.bytes;
     }
-    compress_update_rates(page_count);
 }
 
 /*
@@ -1025,13 +1021,6 @@ static void migration_trigger_throttle(RAMState *rs)
     uint64_t bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
     uint64_t bytes_dirty_threshold = bytes_xfer_period * threshold / 100;
 
-    /* During block migration the auto-converge logic incorrectly detects
-     * that ram migration makes no progress. Avoid this by disabling the
-     * throttling logic during the bulk phase of block migration. */
-    if (blk_mig_bulk_active()) {
-        return;
-    }
-
     /*
      * The following detection logic can be refined later. For now:
      * Check to see if the ratio between dirtied bytes and the approx.
@@ -1066,14 +1055,14 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
     trace_migration_bitmap_sync_start();
     memory_global_dirty_log_sync(last_stage);
 
-    qemu_mutex_lock(&rs->bitmap_mutex);
-    WITH_RCU_READ_LOCK_GUARD() {
-        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-            ramblock_sync_dirty_bitmap(rs, block);
+    WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
+        WITH_RCU_READ_LOCK_GUARD() {
+            RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+                ramblock_sync_dirty_bitmap(rs, block);
+            }
+            stat64_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
         }
-        stat64_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
     }
-    qemu_mutex_unlock(&rs->bitmap_mutex);
 
     memory_global_after_dirty_log_sync();
     trace_migration_bitmap_sync_end(rs->num_dirty_pages_period);
@@ -1296,41 +1285,6 @@ static int ram_save_multifd_page(RAMBlock *block, ram_addr_t offset)
     return 1;
 }
 
-int compress_send_queued_data(CompressParam *param)
-{
-    PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_PRECOPY];
-    MigrationState *ms = migrate_get_current();
-    QEMUFile *file = ms->to_dst_file;
-    int len = 0;
-
-    RAMBlock *block = param->block;
-    ram_addr_t offset = param->offset;
-
-    if (param->result == RES_NONE) {
-        return 0;
-    }
-
-    assert(block == pss->last_sent_block);
-
-    if (param->result == RES_ZEROPAGE) {
-        assert(qemu_file_buffer_empty(param->file));
-        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
-        qemu_put_byte(file, 0);
-        len += 1;
-        ram_release_page(block->idstr, offset);
-    } else if (param->result == RES_COMPRESS) {
-        assert(!qemu_file_buffer_empty(param->file));
-        len += save_page_header(pss, file, block,
-                                offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
-        len += qemu_put_qemu_file(file, param->file);
-    } else {
-        abort();
-    }
-
-    update_compress_thread_counts(param, len);
-
-    return len;
-}
 
 #define PAGE_ALL_CLEAN 0
 #define PAGE_TRY_AGAIN 1
@@ -1382,16 +1336,6 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
                     qemu_fflush(f);
                 }
             }
-            /*
-             * If memory migration starts over, we will meet a dirtied page
-             * which may still exists in compression threads's ring, so we
-             * should flush the compressed data to make sure the new page
-             * is not overwritten by the old one in the destination.
-             *
-             * Also If xbzrle is on, stop using the data compression at this
-             * point. In theory, xbzrle can do better than compression.
-             */
-            compress_flush_data();
 
             /* Hit the end of the list */
             pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
@@ -2042,37 +1986,6 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
     return 0;
 }
 
-/*
- * try to compress the page before posting it out, return true if the page
- * has been properly handled by compression, otherwise needs other
- * paths to handle it
- */
-static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
-                               ram_addr_t offset)
-{
-    if (!migrate_compress()) {
-        return false;
-    }
-
-    /*
-     * When starting the process of a new block, the first page of
-     * the block should be sent out before other pages in the same
-     * block, and all the pages in last block should have been sent
-     * out, keeping this order is important, because the 'cont' flag
-     * is used to avoid resending the block name.
-     *
-     * We post the fist page as normal page as compression will take
-     * much CPU resource.
-     */
-    if (pss->block != pss->last_sent_block) {
-        compress_flush_data();
-        return false;
-    }
-
-    return compress_page_with_multi_thread(pss->block, offset,
-                                           compress_send_queued_data);
-}
-
 /**
  * ram_save_target_page_legacy: save one target page
  *
@@ -2088,10 +2001,6 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
 
     if (control_save_page(pss, offset, &res)) {
         return res;
-    }
-
-    if (save_compress_page(rs, pss, offset)) {
-        return 1;
     }
 
     if (save_zero_page(rs, pss, offset)) {
@@ -2478,7 +2387,6 @@ static void ram_save_cleanup(void *opaque)
     ram_bitmaps_destroy();
 
     xbzrle_cleanup();
-    compress_threads_save_cleanup();
     ram_state_cleanup(rsp);
     g_free(migration_ops);
     migration_ops = NULL;
@@ -3097,15 +3005,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
     RAMBlock *block;
     int ret, max_hg_page_size;
 
-    if (compress_threads_save_setup()) {
-        error_setg(errp, "%s: failed to start compress threads", __func__);
-        return -1;
-    }
-
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
         if (ram_init_all(rsp, errp) != 0) {
-            compress_threads_save_cleanup();
             return -1;
         }
     }
@@ -3230,13 +3132,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int64_t t0;
     int done = 0;
 
-    if (blk_mig_bulk_active()) {
-        /* Avoid transferring ram during bulk phase of block migration as
-         * the bulk phase will usually take a long time and transferring
-         * ram updates during that time is pointless. */
-        goto out;
-    }
-
     /*
      * We'll take this lock a little bit long, but it's okay for two reasons.
      * Firstly, the only possible other thread to take it is who calls
@@ -3282,14 +3177,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
                 }
 
                 rs->target_page_count += pages;
-
-                /*
-                 * During postcopy, it is necessary to make sure one whole host
-                 * page is sent in one chunk.
-                 */
-                if (migrate_postcopy_ram()) {
-                    compress_flush_data();
-                }
 
                 /*
                  * we want to check in the 1st loop, just in case it was the 1st
@@ -3388,8 +3275,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
             }
         }
         qemu_mutex_unlock(&rs->bitmap_mutex);
-
-        compress_flush_data();
 
         ret = rdma_registration_stop(f, RAM_CONTROL_FINISH);
         if (ret < 0) {
@@ -3804,7 +3689,6 @@ int ram_load_postcopy(QEMUFile *f, int channel)
         void *place_source = NULL;
         RAMBlock *block = NULL;
         uint8_t ch;
-        int len;
 
         addr = qemu_get_be64(f);
 
@@ -3821,8 +3705,7 @@ int ram_load_postcopy(QEMUFile *f, int channel)
         addr &= TARGET_PAGE_MASK;
 
         trace_ram_load_postcopy_loop(channel, (uint64_t)addr, flags);
-        if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
-                     RAM_SAVE_FLAG_COMPRESS_PAGE)) {
+        if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE)) {
             block = ram_block_from_stream(mis, f, flags, channel);
             if (!block) {
                 ret = -EINVAL;
@@ -3917,16 +3800,6 @@ int ram_load_postcopy(QEMUFile *f, int channel)
                                          TARGET_PAGE_SIZE);
             }
             break;
-        case RAM_SAVE_FLAG_COMPRESS_PAGE:
-            tmp_page->all_zero = false;
-            len = qemu_get_be32(f);
-            if (len < 0 || len > compressBound(TARGET_PAGE_SIZE)) {
-                error_report("Invalid compressed data length: %d", len);
-                ret = -EINVAL;
-                break;
-            }
-            decompress_data_with_multi_threads(f, page_buffer, len);
-            break;
         case RAM_SAVE_FLAG_MULTIFD_FLUSH:
             multifd_recv_sync_main();
             break;
@@ -3942,11 +3815,6 @@ int ram_load_postcopy(QEMUFile *f, int channel)
                          " (postcopy mode)", flags);
             ret = -EINVAL;
             break;
-        }
-
-        /* Got the whole host page, wait for decompress before placing. */
-        if (place_needed) {
-            ret |= wait_for_decompress_done();
         }
 
         /* Detect for any possible file errors */
@@ -4253,11 +4121,7 @@ static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
 static int ram_load_precopy(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
-    int flags = 0, ret = 0, invalid_flags = 0, len = 0, i = 0;
-
-    if (!migrate_compress()) {
-        invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
-    }
+    int flags = 0, ret = 0, invalid_flags = 0, i = 0;
 
     if (migrate_mapped_ram()) {
         invalid_flags |= (RAM_SAVE_FLAG_HOOK | RAM_SAVE_FLAG_MULTIFD_FLUSH |
@@ -4294,16 +4158,12 @@ static int ram_load_precopy(QEMUFile *f)
         if (flags & invalid_flags) {
             error_report("Unexpected RAM flags: %d", flags & invalid_flags);
 
-            if (flags & invalid_flags & RAM_SAVE_FLAG_COMPRESS_PAGE) {
-                error_report("Received an unexpected compressed page");
-            }
-
             ret = -EINVAL;
             break;
         }
 
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
-                     RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
+                     RAM_SAVE_FLAG_XBZRLE)) {
             RAMBlock *block = ram_block_from_stream(mis, f, flags,
                                                     RAM_CHANNEL_PRECOPY);
 
@@ -4372,16 +4232,6 @@ static int ram_load_precopy(QEMUFile *f)
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
 
-        case RAM_SAVE_FLAG_COMPRESS_PAGE:
-            len = qemu_get_be32(f);
-            if (len < 0 || len > compressBound(TARGET_PAGE_SIZE)) {
-                error_report("Invalid compressed data length: %d", len);
-                ret = -EINVAL;
-                break;
-            }
-            decompress_data_with_multi_threads(f, host, len);
-            break;
-
         case RAM_SAVE_FLAG_XBZRLE:
             if (load_xbzrle(f, addr, host) < 0) {
                 error_report("Failed to decompress XBZRLE page at "
@@ -4423,7 +4273,6 @@ static int ram_load_precopy(QEMUFile *f)
         }
     }
 
-    ret |= wait_for_decompress_done();
     return ret;
 }
 

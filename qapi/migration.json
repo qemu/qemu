@@ -23,9 +23,6 @@
 #
 # @duplicate: number of duplicate (zero) pages (since 1.2)
 #
-# @skipped: number of skipped zero pages.  Always zero, only provided
-#     for compatibility (since 1.5)
-#
 # @normal: number of normal pages (since 1.2)
 #
 # @normal-bytes: number of normal bytes sent (since 1.2)
@@ -63,16 +60,11 @@
 #     between 0 and @dirty-sync-count * @multifd-channels.  (since
 #     7.1)
 #
-# Features:
-#
-# @deprecated: Member @skipped is always zero since 1.5.3
-#
 # Since: 0.14
 ##
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
            'duplicate': 'int',
-           'skipped': { 'type': 'int', 'features': [ 'deprecated' ] },
            'normal': 'int',
            'normal-bytes': 'int', 'dirty-pages-rate': 'int',
            'mbps': 'number', 'dirty-sync-count': 'int',
@@ -201,9 +193,6 @@
 # @ram: @MigrationStats containing detailed migration status, only
 #     returned if status is 'active' or 'completed'(since 1.2)
 #
-# @disk: @MigrationStats containing detailed disk migration status,
-#     only returned if status is 'active' and it is a block migration
-#
 # @xbzrle-cache: @XBZRLECacheStats containing detailed XBZRLE
 #     migration statistics, only returned if XBZRLE feature is on and
 #     status is 'active' or 'completed' (since 1.2)
@@ -240,10 +229,6 @@
 #     This is only present when the postcopy-blocktime migration
 #     capability is enabled.  (Since 3.0)
 #
-# @compression: migration compression statistics, only returned if
-#     compression feature is on and status is 'active' or 'completed'
-#     (Since 3.1)
-#
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
 #
@@ -268,19 +253,10 @@
 #     average memory load of the virtual CPU indirectly.  Note that
 #     zero means guest doesn't dirty memory.  (Since 8.1)
 #
-# Features:
-#
-# @deprecated: Member @disk is deprecated because block migration is.
-#     Member @compression is deprecated because it is unreliable and
-#     untested.  It is recommended to use multifd migration, which
-#     offers an alternative compression implementation that is
-#     reliable and tested.
-#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
-           '*disk': { 'type': 'MigrationStats', 'features': [ 'deprecated' ] },
            '*vfio': 'VfioStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
@@ -292,7 +268,6 @@
            '*blocked-reasons': ['str'],
            '*postcopy-blocktime': 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
-           '*compression': { 'type': 'CompressionStats', 'features': [ 'deprecated' ] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
            '*dirty-limit-ring-full-time': 'uint64'} }
@@ -302,8 +277,7 @@
 #
 # Returns information about current migration process.  If migration
 # is active there will be another json-object with RAM migration
-# status and if block migration is active another one with block
-# migration status.
+# status.
 #
 # Returns: @MigrationInfo
 #
@@ -341,7 +315,7 @@
 #     -> { "execute": "query-migrate" }
 #     <- { "return": { "status": "failed" } }
 #
-#     4. Migration is being performed and is not a block migration:
+#     4. Migration is being performed:
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -362,33 +336,7 @@
 #           }
 #        }
 #
-#     5. Migration is being performed and is a block migration:
-#
-#     -> { "execute": "query-migrate" }
-#     <- {
-#           "return":{
-#              "status":"active",
-#              "total-time":12345,
-#              "setup-time":12345,
-#              "expected-downtime":12345,
-#              "ram":{
-#                 "total":1057024,
-#                 "remaining":1053304,
-#                 "transferred":3720,
-#                 "duplicate":123,
-#                 "normal":123,
-#                 "normal-bytes":123456,
-#                 "dirty-sync-count":15
-#              },
-#              "disk":{
-#                 "total":20971520,
-#                 "remaining":20880384,
-#                 "transferred":91136
-#              }
-#           }
-#        }
-#
-#     6. Migration is being performed and XBZRLE is active:
+#     5. Migration is being performed and XBZRLE is active:
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -441,14 +389,6 @@
 #     capability on the source VM. The feature is disabled by default.
 #     (since 1.6)
 #
-# @compress: Use multiple compression threads to accelerate live
-#     migration.  This feature can help to reduce the migration
-#     traffic, by sending compressed pages.  Please note that if
-#     compress and xbzrle are both on, compress only takes effect in
-#     the ram bulk stage, after that, it will be disabled and only
-#     xbzrle takes effect, this can help to minimize migration
-#     traffic.  The feature is disabled by default.  (since 2.4)
-#
 # @events: generate events for each migration state change (since 2.4)
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down
@@ -467,11 +407,6 @@
 #
 # @release-ram: if enabled, qemu will free the migrated ram pages on
 #     the source during postcopy-ram migration.  (since 2.9)
-#
-# @block: If enabled, QEMU will also migrate the contents of all block
-#     devices.  Default is disabled.  A possible alternative uses
-#     mirror jobs to a builtin NBD server on the destination, which
-#     offers more flexibility.  (Since 2.10)
 #
 # @return-path: If enabled, migration will use the return path even
 #     for precopy.  (since 2.10)
@@ -536,23 +471,15 @@
 #
 # Features:
 #
-# @deprecated: Member @block is deprecated.  Use blockdev-mirror with
-#     NBD instead.  Member @compress is deprecated because it is
-#     unreliable and untested.  It is recommended to use multifd
-#     migration, which offers an alternative compression
-#     implementation that is reliable and tested.
-#
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           { 'name': 'compress', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
-           { 'name': 'block', 'features': [ 'deprecated' ] },
            'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
@@ -609,7 +536,6 @@
 #           {"state": false, "capability": "rdma-pin-all"},
 #           {"state": false, "capability": "auto-converge"},
 #           {"state": false, "capability": "zero-blocks"},
-#           {"state": false, "capability": "compress"},
 #           {"state": true, "capability": "events"},
 #           {"state": false, "capability": "postcopy-ram"},
 #           {"state": false, "capability": "x-colo"}
@@ -757,27 +683,6 @@
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
 #
-# @compress-level: Set the compression level to be used in live
-#     migration, the compression level is an integer between 0 and 9,
-#     where 0 means no compression, 1 means the best compression
-#     speed, and 9 means best compression ratio which will consume
-#     more CPU.
-#
-# @compress-threads: Set compression thread count to be used in live
-#     migration, the compression thread count is an integer between 1
-#     and 255.
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: Set decompression thread count to be used in
-#     live migration, the decompression thread count is an integer
-#     between 1 and 255. Usually, decompression is at least 4 times as
-#     fast as compression, so set the decompress-threads to the number
-#     about 1/4 of compress-threads is adequate.
-#
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
 #     percentage.  The default value is 50.  (Since 5.0)
@@ -847,13 +752,6 @@
 # @x-checkpoint-delay: The delay time (in ms) between two COLO
 #     checkpoints in periodic mode.  (Since 2.8)
 #
-# @block-incremental: Affects how much storage is migrated when the
-#     block migration capability is enabled.  When false, the entire
-#     storage backing chain is migrated into a flattened image at the
-#     destination; when true, only the active qcow2 layer is migrated
-#     and the destination must already have access to the same backing
-#     chain as was used on the source.  (since 2.10)
-#
 # @multifd-channels: Number of channels used to migrate data in
 #     parallel.  This is the same number that the number of sockets
 #     used for migration.  The default value is 2 (since 4.0)
@@ -916,11 +814,6 @@
 #
 # Features:
 #
-# @deprecated: Member @block-incremental is deprecated.  Use
-#     blockdev-mirror with NBD instead.  Members @compress-level,
-#     @compress-threads, @decompress-threads and @compress-wait-thread
-#     are deprecated because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -929,17 +822,12 @@
 { 'enum': 'MigrationParameter',
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
-           { 'name': 'compress-level', 'features': [ 'deprecated' ] },
-           { 'name': 'compress-threads', 'features': [ 'deprecated' ] },
-           { 'name': 'decompress-threads', 'features': [ 'deprecated' ] },
-           { 'name': 'compress-wait-thread', 'features': [ 'deprecated' ] },
            'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
            'avail-switchover-bandwidth', 'downtime-limit',
            { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
-           { 'name': 'block-incremental', 'features': [ 'deprecated' ] },
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
@@ -964,27 +852,6 @@
 #
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
-#
-# @compress-level: Set the compression level to be used in live
-#     migration, the compression level is an integer between 0 and 9,
-#     where 0 means no compression, 1 means the best compression
-#     speed, and 9 means best compression ratio which will consume
-#     more CPU.
-#
-# @compress-threads: Set compression thread count to be used in live
-#     migration, the compression thread count is an integer between 1
-#     and 255.
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: Set decompression thread count to be used in
-#     live migration, the decompression thread count is an integer
-#     between 1 and 255. Usually, decompression is at least 4 times as
-#     fast as compression, so set the decompress-threads to the number
-#     about 1/4 of compress-threads is adequate.
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1055,13 +922,6 @@
 # @x-checkpoint-delay: The delay time (in ms) between two COLO
 #     checkpoints in periodic mode.  (Since 2.8)
 #
-# @block-incremental: Affects how much storage is migrated when the
-#     block migration capability is enabled.  When false, the entire
-#     storage backing chain is migrated into a flattened image at the
-#     destination; when true, only the active qcow2 layer is migrated
-#     and the destination must already have access to the same backing
-#     chain as was used on the source.  (since 2.10)
-#
 # @multifd-channels: Number of channels used to migrate data in
 #     parallel.  This is the same number that the number of sockets
 #     used for migration.  The default value is 2 (since 4.0)
@@ -1124,11 +984,6 @@
 #
 # Features:
 #
-# @deprecated: Member @block-incremental is deprecated.  Use
-#     blockdev-mirror with NBD instead.  Members @compress-level,
-#     @compress-threads, @decompress-threads and @compress-wait-thread
-#     are deprecated because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -1142,14 +997,6 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': { 'type': 'uint8',
-                                 'features': [ 'deprecated' ] },
-            '*compress-threads':  { 'type': 'uint8',
-                                    'features': [ 'deprecated' ] },
-            '*compress-wait-thread':  { 'type': 'bool',
-                                        'features': [ 'deprecated' ] },
-            '*decompress-threads':  { 'type': 'uint8',
-                                      'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -1162,8 +1009,6 @@
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': { 'type': 'uint32',
                                      'features': [ 'unstable' ] },
-            '*block-incremental': { 'type': 'bool',
-                                    'features': [ 'deprecated' ] },
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
@@ -1210,17 +1055,6 @@
 #
 # @announce-step: Increase in delay (in milliseconds) between
 #     subsequent packets in the announcement (Since 4.0)
-#
-# @compress-level: compression level
-#
-# @compress-threads: compression thread count
-#
-# @compress-wait-thread: Controls behavior when all compression
-#     threads are currently busy.  If true (default), wait for a free
-#     compression thread to become available; otherwise, send the page
-#     uncompressed.  (Since 3.1)
-#
-# @decompress-threads: decompression thread count
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and
 #     bytes_xfer_period to trigger throttling.  It is expressed as
@@ -1287,13 +1121,6 @@
 # @x-checkpoint-delay: the delay time between two COLO checkpoints.
 #     (Since 2.8)
 #
-# @block-incremental: Affects how much storage is migrated when the
-#     block migration capability is enabled.  When false, the entire
-#     storage backing chain is migrated into a flattened image at the
-#     destination; when true, only the active qcow2 layer is migrated
-#     and the destination must already have access to the same backing
-#     chain as was used on the source.  (since 2.10)
-#
 # @multifd-channels: Number of channels used to migrate data in
 #     parallel.  This is the same number that the number of sockets
 #     used for migration.  The default value is 2 (since 4.0)
@@ -1356,11 +1183,6 @@
 #
 # Features:
 #
-# @deprecated: Member @block-incremental is deprecated.  Use
-#     blockdev-mirror with NBD instead.  Members @compress-level,
-#     @compress-threads, @decompress-threads and @compress-wait-thread
-#     are deprecated because @compression is deprecated.
-#
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
@@ -1371,14 +1193,6 @@
             '*announce-max': 'size',
             '*announce-rounds': 'size',
             '*announce-step': 'size',
-            '*compress-level': { 'type': 'uint8',
-                                 'features': [ 'deprecated' ] },
-            '*compress-threads': { 'type': 'uint8',
-                                   'features': [ 'deprecated' ] },
-            '*compress-wait-thread': { 'type': 'bool',
-                                       'features': [ 'deprecated' ] },
-            '*decompress-threads': { 'type': 'uint8',
-                                     'features': [ 'deprecated' ] },
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -1391,8 +1205,6 @@
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': { 'type': 'uint32',
                                      'features': [ 'unstable' ] },
-            '*block-incremental': { 'type': 'bool',
-                                    'features': [ 'deprecated' ] },
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
@@ -1742,19 +1554,10 @@
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
 #
-# @blk: do block migration (full disk copy)
-#
-# @inc: incremental disk copy migration
-#
 # @detach: this argument exists only for compatibility reasons and is
 #     ignored by QEMU
 #
 # @resume: resume one paused migration, default "off".  (since 3.0)
-#
-# Features:
-#
-# @deprecated: Members @inc and @blk are deprecated.  Use
-#     blockdev-mirror with NBD instead.
 #
 # Since: 0.14
 #
@@ -1821,8 +1624,6 @@
 { 'command': 'migrate',
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
-           '*blk': { 'type': 'bool', 'features': [ 'deprecated' ] },
-           '*inc': { 'type': 'bool', 'features': [ 'deprecated' ] },
            '*detach': 'bool', '*resume': 'bool' } }
 
 ##
@@ -1836,6 +1637,10 @@
 #
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
+#
+# @exit-on-error: Exit on incoming migration failure.  Default true.
+#     When set to false, the failure triggers a MIGRATION event, and
+#     error details could be retrieved with query-migrate.  (since 9.1)
 #
 # Since: 2.3
 #
@@ -1889,7 +1694,8 @@
 ##
 { 'command': 'migrate-incoming',
              'data': {'*uri': 'str',
-                      '*channels': [ 'MigrationChannel' ] } }
+                      '*channels': [ 'MigrationChannel' ],
+                      '*exit-on-error': 'bool' } }
 
 ##
 # @xen-save-devices-state:

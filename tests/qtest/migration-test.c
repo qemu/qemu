@@ -427,38 +427,6 @@ static void migrate_set_parameter_str(QTestState *who, const char *parameter,
     migrate_check_parameter_str(who, parameter, value);
 }
 
-static long long migrate_get_parameter_bool(QTestState *who,
-                                           const char *parameter)
-{
-    QDict *rsp;
-    int result;
-
-    rsp = qtest_qmp_assert_success_ref(
-        who, "{ 'execute': 'query-migrate-parameters' }");
-    result = qdict_get_bool(rsp, parameter);
-    qobject_unref(rsp);
-    return !!result;
-}
-
-static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
-                                        int value)
-{
-    int result;
-
-    result = migrate_get_parameter_bool(who, parameter);
-    g_assert_cmpint(result, ==, value);
-}
-
-static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
-                                      int value)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-set-parameters',"
-                             "'arguments': { %s: %i } }",
-                             parameter, value);
-    migrate_check_parameter_bool(who, parameter, value);
-}
-
 static void migrate_ensure_non_converge(QTestState *who)
 {
     /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
@@ -1240,36 +1208,6 @@ test_migrate_tls_x509_finish(QTestState *from,
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-static void *
-test_migrate_compress_start(QTestState *from,
-                            QTestState *to)
-{
-    migrate_set_parameter_int(from, "compress-level", 1);
-    migrate_set_parameter_int(from, "compress-threads", 4);
-    migrate_set_parameter_bool(from, "compress-wait-thread", true);
-    migrate_set_parameter_int(to, "decompress-threads", 4);
-
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
-
-    return NULL;
-}
-
-static void *
-test_migrate_compress_nowait_start(QTestState *from,
-                                   QTestState *to)
-{
-    migrate_set_parameter_int(from, "compress-level", 9);
-    migrate_set_parameter_int(from, "compress-threads", 1);
-    migrate_set_parameter_bool(from, "compress-wait-thread", false);
-    migrate_set_parameter_int(to, "decompress-threads", 1);
-
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
-
-    return NULL;
-}
-
 static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     QTestState **to_ptr,
                                     MigrateCommon *args)
@@ -1365,15 +1303,6 @@ static void test_postcopy_suspend(void)
 {
     MigrateCommon args = {
         .start.suspend_me = true,
-    };
-
-    test_postcopy_common(&args);
-}
-
-static void test_postcopy_compress(void)
-{
-    MigrateCommon args = {
-        .start_hook = test_migrate_compress_start
     };
 
     test_postcopy_common(&args);
@@ -1557,15 +1486,6 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
 static void test_postcopy_recovery(void)
 {
     MigrateCommon args = { };
-
-    test_postcopy_recovery_common(&args);
-}
-
-static void test_postcopy_recovery_compress(void)
-{
-    MigrateCommon args = {
-        .start_hook = test_migrate_compress_start
-    };
 
     test_postcopy_recovery_common(&args);
 }
@@ -2021,48 +1941,6 @@ static void test_precopy_unix_xbzrle(void)
          * XBZRLE needs pages to be modified when doing the 2nd+ round
          * iteration to have real data pushed to the stream.
          */
-        .live = true,
-    };
-
-    test_precopy_common(&args);
-}
-
-static void test_precopy_unix_compress(void)
-{
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateCommon args = {
-        .connect_uri = uri,
-        .listen_uri = uri,
-        .start_hook = test_migrate_compress_start,
-        /*
-         * Test that no invalid thread state is left over from
-         * the previous iteration.
-         */
-        .iterations = 2,
-        /*
-         * We make sure the compressor can always work well even if guest
-         * memory is changing.  See commit 34ab9e9743 where we used to fix
-         * a bug when only trigger-able with guest memory changing.
-         */
-        .live = true,
-    };
-
-    test_precopy_common(&args);
-}
-
-static void test_precopy_unix_compress_nowait(void)
-{
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateCommon args = {
-        .connect_uri = uri,
-        .listen_uri = uri,
-        .start_hook = test_migrate_compress_nowait_start,
-        /*
-         * Test that no invalid thread state is left over from
-         * the previous iteration.
-         */
-        .iterations = 2,
-        /* Same reason for the wait version of precopy compress test */
         .live = true,
     };
 
@@ -3597,12 +3475,6 @@ int main(int argc, char **argv)
                            test_postcopy_preempt);
         migration_test_add("/migration/postcopy/preempt/recovery/plain",
                            test_postcopy_preempt_recovery);
-        if (getenv("QEMU_TEST_FLAKY_TESTS")) {
-            migration_test_add("/migration/postcopy/compress/plain",
-                               test_postcopy_compress);
-            migration_test_add("/migration/postcopy/recovery/compress/plain",
-                               test_postcopy_recovery_compress);
-        }
 #ifndef _WIN32
         migration_test_add("/migration/postcopy/recovery/double-failures",
                            test_postcopy_recovery_double_fail);
@@ -3623,17 +3495,6 @@ int main(int argc, char **argv)
                        test_precopy_unix_plain);
     migration_test_add("/migration/precopy/unix/xbzrle",
                        test_precopy_unix_xbzrle);
-    /*
-     * Compression fails from time to time.
-     * Put test here but don't enable it until everything is fixed.
-     */
-    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
-        migration_test_add("/migration/precopy/unix/compress/wait",
-                           test_precopy_unix_compress);
-        migration_test_add("/migration/precopy/unix/compress/nowait",
-                           test_precopy_unix_compress_nowait);
-    }
-
     migration_test_add("/migration/precopy/file",
                        test_precopy_file);
     migration_test_add("/migration/precopy/file/offset",

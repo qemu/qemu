@@ -314,8 +314,6 @@ option('fdt', type: 'combo', value: 'auto',
 
 option('selinux', type: 'feature', value: 'auto',
        description: 'SELinux support in qemu-nbd')
-option('live_block_migration', type: 'feature', value: 'auto',
-       description: 'block migration in the main migration stream')
 option('replication', type: 'feature', value: 'auto',
        description: 'replication support')
 option('colo_proxy', type: 'feature', value: 'auto',
