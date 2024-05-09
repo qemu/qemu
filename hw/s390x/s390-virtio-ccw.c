@@ -50,22 +50,6 @@
 
 static Error *pv_mig_blocker;
 
-S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
-{
-    static MachineState *ms;
-
-    if (!ms) {
-        ms = MACHINE(qdev_get_machine());
-        g_assert(ms->possible_cpus);
-    }
-
-    /* CPU address corresponds to the core_id and the index */
-    if (cpu_addr >= ms->possible_cpus->len) {
-        return NULL;
-    }
-    return S390_CPU(ms->possible_cpus->cpus[cpu_addr].cpu);
-}
-
 static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
                               Error **errp)
 {
