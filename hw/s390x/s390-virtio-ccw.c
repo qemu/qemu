@@ -1182,6 +1182,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         { TYPE_S390_STATTRIB, "migration-enabled", "off", },
+        { TYPE_S390_FLIC_COMMON, "migration-enabled", "off", },
     };
 
     ccw_machine_2_10_class_options(mc);

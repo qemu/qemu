@@ -47,6 +47,7 @@ struct S390FLICState {
     /* to limit AdapterRoutes.num_routes for compat */
     uint32_t adapter_routes_max_batch;
     bool ais_supported;
+    bool migration_enabled;
 };
 
 
