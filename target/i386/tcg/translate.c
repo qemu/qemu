@@ -1434,57 +1434,11 @@ static bool check_cpl0(DisasContext *s)
     return false;
 }
 
-static void gen_shift_flags(DisasContext *s, MemOp ot, TCGv result,
-                            TCGv shm1, TCGv count, bool is_right)
-{
-    TCGv_i32 z32, s32, oldop;
-    TCGv z_tl;
-
-    /* Store the results into the CC variables.  If we know that the
-       variable must be dead, store unconditionally.  Otherwise we'll
-       need to not disrupt the current contents.  */
-    z_tl = tcg_constant_tl(0);
-    if (cc_op_live[s->cc_op] & USES_CC_DST) {
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_dst, count, z_tl,
-                           result, cpu_cc_dst);
-    } else {
-        tcg_gen_mov_tl(cpu_cc_dst, result);
-    }
-    if (cc_op_live[s->cc_op] & USES_CC_SRC) {
-        tcg_gen_movcond_tl(TCG_COND_NE, cpu_cc_src, count, z_tl,
-                           shm1, cpu_cc_src);
-    } else {
-        tcg_gen_mov_tl(cpu_cc_src, shm1);
-    }
-
-    /* Get the two potential CC_OP values into temporaries.  */
-    tcg_gen_movi_i32(s->tmp2_i32, (is_right ? CC_OP_SARB : CC_OP_SHLB) + ot);
-    if (s->cc_op == CC_OP_DYNAMIC) {
-        oldop = cpu_cc_op;
-    } else {
-        tcg_gen_movi_i32(s->tmp3_i32, s->cc_op);
-        oldop = s->tmp3_i32;
-    }
-
-    /* Conditionally store the CC_OP value.  */
-    z32 = tcg_constant_i32(0);
-    s32 = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(s32, count);
-    tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, s32, z32, s->tmp2_i32, oldop);
-
-    /* The CC_OP value is no longer predictable.  */
-    set_cc_op(s, CC_OP_DYNAMIC);
-}
-
 /* XXX: add faster immediate case */
-static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
-                             bool is_right, TCGv count_in)
+static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
+                             bool is_right, TCGv count)
 {
     target_ulong mask = (ot == MO_64 ? 63 : 31);
-    TCGv count;
-
-    count = tcg_temp_new();
-    tcg_gen_andi_tl(count, count_in, mask);
 
     switch (ot) {
     case MO_16:
@@ -1546,8 +1500,6 @@ static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
         tcg_gen_or_tl(s->T0, s->T0, s->T1);
         break;
     }
-
-    return count;
 }
 
 #define X86_MAX_INSN_LENGTH 15
@@ -3057,7 +3009,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
     CPUX86State *env = cpu_env(cpu);
     int prefixes = s->prefix;
     MemOp dflag = s->dflag;
-    TCGv shift;
     MemOp ot;
     int modrm, reg, rm, mod, op, val;
 
@@ -3219,37 +3170,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         default:
             goto illegal_op;
         }
-        break;
-
-        /**************************/
-        /* shifts */
-    case 0x1a4: /* shld imm */
-        op = 0;
-        shift = NULL;
-        goto do_shiftd;
-    case 0x1a5: /* shld cl */
-        op = 0;
-        shift = cpu_regs[R_ECX];
-        goto do_shiftd;
-    case 0x1ac: /* shrd imm */
-        op = 1;
-        shift = NULL;
-        goto do_shiftd;
-    case 0x1ad: /* shrd cl */
-        op = 1;
-        shift = cpu_regs[R_ECX];
-    do_shiftd:
-        ot = dflag;
-        modrm = x86_ldub_code(env, s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-        gen_ld_modrm(env, s, modrm, ot);
-        if (!shift) {
-            shift = tcg_constant_tl(x86_ldub_code(env, s));
-        }
-        gen_op_mov_v_reg(s, ot, s->T1, reg);
-        shift = gen_shiftd_rm_T1(s, ot, op, shift);
-        gen_st_modrm(env, s, modrm, ot);
-        gen_shift_flags(s, ot, s->T0, s->tmp0, shift, op);
         break;
 
         /************************/

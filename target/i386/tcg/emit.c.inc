@@ -3588,6 +3588,27 @@ static void gen_SHL(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+static void gen_SHLD(DisasContext *s, X86DecodedInsn *decode)
+{
+    bool can_be_zero;
+    TCGv count;
+    int unit = decode->e.op3 == X86_TYPE_I ? X86_OP_IMM : X86_OP_INT;
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, unit);
+
+    if (!count) {
+        return;
+    }
+
+    decode->cc_dst = s->T0;
+    decode->cc_src = s->tmp0;
+    gen_shiftd_rm_T1(s, ot, false, count);
+    if (can_be_zero) {
+        gen_shift_dynamic_flags(s, decode, count, CC_OP_SHLB + ot);
+    } else {
+        decode->cc_op = CC_OP_SHLB + ot;
+    }
+}
+
 static void gen_SHLX(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -3613,6 +3634,27 @@ static void gen_SHR(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_subi_tl(decode->cc_src, count, 1);
     tcg_gen_shr_tl(decode->cc_src, s->T0, decode->cc_src);
     tcg_gen_shr_tl(s->T0, s->T0, count);
+    if (can_be_zero) {
+        gen_shift_dynamic_flags(s, decode, count, CC_OP_SARB + ot);
+    } else {
+        decode->cc_op = CC_OP_SARB + ot;
+    }
+}
+
+static void gen_SHRD(DisasContext *s, X86DecodedInsn *decode)
+{
+    bool can_be_zero;
+    TCGv count;
+    int unit = decode->e.op3 == X86_TYPE_I ? X86_OP_IMM : X86_OP_INT;
+    MemOp ot = gen_shift_count(s, decode, &can_be_zero, &count, unit);
+
+    if (!count) {
+        return;
+    }
+
+    decode->cc_dst = s->T0;
+    decode->cc_src = s->tmp0;
+    gen_shiftd_rm_T1(s, ot, true, count);
     if (can_be_zero) {
         gen_shift_dynamic_flags(s, decode, count, CC_OP_SARB + ot);
     } else {
