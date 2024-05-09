@@ -1586,6 +1586,57 @@ static void gen_CMPS(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[2].ot;
+    TCGv cmpv = tcg_temp_new();
+    TCGv oldv = tcg_temp_new();
+    TCGv newv = tcg_temp_new();
+    TCGv dest;
+
+    tcg_gen_ext_tl(cmpv, cpu_regs[R_EAX], ot);
+    tcg_gen_ext_tl(newv, s->T1, ot);
+    if (s->prefix & PREFIX_LOCK) {
+        tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
+                                  s->mem_index, ot | MO_LE);
+    } else {
+        tcg_gen_ext_tl(oldv, s->T0, ot);
+        if (decode->op[0].has_ea) {
+            /*
+             * Perform an unconditional store cycle like physical cpu;
+             * must be before changing accumulator to ensure
+             * idempotency if the store faults and the instruction
+             * is restarted
+             */
+            tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
+            gen_op_st_v(s, ot, newv, s->A0);
+        } else {
+            /*
+             * Unlike the memory case, where "the destination operand receives
+             * a write cycle without regard to the result of the comparison",
+             * rm must not be touched altogether if the write fails, including
+             * not zero-extending it on 64-bit processors.  So, precompute
+             * the result of a successful writeback and perform the movcond
+             * directly on cpu_regs.  In case rm is part of RAX, note that this
+             * movcond and the one below are mutually exclusive is executed.
+             */
+            dest = gen_op_deposit_reg_v(s, ot, decode->op[0].n, newv, newv);
+            tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, newv, dest);
+        }
+        decode->op[0].unit = X86_OP_SKIP;
+    }
+
+    /* Write RAX only if the cmpxchg fails.  */
+    dest = gen_op_deposit_reg_v(s, ot, R_EAX, s->T0, oldv);
+    tcg_gen_movcond_tl(TCG_COND_NE, dest, oldv, cmpv, s->T0, dest);
+
+    tcg_gen_mov_tl(s->cc_srcT, cmpv);
+    tcg_gen_sub_tl(cmpv, cmpv, oldv);
+    decode->cc_dst = cmpv;
+    decode->cc_src = oldv;
+    decode->cc_op = CC_OP_SUBB + ot;
+}
+
 static void gen_CPUID(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_update_cc_op(s);

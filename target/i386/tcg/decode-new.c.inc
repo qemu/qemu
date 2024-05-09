@@ -1165,6 +1165,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xa4] = X86_OP_ENTRY4(SHLD,  E,v, 2op,v, G,v),
     [0xa5] = X86_OP_ENTRY3(SHLD,  E,v, 2op,v, G,v),
 
+    [0xb0] = X86_OP_ENTRY2(CMPXCHG,E,b, G,b, lock),
+    [0xb1] = X86_OP_ENTRY2(CMPXCHG,E,v, G,v, lock),
     [0xb2] = X86_OP_ENTRY3(LSS,    G,v, EM,p, None, None),
     [0xb4] = X86_OP_ENTRY3(LFS,    G,v, EM,p, None, None),
     [0xb5] = X86_OP_ENTRY3(LGS,    G,v, EM,p, None, None),
@@ -2597,7 +2599,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             case 0x1a ... 0x1b: /* MPX */
             case 0xa3:          /* bt */
             case 0xab:          /* bts */
-            case 0xb0 ... 0xb1: /* cmpxchg */
             case 0xb3:          /* btr */
             case 0xba ... 0xbb: /* grp8, btc */
             case 0xc7:          /* grp9 */

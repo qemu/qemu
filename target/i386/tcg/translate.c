@@ -434,13 +434,6 @@ static inline MemOp mo_stacksize(DisasContext *s)
     return CODE64(s) ? MO_64 : SS32(s) ? MO_32 : MO_16;
 }
 
-/* Select size 8 if lsb of B is clear, else OT.  Used for decoding
-   byte vs word opcodes.  */
-static inline MemOp mo_b_d(int b, MemOp ot)
-{
-    return b & 1 ? ot : MO_8;
-}
-
 /* Compute the result of writing t0 to the OT-sized register REG.
  *
  * If DEST is NULL, store the result into the register and return the
@@ -713,11 +706,6 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
     }
     tcg_gen_ext_tl(dst, src, size | (sign ? MO_SIGN : 0));
     return dst;
-}
-
-static void gen_extu(MemOp ot, TCGv reg)
-{
-    gen_ext_tl(reg, reg, ot, false);
 }
 
 static void gen_exts(MemOp ot, TCGv reg)
@@ -3003,73 +2991,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
 
     /* now check op code */
     switch (b) {
-        /**************************/
-        /* arith & logic */
-    case 0x1b0:
-    case 0x1b1: /* cmpxchg Ev, Gv */
-        {
-            TCGv oldv, newv, cmpv, dest;
-
-            ot = mo_b_d(b, dflag);
-            modrm = x86_ldub_code(env, s);
-            reg = ((modrm >> 3) & 7) | REX_R(s);
-            mod = (modrm >> 6) & 3;
-            oldv = tcg_temp_new();
-            newv = tcg_temp_new();
-            cmpv = tcg_temp_new();
-            gen_op_mov_v_reg(s, ot, newv, reg);
-            tcg_gen_mov_tl(cmpv, cpu_regs[R_EAX]);
-            gen_extu(ot, cmpv);
-            if (s->prefix & PREFIX_LOCK) {
-                if (mod == 3) {
-                    goto illegal_op;
-                }
-                gen_lea_modrm(env, s, modrm);
-                tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
-                                          s->mem_index, ot | MO_LE);
-            } else {
-                if (mod == 3) {
-                    rm = (modrm & 7) | REX_B(s);
-                    gen_op_mov_v_reg(s, ot, oldv, rm);
-                    gen_extu(ot, oldv);
-
-                    /*
-                     * Unlike the memory case, where "the destination operand receives
-                     * a write cycle without regard to the result of the comparison",
-                     * rm must not be touched altogether if the write fails, including
-                     * not zero-extending it on 64-bit processors.  So, precompute
-                     * the result of a successful writeback and perform the movcond
-                     * directly on cpu_regs.  Also need to write accumulator first, in
-                     * case rm is part of RAX too.
-                     */
-                    dest = gen_op_deposit_reg_v(s, ot, rm, newv, newv);
-                    tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, newv, dest);
-                } else {
-                    gen_lea_modrm(env, s, modrm);
-                    gen_op_ld_v(s, ot, oldv, s->A0);
-
-                    /*
-                     * Perform an unconditional store cycle like physical cpu;
-                     * must be before changing accumulator to ensure
-                     * idempotency if the store faults and the instruction
-                     * is restarted
-                     */
-                    tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
-                    gen_op_st_v(s, ot, newv, s->A0);
-                }
-            }
-	    /*
-	     * Write EAX only if the cmpxchg fails; reuse newv as the destination,
-	     * since it's dead here.
-	     */
-            dest = gen_op_deposit_reg_v(s, ot, R_EAX, newv, oldv);
-            tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, dest, newv);
-            tcg_gen_mov_tl(cpu_cc_src, oldv);
-            tcg_gen_mov_tl(s->cc_srcT, cmpv);
-            tcg_gen_sub_tl(cpu_cc_dst, cmpv, oldv);
-            set_cc_op(s, CC_OP_SUBB + ot);
-        }
-        break;
     case 0x1c7: /* cmpxchg8b */
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
