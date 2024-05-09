@@ -823,11 +823,6 @@ static void gen_movs(DisasContext *s, MemOp ot)
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_op_update1_cc(DisasContext *s)
-{
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-}
-
 static void gen_op_update2_cc(DisasContext *s)
 {
     tcg_gen_mov_tl(cpu_cc_src, s->T1);
@@ -3311,56 +3306,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             break;
         }
         break;
-    case 0x1bc: /* bsf / tzcnt */
-    case 0x1bd: /* bsr / lzcnt */
-        ot = dflag;
-        modrm = x86_ldub_code(env, s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-        gen_ld_modrm(env, s, modrm, ot);
-        gen_extu(ot, s->T0);
-
-        /* Note that lzcnt and tzcnt are in different extensions.  */
-        if ((prefixes & PREFIX_REPZ)
-            && (b & 1
-                ? s->cpuid_ext3_features & CPUID_EXT3_ABM
-                : s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
-            int size = 8 << ot;
-            /* For lzcnt/tzcnt, C bit is defined related to the input. */
-            tcg_gen_mov_tl(cpu_cc_src, s->T0);
-            if (b & 1) {
-                /* For lzcnt, reduce the target_ulong result by the
-                   number of zeros that we expect to find at the top.  */
-                tcg_gen_clzi_tl(s->T0, s->T0, TARGET_LONG_BITS);
-                tcg_gen_subi_tl(s->T0, s->T0, TARGET_LONG_BITS - size);
-            } else {
-                /* For tzcnt, a zero input must return the operand size.  */
-                tcg_gen_ctzi_tl(s->T0, s->T0, size);
-            }
-            /* For lzcnt/tzcnt, Z bit is defined related to the result.  */
-            gen_op_update1_cc(s);
-            set_cc_op(s, CC_OP_BMILGB + ot);
-        } else {
-            /* For bsr/bsf, only the Z bit is defined and it is related
-               to the input and not the result.  */
-            tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-            set_cc_op(s, CC_OP_LOGICB + ot);
-
-            /* ??? The manual says that the output is undefined when the
-               input is zero, but real hardware leaves it unchanged, and
-               real programs appear to depend on that.  Accomplish this
-               by passing the output as the value to return upon zero.  */
-            if (b & 1) {
-                /* For bsr, return the bit index of the first 1 bit,
-                   not the count of leading zeros.  */
-                tcg_gen_xori_tl(s->T1, cpu_regs[reg], TARGET_LONG_BITS - 1);
-                tcg_gen_clz_tl(s->T0, s->T0, s->T1);
-                tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
-            } else {
-                tcg_gen_ctz_tl(s->T0, s->T0, cpu_regs[reg]);
-            }
-        }
-        gen_op_mov_reg_v(s, ot, reg, s->T0);
-        break;
     case 0x100:
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
@@ -3954,25 +3899,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
         }
         gen_nop_modrm(env, s, modrm);
-        break;
-    case 0x1b8: /* SSE4.2 popcnt */
-        if ((prefixes & (PREFIX_REPZ | PREFIX_LOCK | PREFIX_REPNZ)) !=
-             PREFIX_REPZ)
-            goto illegal_op;
-        if (!(s->cpuid_ext_features & CPUID_EXT_POPCNT))
-            goto illegal_op;
-
-        modrm = x86_ldub_code(env, s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-
-        ot = dflag;
-        gen_ld_modrm(env, s, modrm, ot);
-        gen_extu(ot, s->T0);
-        tcg_gen_mov_tl(cpu_cc_src, s->T0);
-        tcg_gen_ctpop_tl(s->T0, s->T0);
-        gen_op_mov_reg_v(s, ot, reg, s->T0);
-
-        set_cc_op(s, CC_OP_POPCNT);
         break;
     default:
         g_assert_not_reached();

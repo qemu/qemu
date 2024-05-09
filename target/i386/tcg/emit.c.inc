@@ -1333,6 +1333,47 @@ static void gen_BOUND(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
+static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+
+    /* Only the Z bit is defined and it is related to the input.  */
+    decode->cc_dst = tcg_temp_new();
+    decode->cc_op = CC_OP_LOGICB + ot;
+    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+
+    /*
+     * The manual says that the output is undefined when the
+     * input is zero, but real hardware leaves it unchanged, and
+     * real programs appear to depend on that.  Accomplish this
+     * by passing the output as the value to return upon zero.
+     */
+    tcg_gen_ctz_tl(s->T0, s->T0, s->T1);
+}
+
+/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
+static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+
+    /* Only the Z bit is defined and it is related to the input.  */
+    decode->cc_dst = tcg_temp_new();
+    decode->cc_op = CC_OP_LOGICB + ot;
+    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+
+    /*
+     * The manual says that the output is undefined when the
+     * input is zero, but real hardware leaves it unchanged, and
+     * real programs appear to depend on that.  Accomplish this
+     * by passing the output as the value to return upon zero.
+     * Plus, return the bit index of the first 1 bit.
+     */
+    tcg_gen_xori_tl(s->T1, s->T1, TARGET_LONG_BITS - 1);
+    tcg_gen_clz_tl(s->T0, s->T0, s->T1);
+    tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
+}
+
 static void gen_BSWAP(DisasContext *s, X86DecodedInsn *decode)
 {
 #ifdef TARGET_X86_64
@@ -2134,6 +2175,24 @@ static void gen_LSS(DisasContext *s, X86DecodedInsn *decode)
     gen_lxx_seg(s, decode, R_SS);
 }
 
+static void gen_LZCNT(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+
+    /* C bit (cc_src) is defined related to the input.  */
+    decode->cc_src = tcg_temp_new();
+    decode->cc_dst = s->T0;
+    decode->cc_op = CC_OP_BMILGB + ot;
+    tcg_gen_mov_tl(decode->cc_src, s->T0);
+
+    /*
+     * Reduce the target_ulong result by the number of zeros that
+     * we expect to find at the top.
+     */
+    tcg_gen_clzi_tl(s->T0, s->T0, TARGET_LONG_BITS);
+    tcg_gen_subi_tl(s->T0, s->T0, TARGET_LONG_BITS - (8 << ot));
+}
+
 static void gen_MFENCE(DisasContext *s, X86DecodedInsn *decode)
 {
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
@@ -2690,6 +2749,15 @@ static void gen_POP(DisasContext *s, X86DecodedInsn *decode)
 static void gen_POPA(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_popa(s);
+}
+
+static void gen_POPCNT(DisasContext *s, X86DecodedInsn *decode)
+{
+    decode->cc_src = tcg_temp_new();
+    decode->cc_op = CC_OP_POPCNT;
+
+    tcg_gen_mov_tl(decode->cc_src, s->T0);
+    tcg_gen_ctpop_tl(s->T0, s->T0);
 }
 
 static void gen_POPF(DisasContext *s, X86DecodedInsn *decode)
@@ -3771,6 +3839,20 @@ static void gen_SYSRET(DisasContext *s, X86DecodedInsn *decode)
      * completed.
      */
     s->base.is_jmp = DISAS_EOB_RECHECK_TF;
+}
+
+static void gen_TZCNT(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+
+    /* C bit (cc_src) is defined related to the input.  */
+    decode->cc_src = tcg_temp_new();
+    decode->cc_dst = s->T0;
+    decode->cc_op = CC_OP_BMILGB + ot;
+    tcg_gen_mov_tl(decode->cc_src, s->T0);
+
+    /* A zero input returns the operand size.  */
+    tcg_gen_ctzi_tl(s->T0, s->T0, 8 << ot);
 }
 
 static void gen_UD(DisasContext *s, X86DecodedInsn *decode)

@@ -450,6 +450,50 @@ static void decode_0F7F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     *entry = *decode_by_prefix(s, opcodes_0F7F);
 }
 
+static void decode_0FB8(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry popcnt =
+        X86_OP_ENTRYwr(POPCNT,    G,v, E,v,  cpuid(POPCNT) zextT0);
+
+    if (s->prefix & PREFIX_REPZ) {
+        *entry = popcnt;
+    } else {
+        memset(entry, 0, sizeof(*entry));
+    }
+}
+
+static void decode_0FBC(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    /* For BSF, pass 2op as the third operand so that we can use zextT0 */
+    static const X86OpEntry opcodes_0FBC[4] = {
+        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0),
+        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0), /* 0x66 */
+        X86_OP_ENTRYwr(TZCNT, G,v, E,v,        zextT0), /* 0xf3 */
+        X86_OP_ENTRY3(BSF,    G,v, E,v, 2op,v, zextT0), /* 0xf2 */
+    };
+    if (!(s->cpuid_ext3_features & CPUID_EXT3_ABM)) {
+        *entry = opcodes_0FBC[0];
+    } else {
+        *entry = *decode_by_prefix(s, opcodes_0FBC);
+    }
+}
+
+static void decode_0FBD(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    /* For BSR, pass 2op as the third operand so that we can use zextT0 */
+    static const X86OpEntry opcodes_0FBD[4] = {
+        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0),
+        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0), /* 0x66 */
+        X86_OP_ENTRYwr(LZCNT, G,v, E,v,        zextT0), /* 0xf3 */
+        X86_OP_ENTRY3(BSR,    G,v, E,v, 2op,v, zextT0), /* 0xf2 */
+    };
+    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1)) {
+        *entry = opcodes_0FBD[0];
+    } else {
+        *entry = *decode_by_prefix(s, opcodes_0FBD);
+    }
+}
+
 static void decode_0FD6(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
     static const X86OpEntry movq[4] = {
@@ -1255,8 +1299,11 @@ static const X86OpEntry opcodes_0F[256] = {
      */
     [0xaf] = X86_OP_ENTRY3(IMUL3,  G,v, E,v, 2op,v, sextT0),
 
+    [0xb8] = X86_OP_GROUP0(0FB8),
     /* decoded as modrm, which is visible as a difference between page fault and #UD */
     [0xb9] = X86_OP_ENTRYr(UD,     nop,v),                        /* UD1 */
+    [0xbc] = X86_OP_GROUP0(0FBC),
+    [0xbd] = X86_OP_GROUP0(0FBD),
     [0xbe] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, sextT0), /* MOVSX */
     [0xbf] = X86_OP_ENTRY3(MOV,    G,v, E,w, None, None, sextT0), /* MOVSX */
 
@@ -2158,6 +2205,8 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
         return (s->cpuid_ext_features & CPUID_EXT_MOVBE);
     case X86_FEAT_PCLMULQDQ:
         return (s->cpuid_ext_features & CPUID_EXT_PCLMULQDQ);
+    case X86_FEAT_POPCNT:
+        return (s->cpuid_ext_features & CPUID_EXT_POPCNT);
     case X86_FEAT_SSE:
         return (s->cpuid_features & CPUID_SSE);
     case X86_FEAT_SSE2:
@@ -2548,8 +2597,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             case 0xab:          /* bts */
             case 0xb0 ... 0xb1: /* cmpxchg */
             case 0xb3:          /* btr */
-            case 0xb8:          /* integer ops */
-            case 0xba ... 0xbd: /* integer ops */
+            case 0xba ... 0xbb: /* grp8, btc */
             case 0xc0 ... 0xc1: /* xadd */
             case 0xc7:          /* grp9 */
                 disas_insn_old(s, cpu, b + 0x100);
