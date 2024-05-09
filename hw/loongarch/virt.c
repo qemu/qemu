@@ -1182,15 +1182,14 @@ static CpuInstanceProperties virt_cpu_index_to_props(MachineState *ms,
 
 static int64_t virt_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    int64_t nidx = 0;
+    int64_t socket_id;
 
     if (ms->numa_state->num_nodes) {
-        nidx = idx / (ms->smp.cpus / ms->numa_state->num_nodes);
-        if (ms->numa_state->num_nodes <= nidx) {
-            nidx = ms->numa_state->num_nodes - 1;
-        }
+        socket_id = ms->possible_cpus->cpus[idx].props.socket_id;
+        return socket_id % ms->numa_state->num_nodes;
+    } else {
+        return 0;
     }
-    return nidx;
 }
 
 static void virt_class_init(ObjectClass *oc, void *data)
