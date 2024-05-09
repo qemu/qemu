@@ -193,7 +193,7 @@
     X86_OP_ENTRY3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
 #define cpuid(feat) .cpuid = X86_FEAT_##feat,
-#define noseg .special = X86_SPECIAL_NoSeg,
+#define nolea .special = X86_SPECIAL_NoLoadEA,
 #define xchg .special = X86_SPECIAL_Locked,
 #define lock .special = X86_SPECIAL_HasLock,
 #define mmx .special = X86_SPECIAL_MMX,
@@ -1592,7 +1592,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0x8B] = X86_OP_ENTRYwr(MOV, G,v, E,v),
      /* Missing in Table A-2: memory destination is always 16-bit.  */
     [0x8C] = X86_OP_ENTRYwr(MOV, E,v, S,w, op0_Mw),
-    [0x8D] = X86_OP_ENTRYwr(LEA, G,v, M,v, noseg),
+    [0x8D] = X86_OP_ENTRYwr(LEA, G,v, M,v, nolea),
     [0x8E] = X86_OP_ENTRYwr(MOV, S,w, E,w),
     [0x8F] = X86_OP_GROUPw(group1A, E,v),
 
@@ -2524,11 +2524,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         assert(decode.op[1].unit == X86_OP_INT);
         break;
 
-    case X86_SPECIAL_NoSeg:
-        decode.mem.def_seg = -1;
-        s->override = -1;
-        break;
-
     case X86_SPECIAL_Op0_Mw:
         assert(decode.op[0].unit == X86_OP_INT);
         if (decode.op[0].has_ea) {
@@ -2585,7 +2580,8 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         gen_helper_enter_mmx(tcg_env);
     }
 
-    if (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea) {
+    if (decode.e.special != X86_SPECIAL_NoLoadEA &&
+        (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea)) {
         gen_load_ea(s, &decode.mem, decode.e.vex_class == 12);
     }
     if (s->prefix & PREFIX_LOCK) {

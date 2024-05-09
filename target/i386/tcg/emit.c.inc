@@ -1970,7 +1970,8 @@ static void gen_LDS(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_LEA(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_mov_tl(s->T0, s->A0);
+    TCGv ea = gen_lea_modrm_1(s, decode->mem, false);
+    gen_lea_v_seg_dest(s, s->aflag, s->T0, ea, -1, -1);
 }
 
 static void gen_LEAVE(DisasContext *s, X86DecodedInsn *decode)

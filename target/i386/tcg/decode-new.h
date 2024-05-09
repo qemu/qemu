@@ -170,8 +170,9 @@ typedef enum X86InsnSpecial {
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
 
-    /* Do not apply segment base to effective address */
-    X86_SPECIAL_NoSeg,
+    /* Do not load effective address in s->A0 */
+    X86_SPECIAL_NoLoadEA,
+
     /*
      * Rd/Mb or Rd/Mw in the manual: register operand 0 is treated as 32 bits
      * (and writeback zero-extends it to 64 bits if applicable).  PREFIX_DATA
