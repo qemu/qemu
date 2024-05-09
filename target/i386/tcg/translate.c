@@ -3700,15 +3700,9 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     case 2:
         /* Restore state that may affect the next instruction. */
         dc->pc = dc->base.pc_next;
-        /*
-         * TODO: These save/restore can be removed after the table-based
-         * decoder is complete; we will be decoding the insn completely
-         * before any code generation that might affect these variables.
-         */
-        dc->cc_op_dirty = orig_cc_op_dirty;
-        dc->cc_op = orig_cc_op;
-        dc->pc_save = orig_pc_save;
-        /* END TODO */
+        assert(dc->cc_op_dirty == orig_cc_op_dirty);
+        assert(dc->cc_op == orig_cc_op);
+        assert(dc->pc_save == orig_pc_save);
         dc->base.num_insns--;
         tcg_remove_ops_after(dc->prev_insn_end);
         dc->base.insn_start = dc->prev_insn_start;
