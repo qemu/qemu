@@ -296,16 +296,6 @@ Device options
 Emulated device options
 '''''''''''''''''''''''
 
-``-device virtio-blk,scsi=on|off`` (since 5.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
-and later do not support it because the virtio-scsi device was introduced for
-full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
-
-Note this also applies to ``-device virtio-blk-pci,scsi=on|off``, which is an
-alias.
-
 ``-device nvme-ns,eui64-default=on|off`` (since 7.1)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
