@@ -170,7 +170,7 @@ int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
  */
 static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
                                                  int dev,
-                                                 struct XenDevOps *ops)
+                                                 const struct XenDevOps *ops)
 {
     struct XenLegacyDevice *xendev;
 

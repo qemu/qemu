@@ -52,7 +52,7 @@ struct XenLegacyDevice {
     xenevtchn_handle   *evtchndev;
     xengnttab_handle   *gnttabdev;
 
-    struct XenDevOps   *ops;
+    const struct XenDevOps *ops;
     QTAILQ_ENTRY(XenLegacyDevice) next;
 };
 
