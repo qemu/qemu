@@ -535,15 +535,6 @@ static inline void gen_op_st_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     tcg_gen_qemu_st_tl(t0, a0, s->mem_index, idx | MO_LE);
 }
 
-static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
-{
-    if (d == OR_TMP0) {
-        gen_op_st_v(s, idx, s->T0, s->A0);
-    } else {
-        gen_op_mov_reg_v(s, idx, d, s->T0);
-    }
-}
-
 static void gen_update_eip_next(DisasContext *s)
 {
     assert(s->pc_save != -1);
@@ -1486,18 +1477,11 @@ static void gen_shift_flags(DisasContext *s, MemOp ot, TCGv result,
 }
 
 /* XXX: add faster immediate case */
-static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot, int op1,
+static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
                              bool is_right, TCGv count_in)
 {
     target_ulong mask = (ot == MO_64 ? 63 : 31);
     TCGv count;
-
-    /* load */
-    if (op1 == OR_TMP0) {
-        gen_op_ld_v(s, ot, s->T0, s->A0);
-    } else {
-        gen_op_mov_v_reg(s, ot, s->T0, op1);
-    }
 
     count = tcg_temp_new();
     tcg_gen_andi_tl(count, count_in, mask);
@@ -1563,10 +1547,7 @@ static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot, int op1,
         break;
     }
 
-    /* store */
-    gen_op_st_rm_T0_A0(s, ot, op1);
-
-    gen_shift_flags(s, ot, s->T0, s->tmp0, count, is_right);
+    return count;
 }
 
 #define X86_MAX_INSN_LENGTH 15
@@ -3076,9 +3057,9 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
     CPUX86State *env = cpu_env(cpu);
     int prefixes = s->prefix;
     MemOp dflag = s->dflag;
-    int shift;
+    TCGv shift;
     MemOp ot;
-    int modrm, reg, rm, mod, op, opreg, val;
+    int modrm, reg, rm, mod, op, val;
 
     /* now check op code */
     switch (b) {
@@ -3244,39 +3225,31 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         /* shifts */
     case 0x1a4: /* shld imm */
         op = 0;
-        shift = 1;
+        shift = NULL;
         goto do_shiftd;
     case 0x1a5: /* shld cl */
         op = 0;
-        shift = 0;
+        shift = cpu_regs[R_ECX];
         goto do_shiftd;
     case 0x1ac: /* shrd imm */
         op = 1;
-        shift = 1;
+        shift = NULL;
         goto do_shiftd;
     case 0x1ad: /* shrd cl */
         op = 1;
-        shift = 0;
+        shift = cpu_regs[R_ECX];
     do_shiftd:
         ot = dflag;
         modrm = x86_ldub_code(env, s);
-        mod = (modrm >> 6) & 3;
-        rm = (modrm & 7) | REX_B(s);
         reg = ((modrm >> 3) & 7) | REX_R(s);
-        if (mod != 3) {
-            gen_lea_modrm(env, s, modrm);
-            opreg = OR_TMP0;
-        } else {
-            opreg = rm;
+        gen_ld_modrm(env, s, modrm, ot);
+        if (!shift) {
+            shift = tcg_constant_tl(x86_ldub_code(env, s));
         }
         gen_op_mov_v_reg(s, ot, s->T1, reg);
-
-        if (shift) {
-            TCGv imm = tcg_constant_tl(x86_ldub_code(env, s));
-            gen_shiftd_rm_T1(s, ot, opreg, op, imm);
-        } else {
-            gen_shiftd_rm_T1(s, ot, opreg, op, cpu_regs[R_ECX]);
-        }
+        shift = gen_shiftd_rm_T1(s, ot, op, shift);
+        gen_st_modrm(env, s, modrm, ot);
+        gen_shift_flags(s, ot, s->T0, s->tmp0, shift, op);
         break;
 
         /************************/
