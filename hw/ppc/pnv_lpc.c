@@ -64,6 +64,7 @@ enum {
 #define   LPC_HC_IRQSER_START_4CLK      0x00000000
 #define   LPC_HC_IRQSER_START_6CLK      0x01000000
 #define   LPC_HC_IRQSER_START_8CLK      0x02000000
+#define   LPC_HC_IRQSER_AUTO_CLEAR      0x00800000
 #define LPC_HC_IRQMASK          0x34    /* same bit defs as LPC_HC_IRQSTAT */
 #define LPC_HC_IRQSTAT          0x38
 #define   LPC_HC_IRQ_SERIRQ0            0x80000000 /* all bits down to ... */
@@ -420,32 +421,90 @@ static const MemoryRegionOps pnv_lpc_mmio_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+/* Program the POWER9 LPC irq to PSI serirq routing table */
+static void pnv_lpc_eval_serirq_routes(PnvLpcController *lpc)
+{
+    int irq;
+
+    if (!lpc->psi_has_serirq) {
+        if ((lpc->opb_irq_route0 & PPC_BITMASK(8, 13)) ||
+            (lpc->opb_irq_route1 & PPC_BITMASK(4, 31))) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "OPB: setting serirq routing on POWER8 system, ignoring.\n");
+        }
+        return;
+    }
+
+    for (irq = 0; irq <= 13; irq++) {
+        int serirq = (lpc->opb_irq_route1 >> (31 - 5 - (irq * 2))) & 0x3;
+        lpc->irq_to_serirq_route[irq] = serirq;
+    }
+
+    for (irq = 14; irq < ISA_NUM_IRQS; irq++) {
+        int serirq = (lpc->opb_irq_route0 >> (31 - 9 - (irq * 2))) & 0x3;
+        lpc->irq_to_serirq_route[irq] = serirq;
+    }
+}
+
 static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
 {
-    bool lpc_to_opb_irq = false;
+    uint32_t active_irqs = 0;
 
-    /* Update LPC controller to OPB line */
+    if (lpc->lpc_hc_irqstat & PPC_BITMASK32(16, 31)) {
+        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented irqs in IRQSTAT: "
+                                 "0x%08"PRIx32"\n", lpc->lpc_hc_irqstat);
+    }
+
     if (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN) {
-        uint32_t irqs;
-
-        irqs = lpc->lpc_hc_irqstat & lpc->lpc_hc_irqmask;
-        lpc_to_opb_irq = (irqs != 0);
+        active_irqs = lpc->lpc_hc_irqstat & lpc->lpc_hc_irqmask;
     }
-
-    /* We don't honor the polarity register, it's pointless and unused
-     * anyway
-     */
-    if (lpc_to_opb_irq) {
-        lpc->opb_irq_input |= OPB_MASTER_IRQ_LPC;
-    } else {
-        lpc->opb_irq_input &= ~OPB_MASTER_IRQ_LPC;
-    }
-
-    /* Update OPB internal latch */
-    lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
 
     /* Reflect the interrupt */
-    qemu_set_irq(lpc->psi_irq, lpc->opb_irq_stat != 0);
+    if (!lpc->psi_has_serirq) {
+        /*
+         * POWER8 ORs all irqs together (also with LPCHC internal interrupt
+         * sources) and outputs a single line that raises the PSI LPCHC irq
+         * which then latches an OPB IRQ status register that sends the irq
+         * to PSI.
+         *
+         * We don't honor the polarity register, it's pointless and unused
+         * anyway
+         */
+        if (active_irqs) {
+            lpc->opb_irq_input |= OPB_MASTER_IRQ_LPC;
+        } else {
+            lpc->opb_irq_input &= ~OPB_MASTER_IRQ_LPC;
+        }
+
+        /* Update OPB internal latch */
+        lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
+
+        qemu_set_irq(lpc->psi_irq_lpchc, lpc->opb_irq_stat != 0);
+    } else {
+        /*
+         * POWER9 and POWER10 have routing fields in OPB master registers that
+         * send LPC irqs to 4 output lines that raise the PSI SERIRQ irqs.
+         * These don't appear to get latched into an OPB register like the
+         * LPCHC irqs.
+         *
+         * POWER9 LPC controller internal irqs still go via the OPB
+         * and LPCHC PSI irqs like P8, but we have no such internal sources
+         * modelled yet.
+         */
+        bool serirq_out[4] = { false, false, false, false };
+        int irq;
+
+        for (irq = 0; irq < ISA_NUM_IRQS; irq++) {
+            if (active_irqs & (LPC_HC_IRQ_SERIRQ0 >> irq)) {
+                serirq_out[lpc->irq_to_serirq_route[irq]] = true;
+            }
+        }
+
+        qemu_set_irq(lpc->psi_irq_serirq[0], serirq_out[0]);
+        qemu_set_irq(lpc->psi_irq_serirq[1], serirq_out[1]);
+        qemu_set_irq(lpc->psi_irq_serirq[2], serirq_out[2]);
+        qemu_set_irq(lpc->psi_irq_serirq[3], serirq_out[3]);
+    }
 }
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
@@ -543,10 +602,10 @@ static uint64_t opb_master_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val = 0xfffffffffffffffful;
 
     switch (addr) {
-    case OPB_MASTER_LS_ROUTE0: /* TODO */
+    case OPB_MASTER_LS_ROUTE0:
         val = lpc->opb_irq_route0;
         break;
-    case OPB_MASTER_LS_ROUTE1: /* TODO */
+    case OPB_MASTER_LS_ROUTE1:
         val = lpc->opb_irq_route1;
         break;
     case OPB_MASTER_LS_IRQ_STAT:
@@ -575,11 +634,15 @@ static void opb_master_write(void *opaque, hwaddr addr,
     PnvLpcController *lpc = opaque;
 
     switch (addr) {
-    case OPB_MASTER_LS_ROUTE0: /* TODO */
+    case OPB_MASTER_LS_ROUTE0:
         lpc->opb_irq_route0 = val;
+        pnv_lpc_eval_serirq_routes(lpc);
+        pnv_lpc_eval_irqs(lpc);
         break;
-    case OPB_MASTER_LS_ROUTE1: /* TODO */
+    case OPB_MASTER_LS_ROUTE1:
         lpc->opb_irq_route1 = val;
+        pnv_lpc_eval_serirq_routes(lpc);
+        pnv_lpc_eval_irqs(lpc);
         break;
     case OPB_MASTER_LS_IRQ_STAT:
         lpc->opb_irq_stat &= ~val;
@@ -664,6 +727,8 @@ static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
     PnvLpcClass *plc = PNV_LPC_GET_CLASS(dev);
     Error *local_err = NULL;
 
+    object_property_set_bool(OBJECT(lpc), "psi-serirq", true, &error_abort);
+
     plc->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -673,6 +738,9 @@ static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
     /* P9 uses a MMIO region */
     memory_region_init_io(&lpc->xscom_regs, OBJECT(lpc), &pnv_lpc_mmio_ops,
                           lpc, "lpcm", PNV9_LPCM_SIZE);
+
+    /* P9 LPC routes ISA irqs to 4 PSI SERIRQ lines */
+    qdev_init_gpio_out_named(dev, lpc->psi_irq_serirq, "SERIRQ", 4);
 }
 
 static void pnv_lpc_power9_class_init(ObjectClass *klass, void *data)
@@ -751,13 +819,19 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&lpc->opb_mr, LPC_HC_REGS_OPB_ADDR,
                                 &lpc->lpc_hc_regs);
 
-    qdev_init_gpio_out(dev, &lpc->psi_irq, 1);
+    qdev_init_gpio_out_named(dev, &lpc->psi_irq_lpchc, "LPCHC", 1);
 }
+
+static Property pnv_lpc_properties[] = {
+    DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, pnv_lpc_properties);
     dc->realize = pnv_lpc_realize;
     dc->desc = "PowerNV LPC Controller";
     dc->user_creatable = false;
@@ -803,7 +877,7 @@ static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
     }
 
     if (pnv->cpld_irqstate != old_state) {
-        qemu_set_irq(lpc->psi_irq, pnv->cpld_irqstate != 0);
+        qemu_set_irq(lpc->psi_irq_lpchc, pnv->cpld_irqstate != 0);
     }
 }
 
@@ -824,6 +898,13 @@ static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
         pnv_lpc_eval_irqs(lpc);
     } else {
         lpc->lpc_hc_irq_inputs &= ~irq_bit;
+
+        /* POWER9 adds an auto-clear mode that clears IRQSTAT bits on EOI */
+        if (lpc->psi_has_serirq &&
+            (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_AUTO_CLEAR)) {
+            lpc->lpc_hc_irqstat &= ~irq_bit;
+            pnv_lpc_eval_irqs(lpc);
+        }
     }
 }
 
@@ -854,6 +935,7 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
         handler = pnv_lpc_isa_irq_handler;
     }
 
+    /* POWER has a 17th irq, QEMU only implements the 16 regular device irqs */
     irqs = qemu_allocate_irqs(handler, lpc, ISA_NUM_IRQS);
 
     isa_bus_register_input_irqs(isa_bus, irqs);
