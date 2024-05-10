@@ -67,7 +67,7 @@ static inline void xen_be_unmap_grant_ref(struct XenLegacyDevice *xendev,
 }
 
 /* backend drivers not included in all machines */
-extern struct XenDevOps xen_framebuffer_ops;  /* xenfb.c */
+extern const struct XenDevOps xen_framebuffer_ops;  /* xenfb.c */
 
 /* configuration (aka xenbus setup) */
 void xen_config_cleanup(void);

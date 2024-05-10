@@ -972,7 +972,7 @@ static void fb_event(struct XenLegacyDevice *xendev)
 
 /* -------------------------------------------------------------------- */
 
-static struct XenDevOps xen_kbdmouse_ops = {
+static const struct XenDevOps xen_kbdmouse_ops = {
     .size       = sizeof(struct XenInput),
     .init       = input_init,
     .initialise = input_initialise,
@@ -981,7 +981,7 @@ static struct XenDevOps xen_kbdmouse_ops = {
     .event      = input_event,
 };
 
-struct XenDevOps xen_framebuffer_ops = {
+const struct XenDevOps xen_framebuffer_ops = {
     .size       = sizeof(struct XenFB),
     .init       = fb_init,
     .initialise = fb_initialise,
