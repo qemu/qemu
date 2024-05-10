@@ -520,7 +520,7 @@ void xen_be_check_state(struct XenLegacyDevice *xendev)
 struct xenstore_be {
     const char *type;
     int dom;
-    struct XenDevOps *ops;
+    const struct XenDevOps *ops;
 };
 
 static void xenstore_update_be(void *opaque, const char *watch)
@@ -557,7 +557,7 @@ static void xenstore_update_be(void *opaque, const char *watch)
     }
 }
 
-static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
+static int xenstore_scan(const char *type, int dom, const struct XenDevOps *ops)
 {
     struct XenLegacyDevice *xendev;
     char path[XEN_BUFSIZE];
@@ -624,7 +624,7 @@ void xen_be_init(void)
     xen_set_dynamic_sysbus();
 }
 
-int xen_be_register(const char *type, struct XenDevOps *ops)
+int xen_be_register(const char *type, const struct XenDevOps *ops)
 {
     char path[50];
 
