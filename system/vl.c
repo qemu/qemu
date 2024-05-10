@@ -773,6 +773,10 @@ static QemuOptsList qemu_run_with_opts = {
             .name = "chroot",
             .type = QEMU_OPT_STRING,
         },
+        {
+            .name = "user",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -3587,6 +3591,7 @@ void qemu_init(int argc, char **argv)
                 break;
 #if defined(CONFIG_POSIX)
             case QEMU_OPTION_runas:
+                warn_report("-runas is deprecated, use '-run-with user=...' instead");
                 if (!os_set_runas(optarg)) {
                     error_report("User \"%s\" doesn't exist"
                                  " (and is not <uid>:<gid>)",
@@ -3613,6 +3618,16 @@ void qemu_init(int argc, char **argv)
                 if (str) {
                     os_set_chroot(str);
                 }
+                str = qemu_opt_get(opts, "user");
+                if (str) {
+                    if (!os_set_runas(str)) {
+                        error_report("User \"%s\" doesn't exist"
+                                     " (and is not <uid>:<gid>)",
+                                     optarg);
+                        exit(1);
+                    }
+                }
+
                 break;
             }
 #endif /* CONFIG_POSIX */

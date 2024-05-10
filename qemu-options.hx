@@ -4824,7 +4824,8 @@ DEF("runas", HAS_ARG, QEMU_OPTION_runas, \
 SRST
 ``-runas user``
     Immediately before starting guest execution, drop root privileges,
-    switching to the specified user.
+    switching to the specified user. This option is deprecated, use
+    ``-run-with user=...`` instead.
 ERST
 
 DEF("prom-env", HAS_ARG, QEMU_OPTION_prom_env,
@@ -4990,13 +4991,15 @@ DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log, "", QEMU_ARCH_ALL)
 
 #ifdef CONFIG_POSIX
 DEF("run-with", HAS_ARG, QEMU_OPTION_run_with,
-    "-run-with [async-teardown=on|off][,chroot=dir]\n"
+    "-run-with [async-teardown=on|off][,chroot=dir][user=username|uid:gid]\n"
     "                Set miscellaneous QEMU process lifecycle options:\n"
     "                async-teardown=on enables asynchronous teardown (Linux only)\n"
-    "                chroot=dir chroot to dir just before starting the VM\n",
+    "                chroot=dir chroot to dir just before starting the VM\n"
+    "                user=username switch to the specified user before starting the VM\n"
+    "                user=uid:gid ditto, but use specified user-ID and group-ID instead\n",
     QEMU_ARCH_ALL)
 SRST
-``-run-with [async-teardown=on|off][,chroot=dir]``
+``-run-with [async-teardown=on|off][,chroot=dir][user=username|uid:gid]``
     Set QEMU process lifecycle options.
 
     ``async-teardown=on`` enables asynchronous teardown. A new process called
@@ -5013,6 +5016,10 @@ SRST
     ``chroot=dir`` can be used for doing a chroot to the specified directory
     immediately before starting the guest execution. This is especially useful
     in combination with -runas.
+
+    ``user=username`` or ``user=uid:gid`` can be used to drop root privileges
+    by switching to the specified user (via username) or user and group
+    (via uid:gid) immediately before starting guest execution.
 ERST
 #endif
 

@@ -20,11 +20,16 @@
 #
 # @props: a dictionary of QOM properties to be applied
 #
+# @deprecated-props: a list of properties that are flagged as deprecated
+#     by the CPU vendor.  These props are a subset of the full model's
+#     definition list of properties. (since 9.1)
+#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelInfo',
   'data': { 'name': 'str',
-            '*props': 'any' } }
+            '*props': 'any',
+            '*deprecated-props': ['str'] } }
 
 ##
 # @CpuModelExpansionType:

@@ -21,13 +21,14 @@
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/cpu-topology.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
-static inline SCLPDevice *get_sclp_device(void)
+static SCLPDevice *get_sclp_device(void)
 {
     static SCLPDevice *sclp;
 
     if (!sclp) {
-        sclp = SCLP(object_resolve_path_type("", TYPE_SCLP, NULL));
+        sclp = S390_CCW_MACHINE(qdev_get_machine())->sclp;
     }
     return sclp;
 }
@@ -378,16 +379,6 @@ void sclp_service_interrupt(uint32_t sccb)
 }
 
 /* qemu object creation and initialization functions */
-
-void s390_sclp_init(void)
-{
-    Object *new = object_new(TYPE_SCLP);
-
-    object_property_add_child(qdev_get_machine(), TYPE_SCLP, new);
-    object_unref(new);
-    qdev_realize(DEVICE(new), NULL, &error_fatal);
-}
-
 static void sclp_realize(DeviceState *dev, Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());

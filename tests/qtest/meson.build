@@ -139,6 +139,9 @@ qtests_hppa = ['boot-serial-test'] + \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
+qtests_loongarch64 = qtests_filter + \
+  ['boot-serial-test']
+
 qtests_m68k = ['boot-serial-test'] + \
   qtests_filter
 
