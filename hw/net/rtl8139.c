@@ -2738,7 +2738,11 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
             }
 
             break;
-
+        case RxConfig:
+            DPRINTF("RxConfig write(b) val=0x%02x\n", val);
+            rtl8139_RxConfig_write(s,
+                (rtl8139_RxConfig_read(s) & 0xFFFFFF00) | val);
+            break;
         default:
             DPRINTF("not implemented write(b) addr=0x%x val=0x%02x\n", addr,
                 val);
