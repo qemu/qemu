@@ -252,7 +252,7 @@ static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
     }
 
     *prot = key ? PAGE_READ | PAGE_WRITE : PAGE_READ;
-    if (*prot & prot_for_access_type(access_type)) {
+    if (check_prot_access_type(*prot, access_type)) {
         *raddr = eaddr;
         return true;
     }
@@ -403,7 +403,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     if (env->nb_BATs != 0) {
         raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, protp, mmu_idx);
         if (raddr != -1) {
-            if (prot_for_access_type(access_type) & ~*protp) {
+            if (!check_prot_access_type(*protp, access_type)) {
                 if (guest_visible) {
                     if (access_type == MMU_INST_FETCH) {
                         cs->exception_index = POWERPC_EXCP_ISI;
@@ -471,7 +471,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     prot = ppc_hash32_pte_prot(mmu_idx, sr, pte);
 
-    if (prot_for_access_type(access_type) & ~prot) {
+    if (!check_prot_access_type(prot, access_type)) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (guest_visible) {

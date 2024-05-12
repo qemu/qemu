@@ -7521,6 +7521,11 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &ppc_sysemu_ops;
     INTERRUPT_STATS_PROVIDER_CLASS(oc)->get_statistics = ppc_get_irq_stats;
+
+    /* check_prot_access_type relies on MMU access and PAGE bits relations */
+    qemu_build_assert(MMU_DATA_LOAD == 0 && MMU_DATA_STORE == 1 &&
+                      MMU_INST_FETCH == 2 && PAGE_READ == 1 &&
+                      PAGE_WRITE == 2 && PAGE_EXEC == 4);
 #endif
 
     cc->gdb_num_core_regs = 71;
