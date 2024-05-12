@@ -519,20 +519,18 @@ int ppcemb_tlb_search(CPUPPCState *env, target_ulong address, uint32_t pid)
     return -1;
 }
 
-static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                       target_ulong address,
+static int mmu40x_get_physical_address(CPUPPCState *env, hwaddr *raddr,
+                                       int *prot, target_ulong address,
                                        MMUAccessType access_type)
 {
     ppcemb_tlb_t *tlb;
-    hwaddr raddr;
     int i, ret, zsel, zpr, pr;
 
     ret = -1;
-    raddr = (hwaddr)-1ULL;
     pr = FIELD_EX64(env->msr, MSR, PR);
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
-        if (!ppcemb_tlb_check(env, tlb, &raddr, address,
+        if (!ppcemb_tlb_check(env, tlb, raddr, address,
                               env->spr[SPR_40x_PID], i)) {
             continue;
         }
@@ -550,40 +548,34 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
             /* fall through */
         case 0x3:
             /* All accesses granted */
-            ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            *prot = PAGE_RWX;
             ret = 0;
             break;
+
         case 0x0:
             if (pr != 0) {
                 /* Raise Zone protection fault.  */
                 env->spr[SPR_40x_ESR] = 1 << 22;
-                ctx->prot = 0;
+                *prot = 0;
                 ret = -2;
                 break;
             }
             /* fall through */
         case 0x1:
-        check_perms:
+check_perms:
             /* Check from TLB entry */
-            ctx->prot = tlb->prot;
-            ret = check_prot(ctx->prot, access_type);
+            *prot = tlb->prot;
+            ret = check_prot(*prot, access_type);
             if (ret == -2) {
                 env->spr[SPR_40x_ESR] = 0;
             }
             break;
         }
-        if (ret >= 0) {
-            ctx->raddr = raddr;
-            qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
-                          " => " HWADDR_FMT_plx
-                          " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
-                          ret);
-            return 0;
-        }
     }
-    qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
-                  " => " HWADDR_FMT_plx " %d %d\n",
-                  __func__, address, raddr, ctx->prot, ret);
+    qemu_log_mask(CPU_LOG_MMU, "%s: access %s " TARGET_FMT_lx " => "
+                  HWADDR_FMT_plx " %d %d\n",  __func__,
+                  ret < 0 ? "refused" : "granted", address,
+                  ret < 0 ? 0 : *raddr, *prot, ret);
 
     return ret;
 }
@@ -1171,7 +1163,8 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_SOFT_6xx:
         return mmu6xx_get_physical_address(env, ctx, eaddr, access_type, type);
     case POWERPC_MMU_SOFT_4xx:
-        return mmu40x_get_physical_address(env, ctx, eaddr, access_type);
+        return mmu40x_get_physical_address(env, &ctx->raddr, &ctx->prot, eaddr,
+                                           access_type);
     case POWERPC_MMU_REAL:
         cpu_abort(env_cpu(env),
                   "PowerPC in real mode do not do any translation\n");
