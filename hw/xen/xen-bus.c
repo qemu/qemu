@@ -13,6 +13,7 @@
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen-backend.h"
+#include "hw/xen/xen-legacy-backend.h" /* xen_be_init() */
 #include "hw/xen/xen-bus.h"
 #include "hw/xen/xen-bus-helper.h"
 #include "monitor/monitor.h"
@@ -328,6 +329,9 @@ static void xen_bus_realize(BusState *bus, Error **errp)
         error_setg_errno(errp, errno, "failed xs_open");
         goto fail;
     }
+
+    /* Initialize legacy backend core & drivers */
+    xen_be_init();
 
     if (xs_node_scanf(xenbus->xsh, XBT_NULL, "", /* domain root node */
                       "domid", NULL, "%u", &domid) == 1) {

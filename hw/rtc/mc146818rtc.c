@@ -104,16 +104,9 @@ static void rtc_coalesced_timer_update(MC146818RtcState *s)
     }
 }
 
-static QLIST_HEAD(, MC146818RtcState) rtc_devices =
-    QLIST_HEAD_INITIALIZER(rtc_devices);
-
-void qmp_rtc_reset_reinjection(Error **errp)
+void rtc_reset_reinjection(MC146818RtcState *rtc)
 {
-    MC146818RtcState *s;
-
-    QLIST_FOREACH(s, &rtc_devices, link) {
-        s->irq_coalesced = 0;
-    }
+    rtc->irq_coalesced = 0;
 }
 
 static bool rtc_policy_slew_deliver_irq(MC146818RtcState *s)
@@ -941,7 +934,6 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     object_property_add_tm(OBJECT(s), "date", rtc_get_date);
 
     qdev_init_gpio_out(dev, &s->irq, 1);
-    QLIST_INSERT_HEAD(&rtc_devices, s, link);
 }
 
 MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,

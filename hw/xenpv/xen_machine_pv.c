@@ -34,8 +34,7 @@ static void xen_init_pv(MachineState *machine)
 {
     setup_xen_backend_ops();
 
-    /* Initialize backend core & drivers */
-    xen_be_init();
+    xen_bus_init();
 
     switch (xen_mode) {
     case XEN_ATTACH:
@@ -59,8 +58,6 @@ static void xen_init_pv(MachineState *machine)
         xen_config_dev_vkbd(0);
         vga_interface_created = true;
     }
-
-    xen_bus_init();
 
     /* config cleanup hook */
     atexit(xen_config_cleanup);

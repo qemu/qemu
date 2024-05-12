@@ -3,9 +3,7 @@ ppc_ss.add(files(
   'ppc.c',
   'ppc_booke.c',
 ))
-ppc_ss.add(when: 'CONFIG_FDT_PPC', if_true: [files(
-  'fdt.c',
-), fdt])
+ppc_ss.add(when: 'CONFIG_FDT_PPC', if_true: files('fdt.c'))
 ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.c'))
 
 # IBM pSeries (sPAPR)

@@ -173,7 +173,7 @@ static void test_drive_without_dev(void)
     QTestState *qts;
 
     /* Start with an empty drive */
-    qts = qtest_init("-drive if=none,id=drive0");
+    qts = qtest_init("-drive if=none,id=drive0 -M none");
 
     /* Delete the drive */
     drive_del(qts);
@@ -191,6 +191,11 @@ static void test_after_failed_device_add(void)
     char driver[32];
     QDict *response;
     QTestState *qts;
+
+    if (!has_device_builtin("virtio-blk")) {
+        g_test_skip("Device virtio-blk is not available");
+        return;
+    }
 
     snprintf(driver, sizeof(driver), "virtio-blk-%s",
              qvirtio_get_dev_type());

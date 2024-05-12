@@ -405,6 +405,8 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 static Property s390_flic_common_properties[] = {
     DEFINE_PROP_UINT32("adapter_routes_max_batch", S390FLICState,
                        adapter_routes_max_batch, ADAPTER_ROUTES_MAX_GSI),
+    DEFINE_PROP_BOOL("migration-enabled", S390FLICState,
+                     migration_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -457,7 +459,9 @@ type_init(qemu_s390_flic_register_types)
 
 static bool adapter_info_so_needed(void *opaque)
 {
-    return css_migration_enabled();
+    S390FLICState *fs = S390_FLIC_COMMON(opaque);
+
+    return fs->migration_enabled;
 }
 
 const VMStateDescription vmstate_adapter_info_so = {

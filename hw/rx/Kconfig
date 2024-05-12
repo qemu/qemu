@@ -8,5 +8,6 @@ config RX62N_MCU
 config RX_GDBSIM
     bool
     default y
-    depends on RX
+    depends on RX && FDT
+    select DEVICE_TREE
     select RX62N_MCU

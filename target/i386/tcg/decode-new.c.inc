@@ -55,6 +55,10 @@
  * mask could be applied (and the original sign-extended value would be
  * optimized away by TCG) in the emitter function.
  *
+ * Finally, a "nop" operand type is used for multi-byte NOPs.  It accepts
+ * any value of mod including 11b (unlike M) but it does not try to
+ * interpret the operand (like M).
+ *
  * Vector operands
  * ---------------
  *
@@ -1056,6 +1060,16 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xa0] = X86_OP_ENTRYr(PUSH, FS, w),
     [0xa1] = X86_OP_ENTRYw(POP, FS, w),
 
+    [0x0b] = X86_OP_ENTRY0(UD),           /* UD2 */
+    [0x0d] = X86_OP_ENTRY1(NOP,  M,v),    /* 3DNow! prefetch */
+
+    [0x18] = X86_OP_ENTRY1(NOP,  nop,v),  /* prefetch/reserved NOP */
+    [0x19] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
+    [0x1c] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
+    [0x1d] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
+    [0x1e] = X86_OP_ENTRY1(NOP,  nop,v),  /* reserved NOP */
+    [0x1f] = X86_OP_ENTRY1(NOP,  nop,v),  /* NOP/reserved NOP */
+
     [0x28] = X86_OP_ENTRY3(MOVDQ,      V,x,  None,None, W,x, vex1 p_00_66), /* MOVAPS */
     [0x29] = X86_OP_ENTRY3(MOVDQ,      W,x,  None,None, V,x, vex1 p_00_66), /* MOVAPS */
     [0x2A] = X86_OP_GROUP0(0F2A),
@@ -1135,6 +1149,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xb6] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, zextT0), /* MOVZX */
     [0xb7] = X86_OP_ENTRY3(MOV,    G,v, E,w, None, None, zextT0), /* MOVZX */
 
+    /* decoded as modrm, which is visible as a difference between page fault and #UD */
+    [0xb9] = X86_OP_ENTRYr(UD,     nop,v),                        /* UD1 */
     [0xbe] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, sextT0), /* MOVSX */
     [0xbf] = X86_OP_ENTRY3(MOV,    G,v, E,w, None, None, sextT0), /* MOVSX */
 
@@ -1206,7 +1222,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xfc] = X86_OP_ENTRY3(PADDB,  V,x, H,x, W,x,  vex4 mmx avx2_256 p_00_66),
     [0xfd] = X86_OP_ENTRY3(PADDW,  V,x, H,x, W,x,  vex4 mmx avx2_256 p_00_66),
     [0xfe] = X86_OP_ENTRY3(PADDD,  V,x, H,x, W,x,  vex4 mmx avx2_256 p_00_66),
-    /* 0xff = UD0 */
+    [0xff] = X86_OP_ENTRYr(UD,     nop,v),                        /* UD0 */
 };
 
 static void do_decode_0F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
@@ -1852,6 +1868,8 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         if ((modrm >> 6) == 3) {
             return false;
         }
+        /* fall through */
+    case X86_TYPE_nop:  /* modrm operand decoded but not fetched */
     get_modrm:
         decode_modrm(s, env, decode, op, type);
         break;
@@ -2397,8 +2415,8 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             switch (b) {
             case 0x00 ... 0x03: /* mostly privileged instructions */
             case 0x05 ... 0x09:
-            case 0x0d:          /* 3DNow! prefetch */
-            case 0x18 ... 0x23: /* prefetch, MPX, mov from/to CR and DR */
+            case 0x1a ... 0x1b: /* MPX */
+            case 0x20 ... 0x23: /* mov from/to CR and DR */
             case 0x30 ... 0x35: /* more privileged instructions */
             case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
             case 0xaa ... 0xae: /* RSM, SHRD, grp15 */

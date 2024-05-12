@@ -80,9 +80,10 @@ config MIPS_CPS
 config MIPS_BOSTON
     bool
     default y
-    depends on MIPS64 && !TARGET_BIG_ENDIAN
+    depends on MIPS64 && !TARGET_BIG_ENDIAN && FDT
     imply PCI_DEVICES
     imply TEST_DEVICES
+    select DEVICE_TREE
     select FITLOADER
     select MIPS_CPS
     select PCI_EXPRESS_XILINX

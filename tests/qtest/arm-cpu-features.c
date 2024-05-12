@@ -632,6 +632,10 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
+    if (!qtest_has_machine("virt")) {
+        goto out;
+    }
+
     if (qtest_has_accel("tcg")) {
         qtest_add_data_func("/arm/query-cpu-model-expansion",
                             NULL, test_query_cpu_model_expansion);

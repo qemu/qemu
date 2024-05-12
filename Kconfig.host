@@ -23,6 +23,9 @@ config IVSHMEM
 config TPM
     bool
 
+config FDT
+    bool
+
 config VHOST_USER
     bool
 

@@ -4,8 +4,14 @@ config EMPTY_SLOT
 config PTIMER
     bool
 
+config DEVICE_TREE
+    bool
+    # fail the build if libfdt not found
+    depends on FDT
+
 config FITLOADER
     bool
+    depends on DEVICE_TREE
 
 config GENERIC_LOADER
     bool
@@ -14,13 +20,14 @@ config GENERIC_LOADER
 config GUEST_LOADER
     bool
     default y
-    depends on TCG
+    depends on TCG && DEVICE_TREE
 
 config OR_IRQ
     bool
 
 config PLATFORM_BUS
     bool
+    depends on DEVICE_TREE
 
 config REGISTER
     bool

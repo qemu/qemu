@@ -12,6 +12,7 @@ config MICROCHIP_PFSOC
     depends on RISCV64
     select CADENCE_SDHCI
     select CPU_CLUSTER
+    select DEVICE_TREE
     select MCHP_PFSOC_DMC
     select MCHP_PFSOC_IOSCB
     select MCHP_PFSOC_MMUART
@@ -37,6 +38,7 @@ config RISCV_VIRT
     imply VIRTIO_VGA
     imply TEST_DEVICES
     imply TPM_TIS_SYSBUS
+    select DEVICE_TREE
     select RISCV_NUMA
     select GOLDFISH_RTC
     select PCI
@@ -82,6 +84,7 @@ config SIFIVE_U
     depends on RISCV32 || RISCV64
     select CADENCE
     select CPU_CLUSTER
+    select DEVICE_TREE
     select RISCV_ACLINT
     select SIFIVE_GPIO
     select SIFIVE_PDMA
@@ -99,6 +102,7 @@ config SPIKE
     bool
     default y
     depends on RISCV32 || RISCV64
+    select DEVICE_TREE
     select RISCV_NUMA
     select HTIF
     select RISCV_ACLINT

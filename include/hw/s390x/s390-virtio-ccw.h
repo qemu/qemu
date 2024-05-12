@@ -46,7 +46,6 @@ struct S390CcwMachineClass {
     /*< public >*/
     bool ri_allowed;
     bool cpu_model_allowed;
-    bool css_migration_enabled;
     bool hpage_1m_allowed;
     int max_threads;
 };
@@ -57,11 +56,5 @@ bool ri_allowed(void);
 bool cpu_model_allowed(void);
 /* 1M huge page mappings allowed by the machine */
 bool hpage_1m_allowed(void);
-
-/**
- * Returns true if (vmstate based) migration of the channel subsystem
- * is enabled, false if it is disabled.
- */
-bool css_migration_enabled(void);
 
 #endif

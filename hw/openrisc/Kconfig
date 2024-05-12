@@ -2,6 +2,7 @@ config OR1K_SIM
     bool
     default y
     depends on OPENRISC
+    select DEVICE_TREE
     select SERIAL
     select OPENCORES_ETH
     select OMPIC
@@ -14,6 +15,7 @@ config OR1K_VIRT
     imply PCI_DEVICES
     imply VIRTIO_VGA
     imply TEST_DEVICES
+    select DEVICE_TREE
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
     select GOLDFISH_RTC
