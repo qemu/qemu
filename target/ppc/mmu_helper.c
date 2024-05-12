@@ -33,6 +33,7 @@
 #include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
+#include "mmu-booke.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 
