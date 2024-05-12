@@ -1298,12 +1298,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
             /* Direct store exception */
             /* No code fetch is allowed in direct-store areas */
             cs->exception_index = POWERPC_EXCP_ISI;
-            if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-                env->error_code = 0;
-            } else {
-                env->error_code = 0x10000000;
-            }
+            env->error_code = 0x10000000;
             break;
         }
     } else {
