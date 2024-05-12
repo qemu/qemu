@@ -1281,7 +1281,6 @@ struct CPUArchState {
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
     int nb_ways;     /* Number of ways in the TLB set */
     int last_way;    /* Last used way used to allocate TLB in a LRU way */
-    int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers */
     int tlb_type;    /* Type of TLB we're dealing with */
     ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed */
@@ -2897,6 +2896,10 @@ static inline void booke206_fixed_size_tlbn(CPUPPCState *env, const int tlbn,
     tlb->mas1 |= ((uint32_t)tsize) << MAS1_TSIZE_SHIFT;
 }
 
+static inline bool ppc_is_split_tlb(PowerPCCPU *cpu)
+{
+    return cpu->env.tlb_type == TLB_6XX;
+}
 #endif
 
 static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)

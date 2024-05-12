@@ -2137,7 +2137,6 @@ static void init_proc_405(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
-    env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
     init_excp_4xx(env);
@@ -2211,7 +2210,6 @@ static void init_proc_440EP(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
-    env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
@@ -2311,7 +2309,6 @@ static void init_proc_440GP(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
-    env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
@@ -2386,7 +2383,6 @@ static void init_proc_440x5(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
-    env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
@@ -2754,7 +2750,6 @@ static void init_proc_e200(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 64;
     env->nb_ways = 1;
-    env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
     init_excp_e200(env, 0xFFFF0000UL);
@@ -2874,7 +2869,6 @@ static void init_proc_e500(CPUPPCState *env, int version)
     /* Memory management */
     env->nb_pids = 3;
     env->nb_ways = 2;
-    env->id_tlbs = 0;
     switch (version) {
     case fsl_e500v1:
         tlbncfg[0] = register_tlbncfg(2, 1, 1, 0, 256);
@@ -6927,20 +6921,17 @@ static void init_ppc_proc(PowerPCCPU *cpu)
     }
     /* Allocate TLBs buffer when needed */
 #if !defined(CONFIG_USER_ONLY)
-    if (env->nb_tlb != 0) {
-        int nb_tlb = env->nb_tlb;
-        if (env->id_tlbs != 0) {
-            nb_tlb *= 2;
-        }
+    if (env->nb_tlb) {
         switch (env->tlb_type) {
         case TLB_6XX:
-            env->tlb.tlb6 = g_new0(ppc6xx_tlb_t, nb_tlb);
+            /* 6xx has separate TLBs for instructions and data hence times 2 */
+            env->tlb.tlb6 = g_new0(ppc6xx_tlb_t, 2 * env->nb_tlb);
             break;
         case TLB_EMB:
-            env->tlb.tlbe = g_new0(ppcemb_tlb_t, nb_tlb);
+            env->tlb.tlbe = g_new0(ppcemb_tlb_t, env->nb_tlb);
             break;
         case TLB_MAS:
-            env->tlb.tlbm = g_new0(ppcmas_tlb_t, nb_tlb);
+            env->tlb.tlbm = g_new0(ppcmas_tlb_t, env->nb_tlb);
             break;
         }
         /* Pre-compute some useful values */

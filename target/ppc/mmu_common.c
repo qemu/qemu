@@ -128,8 +128,8 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
     nr = (eaddr >> TARGET_PAGE_BITS) & (env->tlb_per_way - 1);
     /* Select TLB way */
     nr += env->tlb_per_way * way;
-    /* 6xx have separate TLBs for instructions and data */
-    if (is_code && env->id_tlbs == 1) {
+    /* 6xx has separate TLBs for instructions and data */
+    if (is_code) {
         nr += env->nb_tlb;
     }
 
@@ -1065,13 +1065,7 @@ static void mmu6xx_dump_mmu(CPUPPCState *env)
     mmu6xx_dump_BATs(env, ACCESS_INT);
     mmu6xx_dump_BATs(env, ACCESS_CODE);
 
-    if (env->id_tlbs != 1) {
-        qemu_printf("ERROR: 6xx MMU should have separated TLB"
-                    " for code and data\n");
-    }
-
     qemu_printf("\nTLBs                       [EPN    EPN + SIZE]\n");
-
     for (type = 0; type < 2; type++) {
         for (way = 0; way < env->nb_ways; way++) {
             for (entry = env->nb_tlb * type + env->tlb_per_way * way;

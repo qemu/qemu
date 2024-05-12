@@ -45,14 +45,8 @@
 static inline void ppc6xx_tlb_invalidate_all(CPUPPCState *env)
 {
     ppc6xx_tlb_t *tlb;
-    int nr, max;
+    int nr, max = 2 * env->nb_tlb;
 
-    /* LOG_SWTLB("Invalidate all TLBs\n"); */
-    /* Invalidate all defined software TLB */
-    max = env->nb_tlb;
-    if (env->id_tlbs == 1) {
-        max *= 2;
-    }
     for (nr = 0; nr < max; nr++) {
         tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
@@ -308,9 +302,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
         ppc6xx_tlb_invalidate_virt(env, addr, 0);
-        if (env->id_tlbs == 1) {
-            ppc6xx_tlb_invalidate_virt(env, addr, 1);
-        }
+        ppc6xx_tlb_invalidate_virt(env, addr, 1);
         break;
     case POWERPC_MMU_32B:
         /*
