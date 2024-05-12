@@ -185,7 +185,6 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
                                    int mmu_idx, bool partition_scoped)
 {
     CPUPPCState *env = &cpu->env;
-    int need_prot;
 
     /* Check Page Attributes (pte58:59) */
     if ((pte & R_PTE_ATT) == R_PTE_ATT_NI_IO && access_type == MMU_INST_FETCH) {
@@ -210,8 +209,8 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     }
 
     /* Check if requested access type is allowed */
-    need_prot = prot_for_access_type(access_type);
-    if (need_prot & ~*prot) { /* Page Protected for that Access */
+    if (prot_for_access_type(access_type) & ~*prot) {
+        /* Page Protected for that Access */
         *fault_cause |= access_type == MMU_INST_FETCH ? SRR1_NOEXEC_GUARD :
                                                         DSISR_PROTFAULT;
         return true;
