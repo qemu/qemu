@@ -386,7 +386,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     target_ulong vsid, sr, pgidx;
     int ds, target_page_bits;
     bool pr;
-    int ret;
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs && get_bat_6xx_tlb(env, ctx, eaddr, access_type) == 0) {
@@ -419,7 +418,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     qemu_log_mask(CPU_LOG_MMU,
             "pte segment: key=%d ds %d nx %d vsid " TARGET_FMT_lx "\n",
             ctx->key, ds, ctx->nx, vsid);
-    ret = -1;
     if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
         if (type == ACCESS_CODE && ctx->nx) {
@@ -436,51 +434,47 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         /* Initialize real address with an invalid value */
         ctx->raddr = (hwaddr)-1ULL;
         /* Software TLB search */
-        ret = ppc6xx_tlb_check(env, ctx, eaddr, access_type);
-    } else {
-        qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
-        /* Direct-store segment : absolutely *BUGGY* for now */
-
-        switch (type) {
-        case ACCESS_INT:
-            /* Integer load/store : only access allowed */
-            break;
-        case ACCESS_CODE:
-            /* No code fetch is allowed in direct-store areas */
-            return -4;
-        case ACCESS_FLOAT:
-            /* Floating point load/store */
-            return -4;
-        case ACCESS_RES:
-            /* lwarx, ldarx or srwcx. */
-            return -4;
-        case ACCESS_CACHE:
-            /*
-             * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
-             *
-             * Should make the instruction do no-op.  As it already do
-             * no-op, it's quite easy :-)
-             */
-            ctx->raddr = eaddr;
-            return 0;
-        case ACCESS_EXT:
-            /* eciwx or ecowx */
-            return -4;
-        default:
-            qemu_log_mask(CPU_LOG_MMU, "ERROR: instruction should not need "
-                          "address translation\n");
-            return -4;
-        }
-        if ((access_type == MMU_DATA_STORE || ctx->key != 1) &&
-            (access_type == MMU_DATA_LOAD || ctx->key != 0)) {
-            ctx->raddr = eaddr;
-            ret = 2;
-        } else {
-            ret = -2;
-        }
+        return ppc6xx_tlb_check(env, ctx, eaddr, access_type);
     }
 
-    return ret;
+    /* Direct-store segment : absolutely *BUGGY* for now */
+    qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
+    switch (type) {
+    case ACCESS_INT:
+        /* Integer load/store : only access allowed */
+        break;
+    case ACCESS_CODE:
+        /* No code fetch is allowed in direct-store areas */
+        return -4;
+    case ACCESS_FLOAT:
+        /* Floating point load/store */
+        return -4;
+    case ACCESS_RES:
+        /* lwarx, ldarx or srwcx. */
+        return -4;
+    case ACCESS_CACHE:
+        /*
+         * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
+         *
+         * Should make the instruction do no-op.  As it already do
+         * no-op, it's quite easy :-)
+         */
+        ctx->raddr = eaddr;
+        return 0;
+    case ACCESS_EXT:
+        /* eciwx or ecowx */
+        return -4;
+    default:
+        qemu_log_mask(CPU_LOG_MMU, "ERROR: instruction should not need address"
+                                   " translation\n");
+        return -4;
+    }
+    if ((access_type == MMU_DATA_STORE || ctx->key != 1) &&
+        (access_type == MMU_DATA_LOAD || ctx->key != 0)) {
+        ctx->raddr = eaddr;
+        return 2;
+    }
+    return -2;
 }
 
 /* Generic TLB check function for embedded PowerPC implementations */
