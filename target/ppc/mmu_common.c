@@ -1184,8 +1184,10 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                      int mmu_idx)
 {
     int ret = -1;
-    bool real_mode = (type == ACCESS_CODE && !FIELD_EX64(env->msr, MSR, IR)) ||
-                     (type != ACCESS_CODE && !FIELD_EX64(env->msr, MSR, DR));
+    bool real_mode;
+
+    real_mode = (type == ACCESS_CODE) ? !FIELD_EX64(env->msr, MSR, IR)
+                                      : !FIELD_EX64(env->msr, MSR, DR);
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
