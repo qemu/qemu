@@ -1287,13 +1287,13 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                 env->spr[SPR_40x_ESR] = 0x00000000;
                 break;
             case POWERPC_MMU_BOOKE206:
-                booke206_update_mas_tlb_miss(env, eaddr, 2, mmu_idx);
+                booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
                 /* fall through */
             case POWERPC_MMU_BOOKE:
                 cs->exception_index = POWERPC_EXCP_ITLB;
                 env->error_code = 0;
                 env->spr[SPR_BOOKE_DEAR] = eaddr;
-                env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, MMU_DATA_LOAD);
+                env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
                 break;
             case POWERPC_MMU_REAL:
                 cpu_abort(cs, "PowerPC in real mode should never raise "
