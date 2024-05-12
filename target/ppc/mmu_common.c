@@ -405,47 +405,44 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     ret = -1;
     if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
-        if (type != ACCESS_CODE || ctx->nx == 0) {
-            /* Page address translation */
-            qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx
-                    " htab_mask " HWADDR_FMT_plx
-                    " hash " HWADDR_FMT_plx "\n",
-                    ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
-            ctx->hash[0] = hash;
-            ctx->hash[1] = ~hash;
+        if (type == ACCESS_CODE && ctx->nx) {
+            qemu_log_mask(CPU_LOG_MMU, "No access allowed\n");
+            return -3;
+        }
+        /* Page address translation */
+        qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
+                      HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
+                      ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
+        ctx->hash[0] = hash;
+        ctx->hash[1] = ~hash;
 
-            /* Initialize real address with an invalid value */
-            ctx->raddr = (hwaddr)-1ULL;
-            /* Software TLB search */
-            ret = ppc6xx_tlb_check(env, ctx, eaddr, access_type);
+        /* Initialize real address with an invalid value */
+        ctx->raddr = (hwaddr)-1ULL;
+        /* Software TLB search */
+        ret = ppc6xx_tlb_check(env, ctx, eaddr, access_type);
 #if defined(DUMP_PAGE_TABLES)
-            if (qemu_loglevel_mask(CPU_LOG_MMU)) {
-                CPUState *cs = env_cpu(env);
-                hwaddr curaddr;
-                uint32_t a0, a1, a2, a3;
+        if (qemu_loglevel_mask(CPU_LOG_MMU)) {
+            CPUState *cs = env_cpu(env);
+            hwaddr curaddr;
+            uint32_t a0, a1, a2, a3;
 
-                qemu_log("Page table: " HWADDR_FMT_plx " len " HWADDR_FMT_plx
-                         "\n", ppc_hash32_hpt_base(cpu),
-                         ppc_hash32_hpt_mask(cpu) + 0x80);
-                for (curaddr = ppc_hash32_hpt_base(cpu);
-                     curaddr < (ppc_hash32_hpt_base(cpu)
-                                + ppc_hash32_hpt_mask(cpu) + 0x80);
-                     curaddr += 16) {
-                    a0 = ldl_phys(cs->as, curaddr);
-                    a1 = ldl_phys(cs->as, curaddr + 4);
-                    a2 = ldl_phys(cs->as, curaddr + 8);
-                    a3 = ldl_phys(cs->as, curaddr + 12);
-                    if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                        qemu_log(HWADDR_FMT_plx ": %08x %08x %08x %08x\n",
-                                 curaddr, a0, a1, a2, a3);
-                    }
+            qemu_log("Page table: " HWADDR_FMT_plx " len " HWADDR_FMT_plx "\n",
+                     ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu) + 0x80);
+            for (curaddr = ppc_hash32_hpt_base(cpu);
+                 curaddr < (ppc_hash32_hpt_base(cpu)
+                            + ppc_hash32_hpt_mask(cpu) + 0x80);
+                 curaddr += 16) {
+                a0 = ldl_phys(cs->as, curaddr);
+                a1 = ldl_phys(cs->as, curaddr + 4);
+                a2 = ldl_phys(cs->as, curaddr + 8);
+                a3 = ldl_phys(cs->as, curaddr + 12);
+                if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
+                    qemu_log(HWADDR_FMT_plx ": %08x %08x %08x %08x\n",
+                             curaddr, a0, a1, a2, a3);
                 }
             }
-#endif
-        } else {
-            qemu_log_mask(CPU_LOG_MMU, "No access allowed\n");
-            ret = -3;
         }
+#endif
     } else {
         qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
         /* Direct-store segment : absolutely *BUGGY* for now */
