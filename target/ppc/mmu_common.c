@@ -1258,6 +1258,74 @@ static bool ppc_real_mode_xlate(PowerPCCPU *cpu, vaddr eaddr,
     return false;
 }
 
+static bool ppc_40x_xlate(PowerPCCPU *cpu, vaddr eaddr,
+                          MMUAccessType access_type,
+                          hwaddr *raddrp, int *psizep, int *protp,
+                          int mmu_idx, bool guest_visible)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    int ret;
+
+    if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
+        return true;
+    }
+
+    ret = mmu40x_get_physical_address(env, raddrp, protp, eaddr, access_type);
+    if (ret == 0) {
+        *psizep = TARGET_PAGE_BITS;
+        return true;
+    } else if (!guest_visible) {
+        return false;
+    }
+
+    log_cpu_state_mask(CPU_LOG_MMU, cs, 0);
+    if (access_type == MMU_INST_FETCH) {
+        switch (ret) {
+        case -1:
+            /* No matches in page tables or TLB */
+            cs->exception_index = POWERPC_EXCP_ITLB;
+            env->error_code = 0;
+            env->spr[SPR_40x_DEAR] = eaddr;
+            env->spr[SPR_40x_ESR] = 0x00000000;
+            break;
+        case -2:
+            /* Access rights violation */
+            cs->exception_index = POWERPC_EXCP_ISI;
+            env->error_code = 0x08000000;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        switch (ret) {
+        case -1:
+            /* No matches in page tables or TLB */
+            cs->exception_index = POWERPC_EXCP_DTLB;
+            env->error_code = 0;
+            env->spr[SPR_40x_DEAR] = eaddr;
+            if (access_type == MMU_DATA_STORE) {
+                env->spr[SPR_40x_ESR] = 0x00800000;
+            } else {
+                env->spr[SPR_40x_ESR] = 0x00000000;
+            }
+            break;
+        case -2:
+            /* Access rights violation */
+            cs->exception_index = POWERPC_EXCP_DSI;
+            env->error_code = 0;
+            env->spr[SPR_40x_DEAR] = eaddr;
+            if (access_type == MMU_DATA_STORE) {
+                env->spr[SPR_40x_ESR] |= 0x00800000;
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return false;
+}
+
 /* Perform address translation */
 /* TODO: Split this by mmu_model. */
 static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
@@ -1301,23 +1369,11 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
         switch (ret) {
         case -1:
             /* No matches in page tables or TLB */
-            switch (env->mmu_model) {
-            case POWERPC_MMU_SOFT_6xx:
-                cs->exception_index = POWERPC_EXCP_IFTLB;
-                env->error_code = 1 << 18;
-                env->spr[SPR_IMISS] = eaddr;
-                env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
-                goto tlb_miss;
-            case POWERPC_MMU_SOFT_4xx:
-                cs->exception_index = POWERPC_EXCP_ITLB;
-                env->error_code = 0;
-                env->spr[SPR_40x_DEAR] = eaddr;
-                env->spr[SPR_40x_ESR] = 0x00000000;
-                break;
-            default:
-                g_assert_not_reached();
-            }
-            break;
+            cs->exception_index = POWERPC_EXCP_IFTLB;
+            env->error_code = 1 << 18;
+            env->spr[SPR_IMISS] = eaddr;
+            env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
+            goto tlb_miss;
         case -2:
             /* Access rights violation */
             cs->exception_index = POWERPC_EXCP_ISI;
@@ -1339,54 +1395,31 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
         switch (ret) {
         case -1:
             /* No matches in page tables or TLB */
-            switch (env->mmu_model) {
-            case POWERPC_MMU_SOFT_6xx:
-                if (access_type == MMU_DATA_STORE) {
-                    cs->exception_index = POWERPC_EXCP_DSTLB;
-                    env->error_code = 1 << 16;
-                } else {
-                    cs->exception_index = POWERPC_EXCP_DLTLB;
-                    env->error_code = 0;
-                }
-                env->spr[SPR_DMISS] = eaddr;
-                env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
-            tlb_miss:
-                env->error_code |= ctx.key << 19;
-                env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
-                  get_pteg_offset32(cpu, ctx.hash[0]);
-                env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
-                  get_pteg_offset32(cpu, ctx.hash[1]);
-                break;
-            case POWERPC_MMU_SOFT_4xx:
-                cs->exception_index = POWERPC_EXCP_DTLB;
+            if (access_type == MMU_DATA_STORE) {
+                cs->exception_index = POWERPC_EXCP_DSTLB;
+                env->error_code = 1 << 16;
+            } else {
+                cs->exception_index = POWERPC_EXCP_DLTLB;
                 env->error_code = 0;
-                env->spr[SPR_40x_DEAR] = eaddr;
-                if (access_type == MMU_DATA_STORE) {
-                    env->spr[SPR_40x_ESR] = 0x00800000;
-                } else {
-                    env->spr[SPR_40x_ESR] = 0x00000000;
-                }
-                break;
-            default:
-                g_assert_not_reached();
             }
+            env->spr[SPR_DMISS] = eaddr;
+            env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
+tlb_miss:
+            env->error_code |= ctx.key << 19;
+            env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
+                                  get_pteg_offset32(cpu, ctx.hash[0]);
+            env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
+                                  get_pteg_offset32(cpu, ctx.hash[1]);
             break;
         case -2:
             /* Access rights violation */
             cs->exception_index = POWERPC_EXCP_DSI;
             env->error_code = 0;
-            if (env->mmu_model == POWERPC_MMU_SOFT_4xx) {
-                env->spr[SPR_40x_DEAR] = eaddr;
-                if (access_type == MMU_DATA_STORE) {
-                    env->spr[SPR_40x_ESR] |= 0x00800000;
-                }
+            env->spr[SPR_DAR] = eaddr;
+            if (access_type == MMU_DATA_STORE) {
+                env->spr[SPR_DSISR] = 0x0A000000;
             } else {
-                env->spr[SPR_DAR] = eaddr;
-                if (access_type == MMU_DATA_STORE) {
-                    env->spr[SPR_DSISR] = 0x0A000000;
-                } else {
-                    env->spr[SPR_DSISR] = 0x08000000;
-                }
+                env->spr[SPR_DSISR] = 0x08000000;
             }
             break;
         case -4:
@@ -1462,6 +1495,9 @@ bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     case POWERPC_MMU_BOOKE206:
         return ppc_booke_xlate(cpu, eaddr, access_type, raddrp,
                                psizep, protp, mmu_idx, guest_visible);
+    case POWERPC_MMU_SOFT_4xx:
+        return ppc_40x_xlate(cpu, eaddr, access_type, raddrp,
+                             psizep, protp, mmu_idx, guest_visible);
     case POWERPC_MMU_REAL:
         return ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep,
                                    protp);
