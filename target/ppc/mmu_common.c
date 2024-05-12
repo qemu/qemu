@@ -1264,187 +1264,186 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
         *protp = ctx.prot;
         *psizep = TARGET_PAGE_BITS;
         return true;
+    } else if (!guest_visible) {
+        return false;
     }
 
-    if (guest_visible) {
-        log_cpu_state_mask(CPU_LOG_MMU, cs, 0);
-        if (type == ACCESS_CODE) {
-            switch (ret) {
-            case -1:
-                /* No matches in page tables or TLB */
-                switch (env->mmu_model) {
-                case POWERPC_MMU_SOFT_6xx:
-                    cs->exception_index = POWERPC_EXCP_IFTLB;
-                    env->error_code = 1 << 18;
-                    env->spr[SPR_IMISS] = eaddr;
-                    env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
-                    goto tlb_miss;
-                case POWERPC_MMU_SOFT_4xx:
-                    cs->exception_index = POWERPC_EXCP_ITLB;
-                    env->error_code = 0;
-                    env->spr[SPR_40x_DEAR] = eaddr;
-                    env->spr[SPR_40x_ESR] = 0x00000000;
-                    break;
-                case POWERPC_MMU_BOOKE206:
-                    booke206_update_mas_tlb_miss(env, eaddr, 2, mmu_idx);
-                    /* fall through */
-                case POWERPC_MMU_BOOKE:
-                    cs->exception_index = POWERPC_EXCP_ITLB;
-                    env->error_code = 0;
-                    env->spr[SPR_BOOKE_DEAR] = eaddr;
-                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, MMU_DATA_LOAD);
-                    break;
-                case POWERPC_MMU_REAL:
-                    cpu_abort(cs, "PowerPC in real mode should never raise "
+    log_cpu_state_mask(CPU_LOG_MMU, cs, 0);
+    if (type == ACCESS_CODE) {
+        switch (ret) {
+        case -1:
+            /* No matches in page tables or TLB */
+            switch (env->mmu_model) {
+            case POWERPC_MMU_SOFT_6xx:
+                cs->exception_index = POWERPC_EXCP_IFTLB;
+                env->error_code = 1 << 18;
+                env->spr[SPR_IMISS] = eaddr;
+                env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
+                goto tlb_miss;
+            case POWERPC_MMU_SOFT_4xx:
+                cs->exception_index = POWERPC_EXCP_ITLB;
+                env->error_code = 0;
+                env->spr[SPR_40x_DEAR] = eaddr;
+                env->spr[SPR_40x_ESR] = 0x00000000;
+                break;
+            case POWERPC_MMU_BOOKE206:
+                booke206_update_mas_tlb_miss(env, eaddr, 2, mmu_idx);
+                /* fall through */
+            case POWERPC_MMU_BOOKE:
+                cs->exception_index = POWERPC_EXCP_ITLB;
+                env->error_code = 0;
+                env->spr[SPR_BOOKE_DEAR] = eaddr;
+                env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, MMU_DATA_LOAD);
+                break;
+            case POWERPC_MMU_REAL:
+                cpu_abort(cs, "PowerPC in real mode should never raise "
                               "any MMU exceptions\n");
-                default:
-                    cpu_abort(cs, "Unknown or invalid MMU model\n");
-                }
-                break;
-            case -2:
-                /* Access rights violation */
-                cs->exception_index = POWERPC_EXCP_ISI;
-                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-                    env->error_code = 0;
-                } else {
-                    env->error_code = 0x08000000;
-                }
-                break;
-            case -3:
-                /* No execute protection violation */
-                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-                    env->spr[SPR_BOOKE_ESR] = 0x00000000;
-                    env->error_code = 0;
-                } else {
-                    env->error_code = 0x10000000;
-                }
-                cs->exception_index = POWERPC_EXCP_ISI;
-                break;
-            case -4:
-                /* Direct store exception */
-                /* No code fetch is allowed in direct-store areas */
-                cs->exception_index = POWERPC_EXCP_ISI;
-                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-                    env->error_code = 0;
-                } else {
-                    env->error_code = 0x10000000;
-                }
-                break;
+            default:
+                cpu_abort(cs, "Unknown or invalid MMU model\n");
             }
-        } else {
-            switch (ret) {
-            case -1:
-                /* No matches in page tables or TLB */
-                switch (env->mmu_model) {
-                case POWERPC_MMU_SOFT_6xx:
-                    if (access_type == MMU_DATA_STORE) {
-                        cs->exception_index = POWERPC_EXCP_DSTLB;
-                        env->error_code = 1 << 16;
-                    } else {
-                        cs->exception_index = POWERPC_EXCP_DLTLB;
-                        env->error_code = 0;
-                    }
-                    env->spr[SPR_DMISS] = eaddr;
-                    env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
-                tlb_miss:
-                    env->error_code |= ctx.key << 19;
-                    env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
-                        get_pteg_offset32(cpu, ctx.hash[0]);
-                    env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
-                        get_pteg_offset32(cpu, ctx.hash[1]);
-                    break;
-                case POWERPC_MMU_SOFT_4xx:
-                    cs->exception_index = POWERPC_EXCP_DTLB;
+            break;
+        case -2:
+            /* Access rights violation */
+            cs->exception_index = POWERPC_EXCP_ISI;
+            if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                env->error_code = 0;
+            } else {
+                env->error_code = 0x08000000;
+            }
+            break;
+        case -3:
+            /* No execute protection violation */
+            if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                env->spr[SPR_BOOKE_ESR] = 0x00000000;
+                env->error_code = 0;
+            } else {
+                env->error_code = 0x10000000;
+            }
+            cs->exception_index = POWERPC_EXCP_ISI;
+            break;
+        case -4:
+            /* Direct store exception */
+            /* No code fetch is allowed in direct-store areas */
+            cs->exception_index = POWERPC_EXCP_ISI;
+            if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                env->error_code = 0;
+            } else {
+                env->error_code = 0x10000000;
+            }
+            break;
+        }
+    } else {
+        switch (ret) {
+        case -1:
+            /* No matches in page tables or TLB */
+            switch (env->mmu_model) {
+            case POWERPC_MMU_SOFT_6xx:
+                if (access_type == MMU_DATA_STORE) {
+                    cs->exception_index = POWERPC_EXCP_DSTLB;
+                    env->error_code = 1 << 16;
+                } else {
+                    cs->exception_index = POWERPC_EXCP_DLTLB;
                     env->error_code = 0;
-                    env->spr[SPR_40x_DEAR] = eaddr;
-                    if (access_type == MMU_DATA_STORE) {
-                        env->spr[SPR_40x_ESR] = 0x00800000;
-                    } else {
-                        env->spr[SPR_40x_ESR] = 0x00000000;
-                    }
-                    break;
-                case POWERPC_MMU_BOOKE206:
-                    booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
-                    /* fall through */
-                case POWERPC_MMU_BOOKE:
-                    cs->exception_index = POWERPC_EXCP_DTLB;
-                    env->error_code = 0;
-                    env->spr[SPR_BOOKE_DEAR] = eaddr;
-                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
-                    break;
-                case POWERPC_MMU_REAL:
-                    cpu_abort(cs, "PowerPC in real mode should never raise "
-                              "any MMU exceptions\n");
-                default:
-                    cpu_abort(cs, "Unknown or invalid MMU model\n");
+                }
+                env->spr[SPR_DMISS] = eaddr;
+                env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
+            tlb_miss:
+                env->error_code |= ctx.key << 19;
+                env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
+                  get_pteg_offset32(cpu, ctx.hash[0]);
+                env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
+                  get_pteg_offset32(cpu, ctx.hash[1]);
+                break;
+            case POWERPC_MMU_SOFT_4xx:
+                cs->exception_index = POWERPC_EXCP_DTLB;
+                env->error_code = 0;
+                env->spr[SPR_40x_DEAR] = eaddr;
+                if (access_type == MMU_DATA_STORE) {
+                    env->spr[SPR_40x_ESR] = 0x00800000;
+                } else {
+                    env->spr[SPR_40x_ESR] = 0x00000000;
                 }
                 break;
-            case -2:
-                /* Access rights violation */
+            case POWERPC_MMU_BOOKE206:
+                booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
+                /* fall through */
+            case POWERPC_MMU_BOOKE:
+                cs->exception_index = POWERPC_EXCP_DTLB;
+                env->error_code = 0;
+                env->spr[SPR_BOOKE_DEAR] = eaddr;
+                env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+                break;
+            case POWERPC_MMU_REAL:
+                cpu_abort(cs, "PowerPC in real mode should never raise "
+                              "any MMU exceptions\n");
+            default:
+                cpu_abort(cs, "Unknown or invalid MMU model\n");
+            }
+            break;
+        case -2:
+            /* Access rights violation */
+            cs->exception_index = POWERPC_EXCP_DSI;
+            env->error_code = 0;
+            if (env->mmu_model == POWERPC_MMU_SOFT_4xx) {
+                env->spr[SPR_40x_DEAR] = eaddr;
+                if (access_type == MMU_DATA_STORE) {
+                    env->spr[SPR_40x_ESR] |= 0x00800000;
+                }
+            } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                       (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                env->spr[SPR_BOOKE_DEAR] = eaddr;
+                env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+            } else {
+                env->spr[SPR_DAR] = eaddr;
+                if (access_type == MMU_DATA_STORE) {
+                    env->spr[SPR_DSISR] = 0x0A000000;
+                } else {
+                    env->spr[SPR_DSISR] = 0x08000000;
+                }
+            }
+            break;
+        case -4:
+            /* Direct store exception */
+            switch (type) {
+            case ACCESS_FLOAT:
+                /* Floating point load/store */
+                cs->exception_index = POWERPC_EXCP_ALIGN;
+                env->error_code = POWERPC_EXCP_ALIGN_FP;
+                env->spr[SPR_DAR] = eaddr;
+                break;
+            case ACCESS_RES:
+                /* lwarx, ldarx or stwcx. */
                 cs->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
-                if (env->mmu_model == POWERPC_MMU_SOFT_4xx) {
-                    env->spr[SPR_40x_DEAR] = eaddr;
-                    if (access_type == MMU_DATA_STORE) {
-                        env->spr[SPR_40x_ESR] |= 0x00800000;
-                    }
-                } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                           (env->mmu_model == POWERPC_MMU_BOOKE206)) {
-                    env->spr[SPR_BOOKE_DEAR] = eaddr;
-                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
+                env->spr[SPR_DAR] = eaddr;
+                if (access_type == MMU_DATA_STORE) {
+                    env->spr[SPR_DSISR] = 0x06000000;
                 } else {
-                    env->spr[SPR_DAR] = eaddr;
-                    if (access_type == MMU_DATA_STORE) {
-                        env->spr[SPR_DSISR] = 0x0A000000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x08000000;
-                    }
+                    env->spr[SPR_DSISR] = 0x04000000;
                 }
                 break;
-            case -4:
-                /* Direct store exception */
-                switch (type) {
-                case ACCESS_FLOAT:
-                    /* Floating point load/store */
-                    cs->exception_index = POWERPC_EXCP_ALIGN;
-                    env->error_code = POWERPC_EXCP_ALIGN_FP;
-                    env->spr[SPR_DAR] = eaddr;
-                    break;
-                case ACCESS_RES:
-                    /* lwarx, ldarx or stwcx. */
-                    cs->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = eaddr;
-                    if (access_type == MMU_DATA_STORE) {
-                        env->spr[SPR_DSISR] = 0x06000000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x04000000;
-                    }
-                    break;
-                case ACCESS_EXT:
-                    /* eciwx or ecowx */
-                    cs->exception_index = POWERPC_EXCP_DSI;
-                    env->error_code = 0;
-                    env->spr[SPR_DAR] = eaddr;
-                    if (access_type == MMU_DATA_STORE) {
-                        env->spr[SPR_DSISR] = 0x06100000;
-                    } else {
-                        env->spr[SPR_DSISR] = 0x04100000;
-                    }
-                    break;
-                default:
-                    printf("DSI: invalid exception (%d)\n", ret);
-                    cs->exception_index = POWERPC_EXCP_PROGRAM;
-                    env->error_code =
-                        POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
-                    env->spr[SPR_DAR] = eaddr;
-                    break;
+            case ACCESS_EXT:
+                /* eciwx or ecowx */
+                cs->exception_index = POWERPC_EXCP_DSI;
+                env->error_code = 0;
+                env->spr[SPR_DAR] = eaddr;
+                if (access_type == MMU_DATA_STORE) {
+                    env->spr[SPR_DSISR] = 0x06100000;
+                } else {
+                    env->spr[SPR_DSISR] = 0x04100000;
                 }
+                break;
+            default:
+                printf("DSI: invalid exception (%d)\n", ret);
+                cs->exception_index = POWERPC_EXCP_PROGRAM;
+                env->error_code = POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL;
+                env->spr[SPR_DAR] = eaddr;
                 break;
             }
+            break;
         }
     }
     return false;
