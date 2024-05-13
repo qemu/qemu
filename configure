@@ -411,7 +411,9 @@ else
   # Using uname is really broken, but it is just a fallback for architectures
   # that are going to use TCI anyway
   cpu=$(uname -m)
-  echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
+  if test "$host_os" != "bogus"; then
+    echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
+  fi
 fi
 
 # Normalise host CPU name to the values used by Meson cross files and in source
@@ -892,6 +894,13 @@ cat << EOF
 NOTE: The object files are built at the place where configure is launched
 EOF
 exit 0
+fi
+
+# Now that we are sure that the user did not only want to print the --help
+# information, we should double-check that the C compiler really works:
+write_c_skeleton
+if ! compile_object ; then
+    error_exit "C compiler \"$cc\" either does not exist or does not work."
 fi
 
 # Remove old dependency files to make sure that they get properly regenerated
