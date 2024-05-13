@@ -506,6 +506,9 @@ tsan-build:
     CONFIGURE_ARGS: --enable-tsan --cc=clang --cxx=clang++
           --enable-trace-backends=ust --disable-slirp
     TARGETS: x86_64-softmmu ppc64-softmmu riscv64-softmmu x86_64-linux-user
+    # Remove when we switch to a distro with clang >= 18
+    # https://github.com/google/sanitizers/issues/1716
+    MAKE: setarch -R make
 
 # gcov is a GCC features
 gcov:
