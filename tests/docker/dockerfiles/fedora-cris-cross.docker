@@ -4,6 +4,7 @@
 
 FROM registry.fedoraproject.org/fedora:33
 ENV PACKAGES gcc-cris-linux-gnu
+ENV MAKE /usr/bin/make
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
 # As a final step configure the user (if env is defined)

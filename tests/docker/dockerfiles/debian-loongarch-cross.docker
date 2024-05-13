@@ -44,6 +44,7 @@ ENV LD_LIBRARY_PATH /opt/cross-tools/lib:/opt/cross-tools/loongarch64-unknown-li
 
 ENV QEMU_CONFIGURE_OPTS --disable-system --disable-docs --disable-tools
 ENV DEF_TARGET_LIST loongarch64-linux-user,loongarch-softmmu
+ENV MAKE /usr/bin/make
 
 # As a final step configure the user (if env is defined)
 ARG USER
