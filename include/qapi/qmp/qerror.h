@@ -20,9 +20,6 @@
 #define QERR_INVALID_PARAMETER_VALUE \
     "Parameter '%s' expects %s"
 
-#define QERR_IO_ERROR \
-    "An IO error has occurred"
-
 #define QERR_MISSING_PARAMETER \
     "Parameter '%s' is missing"
 
