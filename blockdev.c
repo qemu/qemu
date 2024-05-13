@@ -1406,8 +1406,10 @@ static void external_snapshot_action(TransactionAction *action,
     }
 
     if (!bdrv_is_read_only(state->old_bs)) {
-        if (bdrv_flush(state->old_bs)) {
-            error_setg(errp, QERR_IO_ERROR);
+        ret = bdrv_flush(state->old_bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Write to node '%s' failed",
+                             bdrv_get_device_or_node_name(state->old_bs));
             return;
         }
     }
