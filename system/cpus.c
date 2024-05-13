@@ -813,7 +813,8 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
             goto exit;
         }
         if (fwrite(buf, 1, l, f) != l) {
-            error_setg(errp, QERR_IO_ERROR);
+            error_setg(errp, "writing memory to '%s' failed",
+                       filename);
             goto exit;
         }
         addr += l;
@@ -843,7 +844,8 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
             l = size;
         cpu_physical_memory_read(addr, buf, l);
         if (fwrite(buf, 1, l, f) != l) {
-            error_setg(errp, QERR_IO_ERROR);
+            error_setg(errp, "writing memory to '%s' failed",
+                       filename);
             goto exit;
         }
         addr += l;
