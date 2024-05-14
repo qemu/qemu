@@ -31,27 +31,35 @@
 static bool trans_cbo_clean(DisasContext *ctx, arg_cbo_clean *a)
 {
     REQUIRE_ZICBOM(ctx);
-    gen_helper_cbo_clean_flush(tcg_env, cpu_gpr[a->rs1]);
+    TCGv src = get_address(ctx, a->rs1, 0);
+
+    gen_helper_cbo_clean_flush(tcg_env, src);
     return true;
 }
 
 static bool trans_cbo_flush(DisasContext *ctx, arg_cbo_flush *a)
 {
     REQUIRE_ZICBOM(ctx);
-    gen_helper_cbo_clean_flush(tcg_env, cpu_gpr[a->rs1]);
+    TCGv src = get_address(ctx, a->rs1, 0);
+
+    gen_helper_cbo_clean_flush(tcg_env, src);
     return true;
 }
 
 static bool trans_cbo_inval(DisasContext *ctx, arg_cbo_inval *a)
 {
     REQUIRE_ZICBOM(ctx);
-    gen_helper_cbo_inval(tcg_env, cpu_gpr[a->rs1]);
+    TCGv src = get_address(ctx, a->rs1, 0);
+
+    gen_helper_cbo_inval(tcg_env, src);
     return true;
 }
 
 static bool trans_cbo_zero(DisasContext *ctx, arg_cbo_zero *a)
 {
     REQUIRE_ZICBOZ(ctx);
-    gen_helper_cbo_zero(tcg_env, cpu_gpr[a->rs1]);
+    TCGv src = get_address(ctx, a->rs1, 0);
+
+    gen_helper_cbo_zero(tcg_env, src);
     return true;
 }
