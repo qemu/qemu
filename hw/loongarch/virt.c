@@ -10,6 +10,7 @@
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
+#include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
@@ -840,18 +841,23 @@ static void virt_iocsr_misc_write(void *opaque, hwaddr addr,
 
 static uint64_t virt_iocsr_misc_read(void *opaque, hwaddr addr, unsigned size)
 {
+    uint64_t ret;
+
     switch (addr) {
     case VERSION_REG:
         return 0x11ULL;
     case FEATURE_REG:
-        return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
-               1ULL << IOCSRF_CSRIPI;
+        ret = BIT(IOCSRF_MSI) | BIT(IOCSRF_EXTIOI) | BIT(IOCSRF_CSRIPI);
+        if (kvm_enabled()) {
+            ret |= BIT(IOCSRF_VM);
+        }
+        return ret;
     case VENDOR_REG:
         return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
     case CPUNAME_REG:
         return 0x303030354133ULL;     /* "3A5000" */
     case MISC_FUNC_REG:
-        return 1ULL << IOCSRM_EXTIOI_EN;
+        return BIT_ULL(IOCSRM_EXTIOI_EN);
     }
     return 0ULL;
 }
