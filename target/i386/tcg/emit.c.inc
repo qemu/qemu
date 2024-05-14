@@ -4372,6 +4372,30 @@ static void gen_WRxxBASE(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_mov_tl(base, s->T0);
 }
 
+static void gen_XADD(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[1].ot;
+
+    decode->cc_dst = tcg_temp_new();
+    decode->cc_src = s->T1;
+    decode->cc_op = CC_OP_ADDB + ot;
+
+    if (s->prefix & PREFIX_LOCK) {
+        tcg_gen_atomic_fetch_add_tl(s->T0, s->A0, s->T1, s->mem_index, ot | MO_LE);
+        tcg_gen_add_tl(decode->cc_dst, s->T0, s->T1);
+    } else {
+        tcg_gen_add_tl(decode->cc_dst, s->T0, s->T1);
+        /*
+         * NOTE: writing memory first is important for MMU exceptions,
+         * but "new result" wins for XADD AX, AX.
+         */
+        gen_writeback(s, decode, 0, decode->cc_dst);
+    }
+    if (decode->op[0].has_ea || decode->op[2].n != decode->op[0].n) {
+        gen_writeback(s, decode, 2, s->T0);
+    }
+}
+
 static void gen_XCHG(DisasContext *s, X86DecodedInsn *decode)
 {
     if (s->prefix & PREFIX_LOCK) {

@@ -823,12 +823,6 @@ static void gen_movs(DisasContext *s, MemOp ot)
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_op_update2_cc(DisasContext *s)
-{
-    tcg_gen_mov_tl(cpu_cc_src, s->T1);
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-}
-
 /* compute all eflags to reg */
 static void gen_mov_eflags(DisasContext *s, TCGv reg)
 {
@@ -3011,35 +3005,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
     switch (b) {
         /**************************/
         /* arith & logic */
-    case 0x1c0:
-    case 0x1c1: /* xadd Ev, Gv */
-        ot = mo_b_d(b, dflag);
-        modrm = x86_ldub_code(env, s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-        mod = (modrm >> 6) & 3;
-        gen_op_mov_v_reg(s, ot, s->T0, reg);
-        if (mod == 3) {
-            rm = (modrm & 7) | REX_B(s);
-            gen_op_mov_v_reg(s, ot, s->T1, rm);
-            tcg_gen_add_tl(s->T0, s->T0, s->T1);
-            gen_op_mov_reg_v(s, ot, reg, s->T1);
-            gen_op_mov_reg_v(s, ot, rm, s->T0);
-        } else {
-            gen_lea_modrm(env, s, modrm);
-            if (s->prefix & PREFIX_LOCK) {
-                tcg_gen_atomic_fetch_add_tl(s->T1, s->A0, s->T0,
-                                            s->mem_index, ot | MO_LE);
-                tcg_gen_add_tl(s->T0, s->T0, s->T1);
-            } else {
-                gen_op_ld_v(s, ot, s->T1, s->A0);
-                tcg_gen_add_tl(s->T0, s->T0, s->T1);
-                gen_op_st_v(s, ot, s->T0, s->A0);
-            }
-            gen_op_mov_reg_v(s, ot, reg, s->T1);
-        }
-        gen_op_update2_cc(s);
-        set_cc_op(s, CC_OP_ADDB + ot);
-        break;
     case 0x1b0:
     case 0x1b1: /* cmpxchg Ev, Gv */
         {
