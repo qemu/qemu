@@ -217,6 +217,9 @@ int64_t qmp_guest_file_open(const char *path, const char *mode, Error **errp)
 
     w_path = g_utf8_to_utf16(path, -1, NULL, NULL, &gerr);
     if (!w_path) {
+        error_setg(errp, "can't convert 'path' to UTF-16: %s",
+                   gerr->message);
+        g_error_free(gerr);
         goto done;
     }
 
@@ -244,10 +247,6 @@ int64_t qmp_guest_file_open(const char *path, const char *mode, Error **errp)
     slog("guest-file-open, handle: % " PRId64, fd);
 
 done:
-    if (gerr) {
-        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
-        g_error_free(gerr);
-    }
     g_free(w_path);
     return fd;
 }
@@ -1946,11 +1945,17 @@ void qmp_guest_set_user_password(const char *username,
 
     user = g_utf8_to_utf16(username, -1, NULL, NULL, &gerr);
     if (!user) {
+        error_setg(errp, "can't convert 'username' to UTF-16: %s",
+                   gerr->message);
+        g_error_free(gerr);
         goto done;
     }
 
     wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, &gerr);
     if (!wpass) {
+        error_setg(errp, "can't convert 'password' to UTF-16: %s",
+                   gerr->message);
+        g_error_free(gerr);
         goto done;
     }
 
@@ -1966,10 +1971,6 @@ void qmp_guest_set_user_password(const char *username,
     }
 
 done:
-    if (gerr) {
-        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
-        g_error_free(gerr);
-    }
     g_free(user);
     g_free(wpass);
     g_free(rawpasswddata);
