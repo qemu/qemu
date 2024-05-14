@@ -17,7 +17,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -289,9 +288,9 @@ static void glfs_clear_preopened(glfs_t *fs)
     }
 }
 
-static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
+static int parse_volume_options(BlockdevOptionsGluster *gconf, const char *path)
 {
-    char *p, *q;
+    const char *p, *q;
 
     if (!path) {
         return -EINVAL;
@@ -349,13 +348,13 @@ static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
 static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
                                   const char *filename)
 {
+    g_autoptr(GUri) uri = g_uri_parse(filename, G_URI_FLAGS_NONE, NULL);
+    g_autoptr(GHashTable) qp = NULL;
     SocketAddress *gsconf;
-    URI *uri;
-    QueryParams *qp = NULL;
     bool is_unix = false;
-    int ret = 0;
+    const char *uri_scheme, *uri_query, *uri_server;
+    int uri_port, ret;
 
-    uri = uri_parse(filename);
     if (!uri) {
         return -EINVAL;
     }
@@ -364,54 +363,54 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
     QAPI_LIST_PREPEND(gconf->server, gsconf);
 
     /* transport */
-    if (!uri->scheme || !strcmp(uri->scheme, "gluster")) {
+    uri_scheme = g_uri_get_scheme(uri);
+    if (!uri_scheme || !strcmp(uri_scheme, "gluster")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-    } else if (!strcmp(uri->scheme, "gluster+tcp")) {
+    } else if (!strcmp(uri_scheme, "gluster+tcp")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-    } else if (!strcmp(uri->scheme, "gluster+unix")) {
+    } else if (!strcmp(uri_scheme, "gluster+unix")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_UNIX;
         is_unix = true;
     } else {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
-    ret = parse_volume_options(gconf, uri->path);
+    ret = parse_volume_options(gconf, g_uri_get_path(uri));
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
-    qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        ret = -EINVAL;
-        goto out;
+    uri_query = g_uri_get_query(uri);
+    if (uri_query) {
+        qp = g_uri_parse_params(uri_query, -1, "&", G_URI_PARAMS_NONE, NULL);
+        if (!qp) {
+            return -EINVAL;
+        }
+        ret = g_hash_table_size(qp);
+        if (ret > 1 || (is_unix && !ret) || (!is_unix && ret)) {
+            return -EINVAL;
+        }
     }
+
+    uri_server = g_uri_get_host(uri);
+    uri_port = g_uri_get_port(uri);
 
     if (is_unix) {
-        if (uri->server || uri->port) {
-            ret = -EINVAL;
-            goto out;
+        char *uri_socket = g_hash_table_lookup(qp, "socket");
+        if (uri_server || uri_port != -1 || !uri_socket) {
+            return -EINVAL;
         }
-        if (strcmp(qp->p[0].name, "socket")) {
-            ret = -EINVAL;
-            goto out;
-        }
-        gsconf->u.q_unix.path = g_strdup(qp->p[0].value);
+        gsconf->u.q_unix.path = g_strdup(uri_socket);
     } else {
-        gsconf->u.inet.host = g_strdup(uri->server ? uri->server : "localhost");
-        if (uri->port) {
-            gsconf->u.inet.port = g_strdup_printf("%d", uri->port);
+        gsconf->u.inet.host = g_strdup(uri_server ? uri_server : "localhost");
+        if (uri_port > 0) {
+            gsconf->u.inet.port = g_strdup_printf("%d", uri_port);
         } else {
             gsconf->u.inet.port = g_strdup_printf("%d", GLUSTER_DEFAULT_PORT);
         }
     }
 
-out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    uri_free(uri);
-    return ret;
+    return 0;
 }
 
 static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,

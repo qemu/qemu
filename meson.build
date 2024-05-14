@@ -869,7 +869,7 @@ have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
 
 # When bumping glib minimum version, please check also whether to increase
 # the _WIN32_WINNT setting in osdep.h according to the value from glib
-glib_req_ver = '>=2.56.0'
+glib_req_ver = '>=2.66.0'
 glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
                     method: 'pkg-config')
 glib_cflags = []
@@ -910,20 +910,6 @@ if not cc.compiles('''
         to the right pkg-config files for your build target.''')
 endif
 
-# Silence clang warnings triggered by glib < 2.57.2
-if not cc.compiles('''
-  #include <glib.h>
-  typedef struct Foo {
-    int i;
-  } Foo;
-  static void foo_free(Foo *f)
-  {
-    g_free(f);
-  }
-  G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
-  int main(void) { return 0; }''', dependencies: glib_pc, args: ['-Wunused-function', '-Werror'])
-  glib_cflags += cc.get_supported_arguments('-Wno-unused-function')
-endif
 glib = declare_dependency(dependencies: [glib_pc, gmodule],
                           compile_args: glib_cflags,
                           version: glib_pc.version())

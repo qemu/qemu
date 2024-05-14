@@ -37,7 +37,6 @@
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
-#include "qemu/uri.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qmp/qdict.h"
@@ -181,65 +180,71 @@ static void sftp_error_trace(BDRVSSHState *s, const char *op)
 
 static int parse_uri(const char *filename, QDict *options, Error **errp)
 {
-    URI *uri = NULL;
-    QueryParams *qp;
+    g_autoptr(GUri) uri = g_uri_parse(filename, G_URI_FLAGS_NONE, NULL);
+    const char *uri_host, *uri_path, *uri_user, *uri_query;
     char *port_str;
-    int i;
+    int port;
+    g_autoptr(GError) gerror = NULL;
+    char *qp_name, *qp_value;
+    GUriParamsIter qp;
 
-    uri = uri_parse(filename);
     if (!uri) {
         return -EINVAL;
     }
 
-    if (g_strcmp0(uri->scheme, "ssh") != 0) {
+    if (g_strcmp0(g_uri_get_scheme(uri), "ssh") != 0) {
         error_setg(errp, "URI scheme must be 'ssh'");
-        goto err;
+        return -EINVAL;
     }
 
-    if (!uri->server || strcmp(uri->server, "") == 0) {
+    uri_host = g_uri_get_host(uri);
+    if (!uri_host || g_str_equal(uri_host, "")) {
         error_setg(errp, "missing hostname in URI");
-        goto err;
+        return -EINVAL;
     }
 
-    if (!uri->path || strcmp(uri->path, "") == 0) {
+    uri_path = g_uri_get_path(uri);
+    if (!uri_path || g_str_equal(uri_path, "")) {
         error_setg(errp, "missing remote path in URI");
-        goto err;
+        return -EINVAL;
     }
 
-    qp = query_params_parse(uri->query);
-    if (!qp) {
-        error_setg(errp, "could not parse query parameters");
-        goto err;
+    uri_user = g_uri_get_user(uri);
+    if (uri_user && !g_str_equal(uri_user, "")) {
+        qdict_put_str(options, "user", uri_user);
     }
 
-    if(uri->user && strcmp(uri->user, "") != 0) {
-        qdict_put_str(options, "user", uri->user);
-    }
+    qdict_put_str(options, "server.host", uri_host);
 
-    qdict_put_str(options, "server.host", uri->server);
-
-    port_str = g_strdup_printf("%d", uri->port ?: 22);
+    port = g_uri_get_port(uri);
+    port_str = g_strdup_printf("%d", port > 0 ? port : 22);
     qdict_put_str(options, "server.port", port_str);
     g_free(port_str);
 
-    qdict_put_str(options, "path", uri->path);
+    qdict_put_str(options, "path", uri_path);
 
-    /* Pick out any query parameters that we understand, and ignore
-     * the rest.
-     */
-    for (i = 0; i < qp->n; ++i) {
-        if (strcmp(qp->p[i].name, "host_key_check") == 0) {
-            qdict_put_str(options, "host_key_check", qp->p[i].value);
+    uri_query = g_uri_get_query(uri);
+    if (uri_query) {
+        g_uri_params_iter_init(&qp, uri_query, -1, "&", G_URI_PARAMS_NONE);
+        while (g_uri_params_iter_next(&qp, &qp_name, &qp_value, &gerror)) {
+            if (!qp_name || !qp_value || gerror) {
+                warn_report("Failed to parse SSH URI parameters '%s'",
+                            uri_query);
+                break;
+            }
+            /*
+             * Pick out the query parameters that we understand, and ignore
+             * (or rather warn about) the rest.
+             */
+            if (g_str_equal(qp_name, "host_key_check")) {
+                qdict_put_str(options, "host_key_check", qp_value);
+            } else {
+                warn_report("Unsupported parameter '%s' in URI", qp_name);
+            }
         }
     }
 
-    query_params_free(qp);
-    uri_free(uri);
     return 0;
-
- err:
-    uri_free(uri);
-    return -EINVAL;
 }
 
 static bool ssh_has_filename_options_conflict(QDict *options, Error **errp)

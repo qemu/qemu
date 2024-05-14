@@ -36,7 +36,7 @@ test_get_passwd_entry(const gchar *user_name, GError **error)
     return p;
 }
 
-#define g_unix_get_passwd_entry_qemu(username, err) \
+#define g_unix_get_passwd_entry(username, err) \
    test_get_passwd_entry(username, err)
 #endif
 
@@ -46,7 +46,7 @@ get_passwd_entry(const char *username, Error **errp)
     g_autoptr(GError) err = NULL;
     struct passwd *p;
 
-    p = g_unix_get_passwd_entry_qemu(username, &err);
+    p = g_unix_get_passwd_entry(username, &err);
     if (p == NULL) {
         error_setg(errp, "failed to lookup user '%s': %s",
                    username, err->message);
@@ -243,7 +243,6 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
 }
 
 #ifdef QGA_BUILD_UNIT_TEST
-#if GLIB_CHECK_VERSION(2, 60, 0)
 static const strList test_key2 = {
     .value = (char *)"algo key2 comments"
 };
@@ -439,11 +438,4 @@ int main(int argc, char *argv[])
 
     return g_test_run();
 }
-#else
-int main(int argc, char *argv[])
-{
-    g_test_message("test skipped, needs glib >= 2.60");
-    return 0;
-}
-#endif /* GLIB_2_60 */
 #endif /* BUILD_UNIT_TEST */
