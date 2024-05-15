@@ -115,6 +115,7 @@ typedef struct VFIODevice {
     bool no_mmap;
     bool ram_block_discard_allowed;
     OnOffAuto enable_migration;
+    bool migration_events;
     VFIODeviceOps *ops;
     unsigned int num_irqs;
     unsigned int num_regions;
