@@ -150,6 +150,10 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
         g_strdup_printf("%s: Failed setting device state to %s.",
                         vbasedev->name, mig_state_to_str(new_state));
 
+    if (new_state == migration->device_state) {
+        return 0;
+    }
+
     feature->argsz = sizeof(buf);
     feature->flags =
         VFIO_DEVICE_FEATURE_SET | VFIO_DEVICE_FEATURE_MIG_DEVICE_STATE;
