@@ -197,17 +197,12 @@ static int match_prot_id64(CPUHPPAState *env, uint32_t access_id)
 }
 
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
-                              int type, hwaddr *pphys, int *pprot,
-                              HPPATLBEntry **tlb_entry)
+                              int type, hwaddr *pphys, int *pprot)
 {
     hwaddr phys;
     int prot, r_prot, w_prot, x_prot, priv;
     HPPATLBEntry *ent;
     int ret = -1;
-
-    if (tlb_entry) {
-        *tlb_entry = NULL;
-    }
 
     /* Virtual translation disabled.  Map absolute to physical.  */
     if (MMU_IDX_MMU_DISABLED(mmu_idx)) {
@@ -236,10 +231,6 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         prot = 0;
         ret = (type == PAGE_EXEC) ? EXCP_ITLB_MISS : EXCP_DTLB_MISS;
         goto egress;
-    }
-
-    if (tlb_entry) {
-        *tlb_entry = ent;
     }
 
     /* We now know the physical address.  */
@@ -296,30 +287,38 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         goto egress;
     }
 
-    /* In reverse priority order, check for conditions which raise faults.
-       As we go, remove PROT bits that cover the condition we want to check.
-       In this way, the resulting PROT will force a re-check of the
-       architectural TLB entry for the next access.  */
-    if (unlikely(!ent->d)) {
-        if (type & PAGE_WRITE) {
-            /* The D bit is not set -- TLB Dirty Bit Fault.  */
-            ret = EXCP_TLB_DIRTY;
-        }
-        prot &= PAGE_READ | PAGE_EXEC;
-    }
-    if (unlikely(ent->b)) {
-        if (type & PAGE_WRITE) {
-            /* The B bit is set -- Data Memory Break Fault.  */
-            ret = EXCP_DMB;
-        }
-        prot &= PAGE_READ | PAGE_EXEC;
-    }
+    /*
+     * In priority order, check for conditions which raise faults.
+     * Remove PROT bits that cover the condition we want to check,
+     * so that the resulting PROT will force a re-check of the
+     * architectural TLB entry for the next access.
+     */
     if (unlikely(ent->t)) {
+        prot &= PAGE_EXEC;
         if (!(type & PAGE_EXEC)) {
             /* The T bit is set -- Page Reference Fault.  */
             ret = EXCP_PAGE_REF;
         }
-        prot &= PAGE_EXEC;
+    } else if (!ent->d) {
+        prot &= PAGE_READ | PAGE_EXEC;
+        if (type & PAGE_WRITE) {
+            /* The D bit is not set -- TLB Dirty Bit Fault.  */
+            ret = EXCP_TLB_DIRTY;
+        }
+    } else if (unlikely(ent->b)) {
+        prot &= PAGE_READ | PAGE_EXEC;
+        if (type & PAGE_WRITE) {
+            /*
+             * The B bit is set -- Data Memory Break Fault.
+             * Except when PSW_X is set, allow this single access to succeed.
+             * The write bit will be invalidated for subsequent accesses.
+             */
+            if (env->psw_xb & PSW_X) {
+                prot |= PAGE_WRITE_INV;
+            } else {
+                ret = EXCP_DMB;
+            }
+        }
     }
 
  egress:
@@ -342,7 +341,7 @@ hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
                cpu->env.psw & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
 
     excp = hppa_get_physical_address(&cpu->env, addr, mmu_idx, 0,
-                                     &phys, &prot, NULL);
+                                     &phys, &prot);
 
     /* Since we're translating for debugging, the only error that is a
        hard error is no translation at all.  Otherwise, while a real cpu
@@ -424,7 +423,6 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    HPPATLBEntry *ent;
     int prot, excp, a_prot;
     hwaddr phys;
 
@@ -440,8 +438,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         break;
     }
 
-    excp = hppa_get_physical_address(env, addr, mmu_idx,
-                                     a_prot, &phys, &prot, &ent);
+    excp = hppa_get_physical_address(env, addr, mmu_idx, a_prot, &phys, &prot);
     if (unlikely(excp >= 0)) {
         if (probe) {
             return false;
@@ -682,7 +679,7 @@ target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
     int prot, excp;
 
     excp = hppa_get_physical_address(env, addr, MMU_KERNEL_IDX, 0,
-                                     &phys, &prot, NULL);
+                                     &phys, &prot);
     if (excp >= 0) {
         if (excp == EXCP_DTLB_MISS) {
             excp = EXCP_NA_DTLB_MISS;
@@ -692,13 +689,6 @@ target_ulong HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
     }
     trace_hppa_tlb_lpa_success(env, addr, phys);
     return phys;
-}
-
-/* Return the ar_type of the TLB at VADDR, or -1.  */
-int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
-{
-    HPPATLBEntry *ent = hppa_find_tlb(env, vaddr);
-    return ent ? ent->ar_type : -1;
 }
 
 /*
@@ -795,4 +785,31 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
         env->gr[28] = -2; /* nonexistent option */
         break;
     }
+}
+
+uint64_t HELPER(b_gate_priv)(CPUHPPAState *env, uint64_t iaoq_f)
+{
+    uint64_t gva = hppa_form_gva(env, env->iasq_f, iaoq_f);
+    HPPATLBEntry *ent = hppa_find_tlb(env, gva);
+
+    if (ent == NULL) {
+        raise_exception_with_ior(env, EXCP_ITLB_MISS, GETPC(), gva, false);
+    }
+
+    /*
+     * There should be no need to check page permissions, as that will
+     * already have been done by tb_lookup via get_page_addr_code.
+     * All we need at this point is to check the ar_type.
+     *
+     * No change for non-gateway pages or for priv decrease.
+     */
+    if (ent->ar_type & 4) {
+        int old_priv = iaoq_f & 3;
+        int new_priv = ent->ar_type & 3;
+
+        if (new_priv < old_priv) {
+            iaoq_f = (iaoq_f & -4) | new_priv;
+        }
+    }
+    return iaoq_f;
 }

@@ -24,6 +24,7 @@
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 #include "qemu/interval-tree.h"
+#include "hw/registerfields.h"
 
 #define MMU_ABS_W_IDX     6
 #define MMU_ABS_IDX       7
@@ -40,6 +41,9 @@
 #define MMU_IDX_TO_PRIV(MIDX)       (((MIDX) - MMU_KERNEL_IDX) / 2)
 #define MMU_IDX_TO_P(MIDX)          (((MIDX) - MMU_KERNEL_IDX) & 1)
 #define PRIV_P_TO_MMU_IDX(PRIV, P)  ((PRIV) * 2 + !!(P) + MMU_KERNEL_IDX)
+
+#define PRIV_KERNEL       0
+#define PRIV_USER         3
 
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
@@ -152,6 +156,30 @@
 #define CR_IPSW          22
 #define CR_EIRR          23
 
+FIELD(FPSR, ENA_I, 0, 1)
+FIELD(FPSR, ENA_U, 1, 1)
+FIELD(FPSR, ENA_O, 2, 1)
+FIELD(FPSR, ENA_Z, 3, 1)
+FIELD(FPSR, ENA_V, 4, 1)
+FIELD(FPSR, ENABLES, 0, 5)
+FIELD(FPSR, D, 5, 1)
+FIELD(FPSR, T, 6, 1)
+FIELD(FPSR, RM, 9, 2)
+FIELD(FPSR, CQ, 11, 11)
+FIELD(FPSR, CQ0_6, 15, 7)
+FIELD(FPSR, CQ0_4, 17, 5)
+FIELD(FPSR, CQ0_2, 19, 3)
+FIELD(FPSR, CQ0, 21, 1)
+FIELD(FPSR, CA, 15, 7)
+FIELD(FPSR, CA0, 21, 1)
+FIELD(FPSR, C, 26, 1)
+FIELD(FPSR, FLG_I, 27, 1)
+FIELD(FPSR, FLG_U, 28, 1)
+FIELD(FPSR, FLG_O, 29, 1)
+FIELD(FPSR, FLG_Z, 30, 1)
+FIELD(FPSR, FLG_V, 31, 1)
+FIELD(FPSR, FLAGS, 27, 5)
+
 typedef struct HPPATLBEntry {
     union {
         IntervalTreeNode itree;
@@ -180,7 +208,8 @@ typedef struct CPUArchState {
     uint64_t fr[32];
     uint64_t sr[8];          /* stored shifted into place for gva */
 
-    target_ulong psw;        /* All psw bits except the following:  */
+    uint32_t psw;            /* All psw bits except the following:  */
+    uint32_t psw_xb;         /* X and B, in their normal positions */
     target_ulong psw_n;      /* boolean */
     target_long psw_v;       /* in most significant bit */
 
@@ -313,48 +342,11 @@ hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr);
 #define TB_FLAG_SR_SAME     PSW_I
 #define TB_FLAG_PRIV_SHIFT  8
 #define TB_FLAG_UNALIGN     0x400
+#define CS_BASE_DIFFPAGE    (1 << 12)
+#define CS_BASE_DIFFSPACE   (1 << 13)
 
-static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
-                                        uint64_t *cs_base, uint32_t *pflags)
-{
-    uint32_t flags = env->psw_n * PSW_N;
-
-    /* TB lookup assumes that PC contains the complete virtual address.
-       If we leave space+offset separate, we'll get ITLB misses to an
-       incomplete virtual address.  This also means that we must separate
-       out current cpu privilege from the low bits of IAOQ_F.  */
-#ifdef CONFIG_USER_ONLY
-    *pc = env->iaoq_f & -4;
-    *cs_base = env->iaoq_b & -4;
-    flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
-#else
-    /* ??? E, T, H, L, B bits need to be here, when implemented.  */
-    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
-    flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
-
-    *pc = hppa_form_gva_psw(env->psw, (env->psw & PSW_C ? env->iasq_f : 0),
-                            env->iaoq_f & -4);
-    *cs_base = env->iasq_f;
-
-    /* Insert a difference between IAOQ_B and IAOQ_F within the otherwise zero
-       low 32-bits of CS_BASE.  This will succeed for all direct branches,
-       which is the primary case we care about -- using goto_tb within a page.
-       Failure is indicated by a zero difference.  */
-    if (env->iasq_f == env->iasq_b) {
-        target_long diff = env->iaoq_b - env->iaoq_f;
-        if (diff == (int32_t)diff) {
-            *cs_base |= (uint32_t)diff;
-        }
-    }
-    if ((env->sr[4] == env->sr[5])
-        & (env->sr[4] == env->sr[6])
-        & (env->sr[4] == env->sr[7])) {
-        flags |= TB_FLAG_SR_SAME;
-    }
-#endif
-
-    *pflags = flags;
-}
+void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *pflags);
 
 target_ulong cpu_hppa_get_psw(CPUHPPAState *env);
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong);
@@ -379,8 +371,7 @@ bool hppa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 void hppa_cpu_do_interrupt(CPUState *cpu);
 bool hppa_cpu_exec_interrupt(CPUState *cpu, int int_req);
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
-                              int type, hwaddr *pphys, int *pprot,
-                              HPPATLBEntry **tlb_entry);
+                              int type, hwaddr *pphys, int *pprot);
 void hppa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                      vaddr addr, unsigned size,
                                      MMUAccessType access_type,
@@ -389,7 +380,6 @@ void hppa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 extern const MemoryRegionOps hppa_io_eir_ops;
 extern const VMStateDescription vmstate_hppa_cpu;
 void hppa_cpu_alarm_timer(void *);
-int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr);
 #endif
 G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
 

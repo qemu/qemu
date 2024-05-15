@@ -30,7 +30,7 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
 
     env->fr0_shadow = shadow;
 
-    switch (extract32(shadow, 9, 2)) {
+    switch (FIELD_EX32(shadow, FPSR, RM)) {
     default:
         rm = float_round_nearest_even;
         break;
@@ -46,7 +46,7 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
     }
     set_float_rounding_mode(rm, &env->fp_status);
 
-    d = extract32(shadow, 5, 1);
+    d = FIELD_EX32(shadow, FPSR, D);
     set_flush_to_zero(d, &env->fp_status);
     set_flush_inputs_to_zero(d, &env->fp_status);
 }
@@ -57,7 +57,7 @@ void cpu_hppa_loaded_fr0(CPUHPPAState *env)
 }
 
 #define CONVERT_BIT(X, SRC, DST)        \
-    ((SRC) > (DST)                      \
+    ((unsigned)(SRC) > (unsigned)(DST)  \
      ? (X) / ((SRC) / (DST)) & (DST)    \
      : ((X) & (SRC)) * ((DST) / (SRC)))
 
@@ -73,12 +73,12 @@ static void update_fr0_op(CPUHPPAState *env, uintptr_t ra)
     }
     set_float_exception_flags(0, &env->fp_status);
 
-    hard_exp |= CONVERT_BIT(soft_exp, float_flag_inexact,   1u << 0);
-    hard_exp |= CONVERT_BIT(soft_exp, float_flag_underflow, 1u << 1);
-    hard_exp |= CONVERT_BIT(soft_exp, float_flag_overflow,  1u << 2);
-    hard_exp |= CONVERT_BIT(soft_exp, float_flag_divbyzero, 1u << 3);
-    hard_exp |= CONVERT_BIT(soft_exp, float_flag_invalid,   1u << 4);
-    shadow |= hard_exp << (32 - 5);
+    hard_exp |= CONVERT_BIT(soft_exp, float_flag_inexact,   R_FPSR_ENA_I_MASK);
+    hard_exp |= CONVERT_BIT(soft_exp, float_flag_underflow, R_FPSR_ENA_U_MASK);
+    hard_exp |= CONVERT_BIT(soft_exp, float_flag_overflow,  R_FPSR_ENA_O_MASK);
+    hard_exp |= CONVERT_BIT(soft_exp, float_flag_divbyzero, R_FPSR_ENA_Z_MASK);
+    hard_exp |= CONVERT_BIT(soft_exp, float_flag_invalid,   R_FPSR_ENA_V_MASK);
+    shadow |= hard_exp << (R_FPSR_FLAGS_SHIFT - R_FPSR_ENABLES_SHIFT);
     env->fr0_shadow = shadow;
     env->fr[0] = (uint64_t)shadow << 32;
 
@@ -378,15 +378,15 @@ static void update_fr0_cmp(CPUHPPAState *env, uint32_t y,
     if (y) {
         /* targeted comparison */
         /* set fpsr[ca[y - 1]] to current compare */
-        shadow = deposit32(shadow, 21 - (y - 1), 1, c);
+        shadow = deposit32(shadow, R_FPSR_CA0_SHIFT - (y - 1), 1, c);
     } else {
         /* queued comparison */
         /* shift cq right by one place */
-        shadow = deposit32(shadow, 11, 10, extract32(shadow, 12, 10));
+        shadow = (shadow & ~R_FPSR_CQ_MASK) | ((shadow >> 1) & R_FPSR_CQ_MASK);
         /* move fpsr[c] to fpsr[cq[0]] */
-        shadow = deposit32(shadow, 21, 1, extract32(shadow, 26, 1));
+        shadow = FIELD_DP32(shadow, FPSR, CQ0, FIELD_EX32(shadow, FPSR, C));
         /* set fpsr[c] to current compare */
-        shadow = deposit32(shadow, 26, 1, c);
+        shadow = FIELD_DP32(shadow, FPSR, C, c);
     }
 
     env->fr0_shadow = shadow;

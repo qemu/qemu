@@ -32,15 +32,67 @@ static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
+#ifdef CONFIG_USER_ONLY
+    value |= PRIV_USER;
+#endif
     cpu->env.iaoq_f = value;
     cpu->env.iaoq_b = value + 4;
 }
 
 static vaddr hppa_cpu_get_pc(CPUState *cs)
 {
-    HPPACPU *cpu = HPPA_CPU(cs);
+    CPUHPPAState *env = cpu_env(cs);
 
-    return cpu->env.iaoq_f;
+    return hppa_form_gva_psw(env->psw, (env->psw & PSW_C ? env->iasq_f : 0),
+                             env->iaoq_f & -4);
+}
+
+void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
+                          uint64_t *pcsbase, uint32_t *pflags)
+{
+    uint32_t flags = 0;
+    uint64_t cs_base = 0;
+
+    /*
+     * TB lookup assumes that PC contains the complete virtual address.
+     * If we leave space+offset separate, we'll get ITLB misses to an
+     * incomplete virtual address.  This also means that we must separate
+     * out current cpu privilege from the low bits of IAOQ_F.
+     */
+    *pc = hppa_cpu_get_pc(env_cpu(env));
+    flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
+
+    /*
+     * The only really interesting case is if IAQ_Back is on the same page
+     * as IAQ_Front, so that we can use goto_tb between the blocks.  In all
+     * other cases, we'll be ending the TranslationBlock with one insn and
+     * not linking between them.
+     */
+    if (env->iasq_f != env->iasq_b) {
+        cs_base |= CS_BASE_DIFFSPACE;
+    } else if ((env->iaoq_f ^ env->iaoq_b) & TARGET_PAGE_MASK) {
+        cs_base |= CS_BASE_DIFFPAGE;
+    } else {
+        cs_base |= env->iaoq_b & ~TARGET_PAGE_MASK;
+    }
+
+    /* ??? E, T, H, L bits need to be here, when implemented.  */
+    flags |= env->psw_n * PSW_N;
+    flags |= env->psw_xb;
+    flags |= env->psw & (PSW_W | PSW_C | PSW_D | PSW_P);
+
+#ifdef CONFIG_USER_ONLY
+    flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
+#else
+    if ((env->sr[4] == env->sr[5])
+        & (env->sr[4] == env->sr[6])
+        & (env->sr[4] == env->sr[7])) {
+        flags |= TB_FLAG_SR_SAME;
+    }
+#endif
+
+    *pcsbase = cs_base;
+    *pflags = flags;
 }
 
 static void hppa_cpu_synchronize_from_tb(CPUState *cs,
@@ -48,45 +100,28 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
-    tcg_debug_assert(!tcg_cflags_has(cs, CF_PCREL));
-
-#ifdef CONFIG_USER_ONLY
-    cpu->env.iaoq_f = tb->pc;
-    cpu->env.iaoq_b = tb->cs_base;
-#else
-    /* Recover the IAOQ values from the GVA + PRIV.  */
-    uint32_t priv = (tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;
-    target_ulong cs_base = tb->cs_base;
-    target_ulong iasq_f = cs_base & ~0xffffffffull;
-    int32_t diff = cs_base;
-
-    cpu->env.iasq_f = iasq_f;
-    cpu->env.iaoq_f = (tb->pc & ~iasq_f) + priv;
-    if (diff) {
-        cpu->env.iaoq_b = cpu->env.iaoq_f + diff;
-    }
-#endif
-
+    /* IAQ is always up-to-date before goto_tb. */
     cpu->env.psw_n = (tb->flags & PSW_N) != 0;
+    cpu->env.psw_xb = tb->flags & (PSW_X | PSW_B);
 }
 
 static void hppa_restore_state_to_opc(CPUState *cs,
                                       const TranslationBlock *tb,
                                       const uint64_t *data)
 {
-    HPPACPU *cpu = HPPA_CPU(cs);
+    CPUHPPAState *env = cpu_env(cs);
 
-    cpu->env.iaoq_f = data[0];
-    if (data[1] != (target_ulong)-1) {
-        cpu->env.iaoq_b = data[1];
+    env->iaoq_f = (env->iaoq_f & TARGET_PAGE_MASK) | data[0];
+    if (data[1] != INT32_MIN) {
+        env->iaoq_b = env->iaoq_f + data[1];
     }
-    cpu->env.unwind_breg = data[2];
+    env->unwind_breg = data[2];
     /*
      * Since we were executing the instruction at IAOQ_F, and took some
      * sort of action that provoked the cpu_restore_state, we can infer
      * that the instruction was not nullified.
      */
-    cpu->env.psw_n = 0;
+    env->psw_n = 0;
 }
 
 static bool hppa_cpu_has_work(CPUState *cs)
@@ -152,6 +187,9 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
         hppa_ptlbe(&cpu->env);
     }
 #endif
+
+    /* Use pc-relative instructions always to simplify the translator. */
+    tcg_cflags_set(cs, CF_PCREL);
 }
 
 static void hppa_cpu_initfn(Object *obj)

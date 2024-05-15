@@ -1887,8 +1887,8 @@ static inline void init_thread(struct target_pt_regs *regs,
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
-    regs->iaoq[0] = infop->entry;
-    regs->iaoq[1] = infop->entry + 4;
+    regs->iaoq[0] = infop->entry | PRIV_USER;
+    regs->iaoq[1] = regs->iaoq[0] + 4;
     regs->gr[23] = 0;
     regs->gr[24] = infop->argv;
     regs->gr[25] = infop->argc;

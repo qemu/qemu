@@ -41,25 +41,51 @@ typedef struct DisasCond {
     TCGv_i64 a0, a1;
 } DisasCond;
 
+typedef struct DisasIAQE {
+    /* IASQ; may be null for no change from TB. */
+    TCGv_i64 space;
+    /* IAOQ base; may be null for relative address. */
+    TCGv_i64 base;
+    /* IAOQ addend; if base is null, relative to cpu_iaoq_f. */
+    int64_t disp;
+} DisasIAQE;
+
+typedef struct DisasDelayException {
+    struct DisasDelayException *next;
+    TCGLabel *lab;
+    uint32_t insn;
+    bool set_iir;
+    int8_t set_n;
+    uint8_t excp;
+    /* Saved state at parent insn. */
+    DisasIAQE iaq_f, iaq_b;
+} DisasDelayException;
+
 typedef struct DisasContext {
     DisasContextBase base;
     CPUState *cs;
 
-    uint64_t iaoq_f;
-    uint64_t iaoq_b;
-    uint64_t iaoq_n;
-    TCGv_i64 iaoq_n_var;
+    /* IAQ_Front, IAQ_Back. */
+    DisasIAQE iaq_f, iaq_b;
+    /* IAQ_Next, for jumps, otherwise null for simple advance. */
+    DisasIAQE iaq_j, *iaq_n;
+
+    /* IAOQ_Front at entry to TB. */
+    uint64_t iaoq_first;
 
     DisasCond null_cond;
     TCGLabel *null_lab;
 
+    DisasDelayException *delay_excp_list;
     TCGv_i64 zero;
 
     uint32_t insn;
     uint32_t tb_flags;
     int mmu_idx;
     int privilege;
+    uint32_t psw_xb;
     bool psw_n_nonzero;
+    bool psw_b_next;
     bool is_pa20;
     bool insn_start_updated;
 
@@ -238,6 +264,7 @@ static TCGv_i64 cpu_psw_n;
 static TCGv_i64 cpu_psw_v;
 static TCGv_i64 cpu_psw_cb;
 static TCGv_i64 cpu_psw_cb_msb;
+static TCGv_i32 cpu_psw_xb;
 
 void hppa_translate_init(void)
 {
@@ -290,6 +317,9 @@ void hppa_translate_init(void)
         *v->var = tcg_global_mem_new(tcg_env, v->ofs, v->name);
     }
 
+    cpu_psw_xb = tcg_global_mem_new_i32(tcg_env,
+                                        offsetof(CPUHPPAState, psw_xb),
+                                        "psw_xb");
     cpu_iasq_f = tcg_global_mem_new_i64(tcg_env,
                                         offsetof(CPUHPPAState, iasq_f),
                                         "iasq_f");
@@ -332,47 +362,32 @@ static DisasCond cond_make_n(void)
     };
 }
 
-static DisasCond cond_make_tmp(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
+static DisasCond cond_make_tt(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
     assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
     return (DisasCond){ .c = c, .a0 = a0, .a1 = a1 };
 }
 
-static DisasCond cond_make_0_tmp(TCGCond c, TCGv_i64 a0)
+static DisasCond cond_make_ti(TCGCond c, TCGv_i64 a0, uint64_t imm)
 {
-    return cond_make_tmp(c, a0, tcg_constant_i64(0));
+    return cond_make_tt(c, a0, tcg_constant_i64(imm));
 }
 
-static DisasCond cond_make_0(TCGCond c, TCGv_i64 a0)
+static DisasCond cond_make_vi(TCGCond c, TCGv_i64 a0, uint64_t imm)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     tcg_gen_mov_i64(tmp, a0);
-    return cond_make_0_tmp(c, tmp);
+    return cond_make_ti(c, tmp, imm);
 }
 
-static DisasCond cond_make(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
+static DisasCond cond_make_vv(TCGCond c, TCGv_i64 a0, TCGv_i64 a1)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
 
     tcg_gen_mov_i64(t0, a0);
     tcg_gen_mov_i64(t1, a1);
-    return cond_make_tmp(c, t0, t1);
-}
-
-static void cond_free(DisasCond *cond)
-{
-    switch (cond->c) {
-    default:
-        cond->a0 = NULL;
-        cond->a1 = NULL;
-        /* fallthru */
-    case TCG_COND_ALWAYS:
-        cond->c = TCG_COND_NEVER;
-        break;
-    case TCG_COND_NEVER:
-        break;
-    }
+    return cond_make_tt(c, t0, t1);
 }
 
 static TCGv_i64 load_gpr(DisasContext *ctx, unsigned reg)
@@ -499,6 +514,25 @@ static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
 #endif
 }
 
+/*
+ * Write a value to psw_xb, bearing in mind the known value.
+ * To be used just before exiting the TB, so do not update the known value.
+ */
+static void store_psw_xb(DisasContext *ctx, uint32_t xb)
+{
+    tcg_debug_assert(xb == 0 || xb == PSW_B);
+    if (ctx->psw_xb != xb) {
+        tcg_gen_movi_i32(cpu_psw_xb, xb);
+    }
+}
+
+/* Write a value to psw_xb, and update the known value. */
+static void set_psw_xb(DisasContext *ctx, uint32_t xb)
+{
+    store_psw_xb(ctx, xb);
+    ctx->psw_xb = xb;
+}
+
 /* Skip over the implementation of an insn that has been nullified.
    Use this when the insn is too complex for a conditional move.  */
 static void nullify_over(DisasContext *ctx)
@@ -524,7 +558,7 @@ static void nullify_over(DisasContext *ctx)
 
         tcg_gen_brcond_i64(ctx->null_cond.c, ctx->null_cond.a0,
                            ctx->null_cond.a1, ctx->null_lab);
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
     }
 }
 
@@ -542,7 +576,7 @@ static void nullify_save(DisasContext *ctx)
                             ctx->null_cond.a0, ctx->null_cond.a1);
         ctx->psw_n_nonzero = true;
     }
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
 }
 
 /* Set a PSW[N] to X.  The intention is that this is used immediately
@@ -566,6 +600,8 @@ static bool nullify_end(DisasContext *ctx)
     /* For NEXT, NORETURN, STALE, we can easily continue (or exit).
        For UPDATED, we cannot update on the nullified path.  */
     assert(status != DISAS_IAQ_N_UPDATED);
+    /* Taken branches are handled manually. */
+    assert(!ctx->psw_b_next);
 
     if (likely(null_lab == NULL)) {
         /* The current insn wasn't conditional or handled the condition
@@ -594,31 +630,94 @@ static bool nullify_end(DisasContext *ctx)
     return true;
 }
 
-static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
-                            uint64_t ival, TCGv_i64 vval)
+static bool iaqe_variable(const DisasIAQE *e)
 {
-    uint64_t mask = gva_offset_mask(ctx->tb_flags);
+    return e->base || e->space;
+}
 
-    if (ival != -1) {
-        tcg_gen_movi_i64(dest, ival & mask);
-        return;
+static DisasIAQE iaqe_incr(const DisasIAQE *e, int64_t disp)
+{
+    return (DisasIAQE){
+        .space = e->space,
+        .base = e->base,
+        .disp = e->disp + disp,
+    };
+}
+
+static DisasIAQE iaqe_branchi(DisasContext *ctx, int64_t disp)
+{
+    return (DisasIAQE){
+        .space = ctx->iaq_b.space,
+        .disp = ctx->iaq_f.disp + 8 + disp,
+    };
+}
+
+static DisasIAQE iaqe_next_absv(DisasContext *ctx, TCGv_i64 var)
+{
+    return (DisasIAQE){
+        .space = ctx->iaq_b.space,
+        .base = var,
+    };
+}
+
+static void copy_iaoq_entry(DisasContext *ctx, TCGv_i64 dest,
+                            const DisasIAQE *src)
+{
+    tcg_gen_addi_i64(dest, src->base ? : cpu_iaoq_f, src->disp);
+}
+
+static void install_iaq_entries(DisasContext *ctx, const DisasIAQE *f,
+                                const DisasIAQE *b)
+{
+    DisasIAQE b_next;
+
+    if (b == NULL) {
+        b_next = iaqe_incr(f, 4);
+        b = &b_next;
     }
-    tcg_debug_assert(vval != NULL);
 
     /*
-     * We know that the IAOQ is already properly masked.
-     * This optimization is primarily for "iaoq_f = iaoq_b".
+     * There is an edge case
+     *    bv   r0(rN)
+     *    b,l  disp,r0
+     * for which F will use cpu_iaoq_b (from the indirect branch),
+     * and B will use cpu_iaoq_f (from the direct branch).
+     * In this case we need an extra temporary.
      */
-    if (vval == cpu_iaoq_f || vval == cpu_iaoq_b) {
-        tcg_gen_mov_i64(dest, vval);
+    if (f->base != cpu_iaoq_b) {
+        copy_iaoq_entry(ctx, cpu_iaoq_b, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+    } else if (f->base == b->base) {
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+        tcg_gen_addi_i64(cpu_iaoq_b, cpu_iaoq_f, b->disp - f->disp);
     } else {
-        tcg_gen_andi_i64(dest, vval, mask);
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        copy_iaoq_entry(ctx, tmp, b);
+        copy_iaoq_entry(ctx, cpu_iaoq_f, f);
+        tcg_gen_mov_i64(cpu_iaoq_b, tmp);
+    }
+
+    if (f->space) {
+        tcg_gen_mov_i64(cpu_iasq_f, f->space);
+    }
+    if (b->space || f->space) {
+        tcg_gen_mov_i64(cpu_iasq_b, b->space ? : f->space);
     }
 }
 
-static inline uint64_t iaoq_dest(DisasContext *ctx, int64_t disp)
+static void install_link(DisasContext *ctx, unsigned link, bool with_sr0)
 {
-    return ctx->iaoq_f + disp + 8;
+    tcg_debug_assert(ctx->null_cond.c == TCG_COND_NEVER);
+    if (!link) {
+        return;
+    }
+    DisasIAQE next = iaqe_incr(&ctx->iaq_b, 4);
+    copy_iaoq_entry(ctx, cpu_gr[link], &next);
+#ifndef CONFIG_USER_ONLY
+    if (with_sr0) {
+        tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_b);
+    }
+#endif
 }
 
 static void gen_excp_1(int exception)
@@ -628,20 +727,44 @@ static void gen_excp_1(int exception)
 
 static void gen_excp(DisasContext *ctx, int exception)
 {
-    copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
-    copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
+    install_iaq_entries(ctx, &ctx->iaq_f, &ctx->iaq_b);
     nullify_save(ctx);
     gen_excp_1(exception);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
+static DisasDelayException *delay_excp(DisasContext *ctx, uint8_t excp)
+{
+    DisasDelayException *e = tcg_malloc(sizeof(DisasDelayException));
+
+    memset(e, 0, sizeof(*e));
+    e->next = ctx->delay_excp_list;
+    ctx->delay_excp_list = e;
+
+    e->lab = gen_new_label();
+    e->insn = ctx->insn;
+    e->set_iir = true;
+    e->set_n = ctx->psw_n_nonzero ? 0 : -1;
+    e->excp = excp;
+    e->iaq_f = ctx->iaq_f;
+    e->iaq_b = ctx->iaq_b;
+
+    return e;
+}
+
 static bool gen_excp_iir(DisasContext *ctx, int exc)
 {
-    nullify_over(ctx);
-    tcg_gen_st_i64(tcg_constant_i64(ctx->insn),
-                   tcg_env, offsetof(CPUHPPAState, cr[CR_IIR]));
-    gen_excp(ctx, exc);
-    return nullify_end(ctx);
+    if (ctx->null_cond.c == TCG_COND_NEVER) {
+        tcg_gen_st_i64(tcg_constant_i64(ctx->insn),
+                       tcg_env, offsetof(CPUHPPAState, cr[CR_IIR]));
+        gen_excp(ctx, exc);
+    } else {
+        DisasDelayException *e = delay_excp(ctx, exc);
+        tcg_gen_brcond_i64(tcg_invert_cond(ctx->null_cond.c),
+                           ctx->null_cond.a0, ctx->null_cond.a1, e->lab);
+        ctx->null_cond = cond_make_f();
+    }
+    return true;
 }
 
 static bool gen_illegal(DisasContext *ctx)
@@ -661,9 +784,12 @@ static bool gen_illegal(DisasContext *ctx)
     } while (0)
 #endif
 
-static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
+static bool use_goto_tb(DisasContext *ctx, const DisasIAQE *f,
+                        const DisasIAQE *b)
 {
-    return translator_use_goto_tb(&ctx->base, dest);
+    return (!iaqe_variable(f) &&
+            (b == NULL || !iaqe_variable(b)) &&
+            translator_use_goto_tb(&ctx->base, ctx->iaoq_first + f->disp));
 }
 
 /* If the next insn is to be nullified, and it's on the same page,
@@ -672,21 +798,20 @@ static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
    executing a TB that merely branches to the next TB.  */
 static bool use_nullify_skip(DisasContext *ctx)
 {
-    return (((ctx->iaoq_b ^ ctx->iaoq_f) & TARGET_PAGE_MASK) == 0
-            && !cpu_breakpoint_test(ctx->cs, ctx->iaoq_b, BP_ANY));
+    return (!(tb_cflags(ctx->base.tb) & CF_BP_PAGE)
+            && !iaqe_variable(&ctx->iaq_b)
+            && (((ctx->iaoq_first + ctx->iaq_b.disp) ^ ctx->iaoq_first)
+                & TARGET_PAGE_MASK) == 0);
 }
 
 static void gen_goto_tb(DisasContext *ctx, int which,
-                        uint64_t f, uint64_t b)
+                        const DisasIAQE *f, const DisasIAQE *b)
 {
-    if (f != -1 && b != -1 && use_goto_tb(ctx, f)) {
+    install_iaq_entries(ctx, f, b);
+    if (use_goto_tb(ctx, f, b)) {
         tcg_gen_goto_tb(which);
-        copy_iaoq_entry(ctx, cpu_iaoq_f, f, NULL);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, b, NULL);
         tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
-        copy_iaoq_entry(ctx, cpu_iaoq_f, f, cpu_iaoq_b);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, b, ctx->iaoq_n_var);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -709,28 +834,36 @@ static bool cond_need_cb(int c)
 static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
                          TCGv_i64 res, TCGv_i64 uv, TCGv_i64 sv)
 {
+    TCGCond sign_cond, zero_cond;
+    uint64_t sign_imm, zero_imm;
     DisasCond cond;
     TCGv_i64 tmp;
+
+    if (d) {
+        /* 64-bit condition. */
+        sign_imm = 0;
+        sign_cond = TCG_COND_LT;
+        zero_imm = 0;
+        zero_cond = TCG_COND_EQ;
+    } else {
+        /* 32-bit condition. */
+        sign_imm = 1ull << 31;
+        sign_cond = TCG_COND_TSTNE;
+        zero_imm = UINT32_MAX;
+        zero_cond = TCG_COND_TSTEQ;
+    }
 
     switch (cf >> 1) {
     case 0: /* Never / TR    (0 / 1) */
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
-        if (!d) {
-            tmp = tcg_temp_new_i64();
-            tcg_gen_ext32u_i64(tmp, res);
-            res = tmp;
-        }
-        cond = cond_make_0(TCG_COND_EQ, res);
+        cond = cond_make_vi(zero_cond, res, zero_imm);
         break;
     case 2: /* < / >=        (N ^ V / !(N ^ V) */
         tmp = tcg_temp_new_i64();
         tcg_gen_xor_i64(tmp, res, sv);
-        if (!d) {
-            tcg_gen_ext32s_i64(tmp, tmp);
-        }
-        cond = cond_make_0_tmp(TCG_COND_LT, tmp);
+        cond = cond_make_ti(sign_cond, tmp, sign_imm);
         break;
     case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
         /*
@@ -738,45 +871,29 @@ static DisasCond do_cond(DisasContext *ctx, unsigned cf, bool d,
          *   (N ^ V) | Z
          *   ((res < 0) ^ (sv < 0)) | !res
          *   ((res ^ sv) < 0) | !res
-         *   (~(res ^ sv) >= 0) | !res
-         *   !(~(res ^ sv) >> 31) | !res
-         *   !(~(res ^ sv) >> 31 & res)
+         *   ((res ^ sv) < 0 ? 1 : !res)
+         *   !((res ^ sv) < 0 ? 0 : res)
          */
         tmp = tcg_temp_new_i64();
-        tcg_gen_eqv_i64(tmp, res, sv);
-        if (!d) {
-            tcg_gen_sextract_i64(tmp, tmp, 31, 1);
-            tcg_gen_and_i64(tmp, tmp, res);
-            tcg_gen_ext32u_i64(tmp, tmp);
-        } else {
-            tcg_gen_sari_i64(tmp, tmp, 63);
-            tcg_gen_and_i64(tmp, tmp, res);
-        }
-        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
+        tcg_gen_xor_i64(tmp, res, sv);
+        tcg_gen_movcond_i64(sign_cond, tmp,
+                            tmp, tcg_constant_i64(sign_imm),
+                            ctx->zero, res);
+        cond = cond_make_ti(zero_cond, tmp, zero_imm);
         break;
     case 4: /* NUV / UV      (!UV / UV) */
-        cond = cond_make_0(TCG_COND_EQ, uv);
+        cond = cond_make_vi(TCG_COND_EQ, uv, 0);
         break;
     case 5: /* ZNV / VNZ     (!UV | Z / UV & !Z) */
         tmp = tcg_temp_new_i64();
         tcg_gen_movcond_i64(TCG_COND_EQ, tmp, uv, ctx->zero, ctx->zero, res);
-        if (!d) {
-            tcg_gen_ext32u_i64(tmp, tmp);
-        }
-        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
+        cond = cond_make_ti(zero_cond, tmp, zero_imm);
         break;
     case 6: /* SV / NSV      (V / !V) */
-        if (!d) {
-            tmp = tcg_temp_new_i64();
-            tcg_gen_ext32s_i64(tmp, sv);
-            sv = tmp;
-        }
-        cond = cond_make_0(TCG_COND_LT, sv);
+        cond = cond_make_vi(sign_cond, sv, sign_imm);
         break;
     case 7: /* OD / EV */
-        tmp = tcg_temp_new_i64();
-        tcg_gen_andi_i64(tmp, res, 1);
-        cond = cond_make_0_tmp(TCG_COND_NE, tmp);
+        cond = cond_make_vi(TCG_COND_TSTNE, res, 1);
         break;
     default:
         g_assert_not_reached();
@@ -838,9 +955,9 @@ static DisasCond do_sub_cond(DisasContext *ctx, unsigned cf, bool d,
             tcg_gen_ext32s_i64(t1, in1);
             tcg_gen_ext32s_i64(t2, in2);
         }
-        return cond_make_tmp(tc, t1, t2);
+        return cond_make_tt(tc, t1, t2);
     }
-    return cond_make(tc, in1, in2);
+    return cond_make_vv(tc, in1, in2);
 }
 
 /*
@@ -856,65 +973,41 @@ static DisasCond do_log_cond(DisasContext *ctx, unsigned cf, bool d,
                              TCGv_i64 res)
 {
     TCGCond tc;
-    bool ext_uns;
+    uint64_t imm;
 
-    switch (cf) {
-    case 0:  /* never */
-    case 9:  /* undef, C */
-    case 11: /* undef, C & !Z */
-    case 12: /* undef, V */
-        return cond_make_f();
-
-    case 1:  /* true */
-    case 8:  /* undef, !C */
-    case 10: /* undef, !C | Z */
-    case 13: /* undef, !V */
-        return cond_make_t();
-
-    case 2:  /* == */
-        tc = TCG_COND_EQ;
-        ext_uns = true;
+    switch (cf >> 1) {
+    case 0:  /* never / always */
+    case 4:  /* undef, C */
+    case 5:  /* undef, C & !Z */
+    case 6:  /* undef, V */
+        return cf & 1 ? cond_make_t() : cond_make_f();
+    case 1:  /* == / <> */
+        tc = d ? TCG_COND_EQ : TCG_COND_TSTEQ;
+        imm = d ? 0 : UINT32_MAX;
         break;
-    case 3:  /* <> */
-        tc = TCG_COND_NE;
-        ext_uns = true;
+    case 2:  /* < / >= */
+        tc = d ? TCG_COND_LT : TCG_COND_TSTNE;
+        imm = d ? 0 : 1ull << 31;
         break;
-    case 4:  /* < */
-        tc = TCG_COND_LT;
-        ext_uns = false;
+    case 3:  /* <= / > */
+        tc = cf & 1 ? TCG_COND_GT : TCG_COND_LE;
+        if (!d) {
+            TCGv_i64 tmp = tcg_temp_new_i64();
+            tcg_gen_ext32s_i64(tmp, res);
+            return cond_make_ti(tc, tmp, 0);
+        }
+        return cond_make_vi(tc, res, 0);
+    case 7: /* OD / EV */
+        tc = TCG_COND_TSTNE;
+        imm = 1;
         break;
-    case 5:  /* >= */
-        tc = TCG_COND_GE;
-        ext_uns = false;
-        break;
-    case 6:  /* <= */
-        tc = TCG_COND_LE;
-        ext_uns = false;
-        break;
-    case 7:  /* > */
-        tc = TCG_COND_GT;
-        ext_uns = false;
-        break;
-
-    case 14: /* OD */
-    case 15: /* EV */
-        return do_cond(ctx, cf, d, res, NULL, NULL);
-
     default:
         g_assert_not_reached();
     }
-
-    if (!d) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-
-        if (ext_uns) {
-            tcg_gen_ext32u_i64(tmp, res);
-        } else {
-            tcg_gen_ext32s_i64(tmp, res);
-        }
-        return cond_make_0_tmp(tc, tmp);
+    if (cf & 1) {
+        tc = tcg_invert_cond(tc);
     }
-    return cond_make_0(tc, res);
+    return cond_make_vi(tc, res, imm);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
@@ -971,9 +1064,8 @@ static DisasCond do_unit_zero_cond(unsigned cf, bool d, TCGv_i64 res)
     tmp = tcg_temp_new_i64();
     tcg_gen_subi_i64(tmp, res, ones);
     tcg_gen_andc_i64(tmp, tmp, res);
-    tcg_gen_andi_i64(tmp, tmp, sgns);
 
-    return cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, tmp);
+    return cond_make_ti(cf & 1 ? TCG_COND_TSTEQ : TCG_COND_TSTNE, tmp, sgns);
 }
 
 static TCGv_i64 get_carry(DisasContext *ctx, bool d,
@@ -1061,6 +1153,36 @@ static TCGv_i64 do_sub_sv(DisasContext *ctx, TCGv_i64 res,
     return sv;
 }
 
+static void gen_tc(DisasContext *ctx, DisasCond *cond)
+{
+    DisasDelayException *e;
+
+    switch (cond->c) {
+    case TCG_COND_NEVER:
+        break;
+    case TCG_COND_ALWAYS:
+        gen_excp_iir(ctx, EXCP_COND);
+        break;
+    default:
+        e = delay_excp(ctx, EXCP_COND);
+        tcg_gen_brcond_i64(cond->c, cond->a0, cond->a1, e->lab);
+        /* In the non-trap path, the condition is known false. */
+        *cond = cond_make_f();
+        break;
+    }
+}
+
+static void gen_tsv(DisasContext *ctx, TCGv_i64 *sv, bool d)
+{
+    DisasCond cond = do_cond(ctx, /* SV */ 12, d, NULL, NULL, *sv);
+    DisasDelayException *e = delay_excp(ctx, EXCP_OVERFLOW);
+
+    tcg_gen_brcond_i64(cond.c, cond.a0, cond.a1, e->lab);
+
+    /* In the non-trap path, V is known zero. */
+    *sv = tcg_constant_i64(0);
+}
+
 static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
                    TCGv_i64 in2, unsigned shift, bool is_l,
                    bool is_tsv, bool is_tc, bool is_c, unsigned cf, bool d)
@@ -1103,10 +1225,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     if (is_tsv || cond_need_sv(c)) {
         sv = do_add_sv(ctx, dest, in1, in2, orig_in1, shift, d);
         if (is_tsv) {
-            if (!d) {
-                tcg_gen_ext32s_i64(sv, sv);
-            }
-            gen_helper_tsv(tcg_env, sv);
+            gen_tsv(ctx, &sv, d);
         }
     }
 
@@ -1119,9 +1238,7 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     /* Emit any conditional trap before any writeback.  */
     cond = do_cond(ctx, cf, d, dest, uv, sv);
     if (is_tc) {
-        tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
 
     /* Write back the result.  */
@@ -1132,7 +1249,6 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_i64 orig_in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1141,6 +1257,10 @@ static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_d_sh *a,
 {
     TCGv_i64 tcg_r1, tcg_r2;
 
+    if (unlikely(is_tc && a->cf == 1)) {
+        /* Unconditional trap on condition. */
+        return gen_excp_iir(ctx, EXCP_COND);
+    }
     if (a->cf) {
         nullify_over(ctx);
     }
@@ -1156,6 +1276,10 @@ static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
 {
     TCGv_i64 tcg_im, tcg_r2;
 
+    if (unlikely(is_tc && a->cf == 1)) {
+        /* Unconditional trap on condition. */
+        return gen_excp_iir(ctx, EXCP_COND);
+    }
     if (a->cf) {
         nullify_over(ctx);
     }
@@ -1170,7 +1294,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
                    TCGv_i64 in2, bool is_tsv, bool is_b,
                    bool is_tc, unsigned cf, bool d)
 {
-    TCGv_i64 dest, sv, cb, cb_msb, tmp;
+    TCGv_i64 dest, sv, cb, cb_msb;
     unsigned c = cf >> 1;
     DisasCond cond;
 
@@ -1202,10 +1326,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     if (is_tsv || cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
         if (is_tsv) {
-            if (!d) {
-                tcg_gen_ext32s_i64(sv, sv);
-            }
-            gen_helper_tsv(tcg_env, sv);
+            gen_tsv(ctx, &sv, d);
         }
     }
 
@@ -1218,9 +1339,7 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
 
     /* Emit any conditional trap before any writeback.  */
     if (is_tc) {
-        tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
 
     /* Write back the result.  */
@@ -1229,7 +1348,6 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1284,7 +1402,6 @@ static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1299,10 +1416,7 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (cf) {
-        ctx->null_cond = do_log_cond(ctx, cf, d, dest);
-    }
+    ctx->null_cond = do_log_cond(ctx, cf, d, dest);
 }
 
 static bool do_log_reg(DisasContext *ctx, arg_rrr_cf_d *a,
@@ -1386,18 +1500,15 @@ static void do_unit_addsub(DisasContext *ctx, unsigned rt, TCGv_i64 in1,
             tcg_gen_shri_i64(cb, cb, 1);
         }
 
-        tcg_gen_andi_i64(cb, cb, test_cb);
-        cond = cond_make_0_tmp(cf & 1 ? TCG_COND_EQ : TCG_COND_NE, cb);
+        cond = cond_make_ti(cf & 1 ? TCG_COND_TSTEQ : TCG_COND_TSTNE,
+                            cb, test_cb);
     }
 
     if (is_tc) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-        tcg_gen_setcond_i64(cond.c, tmp, cond.a0, cond.a1);
-        gen_helper_tcond(tcg_env, tmp);
+        gen_tc(ctx, &cond);
     }
     save_gpr(ctx, rt, dest);
 
-    cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
 }
 
@@ -1764,36 +1875,43 @@ static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
 
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
-static bool do_dbranch(DisasContext *ctx, uint64_t dest,
+static bool do_dbranch(DisasContext *ctx, int64_t disp,
                        unsigned link, bool is_n)
 {
+    ctx->iaq_j = iaqe_branchi(ctx, disp);
+
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
-        ctx->iaoq_n = dest;
+        install_link(ctx, link, false);
         if (is_n) {
+            if (use_nullify_skip(ctx)) {
+                nullify_set(ctx, 0);
+                store_psw_xb(ctx, 0);
+                gen_goto_tb(ctx, 0, &ctx->iaq_j, NULL);
+                ctx->base.is_jmp = DISAS_NORETURN;
+                return true;
+            }
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
+        ctx->iaq_n = &ctx->iaq_j;
+        ctx->psw_b_next = true;
     } else {
         nullify_over(ctx);
 
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
-
+        install_link(ctx, link, false);
         if (is_n && use_nullify_skip(ctx)) {
             nullify_set(ctx, 0);
-            gen_goto_tb(ctx, 0, dest, dest + 4);
+            store_psw_xb(ctx, 0);
+            gen_goto_tb(ctx, 0, &ctx->iaq_j, NULL);
         } else {
             nullify_set(ctx, is_n);
-            gen_goto_tb(ctx, 0, ctx->iaoq_b, dest);
+            store_psw_xb(ctx, PSW_B);
+            gen_goto_tb(ctx, 0, &ctx->iaq_b, &ctx->iaq_j);
         }
-
         nullify_end(ctx);
 
         nullify_set(ctx, 0);
-        gen_goto_tb(ctx, 1, ctx->iaoq_b, ctx->iaoq_n);
+        store_psw_xb(ctx, 0);
+        gen_goto_tb(ctx, 1, &ctx->iaq_b, NULL);
         ctx->base.is_jmp = DISAS_NORETURN;
     }
     return true;
@@ -1804,7 +1922,7 @@ static bool do_dbranch(DisasContext *ctx, uint64_t dest,
 static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
                        DisasCond *cond)
 {
-    uint64_t dest = iaoq_dest(ctx, disp);
+    DisasIAQE next;
     TCGLabel *taken = NULL;
     TCGCond c = cond->c;
     bool n;
@@ -1813,45 +1931,43 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
 
     /* Handle TRUE and NEVER as direct branches.  */
     if (c == TCG_COND_ALWAYS) {
-        return do_dbranch(ctx, dest, 0, is_n && disp >= 0);
-    }
-    if (c == TCG_COND_NEVER) {
-        return do_dbranch(ctx, ctx->iaoq_n, 0, is_n && disp < 0);
+        return do_dbranch(ctx, disp, 0, is_n && disp >= 0);
     }
 
     taken = gen_new_label();
     tcg_gen_brcond_i64(c, cond->a0, cond->a1, taken);
-    cond_free(cond);
 
     /* Not taken: Condition not satisfied; nullify on backward branches. */
     n = is_n && disp < 0;
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
-        gen_goto_tb(ctx, 0, ctx->iaoq_n, ctx->iaoq_n + 4);
+        store_psw_xb(ctx, 0);
+        next = iaqe_incr(&ctx->iaq_b, 4);
+        gen_goto_tb(ctx, 0, &next, NULL);
     } else {
         if (!n && ctx->null_lab) {
             gen_set_label(ctx->null_lab);
             ctx->null_lab = NULL;
         }
         nullify_set(ctx, n);
-        if (ctx->iaoq_n == -1) {
-            /* The temporary iaoq_n_var died at the branch above.
-               Regenerate it here instead of saving it.  */
-            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
-        }
-        gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
+        store_psw_xb(ctx, 0);
+        gen_goto_tb(ctx, 0, &ctx->iaq_b, NULL);
     }
 
     gen_set_label(taken);
 
     /* Taken: Condition satisfied; nullify on forward branches.  */
     n = is_n && disp >= 0;
+
+    next = iaqe_branchi(ctx, disp);
     if (n && use_nullify_skip(ctx)) {
         nullify_set(ctx, 0);
-        gen_goto_tb(ctx, 1, dest, dest + 4);
+        store_psw_xb(ctx, 0);
+        gen_goto_tb(ctx, 1, &next, NULL);
     } else {
         nullify_set(ctx, n);
-        gen_goto_tb(ctx, 1, ctx->iaoq_b, dest);
+        store_psw_xb(ctx, PSW_B);
+        gen_goto_tb(ctx, 1, &ctx->iaq_b, &next);
     }
 
     /* Not taken: the branch itself was nullified.  */
@@ -1865,89 +1981,45 @@ static bool do_cbranch(DisasContext *ctx, int64_t disp, bool is_n,
     return true;
 }
 
-/* Emit an unconditional branch to an indirect target.  This handles
-   nullification of the branch itself.  */
-static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
-                       unsigned link, bool is_n)
+/*
+ * Emit an unconditional branch to an indirect target, in ctx->iaq_j.
+ * This handles nullification of the branch itself.
+ */
+static bool do_ibranch(DisasContext *ctx, unsigned link,
+                       bool with_sr0, bool is_n)
 {
-    TCGv_i64 a0, a1, next, tmp;
-    TCGCond c;
-
-    assert(ctx->null_lab == NULL);
-
-    if (ctx->null_cond.c == TCG_COND_NEVER) {
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
-        next = tcg_temp_new_i64();
-        tcg_gen_mov_i64(next, dest);
+    if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
+        install_link(ctx, link, with_sr0);
         if (is_n) {
             if (use_nullify_skip(ctx)) {
-                copy_iaoq_entry(ctx, cpu_iaoq_f, -1, next);
-                tcg_gen_addi_i64(next, next, 4);
-                copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
+                install_iaq_entries(ctx, &ctx->iaq_j, NULL);
                 nullify_set(ctx, 0);
                 ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
                 return true;
             }
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
-        ctx->iaoq_n = -1;
-        ctx->iaoq_n_var = next;
-    } else if (is_n && use_nullify_skip(ctx)) {
-        /* The (conditional) branch, B, nullifies the next insn, N,
-           and we're allowed to skip execution N (no single-step or
-           tracepoint in effect).  Since the goto_ptr that we must use
-           for the indirect branch consumes no special resources, we
-           can (conditionally) skip B and continue execution.  */
-        /* The use_nullify_skip test implies we have a known control path.  */
-        tcg_debug_assert(ctx->iaoq_b != -1);
-        tcg_debug_assert(ctx->iaoq_n != -1);
-
-        /* We do have to handle the non-local temporary, DEST, before
-           branching.  Since IOAQ_F is not really live at this point, we
-           can simply store DEST optimistically.  Similarly with IAOQ_B.  */
-        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, dest);
-        next = tcg_temp_new_i64();
-        tcg_gen_addi_i64(next, dest, 4);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, next);
-
-        nullify_over(ctx);
-        if (link != 0) {
-            copy_iaoq_entry(ctx, cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
-        }
-        tcg_gen_lookup_and_goto_ptr();
-        return nullify_end(ctx);
-    } else {
-        c = ctx->null_cond.c;
-        a0 = ctx->null_cond.a0;
-        a1 = ctx->null_cond.a1;
-
-        tmp = tcg_temp_new_i64();
-        next = tcg_temp_new_i64();
-
-        copy_iaoq_entry(ctx, tmp, ctx->iaoq_n, ctx->iaoq_n_var);
-        tcg_gen_movcond_i64(c, next, a0, a1, tmp, dest);
-        ctx->iaoq_n = -1;
-        ctx->iaoq_n_var = next;
-
-        if (link != 0) {
-            tcg_gen_movcond_i64(c, cpu_gr[link], a0, a1, cpu_gr[link], tmp);
-        }
-
-        if (is_n) {
-            /* The branch nullifies the next insn, which means the state of N
-               after the branch is the inverse of the state of N that applied
-               to the branch.  */
-            tcg_gen_setcond_i64(tcg_invert_cond(c), cpu_psw_n, a0, a1);
-            cond_free(&ctx->null_cond);
-            ctx->null_cond = cond_make_n();
-            ctx->psw_n_nonzero = true;
-        } else {
-            cond_free(&ctx->null_cond);
-        }
+        ctx->iaq_n = &ctx->iaq_j;
+        ctx->psw_b_next = true;
+        return true;
     }
-    return true;
+
+    nullify_over(ctx);
+
+    install_link(ctx, link, with_sr0);
+    if (is_n && use_nullify_skip(ctx)) {
+        install_iaq_entries(ctx, &ctx->iaq_j, NULL);
+        nullify_set(ctx, 0);
+        store_psw_xb(ctx, 0);
+    } else {
+        install_iaq_entries(ctx, &ctx->iaq_b, &ctx->iaq_j);
+        nullify_set(ctx, is_n);
+        store_psw_xb(ctx, PSW_B);
+    }
+
+    tcg_gen_lookup_and_goto_ptr();
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
 }
 
 /* Implement
@@ -1959,21 +2031,20 @@ static bool do_ibranch(DisasContext *ctx, TCGv_i64 dest,
  */
 static TCGv_i64 do_ibranch_priv(DisasContext *ctx, TCGv_i64 offset)
 {
-    TCGv_i64 dest;
+    TCGv_i64 dest = tcg_temp_new_i64();
     switch (ctx->privilege) {
     case 0:
         /* Privilege 0 is maximum and is allowed to decrease.  */
-        return offset;
+        tcg_gen_mov_i64(dest, offset);
+        break;
     case 3:
         /* Privilege 3 is minimum and is never allowed to increase.  */
-        dest = tcg_temp_new_i64();
         tcg_gen_ori_i64(dest, offset, 3);
         break;
     default:
-        dest = tcg_temp_new_i64();
         tcg_gen_andi_i64(dest, offset, -4);
         tcg_gen_ori_i64(dest, dest, ctx->privilege);
-        tcg_gen_movcond_i64(TCG_COND_GTU, dest, dest, offset, dest, offset);
+        tcg_gen_umax_i64(dest, dest, offset);
         break;
     }
     return dest;
@@ -1989,7 +2060,7 @@ static TCGv_i64 do_ibranch_priv(DisasContext *ctx, TCGv_i64 offset)
    aforementioned BE.  */
 static void do_page_zero(DisasContext *ctx)
 {
-    TCGv_i64 tmp;
+    assert(ctx->iaq_f.disp == 0);
 
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
@@ -2006,15 +2077,12 @@ static void do_page_zero(DisasContext *ctx)
         g_assert_not_reached();
     }
 
-    /* Check that we didn't arrive here via some means that allowed
-       non-sequential instruction execution.  Normally the PSW[B] bit
-       detects this by disallowing the B,GATE instruction to execute
-       under such conditions.  */
-    if (ctx->iaoq_b != ctx->iaoq_f + 4) {
+    /* If PSW[B] is set, the B,GATE insn would trap. */
+    if (ctx->psw_xb & PSW_B) {
         goto do_sigill;
     }
 
-    switch (ctx->iaoq_f & -4) {
+    switch (ctx->base.pc_first) {
     case 0x00: /* Null pointer call */
         gen_excp_1(EXCP_IMP);
         ctx->base.is_jmp = DISAS_NORETURN;
@@ -2026,13 +2094,15 @@ static void do_page_zero(DisasContext *ctx)
         break;
 
     case 0xe0: /* SET_THREAD_POINTER */
-        tcg_gen_st_i64(cpu_gr[26], tcg_env, offsetof(CPUHPPAState, cr[27]));
-        tmp = tcg_temp_new_i64();
-        tcg_gen_ori_i64(tmp, cpu_gr[31], 3);
-        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
-        tcg_gen_addi_i64(tmp, tmp, 4);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
-        ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
+        {
+            DisasIAQE next = { .base = tcg_temp_new_i64() };
+
+            tcg_gen_st_i64(cpu_gr[26], tcg_env,
+                           offsetof(CPUHPPAState, cr[27]));
+            tcg_gen_ori_i64(next.base, cpu_gr[31], PRIV_USER);
+            install_iaq_entries(ctx, &next, NULL);
+            ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
+        }
         break;
 
     case 0x100: /* SYSCALL */
@@ -2051,7 +2121,7 @@ static void do_page_zero(DisasContext *ctx)
 
 static bool trans_nop(DisasContext *ctx, arg_nop *a)
 {
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2065,18 +2135,19 @@ static bool trans_sync(DisasContext *ctx, arg_sync *a)
     /* No point in nullifying the memory barrier.  */
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
 static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
-    unsigned rt = a->t;
-    TCGv_i64 tmp = dest_gpr(ctx, rt);
-    tcg_gen_movi_i64(tmp, ctx->iaoq_f & ~3ULL);
-    save_gpr(ctx, rt, tmp);
+    TCGv_i64 dest = dest_gpr(ctx, a->t);
 
-    cond_free(&ctx->null_cond);
+    copy_iaoq_entry(ctx, dest, &ctx->iaq_f);
+    tcg_gen_andi_i64(dest, dest, -4);
+
+    save_gpr(ctx, a->t, dest);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2091,7 +2162,7 @@ static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
 
     save_gpr(ctx, rt, t0);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2136,7 +2207,7 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
     save_gpr(ctx, rt, tmp);
 
  done:
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2176,7 +2247,7 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
         tcg_gen_andi_i64(tmp, reg, ctx->is_pa20 ? 63 : 31);
         save_or_nullify(ctx, cpu_sar, tmp);
 
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
         return true;
     }
 
@@ -2250,7 +2321,7 @@ static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
     tcg_gen_andi_i64(tmp, tmp, ctx->is_pa20 ? 63 : 31);
     save_or_nullify(ctx, cpu_sar, tmp);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2267,7 +2338,7 @@ static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
 #endif
     save_gpr(ctx, a->t, dest);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2367,6 +2438,7 @@ static bool trans_halt(DisasContext *ctx, arg_halt *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
+    set_psw_xb(ctx, 0);
     nullify_over(ctx);
     gen_helper_halt(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2378,6 +2450,7 @@ static bool trans_reset(DisasContext *ctx, arg_reset *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
+    set_psw_xb(ctx, 0);
     nullify_over(ctx);
     gen_helper_reset(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2429,7 +2502,7 @@ static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
         tcg_gen_add_i64(dest, src1, src2);
         save_gpr(ctx, a->b, dest);
     }
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2671,7 +2744,7 @@ static bool trans_lci(DisasContext *ctx, arg_lci *a)
        since the entire address space is coherent.  */
     save_gpr(ctx, a->t, ctx->zero);
 
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -2748,7 +2821,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
         unsigned rt = a->t;
 
         if (rt == 0) { /* NOP */
-            cond_free(&ctx->null_cond);
+            ctx->null_cond = cond_make_f();
             return true;
         }
         if (r2 == 0) { /* COPY */
@@ -2759,7 +2832,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
             } else {
                 save_gpr(ctx, rt, cpu_gr[r1]);
             }
-            cond_free(&ctx->null_cond);
+            ctx->null_cond = cond_make_f();
             return true;
         }
 #ifndef CONFIG_USER_ONLY
@@ -2772,11 +2845,13 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf_d *a)
         if ((rt == 10 || rt == 31) && r1 == rt && r2 == rt) { /* PAUSE */
             /* No need to check for supervisor, as userland can only pause
                until the next timer interrupt.  */
+
+            set_psw_xb(ctx, 0);
+
             nullify_over(ctx);
 
             /* Advance the instruction queue.  */
-            copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-            copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+            install_iaq_entries(ctx, &ctx->iaq_b, NULL);
             nullify_set(ctx, 0);
 
             /* Tell the qemu main loop to halt until this cpu has work.  */
@@ -2825,11 +2900,7 @@ static bool trans_uxor(DisasContext *ctx, arg_rrr_cf_d *a)
     tcg_gen_xor_i64(dest, tcg_r1, tcg_r2);
     save_gpr(ctx, a->t, dest);
 
-    cond_free(&ctx->null_cond);
-    if (a->cf) {
-        ctx->null_cond = do_unit_zero_cond(a->cf, a->d, dest);
-    }
-
+    ctx->null_cond = do_unit_zero_cond(a->cf, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -2855,7 +2926,7 @@ static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf_d *a, bool is_tc)
             tcg_gen_subi_i64(tmp, tmp, 1);
         }
         save_gpr(ctx, a->t, tmp);
-        cond_free(&ctx->null_cond);
+        ctx->null_cond = cond_make_f();
         return true;
     }
 
@@ -3381,7 +3452,7 @@ static bool trans_ldil(DisasContext *ctx, arg_ldil *a)
 
     tcg_gen_movi_i64(tcg_rt, a->i);
     save_gpr(ctx, a->t, tcg_rt);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3392,7 +3463,7 @@ static bool trans_addil(DisasContext *ctx, arg_addil *a)
 
     tcg_gen_addi_i64(tcg_r1, tcg_rt, a->i);
     save_gpr(ctx, 1, tcg_r1);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3408,7 +3479,7 @@ static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
         tcg_gen_addi_i64(tcg_rt, cpu_gr[a->b], a->i);
     }
     save_gpr(ctx, a->t, tcg_rt);
-    cond_free(&ctx->null_cond);
+    ctx->null_cond = cond_make_f();
     return true;
 }
 
@@ -3525,24 +3596,18 @@ static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
         tcg_gen_shl_i64(tmp, tcg_r, tmp);
     }
 
-    cond = cond_make_0_tmp(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_ti(a->c ? TCG_COND_GE : TCG_COND_LT, tmp, 0);
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
 static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 {
-    TCGv_i64 tmp, tcg_r;
     DisasCond cond;
-    int p;
+    int p = a->p | (a->d ? 0 : 32);
 
     nullify_over(ctx);
-
-    tmp = tcg_temp_new_i64();
-    tcg_r = load_gpr(ctx, a->r);
-    p = a->p | (a->d ? 0 : 32);
-    tcg_gen_shli_i64(tmp, tcg_r, p);
-
-    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_vi(a->c ? TCG_COND_TSTEQ : TCG_COND_TSTNE,
+                        load_gpr(ctx, a->r), 1ull << (63 - p));
     return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
@@ -3640,10 +3705,7 @@ static bool trans_shrp_sar(DisasContext *ctx, arg_shrp_sar *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3683,10 +3745,7 @@ static bool trans_shrp_imm(DisasContext *ctx, arg_shrp_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3728,10 +3787,7 @@ static bool trans_extr_sar(DisasContext *ctx, arg_extr_sar *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3764,10 +3820,7 @@ static bool trans_extr_imm(DisasContext *ctx, arg_extr_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3804,10 +3857,7 @@ static bool trans_depi_imm(DisasContext *ctx, arg_depi_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3840,10 +3890,7 @@ static bool trans_dep_imm(DisasContext *ctx, arg_dep_imm *a)
     save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (a->c) {
-        ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, a->c, a->d, dest);
     return nullify_end(ctx);
 }
 
@@ -3877,10 +3924,7 @@ static bool do_dep_sar(DisasContext *ctx, unsigned rt, unsigned c,
     save_gpr(ctx, rt, dest);
 
     /* Install the new nullification.  */
-    cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(ctx, c, d, dest);
-    }
+    ctx->null_cond = do_sed_cond(ctx, c, d, dest);
     return nullify_end(ctx);
 }
 
@@ -3910,104 +3954,53 @@ static bool trans_depi_sar(DisasContext *ctx, arg_depi_sar *a)
 
 static bool trans_be(DisasContext *ctx, arg_be *a)
 {
-    TCGv_i64 tmp;
-
-#ifdef CONFIG_USER_ONLY
-    /* ??? It seems like there should be a good way of using
-       "be disp(sr2, r0)", the canonical gateway entry mechanism
-       to our advantage.  But that appears to be inconvenient to
-       manage along side branch delay slots.  Therefore we handle
-       entry into the gateway page via absolute address.  */
-    /* Since we don't implement spaces, just branch.  Do notice the special
-       case of "be disp(*,r0)" using a direct branch to disp, so that we can
-       goto_tb to the TB containing the syscall.  */
-    if (a->b == 0) {
-        return do_dbranch(ctx, a->disp, a->l, a->n);
-    }
-#else
-    nullify_over(ctx);
+#ifndef CONFIG_USER_ONLY
+    ctx->iaq_j.space = tcg_temp_new_i64();
+    load_spr(ctx, ctx->iaq_j.space, a->sp);
 #endif
 
-    tmp = tcg_temp_new_i64();
-    tcg_gen_addi_i64(tmp, load_gpr(ctx, a->b), a->disp);
-    tmp = do_ibranch_priv(ctx, tmp);
+    ctx->iaq_j.base = tcg_temp_new_i64();
+    ctx->iaq_j.disp = 0;
 
-#ifdef CONFIG_USER_ONLY
-    return do_ibranch(ctx, tmp, a->l, a->n);
-#else
-    TCGv_i64 new_spc = tcg_temp_new_i64();
+    tcg_gen_addi_i64(ctx->iaq_j.base, load_gpr(ctx, a->b), a->disp);
+    ctx->iaq_j.base = do_ibranch_priv(ctx, ctx->iaq_j.base);
 
-    load_spr(ctx, new_spc, a->sp);
-    if (a->l) {
-        copy_iaoq_entry(ctx, cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
-        tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_b);
-    }
-    if (a->n && use_nullify_skip(ctx)) {
-        copy_iaoq_entry(ctx, cpu_iaoq_f, -1, tmp);
-        tcg_gen_addi_i64(tmp, tmp, 4);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
-        tcg_gen_mov_i64(cpu_iasq_f, new_spc);
-        tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
-        nullify_set(ctx, 0);
-    } else {
-        copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-        if (ctx->iaoq_b == -1) {
-            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
-        }
-        copy_iaoq_entry(ctx, cpu_iaoq_b, -1, tmp);
-        tcg_gen_mov_i64(cpu_iasq_b, new_spc);
-        nullify_set(ctx, a->n);
-    }
-    tcg_gen_lookup_and_goto_ptr();
-    ctx->base.is_jmp = DISAS_NORETURN;
-    return nullify_end(ctx);
-#endif
+    return do_ibranch(ctx, a->l, true, a->n);
 }
 
 static bool trans_bl(DisasContext *ctx, arg_bl *a)
 {
-    return do_dbranch(ctx, iaoq_dest(ctx, a->disp), a->l, a->n);
+    return do_dbranch(ctx, a->disp, a->l, a->n);
 }
 
 static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
-    uint64_t dest = iaoq_dest(ctx, a->disp);
+    int64_t disp = a->disp;
+    bool indirect = false;
 
-    nullify_over(ctx);
-
-    /* Make sure the caller hasn't done something weird with the queue.
-     * ??? This is not quite the same as the PSW[B] bit, which would be
-     * expensive to track.  Real hardware will trap for
-     *    b  gateway
-     *    b  gateway+4  (in delay slot of first branch)
-     * However, checking for a non-sequential instruction queue *will*
-     * diagnose the security hole
-     *    b  gateway
-     *    b  evil
-     * in which instructions at evil would run with increased privs.
-     */
-    if (ctx->iaoq_b == -1 || ctx->iaoq_b != ctx->iaoq_f + 4) {
+    /* Trap if PSW[B] is set. */
+    if (ctx->psw_xb & PSW_B) {
         return gen_illegal(ctx);
     }
 
+    nullify_over(ctx);
+
 #ifndef CONFIG_USER_ONLY
-    if (ctx->tb_flags & PSW_C) {
-        int type = hppa_artype_for_page(cpu_env(ctx->cs), ctx->base.pc_next);
-        /* If we could not find a TLB entry, then we need to generate an
-           ITLB miss exception so the kernel will provide it.
-           The resulting TLB fill operation will invalidate this TB and
-           we will re-translate, at which point we *will* be able to find
-           the TLB entry and determine if this is in fact a gateway page.  */
-        if (type < 0) {
-            gen_excp(ctx, EXCP_ITLB_MISS);
-            return true;
-        }
-        /* No change for non-gateway pages or for priv decrease.  */
-        if (type >= 4 && type - 4 < ctx->privilege) {
-            dest = deposit64(dest, 0, 2, type - 4);
-        }
+    if (ctx->privilege == 0) {
+        /* Privilege cannot decrease. */
+    } else if (!(ctx->tb_flags & PSW_C)) {
+        /* With paging disabled, priv becomes 0. */
+        disp -= ctx->privilege;
     } else {
-        dest &= -4;  /* priv = 0 */
+        /* Adjust the dest offset for the privilege change from the PTE. */
+        TCGv_i64 off = tcg_temp_new_i64();
+
+        copy_iaoq_entry(ctx, off, &ctx->iaq_f);
+        gen_helper_b_gate_priv(off, tcg_env, off);
+
+        ctx->iaq_j.base = off;
+        ctx->iaq_j.disp = disp + 8;
+        indirect = true;
     }
 #endif
 
@@ -4020,20 +4013,29 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         save_gpr(ctx, a->l, tmp);
     }
 
-    return do_dbranch(ctx, dest, 0, a->n);
+    if (indirect) {
+        return do_ibranch(ctx, 0, false, a->n);
+    }
+    return do_dbranch(ctx, disp, 0, a->n);
 }
 
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
     if (a->x) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-        tcg_gen_shli_i64(tmp, load_gpr(ctx, a->x), 3);
-        tcg_gen_addi_i64(tmp, tmp, ctx->iaoq_f + 8);
+        DisasIAQE next = iaqe_incr(&ctx->iaq_f, 8);
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+
         /* The computation here never changes privilege level.  */
-        return do_ibranch(ctx, tmp, a->l, a->n);
+        copy_iaoq_entry(ctx, t0, &next);
+        tcg_gen_shli_i64(t1, load_gpr(ctx, a->x), 3);
+        tcg_gen_add_i64(t0, t0, t1);
+
+        ctx->iaq_j = iaqe_next_absv(ctx, t0);
+        return do_ibranch(ctx, a->l, false, a->n);
     } else {
         /* BLR R0,RX is a good way to load PC+8 into RX.  */
-        return do_dbranch(ctx, ctx->iaoq_f + 8, a->l, a->n);
+        return do_dbranch(ctx, 0, a->l, a->n);
     }
 }
 
@@ -4049,34 +4051,22 @@ static bool trans_bv(DisasContext *ctx, arg_bv *a)
         tcg_gen_add_i64(dest, dest, load_gpr(ctx, a->b));
     }
     dest = do_ibranch_priv(ctx, dest);
-    return do_ibranch(ctx, dest, 0, a->n);
+    ctx->iaq_j = iaqe_next_absv(ctx, dest);
+
+    return do_ibranch(ctx, 0, false, a->n);
 }
 
 static bool trans_bve(DisasContext *ctx, arg_bve *a)
 {
-    TCGv_i64 dest;
+    TCGv_i64 b = load_gpr(ctx, a->b);
 
-#ifdef CONFIG_USER_ONLY
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
-    return do_ibranch(ctx, dest, a->l, a->n);
-#else
-    nullify_over(ctx);
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
-
-    copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-    if (ctx->iaoq_b == -1) {
-        tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
-    }
-    copy_iaoq_entry(ctx, cpu_iaoq_b, -1, dest);
-    tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
-    if (a->l) {
-        copy_iaoq_entry(ctx, cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
-    }
-    nullify_set(ctx, a->n);
-    tcg_gen_lookup_and_goto_ptr();
-    ctx->base.is_jmp = DISAS_NORETURN;
-    return nullify_end(ctx);
+#ifndef CONFIG_USER_ONLY
+    ctx->iaq_j.space = space_select(ctx, 0, b);
 #endif
+    ctx->iaq_j.base = do_ibranch_priv(ctx, b);
+    ctx->iaq_j.disp = 0;
+
+    return do_ibranch(ctx, a->l, false, a->n);
 }
 
 static bool trans_nopbts(DisasContext *ctx, arg_nopbts *a)
@@ -4377,6 +4367,8 @@ static bool trans_fcmp_d(DisasContext *ctx, arg_fclass2 *a)
 
 static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 {
+    TCGCond tc = TCG_COND_TSTNE;
+    uint32_t mask;
     TCGv_i64 t;
 
     nullify_over(ctx);
@@ -4385,55 +4377,41 @@ static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
     tcg_gen_ld32u_i64(t, tcg_env, offsetof(CPUHPPAState, fr0_shadow));
 
     if (a->y == 1) {
-        int mask;
-        bool inv = false;
-
         switch (a->c) {
         case 0: /* simple */
-            tcg_gen_andi_i64(t, t, 0x4000000);
-            ctx->null_cond = cond_make_0(TCG_COND_NE, t);
-            goto done;
+            mask = R_FPSR_C_MASK;
+            break;
         case 2: /* rej */
-            inv = true;
+            tc = TCG_COND_TSTEQ;
             /* fallthru */
         case 1: /* acc */
-            mask = 0x43ff800;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ_MASK;
             break;
         case 6: /* rej8 */
-            inv = true;
+            tc = TCG_COND_TSTEQ;
             /* fallthru */
         case 5: /* acc8 */
-            mask = 0x43f8000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_6_MASK;
             break;
         case 9: /* acc6 */
-            mask = 0x43e0000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_4_MASK;
             break;
         case 13: /* acc4 */
-            mask = 0x4380000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_2_MASK;
             break;
         case 17: /* acc2 */
-            mask = 0x4200000;
+            mask = R_FPSR_C_MASK | R_FPSR_CQ0_MASK;
             break;
         default:
             gen_illegal(ctx);
             return true;
         }
-        if (inv) {
-            TCGv_i64 c = tcg_constant_i64(mask);
-            tcg_gen_or_i64(t, t, c);
-            ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
-        } else {
-            tcg_gen_andi_i64(t, t, mask);
-            ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
-        }
     } else {
         unsigned cbit = (a->y ^ 1) - 1;
-
-        tcg_gen_extract_i64(t, t, 21 - cbit, 1);
-        ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+        mask = R_FPSR_CA0_MASK >> cbit;
     }
 
- done:
+    ctx->null_cond = cond_make_ti(tc, t, mask);
     return nullify_end(ctx);
 }
 
@@ -4639,34 +4617,38 @@ static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint64_t cs_base;
     int bound;
 
     ctx->cs = cs;
     ctx->tb_flags = ctx->base.tb->flags;
     ctx->is_pa20 = hppa_is_pa20(cpu_env(cs));
+    ctx->psw_xb = ctx->tb_flags & (PSW_X | PSW_B);
 
 #ifdef CONFIG_USER_ONLY
-    ctx->privilege = MMU_IDX_TO_PRIV(MMU_USER_IDX);
+    ctx->privilege = PRIV_USER;
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->iaoq_f = ctx->base.pc_first | ctx->privilege;
-    ctx->iaoq_b = ctx->base.tb->cs_base | ctx->privilege;
     ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D
                     ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
                     : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
-
-    /* Recover the IAOQ values from the GVA + PRIV.  */
-    uint64_t cs_base = ctx->base.tb->cs_base;
-    uint64_t iasq_f = cs_base & ~0xffffffffull;
-    int32_t diff = cs_base;
-
-    ctx->iaoq_f = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
-    ctx->iaoq_b = (diff ? ctx->iaoq_f + diff : -1);
 #endif
-    ctx->iaoq_n = -1;
-    ctx->iaoq_n_var = NULL;
+
+    cs_base = ctx->base.tb->cs_base;
+    ctx->iaoq_first = ctx->base.pc_first + ctx->privilege;
+
+    if (unlikely(cs_base & CS_BASE_DIFFSPACE)) {
+        ctx->iaq_b.space = cpu_iasq_b;
+        ctx->iaq_b.base = cpu_iaoq_b;
+    } else if (unlikely(cs_base & CS_BASE_DIFFPAGE)) {
+        ctx->iaq_b.base = cpu_iaoq_b;
+    } else {
+        uint64_t iaoq_f_pgofs = ctx->iaoq_first & ~TARGET_PAGE_MASK;
+        uint64_t iaoq_b_pgofs = cs_base & ~TARGET_PAGE_MASK;
+        ctx->iaq_b.disp = iaoq_b_pgofs - iaoq_f_pgofs;
+    }
 
     ctx->zero = tcg_constant_i64(0);
 
@@ -4692,8 +4674,23 @@ static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint64_t iaoq_f, iaoq_b;
+    int64_t diff;
 
-    tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b, 0);
+    tcg_debug_assert(!iaqe_variable(&ctx->iaq_f));
+
+    iaoq_f = ctx->iaoq_first + ctx->iaq_f.disp;
+    if (iaqe_variable(&ctx->iaq_b)) {
+        diff = INT32_MIN;
+    } else {
+        iaoq_b = ctx->iaoq_first + ctx->iaq_b.disp;
+        diff = iaoq_b - iaoq_f;
+        /* Direct branches can only produce a 24-bit displacement. */
+        tcg_debug_assert(diff == (int32_t)diff);
+        tcg_debug_assert(diff != INT32_MIN);
+    }
+
+    tcg_gen_insn_start(iaoq_f & ~TARGET_PAGE_MASK, diff, 0);
     ctx->insn_start_updated = false;
 }
 
@@ -4716,16 +4713,13 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
            the page permissions for execute.  */
         uint32_t insn = translator_ldl(env, &ctx->base, ctx->base.pc_next);
 
-        /* Set up the IA queue for the next insn.
-           This will be overwritten by a branch.  */
-        if (ctx->iaoq_b == -1) {
-            ctx->iaoq_n = -1;
-            ctx->iaoq_n_var = tcg_temp_new_i64();
-            tcg_gen_addi_i64(ctx->iaoq_n_var, cpu_iaoq_b, 4);
-        } else {
-            ctx->iaoq_n = ctx->iaoq_b + 4;
-            ctx->iaoq_n_var = NULL;
-        }
+        /*
+         * Set up the IA queue for the next insn.
+         * This will be overwritten by a branch.
+         */
+        ctx->iaq_n = NULL;
+        memset(&ctx->iaq_j, 0, sizeof(ctx->iaq_j));
+        ctx->psw_b_next = false;
 
         if (unlikely(ctx->null_cond.c == TCG_COND_ALWAYS)) {
             ctx->null_cond.c = TCG_COND_NEVER;
@@ -4738,51 +4732,47 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             ret = ctx->base.is_jmp;
             assert(ctx->null_lab == NULL);
         }
-    }
 
-    /* Advance the insn queue.  Note that this check also detects
-       a priority change within the instruction queue.  */
-    if (ret == DISAS_NEXT && ctx->iaoq_b != ctx->iaoq_f + 4) {
-        if (ctx->iaoq_b != -1 && ctx->iaoq_n != -1
-            && use_goto_tb(ctx, ctx->iaoq_b)
-            && (ctx->null_cond.c == TCG_COND_NEVER
-                || ctx->null_cond.c == TCG_COND_ALWAYS)) {
-            nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
-            gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
-            ctx->base.is_jmp = ret = DISAS_NORETURN;
-        } else {
-            ctx->base.is_jmp = ret = DISAS_IAQ_N_STALE;
+        if (ret != DISAS_NORETURN) {
+            set_psw_xb(ctx, ctx->psw_b_next ? PSW_B : 0);
         }
     }
-    ctx->iaoq_f = ctx->iaoq_b;
-    ctx->iaoq_b = ctx->iaoq_n;
+
+    /* If the TranslationBlock must end, do so. */
     ctx->base.pc_next += 4;
+    if (ret != DISAS_NEXT) {
+        return;
+    }
+    /* Note this also detects a priority change. */
+    if (iaqe_variable(&ctx->iaq_b)
+        || ctx->iaq_b.disp != ctx->iaq_f.disp + 4) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+        return;
+    }
 
-    switch (ret) {
-    case DISAS_NORETURN:
-    case DISAS_IAQ_N_UPDATED:
-        break;
-
-    case DISAS_NEXT:
-    case DISAS_IAQ_N_STALE:
-    case DISAS_IAQ_N_STALE_EXIT:
-        if (ctx->iaoq_f == -1) {
-            copy_iaoq_entry(ctx, cpu_iaoq_f, -1, cpu_iaoq_b);
-            copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
-#ifndef CONFIG_USER_ONLY
-            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
-#endif
-            nullify_save(ctx);
-            ctx->base.is_jmp = (ret == DISAS_IAQ_N_STALE_EXIT
-                                ? DISAS_EXIT
-                                : DISAS_IAQ_N_UPDATED);
-        } else if (ctx->iaoq_b == -1) {
-            copy_iaoq_entry(ctx, cpu_iaoq_b, -1, ctx->iaoq_n_var);
-        }
-        break;
-
-    default:
-        g_assert_not_reached();
+    /*
+     * Advance the insn queue.
+     * The only exit now is DISAS_TOO_MANY from the translator loop.
+     */
+    ctx->iaq_f.disp = ctx->iaq_b.disp;
+    if (!ctx->iaq_n) {
+        ctx->iaq_b.disp += 4;
+        return;
+    }
+    /*
+     * If IAQ_Next is variable in any way, we need to copy into the
+     * IAQ_Back globals, in case the next insn raises an exception.
+     */
+    if (ctx->iaq_n->base) {
+        copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaq_n);
+        ctx->iaq_b.base = cpu_iaoq_b;
+        ctx->iaq_b.disp = 0;
+    } else {
+        ctx->iaq_b.disp = ctx->iaq_n->disp;
+    }
+    if (ctx->iaq_n->space) {
+        tcg_gen_mov_i64(cpu_iasq_b, ctx->iaq_n->space);
+        ctx->iaq_b.space = cpu_iasq_b;
     }
 }
 
@@ -4790,28 +4780,56 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     DisasJumpType is_jmp = ctx->base.is_jmp;
+    /* Assume the insn queue has not been advanced. */
+    DisasIAQE *f = &ctx->iaq_b;
+    DisasIAQE *b = ctx->iaq_n;
 
     switch (is_jmp) {
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-    case DISAS_IAQ_N_STALE:
-    case DISAS_IAQ_N_STALE_EXIT:
-        copy_iaoq_entry(ctx, cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
-        copy_iaoq_entry(ctx, cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
-        nullify_save(ctx);
+        /* The insn queue has not been advanced. */
+        f = &ctx->iaq_f;
+        b = &ctx->iaq_b;
         /* FALLTHRU */
-    case DISAS_IAQ_N_UPDATED:
-        if (is_jmp != DISAS_IAQ_N_STALE_EXIT) {
-            tcg_gen_lookup_and_goto_ptr();
+    case DISAS_IAQ_N_STALE:
+        if (use_goto_tb(ctx, f, b)
+            && (ctx->null_cond.c == TCG_COND_NEVER
+                || ctx->null_cond.c == TCG_COND_ALWAYS)) {
+            nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
+            gen_goto_tb(ctx, 0, f, b);
             break;
         }
         /* FALLTHRU */
+    case DISAS_IAQ_N_STALE_EXIT:
+        install_iaq_entries(ctx, f, b);
+        nullify_save(ctx);
+        if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
+            tcg_gen_exit_tb(NULL, 0);
+            break;
+        }
+        /* FALLTHRU */
+    case DISAS_IAQ_N_UPDATED:
+        tcg_gen_lookup_and_goto_ptr();
+        break;
     case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
         break;
     default:
         g_assert_not_reached();
+    }
+
+    for (DisasDelayException *e = ctx->delay_excp_list; e ; e = e->next) {
+        gen_set_label(e->lab);
+        if (e->set_n >= 0) {
+            tcg_gen_movi_i64(cpu_psw_n, e->set_n);
+        }
+        if (e->set_iir) {
+            tcg_gen_st_i64(tcg_constant_i64(e->insn), tcg_env,
+                           offsetof(CPUHPPAState, cr[CR_IIR]));
+        }
+        install_iaq_entries(ctx, &e->iaq_f, &e->iaq_b);
+        gen_excp_1(e->excp);
     }
 }
 
@@ -4853,6 +4871,6 @@ static const TranslatorOps hppa_tr_ops = {
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
                            vaddr pc, void *host_pc)
 {
-    DisasContext ctx;
+    DisasContext ctx = { };
     translator_loop(cs, tb, max_insns, pc, host_pc, &hppa_tr_ops, &ctx.base);
 }

@@ -54,7 +54,7 @@ target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
 
     psw |= env->psw_n * PSW_N;
     psw |= (env->psw_v < 0) * PSW_V;
-    psw |= env->psw;
+    psw |= env->psw | env->psw_xb;
 
     return psw;
 }
@@ -76,8 +76,8 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
     }
     psw &= ~reserved;
 
-    env->psw = psw & (uint32_t)~(PSW_N | PSW_V | PSW_CB);
-
+    env->psw = psw & (uint32_t)~(PSW_B | PSW_N | PSW_V | PSW_X | PSW_CB);
+    env->psw_xb = psw & (PSW_X | PSW_B);
     env->psw_n = (psw / PSW_N) & 1;
     env->psw_v = -((psw / PSW_V) & 1);
 
@@ -102,6 +102,19 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
 
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
+#ifndef CONFIG_USER_ONLY
+    static const char cr_name[32][5] = {
+        "RC",    "CR1",   "CR2",   "CR3",
+        "CR4",   "CR5",   "CR6",   "CR7",
+        "PID1",  "PID2",  "CCR",   "SAR",
+        "PID3",  "PID4",  "IVA",   "EIEM",
+        "ITMR",  "ISQF",  "IOQF",  "IIR",
+        "ISR",   "IOR",   "IPSW",  "EIRR",
+        "TR0",   "TR1",   "TR2",   "TR3",
+        "TR4",   "TR5",   "TR6",   "TR7",
+    };
+#endif
+
     CPUHPPAState *env = cpu_env(cs);
     target_ulong psw = cpu_hppa_get_psw(env);
     target_ulong psw_cb;
@@ -117,11 +130,12 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         m = UINT32_MAX;
     }
 
-    qemu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx
-                 " IIR %0*" PRIx64 "\n",
+    qemu_fprintf(f, "IA_F %08" PRIx64 ":%0*" PRIx64 " (" TARGET_FMT_lx ")\n"
+                    "IA_B %08" PRIx64 ":%0*" PRIx64 " (" TARGET_FMT_lx ")\n",
+                 env->iasq_f >> 32, w, m & env->iaoq_f,
                  hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
-                 hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b),
-                 w, m & env->cr[CR_IIR]);
+                 env->iasq_b >> 32, w, m & env->iaoq_b,
+                 hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b));
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');
@@ -154,12 +168,46 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                      (i & 3) == 3 ? '\n' : ' ');
     }
 #ifndef CONFIG_USER_ONLY
+    for (i = 0; i < 32; i++) {
+        qemu_fprintf(f, "%-4s %0*" PRIx64 "%c",
+                     cr_name[i], w, m & env->cr[i],
+                     (i & 3) == 3 ? '\n' : ' ');
+    }
+    qemu_fprintf(f, "ISQB %0*" PRIx64 " IOQB %0*" PRIx64 "\n",
+                 w, m & env->cr_back[0], w, m & env->cr_back[1]);
     for (i = 0; i < 8; i++) {
         qemu_fprintf(f, "SR%02d %08x%c", i, (uint32_t)(env->sr[i] >> 32),
                      (i & 3) == 3 ? '\n' : ' ');
     }
 #endif
-     qemu_fprintf(f, "\n");
 
-    /* ??? FR */
+    if (flags & CPU_DUMP_FPU) {
+        static const char rm[4][4] = { "RN", "RZ", "R+", "R-" };
+        char flg[6], ena[6];
+        uint32_t fpsr = env->fr0_shadow;
+
+        flg[0] = (fpsr & R_FPSR_FLG_V_MASK ? 'V' : '-');
+        flg[1] = (fpsr & R_FPSR_FLG_Z_MASK ? 'Z' : '-');
+        flg[2] = (fpsr & R_FPSR_FLG_O_MASK ? 'O' : '-');
+        flg[3] = (fpsr & R_FPSR_FLG_U_MASK ? 'U' : '-');
+        flg[4] = (fpsr & R_FPSR_FLG_I_MASK ? 'I' : '-');
+        flg[5] = '\0';
+
+        ena[0] = (fpsr & R_FPSR_ENA_V_MASK ? 'V' : '-');
+        ena[1] = (fpsr & R_FPSR_ENA_Z_MASK ? 'Z' : '-');
+        ena[2] = (fpsr & R_FPSR_ENA_O_MASK ? 'O' : '-');
+        ena[3] = (fpsr & R_FPSR_ENA_U_MASK ? 'U' : '-');
+        ena[4] = (fpsr & R_FPSR_ENA_I_MASK ? 'I' : '-');
+        ena[5] = '\0';
+
+        qemu_fprintf(f, "FPSR %08x flag    %s enable  %s %s\n",
+                     fpsr, flg, ena, rm[FIELD_EX32(fpsr, FPSR, RM)]);
+
+        for (i = 0; i < 32; i++) {
+            qemu_fprintf(f, "FR%02d %016" PRIx64 "%c",
+                     i, env->fr[i], (i & 3) == 3 ? '\n' : ' ');
+        }
+    }
+
+    qemu_fprintf(f, "\n");
 }
