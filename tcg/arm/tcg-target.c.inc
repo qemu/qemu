@@ -2740,17 +2740,33 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_cmp_vec:
         {
             TCGCond cond = args[3];
+            ARMInsn insn;
 
-            if (cond == TCG_COND_NE) {
+            switch (cond) {
+            case TCG_COND_NE:
                 if (const_args[2]) {
                     tcg_out_vreg3(s, INSN_VTST, q, vece, a0, a1, a1);
                 } else {
                     tcg_out_vreg3(s, INSN_VCEQ, q, vece, a0, a1, a2);
                     tcg_out_vreg2(s, INSN_VMVN, q, 0, a0, a0);
                 }
-            } else {
-                ARMInsn insn;
+                break;
 
+            case TCG_COND_TSTNE:
+            case TCG_COND_TSTEQ:
+                if (const_args[2]) {
+                    /* (x & 0) == 0 */
+                    tcg_out_dupi_vec(s, type, MO_8, a0,
+                                     -(cond == TCG_COND_TSTEQ));
+                    break;
+                }
+                tcg_out_vreg3(s, INSN_VTST, q, vece, a0, a1, a2);
+                if (cond == TCG_COND_TSTEQ) {
+                    tcg_out_vreg2(s, INSN_VMVN, q, 0, a0, a0);
+                }
+                break;
+
+            default:
                 if (const_args[2]) {
                     insn = vec_cmp0_insn[cond];
                     if (insn) {
@@ -2769,6 +2785,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                     tcg_debug_assert(insn != 0);
                 }
                 tcg_out_vreg3(s, insn, q, vece, a0, a1, a2);
+                break;
             }
         }
         return;
