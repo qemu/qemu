@@ -129,6 +129,9 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
 {
     VFIOMigration *migration = vbasedev->migration;
 
+    trace_vfio_migration_set_device_state(vbasedev->name,
+                                          mig_state_to_str(state));
+
     migration->device_state = state;
     vfio_migration_send_event(vbasedev);
 }
@@ -149,6 +152,9 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
     g_autofree char *error_prefix =
         g_strdup_printf("%s: Failed setting device state to %s.",
                         vbasedev->name, mig_state_to_str(new_state));
+
+    trace_vfio_migration_set_state(vbasedev->name, mig_state_to_str(new_state),
+                                   mig_state_to_str(recover_state));
 
     if (new_state == migration->device_state) {
         return 0;
@@ -208,8 +214,6 @@ static int vfio_migration_set_state(VFIODevice *vbasedev,
 
         migration->data_fd = mig_state->data_fd;
     }
-
-    trace_vfio_migration_set_state(vbasedev->name, mig_state_to_str(new_state));
 
     return 0;
 
