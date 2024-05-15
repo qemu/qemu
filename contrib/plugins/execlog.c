@@ -258,8 +258,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
                                                        NULL);
             }
         } else {
-            uint32_t insn_opcode;
-            insn_opcode = *((uint32_t *)qemu_plugin_insn_data(insn));
+            uint32_t insn_opcode = 0;
+            qemu_plugin_insn_data(insn, &insn_opcode, sizeof(insn_opcode));
+
             char *output = g_strdup_printf("0x%"PRIx64", 0x%"PRIx32", \"%s\"",
                                            insn_vaddr, insn_opcode, insn_disas);
 

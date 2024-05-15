@@ -42,6 +42,7 @@ typedef struct CPUPluginState CPUPluginState;
 typedef struct CPUState CPUState;
 typedef struct DeviceState DeviceState;
 typedef struct DirtyBitmapSnapshot DirtyBitmapSnapshot;
+typedef struct DisasContextBase DisasContextBase;
 typedef struct DisplayChangeListener DisplayChangeListener;
 typedef struct DriveInfo DriveInfo;
 typedef struct DumpState DumpState;

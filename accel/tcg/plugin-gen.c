@@ -188,7 +188,7 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
     int insn_idx = -1;
 
     if (unlikely(qemu_loglevel_mask(LOG_TB_OP_PLUGIN)
-                 && qemu_log_in_addr_range(plugin_tb->vaddr))) {
+                 && qemu_log_in_addr_range(tcg_ctx->plugin_db->pc_first))) {
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             fprintf(logfile, "OP before plugin injection:\n");
@@ -303,35 +303,34 @@ static void plugin_gen_inject(struct qemu_plugin_tb *plugin_tb)
     }
 }
 
-bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db,
-                         bool mem_only)
+bool plugin_gen_tb_start(CPUState *cpu, const DisasContextBase *db)
 {
-    bool ret = false;
+    struct qemu_plugin_tb *ptb;
 
-    if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_state->event_mask)) {
-        struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
+    if (!test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS,
+                  cpu->plugin_state->event_mask)) {
+        return false;
+    }
 
-        /* reset callbacks */
+    tcg_ctx->plugin_db = db;
+    tcg_ctx->plugin_insn = NULL;
+    ptb = tcg_ctx->plugin_tb;
+
+    if (ptb) {
+        /* Reset callbacks */
         if (ptb->cbs) {
             g_array_set_size(ptb->cbs, 0);
         }
         ptb->n = 0;
-
-        ret = true;
-
-        ptb->vaddr = db->pc_first;
-        ptb->vaddr2 = -1;
-        ptb->haddr1 = db->host_addr[0];
-        ptb->haddr2 = NULL;
-        ptb->mem_only = mem_only;
         ptb->mem_helper = false;
-
-        tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
+    } else {
+        ptb = g_new0(struct qemu_plugin_tb, 1);
+        tcg_ctx->plugin_tb = ptb;
+        ptb->insns = g_ptr_array_new();
     }
 
-    tcg_ctx->plugin_insn = NULL;
-
-    return ret;
+    tcg_gen_plugin_cb(PLUGIN_GEN_FROM_TB);
+    return true;
 }
 
 void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
@@ -345,11 +344,9 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
     ptb->n = n;
     if (n <= ptb->insns->len) {
         insn = g_ptr_array_index(ptb->insns, n - 1);
-        g_byte_array_set_size(insn->data, 0);
     } else {
         assert(n - 1 == ptb->insns->len);
         insn = g_new0(struct qemu_plugin_insn, 1);
-        insn->data = g_byte_array_sized_new(4);
         g_ptr_array_add(ptb->insns, insn);
     }
 
@@ -366,28 +363,16 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
     pc = db->pc_next;
     insn->vaddr = pc;
 
-    /*
-     * Detect page crossing to get the new host address.
-     * Note that we skip this when haddr1 == NULL, e.g. when we're
-     * fetching instructions from a region not backed by RAM.
-     */
-    if (ptb->haddr1 == NULL) {
-        insn->haddr = NULL;
-    } else if (is_same_page(db, db->pc_next)) {
-        insn->haddr = ptb->haddr1 + pc - ptb->vaddr;
-    } else {
-        if (ptb->vaddr2 == -1) {
-            ptb->vaddr2 = TARGET_PAGE_ALIGN(db->pc_first);
-            get_page_addr_code_hostp(cpu_env(cpu), ptb->vaddr2, &ptb->haddr2);
-        }
-        insn->haddr = ptb->haddr2 + pc - ptb->vaddr2;
-    }
-
     tcg_gen_plugin_cb(PLUGIN_GEN_FROM_INSN);
 }
 
 void plugin_gen_insn_end(void)
 {
+    const DisasContextBase *db = tcg_ctx->plugin_db;
+    struct qemu_plugin_insn *pinsn = tcg_ctx->plugin_insn;
+
+    pinsn->len = db->fake_insn ? db->record_len : db->pc_next - pinsn->vaddr;
+
     tcg_gen_plugin_cb(PLUGIN_GEN_AFTER_INSN);
 }
 

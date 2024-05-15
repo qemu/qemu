@@ -22,7 +22,6 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
-#include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
@@ -75,10 +74,10 @@ static TCGv_i64 cpu_acc;
 
 /* decoder helper */
 static uint32_t decode_load_bytes(DisasContext *ctx, uint32_t insn,
-                           int i, int n)
+                                  int i, int n)
 {
     while (++i <= n) {
-        uint8_t b = cpu_ldub_code(ctx->env, ctx->base.pc_next++);
+        uint8_t b = translator_ldub(ctx->env, &ctx->base, ctx->base.pc_next++);
         insn |= b << (32 - i * 8);
     }
     return insn;
@@ -90,22 +89,24 @@ static uint32_t li(DisasContext *ctx, int sz)
     CPURXState *env = ctx->env;
     addr = ctx->base.pc_next;
 
-    tcg_debug_assert(sz < 4);
     switch (sz) {
     case 1:
         ctx->base.pc_next += 1;
-        return cpu_ldsb_code(env, addr);
+        return (int8_t)translator_ldub(env, &ctx->base, addr);
     case 2:
         ctx->base.pc_next += 2;
-        return cpu_ldsw_code(env, addr);
+        return (int16_t)translator_lduw(env, &ctx->base, addr);
     case 3:
         ctx->base.pc_next += 3;
-        tmp = cpu_ldsb_code(env, addr + 2) << 16;
-        tmp |= cpu_lduw_code(env, addr) & 0xffff;
+        tmp = (int8_t)translator_ldub(env, &ctx->base, addr + 2);
+        tmp <<= 16;
+        tmp |= translator_lduw(env, &ctx->base, addr);
         return tmp;
     case 0:
         ctx->base.pc_next += 4;
-        return cpu_ldl_code(env, addr);
+        return translator_ldl(env, &ctx->base, addr);
+    default:
+        g_assert_not_reached();
     }
     return 0;
 }
@@ -190,22 +191,22 @@ static inline TCGv rx_index_addr(DisasContext *ctx, TCGv mem,
 {
     uint32_t dsp;
 
-    tcg_debug_assert(ld < 3);
     switch (ld) {
     case 0:
         return cpu_regs[reg];
     case 1:
-        dsp = cpu_ldub_code(ctx->env, ctx->base.pc_next) << size;
+        dsp = translator_ldub(ctx->env, &ctx->base, ctx->base.pc_next) << size;
         tcg_gen_addi_i32(mem, cpu_regs[reg], dsp);
         ctx->base.pc_next += 1;
         return mem;
     case 2:
-        dsp = cpu_lduw_code(ctx->env, ctx->base.pc_next) << size;
+        dsp = translator_lduw(ctx->env, &ctx->base, ctx->base.pc_next) << size;
         tcg_gen_addi_i32(mem, cpu_regs[reg], dsp);
         ctx->base.pc_next += 2;
         return mem;
+    default:
+        g_assert_not_reached();
     }
-    return NULL;
 }
 
 static inline MemOp mi_to_mop(unsigned mi)
@@ -2247,20 +2248,12 @@ static void rx_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void rx_tr_disas_log(const DisasContextBase *dcbase,
-                            CPUState *cs, FILE *logfile)
-{
-    fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
-    target_disas(logfile, cs, dcbase->pc_first, dcbase->tb->size);
-}
-
 static const TranslatorOps rx_tr_ops = {
     .init_disas_context = rx_tr_init_disas_context,
     .tb_start           = rx_tr_tb_start,
     .insn_start         = rx_tr_insn_start,
     .translate_insn     = rx_tr_translate_insn,
     .tb_stop            = rx_tr_tb_stop,
-    .disas_log          = rx_tr_disas_log,
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,

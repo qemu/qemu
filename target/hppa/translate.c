@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "disas/disas.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
@@ -4816,31 +4815,29 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void hppa_tr_disas_log(const DisasContextBase *dcbase,
+#ifdef CONFIG_USER_ONLY
+static bool hppa_tr_disas_log(const DisasContextBase *dcbase,
                               CPUState *cs, FILE *logfile)
 {
     target_ulong pc = dcbase->pc_first;
 
-#ifdef CONFIG_USER_ONLY
     switch (pc) {
     case 0x00:
         fprintf(logfile, "IN:\n0x00000000:  (null)\n");
-        return;
+        return true;
     case 0xb0:
         fprintf(logfile, "IN:\n0x000000b0:  light-weight-syscall\n");
-        return;
+        return true;
     case 0xe0:
         fprintf(logfile, "IN:\n0x000000e0:  set-thread-pointer-syscall\n");
-        return;
+        return true;
     case 0x100:
         fprintf(logfile, "IN:\n0x00000100:  syscall\n");
-        return;
+        return true;
     }
-#endif
-
-    fprintf(logfile, "IN: %s\n", lookup_symbol(pc));
-    target_disas(logfile, cs, pc, dcbase->tb->size);
+    return false;
 }
+#endif
 
 static const TranslatorOps hppa_tr_ops = {
     .init_disas_context = hppa_tr_init_disas_context,
@@ -4848,7 +4845,9 @@ static const TranslatorOps hppa_tr_ops = {
     .insn_start         = hppa_tr_insn_start,
     .translate_insn     = hppa_tr_translate_insn,
     .tb_stop            = hppa_tr_tb_stop,
+#ifdef CONFIG_USER_ONLY
     .disas_log          = hppa_tr_disas_log,
+#endif
 };
 
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
