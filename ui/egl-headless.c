@@ -85,29 +85,38 @@ static void egl_scanout_texture(DisplayChangeListener *dcl,
 static void egl_scanout_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf)
 {
+    uint32_t width, height, texture;
+
     egl_dmabuf_import_texture(dmabuf);
-    if (!dmabuf->texture) {
+    texture = qemu_dmabuf_get_texture(dmabuf);
+    if (!texture) {
         return;
     }
 
-    egl_scanout_texture(dcl, dmabuf->texture,
-                        false, dmabuf->width, dmabuf->height,
-                        0, 0, dmabuf->width, dmabuf->height, NULL);
+    width = qemu_dmabuf_get_width(dmabuf);
+    height = qemu_dmabuf_get_height(dmabuf);
+
+    egl_scanout_texture(dcl, texture, false, width, height, 0, 0,
+                        width, height, NULL);
 }
 
 static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
                               QemuDmaBuf *dmabuf, bool have_hot,
                               uint32_t hot_x, uint32_t hot_y)
 {
+    uint32_t width, height, texture;
     egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
 
     if (dmabuf) {
         egl_dmabuf_import_texture(dmabuf);
-        if (!dmabuf->texture) {
+        texture = qemu_dmabuf_get_texture(dmabuf);
+        if (!texture) {
             return;
         }
-        egl_fb_setup_for_tex(&edpy->cursor_fb, dmabuf->width, dmabuf->height,
-                             dmabuf->texture, false);
+
+        width = qemu_dmabuf_get_width(dmabuf);
+        height = qemu_dmabuf_get_height(dmabuf);
+        egl_fb_setup_for_tex(&edpy->cursor_fb, width, height, texture, false);
     } else {
         egl_fb_destroy(&edpy->cursor_fb);
     }

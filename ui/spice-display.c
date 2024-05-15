@@ -976,6 +976,7 @@ static void qemu_spice_gl_cursor_dmabuf(DisplayChangeListener *dcl,
                                         uint32_t hot_x, uint32_t hot_y)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    uint32_t width, height, texture;
 
     ssd->have_hot = have_hot;
     ssd->hot_x = hot_x;
@@ -984,11 +985,13 @@ static void qemu_spice_gl_cursor_dmabuf(DisplayChangeListener *dcl,
     trace_qemu_spice_gl_cursor(ssd->qxl.id, dmabuf != NULL, have_hot);
     if (dmabuf) {
         egl_dmabuf_import_texture(dmabuf);
-        if (!dmabuf->texture) {
+        texture = qemu_dmabuf_get_texture(dmabuf);
+        if (!texture) {
             return;
         }
-        egl_fb_setup_for_tex(&ssd->cursor_fb, dmabuf->width, dmabuf->height,
-                             dmabuf->texture, false);
+        width = qemu_dmabuf_get_width(dmabuf);
+        height = qemu_dmabuf_get_height(dmabuf);
+        egl_fb_setup_for_tex(&ssd->cursor_fb, width, height, texture, false);
     } else {
         egl_fb_destroy(&ssd->cursor_fb);
     }
@@ -1026,6 +1029,7 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     bool y_0_top = false; /* FIXME */
     uint64_t cookie;
     int fd;
+    uint32_t width, height, texture;
 
     if (!ssd->have_scanout) {
         return;
@@ -1042,41 +1046,45 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
 
     if (ssd->guest_dmabuf_refresh) {
         QemuDmaBuf *dmabuf = ssd->guest_dmabuf;
+        width = qemu_dmabuf_get_width(dmabuf);
+        height = qemu_dmabuf_get_height(dmabuf);
+
         if (render_cursor) {
             egl_dmabuf_import_texture(dmabuf);
-            if (!dmabuf->texture) {
+            texture = qemu_dmabuf_get_texture(dmabuf);
+            if (!texture) {
                 return;
             }
 
             /* source framebuffer */
-            egl_fb_setup_for_tex(&ssd->guest_fb,
-                                 dmabuf->width, dmabuf->height,
-                                 dmabuf->texture, false);
+            egl_fb_setup_for_tex(&ssd->guest_fb, width, height,
+                                 texture, false);
 
             /* dest framebuffer */
-            if (ssd->blit_fb.width  != dmabuf->width ||
-                ssd->blit_fb.height != dmabuf->height) {
-                trace_qemu_spice_gl_render_dmabuf(ssd->qxl.id, dmabuf->width,
-                                                  dmabuf->height);
+            if (ssd->blit_fb.width  != width ||
+                ssd->blit_fb.height != height) {
+                trace_qemu_spice_gl_render_dmabuf(ssd->qxl.id, width,
+                                                  height);
                 egl_fb_destroy(&ssd->blit_fb);
                 egl_fb_setup_new_tex(&ssd->blit_fb,
-                                     dmabuf->width, dmabuf->height);
+                                     width, height);
                 fd = egl_get_fd_for_texture(ssd->blit_fb.texture,
                                             &stride, &fourcc, NULL);
-                spice_qxl_gl_scanout(&ssd->qxl, fd,
-                                     dmabuf->width, dmabuf->height,
+                spice_qxl_gl_scanout(&ssd->qxl, fd, width, height,
                                      stride, fourcc, false);
             }
         } else {
-            trace_qemu_spice_gl_forward_dmabuf(ssd->qxl.id,
-                                               dmabuf->width, dmabuf->height);
+            stride = qemu_dmabuf_get_stride(dmabuf);
+            fourcc = qemu_dmabuf_get_fourcc(dmabuf);
+            y_0_top = qemu_dmabuf_get_y0_top(dmabuf);
+            fd = qemu_dmabuf_dup_fd(dmabuf);
+
+            trace_qemu_spice_gl_forward_dmabuf(ssd->qxl.id, width, height);
             /* note: spice server will close the fd, so hand over a dup */
-            spice_qxl_gl_scanout(&ssd->qxl, dup(dmabuf->fd),
-                                 dmabuf->width, dmabuf->height,
-                                 dmabuf->stride, dmabuf->fourcc,
-                                 dmabuf->y0_top);
+            spice_qxl_gl_scanout(&ssd->qxl, fd, width, height,
+                                 stride, fourcc, y_0_top);
         }
-        qemu_spice_gl_monitor_config(ssd, 0, 0, dmabuf->width, dmabuf->height);
+        qemu_spice_gl_monitor_config(ssd, 0, 0, width, height);
         ssd->guest_dmabuf_refresh = false;
     }
 

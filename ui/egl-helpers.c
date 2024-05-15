@@ -146,10 +146,10 @@ void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
     glViewport(0, 0, dst->width, dst->height);
 
     if (src->dmabuf) {
-        x1 = src->dmabuf->x;
-        y1 = src->dmabuf->y;
-        w = src->dmabuf->width;
-        h = src->dmabuf->height;
+        x1 = qemu_dmabuf_get_x(src->dmabuf);
+        y1 = qemu_dmabuf_get_y(src->dmabuf);
+        w = qemu_dmabuf_get_width(src->dmabuf);
+        h = qemu_dmabuf_get_height(src->dmabuf);
     }
 
     w = (x1 + w) > src->width ? src->width - x1 : w;
@@ -308,30 +308,33 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
     EGLint attrs[64];
     int i = 0;
+    uint64_t modifier;
+    uint32_t texture = qemu_dmabuf_get_texture(dmabuf);
 
-    if (dmabuf->texture != 0) {
+    if (texture != 0) {
         return;
     }
 
     attrs[i++] = EGL_WIDTH;
-    attrs[i++] = dmabuf->backing_width;
+    attrs[i++] = qemu_dmabuf_get_backing_width(dmabuf);
     attrs[i++] = EGL_HEIGHT;
-    attrs[i++] = dmabuf->backing_height;
+    attrs[i++] = qemu_dmabuf_get_backing_height(dmabuf);
     attrs[i++] = EGL_LINUX_DRM_FOURCC_EXT;
-    attrs[i++] = dmabuf->fourcc;
+    attrs[i++] = qemu_dmabuf_get_fourcc(dmabuf);
 
     attrs[i++] = EGL_DMA_BUF_PLANE0_FD_EXT;
-    attrs[i++] = dmabuf->fd;
+    attrs[i++] = qemu_dmabuf_get_fd(dmabuf);
     attrs[i++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
-    attrs[i++] = dmabuf->stride;
+    attrs[i++] = qemu_dmabuf_get_stride(dmabuf);
     attrs[i++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
     attrs[i++] = 0;
 #ifdef EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT
-    if (dmabuf->modifier) {
+    modifier = qemu_dmabuf_get_modifier(dmabuf);
+    if (modifier) {
         attrs[i++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
-        attrs[i++] = (dmabuf->modifier >>  0) & 0xffffffff;
+        attrs[i++] = (modifier >>  0) & 0xffffffff;
         attrs[i++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
-        attrs[i++] = (dmabuf->modifier >> 32) & 0xffffffff;
+        attrs[i++] = (modifier >> 32) & 0xffffffff;
     }
 #endif
     attrs[i++] = EGL_NONE;
@@ -345,8 +348,9 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
         return;
     }
 
-    glGenTextures(1, &dmabuf->texture);
-    glBindTexture(GL_TEXTURE_2D, dmabuf->texture);
+    glGenTextures(1, &texture);
+    qemu_dmabuf_set_texture(dmabuf, texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -356,12 +360,15 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
 
 void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf)
 {
-    if (dmabuf->texture == 0) {
+    uint32_t texture;
+
+    texture = qemu_dmabuf_get_texture(dmabuf);
+    if (texture == 0) {
         return;
     }
 
-    glDeleteTextures(1, &dmabuf->texture);
-    dmabuf->texture = 0;
+    glDeleteTextures(1, &texture);
+    qemu_dmabuf_set_texture(dmabuf, 0);
 }
 
 void egl_dmabuf_create_sync(QemuDmaBuf *dmabuf)
@@ -375,18 +382,22 @@ void egl_dmabuf_create_sync(QemuDmaBuf *dmabuf)
         sync = eglCreateSyncKHR(qemu_egl_display,
                                 EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
         if (sync != EGL_NO_SYNC_KHR) {
-            dmabuf->sync = sync;
+            qemu_dmabuf_set_sync(dmabuf, sync);
         }
     }
 }
 
 void egl_dmabuf_create_fence(QemuDmaBuf *dmabuf)
 {
-    if (dmabuf->sync) {
-        dmabuf->fence_fd = eglDupNativeFenceFDANDROID(qemu_egl_display,
-                                                      dmabuf->sync);
-        eglDestroySyncKHR(qemu_egl_display, dmabuf->sync);
-        dmabuf->sync = NULL;
+    void *sync = qemu_dmabuf_get_sync(dmabuf);
+    int fence_fd;
+
+    if (sync) {
+        fence_fd = eglDupNativeFenceFDANDROID(qemu_egl_display,
+                                              sync);
+        qemu_dmabuf_set_fence_fd(dmabuf, fence_fd);
+        eglDestroySyncKHR(qemu_egl_display, sync);
+        qemu_dmabuf_set_sync(dmabuf, NULL);
     }
 }
 
