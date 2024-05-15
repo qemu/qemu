@@ -166,8 +166,9 @@ static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
     int i, arch_id, node_id;
-    uint64_t mem_len, mem_base;
-    int nb_numa_nodes = machine->numa_state->num_nodes;
+    hwaddr len, base, gap;
+    NodeInfo *numa_info;
+    int nodes, nb_numa_nodes = machine->numa_state->num_nodes;
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(lvms);
     const CPUArchIdList *arch_ids = mc->possible_cpu_arch_ids(machine);
@@ -196,35 +197,44 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         build_append_int_noprefix(table_data, 0, 4); /* Reserved */
     }
 
-    /* Node0 */
-    build_srat_memory(table_data, VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE,
-                      0, MEM_AFFINITY_ENABLED);
-    mem_base = VIRT_HIGHMEM_BASE;
-    if (!nb_numa_nodes) {
-        mem_len = machine->ram_size - VIRT_LOWMEM_SIZE;
-    } else {
-        mem_len = machine->numa_state->nodes[0].node_mem - VIRT_LOWMEM_SIZE;
+    base = VIRT_LOWMEM_BASE;
+    gap = VIRT_LOWMEM_SIZE;
+    numa_info = machine->numa_state->nodes;
+    nodes = nb_numa_nodes;
+    if (!nodes) {
+        nodes = 1;
     }
-    if (mem_len)
-        build_srat_memory(table_data, mem_base, mem_len, 0, MEM_AFFINITY_ENABLED);
 
-    /* Node1 - Nodemax */
-    if (nb_numa_nodes) {
-        mem_base += mem_len;
-        for (i = 1; i < nb_numa_nodes; ++i) {
-            if (machine->numa_state->nodes[i].node_mem > 0) {
-                build_srat_memory(table_data, mem_base,
-                                  machine->numa_state->nodes[i].node_mem, i,
-                                  MEM_AFFINITY_ENABLED);
-                mem_base += machine->numa_state->nodes[i].node_mem;
-            }
+    for (i = 0; i < nodes; i++) {
+        if (nb_numa_nodes) {
+            len = numa_info[i].node_mem;
+        } else {
+            len = machine->ram_size;
+        }
+
+        /*
+         * memory for the node splited into two part
+         *   lowram:  [base, +gap)
+         *   highram: [VIRT_HIGHMEM_BASE, +(len - gap))
+         */
+        if (len >= gap) {
+            build_srat_memory(table_data, base, len, i, MEM_AFFINITY_ENABLED);
+            len -= gap;
+            base = VIRT_HIGHMEM_BASE;
+            gap = machine->ram_size - VIRT_LOWMEM_SIZE;
+        }
+
+        if (len) {
+            build_srat_memory(table_data, base, len, i, MEM_AFFINITY_ENABLED);
+            base += len;
+            gap  -= len;
         }
     }
 
     if (machine->device_memory) {
         build_srat_memory(table_data, machine->device_memory->base,
                           memory_region_size(&machine->device_memory->mr),
-                          nb_numa_nodes - 1,
+                          nodes - 1,
                           MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
 
