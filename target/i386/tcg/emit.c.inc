@@ -3475,9 +3475,7 @@ static void gen_STD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 static void gen_STI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_set_eflags(s, IF_MASK);
-    /* interruptions are enabled only the first insn after sti */
-    gen_update_eip_next(s);
-    gen_eob_inhibit_irq(s);
+    s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
 }
 
 static void gen_VAESKEYGEN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
