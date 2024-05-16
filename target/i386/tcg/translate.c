@@ -144,9 +144,28 @@ typedef struct DisasContext {
     TCGOp *prev_insn_end;
 } DisasContext;
 
-#define DISAS_EOB_ONLY         DISAS_TARGET_0
-#define DISAS_EOB_NEXT         DISAS_TARGET_1
-#define DISAS_EOB_INHIBIT_IRQ  DISAS_TARGET_2
+/*
+ * Point EIP to next instruction before ending translation.
+ * For instructions that can change hflags.
+ */
+#define DISAS_EOB_NEXT         DISAS_TARGET_0
+
+/*
+ * Point EIP to next instruction and set HF_INHIBIT_IRQ if not
+ * already set.  For instructions that activate interrupt shadow.
+ */
+#define DISAS_EOB_INHIBIT_IRQ  DISAS_TARGET_1
+
+/*
+ * Return to the main loop; EIP might have already been updated
+ * but even in that case do not use lookup_and_goto_ptr().
+ */
+#define DISAS_EOB_ONLY         DISAS_TARGET_2
+
+/*
+ * EIP has already been updated.  For jumps that wish to use
+ * lookup_and_goto_ptr()
+ */
 #define DISAS_JUMP             DISAS_TARGET_3
 
 /* The environment in which user-only runs is constrained. */
