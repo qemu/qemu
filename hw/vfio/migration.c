@@ -589,9 +589,6 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
     ret = qemu_file_get_error(f);
-    if (ret) {
-        return ret;
-    }
 
     trace_vfio_save_complete_precopy(vbasedev->name, ret);
 
