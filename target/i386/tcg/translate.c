@@ -4488,9 +4488,8 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         /* we should not be in SMM mode */
         g_assert_not_reached();
 #else
-        gen_update_cc_op(s);
-        gen_update_eip_next(s);
         gen_helper_rsm(tcg_env);
+        set_cc_op(s, CC_OP_EFLAGS);
 #endif /* CONFIG_USER_ONLY */
         s->base.is_jmp = DISAS_EOB_ONLY;
         break;
