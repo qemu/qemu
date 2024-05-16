@@ -22,7 +22,6 @@ packages:
  - findutils
  - flex
  - fuse3
- - g++
  - gcc
  - gcc-native
  - gcovr

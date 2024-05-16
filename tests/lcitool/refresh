@@ -192,6 +192,7 @@ try:
                                             "s390x-softmmu,s390x-linux-user"))
 
     generate_dockerfile("fedora-win64-cross", "fedora-38",
+                        project='qemu,qemu-win-installer',
                         cross="mingw64",
                         trailer=cross_build("x86_64-w64-mingw32-",
                                             "x86_64-softmmu"))
