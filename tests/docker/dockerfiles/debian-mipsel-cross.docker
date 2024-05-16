@@ -82,7 +82,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get dist-upgrade -y && \
     eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
     eatmydata apt-get install --no-install-recommends -y \
-                      g++-mipsel-linux-gnu \
                       gcc-mipsel-linux-gnu \
                       libaio-dev:mipsel \
                       libasound2-dev:mipsel \
@@ -147,7 +146,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libzstd-dev:mipsel \
                       nettle-dev:mipsel \
                       systemtap-sdt-dev:mipsel \
-                      xfslibs-dev:mipsel \
                       zlib1g-dev:mipsel && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
@@ -165,9 +163,7 @@ cpu = 'mipsel'\n\
 endian = 'little'\n" > /usr/local/share/meson/cross/mipsel-linux-gnu && \
     dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-c++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-cc && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-gcc
 
 ENV ABI "mipsel-linux-gnu"

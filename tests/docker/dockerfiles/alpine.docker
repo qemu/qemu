@@ -32,7 +32,6 @@ RUN apk update && \
         findutils \
         flex \
         fuse3-dev \
-        g++ \
         gcc \
         gcovr \
         gettext \
@@ -110,7 +109,6 @@ RUN apk update && \
         vte3-dev \
         which \
         xen-dev \
-        xfsprogs-dev \
         xorriso \
         zlib-dev \
         zlib-static \
@@ -119,10 +117,8 @@ RUN apk update && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED && \
     apk list --installed | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/c++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
