@@ -1002,14 +1002,39 @@ static void pnv_init(MachineState *machine)
     pnv->num_chips =
         machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
 
+    if (pnv->big_core) {
+        if (machine->smp.threads % 2 == 1) {
+            error_report("Cannot support %d threads with big-core option "
+                         "because it must be an even number",
+                         machine->smp.threads);
+            exit(1);
+        }
+        max_smt_threads *= 2;
+    }
+
     if (machine->smp.threads > max_smt_threads) {
         error_report("Cannot support more than %d threads/core "
                      "on %s machine", max_smt_threads, mc->desc);
+        if (pmc->max_smt_threads == 4) {
+            error_report("(use big-core=on for 8 threads per core)");
+        }
         exit(1);
     }
 
+    if (pnv->big_core) {
+        /*
+         * powernv models PnvCore as a SMT4 core. Big-core requires 2xPnvCore
+         * per core, so adjust topology here. pnv_dt_core() processor
+         * device-tree and TCG SMT code make the 2 cores appear as one big core
+         * from software point of view. pnv pervasive models and xscoms tend to
+         * see the big core as 2 small core halves.
+         */
+        machine->smp.cores *= 2;
+        machine->smp.threads /= 2;
+    }
+
     if (!is_power_of_2(machine->smp.threads)) {
-        error_report("Cannot support %d threads/core on a powernv"
+        error_report("Cannot support %d threads/core on a powernv "
                      "machine because it must be a power of 2",
                      machine->smp.threads);
         exit(1);
@@ -1047,6 +1072,8 @@ static void pnv_init(MachineState *machine)
         object_property_set_int(chip, "nr-cores", machine->smp.cores,
                                 &error_fatal);
         object_property_set_int(chip, "nr-threads", machine->smp.threads,
+                                &error_fatal);
+        object_property_set_bool(chip, "big-core", pnv->big_core,
                                 &error_fatal);
         /*
          * The POWER8 machine use the XICS interrupt interface.
@@ -1175,11 +1202,17 @@ static void pnv_get_pir_tir_p9(PnvChip *chip,
                                 uint32_t core_id, uint32_t thread_id,
                                 uint32_t *pir, uint32_t *tir)
 {
-    if (pir) {
-        if (chip->nr_threads == 8) {
-            *pir = (chip->chip_id << 8) | ((thread_id & 1) << 2) |
-                   (core_id << 3) | (thread_id >> 1);
-        } else {
+    if (chip->big_core) {
+        /* Big-core interleaves thread ID between small-cores */
+        thread_id <<= 1;
+        thread_id |= core_id & 1;
+        core_id >>= 1;
+
+        if (pir) {
+            *pir = (chip->chip_id << 8) | (core_id << 3) | thread_id;
+        }
+    } else {
+        if (pir) {
             *pir = (chip->chip_id << 8) | (core_id << 2) | thread_id;
         }
     }
@@ -1203,11 +1236,17 @@ static void pnv_get_pir_tir_p10(PnvChip *chip,
                                 uint32_t core_id, uint32_t thread_id,
                                 uint32_t *pir, uint32_t *tir)
 {
-    if (pir) {
-        if (chip->nr_threads == 8) {
-            *pir = (chip->chip_id << 8) | ((core_id / 4) << 4) |
-                    ((core_id % 2) << 3) | thread_id;
-        } else {
+    if (chip->big_core) {
+        /* Big-core interleaves thread ID between small-cores */
+        thread_id <<= 1;
+        thread_id |= core_id & 1;
+        core_id >>= 1;
+
+        if (pir) {
+            *pir = (chip->chip_id << 8) | (core_id << 3) | thread_id;
+        }
+    } else {
+        if (pir) {
             *pir = (chip->chip_id << 8) | (core_id << 2) | thread_id;
         }
     }
@@ -2180,7 +2219,8 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
-static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
+static void pnv_chip_core_sanitize(PnvMachineState *pnv, PnvChip *chip,
+                                   Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     int cores_max;
@@ -2200,6 +2240,17 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
         return;
     }
     chip->cores_mask &= pcc->cores_mask;
+
+    /* Ensure small-cores a paired up in big-core mode */
+    if (pnv->big_core) {
+        uint64_t even_cores = chip->cores_mask & 0x5555555555555555ULL;
+        uint64_t odd_cores = chip->cores_mask & 0xaaaaaaaaaaaaaaaaULL;
+
+        if (even_cores ^ (odd_cores >> 1)) {
+            error_setg(errp, "warning: unpaired cores in big-core mode !");
+            return;
+        }
+    }
 
     /* now that we have a sane layout, let check the number of cores */
     cores_max = ctpop64(chip->cores_mask);
@@ -2224,7 +2275,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
     }
 
     /* Cores */
-    pnv_chip_core_sanitize(chip, &error);
+    pnv_chip_core_sanitize(pnv, chip, &error);
     if (error) {
         error_propagate(errp, error);
         return;
@@ -2254,6 +2305,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         object_property_set_int(OBJECT(pnv_core), "hwid", core_hwid,
                                 &error_fatal);
         object_property_set_int(OBJECT(pnv_core), "hrmor", pnv->fw_load_addr,
+                                &error_fatal);
+        object_property_set_bool(OBJECT(pnv_core), "big-core", chip->big_core,
                                 &error_fatal);
         object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),
                                  &error_abort);
@@ -2288,6 +2341,7 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
+    DEFINE_PROP_BOOL("big-core", PnvChip, big_core, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
