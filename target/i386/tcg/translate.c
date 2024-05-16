@@ -2984,7 +2984,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucomi_ST0_FT0(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x1e: /* fcomi */
             if (!(s->cpuid_features & CPUID_CMOV)) {
@@ -2993,7 +2993,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcomi_ST0_FT0(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x28: /* ffree sti */
             gen_helper_ffree_STN(tcg_env, tcg_constant_i32(opreg));
@@ -3052,7 +3052,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucomi_ST0_FT0(tcg_env);
             gen_helper_fpop(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x3e: /* fcomip */
             if (!(s->cpuid_features & CPUID_CMOV)) {
@@ -3062,7 +3062,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcomi_ST0_FT0(tcg_env);
             gen_helper_fpop(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x10 ... 0x13: /* fcmovxx */
         case 0x18 ... 0x1b:
@@ -3268,7 +3268,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_helper_rdrand(s->T0, tcg_env);
             rm = (modrm & 7) | REX_B(s);
             gen_op_mov_reg_v(s, dflag, rm, s->T0);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
 
         default:
@@ -3655,7 +3655,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             } else {
                 gen_helper_verw(tcg_env, s->T0);
             }
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         default:
             goto unknown_op;

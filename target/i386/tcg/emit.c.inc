@@ -918,7 +918,7 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
     } else {                                                                       \
         gen_helper_##lname##_ymm(tcg_env, OP_PTR1, OP_PTR2);                       \
     }                                                                              \
-    set_cc_op(s, CC_OP_EFLAGS);                                                    \
+    assume_cc_op(s, CC_OP_EFLAGS);                                                  \
 }
 UNARY_CMP_SSE(VPTEST,     ptest)
 UNARY_CMP_SSE(VTESTPS,    vtestps)
@@ -1079,7 +1079,7 @@ static void gen_AAA(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_update_cc_op(s);
     gen_helper_aaa(tcg_env);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_AAD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1102,7 +1102,7 @@ static void gen_AAS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_update_cc_op(s);
     gen_helper_aas(tcg_env);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_ADC(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1566,14 +1566,14 @@ static void gen_DAA(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_update_cc_op(s);
     gen_helper_daa(tcg_env);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_DAS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_update_cc_op(s);
     gen_helper_das(tcg_env);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_DEC(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -2353,14 +2353,14 @@ static void gen_PCMPESTRI(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
     gen_helper_pcmpestri_xmm(tcg_env, OP_PTR1, OP_PTR2, imm);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_PCMPESTRM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
     gen_helper_pcmpestrm_xmm(tcg_env, OP_PTR1, OP_PTR2, imm);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
     if ((s->prefix & PREFIX_VEX) && !s->vex_l) {
         tcg_gen_gvec_dup_imm(MO_64, offsetof(CPUX86State, xmm_regs[0].ZMM_X(1)),
                              16, 16, 0);
@@ -2371,14 +2371,14 @@ static void gen_PCMPISTRI(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
     gen_helper_pcmpistri_xmm(tcg_env, OP_PTR1, OP_PTR2, imm);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_PCMPISTRM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
     gen_helper_pcmpistrm_xmm(tcg_env, OP_PTR1, OP_PTR2, imm);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
     if ((s->prefix & PREFIX_VEX) && !s->vex_l) {
         tcg_gen_gvec_dup_imm(MO_64, offsetof(CPUX86State, xmm_regs[0].ZMM_X(1)),
                              16, 16, 0);
@@ -3595,7 +3595,7 @@ static void gen_VCOMI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     SSEFunc_0_epp fn;
     fn = s->prefix & PREFIX_DATA ? gen_helper_comisd : gen_helper_comiss;
     fn(tcg_env, OP_PTR1, OP_PTR2);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_VCVTPD2PS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -3982,7 +3982,7 @@ static void gen_VUCOMI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode
     SSEFunc_0_epp fn;
     fn = s->prefix & PREFIX_DATA ? gen_helper_ucomisd : gen_helper_ucomiss;
     fn(tcg_env, OP_PTR1, OP_PTR2);
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_VZEROALL(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

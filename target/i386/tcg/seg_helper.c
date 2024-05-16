@@ -2326,7 +2326,7 @@ void helper_verr(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env);
+    eflags = cpu_cc_compute_all(env) | CC_Z;
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2351,11 +2351,11 @@ void helper_verr(CPUX86State *env, target_ulong selector1)
     } else {
         if (dpl < cpl || dpl < rpl) {
         fail:
-            CC_SRC = eflags & ~CC_Z;
-            return;
+            eflags &= ~CC_Z;
         }
     }
-    CC_SRC = eflags | CC_Z;
+    CC_SRC = eflags;
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void helper_verw(CPUX86State *env, target_ulong selector1)
@@ -2364,7 +2364,7 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env);
+    eflags = cpu_cc_compute_all(env) | CC_Z;
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2385,9 +2385,9 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
         }
         if (!(e2 & DESC_W_MASK)) {
         fail:
-            CC_SRC = eflags & ~CC_Z;
-            return;
+            eflags &= ~CC_Z;
         }
     }
-    CC_SRC = eflags | CC_Z;
+    CC_SRC = eflags;
+    CC_OP = CC_OP_EFLAGS;
 }
