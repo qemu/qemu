@@ -513,13 +513,13 @@ void migration_incoming_disable_colo(void)
 int migration_incoming_enable_colo(void)
 {
 #ifndef CONFIG_REPLICATION
-    error_report("ENABLE_COLO command come in migration stream, but COLO "
-                 "module is not built in");
+    error_report("ENABLE_COLO command come in migration stream, but the "
+                 "replication module is not built in");
     return -ENOTSUP;
 #endif
 
     if (!migrate_colo()) {
-        error_report("ENABLE_COLO command come in migration stream, but c-colo "
+        error_report("ENABLE_COLO command come in migration stream, but x-colo "
                      "capability is not set");
         return -EINVAL;
     }
