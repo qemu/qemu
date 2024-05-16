@@ -121,7 +121,6 @@ packages:
  - vte
  - which
  - xen
- - xfsprogs
  - xorriso
  - zstdtools
  - zlib
