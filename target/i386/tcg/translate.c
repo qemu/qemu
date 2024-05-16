@@ -309,7 +309,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_POPCNT] = USES_CC_SRC,
 };
 
-static void set_cc_op(DisasContext *s, CCOp op)
+static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
 {
     int dead;
 
@@ -332,18 +332,25 @@ static void set_cc_op(DisasContext *s, CCOp op)
         tcg_gen_discard_tl(s->cc_srcT);
     }
 
-    if (op == CC_OP_DYNAMIC) {
-        /* The DYNAMIC setting is translator only, and should never be
-           stored.  Thus we always consider it clean.  */
-        s->cc_op_dirty = false;
-    } else {
-        /* Discard any computed CC_OP value (see shifts).  */
-        if (s->cc_op == CC_OP_DYNAMIC) {
-            tcg_gen_discard_i32(cpu_cc_op);
-        }
-        s->cc_op_dirty = true;
+    if (dirty && s->cc_op == CC_OP_DYNAMIC) {
+        tcg_gen_discard_i32(cpu_cc_op);
     }
+    s->cc_op_dirty = dirty;
     s->cc_op = op;
+}
+
+static void set_cc_op(DisasContext *s, CCOp op)
+{
+    /*
+     * The DYNAMIC setting is translator only, everything else
+     * will be spilled later.
+     */
+    set_cc_op_1(s, op, op != CC_OP_DYNAMIC);
+}
+
+static void assume_cc_op(DisasContext *s, CCOp op)
+{
+    set_cc_op_1(s, op, false);
 }
 
 static void gen_update_cc_op(DisasContext *s)
@@ -3554,6 +3561,10 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
         gen_helper_syscall(tcg_env, cur_insn_len_i32(s));
+        /* condition codes are modified only in long mode */
+        if (LMA(s)) {
+            assume_cc_op(s, CC_OP_EFLAGS);
+        }
         /* TF handling for the syscall insn is different. The TF bit is  checked
            after the syscall insn completes. This allows #DB to not be
            generated after one has entered CPL0 if TF is set in FMASK.  */
@@ -3570,7 +3581,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_helper_sysret(tcg_env, tcg_constant_i32(dflag - 1));
             /* condition codes are modified only in long mode */
             if (LMA(s)) {
-                set_cc_op(s, CC_OP_EFLAGS);
+                assume_cc_op(s, CC_OP_EFLAGS);
             }
             /* TF handling for the sysret insn is different. The TF bit is
                checked after the sysret insn completes. This allows #DB to be
@@ -4489,7 +4500,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         g_assert_not_reached();
 #else
         gen_helper_rsm(tcg_env);
-        set_cc_op(s, CC_OP_EFLAGS);
+        assume_cc_op(s, CC_OP_EFLAGS);
 #endif /* CONFIG_USER_ONLY */
         s->base.is_jmp = DISAS_EOB_ONLY;
         break;

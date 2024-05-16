@@ -1883,7 +1883,7 @@ static void gen_IRET(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         gen_helper_iret_protected(tcg_env, tcg_constant_i32(s->dflag - 1),
                                   eip_next_i32(s));
     }
-    set_cc_op(s, CC_OP_EFLAGS);
+    assume_cc_op(s, CC_OP_EFLAGS);
     s->base.is_jmp = DISAS_EOB_ONLY;
 }
 
