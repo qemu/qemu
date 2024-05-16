@@ -837,12 +837,11 @@ static void *colo_process_incoming_thread(void *opaque)
     /* Make sure all file formats throw away their mutable metadata */
     bql_lock();
     bdrv_activate_all(&local_err);
+    bql_unlock();
     if (local_err) {
-        bql_unlock();
         error_report_err(local_err);
         return NULL;
     }
-    bql_unlock();
 
     failover_init_state();
 
