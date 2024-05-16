@@ -4775,14 +4775,12 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_jmp_rel_csize(dc, 0, 0);
         break;
     case DISAS_EOB_NEXT:
-        gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
         /* fall through */
     case DISAS_EOB_ONLY:
         gen_eob(dc);
         break;
     case DISAS_EOB_INHIBIT_IRQ:
-        gen_update_cc_op(dc);
         gen_update_eip_cur(dc);
         gen_eob_inhibit_irq(dc);
         break;
