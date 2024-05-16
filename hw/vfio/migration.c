@@ -726,7 +726,7 @@ static void vfio_vmstate_change_prepare(void *opaque, bool running,
          * Migration should be aborted in this case, but vm_state_notify()
          * currently does not support reporting failures.
          */
-        migration_file_set_error(ret);
+        migration_file_set_error(ret, NULL);
     }
 
     trace_vfio_vmstate_change_prepare(vbasedev->name, running,
@@ -756,7 +756,7 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
          * Migration should be aborted in this case, but vm_state_notify()
          * currently does not support reporting failures.
          */
-        migration_file_set_error(ret);
+        migration_file_set_error(ret, NULL);
     }
 
     trace_vfio_vmstate_change(vbasedev->name, running, RunState_str(state),

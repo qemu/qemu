@@ -147,10 +147,10 @@ bool vfio_viommu_preset(VFIODevice *vbasedev)
     return vbasedev->bcontainer->space->as != &address_space_memory;
 }
 
-static void vfio_set_migration_error(int err)
+static void vfio_set_migration_error(int ret)
 {
     if (migration_is_setup_or_active()) {
-        migration_file_set_error(err);
+        migration_file_set_error(ret, NULL);
     }
 }
 

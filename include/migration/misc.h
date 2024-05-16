@@ -97,7 +97,7 @@ void migration_add_notifier_mode(NotifierWithReturn *notify,
 
 void migration_remove_notifier(NotifierWithReturn *notify);
 bool migration_is_running(void);
-void migration_file_set_error(int err);
+void migration_file_set_error(int ret, Error *err);
 
 /* True if incoming migration entered POSTCOPY_INCOMING_DISCARD */
 bool migration_in_incoming_postcopy(void);
