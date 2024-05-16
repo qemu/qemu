@@ -260,8 +260,6 @@ STUB_HELPER(write_crN, TCGv_env env, TCGv_i32 reg, TCGv val)
 STUB_HELPER(wrmsr, TCGv_env env)
 #endif
 
-static void gen_eob(DisasContext *s);
-static void gen_jr(DisasContext *s);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
 static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
 static void gen_exception_gpf(DisasContext *s);
@@ -2266,12 +2264,13 @@ static void gen_bnd_jmp(DisasContext *s)
     }
 }
 
-/* Generate an end of block. Trace exception is also generated if needed.
-   If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.
-   If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
-   S->TF.  This is used by the syscall/sysret insns.  */
+/*
+ * Generate an end of block, including common tasks such as generating
+ * single step traps, resetting the RF flag, and handling the interrupt
+ * shadow.
+ */
 static void
-gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
+gen_eob(DisasContext *s, int mode)
 {
     bool inhibit_reset;
 
@@ -2282,50 +2281,27 @@ gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
     if (s->flags & HF_INHIBIT_IRQ_MASK) {
         gen_reset_hflag(s, HF_INHIBIT_IRQ_MASK);
         inhibit_reset = true;
-    } else if (inhibit) {
+    } else if (mode == DISAS_EOB_INHIBIT_IRQ) {
         gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
     }
 
     if (s->base.tb->flags & HF_RF_MASK) {
         gen_reset_eflags(s, RF_MASK);
     }
-    if (recheck_tf) {
+    if (mode == DISAS_EOB_RECHECK_TF) {
         gen_helper_rechecking_single_step(tcg_env);
         tcg_gen_exit_tb(NULL, 0);
-    } else if ((s->flags & HF_TF_MASK) && !inhibit) {
+    } else if ((s->flags & HF_TF_MASK) && mode != DISAS_EOB_INHIBIT_IRQ) {
         gen_helper_single_step(tcg_env);
-    } else if (jr &&
+    } else if (mode == DISAS_JUMP &&
                /* give irqs a chance to happen */
                !inhibit_reset) {
         tcg_gen_lookup_and_goto_ptr();
     } else {
         tcg_gen_exit_tb(NULL, 0);
     }
+
     s->base.is_jmp = DISAS_NORETURN;
-}
-
-static inline void
-gen_eob_syscall(DisasContext *s)
-{
-    gen_eob_worker(s, false, true, false);
-}
-
-/* End of block.  Set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
-static void gen_eob_inhibit_irq(DisasContext *s)
-{
-    gen_eob_worker(s, true, false, false);
-}
-
-/* End of block, resetting the inhibit irq flag.  */
-static void gen_eob(DisasContext *s)
-{
-    gen_eob_worker(s, false, false, false);
-}
-
-/* Jump to register */
-static void gen_jr(DisasContext *s)
-{
-    gen_eob_worker(s, false, false, true);
 }
 
 /* Jump to eip+diff, truncating the result to OT. */
@@ -2379,9 +2355,9 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
             tcg_gen_movi_tl(cpu_eip, new_eip);
         }
         if (s->jmp_opt) {
-            gen_jr(s);   /* jump to another page */
+            gen_eob(s, DISAS_JUMP);   /* jump to another page */
         } else {
-            gen_eob(s);  /* exit to main loop */
+            gen_eob(s, DISAS_EOB_ONLY);  /* exit to main loop */
         }
     }
 }
@@ -4798,22 +4774,14 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_jmp_rel_csize(dc, 0, 0);
         break;
     case DISAS_EOB_NEXT:
+    case DISAS_EOB_INHIBIT_IRQ:
         assert(dc->base.pc_next == dc->pc);
         gen_update_eip_cur(dc);
         /* fall through */
     case DISAS_EOB_ONLY:
-        gen_eob(dc);
-        break;
     case DISAS_EOB_RECHECK_TF:
-        gen_eob_syscall(dc);
-        break;
-    case DISAS_EOB_INHIBIT_IRQ:
-        assert(dc->base.pc_next == dc->pc);
-        gen_update_eip_cur(dc);
-        gen_eob_inhibit_irq(dc);
-        break;
     case DISAS_JUMP:
-        gen_jr(dc);
+        gen_eob(dc, dc->base.is_jmp);
         break;
     default:
         g_assert_not_reached();
