@@ -4798,6 +4798,7 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_jmp_rel_csize(dc, 0, 0);
         break;
     case DISAS_EOB_NEXT:
+        assert(dc->base.pc_next == dc->pc);
         gen_update_eip_cur(dc);
         /* fall through */
     case DISAS_EOB_ONLY:
@@ -4807,6 +4808,7 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_eob_syscall(dc);
         break;
     case DISAS_EOB_INHIBIT_IRQ:
+        assert(dc->base.pc_next == dc->pc);
         gen_update_eip_cur(dc);
         gen_eob_inhibit_irq(dc);
         break;
