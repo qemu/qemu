@@ -168,6 +168,12 @@ typedef struct DisasContext {
  */
 #define DISAS_JUMP             DISAS_TARGET_3
 
+/*
+ * EIP has already been updated.  Use updated value of
+ * EFLAGS.TF to determine singlestep trap (SYSCALL/SYSRET).
+ */
+#define DISAS_EOB_RECHECK_TF   DISAS_TARGET_4
+
 /* The environment in which user-only runs is constrained. */
 #ifdef CONFIG_USER_ONLY
 #define PE(S)     true
@@ -3587,7 +3593,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         /* TF handling for the syscall insn is different. The TF bit is  checked
            after the syscall insn completes. This allows #DB to not be
            generated after one has entered CPL0 if TF is set in FMASK.  */
-        gen_eob_syscall(s);
+        s->base.is_jmp = DISAS_EOB_RECHECK_TF;
         break;
     case 0x107: /* sysret */
         /* For Intel SYSRET is only valid in long mode */
@@ -3606,7 +3612,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                checked after the sysret insn completes. This allows #DB to be
                generated "as if" the syscall insn in userspace has just
                completed.  */
-            gen_eob_syscall(s);
+            s->base.is_jmp = DISAS_EOB_RECHECK_TF;
         }
         break;
     case 0x1a2: /* cpuid */
@@ -4809,6 +4815,9 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         /* fall through */
     case DISAS_EOB_ONLY:
         gen_eob(dc);
+        break;
+    case DISAS_EOB_RECHECK_TF:
+        gen_eob_syscall(dc);
         break;
     case DISAS_EOB_INHIBIT_IRQ:
         gen_update_eip_cur(dc);
