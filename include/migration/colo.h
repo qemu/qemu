@@ -49,7 +49,7 @@ void colo_checkpoint_delay_set(void);
  *
  * Called with BQL locked, may temporary release BQL.
  */
-int coroutine_fn colo_incoming_co(void);
+void coroutine_fn colo_incoming_co(void);
 
 void colo_shutdown(void);
 #endif

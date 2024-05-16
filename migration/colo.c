@@ -928,16 +928,13 @@ out:
     return NULL;
 }
 
-int coroutine_fn colo_incoming_co(void)
+void coroutine_fn colo_incoming_co(void)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     QemuThread th;
 
     assert(bql_locked());
-
-    if (!migration_incoming_colo_enabled()) {
-        return 0;
-    }
+    assert(migration_incoming_colo_enabled());
 
     qemu_thread_create(&th, "COLO incoming", colo_process_incoming_thread,
                        mis, QEMU_THREAD_JOINABLE);
@@ -953,6 +950,4 @@ int coroutine_fn colo_incoming_co(void)
 
     /* We hold the global BQL, so it is safe here */
     colo_release_ram_cache();
-
-    return 0;
 }

@@ -776,9 +776,9 @@ process_incoming_migration_co(void *opaque)
         goto fail;
     }
 
-    if (colo_incoming_co() < 0) {
-        error_setg(&local_err, "colo incoming failed");
-        goto fail;
+    if (migration_incoming_colo_enabled()) {
+        /* yield until COLO exit */
+        colo_incoming_co();
     }
 
     migration_bh_schedule(process_incoming_migration_bh, mis);
