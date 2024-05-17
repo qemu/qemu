@@ -459,7 +459,7 @@ type_init(qemu_s390_flic_register_types)
 
 static bool adapter_info_so_needed(void *opaque)
 {
-    S390FLICState *fs = S390_FLIC_COMMON(opaque);
+    S390FLICState *fs = s390_get_flic();
 
     return fs->migration_enabled;
 }
