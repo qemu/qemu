@@ -288,7 +288,7 @@ static GDBFeature *riscv_gen_dynamic_csr_feature(CPUState *cs, int base_reg)
 static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
-    int reg_width = cpu->cfg.vlenb;
+    int bitsize = cpu->cfg.vlenb << 3;
     GDBFeatureBuilder builder;
     int i;
 
@@ -298,7 +298,7 @@ static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
 
     /* First define types and totals in a whole VL */
     for (i = 0; i < ARRAY_SIZE(vec_lanes); i++) {
-        int count = reg_width / vec_lanes[i].size;
+        int count = bitsize / vec_lanes[i].size;
         gdb_feature_builder_append_tag(
             &builder, "<vector id=\"%s\" type=\"%s\" count=\"%d\"/>",
             vec_lanes[i].id, vec_lanes[i].gdb_type, count);
@@ -316,7 +316,7 @@ static GDBFeature *ricsv_gen_dynamic_vector_feature(CPUState *cs, int base_reg)
     /* Define vector registers */
     for (i = 0; i < 32; i++) {
         gdb_feature_builder_append_reg(&builder, g_strdup_printf("v%d", i),
-                                       reg_width, i, "riscv_vector", "vector");
+                                       bitsize, i, "riscv_vector", "vector");
     }
 
     gdb_feature_builder_end(&builder);
