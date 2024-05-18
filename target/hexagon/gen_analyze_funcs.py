@@ -42,6 +42,14 @@ def gen_analyze_func(f, tag, regs, imms):
     f.write(f"static void analyze_{tag}(DisasContext *ctx)\n")
     f.write("{\n")
 
+    if hex_common.tag_ignore(tag):
+        f.write("}\n\n")
+        return
+
+    if ("A_PRIV" in hex_common.attribdict[tag] or
+        "A_GUEST" in hex_common.attribdict[tag]):
+        f.write("#ifndef CONFIG_USER_ONLY\n")
+
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
     if (hex_common.is_hvx_insn(tag)):
         if hex_common.has_hvx_helper(tag):
@@ -73,6 +81,10 @@ def gen_analyze_func(f, tag, regs, imms):
         reg = hex_common.get_register(tag, reg_type, reg_id)
         if reg.is_written():
             reg.analyze_write(f, tag, regno)
+
+    if ("A_PRIV" in hex_common.attribdict[tag] or
+        "A_GUEST" in hex_common.attribdict[tag]):
+        f.write("#endif /* !CONFIG_USER_ONLY */\n")
 
     f.write("}\n\n")
 
