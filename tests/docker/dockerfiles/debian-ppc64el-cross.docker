@@ -79,7 +79,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get dist-upgrade -y && \
     eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
     eatmydata apt-get install --no-install-recommends -y \
-                      g++-powerpc64le-linux-gnu \
                       gcc-powerpc64le-linux-gnu \
                       libaio-dev:ppc64el \
                       libasan6:ppc64el \
@@ -147,7 +146,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libzstd-dev:ppc64el \
                       nettle-dev:ppc64el \
                       systemtap-sdt-dev:ppc64el \
-                      xfslibs-dev:ppc64el \
                       zlib1g-dev:ppc64el && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
@@ -165,9 +163,7 @@ cpu = 'powerpc64le'\n\
 endian = 'little'\n" > /usr/local/share/meson/cross/powerpc64le-linux-gnu && \
     dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-c++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-cc && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-gcc
 
 ENV ABI "powerpc64le-linux-gnu"

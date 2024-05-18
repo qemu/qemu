@@ -26,7 +26,6 @@ RUN zypper update -y && \
            flex \
            fuse3-devel \
            gcc \
-           gcc-c++ \
            gcovr \
            gettext-runtime \
            git \
@@ -113,7 +112,6 @@ RUN zypper update -y && \
            vte-devel \
            which \
            xen-devel \
-           xfsprogs-devel \
            xorriso \
            zlib-devel \
            zlib-devel-static \
@@ -122,10 +120,8 @@ RUN zypper update -y && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED && \
     rpm -qa | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/c++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
-    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
 RUN /usr/bin/pip3.11 install \

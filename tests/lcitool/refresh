@@ -43,12 +43,12 @@ def atomic_write(filename, content):
 
 def generate(filename, cmd, trailer):
     print("Generate %s" % filename)
-    lcitool = subprocess.run(cmd, capture_output=True)
+    lcitool = subprocess.run(cmd, capture_output=True, encoding='utf8')
 
     if lcitool.returncode != 0:
         raise Exception("Failed to generate %s: %s" % (filename, lcitool.stderr))
 
-    content = lcitool.stdout.decode("utf8")
+    content = lcitool.stdout
     if trailer is not None:
         content += trailer
     atomic_write(filename, content)
@@ -192,6 +192,7 @@ try:
                                             "s390x-softmmu,s390x-linux-user"))
 
     generate_dockerfile("fedora-win64-cross", "fedora-38",
+                        project='qemu,qemu-win-installer',
                         cross="mingw64",
                         trailer=cross_build("x86_64-w64-mingw32-",
                                             "x86_64-softmmu"))

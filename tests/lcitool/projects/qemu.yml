@@ -22,7 +22,6 @@ packages:
  - findutils
  - flex
  - fuse3
- - g++
  - gcc
  - gcc-native
  - gcovr
@@ -36,8 +35,8 @@ packages:
  - hostname
  - json-c
  - libaio
- - libattr
  - libasan
+ - libattr
  - libbpf
  - libc-static
  - libcacard
@@ -55,6 +54,7 @@ packages:
  - libjpeg
  - libnfs
  - libnuma
+ - libpipewire-dev
  - libpmem
  - libpng
  - librbd
@@ -74,27 +74,26 @@ packages:
  - llvm
  - lttng-ust
  - lzo
+ - make
+ - mesa-libgbm
+ - meson
  - mtools
+ - ncursesw
  - netcat
  - nettle
  - ninja
  - nsis
- - make
- - mesa-libgbm
- - meson
- - ncursesw
  - pam
  - pcre-static
  - pixman
- - libpipewire-dev
  - pkg-config
  - pulseaudio
  - python3
- - python3-PyYAML
  - python3-numpy
  - python3-opencv
  - python3-pillow
  - python3-pip
+ - python3-PyYAML
  - python3-sphinx
  - python3-sphinx-rtd-theme
  - python3-sqlite3
@@ -121,8 +120,7 @@ packages:
  - vte
  - which
  - xen
- - xfsprogs
  - xorriso
- - zstdtools
  - zlib
  - zlib-static
+ - zstdtools

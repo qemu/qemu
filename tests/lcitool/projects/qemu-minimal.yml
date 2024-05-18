@@ -7,7 +7,6 @@ packages:
  - ccache
  - findutils
  - flex
- - g++
  - gcc
  - gcc-native
  - glib2
