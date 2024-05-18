@@ -60,6 +60,8 @@ def main():
         f.write('#include "macros.h.inc"\n\n')
 
         for tag in hex_common.tags:
+            if hex_common.tag_ignore(tag):
+                continue
             ## Skip the priv instructions
             if "A_PRIV" in hex_common.attribdict[tag]:
                 continue

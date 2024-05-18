@@ -37,7 +37,10 @@ def main():
     ##     Generate a list of all the opcodes
     ##
     with open(args.out, "w") as f:
-        for tag in hex_common.tags:
+        for tag in hex_common.get_user_tags():
+            f.write(f"OPCODE({tag}),\n")
+
+        for tag in hex_common.get_sys_tags():
             f.write(f"OPCODE({tag}),\n")
 
 
