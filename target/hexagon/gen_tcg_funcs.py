@@ -21,7 +21,7 @@ import sys
 import re
 import string
 import hex_common
-
+from textwrap import dedent
 
 ##
 ## Generate the TCG code to call the helper
@@ -50,6 +50,18 @@ def gen_tcg_func(f, tag, regs, imms):
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
 
+    if "A_PRIV" in hex_common.attribdict[tag]:
+        f.write(dedent("""\
+#ifdef CONFIG_USER_ONLY
+    hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
+#else
+"""))
+    if "A_GUEST" in hex_common.attribdict[tag]:
+        f.write(dedent("""\
+#ifdef CONFIG_USER_ONLY
+    hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
+#else
+"""))
     if hex_common.need_ea(tag):
         f.write("    TCGv EA G_GNUC_UNUSED = tcg_temp_new();\n")
 
@@ -97,6 +109,11 @@ def gen_tcg_func(f, tag, regs, imms):
         if reg.is_written():
             reg.log_write(f, tag)
 
+    if (
+        "A_PRIV" in hex_common.attribdict[tag]
+        or "A_GUEST" in hex_common.attribdict[tag]
+    ):
+        f.write("#endif   /* CONFIG_USER_ONLY */\n")
     f.write("}\n\n")
 
 
@@ -121,18 +138,7 @@ def main():
             f.write('#include "idef-generated-emitter.h.inc"\n\n')
 
         for tag in hex_common.tags:
-            ## Skip the priv instructions
-            if "A_PRIV" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the guest instructions
-            if "A_GUEST" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the diag instructions
-            if tag == "Y6_diag":
-                continue
-            if tag == "Y6_diag0":
-                continue
-            if tag == "Y6_diag1":
+            if hex_common.tag_ignore(tag):
                 continue
 
             gen_def_tcg_func(f, tag, tagregs, tagimms)
