@@ -41,19 +41,9 @@ def main():
         f.write("#define HEXAGON_FUNC_TABLE_H\n\n")
 
         f.write("const SemanticInsn opcode_genptr[XX_LAST_OPCODE] = {\n")
+
         for tag in hex_common.tags:
-            ## Skip the priv instructions
-            if "A_PRIV" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the guest instructions
-            if "A_GUEST" in hex_common.attribdict[tag]:
-                continue
-            ## Skip the diag instructions
-            if tag == "Y6_diag":
-                continue
-            if tag == "Y6_diag0":
-                continue
-            if tag == "Y6_diag1":
+            if hex_common.tag_ignore(tag):
                 continue
 
             f.write(f"    [{tag}] = generate_{tag},\n")
