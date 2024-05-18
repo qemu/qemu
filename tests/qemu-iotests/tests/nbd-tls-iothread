@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test of NBD+TLS+iothread
+#
+# Copyright (C) 2024 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=eblake@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+    rm -f "$dst_image"
+    tls_x509_cleanup
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+. ./common.tls
+. ./common.nbd
+
+_supported_fmt qcow2  # Hardcoded to qcow2 command line and QMP below
+_supported_proto file
+
+# pick_unused_port
+#
+# Picks and returns an "unused" port, setting the global variable
+# $port.
+#
+# This is inherently racy, but we need it because qemu does not currently
+# permit NBD+TLS over a Unix domain socket
+pick_unused_port ()
+{
+    if ! (ss --version) >/dev/null 2>&1; then
+        _notrun "ss utility required, skipped this test"
+    fi
+
+    # Start at a random port to make it less likely that two parallel
+    # tests will conflict.
+    port=$(( 50000 + (RANDOM%15000) ))
+    while ss -ltn | grep -sqE ":$port\b"; do
+        ((port++))
+        if [ $port -eq 65000 ]; then port=50000; fi
+    done
+    echo picked unused port
+}
+
+tls_x509_init
+
+size=1G
+DST_IMG="$TEST_DIR/dst.qcow2"
+
+echo
+echo "== preparing TLS creds and spare port =="
+
+pick_unused_port
+tls_x509_create_root_ca "ca1"
+tls_x509_create_server "ca1" "server1"
+tls_x509_create_client "ca1" "client1"
+tls_obj_base=tls-creds-x509,id=tls0,verify-peer=true,dir="${tls_dir}"
+
+echo
+echo "== preparing image =="
+
+_make_test_img $size
+$QEMU_IMG create -f qcow2 "$DST_IMG" $size | _filter_img_create
+
+echo
+echo === Starting Src QEMU ===
+echo
+
+_launch_qemu -machine q35 \
+    -object iothread,id=iothread0 \
+    -object "${tls_obj_base}"/client1,endpoint=client \
+    -device '{"driver":"pcie-root-port", "id":"root0", "multifunction":true,
+              "bus":"pcie.0"}' \
+    -device '{"driver":"virtio-scsi-pci", "id":"virtio_scsi_pci0",
+              "bus":"root0", "iothread":"iothread0"}' \
+    -device '{"driver":"scsi-hd", "id":"image1", "drive":"drive_image1",
+              "bus":"virtio_scsi_pci0.0"}' \
+    -blockdev '{"driver":"file", "cache":{"direct":true, "no-flush":false},
+                "filename":"'"$TEST_IMG"'", "node-name":"drive_sys1"}' \
+    -blockdev '{"driver":"qcow2", "node-name":"drive_image1",
+                "file":"drive_sys1"}'
+h1=$QEMU_HANDLE
+_send_qemu_cmd $h1 '{"execute": "qmp_capabilities"}' 'return'
+
+echo
+echo === Starting Dst VM2 ===
+echo
+
+_launch_qemu -machine q35 \
+    -object iothread,id=iothread0 \
+    -object "${tls_obj_base}"/server1,endpoint=server \
+    -device '{"driver":"pcie-root-port", "id":"root0", "multifunction":true,
+              "bus":"pcie.0"}' \
+    -device '{"driver":"virtio-scsi-pci", "id":"virtio_scsi_pci0",
+              "bus":"root0", "iothread":"iothread0"}' \
+    -device '{"driver":"scsi-hd", "id":"image1", "drive":"drive_image1",
+              "bus":"virtio_scsi_pci0.0"}' \
+    -blockdev '{"driver":"file", "cache":{"direct":true, "no-flush":false},
+                "filename":"'"$DST_IMG"'", "node-name":"drive_sys1"}' \
+    -blockdev '{"driver":"qcow2", "node-name":"drive_image1",
+                "file":"drive_sys1"}' \
+    -incoming defer
+h2=$QEMU_HANDLE
+_send_qemu_cmd $h2 '{"execute": "qmp_capabilities"}' 'return'
+
+echo
+echo === Dst VM: Enable NBD server for incoming storage migration ===
+echo
+
+_send_qemu_cmd $h2 '{"execute": "nbd-server-start", "arguments":
+    {"addr": {"type": "inet", "data": {"host": "127.0.0.1", "port": "'$port'"}},
+              "tls-creds": "tls0"}}' '{"return": {}}' | sed "s/\"$port\"/PORT/g"
+_send_qemu_cmd $h2 '{"execute": "block-export-add", "arguments":
+    {"node-name": "drive_image1", "type": "nbd", "writable": true,
+      "id": "drive_image1"}}' '{"return": {}}'
+
+echo
+echo === Src VM: Mirror to dst NBD for outgoing storage migration ===
+echo
+
+_send_qemu_cmd $h1 '{"execute": "blockdev-add", "arguments":
+    {"node-name": "mirror", "driver": "nbd",
+     "server": {"type": "inet", "host": "127.0.0.1", "port": "'$port'"},
+     "export": "drive_image1", "tls-creds": "tls0",
+     "tls-hostname": "127.0.0.1"}}' '{"return": {}}' | sed "s/\"$port\"/PORT/g"
+_send_qemu_cmd $h1 '{"execute": "blockdev-mirror", "arguments":
+    {"sync": "full", "device": "drive_image1", "target": "mirror",
+     "job-id": "drive_image1_53"}}' '{"return": {}}'
+_timed_wait_for $h1 '"ready"'
+
+echo
+echo === Cleaning up ===
+echo
+
+_send_qemu_cmd $h1 '{"execute":"quit"}' ''
+_send_qemu_cmd $h2 '{"execute":"quit"}' ''
+
+echo "*** done"
+rm -f $seq.full
+status=0
