@@ -118,76 +118,46 @@ void machine_parse_smp_config(MachineState *ms,
     }
 
     /*
-     * If not supported by the machine, a topology parameter must be
-     * omitted.
+     * If not supported by the machine, a topology parameter must
+     * not be set to a value greater than 1.
      */
-    if (!mc->smp_props.modules_supported && config->has_modules) {
-        if (config->modules > 1) {
-            error_setg(errp, "modules not supported by this "
-                       "machine's CPU topology");
-            return;
-        } else {
-            /* Here modules only equals 1 since we've checked zero case. */
-            warn_report("Deprecated CPU topology (considered invalid): "
-                        "Unsupported modules parameter mustn't be "
-                        "specified as 1");
-        }
+    if (!mc->smp_props.modules_supported &&
+        config->has_modules && config->modules > 1) {
+        error_setg(errp,
+                   "modules > 1 not supported by this machine's CPU topology");
+        return;
     }
     modules = modules > 0 ? modules : 1;
 
-    if (!mc->smp_props.clusters_supported && config->has_clusters) {
-        if (config->clusters > 1) {
-            error_setg(errp, "clusters not supported by this "
-                       "machine's CPU topology");
-            return;
-        } else {
-            /* Here clusters only equals 1 since we've checked zero case. */
-            warn_report("Deprecated CPU topology (considered invalid): "
-                        "Unsupported clusters parameter mustn't be "
-                        "specified as 1");
-        }
+    if (!mc->smp_props.clusters_supported &&
+        config->has_clusters && config->clusters > 1) {
+        error_setg(errp,
+                   "clusters > 1 not supported by this machine's CPU topology");
+        return;
     }
     clusters = clusters > 0 ? clusters : 1;
 
-    if (!mc->smp_props.dies_supported && config->has_dies) {
-        if (config->dies > 1) {
-            error_setg(errp, "dies not supported by this "
-                       "machine's CPU topology");
-            return;
-        } else {
-            /* Here dies only equals 1 since we've checked zero case. */
-            warn_report("Deprecated CPU topology (considered invalid): "
-                        "Unsupported dies parameter mustn't be "
-                        "specified as 1");
-        }
+    if (!mc->smp_props.dies_supported &&
+        config->has_dies && config->dies > 1) {
+        error_setg(errp,
+                   "dies > 1 not supported by this machine's CPU topology");
+        return;
     }
     dies = dies > 0 ? dies : 1;
 
-    if (!mc->smp_props.books_supported && config->has_books) {
-        if (config->books > 1) {
-            error_setg(errp, "books not supported by this "
-                       "machine's CPU topology");
-            return;
-        } else {
-            /* Here books only equals 1 since we've checked zero case. */
-            warn_report("Deprecated CPU topology (considered invalid): "
-                        "Unsupported books parameter mustn't be "
-                        "specified as 1");
-        }
+    if (!mc->smp_props.books_supported &&
+        config->has_books && config->books > 1) {
+        error_setg(errp,
+                   "books > 1 not supported by this machine's CPU topology");
+        return;
     }
     books = books > 0 ? books : 1;
 
-    if (!mc->smp_props.drawers_supported && config->has_drawers) {
-        if (config->drawers > 1) {
-            error_setg(errp, "drawers not supported by this "
-                       "machine's CPU topology");
-            return;
-        } else {
-            /* Here drawers only equals 1 since we've checked zero case. */
-            warn_report("Deprecated CPU topology (considered invalid): "
-                        "Unsupported drawers parameter mustn't be "
-                        "specified as 1");
-        }
+    if (!mc->smp_props.drawers_supported &&
+        config->has_drawers && config->drawers > 1) {
+        error_setg(errp,
+                   "drawers > 1 not supported by this machine's CPU topology");
+        return;
     }
     drawers = drawers > 0 ? drawers : 1;
 

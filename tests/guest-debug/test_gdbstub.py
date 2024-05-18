@@ -57,4 +57,4 @@ def main(test, expected_arch=None):
         pass
 
     print("All tests complete: {} failures".format(fail_count))
-    exit(fail_count)
+    gdb.execute(f"exit {fail_count}")
