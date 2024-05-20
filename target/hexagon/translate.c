@@ -61,6 +61,13 @@ TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
 
+#ifndef CONFIG_USER_ONLY
+TCGv hex_greg[NUM_GREGS];
+TCGv hex_t_sreg[NUM_SREGS];
+TCGv_ptr hex_g_sreg_ptr;
+TCGv hex_g_sreg[NUM_SREGS];
+#endif
+
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
 };
