@@ -39,6 +39,14 @@ typedef struct DisasContext {
     int reg_log_idx;
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
+#ifndef CONFIG_USER_ONLY
+    int greg_log[GREG_WRITES_MAX];
+    int greg_log_idx;
+    int sreg_log[SREG_WRITES_MAX];
+    int sreg_log_idx;
+    TCGv t_sreg_new_value[NUM_SREGS];
+    TCGv greg_new_value[NUM_GREGS];
+#endif
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);
@@ -78,6 +86,34 @@ typedef struct DisasContext {
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
+
+#ifndef CONFIG_USER_ONLY
+static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
+{
+    if (rnum <= HEX_GREG_G3) {
+        ctx->greg_log[ctx->greg_log_idx] = rnum;
+        ctx->greg_log_idx++;
+    }
+}
+
+static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
+{
+    ctx_log_greg_write(ctx, rnum);
+    ctx_log_greg_write(ctx, rnum + 1);
+}
+
+static inline void ctx_log_sreg_write(DisasContext *ctx, int rnum)
+{
+    ctx->sreg_log[ctx->sreg_log_idx] = rnum;
+    ctx->sreg_log_idx++;
+}
+
+static inline void ctx_log_sreg_write_pair(DisasContext *ctx, int rnum)
+{
+    ctx_log_sreg_write(ctx, rnum);
+    ctx_log_sreg_write(ctx, rnum + 1);
+}
+#endif
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
