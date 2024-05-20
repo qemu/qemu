@@ -474,6 +474,27 @@ static void test_vcombine(void)
     check_output_w(__LINE__, BUFSIZE);
 }
 
+void test_store_new()
+{
+    asm volatile(
+        "r0 = #0x12345678\n"
+        "v0 = vsplat(r0)\n"
+        "r0 = #0xff00ff00\n"
+        "v1 = vsplat(r0)\n"
+        "{\n"
+        "   vdeal(v1,v0,r0)\n"
+        "   vmem(%0) = v0.new\n"
+        "}\n"
+        :
+        : "r"(&output[0])
+        : "r0", "v0", "v1", "memory"
+    );
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].w[i] = 0x12345678;
+    }
+    check_output_w(__LINE__, 1);
+}
+
 int main()
 {
     init_buffers();
@@ -514,6 +535,8 @@ int main()
     test_load_cur_predicated();
 
     test_vcombine();
+
+    test_store_new();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
