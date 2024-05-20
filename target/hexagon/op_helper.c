@@ -1315,6 +1315,40 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
+
+{
+    g_assert_not_reached();
+}
+
+uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+
+uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+
+uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+
+uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+#endif
+
+
 /* These macros can be referenced in the generated helper functions */
 #define warn(...) /* Nothing */
 #define fatal(...) g_assert_not_reached();

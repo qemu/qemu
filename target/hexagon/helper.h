@@ -107,3 +107,12 @@ DEF_HELPER_4(probe_noshuf_load, void, env, i32, int, int)
 DEF_HELPER_2(probe_pkt_scalar_store_s0, void, env, int)
 DEF_HELPER_2(probe_hvx_stores, void, env, int)
 DEF_HELPER_2(probe_pkt_scalar_hvx_stores, void, env, int)
+
+#if !defined(CONFIG_USER_ONLY)
+DEF_HELPER_2(sreg_read, i32, env, i32)
+DEF_HELPER_2(sreg_read_pair, i64, env, i32)
+DEF_HELPER_2(greg_read, i32, env, i32)
+DEF_HELPER_2(greg_read_pair, i64, env, i32)
+DEF_HELPER_3(sreg_write, void, env, i32, i32)
+DEF_HELPER_3(sreg_write_pair, void, env, i32, i64)
+#endif
