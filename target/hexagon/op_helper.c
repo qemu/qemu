@@ -24,6 +24,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "macros.h"
+#include "sys_macros.h"
 #include "arch.h"
 #include "hex_arch_types.h"
 #include "fma_emu.h"
