@@ -488,6 +488,7 @@
 
 /* dczeroa clears the 32 byte cache line at the address given */
 #define fGEN_TCG_Y2_dczeroa(SHORTCODE) SHORTCODE
+#define fGEN_TCG_Y2_dczeroa_nt(SHORTCODE) SHORTCODE
 
 /* In linux-user mode, these are not modelled, suppress compiler warning */
 #define fGEN_TCG_Y2_dcinva(SHORTCODE) \
@@ -1133,6 +1134,9 @@
                            RdV, tcg_constant_tl(0)); \
     } while (0)
 
+#define fGEN_TCG_Y2_break(SHORTCODE)
+#define fGEN_TCG_J2_unpause(SHORTCODE)
+
 #define fGEN_TCG_J2_pause(SHORTCODE) \
     do { \
         uiV = uiV; \
@@ -1338,6 +1342,11 @@
 #define fGEN_TCG_Y2_syncht(SHORTCODE) \
     do { } while (0)
 #define fGEN_TCG_Y2_dcfetchbo(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        uiV = uiV; \
+    } while (0)
+#define fGEN_TCG_Y2_dcfetchbo_nt(SHORTCODE) \
     do { \
         RsV = RsV; \
         uiV = uiV; \
