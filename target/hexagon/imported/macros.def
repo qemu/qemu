@@ -354,6 +354,12 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
+    fREAD_SSR, /* read SSR register */
+    (READ_RREG(REG_SSR)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
     fWRITE_LR, /* write lr */
     WRITE_RREG(REG_LR,A),          /* behavior */
     (A_IMPLICIT_WRITES_LR)
@@ -372,8 +378,32 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
+    fWRITE_GOSP, /* write gosp */
+    WRITE_RREG(REG_GOSP,A),          /* behavior */
+    (A_IMPLICIT_WRITES_GOSP)
+)
+
+DEF_MACRO(
     fREAD_SP, /* read stack pointer */
     (READ_RREG(REG_SP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_GOSP, /* read guest other stack pointer */
+    (READ_RREG(REG_GOSP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_GELR, /* read guest other stack pointer */
+    (READ_RREG(REG_GELR)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_GEVB, /* read guest other stack pointer */
+    (READ_RREG(REG_GEVB)),          /* behavior */
     ()
 )
 
@@ -570,6 +600,11 @@ DEF_MACRO(
     WRITE_PREG(3,VAL),     /* behavior */
     (A_IMPLICIT_WRITES_P3)
 )
+DEF_MACRO(
+	fWRITE_P3_LATE, /* write Predicate 0 */
+	{WRITE_PREG(3,VAL); fHIDE(MARK_LATE_PRED_WRITE(3))} ,          /* behavior */
+	(A_IMPLICIT_WRITES_P3,A_RESTRICT_LATEPRED)
+)
 
 DEF_MACRO(
     fPART1, /* write Predicate 0 */
@@ -660,6 +695,7 @@ DEF_MACRO(
     ((size8s_t)((size2s_t)(A))),
     /* optional attributes */
 )
+
 DEF_MACRO(
     fCAST2_8u, /* macro name */
     ((size8u_t)((size2u_t)(A))),
@@ -1532,16 +1568,207 @@ DEF_MACRO(fECHO,
 /* OS interface and stop/wait               */
 /********************************************/
 
+DEF_MACRO(RUNNABLE_THREADS_MAX,
+    (thread->processor_ptr->runnable_threads_max),
+    ()
+)
+
+DEF_MACRO(THREAD_IS_ON,
+    ((PROC->arch_proc_options->thread_enable_mask>>TNUM) & 0x1),
+    ()
+)
+
+DEF_MACRO(THREAD_EN_MASK,
+    ((PROC->arch_proc_options->thread_enable_mask)),
+    ()
+)
+
+
+
+DEF_MACRO(READ_IMASK,
+    (((TH) >= (thread->processor_ptr->runnable_threads_max)) ? 0 : (thread->processor_ptr->thread[TH]->Regs[REG_IMASK])),
+    ()
+)
+DEF_MACRO(WRITE_IMASK,
+    if ((TH) < (thread->processor_ptr->runnable_threads_max)) { thread->processor_ptr->thread[TH]->Regs[REG_IMASK]=(VAL & reg_mutability[REG_IMASK] ); },
+    (A_IMPLICIT_WRITES_IMASK_ANYTHREAD)
+)
+
+
+DEF_MACRO(WRITE_PRIO,
+    {
+        if ((TH) < (thread->processor_ptr->runnable_threads_max)) {
+            size4u_t tid_reg = thread->processor_ptr->thread[TH]->Regs[REG_TID];
+            fINSERT_BITS(tid_reg, reg_field_info[STID_PRIO].width, reg_field_info[STID_PRIO].offset, VAL);
+            LOG_OTHER_THREAD_REG_WRITE(thread,REG_TID,tid_reg,TH);
+        }
+    },
+    (A_IMPLICIT_WRITES_STID_PRIO_ANYTHREAD)
+)
+
+
+DEF_MACRO(DO_IASSIGNW,
+    {
+        int i;
+        int intbitpos = ((REG>>16)&0xF);
+        for (i=0;i<RUNNABLE_THREADS_MAX;i++) {
+            if(( (thread->processor_ptr->arch_proc_options->thread_enable_mask>>i) & 0x1)) {
+                fINSERT_BITS(thread->processor_ptr->thread[i]->Regs[REG_IMASK],1, intbitpos, (REG>>i) & 1);
+           }
+        }
+    },
+    (A_IMPLICIT_WRITES_IMASK_ANYTHREAD)
+)
+
+
+
+
+DEF_MACRO(fDO_NMI,
+    {
+        int i;
+        for (i=0;i<RUNNABLE_THREADS_MAX;i++) {
+            if( ( (thread->processor_ptr->arch_proc_options->thread_enable_mask>>i) & 0x1) ) {
+                if (SREG & (1<<i)) {
+                    register_nmi_interrupt(thread->processor_ptr->thread[i]);
+                }
+            }
+        }
+    },
+)
+
+DEF_MACRO(fDO_TRACE,
+    {
+        fHIDE(HEX_CALLBACK(thread->processor_ptr->options->trace_callback,
+            thread->system_ptr,thread->processor_ptr,
+            thread->threadId,SREG);)
+    },
+)
+
+DEF_MACRO(DO_IASSIGNR,
+    {
+        int i;
+        int result=0;
+        int intbitpos = ((SREG>>16)&0xF);
+        for (i=0;i<RUNNABLE_THREADS_MAX;i++) {
+            if(( (thread->processor_ptr->arch_proc_options->thread_enable_mask>>i) & 0x1)) {
+                result |= (((thread->processor_ptr->thread[i]->Regs[REG_IMASK]>>intbitpos)&1)<<i);
+            }
+        }
+        DREG=result;
+    },
+    ()
+)
+
+DEF_MACRO(DO_SWI,
+        {fHIDE(HEX_CALLBACK(thread->processor_ptr->options->swi_callback,
+         thread->system_ptr,thread->processor_ptr,
+         thread->threadId,REG));
+         LOG_GLOBAL_REG_WRITE(REG_IPEND,(GLOBAL_REG_READ(REG_IPEND) | (REG & GLOBAL_REG_READ(REG_IEL))));
+        },
+        (A_EXCEPTION_SWI)
+)
+
+DEF_MACRO(DO_CSWI,
+        LOG_GLOBAL_REG_WRITE(REG_IPEND,GLOBAL_REG_READ(REG_IPEND) & ~((REG) & GLOBAL_REG_READ(REG_IEL)));,
+        ()
+)
+
+DEF_MACRO(DO_CIAD,
+        sys_ciad(thread,VAL); LOG_GLOBAL_REG_WRITE(REG_IAD,GLOBAL_REG_READ(REG_IAD) & ~(VAL));,
+        (A_EXCEPTION_SWI)
+)
+
+DEF_MACRO(DO_SIAD,
+        sys_siad(thread,VAL); LOG_GLOBAL_REG_WRITE(REG_IAD,GLOBAL_REG_READ(REG_IAD) | (VAL));,
+        (A_EXCEPTION_SWI)
+)
+
+DEF_MACRO(fBREAK,
+    {isdb_brkpt_insn(thread->processor_ptr,thread->threadId);},
+    ()
+)
+
 DEF_MACRO(fPAUSE,
     {sys_pause(thread, insn->slot, IMM);},
     ()
 )
 
+
 DEF_MACRO(fTRAP,
     warn("Trap NPC=%x ",fREAD_NPC());
     warn("Trap exception, PCYCLE=%lld TYPE=%d NPC=%x IMM=0x%x",thread->processor_ptr->pstats[pcycles],TRAPTYPE,fREAD_NPC(),IMM);
     register_trap_exception(thread,fREAD_NPC(),TRAPTYPE,IMM);,
+    (A_EXCEPTION_SWI)
+)
+
+DEF_MACRO(fINTERNAL_CLEAR_SAMEPAGE,
+    /* force re-xlate at next fetch, refresh of in_user_mode, etc */
+    /* Permissions change too... */
+    sys_utlb_invalidate(thread->processor_ptr,thread),
+    /* NOTHING */
+)
+
+DEF_MACRO(fCLEAR_RTE_EX,
+      {
+        fLOG_REG_FIELD(SSR,SSR_EX,0);
+        fINTERNAL_CLEAR_SAMEPAGE();
+      },
+      ()
+)
+
+DEF_MACRO(fTLB_LOCK_AVAILABLE,
+    (fREAD_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_TLBLOCK) == 0),
     ()
+)
+
+DEF_MACRO(fK0_LOCK_AVAILABLE,
+    (fREAD_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_K0LOCK) == 0),
+    ()
+)
+
+DEF_MACRO(fSET_TLB_LOCK,
+      {
+      if (fTLB_LOCK_AVAILABLE()) {
+        fLOG_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_TLBLOCK,1);
+      } else {
+        sys_waiting_for_tlb_lock(thread);
+      }
+      },
+      ()
+)
+
+DEF_MACRO(fSET_K0_LOCK,
+      {
+          if (fK0_LOCK_AVAILABLE() && sys_k0lock_queue_ready(thread)) {
+              warn("k0lock: T%d: PC=0x%x: PCycle=%lld",thread->threadId,thread->Regs[REG_PC],thread->processor_ptr->pstats[pcycles]);
+              fLOG_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_K0LOCK,1);
+          } else {
+              warn("k0lock_waiting: T%d: PC=0x%x: PCycle=%lld",thread->threadId,thread->Regs[REG_PC],thread->processor_ptr->pstats[pcycles]);
+                sys_waiting_for_k0_lock(thread);
+          }
+      },
+      ()
+)
+
+DEF_MACRO(fCLEAR_TLB_LOCK,
+      {
+          int i;
+          fLOG_GLOBAL_REG_FIELD(SYSCONF,SYSCFG_TLBLOCK,0);
+          for (i = 0; i < RUNNABLE_THREADS_MAX; i++) {
+              if(( (thread->processor_ptr->arch_proc_options->thread_enable_mask>>i) & 0x1)) {
+                  thread->processor_ptr->thread[i]->cu_tlb_lock_waiting = 0;
+              }
+          }
+      },
+      ()
+)
+
+DEF_MACRO(fCLEAR_K0_LOCK,
+      do {
+      warn("k0unlock: T%d: PC=0x%x: Pcycle=%lld",thread->threadId,thread->Regs[REG_PC], thread->processor_ptr->pstats[pcycles]);
+      sys_initiate_clear_k0_lock(thread);
+      } while (0),
+      ()
 )
 
 DEF_MACRO(fALIGN_REG_FIELD_VALUE,
@@ -1554,8 +1781,35 @@ DEF_MACRO(fGET_REG_FIELD_MASK,
     /* */
 )
 
+DEF_MACRO(fLOG_REG_FIELD,
+    LOG_MASKED_REG_WRITE(thread,REG_##REG,
+    fALIGN_REG_FIELD_VALUE(FIELD,VAL),
+    fGET_REG_FIELD_MASK(FIELD)),
+    ()
+)
+
+DEF_MACRO(fWRITE_GLOBAL_REG_FIELD,
+    fINSERT_BITS(thread->processor_ptr->global_regs[REG_##REG],
+            reg_field_info[FIELD].width,
+            reg_field_info[FIELD].offset,VAL),
+)
+
+DEF_MACRO(fLOG_GLOBAL_REG_FIELD,
+    LOG_MASKED_GLOBAL_REG_WRITE(REG_##REG,
+        fALIGN_REG_FIELD_VALUE(FIELD,VAL),
+        fGET_REG_FIELD_MASK(FIELD)),
+    ()
+)
+
 DEF_MACRO(fREAD_REG_FIELD,
     fEXTRACTU_BITS(thread->Regs[REG_##REG],
+        reg_field_info[FIELD].width,
+        reg_field_info[FIELD].offset),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fREAD_GLOBAL_REG_FIELD,
+    fEXTRACTU_BITS(thread->processor_ptr->global_regs[REG_##REG],
         reg_field_info[FIELD].width,
         reg_field_info[FIELD].offset),
     /* ATTRIBS */
@@ -1574,6 +1828,185 @@ DEF_MACRO(fSET_FIELD,
         reg_field_info[FIELD].offset,
         (NEWVAL)),
     /* ATTRIBS */
+)
+
+DEF_MACRO(fSET_RUN_MODE_NOW,
+        {thread->processor_ptr->global_regs[REG_MODECTL] |= (1<<TNUM);
+         thread->last_commit_cycle = thread->processor_ptr->pcycle_counter;
+         sys_recalc_num_running_threads(thread->processor_ptr);},
+)
+
+DEF_MACRO(fIN_DEBUG_MODE,
+    (thread->debug_mode || (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM)),
+    ()
+)
+DEF_MACRO(fIN_DEBUG_MODE_NO_ISDB,
+    (thread->debug_mode),
+    ()
+)
+
+
+DEF_MACRO(fIN_DEBUG_MODE_WARN,
+    {
+        if (fREAD_GLOBAL_REG_FIELD(ISDBST,ISDBST_DEBUGMODE) & 1<<TNUM)
+            warn("In ISDB debug mode, but TB told me to step normally");
+    },
+    ()
+)
+
+DEF_MACRO(fCLEAR_RUN_MODE,
+    {fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_E,
+     fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_E) & ~(1<<(TNUM)))},
+    /* NOTHING */
+)
+
+DEF_MACRO(fCLEAR_RUN_MODE_NOW,
+    do {
+        fWRITE_GLOBAL_REG_FIELD(MODECTL,MODECTL_E,
+        fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_E) & ~(1<<(TNUM)));
+        sys_recalc_num_running_threads(thread->processor_ptr);
+    } while (0),
+    /* NOTHING */
+)
+
+DEF_MACRO(fGET_RUN_MODE,
+        ((thread->processor_ptr->global_regs[REG_MODECTL]>>TNUM)&0x1),
+)
+
+DEF_MACRO(fSET_WAIT_MODE,
+    {fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_W,
+    fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_W) | 1<<(TNUM))},
+    /* NOTHING */
+)
+
+DEF_MACRO(fCLEAR_WAIT_MODE,
+        {thread->processor_ptr->global_regs[REG_MODECTL] &= ~(1<<(TNUM+16));
+         thread->last_commit_cycle = thread->processor_ptr->pcycle_counter;
+         sys_recalc_num_running_threads(thread->processor_ptr);},
+)
+
+DEF_MACRO(fGET_WAIT_MODE,
+        ((thread->processor_ptr->global_regs[REG_MODECTL]>>(TNUM+16))&0x1),
+)
+
+
+DEF_MACRO(fRESET_THREAD,
+        register_reset_interrupt(T,NUM),
+)
+
+DEF_MACRO(fREAD_CURRENT_EVB,
+    (GLOBAL_REG_READ(REG_EVB)),
+    /* nothing */
+)
+
+DEF_MACRO(fREAD_ELR,
+    READ_RREG(REG_ELR),
+    ()
+)
+
+DEF_MACRO(fPOW2_HELP_ROUNDUP,
+    ((VAL) | ((VAL) >> 1) | ((VAL) >> 2) | ((VAL) >> 4) | ((VAL) >> 8) | ((VAL) >> 16)),
+    ()
+)
+
+DEF_MACRO(fPOW2_ROUNDUP,
+    fPOW2_HELP_ROUNDUP((VAL)-1)+1,
+    ()
+)
+
+DEF_MACRO(fTLB_IDXMASK,
+    ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(thread->processor_ptr->arch_proc_options->jtlb_size)) - 1)),
+    ()
+)
+
+DEF_MACRO(fTLB_NONPOW2WRAP,
+    (((INDEX) >= thread->processor_ptr->arch_proc_options->jtlb_size) ? ((INDEX) - thread->processor_ptr->arch_proc_options->jtlb_size) : (INDEX)),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fTLBW,
+    do {size4u_t __myidx = fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX));
+        TLB_REG_WRITE(__myidx,VALUE);
+        fHIDE(HEX_CALLBACK(thread->processor_ptr->options->tlbw_callback,thread->system_ptr,thread->processor_ptr,thread->threadId,__myidx);)
+        fHIDE(sys_tlb_write(thread,__myidx,VALUE);)} while (0),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fTLB_ENTRY_OVERLAP,
+    fHIDE( (sys_check_overlap(thread,VALUE)!=-2) ),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fTLB_ENTRY_OVERLAP_IDX,
+    fHIDE(sys_check_overlap(thread,VALUE)),
+    /* ATTRIBS */
+)
+
+
+DEF_MACRO(fTLBR,
+    TLB_REG_READ(fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX))),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fTLBP,
+    tlb_lookup(thread,((TLBHI)>>12),((TLBHI)<<12),1),
+    /* attribs */
+)
+
+
+
+DEF_MACRO(READ_SGP0,
+    READ_RREG(REG_SGP),
+    ()
+)
+
+DEF_MACRO(READ_SGP1,
+    READ_RREG(REG_SGP+1),
+    ()
+)
+
+DEF_MACRO(READ_SGP10,
+    READ_RREG_PAIR(REG_SGP),
+    ()
+)
+
+DEF_MACRO(READ_UGP,
+    READ_RREG(REG_UGP),
+)
+
+DEF_MACRO(WRITE_SGP0,
+    WRITE_RREG(REG_SGP,VAL),
+    (A_IMPLICIT_WRITES_SGP0)
+)
+
+DEF_MACRO(WRITE_SGP1,
+    WRITE_RREG(REG_SGP+1,VAL),
+    (A_IMPLICIT_WRITES_SGP1)
+)
+
+DEF_MACRO(WRITE_SGP10,
+    WRITE_RREG_PAIR(REG_SGP,VAL),
+    (A_IMPLICIT_WRITES_SGP0,A_IMPLICIT_WRITES_SGP1)
+)
+
+DEF_MACRO(WRITE_UGP,
+        WRITE_RREG(REG_UGP,VAL),
+)
+
+DEF_MACRO(fSTART,
+    fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_E, fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_E) | (((REG & ((1<<RUNNABLE_THREADS_MAX)-1))) & THREAD_EN_MASK(thread->processor_ptr))),
+    ()
+)
+
+DEF_MACRO(fRESUME,
+    fLOG_GLOBAL_REG_FIELD(MODECTL,MODECTL_W,
+    fREAD_GLOBAL_REG_FIELD(MODECTL,MODECTL_W) & (~(REG))),
+    ()
+)
+
+DEF_MACRO(fGET_TNUM,
+    thread->threadId,
+    ()
 )
 
 /********************************************/
@@ -1602,6 +2035,11 @@ DEF_MACRO(fISYNC,
 )
 
 
+DEF_MACRO(fICFETCH,
+    ,
+    ()
+)
+
 DEF_MACRO(fDCFETCH,
     sys_dcfetch(thread, (REG), insn->slot),
     (A_MEMLIKE)
@@ -1613,6 +2051,34 @@ DEF_MACRO(fICINVA,
         sys_icinva(thread, (REG),insn->slot);
     },
     (A_ICINVA)
+)
+
+DEF_MACRO(fDCTAGR,
+    ({DST=sys_dctagr(thread, INDEX, insn->slot,DSTREGNO);})/* FIXME */,
+    ()
+)
+
+DEF_MACRO(fDCTAGW,
+    (sys_dctagw(thread, INDEX, PART2, insn->slot)),
+    ()
+)
+DEF_MACRO(fICTAGR,
+    ({DST=sys_ictagr(thread, INDEX, insn->slot,REGNO);}),
+    ()
+)
+
+DEF_MACRO(fICDATAR,
+    ({DST=sys_icdatar(thread, INDEX, insn->slot);}),
+    ()
+)
+
+DEF_MACRO(fICTAGW,
+    (sys_ictagw(thread, INDEX, PART2, insn->slot)),
+    ()
+)
+DEF_MACRO(fICDATAW,
+    ({ fHIDE(); }),
+    ()
 )
 
 DEF_MACRO(fL2FETCH,
@@ -1635,6 +2101,12 @@ DEF_MACRO(fDCZEROA,
     (A_MEMLIKE)
 )
 
+DEF_MACRO(fDCINVA,
+    sys_dcinva(thread, (REG)),
+    (A_MEMLIKE)
+)
+
+
 DEF_MACRO(fCHECKFORPRIV,
     {sys_check_privs(thread); if (EXCEPTION_DETECTED) return; },
     ()
@@ -1643,6 +2115,16 @@ DEF_MACRO(fCHECKFORPRIV,
 DEF_MACRO(fCHECKFORGUEST,
     {sys_check_guest(thread); if (EXCEPTION_DETECTED) return; },
     ()
+)
+
+DEF_MACRO(fTAKEN_INTERRUPT_EDGECLEAR,
+        { proc->global_regs[REG_IPEND] &= ~(INT_NUMTOMASK(intnum) & proc->global_regs[REG_IEL]); },
+        ()
+)
+
+DEF_MACRO(fSET_IAD,
+        { sys_siad(thread,INT_NUMTOMASK(intnum)); thread->processor_ptr->global_regs[REG_IAD] |= INT_NUMTOMASK(intnum); },
+        ()
 )
 
 DEF_MACRO(fBRANCH_SPECULATE_STALL,
@@ -1663,4 +2145,80 @@ DEF_MACRO(fBRANCH_SPECULATE_STALL,
 DEF_MACRO(IV1DEAD,
     ,
     ()
+)
+
+DEF_MACRO(fIN_MONITOR_MODE,
+    sys_in_monitor_mode(thread),
+    ()
+)
+
+DEF_MACRO(fIN_USER_MODE,
+    sys_in_user_mode(thread),
+    ()
+)
+
+DEF_MACRO(fIN_GUEST_MODE,
+    sys_in_guest_mode(thread),
+    ()
+)
+
+DEF_MACRO(fGRE_ENABLED,
+    fREAD_REG_FIELD(CCR,CCR_GRE),
+    ()
+)
+
+DEF_MACRO(fGTE_ENABLED,
+    fREAD_REG_FIELD(CCR,CCR_GRE),
+    ()
+)
+
+DEF_MACRO(fTRAP1_VIRTINSN,
+    ((fIN_GUEST_MODE())
+     && (fGRE_ENABLED())
+     && (   ((IMM) == 1)
+         || ((IMM) == 3)
+         || ((IMM) == 4)
+         || ((IMM) == 6))),
+    ()
+)
+
+DEF_MACRO(fVIRTINSN_RTE,
+    do {
+        thread->trap1_info = TRAP1_VIRTINSN_RTE;
+        fLOG_REG_FIELD(SSR,SSR_SS,fREAD_REG_FIELD(GSR,GSR_SS));
+        fLOG_REG_FIELD(CCR,CCR_GIE,fREAD_REG_FIELD(GSR,GSR_IE));
+        fLOG_REG_FIELD(SSR,SSR_GM,!fREAD_REG_FIELD(GSR,GSR_UM));
+        fBRANCH((fREAD_GELR() & -4),COF_TYPE_RTE);
+        fINTERNAL_CLEAR_SAMEPAGE();
+    } while (0),
+    (A_IMPLICIT_WRITES_CCR,A_IMPLICIT_WRITES_SSR)
+)
+
+DEF_MACRO(fVIRTINSN_SETIE,
+    do {
+        fLOG_REG_FIELD(CCR,CCR_GIE,(REG) & 1);
+        REG = fREAD_REG_FIELD(CCR,CCR_GIE);
+        thread->trap1_info = TRAP1_VIRTINSN_SETIE;
+    } while (0),
+    (A_IMPLICIT_WRITES_CCR)
+)
+
+DEF_MACRO(fVIRTINSN_GETIE,
+    {
+        thread->trap1_info = TRAP1_VIRTINSN_GETIE;
+        REG = fREAD_REG_FIELD(CCR,CCR_GIE);
+    },
+    ()
+)
+
+DEF_MACRO(fVIRTINSN_SPSWAP,
+    do {
+        if (fREAD_REG_FIELD(GSR,GSR_UM)) {
+            size4u_t TEMP = REG;
+            REG = fREAD_GOSP();
+            fWRITE_GOSP(TEMP);
+            thread->trap1_info = TRAP1_VIRTINSN_SPSWAP;
+        }
+    } while (0),
+    (A_IMPLICIT_WRITES_GOSP)
 )
