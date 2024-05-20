@@ -208,6 +208,11 @@ void arch_fpop_start(CPUHexagonState *env)
  * model it in qemu user mode.
  */
 #define RAISE_FP_EXCEPTION   do {} while (0)
+#else
+ /*
+  * To be implemented.
+  */
+#define RAISE_FP_EXCEPTION   do { g_assert_not_reached(); } while (0)
 #endif
 
 #define SOFTFLOAT_TEST_FLAG(FLAG, MYF, MYE) \
