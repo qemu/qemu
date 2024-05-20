@@ -185,13 +185,12 @@ static void gen_end_tb(DisasContext *ctx)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_end_tb(DisasContext *ctx, int excp)
+void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
 {
     gen_exec_counters(ctx);
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     gen_exception_raw(excp);
     ctx->base.is_jmp = DISAS_NORETURN;
-
 }
 
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
@@ -558,7 +557,7 @@ static void gen_insn(DisasContext *ctx)
         ctx->insn->generate(ctx);
         mark_store_width(ctx);
     } else {
-        gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_OPCODE);
+        hex_gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_OPCODE);
     }
 }
 
@@ -912,7 +911,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 
     nwords = read_packet_words(env, ctx, words);
     if (!nwords) {
-        gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_PACKET);
+        hex_gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_PACKET);
         return;
     }
 
@@ -927,7 +926,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_commit_packet(ctx);
         ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
     } else {
-        gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_PACKET);
+        hex_gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_PACKET);
     }
 }
 
