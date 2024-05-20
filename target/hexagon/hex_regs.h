@@ -81,4 +81,119 @@ enum {
     HEX_REG_UTIMERHI          = 63,
 };
 
+#ifndef CONFIG_USER_ONLY
+
+#define HEX_GREG_VALUES \
+  DECL_HEX_GREG(G0,         0) \
+  DECL_HEX_GREG(GELR,       0) \
+  DECL_HEX_GREG(G1,         1) \
+  DECL_HEX_GREG(GSR,        1) \
+  DECL_HEX_GREG(G2,         2) \
+  DECL_HEX_GREG(GOSP,       2) \
+  DECL_HEX_GREG(G3,         3) \
+  DECL_HEX_GREG(GBADVA,     3) \
+  DECL_HEX_GREG(GCYCLE_1T,  10) \
+  DECL_HEX_GREG(GCYCLE_2T,  11) \
+  DECL_HEX_GREG(GCYCLE_3T,  12) \
+  DECL_HEX_GREG(GCYCLE_4T,  13) \
+  DECL_HEX_GREG(GCYCLE_5T,  14) \
+  DECL_HEX_GREG(GCYCLE_6T,  15) \
+  DECL_HEX_GREG(GPMUCNT4,   16) \
+  DECL_HEX_GREG(GPMUCNT5,   17) \
+  DECL_HEX_GREG(GPMUCNT6,   18) \
+  DECL_HEX_GREG(GPMUCNT7,   19) \
+  DECL_HEX_GREG(GPCYCLELO,  24) \
+  DECL_HEX_GREG(GPCYCLEHI,  25) \
+  DECL_HEX_GREG(GPMUCNT0,   26) \
+  DECL_HEX_GREG(GPMUCNT1,   27) \
+  DECL_HEX_GREG(GPMUCNT2,   28) \
+  DECL_HEX_GREG(GPMUCNT3,   29) \
+  DECL_HEX_GREG_DONE
+
+#define DECL_HEX_GREG_DONE
+#define DECL_HEX_GREG(name, val) HEX_GREG_ ##name = val,
+enum hex_greg {
+    HEX_GREG_VALUES
+};
+#undef DECL_HEX_GREG
+#undef DECL_HEX_GREG_DONE
+
+#define DECL_HEX_GREG_DONE 0
+#define DECL_HEX_GREG(_, val) (1 << val) |
+static inline bool greg_implemented(enum hex_greg greg)
+{
+#if NUM_GREGS > 32
+#error "NUM_GREGS too large for greg_implemented(): update `impl_bitmap`"
+#endif
+    static int32_t impl_bitmap = HEX_GREG_VALUES;
+    return impl_bitmap & (1 << greg);
+}
+#undef DECL_HEX_GREG
+#undef DECL_HEX_GREG_DONE
+
+#endif /* CONFIG_USER_ONLY */
+
+enum {
+    HEX_SREG_SGP0 = 0,
+    HEX_SREG_SGP1 = 1,
+    HEX_SREG_STID = 2,
+    HEX_SREG_ELR = 3,
+    HEX_SREG_BADVA0 = 4,
+    HEX_SREG_BADVA1 = 5,
+    HEX_SREG_SSR = 6,
+    HEX_SREG_CCR = 7,
+    HEX_SREG_HTID = 8,
+    HEX_SREG_BADVA = 9,
+    HEX_SREG_IMASK = 10,
+    HEX_SREG_GEVB  = 11,
+    HEX_SREG_GLB_START = 16,
+    HEX_SREG_EVB = 16,
+    HEX_SREG_MODECTL = 17,
+    HEX_SREG_SYSCFG = 18,
+    HEX_SREG_IPENDAD = 20,
+    HEX_SREG_VID = 21,
+    HEX_SREG_VID1 = 22,
+    HEX_SREG_BESTWAIT = 23,
+    HEX_SREG_IEL = 24,
+    HEX_SREG_SCHEDCFG = 25,
+    HEX_SREG_IAHL = 26,
+    HEX_SREG_CFGBASE = 27,
+    HEX_SREG_DIAG = 28,
+    HEX_SREG_REV = 29,
+    HEX_SREG_PCYCLELO = 30,
+    HEX_SREG_PCYCLEHI = 31,
+    HEX_SREG_ISDBST = 32,
+    HEX_SREG_ISDBCFG0 = 33,
+    HEX_SREG_ISDBCFG1 = 34,
+    HEX_SREG_LIVELOCK = 35,
+    HEX_SREG_BRKPTPC0 = 36,
+    HEX_SREG_BRKPTCFG0 = 37,
+    HEX_SREG_BRKPTPC1 = 38,
+    HEX_SREG_BRKPTCFG1 = 39,
+    HEX_SREG_ISDBMBXIN = 40,
+    HEX_SREG_ISDBMBXOUT = 41,
+    HEX_SREG_ISDBEN = 42,
+    HEX_SREG_ISDBGPR = 43,
+    HEX_SREG_PMUCNT4 = 44,
+    HEX_SREG_PMUCNT5 = 45,
+    HEX_SREG_PMUCNT6 = 46,
+    HEX_SREG_PMUCNT7 = 47,
+    HEX_SREG_PMUCNT0 = 48,
+    HEX_SREG_PMUCNT1 = 49,
+    HEX_SREG_PMUCNT2 = 50,
+    HEX_SREG_PMUCNT3 = 51,
+    HEX_SREG_PMUEVTCFG = 52,
+    HEX_SREG_PMUSTID0 = 53,
+    HEX_SREG_PMUEVTCFG1 = 54,
+    HEX_SREG_PMUSTID1 = 55,
+    HEX_SREG_TIMERLO = 56,
+    HEX_SREG_TIMERHI = 57,
+    HEX_SREG_PMUCFG = 58,
+    HEX_SREG_S59 = 59,
+    HEX_SREG_S60 = 60,
+    HEX_SREG_S61 = 61,
+    HEX_SREG_S62 = 62,
+    HEX_SREG_S63 = 63,
+};
+
 #endif

@@ -20,6 +20,11 @@
 
 #include "fpu/softfloat-types.h"
 
+#define NUM_GREGS 32
+#define GREG_WRITES_MAX 32
+#define NUM_SREGS 64
+#define SREG_WRITES_MAX 64
+
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "hex_regs.h"
