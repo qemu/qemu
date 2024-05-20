@@ -23,6 +23,7 @@
 #include "exec/helper-gen.h"
 #include "insn.h"
 #include "opcodes.h"
+#include "sys_macros.h"
 #include "translate.h"
 #define QEMU_GENERATE       /* Used internally by macros.h */
 #include "macros.h"
@@ -127,6 +128,164 @@ TCGv get_result_pred(DisasContext *ctx, int pnum)
         return hex_pred[pnum];
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+G_GNUC_UNUSED
+static bool greg_writable(int rnum, bool pair)
+{
+    if (pair) {
+        if (rnum < HEX_GREG_G3) {
+            return true;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                "Warning: ignoring write to guest register pair G%d:%d\n",
+                rnum + 1, rnum);
+    } else {
+        if (rnum <= HEX_GREG_G3) {
+            return true;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                "Warning: ignoring write to guest register G%d\n", rnum);
+    }
+    return false;
+}
+
+G_GNUC_UNUSED
+static void check_greg_impl(int rnum, bool pair)
+{
+    if (pair && (!greg_implemented(rnum) || !greg_implemented(rnum + 1))) {
+        qemu_log_mask(LOG_UNIMP,
+                "Warning: guest register pair G%d:%d is unimplemented or "
+                "reserved. Read will yield 0.\n",
+                rnum + 1, rnum);
+    } else if (!pair && !greg_implemented(rnum)) {
+        qemu_log_mask(LOG_UNIMP,
+                "Warning: guest register G%d is unimplemented or reserved."
+                " Read will yield 0.\n", rnum);
+    }
+}
+
+G_GNUC_UNUSED
+static inline void gen_log_greg_write(DisasContext *ctx, int rnum, TCGv val)
+{
+    tcg_gen_mov_tl(ctx->greg_new_value[rnum], val);
+}
+
+G_GNUC_UNUSED
+static void gen_log_greg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
+{
+    TCGv val32 = tcg_temp_new();
+
+    /* Low word */
+    tcg_gen_extrl_i64_i32(val32, val);
+    gen_log_greg_write(ctx, rnum, val32);
+
+    /* High word */
+    tcg_gen_extrh_i64_i32(val32, val);
+    gen_log_greg_write(ctx, rnum + 1, val32);
+}
+
+static const target_ulong sreg_immut_masks[NUM_SREGS] = {
+    [HEX_SREG_STID] = 0xff00ff00,
+    [HEX_SREG_ELR] = 0x00000003,
+    [HEX_SREG_SSR] = 0x00008000,
+    [HEX_SREG_CCR] = 0x10e0ff24,
+    [HEX_SREG_HTID] = IMMUTABLE,
+    [HEX_SREG_IMASK] = 0xffff0000,
+    [HEX_SREG_GEVB] = 0x000000ff,
+    [HEX_SREG_EVB] = 0x000000ff,
+    [HEX_SREG_MODECTL] = IMMUTABLE,
+    [HEX_SREG_SYSCFG] = 0x80001c00,
+    [HEX_SREG_IPENDAD] = IMMUTABLE,
+    [HEX_SREG_VID] = 0xfc00fc00,
+    [HEX_SREG_VID1] = 0xfc00fc00,
+    [HEX_SREG_BESTWAIT] = 0xfffffe00,
+    [HEX_SREG_SCHEDCFG] = 0xfffffef0,
+    [HEX_SREG_CFGBASE] = IMMUTABLE,
+    [HEX_SREG_REV] = IMMUTABLE,
+    [HEX_SREG_ISDBST] = IMMUTABLE,
+    [HEX_SREG_ISDBCFG0] = 0xe0000000,
+    [HEX_SREG_BRKPTPC0] = 0x00000003,
+    [HEX_SREG_BRKPTCFG0] = 0xfc007000,
+    [HEX_SREG_BRKPTPC1] = 0x00000003,
+    [HEX_SREG_BRKPTCFG1] = 0xfc007000,
+    [HEX_SREG_ISDBMBXIN] = IMMUTABLE,
+    [HEX_SREG_ISDBEN] = 0xfffffffe,
+    [HEX_SREG_TIMERLO] = IMMUTABLE,
+    [HEX_SREG_TIMERHI] = IMMUTABLE,
+};
+
+G_GNUC_UNUSED
+static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv val)
+{
+    const target_ulong reg_mask = sreg_immut_masks[rnum];
+
+    if (reg_mask != IMMUTABLE) {
+        if (rnum < HEX_SREG_GLB_START) {
+            gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
+            tcg_gen_mov_tl(ctx->t_sreg_new_value[rnum], val);
+        } else {
+            gen_masked_reg_write(val, hex_g_sreg[rnum], reg_mask);
+            gen_helper_sreg_write(tcg_env, tcg_constant_i32(rnum), val);
+        }
+    }
+}
+
+G_GNUC_UNUSED
+static void gen_log_sreg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
+{
+    TCGv val32 = tcg_temp_new();
+
+    /* Low word */
+    tcg_gen_extrl_i64_i32(val32, val);
+    gen_log_sreg_write(ctx, rnum, val32);
+
+    /* High word */
+    tcg_gen_extrh_i64_i32(val32, val);
+    gen_log_sreg_write(ctx, rnum + 1, val32);
+}
+
+G_GNUC_UNUSED
+static void gen_read_sreg(TCGv dst, int reg_num)
+{
+    if (reg_num >= HEX_SREG_GLB_START || reg_num == HEX_SREG_BADVA) {
+        gen_helper_sreg_read(dst, tcg_env, tcg_constant_i32(reg_num));
+    } else {
+        tcg_gen_mov_tl(dst, hex_t_sreg[reg_num]);
+    }
+}
+
+G_GNUC_UNUSED
+static void gen_read_sreg_pair(TCGv_i64 dst, int reg_num)
+{
+    if (reg_num < HEX_SREG_GLB_START) {
+        if (reg_num + 1 == HEX_SREG_BADVA) {
+            TCGv badva = tcg_temp_new();
+            gen_helper_sreg_read(badva, tcg_env,
+                                 tcg_constant_tl(HEX_SREG_BADVA));
+            tcg_gen_concat_i32_i64(dst, hex_t_sreg[reg_num], badva);
+        } else {
+            tcg_gen_concat_i32_i64(dst, hex_t_sreg[reg_num],
+                                        hex_t_sreg[reg_num + 1]);
+        }
+    } else {
+        gen_helper_sreg_read_pair(dst, tcg_env, tcg_constant_tl(reg_num));
+    }
+}
+
+G_GNUC_UNUSED
+static void gen_read_greg(TCGv dst, int reg_num)
+{
+    gen_helper_greg_read(dst, tcg_env, tcg_constant_tl(reg_num));
+}
+
+G_GNUC_UNUSED
+static void gen_read_greg_pair(TCGv_i64 dst, int reg_num)
+{
+    gen_helper_greg_read_pair(dst, tcg_env, tcg_constant_tl(reg_num));
+}
+#endif
+
 
 void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
