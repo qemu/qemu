@@ -645,16 +645,10 @@ static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
 
 void loongarch_cpu_post_init(Object *obj)
 {
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-
-    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
-        object_property_add_bool(obj, "lsx", loongarch_get_lsx,
-                                 loongarch_set_lsx);
-    }
-    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
-        object_property_add_bool(obj, "lasx", loongarch_get_lasx,
-                                 loongarch_set_lasx);
-    }
+    object_property_add_bool(obj, "lsx", loongarch_get_lsx,
+                             loongarch_set_lsx);
+    object_property_add_bool(obj, "lasx", loongarch_get_lasx,
+                             loongarch_set_lasx);
 }
 
 static void loongarch_cpu_init(Object *obj)
