@@ -214,13 +214,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     set_can_do_io(db, true);
     tcg_ctx->emit_before_op = NULL;
 
+    /* May be used by disas_log or plugin callbacks. */
+    tb->size = db->pc_next - db->pc_first;
+    tb->icount = db->num_insns;
+
     if (plugin_enabled) {
         plugin_gen_tb_end(cpu, db->num_insns);
     }
-
-    /* The disas_log hook may use these values rather than recompute.  */
-    tb->size = db->pc_next - db->pc_first;
-    tb->icount = db->num_insns;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(db->pc_first)) {
