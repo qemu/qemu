@@ -548,6 +548,19 @@ void qio_channel_set_cork(QIOChannel *ioc,
     }
 }
 
+int qio_channel_get_peerpid(QIOChannel *ioc,
+                             unsigned int *pid,
+                             Error **errp)
+{
+    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+
+    if (!klass->io_peerpid) {
+        error_setg(errp, "Channel does not support peer pid");
+        return -1;
+    }
+    klass->io_peerpid(ioc, pid, errp);
+    return 0;
+}
 
 off_t qio_channel_io_seek(QIOChannel *ioc,
                           off_t offset,
