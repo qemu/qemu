@@ -111,7 +111,7 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
                            int action, int fd, Error **errp)
 {
     ERRP_GUARD();
-    struct vfio_irq_set *irq_set;
+    g_autofree struct vfio_irq_set *irq_set = NULL;
     int argsz, ret = 0;
     const char *name;
     int32_t *pfd;
@@ -130,7 +130,6 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
         ret = -errno;
     }
-    g_free(irq_set);
 
     if (!ret) {
         return 0;
