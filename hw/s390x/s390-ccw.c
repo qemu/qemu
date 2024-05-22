@@ -137,8 +137,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
         goto out_err;
     }
 
-    ck->realize(ccw_dev, &err);
-    if (err) {
+    if (!ck->realize(ccw_dev, &err)) {
         goto out_err;
     }
 
