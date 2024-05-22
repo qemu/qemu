@@ -31,7 +31,7 @@ struct S390CCWDevice {
 
 struct S390CCWDeviceClass {
     CCWDeviceClass parent_class;
-    void (*realize)(S390CCWDevice *dev, char *sysfsdev, Error **errp);
+    bool (*realize)(S390CCWDevice *dev, char *sysfsdev, Error **errp);
     void (*unrealize)(S390CCWDevice *dev);
     IOInstEnding (*handle_request) (SubchDev *sch);
     int (*handle_halt) (SubchDev *sch);

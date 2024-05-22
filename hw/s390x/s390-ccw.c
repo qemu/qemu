@@ -108,7 +108,7 @@ static bool s390_ccw_get_dev_info(S390CCWDevice *cdev,
     return true;
 }
 
-static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
+static bool s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
@@ -117,7 +117,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     int ret;
 
     if (!s390_ccw_get_dev_info(cdev, sysfsdev, errp)) {
-        return;
+        return false;
     }
 
     sch = css_create_sch(ccw_dev->devno, errp);
@@ -142,7 +142,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           parent->hotplugged, 1);
-    return;
+    return true;
 
 out_err:
     css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
@@ -150,6 +150,7 @@ out_err:
     g_free(sch);
 out_mdevid_free:
     g_free(cdev->mdevid);
+    return false;
 }
 
 static void s390_ccw_unrealize(S390CCWDevice *cdev)

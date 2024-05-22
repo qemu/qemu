@@ -582,8 +582,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 
     /* Call the class init function for subchannel. */
     if (cdc->realize) {
-        cdc->realize(cdev, vcdev->vdev.sysfsdev, &err);
-        if (err) {
+        if (!cdc->realize(cdev, vcdev->vdev.sysfsdev, &err)) {
             goto out_err_propagate;
         }
     }
