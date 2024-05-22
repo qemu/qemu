@@ -14,6 +14,9 @@
 #include "qemu/accel.h"
 #include "qemu/queue.h"
 #include "sysemu/kvm.h"
+#include "hw/boards.h"
+#include "hw/i386/topology.h"
+#include "io/channel-socket.h"
 
 typedef struct KVMSlot
 {
@@ -49,6 +52,34 @@ typedef struct KVMMemoryListener {
 } KVMMemoryListener;
 
 #define KVM_MSI_HASHTAB_SIZE    256
+
+typedef struct KVMHostTopoInfo {
+    /* Number of package on the Host */
+    unsigned int maxpkgs;
+    /* Number of cpus on the Host */
+    unsigned int maxcpus;
+    /* Number of cpus on each different package */
+    unsigned int *pkg_cpu_count;
+    /* Each package can have different maxticks */
+    unsigned int *maxticks;
+} KVMHostTopoInfo;
+
+struct KVMMsrEnergy {
+    pid_t pid;
+    bool enable;
+    char *socket_path;
+    QIOChannelSocket *sioc;
+    QemuThread msr_thr;
+    unsigned int guest_vcpus;
+    unsigned int guest_vsockets;
+    X86CPUTopoInfo guest_topo_info;
+    KVMHostTopoInfo host_topo;
+    const CPUArchIdList *guest_cpu_list;
+    uint64_t *msr_value;
+    uint64_t msr_unit;
+    uint64_t msr_limit;
+    uint64_t msr_info;
+};
 
 enum KVMDirtyRingReaperState {
     KVM_DIRTY_RING_REAPER_NONE = 0,
@@ -117,6 +148,7 @@ struct KVMState
     bool kvm_dirty_ring_with_bitmap;
     uint64_t kvm_eager_split_size;  /* Eager Page Splitting chunk size */
     struct KVMDirtyRingReaper reaper;
+    struct KVMMsrEnergy msr_energy;
     NotifyVmexitOption notify_vmexit;
     uint32_t notify_window;
     uint32_t xen_version;

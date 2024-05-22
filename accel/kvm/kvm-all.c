@@ -3745,6 +3745,21 @@ static void kvm_set_device(Object *obj,
     s->device = g_strdup(value);
 }
 
+static void kvm_set_kvm_rapl(Object *obj, bool value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    s->msr_energy.enable = value;
+}
+
+static void kvm_set_kvm_rapl_socket_path(Object *obj,
+                                         const char *str,
+                                         Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    g_free(s->msr_energy.socket_path);
+    s->msr_energy.socket_path = g_strdup(str);
+}
+
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
@@ -3764,6 +3779,7 @@ static void kvm_accel_instance_init(Object *obj)
     s->xen_gnttab_max_frames = 64;
     s->xen_evtchn_max_pirq = 256;
     s->device = NULL;
+    s->msr_energy.enable = false;
 }
 
 /**
@@ -3807,6 +3823,17 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "device", kvm_get_device, kvm_set_device);
     object_class_property_set_description(oc, "device",
         "Path to the device node to use (default: /dev/kvm)");
+
+    object_class_property_add_bool(oc, "rapl",
+                                   NULL,
+                                   kvm_set_kvm_rapl);
+    object_class_property_set_description(oc, "rapl",
+        "Allow energy related MSRs for RAPL interface in Guest");
+
+    object_class_property_add_str(oc, "rapl-helper-socket", NULL,
+                                  kvm_set_kvm_rapl_socket_path);
+    object_class_property_set_description(oc, "rapl-helper-socket",
+        "Socket Path for comminucating with the Virtual MSR helper daemon");
 
     kvm_arch_accel_class_init(oc);
 }
