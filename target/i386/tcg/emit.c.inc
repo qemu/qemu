@@ -1084,8 +1084,8 @@ static void gen_AAA(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_AAD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_helper_aad(tcg_env, tcg_constant_i32(decode->immediate));
-    set_cc_op(s, CC_OP_LOGICB);
+    gen_helper_aad(s->T0, s->T0, s->T1);
+    prepare_update1_cc(decode, s, CC_OP_LOGICB);
 }
 
 static void gen_AAM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1093,8 +1093,8 @@ static void gen_AAM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     if (decode->immediate == 0) {
         gen_exception(s, EXCP00_DIVZ);
     } else {
-        gen_helper_aam(tcg_env, tcg_constant_i32(decode->immediate));
-        set_cc_op(s, CC_OP_LOGICB);
+        gen_helper_aam(s->T0, s->T0, s->T1);
+        prepare_update1_cc(decode, s, CC_OP_LOGICB);
     }
 }
 
