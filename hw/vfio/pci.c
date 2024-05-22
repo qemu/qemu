@@ -3161,8 +3161,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto out_teardown;
         }
 
-        ret = vfio_pci_igd_opregion_init(vdev, opregion, errp);
-        if (ret) {
+        if (!vfio_pci_igd_opregion_init(vdev, opregion, errp)) {
             goto out_teardown;
         }
     }

@@ -1169,8 +1169,8 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
  * the table and to write the base address of that memory to the ASLS register
  * of the IGD device.
  */
-int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
-                               struct vfio_region_info *info, Error **errp)
+bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
+                                struct vfio_region_info *info, Error **errp)
 {
     int ret;
 
@@ -1181,7 +1181,7 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
         error_setg(errp, "failed to read IGD OpRegion");
         g_free(vdev->igd_opregion);
         vdev->igd_opregion = NULL;
-        return -EINVAL;
+        return false;
     }
 
     /*
@@ -1206,7 +1206,7 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
     pci_set_long(vdev->pdev.wmask + IGD_ASLS, ~0);
     pci_set_long(vdev->emulated_config_bits + IGD_ASLS, ~0);
 
-    return 0;
+    return true;
 }
 
 /*
