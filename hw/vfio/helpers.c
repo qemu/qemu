@@ -107,12 +107,12 @@ static const char *index_to_str(VFIODevice *vbasedev, int index)
     }
 }
 
-int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
-                           int action, int fd, Error **errp)
+bool vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
+                            int action, int fd, Error **errp)
 {
     ERRP_GUARD();
     g_autofree struct vfio_irq_set *irq_set = NULL;
-    int argsz, ret = 0;
+    int argsz;
     const char *name;
     int32_t *pfd;
 
@@ -127,15 +127,11 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     pfd = (int32_t *)&irq_set->data;
     *pfd = fd;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        ret = -errno;
+    if (!ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+        return true;
     }
 
-    if (!ret) {
-        return 0;
-    }
-
-    error_setg_errno(errp, -ret, "VFIO_DEVICE_SET_IRQS failure");
+    error_setg_errno(errp, errno, "VFIO_DEVICE_SET_IRQS failure");
 
     name = index_to_str(vbasedev, index);
     if (name) {
@@ -146,7 +142,7 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     error_prepend(errp,
                   "Failed to %s %s eventfd signaling for interrupt ",
                   fd < 0 ? "tear down" : "set up", action_to_str(action));
-    return ret;
+    return false;
 }
 
 /*

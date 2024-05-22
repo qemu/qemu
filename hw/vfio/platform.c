@@ -115,18 +115,17 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
     int32_t fd = event_notifier_get_fd(intp->interrupt);
     Error *err = NULL;
-    int ret;
 
     qemu_set_fd_handler(fd, (IOHandler *)handler, NULL, intp);
 
-    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                 VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err);
-    if (ret) {
+    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
         qemu_set_fd_handler(fd, NULL, NULL, NULL);
+        return -EINVAL;
     }
 
-    return ret;
+    return 0;
 }
 
 /*
@@ -355,15 +354,14 @@ static int vfio_set_resample_eventfd(VFIOINTp *intp)
     int32_t fd = event_notifier_get_fd(intp->unmask);
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
     Error *err = NULL;
-    int ret;
 
     qemu_set_fd_handler(fd, NULL, NULL, NULL);
-    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                 VFIO_IRQ_SET_ACTION_UNMASK, fd, &err);
-    if (ret) {
+    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                VFIO_IRQ_SET_ACTION_UNMASK, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
+        return -EINVAL;
     }
-    return ret;
+    return 0;
 }
 
 /**
