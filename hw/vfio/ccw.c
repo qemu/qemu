@@ -616,7 +616,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
          */
-        error_report_err(err);
+        warn_report_err(err);
     }
 
     return;
