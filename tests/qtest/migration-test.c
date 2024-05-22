@@ -1604,7 +1604,7 @@ static void test_analyze_script(void)
     }
 
     g_assert(waitpid(pid, &wstatus, 0) == pid);
-    if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != 0) {
+    if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) {
         g_test_message("Failed to analyze the migration stream");
         g_test_fail();
     }
