@@ -588,7 +588,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     }
 
     if (!vfio_device_get_name(vbasedev, errp)) {
-        return;
+        goto out_unrealize;
     }
 
     if (!vfio_attach_device(cdev->mdevid, vbasedev,
@@ -631,6 +631,7 @@ out_region_err:
     vfio_detach_device(vbasedev);
 out_attach_dev_err:
     g_free(vbasedev->name);
+out_unrealize:
     if (cdc->unrealize) {
         cdc->unrealize(cdev);
     }
