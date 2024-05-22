@@ -2194,8 +2194,7 @@ static bool vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         vdev->emulated_config_bits[PCI_CAPABILITY_LIST] = 0xff;
         vdev->emulated_config_bits[PCI_STATUS] |= PCI_STATUS_CAP_LIST;
 
-        ret = vfio_add_virt_caps(vdev, errp);
-        if (ret) {
+        if (!vfio_add_virt_caps(vdev, errp)) {
             return false;
         }
     }
