@@ -607,7 +607,7 @@ bool vfio_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
     return ret;
 }
 
-int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
+bool vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
 {
     ERRP_GUARD();
     struct stat st;
@@ -616,7 +616,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
         if (stat(vbasedev->sysfsdev, &st) < 0) {
             error_setg_errno(errp, errno, "no such host device");
             error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->sysfsdev);
-            return -errno;
+            return false;
         }
         /* User may specify a name, e.g: VFIO platform device */
         if (!vbasedev->name) {
@@ -625,7 +625,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
     } else {
         if (!vbasedev->iommufd) {
             error_setg(errp, "Use FD passing only with iommufd backend");
-            return -EINVAL;
+            return false;
         }
         /*
          * Give a name with fd so any function printing out vbasedev->name
@@ -636,7 +636,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
         }
     }
 
-    return 0;
+    return true;
 }
 
 void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)
