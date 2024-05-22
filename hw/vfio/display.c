@@ -348,11 +348,11 @@ static const GraphicHwOps vfio_display_dmabuf_ops = {
     .ui_info    = vfio_display_edid_ui_info,
 };
 
-static int vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
+static bool vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
 {
     if (!display_opengl) {
         error_setg(errp, "vfio-display-dmabuf: opengl not available");
-        return -1;
+        return false;
     }
 
     vdev->dpy = g_new0(VFIODisplay, 1);
@@ -362,11 +362,11 @@ static int vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
     if (vdev->enable_ramfb) {
         vdev->dpy->ramfb = ramfb_setup(errp);
         if (!vdev->dpy->ramfb) {
-            return -EINVAL;
+            return false;
         }
     }
     vfio_display_edid_init(vdev);
-    return 0;
+    return true;
 }
 
 static void vfio_display_dmabuf_exit(VFIODisplay *dpy)
@@ -483,7 +483,7 @@ static const GraphicHwOps vfio_display_region_ops = {
     .gfx_update = vfio_display_region_update,
 };
 
-static int vfio_display_region_init(VFIOPCIDevice *vdev, Error **errp)
+static bool vfio_display_region_init(VFIOPCIDevice *vdev, Error **errp)
 {
     vdev->dpy = g_new0(VFIODisplay, 1);
     vdev->dpy->con = graphic_console_init(DEVICE(vdev), 0,
@@ -492,10 +492,10 @@ static int vfio_display_region_init(VFIOPCIDevice *vdev, Error **errp)
     if (vdev->enable_ramfb) {
         vdev->dpy->ramfb = ramfb_setup(errp);
         if (!vdev->dpy->ramfb) {
-            return -EINVAL;
+            return false;
         }
     }
-    return 0;
+    return true;
 }
 
 static void vfio_display_region_exit(VFIODisplay *dpy)
@@ -510,7 +510,7 @@ static void vfio_display_region_exit(VFIODisplay *dpy)
 
 /* ---------------------------------------------------------------------- */
 
-int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_display_probe(VFIOPCIDevice *vdev, Error **errp)
 {
     struct vfio_device_gfx_plane_info probe;
     int ret;
@@ -533,11 +533,11 @@ int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp)
 
     if (vdev->display == ON_OFF_AUTO_AUTO) {
         /* not an error in automatic mode */
-        return 0;
+        return true;
     }
 
     error_setg(errp, "vfio: device doesn't support any (known) display method");
-    return -1;
+    return false;
 }
 
 void vfio_display_finalize(VFIOPCIDevice *vdev)
