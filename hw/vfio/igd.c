@@ -478,7 +478,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * try to enable it.  Probably shouldn't be using legacy mode without VGA,
      * but also no point in us enabling VGA if disabled in hardware.
      */
-    if (!(gmch & 0x2) && !vdev->vga && vfio_populate_vga(vdev, &err)) {
+    if (!(gmch & 0x2) && !vdev->vga && !vfio_populate_vga(vdev, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
         error_report("IGD device %s failed to enable VGA access, "
                      "legacy mode disabled", vdev->vbasedev.name);

@@ -2670,7 +2670,7 @@ static VFIODeviceOps vfio_pci_ops = {
     .vfio_load_config = vfio_pci_load_config,
 };
 
-int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
@@ -2681,7 +2681,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
         error_setg_errno(errp, -ret,
                          "failed getting region info for VGA region index %d",
                          VFIO_PCI_VGA_REGION_INDEX);
-        return ret;
+        return false;
     }
 
     if (!(reg_info->flags & VFIO_REGION_INFO_FLAG_READ) ||
@@ -2691,7 +2691,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
                    (unsigned long)reg_info->flags,
                    (unsigned long)reg_info->size);
         g_free(reg_info);
-        return -EINVAL;
+        return false;
     }
 
     vdev->vga = g_new0(VFIOVGA, 1);
@@ -2735,7 +2735,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
                      &vdev->vga->region[QEMU_PCI_VGA_IO_LO].mem,
                      &vdev->vga->region[QEMU_PCI_VGA_IO_HI].mem);
 
-    return 0;
+    return true;
 }
 
 static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
@@ -2798,8 +2798,7 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     g_free(reg_info);
 
     if (vdev->features & VFIO_FEATURE_ENABLE_VGA) {
-        ret = vfio_populate_vga(vdev, errp);
-        if (ret) {
+        if (!vfio_populate_vga(vdev, errp)) {
             error_append_hint(errp, "device does not support "
                               "requested feature x-vga\n");
             return false;
