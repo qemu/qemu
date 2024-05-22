@@ -367,8 +367,8 @@ static const MemoryRegionOps vfio_igd_index_quirk = {
 
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 {
-    struct vfio_region_info *rom = NULL, *opregion = NULL,
-                            *host = NULL, *lpc = NULL;
+    g_autofree struct vfio_region_info *rom = NULL;
+    struct vfio_region_info *opregion = NULL, *host = NULL, *lpc = NULL;
     VFIOQuirk *quirk;
     VFIOIGDQuirk *igd;
     PCIDevice *lpc_bridge;
@@ -609,7 +609,6 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     trace_vfio_pci_igd_bdsm_enabled(vdev->vbasedev.name, ggms_mb + gms_mb);
 
 out:
-    g_free(rom);
     g_free(opregion);
     g_free(host);
     g_free(lpc);
