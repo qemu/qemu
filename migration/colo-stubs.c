@@ -9,9 +9,8 @@ void colo_shutdown(void)
 {
 }
 
-int coroutine_fn colo_incoming_co(void)
+void coroutine_fn colo_incoming_co(void)
 {
-    return 0;
 }
 
 void colo_checkpoint_delay_set(void)
