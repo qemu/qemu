@@ -115,18 +115,17 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
     int32_t fd = event_notifier_get_fd(intp->interrupt);
     Error *err = NULL;
-    int ret;
 
     qemu_set_fd_handler(fd, (IOHandler *)handler, NULL, intp);
 
-    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                 VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err);
-    if (ret) {
+    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
         qemu_set_fd_handler(fd, NULL, NULL, NULL);
+        return -EINVAL;
     }
 
-    return ret;
+    return 0;
 }
 
 /*
@@ -355,15 +354,14 @@ static int vfio_set_resample_eventfd(VFIOINTp *intp)
     int32_t fd = event_notifier_get_fd(intp->unmask);
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
     Error *err = NULL;
-    int ret;
 
     qemu_set_fd_handler(fd, NULL, NULL, NULL);
-    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                 VFIO_IRQ_SET_ACTION_UNMASK, fd, &err);
-    if (ret) {
+    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                VFIO_IRQ_SET_ACTION_UNMASK, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
+        return -EINVAL;
     }
-    return ret;
+    return 0;
 }
 
 /**
@@ -443,7 +441,7 @@ static int vfio_platform_hot_reset_multi(VFIODevice *vbasedev)
  * @errp: error object
  *
  */
-static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
+static bool vfio_populate_device(VFIODevice *vbasedev, Error **errp)
 {
     VFIOINTp *intp, *tmp;
     int i, ret = -1;
@@ -452,7 +450,7 @@ static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
 
     if (!(vbasedev->flags & VFIO_DEVICE_FLAGS_PLATFORM)) {
         error_setg(errp, "this isn't a platform device");
-        return ret;
+        return false;
     }
 
     vdev->regions = g_new0(VFIORegion *, vbasedev->num_regions);
@@ -489,12 +487,11 @@ static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
                                                     irq.flags);
             intp = vfio_init_intp(vbasedev, irq, errp);
             if (!intp) {
-                ret = -1;
                 goto irq_err;
             }
         }
     }
-    return 0;
+    return true;
 irq_err:
     timer_del(vdev->mmap_timer);
     QLIST_FOREACH_SAFE(intp, &vdev->intp_list, next, tmp) {
@@ -509,7 +506,7 @@ reg_error:
         g_free(vdev->regions[i]);
     }
     g_free(vdev->regions);
-    return ret;
+    return false;
 }
 
 /* specialized functions for VFIO Platform devices */
@@ -529,10 +526,8 @@ static VFIODeviceOps vfio_platform_ops = {
  * fd retrieval, resource query.
  * Precondition: the device name must be initialized
  */
-static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
+static bool vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
 {
-    int ret;
-
     /* @fd takes precedence over @sysfsdev which takes precedence over @host */
     if (vbasedev->fd < 0 && vbasedev->sysfsdev) {
         g_free(vbasedev->name);
@@ -540,30 +535,28 @@ static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
     } else if (vbasedev->fd < 0) {
         if (!vbasedev->name || strchr(vbasedev->name, '/')) {
             error_setg(errp, "wrong host device name");
-            return -EINVAL;
+            return false;
         }
 
         vbasedev->sysfsdev = g_strdup_printf("/sys/bus/platform/devices/%s",
                                              vbasedev->name);
     }
 
-    ret = vfio_device_get_name(vbasedev, errp);
-    if (ret) {
-        return ret;
+    if (!vfio_device_get_name(vbasedev, errp)) {
+        return false;
     }
 
-    ret = vfio_attach_device(vbasedev->name, vbasedev,
-                             &address_space_memory, errp);
-    if (ret) {
-        return ret;
+    if (!vfio_attach_device(vbasedev->name, vbasedev,
+                            &address_space_memory, errp)) {
+        return false;
     }
 
-    ret = vfio_populate_device(vbasedev, errp);
-    if (ret) {
-        vfio_detach_device(vbasedev);
+    if (vfio_populate_device(vbasedev, errp)) {
+        return true;
     }
 
-    return ret;
+    vfio_detach_device(vbasedev);
+    return false;
 }
 
 /**
@@ -580,7 +573,7 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(dev);
     SysBusDevice *sbdev = SYS_BUS_DEVICE(dev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    int i, ret;
+    int i;
 
     qemu_mutex_init(&vdev->intp_mutex);
 
@@ -588,9 +581,8 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
                                 vbasedev->sysfsdev : vbasedev->name,
                                 vdev->compat);
 
-    ret = vfio_base_device_init(vbasedev, errp);
-    if (ret) {
-        goto out;
+    if (!vfio_base_device_init(vbasedev, errp)) {
+        goto init_err;
     }
 
     if (!vdev->compat) {
@@ -622,11 +614,9 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
         }
         sysbus_init_mmio(sbdev, vdev->regions[i]->mem);
     }
-out:
-    if (!ret) {
-        return;
-    }
+    return;
 
+init_err:
     if (vdev->vbasedev.name) {
         error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     } else {

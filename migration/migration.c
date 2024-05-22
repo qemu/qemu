@@ -2994,13 +2994,15 @@ static MigThrError postcopy_pause(MigrationState *s)
     }
 }
 
-void migration_file_set_error(int err)
+void migration_file_set_error(int ret, Error *err)
 {
     MigrationState *s = current_migration;
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         if (s->to_dst_file) {
-            qemu_file_set_error(s->to_dst_file, err);
+            qemu_file_set_error_obj(s->to_dst_file, ret, err);
+        } else if (err) {
+            error_report_err(err);
         }
     }
 }

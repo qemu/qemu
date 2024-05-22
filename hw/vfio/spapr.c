@@ -323,7 +323,7 @@ static int vfio_spapr_create_window(VFIOContainer *container,
     return 0;
 }
 
-static int
+static bool
 vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
                                         MemoryRegionSection *section,
                                         Error **errp)
@@ -351,13 +351,13 @@ vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
             error_setg(errp, "Container %p can't map guest IOVA region"
                        " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container,
                        iova, end);
-            return -EINVAL;
+            return false;
         }
-        return 0;
+        return true;
     }
 
     if (container->iommu_type != VFIO_SPAPR_TCE_v2_IOMMU) {
-        return 0;
+        return true;
     }
 
     /* For now intersections are not allowed, we may relax this later */
@@ -373,14 +373,14 @@ vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
                 section->offset_within_address_space +
                     int128_get64(section->size) - 1,
                 hostwin->min_iova, hostwin->max_iova);
-            return -EINVAL;
+            return false;
         }
     }
 
     ret = vfio_spapr_create_window(container, section, &pgsize);
     if (ret) {
         error_setg_errno(errp, -ret, "Failed to create SPAPR window");
-        return ret;
+        return false;
     }
 
     vfio_host_win_add(scontainer, section->offset_within_address_space,
@@ -406,14 +406,14 @@ vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
                                      "vfio: failed GROUP_SET_SPAPR_TCE for "
                                      "KVM VFIO device %d and group fd %d",
                                      param.tablefd, param.groupfd);
-                    return -errno;
+                    return false;
                 }
                 trace_vfio_spapr_group_attach(param.groupfd, param.tablefd);
             }
         }
     }
 #endif
-    return 0;
+    return true;
 }
 
 static void
@@ -458,8 +458,8 @@ static void vfio_spapr_container_release(VFIOContainerBase *bcontainer)
     }
 }
 
-static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
-                                      Error **errp)
+static bool vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
+                                       Error **errp)
 {
     VFIOContainer *container = container_of(bcontainer, VFIOContainer,
                                             bcontainer);
@@ -480,7 +480,7 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
         ret = ioctl(fd, VFIO_IOMMU_ENABLE);
         if (ret) {
             error_setg_errno(errp, errno, "failed to enable container");
-            return -errno;
+            return false;
         }
     } else {
         scontainer->prereg_listener = vfio_prereg_listener;
@@ -488,7 +488,6 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
         memory_listener_register(&scontainer->prereg_listener,
                                  &address_space_memory);
         if (bcontainer->error) {
-            ret = -1;
             error_propagate_prepend(errp, bcontainer->error,
                     "RAM memory listener initialization failed: ");
             goto listener_unregister_exit;
@@ -500,7 +499,6 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
     if (ret) {
         error_setg_errno(errp, errno,
                          "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
-        ret = -errno;
         goto listener_unregister_exit;
     }
 
@@ -527,13 +525,13 @@ static int vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
                           0x1000);
     }
 
-    return 0;
+    return true;
 
 listener_unregister_exit:
     if (v2) {
         memory_listener_unregister(&scontainer->prereg_listener);
     }
-    return ret;
+    return false;
 }
 
 static void vfio_iommu_spapr_class_init(ObjectClass *klass, void *data)

@@ -25,12 +25,12 @@ static int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
-int vfio_cpr_register_container(VFIOContainerBase *bcontainer, Error **errp)
+bool vfio_cpr_register_container(VFIOContainerBase *bcontainer, Error **errp)
 {
     migration_add_notifier_mode(&bcontainer->cpr_reboot_notifier,
                                 vfio_cpr_reboot_notifier,
                                 MIG_MODE_CPR_REBOOT);
-    return 0;
+    return true;
 }
 
 void vfio_cpr_unregister_container(VFIOContainerBase *bcontainer)

@@ -31,12 +31,12 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
 }
 
-int vfio_container_add_section_window(VFIOContainerBase *bcontainer,
-                                      MemoryRegionSection *section,
-                                      Error **errp)
+bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
+                                       MemoryRegionSection *section,
+                                       Error **errp)
 {
     if (!bcontainer->ops->add_window) {
-        return 0;
+        return true;
     }
 
     return bcontainer->ops->add_window(bcontainer, section, errp);
@@ -53,22 +53,22 @@ void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
 }
 
 int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
-                                           bool start)
+                                           bool start, Error **errp)
 {
     if (!bcontainer->dirty_pages_supported) {
         return 0;
     }
 
     g_assert(bcontainer->ops->set_dirty_page_tracking);
-    return bcontainer->ops->set_dirty_page_tracking(bcontainer, start);
+    return bcontainer->ops->set_dirty_page_tracking(bcontainer, start, errp);
 }
 
 int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                                      VFIOBitmap *vbmap,
-                                      hwaddr iova, hwaddr size)
+                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
     g_assert(bcontainer->ops->query_dirty_bitmap);
-    return bcontainer->ops->query_dirty_bitmap(bcontainer, vbmap, iova, size);
+    return bcontainer->ops->query_dirty_bitmap(bcontainer, vbmap, iova, size,
+                                               errp);
 }
 
 void vfio_container_init(VFIOContainerBase *bcontainer, VFIOAddressSpace *space,

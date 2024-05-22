@@ -23,11 +23,11 @@ struct IOMMUFDBackend {
     /*< public >*/
 };
 
-int iommufd_backend_connect(IOMMUFDBackend *be, Error **errp);
+bool iommufd_backend_connect(IOMMUFDBackend *be, Error **errp);
 void iommufd_backend_disconnect(IOMMUFDBackend *be);
 
-int iommufd_backend_alloc_ioas(IOMMUFDBackend *be, uint32_t *ioas_id,
-                               Error **errp);
+bool iommufd_backend_alloc_ioas(IOMMUFDBackend *be, uint32_t *ioas_id,
+                                Error **errp);
 void iommufd_backend_free_id(IOMMUFDBackend *be, uint32_t id);
 int iommufd_backend_map_dma(IOMMUFDBackend *be, uint32_t ioas_id, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly);

@@ -177,6 +177,7 @@ struct VFIOPCIDevice {
     OnOffAuto ramfb_migrate;
     bool defer_kvm_irq_routing;
     bool clear_parent_atomics_on_exit;
+    bool skip_vsc_check;
     VFIODisplay *dpy;
     Notifier irqchip_change_notifier;
 };
@@ -211,7 +212,7 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
-int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
 void vfio_quirk_reset(VFIOPCIDevice *vdev);
 VFIOQuirk *vfio_quirk_alloc(int nr_mem);
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr);
@@ -224,14 +225,14 @@ bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name);
 int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
                                     struct vfio_pci_hot_reset_info **info_p);
 
-int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 
-int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
-                               struct vfio_region_info *info,
-                               Error **errp);
+bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
+                                struct vfio_region_info *info,
+                                Error **errp);
 
 void vfio_display_reset(VFIOPCIDevice *vdev);
-int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
 void vfio_display_finalize(VFIOPCIDevice *vdev);
 
 extern const VMStateDescription vfio_display_vmstate;

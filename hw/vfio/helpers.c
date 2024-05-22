@@ -107,12 +107,12 @@ static const char *index_to_str(VFIODevice *vbasedev, int index)
     }
 }
 
-int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
-                           int action, int fd, Error **errp)
+bool vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
+                            int action, int fd, Error **errp)
 {
     ERRP_GUARD();
-    struct vfio_irq_set *irq_set;
-    int argsz, ret = 0;
+    g_autofree struct vfio_irq_set *irq_set = NULL;
+    int argsz;
     const char *name;
     int32_t *pfd;
 
@@ -127,16 +127,11 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     pfd = (int32_t *)&irq_set->data;
     *pfd = fd;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        ret = -errno;
-    }
-    g_free(irq_set);
-
-    if (!ret) {
-        return 0;
+    if (!ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+        return true;
     }
 
-    error_setg_errno(errp, -ret, "VFIO_DEVICE_SET_IRQS failure");
+    error_setg_errno(errp, errno, "VFIO_DEVICE_SET_IRQS failure");
 
     name = index_to_str(vbasedev, index);
     if (name) {
@@ -147,7 +142,7 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     error_prepend(errp,
                   "Failed to %s %s eventfd signaling for interrupt ",
                   fd < 0 ? "tear down" : "set up", action_to_str(action));
-    return ret;
+    return false;
 }
 
 /*
@@ -348,7 +343,7 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
                       int index, const char *name)
 {
-    struct vfio_region_info *info;
+    g_autofree struct vfio_region_info *info = NULL;
     int ret;
 
     ret = vfio_get_region_info(vbasedev, index, &info);
@@ -380,8 +375,6 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
             }
         }
     }
-
-    g_free(info);
 
     trace_vfio_region_setup(vbasedev->name, index, name,
                             region->flags, region->fd_offset, region->size);
@@ -599,20 +592,19 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
 
 bool vfio_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
 {
-    struct vfio_region_info *info = NULL;
+    g_autofree struct vfio_region_info *info = NULL;
     bool ret = false;
 
     if (!vfio_get_region_info(vbasedev, region, &info)) {
         if (vfio_get_region_info_cap(info, cap_type)) {
             ret = true;
         }
-        g_free(info);
     }
 
     return ret;
 }
 
-int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
+bool vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
 {
     ERRP_GUARD();
     struct stat st;
@@ -621,7 +613,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
         if (stat(vbasedev->sysfsdev, &st) < 0) {
             error_setg_errno(errp, errno, "no such host device");
             error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->sysfsdev);
-            return -errno;
+            return false;
         }
         /* User may specify a name, e.g: VFIO platform device */
         if (!vbasedev->name) {
@@ -630,7 +622,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
     } else {
         if (!vbasedev->iommufd) {
             error_setg(errp, "Use FD passing only with iommufd backend");
-            return -EINVAL;
+            return false;
         }
         /*
          * Give a name with fd so any function printing out vbasedev->name
@@ -641,7 +633,7 @@ int vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
         }
     }
 
-    return 0;
+    return true;
 }
 
 void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)

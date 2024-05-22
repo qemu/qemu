@@ -70,14 +70,14 @@ static void vfio_ap_req_notifier_handler(void *opaque)
     }
 }
 
-static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
+static bool vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
                                           unsigned int irq, Error **errp)
 {
     int fd;
     size_t argsz;
     IOHandler *fd_read;
     EventNotifier *notifier;
-    struct vfio_irq_info *irq_info;
+    g_autofree struct vfio_irq_info *irq_info = NULL;
     VFIODevice *vdev = &vapdev->vdev;
 
     switch (irq) {
@@ -87,13 +87,13 @@ static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
         break;
     default:
         error_setg(errp, "vfio: Unsupported device irq(%d)", irq);
-        return;
+        return false;
     }
 
     if (vdev->num_irqs < irq + 1) {
         error_setg(errp, "vfio: IRQ %u not available (number of irqs %u)",
                    irq, vdev->num_irqs);
-        return;
+        return false;
     }
 
     argsz = sizeof(*irq_info);
@@ -104,28 +104,26 @@ static void vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
     if (ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO,
               irq_info) < 0 || irq_info->count < 1) {
         error_setg_errno(errp, errno, "vfio: Error getting irq info");
-        goto out_free_info;
+        return false;
     }
 
     if (event_notifier_init(notifier, 0)) {
         error_setg_errno(errp, errno,
                          "vfio: Unable to init event notifier for irq (%d)",
                          irq);
-        goto out_free_info;
+        return false;
     }
 
     fd = event_notifier_get_fd(notifier);
     qemu_set_fd_handler(fd, fd_read, NULL, vapdev);
 
-    if (vfio_set_irq_signaling(vdev, irq, 0, VFIO_IRQ_SET_ACTION_TRIGGER, fd,
-                               errp)) {
+    if (!vfio_set_irq_signaling(vdev, irq, 0, VFIO_IRQ_SET_ACTION_TRIGGER, fd,
+                                errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vapdev);
         event_notifier_cleanup(notifier);
     }
 
-out_free_info:
-    g_free(irq_info);
-
+    return true;
 }
 
 static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
@@ -143,8 +141,8 @@ static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
         return;
     }
 
-    if (vfio_set_irq_signaling(&vapdev->vdev, irq, 0,
-                               VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
+    if (!vfio_set_irq_signaling(&vapdev->vdev, irq, 0,
+                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vapdev->vdev.name);
     }
 
@@ -156,23 +154,20 @@ static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
 static void vfio_ap_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
-    int ret;
     Error *err = NULL;
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
     VFIODevice *vbasedev = &vapdev->vdev;
 
-    if (vfio_device_get_name(vbasedev, errp) < 0) {
+    if (!vfio_device_get_name(vbasedev, errp)) {
         return;
     }
 
-    ret = vfio_attach_device(vbasedev->name, vbasedev,
-                             &address_space_memory, errp);
-    if (ret) {
+    if (!vfio_attach_device(vbasedev->name, vbasedev,
+                            &address_space_memory, errp)) {
         goto error;
     }
 
-    vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err);
-    if (err) {
+    if (!vfio_ap_register_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX, &err)) {
         /*
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
