@@ -1711,14 +1711,21 @@ static void virt_build_smbios(VirtMachineState *vms)
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
     struct smbios_phys_mem_area mem_array;
+    const char *manufacturer = "QEMU";
     const char *product = "QEMU Virtual Machine";
+    const char *version = vmc->smbios_old_sys_ver ? "1.0" : mc->name;
 
     if (kvm_enabled()) {
         product = "KVM Virtual Machine";
     }
 
-    smbios_set_defaults("QEMU", product,
-                        vmc->smbios_old_sys_ver ? "1.0" : mc->name,
+    if (!vmc->manufacturer_product_compat) {
+        manufacturer = "Red Hat";
+        product = "KVM";
+        version = mc->desc;
+    }
+
+    smbios_set_defaults(manufacturer, product, version,
                         NULL, NULL);
 
     /* build the array of physical mem area from base_memmap */
@@ -3587,10 +3594,13 @@ DEFINE_VIRT_MACHINE_AS_LATEST(9, 6, 0)
 
 static void virt_rhel_machine_9_4_0_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_rhel_machine_9_6_0_options(mc);
 
     /* From virt_machine_9_0_options() */
     mc->smbios_memory_device_size = 16 * GiB;
+    vmc->manufacturer_product_compat = true;
 
     compat_props_add(mc->compat_props, hw_compat_rhel_9_6, hw_compat_rhel_9_6_len);
     compat_props_add(mc->compat_props, hw_compat_rhel_9_5, hw_compat_rhel_9_5_len);
