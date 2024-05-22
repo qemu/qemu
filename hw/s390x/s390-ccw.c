@@ -71,7 +71,7 @@ IOInstEnding s390_ccw_store(SubchDev *sch)
     return ret;
 }
 
-static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
+static bool s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
 {
@@ -84,12 +84,12 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
         error_setg(errp, "No host device provided");
         error_append_hint(errp,
                           "Use -device vfio-ccw,sysfsdev=PATH_TO_DEVICE\n");
-        return;
+        return false;
     }
 
     if (!realpath(sysfsdev, dev_path)) {
         error_setg_errno(errp, errno, "Host device '%s' not found", sysfsdev);
-        return;
+        return false;
     }
 
     cdev->mdevid = g_path_get_basename(dev_path);
@@ -98,13 +98,14 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
     tmp = g_path_get_basename(tmp_dir);
     if (sscanf(tmp, "%2x.%1x.%4x", &cssid, &ssid, &devid) != 3) {
         error_setg_errno(errp, errno, "Failed to read %s", tmp);
-        return;
+        return false;
     }
 
     cdev->hostid.cssid = cssid;
     cdev->hostid.ssid = ssid;
     cdev->hostid.devid = devid;
     cdev->hostid.valid = true;
+    return true;
 }
 
 static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
@@ -116,8 +117,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     int ret;
     Error *err = NULL;
 
-    s390_ccw_get_dev_info(cdev, sysfsdev, &err);
-    if (err) {
+    if (!s390_ccw_get_dev_info(cdev, sysfsdev, &err)) {
         goto out_err_propagate;
     }
 
