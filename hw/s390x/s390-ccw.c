@@ -115,13 +115,12 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     DeviceState *parent = DEVICE(ccw_dev);
     SubchDev *sch;
     int ret;
-    Error *err = NULL;
 
-    if (!s390_ccw_get_dev_info(cdev, sysfsdev, &err)) {
-        goto out_err_propagate;
+    if (!s390_ccw_get_dev_info(cdev, sysfsdev, errp)) {
+        return;
     }
 
-    sch = css_create_sch(ccw_dev->devno, &err);
+    sch = css_create_sch(ccw_dev->devno, errp);
     if (!sch) {
         goto out_mdevid_free;
     }
@@ -132,12 +131,12 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     ccw_dev->sch = sch;
     ret = css_sch_build_schib(sch, &cdev->hostid);
     if (ret) {
-        error_setg_errno(&err, -ret, "%s: Failed to build initial schib",
+        error_setg_errno(errp, -ret, "%s: Failed to build initial schib",
                          __func__);
         goto out_err;
     }
 
-    if (!ck->realize(ccw_dev, &err)) {
+    if (!ck->realize(ccw_dev, errp)) {
         goto out_err;
     }
 
@@ -151,8 +150,6 @@ out_err:
     g_free(sch);
 out_mdevid_free:
     g_free(cdev->mdevid);
-out_err_propagate:
-    error_propagate(errp, err);
 }
 
 static void s390_ccw_unrealize(S390CCWDevice *cdev)
