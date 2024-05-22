@@ -474,7 +474,7 @@ static void vfio_ccw_unregister_irq_notifier(VFIOCCWDevice *vcdev,
     event_notifier_cleanup(notifier);
 }
 
-static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
+static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
 {
     VFIODevice *vdev = &vcdev->vdev;
     struct vfio_region_info *info;
@@ -483,7 +483,7 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
     /* Sanity check device */
     if (!(vdev->flags & VFIO_DEVICE_FLAGS_CCW)) {
         error_setg(errp, "vfio: Um, this isn't a vfio-ccw device");
-        return;
+        return false;
     }
 
     /*
@@ -493,13 +493,13 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
     if (vdev->num_regions < VFIO_CCW_CONFIG_REGION_INDEX + 1) {
         error_setg(errp, "vfio: too few regions (%u), expected at least %u",
                    vdev->num_regions, VFIO_CCW_CONFIG_REGION_INDEX + 1);
-        return;
+        return false;
     }
 
     ret = vfio_get_region_info(vdev, VFIO_CCW_CONFIG_REGION_INDEX, &info);
     if (ret) {
         error_setg_errno(errp, -ret, "vfio: Error getting config info");
-        return;
+        return false;
     }
 
     vcdev->io_region_size = info->size;
@@ -553,7 +553,7 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         g_free(info);
     }
 
-    return;
+    return true;
 
 out_err:
     g_free(vcdev->crw_region);
@@ -561,7 +561,7 @@ out_err:
     g_free(vcdev->async_cmd_region);
     g_free(vcdev->io_region);
     g_free(info);
-    return;
+    return false;
 }
 
 static void vfio_ccw_put_region(VFIOCCWDevice *vcdev)
@@ -597,8 +597,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_attach_dev_err;
     }
 
-    vfio_ccw_get_region(vcdev, &err);
-    if (err) {
+    if (!vfio_ccw_get_region(vcdev, &err)) {
         goto out_region_err;
     }
 
