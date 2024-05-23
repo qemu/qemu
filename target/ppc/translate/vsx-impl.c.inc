@@ -1573,26 +1573,24 @@ static void gen_xxbrw(DisasContext *ctx)
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
 }
 
-#define VSX_LOGICAL(name, vece, tcg_op)                              \
-static void glue(gen_, name)(DisasContext *ctx)                      \
-    {                                                                \
-        if (unlikely(!ctx->vsx_enabled)) {                           \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);                   \
-            return;                                                  \
-        }                                                            \
-        tcg_op(vece, vsr_full_offset(xT(ctx->opcode)),               \
-               vsr_full_offset(xA(ctx->opcode)),                     \
-               vsr_full_offset(xB(ctx->opcode)), 16, 16);            \
-    }
+static bool do_logical_op(DisasContext *ctx, arg_XX3 *a, unsigned vece,
+    void (*helper)(unsigned, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t))
+{
+    REQUIRE_VSX(ctx);
+    helper(vece, vsr_full_offset(a->xt),
+            vsr_full_offset(a->xa),
+            vsr_full_offset(a->xb), 16, 16);
+    return true;
+}
 
-VSX_LOGICAL(xxland, MO_64, tcg_gen_gvec_and)
-VSX_LOGICAL(xxlandc, MO_64, tcg_gen_gvec_andc)
-VSX_LOGICAL(xxlor, MO_64, tcg_gen_gvec_or)
-VSX_LOGICAL(xxlxor, MO_64, tcg_gen_gvec_xor)
-VSX_LOGICAL(xxlnor, MO_64, tcg_gen_gvec_nor)
-VSX_LOGICAL(xxleqv, MO_64, tcg_gen_gvec_eqv)
-VSX_LOGICAL(xxlnand, MO_64, tcg_gen_gvec_nand)
-VSX_LOGICAL(xxlorc, MO_64, tcg_gen_gvec_orc)
+TRANS_FLAGS2(VSX, XXLAND, do_logical_op, MO_64, tcg_gen_gvec_and);
+TRANS_FLAGS2(VSX, XXLANDC, do_logical_op, MO_64, tcg_gen_gvec_andc);
+TRANS_FLAGS2(VSX, XXLOR, do_logical_op, MO_64, tcg_gen_gvec_or);
+TRANS_FLAGS2(VSX, XXLXOR, do_logical_op, MO_64, tcg_gen_gvec_xor);
+TRANS_FLAGS2(VSX, XXLNOR, do_logical_op, MO_64, tcg_gen_gvec_nor);
+TRANS_FLAGS2(VSX207, XXLEQV, do_logical_op, MO_64, tcg_gen_gvec_eqv);
+TRANS_FLAGS2(VSX207, XXLNAND, do_logical_op, MO_64, tcg_gen_gvec_nand);
+TRANS_FLAGS2(VSX207, XXLORC, do_logical_op, MO_64, tcg_gen_gvec_orc);
 
 #define VSX_XXMRG(name, high)                               \
 static void glue(gen_, name)(DisasContext *ctx)             \
@@ -2899,4 +2897,3 @@ TRANS64(PMXVF64GERNN, do_ger, gen_helper_XVF64GERNN)
 #undef GEN_XX2IFORM
 #undef GEN_XX3_RC_FORM
 #undef GEN_XX3FORM_DM
-#undef VSX_LOGICAL

@@ -263,17 +263,6 @@ GEN_XX2FORM_EO(xvcvhpsp, 0x16, 0x1D, 0x18, PPC2_ISA300),
 GEN_XX2FORM_EO(xvcvsphp, 0x16, 0x1D, 0x19, PPC2_ISA300),
 GEN_XX2FORM_EO(xxbrq, 0x16, 0x1D, 0x1F, PPC2_ISA300),
 
-#define VSX_LOGICAL(name, opc2, opc3, fl2) \
-GEN_XX3FORM(name, opc2, opc3, fl2)
-
-VSX_LOGICAL(xxland, 0x8, 0x10, PPC2_VSX),
-VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
-VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
-VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
-VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
-VSX_LOGICAL(xxleqv, 0x8, 0x17, PPC2_VSX207),
-VSX_LOGICAL(xxlnand, 0x8, 0x16, PPC2_VSX207),
-VSX_LOGICAL(xxlorc, 0x8, 0x15, PPC2_VSX207),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
 GEN_XX3FORM_DM(xxsldwi, 0x08, 0x00),
