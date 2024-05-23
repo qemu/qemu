@@ -2876,15 +2876,15 @@ TRANS(VADDCUW, do_vx_vaddsubcuw, 1)
 /* Integer Add/Sub Saturate Instructions */
 static inline void do_vadd_vsub_sat
 (
-    unsigned vece, TCGv_vec t, TCGv_vec sat, TCGv_vec a, TCGv_vec b,
+    unsigned vece, TCGv_vec t, TCGv_vec qc, TCGv_vec a, TCGv_vec b,
     void (*norm_op)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec),
     void (*sat_op)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
 {
     TCGv_vec x = tcg_temp_new_vec_matching(t);
     norm_op(vece, x, a, b);
     sat_op(vece, t, a, b);
-    tcg_gen_cmp_vec(TCG_COND_NE, vece, x, x, t);
-    tcg_gen_or_vec(vece, sat, sat, x);
+    tcg_gen_xor_vec(vece, x, x, t);
+    tcg_gen_or_vec(vece, qc, qc, x);
 }
 
 static void gen_vadd_sat_u(unsigned vece, TCGv_vec t, TCGv_vec sat,
@@ -2916,16 +2916,16 @@ static void gen_vsub_sat_s(unsigned vece, TCGv_vec t, TCGv_vec sat,
  * GVecGen4 struct variants.
  */
 static const TCGOpcode vecop_list_sub_u[] = {
-    INDEX_op_sub_vec, INDEX_op_ussub_vec, INDEX_op_cmp_vec, 0
+    INDEX_op_sub_vec, INDEX_op_ussub_vec, 0
 };
 static const TCGOpcode vecop_list_sub_s[] = {
-    INDEX_op_sub_vec, INDEX_op_sssub_vec, INDEX_op_cmp_vec, 0
+    INDEX_op_sub_vec, INDEX_op_sssub_vec, 0
 };
 static const TCGOpcode vecop_list_add_u[] = {
-    INDEX_op_add_vec, INDEX_op_usadd_vec, INDEX_op_cmp_vec, 0
+    INDEX_op_add_vec, INDEX_op_usadd_vec, 0
 };
 static const TCGOpcode vecop_list_add_s[] = {
-    INDEX_op_add_vec, INDEX_op_ssadd_vec, INDEX_op_cmp_vec, 0
+    INDEX_op_add_vec, INDEX_op_ssadd_vec, 0
 };
 
 static const GVecGen4 op_vsububs = {
