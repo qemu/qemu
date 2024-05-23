@@ -1122,24 +1122,41 @@ static void gen_ADC(DisasContext *s, X86DecodedInsn *decode)
     prepare_update3_cc(decode, s, CC_OP_ADCB + ot, c_in);
 }
 
-/* ADCX/ADOX do not have memory operands and can use set_cc_op.  */
-static void gen_ADCOX(DisasContext *s, MemOp ot, int cc_op)
+static void gen_ADCOX(DisasContext *s, X86DecodedInsn *decode, int cc_op)
 {
-    int opposite_cc_op;
+    MemOp ot = decode->op[0].ot;
     TCGv carry_in = NULL;
-    TCGv carry_out = (cc_op == CC_OP_ADCX ? cpu_cc_dst : cpu_cc_src2);
+    TCGv *carry_out = (cc_op == CC_OP_ADCX ? &decode->cc_dst : &decode->cc_src2);
     TCGv zero;
 
-    if (cc_op == s->cc_op || s->cc_op == CC_OP_ADCOX) {
-        /* Re-use the carry-out from a previous round.  */
-        carry_in = carry_out;
-    } else {
-        /* We don't have a carry-in, get it out of EFLAGS.  */
-        if (s->cc_op != CC_OP_ADCX && s->cc_op != CC_OP_ADOX) {
-            gen_compute_eflags(s);
+    decode->cc_op = cc_op;
+    *carry_out = tcg_temp_new();
+    if (CC_OP_HAS_EFLAGS(s->cc_op)) {
+        decode->cc_src = cpu_cc_src;
+
+        /* Re-use the carry-out from a previous round?  */
+        if (s->cc_op == cc_op || s->cc_op == CC_OP_ADCOX) {
+            carry_in = (cc_op == CC_OP_ADCX ? cpu_cc_dst : cpu_cc_src2);
         }
-        carry_in = s->tmp0;
-        tcg_gen_extract_tl(carry_in, cpu_cc_src,
+
+        /* Preserve the opposite carry from previous rounds?  */
+        if (s->cc_op != cc_op && s->cc_op != CC_OP_EFLAGS) {
+            decode->cc_op = CC_OP_ADCOX;
+            if (carry_out == &decode->cc_dst) {
+                decode->cc_src2 = cpu_cc_src2;
+            } else {
+                decode->cc_dst = cpu_cc_dst;
+            }
+        }
+    } else {
+        decode->cc_src = tcg_temp_new();
+        gen_mov_eflags(s, decode->cc_src);
+    }
+
+    if (!carry_in) {
+        /* Get carry_in out of EFLAGS.  */
+        carry_in = tcg_temp_new();
+        tcg_gen_extract_tl(carry_in, decode->cc_src,
             ctz32(cc_op == CC_OP_ADCX ? CC_C : CC_O), 1);
     }
 
@@ -1151,28 +1168,20 @@ static void gen_ADCOX(DisasContext *s, MemOp ot, int cc_op)
         tcg_gen_ext32u_tl(s->T1, s->T1);
         tcg_gen_add_i64(s->T0, s->T0, s->T1);
         tcg_gen_add_i64(s->T0, s->T0, carry_in);
-        tcg_gen_shri_i64(carry_out, s->T0, 32);
+        tcg_gen_shri_i64(*carry_out, s->T0, 32);
         break;
 #endif
     default:
         zero = tcg_constant_tl(0);
-        tcg_gen_add2_tl(s->T0, carry_out, s->T0, zero, carry_in, zero);
-        tcg_gen_add2_tl(s->T0, carry_out, s->T0, carry_out, s->T1, zero);
+        tcg_gen_add2_tl(s->T0, *carry_out, s->T0, zero, carry_in, zero);
+        tcg_gen_add2_tl(s->T0, *carry_out, s->T0, *carry_out, s->T1, zero);
         break;
-    }
-
-    opposite_cc_op = cc_op == CC_OP_ADCX ? CC_OP_ADOX : CC_OP_ADCX;
-    if (s->cc_op == CC_OP_ADCOX || s->cc_op == opposite_cc_op) {
-        /* Merge with the carry-out from the opposite instruction.  */
-        set_cc_op(s, CC_OP_ADCOX);
-    } else {
-        set_cc_op(s, cc_op);
     }
 }
 
 static void gen_ADCX(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_ADCOX(s, decode->op[0].ot, CC_OP_ADCX);
+    gen_ADCOX(s, decode, CC_OP_ADCX);
 }
 
 static void gen_ADD(DisasContext *s, X86DecodedInsn *decode)
@@ -1190,7 +1199,7 @@ static void gen_ADD(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_ADOX(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_ADCOX(s, decode->op[0].ot, CC_OP_ADOX);
+    gen_ADCOX(s, decode, CC_OP_ADOX);
 }
 
 static void gen_AND(DisasContext *s, X86DecodedInsn *decode)
