@@ -1272,40 +1272,34 @@ static void gen_BEXTR(DisasContext *s, X86DecodedInsn *decode)
     prepare_update1_cc(decode, s, CC_OP_LOGICB + ot);
 }
 
-/* BLSI do not have memory operands and can use set_cc_op.  */
 static void gen_BLSI(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
 
-    tcg_gen_mov_tl(cpu_cc_src, s->T0);
-    tcg_gen_neg_tl(s->T1, s->T0);
+    /* input in T1, which is ready for prepare_update2_cc  */
+    tcg_gen_neg_tl(s->T0, s->T1);
     tcg_gen_and_tl(s->T0, s->T0, s->T1);
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-    set_cc_op(s, CC_OP_BMILGB + ot);
+    prepare_update2_cc(decode, s, CC_OP_BMILGB + ot);
 }
 
-/* BLSMSK do not have memory operands and can use set_cc_op.  */
 static void gen_BLSMSK(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
 
-    tcg_gen_mov_tl(cpu_cc_src, s->T0);
-    tcg_gen_subi_tl(s->T1, s->T0, 1);
+    /* input in T1, which is ready for prepare_update2_cc  */
+    tcg_gen_subi_tl(s->T0, s->T1, 1);
     tcg_gen_xor_tl(s->T0, s->T0, s->T1);
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-    set_cc_op(s, CC_OP_BMILGB + ot);
+    prepare_update2_cc(decode, s, CC_OP_BMILGB + ot);
 }
 
-/* BLSR do not have memory operands and can use set_cc_op.  */
 static void gen_BLSR(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
 
-    tcg_gen_mov_tl(cpu_cc_src, s->T0);
-    tcg_gen_subi_tl(s->T1, s->T0, 1);
+    /* input in T1, which is ready for prepare_update2_cc  */
+    tcg_gen_subi_tl(s->T0, s->T1, 1);
     tcg_gen_and_tl(s->T0, s->T0, s->T1);
-    tcg_gen_mov_tl(cpu_cc_dst, s->T0);
-    set_cc_op(s, CC_OP_BMILGB + ot);
+    prepare_update2_cc(decode, s, CC_OP_BMILGB + ot);
 }
 
 static void gen_BOUND(DisasContext *s, X86DecodedInsn *decode)

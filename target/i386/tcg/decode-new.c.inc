@@ -633,7 +633,7 @@ static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
         {},
     },
     [3] = {
-        X86_OP_GROUP3(group17, B,y, E,y, None,None, vex13 cpuid(BMI1)),
+        X86_OP_GROUP3(group17, B,y, None,None, E,y, vex13 cpuid(BMI1)),
         {},
         {},
         {},
@@ -2604,7 +2604,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
     }
 
     /*
-     * Write back flags after last memory access.  Some newer ALU instructions, as
+     * Write back flags after last memory access.  Some older ALU instructions, as
      * well as SSE instructions, write flags in the gen_* function, but that can
      * cause incorrect tracking of CC_OP for instructions that write to both memory
      * and flags.
