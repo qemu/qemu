@@ -2121,9 +2121,16 @@ void free_instruction(Context *c)
         g_string_free(g_array_index(c->inst.strings, GString*, i), TRUE);
     }
     g_array_free(c->inst.strings, TRUE);
+    /*
+     * Free list of arguments that might need initialization, if they haven't
+     * already been freed.
+     */
+    if (c->inst.init_list) {
+        g_array_free(c->inst.init_list, TRUE);
+    }
     /* Free INAME token value */
     g_string_free(c->inst.name, TRUE);
-    /* Free variables and registers */
+    /* Free declared TCGv variables */
     g_array_free(c->inst.allocated, TRUE);
     /* Initialize instruction-specific portion of the context */
     memset(&(c->inst), 0, sizeof(Inst));
