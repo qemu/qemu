@@ -436,6 +436,9 @@ static int kvm_loongarch_get_regs_fp(CPUState *cs)
     env->fcsr0 = fpu.fcsr;
     for (i = 0; i < 32; i++) {
         env->fpr[i].vreg.UD[0] = fpu.fpr[i].val64[0];
+        env->fpr[i].vreg.UD[1] = fpu.fpr[i].val64[1];
+        env->fpr[i].vreg.UD[2] = fpu.fpr[i].val64[2];
+        env->fpr[i].vreg.UD[3] = fpu.fpr[i].val64[3];
     }
     for (i = 0; i < 8; i++) {
         env->cf[i] = fpu.fcc & 0xFF;
@@ -455,6 +458,9 @@ static int kvm_loongarch_put_regs_fp(CPUState *cs)
     fpu.fcc = 0;
     for (i = 0; i < 32; i++) {
         fpu.fpr[i].val64[0] = env->fpr[i].vreg.UD[0];
+        fpu.fpr[i].val64[1] = env->fpr[i].vreg.UD[1];
+        fpu.fpr[i].val64[2] = env->fpr[i].vreg.UD[2];
+        fpu.fpr[i].val64[3] = env->fpr[i].vreg.UD[3];
     }
 
     for (i = 0; i < 8; i++) {

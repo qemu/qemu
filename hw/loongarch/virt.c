@@ -10,6 +10,7 @@
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
+#include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
@@ -463,7 +464,8 @@ static void fdt_add_memory_node(MachineState *ms,
     char *nodename = g_strdup_printf("/memory@%" PRIx64, base);
 
     qemu_fdt_add_subnode(ms->fdt, nodename);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, 0, size);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", base >> 32, base,
+                           size >> 32, size);
     qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "memory");
 
     if (ms->numa_state && ms->numa_state->num_nodes) {
@@ -471,6 +473,48 @@ static void fdt_add_memory_node(MachineState *ms,
     }
 
     g_free(nodename);
+}
+
+static void fdt_add_memory_nodes(MachineState *ms)
+{
+    hwaddr base, size, ram_size, gap;
+    int i, nb_numa_nodes, nodes;
+    NodeInfo *numa_info;
+
+    ram_size = ms->ram_size;
+    base = VIRT_LOWMEM_BASE;
+    gap = VIRT_LOWMEM_SIZE;
+    nodes = nb_numa_nodes = ms->numa_state->num_nodes;
+    numa_info = ms->numa_state->nodes;
+    if (!nodes) {
+        nodes = 1;
+    }
+
+    for (i = 0; i < nodes; i++) {
+        if (nb_numa_nodes) {
+            size = numa_info[i].node_mem;
+        } else {
+            size = ram_size;
+        }
+
+        /*
+         * memory for the node splited into two part
+         *   lowram:  [base, +gap)
+         *   highram: [VIRT_HIGHMEM_BASE, +(len - gap))
+         */
+        if (size >= gap) {
+            fdt_add_memory_node(ms, base, gap, i);
+            size -= gap;
+            base = VIRT_HIGHMEM_BASE;
+            gap = ram_size - VIRT_LOWMEM_SIZE;
+        }
+
+        if (size) {
+            fdt_add_memory_node(ms, base, size, i);
+            base += size;
+            gap -= size;
+        }
+    }
 }
 
 static void virt_build_smbios(LoongArchVirtMachineState *lvms)
@@ -840,18 +884,23 @@ static void virt_iocsr_misc_write(void *opaque, hwaddr addr,
 
 static uint64_t virt_iocsr_misc_read(void *opaque, hwaddr addr, unsigned size)
 {
+    uint64_t ret;
+
     switch (addr) {
     case VERSION_REG:
         return 0x11ULL;
     case FEATURE_REG:
-        return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
-               1ULL << IOCSRF_CSRIPI;
+        ret = BIT(IOCSRF_MSI) | BIT(IOCSRF_EXTIOI) | BIT(IOCSRF_CSRIPI);
+        if (kvm_enabled()) {
+            ret |= BIT(IOCSRF_VM);
+        }
+        return ret;
     case VENDOR_REG:
         return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
     case CPUNAME_REG:
         return 0x303030354133ULL;     /* "3A5000" */
     case MISC_FUNC_REG:
-        return 1ULL << IOCSRM_EXTIOI_EN;
+        return BIT_ULL(IOCSRM_EXTIOI_EN);
     }
     return 0ULL;
 }
@@ -870,18 +919,70 @@ static const MemoryRegionOps virt_iocsr_misc_ops = {
     },
 };
 
+static void fw_cfg_add_memory(MachineState *ms)
+{
+    hwaddr base, size, ram_size, gap;
+    int nb_numa_nodes, nodes;
+    NodeInfo *numa_info;
+
+    ram_size = ms->ram_size;
+    base = VIRT_LOWMEM_BASE;
+    gap = VIRT_LOWMEM_SIZE;
+    nodes = nb_numa_nodes = ms->numa_state->num_nodes;
+    numa_info = ms->numa_state->nodes;
+    if (!nodes) {
+        nodes = 1;
+    }
+
+    /* add fw_cfg memory map of node0 */
+    if (nb_numa_nodes) {
+        size = numa_info[0].node_mem;
+    } else {
+        size = ram_size;
+    }
+
+    if (size >= gap) {
+        memmap_add_entry(base, gap, 1);
+        size -= gap;
+        base = VIRT_HIGHMEM_BASE;
+        gap = ram_size - VIRT_LOWMEM_SIZE;
+    }
+
+    if (size) {
+        memmap_add_entry(base, size, 1);
+        base += size;
+    }
+
+    if (nodes < 2) {
+        return;
+    }
+
+    /* add fw_cfg memory map of other nodes */
+    size = ram_size - numa_info[0].node_mem;
+    gap  = VIRT_LOWMEM_BASE + VIRT_LOWMEM_SIZE;
+    if (base < gap && (base + size) > gap) {
+        /*
+         * memory map for the maining nodes splited into two part
+         *   lowram:  [base, +(gap - base))
+         *   highram: [VIRT_HIGHMEM_BASE, +(size - (gap - base)))
+         */
+        memmap_add_entry(base, gap - base, 1);
+        size -= gap - base;
+        base = VIRT_HIGHMEM_BASE;
+    }
+
+   if (size)
+        memmap_add_entry(base, size, 1);
+}
+
 static void virt_init(MachineState *machine)
 {
     LoongArchCPU *lacpu;
     const char *cpu_model = machine->cpu_type;
-    ram_addr_t offset = 0;
-    ram_addr_t ram_size = machine->ram_size;
-    uint64_t highram_size = 0, phyAddr = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(machine);
-    int nb_numa_nodes = machine->numa_state->num_nodes;
-    NodeInfo *numa_info = machine->numa_state->nodes;
     int i;
+    hwaddr base, size, ram_size = machine->ram_size;
     const CPUArchIdList *possible_cpus;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CPUState *cpu;
@@ -890,10 +991,6 @@ static void virt_init(MachineState *machine)
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
     }
 
-    if (ram_size < 1 * GiB) {
-        error_report("ram_size must be greater than 1G.");
-        exit(1);
-    }
     create_fdt(lvms);
 
     /* Create IOCSR space */
@@ -915,48 +1012,31 @@ static void virt_init(MachineState *machine)
         lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
     }
     fdt_add_cpu_nodes(lvms);
+    fdt_add_memory_nodes(machine);
+    fw_cfg_add_memory(machine);
 
     /* Node0 memory */
-    memmap_add_entry(VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE, 1);
-    fdt_add_memory_node(machine, VIRT_LOWMEM_BASE, VIRT_LOWMEM_SIZE, 0);
-    memory_region_init_alias(&lvms->lowmem, NULL, "loongarch.node0.lowram",
-                             machine->ram, offset, VIRT_LOWMEM_SIZE);
-    memory_region_add_subregion(address_space_mem, phyAddr, &lvms->lowmem);
-
-    offset += VIRT_LOWMEM_SIZE;
-    if (nb_numa_nodes > 0) {
-        assert(numa_info[0].node_mem > VIRT_LOWMEM_SIZE);
-        highram_size = numa_info[0].node_mem - VIRT_LOWMEM_SIZE;
-    } else {
-        highram_size = ram_size - VIRT_LOWMEM_SIZE;
+    size = ram_size;
+    base = VIRT_LOWMEM_BASE;
+    if (size > VIRT_LOWMEM_SIZE) {
+        size = VIRT_LOWMEM_SIZE;
     }
-    phyAddr = VIRT_HIGHMEM_BASE;
-    memmap_add_entry(phyAddr, highram_size, 1);
-    fdt_add_memory_node(machine, phyAddr, highram_size, 0);
-    memory_region_init_alias(&lvms->highmem, NULL, "loongarch.node0.highram",
-                              machine->ram, offset, highram_size);
-    memory_region_add_subregion(address_space_mem, phyAddr, &lvms->highmem);
 
-    /* Node1 - Nodemax memory */
-    offset += highram_size;
-    phyAddr += highram_size;
-
-    for (i = 1; i < nb_numa_nodes; i++) {
-        MemoryRegion *nodemem = g_new(MemoryRegion, 1);
-        g_autofree char *ramName = g_strdup_printf("loongarch.node%d.ram", i);
-        memory_region_init_alias(nodemem, NULL, ramName, machine->ram,
-                                 offset,  numa_info[i].node_mem);
-        memory_region_add_subregion(address_space_mem, phyAddr, nodemem);
-        memmap_add_entry(phyAddr, numa_info[i].node_mem, 1);
-        fdt_add_memory_node(machine, phyAddr, numa_info[i].node_mem, i);
-        offset += numa_info[i].node_mem;
-        phyAddr += numa_info[i].node_mem;
+    memory_region_init_alias(&lvms->lowmem, NULL, "loongarch.lowram",
+                              machine->ram, base, size);
+    memory_region_add_subregion(address_space_mem, base, &lvms->lowmem);
+    base += size;
+    if (ram_size - size) {
+        base = VIRT_HIGHMEM_BASE;
+        memory_region_init_alias(&lvms->highmem, NULL, "loongarch.highram",
+                machine->ram, VIRT_LOWMEM_BASE + size, ram_size - size);
+        memory_region_add_subregion(address_space_mem, base, &lvms->highmem);
+        base += ram_size - size;
     }
 
     /* initialize device memory address space */
     if (machine->ram_size < machine->maxram_size) {
         ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
-        hwaddr device_mem_base;
 
         if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
             error_report("unsupported amount of memory slots: %"PRIu64,
@@ -970,9 +1050,7 @@ static void virt_init(MachineState *machine)
                          "%d bytes", TARGET_PAGE_SIZE);
             exit(EXIT_FAILURE);
         }
-        /* device memory base is the top of high memory address. */
-        device_mem_base = ROUND_UP(VIRT_HIGHMEM_BASE + highram_size, 1 * GiB);
-        machine_memory_devices_init(machine, device_mem_base, device_mem_size);
+        machine_memory_devices_init(machine, base, device_mem_size);
     }
 
     /* load the BIOS image. */
@@ -1198,7 +1276,6 @@ static void virt_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = virt_init;
-    mc->default_ram_size = 1 * GiB;
     mc->default_cpu_type = LOONGARCH_CPU_TYPE_NAME("la464");
     mc->default_ram_id = "loongarch.ram";
     mc->max_cpus = LOONGARCH_MAX_CPUS;
