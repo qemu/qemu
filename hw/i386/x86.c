@@ -45,7 +45,14 @@ void init_topo_info(X86CPUTopoInfo *topo_info,
     MachineState *ms = MACHINE(x86ms);
 
     topo_info->dies_per_pkg = ms->smp.dies;
-    topo_info->cores_per_die = ms->smp.cores;
+    /*
+     * Though smp.modules means the number of modules in one cluster,
+     * i386 doesn't support cluster level so that the smp.clusters
+     * always defaults to 1, therefore using smp.modules directly is
+     * fine here.
+     */
+    topo_info->modules_per_die = ms->smp.modules;
+    topo_info->cores_per_module = ms->smp.cores;
     topo_info->threads_per_core = ms->smp.threads;
 }
 
@@ -127,6 +134,10 @@ static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         if (ms->smp.dies > 1) {
             ms->possible_cpus->cpus[i].props.has_die_id = true;
             ms->possible_cpus->cpus[i].props.die_id = topo_ids.die_id;
+        }
+        if (ms->smp.modules > 1) {
+            ms->possible_cpus->cpus[i].props.has_module_id = true;
+            ms->possible_cpus->cpus[i].props.module_id = topo_ids.module_id;
         }
         ms->possible_cpus->cpus[i].props.has_core_id = true;
         ms->possible_cpus->cpus[i].props.core_id = topo_ids.core_id;

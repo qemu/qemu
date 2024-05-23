@@ -378,10 +378,12 @@ DEFINE_Q35_MACHINE(v9_1, "pc-q35-9.1", NULL,
 
 static void pc_q35_9_0_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_9_1_machine_options(m);
     m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_9_0, hw_compat_9_0_len);
     compat_props_add(m->compat_props, pc_compat_9_0, pc_compat_9_0_len);
+    pcmc->isa_bios_alias = false;
 }
 
 DEFINE_Q35_MACHINE(v9_0, "pc-q35-9.0", NULL,

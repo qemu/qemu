@@ -1084,8 +1084,8 @@ static void gen_AAA(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_AAD(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_helper_aad(tcg_env, tcg_constant_i32(decode->immediate));
-    set_cc_op(s, CC_OP_LOGICB);
+    gen_helper_aad(s->T0, s->T0, s->T1);
+    prepare_update1_cc(decode, s, CC_OP_LOGICB);
 }
 
 static void gen_AAM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1093,8 +1093,8 @@ static void gen_AAM(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     if (decode->immediate == 0) {
         gen_exception(s, EXCP00_DIVZ);
     } else {
-        gen_helper_aam(tcg_env, tcg_constant_i32(decode->immediate));
-        set_cc_op(s, CC_OP_LOGICB);
+        gen_helper_aam(s->T0, s->T0, s->T1);
+        prepare_update1_cc(decode, s, CC_OP_LOGICB);
     }
 }
 
@@ -2901,14 +2901,15 @@ static bool gen_eflags_adcox(DisasContext *s, X86DecodedInsn *decode, bool want_
     return got_cf;
 }
 
-static void gen_rot_overflow(X86DecodedInsn *decode, TCGv result, TCGv old, TCGv count)
+static void gen_rot_overflow(X86DecodedInsn *decode, TCGv result, TCGv old,
+                             bool can_be_zero, TCGv count)
 {
     MemOp ot = decode->op[0].ot;
-    TCGv temp = count ? tcg_temp_new() : decode->cc_src2;
+    TCGv temp = can_be_zero ? tcg_temp_new() : decode->cc_src2;
 
     tcg_gen_xor_tl(temp, old, result);
     tcg_gen_extract_tl(temp, temp, (8 << ot) - 1, 1);
-    if (count) {
+    if (can_be_zero) {
         tcg_gen_movcond_tl(TCG_COND_EQ, decode->cc_src2, count, tcg_constant_tl(0),
                            decode->cc_src2, temp);
     }
@@ -3000,7 +3001,7 @@ static void gen_RCL(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     /* Compute result and outgoing overflow */
     tcg_gen_mov_tl(decode->cc_src2, s->T0);
     tcg_gen_or_tl(s->T0, low, high);
-    gen_rot_overflow(decode, s->T0, decode->cc_src2, NULL);
+    gen_rot_overflow(decode, s->T0, decode->cc_src2, false, NULL);
 
     if (zero_label) {
         gen_set_label(zero_label);
@@ -3053,7 +3054,7 @@ static void gen_RCR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     /* Compute result and outgoing overflow */
     tcg_gen_mov_tl(decode->cc_src2, s->T0);
     tcg_gen_or_tl(s->T0, low, high);
-    gen_rot_overflow(decode, s->T0, decode->cc_src2, NULL);
+    gen_rot_overflow(decode, s->T0, decode->cc_src2, false, NULL);
 
     if (zero_label) {
         gen_set_label(zero_label);
@@ -3129,9 +3130,10 @@ static TCGv_i32 gen_rot_replicate(MemOp ot, TCGv in)
     }
 }
 
-static void gen_rot_carry(X86DecodedInsn *decode, TCGv result, TCGv count, int bit)
+static void gen_rot_carry(X86DecodedInsn *decode, TCGv result,
+                          bool can_be_zero, TCGv count, int bit)
 {
-    if (count == NULL) {
+    if (!can_be_zero) {
         tcg_gen_extract_tl(decode->cc_dst, result, bit, 1);
     } else {
         TCGv temp = tcg_temp_new();
@@ -3165,8 +3167,8 @@ static void gen_ROL(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     } else {
         tcg_gen_rotl_tl(s->T0, s->T0, count);
     }
-    gen_rot_carry(decode, s->T0, count, 0);
-    gen_rot_overflow(decode, s->T0, old, count);
+    gen_rot_carry(decode, s->T0, can_be_zero, count, 0);
+    gen_rot_overflow(decode, s->T0, old, can_be_zero, count);
 }
 
 static void gen_ROR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -3190,12 +3192,12 @@ static void gen_ROR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         tcg_gen_rotr_i32(temp32, temp32, count32);
         /* Zero extend to facilitate later optimization.  */
         tcg_gen_extu_i32_tl(s->T0, temp32);
-        gen_rot_carry(decode, s->T0, count, 31);
+        gen_rot_carry(decode, s->T0, can_be_zero, count, 31);
     } else {
         tcg_gen_rotr_tl(s->T0, s->T0, count);
-        gen_rot_carry(decode, s->T0, count, TARGET_LONG_BITS - 1);
+        gen_rot_carry(decode, s->T0, can_be_zero, count, TARGET_LONG_BITS - 1);
     }
-    gen_rot_overflow(decode, s->T0, old, count);
+    gen_rot_overflow(decode, s->T0, old, can_be_zero, count);
 }
 
 static void gen_RORX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

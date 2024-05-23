@@ -145,27 +145,24 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
 
 /* bcd */
 
-/* XXX: exception */
-void helper_aam(CPUX86State *env, int base)
+target_ulong helper_aam(target_ulong al, target_ulong base)
 {
-    int al, ah;
+    int ah;
 
-    al = env->regs[R_EAX] & 0xff;
+    al &= 0xff;
     ah = al / base;
     al = al % base;
-    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al | (ah << 8);
-    CC_DST = al;
+    return al | (ah << 8);
 }
 
-void helper_aad(CPUX86State *env, int base)
+target_ulong helper_aad(target_ulong ax, target_ulong base)
 {
     int al, ah;
 
-    al = env->regs[R_EAX] & 0xff;
-    ah = (env->regs[R_EAX] >> 8) & 0xff;
+    al = ax & 0xff;
+    ah = (ax >> 8) & 0xff;
     al = ((ah * base) + al) & 0xff;
-    env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | al;
-    CC_DST = al;
+    return al;
 }
 
 void helper_aaa(CPUX86State *env)
