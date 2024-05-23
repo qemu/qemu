@@ -2712,8 +2712,6 @@ static bool do_helper_XX3(DisasContext *ctx, arg_XX3 *a,
     void (*helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
 {
     TCGv_ptr xt, xa, xb;
-
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_VSX(ctx);
 
     xt = gen_vsr_ptr(a->xt);
@@ -2724,13 +2722,13 @@ static bool do_helper_XX3(DisasContext *ctx, arg_XX3 *a,
     return true;
 }
 
-TRANS(XSCMPEQDP, do_helper_XX3, gen_helper_XSCMPEQDP)
-TRANS(XSCMPGEDP, do_helper_XX3, gen_helper_XSCMPGEDP)
-TRANS(XSCMPGTDP, do_helper_XX3, gen_helper_XSCMPGTDP)
-TRANS(XSMAXCDP, do_helper_XX3, gen_helper_XSMAXCDP)
-TRANS(XSMINCDP, do_helper_XX3, gen_helper_XSMINCDP)
-TRANS(XSMAXJDP, do_helper_XX3, gen_helper_XSMAXJDP)
-TRANS(XSMINJDP, do_helper_XX3, gen_helper_XSMINJDP)
+TRANS_FLAGS2(ISA300, XSCMPEQDP, do_helper_XX3, gen_helper_XSCMPEQDP)
+TRANS_FLAGS2(ISA300, XSCMPGEDP, do_helper_XX3, gen_helper_XSCMPGEDP)
+TRANS_FLAGS2(ISA300, XSCMPGTDP, do_helper_XX3, gen_helper_XSCMPGTDP)
+TRANS_FLAGS2(ISA300, XSMAXCDP, do_helper_XX3, gen_helper_XSMAXCDP)
+TRANS_FLAGS2(ISA300, XSMINCDP, do_helper_XX3, gen_helper_XSMINCDP)
+TRANS_FLAGS2(ISA300, XSMAXJDP, do_helper_XX3, gen_helper_XSMAXJDP)
+TRANS_FLAGS2(ISA300, XSMINJDP, do_helper_XX3, gen_helper_XSMINJDP)
 
 static bool do_helper_X(arg_X *a,
     void (*helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
