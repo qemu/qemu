@@ -361,3 +361,146 @@
 ##
 {'command': 'cxl-inject-correctable-error',
  'data': {'path': 'str', 'type': 'CxlCorErrorType'}}
+
+##
+# @CXLDynamicCapacityExtent:
+#
+# A single dynamic capacity extent
+#
+# @offset: The offset (in bytes) to the start of the region
+#     where the extent belongs to.
+#
+# @len: The length of the extent in bytes.
+#
+# Since: 9.1
+##
+{ 'struct': 'CXLDynamicCapacityExtent',
+  'data': {
+      'offset':'uint64',
+      'len': 'uint64'
+  }
+}
+
+##
+# @CXLExtSelPolicy:
+#
+# The policy to use for selecting which extents comprise the added
+# capacity, as defined in cxl spec r3.1 Table 7-70.
+#
+# @free: 0h = Free
+#
+# @contiguous: 1h = Continuous
+#
+# @prescriptive: 2h = Prescriptive
+#
+# @enable-shared-access: 3h = Enable Shared Access
+#
+# Since: 9.1
+##
+{ 'enum': 'CXLExtSelPolicy',
+  'data': ['free',
+           'contiguous',
+           'prescriptive',
+           'enable-shared-access']
+}
+
+##
+# @cxl-add-dynamic-capacity:
+#
+# Command to initiate to add dynamic capacity extents to a host.  It
+# simulates operations defined in cxl spec r3.1 7.6.7.6.5.
+#
+# @path: CXL DCD canonical QOM path.
+#
+# @host-id: The "Host ID" field as defined in cxl spec r3.1
+#     Table 7-70.
+#
+# @selection-policy: The "Selection Policy" bits as defined in
+#     cxl spec r3.1 Table 7-70.  It specifies the policy to use for
+#     selecting which extents comprise the added capacity.
+#
+# @region: The "Region Number" field as defined in cxl spec r3.1
+#     Table 7-70.  The dynamic capacity region where the capacity
+#     is being added.  Valid range is from 0-7.
+#
+# @tag: The "Tag" field as defined in cxl spec r3.1 Table 7-70.
+#
+# @extents: The "Extent List" field as defined in cxl spec r3.1
+#     Table 7-70.
+#
+# Since : 9.1
+##
+{ 'command': 'cxl-add-dynamic-capacity',
+  'data': { 'path': 'str',
+            'host-id': 'uint16',
+            'selection-policy': 'CXLExtSelPolicy',
+            'region': 'uint8',
+            '*tag': 'str',
+            'extents': [ 'CXLDynamicCapacityExtent' ]
+           }
+}
+
+##
+# @CXLExtRemovalPolicy:
+#
+# The policy to use for selecting which extents comprise the released
+# capacity, defined in the "Flags" field in cxl spec r3.1 Table 7-71.
+#
+# @tag-based: value = 0h.  Extents are selected by the device based
+#     on tag, with no requirement for contiguous extents.
+#
+# @prescriptive: value = 1h.  Extent list of capacity to release is
+#     included in the request payload.
+#
+# Since: 9.1
+##
+{ 'enum': 'CXLExtRemovalPolicy',
+  'data': ['tag-based',
+           'prescriptive']
+}
+
+##
+# @cxl-release-dynamic-capacity:
+#
+# Command to initiate to release dynamic capacity extents from a
+# host.  It simulates operations defined in cxl spec r3.1 7.6.7.6.6.
+#
+# @path: CXL DCD canonical QOM path.
+#
+# @host-id: The "Host ID" field as defined in cxl spec r3.1
+#     Table 7-71.
+#
+# @removal-policy: Bit[3:0] of the "Flags" field as defined in cxl
+#     spec r3.1 Table 7-71.
+#
+# @forced-removal: Bit[4] of the "Flags" field in cxl spec r3.1
+#     Table 7-71.  When set, device does not wait for a Release
+#     Dynamic Capacity command from the host.  Host immediately
+#     loses access to released capacity.
+#
+# @sanitize-on-release: Bit[5] of the "Flags" field in cxl spec r3.1
+#     Table 7-71.  When set, device should sanitize all released
+#     capacity as a result of this request.
+#
+# @region: The "Region Number" field as defined in cxl spec r3.1
+#     Table 7-71.  The dynamic capacity region where the capacity
+#     is being added.  Valid range is from 0-7.
+#
+# @tag: The "Tag" field as defined in cxl spec r3.1 Table 7-71.
+#
+# @extents: The "Extent List" field as defined in cxl spec r3.1
+#     Table 7-71.
+#
+# Since : 9.1
+##
+{ 'command': 'cxl-release-dynamic-capacity',
+  'data': { 'path': 'str',
+            'host-id': 'uint16',
+            'removal-policy': 'CXLExtRemovalPolicy',
+            '*forced-removal': 'bool',
+            '*sanitize-on-release': 'bool',
+            'region': 'uint8',
+            '*tag': 'str',
+            'extents': [ 'CXLDynamicCapacityExtent' ]
+           }
+}
