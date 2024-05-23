@@ -233,8 +233,6 @@ code : '{' statements '}'
 argument_decl : REG
                 {
                     emit_arg(c, &@1, &$1);
-                    /* Enqueue register into initialization list */
-                    g_array_append_val(c->inst.init_list, $1);
                 }
               | PRED
                 {

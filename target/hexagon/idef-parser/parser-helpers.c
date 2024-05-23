@@ -1652,26 +1652,28 @@ void gen_inst(Context *c, GString *iname)
 
 
 /*
- * Initialize declared but uninitialized registers, but only for
- * non-conditional instructions
+ * Initialize declared but uninitialized instruction arguments. Only needed for
+ * predicate arguments, initialization of registers is handled by the Hexagon
+ * frontend.
  */
 void gen_inst_init_args(Context *c, YYLTYPE *locp)
 {
+    HexValue *val = NULL;
+    char suffix;
+
+    /* If init_list is NULL arguments have already been initialized */
     if (!c->inst.init_list) {
         return;
     }
 
     for (unsigned i = 0; i < c->inst.init_list->len; i++) {
-        HexValue *val = &g_array_index(c->inst.init_list, HexValue, i);
-        if (val->type == REGISTER_ARG) {
-            /* Nothing to do here */
-        } else if (val->type == PREDICATE) {
-            char suffix = val->is_dotnew ? 'N' : 'V';
-            EMIT_HEAD(c, "tcg_gen_movi_i%u(P%c%c, 0);\n", val->bit_width,
-                      val->pred.id, suffix);
-        } else {
-            yyassert(c, locp, false, "Invalid arg type!");
-        }
+        val = &g_array_index(c->inst.init_list, HexValue, i);
+        suffix = val->is_dotnew ? 'N' : 'V';
+        yyassert(c, locp, val->type == PREDICATE,
+                 "Only predicates need to be initialized!");
+        yyassert(c, locp, val->bit_width == 32,
+                 "Predicates should always be 32 bits");
+        EMIT_HEAD(c, "tcg_gen_movi_i32(P%c%c, 0);\n", val->pred.id, suffix);
     }
 
     /* Free argument init list once we have initialized everything */
