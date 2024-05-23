@@ -28,10 +28,10 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
-#define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
+#define TSC_CUT_RESOLUTION(value, p)  ((value) >> (16 - (p ? 12 : 10)))
 
 typedef struct {
-    qemu_irq pint;	/* Combination of the nPENIRQ and DAV signals */
+    qemu_irq pint;  /* Combination of the nPENIRQ and DAV signals */
     QEMUTimer *timer;
     uint16_t model;
 
@@ -63,7 +63,7 @@ typedef struct {
 } TSC2005State;
 
 enum {
-    TSC_MODE_XYZ_SCAN	= 0x0,
+    TSC_MODE_XYZ_SCAN = 0x0,
     TSC_MODE_XY_SCAN,
     TSC_MODE_X,
     TSC_MODE_Y,
@@ -82,100 +82,100 @@ enum {
 };
 
 static const uint16_t mode_regs[16] = {
-    0xf000,	/* X, Y, Z scan */
-    0xc000,	/* X, Y scan */
-    0x8000,	/* X */
-    0x4000,	/* Y */
-    0x3000,	/* Z */
-    0x0800,	/* AUX */
-    0x0400,	/* TEMP1 */
-    0x0200,	/* TEMP2 */
-    0x0800,	/* AUX scan */
-    0x0040,	/* X test */
-    0x0020,	/* Y test */
-    0x0080,	/* Short-circuit test */
-    0x0000,	/* Reserved */
-    0x0000,	/* X+, X- drivers */
-    0x0000,	/* Y+, Y- drivers */
-    0x0000,	/* Y+, X- drivers */
+    0xf000, /* X, Y, Z scan */
+    0xc000, /* X, Y scan */
+    0x8000, /* X */
+    0x4000, /* Y */
+    0x3000, /* Z */
+    0x0800, /* AUX */
+    0x0400, /* TEMP1 */
+    0x0200, /* TEMP2 */
+    0x0800, /* AUX scan */
+    0x0040, /* X test */
+    0x0020, /* Y test */
+    0x0080, /* Short-circuit test */
+    0x0000, /* Reserved */
+    0x0000, /* X+, X- drivers */
+    0x0000, /* Y+, Y- drivers */
+    0x0000, /* Y+, X- drivers */
 };
 
-#define X_TRANSFORM(s)			\
+#define X_TRANSFORM(s)      \
     ((s->y * s->tr[0] - s->x * s->tr[1]) / s->tr[2] + s->tr[3])
-#define Y_TRANSFORM(s)			\
+#define Y_TRANSFORM(s)      \
     ((s->y * s->tr[4] - s->x * s->tr[5]) / s->tr[6] + s->tr[7])
-#define Z1_TRANSFORM(s)			\
+#define Z1_TRANSFORM(s)     \
     ((400 - ((s)->x >> 7) + ((s)->pressure << 10)) << 4)
-#define Z2_TRANSFORM(s)			\
+#define Z2_TRANSFORM(s)     \
     ((4000 + ((s)->y >> 7) - ((s)->pressure << 10)) << 4)
 
-#define AUX_VAL				(700 << 4)	/* +/- 3 at 12-bit */
-#define TEMP1_VAL			(1264 << 4)	/* +/- 5 at 12-bit */
-#define TEMP2_VAL			(1531 << 4)	/* +/- 5 at 12-bit */
+#define AUX_VAL       (700 << 4)  /* +/- 3 at 12-bit */
+#define TEMP1_VAL     (1264 << 4) /* +/- 5 at 12-bit */
+#define TEMP2_VAL     (1531 << 4) /* +/- 5 at 12-bit */
 
 static uint16_t tsc2005_read(TSC2005State *s, int reg)
 {
     uint16_t ret;
 
     switch (reg) {
-    case 0x0:	/* X */
+    case 0x0: /* X */
         s->dav &= ~mode_regs[TSC_MODE_X];
         return TSC_CUT_RESOLUTION(X_TRANSFORM(s), s->precision) +
                 (s->noise & 3);
-    case 0x1:	/* Y */
+    case 0x1: /* Y */
         s->dav &= ~mode_regs[TSC_MODE_Y];
-        s->noise ++;
+        s->noise++;
         return TSC_CUT_RESOLUTION(Y_TRANSFORM(s), s->precision) ^
                 (s->noise & 3);
-    case 0x2:	/* Z1 */
+    case 0x2: /* Z1 */
         s->dav &= 0xdfff;
         return TSC_CUT_RESOLUTION(Z1_TRANSFORM(s), s->precision) -
                 (s->noise & 3);
-    case 0x3:	/* Z2 */
+    case 0x3: /* Z2 */
         s->dav &= 0xefff;
         return TSC_CUT_RESOLUTION(Z2_TRANSFORM(s), s->precision) |
                 (s->noise & 3);
 
-    case 0x4:	/* AUX */
+    case 0x4: /* AUX */
         s->dav &= ~mode_regs[TSC_MODE_AUX];
         return TSC_CUT_RESOLUTION(AUX_VAL, s->precision);
 
-    case 0x5:	/* TEMP1 */
+    case 0x5: /* TEMP1 */
         s->dav &= ~mode_regs[TSC_MODE_TEMP1];
         return TSC_CUT_RESOLUTION(TEMP1_VAL, s->precision) -
                 (s->noise & 5);
-    case 0x6:	/* TEMP2 */
+    case 0x6: /* TEMP2 */
         s->dav &= 0xdfff;
         s->dav &= ~mode_regs[TSC_MODE_TEMP2];
         return TSC_CUT_RESOLUTION(TEMP2_VAL, s->precision) ^
                 (s->noise & 3);
 
-    case 0x7:	/* Status */
+    case 0x7: /* Status */
         ret = s->dav | (s->reset << 7) | (s->pdst << 2) | 0x0;
         s->dav &= ~(mode_regs[TSC_MODE_X_TEST] | mode_regs[TSC_MODE_Y_TEST] |
                         mode_regs[TSC_MODE_TS_TEST]);
         s->reset = true;
         return ret;
 
-    case 0x8:   /* AUX high threshold */
+    case 0x8: /* AUX high threshold */
         return s->aux_thr[1];
-    case 0x9:   /* AUX low threshold */
+    case 0x9: /* AUX low threshold */
         return s->aux_thr[0];
 
-    case 0xa:   /* TEMP high threshold */
+    case 0xa: /* TEMP high threshold */
         return s->temp_thr[1];
-    case 0xb:   /* TEMP low threshold */
+    case 0xb: /* TEMP low threshold */
         return s->temp_thr[0];
 
-    case 0xc:	/* CFR0 */
+    case 0xc: /* CFR0 */
         return (s->pressure << 15) | ((!s->busy) << 14) |
-                (s->nextprecision << 13) | s->timing[0]; 
-    case 0xd:	/* CFR1 */
+                (s->nextprecision << 13) | s->timing[0];
+    case 0xd: /* CFR1 */
         return s->timing[1];
-    case 0xe:	/* CFR2 */
+    case 0xe: /* CFR2 */
         return (s->pin_func << 14) | s->filter;
 
-    case 0xf:	/* Function select status */
+    case 0xf: /* Function select status */
         return s->function >= 0 ? 1 << s->function : 0;
     }
 
@@ -200,13 +200,14 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
         s->temp_thr[0] = data;
         break;
 
-    case 0xc:	/* CFR0 */
+    case 0xc: /* CFR0 */
         s->host_mode = (data >> 15) != 0;
         if (s->enabled != !(data & 0x4000)) {
             s->enabled = !(data & 0x4000);
             trace_tsc2005_sense(s->enabled ? "enabled" : "disabled");
-            if (s->busy && !s->enabled)
+            if (s->busy && !s->enabled) {
                 timer_del(s->timer);
+            }
             s->busy = s->busy && s->enabled;
         }
         s->nextprecision = (data >> 13) & 1;
@@ -216,10 +217,10 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
                           "tsc2005_write: illegal conversion clock setting\n");
         }
         break;
-    case 0xd:	/* CFR1 */
+    case 0xd: /* CFR1 */
         s->timing[1] = data & 0xf07;
         break;
-    case 0xe:	/* CFR2 */
+    case 0xe: /* CFR2 */
         s->pin_func = (data >> 14) & 3;
         s->filter = data & 0x3fff;
         break;
@@ -258,10 +259,12 @@ static void tsc2005_pin_update(TSC2005State *s)
     switch (s->nextfunction) {
     case TSC_MODE_XYZ_SCAN:
     case TSC_MODE_XY_SCAN:
-        if (!s->host_mode && s->dav)
+        if (!s->host_mode && s->dav) {
             s->enabled = false;
-        if (!s->pressure)
+        }
+        if (!s->pressure) {
             return;
+        }
         /* Fall through */
     case TSC_MODE_AUX_SCAN:
         break;
@@ -269,8 +272,9 @@ static void tsc2005_pin_update(TSC2005State *s)
     case TSC_MODE_X:
     case TSC_MODE_Y:
     case TSC_MODE_Z:
-        if (!s->pressure)
+        if (!s->pressure) {
             return;
+        }
         /* Fall through */
     case TSC_MODE_AUX:
     case TSC_MODE_TEMP1:
@@ -278,8 +282,9 @@ static void tsc2005_pin_update(TSC2005State *s)
     case TSC_MODE_X_TEST:
     case TSC_MODE_Y_TEST:
     case TSC_MODE_TS_TEST:
-        if (s->dav)
+        if (s->dav) {
             s->enabled = false;
+        }
         break;
 
     case TSC_MODE_RESERVED:
@@ -290,13 +295,14 @@ static void tsc2005_pin_update(TSC2005State *s)
         return;
     }
 
-    if (!s->enabled || s->busy)
+    if (!s->enabled || s->busy) {
         return;
+    }
 
     s->busy = true;
     s->precision = s->nextprecision;
     s->function = s->nextfunction;
-    s->pdst = !s->pnd0;	/* Synchronised on internal clock */
+    s->pdst = !s->pnd0; /* Synchronised on internal clock */
     expires = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
         (NANOSECONDS_PER_SECOND >> 7);
     timer_mod(s->timer, expires);
@@ -331,7 +337,7 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
     TSC2005State *s = opaque;
     uint32_t ret = 0;
 
-    switch (s->state ++) {
+    switch (s->state++) {
     case 0:
         if (value & 0x80) {
             /* Command */
@@ -343,8 +349,9 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
                 if (s->enabled != !(value & 1)) {
                     s->enabled = !(value & 1);
                     trace_tsc2005_sense(s->enabled ? "enabled" : "disabled");
-                    if (s->busy && !s->enabled)
+                    if (s->busy && !s->enabled) {
                         timer_del(s->timer);
+                    }
                     s->busy = s->busy && s->enabled;
                 }
                 tsc2005_pin_update(s);
@@ -368,10 +375,11 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
         break;
 
     case 1:
-        if (s->command)
+        if (s->command) {
             ret = (s->data >> 8) & 0xff;
-        else
+        } else {
             s->data |= value << 8;
+        }
         break;
 
     case 2:
@@ -412,8 +420,9 @@ static void tsc2005_timer_tick(void *opaque)
 
     /* Timer ticked -- a set of conversions has been finished.  */
 
-    if (!s->busy)
+    if (!s->busy) {
         return;
+    }
 
     s->busy = false;
     s->dav |= mode_regs[function];
@@ -438,8 +447,9 @@ static void tsc2005_touchscreen_event(void *opaque,
      * signaling TS events immediately, but for now we simulate
      * the first conversion delay for sake of correctness.
      */
-    if (p != s->pressure)
+    if (p != s->pressure) {
         tsc2005_pin_update(s);
+    }
 }
 
 static int tsc2005_post_load(void *opaque, int version_id)

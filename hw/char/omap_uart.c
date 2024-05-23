@@ -61,7 +61,7 @@ struct omap_uart_s *omap_uart_init(hwaddr base,
     s->fclk = fclk;
     s->irq = irq;
     s->serial = serial_mm_init(get_system_memory(), base, 2, irq,
-                               omap_clk_getrate(fclk)/16,
+                               omap_clk_getrate(fclk) / 16,
                                chr ?: qemu_chr_new(label, "null", NULL),
                                DEVICE_NATIVE_ENDIAN);
     return s;
@@ -76,27 +76,27 @@ static uint64_t omap_uart_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (addr) {
-    case 0x20:	/* MDR1 */
+    case 0x20:  /* MDR1 */
         return s->mdr[0];
-    case 0x24:	/* MDR2 */
+    case 0x24:  /* MDR2 */
         return s->mdr[1];
-    case 0x40:	/* SCR */
+    case 0x40:  /* SCR */
         return s->scr;
-    case 0x44:	/* SSR */
+    case 0x44:  /* SSR */
         return 0x0;
-    case 0x48:	/* EBLR (OMAP2) */
+    case 0x48:  /* EBLR (OMAP2) */
         return s->eblr;
-    case 0x4C:	/* OSC_12M_SEL (OMAP1) */
+    case 0x4C:  /* OSC_12M_SEL (OMAP1) */
         return s->clksel;
-    case 0x50:	/* MVR */
+    case 0x50:  /* MVR */
         return 0x30;
-    case 0x54:	/* SYSC (OMAP2) */
+    case 0x54:  /* SYSC (OMAP2) */
         return s->syscontrol;
-    case 0x58:	/* SYSS (OMAP2) */
+    case 0x58:  /* SYSS (OMAP2) */
         return 1;
-    case 0x5c:	/* WER (OMAP2) */
+    case 0x5c:  /* WER (OMAP2) */
         return s->wkup;
-    case 0x60:	/* CFPS (OMAP2) */
+    case 0x60:  /* CFPS (OMAP2) */
         return s->cfps;
     }
 
@@ -115,35 +115,36 @@ static void omap_uart_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x20:	/* MDR1 */
+    case 0x20:  /* MDR1 */
         s->mdr[0] = value & 0x7f;
         break;
-    case 0x24:	/* MDR2 */
+    case 0x24:  /* MDR2 */
         s->mdr[1] = value & 0xff;
         break;
-    case 0x40:	/* SCR */
+    case 0x40:  /* SCR */
         s->scr = value & 0xff;
         break;
-    case 0x48:	/* EBLR (OMAP2) */
+    case 0x48:  /* EBLR (OMAP2) */
         s->eblr = value & 0xff;
         break;
-    case 0x4C:	/* OSC_12M_SEL (OMAP1) */
+    case 0x4C:  /* OSC_12M_SEL (OMAP1) */
         s->clksel = value & 1;
         break;
-    case 0x44:	/* SSR */
-    case 0x50:	/* MVR */
-    case 0x58:	/* SYSS (OMAP2) */
+    case 0x44:  /* SSR */
+    case 0x50:  /* MVR */
+    case 0x58:  /* SYSS (OMAP2) */
         OMAP_RO_REG(addr);
         break;
-    case 0x54:	/* SYSC (OMAP2) */
+    case 0x54:  /* SYSC (OMAP2) */
         s->syscontrol = value & 0x1d;
-        if (value & 2)
+        if (value & 2) {
             omap_uart_reset(s);
+        }
         break;
-    case 0x5c:	/* WER (OMAP2) */
+    case 0x5c:  /* WER (OMAP2) */
         s->wkup = value & 0x7f;
         break;
-    case 0x60:	/* CFPS (OMAP2) */
+    case 0x60:  /* CFPS (OMAP2) */
         s->cfps = value & 0xff;
         break;
     default:
