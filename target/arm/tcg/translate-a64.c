@@ -13623,32 +13623,6 @@ static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
     gen_gvec_op2_ool(s, true, rd, rn, 0, genfn);
 }
 
-static void gen_rax1_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
-{
-    tcg_gen_rotli_i64(d, m, 1);
-    tcg_gen_xor_i64(d, d, n);
-}
-
-static void gen_rax1_vec(unsigned vece, TCGv_vec d, TCGv_vec n, TCGv_vec m)
-{
-    tcg_gen_rotli_vec(vece, d, m, 1);
-    tcg_gen_xor_vec(vece, d, d, n);
-}
-
-void gen_gvec_rax1(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
-                   uint32_t rm_ofs, uint32_t opr_sz, uint32_t max_sz)
-{
-    static const TCGOpcode vecop_list[] = { INDEX_op_rotli_vec, 0 };
-    static const GVecGen3 op = {
-        .fni8 = gen_rax1_i64,
-        .fniv = gen_rax1_vec,
-        .opt_opc = vecop_list,
-        .fno = gen_helper_crypto_rax1,
-        .vece = MO_64,
-    };
-    tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, &op);
-}
-
 /* Crypto three-reg SHA512
  *  31                   21 20  16 15  14  13 12  11  10  9    5 4    0
  * +-----------------------+------+---+---+-----+--------+------+------+
