@@ -1026,6 +1026,11 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
+    /* Set lpar-per-core mode if lpar-per-thread is not supported */
+    if (!pmc->has_lpar_per_thread) {
+        pnv->lpar_per_core = true;
+    }
+
     pnv->num_chips =
         machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
 
@@ -1101,6 +1106,8 @@ static void pnv_init(MachineState *machine)
         object_property_set_int(chip, "nr-threads", machine->smp.threads,
                                 &error_fatal);
         object_property_set_bool(chip, "big-core", pnv->big_core,
+                                &error_fatal);
+        object_property_set_bool(chip, "lpar-per-core", pnv->lpar_per_core,
                                 &error_fatal);
         /*
          * The POWER8 machine use the XICS interrupt interface.
@@ -2338,6 +2345,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                 &error_fatal);
         object_property_set_bool(OBJECT(pnv_core), "quirk-tb-big-core",
                                 pmc->quirk_tb_big_core, &error_fatal);
+        object_property_set_bool(OBJECT(pnv_core), "lpar-per-core",
+                                chip->lpar_per_core, &error_fatal);
         object_property_set_link(OBJECT(pnv_core), "chip", OBJECT(chip),
                                  &error_abort);
 
@@ -2373,6 +2382,7 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_BOOL("big-core", PnvChip, big_core, false),
+    DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2593,6 +2603,18 @@ static void pnv_machine_set_big_core(Object *obj, bool value, Error **errp)
     pnv->big_core = value;
 }
 
+static bool pnv_machine_get_lpar_per_core(Object *obj, Error **errp)
+{
+    PnvMachineState *pnv = PNV_MACHINE(obj);
+    return pnv->lpar_per_core;
+}
+
+static void pnv_machine_set_lpar_per_core(Object *obj, bool value, Error **errp)
+{
+    PnvMachineState *pnv = PNV_MACHINE(obj);
+    pnv->lpar_per_core = value;
+}
+
 static bool pnv_machine_get_hb(Object *obj, Error **errp)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
@@ -2632,6 +2654,8 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->max_smt_threads = 8;
+    /* POWER8 is always lpar-per-core mode */
+    pmc->has_lpar_per_thread = false;
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
@@ -2657,6 +2681,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->max_smt_threads = 4;
+    pmc->has_lpar_per_thread = true;
     pmc->dt_power_mgt = pnv_dt_power_mgt;
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
@@ -2666,6 +2691,12 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
                                    pnv_machine_set_big_core);
     object_class_property_set_description(oc, "big-core",
                               "Use big-core (aka fused-core) mode");
+
+    object_class_property_add_bool(oc, "lpar-per-core",
+                                   pnv_machine_get_lpar_per_core,
+                                   pnv_machine_set_lpar_per_core);
+    object_class_property_set_description(oc, "lpar-per-core",
+                              "Use 1 LPAR per core mode");
 }
 
 static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
@@ -2688,6 +2719,7 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->max_smt_threads = 4;
+    pmc->has_lpar_per_thread = true;
     pmc->quirk_tb_big_core = true;
     pmc->dt_power_mgt = pnv_dt_power_mgt;
 
@@ -2713,6 +2745,12 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
                                    pnv_machine_set_big_core);
     object_class_property_set_description(oc, "big-core",
                               "Use big-core (aka fused-core) mode");
+
+    object_class_property_add_bool(oc, "lpar-per-core",
+                                   pnv_machine_get_lpar_per_core,
+                                   pnv_machine_set_lpar_per_core);
+    object_class_property_set_description(oc, "lpar-per-core",
+                              "Use 1 LPAR per core mode");
 }
 
 static void pnv_machine_p10_rainier_class_init(ObjectClass *oc, void *data)
