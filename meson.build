@@ -3696,7 +3696,7 @@ libmigration = static_library('migration', sources: migration_files + genh,
                               name_suffix: 'fa',
                               build_by_default: false)
 migration = declare_dependency(link_with: libmigration,
-                               dependencies: [zlib, qom, io])
+                               dependencies: [qom, io])
 system_ss.add(migration)
 
 block_ss = block_ss.apply({})
