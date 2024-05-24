@@ -8006,7 +8006,7 @@ static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
     case 0x2f: /* FMINP */
         /* FP op, size[0] is 32 or 64 bit*/
         if (!u) {
-            if (!dc_isar_feature(aa64_fp16, s)) {
+            if ((size & 1) || !dc_isar_feature(aa64_fp16, s)) {
                 unallocated_encoding(s);
                 return;
             } else {
