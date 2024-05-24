@@ -2260,6 +2260,22 @@ DO_3OP_PAIR(gvec_faddp_h, float16_add, float16, H2)
 DO_3OP_PAIR(gvec_faddp_s, float32_add, float32, H4)
 DO_3OP_PAIR(gvec_faddp_d, float64_add, float64, )
 
+DO_3OP_PAIR(gvec_fmaxp_h, float16_max, float16, H2)
+DO_3OP_PAIR(gvec_fmaxp_s, float32_max, float32, H4)
+DO_3OP_PAIR(gvec_fmaxp_d, float64_max, float64, )
+
+DO_3OP_PAIR(gvec_fminp_h, float16_min, float16, H2)
+DO_3OP_PAIR(gvec_fminp_s, float32_min, float32, H4)
+DO_3OP_PAIR(gvec_fminp_d, float64_min, float64, )
+
+DO_3OP_PAIR(gvec_fmaxnump_h, float16_maxnum, float16, H2)
+DO_3OP_PAIR(gvec_fmaxnump_s, float32_maxnum, float32, H4)
+DO_3OP_PAIR(gvec_fmaxnump_d, float64_maxnum, float64, )
+
+DO_3OP_PAIR(gvec_fminnump_h, float16_minnum, float16, H2)
+DO_3OP_PAIR(gvec_fminnump_s, float32_minnum, float32, H4)
+DO_3OP_PAIR(gvec_fminnump_d, float64_minnum, float64, )
+
 #define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
     void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
     {                                                                   \
