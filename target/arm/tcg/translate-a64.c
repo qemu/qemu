@@ -7904,25 +7904,29 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     bool is_q = extract32(insn, 30, 1);
     uint64_t imm = 0;
 
-    if (o2 != 0 || ((cmode == 0xf) && is_neg && !is_q)) {
-        /* Check for FMOV (vector, immediate) - half-precision */
-        if (!(dc_isar_feature(aa64_fp16, s) && o2 && cmode == 0xf)) {
+    if (o2) {
+        if (cmode != 0xf || is_neg) {
             unallocated_encoding(s);
             return;
         }
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    if (cmode == 15 && o2 && !is_neg) {
         /* FMOV (vector, immediate) - half-precision */
+        if (!dc_isar_feature(aa64_fp16, s)) {
+            unallocated_encoding(s);
+            return;
+        }
         imm = vfp_expand_imm(MO_16, abcdefgh);
         /* now duplicate across the lanes */
         imm = dup_const(MO_16, imm);
     } else {
+        if (cmode == 0xf && is_neg && !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
         imm = asimd_imm_const(abcdefgh, cmode, is_neg);
+    }
+
+    if (!fp_access_check(s)) {
+        return;
     }
 
     if (!((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9)) {
