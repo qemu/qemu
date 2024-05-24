@@ -1512,6 +1512,17 @@ struct PowerPCCPUClass {
     int  (*check_attn)(CPUPPCState *env);
 };
 
+static inline bool ppc_cpu_core_single_threaded(CPUState *cs)
+{
+    return cs->nr_threads == 1;
+}
+
+static inline bool ppc_cpu_lpar_single_threaded(CPUState *cs)
+{
+    return !(POWERPC_CPU(cs)->env.flags & POWERPC_FLAG_SMT_1LPAR) ||
+           ppc_cpu_core_single_threaded(cs);
+}
+
 ObjectClass *ppc_cpu_class_by_name(const char *name);
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
 PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr);
