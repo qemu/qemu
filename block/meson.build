@@ -119,7 +119,7 @@ foreach m : [
     module_ss = ss.source_set()
     module_ss.add(when: m[0], if_true: m[2])
     if enable_modules
-      modsrc += module_ss.all_sources()
+      modsrc += m[2]
     endif
     block_modules += {m[1] : module_ss}
   endif
