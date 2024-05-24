@@ -1352,6 +1352,17 @@ static bool do_gvec_fn3(DisasContext *s, arg_qrrr_e *a, GVecGen3Fn *fn)
     return true;
 }
 
+static bool do_gvec_fn3_no64(DisasContext *s, arg_qrrr_e *a, GVecGen3Fn *fn)
+{
+    if (a->esz == MO_64) {
+        return false;
+    }
+    if (fp_access_check(s)) {
+        gen_gvec_fn3(s, a->q, a->rd, a->rn, a->rm, fn, a->esz);
+    }
+    return true;
+}
+
 static bool do_gvec_fn4(DisasContext *s, arg_qrrrr_e *a, GVecGen4Fn *fn)
 {
     if (!a->q && a->esz == MO_64) {
@@ -5246,6 +5257,10 @@ static gen_helper_gvec_3_ptr * const f_vector_fminnmp[3] = {
 TRANS(FMINNMP_v, do_fp3_vector, a, f_vector_fminnmp)
 
 TRANS(ADDP_v, do_gvec_fn3, a, gen_gvec_addp)
+TRANS(SMAXP_v, do_gvec_fn3_no64, a, gen_gvec_smaxp)
+TRANS(SMINP_v, do_gvec_fn3_no64, a, gen_gvec_sminp)
+TRANS(UMAXP_v, do_gvec_fn3_no64, a, gen_gvec_umaxp)
+TRANS(UMINP_v, do_gvec_fn3_no64, a, gen_gvec_uminp)
 
 /*
  * Advanced SIMD scalar/vector x indexed element
@@ -10896,84 +10911,6 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Pairwise op subgroup of C3.6.16.
- *
- * This is called directly for float pairwise
- * operations where the opcode and size are calculated differently.
- */
-static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
-                                   int size, int rn, int rm, int rd)
-{
-    int pass;
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    /* These operations work on the concatenated rm:rn, with each pair of
-     * adjacent elements being operated on to produce an element in the result.
-     */
-    if (size == 3) {
-        g_assert_not_reached();
-    } else {
-        int maxpass = is_q ? 4 : 2;
-        TCGv_i32 tcg_res[4];
-
-        for (pass = 0; pass < maxpass; pass++) {
-            TCGv_i32 tcg_op1 = tcg_temp_new_i32();
-            TCGv_i32 tcg_op2 = tcg_temp_new_i32();
-            NeonGenTwoOpFn *genfn = NULL;
-            int passreg = pass < (maxpass / 2) ? rn : rm;
-            int passelt = (is_q && (pass & 1)) ? 2 : 0;
-
-            read_vec_element_i32(s, tcg_op1, passreg, passelt, MO_32);
-            read_vec_element_i32(s, tcg_op2, passreg, passelt + 1, MO_32);
-            tcg_res[pass] = tcg_temp_new_i32();
-
-            switch (opcode) {
-            case 0x14: /* SMAXP, UMAXP */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_pmax_s8, gen_helper_neon_pmax_u8 },
-                    { gen_helper_neon_pmax_s16, gen_helper_neon_pmax_u16 },
-                    { tcg_gen_smax_i32, tcg_gen_umax_i32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
-            case 0x15: /* SMINP, UMINP */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_pmin_s8, gen_helper_neon_pmin_u8 },
-                    { gen_helper_neon_pmin_s16, gen_helper_neon_pmin_u16 },
-                    { tcg_gen_smin_i32, tcg_gen_umin_i32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
-            default:
-            case 0x17: /* ADDP */
-            case 0x58: /* FMAXNMP */
-            case 0x5a: /* FADDP */
-            case 0x5e: /* FMAXP */
-            case 0x78: /* FMINNMP */
-            case 0x7e: /* FMINP */
-                g_assert_not_reached();
-            }
-
-            /* FP ops called directly, otherwise call now */
-            if (genfn) {
-                genfn(tcg_res[pass], tcg_op1, tcg_op2);
-            }
-        }
-
-        for (pass = 0; pass < maxpass; pass++) {
-            write_vec_element_i32(s, tcg_res[pass], rd, pass, MO_32);
-        }
-        clear_vec_high(s, is_q, rd);
-    }
-}
-
 /* Floating point op subgroup of C3.6.16. */
 static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
 {
@@ -11314,30 +11251,6 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
     case 0x3: /* logic ops */
         disas_simd_3same_logic(s, insn);
         break;
-    case 0x14: /* SMAXP, UMAXP */
-    case 0x15: /* SMINP, UMINP */
-    {
-        /* Pairwise operations */
-        int is_q = extract32(insn, 30, 1);
-        int u = extract32(insn, 29, 1);
-        int size = extract32(insn, 22, 2);
-        int rm = extract32(insn, 16, 5);
-        int rn = extract32(insn, 5, 5);
-        int rd = extract32(insn, 0, 5);
-        if (opcode == 0x17) {
-            if (u || (size == 3 && !is_q)) {
-                unallocated_encoding(s);
-                return;
-            }
-        } else {
-            if (size == 3) {
-                unallocated_encoding(s);
-                return;
-            }
-        }
-        handle_simd_3same_pair(s, is_q, u, opcode, size, rn, rm, rd);
-        break;
-    }
     case 0x18 ... 0x31:
         /* floating point ops, sz[1] and U are part of opcode */
         disas_simd_3same_float(s, insn);
@@ -11345,6 +11258,8 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
     default:
         disas_simd_3same_int(s, insn);
         break;
+    case 0x14: /* SMAXP, UMAXP */
+    case 0x15: /* SMINP, UMINP */
     case 0x17: /* ADDP */
         unallocated_encoding(s);
         break;

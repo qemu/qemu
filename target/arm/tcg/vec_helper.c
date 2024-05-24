@@ -2259,6 +2259,22 @@ DO_3OP_PAIR(gvec_addp_s, ADD, uint32_t, H4)
 DO_3OP_PAIR(gvec_addp_d, ADD, uint64_t, )
 #undef  ADD
 
+DO_3OP_PAIR(gvec_smaxp_b, MAX, int8_t, H1)
+DO_3OP_PAIR(gvec_smaxp_h, MAX, int16_t, H2)
+DO_3OP_PAIR(gvec_smaxp_s, MAX, int32_t, H4)
+
+DO_3OP_PAIR(gvec_umaxp_b, MAX, uint8_t, H1)
+DO_3OP_PAIR(gvec_umaxp_h, MAX, uint16_t, H2)
+DO_3OP_PAIR(gvec_umaxp_s, MAX, uint32_t, H4)
+
+DO_3OP_PAIR(gvec_sminp_b, MIN, int8_t, H1)
+DO_3OP_PAIR(gvec_sminp_h, MIN, int16_t, H2)
+DO_3OP_PAIR(gvec_sminp_s, MIN, int32_t, H4)
+
+DO_3OP_PAIR(gvec_uminp_b, MIN, uint8_t, H1)
+DO_3OP_PAIR(gvec_uminp_h, MIN, uint16_t, H2)
+DO_3OP_PAIR(gvec_uminp_s, MIN, uint32_t, H4)
+
 #undef DO_3OP_PAIR
 
 #define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
