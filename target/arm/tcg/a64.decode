@@ -658,3 +658,16 @@ SM3TT2B         11001110 010 ..... 10 .. 11 ..... ..... @crypto3i
 ### Cryptographic XAR
 
 XAR             1100 1110 100 rm:5 imm:6 rn:5 rd:5
+
+### Advanced SIMD scalar copy
+
+DUP_element_s   0101 1110 000 imm:5 0 0000 1 rn:5 rd:5
+
+### Advanced SIMD copy
+
+DUP_element_v   0 q:1 00 1110 000 imm:5 0 0000 1 rn:5 rd:5
+DUP_general     0 q:1 00 1110 000 imm:5 0 0001 1 rn:5 rd:5
+INS_general     0 1   00 1110 000 imm:5 0 0011 1 rn:5 rd:5
+SMOV            0 q:1 00 1110 000 imm:5 0 0101 1 rn:5 rd:5
+UMOV            0 q:1 00 1110 000 imm:5 0 0111 1 rn:5 rd:5
+INS_element     0 1   10 1110 000 di:5  0 si:4 1 rn:5 rd:5
