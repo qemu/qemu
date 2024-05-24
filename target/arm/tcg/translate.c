@@ -8765,12 +8765,12 @@ static bool trans_PLD(DisasContext *s, arg_PLD *a)
     return ENABLE_ARCH_5TE;
 }
 
-static bool trans_PLDW(DisasContext *s, arg_PLD *a)
+static bool trans_PLDW(DisasContext *s, arg_PLDW *a)
 {
     return arm_dc_feature(s, ARM_FEATURE_V7MP);
 }
 
-static bool trans_PLI(DisasContext *s, arg_PLD *a)
+static bool trans_PLI(DisasContext *s, arg_PLI *a)
 {
     return ENABLE_ARCH_7;
 }
