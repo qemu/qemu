@@ -5066,6 +5066,20 @@ static gen_helper_gvec_3_ptr * const f_vector_fmulx[3] = {
 };
 TRANS(FMULX_v, do_fp3_vector, a, f_vector_fmulx)
 
+static gen_helper_gvec_3_ptr * const f_vector_fmla[3] = {
+    gen_helper_gvec_vfma_h,
+    gen_helper_gvec_vfma_s,
+    gen_helper_gvec_vfma_d,
+};
+TRANS(FMLA_v, do_fp3_vector, a, f_vector_fmla)
+
+static gen_helper_gvec_3_ptr * const f_vector_fmls[3] = {
+    gen_helper_gvec_vfms_h,
+    gen_helper_gvec_vfms_s,
+    gen_helper_gvec_vfms_d,
+};
+TRANS(FMLS_v, do_fp3_vector, a, f_vector_fmls)
+
 /*
  * Advanced SIMD scalar/vector x indexed element
  */
@@ -5115,6 +5129,64 @@ static bool do_fp3_scalar_idx(DisasContext *s, arg_rrx_e *a, const FPScalar *f)
 TRANS(FMUL_si, do_fp3_scalar_idx, a, &f_scalar_fmul)
 TRANS(FMULX_si, do_fp3_scalar_idx, a, &f_scalar_fmulx)
 
+static bool do_fmla_scalar_idx(DisasContext *s, arg_rrx_e *a, bool neg)
+{
+    switch (a->esz) {
+    case MO_64:
+        if (fp_access_check(s)) {
+            TCGv_i64 t0 = read_fp_dreg(s, a->rd);
+            TCGv_i64 t1 = read_fp_dreg(s, a->rn);
+            TCGv_i64 t2 = tcg_temp_new_i64();
+
+            read_vec_element(s, t2, a->rm, a->idx, MO_64);
+            if (neg) {
+                gen_vfp_negd(t1, t1);
+            }
+            gen_helper_vfp_muladdd(t0, t1, t2, t0, fpstatus_ptr(FPST_FPCR));
+            write_fp_dreg(s, a->rd, t0);
+        }
+        break;
+    case MO_32:
+        if (fp_access_check(s)) {
+            TCGv_i32 t0 = read_fp_sreg(s, a->rd);
+            TCGv_i32 t1 = read_fp_sreg(s, a->rn);
+            TCGv_i32 t2 = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, t2, a->rm, a->idx, MO_32);
+            if (neg) {
+                gen_vfp_negs(t1, t1);
+            }
+            gen_helper_vfp_muladds(t0, t1, t2, t0, fpstatus_ptr(FPST_FPCR));
+            write_fp_sreg(s, a->rd, t0);
+        }
+        break;
+    case MO_16:
+        if (!dc_isar_feature(aa64_fp16, s)) {
+            return false;
+        }
+        if (fp_access_check(s)) {
+            TCGv_i32 t0 = read_fp_hreg(s, a->rd);
+            TCGv_i32 t1 = read_fp_hreg(s, a->rn);
+            TCGv_i32 t2 = tcg_temp_new_i32();
+
+            read_vec_element_i32(s, t2, a->rm, a->idx, MO_16);
+            if (neg) {
+                gen_vfp_negh(t1, t1);
+            }
+            gen_helper_advsimd_muladdh(t0, t1, t2, t0,
+                                       fpstatus_ptr(FPST_FPCR_F16));
+            write_fp_sreg(s, a->rd, t0);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+TRANS(FMLA_si, do_fmla_scalar_idx, a, false)
+TRANS(FMLS_si, do_fmla_scalar_idx, a, true)
+
 static bool do_fp3_vector_idx(DisasContext *s, arg_qrrx_e *a,
                               gen_helper_gvec_3_ptr * const fns[3])
 {
@@ -5156,6 +5228,42 @@ static gen_helper_gvec_3_ptr * const f_vector_idx_fmulx[3] = {
     gen_helper_gvec_fmulx_idx_d,
 };
 TRANS(FMULX_vi, do_fp3_vector_idx, a, f_vector_idx_fmulx)
+
+static bool do_fmla_vector_idx(DisasContext *s, arg_qrrx_e *a, bool neg)
+{
+    static gen_helper_gvec_4_ptr * const fns[3] = {
+        gen_helper_gvec_fmla_idx_h,
+        gen_helper_gvec_fmla_idx_s,
+        gen_helper_gvec_fmla_idx_d,
+    };
+    MemOp esz = a->esz;
+
+    switch (esz) {
+    case MO_64:
+        if (!a->q) {
+            return false;
+        }
+        break;
+    case MO_32:
+        break;
+    case MO_16:
+        if (!dc_isar_feature(aa64_fp16, s)) {
+            return false;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    if (fp_access_check(s)) {
+        gen_gvec_op4_fpst(s, a->q, a->rd, a->rn, a->rm, a->rd,
+                          esz == MO_16, (a->idx << 1) | neg,
+                          fns[esz - 1]);
+    }
+    return true;
+}
+
+TRANS(FMLA_vi, do_fmla_vector_idx, a, false)
+TRANS(FMLS_vi, do_fmla_vector_idx, a, true)
 
 
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
@@ -9119,15 +9227,6 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element(s, tcg_op2, rm, pass, MO_64);
 
             switch (fpopcode) {
-            case 0x39: /* FMLS */
-                /* As usual for ARM, separate negation for fused multiply-add */
-                gen_vfp_negd(tcg_op1, tcg_op1);
-                /* fall through */
-            case 0x19: /* FMLA */
-                read_vec_element(s, tcg_res, rd, pass, MO_64);
-                gen_helper_vfp_muladdd(tcg_res, tcg_op1, tcg_op2,
-                                       tcg_res, fpst);
-                break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
@@ -9155,10 +9254,12 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             default:
             case 0x18: /* FMAXNM */
+            case 0x19: /* FMLA */
             case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
             case 0x1e: /* FMAX */
             case 0x38: /* FMINNM */
+            case 0x39: /* FMLS */
             case 0x3a: /* FSUB */
             case 0x3e: /* FMIN */
             case 0x5b: /* FMUL */
@@ -9177,15 +9278,6 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
 
             switch (fpopcode) {
-            case 0x39: /* FMLS */
-                /* As usual for ARM, separate negation for fused multiply-add */
-                gen_vfp_negs(tcg_op1, tcg_op1);
-                /* fall through */
-            case 0x19: /* FMLA */
-                read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
-                gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2,
-                                       tcg_res, fpst);
-                break;
             case 0x1c: /* FCMEQ */
                 gen_helper_neon_ceq_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
@@ -9213,10 +9305,12 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             default:
             case 0x18: /* FMAXNM */
+            case 0x19: /* FMLA */
             case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
             case 0x1e: /* FMAX */
             case 0x38: /* FMINNM */
+            case 0x39: /* FMLS */
             case 0x3a: /* FSUB */
             case 0x3e: /* FMIN */
             case 0x5b: /* FMUL */
@@ -11140,8 +11234,6 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     case 0x3f: /* FRSQRTS */
     case 0x5d: /* FACGE */
     case 0x7d: /* FACGT */
-    case 0x19: /* FMLA */
-    case 0x39: /* FMLS */
     case 0x1c: /* FCMEQ */
     case 0x5c: /* FCMGE */
     case 0x7a: /* FABD */
@@ -11174,10 +11266,12 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
 
     default:
     case 0x18: /* FMAXNM */
+    case 0x19: /* FMLA */
     case 0x1a: /* FADD */
     case 0x1b: /* FMULX */
     case 0x1e: /* FMAX */
     case 0x38: /* FMINNM */
+    case 0x39: /* FMLS */
     case 0x3a: /* FSUB */
     case 0x3e: /* FMIN */
     case 0x5b: /* FMUL */
@@ -11523,10 +11617,8 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
     int pass;
 
     switch (fpopcode) {
-    case 0x1: /* FMLA */
     case 0x4: /* FCMEQ */
     case 0x7: /* FRECPS */
-    case 0x9: /* FMLS */
     case 0xf: /* FRSQRTS */
     case 0x14: /* FCMGE */
     case 0x15: /* FACGE */
@@ -11544,10 +11636,12 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
         break;
     default:
     case 0x0: /* FMAXNM */
+    case 0x1: /* FMLA */
     case 0x2: /* FADD */
     case 0x3: /* FMULX */
     case 0x6: /* FMAX */
     case 0x8: /* FMINNM */
+    case 0x9: /* FMLS */
     case 0xa: /* FSUB */
     case 0xe: /* FMIN */
     case 0x13: /* FMUL */
@@ -11617,23 +11711,11 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_16);
 
             switch (fpopcode) {
-            case 0x1: /* FMLA */
-                read_vec_element_i32(s, tcg_res, rd, pass, MO_16);
-                gen_helper_advsimd_muladdh(tcg_res, tcg_op1, tcg_op2, tcg_res,
-                                           fpst);
-                break;
             case 0x4: /* FCMEQ */
                 gen_helper_advsimd_ceq_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x7: /* FRECPS */
                 gen_helper_recpsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x9: /* FMLS */
-                /* As usual for ARM, separate negation for fused multiply-add */
-                tcg_gen_xori_i32(tcg_op1, tcg_op1, 0x8000);
-                read_vec_element_i32(s, tcg_res, rd, pass, MO_16);
-                gen_helper_advsimd_muladdh(tcg_res, tcg_op1, tcg_op2, tcg_res,
-                                           fpst);
                 break;
             case 0xf: /* FRSQRTS */
                 gen_helper_rsqrtsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -11656,10 +11738,12 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
                 break;
             default:
             case 0x0: /* FMAXNM */
+            case 0x1: /* FMLA */
             case 0x2: /* FADD */
             case 0x3: /* FMULX */
             case 0x6: /* FMAX */
             case 0x8: /* FMINNM */
+            case 0x9: /* FMLS */
             case 0xa: /* FSUB */
             case 0xe: /* FMIN */
             case 0x13: /* FMUL */
@@ -12880,10 +12964,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x0c: /* SQDMULH */
     case 0x0d: /* SQRDMULH */
         break;
-    case 0x01: /* FMLA */
-    case 0x05: /* FMLS */
-        is_fp = 1;
-        break;
     case 0x1d: /* SQRDMLAH */
     case 0x1f: /* SQRDMLSH */
         if (!dc_isar_feature(aa64_rdm, s)) {
@@ -12950,6 +13030,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         /* is_fp, but we pass tcg_env not fp_status.  */
         break;
     default:
+    case 0x01: /* FMLA */
+    case 0x05: /* FMLS */
     case 0x09: /* FMUL */
     case 0x19: /* FMULX */
         unallocated_encoding(s);
@@ -12958,20 +13040,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
     switch (is_fp) {
     case 1: /* normal fp */
-        /* convert insn encoded size to MemOp size */
-        switch (size) {
-        case 0: /* half-precision */
-            size = MO_16;
-            is_fp16 = true;
-            break;
-        case MO_32: /* single precision */
-        case MO_64: /* double precision */
-            break;
-        default:
-            unallocated_encoding(s);
-            return;
-        }
-        break;
+        unallocated_encoding(s); /* in decodetree */
+        return;
 
     case 2: /* complex fp */
         /* Each indexable element is a complex pair.  */
@@ -13150,38 +13220,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     }
 
     if (size == 3) {
-        TCGv_i64 tcg_idx = tcg_temp_new_i64();
-        int pass;
-
-        assert(is_fp && is_q && !is_long);
-
-        read_vec_element(s, tcg_idx, rm, index, MO_64);
-
-        for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
-            TCGv_i64 tcg_op = tcg_temp_new_i64();
-            TCGv_i64 tcg_res = tcg_temp_new_i64();
-
-            read_vec_element(s, tcg_op, rn, pass, MO_64);
-
-            switch (16 * u + opcode) {
-            case 0x05: /* FMLS */
-                /* As usual for ARM, separate negation for fused multiply-add */
-                gen_vfp_negd(tcg_op, tcg_op);
-                /* fall through */
-            case 0x01: /* FMLA */
-                read_vec_element(s, tcg_res, rd, pass, MO_64);
-                gen_helper_vfp_muladdd(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
-                break;
-            default:
-            case 0x09: /* FMUL */
-            case 0x19: /* FMULX */
-                g_assert_not_reached();
-            }
-
-            write_vec_element(s, tcg_res, rd, pass, MO_64);
-        }
-
-        clear_vec_high(s, !is_scalar, rd);
+        g_assert_not_reached();
     } else if (!is_long) {
         /* 32 bit floating point, or 16 or 32 bit integer.
          * For the 16 bit scalar case we use the usual Neon helpers and
@@ -13237,38 +13276,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 genfn(tcg_res, tcg_op, tcg_res);
                 break;
             }
-            case 0x05: /* FMLS */
-            case 0x01: /* FMLA */
-                read_vec_element_i32(s, tcg_res, rd, pass,
-                                     is_scalar ? size : MO_32);
-                switch (size) {
-                case 1:
-                    if (opcode == 0x5) {
-                        /* As usual for ARM, separate negation for fused
-                         * multiply-add */
-                        tcg_gen_xori_i32(tcg_op, tcg_op, 0x80008000);
-                    }
-                    if (is_scalar) {
-                        gen_helper_advsimd_muladdh(tcg_res, tcg_op, tcg_idx,
-                                                   tcg_res, fpst);
-                    } else {
-                        gen_helper_advsimd_muladd2h(tcg_res, tcg_op, tcg_idx,
-                                                    tcg_res, fpst);
-                    }
-                    break;
-                case 2:
-                    if (opcode == 0x5) {
-                        /* As usual for ARM, separate negation for
-                         * fused multiply-add */
-                        tcg_gen_xori_i32(tcg_op, tcg_op, 0x80000000);
-                    }
-                    gen_helper_vfp_muladds(tcg_res, tcg_op, tcg_idx,
-                                           tcg_res, fpst);
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
-                break;
             case 0x0c: /* SQDMULH */
                 if (size == 1) {
                     gen_helper_neon_qdmulh_s16(tcg_res, tcg_env,
@@ -13310,6 +13317,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 }
                 break;
             default:
+            case 0x01: /* FMLA */
+            case 0x05: /* FMLS */
             case 0x09: /* FMUL */
             case 0x19: /* FMULX */
                 g_assert_not_reached();
