@@ -3602,6 +3602,7 @@ modinfo_files = []
 
 block_mods = []
 system_mods = []
+emulator_modules = []
 foreach d, list : modules
   if not (d == 'block' ? have_block : have_system)
     continue
@@ -3609,14 +3610,20 @@ foreach d, list : modules
 
   foreach m, module_ss : list
     if enable_modules
+      module_ss.add(modulecommon)
       module_ss = module_ss.apply(config_all_devices, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
-                          dependencies: [modulecommon, module_ss.dependencies()], pic: true)
+                          dependencies: module_ss.dependencies(), pic: true)
       if d == 'block'
         block_mods += sl
       else
         system_mods += sl
       endif
+      emulator_modules += shared_module(sl.name(),
+                    name_prefix: '',
+                    link_whole: sl,
+                    install: true,
+                    install_dir: qemu_moddir)
       if module_ss.sources() != []
         # FIXME: Should use sl.extract_all_objects(recursive: true) as
         # input. Sources can be used multiple times but objects are
@@ -3642,6 +3649,7 @@ endforeach
 foreach d, list : target_modules
   foreach m, module_ss : list
     if enable_modules
+      module_ss.add(modulecommon)
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
@@ -3654,11 +3662,16 @@ foreach d, list : target_modules
             module_name = d + '-' + m + '-' + config_target['TARGET_NAME']
             sl = static_library(module_name,
                                 [genh, target_module_ss.sources()],
-                                dependencies: [modulecommon, target_module_ss.dependencies()],
+                                dependencies: target_module_ss.dependencies(),
                                 include_directories: target_inc,
                                 c_args: c_args,
                                 pic: true)
             system_mods += sl
+            emulator_modules += shared_module(sl.name(),
+                    name_prefix: '',
+                    link_whole: sl,
+                    install: true,
+                    install_dir: qemu_moddir)
             # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
@@ -3692,6 +3705,10 @@ if enable_modules
       hw_arch[arch].add(modinfo_dep)
     endif
   endforeach
+
+  if emulator_modules.length() > 0
+    alias_target('modules', emulator_modules)
+  endif
 endif
 
 nm = find_program('nm')
@@ -3784,19 +3801,6 @@ common_ss.add(hwcore)
 ###########
 # Targets #
 ###########
-
-emulator_modules = []
-foreach m : block_mods + system_mods
-  emulator_modules += shared_module(m.name(),
-                build_by_default: true,
-                name_prefix: '',
-                link_whole: m,
-                install: true,
-                install_dir: qemu_moddir)
-endforeach
-if emulator_modules.length() > 0
-  alias_target('modules', emulator_modules)
-endif
 
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
