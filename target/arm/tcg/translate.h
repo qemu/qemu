@@ -406,6 +406,36 @@ static inline void gen_swstep_exception(DisasContext *s, int isv, int ex)
  */
 uint64_t vfp_expand_imm(int size, uint8_t imm8);
 
+static inline void gen_vfp_absh(TCGv_i32 d, TCGv_i32 s)
+{
+    tcg_gen_andi_i32(d, s, INT16_MAX);
+}
+
+static inline void gen_vfp_abss(TCGv_i32 d, TCGv_i32 s)
+{
+    tcg_gen_andi_i32(d, s, INT32_MAX);
+}
+
+static inline void gen_vfp_absd(TCGv_i64 d, TCGv_i64 s)
+{
+    tcg_gen_andi_i64(d, s, INT64_MAX);
+}
+
+static inline void gen_vfp_negh(TCGv_i32 d, TCGv_i32 s)
+{
+    tcg_gen_xori_i32(d, s, 1u << 15);
+}
+
+static inline void gen_vfp_negs(TCGv_i32 d, TCGv_i32 s)
+{
+    tcg_gen_xori_i32(d, s, 1u << 31);
+}
+
+static inline void gen_vfp_negd(TCGv_i64 d, TCGv_i64 s)
+{
+    tcg_gen_xori_i64(d, s, 1ull << 63);
+}
+
 /* Vector operations shared between ARM and AArch64.  */
 void gen_gvec_ceq0(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
                    uint32_t opr_sz, uint32_t max_sz);

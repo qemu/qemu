@@ -6591,10 +6591,10 @@ static void handle_fp_1src_half(DisasContext *s, int opcode, int rd, int rn)
         tcg_gen_mov_i32(tcg_res, tcg_op);
         break;
     case 0x1: /* FABS */
-        tcg_gen_andi_i32(tcg_res, tcg_op, 0x7fff);
+        gen_vfp_absh(tcg_res, tcg_op);
         break;
     case 0x2: /* FNEG */
-        tcg_gen_xori_i32(tcg_res, tcg_op, 0x8000);
+        gen_vfp_negh(tcg_res, tcg_op);
         break;
     case 0x3: /* FSQRT */
         fpst = fpstatus_ptr(FPST_FPCR_F16);
@@ -6645,10 +6645,10 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
         tcg_gen_mov_i32(tcg_res, tcg_op);
         goto done;
     case 0x1: /* FABS */
-        gen_helper_vfp_abss(tcg_res, tcg_op);
+        gen_vfp_abss(tcg_res, tcg_op);
         goto done;
     case 0x2: /* FNEG */
-        gen_helper_vfp_negs(tcg_res, tcg_op);
+        gen_vfp_negs(tcg_res, tcg_op);
         goto done;
     case 0x3: /* FSQRT */
         gen_helper_vfp_sqrts(tcg_res, tcg_op, tcg_env);
@@ -6720,10 +6720,10 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
 
     switch (opcode) {
     case 0x1: /* FABS */
-        gen_helper_vfp_absd(tcg_res, tcg_op);
+        gen_vfp_absd(tcg_res, tcg_op);
         goto done;
     case 0x2: /* FNEG */
-        gen_helper_vfp_negd(tcg_res, tcg_op);
+        gen_vfp_negd(tcg_res, tcg_op);
         goto done;
     case 0x3: /* FSQRT */
         gen_helper_vfp_sqrtd(tcg_res, tcg_op, tcg_env);
@@ -6949,7 +6949,7 @@ static void handle_fp_2src_single(DisasContext *s, int opcode,
     switch (opcode) {
     case 0x8: /* FNMUL */
         gen_helper_vfp_muls(tcg_res, tcg_op1, tcg_op2, fpst);
-        gen_helper_vfp_negs(tcg_res, tcg_res);
+        gen_vfp_negs(tcg_res, tcg_res);
         break;
     default:
     case 0x0: /* FMUL */
@@ -6983,7 +6983,7 @@ static void handle_fp_2src_double(DisasContext *s, int opcode,
     switch (opcode) {
     case 0x8: /* FNMUL */
         gen_helper_vfp_muld(tcg_res, tcg_op1, tcg_op2, fpst);
-        gen_helper_vfp_negd(tcg_res, tcg_res);
+        gen_vfp_negd(tcg_res, tcg_res);
         break;
     default:
     case 0x0: /* FMUL */
@@ -7017,7 +7017,7 @@ static void handle_fp_2src_half(DisasContext *s, int opcode,
     switch (opcode) {
     case 0x8: /* FNMUL */
         gen_helper_advsimd_mulh(tcg_res, tcg_op1, tcg_op2, fpst);
-        tcg_gen_xori_i32(tcg_res, tcg_res, 0x8000);
+        gen_vfp_negh(tcg_res, tcg_res);
         break;
     default:
     case 0x0: /* FMUL */
@@ -7102,11 +7102,11 @@ static void handle_fp_3src_single(DisasContext *s, bool o0, bool o1,
      * flipped if it is a negated-input.
      */
     if (o1 == true) {
-        gen_helper_vfp_negs(tcg_op3, tcg_op3);
+        gen_vfp_negs(tcg_op3, tcg_op3);
     }
 
     if (o0 != o1) {
-        gen_helper_vfp_negs(tcg_op1, tcg_op1);
+        gen_vfp_negs(tcg_op1, tcg_op1);
     }
 
     gen_helper_vfp_muladds(tcg_res, tcg_op1, tcg_op2, tcg_op3, fpst);
@@ -7134,11 +7134,11 @@ static void handle_fp_3src_double(DisasContext *s, bool o0, bool o1,
      * flipped if it is a negated-input.
      */
     if (o1 == true) {
-        gen_helper_vfp_negd(tcg_op3, tcg_op3);
+        gen_vfp_negd(tcg_op3, tcg_op3);
     }
 
     if (o0 != o1) {
-        gen_helper_vfp_negd(tcg_op1, tcg_op1);
+        gen_vfp_negd(tcg_op1, tcg_op1);
     }
 
     gen_helper_vfp_muladdd(tcg_res, tcg_op1, tcg_op2, tcg_op3, fpst);
@@ -9246,7 +9246,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             switch (fpopcode) {
             case 0x39: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
-                gen_helper_vfp_negd(tcg_op1, tcg_op1);
+                gen_vfp_negd(tcg_op1, tcg_op1);
                 /* fall through */
             case 0x19: /* FMLA */
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
@@ -9270,7 +9270,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
-                gen_helper_vfp_absd(tcg_res, tcg_res);
+                gen_vfp_absd(tcg_res, tcg_res);
                 break;
             case 0x7c: /* FCMGT */
                 gen_helper_neon_cgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -9304,7 +9304,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             switch (fpopcode) {
             case 0x39: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
-                gen_helper_vfp_negs(tcg_op1, tcg_op1);
+                gen_vfp_negs(tcg_op1, tcg_op1);
                 /* fall through */
             case 0x19: /* FMLA */
                 read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
@@ -9328,7 +9328,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                 break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
-                gen_helper_vfp_abss(tcg_res, tcg_res);
+                gen_vfp_abss(tcg_res, tcg_res);
                 break;
             case 0x7c: /* FCMGT */
                 gen_helper_neon_cgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
@@ -9741,10 +9741,10 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
         }
         break;
     case 0x2f: /* FABS */
-        gen_helper_vfp_absd(tcg_rd, tcg_rn);
+        gen_vfp_absd(tcg_rd, tcg_rn);
         break;
     case 0x6f: /* FNEG */
-        gen_helper_vfp_negd(tcg_rd, tcg_rn);
+        gen_vfp_negd(tcg_rd, tcg_rn);
         break;
     case 0x7f: /* FSQRT */
         gen_helper_vfp_sqrtd(tcg_rd, tcg_rn, tcg_env);
@@ -12567,10 +12567,10 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     }
                     break;
                 case 0x2f: /* FABS */
-                    gen_helper_vfp_abss(tcg_res, tcg_op);
+                    gen_vfp_abss(tcg_res, tcg_op);
                     break;
                 case 0x6f: /* FNEG */
-                    gen_helper_vfp_negs(tcg_res, tcg_op);
+                    gen_vfp_negs(tcg_res, tcg_op);
                     break;
                 case 0x7f: /* FSQRT */
                     gen_helper_vfp_sqrts(tcg_res, tcg_op, tcg_env);
@@ -13291,7 +13291,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             switch (16 * u + opcode) {
             case 0x05: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
-                gen_helper_vfp_negd(tcg_op, tcg_op);
+                gen_vfp_negd(tcg_op, tcg_op);
                 /* fall through */
             case 0x01: /* FMLA */
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
