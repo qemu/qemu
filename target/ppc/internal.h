@@ -234,51 +234,23 @@ void destroy_ppc_opcodes(PowerPCCPU *cpu);
 void ppc_gdb_init(CPUState *cs, PowerPCCPUClass *ppc);
 const gchar *ppc_gdb_arch_name(CPUState *cs);
 
-/**
- * prot_for_access_type:
- * @access_type: Access type
- *
- * Return the protection bit required for the given access type.
- */
-static inline int prot_for_access_type(MMUAccessType access_type)
-{
-    switch (access_type) {
-    case MMU_INST_FETCH:
-        return PAGE_EXEC;
-    case MMU_DATA_LOAD:
-        return PAGE_READ;
-    case MMU_DATA_STORE:
-        return PAGE_WRITE;
-    }
-    g_assert_not_reached();
-}
-
 #ifndef CONFIG_USER_ONLY
 
-/* PowerPC MMU emulation */
+/* Check if permission bit required for the access_type is set in prot */
+static inline int check_prot_access_type(int prot, MMUAccessType access_type)
+{
+    return prot & (1 << access_type);
+}
 
-typedef struct mmu_ctx_t mmu_ctx_t;
+/* PowerPC MMU emulation */
 
 bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp,
                       int mmu_idx, bool guest_visible);
-int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
-                                     target_ulong eaddr,
-                                     MMUAccessType access_type, int type,
-                                     int mmu_idx);
+
 /* Software driven TLB helpers */
 int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
                                     int way, int is_code);
-/* Context used internally during MMU translations */
-struct mmu_ctx_t {
-    hwaddr raddr;      /* Real address              */
-    hwaddr eaddr;      /* Effective address         */
-    int prot;                      /* Protection bits           */
-    hwaddr hash[2];    /* Pagetable hash values     */
-    target_ulong ptem;             /* Virtual segment ID | API  */
-    int key;                       /* Access key                */
-    int nx;                        /* Non-execute area          */
-};
 
 #endif /* !CONFIG_USER_ONLY */
 

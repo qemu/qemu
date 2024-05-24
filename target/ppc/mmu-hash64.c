@@ -517,9 +517,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
     const ppc_hash_pte64_t *hptes;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        return vhc->map_hptes(cpu->vhyp, ptex, n);
+        return cpu->vhyp_class->map_hptes(cpu->vhyp, ptex, n);
     }
     base = ppc_hash64_hpt_base(cpu);
 
@@ -539,9 +537,7 @@ void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
                             hwaddr ptex, int n)
 {
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->unmap_hptes(cpu->vhyp, hptes, ptex, n);
+        cpu->vhyp_class->unmap_hptes(cpu->vhyp, hptes, ptex, n);
         return;
     }
 
@@ -821,9 +817,7 @@ static void ppc_hash64_set_r(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
     hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + HPTE64_DW1_R;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->hpte_set_r(cpu->vhyp, ptex, pte1);
+        cpu->vhyp_class->hpte_set_r(cpu->vhyp, ptex, pte1);
         return;
     }
     base = ppc_hash64_hpt_base(cpu);
@@ -838,9 +832,7 @@ static void ppc_hash64_set_c(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
     hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + HPTE64_DW1_C;
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->hpte_set_c(cpu->vhyp, ptex, pte1);
+        cpu->vhyp_class->hpte_set_c(cpu->vhyp, ptex, pte1);
         return;
     }
     base = ppc_hash64_hpt_base(cpu);
@@ -1097,7 +1089,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = exec_prot & pp_prot & amr_prot;
 
-    need_prot = prot_for_access_type(access_type);
+    need_prot = check_prot_access_type(PAGE_RWX, access_type);
     if (need_prot & ~prot) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");

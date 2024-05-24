@@ -14,125 +14,88 @@ static inline TCGv_ptr gen_avr_ptr(int reg)
     return r;
 }
 
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    TCGv EA;                                                                  \
-    TCGv_i64 avr;                                                             \
-    if (unlikely(!ctx->altivec_enabled)) {                                    \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    avr = tcg_temp_new_i64();                                                 \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /*                                                                        \
-     * We only need to swap high and low halves. gen_qemu_ld64_i64            \
-     * does necessary 64-bit byteswap already.                                \
-     */                                                                       \
-    if (ctx->le_mode) {                                                       \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, false);                               \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, true);                                \
-    } else {                                                                  \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, true);                                \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, false);                               \
-    }                                                                         \
+static bool trans_LVX(DisasContext *ctx, arg_X *a)
+{
+    TCGv EA;
+    TCGv_i64 avr;
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
+    gen_set_access_type(ctx, ACCESS_INT);
+    avr = tcg_temp_new_i64();
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    tcg_gen_andi_tl(EA, EA, ~0xf);
+    /*
+     * We only need to swap high and low halves. gen_qemu_ld64_i64
+     * does necessary 64-bit byteswap already.
+     */
+    gen_qemu_ld64_i64(ctx, avr, EA);
+    set_avr64(a->rt, avr, !ctx->le_mode);
+    tcg_gen_addi_tl(EA, EA, 8);
+    gen_qemu_ld64_i64(ctx, avr, EA);
+    set_avr64(a->rt, avr, ctx->le_mode);
+    return true;
 }
 
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-static void gen_st##name(DisasContext *ctx)                                   \
-{                                                                             \
-    TCGv EA;                                                                  \
-    TCGv_i64 avr;                                                             \
-    if (unlikely(!ctx->altivec_enabled)) {                                    \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    avr = tcg_temp_new_i64();                                                 \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /*                                                                        \
-     * We only need to swap high and low halves. gen_qemu_st64_i64            \
-     * does necessary 64-bit byteswap already.                                \
-     */                                                                       \
-    if (ctx->le_mode) {                                                       \
-        get_avr64(avr, rD(ctx->opcode), false);                               \
-        gen_qemu_st64_i64(ctx, avr, EA);                                      \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        get_avr64(avr, rD(ctx->opcode), true);                                \
-        gen_qemu_st64_i64(ctx, avr, EA);                                      \
-    } else {                                                                  \
-        get_avr64(avr, rD(ctx->opcode), true);                                \
-        gen_qemu_st64_i64(ctx, avr, EA);                                      \
-        tcg_gen_addi_tl(EA, EA, 8);                                           \
-        get_avr64(avr, rD(ctx->opcode), false);                               \
-        gen_qemu_st64_i64(ctx, avr, EA);                                      \
-    }                                                                         \
-}
-
-#define GEN_VR_LVE(name, opc2, opc3, size)                              \
-static void gen_lve##name(DisasContext *ctx)                            \
-    {                                                                   \
-        TCGv EA;                                                        \
-        TCGv_ptr rs;                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        gen_set_access_type(ctx, ACCESS_INT);                           \
-        EA = tcg_temp_new();                                            \
-        gen_addr_reg_index(ctx, EA);                                    \
-        if (size > 1) {                                                 \
-            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
-        }                                                               \
-        rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_lve##name(tcg_env, rs, EA);                          \
-    }
-
-#define GEN_VR_STVE(name, opc2, opc3, size)                             \
-static void gen_stve##name(DisasContext *ctx)                           \
-    {                                                                   \
-        TCGv EA;                                                        \
-        TCGv_ptr rs;                                                    \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        gen_set_access_type(ctx, ACCESS_INT);                           \
-        EA = tcg_temp_new();                                            \
-        gen_addr_reg_index(ctx, EA);                                    \
-        if (size > 1) {                                                 \
-            tcg_gen_andi_tl(EA, EA, ~(size - 1));                       \
-        }                                                               \
-        rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_stve##name(tcg_env, rs, EA);                         \
-    }
-
-GEN_VR_LDX(lvx, 0x07, 0x03);
 /* As we don't emulate the cache, lvxl is strictly equivalent to lvx */
-GEN_VR_LDX(lvxl, 0x07, 0x0B);
+QEMU_FLATTEN
+static bool trans_LVXL(DisasContext *ctx, arg_LVXL *a)
+{
+    return trans_LVX(ctx, a);
+}
 
-GEN_VR_LVE(bx, 0x07, 0x00, 1);
-GEN_VR_LVE(hx, 0x07, 0x01, 2);
-GEN_VR_LVE(wx, 0x07, 0x02, 4);
+static bool trans_STVX(DisasContext *ctx, arg_STVX *a)
+{
+    TCGv EA;
+    TCGv_i64 avr;
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
+    gen_set_access_type(ctx, ACCESS_INT);
+    avr = tcg_temp_new_i64();
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    tcg_gen_andi_tl(EA, EA, ~0xf);
+    /*
+     * We only need to swap high and low halves. gen_qemu_st64_i64
+     * does necessary 64-bit byteswap already.
+     */
+    get_avr64(avr, a->rt, !ctx->le_mode);
+    gen_qemu_st64_i64(ctx, avr, EA);
+    tcg_gen_addi_tl(EA, EA, 8);
+    get_avr64(avr, a->rt, ctx->le_mode);
+    gen_qemu_st64_i64(ctx, avr, EA);
+    return true;
+}
 
-GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is strictly equivalent to stvx */
-GEN_VR_STX(svxl, 0x07, 0x0F);
+QEMU_FLATTEN
+static bool trans_STVXL(DisasContext *ctx, arg_STVXL *a)
+{
+    return trans_STVX(ctx, a);
+}
 
-GEN_VR_STVE(bx, 0x07, 0x04, 1);
-GEN_VR_STVE(hx, 0x07, 0x05, 2);
-GEN_VR_STVE(wx, 0x07, 0x06, 4);
+static bool do_ldst_ve_X(DisasContext *ctx, arg_X *a, int size,
+                   void (*helper)(TCGv_env, TCGv_ptr, TCGv))
+{
+    TCGv EA;
+    TCGv_ptr vrt;
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    if (size > 1) {
+        tcg_gen_andi_tl(EA, EA, ~(size - 1));
+    }
+    vrt = gen_avr_ptr(a->rt);
+    helper(tcg_env, vrt, EA);
+    return true;
+}
+
+TRANS(LVEBX, do_ldst_ve_X, 1, gen_helper_LVEBX);
+TRANS(LVEHX, do_ldst_ve_X, 2, gen_helper_LVEHX);
+TRANS(LVEWX, do_ldst_ve_X, 4, gen_helper_LVEWX);
+
+TRANS(STVEBX, do_ldst_ve_X, 1, gen_helper_STVEBX);
+TRANS(STVEHX, do_ldst_ve_X, 2, gen_helper_STVEHX);
+TRANS(STVEWX, do_ldst_ve_X, 4, gen_helper_STVEWX);
 
 static void gen_mfvscr(DisasContext *ctx)
 {
@@ -241,16 +204,6 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
            avr_full_offset(rB(ctx->opcode)),                            \
            16, 16);                                                     \
 }
-
-/* Logical operations */
-GEN_VXFORM_V(vand, MO_64, tcg_gen_gvec_and, 2, 16);
-GEN_VXFORM_V(vandc, MO_64, tcg_gen_gvec_andc, 2, 17);
-GEN_VXFORM_V(vor, MO_64, tcg_gen_gvec_or, 2, 18);
-GEN_VXFORM_V(vxor, MO_64, tcg_gen_gvec_xor, 2, 19);
-GEN_VXFORM_V(vnor, MO_64, tcg_gen_gvec_nor, 2, 20);
-GEN_VXFORM_V(veqv, MO_64, tcg_gen_gvec_eqv, 2, 26);
-GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
-GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -389,22 +342,6 @@ GEN_VXFORM_V(vsububm, MO_8, tcg_gen_gvec_sub, 0, 16);
 GEN_VXFORM_V(vsubuhm, MO_16, tcg_gen_gvec_sub, 0, 17);
 GEN_VXFORM_V(vsubuwm, MO_32, tcg_gen_gvec_sub, 0, 18);
 GEN_VXFORM_V(vsubudm, MO_64, tcg_gen_gvec_sub, 0, 19);
-GEN_VXFORM_V(vmaxub, MO_8, tcg_gen_gvec_umax, 1, 0);
-GEN_VXFORM_V(vmaxuh, MO_16, tcg_gen_gvec_umax, 1, 1);
-GEN_VXFORM_V(vmaxuw, MO_32, tcg_gen_gvec_umax, 1, 2);
-GEN_VXFORM_V(vmaxud, MO_64, tcg_gen_gvec_umax, 1, 3);
-GEN_VXFORM_V(vmaxsb, MO_8, tcg_gen_gvec_smax, 1, 4);
-GEN_VXFORM_V(vmaxsh, MO_16, tcg_gen_gvec_smax, 1, 5);
-GEN_VXFORM_V(vmaxsw, MO_32, tcg_gen_gvec_smax, 1, 6);
-GEN_VXFORM_V(vmaxsd, MO_64, tcg_gen_gvec_smax, 1, 7);
-GEN_VXFORM_V(vminub, MO_8, tcg_gen_gvec_umin, 1, 8);
-GEN_VXFORM_V(vminuh, MO_16, tcg_gen_gvec_umin, 1, 9);
-GEN_VXFORM_V(vminuw, MO_32, tcg_gen_gvec_umin, 1, 10);
-GEN_VXFORM_V(vminud, MO_64, tcg_gen_gvec_umin, 1, 11);
-GEN_VXFORM_V(vminsb, MO_8, tcg_gen_gvec_smin, 1, 12);
-GEN_VXFORM_V(vminsh, MO_16, tcg_gen_gvec_smin, 1, 13);
-GEN_VXFORM_V(vminsw, MO_32, tcg_gen_gvec_smin, 1, 14);
-GEN_VXFORM_V(vminsd, MO_64, tcg_gen_gvec_smin, 1, 15);
 GEN_VXFORM(vmrghb, 6, 0);
 GEN_VXFORM(vmrghh, 6, 1);
 GEN_VXFORM(vmrghw, 6, 2);
@@ -460,15 +397,17 @@ static void trans_vmrgow(DisasContext *ctx)
  * Let X be the 32-byte value 0x00 || 0x01 || 0x02 || ... || 0x1E || 0x1F.
  * Bytes sh:sh+15 of X are placed into vD.
  */
-static void trans_lvsl(DisasContext *ctx)
+static bool trans_LVSL(DisasContext *ctx, arg_LVSL *a)
 {
-    int VT = rD(ctx->opcode);
     TCGv_i64 result = tcg_temp_new_i64();
     TCGv_i64 sh = tcg_temp_new_i64();
     TCGv EA = tcg_temp_new();
 
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
+
     /* Get sh(from description) by anding EA with 0xf. */
-    gen_addr_reg_index(ctx, EA);
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_extu_tl_i64(sh, EA);
     tcg_gen_andi_i64(sh, sh, 0xfULL);
 
@@ -478,13 +417,14 @@ static void trans_lvsl(DisasContext *ctx)
      */
     tcg_gen_muli_i64(sh, sh, 0x0101010101010101ULL);
     tcg_gen_addi_i64(result, sh, 0x0001020304050607ull);
-    set_avr64(VT, result, true);
+    set_avr64(a->rt, result, true);
     /*
      * Create bytes sh+8:sh+15 of X(from description) and place them in
      * lower doubleword of vD.
      */
     tcg_gen_addi_i64(result, sh, 0x08090a0b0c0d0e0fULL);
-    set_avr64(VT, result, false);
+    set_avr64(a->rt, result, false);
+    return true;
 }
 
 /*
@@ -494,16 +434,17 @@ static void trans_lvsl(DisasContext *ctx)
  * Let X be the 32-byte value 0x00 || 0x01 || 0x02 || ... || 0x1E || 0x1F.
  * Bytes (16-sh):(31-sh) of X are placed into vD.
  */
-static void trans_lvsr(DisasContext *ctx)
+static bool trans_LVSR(DisasContext *ctx, arg_LVSR *a)
 {
-    int VT = rD(ctx->opcode);
     TCGv_i64 result = tcg_temp_new_i64();
     TCGv_i64 sh = tcg_temp_new_i64();
     TCGv EA = tcg_temp_new();
 
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
 
     /* Get sh(from description) by anding EA with 0xf. */
-    gen_addr_reg_index(ctx, EA);
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_extu_tl_i64(sh, EA);
     tcg_gen_andi_i64(sh, sh, 0xfULL);
 
@@ -513,13 +454,14 @@ static void trans_lvsr(DisasContext *ctx)
      */
     tcg_gen_muli_i64(sh, sh, 0x0101010101010101ULL);
     tcg_gen_subfi_i64(result, 0x1011121314151617ULL, sh);
-    set_avr64(VT, result, true);
+    set_avr64(a->rt, result, true);
     /*
      * Create bytes (24-sh):(32-sh) of X(from description) and place them in
      * lower doubleword of vD.
      */
     tcg_gen_subfi_i64(result, 0x18191a1b1c1d1e1fULL, sh);
-    set_avr64(VT, result, false);
+    set_avr64(a->rt, result, false);
+    return true;
 }
 
 /*
@@ -758,6 +700,37 @@ TRANS_FLAGS(ALTIVEC, VRLB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_rotlv)
 TRANS_FLAGS2(ALTIVEC_207, VRLD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_rotlv)
+
+/* Logical operations */
+TRANS_FLAGS(ALTIVEC, VAND, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_and);
+TRANS_FLAGS(ALTIVEC, VANDC, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_andc);
+TRANS_FLAGS(ALTIVEC, VOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_or);
+TRANS_FLAGS(ALTIVEC, VXOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_xor);
+TRANS_FLAGS(ALTIVEC, VNOR, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_nor);
+TRANS_FLAGS2(ALTIVEC_207, VEQV, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_eqv);
+TRANS_FLAGS2(ALTIVEC_207, VNAND, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_nand);
+TRANS_FLAGS2(ALTIVEC_207, VORC, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_orc);
+
+/* Integer Max/Min operations */
+TRANS_FLAGS(ALTIVEC, VMAXUB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_umax);
+TRANS_FLAGS(ALTIVEC, VMAXUH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_umax);
+TRANS_FLAGS(ALTIVEC, VMAXUW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_umax);
+TRANS_FLAGS2(ALTIVEC_207, VMAXUD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_umax);
+
+TRANS_FLAGS(ALTIVEC, VMAXSB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_smax);
+TRANS_FLAGS(ALTIVEC, VMAXSH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_smax);
+TRANS_FLAGS(ALTIVEC, VMAXSW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_smax);
+TRANS_FLAGS2(ALTIVEC_207, VMAXSD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_smax);
+
+TRANS_FLAGS(ALTIVEC, VMINUB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_umin);
+TRANS_FLAGS(ALTIVEC, VMINUH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_umin);
+TRANS_FLAGS(ALTIVEC, VMINUW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_umin);
+TRANS_FLAGS2(ALTIVEC_207, VMINUD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_umin);
+
+TRANS_FLAGS(ALTIVEC, VMINSB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_smin);
+TRANS_FLAGS(ALTIVEC, VMINSH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_smin);
+TRANS_FLAGS(ALTIVEC, VMINSW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_smin);
+TRANS_FLAGS2(ALTIVEC_207, VMINSD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_smin);
 
 static TCGv_vec do_vrl_mask_vec(unsigned vece, TCGv_vec vrb)
 {
@@ -1158,8 +1131,6 @@ GEN_VXFORM_TRANS_DUAL(vmrgow, PPC_NONE, PPC2_ALTIVEC_207,
 GEN_VXFORM_HETRO(vextubrx, 6, 28)
 GEN_VXFORM_HETRO(vextuhrx, 6, 29)
 GEN_VXFORM_HETRO(vextuwrx, 6, 30)
-GEN_VXFORM_TRANS(lvsl, 6, 31)
-GEN_VXFORM_TRANS(lvsr, 6, 32)
 GEN_VXFORM_TRANS_DUAL(vmrgew, PPC_NONE, PPC2_ALTIVEC_207,
                 vextuwrx, PPC_NONE, PPC2_ISA300)
 
@@ -3365,13 +3336,6 @@ TRANS_FLAGS2(ISA310, VMODUQ, do_vx_helper, gen_helper_VMODUQ)
 #undef DIVS64
 #undef DIVU64
 
-#undef GEN_VR_LDX
-#undef GEN_VR_STX
-#undef GEN_VR_LVE
-#undef GEN_VR_STVE
-
-#undef GEN_VX_LOGICAL
-#undef GEN_VX_LOGICAL_207
 #undef GEN_VXFORM
 #undef GEN_VXFORM_207
 #undef GEN_VXFORM_DUAL

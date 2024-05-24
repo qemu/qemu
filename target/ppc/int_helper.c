@@ -44,7 +44,7 @@ static inline void helper_update_ov_legacy(CPUPPCState *env, int ov)
     }
 }
 
-target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
+target_ulong helper_DIVWEU(CPUPPCState *env, target_ulong ra, target_ulong rb,
                            uint32_t oe)
 {
     uint64_t rt = 0;
@@ -71,7 +71,7 @@ target_ulong helper_divweu(CPUPPCState *env, target_ulong ra, target_ulong rb,
     return (target_ulong)rt;
 }
 
-target_ulong helper_divwe(CPUPPCState *env, target_ulong ra, target_ulong rb,
+target_ulong helper_DIVWE(CPUPPCState *env, target_ulong ra, target_ulong rb,
                           uint32_t oe)
 {
     int64_t rt = 0;
@@ -101,7 +101,7 @@ target_ulong helper_divwe(CPUPPCState *env, target_ulong ra, target_ulong rb,
 
 #if defined(TARGET_PPC64)
 
-uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
+uint64_t helper_DIVDEU(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
 {
     uint64_t rt = 0;
     int overflow = 0;
@@ -120,7 +120,7 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
     return rt;
 }
 
-uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
+uint64_t helper_DIVDE(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 {
     uint64_t rt = 0;
     int64_t ra = (int64_t)rau;
@@ -159,7 +159,7 @@ uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 /* When you XOR the pattern and there is a match, that byte will be zero */
 #define hasvalue(x, n)  (haszero((x) ^ pattern(n)))
 
-uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
+uint32_t helper_CMPEQB(target_ulong ra, target_ulong rb)
 {
     return hasvalue(rb, ra) ? CRF_GT : 0;
 }
@@ -171,7 +171,7 @@ uint32_t helper_cmpeqb(target_ulong ra, target_ulong rb)
 /*
  * Return a random number.
  */
-uint64_t helper_darn32(void)
+uint64_t helper_DARN32(void)
 {
     Error *err = NULL;
     uint32_t ret;
@@ -186,7 +186,7 @@ uint64_t helper_darn32(void)
     return ret;
 }
 
-uint64_t helper_darn64(void)
+uint64_t helper_DARN64(void)
 {
     Error *err = NULL;
     uint64_t ret;
@@ -201,7 +201,7 @@ uint64_t helper_darn64(void)
     return ret;
 }
 
-uint64_t helper_bpermd(uint64_t rs, uint64_t rb)
+uint64_t helper_BPERMD(uint64_t rs, uint64_t rb)
 {
     int i;
     uint64_t ra = 0;
@@ -219,7 +219,7 @@ uint64_t helper_bpermd(uint64_t rs, uint64_t rb)
 
 #endif
 
-target_ulong helper_cmpb(target_ulong rs, target_ulong rb)
+target_ulong helper_CMPB(target_ulong rs, target_ulong rb)
 {
     target_ulong mask = 0xff;
     target_ulong ra = 0;
@@ -288,7 +288,7 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
 #endif
 
 #if defined(TARGET_PPC64)
-target_ulong helper_popcntb(target_ulong val)
+target_ulong helper_POPCNTB(target_ulong val)
 {
     /* Note that we don't fold past bytes */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
@@ -300,7 +300,7 @@ target_ulong helper_popcntb(target_ulong val)
     return val;
 }
 
-target_ulong helper_popcntw(target_ulong val)
+target_ulong helper_POPCNTW(target_ulong val)
 {
     /* Note that we don't fold past words.  */
     val = (val & 0x5555555555555555ULL) + ((val >>  1) &
@@ -316,7 +316,7 @@ target_ulong helper_popcntw(target_ulong val)
     return val;
 }
 #else
-target_ulong helper_popcntb(target_ulong val)
+target_ulong helper_POPCNTB(target_ulong val)
 {
     /* Note that we don't fold past bytes */
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);

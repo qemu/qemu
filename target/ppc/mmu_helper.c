@@ -33,6 +33,7 @@
 #include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
+#include "mmu-booke.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 
@@ -45,14 +46,8 @@
 static inline void ppc6xx_tlb_invalidate_all(CPUPPCState *env)
 {
     ppc6xx_tlb_t *tlb;
-    int nr, max;
+    int nr, max = 2 * env->nb_tlb;
 
-    /* LOG_SWTLB("Invalidate all TLBs\n"); */
-    /* Invalidate all defined software TLB */
-    max = env->nb_tlb;
-    if (env->id_tlbs == 1) {
-        max *= 2;
-    }
     for (nr = 0; nr < max; nr++) {
         tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
@@ -308,9 +303,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
         ppc6xx_tlb_invalidate_virt(env, addr, 0);
-        if (env->id_tlbs == 1) {
-            ppc6xx_tlb_invalidate_virt(env, addr, 1);
-        }
+        ppc6xx_tlb_invalidate_virt(env, addr, 1);
         break;
     case POWERPC_MMU_32B:
         /*
@@ -534,7 +527,7 @@ void helper_tlbie_isa300(CPUPPCState *env, target_ulong rb, target_ulong rs,
     if (local) {
         tlb_flush_page(env_cpu(env), addr);
     } else {
-        tlb_flush_page_all_cpus(env_cpu(env), addr);
+        tlb_flush_page_all_cpus_synced(env_cpu(env), addr);
     }
     return;
 
@@ -594,30 +587,6 @@ void helper_6xx_tlbd(CPUPPCState *env, target_ulong EPN)
 void helper_6xx_tlbi(CPUPPCState *env, target_ulong EPN)
 {
     do_6xx_tlb(env, EPN, 1);
-}
-
-/*****************************************************************************/
-/* PowerPC 601 specific instructions (POWER bridge) */
-
-target_ulong helper_rac(CPUPPCState *env, target_ulong addr)
-{
-    mmu_ctx_t ctx;
-    int nb_BATs;
-    target_ulong ret = 0;
-
-    /*
-     * We don't have to generate many instances of this instruction,
-     * as rac is supervisor only.
-     *
-     * XXX: FIX THIS: Pretend we have no BAT
-     */
-    nb_BATs = env->nb_BATs;
-    env->nb_BATs = 0;
-    if (get_physical_address_wtlb(env, &ctx, addr, 0, ACCESS_INT, 0) == 0) {
-        ret = ctx.raddr;
-    }
-    env->nb_BATs = nb_BATs;
-    return ret;
 }
 
 static inline target_ulong booke_tlb_to_page_size(int size)

@@ -1,37 +1,3 @@
-#define GEN_VR_LDX(name, opc2, opc3)                                          \
-GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STX(name, opc2, opc3)                                          \
-GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_LVE(name, opc2, opc3)                                    \
-    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-#define GEN_VR_STVE(name, opc2, opc3)                                   \
-    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)
-GEN_VR_LDX(lvx, 0x07, 0x03),
-GEN_VR_LDX(lvxl, 0x07, 0x0B),
-GEN_VR_LVE(bx, 0x07, 0x00),
-GEN_VR_LVE(hx, 0x07, 0x01),
-GEN_VR_LVE(wx, 0x07, 0x02),
-GEN_VR_STX(svx, 0x07, 0x07),
-GEN_VR_STX(svxl, 0x07, 0x0F),
-GEN_VR_STVE(bx, 0x07, 0x04),
-GEN_VR_STVE(hx, 0x07, 0x05),
-GEN_VR_STVE(wx, 0x07, 0x06),
-
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
-
-#define GEN_VX_LOGICAL_207(name, tcg_op, opc2, opc3) \
-GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ALTIVEC_207)
-
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16),
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17),
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18),
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19),
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20),
-GEN_VX_LOGICAL_207(veqv, tcg_gen_eqv_i64, 2, 26),
-GEN_VX_LOGICAL_207(vnand, tcg_gen_nand_i64, 2, 22),
-GEN_VX_LOGICAL_207(vorc, tcg_gen_orc_i64, 2, 21),
-
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)
 
@@ -67,22 +33,6 @@ GEN_VXFORM_DUAL(vsubuhm, bcdsub, 0, 17, PPC_ALTIVEC, PPC_NONE),
 GEN_VXFORM_DUAL(vsubuwm, bcdus, 0, 18, PPC_ALTIVEC, PPC2_ISA300),
 GEN_VXFORM_DUAL(vsubudm, bcds, 0, 19, PPC2_ALTIVEC_207, PPC2_ISA300),
 GEN_VXFORM_300(bcds, 0, 27),
-GEN_VXFORM(vmaxub, 1, 0),
-GEN_VXFORM(vmaxuh, 1, 1),
-GEN_VXFORM(vmaxuw, 1, 2),
-GEN_VXFORM_207(vmaxud, 1, 3),
-GEN_VXFORM(vmaxsb, 1, 4),
-GEN_VXFORM(vmaxsh, 1, 5),
-GEN_VXFORM(vmaxsw, 1, 6),
-GEN_VXFORM_207(vmaxsd, 1, 7),
-GEN_VXFORM(vminub, 1, 8),
-GEN_VXFORM(vminuh, 1, 9),
-GEN_VXFORM(vminuw, 1, 10),
-GEN_VXFORM_207(vminud, 1, 11),
-GEN_VXFORM(vminsb, 1, 12),
-GEN_VXFORM(vminsh, 1, 13),
-GEN_VXFORM(vminsw, 1, 14),
-GEN_VXFORM_207(vminsd, 1, 15),
 GEN_VXFORM(vmrghb, 6, 0),
 GEN_VXFORM(vmrghh, 6, 1),
 GEN_VXFORM(vmrghw, 6, 2),

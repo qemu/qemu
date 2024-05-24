@@ -490,54 +490,12 @@ static void float_invalid_op_addsub(CPUPPCState *env, int flags,
     }
 }
 
-/* fadd - fadd. */
-float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
+static inline void addsub_flags_handler(CPUPPCState *env, int flags,
+                                        uintptr_t ra)
 {
-    float64 ret = float64_add(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
     if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_addsub(env, flags, 1, GETPC());
+        float_invalid_op_addsub(env, flags, 1, ra);
     }
-
-    return ret;
-}
-
-/* fadds - fadds. */
-float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
-{
-    float64 ret = float64r32_add(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_addsub(env, flags, 1, GETPC());
-    }
-    return ret;
-}
-
-/* fsub - fsub. */
-float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
-{
-    float64 ret = float64_sub(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_addsub(env, flags, 1, GETPC());
-    }
-
-    return ret;
-}
-
-/* fsubs - fsubs. */
-float64 helper_fsubs(CPUPPCState *env, float64 arg1, float64 arg2)
-{
-    float64 ret = float64r32_sub(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_addsub(env, flags, 1, GETPC());
-    }
-    return ret;
 }
 
 static void float_invalid_op_mul(CPUPPCState *env, int flags,
@@ -550,29 +508,11 @@ static void float_invalid_op_mul(CPUPPCState *env, int flags,
     }
 }
 
-/* fmul - fmul. */
-float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
+static inline void mul_flags_handler(CPUPPCState *env, int flags, uintptr_t ra)
 {
-    float64 ret = float64_mul(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
     if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_mul(env, flags, 1, GETPC());
+        float_invalid_op_mul(env, flags, 1, ra);
     }
-
-    return ret;
-}
-
-/* fmuls - fmuls. */
-float64 helper_fmuls(CPUPPCState *env, float64 arg1, float64 arg2)
-{
-    float64 ret = float64r32_mul(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_mul(env, flags, 1, GETPC());
-    }
-    return ret;
 }
 
 static void float_invalid_op_div(CPUPPCState *env, int flags,
@@ -587,36 +527,14 @@ static void float_invalid_op_div(CPUPPCState *env, int flags,
     }
 }
 
-/* fdiv - fdiv. */
-float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
+static inline void div_flags_handler(CPUPPCState *env, int flags, uintptr_t ra)
 {
-    float64 ret = float64_div(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
     if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_div(env, flags, 1, GETPC());
+        float_invalid_op_div(env, flags, 1, ra);
     }
     if (unlikely(flags & float_flag_divbyzero)) {
-        float_zero_divide_excp(env, GETPC());
+        float_zero_divide_excp(env, ra);
     }
-
-    return ret;
-}
-
-/* fdivs - fdivs. */
-float64 helper_fdivs(CPUPPCState *env, float64 arg1, float64 arg2)
-{
-    float64 ret = float64r32_div(arg1, arg2, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_div(env, flags, 1, GETPC());
-    }
-    if (unlikely(flags & float_flag_divbyzero)) {
-        float_zero_divide_excp(env, GETPC());
-    }
-
-    return ret;
 }
 
 static uint64_t float_invalid_cvt(CPUPPCState *env, int flags,
@@ -755,7 +673,7 @@ static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
     uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,            \
                          uint64_t arg2, uint64_t arg3)               \
     { return do_fmadd(env, arg1, arg2, arg3, madd_flags, GETPC()); } \
-    uint64_t helper_##op##s(CPUPPCState *env, uint64_t arg1,         \
+    uint64_t helper_##op##S(CPUPPCState *env, uint64_t arg1,         \
                          uint64_t arg2, uint64_t arg3)               \
     { return do_fmadds(env, arg1, arg2, arg3, madd_flags, GETPC()); }
 
@@ -764,10 +682,10 @@ static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
 #define NMADD_FLGS float_muladd_negate_result
 #define NMSUB_FLGS (float_muladd_negate_c | float_muladd_negate_result)
 
-FPU_FMADD(fmadd, MADD_FLGS)
-FPU_FMADD(fnmadd, NMADD_FLGS)
-FPU_FMADD(fmsub, MSUB_FLGS)
-FPU_FMADD(fnmsub, NMSUB_FLGS)
+FPU_FMADD(FMADD, MADD_FLGS)
+FPU_FMADD(FNMADD, NMADD_FLGS)
+FPU_FMADD(FMSUB, MSUB_FLGS)
+FPU_FMADD(FNMSUB, NMSUB_FLGS)
 
 /* frsp - frsp. */
 static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
@@ -812,81 +730,66 @@ float64 helper_##name(CPUPPCState *env, float64 arg)                          \
 FPU_FSQRT(FSQRT, float64_sqrt)
 FPU_FSQRT(FSQRTS, float64r32_sqrt)
 
-/* fre - fre. */
-float64 helper_fre(CPUPPCState *env, float64 arg)
-{
-    /* "Estimate" the reciprocal with actual division.  */
-    float64 ret = float64_div(float64_one, arg, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid_snan)) {
-        float_invalid_op_vxsnan(env, GETPC());
-    }
-    if (unlikely(flags & float_flag_divbyzero)) {
-        float_zero_divide_excp(env, GETPC());
-        /* For FPSCR.ZE == 0, the result is 1/2.  */
-        ret = float64_set_sign(float64_half, float64_is_neg(arg));
-    }
-
-    return ret;
+#define FPU_FRE(name, op)                                                     \
+float64 helper_##name(CPUPPCState *env, float64 arg)                          \
+{                                                                             \
+    /* "Estimate" the reciprocal with actual division.  */                    \
+    float64 ret = op(float64_one, arg, &env->fp_status);                      \
+    int flags = get_float_exception_flags(&env->fp_status);                   \
+                                                                              \
+    if (unlikely(flags & float_flag_invalid_snan)) {                          \
+        float_invalid_op_vxsnan(env, GETPC());                                \
+    }                                                                         \
+    if (unlikely(flags & float_flag_divbyzero)) {                             \
+        float_zero_divide_excp(env, GETPC());                                 \
+        /* For FPSCR.ZE == 0, the result is 1/2.  */                          \
+        ret = float64_set_sign(float64_half, float64_is_neg(arg));            \
+    }                                                                         \
+                                                                              \
+    return ret;                                                               \
 }
 
-/* fres - fres. */
-uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
-{
-    /* "Estimate" the reciprocal with actual division.  */
-    float64 ret = float64r32_div(float64_one, arg, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid_snan)) {
-        float_invalid_op_vxsnan(env, GETPC());
-    }
-    if (unlikely(flags & float_flag_divbyzero)) {
-        float_zero_divide_excp(env, GETPC());
-        /* For FPSCR.ZE == 0, the result is 1/2.  */
-        ret = float64_set_sign(float64_half, float64_is_neg(arg));
-    }
-
-    return ret;
+#define FPU_FRSQRTE(name, op)                                                 \
+float64 helper_##name(CPUPPCState *env, float64 arg)                          \
+{                                                                             \
+    /* "Estimate" the reciprocal with actual division.  */                    \
+    float64 rets = float64_sqrt(arg, &env->fp_status);                        \
+    float64 retd = op(float64_one, rets, &env->fp_status);                    \
+    int flags = get_float_exception_flags(&env->fp_status);                   \
+                                                                              \
+    if (unlikely(flags & float_flag_invalid)) {                               \
+        float_invalid_op_sqrt(env, flags, 1, GETPC());                        \
+    }                                                                         \
+    if (unlikely(flags & float_flag_divbyzero)) {                             \
+        /* Reciprocal of (square root of) zero.  */                           \
+        float_zero_divide_excp(env, GETPC());                                 \
+    }                                                                         \
+                                                                              \
+    return retd;                                                              \
 }
 
-/* frsqrte  - frsqrte. */
-float64 helper_frsqrte(CPUPPCState *env, float64 arg)
-{
-    /* "Estimate" the reciprocal with actual division.  */
-    float64 rets = float64_sqrt(arg, &env->fp_status);
-    float64 retd = float64_div(float64_one, rets, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_sqrt(env, flags, 1, GETPC());
-    }
-    if (unlikely(flags & float_flag_divbyzero)) {
-        /* Reciprocal of (square root of) zero.  */
-        float_zero_divide_excp(env, GETPC());
-    }
-
-    return retd;
+#define FPU_HELPER(name, op, flags_handler)                                   \
+float64 helper_##name(CPUPPCState *env, float64 arg1, float64 arg2)           \
+{                                                                             \
+    float64 ret = op(arg1, arg2, &env->fp_status);                            \
+    int flags = get_float_exception_flags(&env->fp_status);                   \
+    uintptr_t ra = GETPC();                                                   \
+    flags_handler(env, flags, ra);                                            \
+    return ret;                                                               \
 }
 
-/* frsqrtes  - frsqrtes. */
-float64 helper_frsqrtes(CPUPPCState *env, float64 arg)
-{
-    /* "Estimate" the reciprocal with actual division.  */
-    float64 rets = float64_sqrt(arg, &env->fp_status);
-    float64 retd = float64r32_div(float64_one, rets, &env->fp_status);
-    int flags = get_float_exception_flags(&env->fp_status);
-
-    if (unlikely(flags & float_flag_invalid)) {
-        float_invalid_op_sqrt(env, flags, 1, GETPC());
-    }
-    if (unlikely(flags & float_flag_divbyzero)) {
-        /* Reciprocal of (square root of) zero.  */
-        float_zero_divide_excp(env, GETPC());
-    }
-
-    return retd;
-}
+FPU_FRE(FRE, float64_div)
+FPU_FRE(FRES, float64r32_div)
+FPU_FRSQRTE(FRSQRTE, float64_div)
+FPU_FRSQRTE(FRSQRTES, float64r32_div)
+FPU_HELPER(FADD, float64_add, addsub_flags_handler)
+FPU_HELPER(FADDS, float64r32_add, addsub_flags_handler)
+FPU_HELPER(FSUB, float64_sub, addsub_flags_handler)
+FPU_HELPER(FSUBS, float64r32_sub, addsub_flags_handler)
+FPU_HELPER(FMUL, float64_mul, mul_flags_handler)
+FPU_HELPER(FMULS, float64r32_mul, mul_flags_handler)
+FPU_HELPER(FDIV, float64_div, div_flags_handler)
+FPU_HELPER(FDIVS, float64r32_div, div_flags_handler)
 
 /* fsel - fsel. */
 uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
@@ -903,7 +806,7 @@ uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
     }
 }
 
-uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
+uint32_t helper_FTDIV(uint64_t fra, uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;
@@ -939,7 +842,7 @@ uint32_t helper_ftdiv(uint64_t fra, uint64_t frb)
     return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
-uint32_t helper_ftsqrt(uint64_t frb)
+uint32_t helper_FTSQRT(uint64_t frb)
 {
     int fe_flag = 0;
     int fg_flag = 0;

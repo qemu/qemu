@@ -865,9 +865,7 @@ int kvmppc_put_books_sregs(PowerPCCPU *cpu)
     sregs.pvr = env->spr[SPR_PVR];
 
     if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        sregs.u.s.sdr1 = vhc->encode_hpt_for_kvm_pr(cpu->vhyp);
+        sregs.u.s.sdr1 = cpu->vhyp_class->encode_hpt_for_kvm_pr(cpu->vhyp);
     } else {
         sregs.u.s.sdr1 = env->spr[SPR_SDR1];
     }
