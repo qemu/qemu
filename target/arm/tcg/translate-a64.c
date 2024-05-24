@@ -5245,6 +5245,8 @@ static gen_helper_gvec_3_ptr * const f_vector_fminnmp[3] = {
 };
 TRANS(FMINNMP_v, do_fp3_vector, a, f_vector_fminnmp)
 
+TRANS(ADDP_v, do_gvec_fn3, a, gen_gvec_addp)
+
 /*
  * Advanced SIMD scalar/vector x indexed element
  */
@@ -5484,6 +5486,20 @@ TRANS(FMAXP_s, do_fp3_scalar_pair, a, &f_scalar_fmax)
 TRANS(FMINP_s, do_fp3_scalar_pair, a, &f_scalar_fmin)
 TRANS(FMAXNMP_s, do_fp3_scalar_pair, a, &f_scalar_fmaxnm)
 TRANS(FMINNMP_s, do_fp3_scalar_pair, a, &f_scalar_fminnm)
+
+static bool trans_ADDP_s(DisasContext *s, arg_rr_e *a)
+{
+    if (fp_access_check(s)) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+
+        read_vec_element(s, t0, a->rn, 0, MO_64);
+        read_vec_element(s, t1, a->rn, 1, MO_64);
+        tcg_gen_add_i64(t0, t0, t1);
+        write_fp_dreg(s, a->rd, t0);
+    }
+    return true;
+}
 
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
  * Note that it is the caller's responsibility to ensure that the
@@ -8412,73 +8428,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD scalar pairwise
- *  31 30  29 28       24 23  22 21       17 16    12 11 10 9    5 4    0
- * +-----+---+-----------+------+-----------+--------+-----+------+------+
- * | 0 1 | U | 1 1 1 1 0 | size | 1 1 0 0 0 | opcode | 1 0 |  Rn  |  Rd  |
- * +-----+---+-----------+------+-----------+--------+-----+------+------+
- */
-static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
-{
-    int u = extract32(insn, 29, 1);
-    int size = extract32(insn, 22, 2);
-    int opcode = extract32(insn, 12, 5);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
-
-    /* For some ops (the FP ones), size[1] is part of the encoding.
-     * For ADDP strictly it is not but size[1] is always 1 for valid
-     * encodings.
-     */
-    opcode |= (extract32(size, 1, 1) << 5);
-
-    switch (opcode) {
-    case 0x3b: /* ADDP */
-        if (u || size != 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        if (!fp_access_check(s)) {
-            return;
-        }
-        break;
-    default:
-    case 0xc: /* FMAXNMP */
-    case 0xd: /* FADDP */
-    case 0xf: /* FMAXP */
-    case 0x2c: /* FMINNMP */
-    case 0x2f: /* FMINP */
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (size == MO_64) {
-        TCGv_i64 tcg_op1 = tcg_temp_new_i64();
-        TCGv_i64 tcg_op2 = tcg_temp_new_i64();
-        TCGv_i64 tcg_res = tcg_temp_new_i64();
-
-        read_vec_element(s, tcg_op1, rn, 0, MO_64);
-        read_vec_element(s, tcg_op2, rn, 1, MO_64);
-
-        switch (opcode) {
-        case 0x3b: /* ADDP */
-            tcg_gen_add_i64(tcg_res, tcg_op1, tcg_op2);
-            break;
-        default:
-        case 0xc: /* FMAXNMP */
-        case 0xd: /* FADDP */
-        case 0xf: /* FMAXP */
-        case 0x2c: /* FMINNMP */
-        case 0x2f: /* FMINP */
-            g_assert_not_reached();
-        }
-
-        write_fp_dreg(s, rd, tcg_res);
-    } else {
-        g_assert_not_reached();
-    }
-}
-
 /*
  * Common SSHR[RA]/USHR[RA] - Shift right (optional rounding/accumulate)
  *
@@ -10965,34 +10914,7 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
      * adjacent elements being operated on to produce an element in the result.
      */
     if (size == 3) {
-        TCGv_i64 tcg_res[2];
-
-        for (pass = 0; pass < 2; pass++) {
-            TCGv_i64 tcg_op1 = tcg_temp_new_i64();
-            TCGv_i64 tcg_op2 = tcg_temp_new_i64();
-            int passreg = (pass == 0) ? rn : rm;
-
-            read_vec_element(s, tcg_op1, passreg, 0, MO_64);
-            read_vec_element(s, tcg_op2, passreg, 1, MO_64);
-            tcg_res[pass] = tcg_temp_new_i64();
-
-            switch (opcode) {
-            case 0x17: /* ADDP */
-                tcg_gen_add_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            default:
-            case 0x58: /* FMAXNMP */
-            case 0x5a: /* FADDP */
-            case 0x5e: /* FMAXP */
-            case 0x78: /* FMINNMP */
-            case 0x7e: /* FMINP */
-                g_assert_not_reached();
-            }
-        }
-
-        for (pass = 0; pass < 2; pass++) {
-            write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-        }
+        g_assert_not_reached();
     } else {
         int maxpass = is_q ? 4 : 2;
         TCGv_i32 tcg_res[4];
@@ -11009,16 +10931,6 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
             tcg_res[pass] = tcg_temp_new_i32();
 
             switch (opcode) {
-            case 0x17: /* ADDP */
-            {
-                static NeonGenTwoOpFn * const fns[3] = {
-                    gen_helper_neon_padd_u8,
-                    gen_helper_neon_padd_u16,
-                    tcg_gen_add_i32,
-                };
-                genfn = fns[size];
-                break;
-            }
             case 0x14: /* SMAXP, UMAXP */
             {
                 static NeonGenTwoOpFn * const fns[3][2] = {
@@ -11040,6 +10952,7 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
                 break;
             }
             default:
+            case 0x17: /* ADDP */
             case 0x58: /* FMAXNMP */
             case 0x5a: /* FADDP */
             case 0x5e: /* FMAXP */
@@ -11401,7 +11314,6 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
     case 0x3: /* logic ops */
         disas_simd_3same_logic(s, insn);
         break;
-    case 0x17: /* ADDP */
     case 0x14: /* SMAXP, UMAXP */
     case 0x15: /* SMINP, UMINP */
     {
@@ -11432,6 +11344,9 @@ static void disas_simd_three_reg_same(DisasContext *s, uint32_t insn)
         break;
     default:
         disas_simd_3same_int(s, insn);
+        break;
+    case 0x17: /* ADDP */
+        unallocated_encoding(s);
         break;
     }
 }
@@ -13195,7 +13110,6 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x5e008400, 0xdf208400, disas_simd_scalar_three_reg_same_extra },
     { 0x5e200000, 0xdf200c00, disas_simd_scalar_three_reg_diff },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
-    { 0x5e300800, 0xdf3e0c00, disas_simd_scalar_pairwise },
     { 0x5f000000, 0xdf000400, disas_simd_indexed }, /* scalar indexed */
     { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
     { 0x0e780800, 0x8f7e0c00, disas_simd_two_reg_misc_fp16 },

@@ -2231,6 +2231,36 @@ DO_3OP_PAIR(gvec_fminnump_h, float16_minnum, float16, H2)
 DO_3OP_PAIR(gvec_fminnump_s, float32_minnum, float32, H4)
 DO_3OP_PAIR(gvec_fminnump_d, float64_minnum, float64, )
 
+#undef DO_3OP_PAIR
+
+#define DO_3OP_PAIR(NAME, FUNC, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)  \
+{                                                               \
+    ARMVectorReg scratch;                                       \
+    intptr_t oprsz = simd_oprsz(desc);                          \
+    intptr_t half = oprsz / sizeof(TYPE) / 2;                   \
+    TYPE *d = vd, *n = vn, *m = vm;                             \
+    if (unlikely(d == m)) {                                     \
+        m = memcpy(&scratch, m, oprsz);                         \
+    }                                                           \
+    for (intptr_t i = 0; i < half; ++i) {                       \
+        d[H(i)] = FUNC(n[H(i * 2)], n[H(i * 2 + 1)]);           \
+    }                                                           \
+    for (intptr_t i = 0; i < half; ++i) {                       \
+        d[H(i + half)] = FUNC(m[H(i * 2)], m[H(i * 2 + 1)]);    \
+    }                                                           \
+    clear_tail(d, oprsz, simd_maxsz(desc));                     \
+}
+
+#define ADD(A, B) (A + B)
+DO_3OP_PAIR(gvec_addp_b, ADD, uint8_t, H1)
+DO_3OP_PAIR(gvec_addp_h, ADD, uint16_t, H2)
+DO_3OP_PAIR(gvec_addp_s, ADD, uint32_t, H4)
+DO_3OP_PAIR(gvec_addp_d, ADD, uint64_t, )
+#undef  ADD
+
+#undef DO_3OP_PAIR
+
 #define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
     void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
     {                                                                   \
