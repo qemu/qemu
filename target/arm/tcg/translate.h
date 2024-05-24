@@ -445,6 +445,11 @@ void gen_gvec_ssra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
 void gen_gvec_usra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
                    int64_t shift, uint32_t opr_sz, uint32_t max_sz);
 
+void gen_srshr32_i32(TCGv_i32 d, TCGv_i32 a, int32_t sh);
+void gen_srshr64_i64(TCGv_i64 d, TCGv_i64 a, int64_t sh);
+void gen_urshr32_i32(TCGv_i32 d, TCGv_i32 a, int32_t sh);
+void gen_urshr64_i64(TCGv_i64 d, TCGv_i64 a, int64_t sh);
+
 void gen_gvec_srshr(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
                     int64_t shift, uint32_t opr_sz, uint32_t max_sz);
 void gen_gvec_urshr(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
