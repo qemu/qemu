@@ -8,6 +8,7 @@ if have_tools
   qsd_ss = qsd_ss.apply({})
   qsd = executable('qemu-storage-daemon',
                    qsd_ss.sources(),
+                   link_args: '@block.syms', link_depends: block_syms,
                    dependencies: qsd_ss.dependencies(),
                    install: true)
 endif

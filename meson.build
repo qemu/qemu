@@ -3759,12 +3759,10 @@ system_ss.add(migration)
 block_ss = block_ss.apply({})
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
-                          link_depends: block_syms,
                           name_suffix: 'fa',
                           build_by_default: false)
 
 block = declare_dependency(link_whole: [libblock],
-                           link_args: '@block.syms',
                            dependencies: [crypto, io])
 
 blockdev_ss = blockdev_ss.apply({})
@@ -4033,10 +4031,13 @@ endif
 
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
+             link_args: '@block.syms', link_depends: block_syms,
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
+             link_args: '@block.syms', link_depends: block_syms,
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
+               link_args: '@block.syms', link_depends: block_syms,
                dependencies: [blockdev, qemuutil, gnutls, selinux],
                install: true)
 
