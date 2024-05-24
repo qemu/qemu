@@ -971,6 +971,11 @@ static uint32_t float32_ceq(float32 op1, float32 op2, float_status *stat)
     return -float32_eq_quiet(op1, op2, stat);
 }
 
+static uint64_t float64_ceq(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_eq_quiet(op1, op2, stat);
+}
+
 static uint16_t float16_cge(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_le(op2, op1, stat);
@@ -979,6 +984,11 @@ static uint16_t float16_cge(float16 op1, float16 op2, float_status *stat)
 static uint32_t float32_cge(float32 op1, float32 op2, float_status *stat)
 {
     return -float32_le(op2, op1, stat);
+}
+
+static uint64_t float64_cge(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_le(op2, op1, stat);
 }
 
 static uint16_t float16_cgt(float16 op1, float16 op2, float_status *stat)
@@ -991,6 +1001,11 @@ static uint32_t float32_cgt(float32 op1, float32 op2, float_status *stat)
     return -float32_lt(op2, op1, stat);
 }
 
+static uint64_t float64_cgt(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_lt(op2, op1, stat);
+}
+
 static uint16_t float16_acge(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_le(float16_abs(op2), float16_abs(op1), stat);
@@ -1001,6 +1016,11 @@ static uint32_t float32_acge(float32 op1, float32 op2, float_status *stat)
     return -float32_le(float32_abs(op2), float32_abs(op1), stat);
 }
 
+static uint64_t float64_acge(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_le(float64_abs(op2), float64_abs(op1), stat);
+}
+
 static uint16_t float16_acgt(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_lt(float16_abs(op2), float16_abs(op1), stat);
@@ -1009,6 +1029,11 @@ static uint16_t float16_acgt(float16 op1, float16 op2, float_status *stat)
 static uint32_t float32_acgt(float32 op1, float32 op2, float_status *stat)
 {
     return -float32_lt(float32_abs(op2), float32_abs(op1), stat);
+}
+
+static uint64_t float64_acgt(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_lt(float64_abs(op2), float64_abs(op1), stat);
 }
 
 static int16_t vfp_tosszh(float16 x, void *fpstp)
@@ -1216,18 +1241,23 @@ DO_3OP(gvec_fabd_s, float32_abd, float32)
 
 DO_3OP(gvec_fceq_h, float16_ceq, float16)
 DO_3OP(gvec_fceq_s, float32_ceq, float32)
+DO_3OP(gvec_fceq_d, float64_ceq, float64)
 
 DO_3OP(gvec_fcge_h, float16_cge, float16)
 DO_3OP(gvec_fcge_s, float32_cge, float32)
+DO_3OP(gvec_fcge_d, float64_cge, float64)
 
 DO_3OP(gvec_fcgt_h, float16_cgt, float16)
 DO_3OP(gvec_fcgt_s, float32_cgt, float32)
+DO_3OP(gvec_fcgt_d, float64_cgt, float64)
 
 DO_3OP(gvec_facge_h, float16_acge, float16)
 DO_3OP(gvec_facge_s, float32_acge, float32)
+DO_3OP(gvec_facge_d, float64_acge, float64)
 
 DO_3OP(gvec_facgt_h, float16_acgt, float16)
 DO_3OP(gvec_facgt_s, float32_acgt, float32)
+DO_3OP(gvec_facgt_d, float64_acgt, float64)
 
 DO_3OP(gvec_fmax_h, float16_max, float16)
 DO_3OP(gvec_fmax_s, float32_max, float32)

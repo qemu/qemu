@@ -4975,6 +4975,41 @@ static const FPScalar f_scalar_fnmul = {
 };
 TRANS(FNMUL_s, do_fp3_scalar, a, &f_scalar_fnmul)
 
+static const FPScalar f_scalar_fcmeq = {
+    gen_helper_advsimd_ceq_f16,
+    gen_helper_neon_ceq_f32,
+    gen_helper_neon_ceq_f64,
+};
+TRANS(FCMEQ_s, do_fp3_scalar, a, &f_scalar_fcmeq)
+
+static const FPScalar f_scalar_fcmge = {
+    gen_helper_advsimd_cge_f16,
+    gen_helper_neon_cge_f32,
+    gen_helper_neon_cge_f64,
+};
+TRANS(FCMGE_s, do_fp3_scalar, a, &f_scalar_fcmge)
+
+static const FPScalar f_scalar_fcmgt = {
+    gen_helper_advsimd_cgt_f16,
+    gen_helper_neon_cgt_f32,
+    gen_helper_neon_cgt_f64,
+};
+TRANS(FCMGT_s, do_fp3_scalar, a, &f_scalar_fcmgt)
+
+static const FPScalar f_scalar_facge = {
+    gen_helper_advsimd_acge_f16,
+    gen_helper_neon_acge_f32,
+    gen_helper_neon_acge_f64,
+};
+TRANS(FACGE_s, do_fp3_scalar, a, &f_scalar_facge)
+
+static const FPScalar f_scalar_facgt = {
+    gen_helper_advsimd_acgt_f16,
+    gen_helper_neon_acgt_f32,
+    gen_helper_neon_acgt_f64,
+};
+TRANS(FACGT_s, do_fp3_scalar, a, &f_scalar_facgt)
+
 static bool do_fp3_vector(DisasContext *s, arg_qrrr_e *a,
                           gen_helper_gvec_3_ptr * const fns[3])
 {
@@ -5079,6 +5114,41 @@ static gen_helper_gvec_3_ptr * const f_vector_fmls[3] = {
     gen_helper_gvec_vfms_d,
 };
 TRANS(FMLS_v, do_fp3_vector, a, f_vector_fmls)
+
+static gen_helper_gvec_3_ptr * const f_vector_fcmeq[3] = {
+    gen_helper_gvec_fceq_h,
+    gen_helper_gvec_fceq_s,
+    gen_helper_gvec_fceq_d,
+};
+TRANS(FCMEQ_v, do_fp3_vector, a, f_vector_fcmeq)
+
+static gen_helper_gvec_3_ptr * const f_vector_fcmge[3] = {
+    gen_helper_gvec_fcge_h,
+    gen_helper_gvec_fcge_s,
+    gen_helper_gvec_fcge_d,
+};
+TRANS(FCMGE_v, do_fp3_vector, a, f_vector_fcmge)
+
+static gen_helper_gvec_3_ptr * const f_vector_fcmgt[3] = {
+    gen_helper_gvec_fcgt_h,
+    gen_helper_gvec_fcgt_s,
+    gen_helper_gvec_fcgt_d,
+};
+TRANS(FCMGT_v, do_fp3_vector, a, f_vector_fcmgt)
+
+static gen_helper_gvec_3_ptr * const f_vector_facge[3] = {
+    gen_helper_gvec_facge_h,
+    gen_helper_gvec_facge_s,
+    gen_helper_gvec_facge_d,
+};
+TRANS(FACGE_v, do_fp3_vector, a, f_vector_facge)
+
+static gen_helper_gvec_3_ptr * const f_vector_facgt[3] = {
+    gen_helper_gvec_facgt_h,
+    gen_helper_gvec_facgt_s,
+    gen_helper_gvec_facgt_d,
+};
+TRANS(FACGT_v, do_fp3_vector, a, f_vector_facgt)
 
 /*
  * Advanced SIMD scalar/vector x indexed element
@@ -9227,43 +9297,33 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element(s, tcg_op2, rm, pass, MO_64);
 
             switch (fpopcode) {
-            case 0x1c: /* FCMEQ */
-                gen_helper_neon_ceq_f64(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x1f: /* FRECPS */
                 gen_helper_recpsf_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x3f: /* FRSQRTS */
                 gen_helper_rsqrtsf_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x5c: /* FCMGE */
-                gen_helper_neon_cge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x5d: /* FACGE */
-                gen_helper_neon_acge_f64(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subd(tcg_res, tcg_op1, tcg_op2, fpst);
                 gen_vfp_absd(tcg_res, tcg_res);
-                break;
-            case 0x7c: /* FCMGT */
-                gen_helper_neon_cgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x7d: /* FACGT */
-                gen_helper_neon_acgt_f64(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
             case 0x18: /* FMAXNM */
             case 0x19: /* FMLA */
             case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
+            case 0x1c: /* FCMEQ */
             case 0x1e: /* FMAX */
             case 0x38: /* FMINNM */
             case 0x39: /* FMLS */
             case 0x3a: /* FSUB */
             case 0x3e: /* FMIN */
             case 0x5b: /* FMUL */
+            case 0x5c: /* FCMGE */
+            case 0x5d: /* FACGE */
             case 0x5f: /* FDIV */
+            case 0x7c: /* FCMGT */
+            case 0x7d: /* FACGT */
                 g_assert_not_reached();
             }
 
@@ -9278,43 +9338,33 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_32);
 
             switch (fpopcode) {
-            case 0x1c: /* FCMEQ */
-                gen_helper_neon_ceq_f32(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x1f: /* FRECPS */
                 gen_helper_recpsf_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0x3f: /* FRSQRTS */
                 gen_helper_rsqrtsf_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x5c: /* FCMGE */
-                gen_helper_neon_cge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x5d: /* FACGE */
-                gen_helper_neon_acge_f32(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x7a: /* FABD */
                 gen_helper_vfp_subs(tcg_res, tcg_op1, tcg_op2, fpst);
                 gen_vfp_abss(tcg_res, tcg_res);
-                break;
-            case 0x7c: /* FCMGT */
-                gen_helper_neon_cgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x7d: /* FACGT */
-                gen_helper_neon_acgt_f32(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
             case 0x18: /* FMAXNM */
             case 0x19: /* FMLA */
             case 0x1a: /* FADD */
             case 0x1b: /* FMULX */
+            case 0x1c: /* FCMEQ */
             case 0x1e: /* FMAX */
             case 0x38: /* FMINNM */
             case 0x39: /* FMLS */
             case 0x3a: /* FSUB */
             case 0x3e: /* FMIN */
             case 0x5b: /* FMUL */
+            case 0x5c: /* FCMGE */
+            case 0x5d: /* FACGE */
             case 0x5f: /* FDIV */
+            case 0x7c: /* FCMGT */
+            case 0x7d: /* FACGT */
                 g_assert_not_reached();
             }
 
@@ -9355,15 +9405,15 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
         switch (fpopcode) {
         case 0x1f: /* FRECPS */
         case 0x3f: /* FRSQRTS */
+        case 0x7a: /* FABD */
+            break;
+        default:
+        case 0x1b: /* FMULX */
         case 0x5d: /* FACGE */
         case 0x7d: /* FACGT */
         case 0x1c: /* FCMEQ */
         case 0x5c: /* FCMGE */
         case 0x7c: /* FCMGT */
-        case 0x7a: /* FABD */
-            break;
-        default:
-        case 0x1b: /* FMULX */
             unallocated_encoding(s);
             return;
         }
@@ -9516,17 +9566,17 @@ static void disas_simd_scalar_three_reg_same_fp16(DisasContext *s,
     TCGv_i32 tcg_res;
 
     switch (fpopcode) {
-    case 0x04: /* FCMEQ (reg) */
     case 0x07: /* FRECPS */
     case 0x0f: /* FRSQRTS */
-    case 0x14: /* FCMGE (reg) */
-    case 0x15: /* FACGE */
     case 0x1a: /* FABD */
-    case 0x1c: /* FCMGT (reg) */
-    case 0x1d: /* FACGT */
         break;
     default:
     case 0x03: /* FMULX */
+    case 0x04: /* FCMEQ (reg) */
+    case 0x14: /* FCMGE (reg) */
+    case 0x15: /* FACGE */
+    case 0x1c: /* FCMGT (reg) */
+    case 0x1d: /* FACGT */
         unallocated_encoding(s);
         return;
     }
@@ -9546,33 +9596,23 @@ static void disas_simd_scalar_three_reg_same_fp16(DisasContext *s,
     tcg_res = tcg_temp_new_i32();
 
     switch (fpopcode) {
-    case 0x04: /* FCMEQ (reg) */
-        gen_helper_advsimd_ceq_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     case 0x07: /* FRECPS */
         gen_helper_recpsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
         break;
     case 0x0f: /* FRSQRTS */
         gen_helper_rsqrtsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
         break;
-    case 0x14: /* FCMGE (reg) */
-        gen_helper_advsimd_cge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x15: /* FACGE */
-        gen_helper_advsimd_acge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     case 0x1a: /* FABD */
         gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
         tcg_gen_andi_i32(tcg_res, tcg_res, 0x7fff);
         break;
-    case 0x1c: /* FCMGT (reg) */
-        gen_helper_advsimd_cgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
-    case 0x1d: /* FACGT */
-        gen_helper_advsimd_acgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-        break;
     default:
     case 0x03: /* FMULX */
+    case 0x04: /* FCMEQ (reg) */
+    case 0x14: /* FCMGE (reg) */
+    case 0x15: /* FACGE */
+    case 0x1c: /* FCMGT (reg) */
+    case 0x1d: /* FACGT */
         g_assert_not_reached();
     }
 
@@ -11232,12 +11272,7 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
         return;
     case 0x1f: /* FRECPS */
     case 0x3f: /* FRSQRTS */
-    case 0x5d: /* FACGE */
-    case 0x7d: /* FACGT */
-    case 0x1c: /* FCMEQ */
-    case 0x5c: /* FCMGE */
     case 0x7a: /* FABD */
-    case 0x7c: /* FCMGT */
         if (!fp_access_check(s)) {
             return;
         }
@@ -11269,13 +11304,18 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     case 0x19: /* FMLA */
     case 0x1a: /* FADD */
     case 0x1b: /* FMULX */
+    case 0x1c: /* FCMEQ */
     case 0x1e: /* FMAX */
     case 0x38: /* FMINNM */
     case 0x39: /* FMLS */
     case 0x3a: /* FSUB */
     case 0x3e: /* FMIN */
     case 0x5b: /* FMUL */
+    case 0x5c: /* FCMGE */
+    case 0x5d: /* FACGE */
     case 0x5f: /* FDIV */
+    case 0x7d: /* FACGT */
+    case 0x7c: /* FCMGT */
         unallocated_encoding(s);
         return;
     }
@@ -11617,14 +11657,9 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
     int pass;
 
     switch (fpopcode) {
-    case 0x4: /* FCMEQ */
     case 0x7: /* FRECPS */
     case 0xf: /* FRSQRTS */
-    case 0x14: /* FCMGE */
-    case 0x15: /* FACGE */
     case 0x1a: /* FABD */
-    case 0x1c: /* FCMGT */
-    case 0x1d: /* FACGT */
         pairwise = false;
         break;
     case 0x10: /* FMAXNMP */
@@ -11639,13 +11674,18 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
     case 0x1: /* FMLA */
     case 0x2: /* FADD */
     case 0x3: /* FMULX */
+    case 0x4: /* FCMEQ */
     case 0x6: /* FMAX */
     case 0x8: /* FMINNM */
     case 0x9: /* FMLS */
     case 0xa: /* FSUB */
     case 0xe: /* FMIN */
     case 0x13: /* FMUL */
+    case 0x14: /* FCMGE */
+    case 0x15: /* FACGE */
     case 0x17: /* FDIV */
+    case 0x1c: /* FCMGT */
+    case 0x1d: /* FACGT */
         unallocated_encoding(s);
         return;
     }
@@ -11711,43 +11751,33 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
             read_vec_element_i32(s, tcg_op2, rm, pass, MO_16);
 
             switch (fpopcode) {
-            case 0x4: /* FCMEQ */
-                gen_helper_advsimd_ceq_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x7: /* FRECPS */
                 gen_helper_recpsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             case 0xf: /* FRSQRTS */
                 gen_helper_rsqrtsf_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
-            case 0x14: /* FCMGE */
-                gen_helper_advsimd_cge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x15: /* FACGE */
-                gen_helper_advsimd_acge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
             case 0x1a: /* FABD */
                 gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
                 tcg_gen_andi_i32(tcg_res, tcg_res, 0x7fff);
-                break;
-            case 0x1c: /* FCMGT */
-                gen_helper_advsimd_cgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
-                break;
-            case 0x1d: /* FACGT */
-                gen_helper_advsimd_acgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
                 break;
             default:
             case 0x0: /* FMAXNM */
             case 0x1: /* FMLA */
             case 0x2: /* FADD */
             case 0x3: /* FMULX */
+            case 0x4: /* FCMEQ */
             case 0x6: /* FMAX */
             case 0x8: /* FMINNM */
             case 0x9: /* FMLS */
             case 0xa: /* FSUB */
             case 0xe: /* FMIN */
             case 0x13: /* FMUL */
+            case 0x14: /* FCMGE */
+            case 0x15: /* FACGE */
             case 0x17: /* FDIV */
+            case 0x1c: /* FCMGT */
+            case 0x1d: /* FACGT */
                 g_assert_not_reached();
             }
 
