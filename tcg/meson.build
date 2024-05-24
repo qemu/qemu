@@ -31,7 +31,6 @@ tcg_ss = tcg_ss.apply({})
 
 libtcg_user = static_library('tcg_user',
                              tcg_ss.sources() + genh,
-                             name_suffix: 'fa',
                              dependencies: tcg_ss.dependencies(),
                              c_args: '-DCONFIG_USER_ONLY',
                              build_by_default: false)
@@ -42,7 +41,6 @@ user_ss.add(tcg_user)
 
 libtcg_system = static_library('tcg_system',
                                 tcg_ss.sources() + genh,
-                                name_suffix: 'fa',
                                 dependencies: tcg_ss.dependencies(),
                                 c_args: '-DCONFIG_SOFTMMU',
                                 build_by_default: false)

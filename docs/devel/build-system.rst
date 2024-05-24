@@ -235,15 +235,10 @@ Subsystem sourcesets:
   are then turned into static libraries as follows::
 
     libchardev = static_library('chardev', chardev_ss.sources(),
-                                name_suffix: 'fa',
                                 build_by_default: false)
 
     chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false),
                                  dependencies: chardev_ss.dependencies())
-
-  As of Meson 0.55.1, the special ``.fa`` suffix should be used for everything
-  that is used with ``link_whole``, to ensure that the link flags are placed
-  correctly in the command line.
 
 Target-independent emulator sourcesets:
   Various general purpose helper code is compiled only once and
