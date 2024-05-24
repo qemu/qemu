@@ -505,7 +505,14 @@ static void lpc_hc_write(void *opaque, hwaddr addr, uint64_t val,
         pnv_lpc_eval_irqs(lpc);
         break;
     case LPC_HC_IRQSTAT:
-        lpc->lpc_hc_irqstat &= ~val;
+        /*
+         * This register is write-to-clear for the IRQSER (LPC device IRQ)
+         * status. However if the device has not de-asserted its interrupt
+         * that will just raise this IRQ status bit again. Model this by
+         * keeping track of the inputs and only clearing if the inputs are
+         * deasserted.
+         */
+        lpc->lpc_hc_irqstat &= ~(val & ~lpc->lpc_hc_irq_inputs);
         pnv_lpc_eval_irqs(lpc);
         break;
     case LPC_HC_ERROR_ADDRESS:
@@ -803,11 +810,20 @@ static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
 {
     PnvLpcController *lpc = PNV_LPC(opaque);
+    uint32_t irq_bit = LPC_HC_IRQ_SERIRQ0 >> n;
 
-    /* The Naples HW latches the 1 levels, clearing is done by SW */
     if (level) {
-        lpc->lpc_hc_irqstat |= LPC_HC_IRQ_SERIRQ0 >> n;
+        lpc->lpc_hc_irq_inputs |= irq_bit;
+
+        /*
+         * The LPC HC in Naples and later latches LPC IRQ into a bit field in
+         * the IRQSTAT register, and that drives the PSI IRQ to the IC.
+         * Software clears this bit manually (see LPC_HC_IRQSTAT handler).
+         */
+        lpc->lpc_hc_irqstat |= irq_bit;
         pnv_lpc_eval_irqs(lpc);
+    } else {
+        lpc->lpc_hc_irq_inputs &= ~irq_bit;
     }
 }
 

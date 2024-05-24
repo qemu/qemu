@@ -73,6 +73,9 @@ struct PnvLpcController {
     uint32_t opb_irq_pol;
     uint32_t opb_irq_input;
 
+    /* LPC device IRQ state */
+    uint32_t lpc_hc_irq_inputs;
+
     /* LPC HC registers */
     uint32_t lpc_hc_fw_seg_idsel;
     uint32_t lpc_hc_fw_rd_acc_size;
