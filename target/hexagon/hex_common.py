@@ -382,7 +382,7 @@ class Register:
         self.reg_num = f"{regtype}{regid}N"
     def decl_reg_num(self, f, regno):
         f.write(code_fmt(f"""\
-            const int {self.reg_num} = insn->regno[{regno}];
+            const int G_GNUC_UNUSED {self.reg_num} = insn->regno[{regno}];
         """))
     def idef_arg(self, declared):
         declared.append(self.reg_tcg())
