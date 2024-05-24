@@ -8707,6 +8707,9 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
             read_vec_element_i32(s, tcg_op, rn, pass, size);
             fn(tcg_op, tcg_op, tcg_shift, tcg_fpstatus);
             if (is_scalar) {
+                if (size == MO_16 && !is_u) {
+                    tcg_gen_ext16u_i32(tcg_op, tcg_op);
+                }
                 write_fp_sreg(s, rd, tcg_op);
             } else {
                 write_vec_element_i32(s, tcg_op, rd, pass, size);
