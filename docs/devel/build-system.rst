@@ -238,7 +238,8 @@ Subsystem sourcesets:
                                 name_suffix: 'fa',
                                 build_by_default: false)
 
-    chardev = declare_dependency(link_whole: libchardev)
+    chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false),
+                                 dependencies: chardev_ss.dependencies())
 
   As of Meson 0.55.1, the special ``.fa`` suffix should be used for everything
   that is used with ``link_whole``, to ensure that the link flags are placed

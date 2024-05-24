@@ -72,4 +72,4 @@ libqos = static_library('qos', libqos_srcs + genh,
                         name_suffix: 'fa',
                         build_by_default: false)
 
-qos = declare_dependency(link_whole: libqos)
+qos = declare_dependency(objects: libqos.extract_all_objects(recursive: false))

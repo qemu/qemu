@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.63.0',
+project('qemu', ['c'], meson_version: '>=1.1.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -3461,7 +3461,7 @@ endif
 
 if enable_modules
   libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
-  modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
+  modulecommon = declare_dependency(objects: libmodulecommon.extract_all_objects(recursive: false), compile_args: '-DBUILD_DSO')
 endif
 
 qom_ss = qom_ss.apply({})
@@ -3469,14 +3469,15 @@ libqom = static_library('qom', qom_ss.sources() + genh,
                         dependencies: [qom_ss.dependencies()],
                         name_suffix: 'fa',
                         build_by_default: false)
-qom = declare_dependency(link_whole: libqom)
+qom = declare_dependency(objects: libqom.extract_all_objects(recursive: false),
+                         dependencies: qom_ss.dependencies())
 
 event_loop_base = files('event-loop-base.c')
 event_loop_base = static_library('event-loop-base',
                                  sources: event_loop_base + genh,
                                  name_suffix: 'fa',
                                  build_by_default: false)
-event_loop_base = declare_dependency(link_whole: event_loop_base,
+event_loop_base = declare_dependency(objects: event_loop_base.extract_all_objects(recursive: false),
                                      dependencies: [qom])
 
 stub_ss = stub_ss.apply({})
@@ -3621,7 +3622,8 @@ foreach d, list : modules
       endif
       emulator_modules += shared_module(sl.name(),
                     name_prefix: '',
-                    link_whole: sl,
+                    objects: sl.extract_all_objects(recursive: false),
+                    dependencies: module_ss.dependencies(),
                     install: true,
                     install_dir: qemu_moddir)
       if module_ss.sources() != []
@@ -3669,7 +3671,8 @@ foreach d, list : target_modules
             system_mods += sl
             emulator_modules += shared_module(sl.name(),
                     name_prefix: '',
-                    link_whole: sl,
+                    objects: sl.extract_all_objects(recursive: false),
+                    dependencies: target_module_ss.dependencies(),
                     install: true,
                     install_dir: qemu_moddir)
             # FIXME: Should use sl.extract_all_objects(recursive: true) too.
@@ -3728,8 +3731,8 @@ libauthz = static_library('authz', authz_ss.sources() + genh,
                           name_suffix: 'fa',
                           build_by_default: false)
 
-authz = declare_dependency(link_whole: libauthz,
-                           dependencies: qom)
+authz = declare_dependency(objects: libauthz.extract_all_objects(recursive: false),
+                           dependencies: [authz_ss.dependencies(), qom])
 
 crypto_ss = crypto_ss.apply({})
 libcrypto = static_library('crypto', crypto_ss.sources() + genh,
@@ -3737,8 +3740,8 @@ libcrypto = static_library('crypto', crypto_ss.sources() + genh,
                            name_suffix: 'fa',
                            build_by_default: false)
 
-crypto = declare_dependency(link_whole: libcrypto,
-                            dependencies: [authz, qom])
+crypto = declare_dependency(objects: libcrypto.extract_all_objects(recursive: false),
+                            dependencies: [crypto_ss.dependencies(), authz, qom])
 
 io_ss = io_ss.apply({})
 libio = static_library('io', io_ss.sources() + genh,
@@ -3747,12 +3750,13 @@ libio = static_library('io', io_ss.sources() + genh,
                        name_suffix: 'fa',
                        build_by_default: false)
 
-io = declare_dependency(link_whole: libio, dependencies: [crypto, qom])
+io = declare_dependency(objects: libio.extract_all_objects(recursive: false),
+                        dependencies: [io_ss.dependencies(), crypto, qom])
 
 libmigration = static_library('migration', sources: migration_files + genh,
                               name_suffix: 'fa',
                               build_by_default: false)
-migration = declare_dependency(link_with: libmigration,
+migration = declare_dependency(objects: libmigration.extract_all_objects(recursive: false),
                                dependencies: [qom, io])
 system_ss.add(migration)
 
@@ -3762,8 +3766,8 @@ libblock = static_library('block', block_ss.sources() + genh,
                           name_suffix: 'fa',
                           build_by_default: false)
 
-block = declare_dependency(link_whole: [libblock],
-                           dependencies: [crypto, io])
+block = declare_dependency(objects: libblock.extract_all_objects(recursive: false),
+                           dependencies: [block_ss.dependencies(), crypto, io])
 
 blockdev_ss = blockdev_ss.apply({})
 libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
@@ -3771,8 +3775,8 @@ libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
                              name_suffix: 'fa',
                              build_by_default: false)
 
-blockdev = declare_dependency(link_whole: [libblockdev],
-                              dependencies: [block, event_loop_base])
+blockdev = declare_dependency(objects: libblockdev.extract_all_objects(recursive: false),
+                              dependencies: [blockdev_ss.dependencies(), block, event_loop_base])
 
 qmp_ss = qmp_ss.apply({})
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
@@ -3780,20 +3784,22 @@ libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         name_suffix: 'fa',
                         build_by_default: false)
 
-qmp = declare_dependency(link_whole: [libqmp])
+qmp = declare_dependency(objects: libqmp.extract_all_objects(recursive: false),
+                         dependencies: qmp_ss.dependencies())
 
 libchardev = static_library('chardev', chardev_ss.sources() + genh,
                             name_suffix: 'fa',
                             dependencies: chardev_ss.dependencies(),
                             build_by_default: false)
 
-chardev = declare_dependency(link_whole: libchardev)
+chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false),
+                             dependencies: chardev_ss.dependencies())
 
 hwcore_ss = hwcore_ss.apply({})
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
                            name_suffix: 'fa',
                            build_by_default: false)
-hwcore = declare_dependency(link_whole: libhwcore)
+hwcore = declare_dependency(objects: libhwcore.extract_all_objects(recursive: false))
 common_ss.add(hwcore)
 
 ###########

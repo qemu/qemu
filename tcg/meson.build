@@ -36,7 +36,8 @@ libtcg_user = static_library('tcg_user',
                              c_args: '-DCONFIG_USER_ONLY',
                              build_by_default: false)
 
-tcg_user = declare_dependency(link_with: libtcg_user)
+tcg_user = declare_dependency(objects: libtcg_user.extract_all_objects(recursive: false),
+                              dependencies: tcg_ss.dependencies())
 user_ss.add(tcg_user)
 
 libtcg_system = static_library('tcg_system',
@@ -46,5 +47,6 @@ libtcg_system = static_library('tcg_system',
                                 c_args: '-DCONFIG_SOFTMMU',
                                 build_by_default: false)
 
-tcg_system = declare_dependency(link_with: libtcg_system)
+tcg_system = declare_dependency(objects: libtcg_system.extract_all_objects(recursive: false),
+                                dependencies: tcg_ss.dependencies())
 system_ss.add(tcg_system)
