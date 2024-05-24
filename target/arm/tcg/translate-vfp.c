@@ -48,6 +48,12 @@ static inline void vfp_store_reg32(TCGv_i32 var, int reg)
     tcg_gen_st_i32(var, tcg_env, vfp_reg_offset(false, reg));
 }
 
+static inline void vfp_load_reg16(TCGv_i32 var, int reg)
+{
+    tcg_gen_ld16u_i32(var, tcg_env,
+                      vfp_reg_offset(false, reg) + HOST_BIG_ENDIAN * 2);
+}
+
 /*
  * The imm8 encodes the sign bit, enough bits to represent an exponent in
  * the range 01....1xx to 10....0xx, and the most significant 4 bits of
@@ -902,8 +908,7 @@ static bool trans_VMOV_half(DisasContext *s, arg_VMOV_single *a)
     if (a->l) {
         /* VFP to general purpose register */
         tmp = tcg_temp_new_i32();
-        vfp_load_reg32(tmp, a->vn);
-        tcg_gen_andi_i32(tmp, tmp, 0xffff);
+        vfp_load_reg16(tmp, a->vn);
         store_reg(s, a->rt, tmp);
     } else {
         /* general purpose register to VFP */
@@ -1453,11 +1458,11 @@ static bool do_vfp_3op_hp(DisasContext *s, VFPGen3OpSPFn *fn,
     fd = tcg_temp_new_i32();
     fpst = fpstatus_ptr(FPST_FPCR_F16);
 
-    vfp_load_reg32(f0, vn);
-    vfp_load_reg32(f1, vm);
+    vfp_load_reg16(f0, vn);
+    vfp_load_reg16(f1, vm);
 
     if (reads_vd) {
-        vfp_load_reg32(fd, vd);
+        vfp_load_reg16(fd, vd);
     }
     fn(fd, f0, f1, fpst);
     vfp_store_reg32(fd, vd);
@@ -1633,7 +1638,7 @@ static bool do_vfp_2op_hp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
     }
 
     f0 = tcg_temp_new_i32();
-    vfp_load_reg32(f0, vm);
+    vfp_load_reg16(f0, vm);
     fn(f0, f0);
     vfp_store_reg32(f0, vd);
 
@@ -2106,13 +2111,13 @@ static bool do_vfm_hp(DisasContext *s, arg_VFMA_sp *a, bool neg_n, bool neg_d)
     vm = tcg_temp_new_i32();
     vd = tcg_temp_new_i32();
 
-    vfp_load_reg32(vn, a->vn);
-    vfp_load_reg32(vm, a->vm);
+    vfp_load_reg16(vn, a->vn);
+    vfp_load_reg16(vm, a->vm);
     if (neg_n) {
         /* VFNMS, VFMS */
         gen_helper_vfp_negh(vn, vn);
     }
-    vfp_load_reg32(vd, a->vd);
+    vfp_load_reg16(vd, a->vd);
     if (neg_d) {
         /* VFNMA, VFNMS */
         gen_helper_vfp_negh(vd, vd);
@@ -2456,11 +2461,11 @@ static bool trans_VCMP_hp(DisasContext *s, arg_VCMP_sp *a)
     vd = tcg_temp_new_i32();
     vm = tcg_temp_new_i32();
 
-    vfp_load_reg32(vd, a->vd);
+    vfp_load_reg16(vd, a->vd);
     if (a->z) {
         tcg_gen_movi_i32(vm, 0);
     } else {
-        vfp_load_reg32(vm, a->vm);
+        vfp_load_reg16(vm, a->vm);
     }
 
     if (a->e) {
@@ -2700,7 +2705,7 @@ static bool trans_VRINTR_hp(DisasContext *s, arg_VRINTR_sp *a)
     }
 
     tmp = tcg_temp_new_i32();
-    vfp_load_reg32(tmp, a->vm);
+    vfp_load_reg16(tmp, a->vm);
     fpst = fpstatus_ptr(FPST_FPCR_F16);
     gen_helper_rinth(tmp, tmp, fpst);
     vfp_store_reg32(tmp, a->vd);
@@ -2773,7 +2778,7 @@ static bool trans_VRINTZ_hp(DisasContext *s, arg_VRINTZ_sp *a)
     }
 
     tmp = tcg_temp_new_i32();
-    vfp_load_reg32(tmp, a->vm);
+    vfp_load_reg16(tmp, a->vm);
     fpst = fpstatus_ptr(FPST_FPCR_F16);
     tcg_rmode = gen_set_rmode(FPROUNDING_ZERO, fpst);
     gen_helper_rinth(tmp, tmp, fpst);
@@ -2853,7 +2858,7 @@ static bool trans_VRINTX_hp(DisasContext *s, arg_VRINTX_sp *a)
     }
 
     tmp = tcg_temp_new_i32();
-    vfp_load_reg32(tmp, a->vm);
+    vfp_load_reg16(tmp, a->vm);
     fpst = fpstatus_ptr(FPST_FPCR_F16);
     gen_helper_rinth_exact(tmp, tmp, fpst);
     vfp_store_reg32(tmp, a->vd);
@@ -3270,7 +3275,7 @@ static bool trans_VCVT_hp_int(DisasContext *s, arg_VCVT_sp_int *a)
 
     fpst = fpstatus_ptr(FPST_FPCR_F16);
     vm = tcg_temp_new_i32();
-    vfp_load_reg32(vm, a->vm);
+    vfp_load_reg16(vm, a->vm);
 
     if (a->s) {
         if (a->rz) {
@@ -3383,8 +3388,8 @@ static bool trans_VINS(DisasContext *s, arg_VINS *a)
     /* Insert low half of Vm into high half of Vd */
     rm = tcg_temp_new_i32();
     rd = tcg_temp_new_i32();
-    vfp_load_reg32(rm, a->vm);
-    vfp_load_reg32(rd, a->vd);
+    vfp_load_reg16(rm, a->vm);
+    vfp_load_reg16(rd, a->vd);
     tcg_gen_deposit_i32(rd, rd, rm, 16, 16);
     vfp_store_reg32(rd, a->vd);
     return true;
