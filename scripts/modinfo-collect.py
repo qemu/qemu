@@ -7,15 +7,6 @@ import json
 import shlex
 import subprocess
 
-def find_command(src, target, compile_commands):
-    for command in compile_commands:
-        if command['file'] != src:
-            continue
-        if target != '' and command['command'].find(target) == -1:
-            continue
-        return command['command']
-    return 'false'
-
 def process_command(src, command):
     skip = False
     out = []
@@ -43,14 +34,22 @@ def main(args):
         print("MODINFO_DEBUG target %s" % target)
         arch = target[:-8] # cut '-softmmu'
         print("MODINFO_START arch \"%s\" MODINFO_END" % arch)
+
     with open('compile_commands.json') as f:
-        compile_commands = json.load(f)
-    for src in args:
+        compile_commands_json = json.load(f)
+    compile_commands = { x['output']: x for x in compile_commands_json }
+
+    for obj in args:
+        entry = compile_commands.get(obj, None)
+        if not entry:
+            sys.stderr.print('modinfo: Could not find object file', obj)
+            sys.exit(1)
+        src = entry['file']
         if not src.endswith('.c'):
             print("MODINFO_DEBUG skip %s" % src)
             continue
+        command = entry['command']
         print("MODINFO_DEBUG src %s" % src)
-        command = find_command(src, target, compile_commands)
         cmdline = process_command(src, command)
         print("MODINFO_DEBUG cmd", cmdline)
         result = subprocess.run(cmdline, stdout = subprocess.PIPE,
