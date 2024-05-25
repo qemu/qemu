@@ -254,6 +254,13 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                                   control.intercept_exceptions
                                                   ));
 
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+    if (x86_ldl_phys(cs, env->vm_vmcb +
+                offsetof(struct vmcb, control.int_state)) &
+                 SVM_INTERRUPT_SHADOW_MASK) {
+        env->hflags |= HF_INHIBIT_IRQ_MASK;
+    }
+
     nested_ctl = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.nested_ctl));
     asid = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
@@ -815,8 +822,12 @@ void do_vmexit(CPUX86State *env)
     env->hflags &= ~HF_GUEST_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
+
+    /* Clears the V_IRQ and V_INTR_MASKING bits inside the processor. */
     cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
     env->int_ctl = 0;
+
+    /* Clears the TSC_OFFSET inside the processor. */
     env->tsc_offset = 0;
 
     env->gdt.base  = x86_ldq_phys(cs, env->vm_hsave + offsetof(struct vmcb,
@@ -836,6 +847,15 @@ void do_vmexit(CPUX86State *env)
     cpu_x86_update_cr4(env, x86_ldq_phys(cs,
                                      env->vm_hsave + offsetof(struct vmcb,
                                                               save.cr4)));
+
+    /*
+     * Resets the current ASID register to zero (host ASID; TLB flush).
+     *
+     * If the host is in PAE mode, the processor reloads the host's PDPEs
+     * from the page table indicated the host's CR3. FIXME: If the PDPEs
+     * contain illegal state, the processor causes a shutdown (QEMU does
+     * not implement PDPTRs).
+     */
     cpu_x86_update_cr3(env, x86_ldq_phys(cs,
                                      env->vm_hsave + offsetof(struct vmcb,
                                                               save.cr3)));
@@ -843,12 +863,14 @@ void do_vmexit(CPUX86State *env)
        set properly */
     cpu_load_efer(env, x86_ldq_phys(cs, env->vm_hsave + offsetof(struct vmcb,
                                                          save.efer)));
+
+    /* Completion of the VMRUN instruction clears the host EFLAGS.RF bit.  */
     env->eflags = 0;
     cpu_load_eflags(env, x86_ldq_phys(cs,
                                   env->vm_hsave + offsetof(struct vmcb,
                                                            save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK |
-                      VM_MASK));
+                      RF_MASK | VM_MASK));
 
     svm_load_seg_cache(env, MMU_PHYS_IDX,
                        env->vm_hsave + offsetof(struct vmcb, save.es), R_ES);
@@ -888,19 +910,17 @@ void do_vmexit(CPUX86State *env)
 
     env->hflags2 &= ~HF2_GIF_MASK;
     env->hflags2 &= ~HF2_VGIF_MASK;
-    /* FIXME: Resets the current ASID register to zero (host ASID). */
 
-    /* Clears the V_IRQ and V_INTR_MASKING bits inside the processor. */
 
-    /* Clears the TSC_OFFSET inside the processor. */
+    /* FIXME: Checks the reloaded host state for consistency. */
 
-    /* If the host is in PAE mode, the processor reloads the host's PDPEs
-       from the page table indicated the host's CR3. If the PDPEs contain
-       illegal state, the processor causes a shutdown. */
-
-    /* Checks the reloaded host state for consistency. */
-
-    /* If the host's rIP reloaded by #VMEXIT is outside the limit of the
-       host's code segment or non-canonical (in the case of long mode), a
-       #GP fault is delivered inside the host. */
+    /*
+     * EFLAGS.TF causes a #DB trap after the VMRUN completes on the host
+     * side (i.e., after the #VMEXIT from the guest). Since we're running
+     * in the main loop, call do_interrupt_all directly.
+     */
+    if ((env->eflags & TF_MASK) != 0) {
+        env->dr[6] |= DR6_BS;
+        do_interrupt_all(X86_CPU(cs), EXCP01_DB, 0, 0, env->eip, 0);
+    }
 }

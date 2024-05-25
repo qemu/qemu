@@ -3745,6 +3745,11 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
+            /*
+             * Reloads INHIBIT_IRQ mask as well as TF and RF with guest state.
+             * The usual gen_eob() handling is performed on vmexit after
+             * host state is reloaded.
+             */
             gen_helper_vmrun(tcg_env, tcg_constant_i32(s->aflag - 1),
                              cur_insn_len_i32(s));
             tcg_gen_exit_tb(NULL, 0);
