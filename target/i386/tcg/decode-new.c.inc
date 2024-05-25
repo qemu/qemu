@@ -223,6 +223,8 @@
 #define vex13 .vex_class = 13,
 
 #define chk(a) .check = X86_CHECK_##a,
+#define chk2(a, b) .check = X86_CHECK_##a | X86_CHECK_##b,
+#define chk3(a, b, c) .check = X86_CHECK_##a | X86_CHECK_##b | X86_CHECK_##c,
 #define svm(a) .intercept = SVM_EXIT_##a, .has_intercept = true,
 
 #define avx2_256 .vex_special = X86_VEX_AVX2_256,
@@ -1027,6 +1029,12 @@ static void decode_MOV_CR_DR(DisasContext *s, CPUX86State *env, X86OpEntry *entr
 }
 
 static const X86OpEntry opcodes_0F[256] = {
+    [0x02] = X86_OP_ENTRYwr(LAR,        G,v, E,w,             chk(prot)),
+    [0x03] = X86_OP_ENTRYwr(LSL,        G,v, E,w,             chk(prot)),
+    [0x05] = X86_OP_ENTRY0(SYSCALL,                           chk(o64_intel)),
+    [0x06] = X86_OP_ENTRY0(CLTS,                              chk(cpl0) svm(WRITE_CR0)),
+    [0x07] = X86_OP_ENTRY0(SYSRET,                            chk3(o64_intel, prot, cpl0)),
+
     [0x10] = X86_OP_GROUP0(0F10),
     [0x11] = X86_OP_GROUP0(0F11),
     [0x12] = X86_OP_GROUP0(0F12),
@@ -1045,6 +1053,13 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x21] = X86_OP_GROUPwr(MOV_CR_DR,   R,y_d64, D,y_d64, chk(cpl0) svm(READ_DR0)),
     [0x22] = X86_OP_GROUPwr(MOV_CR_DR,   C,y_d64, R,y_d64, zextT0 chk(cpl0) svm(WRITE_CR0)),
     [0x23] = X86_OP_GROUPwr(MOV_CR_DR,   D,y_d64, R,y_d64, zextT0 chk(cpl0) svm(WRITE_DR0)),
+
+    [0x30] = X86_OP_ENTRY0(WRMSR,                             chk(cpl0)),
+    [0x31] = X86_OP_ENTRY0(RDTSC),
+    [0x32] = X86_OP_ENTRY0(RDMSR,                             chk(cpl0)),
+    [0x33] = X86_OP_ENTRY0(RDPMC),
+    [0x34] = X86_OP_ENTRY0(SYSENTER,                          chk2(i64_amd, prot_or_vm86)),
+    [0x35] = X86_OP_ENTRY0(SYSEXIT,                           chk3(i64_amd, prot, cpl0)),
 
     [0x40] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
     [0x41] = X86_OP_ENTRY2(CMOVcc,     G,v, E,v, cpuid(CMOV)),
@@ -1102,6 +1117,7 @@ static const X86OpEntry opcodes_0F[256] = {
 
     [0xa0] = X86_OP_ENTRYr(PUSH, FS, w),
     [0xa1] = X86_OP_ENTRYw(POP, FS, w),
+    [0xa2] = X86_OP_ENTRY0(CPUID),
 
     [0xb2] = X86_OP_ENTRY3(LSS,    G,v, EM,p, None, None),
     [0xb4] = X86_OP_ENTRY3(LFS,    G,v, EM,p, None, None),
@@ -1142,6 +1158,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xf6] = X86_OP_ENTRY3(PSADBW,   V,x, H,x, W,x,         vex4 mmx avx2_256 p_00_66),
     [0xf7] = X86_OP_ENTRY3(MASKMOV,  None,None, V,dq, U,dq, vex4_unal avx2_256 mmx p_00_66),
 
+    [0x08] = X86_OP_ENTRY0(NOP,           svm(INVD)),
+    [0x09] = X86_OP_ENTRY0(NOP,           svm(WBINVD)),
     [0x0b] = X86_OP_ENTRY0(UD),           /* UD2 */
     [0x0d] = X86_OP_ENTRY1(NOP,  M,v),    /* 3DNow! prefetch */
     [0x0e] = X86_OP_ENTRY0(EMMS,                              cpuid(3DNOW)), /* femms */
@@ -1225,6 +1243,7 @@ static const X86OpEntry opcodes_0F[256] = {
 
     [0xa8] = X86_OP_ENTRYr(PUSH,   GS, w),
     [0xa9] = X86_OP_ENTRYw(POP,    GS, w),
+    [0xaa] = X86_OP_ENTRY0(RSM,             chk(smm) svm(RSM)),
     [0xae] = X86_OP_GROUP0(group15),
     /*
      * It's slightly more efficient to put Ev operand in T0 and allow gen_IMUL3
@@ -2519,12 +2538,10 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         if (b == 0x0f) {
             b = x86_ldub_code(env, s);
             switch (b) {
-            case 0x00 ... 0x03: /* mostly privileged instructions */
-            case 0x05 ... 0x09:
+            case 0x00 ... 0x01: /* mostly privileged instructions */
             case 0x1a ... 0x1b: /* MPX */
-            case 0x30 ... 0x35: /* more privileged instructions */
-            case 0xa2 ... 0xa5: /* CPUID, BT, SHLD */
-            case 0xaa ... 0xad: /* RSM, SHRD */
+            case 0xa3 ... 0xa5: /* BT, SHLD */
+            case 0xab ... 0xad: /* BTS, SHRD */
             case 0xb0 ... 0xb1: /* cmpxchg */
             case 0xb3:          /* btr */
             case 0xb8:          /* integer ops */
@@ -2556,13 +2573,18 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     /* Checks that result in #UD come first.  */
     if (decode.e.check) {
-        if (decode.e.check & X86_CHECK_i64) {
-            if (CODE64(s)) {
+        if (CODE64(s)) {
+            if (decode.e.check & X86_CHECK_i64) {
                 goto illegal_op;
             }
-        }
-        if (decode.e.check & X86_CHECK_o64) {
-            if (!CODE64(s)) {
+            if ((decode.e.check & X86_CHECK_i64_amd) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
+                goto illegal_op;
+            }
+        } else {
+            if (decode.e.check & X86_CHECK_o64) {
+                goto illegal_op;
+            }
+            if ((decode.e.check & X86_CHECK_o64_intel) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
                 goto illegal_op;
             }
         }
@@ -2646,8 +2668,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
      * exceptions if there is no memory operand).  Exceptions are
      * vm86 checks (INTn, IRET, PUSHF/POPF), RSM and XSETBV (!).
      *
-     * RSM and XSETBV will be handled in the gen_* functions
-     * instead of using chk().
+     * XSETBV will check for CPL0 in the gen_* function instead of using chk().
      */
     if (decode.e.check & X86_CHECK_cpl0) {
         if (CPL(s) != 0) {
@@ -2659,6 +2680,9 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
                                        tcg_constant_i32(decode.e.intercept));
     }
     if (decode.e.check) {
+        if ((decode.e.check & X86_CHECK_smm) && !(s->flags & HF_SMM_MASK)) {
+            goto illegal_op;
+        }
         if ((decode.e.check & X86_CHECK_vm86_iopl) && VM86(s)) {
             if (IOPL(s) < 3) {
                 goto gp_fault;

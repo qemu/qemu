@@ -1414,6 +1414,13 @@ static void gen_CLI(DisasContext *s, X86DecodedInsn *decode)
     gen_reset_eflags(s, IF_MASK);
 }
 
+static void gen_CLTS(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_helper_clts(tcg_env);
+    /* abort block because static cpu state changed */
+    s->base.is_jmp = DISAS_EOB_NEXT;
+}
+
 static void gen_CMC(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_compute_eflags(s);
@@ -1536,6 +1543,13 @@ static void gen_CMPS(DisasContext *s, X86DecodedInsn *decode)
     } else {
         gen_cmps(s, ot);
     }
+}
+
+static void gen_CPUID(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    gen_helper_cpuid(tcg_env);
 }
 
 static void gen_CRC32(DisasContext *s, X86DecodedInsn *decode)
@@ -1661,16 +1675,18 @@ static void gen_FXRSTOR(DisasContext *s, X86DecodedInsn *decode)
 {
     if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
         gen_NM_exception(s);
+    } else {
+        gen_helper_fxrstor(tcg_env, s->A0);
     }
-    gen_helper_fxrstor(tcg_env, s->A0);
 }
 
 static void gen_FXSAVE(DisasContext *s, X86DecodedInsn *decode)
 {
     if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
         gen_NM_exception(s);
+    } else {
+        gen_helper_fxsave(tcg_env, s->A0);
     }
-    gen_helper_fxsave(tcg_env, s->A0);
 }
 
 static void gen_HLT(DisasContext *s, X86DecodedInsn *decode)
@@ -1981,6 +1997,23 @@ static void gen_LAHF(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_deposit_tl(cpu_regs[R_EAX], cpu_regs[R_EAX], s->T0, 8, 8);
 }
 
+static void gen_LAR(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+    TCGv result = tcg_temp_new();
+    TCGv dest;
+
+    gen_compute_eflags(s);
+    gen_update_cc_op(s);
+    gen_helper_lar(result, tcg_env, s->T0);
+
+    /* Perform writeback here to skip it if ZF=0.  */
+    decode->op[0].unit = X86_OP_SKIP;
+    dest = gen_op_deposit_reg_v(s, ot, decode->op[0].n, result, result);
+    tcg_gen_movcond_tl(TCG_COND_TSTNE, dest, cpu_cc_src, tcg_constant_tl(CC_Z),
+                       result, dest);
+}
+
 static void gen_LDMXCSR(DisasContext *s, X86DecodedInsn *decode)
 {
     tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
@@ -2077,6 +2110,23 @@ static void gen_LOOPNE(DisasContext *s, X86DecodedInsn *decode)
     gen_op_jz_ecx(s, not_taken);
     gen_jcc1(s, (JCC_Z << 1) | 1, taken); /* jnz taken */
     gen_conditional_jump_labels(s, decode->immediate, not_taken, taken);
+}
+
+static void gen_LSL(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+    TCGv result = tcg_temp_new();
+    TCGv dest;
+
+    gen_compute_eflags(s);
+    gen_update_cc_op(s);
+    gen_helper_lsl(result, tcg_env, s->T0);
+
+    /* Perform writeback here to skip it if ZF=0.  */
+    decode->op[0].unit = X86_OP_SKIP;
+    dest = gen_op_deposit_reg_v(s, ot, decode->op[0].n, result, result);
+    tcg_gen_movcond_tl(TCG_COND_TSTNE, dest, cpu_cc_src, tcg_constant_tl(CC_Z),
+                       result, dest);
 }
 
 static void gen_LSS(DisasContext *s, X86DecodedInsn *decode)
@@ -3122,6 +3172,41 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+#ifdef CONFIG_USER_ONLY
+static void gen_unreachable(DisasContext *s, X86DecodedInsn *decode)
+{
+    g_assert_not_reached();
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+static void gen_RDMSR(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    gen_helper_rdmsr(tcg_env);
+}
+#else
+#define gen_RDMSR gen_unreachable
+#endif
+
+static void gen_RDPMC(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    translator_io_start(&s->base);
+    gen_helper_rdpmc(tcg_env);
+    s->base.is_jmp = DISAS_NORETURN;
+}
+
+static void gen_RDTSC(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    translator_io_start(&s->base);
+    gen_helper_rdtsc(tcg_env);
+}
+
 static void gen_RDxxBASE(DisasContext *s, X86DecodedInsn *decode)
 {
     TCGv base = cpu_seg_base[s->modrm & 8 ? R_GS : R_FS];
@@ -3293,6 +3378,17 @@ static void gen_RORX(DisasContext *s, X86DecodedInsn *decode)
         g_assert_not_reached();
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void gen_RSM(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_helper_rsm(tcg_env);
+    assume_cc_op(s, CC_OP_EFLAGS);
+    s->base.is_jmp = DISAS_EOB_ONLY;
+}
+#else
+#define gen_RSM gen_UD
+#endif
 
 static void gen_SAHF(DisasContext *s, X86DecodedInsn *decode)
 {
@@ -3588,6 +3684,51 @@ static void gen_SUB(DisasContext *s, X86DecodedInsn *decode)
         tcg_gen_sub_tl(s->T0, s->T0, s->T1);
     }
     prepare_update2_cc(decode, s, CC_OP_SUBB + ot);
+}
+
+static void gen_SYSCALL(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    gen_helper_syscall(tcg_env, cur_insn_len_i32(s));
+    if (LMA(s)) {
+        assume_cc_op(s, CC_OP_EFLAGS);
+    }
+
+    /*
+     * TF handling for the syscall insn is different. The TF bit is checked
+     * after the syscall insn completes. This allows #DB to not be
+     * generated after one has entered CPL0 if TF is set in FMASK.
+     */
+    s->base.is_jmp = DISAS_EOB_RECHECK_TF;
+}
+
+static void gen_SYSENTER(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_helper_sysenter(tcg_env);
+    s->base.is_jmp = DISAS_EOB_ONLY;
+}
+
+static void gen_SYSEXIT(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_helper_sysexit(tcg_env, tcg_constant_i32(s->dflag - 1));
+    s->base.is_jmp = DISAS_EOB_ONLY;
+}
+
+static void gen_SYSRET(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_helper_sysret(tcg_env, tcg_constant_i32(s->dflag - 1));
+    if (LMA(s)) {
+        assume_cc_op(s, CC_OP_EFLAGS);
+    }
+
+    /*
+     * TF handling for the sysret insn is different. The TF bit is checked
+     * after the sysret insn completes. This allows #DB to be
+     * generated "as if" the syscall insn in userspace has just
+     * completed.
+     */
+    s->base.is_jmp = DISAS_EOB_RECHECK_TF;
 }
 
 static void gen_UD(DisasContext *s, X86DecodedInsn *decode)
@@ -4085,6 +4226,18 @@ static void gen_WAIT(DisasContext *s, X86DecodedInsn *decode)
         gen_helper_fwait(tcg_env);
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void gen_WRMSR(DisasContext *s, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_cur(s);
+    gen_helper_wrmsr(tcg_env);
+    s->base.is_jmp = DISAS_EOB_NEXT;
+}
+#else
+#define gen_WRMSR gen_unreachable
+#endif
 
 static void gen_WRxxBASE(DisasContext *s, X86DecodedInsn *decode)
 {

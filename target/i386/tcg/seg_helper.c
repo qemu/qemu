@@ -2265,11 +2265,11 @@ void helper_sysexit(CPUX86State *env, int dflag)
 target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
 {
     unsigned int limit;
-    uint32_t e1, e2, eflags, selector;
+    uint32_t e1, e2, selector;
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env);
+    assert(CC_OP == CC_OP_EFLAGS);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2301,22 +2301,22 @@ target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
         }
         if (dpl < cpl || dpl < rpl) {
         fail:
-            CC_SRC = eflags & ~CC_Z;
+            CC_SRC &= ~CC_Z;
             return 0;
         }
     }
     limit = get_seg_limit(e1, e2);
-    CC_SRC = eflags | CC_Z;
+    CC_SRC |= CC_Z;
     return limit;
 }
 
 target_ulong helper_lar(CPUX86State *env, target_ulong selector1)
 {
-    uint32_t e1, e2, eflags, selector;
+    uint32_t e1, e2, selector;
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env);
+    assert(CC_OP == CC_OP_EFLAGS);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2351,11 +2351,11 @@ target_ulong helper_lar(CPUX86State *env, target_ulong selector1)
         }
         if (dpl < cpl || dpl < rpl) {
         fail:
-            CC_SRC = eflags & ~CC_Z;
+            CC_SRC &= ~CC_Z;
             return 0;
         }
     }
-    CC_SRC = eflags | CC_Z;
+    CC_SRC |= CC_Z;
     return e2 & 0x00f0ff00;
 }
 

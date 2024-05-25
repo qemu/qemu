@@ -246,7 +246,6 @@ STUB_HELPER(mwait, TCGv_env env, TCGv_i32 pc_ofs)
 STUB_HELPER(outb, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
 STUB_HELPER(outw, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
 STUB_HELPER(outl, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
-STUB_HELPER(rdmsr, TCGv_env env)
 STUB_HELPER(stgi, TCGv_env env)
 STUB_HELPER(svm_check_intercept, TCGv_env env, TCGv_i32 type)
 STUB_HELPER(vmload, TCGv_env env, TCGv_i32 aflag)
@@ -254,7 +253,6 @@ STUB_HELPER(vmmcall, TCGv_env env)
 STUB_HELPER(vmrun, TCGv_env env, TCGv_i32 aflag, TCGv_i32 pc_ofs)
 STUB_HELPER(vmsave, TCGv_env env, TCGv_i32 aflag)
 STUB_HELPER(write_crN, TCGv_env env, TCGv_i32 reg, TCGv val)
-STUB_HELPER(wrmsr, TCGv_env env)
 #endif
 
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
@@ -3470,97 +3468,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         }
         gen_op_mov_reg_v(s, ot, reg, s->T0);
         break;
-    case 0x130: /* wrmsr */
-    case 0x132: /* rdmsr */
-        if (check_cpl0(s)) {
-            gen_update_cc_op(s);
-            gen_update_eip_cur(s);
-            if (b & 2) {
-                gen_helper_rdmsr(tcg_env);
-            } else {
-                gen_helper_wrmsr(tcg_env);
-                s->base.is_jmp = DISAS_EOB_NEXT;
-            }
-        }
-        break;
-    case 0x131: /* rdtsc */
-        gen_update_cc_op(s);
-        gen_update_eip_cur(s);
-        translator_io_start(&s->base);
-        gen_helper_rdtsc(tcg_env);
-        break;
-    case 0x133: /* rdpmc */
-        gen_update_cc_op(s);
-        gen_update_eip_cur(s);
-        gen_helper_rdpmc(tcg_env);
-        s->base.is_jmp = DISAS_NORETURN;
-        break;
-    case 0x134: /* sysenter */
-        /* For AMD SYSENTER is not valid in long mode */
-        if (LMA(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
-            goto illegal_op;
-        }
-        if (!PE(s)) {
-            gen_exception_gpf(s);
-        } else {
-            gen_helper_sysenter(tcg_env);
-            s->base.is_jmp = DISAS_EOB_ONLY;
-        }
-        break;
-    case 0x135: /* sysexit */
-        /* For AMD SYSEXIT is not valid in long mode */
-        if (LMA(s) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
-            goto illegal_op;
-        }
-        if (!PE(s) || CPL(s) != 0) {
-            gen_exception_gpf(s);
-        } else {
-            gen_helper_sysexit(tcg_env, tcg_constant_i32(dflag - 1));
-            s->base.is_jmp = DISAS_EOB_ONLY;
-        }
-        break;
-    case 0x105: /* syscall */
-        /* For Intel SYSCALL is only valid in long mode */
-        if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
-            goto illegal_op;
-        }
-        gen_update_cc_op(s);
-        gen_update_eip_cur(s);
-        gen_helper_syscall(tcg_env, cur_insn_len_i32(s));
-        /* condition codes are modified only in long mode */
-        if (LMA(s)) {
-            assume_cc_op(s, CC_OP_EFLAGS);
-        }
-        /* TF handling for the syscall insn is different. The TF bit is  checked
-           after the syscall insn completes. This allows #DB to not be
-           generated after one has entered CPL0 if TF is set in FMASK.  */
-        s->base.is_jmp = DISAS_EOB_RECHECK_TF;
-        break;
-    case 0x107: /* sysret */
-        /* For Intel SYSRET is only valid in long mode */
-        if (!LMA(s) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
-            goto illegal_op;
-        }
-        if (!PE(s) || CPL(s) != 0) {
-            gen_exception_gpf(s);
-        } else {
-            gen_helper_sysret(tcg_env, tcg_constant_i32(dflag - 1));
-            /* condition codes are modified only in long mode */
-            if (LMA(s)) {
-                assume_cc_op(s, CC_OP_EFLAGS);
-            }
-            /* TF handling for the sysret insn is different. The TF bit is
-               checked after the sysret insn completes. This allows #DB to be
-               generated "as if" the syscall insn in userspace has just
-               completed.  */
-            s->base.is_jmp = DISAS_EOB_RECHECK_TF;
-        }
-        break;
-    case 0x1a2: /* cpuid */
-        gen_update_cc_op(s);
-        gen_update_eip_cur(s);
-        gen_helper_cpuid(tcg_env);
-        break;
     case 0x100:
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
@@ -3964,39 +3871,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         }
         break;
 
-    case 0x108: /* invd */
-    case 0x109: /* wbinvd; wbnoinvd with REPZ prefix */
-        if (check_cpl0(s)) {
-            gen_svm_check_intercept(s, (b & 1) ? SVM_EXIT_WBINVD : SVM_EXIT_INVD);
-            /* nothing to do */
-        }
-        break;
-    case 0x102: /* lar */
-    case 0x103: /* lsl */
-        {
-            TCGLabel *label1;
-            TCGv t0;
-            if (!PE(s) || VM86(s))
-                goto illegal_op;
-            ot = dflag != MO_16 ? MO_32 : MO_16;
-            modrm = x86_ldub_code(env, s);
-            reg = ((modrm >> 3) & 7) | REX_R(s);
-            gen_ld_modrm(env, s, modrm, MO_16);
-            t0 = tcg_temp_new();
-            gen_update_cc_op(s);
-            if (b == 0x102) {
-                gen_helper_lar(t0, tcg_env, s->T0);
-            } else {
-                gen_helper_lsl(t0, tcg_env, s->T0);
-            }
-            tcg_gen_andi_tl(s->tmp0, cpu_cc_src, CC_Z);
-            label1 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_EQ, s->tmp0, 0, label1);
-            gen_op_mov_reg_v(s, ot, reg, t0);
-            gen_set_label(label1);
-            set_cc_op(s, CC_OP_EFLAGS);
-        }
-        break;
     case 0x11a:
         modrm = x86_ldub_code(env, s);
         if (s->flags & HF_MPX_EN_MASK) {
@@ -4187,28 +4061,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
         }
         gen_nop_modrm(env, s, modrm);
-        break;
-
-    case 0x106: /* clts */
-        if (check_cpl0(s)) {
-            gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0);
-            gen_helper_clts(tcg_env);
-            /* abort block because static cpu state changed */
-            s->base.is_jmp = DISAS_EOB_NEXT;
-        }
-        break;
-    case 0x1aa: /* rsm */
-        gen_svm_check_intercept(s, SVM_EXIT_RSM);
-        if (!(s->flags & HF_SMM_MASK))
-            goto illegal_op;
-#ifdef CONFIG_USER_ONLY
-        /* we should not be in SMM mode */
-        g_assert_not_reached();
-#else
-        gen_helper_rsm(tcg_env);
-        assume_cc_op(s, CC_OP_EFLAGS);
-#endif /* CONFIG_USER_ONLY */
-        s->base.is_jmp = DISAS_EOB_ONLY;
         break;
     case 0x1b8: /* SSE4.2 popcnt */
         if ((prefixes & (PREFIX_REPZ | PREFIX_LOCK | PREFIX_REPNZ)) !=

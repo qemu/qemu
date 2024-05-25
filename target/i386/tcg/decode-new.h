@@ -171,6 +171,13 @@ typedef enum X86InsnCheck {
     /* Fault outside protected mode, possibly including vm86 mode */
     X86_CHECK_prot_or_vm86 = 512,
     X86_CHECK_prot = X86_CHECK_prot_or_vm86 | X86_CHECK_no_vm86,
+
+    /* Fault outside SMM */
+    X86_CHECK_smm = 1024,
+
+    /* Vendor-specific checks for Intel/AMD differences */
+    X86_CHECK_i64_amd = 2048,
+    X86_CHECK_o64_intel = 4096,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {
