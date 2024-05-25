@@ -174,10 +174,10 @@ uint64_t helper_fmul8ulx16(uint64_t src1, uint64_t src2)
     s.ll = src1;
     d.ll = src2;
 
-    d.VIS_W64(0) = do_ms16b(s.VIS_B64(0), d.VIS_SW64(0));
-    d.VIS_W64(1) = do_ms16b(s.VIS_B64(2), d.VIS_SW64(1));
-    d.VIS_W64(2) = do_ms16b(s.VIS_B64(4), d.VIS_SW64(2));
-    d.VIS_W64(3) = do_ms16b(s.VIS_B64(6), d.VIS_SW64(3));
+    d.VIS_W64(0) = (s.VIS_B64(0) * d.VIS_SW64(0) + 0x8000) >> 16;
+    d.VIS_W64(1) = (s.VIS_B64(2) * d.VIS_SW64(1) + 0x8000) >> 16;
+    d.VIS_W64(2) = (s.VIS_B64(4) * d.VIS_SW64(2) + 0x8000) >> 16;
+    d.VIS_W64(3) = (s.VIS_B64(6) * d.VIS_SW64(3) + 0x8000) >> 16;
 
     return d.ll;
 }
