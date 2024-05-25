@@ -21,25 +21,42 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
-/* This function uses non-native bit order */
-#define GET_FIELD(X, FROM, TO)                                  \
-    ((X) >> (63 - (TO)) & ((1ULL << ((TO) - (FROM) + 1)) - 1))
-
-/* This function uses the order in the manuals, i.e. bit 0 is 2^0 */
-#define GET_FIELD_SP(X, FROM, TO)               \
-    GET_FIELD(X, 63 - (TO), 63 - (FROM))
-
-target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
+target_ulong helper_array8(target_ulong rs1, target_ulong rs2)
 {
-    return (GET_FIELD_SP(pixel_addr, 60, 63) << (17 + 2 * cubesize)) |
-        (GET_FIELD_SP(pixel_addr, 39, 39 + cubesize - 1) << (17 + cubesize)) |
-        (GET_FIELD_SP(pixel_addr, 17 + cubesize - 1, 17) << 17) |
-        (GET_FIELD_SP(pixel_addr, 56, 59) << 13) |
-        (GET_FIELD_SP(pixel_addr, 35, 38) << 9) |
-        (GET_FIELD_SP(pixel_addr, 13, 16) << 5) |
-        (((pixel_addr >> 55) & 1) << 4) |
-        (GET_FIELD_SP(pixel_addr, 33, 34) << 2) |
-        GET_FIELD_SP(pixel_addr, 11, 12);
+    /*
+     * From Oracle SPARC Architecture 2015:
+     * Architecturally, an illegal R[rs2] value (>5) causes the array
+     * instructions to produce undefined results. For historic reference,
+     * past implementations of these instructions have ignored R[rs2]{63:3}
+     * and have treated R[rs2] values of 6 and 7 as if they were 5.
+     */
+    target_ulong n = MIN(rs2 & 7, 5);
+
+    target_ulong x_int = (rs1 >> 11) & 0x7ff;
+    target_ulong y_int = (rs1 >> 33) & 0x7ff;
+    target_ulong z_int = rs1 >> 55;
+
+    target_ulong lower_x = x_int & 3;
+    target_ulong lower_y = y_int & 3;
+    target_ulong lower_z = z_int & 1;
+
+    target_ulong middle_x = (x_int >> 2) & 15;
+    target_ulong middle_y = (y_int >> 2) & 15;
+    target_ulong middle_z = (z_int >> 1) & 15;
+
+    target_ulong upper_x = (x_int >> 6) & ((1 << n) - 1);
+    target_ulong upper_y = (y_int >> 6) & ((1 << n) - 1);
+    target_ulong upper_z = z_int >> 5;
+
+    return (upper_z << (17 + 2 * n))
+         | (upper_y << (17 + n))
+         | (upper_x << 17)
+         | (middle_z << 13)
+         | (middle_y << 9)
+         | (middle_x << 5)
+         | (lower_z << 4)
+         | (lower_y << 2)
+         | lower_x;
 }
 
 #if HOST_BIG_ENDIAN
