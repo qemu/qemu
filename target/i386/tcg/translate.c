@@ -4761,6 +4761,17 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 
     switch (dc->base.is_jmp) {
     case DISAS_NORETURN:
+        /*
+         * Most instructions should not use DISAS_NORETURN, as that suppresses
+         * the handling of hflags normally done by gen_eob().  We can
+         * get here:
+         * - for exception and interrupts
+         * - for jump optimization (which is disabled by INHIBIT_IRQ/RF/TF)
+         * - for VMRUN because RF/TF handling for the host is done after vmexit,
+         *   and INHIBIT_IRQ is loaded from the VMCB
+         * - for HLT/PAUSE/MWAIT to exit the main loop with specific EXCP_* values;
+         *   the helpers handle themselves the tasks normally done by gen_eob().
+         */
         break;
     case DISAS_TOO_MANY:
         gen_update_cc_op(dc);
