@@ -91,8 +91,7 @@ if dbus_display
                                           '--interface-prefix', 'org.qemu.',
                                           '--c-namespace', 'QemuDBus',
                                           '--generate-c-code', '@BASENAME@'])
-  dbus_display1_dep = declare_dependency(sources: dbus_display1, dependencies: gio)
-  dbus_ss.add(when: [gio, dbus_display1_dep],
+  dbus_ss.add(when: gio,
               if_true: [files(
                 'dbus-chardev.c',
                 'dbus-clipboard.c',
@@ -100,7 +99,7 @@ if dbus_display
                 'dbus-error.c',
                 'dbus-listener.c',
                 'dbus.c',
-              ), opengl, gbm, pixman])
+              ), opengl, gbm, pixman, dbus_display1])
   ui_modules += {'dbus' : dbus_ss}
 endif
 

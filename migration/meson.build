@@ -29,7 +29,7 @@ system_ss.add(files(
   'socket.c',
   'tls.c',
   'threadinfo.c',
-), gnutls)
+), gnutls, zlib)
 
 if get_option('replication').allowed()
   system_ss.add(files('colo-failover.c', 'colo.c'))

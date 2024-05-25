@@ -144,10 +144,35 @@ typedef struct DisasContext {
     TCGOp *prev_insn_end;
 } DisasContext;
 
-#define DISAS_EOB_ONLY         DISAS_TARGET_0
-#define DISAS_EOB_NEXT         DISAS_TARGET_1
-#define DISAS_EOB_INHIBIT_IRQ  DISAS_TARGET_2
+/*
+ * Point EIP to next instruction before ending translation.
+ * For instructions that can change hflags.
+ */
+#define DISAS_EOB_NEXT         DISAS_TARGET_0
+
+/*
+ * Point EIP to next instruction and set HF_INHIBIT_IRQ if not
+ * already set.  For instructions that activate interrupt shadow.
+ */
+#define DISAS_EOB_INHIBIT_IRQ  DISAS_TARGET_1
+
+/*
+ * Return to the main loop; EIP might have already been updated
+ * but even in that case do not use lookup_and_goto_ptr().
+ */
+#define DISAS_EOB_ONLY         DISAS_TARGET_2
+
+/*
+ * EIP has already been updated.  For jumps that wish to use
+ * lookup_and_goto_ptr()
+ */
 #define DISAS_JUMP             DISAS_TARGET_3
+
+/*
+ * EIP has already been updated.  Use updated value of
+ * EFLAGS.TF to determine singlestep trap (SYSCALL/SYSRET).
+ */
+#define DISAS_EOB_RECHECK_TF   DISAS_TARGET_4
 
 /* The environment in which user-only runs is constrained. */
 #ifdef CONFIG_USER_ONLY
@@ -235,8 +260,6 @@ STUB_HELPER(write_crN, TCGv_env env, TCGv_i32 reg, TCGv val)
 STUB_HELPER(wrmsr, TCGv_env env)
 #endif
 
-static void gen_eob(DisasContext *s);
-static void gen_jr(DisasContext *s);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
 static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
 static void gen_exception_gpf(DisasContext *s);
@@ -309,7 +332,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_POPCNT] = USES_CC_SRC,
 };
 
-static void set_cc_op(DisasContext *s, CCOp op)
+static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
 {
     int dead;
 
@@ -332,18 +355,25 @@ static void set_cc_op(DisasContext *s, CCOp op)
         tcg_gen_discard_tl(s->cc_srcT);
     }
 
-    if (op == CC_OP_DYNAMIC) {
-        /* The DYNAMIC setting is translator only, and should never be
-           stored.  Thus we always consider it clean.  */
-        s->cc_op_dirty = false;
-    } else {
-        /* Discard any computed CC_OP value (see shifts).  */
-        if (s->cc_op == CC_OP_DYNAMIC) {
-            tcg_gen_discard_i32(cpu_cc_op);
-        }
-        s->cc_op_dirty = true;
+    if (dirty && s->cc_op == CC_OP_DYNAMIC) {
+        tcg_gen_discard_i32(cpu_cc_op);
     }
+    s->cc_op_dirty = dirty;
     s->cc_op = op;
+}
+
+static void set_cc_op(DisasContext *s, CCOp op)
+{
+    /*
+     * The DYNAMIC setting is translator only, everything else
+     * will be spilled later.
+     */
+    set_cc_op_1(s, op, op != CC_OP_DYNAMIC);
+}
+
+static void assume_cc_op(DisasContext *s, CCOp op)
+{
+    set_cc_op_1(s, op, false);
 }
 
 static void gen_update_cc_op(DisasContext *s)
@@ -532,19 +562,6 @@ static void gen_update_eip_cur(DisasContext *s)
     s->pc_save = s->base.pc_next;
 }
 
-static void gen_update_eip_next(DisasContext *s)
-{
-    assert(s->pc_save != -1);
-    if (tb_cflags(s->base.tb) & CF_PCREL) {
-        tcg_gen_addi_tl(cpu_eip, cpu_eip, s->pc - s->pc_save);
-    } else if (CODE64(s)) {
-        tcg_gen_movi_tl(cpu_eip, s->pc);
-    } else {
-        tcg_gen_movi_tl(cpu_eip, (uint32_t)(s->pc - s->cs_base));
-    }
-    s->pc_save = s->pc;
-}
-
 static int cur_insn_len(DisasContext *s)
 {
     return s->pc - s->base.pc_next;
@@ -663,20 +680,20 @@ static void gen_lea_v_seg_dest(DisasContext *s, MemOp aflag, TCGv dest, TCGv a0,
     }
 }
 
-static void gen_lea_v_seg(DisasContext *s, MemOp aflag, TCGv a0,
+static void gen_lea_v_seg(DisasContext *s, TCGv a0,
                           int def_seg, int ovr_seg)
 {
-    gen_lea_v_seg_dest(s, aflag, s->A0, a0, def_seg, ovr_seg);
+    gen_lea_v_seg_dest(s, s->aflag, s->A0, a0, def_seg, ovr_seg);
 }
 
 static inline void gen_string_movl_A0_ESI(DisasContext *s)
 {
-    gen_lea_v_seg(s, s->aflag, cpu_regs[R_ESI], R_DS, s->override);
+    gen_lea_v_seg(s, cpu_regs[R_ESI], R_DS, s->override);
 }
 
 static inline void gen_string_movl_A0_EDI(DisasContext *s)
 {
-    gen_lea_v_seg(s, s->aflag, cpu_regs[R_EDI], R_ES, -1);
+    gen_lea_v_seg(s, cpu_regs[R_EDI], R_ES, -1);
 }
 
 static inline TCGv gen_compute_Dshift(DisasContext *s, MemOp ot)
@@ -1310,14 +1327,12 @@ static void gen_repz(DisasContext *s, MemOp ot,
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
 
-#define GEN_REPZ(op) \
-    static inline void gen_repz_ ## op(DisasContext *s, MemOp ot) \
-    { gen_repz(s, ot, gen_##op); }
-
-static void gen_repz2(DisasContext *s, MemOp ot, int nz,
-                      void (*fn)(DisasContext *s, MemOp ot))
+static void gen_repz_nz(DisasContext *s, MemOp ot,
+                        void (*fn)(DisasContext *s, MemOp ot))
 {
     TCGLabel *l2;
+    int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
+
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
@@ -1332,18 +1347,6 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
      */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
-
-#define GEN_REPZ2(op) \
-    static inline void gen_repz_ ## op(DisasContext *s, MemOp ot, int nz) \
-    { gen_repz2(s, ot, nz, gen_##op); }
-
-GEN_REPZ(movs)
-GEN_REPZ(stos)
-GEN_REPZ(lods)
-GEN_REPZ(ins)
-GEN_REPZ(outs)
-GEN_REPZ2(scas)
-GEN_REPZ2(cmps)
 
 static void gen_helper_fp_arith_ST0_FT0(int op)
 {
@@ -1781,7 +1784,7 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
 {
     AddressParts a = gen_lea_modrm_0(env, s, modrm);
     TCGv ea = gen_lea_modrm_1(s, a, false);
-    gen_lea_v_seg(s, s->aflag, ea, a.def_seg, s->override);
+    gen_lea_v_seg(s, ea, a.def_seg, s->override);
 }
 
 static void gen_nop_modrm(CPUX86State *env, DisasContext *s, int modrm)
@@ -1805,42 +1808,33 @@ static void gen_bndck(CPUX86State *env, DisasContext *s, int modrm,
     gen_helper_bndck(tcg_env, s->tmp2_i32);
 }
 
-/* used for LEA and MOV AX, mem */
-static void gen_add_A0_ds_seg(DisasContext *s)
-{
-    gen_lea_v_seg(s, s->aflag, s->A0, R_DS, s->override);
-}
-
-/* generate modrm memory load or store of 'reg'. TMP0 is used if reg ==
-   OR_TMP0 */
-static void gen_ldst_modrm(CPUX86State *env, DisasContext *s, int modrm,
-                           MemOp ot, int reg, int is_store)
+/* generate modrm load of memory or register. */
+static void gen_ld_modrm(CPUX86State *env, DisasContext *s, int modrm, MemOp ot)
 {
     int mod, rm;
 
     mod = (modrm >> 6) & 3;
     rm = (modrm & 7) | REX_B(s);
     if (mod == 3) {
-        if (is_store) {
-            if (reg != OR_TMP0)
-                gen_op_mov_v_reg(s, ot, s->T0, reg);
-            gen_op_mov_reg_v(s, ot, rm, s->T0);
-        } else {
-            gen_op_mov_v_reg(s, ot, s->T0, rm);
-            if (reg != OR_TMP0)
-                gen_op_mov_reg_v(s, ot, reg, s->T0);
-        }
+        gen_op_mov_v_reg(s, ot, s->T0, rm);
     } else {
         gen_lea_modrm(env, s, modrm);
-        if (is_store) {
-            if (reg != OR_TMP0)
-                gen_op_mov_v_reg(s, ot, s->T0, reg);
-            gen_op_st_v(s, ot, s->T0, s->A0);
-        } else {
-            gen_op_ld_v(s, ot, s->T0, s->A0);
-            if (reg != OR_TMP0)
-                gen_op_mov_reg_v(s, ot, reg, s->T0);
-        }
+        gen_op_ld_v(s, ot, s->T0, s->A0);
+    }
+}
+
+/* generate modrm store of memory or register. */
+static void gen_st_modrm(CPUX86State *env, DisasContext *s, int modrm, MemOp ot)
+{
+    int mod, rm;
+
+    mod = (modrm >> 6) & 3;
+    rm = (modrm & 7) | REX_B(s);
+    if (mod == 3) {
+        gen_op_mov_reg_v(s, ot, rm, s->T0);
+    } else {
+        gen_lea_modrm(env, s, modrm);
+        gen_op_st_v(s, ot, s->T0, s->A0);
     }
 }
 
@@ -2027,24 +2021,27 @@ static inline void gen_stack_update(DisasContext *s, int addend)
     gen_op_add_reg_im(s, mo_stacksize(s), R_ESP, addend);
 }
 
+static void gen_lea_ss_ofs(DisasContext *s, TCGv dest, TCGv src, target_ulong offset)
+{
+    if (offset) {
+        tcg_gen_addi_tl(dest, src, offset);
+        src = dest;
+    }
+    gen_lea_v_seg_dest(s, mo_stacksize(s), dest, src, R_SS, -1);
+}
+
 /* Generate a push. It depends on ss32, addseg and dflag.  */
 static void gen_push_v(DisasContext *s, TCGv val)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
     MemOp a_ot = mo_stacksize(s);
     int size = 1 << d_ot;
-    TCGv new_esp = s->A0;
+    TCGv new_esp = tcg_temp_new();
 
-    tcg_gen_subi_tl(s->A0, cpu_regs[R_ESP], size);
+    tcg_gen_subi_tl(new_esp, cpu_regs[R_ESP], size);
 
-    if (!CODE64(s)) {
-        if (ADDSEG(s)) {
-            new_esp = tcg_temp_new();
-            tcg_gen_mov_tl(new_esp, s->A0);
-        }
-        gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
-    }
-
+    /* Now reduce the value to the address size and apply SS base.  */
+    gen_lea_ss_ofs(s, s->A0, new_esp, 0);
     gen_op_st_v(s, d_ot, val, s->A0);
     gen_op_mov_reg_v(s, a_ot, R_ESP, new_esp);
 }
@@ -2054,7 +2051,7 @@ static MemOp gen_pop_T0(DisasContext *s)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
 
-    gen_lea_v_seg_dest(s, mo_stacksize(s), s->T0, cpu_regs[R_ESP], R_SS, -1);
+    gen_lea_ss_ofs(s, s->T0, cpu_regs[R_ESP], 0);
     gen_op_ld_v(s, d_ot, s->T0, s->T0);
 
     return d_ot;
@@ -2065,21 +2062,14 @@ static inline void gen_pop_update(DisasContext *s, MemOp ot)
     gen_stack_update(s, 1 << ot);
 }
 
-static inline void gen_stack_A0(DisasContext *s)
-{
-    gen_lea_v_seg(s, SS32(s) ? MO_32 : MO_16, cpu_regs[R_ESP], R_SS, -1);
-}
-
 static void gen_pusha(DisasContext *s)
 {
-    MemOp s_ot = SS32(s) ? MO_32 : MO_16;
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
 
     for (i = 0; i < 8; i++) {
-        tcg_gen_addi_tl(s->A0, cpu_regs[R_ESP], (i - 8) * size);
-        gen_lea_v_seg(s, s_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], (i - 8) * size);
         gen_op_st_v(s, d_ot, cpu_regs[7 - i], s->A0);
     }
 
@@ -2088,7 +2078,6 @@ static void gen_pusha(DisasContext *s)
 
 static void gen_popa(DisasContext *s)
 {
-    MemOp s_ot = SS32(s) ? MO_32 : MO_16;
     MemOp d_ot = s->dflag;
     int size = 1 << d_ot;
     int i;
@@ -2098,8 +2087,7 @@ static void gen_popa(DisasContext *s)
         if (7 - i == R_ESP) {
             continue;
         }
-        tcg_gen_addi_tl(s->A0, cpu_regs[R_ESP], i * size);
-        gen_lea_v_seg(s, s_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], i * size);
         gen_op_ld_v(s, d_ot, s->T0, s->A0);
         gen_op_mov_reg_v(s, d_ot, 7 - i, s->T0);
     }
@@ -2110,12 +2098,12 @@ static void gen_popa(DisasContext *s)
 static void gen_enter(DisasContext *s, int esp_addend, int level)
 {
     MemOp d_ot = mo_pushpop(s, s->dflag);
-    MemOp a_ot = CODE64(s) ? MO_64 : SS32(s) ? MO_32 : MO_16;
+    MemOp a_ot = mo_stacksize(s);
     int size = 1 << d_ot;
 
     /* Push BP; compute FrameTemp into T1.  */
     tcg_gen_subi_tl(s->T1, cpu_regs[R_ESP], size);
-    gen_lea_v_seg(s, a_ot, s->T1, R_SS, -1);
+    gen_lea_ss_ofs(s, s->A0, s->T1, 0);
     gen_op_st_v(s, d_ot, cpu_regs[R_EBP], s->A0);
 
     level &= 31;
@@ -2124,18 +2112,15 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 
         /* Copy level-1 pointers from the previous frame.  */
         for (i = 1; i < level; ++i) {
-            tcg_gen_subi_tl(s->A0, cpu_regs[R_EBP], size * i);
-            gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+            gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], -size * i);
             gen_op_ld_v(s, d_ot, s->tmp0, s->A0);
 
-            tcg_gen_subi_tl(s->A0, s->T1, size * i);
-            gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+            gen_lea_ss_ofs(s, s->A0, s->T1, -size * i);
             gen_op_st_v(s, d_ot, s->tmp0, s->A0);
         }
 
         /* Push the current FrameTemp as the last level.  */
-        tcg_gen_subi_tl(s->A0, s->T1, size * level);
-        gen_lea_v_seg(s, a_ot, s->A0, R_SS, -1);
+        gen_lea_ss_ofs(s, s->A0, s->T1, -size * level);
         gen_op_st_v(s, d_ot, s->T1, s->A0);
     }
 
@@ -2152,7 +2137,7 @@ static void gen_leave(DisasContext *s)
     MemOp d_ot = mo_pushpop(s, s->dflag);
     MemOp a_ot = mo_stacksize(s);
 
-    gen_lea_v_seg(s, a_ot, cpu_regs[R_EBP], R_SS, -1);
+    gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], 0);
     gen_op_ld_v(s, d_ot, s->T0, s->A0);
 
     tcg_gen_addi_tl(s->T1, cpu_regs[R_EBP], 1 << d_ot);
@@ -2247,12 +2232,13 @@ static void gen_bnd_jmp(DisasContext *s)
     }
 }
 
-/* Generate an end of block. Trace exception is also generated if needed.
-   If INHIBIT, set HF_INHIBIT_IRQ_MASK if it isn't already set.
-   If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
-   S->TF.  This is used by the syscall/sysret insns.  */
+/*
+ * Generate an end of block, including common tasks such as generating
+ * single step traps, resetting the RF flag, and handling the interrupt
+ * shadow.
+ */
 static void
-gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
+gen_eob(DisasContext *s, int mode)
 {
     bool inhibit_reset;
 
@@ -2263,50 +2249,27 @@ gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
     if (s->flags & HF_INHIBIT_IRQ_MASK) {
         gen_reset_hflag(s, HF_INHIBIT_IRQ_MASK);
         inhibit_reset = true;
-    } else if (inhibit) {
+    } else if (mode == DISAS_EOB_INHIBIT_IRQ) {
         gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
     }
 
     if (s->base.tb->flags & HF_RF_MASK) {
         gen_reset_eflags(s, RF_MASK);
     }
-    if (recheck_tf) {
+    if (mode == DISAS_EOB_RECHECK_TF) {
         gen_helper_rechecking_single_step(tcg_env);
         tcg_gen_exit_tb(NULL, 0);
-    } else if (s->flags & HF_TF_MASK) {
+    } else if ((s->flags & HF_TF_MASK) && mode != DISAS_EOB_INHIBIT_IRQ) {
         gen_helper_single_step(tcg_env);
-    } else if (jr &&
+    } else if (mode == DISAS_JUMP &&
                /* give irqs a chance to happen */
                !inhibit_reset) {
         tcg_gen_lookup_and_goto_ptr();
     } else {
         tcg_gen_exit_tb(NULL, 0);
     }
+
     s->base.is_jmp = DISAS_NORETURN;
-}
-
-static inline void
-gen_eob_syscall(DisasContext *s)
-{
-    gen_eob_worker(s, false, true, false);
-}
-
-/* End of block.  Set HF_INHIBIT_IRQ_MASK if it isn't already set.  */
-static void gen_eob_inhibit_irq(DisasContext *s)
-{
-    gen_eob_worker(s, true, false, false);
-}
-
-/* End of block, resetting the inhibit irq flag.  */
-static void gen_eob(DisasContext *s)
-{
-    gen_eob_worker(s, false, false, false);
-}
-
-/* Jump to register */
-static void gen_jr(DisasContext *s)
-{
-    gen_eob_worker(s, false, false, true);
 }
 
 /* Jump to eip+diff, truncating the result to OT. */
@@ -2360,9 +2323,9 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
             tcg_gen_movi_tl(cpu_eip, new_eip);
         }
         if (s->jmp_opt) {
-            gen_jr(s);   /* jump to another page */
+            gen_eob(s, DISAS_JUMP);   /* jump to another page */
         } else {
-            gen_eob(s);  /* exit to main loop */
+            gen_eob(s, DISAS_EOB_ONLY);  /* exit to main loop */
         }
     }
 }
@@ -2560,7 +2523,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
         bool update_fdp = true;
 
         tcg_gen_mov_tl(last_addr, ea);
-        gen_lea_v_seg(s, s->aflag, ea, a.def_seg, s->override);
+        gen_lea_v_seg(s, ea, a.def_seg, s->override);
 
         switch (op) {
         case 0x00 ... 0x07: /* fxxxs */
@@ -2977,7 +2940,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucomi_ST0_FT0(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x1e: /* fcomi */
             if (!(s->cpuid_features & CPUID_CMOV)) {
@@ -2986,7 +2949,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_update_cc_op(s);
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcomi_ST0_FT0(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x28: /* ffree sti */
             gen_helper_ffree_STN(tcg_env, tcg_constant_i32(opreg));
@@ -3045,7 +3008,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fucomi_ST0_FT0(tcg_env);
             gen_helper_fpop(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x3e: /* fcomip */
             if (!(s->cpuid_features & CPUID_CMOV)) {
@@ -3055,7 +3018,7 @@ static bool disas_insn_x87(DisasContext *s, CPUState *cpu, int b)
             gen_helper_fmov_FT0_STN(tcg_env, tcg_constant_i32(opreg));
             gen_helper_fcomi_ST0_FT0(tcg_env);
             gen_helper_fpop(tcg_env);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         case 0x10 ... 0x13: /* fcmovxx */
         case 0x18 ... 0x1b:
@@ -3261,7 +3224,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_helper_rdrand(s->T0, tcg_env);
             rm = (modrm & 7) | REX_B(s);
             gen_op_mov_reg_v(s, dflag, rm, s->T0);
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
 
         default:
@@ -3357,7 +3320,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_sari_tl(s->tmp0, s->T1, 3 + ot);
             tcg_gen_shli_tl(s->tmp0, s->tmp0, ot);
             tcg_gen_add_tl(s->A0, gen_lea_modrm_1(s, a, false), s->tmp0);
-            gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+            gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
             if (!(s->prefix & PREFIX_LOCK)) {
                 gen_op_ld_v(s, ot, s->T0, s->A0);
             }
@@ -3452,7 +3415,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         ot = dflag;
         modrm = x86_ldub_code(env, s);
         reg = ((modrm >> 3) & 7) | REX_R(s);
-        gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+        gen_ld_modrm(env, s, modrm, ot);
         gen_extu(ot, s->T0);
 
         /* Note that lzcnt and tzcnt are in different extensions.  */
@@ -3554,10 +3517,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
         gen_helper_syscall(tcg_env, cur_insn_len_i32(s));
+        /* condition codes are modified only in long mode */
+        if (LMA(s)) {
+            assume_cc_op(s, CC_OP_EFLAGS);
+        }
         /* TF handling for the syscall insn is different. The TF bit is  checked
            after the syscall insn completes. This allows #DB to not be
            generated after one has entered CPL0 if TF is set in FMASK.  */
-        gen_eob_syscall(s);
+        s->base.is_jmp = DISAS_EOB_RECHECK_TF;
         break;
     case 0x107: /* sysret */
         /* For Intel SYSRET is only valid in long mode */
@@ -3570,13 +3537,13 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             gen_helper_sysret(tcg_env, tcg_constant_i32(dflag - 1));
             /* condition codes are modified only in long mode */
             if (LMA(s)) {
-                set_cc_op(s, CC_OP_EFLAGS);
+                assume_cc_op(s, CC_OP_EFLAGS);
             }
             /* TF handling for the sysret insn is different. The TF bit is
                checked after the sysret insn completes. This allows #DB to be
                generated "as if" the syscall insn in userspace has just
                completed.  */
-            gen_eob_syscall(s);
+            s->base.is_jmp = DISAS_EOB_RECHECK_TF;
         }
         break;
     case 0x1a2: /* cpuid */
@@ -3599,14 +3566,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_ld32u_tl(s->T0, tcg_env,
                              offsetof(CPUX86State, ldt.selector));
             ot = mod == 3 ? dflag : MO_16;
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_st_modrm(env, s, modrm, ot);
             break;
         case 2: /* lldt */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
             if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, SVM_EXIT_LDTR_WRITE);
-                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+                gen_ld_modrm(env, s, modrm, MO_16);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_lldt(tcg_env, s->tmp2_i32);
             }
@@ -3621,14 +3588,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             tcg_gen_ld32u_tl(s->T0, tcg_env,
                              offsetof(CPUX86State, tr.selector));
             ot = mod == 3 ? dflag : MO_16;
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_st_modrm(env, s, modrm, ot);
             break;
         case 3: /* ltr */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
             if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, SVM_EXIT_TR_WRITE);
-                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+                gen_ld_modrm(env, s, modrm, MO_16);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_ltr(tcg_env, s->tmp2_i32);
             }
@@ -3637,14 +3604,14 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         case 5: /* verw */
             if (!PE(s) || VM86(s))
                 goto illegal_op;
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ld_modrm(env, s, modrm, MO_16);
             gen_update_cc_op(s);
             if (op == 4) {
                 gen_helper_verr(tcg_env, s->T0);
             } else {
                 gen_helper_verw(tcg_env, s->T0);
             }
-            set_cc_op(s, CC_OP_EFLAGS);
+            assume_cc_op(s, CC_OP_EFLAGS);
             break;
         default:
             goto unknown_op;
@@ -3678,8 +3645,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
-            tcg_gen_mov_tl(s->A0, cpu_regs[R_EAX]);
-            gen_add_A0_ds_seg(s);
+            gen_lea_v_seg(s, cpu_regs[R_EAX], R_DS, s->override);
             gen_helper_monitor(tcg_env, s->A0);
             break;
 
@@ -3901,7 +3867,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
              */
             mod = (modrm >> 6) & 3;
             ot = (mod != 3 ? MO_16 : s->dflag);
-            gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
+            gen_st_modrm(env, s, modrm, ot);
             break;
         case 0xee: /* rdpkru */
             if (s->prefix & (PREFIX_LOCK | PREFIX_DATA
@@ -3928,7 +3894,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 break;
             }
             gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0);
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ld_modrm(env, s, modrm, MO_16);
             /*
              * Only the 4 lower bits of CR0 are modified.
              * PE cannot be set to zero if already set to one.
@@ -4000,7 +3966,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             ot = dflag != MO_16 ? MO_32 : MO_16;
             modrm = x86_ldub_code(env, s);
             reg = ((modrm >> 3) & 7) | REX_R(s);
-            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_ld_modrm(env, s, modrm, MO_16);
             t0 = tcg_temp_new();
             gen_update_cc_op(s);
             if (b == 0x102) {
@@ -4085,7 +4051,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 } else {
                     tcg_gen_movi_tl(s->A0, 0);
                 }
-                gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+                gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
                 if (a.index >= 0) {
                     tcg_gen_mov_tl(s->T0, cpu_regs[a.index]);
                 } else {
@@ -4190,7 +4156,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 } else {
                     tcg_gen_movi_tl(s->A0, 0);
                 }
-                gen_lea_v_seg(s, s->aflag, s->A0, a.def_seg, s->override);
+                gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
                 if (a.index >= 0) {
                     tcg_gen_mov_tl(s->T0, cpu_regs[a.index]);
                 } else {
@@ -4488,9 +4454,8 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         /* we should not be in SMM mode */
         g_assert_not_reached();
 #else
-        gen_update_cc_op(s);
-        gen_update_eip_next(s);
         gen_helper_rsm(tcg_env);
+        assume_cc_op(s, CC_OP_EFLAGS);
 #endif /* CONFIG_USER_ONLY */
         s->base.is_jmp = DISAS_EOB_ONLY;
         break;
@@ -4505,7 +4470,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         reg = ((modrm >> 3) & 7) | REX_R(s);
 
         ot = dflag;
-        gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
+        gen_ld_modrm(env, s, modrm, ot);
         gen_extu(ot, s->T0);
         tcg_gen_mov_tl(cpu_cc_src, s->T0);
         tcg_gen_ctpop_tl(s->T0, s->T0);
@@ -4660,7 +4625,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_7_1_eax_features = env->features[FEAT_7_1_EAX];
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
-                    (flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
+                    (flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
     /*
      * If jmp_opt, we want to handle each string instruction individually.
      * For icount also disable repz optimization so that each iteration
@@ -4776,19 +4741,14 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_jmp_rel_csize(dc, 0, 0);
         break;
     case DISAS_EOB_NEXT:
-        gen_update_cc_op(dc);
+    case DISAS_EOB_INHIBIT_IRQ:
+        assert(dc->base.pc_next == dc->pc);
         gen_update_eip_cur(dc);
         /* fall through */
     case DISAS_EOB_ONLY:
-        gen_eob(dc);
-        break;
-    case DISAS_EOB_INHIBIT_IRQ:
-        gen_update_cc_op(dc);
-        gen_update_eip_cur(dc);
-        gen_eob_inhibit_irq(dc);
-        break;
+    case DISAS_EOB_RECHECK_TF:
     case DISAS_JUMP:
-        gen_jr(dc);
+        gen_eob(dc, dc->base.is_jmp);
         break;
     default:
         g_assert_not_reached();

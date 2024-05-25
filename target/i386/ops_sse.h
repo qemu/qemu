@@ -1111,6 +1111,7 @@ void helper_ucomiss(CPUX86State *env, Reg *d, Reg *s)
     s1 = s->ZMM_S(0);
     ret = float32_compare_quiet(s0, s1, &env->sse_status);
     CC_SRC = comis_eflags[ret + 1];
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void helper_comiss(CPUX86State *env, Reg *d, Reg *s)
@@ -1122,6 +1123,7 @@ void helper_comiss(CPUX86State *env, Reg *d, Reg *s)
     s1 = s->ZMM_S(0);
     ret = float32_compare(s0, s1, &env->sse_status);
     CC_SRC = comis_eflags[ret + 1];
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void helper_ucomisd(CPUX86State *env, Reg *d, Reg *s)
@@ -1133,6 +1135,7 @@ void helper_ucomisd(CPUX86State *env, Reg *d, Reg *s)
     d1 = s->ZMM_D(0);
     ret = float64_compare_quiet(d0, d1, &env->sse_status);
     CC_SRC = comis_eflags[ret + 1];
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void helper_comisd(CPUX86State *env, Reg *d, Reg *s)
@@ -1144,6 +1147,7 @@ void helper_comisd(CPUX86State *env, Reg *d, Reg *s)
     d1 = s->ZMM_D(0);
     ret = float64_compare(d0, d1, &env->sse_status);
     CC_SRC = comis_eflags[ret + 1];
+    CC_OP = CC_OP_EFLAGS;
 }
 #endif
 
@@ -1610,6 +1614,7 @@ void glue(helper_ptest, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
         cf |= (s->Q(i) & ~d->Q(i));
     }
     CC_SRC = (zf ? 0 : CC_Z) | (cf ? 0 : CC_C);
+    CC_OP = CC_OP_EFLAGS;
 }
 
 #define FMOVSLDUP(i) s->L((i) & ~1)
@@ -1966,6 +1971,7 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
     validd--;
 
     CC_SRC = (valids < upper ? CC_Z : 0) | (validd < upper ? CC_S : 0);
+    CC_OP = CC_OP_EFLAGS;
 
     switch ((ctrl >> 2) & 3) {
     case 0:
@@ -2297,6 +2303,7 @@ void glue(helper_vtestps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
         cf |= (s->L(i) & ~d->L(i));
     }
     CC_SRC = ((zf >> 31) ? 0 : CC_Z) | ((cf >> 31) ? 0 : CC_C);
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void glue(helper_vtestpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
@@ -2309,6 +2316,7 @@ void glue(helper_vtestpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
         cf |= (s->Q(i) & ~d->Q(i));
     }
     CC_SRC = ((zf >> 63) ? 0 : CC_Z) | ((cf >> 63) ? 0 : CC_C);
+    CC_OP = CC_OP_EFLAGS;
 }
 
 void glue(helper_vpmaskmovd_st, SUFFIX)(CPUX86State *env,
