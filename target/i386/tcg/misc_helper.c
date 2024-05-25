@@ -92,6 +92,10 @@ G_NORETURN void helper_pause(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
+    /* Do gen_eob() tasks before going back to the main loop.  */
+    do_end_instruction(env);
+    helper_rechecking_single_step(env);
+
     /* Just let another CPU run.  */
     cs->exception_index = EXCP_INTERRUPT;
     cpu_loop_exit(cs);
