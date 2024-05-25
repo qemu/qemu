@@ -3519,11 +3519,10 @@ static bool trans_SDIVX(DisasContext *dc, arg_r_r_ri *a)
 }
 
 static bool gen_edge(DisasContext *dc, arg_r_r_r *a,
-                     int width, bool cc, bool left)
+                     int width, bool cc, bool little_endian)
 {
-    TCGv dst, s1, s2, lo1, lo2;
-    uint64_t amask, tabl, tabr;
-    int shift, imask, omask;
+    TCGv dst, s1, s2, l, r, t, m;
+    uint64_t amask = address_mask_i(dc, -8);
 
     dst = gen_dest_gpr(dc, a->rd);
     s1 = gen_load_gpr(dc, a->rs1);
@@ -3533,75 +3532,52 @@ static bool gen_edge(DisasContext *dc, arg_r_r_r *a,
         gen_op_subcc(cpu_cc_N, s1, s2);
     }
 
-    /*
-     * Theory of operation: there are two tables, left and right (not to
-     * be confused with the left and right versions of the opcode).  These
-     * are indexed by the low 3 bits of the inputs.  To make things "easy",
-     * these tables are loaded into two constants, TABL and TABR below.
-     * The operation index = (input & imask) << shift calculates the index
-     * into the constant, while val = (table >> index) & omask calculates
-     * the value we're looking for.
-     */
+    l = tcg_temp_new();
+    r = tcg_temp_new();
+    t = tcg_temp_new();
+
     switch (width) {
     case 8:
-        imask = 0x7;
-        shift = 3;
-        omask = 0xff;
-        if (left) {
-            tabl = 0x80c0e0f0f8fcfeffULL;
-            tabr = 0xff7f3f1f0f070301ULL;
-        } else {
-            tabl = 0x0103070f1f3f7fffULL;
-            tabr = 0xfffefcf8f0e0c080ULL;
-        }
+        tcg_gen_andi_tl(l, s1, 7);
+        tcg_gen_andi_tl(r, s2, 7);
+        tcg_gen_xori_tl(r, r, 7);
+        m = tcg_constant_tl(0xff);
         break;
     case 16:
-        imask = 0x6;
-        shift = 1;
-        omask = 0xf;
-        if (left) {
-            tabl = 0x8cef;
-            tabr = 0xf731;
-        } else {
-            tabl = 0x137f;
-            tabr = 0xfec8;
-        }
+        tcg_gen_extract_tl(l, s1, 1, 2);
+        tcg_gen_extract_tl(r, s2, 1, 2);
+        tcg_gen_xori_tl(r, r, 3);
+        m = tcg_constant_tl(0xf);
         break;
     case 32:
-        imask = 0x4;
-        shift = 0;
-        omask = 0x3;
-        if (left) {
-            tabl = (2 << 2) | 3;
-            tabr = (3 << 2) | 1;
-        } else {
-            tabl = (1 << 2) | 3;
-            tabr = (3 << 2) | 2;
-        }
+        tcg_gen_extract_tl(l, s1, 2, 1);
+        tcg_gen_extract_tl(r, s2, 2, 1);
+        tcg_gen_xori_tl(r, r, 1);
+        m = tcg_constant_tl(0x3);
         break;
     default:
         abort();
     }
 
-    lo1 = tcg_temp_new();
-    lo2 = tcg_temp_new();
-    tcg_gen_andi_tl(lo1, s1, imask);
-    tcg_gen_andi_tl(lo2, s2, imask);
-    tcg_gen_shli_tl(lo1, lo1, shift);
-    tcg_gen_shli_tl(lo2, lo2, shift);
+    /* Compute Left Edge */
+    if (little_endian) {
+        tcg_gen_shl_tl(l, m, l);
+        tcg_gen_and_tl(l, l, m);
+    } else {
+        tcg_gen_shr_tl(l, m, l);
+    }
+    /* Compute Right Edge */
+    if (little_endian) {
+        tcg_gen_shr_tl(r, m, r);
+    } else {
+        tcg_gen_shl_tl(r, m, r);
+        tcg_gen_and_tl(r, r, m);
+    }
 
-    tcg_gen_shr_tl(lo1, tcg_constant_tl(tabl), lo1);
-    tcg_gen_shr_tl(lo2, tcg_constant_tl(tabr), lo2);
-    tcg_gen_andi_tl(lo1, lo1, omask);
-    tcg_gen_andi_tl(lo2, lo2, omask);
-
-    amask = address_mask_i(dc, -8);
-    tcg_gen_andi_tl(s1, s1, amask);
-    tcg_gen_andi_tl(s2, s2, amask);
-
-    /* Compute dst = (s1 == s2 ? lo1 : lo1 & lo2). */
-    tcg_gen_and_tl(lo2, lo2, lo1);
-    tcg_gen_movcond_tl(TCG_COND_EQ, dst, s1, s2, lo1, lo2);
+    /* Compute dst = (s1 == s2 under amask ? l : l & r) */
+    tcg_gen_xor_tl(t, s1, s2);
+    tcg_gen_and_tl(r, r, l);
+    tcg_gen_movcond_tl(TCG_COND_TSTEQ, dst, t, tcg_constant_tl(amask), r, l);
 
     gen_store_gpr(dc, a->rd, dst);
     return advance_pc(dc);
