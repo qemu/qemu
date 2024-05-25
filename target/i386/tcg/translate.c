@@ -2795,7 +2795,7 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
     if (recheck_tf) {
         gen_helper_rechecking_single_step(tcg_env);
         tcg_gen_exit_tb(NULL, 0);
-    } else if (s->flags & HF_TF_MASK) {
+    } else if ((s->flags & HF_TF_MASK) && !inhibit) {
         gen_helper_single_step(tcg_env);
     } else if (jr &&
                /* give irqs a chance to happen */
