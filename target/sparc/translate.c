@@ -4253,6 +4253,7 @@ static bool do_dc(DisasContext *dc, int rd, int64_t c)
         return true;
     }
 
+    rd = DFPREG(rd);
     tcg_gen_movi_i64(cpu_fpr[rd / 2], c);
     gen_update_fprs_dirty(dc, rd);
     return advance_pc(dc);
