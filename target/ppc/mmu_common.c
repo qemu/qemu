@@ -99,31 +99,26 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                                 MMUAccessType access_type)
 {
     /* Check validity and table match */
-    if (pte_is_valid(pte0) && ((pte0 >> 6) & 1) == pteh) {
-        /* Check vsid & api */
-        if ((pte0 & PTE_PTEM_MASK) == ctx->ptem) {
-            if (ctx->raddr != (hwaddr)-1ULL) {
-                /* all matches should have equal RPN, WIMG & PP */
-                if ((ctx->raddr & PTE_CHECK_MASK) != (pte1 & PTE_CHECK_MASK)) {
-                    qemu_log_mask(CPU_LOG_MMU, "Bad RPN/WIMG/PP\n");
-                    return -3;
-                }
-            }
-            /* Keep the matching PTE information */
-            ctx->raddr = pte1;
-            ctx->prot = ppc_hash32_prot(ctx->key, pte1 & HPTE32_R_PP, ctx->nx);
-            if (check_prot_access_type(ctx->prot, access_type)) {
-                /* Access granted */
-                qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
-                return 0;
-            } else {
-                /* Access right violation */
-                qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
-                return -2;
-            }
-        }
+    if (!pte_is_valid(pte0) || ((pte0 >> 6) & 1) != pteh ||
+        (pte0 & PTE_PTEM_MASK) != ctx->ptem) {
+        return -1;
     }
-    return -1;
+    /* all matches should have equal RPN, WIMG & PP */
+    if (ctx->raddr != (hwaddr)-1ULL &&
+        (ctx->raddr & PTE_CHECK_MASK) != (pte1 & PTE_CHECK_MASK)) {
+        qemu_log_mask(CPU_LOG_MMU, "Bad RPN/WIMG/PP\n");
+        return -3;
+    }
+    /* Keep the matching PTE information */
+    ctx->raddr = pte1;
+    ctx->prot = ppc_hash32_prot(ctx->key, pte1 & HPTE32_R_PP, ctx->nx);
+    if (check_prot_access_type(ctx->prot, access_type)) {
+        qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
+        return 0;
+    } else {
+        qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
+        return -2;
+    }
 }
 
 static int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
