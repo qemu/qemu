@@ -83,46 +83,6 @@ static inline bool ppc64_v3_radix(PowerPCCPU *cpu)
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_HR);
 }
 
-static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
-{
-    uint64_t base;
-
-    if (cpu->vhyp) {
-        return 0;
-    }
-    if (cpu->env.mmu_model == POWERPC_MMU_3_00) {
-        ppc_v3_pate_t pate;
-
-        if (!ppc64_v3_get_pate(cpu, cpu->env.spr[SPR_LPIDR], &pate)) {
-            return 0;
-        }
-        base = pate.dw0;
-    } else {
-        base = cpu->env.spr[SPR_SDR1];
-    }
-    return base & SDR_64_HTABORG;
-}
-
-static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
-{
-    uint64_t base;
-
-    if (cpu->vhyp) {
-        return cpu->vhyp_class->hpt_mask(cpu->vhyp);
-    }
-    if (cpu->env.mmu_model == POWERPC_MMU_3_00) {
-        ppc_v3_pate_t pate;
-
-        if (!ppc64_v3_get_pate(cpu, cpu->env.spr[SPR_LPIDR], &pate)) {
-            return 0;
-        }
-        base = pate.dw0;
-    } else {
-        base = cpu->env.spr[SPR_SDR1];
-    }
-    return (1ULL << ((base & SDR_64_HTABSIZE) + 18 - 7)) - 1;
-}
-
 #endif /* TARGET_PPC64 */
 
 #endif /* CONFIG_USER_ONLY */
