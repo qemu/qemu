@@ -193,40 +193,13 @@ static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
     return ret;
 }
 
-/* Perform BAT hit & translation */
-static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
-                                 int *validp, int *protp, target_ulong *BATu,
-                                 target_ulong *BATl)
-{
-    target_ulong bl;
-    int pp, valid, prot;
-
-    bl = (*BATu & BATU32_BL) << 15;
-    valid = 0;
-    prot = 0;
-    if ((!FIELD_EX64(env->msr, MSR, PR) && (*BATu & 0x00000002)) ||
-        (FIELD_EX64(env->msr, MSR, PR) && (*BATu & 0x00000001))) {
-        valid = 1;
-        pp = *BATl & 0x00000003;
-        if (pp != 0) {
-            prot = PAGE_READ | PAGE_EXEC;
-            if (pp == 0x2) {
-                prot |= PAGE_WRITE;
-            }
-        }
-    }
-    *blp = bl;
-    *validp = valid;
-    *protp = prot;
-}
-
 static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
-                           target_ulong eaddr, MMUAccessType access_type)
+                           target_ulong eaddr, MMUAccessType access_type,
+                           bool pr)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
-    int i, valid, prot;
-    int ret = -1;
+    int i, ret = -1;
     bool ifetch = access_type == MMU_INST_FETCH;
 
     qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
@@ -243,20 +216,19 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         BATl = &BATlt[i];
         BEPIu = *BATu & BATU32_BEPIU;
         BEPIl = *BATu & BATU32_BEPIL;
-        bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT%d v " TARGET_FMT_lx " BATu "
                       TARGET_FMT_lx " BATl " TARGET_FMT_lx "\n", __func__,
                       ifetch ? 'I' : 'D', i, eaddr, *BATu, *BATl);
-        if ((eaddr & BATU32_BEPIU) == BEPIu &&
-            ((eaddr & BATU32_BEPIL) & ~bl) == BEPIl) {
-            /* BAT matches */
-            if (valid != 0) {
+        bl = (*BATu & BATU32_BL) << 15;
+        if ((!pr && (*BATu & BATU32_VS)) || (pr && (*BATu & BATU32_VP))) {
+            if ((eaddr & BATU32_BEPIU) == BEPIu &&
+                ((eaddr & BATU32_BEPIL) & ~bl) == BEPIl) {
                 /* Get physical address */
                 ctx->raddr = (*BATl & BATU32_BEPIU) |
                     ((eaddr & BATU32_BEPIL & bl) | (*BATl & BATU32_BEPIL)) |
                     (eaddr & 0x0001F000);
                 /* Compute access rights */
-                ctx->prot = prot;
+                ctx->prot = ppc_hash32_bat_prot(*BATu, *BATl);
                 if (check_prot_access_type(ctx->prot, access_type)) {
                     qemu_log_mask(CPU_LOG_MMU, "BAT %d match: r " HWADDR_FMT_plx
                                   " prot=%c%c\n", i, ctx->raddr,
@@ -300,16 +272,16 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid, sr, pgidx, ptem;
-    bool key, pr, ds, nx;
+    bool key, ds, nx;
+    bool pr = FIELD_EX64(env->msr, MSR, PR);
 
     /* First try to find a BAT entry if there are any */
-    if (env->nb_BATs && get_bat_6xx_tlb(env, ctx, eaddr, access_type) == 0) {
+    if (env->nb_BATs &&
+        get_bat_6xx_tlb(env, ctx, eaddr, access_type, pr) == 0) {
         return 0;
     }
 
     /* Perform segment based translation when no BATs matched */
-    pr = FIELD_EX64(env->msr, MSR, PR);
-
     sr = env->sr[eaddr >> 28];
     key = ppc_hash32_key(pr, sr);
     *keyp = key;

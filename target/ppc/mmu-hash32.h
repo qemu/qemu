@@ -143,6 +143,20 @@ static inline int ppc_hash32_prot(bool key, int pp, bool nx)
     return nx ? prot : prot | PAGE_EXEC;
 }
 
+static inline int ppc_hash32_bat_prot(target_ulong batu, target_ulong batl)
+{
+    int prot = 0;
+    int pp = batl & BATL32_PP;
+
+    if (pp) {
+        prot = PAGE_READ | PAGE_EXEC;
+        if (pp == 0x2) {
+            prot |= PAGE_WRITE;
+        }
+    }
+    return prot;
+}
+
 typedef struct {
     uint32_t pte0, pte1;
 } ppc_hash_pte32_t;

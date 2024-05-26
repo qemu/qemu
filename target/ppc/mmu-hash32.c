@@ -48,22 +48,6 @@ static target_ulong hash32_bat_size(int mmu_idx,
     return BATU32_BEPI & ~((batu & BATU32_BL) << 15);
 }
 
-static int hash32_bat_prot(PowerPCCPU *cpu,
-                           target_ulong batu, target_ulong batl)
-{
-    int pp, prot;
-
-    prot = 0;
-    pp = batl & BATL32_PP;
-    if (pp != 0) {
-        prot = PAGE_READ | PAGE_EXEC;
-        if (pp == 0x2) {
-            prot |= PAGE_WRITE;
-        }
-    }
-    return prot;
-}
-
 static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
                                     MMUAccessType access_type, int *prot,
                                     int mmu_idx)
@@ -95,7 +79,7 @@ static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
         if (mask && ((ea & mask) == (batu & BATU32_BEPI))) {
             hwaddr raddr = (batl & mask) | (ea & ~mask);
 
-            *prot = hash32_bat_prot(cpu, batu, batl);
+            *prot = ppc_hash32_bat_prot(batu, batl);
 
             return raddr & TARGET_PAGE_MASK;
         }
