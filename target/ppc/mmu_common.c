@@ -91,33 +91,6 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
     return nr;
 }
 
-static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
-                                target_ulong pte1, int pteh,
-                                MMUAccessType access_type, bool nx)
-{
-    /* Check validity and table match */
-    if (!pte_is_valid(pte0) || ((pte0 >> 6) & 1) != pteh ||
-        (pte0 & PTE_PTEM_MASK) != ctx->ptem) {
-        return -1;
-    }
-    /* all matches should have equal RPN, WIMG & PP */
-    if (ctx->raddr != (hwaddr)-1ULL &&
-        (ctx->raddr & PTE_CHECK_MASK) != (pte1 & PTE_CHECK_MASK)) {
-        qemu_log_mask(CPU_LOG_MMU, "Bad RPN/WIMG/PP\n");
-        return -3;
-    }
-    /* Keep the matching PTE information */
-    ctx->raddr = pte1;
-    ctx->prot = ppc_hash32_prot(ctx->key, pte1 & HPTE32_R_PP, nx);
-    if (check_prot_access_type(ctx->prot, access_type)) {
-        qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
-        return 0;
-    } else {
-        qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
-        return -2;
-    }
-}
-
 /* Software driven TLB helpers */
 
 static int ppc6xx_tlb_check(CPUPPCState *env,
@@ -149,32 +122,32 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
                       tlb->EPN, eaddr, tlb->pte1,
                       access_type == MMU_DATA_STORE ? 'S' : 'L',
                       access_type == MMU_INST_FETCH ? 'I' : 'D');
-        switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1,
-                                     0, access_type, nx)) {
-        case -2:
-            /* Access violation */
-            ret = -2;
-            best = nr;
-            break;
-        case -1: /* No match */
-        case -3: /* TLB inconsistency */
-        default:
-            break;
-        case 0:
-            /* access granted */
-            /*
-             * XXX: we should go on looping to check all TLBs
-             *      consistency but we can speed-up the whole thing as
-             *      the result would be undefined if TLBs are not
-             *      consistent.
-             */
+        /* Check validity and table match */
+        if (!pte_is_valid(tlb->pte0) || ((tlb->pte0 >> 6) & 1) != 0 ||
+            (tlb->pte0 & PTE_PTEM_MASK) != ctx->ptem) {
+            continue;
+        }
+        /* all matches should have equal RPN, WIMG & PP */
+        if (ctx->raddr != (hwaddr)-1ULL &&
+            (ctx->raddr & PTE_CHECK_MASK) != (tlb->pte1 & PTE_CHECK_MASK)) {
+            qemu_log_mask(CPU_LOG_MMU, "Bad RPN/WIMG/PP\n");
+            /* TLB inconsistency */
+            continue;
+        }
+        /* Keep the matching PTE information */
+        best = nr;
+        ctx->raddr = tlb->pte1;
+        ctx->prot = ppc_hash32_prot(ctx->key, tlb->pte1 & HPTE32_R_PP, nx);
+        if (check_prot_access_type(ctx->prot, access_type)) {
+            qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
             ret = 0;
-            best = nr;
-            goto done;
+            break;
+        } else {
+            qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
+            ret = -2;
         }
     }
     if (best != -1) {
-done:
         qemu_log_mask(CPU_LOG_MMU, "found TLB at addr " HWADDR_FMT_plx
                       " prot=%01x ret=%d\n",
                       ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
