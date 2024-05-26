@@ -41,7 +41,6 @@
 typedef struct {
     hwaddr raddr;      /* Real address             */
     int prot;          /* Protection bits          */
-    target_ulong ptem; /* Virtual segment ID | API */
     int key;           /* Access key               */
 } mmu_ctx_t;
 
@@ -95,16 +94,18 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 
 static int ppc6xx_tlb_check(CPUPPCState *env,
                             mmu_ctx_t *ctx, target_ulong eaddr,
-                            MMUAccessType access_type, bool nx)
+                            MMUAccessType access_type, target_ulong ptem,
+                            bool nx)
 {
     ppc6xx_tlb_t *tlb;
     target_ulong *pte1p;
     int nr, best, way, ret;
+    bool is_code = (access_type == MMU_INST_FETCH);
 
     best = -1;
     ret = -1; /* No TLB found */
     for (way = 0; way < env->nb_ways; way++) {
-        nr = ppc6xx_tlb_getnum(env, eaddr, way, access_type == MMU_INST_FETCH);
+        nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
         tlb = &env->tlb.tlb6[nr];
         /* This test "emulates" the PTE index match for hardware TLBs */
         if ((eaddr & TARGET_PAGE_MASK) != tlb->EPN) {
@@ -124,7 +125,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
                       access_type == MMU_INST_FETCH ? 'I' : 'D');
         /* Check validity and table match */
         if (!pte_is_valid(tlb->pte0) || ((tlb->pte0 >> 6) & 1) != 0 ||
-            (tlb->pte0 & PTE_PTEM_MASK) != ctx->ptem) {
+            (tlb->pte0 & PTE_PTEM_MASK) != ptem) {
             continue;
         }
         /* all matches should have equal RPN, WIMG & PP */
@@ -163,6 +164,10 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
                 ctx->prot &= ~PAGE_WRITE;
             }
         }
+    }
+    if (ret == -1) {
+        int r = is_code ? SPR_ICMP : SPR_DCMP;
+        env->spr[r] = ptem;
     }
 #if defined(DUMP_PAGE_TABLES)
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {
@@ -293,7 +298,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 {
     PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
-    target_ulong vsid, sr, pgidx;
+    target_ulong vsid, sr, pgidx, ptem;
     bool pr, ds, nx;
 
     /* First try to find a BAT entry if there are any */
@@ -320,7 +325,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                   access_type == MMU_DATA_STORE, type);
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> TARGET_PAGE_BITS;
     hash = vsid ^ pgidx;
-    ctx->ptem = (vsid << 7) | (pgidx >> 10);
+    ptem = (vsid << 7) | (pgidx >> 10); /* Virtual segment ID | API */
 
     qemu_log_mask(CPU_LOG_MMU, "pte segment: key=%d ds %d nx %d vsid "
                   TARGET_FMT_lx "\n", ctx->key, ds, nx, vsid);
@@ -339,7 +344,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         /* Initialize real address with an invalid value */
         ctx->raddr = (hwaddr)-1ULL;
         /* Software TLB search */
-        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, nx);
+        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, ptem, nx);
     }
 
     /* Direct-store segment : absolutely *BUGGY* for now */
@@ -741,7 +746,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
             cs->exception_index = POWERPC_EXCP_IFTLB;
             env->error_code = 1 << 18;
             env->spr[SPR_IMISS] = eaddr;
-            env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
+            env->spr[SPR_ICMP] |= 0x80000000;
             goto tlb_miss;
         case -2:
             /* Access rights violation */
@@ -772,7 +777,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
                 env->error_code = 0;
             }
             env->spr[SPR_DMISS] = eaddr;
-            env->spr[SPR_DCMP] = 0x80000000 | ctx.ptem;
+            env->spr[SPR_DCMP] |= 0x80000000;
 tlb_miss:
             env->error_code |= ctx.key << 19;
             env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
