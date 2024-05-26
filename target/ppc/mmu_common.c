@@ -193,7 +193,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
     return ret;
 }
 
-static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
+static int get_bat_6xx_tlb(CPUPPCState *env, hwaddr *raddr, int *prot,
                            target_ulong eaddr, MMUAccessType access_type,
                            bool pr)
 {
@@ -224,16 +224,16 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             if ((eaddr & BATU32_BEPIU) == BEPIu &&
                 ((eaddr & BATU32_BEPIL) & ~bl) == BEPIl) {
                 /* Get physical address */
-                ctx->raddr = (*BATl & BATU32_BEPIU) |
+                *raddr = (*BATl & BATU32_BEPIU) |
                     ((eaddr & BATU32_BEPIL & bl) | (*BATl & BATU32_BEPIL)) |
                     (eaddr & 0x0001F000);
                 /* Compute access rights */
-                ctx->prot = ppc_hash32_bat_prot(*BATu, *BATl);
-                if (check_prot_access_type(ctx->prot, access_type)) {
+                *prot = ppc_hash32_bat_prot(*BATu, *BATl);
+                if (check_prot_access_type(*prot, access_type)) {
                     qemu_log_mask(CPU_LOG_MMU, "BAT %d match: r " HWADDR_FMT_plx
-                                  " prot=%c%c\n", i, ctx->raddr,
-                                  ctx->prot & PAGE_READ ? 'R' : '-',
-                                  ctx->prot & PAGE_WRITE ? 'W' : '-');
+                                  " prot=%c%c\n", i, *raddr,
+                                  *prot & PAGE_READ ? 'R' : '-',
+                                  *prot & PAGE_WRITE ? 'W' : '-');
                     ret = 0;
                 } else {
                     ret = -2;
@@ -277,7 +277,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs &&
-        get_bat_6xx_tlb(env, ctx, eaddr, access_type, pr) == 0) {
+        get_bat_6xx_tlb(env, &ctx->raddr, &ctx->prot, eaddr,
+                        access_type, pr) == 0) {
         return 0;
     }
 
