@@ -42,7 +42,7 @@ static int ppc_hash32_pte_prot(int mmu_idx,
 {
     unsigned pp, key;
 
-    key = !!(mmuidx_pr(mmu_idx) ? (sr & SR32_KP) : (sr & SR32_KS));
+    key = ppc_hash32_key(mmuidx_pr(mmu_idx), sr);
     pp = pte.pte1 & HPTE32_R_PP;
 
     return ppc_hash32_prot(key, pp, !!(sr & SR32_NX));
@@ -145,7 +145,6 @@ static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    int key = !!(mmuidx_pr(mmu_idx) ? (sr & SR32_KP) : (sr & SR32_KS));
 
     qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
@@ -206,7 +205,11 @@ static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
         cpu_abort(cs, "ERROR: insn should not need address translation\n");
     }
 
-    *prot = key ? PAGE_READ | PAGE_WRITE : PAGE_READ;
+    if (ppc_hash32_key(mmuidx_pr(mmu_idx), sr)) {
+        *prot = PAGE_READ | PAGE_WRITE;
+    } else {
+        *prot = PAGE_READ;
+    }
     if (check_prot_access_type(*prot, access_type)) {
         *raddr = eaddr;
         return true;

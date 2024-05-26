@@ -310,8 +310,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     pr = FIELD_EX64(env->msr, MSR, PR);
 
     sr = env->sr[eaddr >> 28];
-    ctx->key = (((sr & 0x20000000) && pr) ||
-                ((sr & 0x40000000) && !pr)) ? 1 : 0;
+    ctx->key = ppc_hash32_key(pr, sr);
     ds = sr & SR32_T;
     nx = sr & SR32_NX;
     vsid = sr & SR32_VSID;

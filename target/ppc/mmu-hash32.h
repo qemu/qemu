@@ -102,6 +102,11 @@ static inline void ppc_hash32_store_hpte1(PowerPCCPU *cpu,
     stl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
 }
 
+static inline bool ppc_hash32_key(bool pr, target_ulong sr)
+{
+    return pr ? (sr & SR32_KP) : (sr & SR32_KS);
+}
+
 static inline int ppc_hash32_prot(bool key, int pp, bool nx)
 {
     int prot;
