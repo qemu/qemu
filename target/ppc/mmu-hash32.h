@@ -102,49 +102,40 @@ static inline void ppc_hash32_store_hpte1(PowerPCCPU *cpu,
     stl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
 }
 
-static inline int ppc_hash32_pp_prot(bool key, int pp, bool nx)
+static inline int ppc_hash32_prot(bool key, int pp, bool nx)
 {
     int prot;
 
-    if (key == 0) {
-        switch (pp) {
-        case 0x0:
-        case 0x1:
-        case 0x2:
-            prot = PAGE_READ | PAGE_WRITE;
-            break;
-
-        case 0x3:
-            prot = PAGE_READ;
-            break;
-
-        default:
-            abort();
-        }
-    } else {
+    if (key) {
         switch (pp) {
         case 0x0:
             prot = 0;
             break;
-
         case 0x1:
         case 0x3:
             prot = PAGE_READ;
             break;
-
         case 0x2:
             prot = PAGE_READ | PAGE_WRITE;
             break;
-
         default:
-            abort();
+            g_assert_not_reached();
+        }
+    } else {
+        switch (pp) {
+        case 0x0:
+        case 0x1:
+        case 0x2:
+            prot = PAGE_READ | PAGE_WRITE;
+            break;
+        case 0x3:
+            prot = PAGE_READ;
+            break;
+        default:
+            g_assert_not_reached();
         }
     }
-    if (nx == 0) {
-        prot |= PAGE_EXEC;
-    }
-
-    return prot;
+    return nx ? prot : prot | PAGE_EXEC;
 }
 
 typedef struct {

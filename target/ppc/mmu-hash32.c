@@ -45,7 +45,7 @@ static int ppc_hash32_pte_prot(int mmu_idx,
     key = !!(mmuidx_pr(mmu_idx) ? (sr & SR32_KP) : (sr & SR32_KS));
     pp = pte.pte1 & HPTE32_R_PP;
 
-    return ppc_hash32_pp_prot(key, pp, !!(sr & SR32_NX));
+    return ppc_hash32_prot(key, pp, !!(sr & SR32_NX));
 }
 
 static target_ulong hash32_bat_size(int mmu_idx,
