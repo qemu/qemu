@@ -41,7 +41,6 @@
 typedef struct {
     hwaddr raddr;      /* Real address             */
     int prot;          /* Protection bits          */
-    int key;           /* Access key               */
 } mmu_ctx_t;
 
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
@@ -95,7 +94,7 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 static int ppc6xx_tlb_check(CPUPPCState *env,
                             mmu_ctx_t *ctx, target_ulong eaddr,
                             MMUAccessType access_type, target_ulong ptem,
-                            bool nx)
+                            bool key, bool nx)
 {
     ppc6xx_tlb_t *tlb;
     target_ulong *pte1p;
@@ -140,7 +139,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
         /* Keep the matching PTE information */
         best = nr;
         ctx->raddr = tlb->pte1;
-        ctx->prot = ppc_hash32_prot(ctx->key, tlb->pte1 & HPTE32_R_PP, nx);
+        ctx->prot = ppc_hash32_prot(key, tlb->pte1 & HPTE32_R_PP, nx);
         if (check_prot_access_type(ctx->prot, access_type)) {
             qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
             ret = 0;
@@ -295,13 +294,14 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                       target_ulong eaddr, hwaddr *hashp,
+                                       target_ulong eaddr,
+                                       hwaddr *hashp, bool *keyp,
                                        MMUAccessType access_type, int type)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid, sr, pgidx, ptem;
-    bool pr, ds, nx;
+    bool key, pr, ds, nx;
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs && get_bat_6xx_tlb(env, ctx, eaddr, access_type) == 0) {
@@ -312,7 +312,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     pr = FIELD_EX64(env->msr, MSR, PR);
 
     sr = env->sr[eaddr >> 28];
-    ctx->key = ppc_hash32_key(pr, sr);
+    key = ppc_hash32_key(pr, sr);
+    *keyp = key;
     ds = sr & SR32_T;
     nx = sr & SR32_NX;
     vsid = sr & SR32_VSID;
@@ -329,7 +330,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     ptem = (vsid << 7) | (pgidx >> 10); /* Virtual segment ID | API */
 
     qemu_log_mask(CPU_LOG_MMU, "pte segment: key=%d ds %d nx %d vsid "
-                  TARGET_FMT_lx "\n", ctx->key, ds, nx, vsid);
+                  TARGET_FMT_lx "\n", key, ds, nx, vsid);
     if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
         if (type == ACCESS_CODE && nx) {
@@ -343,7 +344,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         *hashp = hash;
 
         /* Software TLB search */
-        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, ptem, nx);
+        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, ptem, key, nx);
     }
 
     /* Direct-store segment : absolutely *BUGGY* for now */
@@ -367,8 +368,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     case ACCESS_EXT: /* eciwx or ecowx */
         return -4;
     }
-    if ((access_type == MMU_DATA_STORE || ctx->key != 1) &&
-        (access_type == MMU_DATA_LOAD || ctx->key != 0)) {
+    if ((access_type == MMU_DATA_STORE || !key) &&
+        (access_type == MMU_DATA_LOAD || key)) {
         ctx->raddr = eaddr;
         return 2;
     }
@@ -709,6 +710,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
     CPUPPCState *env = &cpu->env;
     mmu_ctx_t ctx;
     hwaddr hash = 0; /* init to 0 to avoid used uninit warning */
+    bool key;
     int type, ret;
 
     if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
@@ -726,7 +728,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     ctx.prot = 0;
-    ret = mmu6xx_get_physical_address(env, &ctx, eaddr, &hash,
+    ret = mmu6xx_get_physical_address(env, &ctx, eaddr, &hash, &key,
                                       access_type, type);
     if (ret == 0) {
         *raddrp = ctx.raddr;
@@ -778,7 +780,7 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
             env->spr[SPR_DMISS] = eaddr;
             env->spr[SPR_DCMP] |= 0x80000000;
 tlb_miss:
-            env->error_code |= ctx.key << 19;
+            env->error_code |= key << 19;
             env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
                                   get_pteg_offset32(cpu, hash);
             env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
