@@ -201,7 +201,7 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
     target_ulong bl;
     int pp, valid, prot;
 
-    bl = (*BATu & 0x00001FFC) << 15;
+    bl = (*BATu & BATU32_BL) << 15;
     valid = 0;
     prot = 0;
     if ((!FIELD_EX64(env->msr, MSR, PR) && (*BATu & 0x00000002)) ||
@@ -241,19 +241,19 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
         BATl = &BATlt[i];
-        BEPIu = *BATu & 0xF0000000;
-        BEPIl = *BATu & 0x0FFE0000;
+        BEPIu = *BATu & BATU32_BEPIU;
+        BEPIl = *BATu & BATU32_BEPIL;
         bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT%d v " TARGET_FMT_lx " BATu "
                       TARGET_FMT_lx " BATl " TARGET_FMT_lx "\n", __func__,
                       ifetch ? 'I' : 'D', i, eaddr, *BATu, *BATl);
-        if ((eaddr & 0xF0000000) == BEPIu &&
-            ((eaddr & 0x0FFE0000) & ~bl) == BEPIl) {
+        if ((eaddr & BATU32_BEPIU) == BEPIu &&
+            ((eaddr & BATU32_BEPIL) & ~bl) == BEPIl) {
             /* BAT matches */
             if (valid != 0) {
                 /* Get physical address */
-                ctx->raddr = (*BATl & 0xF0000000) |
-                    ((eaddr & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
+                ctx->raddr = (*BATl & BATU32_BEPIU) |
+                    ((eaddr & BATU32_BEPIL & bl) | (*BATl & BATU32_BEPIL)) |
                     (eaddr & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
@@ -277,9 +277,9 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             for (i = 0; i < 4; i++) {
                 BATu = &BATut[i];
                 BATl = &BATlt[i];
-                BEPIu = *BATu & 0xF0000000;
-                BEPIl = *BATu & 0x0FFE0000;
-                bl = (*BATu & 0x00001FFC) << 15;
+                BEPIu = *BATu & BATU32_BEPIU;
+                BEPIl = *BATu & BATU32_BEPIL;
+                bl = (*BATu & BATU32_BL) << 15;
                 qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT%d v " TARGET_FMT_lx
                               " BATu " TARGET_FMT_lx " BATl " TARGET_FMT_lx
                               "\n\t" TARGET_FMT_lx " " TARGET_FMT_lx " "
@@ -520,9 +520,9 @@ static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
         BATl = &BATlt[i];
-        BEPIu = *BATu & 0xF0000000;
-        BEPIl = *BATu & 0x0FFE0000;
-        bl = (*BATu & 0x00001FFC) << 15;
+        BEPIu = *BATu & BATU32_BEPIU;
+        BEPIl = *BATu & BATU32_BEPIL;
+        bl = (*BATu & BATU32_BL) << 15;
         qemu_printf("%s BAT%d BATu " TARGET_FMT_lx
                     " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
                     TARGET_FMT_lx " " TARGET_FMT_lx "\n",
