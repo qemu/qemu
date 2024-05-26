@@ -40,7 +40,6 @@
 /* Context used internally during MMU translations */
 typedef struct {
     hwaddr raddr;      /* Real address             */
-    hwaddr eaddr;      /* Effective address        */
     int prot;          /* Protection bits          */
     hwaddr hash[2];    /* Pagetable hash values    */
     target_ulong ptem; /* Virtual segment ID | API */
@@ -348,7 +347,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     /* Perform segment based translation when no BATs matched */
     pr = FIELD_EX64(env->msr, MSR, PR);
-    ctx->eaddr = eaddr;
 
     sr = env->sr[eaddr >> 28];
     ctx->key = (((sr & 0x20000000) && pr) ||
