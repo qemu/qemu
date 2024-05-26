@@ -375,15 +375,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     case ACCESS_INT:
         /* Integer load/store : only access allowed */
         break;
-    case ACCESS_CODE:
-        /* No code fetch is allowed in direct-store areas */
-        return -4;
-    case ACCESS_FLOAT:
-        /* Floating point load/store */
-        return -4;
-    case ACCESS_RES:
-        /* lwarx, ldarx or srwcx. */
-        return -4;
     case ACCESS_CACHE:
         /*
          * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
@@ -393,12 +384,10 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
          */
         ctx->raddr = eaddr;
         return 0;
-    case ACCESS_EXT:
-        /* eciwx or ecowx */
-        return -4;
-    default:
-        qemu_log_mask(CPU_LOG_MMU, "ERROR: instruction should not need address"
-                                   " translation\n");
+    case ACCESS_CODE: /* No code fetch is allowed in direct-store areas */
+    case ACCESS_FLOAT: /* Floating point load/store */
+    case ACCESS_RES: /* lwarx, ldarx or srwcx. */
+    case ACCESS_EXT: /* eciwx or ecowx */
         return -4;
     }
     if ((access_type == MMU_DATA_STORE || ctx->key != 1) &&
