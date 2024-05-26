@@ -91,10 +91,9 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 
 /* Software driven TLB helpers */
 
-static int ppc6xx_tlb_check(CPUPPCState *env,
-                            mmu_ctx_t *ctx, target_ulong eaddr,
-                            MMUAccessType access_type, target_ulong ptem,
-                            bool key, bool nx)
+static int ppc6xx_tlb_check(CPUPPCState *env, hwaddr *raddr, int *prot,
+                            target_ulong eaddr, MMUAccessType access_type,
+                            target_ulong ptem, bool key, bool nx)
 {
     ppc6xx_tlb_t *tlb;
     target_ulong *pte1p;
@@ -102,7 +101,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
     bool is_code = (access_type == MMU_INST_FETCH);
 
     /* Initialize real address with an invalid value */
-    ctx->raddr = (hwaddr)-1ULL;
+    *raddr = (hwaddr)-1ULL;
     best = -1;
     ret = -1; /* No TLB found */
     for (way = 0; way < env->nb_ways; way++) {
@@ -130,17 +129,17 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
             continue;
         }
         /* all matches should have equal RPN, WIMG & PP */
-        if (ctx->raddr != (hwaddr)-1ULL &&
-            (ctx->raddr & PTE_CHECK_MASK) != (tlb->pte1 & PTE_CHECK_MASK)) {
+        if (*raddr != (hwaddr)-1ULL &&
+            (*raddr & PTE_CHECK_MASK) != (tlb->pte1 & PTE_CHECK_MASK)) {
             qemu_log_mask(CPU_LOG_MMU, "Bad RPN/WIMG/PP\n");
             /* TLB inconsistency */
             continue;
         }
         /* Keep the matching PTE information */
         best = nr;
-        ctx->raddr = tlb->pte1;
-        ctx->prot = ppc_hash32_prot(key, tlb->pte1 & HPTE32_R_PP, nx);
-        if (check_prot_access_type(ctx->prot, access_type)) {
+        *raddr = tlb->pte1;
+        *prot = ppc_hash32_prot(key, tlb->pte1 & HPTE32_R_PP, nx);
+        if (check_prot_access_type(*prot, access_type)) {
             qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
             ret = 0;
             break;
@@ -152,7 +151,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
     if (best != -1) {
         qemu_log_mask(CPU_LOG_MMU, "found TLB at addr " HWADDR_FMT_plx
                       " prot=%01x ret=%d\n",
-                      ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
+                      *raddr & TARGET_PAGE_MASK, *prot, ret);
         /* Update page flags */
         pte1p = &env->tlb.tlb6[best].pte1;
         *pte1p |= 0x00000100; /* Update accessed flag */
@@ -162,7 +161,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
                 *pte1p |= 0x00000080;
             } else {
                 /* Force page fault for first write access */
-                ctx->prot &= ~PAGE_WRITE;
+                *prot &= ~PAGE_WRITE;
             }
         }
     }
@@ -344,7 +343,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         *hashp = hash;
 
         /* Software TLB search */
-        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, ptem, key, nx);
+        return ppc6xx_tlb_check(env, &ctx->raddr, &ctx->prot, eaddr,
+                                access_type, ptem, key, nx);
     }
 
     /* Direct-store segment : absolutely *BUGGY* for now */
