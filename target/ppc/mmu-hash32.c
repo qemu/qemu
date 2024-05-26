@@ -298,15 +298,6 @@ static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
     return pte_offset;
 }
 
-static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
-                                   target_ulong eaddr)
-{
-    hwaddr rpn = pte.pte1 & HPTE32_R_RPN;
-    hwaddr mask = ~TARGET_PAGE_MASK;
-
-    return (rpn & ~mask) | (eaddr & mask);
-}
-
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                       bool guest_visible)
@@ -440,11 +431,12 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
              */
             prot &= ~PAGE_WRITE;
         }
-     }
+    }
+    *protp = prot;
 
     /* 9. Determine the real address from the PTE */
-
-    *raddrp = ppc_hash32_pte_raddr(sr, pte, eaddr);
-    *protp = prot;
+    *raddrp = pte.pte1 & HPTE32_R_RPN;
+    *raddrp &= TARGET_PAGE_MASK;
+    *raddrp |= eaddr & ~TARGET_PAGE_MASK;
     return true;
 }
