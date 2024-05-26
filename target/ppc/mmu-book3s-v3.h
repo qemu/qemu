@@ -20,9 +20,6 @@
 #ifndef PPC_MMU_BOOK3S_V3_H
 #define PPC_MMU_BOOK3S_V3_H
 
-#include "mmu-hash64.h"
-#include "mmu-books.h"
-
 #ifndef CONFIG_USER_ONLY
 
 /*

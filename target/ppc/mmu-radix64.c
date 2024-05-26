@@ -28,6 +28,7 @@
 #include "internal.h"
 #include "mmu-radix64.h"
 #include "mmu-book3s-v3.h"
+#include "mmu-books.h"
 
 /* Radix Partition Table Entry Fields */
 #define PATE1_R_PRTB           0x0FFFFFFFFFFFF000

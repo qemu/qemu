@@ -31,6 +31,7 @@
 #include "hw/hw.h"
 #include "internal.h"
 #include "mmu-book3s-v3.h"
+#include "mmu-books.h"
 #include "helper_regs.h"
 
 #ifdef CONFIG_TCG
