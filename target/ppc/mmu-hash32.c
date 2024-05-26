@@ -37,17 +37,6 @@
 #  define LOG_BATS(...) do { } while (0)
 #endif
 
-static int ppc_hash32_pte_prot(int mmu_idx,
-                               target_ulong sr, ppc_hash_pte32_t pte)
-{
-    unsigned pp, key;
-
-    key = ppc_hash32_key(mmuidx_pr(mmu_idx), sr);
-    pp = pte.pte1 & HPTE32_R_PP;
-
-    return ppc_hash32_prot(key, pp, !!(sr & SR32_NX));
-}
-
 static target_ulong hash32_bat_size(int mmu_idx,
                                     target_ulong batu, target_ulong batl)
 {
@@ -341,10 +330,10 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong sr;
-    hwaddr pte_offset;
+    hwaddr pte_offset, raddr;
     ppc_hash_pte32_t pte;
+    bool key;
     int prot;
-    hwaddr raddr;
 
     /* There are no hash32 large pages. */
     *psizep = TARGET_PAGE_BITS;
@@ -426,8 +415,8 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                 "found PTE at offset %08" HWADDR_PRIx "\n", pte_offset);
 
     /* 7. Check access permissions */
-
-    prot = ppc_hash32_pte_prot(mmu_idx, sr, pte);
+    key = ppc_hash32_key(mmuidx_pr(mmu_idx), sr);
+    prot = ppc_hash32_prot(key, pte.pte1 & HPTE32_R_PP, sr & SR32_NX);
 
     if (!check_prot_access_type(prot, access_type)) {
         /* Access right violation */
