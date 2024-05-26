@@ -278,6 +278,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     pc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         PowerPCCPU *cpu;
+        PnvCPUState *pnv_cpu;
 
         obj = object_new(typename);
         cpu = POWERPC_CPU(obj);
@@ -288,6 +289,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         object_property_add_child(OBJECT(pc), name, obj);
 
         cpu->machine_data = g_new0(PnvCPUState, 1);
+        pnv_cpu = pnv_cpu_state(cpu);
+        pnv_cpu->pnv_core = pc;
 
         object_unref(obj);
     }
