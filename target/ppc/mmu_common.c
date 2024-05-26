@@ -119,39 +119,14 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
     }
 }
 
-static int pte_update_flags(mmu_ctx_t *ctx, target_ulong *pte1p,
-                            int ret, MMUAccessType access_type)
-{
-    int store = 0;
-
-    /* Update page flags */
-    if (!(*pte1p & 0x00000100)) {
-        /* Update accessed flag */
-        *pte1p |= 0x00000100;
-        store = 1;
-    }
-    if (!(*pte1p & 0x00000080)) {
-        if (access_type == MMU_DATA_STORE && ret == 0) {
-            /* Update changed flag */
-            *pte1p |= 0x00000080;
-            store = 1;
-        } else {
-            /* Force page fault for first write access */
-            ctx->prot &= ~PAGE_WRITE;
-        }
-    }
-
-    return store;
-}
-
 /* Software driven TLB helpers */
 
 static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                             target_ulong eaddr, MMUAccessType access_type)
 {
     ppc6xx_tlb_t *tlb;
-    int nr, best, way;
-    int ret;
+    target_ulong *pte1p;
+    int nr, best, way, ret;
 
     best = -1;
     ret = -1; /* No TLB found */
@@ -204,7 +179,17 @@ done:
                       " prot=%01x ret=%d\n",
                       ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         /* Update page flags */
-        pte_update_flags(ctx, &env->tlb.tlb6[best].pte1, ret, access_type);
+        pte1p = &env->tlb.tlb6[best].pte1;
+        *pte1p |= 0x00000100; /* Update accessed flag */
+        if (!(*pte1p & 0x00000080)) {
+            if (access_type == MMU_DATA_STORE && ret == 0) {
+                /* Update changed flag */
+                *pte1p |= 0x00000080;
+            } else {
+                /* Force page fault for first write access */
+                ctx->prot &= ~PAGE_WRITE;
+            }
+        }
     }
 #if defined(DUMP_PAGE_TABLES)
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {
