@@ -221,7 +221,7 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
 }
 
 static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
-                           target_ulong virtual, MMUAccessType access_type)
+                           target_ulong eaddr, MMUAccessType access_type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -230,7 +230,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
     bool ifetch = access_type == MMU_INST_FETCH;
 
     qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
-                  ifetch ? 'I' : 'D', virtual);
+                  ifetch ? 'I' : 'D', eaddr);
     if (ifetch) {
         BATlt = env->IBAT[1];
         BATut = env->IBAT[0];
@@ -246,15 +246,15 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         qemu_log_mask(CPU_LOG_MMU, "%s: %cBAT%d v " TARGET_FMT_lx " BATu "
                       TARGET_FMT_lx " BATl " TARGET_FMT_lx "\n", __func__,
-                      ifetch ? 'I' : 'D', i, virtual, *BATu, *BATl);
-        if ((virtual & 0xF0000000) == BEPIu &&
-            ((virtual & 0x0FFE0000) & ~bl) == BEPIl) {
+                      ifetch ? 'I' : 'D', i, eaddr, *BATu, *BATl);
+        if ((eaddr & 0xF0000000) == BEPIu &&
+            ((eaddr & 0x0FFE0000) & ~bl) == BEPIl) {
             /* BAT matches */
             if (valid != 0) {
                 /* Get physical address */
                 ctx->raddr = (*BATl & 0xF0000000) |
-                    ((virtual & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
-                    (virtual & 0x0001F000);
+                    ((eaddr & 0x0FFE0000 & bl) | (*BATl & 0x0FFE0000)) |
+                    (eaddr & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
                 if (check_prot_access_type(ctx->prot, access_type)) {
@@ -273,7 +273,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
     if (ret < 0) {
         if (qemu_log_enabled()) {
             qemu_log_mask(CPU_LOG_MMU, "no BAT match for "
-                          TARGET_FMT_lx ":\n", virtual);
+                          TARGET_FMT_lx ":\n", eaddr);
             for (i = 0; i < 4; i++) {
                 BATu = &BATut[i];
                 BATl = &BATlt[i];
@@ -284,7 +284,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                               " BATu " TARGET_FMT_lx " BATl " TARGET_FMT_lx
                               "\n\t" TARGET_FMT_lx " " TARGET_FMT_lx " "
                               TARGET_FMT_lx "\n", __func__, ifetch ? 'I' : 'D',
-                              i, virtual, *BATu, *BATl, BEPIu, BEPIl, bl);
+                              i, eaddr, *BATu, *BATl, BEPIu, BEPIl, bl);
             }
         }
     }
