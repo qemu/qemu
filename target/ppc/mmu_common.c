@@ -95,15 +95,14 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 }
 
 static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
-                                target_ulong pte1, int h,
+                                target_ulong pte1, int pteh,
                                 MMUAccessType access_type)
 {
-    int ret, pteh, pp;
+    int ret, pp;
 
     ret = -1;
     /* Check validity and table match */
-    pteh = (pte0 >> 6) & 1;
-    if (pte_is_valid(pte0) && h == pteh) {
+    if (pte_is_valid(pte0) && ((pte0 >> 6) & 1) == pteh) {
         /* Check vsid & api */
         pp = pte1 & 0x00000003;
         if ((pte0 & PTE_PTEM_MASK) == ctx->ptem) {
