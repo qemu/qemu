@@ -102,6 +102,8 @@ static int ppc6xx_tlb_check(CPUPPCState *env,
     int nr, best, way, ret;
     bool is_code = (access_type == MMU_INST_FETCH);
 
+    /* Initialize real address with an invalid value */
+    ctx->raddr = (hwaddr)-1ULL;
     best = -1;
     ret = -1; /* No TLB found */
     for (way = 0; way < env->nb_ways; way++) {
@@ -340,8 +342,6 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                       ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
         *hashp = hash;
 
-        /* Initialize real address with an invalid value */
-        ctx->raddr = (hwaddr)-1ULL;
         /* Software TLB search */
         return ppc6xx_tlb_check(env, ctx, eaddr, access_type, ptem, nx);
     }
