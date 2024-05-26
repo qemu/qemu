@@ -98,13 +98,12 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                                 target_ulong pte1, int h,
                                 MMUAccessType access_type)
 {
-    int ret, pteh, ptev, pp;
+    int ret, pteh, pp;
 
     ret = -1;
     /* Check validity and table match */
-    ptev = pte_is_valid(pte0);
     pteh = (pte0 >> 6) & 1;
-    if (ptev && h == pteh) {
+    if (pte_is_valid(pte0) && h == pteh) {
         /* Check vsid & api */
         pp = pte1 & 0x00000003;
         if ((pte0 & PTE_PTEM_MASK) == ctx->ptem) {
