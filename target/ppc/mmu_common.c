@@ -37,12 +37,6 @@
 
 /* #define DUMP_PAGE_TABLES */
 
-/* Context used internally during MMU translations */
-typedef struct {
-    hwaddr raddr;      /* Real address             */
-    int prot;          /* Protection bits          */
-} mmu_ctx_t;
-
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
     PowerPCCPU *cpu = env_archcpu(env);
@@ -264,8 +258,8 @@ static int get_bat_6xx_tlb(CPUPPCState *env, hwaddr *raddr, int *prot,
     return ret;
 }
 
-static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                       target_ulong eaddr,
+static int mmu6xx_get_physical_address(CPUPPCState *env, hwaddr *raddr,
+                                       int *prot, target_ulong eaddr,
                                        hwaddr *hashp, bool *keyp,
                                        MMUAccessType access_type, int type)
 {
@@ -277,8 +271,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs &&
-        get_bat_6xx_tlb(env, &ctx->raddr, &ctx->prot, eaddr,
-                        access_type, pr) == 0) {
+        get_bat_6xx_tlb(env, raddr, prot, eaddr, access_type, pr) == 0) {
         return 0;
     }
 
@@ -316,7 +309,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         *hashp = hash;
 
         /* Software TLB search */
-        return ppc6xx_tlb_check(env, &ctx->raddr, &ctx->prot, eaddr,
+        return ppc6xx_tlb_check(env, raddr, prot, eaddr,
                                 access_type, ptem, key, nx);
     }
 
@@ -333,7 +326,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
          * Should make the instruction do no-op.  As it already do
          * no-op, it's quite easy :-)
          */
-        ctx->raddr = eaddr;
+        *raddr = eaddr;
         return 0;
     case ACCESS_CODE: /* No code fetch is allowed in direct-store areas */
     case ACCESS_FLOAT: /* Floating point load/store */
@@ -343,7 +336,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     }
     if ((access_type == MMU_DATA_STORE || !key) &&
         (access_type == MMU_DATA_LOAD || key)) {
-        ctx->raddr = eaddr;
+        *raddr = eaddr;
         return 2;
     }
     return -2;
@@ -681,7 +674,6 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    mmu_ctx_t ctx;
     hwaddr hash = 0; /* init to 0 to avoid used uninit warning */
     bool key;
     int type, ret;
@@ -700,12 +692,9 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
         type = ACCESS_INT;
     }
 
-    ctx.prot = 0;
-    ret = mmu6xx_get_physical_address(env, &ctx, eaddr, &hash, &key,
+    ret = mmu6xx_get_physical_address(env, raddrp, protp, eaddr, &hash, &key,
                                       access_type, type);
     if (ret == 0) {
-        *raddrp = ctx.raddr;
-        *protp = ctx.prot;
         *psizep = TARGET_PAGE_BITS;
         return true;
     } else if (!guest_visible) {
