@@ -41,7 +41,6 @@
 typedef struct {
     hwaddr raddr;      /* Real address             */
     int prot;          /* Protection bits          */
-    hwaddr hash[2];    /* Pagetable hash values    */
     target_ulong ptem; /* Virtual segment ID | API */
     int key;           /* Access key               */
     int nx;            /* Non-execute area         */
@@ -331,7 +330,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                       target_ulong eaddr,
+                                       target_ulong eaddr, hwaddr *hashp,
                                        MMUAccessType access_type, int type)
 {
     PowerPCCPU *cpu = env_archcpu(env);
@@ -379,8 +378,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         qemu_log_mask(CPU_LOG_MMU, "htab_base " HWADDR_FMT_plx " htab_mask "
                       HWADDR_FMT_plx " hash " HWADDR_FMT_plx "\n",
                       ppc_hash32_hpt_base(cpu), ppc_hash32_hpt_mask(cpu), hash);
-        ctx->hash[0] = hash;
-        ctx->hash[1] = ~hash;
+        *hashp = hash;
 
         /* Initialize real address with an invalid value */
         ctx->raddr = (hwaddr)-1ULL;
@@ -761,8 +759,8 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     mmu_ctx_t ctx;
-    int type;
-    int ret;
+    hwaddr hash = 0; /* init to 0 to avoid used uninit warning */
+    int type, ret;
 
     if (ppc_real_mode_xlate(cpu, eaddr, access_type, raddrp, psizep, protp)) {
         return true;
@@ -779,9 +777,8 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     ctx.prot = 0;
-    ctx.hash[0] = 0;
-    ctx.hash[1] = 0;
-    ret = mmu6xx_get_physical_address(env, &ctx, eaddr, access_type, type);
+    ret = mmu6xx_get_physical_address(env, &ctx, eaddr, &hash,
+                                      access_type, type);
     if (ret == 0) {
         *raddrp = ctx.raddr;
         *protp = ctx.prot;
@@ -834,9 +831,9 @@ static bool ppc_6xx_xlate(PowerPCCPU *cpu, vaddr eaddr,
 tlb_miss:
             env->error_code |= ctx.key << 19;
             env->spr[SPR_HASH1] = ppc_hash32_hpt_base(cpu) +
-                                  get_pteg_offset32(cpu, ctx.hash[0]);
+                                  get_pteg_offset32(cpu, hash);
             env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
-                                  get_pteg_offset32(cpu, ctx.hash[1]);
+                                  get_pteg_offset32(cpu, ~hash);
             break;
         case -2:
             /* Access rights violation */
