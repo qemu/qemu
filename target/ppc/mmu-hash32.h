@@ -3,7 +3,6 @@
 
 #ifndef CONFIG_USER_ONLY
 
-hwaddr get_pteg_offset32(PowerPCCPU *cpu, hwaddr hash);
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                       hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                       bool guest_visible);
@@ -100,6 +99,11 @@ static inline void ppc_hash32_store_hpte1(PowerPCCPU *cpu,
     target_ulong base = ppc_hash32_hpt_base(cpu);
 
     stl_phys(CPU(cpu)->as, base + pte_offset + HASH_PTE_SIZE_32 / 2, pte1);
+}
+
+static inline hwaddr get_pteg_offset32(PowerPCCPU *cpu, hwaddr hash)
+{
+    return (hash * HASH_PTEG_SIZE_32) & ppc_hash32_hpt_mask(cpu);
 }
 
 static inline bool ppc_hash32_key(bool pr, target_ulong sr)
