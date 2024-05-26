@@ -43,7 +43,6 @@ typedef struct {
     int prot;          /* Protection bits          */
     target_ulong ptem; /* Virtual segment ID | API */
     int key;           /* Access key               */
-    int nx;            /* Non-execute area         */
 } mmu_ctx_t;
 
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
@@ -94,7 +93,7 @@ int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 
 static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                                 target_ulong pte1, int pteh,
-                                MMUAccessType access_type)
+                                MMUAccessType access_type, bool nx)
 {
     /* Check validity and table match */
     if (!pte_is_valid(pte0) || ((pte0 >> 6) & 1) != pteh ||
@@ -109,7 +108,7 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
     }
     /* Keep the matching PTE information */
     ctx->raddr = pte1;
-    ctx->prot = ppc_hash32_prot(ctx->key, pte1 & HPTE32_R_PP, ctx->nx);
+    ctx->prot = ppc_hash32_prot(ctx->key, pte1 & HPTE32_R_PP, nx);
     if (check_prot_access_type(ctx->prot, access_type)) {
         qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
         return 0;
@@ -121,8 +120,9 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
 
 /* Software driven TLB helpers */
 
-static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
-                            target_ulong eaddr, MMUAccessType access_type)
+static int ppc6xx_tlb_check(CPUPPCState *env,
+                            mmu_ctx_t *ctx, target_ulong eaddr,
+                            MMUAccessType access_type, bool nx)
 {
     ppc6xx_tlb_t *tlb;
     target_ulong *pte1p;
@@ -150,7 +150,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                       access_type == MMU_DATA_STORE ? 'S' : 'L',
                       access_type == MMU_INST_FETCH ? 'I' : 'D');
         switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1,
-                                     0, access_type)) {
+                                     0, access_type, nx)) {
         case -2:
             /* Access violation */
             ret = -2;
@@ -322,7 +322,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     hwaddr hash;
     target_ulong vsid, sr, pgidx;
     int ds, target_page_bits;
-    bool pr;
+    bool pr, nx;
 
     /* First try to find a BAT entry if there are any */
     if (env->nb_BATs && get_bat_6xx_tlb(env, ctx, eaddr, access_type) == 0) {
@@ -336,8 +336,8 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     ctx->key = (((sr & 0x20000000) && pr) ||
                 ((sr & 0x40000000) && !pr)) ? 1 : 0;
     ds = sr & 0x80000000 ? 1 : 0;
-    ctx->nx = sr & 0x10000000 ? 1 : 0;
-    vsid = sr & 0x00FFFFFF;
+    nx = sr & SR32_NX;
+    vsid = sr & SR32_VSID;
     target_page_bits = TARGET_PAGE_BITS;
     qemu_log_mask(CPU_LOG_MMU,
                   "Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx
@@ -352,10 +352,10 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     ctx->ptem = (vsid << 7) | (pgidx >> 10);
 
     qemu_log_mask(CPU_LOG_MMU, "pte segment: key=%d ds %d nx %d vsid "
-                  TARGET_FMT_lx "\n", ctx->key, ds, ctx->nx, vsid);
+                  TARGET_FMT_lx "\n", ctx->key, ds, nx, vsid);
     if (!ds) {
         /* Check if instruction fetch is allowed, if needed */
-        if (type == ACCESS_CODE && ctx->nx) {
+        if (type == ACCESS_CODE && nx) {
             qemu_log_mask(CPU_LOG_MMU, "No access allowed\n");
             return -3;
         }
@@ -368,7 +368,7 @@ static int mmu6xx_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         /* Initialize real address with an invalid value */
         ctx->raddr = (hwaddr)-1ULL;
         /* Software TLB search */
-        return ppc6xx_tlb_check(env, ctx, eaddr, access_type);
+        return ppc6xx_tlb_check(env, ctx, eaddr, access_type, nx);
     }
 
     /* Direct-store segment : absolutely *BUGGY* for now */
