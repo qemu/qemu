@@ -1834,7 +1834,6 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 {
     TCGType type = vecl + TCG_TYPE_V64;
     TCGArg a0, a1, a2, a3;
-    TCGReg temp_vec = TCG_VEC_TMP0;
 
     static const LoongArchInsn cmp_vec_insn[16][4] = {
         [TCG_COND_EQ] = {OPC_VSEQ_B, OPC_VSEQ_H, OPC_VSEQ_W, OPC_VSEQ_D},
@@ -1976,8 +1975,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                  * dupi_vec temp, a2
                  * cmp_vec a0, a1, temp, cond
                  */
-                tcg_out_dupi_vec(s, type, vece, temp_vec, a2);
-                a2 = temp_vec;
+                tcg_out_dupi_vec(s, type, vece, TCG_VEC_TMP0, a2);
+                a2 = TCG_VEC_TMP0;
             }
 
             insn = cmp_vec_insn[cond][vece];
@@ -2046,8 +2045,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_rotlv_vec:
         /* rotlv_vec a1, a2 = rotrv_vec a1, -a2 */
-        tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], temp_vec, a2));
-        a2 = temp_vec;
+        tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], TCG_VEC_TMP0, a2));
+        a2 = TCG_VEC_TMP0;
         /* fall through */
     case INDEX_op_rotrv_vec:
         insn = rotrv_vec_insn[vece];
