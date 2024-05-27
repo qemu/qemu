@@ -8,6 +8,7 @@
 
 #define CPUINFO_ALWAYS          (1u << 0)  /* so cpuinfo is nonzero */
 #define CPUINFO_LSX             (1u << 1)
+#define CPUINFO_LASX            (1u << 2)
 
 /* Initialized with a constructor. */
 extern unsigned cpuinfo;

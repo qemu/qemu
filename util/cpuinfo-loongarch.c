@@ -29,6 +29,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 
     info = CPUINFO_ALWAYS;
     info |= (hwcap & HWCAP_LOONGARCH_LSX ? CPUINFO_LSX : 0);
+    info |= (hwcap & HWCAP_LOONGARCH_LASX ? CPUINFO_LASX : 0);
 
     cpuinfo = info;
     return info;
