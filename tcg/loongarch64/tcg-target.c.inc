@@ -803,6 +803,12 @@ static void tcg_out_ldst(TCGContext *s, LoongArchInsn opc, TCGReg data,
     case OPC_ST_D:
         tcg_out32(s, encode_djsk12_insn(opc, data, addr, imm12));
         break;
+    case OPC_FLD_S:
+    case OPC_FLD_D:
+    case OPC_FST_S:
+    case OPC_FST_D:
+        tcg_out32(s, encode_fdjsk12_insn(opc, data, addr, imm12));
+        break;
     default:
         g_assert_not_reached();
     }
@@ -816,14 +822,14 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg dest,
         if (dest < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_LD_W, dest, base, offset);
         } else {
-            tcg_out_dupm_vec(s, TCG_TYPE_I128, MO_32, dest, base, offset);
+            tcg_out_ldst(s, OPC_FLD_S, dest, base, offset);
         }
         break;
     case TCG_TYPE_I64:
         if (dest < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_LD_D, dest, base, offset);
         } else {
-            tcg_out_dupm_vec(s, TCG_TYPE_I128, MO_64, dest, base, offset);
+            tcg_out_ldst(s, OPC_FLD_D, dest, base, offset);
         }
         break;
     case TCG_TYPE_V128:
@@ -847,36 +853,14 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg src,
         if (src < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_ST_W, src, base, offset);
         } else {
-            /* TODO: Could use fst_s, fstx_s */
-            if (offset < -0x100 || offset > 0xff || (offset & 3)) {
-                if (-0x800 <= offset && offset <= 0x7ff) {
-                    tcg_out_opc_addi_d(s, TCG_REG_TMP0, base, offset);
-                } else {
-                    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, offset);
-                    tcg_out_opc_add_d(s, TCG_REG_TMP0, TCG_REG_TMP0, base);
-                }
-                base = TCG_REG_TMP0;
-                offset = 0;
-            }
-            tcg_out_opc_vstelm_w(s, src, base, offset, 0);
+            tcg_out_ldst(s, OPC_FST_S, src, base, offset);
         }
         break;
     case TCG_TYPE_I64:
         if (src < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_ST_D, src, base, offset);
         } else {
-            /* TODO: Could use fst_d, fstx_d */
-            if (offset < -0x100 || offset > 0xff || (offset & 7)) {
-                if (-0x800 <= offset && offset <= 0x7ff) {
-                    tcg_out_opc_addi_d(s, TCG_REG_TMP0, base, offset);
-                } else {
-                    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, offset);
-                    tcg_out_opc_add_d(s, TCG_REG_TMP0, TCG_REG_TMP0, base);
-                }
-                base = TCG_REG_TMP0;
-                offset = 0;
-            }
-            tcg_out_opc_vstelm_d(s, src, base, offset, 0);
+            tcg_out_ldst(s, OPC_FST_D, src, base, offset);
         }
         break;
     case TCG_TYPE_V128:
