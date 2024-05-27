@@ -325,6 +325,9 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     case TCG_TYPE_V128:
         tcg_out_opc_vori_b(s, ret, arg, 0);
         break;
+    case TCG_TYPE_V256:
+        tcg_out_opc_xvori_b(s, ret, arg, 0);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -854,6 +857,14 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg dest,
             tcg_out_opc_vldx(s, dest, base, TCG_REG_TMP0);
         }
         break;
+    case TCG_TYPE_V256:
+        if (-0x800 <= offset && offset <= 0x7ff) {
+            tcg_out_opc_xvld(s, dest, base, offset);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, offset);
+            tcg_out_opc_xvldx(s, dest, base, TCG_REG_TMP0);
+        }
+        break;
     default:
         g_assert_not_reached();
     }
@@ -884,6 +895,14 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg src,
         } else {
             tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, offset);
             tcg_out_opc_vstx(s, src, base, TCG_REG_TMP0);
+        }
+        break;
+    case TCG_TYPE_V256:
+        if (-0x800 <= offset && offset <= 0x7ff) {
+            tcg_out_opc_xvst(s, src, base, offset);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, offset);
+            tcg_out_opc_xvstx(s, src, base, TCG_REG_TMP0);
         }
         break;
     default:
