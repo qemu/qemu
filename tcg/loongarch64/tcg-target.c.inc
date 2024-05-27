@@ -1758,21 +1758,25 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
     tcg_out_dup_vec(s, type, vece, rd, TCG_REG_TMP0);
 }
 
-static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
-                               const TCGArg a1, const TCGArg a2,
+static void tcg_out_addsub_vec(TCGContext *s, bool lasx, unsigned vece,
+                               TCGArg a0, TCGArg a1, TCGArg a2,
                                bool a2_is_const, bool is_add)
 {
-    static const LoongArchInsn add_vec_insn[4] = {
-        OPC_VADD_B, OPC_VADD_H, OPC_VADD_W, OPC_VADD_D
+    static const LoongArchInsn add_vec_insn[2][4] = {
+        { OPC_VADD_B, OPC_VADD_H, OPC_VADD_W, OPC_VADD_D },
+        { OPC_XVADD_B, OPC_XVADD_H, OPC_XVADD_W, OPC_XVADD_D },
     };
-    static const LoongArchInsn add_vec_imm_insn[4] = {
-        OPC_VADDI_BU, OPC_VADDI_HU, OPC_VADDI_WU, OPC_VADDI_DU
+    static const LoongArchInsn add_vec_imm_insn[2][4] = {
+        { OPC_VADDI_BU, OPC_VADDI_HU, OPC_VADDI_WU, OPC_VADDI_DU },
+        { OPC_XVADDI_BU, OPC_XVADDI_HU, OPC_XVADDI_WU, OPC_XVADDI_DU },
     };
-    static const LoongArchInsn sub_vec_insn[4] = {
-        OPC_VSUB_B, OPC_VSUB_H, OPC_VSUB_W, OPC_VSUB_D
+    static const LoongArchInsn sub_vec_insn[2][4] = {
+        { OPC_VSUB_B, OPC_VSUB_H, OPC_VSUB_W, OPC_VSUB_D },
+        { OPC_XVSUB_B, OPC_XVSUB_H, OPC_XVSUB_W, OPC_XVSUB_D },
     };
-    static const LoongArchInsn sub_vec_imm_insn[4] = {
-        OPC_VSUBI_BU, OPC_VSUBI_HU, OPC_VSUBI_WU, OPC_VSUBI_DU
+    static const LoongArchInsn sub_vec_imm_insn[2][4] = {
+        { OPC_VSUBI_BU, OPC_VSUBI_HU, OPC_VSUBI_WU, OPC_VSUBI_DU },
+        { OPC_XVSUBI_BU, OPC_XVSUBI_HU, OPC_XVSUBI_WU, OPC_XVSUBI_DU },
     };
     LoongArchInsn insn;
 
@@ -1783,10 +1787,10 @@ static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
             value = -value;
         }
         if (value < 0) {
-            insn = sub_vec_imm_insn[vece];
+            insn = sub_vec_imm_insn[lasx][vece];
             value = -value;
         } else {
-            insn = add_vec_imm_insn[vece];
+            insn = add_vec_imm_insn[lasx][vece];
         }
 
         /* Constraint TCG_CT_CONST_VADD ensures validity. */
@@ -1797,9 +1801,9 @@ static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
     }
 
     if (is_add) {
-        insn = add_vec_insn[vece];
+        insn = add_vec_insn[lasx][vece];
     } else {
-        insn = sub_vec_insn[vece];
+        insn = sub_vec_insn[lasx][vece];
     }
     tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
 }
@@ -1963,10 +1967,10 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_add_vec:
-        tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], true);
+        tcg_out_addsub_vec(s, false, vece, a0, a1, a2, const_args[2], true);
         break;
     case INDEX_op_sub_vec:
-        tcg_out_addsub_vec(s, vece, a0, a1, a2, const_args[2], false);
+        tcg_out_addsub_vec(s, false, vece, a0, a1, a2, const_args[2], false);
         break;
     case INDEX_op_neg_vec:
         tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], a0, a1));
