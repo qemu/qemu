@@ -1743,7 +1743,12 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
     int64_t value = sextract64(v64, 0, 8 << vece);
     if (-0x200 <= value && value <= 0x1FF) {
         uint32_t imm = (vece << 10) | ((uint32_t)v64 & 0x3FF);
-        tcg_out_opc_vldi(s, rd, imm);
+
+        if (type == TCG_TYPE_V256) {
+            tcg_out_opc_xvldi(s, rd, imm);
+        } else {
+            tcg_out_opc_vldi(s, rd, imm);
+        }
         return;
     }
 
