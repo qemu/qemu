@@ -150,7 +150,8 @@ const generic_fuzz_config predefined_configs[] = {
         "-chardev null,id=cd0 -chardev null,id=cd1 "
         "-device usb-braille,chardev=cd0 -device usb-ccid -device usb-ccid "
         "-device usb-kbd -device usb-mouse -device usb-serial,chardev=cd1 "
-        "-device usb-tablet -device usb-wacom-tablet -device usb-audio",
+        "-device usb-tablet -device usb-wacom-tablet "
+        "-device usb-audio,audiodev=snd0 -audiodev none,id=snd0",
         .objects = "*usb* *uhci* *xhci*",
     },{
         .name = "pc-i440fx",
