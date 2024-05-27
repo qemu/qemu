@@ -112,6 +112,7 @@ for arch in $ARCHLIST; do
         arch_var=ARCH
     fi
 
+    rm -rf "$hdrdir"
     make -C "$linux" O="$blddir" INSTALL_HDR_PATH="$hdrdir" $arch_var=$arch headers_install
 
     rm -rf "$output/linux-headers/asm-$arch"
