@@ -1690,8 +1690,10 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
 static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
                              TCGReg r, TCGReg base, intptr_t offset)
 {
-    /* Handle imm overflow and division (vldrepl.d imm is divided by 8) */
-    if (offset < -0x800 || offset > 0x7ff || \
+    bool lasx = type == TCG_TYPE_V256;
+
+    /* Handle imm overflow and division (vldrepl.d imm is divided by 8). */
+    if (offset < -0x800 || offset > 0x7ff ||
         (offset & ((1 << vece) - 1)) != 0) {
         tcg_out_addi(s, TCG_TYPE_I64, TCG_REG_TMP0, base, offset);
         base = TCG_REG_TMP0;
@@ -1701,16 +1703,32 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
 
     switch (vece) {
     case MO_8:
-        tcg_out_opc_vldrepl_b(s, r, base, offset);
+        if (lasx) {
+            tcg_out_opc_xvldrepl_b(s, r, base, offset);
+        } else {
+            tcg_out_opc_vldrepl_b(s, r, base, offset);
+        }
         break;
     case MO_16:
-        tcg_out_opc_vldrepl_h(s, r, base, offset);
+        if (lasx) {
+            tcg_out_opc_xvldrepl_h(s, r, base, offset);
+        } else {
+            tcg_out_opc_vldrepl_h(s, r, base, offset);
+        }
         break;
     case MO_32:
-        tcg_out_opc_vldrepl_w(s, r, base, offset);
+        if (lasx) {
+            tcg_out_opc_xvldrepl_w(s, r, base, offset);
+        } else {
+            tcg_out_opc_vldrepl_w(s, r, base, offset);
+        }
         break;
     case MO_64:
-        tcg_out_opc_vldrepl_d(s, r, base, offset);
+        if (lasx) {
+            tcg_out_opc_xvldrepl_d(s, r, base, offset);
+        } else {
+            tcg_out_opc_vldrepl_d(s, r, base, offset);
+        }
         break;
     default:
         g_assert_not_reached();
