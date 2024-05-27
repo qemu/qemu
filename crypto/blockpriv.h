@@ -59,7 +59,6 @@ struct QCryptoBlockDriver {
                 QCryptoBlockReadFunc readfunc,
                 void *opaque,
                 unsigned int flags,
-                size_t n_threads,
                 Error **errp);
 
     int (*create)(QCryptoBlock *block,

@@ -1189,7 +1189,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                         QCryptoBlockReadFunc readfunc,
                         void *opaque,
                         unsigned int flags,
-                        size_t n_threads,
                         Error **errp)
 {
     QCryptoBlockLUKS *luks = NULL;
