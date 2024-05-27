@@ -1901,6 +1901,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static const LoongArchInsn rotrv_vec_insn[4] = {
         OPC_VROTR_B, OPC_VROTR_H, OPC_VROTR_W, OPC_VROTR_D
     };
+    static const LoongArchInsn rotri_vec_insn[4] = {
+        OPC_VROTRI_B, OPC_VROTRI_H, OPC_VROTRI_W, OPC_VROTRI_D
+    };
 
     a0 = args[0];
     a1 = args[1];
@@ -2034,15 +2037,6 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sarv_vec:
         insn = sarv_vec_insn[vece];
         goto vdvjvk;
-    case INDEX_op_shli_vec:
-        tcg_out32(s, encode_vdvjuk3_insn(shli_vec_insn[vece], a0, a1, a2));
-        break;
-    case INDEX_op_shri_vec:
-        tcg_out32(s, encode_vdvjuk3_insn(shri_vec_insn[vece], a0, a1, a2));
-        break;
-    case INDEX_op_sari_vec:
-        tcg_out32(s, encode_vdvjuk3_insn(sari_vec_insn[vece], a0, a1, a2));
-        break;
     case INDEX_op_rotlv_vec:
         /* rotlv_vec a1, a2 = rotrv_vec a1, -a2 */
         tcg_out32(s, encode_vdvj_insn(neg_vec_insn[vece], TCG_VEC_TMP0, a2));
@@ -2051,26 +2045,20 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_rotrv_vec:
         insn = rotrv_vec_insn[vece];
         goto vdvjvk;
+    case INDEX_op_shli_vec:
+        insn = shli_vec_insn[vece];
+        goto vdvjukN;
+    case INDEX_op_shri_vec:
+        insn = shri_vec_insn[vece];
+        goto vdvjukN;
+    case INDEX_op_sari_vec:
+        insn = sari_vec_insn[vece];
+        goto vdvjukN;
     case INDEX_op_rotli_vec:
         /* rotli_vec a1, a2 = rotri_vec a1, -a2 */
         a2 = extract32(-a2, 0, 3 + vece);
-        switch (vece) {
-        case MO_8:
-            tcg_out_opc_vrotri_b(s, a0, a1, a2);
-            break;
-        case MO_16:
-            tcg_out_opc_vrotri_h(s, a0, a1, a2);
-            break;
-        case MO_32:
-            tcg_out_opc_vrotri_w(s, a0, a1, a2);
-            break;
-        case MO_64:
-            tcg_out_opc_vrotri_d(s, a0, a1, a2);
-            break;
-        default:
-            g_assert_not_reached();
-        }
-        break;
+        insn = rotri_vec_insn[vece];
+        goto vdvjukN;
     case INDEX_op_bitsel_vec:
         /* vbitsel vd, vj, vk, va = bitsel_vec vd, va, vk, vj */
         tcg_out_opc_vbitsel_v(s, a0, a3, a2, a1);
@@ -2082,6 +2070,24 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         g_assert_not_reached();
     vdvjvk:
         tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
+        break;
+    vdvjukN:
+        switch (vece) {
+        case MO_8:
+            tcg_out32(s, encode_vdvjuk3_insn(insn, a0, a1, a2));
+            break;
+        case MO_16:
+            tcg_out32(s, encode_vdvjuk4_insn(insn, a0, a1, a2));
+            break;
+        case MO_32:
+            tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, a2));
+            break;
+        case MO_64:
+            tcg_out32(s, encode_vdvjuk6_insn(insn, a0, a1, a2));
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     }
 }
