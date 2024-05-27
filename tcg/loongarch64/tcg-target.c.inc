@@ -1749,24 +1749,8 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
 
     /* TODO: vldi patterns when imm 12 is set */
 
-    /* Fallback to vreplgr2vr */
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP0, value);
-    switch (vece) {
-    case MO_8:
-        tcg_out_opc_vreplgr2vr_b(s, rd, TCG_REG_TMP0);
-        break;
-    case MO_16:
-        tcg_out_opc_vreplgr2vr_h(s, rd, TCG_REG_TMP0);
-        break;
-    case MO_32:
-        tcg_out_opc_vreplgr2vr_w(s, rd, TCG_REG_TMP0);
-        break;
-    case MO_64:
-        tcg_out_opc_vreplgr2vr_d(s, rd, TCG_REG_TMP0);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    tcg_out_dup_vec(s, type, vece, rd, TCG_REG_TMP0);
 }
 
 static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
