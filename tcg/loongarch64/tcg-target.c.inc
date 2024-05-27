@@ -1674,22 +1674,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg rd, TCGReg rs)
 {
-    switch (vece) {
-    case MO_8:
-        tcg_out_opc_vreplgr2vr_b(s, rd, rs);
-        break;
-    case MO_16:
-        tcg_out_opc_vreplgr2vr_h(s, rd, rs);
-        break;
-    case MO_32:
-        tcg_out_opc_vreplgr2vr_w(s, rd, rs);
-        break;
-    case MO_64:
-        tcg_out_opc_vreplgr2vr_d(s, rd, rs);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    static const LoongArchInsn repl_insn[4] = {
+        OPC_VREPLGR2VR_B, OPC_VREPLGR2VR_H, OPC_VREPLGR2VR_W, OPC_VREPLGR2VR_D
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_out32(s, encode_vdj_insn(repl_insn[vece], rd, rs));
     return true;
 }
 
