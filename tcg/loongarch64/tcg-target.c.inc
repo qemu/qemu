@@ -321,6 +321,7 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
             }
         }
         break;
+    case TCG_TYPE_V64:
     case TCG_TYPE_V128:
         tcg_out_opc_vori_b(s, ret, arg, 0);
         break;
@@ -838,6 +839,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg dest,
         }
         break;
     case TCG_TYPE_I64:
+    case TCG_TYPE_V64:
         if (dest < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_LD_D, dest, base, offset);
         } else {
@@ -869,6 +871,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg src,
         }
         break;
     case TCG_TYPE_I64:
+    case TCG_TYPE_V64:
         if (src < TCG_REG_V0) {
             tcg_out_ldst(s, OPC_ST_D, src, base, offset);
         } else {
@@ -1880,8 +1883,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     a2 = args[2];
     a3 = args[3];
 
-    /* Currently only supports V128 */
-    tcg_debug_assert(type == TCG_TYPE_V128);
+    /* Currently only supports V64 & V128 */
+    tcg_debug_assert(type == TCG_TYPE_V64 || type == TCG_TYPE_V128);
 
     switch (opc) {
     case INDEX_op_st_vec:
@@ -2394,6 +2397,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_S9);
 
     if (cpuinfo & CPUINFO_LSX) {
+        tcg_target_available_regs[TCG_TYPE_V64] = ALL_VECTOR_REGS;
         tcg_target_available_regs[TCG_TYPE_V128] = ALL_VECTOR_REGS;
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V24);
         tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_V25);

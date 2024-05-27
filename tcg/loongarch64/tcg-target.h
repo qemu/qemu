@@ -171,7 +171,7 @@ typedef enum {
 
 #define TCG_TARGET_HAS_tst              0
 
-#define TCG_TARGET_HAS_v64              0
+#define TCG_TARGET_HAS_v64              (cpuinfo & CPUINFO_LSX)
 #define TCG_TARGET_HAS_v128             (cpuinfo & CPUINFO_LSX)
 #define TCG_TARGET_HAS_v256             0
 
