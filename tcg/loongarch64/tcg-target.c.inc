@@ -303,11 +303,23 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
     switch (type) {
     case TCG_TYPE_I32:
     case TCG_TYPE_I64:
-        /*
-         * Conventional register-register move used in LoongArch is
-         * `or dst, src, zero`.
-         */
-        tcg_out_opc_or(s, ret, arg, TCG_REG_ZERO);
+        if (ret < TCG_REG_V0) {
+            if (arg < TCG_REG_V0) {
+                /*
+                 * Conventional register-register move used in LoongArch is
+                 * `or dst, src, zero`.
+                 */
+                tcg_out_opc_or(s, ret, arg, TCG_REG_ZERO);
+            } else {
+                tcg_out_opc_movfr2gr_d(s, ret, arg);
+            }
+        } else {
+            if (arg < TCG_REG_V0) {
+                tcg_out_opc_movgr2fr_d(s, ret, arg);
+            } else {
+                tcg_out_opc_fmov_d(s, ret, arg);
+            }
+        }
         break;
     case TCG_TYPE_V128:
         tcg_out_opc_vori_b(s, ret, arg, 0);
