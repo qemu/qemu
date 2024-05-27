@@ -1774,33 +1774,34 @@ static void tcg_out_addsub_vec(TCGContext *s, unsigned vece, const TCGArg a0,
     static const LoongArchInsn sub_vec_imm_insn[4] = {
         OPC_VSUBI_BU, OPC_VSUBI_HU, OPC_VSUBI_WU, OPC_VSUBI_DU
     };
+    LoongArchInsn insn;
 
     if (a2_is_const) {
         int64_t value = sextract64(a2, 0, 8 << vece);
+
         if (!is_add) {
             value = -value;
         }
-
-        /* Try vaddi/vsubi */
-        if (0 <= value && value <= 0x1f) {
-            tcg_out32(s, encode_vdvjuk5_insn(add_vec_imm_insn[vece], a0, \
-                                             a1, value));
-            return;
-        } else if (-0x1f <= value && value < 0) {
-            tcg_out32(s, encode_vdvjuk5_insn(sub_vec_imm_insn[vece], a0, \
-                                             a1, -value));
-            return;
+        if (value < 0) {
+            insn = sub_vec_imm_insn[vece];
+            value = -value;
+        } else {
+            insn = add_vec_imm_insn[vece];
         }
 
-        /* constraint TCG_CT_CONST_VADD ensures unreachable */
-        g_assert_not_reached();
+        /* Constraint TCG_CT_CONST_VADD ensures validity. */
+        tcg_debug_assert(0 <= value && value <= 0x1f);
+
+        tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, value));
+        return;
     }
 
     if (is_add) {
-        tcg_out32(s, encode_vdvjvk_insn(add_vec_insn[vece], a0, a1, a2));
+        insn = add_vec_insn[vece];
     } else {
-        tcg_out32(s, encode_vdvjvk_insn(sub_vec_insn[vece], a0, a1, a2));
+        insn = sub_vec_insn[vece];
     }
+    tcg_out32(s, encode_vdvjvk_insn(insn, a0, a1, a2));
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
