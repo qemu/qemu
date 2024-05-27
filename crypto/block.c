@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/lockable.h"
 #include "blockpriv.h"
 #include "block-qcow.h"
 #include "block-luks.h"
@@ -57,6 +58,8 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
 {
     QCryptoBlock *block = g_new0(QCryptoBlock, 1);
 
+    qemu_mutex_init(&block->mutex);
+
     block->format = options->format;
 
     if (options->format >= G_N_ELEMENTS(qcrypto_block_drivers) ||
@@ -76,8 +79,6 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
         return NULL;
     }
 
-    qemu_mutex_init(&block->mutex);
-
     return block;
 }
 
@@ -91,6 +92,8 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
                                    Error **errp)
 {
     QCryptoBlock *block = g_new0(QCryptoBlock, 1);
+
+    qemu_mutex_init(&block->mutex);
 
     block->format = options->format;
 
@@ -110,8 +113,6 @@ QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
         g_free(block);
         return NULL;
     }
-
-    qemu_mutex_init(&block->mutex);
 
     return block;
 }
@@ -227,37 +228,42 @@ QCryptoCipher *qcrypto_block_get_cipher(QCryptoBlock *block)
      * This function is used only in test with one thread (it's safe to skip
      * pop/push interface), so it's enough to assert it here:
      */
-    assert(block->n_ciphers <= 1);
-    return block->ciphers ? block->ciphers[0] : NULL;
+    assert(block->max_free_ciphers <= 1);
+    return block->free_ciphers ? block->free_ciphers[0] : NULL;
 }
 
 
-static QCryptoCipher *qcrypto_block_pop_cipher(QCryptoBlock *block)
+static QCryptoCipher *qcrypto_block_pop_cipher(QCryptoBlock *block,
+                                               Error **errp)
 {
-    QCryptoCipher *cipher;
+    /* Usually there is a free cipher available */
+    WITH_QEMU_LOCK_GUARD(&block->mutex) {
+        if (block->n_free_ciphers > 0) {
+            block->n_free_ciphers--;
+            return block->free_ciphers[block->n_free_ciphers];
+        }
+    }
 
-    qemu_mutex_lock(&block->mutex);
-
-    assert(block->n_free_ciphers > 0);
-    block->n_free_ciphers--;
-    cipher = block->ciphers[block->n_free_ciphers];
-
-    qemu_mutex_unlock(&block->mutex);
-
-    return cipher;
+    /* Otherwise allocate a new cipher */
+    return qcrypto_cipher_new(block->alg, block->mode, block->key,
+                              block->nkey, errp);
 }
 
 
 static void qcrypto_block_push_cipher(QCryptoBlock *block,
                                       QCryptoCipher *cipher)
 {
-    qemu_mutex_lock(&block->mutex);
+    QEMU_LOCK_GUARD(&block->mutex);
 
-    assert(block->n_free_ciphers < block->n_ciphers);
-    block->ciphers[block->n_free_ciphers] = cipher;
+    if (block->n_free_ciphers == block->max_free_ciphers) {
+        block->max_free_ciphers++;
+        block->free_ciphers = g_renew(QCryptoCipher *,
+                                      block->free_ciphers,
+                                      block->max_free_ciphers);
+    }
+
+    block->free_ciphers[block->n_free_ciphers] = cipher;
     block->n_free_ciphers++;
-
-    qemu_mutex_unlock(&block->mutex);
 }
 
 
@@ -265,24 +271,31 @@ int qcrypto_block_init_cipher(QCryptoBlock *block,
                               QCryptoCipherAlgorithm alg,
                               QCryptoCipherMode mode,
                               const uint8_t *key, size_t nkey,
-                              size_t n_threads, Error **errp)
+                              Error **errp)
 {
-    size_t i;
+    QCryptoCipher *cipher;
 
-    assert(!block->ciphers && !block->n_ciphers && !block->n_free_ciphers);
+    assert(!block->free_ciphers && !block->max_free_ciphers &&
+           !block->n_free_ciphers);
 
-    block->ciphers = g_new0(QCryptoCipher *, n_threads);
+    /* Stash away cipher parameters for qcrypto_block_pop_cipher() */
+    block->alg = alg;
+    block->mode = mode;
+    block->key = g_memdup2(key, nkey);
+    block->nkey = nkey;
 
-    for (i = 0; i < n_threads; i++) {
-        block->ciphers[i] = qcrypto_cipher_new(alg, mode, key, nkey, errp);
-        if (!block->ciphers[i]) {
-            qcrypto_block_free_cipher(block);
-            return -1;
-        }
-        block->n_ciphers++;
-        block->n_free_ciphers++;
+    /*
+     * Create a new cipher to validate the parameters now. This reduces the
+     * chance of cipher creation failing at I/O time.
+     */
+    cipher = qcrypto_block_pop_cipher(block, errp);
+    if (!cipher) {
+        g_free(block->key);
+        block->key = NULL;
+        return -1;
     }
 
+    qcrypto_block_push_cipher(block, cipher);
     return 0;
 }
 
@@ -291,19 +304,23 @@ void qcrypto_block_free_cipher(QCryptoBlock *block)
 {
     size_t i;
 
-    if (!block->ciphers) {
+    g_free(block->key);
+    block->key = NULL;
+
+    if (!block->free_ciphers) {
         return;
     }
 
-    assert(block->n_ciphers == block->n_free_ciphers);
+    /* All popped ciphers were eventually pushed back */
+    assert(block->n_free_ciphers == block->max_free_ciphers);
 
-    for (i = 0; i < block->n_ciphers; i++) {
-        qcrypto_cipher_free(block->ciphers[i]);
+    for (i = 0; i < block->max_free_ciphers; i++) {
+        qcrypto_cipher_free(block->free_ciphers[i]);
     }
 
-    g_free(block->ciphers);
-    block->ciphers = NULL;
-    block->n_ciphers = block->n_free_ciphers = 0;
+    g_free(block->free_ciphers);
+    block->free_ciphers = NULL;
+    block->max_free_ciphers = block->n_free_ciphers = 0;
 }
 
 QCryptoIVGen *qcrypto_block_get_ivgen(QCryptoBlock *block)
@@ -311,7 +328,7 @@ QCryptoIVGen *qcrypto_block_get_ivgen(QCryptoBlock *block)
     /* ivgen should be accessed under mutex. However, this function is used only
      * in test with one thread, so it's enough to assert it here:
      */
-    assert(block->n_ciphers <= 1);
+    assert(block->max_free_ciphers <= 1);
     return block->ivgen;
 }
 
@@ -446,7 +463,10 @@ int qcrypto_block_decrypt_helper(QCryptoBlock *block,
                                  Error **errp)
 {
     int ret;
-    QCryptoCipher *cipher = qcrypto_block_pop_cipher(block);
+    QCryptoCipher *cipher = qcrypto_block_pop_cipher(block, errp);
+    if (!cipher) {
+        return -1;
+    }
 
     ret = do_qcrypto_block_cipher_encdec(cipher, block->niv, block->ivgen,
                                          &block->mutex, sectorsize, offset, buf,
@@ -465,7 +485,10 @@ int qcrypto_block_encrypt_helper(QCryptoBlock *block,
                                  Error **errp)
 {
     int ret;
-    QCryptoCipher *cipher = qcrypto_block_pop_cipher(block);
+    QCryptoCipher *cipher = qcrypto_block_pop_cipher(block, errp);
+    if (!cipher) {
+        return -1;
+    }
 
     ret = do_qcrypto_block_cipher_encdec(cipher, block->niv, block->ivgen,
                                          &block->mutex, sectorsize, offset, buf,

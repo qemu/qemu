@@ -75,7 +75,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
     ret = qcrypto_block_init_cipher(block, QCRYPTO_CIPHER_ALG_AES_128,
                                     QCRYPTO_CIPHER_MODE_CBC,
                                     keybuf, G_N_ELEMENTS(keybuf),
-                                    n_threads, errp);
+                                    errp);
     if (ret < 0) {
         ret = -ENOTSUP;
         goto fail;
