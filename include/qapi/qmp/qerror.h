@@ -20,17 +20,11 @@
 #define QERR_INVALID_PARAMETER_VALUE \
     "Parameter '%s' expects %s"
 
-#define QERR_IO_ERROR \
-    "An IO error has occurred"
-
 #define QERR_MISSING_PARAMETER \
     "Parameter '%s' is missing"
 
 #define QERR_PROPERTY_VALUE_OUT_OF_RANGE \
     "Property %s.%s doesn't take value %" PRId64 " (minimum: %" PRId64 ", maximum: %" PRId64 ")"
-
-#define QERR_QGA_COMMAND_FAILED \
-    "Guest agent command failed, error was '%s'"
 
 #define QERR_UNSUPPORTED \
     "this feature or command is not currently supported"
