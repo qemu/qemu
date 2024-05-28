@@ -16,6 +16,7 @@
 #include "block/ufs.h"
 
 #define UFS_MAX_LUS 32
+#define UFS_MAX_MCQ_QNUM 32
 #define UFS_BLOCK_SIZE_SHIFT 12
 #define UFS_BLOCK_SIZE (1 << UFS_BLOCK_SIZE_SHIFT)
 
@@ -45,10 +46,11 @@ typedef enum UfsReqResult {
     UFS_REQUEST_NO_COMPLETE = 2,
 } UfsReqResult;
 
+#define UFS_INVALID_SLOT (-1)
 typedef struct UfsRequest {
     struct UfsHc *hc;
     UfsRequestState state;
-    int slot;
+    int slot; /* -1 when it's a MCQ request */
 
     UtpTransferReqDesc utrd;
     UtpUpiuReq req_upiu;
@@ -57,7 +59,17 @@ typedef struct UfsRequest {
     /* for scsi command */
     QEMUSGList *sg;
     uint32_t data_len;
+
+    /* for MCQ */
+    struct UfsSq *sq;
+    struct UfsCqEntry cqe;
+    QTAILQ_ENTRY(UfsRequest) entry;
 } UfsRequest;
+
+static inline bool ufs_mcq_req(UfsRequest *req)
+{
+    return req->sq != NULL;
+}
 
 struct UfsLu;
 typedef UfsReqResult (*UfsScsiOp)(struct UfsLu *, UfsRequest *);
@@ -76,13 +88,43 @@ typedef struct UfsParams {
     char *serial;
     uint8_t nutrs; /* Number of UTP Transfer Request Slots */
     uint8_t nutmrs; /* Number of UTP Task Management Request Slots */
+    bool mcq; /* Multiple Command Queue support */
+    uint8_t mcq_qcfgptr; /* MCQ Queue Configuration Pointer in MCQCAP */
+    uint8_t mcq_maxq; /* MCQ Maximum number of Queues */
 } UfsParams;
+
+/*
+ * MCQ Properties
+ */
+typedef struct UfsSq {
+    struct UfsHc *u;
+    uint8_t sqid;
+    struct UfsCq *cq;
+    uint64_t addr;
+    uint16_t size; /* A number of entries (qdepth) */
+
+    QEMUBH *bh; /* Bottom half to process requests in async */
+    UfsRequest *req;
+    QTAILQ_HEAD(, UfsRequest) req_list; /* Free request list */
+} UfsSq;
+
+typedef struct UfsCq {
+    struct UfsHc *u;
+    uint8_t cqid;
+    uint64_t addr;
+    uint16_t size; /* A number of entries (qdepth) */
+
+    QEMUBH *bh;
+    QTAILQ_HEAD(, UfsRequest) req_list;
+} UfsCq;
 
 typedef struct UfsHc {
     PCIDevice parent_obj;
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
+    UfsMcqReg mcq_reg[UFS_MAX_MCQ_QNUM];
+    UfsMcqOpReg mcq_op_reg[UFS_MAX_MCQ_QNUM];
     UfsParams params;
     uint32_t reg_size;
     UfsRequest *req_list;
@@ -100,7 +142,61 @@ typedef struct UfsHc {
     qemu_irq irq;
     QEMUBH *doorbell_bh;
     QEMUBH *complete_bh;
+
+    /* MCQ properties */
+    UfsSq *sq[UFS_MAX_MCQ_QNUM];
+    UfsCq *cq[UFS_MAX_MCQ_QNUM];
 } UfsHc;
+
+static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
+{
+    return u->mcq_op_reg[qid].sq.tp;
+}
+
+static inline void ufs_mcq_update_sq_tail(UfsHc *u, uint32_t qid, uint32_t db)
+{
+    u->mcq_op_reg[qid].sq.tp = db;
+}
+
+static inline uint32_t ufs_mcq_sq_head(UfsHc *u, uint32_t qid)
+{
+    return u->mcq_op_reg[qid].sq.hp;
+}
+
+static inline void ufs_mcq_update_sq_head(UfsHc *u, uint32_t qid, uint32_t db)
+{
+    u->mcq_op_reg[qid].sq.hp = db;
+}
+
+static inline bool ufs_mcq_sq_empty(UfsHc *u, uint32_t qid)
+{
+    return ufs_mcq_sq_tail(u, qid) == ufs_mcq_sq_head(u, qid);
+}
+
+static inline uint32_t ufs_mcq_cq_tail(UfsHc *u, uint32_t qid)
+{
+    return u->mcq_op_reg[qid].cq.tp;
+}
+
+static inline void ufs_mcq_update_cq_tail(UfsHc *u, uint32_t qid, uint32_t db)
+{
+    u->mcq_op_reg[qid].cq.tp = db;
+}
+
+static inline uint32_t ufs_mcq_cq_head(UfsHc *u, uint32_t qid)
+{
+    return u->mcq_op_reg[qid].cq.hp;
+}
+
+static inline void ufs_mcq_update_cq_head(UfsHc *u, uint32_t qid, uint32_t db)
+{
+    u->mcq_op_reg[qid].cq.hp = db;
+}
+
+static inline bool ufs_mcq_cq_empty(UfsHc *u, uint32_t qid)
+{
+    return ufs_mcq_cq_tail(u, qid) == ufs_mcq_cq_head(u, qid);
+}
 
 #define TYPE_UFS "ufs"
 #define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
