@@ -55,4 +55,4 @@ max-line-length=79
 
 [SIMILARITIES]
 
-min-similarity-lines=6
+min-similarity-lines=10

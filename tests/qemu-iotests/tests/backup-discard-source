@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+#
+# Test backup discard-source parameter
+#
+# Copyright (c) Virtuozzo International GmbH.
+# Copyright (c) Yandex
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+
+import iotests
+from iotests import qemu_img_create, qemu_img_map, qemu_io
+
+
+temp_img = os.path.join(iotests.test_dir, 'temp')
+source_img = os.path.join(iotests.test_dir, 'source')
+target_img = os.path.join(iotests.test_dir, 'target')
+size = '1M'
+
+
+def get_actual_size(vm, node_name):
+    nodes = vm.cmd('query-named-block-nodes', flat=True)
+    node = next(n for n in nodes if n['node-name'] == node_name)
+    return node['image']['actual-size']
+
+
+class TestBackup(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, source_img, size)
+        qemu_img_create('-f', iotests.imgfmt, temp_img, size)
+        qemu_img_create('-f', iotests.imgfmt, target_img, size)
+        qemu_io('-c', 'write 0 1M', source_img)
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'cbw',
+            'driver': 'copy-before-write',
+            'file': {
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': source_img,
+                }
+            },
+            'target': {
+                'driver': iotests.imgfmt,
+                'discard': 'unmap',
+                'node-name': 'temp',
+                'file': {
+                    'driver': 'file',
+                    'filename': temp_img
+                }
+            }
+        })
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'access',
+            'discard': 'unmap',
+            'driver': 'snapshot-access',
+            'file': 'cbw'
+        })
+
+        self.vm.cmd('blockdev-add', {
+            'driver': iotests.imgfmt,
+            'node-name': 'target',
+            'file': {
+                'driver': 'file',
+                'filename': target_img
+            }
+        })
+
+        self.assertLess(get_actual_size(self.vm, 'temp'), 512 * 1024)
+
+    def tearDown(self):
+        # That should fail, because region is discarded
+        self.vm.hmp_qemu_io('access', 'read 0 1M')
+
+        self.vm.shutdown()
+
+        self.assertTrue('read failed: Permission denied' in self.vm.get_log())
+
+        # Final check that temp image is empty
+        mapping = qemu_img_map(temp_img)
+        self.assertEqual(len(mapping), 1)
+        self.assertEqual(mapping[0]['start'], 0)
+        self.assertEqual(mapping[0]['length'], 1024 * 1024)
+        self.assertEqual(mapping[0]['data'], False)
+
+        os.remove(temp_img)
+        os.remove(source_img)
+        os.remove(target_img)
+
+    def do_backup(self):
+        self.vm.cmd('blockdev-backup', device='access',
+                    sync='full', target='target',
+                    job_id='backup0',
+                    discard_source=True)
+
+        self.vm.event_wait(name='BLOCK_JOB_COMPLETED')
+
+    def test_discard_written(self):
+        """
+        1. Guest writes
+        2. copy-before-write operation, data is stored to temp
+        3. start backup(discard_source=True), check that data is
+           removed from temp
+        """
+        # Trigger copy-before-write operation
+        result = self.vm.hmp_qemu_io('cbw', 'write 0 1M')
+        self.assert_qmp(result, 'return', '')
+
+        # Check that data is written to temporary image
+        self.assertGreater(get_actual_size(self.vm, 'temp'), 1024 * 1024)
+
+        self.do_backup()
+
+    def test_discard_cbw(self):
+        """
+        1. do backup(discard_source=True), which should inform
+           copy-before-write that data is not needed anymore
+        2. Guest writes
+        3. Check that copy-before-write operation is not done
+        """
+        self.do_backup()
+
+        # Try trigger copy-before-write operation
+        result = self.vm.hmp_qemu_io('cbw', 'write 0 1M')
+        self.assert_qmp(result, 'return', '')
+
+        # Check that data is not written to temporary image, as region
+        # is discarded from copy-before-write process
+        self.assertLess(get_actual_size(self.vm, 'temp'), 512 * 1024)
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])
