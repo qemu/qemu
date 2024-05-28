@@ -971,6 +971,11 @@ static uint32_t float32_ceq(float32 op1, float32 op2, float_status *stat)
     return -float32_eq_quiet(op1, op2, stat);
 }
 
+static uint64_t float64_ceq(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_eq_quiet(op1, op2, stat);
+}
+
 static uint16_t float16_cge(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_le(op2, op1, stat);
@@ -979,6 +984,11 @@ static uint16_t float16_cge(float16 op1, float16 op2, float_status *stat)
 static uint32_t float32_cge(float32 op1, float32 op2, float_status *stat)
 {
     return -float32_le(op2, op1, stat);
+}
+
+static uint64_t float64_cge(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_le(op2, op1, stat);
 }
 
 static uint16_t float16_cgt(float16 op1, float16 op2, float_status *stat)
@@ -991,6 +1001,11 @@ static uint32_t float32_cgt(float32 op1, float32 op2, float_status *stat)
     return -float32_lt(op2, op1, stat);
 }
 
+static uint64_t float64_cgt(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_lt(op2, op1, stat);
+}
+
 static uint16_t float16_acge(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_le(float16_abs(op2), float16_abs(op1), stat);
@@ -1001,6 +1016,11 @@ static uint32_t float32_acge(float32 op1, float32 op2, float_status *stat)
     return -float32_le(float32_abs(op2), float32_abs(op1), stat);
 }
 
+static uint64_t float64_acge(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_le(float64_abs(op2), float64_abs(op1), stat);
+}
+
 static uint16_t float16_acgt(float16 op1, float16 op2, float_status *stat)
 {
     return -float16_lt(float16_abs(op2), float16_abs(op1), stat);
@@ -1009,6 +1029,11 @@ static uint16_t float16_acgt(float16 op1, float16 op2, float_status *stat)
 static uint32_t float32_acgt(float32 op1, float32 op2, float_status *stat)
 {
     return -float32_lt(float32_abs(op2), float32_abs(op1), stat);
+}
+
+static uint64_t float64_acgt(float64 op1, float64 op2, float_status *stat)
+{
+    return -float64_lt(float64_abs(op2), float64_abs(op1), stat);
 }
 
 static int16_t vfp_tosszh(float16 x, void *fpstp)
@@ -1129,6 +1154,11 @@ static float32 float32_abd(float32 op1, float32 op2, float_status *stat)
     return float32_abs(float32_sub(op1, op2, stat));
 }
 
+static float64 float64_abd(float64 op1, float64 op2, float_status *stat)
+{
+    return float64_abs(float64_sub(op1, op2, stat));
+}
+
 /*
  * Reciprocal step. These are the AArch32 version which uses a
  * non-fused multiply-and-subtract.
@@ -1213,33 +1243,43 @@ DO_3OP(gvec_ftsmul_d, float64_ftsmul, float64)
 
 DO_3OP(gvec_fabd_h, float16_abd, float16)
 DO_3OP(gvec_fabd_s, float32_abd, float32)
+DO_3OP(gvec_fabd_d, float64_abd, float64)
 
 DO_3OP(gvec_fceq_h, float16_ceq, float16)
 DO_3OP(gvec_fceq_s, float32_ceq, float32)
+DO_3OP(gvec_fceq_d, float64_ceq, float64)
 
 DO_3OP(gvec_fcge_h, float16_cge, float16)
 DO_3OP(gvec_fcge_s, float32_cge, float32)
+DO_3OP(gvec_fcge_d, float64_cge, float64)
 
 DO_3OP(gvec_fcgt_h, float16_cgt, float16)
 DO_3OP(gvec_fcgt_s, float32_cgt, float32)
+DO_3OP(gvec_fcgt_d, float64_cgt, float64)
 
 DO_3OP(gvec_facge_h, float16_acge, float16)
 DO_3OP(gvec_facge_s, float32_acge, float32)
+DO_3OP(gvec_facge_d, float64_acge, float64)
 
 DO_3OP(gvec_facgt_h, float16_acgt, float16)
 DO_3OP(gvec_facgt_s, float32_acgt, float32)
+DO_3OP(gvec_facgt_d, float64_acgt, float64)
 
 DO_3OP(gvec_fmax_h, float16_max, float16)
 DO_3OP(gvec_fmax_s, float32_max, float32)
+DO_3OP(gvec_fmax_d, float64_max, float64)
 
 DO_3OP(gvec_fmin_h, float16_min, float16)
 DO_3OP(gvec_fmin_s, float32_min, float32)
+DO_3OP(gvec_fmin_d, float64_min, float64)
 
 DO_3OP(gvec_fmaxnum_h, float16_maxnum, float16)
 DO_3OP(gvec_fmaxnum_s, float32_maxnum, float32)
+DO_3OP(gvec_fmaxnum_d, float64_maxnum, float64)
 
 DO_3OP(gvec_fminnum_h, float16_minnum, float16)
 DO_3OP(gvec_fminnum_s, float32_minnum, float32)
+DO_3OP(gvec_fminnum_d, float64_minnum, float64)
 
 DO_3OP(gvec_recps_nf_h, float16_recps_nf, float16)
 DO_3OP(gvec_recps_nf_s, float32_recps_nf, float32)
@@ -1248,6 +1288,13 @@ DO_3OP(gvec_rsqrts_nf_h, float16_rsqrts_nf, float16)
 DO_3OP(gvec_rsqrts_nf_s, float32_rsqrts_nf, float32)
 
 #ifdef TARGET_AARCH64
+DO_3OP(gvec_fdiv_h, float16_div, float16)
+DO_3OP(gvec_fdiv_s, float32_div, float32)
+DO_3OP(gvec_fdiv_d, float64_div, float64)
+
+DO_3OP(gvec_fmulx_h, helper_advsimd_mulxh, float16)
+DO_3OP(gvec_fmulx_s, helper_vfp_mulxs, float32)
+DO_3OP(gvec_fmulx_d, helper_vfp_mulxd, float64)
 
 DO_3OP(gvec_recps_h, helper_recpsf_f16, float16)
 DO_3OP(gvec_recps_s, helper_recpsf_f32, float32)
@@ -1298,6 +1345,12 @@ static float32 float32_muladd_f(float32 dest, float32 op1, float32 op2,
     return float32_muladd(op1, op2, dest, 0, stat);
 }
 
+static float64 float64_muladd_f(float64 dest, float64 op1, float64 op2,
+                                 float_status *stat)
+{
+    return float64_muladd(op1, op2, dest, 0, stat);
+}
+
 static float16 float16_mulsub_f(float16 dest, float16 op1, float16 op2,
                                  float_status *stat)
 {
@@ -1308,6 +1361,12 @@ static float32 float32_mulsub_f(float32 dest, float32 op1, float32 op2,
                                  float_status *stat)
 {
     return float32_muladd(float32_chs(op1), op2, dest, 0, stat);
+}
+
+static float64 float64_mulsub_f(float64 dest, float64 op1, float64 op2,
+                                 float_status *stat)
+{
+    return float64_muladd(float64_chs(op1), op2, dest, 0, stat);
 }
 
 #define DO_MULADD(NAME, FUNC, TYPE)                                     \
@@ -1329,9 +1388,11 @@ DO_MULADD(gvec_fmls_s, float32_mulsub_nf, float32)
 
 DO_MULADD(gvec_vfma_h, float16_muladd_f, float16)
 DO_MULADD(gvec_vfma_s, float32_muladd_f, float32)
+DO_MULADD(gvec_vfma_d, float64_muladd_f, float64)
 
 DO_MULADD(gvec_vfms_h, float16_mulsub_f, float16)
 DO_MULADD(gvec_vfms_s, float32_mulsub_f, float32)
+DO_MULADD(gvec_vfms_d, float64_mulsub_f, float64)
 
 /* For the indexed ops, SVE applies the index per 128-bit vector segment.
  * For AdvSIMD, there is of course only one such vector segment.
@@ -1385,7 +1446,7 @@ DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -, H8)
 
 #undef DO_MLA_IDX
 
-#define DO_FMUL_IDX(NAME, ADD, TYPE, H)                                    \
+#define DO_FMUL_IDX(NAME, ADD, MUL, TYPE, H)                               \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
 {                                                                          \
     intptr_t i, j, oprsz = simd_oprsz(desc);                               \
@@ -1395,33 +1456,37 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
     for (i = 0; i < oprsz / sizeof(TYPE); i += segment) {                  \
         TYPE mm = m[H(i + idx)];                                           \
         for (j = 0; j < segment; j++) {                                    \
-            d[i + j] = TYPE##_##ADD(d[i + j],                              \
-                                    TYPE##_mul(n[i + j], mm, stat), stat); \
+            d[i + j] = ADD(d[i + j], MUL(n[i + j], mm, stat), stat);       \
         }                                                                  \
     }                                                                      \
     clear_tail(d, oprsz, simd_maxsz(desc));                                \
 }
 
-#define float16_nop(N, M, S) (M)
-#define float32_nop(N, M, S) (M)
-#define float64_nop(N, M, S) (M)
+#define nop(N, M, S) (M)
 
-DO_FMUL_IDX(gvec_fmul_idx_h, nop, float16, H2)
-DO_FMUL_IDX(gvec_fmul_idx_s, nop, float32, H4)
-DO_FMUL_IDX(gvec_fmul_idx_d, nop, float64, H8)
+DO_FMUL_IDX(gvec_fmul_idx_h, nop, float16_mul, float16, H2)
+DO_FMUL_IDX(gvec_fmul_idx_s, nop, float32_mul, float32, H4)
+DO_FMUL_IDX(gvec_fmul_idx_d, nop, float64_mul, float64, H8)
+
+#ifdef TARGET_AARCH64
+
+DO_FMUL_IDX(gvec_fmulx_idx_h, nop, helper_advsimd_mulxh, float16, H2)
+DO_FMUL_IDX(gvec_fmulx_idx_s, nop, helper_vfp_mulxs, float32, H4)
+DO_FMUL_IDX(gvec_fmulx_idx_d, nop, helper_vfp_mulxd, float64, H8)
+
+#endif
+
+#undef nop
 
 /*
  * Non-fused multiply-accumulate operations, for Neon. NB that unlike
  * the fused ops below they assume accumulate both from and into Vd.
  */
-DO_FMUL_IDX(gvec_fmla_nf_idx_h, add, float16, H2)
-DO_FMUL_IDX(gvec_fmla_nf_idx_s, add, float32, H4)
-DO_FMUL_IDX(gvec_fmls_nf_idx_h, sub, float16, H2)
-DO_FMUL_IDX(gvec_fmls_nf_idx_s, sub, float32, H4)
+DO_FMUL_IDX(gvec_fmla_nf_idx_h, float16_add, float16_mul, float16, H2)
+DO_FMUL_IDX(gvec_fmla_nf_idx_s, float32_add, float32_mul, float32, H4)
+DO_FMUL_IDX(gvec_fmls_nf_idx_h, float16_sub, float16_mul, float16, H2)
+DO_FMUL_IDX(gvec_fmls_nf_idx_s, float32_sub, float32_mul, float32, H4)
 
-#undef float16_nop
-#undef float32_nop
-#undef float64_nop
 #undef DO_FMUL_IDX
 
 #define DO_FMLA_IDX(NAME, TYPE, H)                                         \
@@ -2127,50 +2192,90 @@ DO_ABA(gvec_uaba_d, uint64_t)
 
 #undef DO_ABA
 
-#define DO_NEON_PAIRWISE(NAME, OP)                                      \
-    void HELPER(NAME##s)(void *vd, void *vn, void *vm,                  \
-                         void *stat, uint32_t oprsz)                    \
-    {                                                                   \
-        float_status *fpst = stat;                                      \
-        float32 *d = vd;                                                \
-        float32 *n = vn;                                                \
-        float32 *m = vm;                                                \
-        float32 r0, r1;                                                 \
-                                                                        \
-        /* Read all inputs before writing outputs in case vm == vd */   \
-        r0 = float32_##OP(n[H4(0)], n[H4(1)], fpst);                    \
-        r1 = float32_##OP(m[H4(0)], m[H4(1)], fpst);                    \
-                                                                        \
-        d[H4(0)] = r0;                                                  \
-        d[H4(1)] = r1;                                                  \
-    }                                                                   \
-                                                                        \
-    void HELPER(NAME##h)(void *vd, void *vn, void *vm,                  \
-                         void *stat, uint32_t oprsz)                    \
-    {                                                                   \
-        float_status *fpst = stat;                                      \
-        float16 *d = vd;                                                \
-        float16 *n = vn;                                                \
-        float16 *m = vm;                                                \
-        float16 r0, r1, r2, r3;                                         \
-                                                                        \
-        /* Read all inputs before writing outputs in case vm == vd */   \
-        r0 = float16_##OP(n[H2(0)], n[H2(1)], fpst);                    \
-        r1 = float16_##OP(n[H2(2)], n[H2(3)], fpst);                    \
-        r2 = float16_##OP(m[H2(0)], m[H2(1)], fpst);                    \
-        r3 = float16_##OP(m[H2(2)], m[H2(3)], fpst);                    \
-                                                                        \
-        d[H2(0)] = r0;                                                  \
-        d[H2(1)] = r1;                                                  \
-        d[H2(2)] = r2;                                                  \
-        d[H2(3)] = r3;                                                  \
-    }
+#define DO_3OP_PAIR(NAME, FUNC, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+{                                                                          \
+    ARMVectorReg scratch;                                                  \
+    intptr_t oprsz = simd_oprsz(desc);                                     \
+    intptr_t half = oprsz / sizeof(TYPE) / 2;                              \
+    TYPE *d = vd, *n = vn, *m = vm;                                        \
+    if (unlikely(d == m)) {                                                \
+        m = memcpy(&scratch, m, oprsz);                                    \
+    }                                                                      \
+    for (intptr_t i = 0; i < half; ++i) {                                  \
+        d[H(i)] = FUNC(n[H(i * 2)], n[H(i * 2 + 1)], stat);                \
+    }                                                                      \
+    for (intptr_t i = 0; i < half; ++i) {                                  \
+        d[H(i + half)] = FUNC(m[H(i * 2)], m[H(i * 2 + 1)], stat);         \
+    }                                                                      \
+    clear_tail(d, oprsz, simd_maxsz(desc));                                \
+}
 
-DO_NEON_PAIRWISE(neon_padd, add)
-DO_NEON_PAIRWISE(neon_pmax, max)
-DO_NEON_PAIRWISE(neon_pmin, min)
+DO_3OP_PAIR(gvec_faddp_h, float16_add, float16, H2)
+DO_3OP_PAIR(gvec_faddp_s, float32_add, float32, H4)
+DO_3OP_PAIR(gvec_faddp_d, float64_add, float64, )
 
-#undef DO_NEON_PAIRWISE
+DO_3OP_PAIR(gvec_fmaxp_h, float16_max, float16, H2)
+DO_3OP_PAIR(gvec_fmaxp_s, float32_max, float32, H4)
+DO_3OP_PAIR(gvec_fmaxp_d, float64_max, float64, )
+
+DO_3OP_PAIR(gvec_fminp_h, float16_min, float16, H2)
+DO_3OP_PAIR(gvec_fminp_s, float32_min, float32, H4)
+DO_3OP_PAIR(gvec_fminp_d, float64_min, float64, )
+
+DO_3OP_PAIR(gvec_fmaxnump_h, float16_maxnum, float16, H2)
+DO_3OP_PAIR(gvec_fmaxnump_s, float32_maxnum, float32, H4)
+DO_3OP_PAIR(gvec_fmaxnump_d, float64_maxnum, float64, )
+
+DO_3OP_PAIR(gvec_fminnump_h, float16_minnum, float16, H2)
+DO_3OP_PAIR(gvec_fminnump_s, float32_minnum, float32, H4)
+DO_3OP_PAIR(gvec_fminnump_d, float64_minnum, float64, )
+
+#undef DO_3OP_PAIR
+
+#define DO_3OP_PAIR(NAME, FUNC, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)  \
+{                                                               \
+    ARMVectorReg scratch;                                       \
+    intptr_t oprsz = simd_oprsz(desc);                          \
+    intptr_t half = oprsz / sizeof(TYPE) / 2;                   \
+    TYPE *d = vd, *n = vn, *m = vm;                             \
+    if (unlikely(d == m)) {                                     \
+        m = memcpy(&scratch, m, oprsz);                         \
+    }                                                           \
+    for (intptr_t i = 0; i < half; ++i) {                       \
+        d[H(i)] = FUNC(n[H(i * 2)], n[H(i * 2 + 1)]);           \
+    }                                                           \
+    for (intptr_t i = 0; i < half; ++i) {                       \
+        d[H(i + half)] = FUNC(m[H(i * 2)], m[H(i * 2 + 1)]);    \
+    }                                                           \
+    clear_tail(d, oprsz, simd_maxsz(desc));                     \
+}
+
+#define ADD(A, B) (A + B)
+DO_3OP_PAIR(gvec_addp_b, ADD, uint8_t, H1)
+DO_3OP_PAIR(gvec_addp_h, ADD, uint16_t, H2)
+DO_3OP_PAIR(gvec_addp_s, ADD, uint32_t, H4)
+DO_3OP_PAIR(gvec_addp_d, ADD, uint64_t, )
+#undef  ADD
+
+DO_3OP_PAIR(gvec_smaxp_b, MAX, int8_t, H1)
+DO_3OP_PAIR(gvec_smaxp_h, MAX, int16_t, H2)
+DO_3OP_PAIR(gvec_smaxp_s, MAX, int32_t, H4)
+
+DO_3OP_PAIR(gvec_umaxp_b, MAX, uint8_t, H1)
+DO_3OP_PAIR(gvec_umaxp_h, MAX, uint16_t, H2)
+DO_3OP_PAIR(gvec_umaxp_s, MAX, uint32_t, H4)
+
+DO_3OP_PAIR(gvec_sminp_b, MIN, int8_t, H1)
+DO_3OP_PAIR(gvec_sminp_h, MIN, int16_t, H2)
+DO_3OP_PAIR(gvec_sminp_s, MIN, int32_t, H4)
+
+DO_3OP_PAIR(gvec_uminp_b, MIN, uint8_t, H1)
+DO_3OP_PAIR(gvec_uminp_h, MIN, uint16_t, H2)
+DO_3OP_PAIR(gvec_uminp_s, MIN, uint32_t, H4)
+
+#undef DO_3OP_PAIR
 
 #define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
     void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \

@@ -281,36 +281,6 @@ VFP_BINOP(minnum)
 VFP_BINOP(maxnum)
 #undef VFP_BINOP
 
-dh_ctype_f16 VFP_HELPER(neg, h)(dh_ctype_f16 a)
-{
-    return float16_chs(a);
-}
-
-float32 VFP_HELPER(neg, s)(float32 a)
-{
-    return float32_chs(a);
-}
-
-float64 VFP_HELPER(neg, d)(float64 a)
-{
-    return float64_chs(a);
-}
-
-dh_ctype_f16 VFP_HELPER(abs, h)(dh_ctype_f16 a)
-{
-    return float16_abs(a);
-}
-
-float32 VFP_HELPER(abs, s)(float32 a)
-{
-    return float32_abs(a);
-}
-
-float64 VFP_HELPER(abs, d)(float64 a)
-{
-    return float64_abs(a);
-}
-
 dh_ctype_f16 VFP_HELPER(sqrt, h)(dh_ctype_f16 a, CPUARMState *env)
 {
     return float16_sqrt(a, &env->vfp.fp_status_f16);

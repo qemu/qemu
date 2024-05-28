@@ -49,19 +49,20 @@ struct ScoopInfo {
     uint16_t isr;
 };
 
-#define SCOOP_MCR	0x00
-#define SCOOP_CDR	0x04
-#define SCOOP_CSR	0x08
-#define SCOOP_CPR	0x0c
-#define SCOOP_CCR	0x10
-#define SCOOP_IRR_IRM	0x14
-#define SCOOP_IMR	0x18
-#define SCOOP_ISR	0x1c
-#define SCOOP_GPCR	0x20
-#define SCOOP_GPWR	0x24
-#define SCOOP_GPRR	0x28
+#define SCOOP_MCR       0x00
+#define SCOOP_CDR       0x04
+#define SCOOP_CSR       0x08
+#define SCOOP_CPR       0x0c
+#define SCOOP_CCR       0x10
+#define SCOOP_IRR_IRM   0x14
+#define SCOOP_IMR       0x18
+#define SCOOP_ISR       0x1c
+#define SCOOP_GPCR      0x20
+#define SCOOP_GPWR      0x24
+#define SCOOP_GPRR      0x28
 
-static inline void scoop_gpio_handler_update(ScoopInfo *s) {
+static inline void scoop_gpio_handler_update(ScoopInfo *s)
+{
     uint32_t level, diff;
     int bit;
     level = s->gpio_level & s->gpio_dir;
@@ -125,8 +126,9 @@ static void scoop_write(void *opaque, hwaddr addr,
         break;
     case SCOOP_CPR:
         s->power = value;
-        if (value & 0x80)
+        if (value & 0x80) {
             s->power |= 0x8040;
+        }
         break;
     case SCOOP_CCR:
         s->ccr = value;
@@ -145,7 +147,7 @@ static void scoop_write(void *opaque, hwaddr addr,
         scoop_gpio_handler_update(s);
         break;
     case SCOOP_GPWR:
-    case SCOOP_GPRR:	/* GPRR is probably R/O in real HW */
+    case SCOOP_GPRR:    /* GPRR is probably R/O in real HW */
         s->gpio_level = value & s->gpio_dir;
         scoop_gpio_handler_update(s);
         break;
@@ -166,10 +168,11 @@ static void scoop_gpio_set(void *opaque, int line, int level)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
 
-    if (level)
+    if (level) {
         s->gpio_level |= (1 << line);
-    else
+    } else {
         s->gpio_level &= ~(1 << line);
+    }
 }
 
 static void scoop_init(Object *obj)
@@ -203,7 +206,7 @@ static int scoop_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static bool is_version_0 (void *opaque, int version_id)
+static bool is_version_0(void *opaque, int version_id)
 {
     return version_id == 0;
 }
@@ -265,7 +268,7 @@ type_init(scoop_register_types)
 
 /* Write the bootloader parameters memory area.  */
 
-#define MAGIC_CHG(a, b, c, d)	((d << 24) | (c << 16) | (b << 8) | a)
+#define MAGIC_CHG(a, b, c, d)   ((d << 24) | (c << 16) | (b << 8) | a)
 
 static struct QEMU_PACKED sl_param_info {
     uint32_t comadj_keyword;
@@ -286,16 +289,16 @@ static struct QEMU_PACKED sl_param_info {
     uint32_t phad_keyword;
     int32_t phadadj;
 } zaurus_bootparam = {
-    .comadj_keyword	= MAGIC_CHG('C', 'M', 'A', 'D'),
-    .comadj		= 125,
-    .uuid_keyword	= MAGIC_CHG('U', 'U', 'I', 'D'),
-    .uuid		= { -1 },
-    .touch_keyword	= MAGIC_CHG('T', 'U', 'C', 'H'),
-    .touch_xp		= -1,
-    .adadj_keyword	= MAGIC_CHG('B', 'V', 'A', 'D'),
-    .adadj		= -1,
-    .phad_keyword	= MAGIC_CHG('P', 'H', 'A', 'D'),
-    .phadadj		= 0x01,
+    .comadj_keyword     = MAGIC_CHG('C', 'M', 'A', 'D'),
+    .comadj             = 125,
+    .uuid_keyword       = MAGIC_CHG('U', 'U', 'I', 'D'),
+    .uuid               = { -1 },
+    .touch_keyword      = MAGIC_CHG('T', 'U', 'C', 'H'),
+    .touch_xp           = -1,
+    .adadj_keyword      = MAGIC_CHG('B', 'V', 'A', 'D'),
+    .adadj              = -1,
+    .phad_keyword       = MAGIC_CHG('P', 'H', 'A', 'D'),
+    .phadadj            = 0x01,
 };
 
 void sl_bootparam_write(hwaddr ptr)
