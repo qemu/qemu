@@ -45,7 +45,6 @@
 #include "qemu/job.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "qemu/plugin.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
 #include "qemu/thread.h"
