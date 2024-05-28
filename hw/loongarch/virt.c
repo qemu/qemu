@@ -900,37 +900,49 @@ static void virt_firmware_init(LoongArchVirtMachineState *lvms)
 }
 
 
-static void virt_iocsr_misc_write(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
+static MemTxResult virt_iocsr_misc_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned size,
+                                         MemTxAttrs attrs)
 {
+    return MEMTX_OK;
 }
 
-static uint64_t virt_iocsr_misc_read(void *opaque, hwaddr addr, unsigned size)
+static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
+                                        uint64_t *data,
+                                        unsigned size, MemTxAttrs attrs)
 {
-    uint64_t ret;
+    uint64_t ret = 0;
 
     switch (addr) {
     case VERSION_REG:
-        return 0x11ULL;
+        ret = 0x11ULL;
+        break;
     case FEATURE_REG:
         ret = BIT(IOCSRF_MSI) | BIT(IOCSRF_EXTIOI) | BIT(IOCSRF_CSRIPI);
         if (kvm_enabled()) {
             ret |= BIT(IOCSRF_VM);
         }
-        return ret;
+        break;
     case VENDOR_REG:
-        return 0x6e6f73676e6f6f4cULL; /* "Loongson" */
+        ret = 0x6e6f73676e6f6f4cULL; /* "Loongson" */
+        break;
     case CPUNAME_REG:
-        return 0x303030354133ULL;     /* "3A5000" */
+        ret = 0x303030354133ULL;     /* "3A5000" */
+        break;
     case MISC_FUNC_REG:
-        return BIT_ULL(IOCSRM_EXTIOI_EN);
+        ret = BIT_ULL(IOCSRM_EXTIOI_EN);
+        break;
+    default:
+        g_assert_not_reached();
     }
-    return 0ULL;
+
+    *data = ret;
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps virt_iocsr_misc_ops = {
-    .read  = virt_iocsr_misc_read,
-    .write = virt_iocsr_misc_write,
+    .read_with_attrs  = virt_iocsr_misc_read,
+    .write_with_attrs = virt_iocsr_misc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
