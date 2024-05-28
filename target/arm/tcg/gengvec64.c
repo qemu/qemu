@@ -188,6 +188,38 @@ void gen_gvec_bcax(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
+/*
+ * Set @res to the correctly saturated result.
+ * Set @qc non-zero if saturation occured.
+ */
+void gen_suqadd_bhs(TCGv_i64 res, TCGv_i64 qc,
+                    TCGv_i64 a, TCGv_i64 b, MemOp esz)
+{
+    TCGv_i64 max = tcg_constant_i64((1ull << ((8 << esz) - 1)) - 1);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_add_i64(t, a, b);
+    tcg_gen_smin_i64(res, t, max);
+    tcg_gen_xor_i64(t, t, res);
+    tcg_gen_or_i64(qc, qc, t);
+}
+
+void gen_suqadd_d(TCGv_i64 res, TCGv_i64 qc, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 max = tcg_constant_i64(INT64_MAX);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    /* Maximum value that can be added to @a without overflow. */
+    tcg_gen_sub_i64(t, max, a);
+
+    /* Constrain addend so that the next addition never overflows. */
+    tcg_gen_umin_i64(t, t, b);
+    tcg_gen_add_i64(res, a, t);
+
+    tcg_gen_xor_i64(t, t, b);
+    tcg_gen_or_i64(qc, qc, t);
+}
+
 static void gen_suqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec qc,
                            TCGv_vec a, TCGv_vec b)
 {
@@ -231,6 +263,7 @@ void gen_gvec_suqadd_qc(unsigned vece, uint32_t rd_ofs,
           .write_aofs = true,
           .vece = MO_32 },
         { .fniv = gen_suqadd_vec,
+          .fni8 = gen_suqadd_d,
           .fno = gen_helper_gvec_suqadd_d,
           .opt_opc = vecop_list,
           .write_aofs = true,
@@ -240,6 +273,43 @@ void gen_gvec_suqadd_qc(unsigned vece, uint32_t rd_ofs,
     tcg_debug_assert(opr_sz <= sizeof_field(CPUARMState, vfp.qc));
     tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),
                    rn_ofs, rm_ofs, opr_sz, max_sz, &ops[vece]);
+}
+
+void gen_usqadd_bhs(TCGv_i64 res, TCGv_i64 qc,
+                    TCGv_i64 a, TCGv_i64 b, MemOp esz)
+{
+    TCGv_i64 max = tcg_constant_i64(MAKE_64BIT_MASK(0, 8 << esz));
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    tcg_gen_add_i64(tmp, a, b);
+    tcg_gen_smin_i64(res, tmp, max);
+    tcg_gen_smax_i64(res, res, zero);
+    tcg_gen_xor_i64(tmp, tmp, res);
+    tcg_gen_or_i64(qc, qc, tmp);
+}
+
+void gen_usqadd_d(TCGv_i64 res, TCGv_i64 qc, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 tneg = tcg_temp_new_i64();
+    TCGv_i64 tpos = tcg_temp_new_i64();
+    TCGv_i64 max = tcg_constant_i64(UINT64_MAX);
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    tcg_gen_add_i64(tmp, a, b);
+
+    /* If @b is positive, saturate if (a + b) < a, aka unsigned overflow. */
+    tcg_gen_movcond_i64(TCG_COND_LTU, tpos, tmp, a, max, tmp);
+
+    /* If @b is negative, saturate if a < -b, ie subtraction is negative. */
+    tcg_gen_neg_i64(tneg, b);
+    tcg_gen_movcond_i64(TCG_COND_LTU, tneg, a, tneg, zero, tmp);
+
+    /* Select correct result from sign of @b. */
+    tcg_gen_movcond_i64(TCG_COND_LT, res, b, zero, tneg, tpos);
+    tcg_gen_xor_i64(tmp, tmp, res);
+    tcg_gen_or_i64(qc, qc, tmp);
 }
 
 static void gen_usqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec qc,
@@ -288,6 +358,7 @@ void gen_gvec_usqadd_qc(unsigned vece, uint32_t rd_ofs,
           .write_aofs = true,
           .vece = MO_32 },
         { .fniv = gen_usqadd_vec,
+          .fni8 = gen_usqadd_d,
           .fno = gen_helper_gvec_usqadd_d,
           .opt_opc = vecop_list,
           .write_aofs = true,

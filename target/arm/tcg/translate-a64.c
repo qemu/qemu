@@ -9985,67 +9985,42 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
 static void handle_2misc_satacc(DisasContext *s, bool is_scalar, bool is_u,
                                 bool is_q, unsigned size, int rn, int rd)
 {
+    TCGv_i64 res, qc, a, b;
+
     if (!is_scalar) {
         gen_gvec_fn3(s, is_q, rd, rd, rn,
                      is_u ? gen_gvec_usqadd_qc : gen_gvec_suqadd_qc, size);
         return;
     }
 
-    if (size == 3) {
-        TCGv_i64 tcg_rn = tcg_temp_new_i64();
-        TCGv_i64 tcg_rd = tcg_temp_new_i64();
+    res = tcg_temp_new_i64();
+    qc = tcg_temp_new_i64();
+    a = tcg_temp_new_i64();
+    b = tcg_temp_new_i64();
 
-        read_vec_element(s, tcg_rn, rn, 0, MO_64);
-        read_vec_element(s, tcg_rd, rd, 0, MO_64);
+    /* Read and extend scalar inputs to 64-bits. */
+    read_vec_element(s, a, rd, 0, size | (is_u ? 0 : MO_SIGN));
+    read_vec_element(s, b, rn, 0, size | (is_u ? MO_SIGN : 0));
+    tcg_gen_ld_i64(qc, tcg_env, offsetof(CPUARMState, vfp.qc));
 
-        if (is_u) { /* USQADD */
-            gen_helper_neon_uqadd_s64(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-        } else { /* SUQADD */
-            gen_helper_neon_sqadd_u64(tcg_rd, tcg_env, tcg_rn, tcg_rd);
+    if (size == MO_64) {
+        if (is_u) {
+            gen_usqadd_d(res, qc, a, b);
+        } else {
+            gen_suqadd_d(res, qc, a, b);
         }
-        write_vec_element(s, tcg_rd, rd, 0, MO_64);
-        clear_vec_high(s, false, rd);
     } else {
-        TCGv_i32 tcg_rn = tcg_temp_new_i32();
-        TCGv_i32 tcg_rd = tcg_temp_new_i32();
-
-        read_vec_element_i32(s, tcg_rn, rn, 0, size);
-        read_vec_element_i32(s, tcg_rd, rd, 0, size);
-
-        if (is_u) { /* USQADD */
-            switch (size) {
-            case 0:
-                gen_helper_neon_uqadd_s8(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            case 1:
-                gen_helper_neon_uqadd_s16(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            case 2:
-                gen_helper_neon_uqadd_s32(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            default:
-                g_assert_not_reached();
-            }
-        } else { /* SUQADD */
-            switch (size) {
-            case 0:
-                gen_helper_neon_sqadd_u8(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            case 1:
-                gen_helper_neon_sqadd_u16(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            case 2:
-                gen_helper_neon_sqadd_u32(tcg_rd, tcg_env, tcg_rn, tcg_rd);
-                break;
-            default:
-                g_assert_not_reached();
-            }
+        if (is_u) {
+            gen_usqadd_bhs(res, qc, a, b, size);
+        } else {
+            gen_suqadd_bhs(res, qc, a, b, size);
+            /* Truncate signed 64-bit result for writeback. */
+            tcg_gen_ext_i64(res, res, size);
         }
-
-        write_vec_element(s, tcg_constant_i64(0), rd, 0, MO_64);
-        write_vec_element_i32(s, tcg_rd, rd, 0, MO_32);
-        clear_vec_high(s, false, rd);
     }
+
+    write_fp_dreg(s, rd, res);
+    tcg_gen_st_i64(qc, tcg_env, offsetof(CPUARMState, vfp.qc));
 }
 
 /* AdvSIMD scalar two reg misc
