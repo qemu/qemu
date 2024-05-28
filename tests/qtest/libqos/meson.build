@@ -61,6 +61,7 @@ libqos_srcs = files(
         'ppc64_pseries-machine.c',
         'x86_64_pc-machine.c',
         'riscv-virt-machine.c',
+        'loongarch-virt-machine.c',
 )
 
 if have_virtfs

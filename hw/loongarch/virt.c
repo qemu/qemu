@@ -45,6 +45,7 @@
 #include "sysemu/tpm.h"
 #include "sysemu/block-backend.h"
 #include "hw/block/flash.h"
+#include "hw/virtio/virtio-iommu.h"
 #include "qemu/error-report.h"
 
 static PFlashCFI01 *virt_flash_create1(LoongArchVirtMachineState *lvms,
@@ -1213,6 +1214,7 @@ static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (device_is_dynamic_sysbus(mc, dev) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI) ||
         memhp_type_supported(dev)) {
         return HOTPLUG_HANDLER(machine);
     }
