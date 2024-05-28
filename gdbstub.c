@@ -63,7 +63,13 @@
 static int phy_memory_mode;
 #endif
 
-static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
+
+void (*signal_handler)(int);
+void set_signal_callback(void (*sg)(int)){
+    signal_handler = sg;
+}
+
+int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
                                          uint8_t *buf, int len, bool is_write)
 {
     CPUClass *cc;
@@ -377,7 +383,7 @@ typedef struct GDBState {
 static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
 
 /* Retrieves flags for single step mode. */
-static int get_sstep_flags(void)
+int get_sstep_flags(void)
 {
     /*
      * In replay mode all events written into the log should be replayed.
@@ -467,7 +473,7 @@ int use_gdb_syscalls(void)
 }
 
 /* Resume execution.  */
-static inline void gdb_continue(void)
+void gdb_continue(void)
 {
 
 #ifdef CONFIG_USER_ONLY
@@ -920,7 +926,7 @@ static const char *get_feature_xml(const char *p, const char **newp,
     return name ? xml_builtin[i][1] : NULL;
 }
 
-static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
@@ -938,7 +944,7 @@ static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
     return 0;
 }
 
-static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
+int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
@@ -1017,7 +1023,7 @@ static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
 }
 #endif
 
-static int gdb_breakpoint_insert(int type, target_ulong addr, target_ulong len)
+int gdb_breakpoint_insert(int type, target_ulong addr, target_ulong len)
 {
     CPUState *cpu;
     int err = 0;
@@ -1054,7 +1060,7 @@ static int gdb_breakpoint_insert(int type, target_ulong addr, target_ulong len)
     }
 }
 
-static int gdb_breakpoint_remove(int type, target_ulong addr, target_ulong len)
+int gdb_breakpoint_remove(int type, target_ulong addr, target_ulong len)
 {
     CPUState *cpu;
     int err = 0;
@@ -1122,7 +1128,7 @@ static void gdb_breakpoint_remove_all(void)
     }
 }
 
-static void gdb_set_cpu_pc(target_ulong pc)
+void gdb_set_cpu_pc(target_ulong pc)
 {
     CPUState *cpu = gdbserver_state.c_cpu;
 
@@ -3129,49 +3135,66 @@ static void create_default_process(GDBState *s)
 }
 
 #ifdef CONFIG_USER_ONLY
+char dbg[100];
 int
 gdb_handlesig(CPUState *cpu, int sig)
 {
-    char buf[256];
-    int n;
+    // sprintf(dbg, "sig: %d init: %d fd: %d\n", sig, gdbserver_state.init, gdbserver_state.fd);
+    // qemu_plugin_outs(dbg);
 
-    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
-        return sig;
+    if (signal_handler){
+        if (sig == GDB_SIGNAL_TRAP){
+            signal_handler(sig);
+        }
+        else{
+            gdbserver_state.signal = sig;
+        }
     }
+    else{
 
-    /* disable single step if it was enabled */
-    cpu_single_step(cpu, 0);
-    tb_flush(cpu);
+        char buf[256];
+        int n;
 
-    if (sig != 0) {
-        snprintf(buf, sizeof(buf), "S%02x", target_signal_to_gdb(sig));
-        put_packet(buf);
-    }
-    /* put_packet() might have detected that the peer terminated the
-       connection.  */
-    if (gdbserver_state.fd < 0) {
-        return sig;
-    }
-
-    sig = 0;
-    gdbserver_state.state = RS_IDLE;
-    gdbserver_state.running_state = 0;
-    while (gdbserver_state.running_state == 0) {
-        n = read(gdbserver_state.fd, buf, 256);
-        if (n > 0) {
-            int i;
-
-            for (i = 0; i < n; i++) {
-                gdb_read_byte(buf[i]);
-            }
-        } else {
-            /* XXX: Connection closed.  Should probably wait for another
-               connection before continuing.  */
-            if (n == 0) {
-                close(gdbserver_state.fd);
-            }
-            gdbserver_state.fd = -1;
+        if (!gdbserver_state.init || gdbserver_state.fd < 0) {
             return sig;
+        }
+
+        /* disable single step if it was enabled */
+        cpu_single_step(cpu, 0);
+        tb_flush(cpu);
+        
+
+        if (sig != 0) {
+            snprintf(buf, sizeof(buf), "S%02x", target_signal_to_gdb(sig));
+            put_packet(buf);
+        }
+        /* put_packet() might have detected that the peer terminated the
+        connection.  */
+        if (gdbserver_state.fd < 0) {
+            return sig;
+        }
+
+        sig = 0;
+        gdbserver_state.state = RS_IDLE;
+        gdbserver_state.running_state = 0;
+        while (gdbserver_state.running_state == 0) {
+            n = read(gdbserver_state.fd, buf, 256);
+            if (n > 0) {
+                int i;
+
+                for (i = 0; i < n; i++) {
+                    gdb_read_byte(buf[i]);
+                }
+            }
+            else {
+                /* XXX: Connection closed.  Should probably wait for another
+                connection before continuing.  */
+                if (n == 0) { //Do not close connection if in afl patching mode
+                    close(gdbserver_state.fd);
+                }
+                gdbserver_state.fd = -1;
+                return sig;
+            }
         }
     }
     sig = gdbserver_state.signal;
@@ -3192,7 +3215,7 @@ void gdb_signalled(CPUArchState *env, int sig)
     put_packet(buf);
 }
 
-static void gdb_accept_init(int fd)
+void gdb_accept_init(int fd)
 {
     init_gdbserver_state();
     create_default_process(&gdbserver_state);
