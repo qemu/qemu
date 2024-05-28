@@ -5118,6 +5118,8 @@ TRANS(SSHL_s, do_int3_scalar_d, a, gen_sshl_i64)
 TRANS(USHL_s, do_int3_scalar_d, a, gen_ushl_i64)
 TRANS(SRSHL_s, do_int3_scalar_d, a, gen_helper_neon_rshl_s64)
 TRANS(URSHL_s, do_int3_scalar_d, a, gen_helper_neon_rshl_u64)
+TRANS(ADD_s, do_int3_scalar_d, a, tcg_gen_add_i64)
+TRANS(SUB_s, do_int3_scalar_d, a, tcg_gen_sub_i64)
 
 typedef struct ENVScalar2 {
     NeonGenTwoOpEnvFn *gen_bhs[3];
@@ -5432,6 +5434,8 @@ TRANS(UQSHL_v, do_gvec_fn3, a, gen_neon_uqshl)
 TRANS(SQRSHL_v, do_gvec_fn3, a, gen_neon_sqrshl)
 TRANS(UQRSHL_v, do_gvec_fn3, a, gen_neon_uqrshl)
 
+TRANS(ADD_v, do_gvec_fn3, a, tcg_gen_gvec_add)
+TRANS(SUB_v, do_gvec_fn3, a, tcg_gen_gvec_sub)
 
 /*
  * Advanced SIMD scalar/vector x indexed element
@@ -9444,13 +9448,6 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
         }
         gen_cmtst_i64(tcg_rd, tcg_rn, tcg_rm);
         break;
-    case 0x10: /* ADD, SUB */
-        if (u) {
-            tcg_gen_sub_i64(tcg_rd, tcg_rn, tcg_rm);
-        } else {
-            tcg_gen_add_i64(tcg_rd, tcg_rn, tcg_rm);
-        }
-        break;
     default:
     case 0x1: /* SQADD / UQADD */
     case 0x5: /* SQSUB / UQSUB */
@@ -9458,6 +9455,7 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
     case 0x9: /* SQSHL, UQSHL */
     case 0xa: /* SRSHL, URSHL */
     case 0xb: /* SQRSHL, UQRSHL */
+    case 0x10: /* ADD, SUB */
         g_assert_not_reached();
     }
 }
@@ -9482,7 +9480,6 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
     case 0x6: /* CMGT, CMHI */
     case 0x7: /* CMGE, CMHS */
     case 0x11: /* CMTST, CMEQ */
-    case 0x10: /* ADD, SUB (vector) */
         if (size != 3) {
             unallocated_encoding(s);
             return;
@@ -9501,6 +9498,7 @@ static void disas_simd_scalar_three_reg_same(DisasContext *s, uint32_t insn)
     case 0x9: /* SQSHL, UQSHL */
     case 0xa: /* SRSHL, URSHL */
     case 0xb: /* SQRSHL, UQRSHL */
+    case 0x10: /* ADD, SUB (vector) */
         unallocated_encoding(s);
         return;
     }
@@ -10962,6 +10960,7 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     case 0x09: /* SQSHL, UQSHL */
     case 0x0a: /* SRSHL, URSHL */
     case 0x0b: /* SQRSHL, UQRSHL */
+    case 0x10: /* ADD, SUB */
         unallocated_encoding(s);
         return;
     }
@@ -10997,13 +10996,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
             gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_uaba, size);
         } else {
             gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_saba, size);
-        }
-        return;
-    case 0x10: /* ADD, SUB */
-        if (u) {
-            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_sub, size);
-        } else {
-            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_add, size);
         }
         return;
     case 0x13: /* MUL, PMUL */
