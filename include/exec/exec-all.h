@@ -301,6 +301,9 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
 {
 }
 #endif
+
+#if defined(CONFIG_TCG)
+
 /**
  * probe_access:
  * @env: CPUArchState
@@ -357,6 +360,7 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
                        bool nonfault, void **phost, uintptr_t retaddr);
 
 #ifndef CONFIG_USER_ONLY
+
 /**
  * probe_access_full:
  * Like probe_access_flags, except also return into @pfull.
@@ -392,7 +396,8 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
                           MMUAccessType access_type, int mmu_idx,
                           void **phost, CPUTLBEntryFull **pfull);
 
-#endif
+#endif /* !CONFIG_USER_ONLY */
+#endif /* CONFIG_TCG */
 
 static inline tb_page_addr_t tb_page_addr0(const TranslationBlock *tb)
 {
