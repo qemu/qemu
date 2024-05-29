@@ -629,6 +629,7 @@ static char *smp_config_to_string(const SMPConfiguration *config)
         "    .has_sockets  = %5s, sockets  = %" PRId64 ",\n"
         "    .has_dies     = %5s, dies     = %" PRId64 ",\n"
         "    .has_clusters = %5s, clusters = %" PRId64 ",\n"
+        "    .has_modules  = %5s, modules  = %" PRId64 ",\n"
         "    .has_cores    = %5s, cores    = %" PRId64 ",\n"
         "    .has_threads  = %5s, threads  = %" PRId64 ",\n"
         "    .has_maxcpus  = %5s, maxcpus  = %" PRId64 ",\n"
@@ -639,6 +640,7 @@ static char *smp_config_to_string(const SMPConfiguration *config)
         config->has_sockets ? "true" : "false", config->sockets,
         config->has_dies ? "true" : "false", config->dies,
         config->has_clusters ? "true" : "false", config->clusters,
+        config->has_modules ? "true" : "false", config->modules,
         config->has_cores ? "true" : "false", config->cores,
         config->has_threads ? "true" : "false", config->threads,
         config->has_maxcpus ? "true" : "false", config->maxcpus);
@@ -679,6 +681,7 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
         "    .sockets            = %u,\n"
         "    .dies               = %u,\n"
         "    .clusters           = %u,\n"
+        "    .modules            = %u,\n"
         "    .cores              = %u,\n"
         "    .threads            = %u,\n"
         "    .max_cpus           = %u,\n"
@@ -688,8 +691,8 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
         "}",
         topo->cpus, topo->drawers, topo->books,
         topo->sockets, topo->dies, topo->clusters,
-        topo->cores, topo->threads, topo->max_cpus,
-        threads_per_socket, cores_per_socket,
+        topo->modules, topo->cores, topo->threads,
+        topo->max_cpus, threads_per_socket, cores_per_socket,
         has_clusters ? "true" : "false");
 }
 
@@ -732,6 +735,7 @@ static void check_parse(MachineState *ms, const SMPConfiguration *config,
             (ms->smp.sockets == expect_topo->sockets) &&
             (ms->smp.dies == expect_topo->dies) &&
             (ms->smp.clusters == expect_topo->clusters) &&
+            (ms->smp.modules == expect_topo->modules) &&
             (ms->smp.cores == expect_topo->cores) &&
             (ms->smp.threads == expect_topo->threads) &&
             (ms->smp.max_cpus == expect_topo->max_cpus) &&
@@ -812,6 +816,11 @@ static void smp_parse_test(MachineState *ms, SMPTestData *data, bool is_valid)
 /* The parsed results of the unsupported parameters should be 1 */
 static void unsupported_params_init(const MachineClass *mc, SMPTestData *data)
 {
+    if (!mc->smp_props.modules_supported) {
+        data->expect_prefer_sockets.modules = 1;
+        data->expect_prefer_cores.modules = 1;
+    }
+
     if (!mc->smp_props.dies_supported) {
         data->expect_prefer_sockets.dies = 1;
         data->expect_prefer_cores.dies = 1;
