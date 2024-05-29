@@ -28,7 +28,6 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
-#include "hw/misc/mips_itu.h"
 
 
 /* SMP helpers.  */
