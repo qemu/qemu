@@ -1858,7 +1858,10 @@ static void gen_INT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_INT1(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_exception(s, EXCP01_DB);
+    gen_update_cc_op(s);
+    gen_update_eip_next(s);
+    gen_helper_icebp(tcg_env);
+    s->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_INT3(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

@@ -549,6 +549,19 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
     }
 }
 
+static void gen_update_eip_next(DisasContext *s)
+{
+    assert(s->pc_save != -1);
+    if (tb_cflags(s->base.tb) & CF_PCREL) {
+        tcg_gen_addi_tl(cpu_eip, cpu_eip, s->pc - s->pc_save);
+    } else if (CODE64(s)) {
+        tcg_gen_movi_tl(cpu_eip, s->pc);
+    } else {
+        tcg_gen_movi_tl(cpu_eip, (uint32_t)(s->pc - s->cs_base));
+    }
+    s->pc_save = s->pc;
+}
+
 static void gen_update_eip_cur(DisasContext *s)
 {
     assert(s->pc_save != -1);
