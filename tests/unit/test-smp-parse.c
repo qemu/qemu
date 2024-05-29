@@ -436,7 +436,7 @@ static const struct SMPTestData data_with_clusters_invalid[] = {
 static const struct SMPTestData data_with_books_invalid[] = {
     {
         /* config: -smp 16,books=2,sockets=2,cores=4,threads=2,maxcpus=16 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, F, 1, T, 2, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, F, 0, T, 2, T,
                                                 2, T, 4, T, 2, T, 16),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
@@ -444,7 +444,7 @@ static const struct SMPTestData data_with_books_invalid[] = {
                         "!= maxcpus (16)",
     }, {
         /* config: -smp 34,books=2,sockets=2,cores=4,threads=2,maxcpus=32 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, F, 1, T, 2, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, F, 0, T, 2, T,
                                                 2, T, 4, T, 2, T, 32),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
@@ -456,7 +456,7 @@ static const struct SMPTestData data_with_books_invalid[] = {
 static const struct SMPTestData data_with_drawers_invalid[] = {
     {
         /* config: -smp 16,drawers=2,sockets=2,cores=4,threads=2,maxcpus=16 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, T, 2, F, 1, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, T, 2, F, 0, T,
                                                 2, T, 4, T, 2, T, 16),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
@@ -464,7 +464,7 @@ static const struct SMPTestData data_with_drawers_invalid[] = {
                         "!= maxcpus (16)",
     }, {
         /* config: -smp 34,drawers=2,sockets=2,cores=4,threads=2,maxcpus=32 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, T, 2, F, 1, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, T, 2, F, 0, T,
                                                 2, T, 4, T, 2, T, 32),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
