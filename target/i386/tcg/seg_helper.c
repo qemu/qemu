@@ -526,6 +526,24 @@ static inline unsigned int get_sp_mask(unsigned int e2)
     }
 }
 
+static int exception_is_fault(int intno)
+{
+    switch (intno) {
+        /*
+         * #DB can be both fault- and trap-like, but it never sets RF=1
+         * in the RFLAGS value pushed on the stack.
+         */
+    case EXCP01_DB:
+    case EXCP03_INT3:
+    case EXCP04_INTO:
+    case EXCP08_DBLE:
+    case EXCP12_MCHK:
+        return 0;
+    }
+    /* Everything else including reserved exception is a fault.  */
+    return 1;
+}
+
 int exception_has_error_code(int intno)
 {
     switch (intno) {
@@ -605,8 +623,9 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     int type, dpl, selector, ss_dpl, cpl;
     int has_error_code, new_stack, shift;
     uint32_t e1, e2, offset, ss = 0, esp, ss_e1 = 0, ss_e2 = 0;
-    uint32_t old_eip, sp_mask;
+    uint32_t old_eip, sp_mask, eflags;
     int vm86 = env->eflags & VM_MASK;
+    bool set_rf;
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -614,8 +633,10 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     }
     if (is_int) {
         old_eip = next_eip;
+        set_rf = false;
     } else {
         old_eip = env->eip;
+        set_rf = exception_is_fault(intno);
     }
 
     dt = &env->idt;
@@ -748,6 +769,15 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     }
     push_size <<= shift;
 #endif
+    eflags = cpu_compute_eflags(env);
+    /*
+     * AMD states that code breakpoint #DBs clear RF=0, Intel leaves it
+     * as is.  AMD behavior could be implemented in check_hw_breakpoints().
+     */
+    if (set_rf) {
+        eflags |= RF_MASK;
+    }
+
     if (shift == 1) {
         if (new_stack) {
             if (vm86) {
@@ -759,7 +789,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
             PUSHL(ssp, esp, sp_mask, env->segs[R_SS].selector);
             PUSHL(ssp, esp, sp_mask, env->regs[R_ESP]);
         }
-        PUSHL(ssp, esp, sp_mask, cpu_compute_eflags(env));
+        PUSHL(ssp, esp, sp_mask, eflags);
         PUSHL(ssp, esp, sp_mask, env->segs[R_CS].selector);
         PUSHL(ssp, esp, sp_mask, old_eip);
         if (has_error_code) {
@@ -776,7 +806,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
             PUSHW(ssp, esp, sp_mask, env->segs[R_SS].selector);
             PUSHW(ssp, esp, sp_mask, env->regs[R_ESP]);
         }
-        PUSHW(ssp, esp, sp_mask, cpu_compute_eflags(env));
+        PUSHW(ssp, esp, sp_mask, eflags);
         PUSHW(ssp, esp, sp_mask, env->segs[R_CS].selector);
         PUSHW(ssp, esp, sp_mask, old_eip);
         if (has_error_code) {
@@ -868,8 +898,9 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     target_ulong ptr;
     int type, dpl, selector, cpl, ist;
     int has_error_code, new_stack;
-    uint32_t e1, e2, e3, ss;
+    uint32_t e1, e2, e3, ss, eflags;
     target_ulong old_eip, esp, offset;
+    bool set_rf;
 
     has_error_code = 0;
     if (!is_int && !is_hw) {
@@ -877,8 +908,10 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     }
     if (is_int) {
         old_eip = next_eip;
+        set_rf = false;
     } else {
         old_eip = env->eip;
+        set_rf = exception_is_fault(intno);
     }
 
     dt = &env->idt;
@@ -950,9 +983,15 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     }
     esp &= ~0xfLL; /* align stack */
 
+    /* See do_interrupt_protected.  */
+    eflags = cpu_compute_eflags(env);
+    if (set_rf) {
+        eflags |= RF_MASK;
+    }
+
     PUSHQ(esp, env->segs[R_SS].selector);
     PUSHQ(esp, env->regs[R_ESP]);
-    PUSHQ(esp, cpu_compute_eflags(env));
+    PUSHQ(esp, eflags);
     PUSHQ(esp, env->segs[R_CS].selector);
     PUSHQ(esp, old_eip);
     if (has_error_code) {

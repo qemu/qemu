@@ -4630,6 +4630,14 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
      * If jmp_opt, we want to handle each string instruction individually.
      * For icount also disable repz optimization so that each iteration
      * is accounted separately.
+     *
+     * FIXME: this is messy; it makes REP string instructions a lot less
+     * efficient than they should be and it gets in the way of correct
+     * handling of RF (interrupts or traps arriving after any iteration
+     * of a repeated string instruction but the last should set RF to 1).
+     * Perhaps it would be more efficient if REP string instructions were
+     * always at the beginning of the TB, or even their own TB?  That
+     * would even allow accounting up to 64k iterations at once for icount.
      */
     dc->repz_opt = !dc->jmp_opt && !(cflags & CF_USE_ICOUNT);
 
