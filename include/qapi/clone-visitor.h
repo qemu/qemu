@@ -11,6 +11,7 @@
 #ifndef QAPI_CLONE_VISITOR_H
 #define QAPI_CLONE_VISITOR_H
 
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 
 /*
@@ -20,11 +21,8 @@
  */
 typedef struct QapiCloneVisitor QapiCloneVisitor;
 
-void *qapi_clone(const void *src, bool (*visit_type)(Visitor *, const char *,
-                                                     void **, Error **));
-void qapi_clone_members(void *dst, const void *src, size_t sz,
-                        bool (*visit_type_members)(Visitor *, void *,
-                                                   Error **));
+Visitor *qapi_clone_visitor_new(void);
+Visitor *qapi_clone_members_visitor_new(void);
 
 /*
  * Deep-clone QAPI object @src of the given @type, and return the result.
@@ -32,10 +30,18 @@ void qapi_clone_members(void *dst, const void *src, size_t sz,
  * Not usable on QAPI scalars (integers, strings, enums), nor on a
  * QAPI object that references the 'any' type.  Safe when @src is NULL.
  */
-#define QAPI_CLONE(type, src)                                           \
-    ((type *)qapi_clone(src,                                            \
-                        (bool (*)(Visitor *, const char *, void **,     \
-                                  Error **))visit_type_ ## type))
+#define QAPI_CLONE(type, src)                                   \
+    ({                                                          \
+        Visitor *v_;                                            \
+        type *dst_ = (type *) (src); /* Cast away const */      \
+                                                                \
+        if (dst_) {                                             \
+            v_ = qapi_clone_visitor_new();                      \
+            visit_type_ ## type(v_, NULL, &dst_, &error_abort); \
+            visit_free(v_);                                     \
+        }                                                       \
+        dst_;                                                   \
+    })
 
 /*
  * Copy deep clones of @type members from @src to @dst.
@@ -43,9 +49,14 @@ void qapi_clone_members(void *dst, const void *src, size_t sz,
  * Not usable on QAPI scalars (integers, strings, enums), nor on a
  * QAPI object that references the 'any' type.
  */
-#define QAPI_CLONE_MEMBERS(type, dst, src)                              \
-    qapi_clone_members(dst, src, sizeof(type),                          \
-                       (bool (*)(Visitor *, void *,                     \
-                                 Error **))visit_type_ ## type ## _members)
+#define QAPI_CLONE_MEMBERS(type, dst, src)                                \
+    ({                                                                    \
+        Visitor *v_;                                                      \
+                                                                          \
+        v_ = qapi_clone_members_visitor_new();                            \
+        *(type *)(dst) = *(src);                                          \
+        visit_type_ ## type ## _members(v_, (type *)(dst), &error_abort); \
+        visit_free(v_);                                                   \
+    })
 
 #endif

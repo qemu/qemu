@@ -154,9 +154,9 @@ static xkb_mod_mask_t get_mod(struct xkb_keymap *map, const char *name)
 
 int main(int argc, char *argv[])
 {
-    struct xkb_context *ctx;
-    struct xkb_keymap *map;
-    struct xkb_state *state;
+    static struct xkb_context *ctx;
+    static struct xkb_keymap *map;
+    static struct xkb_state *state;
     xkb_mod_index_t mod, mods;
     int rc;
 
@@ -234,8 +234,6 @@ int main(int argc, char *argv[])
 
     state = xkb_state_new(map);
     xkb_keymap_key_for_each(map, walk_map, state);
-    xkb_state_unref(state);
-    state = NULL;
 
     /* add quirks */
     fprintf(outfile,

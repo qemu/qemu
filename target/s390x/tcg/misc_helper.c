@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "qemu/host-utils.h"
@@ -590,10 +591,24 @@ void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 #endif
 
 #ifndef CONFIG_USER_ONLY
+static G_NORETURN void per_raise_exception(CPUS390XState *env)
+{
+    trigger_pgm_exception(env, PGM_PER);
+    cpu_loop_exit(env_cpu(env));
+}
+
+static G_NORETURN void per_raise_exception_log(CPUS390XState *env)
+{
+    qemu_log_mask(CPU_LOG_INT, "PER interrupt after 0x%" PRIx64 "\n",
+                  env->per_address);
+    per_raise_exception(env);
+}
+
 void HELPER(per_check_exception)(CPUS390XState *env)
 {
-    if (env->per_perc_atmid) {
-        tcg_s390_program_interrupt(env, PGM_PER, GETPC());
+    /* psw_addr, per_address and int_pgm_ilen are already set. */
+    if (unlikely(env->per_perc_atmid)) {
+        per_raise_exception_log(env);
     }
 }
 
@@ -608,46 +623,45 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
     }
 }
 
-void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
+void HELPER(per_branch)(CPUS390XState *env, uint64_t dest, uint32_t ilen)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_BRANCH)) {
-        if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
-            || get_per_in_range(env, to)) {
-            env->per_address = from;
-            env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
-        }
+    if ((env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
+        && !get_per_in_range(env, dest)) {
+        return;
     }
+
+    env->psw.addr = dest;
+    env->int_pgm_ilen = ilen;
+    env->per_address = env->gbea;
+    env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+    per_raise_exception_log(env);
 }
 
-void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
+void HELPER(per_ifetch)(CPUS390XState *env, uint32_t ilen)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
-        env->per_address = addr;
+    if (get_per_in_range(env, env->psw.addr)) {
+        env->per_address = env->psw.addr;
+        env->int_pgm_ilen = ilen;
         env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
 
         /* If the instruction has to be nullified, trigger the
            exception immediately. */
-        if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
-            CPUState *cs = env_cpu(env);
-
+        if (env->cregs[9] & PER_CR9_EVENT_IFETCH_NULLIFICATION) {
             env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
-            env->int_pgm_code = PGM_PER;
-            env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
-
-            cs->exception_index = EXCP_PGM;
-            cpu_loop_exit(cs);
+            qemu_log_mask(CPU_LOG_INT, "PER interrupt before 0x%" PRIx64 "\n",
+                          env->per_address);
+            per_raise_exception(env);
         }
     }
 }
 
-void HELPER(per_store_real)(CPUS390XState *env)
+void HELPER(per_store_real)(CPUS390XState *env, uint32_t ilen)
 {
-    if ((env->cregs[9] & PER_CR9_EVENT_STORE) &&
-        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
-        /* PSW is saved just before calling the helper.  */
-        env->per_address = env->psw.addr;
-        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
-    }
+    /* PSW is saved just before calling the helper.  */
+    env->per_address = env->psw.addr;
+    env->int_pgm_ilen = ilen;
+    env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    per_raise_exception_log(env);
 }
 #endif
 

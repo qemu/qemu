@@ -35,9 +35,6 @@ typedef struct AdapterRoutes {
 
 extern const VMStateDescription vmstate_adapter_routes;
 
-#define VMSTATE_ADAPTER_ROUTES(_f, _s) \
-    VMSTATE_STRUCT(_f, _s, 1, vmstate_adapter_routes, AdapterRoutes)
-
 #define TYPE_S390_FLIC_COMMON "s390-flic"
 OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
                     S390_FLIC_COMMON)
