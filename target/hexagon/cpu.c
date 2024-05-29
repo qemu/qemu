@@ -287,6 +287,14 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     /* Default NaN value: sign bit set, all frac bits set */
     set_float_default_nan_pattern(0b11111111, &env->fp_status);
+
+#ifndef CONFIG_USER_ONLY
+    if (cs->cpu_index == 0) {
+        memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    }
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+#endif
 }
 
 static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
@@ -312,6 +320,21 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
+#ifndef CONFIG_USER_ONLY
+    if (cs->cpu_index == 0) {
+        env->g_sreg = g_new0(target_ulong, NUM_SREGS);
+    } else {
+        CPUState *cpu0_s = NULL;
+        CPUHexagonState *env0 = NULL;
+        CPU_FOREACH(cpu0_s) {
+            assert(cpu0_s->cpu_index == 0);
+            env0 = &(HEXAGON_CPU(cpu0_s)->env);
+
+            break;
+        }
+        env->g_sreg = env0->g_sreg;
+    }
+#endif
 
     mcc->parent_realize(dev, errp);
 }
