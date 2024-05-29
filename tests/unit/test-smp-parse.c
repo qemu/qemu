@@ -528,7 +528,7 @@ static const struct SMPTestData data_full_topo_invalid[] = {
          * config: -smp 1,drawers=3,books=5,sockets=2,dies=4,\
          *              clusters=2,cores=7,threads=3,maxcpus=5040
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(3361, 3, 5, 2, 4, 2, 7, 3, 5040),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 3, 5, 2, 4, 2, 7, 3, 5040),
         .expect_error = "Invalid SMP CPUs 5040. The max CPUs supported "
                         "by machine '" SMP_MACHINE_NAME "' is 4096",
     },
