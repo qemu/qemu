@@ -90,6 +90,7 @@ typedef enum X86OpSize {
     X86_SIZE_w,  /* 16-bit */
     X86_SIZE_x,  /* 128/256-bit, based on operand size */
     X86_SIZE_y,  /* 32/64-bit, based on operand size */
+    X86_SIZE_y_d64,  /* 32/64-bit, based on 64-bit mode */
     X86_SIZE_z,  /* 16-bit for 16-bit operand size, else 32-bit */
     X86_SIZE_z_f64,  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
 

@@ -247,9 +247,6 @@ STUB_HELPER(outb, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
 STUB_HELPER(outw, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
 STUB_HELPER(outl, TCGv_env env, TCGv_i32 port, TCGv_i32 val)
 STUB_HELPER(rdmsr, TCGv_env env)
-STUB_HELPER(read_crN, TCGv ret, TCGv_env env, TCGv_i32 reg)
-STUB_HELPER(get_dr, TCGv ret, TCGv_env env, TCGv_i32 reg)
-STUB_HELPER(set_dr, TCGv_env env, TCGv_i32 reg, TCGv val)
 STUB_HELPER(stgi, TCGv_env env)
 STUB_HELPER(svm_check_intercept, TCGv_env env, TCGv_i32 type)
 STUB_HELPER(vmload, TCGv_env env, TCGv_i32 aflag)
@@ -4192,82 +4189,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         gen_nop_modrm(env, s, modrm);
         break;
 
-    case 0x120: /* mov reg, crN */
-    case 0x122: /* mov crN, reg */
-        if (!check_cpl0(s)) {
-            break;
-        }
-        modrm = x86_ldub_code(env, s);
-        /*
-         * Ignore the mod bits (assume (modrm&0xc0)==0xc0).
-         * AMD documentation (24594.pdf) and testing of Intel 386 and 486
-         * processors all show that the mod bits are assumed to be 1's,
-         * regardless of actual values.
-         */
-        rm = (modrm & 7) | REX_B(s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-        switch (reg) {
-        case 0:
-            if ((prefixes & PREFIX_LOCK) &&
-                (s->cpuid_ext3_features & CPUID_EXT3_CR8LEG)) {
-                reg = 8;
-            }
-            break;
-        case 2:
-        case 3:
-        case 4:
-        case 8:
-            break;
-        default:
-            goto unknown_op;
-        }
-        ot  = (CODE64(s) ? MO_64 : MO_32);
-
-        translator_io_start(&s->base);
-        if (b & 2) {
-            gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0 + reg);
-            gen_op_mov_v_reg(s, ot, s->T0, rm);
-            gen_helper_write_crN(tcg_env, tcg_constant_i32(reg), s->T0);
-            s->base.is_jmp = DISAS_EOB_NEXT;
-        } else {
-            gen_svm_check_intercept(s, SVM_EXIT_READ_CR0 + reg);
-            gen_helper_read_crN(s->T0, tcg_env, tcg_constant_i32(reg));
-            gen_op_mov_reg_v(s, ot, rm, s->T0);
-        }
-        break;
-
-    case 0x121: /* mov reg, drN */
-    case 0x123: /* mov drN, reg */
-        if (check_cpl0(s)) {
-            modrm = x86_ldub_code(env, s);
-            /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
-             * AMD documentation (24594.pdf) and testing of
-             * intel 386 and 486 processors all show that the mod bits
-             * are assumed to be 1's, regardless of actual values.
-             */
-            rm = (modrm & 7) | REX_B(s);
-            reg = ((modrm >> 3) & 7) | REX_R(s);
-            if (CODE64(s))
-                ot = MO_64;
-            else
-                ot = MO_32;
-            if (reg >= 8) {
-                goto illegal_op;
-            }
-            if (b & 2) {
-                gen_svm_check_intercept(s, SVM_EXIT_WRITE_DR0 + reg);
-                gen_op_mov_v_reg(s, ot, s->T0, rm);
-                tcg_gen_movi_i32(s->tmp2_i32, reg);
-                gen_helper_set_dr(tcg_env, s->tmp2_i32, s->T0);
-                s->base.is_jmp = DISAS_EOB_NEXT;
-            } else {
-                gen_svm_check_intercept(s, SVM_EXIT_READ_DR0 + reg);
-                tcg_gen_movi_i32(s->tmp2_i32, reg);
-                gen_helper_get_dr(s->T0, tcg_env, s->tmp2_i32);
-                gen_op_mov_reg_v(s, ot, rm, s->T0);
-            }
-        }
-        break;
     case 0x106: /* clts */
         if (check_cpl0(s)) {
             gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0);

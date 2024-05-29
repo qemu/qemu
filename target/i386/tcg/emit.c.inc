@@ -242,12 +242,20 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
         tcg_gen_ld32u_tl(v, tcg_env,
                          offsetof(CPUX86State,segs[op->n].selector));
         break;
+#ifndef CONFIG_USER_ONLY
     case X86_OP_CR:
-        tcg_gen_ld_tl(v, tcg_env, offsetof(CPUX86State, cr[op->n]));
+        if (op->n == 8) {
+            translator_io_start(&s->base);
+            gen_helper_read_crN(v, tcg_env, tcg_constant_i32(op->n));
+        } else {
+            tcg_gen_ld_tl(v, tcg_env, offsetof(CPUX86State, cr[op->n]));
+        }
         break;
     case X86_OP_DR:
-        tcg_gen_ld_tl(v, tcg_env, offsetof(CPUX86State, dr[op->n]));
+        /* CR4.DE tested in the helper.  */
+        gen_helper_get_dr(v, tcg_env, tcg_constant_i32(op->n));
         break;
+#endif
     case X86_OP_INT:
         if (op->has_ea) {
             if (v == s->T0 && decode->e.special == X86_SPECIAL_SExtT0) {
@@ -343,8 +351,20 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
                                  16, 16, 0);
         }
         break;
+#ifndef CONFIG_USER_ONLY
     case X86_OP_CR:
+        if (op->n == 8) {
+            translator_io_start(&s->base);
+        }
+        gen_helper_write_crN(tcg_env, tcg_constant_i32(op->n), v);
+        s->base.is_jmp = DISAS_EOB_NEXT;
+        break;
     case X86_OP_DR:
+        /* CR4.DE tested in the helper.  */
+        gen_helper_set_dr(tcg_env, tcg_constant_i32(op->n), v);
+        s->base.is_jmp = DISAS_EOB_NEXT;
+        break;
+#endif
     default:
         g_assert_not_reached();
     }
