@@ -238,6 +238,12 @@ target_ulong helper_get_dr(CPUX86State *env, int reg)
         }
     }
 
+    if (env->dr[7] & DR7_GD) {
+        env->dr[7] &= ~DR7_GD;
+        env->dr[6] |= DR6_BD;
+        raise_exception_ra(env, EXCP01_DB, GETPC());
+    }
+
     return env->dr[reg];
 }
 
@@ -249,6 +255,12 @@ void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
         } else {
             reg += 2;
         }
+    }
+
+    if (env->dr[7] & DR7_GD) {
+        env->dr[7] &= ~DR7_GD;
+        env->dr[6] |= DR6_BD;
+        raise_exception_ra(env, EXCP01_DB, GETPC());
     }
 
     if (reg < 4) {
