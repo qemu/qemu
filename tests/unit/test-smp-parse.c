@@ -333,7 +333,9 @@ static const struct SMPTestData data_generic_valid[] = {
     }, {
         /*
          * Unsupported parameters are always allowed to be set to '1'
-         * config: -smp 8,books=1,drawers=1,sockets=2,modules=1,dies=1,cores=2,threads=2,maxcpus=8
+         * config:
+         *   -smp 8,drawers=1,books=1,sockets=2,dies=1,clusters=1,cores=2,\
+         *        threads=2,maxcpus=8
          * expect: cpus=8,sockets=2,cores=2,threads=2,maxcpus=8 */
         .config = SMP_CONFIG_WITH_FULL_TOPO(8, 1, 1, 2, 1, 1, 2, 2, 8),
         .expect_prefer_sockets = CPU_TOPOLOGY_GENERIC(8, 2, 2, 2, 8),
