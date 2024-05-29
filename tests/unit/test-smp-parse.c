@@ -474,8 +474,8 @@ static const struct SMPTestData data_with_drawers_invalid[] = {
 static const struct SMPTestData data_with_drawers_books_invalid[] = {
     {
         /*
-         * config: -smp 200,drawers=2,books=2,sockets=2,cores=4,\
-         * threads=2,maxcpus=200
+         * config: -smp 200,drawers=3,books=5,sockets=2,cores=4,\
+         *              threads=2,maxcpus=200
          */
         .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 200, T, 3, T, 5, T,
                                                 2, T, 4, T, 2, T, 200),
@@ -485,8 +485,8 @@ static const struct SMPTestData data_with_drawers_books_invalid[] = {
                         "cores (4) * threads (2) != maxcpus (200)",
     }, {
         /*
-         * config: -smp 242,drawers=2,books=2,sockets=2,cores=4,\
-         * threads=2,maxcpus=240
+         * config: -smp 242,drawers=3,books=5,sockets=2,cores=4,\
+         *              threads=2,maxcpus=240
          */
         .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 242, T, 3, T, 5, T,
                                                 2, T, 4, T, 2, T, 240),
