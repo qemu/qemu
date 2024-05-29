@@ -163,6 +163,8 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     uint64_t new_cr0;
     uint64_t new_cr3;
     uint64_t new_cr4;
+    uint64_t new_dr6;
+    uint64_t new_dr7;
 
     if (aflag == 2) {
         addr = env->regs[R_EAX];
@@ -361,19 +363,21 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                 env->vm_vmcb + offsetof(struct vmcb, save.rsp));
     env->regs[R_EAX] = x86_ldq_phys(cs,
                                 env->vm_vmcb + offsetof(struct vmcb, save.rax));
-    env->dr[7] = x86_ldq_phys(cs,
-                          env->vm_vmcb + offsetof(struct vmcb, save.dr7));
-    env->dr[6] = x86_ldq_phys(cs,
-                          env->vm_vmcb + offsetof(struct vmcb, save.dr6));
+
+    new_dr7 = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.dr7));
+    new_dr6 = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.dr6));
 
 #ifdef TARGET_X86_64
-    if (env->dr[6] & DR_RESERVED_MASK) {
+    if (new_dr7 & DR_RESERVED_MASK) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
-    if (env->dr[7] & DR_RESERVED_MASK) {
+    if (new_dr6 & DR_RESERVED_MASK) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
 #endif
+
+    cpu_x86_update_dr7(env, new_dr7);
+    env->dr[6] = new_dr6;
 
     if (is_efer_invalid_state(env)) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
@@ -864,8 +868,11 @@ void do_vmexit(CPUX86State *env)
 
     env->dr[6] = x86_ldq_phys(cs,
                           env->vm_hsave + offsetof(struct vmcb, save.dr6));
-    env->dr[7] = x86_ldq_phys(cs,
-                          env->vm_hsave + offsetof(struct vmcb, save.dr7));
+
+    /* Disables all breakpoints in the host DR7 register. */
+    cpu_x86_update_dr7(env,
+             x86_ldq_phys(cs,
+                          env->vm_hsave + offsetof(struct vmcb, save.dr7)) & ~0xff);
 
     /* other setups */
     x86_stl_phys(cs,
@@ -890,8 +897,6 @@ void do_vmexit(CPUX86State *env)
     /* If the host is in PAE mode, the processor reloads the host's PDPEs
        from the page table indicated the host's CR3. If the PDPEs contain
        illegal state, the processor causes a shutdown. */
-
-    /* Disables all breakpoints in the host DR7 register. */
 
     /* Checks the reloaded host state for consistency. */
 
