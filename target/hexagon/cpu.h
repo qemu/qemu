@@ -86,6 +86,14 @@ typedef struct CPUArchState {
     target_ulong stack_start;
 
     uint8_t slot_cancelled;
+
+#ifndef CONFIG_USER_ONLY
+    /* Some system registers are per thread and some are global. */
+    target_ulong t_sreg[NUM_SREGS];
+    target_ulong *g_sreg;
+
+    target_ulong greg[NUM_GREGS];
+#endif
     target_ulong new_value_usr;
 
     MemLog mem_log_stores[STORES_MAX];
