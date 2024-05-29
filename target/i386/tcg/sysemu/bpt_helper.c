@@ -215,6 +215,12 @@ void breakpoint_handler(CPUState *cs)
         if (cs->watchpoint_hit->flags & BP_CPU) {
             cs->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, false)) {
+                /*
+                 * FIXME: #DB should be delayed by one instruction if
+                 * INHIBIT_IRQ is set (STI cannot trigger a watchpoint).
+                 * The delayed #DB should also fuse with one generated
+                 * by ICEBP (aka INT1).
+                 */
                 raise_exception(env, EXCP01_DB);
             } else {
                 cpu_loop_exit_noexc(cs);
