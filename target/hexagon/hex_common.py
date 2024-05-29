@@ -1235,11 +1235,18 @@ def init_registers():
     for reg in new_regs:
         new_registers[f"{reg.regtype}{reg.regid}"] = reg
 
+def is_new_reg(tag, regid):
+    if regid[0] in "NO":
+        return True
+    return regid[0] == "P" and \
+           f"{regid}N" in semdict[tag] and \
+           f"{regid}V" not in semdict[tag]
+
 def get_register(tag, regtype, regid):
-    if f"{regtype}{regid}V" in semdict[tag]:
-        return registers[f"{regtype}{regid}"]
-    else:
-        return new_registers[f"{regtype}{regid}"]
+    regid = f"{regtype}{regid}"
+    is_new = is_new_reg(tag, regid)
+    reg = new_registers[regid] if is_new else registers[regid]
+    return reg
 
 def helper_ret_type(tag, regs):
     ## If there is a scalar result, it is the return type
