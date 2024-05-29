@@ -516,8 +516,7 @@ void helper_flush_page(CPUX86State *env, target_ulong addr)
     tlb_flush_page(env_cpu(env), addr);
 }
 
-static G_NORETURN
-void do_hlt(CPUX86State *env)
+G_NORETURN void helper_hlt(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -525,14 +524,6 @@ void do_hlt(CPUX86State *env)
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
     cpu_loop_exit(cs);
-}
-
-G_NORETURN void helper_hlt(CPUX86State *env, int next_eip_addend)
-{
-    cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0, GETPC());
-    env->eip += next_eip_addend;
-
-    do_hlt(env);
 }
 
 void helper_monitor(CPUX86State *env, target_ulong ptr)
@@ -558,6 +549,6 @@ G_NORETURN void helper_mwait(CPUX86State *env, int next_eip_addend)
     if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
         do_pause(env);
     } else {
-        do_hlt(env);
+        helper_hlt(env);
     }
 }

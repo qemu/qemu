@@ -1638,8 +1638,8 @@ static void gen_HLT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
 #ifdef CONFIG_SYSTEM_ONLY
     gen_update_cc_op(s);
-    gen_update_eip_cur(s);
-    gen_helper_hlt(tcg_env, cur_insn_len_i32(s));
+    gen_update_eip_next(s);
+    gen_helper_hlt(tcg_env);
     s->base.is_jmp = DISAS_NORETURN;
 #endif
 }
