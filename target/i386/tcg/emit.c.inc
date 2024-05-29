@@ -2350,6 +2350,14 @@ static void gen_PANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
                       decode->op[1].offset, vec_len, vec_len);
 }
 
+static void gen_PAUSE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_next(s);
+    gen_helper_pause(tcg_env);
+    s->base.is_jmp = DISAS_NORETURN;
+}
+
 static void gen_PCMPESTRI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
@@ -4014,18 +4022,6 @@ static void gen_WAIT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_XCHG(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    if (decode->b == 0x90 && !REX_B(s)) {
-        if (s->prefix & PREFIX_REPZ) {
-            gen_update_cc_op(s);
-            gen_update_eip_cur(s);
-            gen_helper_pause(tcg_env, cur_insn_len_i32(s));
-            s->base.is_jmp = DISAS_NORETURN;
-        }
-        /* No writeback.  */
-        decode->op[0].unit = X86_OP_SKIP;
-        return;
-    }
-
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_atomic_xchg_tl(s->T0, s->A0, s->T1,
                                s->mem_index, decode->op[0].ot | MO_LE);

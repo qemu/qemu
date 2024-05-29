@@ -88,21 +88,13 @@ G_NORETURN void helper_rdpmc(CPUX86State *env)
     raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
-G_NORETURN void do_pause(CPUX86State *env)
+G_NORETURN void helper_pause(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
     /* Just let another CPU run.  */
     cs->exception_index = EXCP_INTERRUPT;
     cpu_loop_exit(cs);
-}
-
-G_NORETURN void helper_pause(CPUX86State *env, int next_eip_addend)
-{
-    cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0, GETPC());
-    env->eip += next_eip_addend;
-
-    do_pause(env);
 }
 
 uint64_t helper_rdpkru(CPUX86State *env, uint32_t ecx)

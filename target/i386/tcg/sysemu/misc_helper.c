@@ -547,7 +547,7 @@ G_NORETURN void helper_mwait(CPUX86State *env, int next_eip_addend)
 
     /* XXX: not complete but not completely erroneous */
     if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
-        do_pause(env);
+        helper_pause(env);
     } else {
         helper_hlt(env);
     }
