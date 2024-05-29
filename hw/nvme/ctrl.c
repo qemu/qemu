@@ -7868,12 +7868,6 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
             return false;
         }
 
-        if (params->sriov_max_vfs > NVME_MAX_VFS) {
-            error_setg(errp, "sriov_max_vfs must be between 0 and %d",
-                       NVME_MAX_VFS);
-            return false;
-        }
-
         if (params->cmb_size_mb) {
             error_setg(errp, "CMB is not supported with SR-IOV");
             return false;
@@ -8485,7 +8479,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
     DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
                      params.auto_transition_zones, true),
-    DEFINE_PROP_UINT8("sriov_max_vfs", NvmeCtrl, params.sriov_max_vfs, 0),
+    DEFINE_PROP_UINT16("sriov_max_vfs", NvmeCtrl, params.sriov_max_vfs, 0),
     DEFINE_PROP_UINT16("sriov_vq_flexible", NvmeCtrl,
                        params.sriov_vq_flexible, 0),
     DEFINE_PROP_UINT16("sriov_vi_flexible", NvmeCtrl,

@@ -61,6 +61,8 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
     if (pci_is_vf(&n->parent_obj)) {
         cntlid = le16_to_cpu(sctrl->scid);
     } else {
+        n->sec_ctrl_list = g_new0(NvmeSecCtrlEntry, num_vfs);
+
         for (cntlid = 0; cntlid < ARRAY_SIZE(subsys->ctrls); cntlid++) {
             if (!subsys->ctrls[cntlid]) {
                 break;
