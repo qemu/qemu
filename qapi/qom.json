@@ -875,19 +875,11 @@
   'data': { '*filename': 'str' } }
 
 ##
-# @SevGuestProperties:
+# @SevCommonProperties:
 #
-# Properties for sev-guest objects.
+# Properties common to objects that are derivatives of sev-common.
 #
 # @sev-device: SEV device to use (default: "/dev/sev")
-#
-# @dh-cert-file: guest owners DH certificate (encoded with base64)
-#
-# @session-file: guest owners session parameters (encoded with base64)
-#
-# @policy: SEV policy value (default: 0x1)
-#
-# @handle: SEV firmware handle (default: 0)
 #
 # @cbitpos: C-bit location in page table entry (default: 0)
 #
@@ -897,6 +889,27 @@
 # @kernel-hashes: if true, add hashes of kernel/initrd/cmdline to a
 #     designated guest firmware page for measured boot with -kernel
 #     (default: false) (since 6.2)
+#
+# Since: 9.1
+##
+{ 'struct': 'SevCommonProperties',
+  'data': { '*sev-device': 'str',
+            '*cbitpos': 'uint32',
+            'reduced-phys-bits': 'uint32',
+            '*kernel-hashes': 'bool' } }
+
+##
+# @SevGuestProperties:
+#
+# Properties for sev-guest objects.
+#
+# @dh-cert-file: guest owners DH certificate (encoded with base64)
+#
+# @session-file: guest owners session parameters (encoded with base64)
+#
+# @policy: SEV policy value (default: 0x1)
+#
+# @handle: SEV firmware handle (default: 0)
 #
 # @legacy-vm-type: Use legacy KVM_SEV_INIT KVM interface for creating the VM.
 #                  The newer KVM_SEV_INIT2 interface syncs additional vCPU
@@ -909,14 +922,11 @@
 # Since: 2.12
 ##
 { 'struct': 'SevGuestProperties',
-  'data': { '*sev-device': 'str',
-            '*dh-cert-file': 'str',
+  'base': 'SevCommonProperties',
+  'data': { '*dh-cert-file': 'str',
             '*session-file': 'str',
             '*policy': 'uint32',
             '*handle': 'uint32',
-            '*cbitpos': 'uint32',
-            'reduced-phys-bits': 'uint32',
-            '*kernel-hashes': 'bool',
             '*legacy-vm-type': 'bool' } }
 
 ##

@@ -20,6 +20,9 @@
 
 #include "exec/confidential-guest-support.h"
 
+#define TYPE_SEV_COMMON "sev-common"
+#define TYPE_SEV_GUEST "sev-guest"
+
 #define SEV_POLICY_NODBG        0x1
 #define SEV_POLICY_NOKS         0x2
 #define SEV_POLICY_ES           0x4
