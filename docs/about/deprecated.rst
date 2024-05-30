@@ -151,11 +151,6 @@ property types.
 QEMU Machine Protocol (QMP) events
 ----------------------------------
 
-``MEM_UNPLUG_ERROR`` (since 6.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use the more generic event ``DEVICE_UNPLUG_GUEST_ERROR`` instead.
-
 ``vcpu`` trace events (since 8.1)
 '''''''''''''''''''''''''''''''''
 

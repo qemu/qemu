@@ -671,6 +671,15 @@ Use ``multifd-channels`` instead.
 
 Use ``multifd-compression`` instead.
 
+QEMU Machine Protocol (QMP) events
+----------------------------------
+
+``MEM_UNPLUG_ERROR`` (removed in 9.1)
+'''''''''''''''''''''''''''''''''''''
+
+MEM_UNPLUG_ERROR has been replaced by the more generic ``DEVICE_UNPLUG_GUEST_ERROR`` event.
+
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
