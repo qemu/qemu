@@ -66,4 +66,6 @@ int sev_inject_launch_secret(const char *hdr, const char *secret,
 int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size);
 void sev_es_set_reset_vector(CPUState *cpu);
 
+void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
+
 #endif
