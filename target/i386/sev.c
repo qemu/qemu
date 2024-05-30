@@ -73,6 +73,7 @@ struct SevCommonStateClass {
     /* public */
     int (*launch_start)(SevCommonState *sev_common);
     void (*launch_finish)(SevCommonState *sev_common);
+    int (*kvm_init)(ConfidentialGuestSupport *cgs, Error **errp);
 };
 
 /**
@@ -882,7 +883,7 @@ out:
     return sev_common->kvm_type;
 }
 
-static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
+static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     SevCommonState *sev_common = SEV_COMMON(cgs);
     char *devname;
@@ -891,12 +892,6 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
     SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(cgs);
-
-    ret = ram_block_discard_disable(true);
-    if (ret) {
-        error_report("%s: cannot disable RAM discard", __func__);
-        return -1;
-    }
 
     sev_common->state = SEV_STATE_UNINIT;
 
@@ -911,7 +906,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     if (host_cbitpos != sev_common->cbitpos) {
         error_setg(errp, "%s: cbitpos check failed, host '%d' requested '%d'",
                    __func__, host_cbitpos, sev_common->cbitpos);
-        goto err;
+        return -1;
     }
 
     /*
@@ -924,7 +919,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         error_setg(errp, "%s: reduced_phys_bits check failed,"
                    " it should be in the range of 1 to 63, requested '%d'",
                    __func__, sev_common->reduced_phys_bits);
-        goto err;
+        return -1;
     }
 
     devname = object_property_get_str(OBJECT(sev_common), "sev-device", NULL);
@@ -933,7 +928,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         error_setg(errp, "%s: Failed to open %s '%s'", __func__,
                    devname, strerror(errno));
         g_free(devname);
-        goto err;
+        return -1;
     }
     g_free(devname);
 
@@ -943,7 +938,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         error_setg(errp, "%s: failed to get platform status ret=%d "
                    "fw_error='%d: %s'", __func__, ret, fw_error,
                    fw_error_to_str(fw_error));
-        goto err;
+        return -1;
     }
     sev_common->build_id = status.build;
     sev_common->api_major = status.api_major;
@@ -953,7 +948,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         if (!kvm_kernel_irqchip_allowed()) {
             error_setg(errp, "%s: SEV-ES guests require in-kernel irqchip"
                        "support", __func__);
-            goto err;
+            return -1;
         }
     }
 
@@ -962,7 +957,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
             error_setg(errp, "%s: guest policy requires SEV-ES, but "
                          "host SEV-ES support unavailable",
                          __func__);
-            goto err;
+            return -1;
         }
     }
 
@@ -980,25 +975,59 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     if (ret) {
         error_setg(errp, "%s: failed to initialize ret=%d fw_error=%d '%s'",
                    __func__, ret, fw_error, fw_error_to_str(fw_error));
-        goto err;
+        return -1;
     }
 
     ret = klass->launch_start(sev_common);
     if (ret) {
         error_setg(errp, "%s: failed to create encryption context", __func__);
-        goto err;
+        return -1;
     }
 
-    ram_block_notifier_add(&sev_ram_notifier);
-    qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
+    if (klass->kvm_init && klass->kvm_init(cgs, errp)) {
+        return -1;
+    }
+
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
 
     cgs->ready = true;
 
     return 0;
-err:
-    ram_block_discard_disable(false);
-    return -1;
+}
+
+static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+     int ret;
+
+    /*
+     * SEV/SEV-ES rely on pinned memory to back guest RAM so discarding
+     * isn't actually possible. With SNP, only guest_memfd pages are used
+     * for private guest memory, so discarding of shared memory is still
+     * possible..
+     */
+    ret = ram_block_discard_disable(true);
+    if (ret) {
+        error_setg(errp, "%s: cannot disable RAM discard", __func__);
+        return -1;
+    }
+
+    /*
+     * SEV uses these notifiers to register/pin pages prior to guest use,
+     * but SNP relies on guest_memfd for private pages, which has its
+     * own internal mechanisms for registering/pinning private memory.
+     */
+    ram_block_notifier_add(&sev_ram_notifier);
+
+    /*
+     * The machine done notify event is used for SEV guests to get the
+     * measurement of the encrypted images. When SEV-SNP is enabled, the
+     * measurement is part of the guest attestation process where it can
+     * be collected without any reliance on the VMM. So skip registering
+     * the notifier for SNP in favor of using guest attestation instead.
+     */
+    qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
+
+    return 0;
 }
 
 int
@@ -1397,7 +1426,7 @@ sev_common_class_init(ObjectClass *oc, void *data)
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
 
-    klass->kvm_init = sev_kvm_init;
+    klass->kvm_init = sev_common_kvm_init;
     x86_klass->kvm_type = sev_kvm_type;
 
     object_class_property_add_str(oc, "sev-device",
@@ -1486,6 +1515,7 @@ sev_guest_class_init(ObjectClass *oc, void *data)
 
     klass->launch_start = sev_launch_start;
     klass->launch_finish = sev_launch_finish;
+    klass->kvm_init = sev_kvm_init;
 
     object_class_property_add_str(oc, "dh-cert-file",
                                   sev_guest_get_dh_cert_file,
