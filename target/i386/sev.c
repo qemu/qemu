@@ -756,6 +756,76 @@ out:
     return ret;
 }
 
+static const char *
+snp_page_type_to_str(int type)
+{
+    switch (type) {
+    case KVM_SEV_SNP_PAGE_TYPE_NORMAL: return "Normal";
+    case KVM_SEV_SNP_PAGE_TYPE_ZERO: return "Zero";
+    case KVM_SEV_SNP_PAGE_TYPE_UNMEASURED: return "Unmeasured";
+    case KVM_SEV_SNP_PAGE_TYPE_SECRETS: return "Secrets";
+    case KVM_SEV_SNP_PAGE_TYPE_CPUID: return "Cpuid";
+    default: return "unknown";
+    }
+}
+
+static int
+sev_snp_launch_update(SevSnpGuestState *sev_snp_guest,
+                      SevLaunchUpdateData *data)
+{
+    int ret, fw_error;
+    struct kvm_sev_snp_launch_update update = {0};
+
+    if (!data->hva || !data->len) {
+        error_report("SNP_LAUNCH_UPDATE called with invalid address"
+                     "/ length: %p / %lx",
+                     data->hva, data->len);
+        return 1;
+    }
+
+    update.uaddr = (__u64)(unsigned long)data->hva;
+    update.gfn_start = data->gpa >> TARGET_PAGE_BITS;
+    update.len = data->len;
+    update.type = data->type;
+
+    /*
+     * KVM_SEV_SNP_LAUNCH_UPDATE requires that GPA ranges have the private
+     * memory attribute set in advance.
+     */
+    ret = kvm_set_memory_attributes_private(data->gpa, data->len);
+    if (ret) {
+        error_report("SEV-SNP: failed to configure initial"
+                     "private guest memory");
+        goto out;
+    }
+
+    while (update.len || ret == -EAGAIN) {
+        trace_kvm_sev_snp_launch_update(update.uaddr, update.gfn_start <<
+                                        TARGET_PAGE_BITS, update.len,
+                                        snp_page_type_to_str(update.type));
+
+        ret = sev_ioctl(SEV_COMMON(sev_snp_guest)->sev_fd,
+                        KVM_SEV_SNP_LAUNCH_UPDATE,
+                        &update, &fw_error);
+        if (ret && ret != -EAGAIN) {
+            error_report("SNP_LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
+                         ret, fw_error, fw_error_to_str(fw_error));
+            break;
+        }
+    }
+
+out:
+    if (!ret && update.gfn_start << TARGET_PAGE_BITS != data->gpa + data->len) {
+        error_report("SEV-SNP: expected update of GPA range %lx-%lx,"
+                     "got GPA range %lx-%llx",
+                     data->gpa, data->gpa + data->len, data->gpa,
+                     update.gfn_start << TARGET_PAGE_BITS);
+        ret = -EIO;
+    }
+
+    return ret;
+}
+
 static int
 sev_launch_update_data(SevGuestState *sev_guest, uint8_t *addr, uint64_t len)
 {
@@ -900,6 +970,46 @@ sev_launch_finish(SevCommonState *sev_common)
                "SEV: Migration is not implemented");
     migrate_add_blocker(&sev_mig_blocker, &error_fatal);
 }
+
+static void
+sev_snp_launch_finish(SevCommonState *sev_common)
+{
+    int ret, error;
+    Error *local_err = NULL;
+    SevLaunchUpdateData *data;
+    SevSnpGuestState *sev_snp = SEV_SNP_GUEST(sev_common);
+    struct kvm_sev_snp_launch_finish *finish = &sev_snp->kvm_finish_conf;
+
+    QTAILQ_FOREACH(data, &launch_update, next) {
+        ret = sev_snp_launch_update(sev_snp, data);
+        if (ret) {
+            exit(1);
+        }
+    }
+
+    trace_kvm_sev_snp_launch_finish(sev_snp->id_block, sev_snp->id_auth,
+                                    sev_snp->host_data);
+    ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_SNP_LAUNCH_FINISH,
+                    finish, &error);
+    if (ret) {
+        error_report("SNP_LAUNCH_FINISH ret=%d fw_error=%d '%s'",
+                     ret, error, fw_error_to_str(error));
+        exit(1);
+    }
+
+    sev_set_guest_state(sev_common, SEV_STATE_RUNNING);
+
+    /* add migration blocker */
+    error_setg(&sev_mig_blocker,
+               "SEV-SNP: Migration is not implemented");
+    ret = migrate_add_blocker(&sev_mig_blocker, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        error_free(sev_mig_blocker);
+        exit(1);
+    }
+}
+
 
 static void
 sev_vm_state_change(void *opaque, bool running, RunState state)
@@ -1832,9 +1942,9 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
 
     klass->launch_start = sev_snp_launch_start;
+    klass->launch_finish = sev_snp_launch_finish;
     klass->kvm_init = sev_snp_kvm_init;
     x86_klass->kvm_type = sev_snp_kvm_type;
-
 
     object_class_property_add(oc, "policy", "uint64",
                               sev_snp_guest_get_policy,
