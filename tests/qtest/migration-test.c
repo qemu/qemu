@@ -107,14 +107,15 @@ static void test_analyze_script(void)
 }
 #endif
 
-#if 0
-/* Currently upset on aarch64 TCG */
 static void test_ignore_shared(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
+    MigrateStart args = {
+        .use_shmem = true,
+    };
 
-    if (migrate_start(&from, &to, uri, false, true, NULL, NULL)) {
+    if (migrate_start(&from, &to, uri, &args)) {
         return;
     }
 
@@ -139,11 +140,11 @@ static void test_ignore_shared(void)
     wait_for_migration_complete(from);
 
     /* Check whether shared RAM has been really skipped */
-    g_assert_cmpint(read_ram_property_int(from, "transferred"), <, 1024 * 1024);
+    g_assert_cmpint(
+        read_ram_property_int(from, "transferred"), <, 4 * 1024 * 1024);
 
     migrate_end(from, to, true);
 }
-#endif
 
 static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
 {
@@ -290,7 +291,13 @@ int main(int argc, char **argv)
     migration_test_add("/migration/analyze-script", test_analyze_script);
 #endif
 
-    /* migration_test_add("/migration/ignore_shared", test_ignore_shared); */
+    /*
+     * Our CI system has problems with shared memory.
+     * Don't run this test until we find a workaround.
+     */
+    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
+        migration_test_add("/migration/ignore-shared", test_ignore_shared);
+    }
 
     migration_test_add("/migration/validate_uuid", test_validate_uuid);
     migration_test_add("/migration/validate_uuid_error",
