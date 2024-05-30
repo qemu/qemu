@@ -404,10 +404,14 @@ struct qemu_work_item;
  * @tcg_cflags: Pre-computed cflags for this cpu.
  * @nr_cores: Number of cores within this CPU package.
  * @nr_threads: Number of threads within this CPU core.
+ * @thread: Host thread details, only live once @created is #true
+ * @sem: WIN32 only semaphore used only for qtest
+ * @thread_id: native thread id of vCPU, only live once @created is #true
  * @running: #true if CPU is currently running (lockless).
  * @has_waiter: #true if a CPU is currently waiting for the cpu_exec_end;
  * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
+ * @halt_cond: condition variable sleeping threads can wait on.
  * @interrupt_request: Indicates a pending interrupt request.
  * @halted: Nonzero if the CPU is in suspended state.
  * @stop: Indicates a pending stop request.

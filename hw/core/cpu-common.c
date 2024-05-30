@@ -261,6 +261,11 @@ static void cpu_common_initfn(Object *obj)
     cpu->nr_threads = 1;
     cpu->cflags_next_tb = -1;
 
+    /* allocate storage for thread info, initialise condition variables */
+    cpu->thread = g_new0(QemuThread, 1);
+    cpu->halt_cond = g_new0(QemuCond, 1);
+    qemu_cond_init(cpu->halt_cond);
+
     qemu_mutex_init(&cpu->work_mutex);
     qemu_lockcnt_init(&cpu->in_ioctl_lock);
     QSIMPLEQ_INIT(&cpu->work_list);
