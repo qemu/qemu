@@ -1001,8 +1001,13 @@ void x86_bios_rom_init(X86MachineState *x86ms, const char *default_firmware,
         (bios_size % 65536) != 0) {
         goto bios_error;
     }
-    memory_region_init_ram(&x86ms->bios, NULL, "pc.bios", bios_size,
-                           &error_fatal);
+    if (machine_require_guest_memfd(MACHINE(x86ms))) {
+        memory_region_init_ram_guest_memfd(&x86ms->bios, NULL, "pc.bios",
+                                           bios_size, &error_fatal);
+    } else {
+        memory_region_init_ram(&x86ms->bios, NULL, "pc.bios",
+                               bios_size, &error_fatal);
+    }
     if (sev_enabled()) {
         /*
          * The concept of a "reset" simply doesn't exist for
@@ -1023,9 +1028,11 @@ void x86_bios_rom_init(X86MachineState *x86ms, const char *default_firmware,
     }
     g_free(filename);
 
-    /* map the last 128KB of the BIOS in ISA space */
-    x86_isa_bios_init(&x86ms->isa_bios, rom_memory, &x86ms->bios,
-                      !isapc_ram_fw);
+    if (!machine_require_guest_memfd(MACHINE(x86ms))) {
+        /* map the last 128KB of the BIOS in ISA space */
+        x86_isa_bios_init(&x86ms->isa_bios, rom_memory, &x86ms->bios,
+                          !isapc_ram_fw);
+    }
 
     /* map all the bios at the top of memory */
     memory_region_add_subregion(rom_memory,
