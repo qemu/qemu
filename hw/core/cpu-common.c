@@ -222,14 +222,6 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
         cpu_resume(cpu);
     }
 
-    /* Plugin initialization must wait until the cpu start executing code */
-#ifdef CONFIG_PLUGIN
-    if (tcg_enabled()) {
-        cpu->plugin_state = qemu_plugin_create_vcpu_state();
-        async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
-    }
-#endif
-
     /* NOTE: latest generic point where the cpu is fully realized */
 }
 
@@ -273,6 +265,18 @@ static void cpu_common_initfn(Object *obj)
     QTAILQ_INIT(&cpu->watchpoints);
 
     cpu_exec_initfn(cpu);
+
+    /*
+     * Plugin initialization must wait until the cpu start executing
+     * code, but we must queue this work before the threads are
+     * created to ensure we don't race.
+     */
+#ifdef CONFIG_PLUGIN
+    if (tcg_enabled()) {
+        cpu->plugin_state = qemu_plugin_create_vcpu_state();
+        async_run_on_cpu(cpu, qemu_plugin_vcpu_init__async, RUN_ON_CPU_NULL);
+    }
+#endif
 }
 
 static void cpu_common_finalize(Object *obj)
