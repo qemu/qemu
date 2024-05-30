@@ -148,6 +148,8 @@ static void pc_system_flash_map(PCMachineState *pcms,
     assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
 
     for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
+        hwaddr gpa;
+
         system_flash = pcms->flash[i];
         blk = pflash_cfi01_get_blk(system_flash);
         if (!blk) {
@@ -177,11 +179,11 @@ static void pc_system_flash_map(PCMachineState *pcms,
         }
 
         total_size += size;
+        gpa = 0x100000000ULL - total_size; /* where the flash is mapped */
         qdev_prop_set_uint32(DEVICE(system_flash), "num-blocks",
                              size / FLASH_SECTOR_SIZE);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(system_flash), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0,
-                        0x100000000ULL - total_size);
+        sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0, gpa);
 
         if (i == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
@@ -196,7 +198,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
             if (sev_enabled()) {
                 flash_ptr = memory_region_get_ram_ptr(flash_mem);
                 flash_size = memory_region_size(flash_mem);
-                x86_firmware_configure(flash_ptr, flash_size);
+                x86_firmware_configure(gpa, flash_ptr, flash_size);
             }
         }
     }
@@ -249,7 +251,7 @@ void pc_system_firmware_init(PCMachineState *pcms,
     pc_system_flash_cleanup_unused(pcms);
 }
 
-void x86_firmware_configure(void *ptr, int size)
+void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
 {
     int ret;
 
@@ -270,6 +272,6 @@ void x86_firmware_configure(void *ptr, int size)
             exit(1);
         }
 
-        sev_encrypt_flash(ptr, size, &error_fatal);
+        sev_encrypt_flash(gpa, ptr, size, &error_fatal);
     }
 }

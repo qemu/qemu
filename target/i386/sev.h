@@ -59,7 +59,7 @@ uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
 bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp);
 
-int sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp);
+int sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp);
 int sev_inject_launch_secret(const char *hdr, const char *secret,
                              uint64_t gpa, Error **errp);
 

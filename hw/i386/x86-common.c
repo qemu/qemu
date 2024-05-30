@@ -1013,7 +1013,7 @@ void x86_bios_rom_init(X86MachineState *x86ms, const char *default_firmware,
          */
         void *ptr = memory_region_get_ram_ptr(&x86ms->bios);
         load_image_size(filename, ptr, bios_size);
-        x86_firmware_configure(ptr, bios_size);
+        x86_firmware_configure(0x100000000ULL - bios_size, ptr, bios_size);
     } else {
         memory_region_set_readonly(&x86ms->bios, !isapc_ram_fw);
         ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
