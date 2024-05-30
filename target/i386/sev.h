@@ -31,6 +31,9 @@
 #define SEV_POLICY_DOMAIN       0x10
 #define SEV_POLICY_SEV          0x20
 
+#define SEV_SNP_POLICY_SMT      0x10000
+#define SEV_SNP_POLICY_DBG      0x80000
+
 typedef struct SevKernelLoaderContext {
     char *setup_data;
     size_t setup_size;
