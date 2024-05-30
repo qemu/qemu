@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 
 #include <linux/kvm.h>
+#include <linux/kvm_para.h>
 #include <linux/psp-sev.h>
 
 #include <sys/ioctl.h>
@@ -757,6 +758,10 @@ sev_snp_launch_start(SevCommonState *sev_common)
 
     trace_kvm_sev_snp_launch_start(start->policy,
                                    sev_snp_guest->guest_visible_workarounds);
+
+    if (!kvm_enable_hypercall(BIT_ULL(KVM_HC_MAP_GPA_RANGE))) {
+            return 1;
+    }
 
     rc = sev_ioctl(sev_common->sev_fd, KVM_SEV_SNP_LAUNCH_START,
                    start, &fw_error);
