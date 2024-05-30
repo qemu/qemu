@@ -25,8 +25,8 @@ support for notifying a guest's operating system when certain types of VMEXITs
 are about to occur. This allows the guest to selectively share information with
 the hypervisor to satisfy the requested function.
 
-Launching
----------
+Launching (SEV and SEV-ES)
+--------------------------
 
 Boot images (such as bios) must be encrypted before a guest can be booted. The
 ``MEMORY_ENCRYPT_OP`` ioctl provides commands to encrypt the images: ``LAUNCH_START``,
@@ -160,6 +160,72 @@ The value of GCTX.LD is
 
 If kernel hashes are not used, or SEV-ES is disabled, use empty blobs for
 ``kernel_hashes_blob`` and ``vmsas_blob`` as needed.
+
+Launching (SEV-SNP)
+-------------------
+Boot images (such as bios) must be encrypted before a guest can be booted. The
+``MEMORY_ENCRYPT_OP`` ioctl provides commands to encrypt the images:
+``SNP_LAUNCH_START``, ``SNP_LAUNCH_UPDATE``, and ``SNP_LAUNCH_FINISH``. These
+three commands communicate with SEV-SNP firmware to generate a fresh memory
+encryption key for the VM, encrypt the boot images for a successful launch. For
+more details on the SEV-SNP firmware interfaces used by these commands please
+see the SEV-SNP Firmware ABI.
+
+``SNP_LAUNCH_START`` is called first to create a cryptographic launch context
+within the firmware. To create this context, the guest owner must provide a
+guest policy and other parameters as described in the SEV-SNP firmware
+specification. The launch parameters should be specified as described in the
+QAPI schema for the sev-snp-guest object.
+
+The ``SNP_LAUNCH_START`` uses the following parameters, which can be configured
+by the corresponding parameters documented in the QAPI schema for the
+'sev-snp-guest' object.
+
++--------+-------+----------+-------------------------------------------------+
+| key                       | type  | default  | meaning                      |
++---------------------------+-------------------------------------------------+
+| policy                    | hex   | 0x30000  | a 64-bit guest policy        |
++---------------------------+-------------------------------------------------+
+| guest-visible-workarounds | string| 0        | 16-byte base64 encoded string|
+|                           |       |          | for guest OS visible         |
+|                           |       |          | workarounds.                 |
++---------------------------+-------------------------------------------------+
+
+``SNP_LAUNCH_UPDATE`` encrypts the memory region using the cryptographic context
+created via the ``SNP_LAUNCH_START`` command. If required, this command can be
+called multiple times to encrypt different memory regions. The command also
+calculates the measurement of the memory contents as it encrypts.
+
+``SNP_LAUNCH_FINISH`` finalizes the guest launch flow. Optionally, while
+finalizing the launch the firmware can perform checks on the launch digest
+computing through the ``SNP_LAUNCH_UPDATE``. To perform the check the user must
+supply the id block, authentication blob and host data that should be included
+in the attestation report. See the SEV-SNP spec for further details.
+
+The ``SNP_LAUNCH_FINISH`` uses the following parameters, which can be configured
+by the corresponding parameters documented in the QAPI schema for the
+'sev-snp-guest' object.
+
++--------------------+-------+----------+-------------------------------------+
+| key                | type  | default  | meaning                             |
++--------------------+-------+----------+-------------------------------------+
+| id-block           | string| none     | base64 encoded ID block             |
++--------------------+-------+----------+-------------------------------------+
+| id-auth            | string| none     | base64 encoded authentication       |
+|                    |       |          | information                         |
++--------------------+-------+----------+-------------------------------------+
+| author-key-enabled | bool  | 0        | auth block contains author key      |
++--------------------+-------+----------+-------------------------------------+
+| host_data          | string| none     | host provided data                  |
++--------------------+-------+----------+-------------------------------------+
+
+To launch a SEV-SNP guest (additional parameters are documented in the QAPI
+schema for the 'sev-snp-guest' object)::
+
+  # ${QEMU} \
+    -machine ...,confidential-guest-support=sev0 \
+    -object sev-snp-guest,id=sev0,cbitpos=51,reduced-phys-bits=1
+
 
 Debugging
 ---------

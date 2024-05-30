@@ -22,6 +22,7 @@
 
 #define TYPE_SEV_COMMON "sev-common"
 #define TYPE_SEV_GUEST "sev-guest"
+#define TYPE_SEV_SNP_GUEST "sev-snp-guest"
 
 #define SEV_POLICY_NODBG        0x1
 #define SEV_POLICY_NOKS         0x2
