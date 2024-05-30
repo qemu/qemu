@@ -115,6 +115,10 @@ struct SevCommonStateClass {
     X86ConfidentialGuestClass parent_class;
 
     /* public */
+    bool (*build_kernel_loader_hashes)(SevCommonState *sev_common,
+                                       SevHashTableDescriptor *area,
+                                       SevKernelLoaderContext *ctx,
+                                       Error **errp);
     int (*launch_start)(SevCommonState *sev_common);
     void (*launch_finish)(SevCommonState *sev_common);
     int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, uint64_t len);
@@ -154,6 +158,9 @@ struct SevSnpGuestState {
 
     struct kvm_sev_snp_launch_start kvm_start_conf;
     struct kvm_sev_snp_launch_finish kvm_finish_conf;
+
+    uint32_t kernel_hashes_offset;
+    PaddedSevHashTable *kernel_hashes_data;
 };
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
@@ -1190,6 +1197,23 @@ snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, uint32_t cpuid_len)
 }
 
 static int
+snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp, uint32_t addr,
+                                void *hva, uint32_t len)
+{
+    int type = KVM_SEV_SNP_PAGE_TYPE_ZERO;
+    if (sev_snp->parent_obj.kernel_hashes) {
+        assert(sev_snp->kernel_hashes_data);
+        assert((sev_snp->kernel_hashes_offset +
+                sizeof(*sev_snp->kernel_hashes_data)) <= len);
+        memset(hva, 0, len);
+        memcpy(hva + sev_snp->kernel_hashes_offset, sev_snp->kernel_hashes_data,
+               sizeof(*sev_snp->kernel_hashes_data));
+        type = KVM_SEV_SNP_PAGE_TYPE_NORMAL;
+    }
+    return snp_launch_update_data(addr, hva, len, type);
+}
+
+static int
 snp_metadata_desc_to_page_type(int desc_type)
 {
     switch (desc_type) {
@@ -1225,6 +1249,9 @@ snp_populate_metadata_pages(SevSnpGuestState *sev_snp,
 
         if (type == KVM_SEV_SNP_PAGE_TYPE_CPUID) {
             ret = snp_launch_update_cpuid(desc->base, hva, desc->len);
+        } else if (desc->type == SEV_DESC_TYPE_SNP_KERNEL_HASHES) {
+            ret = snp_launch_update_kernel_hashes(sev_snp, desc->base, hva,
+                                                  desc->len);
         } else {
             ret = snp_launch_update_data(desc->base, hva, desc->len, type);
         }
@@ -1823,40 +1850,31 @@ static bool build_kernel_loader_hashes(PaddedSevHashTable *padded_ht,
     return true;
 }
 
-/*
- * Add the hashes of the linux kernel/initrd/cmdline to an encrypted guest page
- * which is included in SEV's initial memory measurement.
- */
-bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
+static bool sev_snp_build_kernel_loader_hashes(SevCommonState *sev_common,
+                                               SevHashTableDescriptor *area,
+                                               SevKernelLoaderContext *ctx,
+                                               Error **errp)
 {
-    uint8_t *data;
-    SevHashTableDescriptor *area;
+    /*
+     * SNP: Populate the hashes table in an area that later in
+     * snp_launch_update_kernel_hashes() will be copied to the guest memory
+     * and encrypted.
+     */
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(sev_common);
+    sev_snp_guest->kernel_hashes_offset = area->base & ~TARGET_PAGE_MASK;
+    sev_snp_guest->kernel_hashes_data = g_new0(PaddedSevHashTable, 1);
+    return build_kernel_loader_hashes(sev_snp_guest->kernel_hashes_data, ctx, errp);
+}
+
+static bool sev_build_kernel_loader_hashes(SevCommonState *sev_common,
+                                           SevHashTableDescriptor *area,
+                                           SevKernelLoaderContext *ctx,
+                                           Error **errp)
+{
     PaddedSevHashTable *padded_ht;
     hwaddr mapped_len = sizeof(*padded_ht);
     MemTxAttrs attrs = { 0 };
     bool ret = true;
-    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
-
-    /*
-     * Only add the kernel hashes if the sev-guest configuration explicitly
-     * stated kernel-hashes=on.
-     */
-    if (!sev_common->kernel_hashes) {
-        return false;
-    }
-
-    if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
-        error_setg(errp, "SEV: kernel specified but guest firmware "
-                         "has no hashes table GUID");
-        return false;
-    }
-
-    area = (SevHashTableDescriptor *)data;
-    if (!area->base || area->size < sizeof(PaddedSevHashTable)) {
-        error_setg(errp, "SEV: guest firmware hashes table area is invalid "
-                         "(base=0x%x size=0x%x)", area->base, area->size);
-        return false;
-    }
 
     /*
      * Populate the hashes table in the guest's memory at the OVMF-designated
@@ -1882,6 +1900,41 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
                         mapped_len, true, mapped_len);
 
     return ret;
+}
+
+/*
+ * Add the hashes of the linux kernel/initrd/cmdline to an encrypted guest page
+ * which is included in SEV's initial memory measurement.
+ */
+bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
+{
+    uint8_t *data;
+    SevHashTableDescriptor *area;
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(sev_common);
+
+    /*
+     * Only add the kernel hashes if the sev-guest configuration explicitly
+     * stated kernel-hashes=on.
+     */
+    if (!sev_common->kernel_hashes) {
+        return false;
+    }
+
+    if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
+        error_setg(errp, "SEV: kernel specified but guest firmware "
+                         "has no hashes table GUID");
+        return false;
+    }
+
+    area = (SevHashTableDescriptor *)data;
+    if (!area->base || area->size < sizeof(PaddedSevHashTable)) {
+        error_setg(errp, "SEV: guest firmware hashes table area is invalid "
+                         "(base=0x%x size=0x%x)", area->base, area->size);
+        return false;
+    }
+
+    return klass->build_kernel_loader_hashes(sev_common, area, ctx, errp);
 }
 
 static char *
@@ -1998,6 +2051,7 @@ sev_guest_class_init(ObjectClass *oc, void *data)
     SevCommonStateClass *klass = SEV_COMMON_CLASS(oc);
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
 
+    klass->build_kernel_loader_hashes = sev_build_kernel_loader_hashes;
     klass->launch_start = sev_launch_start;
     klass->launch_finish = sev_launch_finish;
     klass->launch_update_data = sev_launch_update_data;
@@ -2242,6 +2296,7 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
     SevCommonStateClass *klass = SEV_COMMON_CLASS(oc);
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
 
+    klass->build_kernel_loader_hashes = sev_snp_build_kernel_loader_hashes;
     klass->launch_start = sev_snp_launch_start;
     klass->launch_finish = sev_snp_launch_finish;
     klass->launch_update_data = sev_snp_launch_update_data;
