@@ -679,6 +679,12 @@ QEMU Machine Protocol (QMP) events
 
 MEM_UNPLUG_ERROR has been replaced by the more generic ``DEVICE_UNPLUG_GUEST_ERROR`` event.
 
+``vcpu`` trace events (removed in 9.1)
+''''''''''''''''''''''''''''''''''''''
+
+The ability to instrument QEMU helper functions with vCPU-aware trace
+points was removed in 7.0.
+
 
 Human Monitor Protocol (HMP) commands
 -------------------------------------

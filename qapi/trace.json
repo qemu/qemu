@@ -35,17 +35,10 @@
 #
 # @state: Tracing state.
 #
-# @vcpu: Whether this is a per-vCPU event (since 2.7).
-#
-# Features:
-#
-# @deprecated: Member @vcpu is deprecated, and always ignored.
-#
 # Since: 2.2
 ##
 { 'struct': 'TraceEventInfo',
-  'data': {'name': 'str', 'state': 'TraceEventState',
-           'vcpu': { 'type': 'bool', 'features': ['deprecated'] } } }
+  'data': {'name': 'str', 'state': 'TraceEventState' } }
 
 ##
 # @trace-event-get-state:
@@ -53,12 +46,6 @@
 # Query the state of events.
 #
 # @name: Event name pattern (case-sensitive glob).
-#
-# @vcpu: The vCPU to query (since 2.7).
-#
-# Features:
-#
-# @deprecated: Member @vcpu is deprecated, and always ignored.
 #
 # Returns: a list of @TraceEventInfo for the matching events
 #
@@ -71,8 +58,7 @@
 #     <- { "return": [ { "name": "qemu_memalign", "state": "disabled", "vcpu": false } ] }
 ##
 { 'command': 'trace-event-get-state',
-  'data': {'name': 'str',
-           '*vcpu': {'type': 'int', 'features': ['deprecated'] } },
+  'data': {'name': 'str' },
   'returns': ['TraceEventInfo'] }
 
 ##
@@ -86,12 +72,6 @@
 #
 # @ignore-unavailable: Do not match unavailable events with @name.
 #
-# @vcpu: The vCPU to act upon (all by default; since 2.7).
-#
-# Features:
-#
-# @deprecated: Member @vcpu is deprecated, and always ignored.
-#
 # Since: 2.2
 #
 # Example:
@@ -101,5 +81,4 @@
 #     <- { "return": {} }
 ##
 { 'command': 'trace-event-set-state',
-  'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool',
-           '*vcpu': {'type': 'int', 'features': ['deprecated'] } } }
+  'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool' } }
