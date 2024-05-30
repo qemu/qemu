@@ -3454,19 +3454,9 @@ int main(int argc, char **argv)
 #endif
 
     /*
-     * On ppc64, the test only works with kvm-hv, but not with kvm-pr and TCG
-     * is touchy due to race conditions on dirty bits (especially on PPC for
-     * some reason)
-     */
-    if (g_str_equal(arch, "ppc64") &&
-        (!has_kvm || access("/sys/module/kvm_hv", F_OK))) {
-        g_test_message("Skipping tests: kvm_hv not available");
-        goto test_add_done;
-    }
-
-    /*
-     * Similar to ppc64, s390x seems to be touchy with TCG, so disable it
-     * there until the problems are resolved
+     * On s390x with TCG, migration is observed to hang due to the 'pending'
+     * state of the flic interrupt controller not being migrated or
+     * reconstructed post-migration. Disable it until the problem is resolved.
      */
     if (g_str_equal(arch, "s390x") && !has_kvm) {
         g_test_message("Skipping tests: s390x host with KVM is required");
