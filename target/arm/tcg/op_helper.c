@@ -409,6 +409,60 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
 #endif
 }
 
+void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
+{
+#ifdef CONFIG_USER_ONLY
+    /*
+     * WFI in the user-mode emulator is technically permitted but not
+     * something any real-world code would do. AArch64 Linux kernels
+     * trap it via SCTRL_EL1.nTWI and make it an (expensive) NOP;
+     * AArch32 kernels don't trap it so it will delay a bit.
+     * For QEMU, make it NOP here, because trying to raise EXCP_HLT
+     * would trigger an abort.
+     */
+    return;
+#else
+    ARMCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
+    int target_el = check_wfx_trap(env, false);
+    /* The WFIT should time out when CNTVCT_EL0 >= the specified value. */
+    uint64_t cntval = gt_get_countervalue(env);
+    uint64_t offset = gt_virt_cnt_offset(env);
+    uint64_t cntvct = cntval - offset;
+    uint64_t nexttick;
+
+    if (cpu_has_work(cs) || cntvct >= timeout) {
+        /*
+         * Don't bother to go into our "low power state" if
+         * we would just wake up immediately.
+         */
+        return;
+    }
+
+    if (target_el) {
+        env->pc -= 4;
+        raise_exception(env, EXCP_UDEF, syn_wfx(1, 0xe, 0, false),
+                        target_el);
+    }
+
+    if (uadd64_overflow(timeout, offset, &nexttick)) {
+        nexttick = UINT64_MAX;
+    }
+    if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
+        /*
+         * If the timeout is too long for the signed 64-bit range
+         * of a QEMUTimer, let it expire early.
+         */
+        timer_mod_ns(cpu->wfxt_timer, INT64_MAX);
+    } else {
+        timer_mod(cpu->wfxt_timer, nexttick);
+    }
+    cs->exception_index = EXCP_HLT;
+    cs->halted = 1;
+    cpu_loop_exit(cs);
+#endif
+}
+
 void HELPER(wfe)(CPUARMState *env)
 {
     /* This is a hint instruction that is semantically different

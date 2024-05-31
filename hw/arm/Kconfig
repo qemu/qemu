@@ -370,6 +370,7 @@ config ZYNQ
     select A9MPCORE
     select CADENCE # UART
     select PFLASH_CFI02
+    select PL310 # cache controller
     select PL330
     select SDHCI
     select SSI_M25P80

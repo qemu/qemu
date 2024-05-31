@@ -37,18 +37,18 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         Used components:
 
-        - Trusted Firmware 2.10.2
-        - Tianocore EDK2 stable202402
-        - Tianocore EDK2-platforms commit 085c2fb
+        - Trusted Firmware 2.11.0
+        - Tianocore EDK2 stable202405
+        - Tianocore EDK2-platforms commit 4bbd0ed
 
         """
 
         # Secure BootRom (TF-A code)
         fs0_xz_url = (
             "https://artifacts.codelinaro.org/artifactory/linaro-419-sbsa-ref/"
-            "20240313-116475/edk2/SBSA_FLASH0.fd.xz"
+            "20240528-140808/edk2/SBSA_FLASH0.fd.xz"
         )
-        fs0_xz_hash = "637593749cc307dea7dc13265c32e5d020267552f22b18a31850b8429fc5e159"
+        fs0_xz_hash = "fa6004900b67172914c908b78557fec4d36a5f784f4c3dd08f49adb75e1892a9"
         tar_xz_path = self.fetch_asset(fs0_xz_url, asset_hash=fs0_xz_hash,
                                       algorithm='sha256')
         archive.extract(tar_xz_path, self.workdir)
@@ -57,9 +57,9 @@ class Aarch64SbsarefMachine(QemuSystemTest):
         # Non-secure rom (UEFI and EFI variables)
         fs1_xz_url = (
             "https://artifacts.codelinaro.org/artifactory/linaro-419-sbsa-ref/"
-            "20240313-116475/edk2/SBSA_FLASH1.fd.xz"
+            "20240528-140808/edk2/SBSA_FLASH1.fd.xz"
         )
-        fs1_xz_hash = "cb0a5e8cf5e303c5d3dc106cfd5943ffe9714b86afddee7164c69ee1dd41991c"
+        fs1_xz_hash = "5f3747d4000bc416d9641e33ff4ac60c3cc8cb74ca51b6e932e58531c62eb6f7"
         tar_xz_path = self.fetch_asset(fs1_xz_url, asset_hash=fs1_xz_hash,
                                       algorithm='sha256')
         archive.extract(tar_xz_path, self.workdir)
@@ -98,15 +98,15 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         # AP Trusted ROM
         wait_for_console_pattern(self, "Booting Trusted Firmware")
-        wait_for_console_pattern(self, "BL1: v2.10.2(release):")
+        wait_for_console_pattern(self, "BL1: v2.11.0(release):")
         wait_for_console_pattern(self, "BL1: Booting BL2")
 
         # Trusted Boot Firmware
-        wait_for_console_pattern(self, "BL2: v2.10.2(release)")
+        wait_for_console_pattern(self, "BL2: v2.11.0(release)")
         wait_for_console_pattern(self, "Booting BL31")
 
         # EL3 Runtime Software
-        wait_for_console_pattern(self, "BL31: v2.10.2(release)")
+        wait_for_console_pattern(self, "BL31: v2.11.0(release)")
 
         # Non-trusted Firmware
         wait_for_console_pattern(self, "UEFI firmware (version 1.0")

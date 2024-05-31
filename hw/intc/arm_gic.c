@@ -1308,12 +1308,15 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
+                int mask = (irq < GIC_INTERNAL) ? (1 << cpu)
+                                                : GIC_DIST_TARGET(irq + i);
+
                 if (s->security_extn && !attrs.secure &&
                     !GIC_DIST_TEST_GROUP(irq + i, 1 << cpu)) {
                     continue; /* Ignore Non-secure access of Group0 IRQ */
                 }
 
-                GIC_DIST_SET_PENDING(irq + i, GIC_DIST_TARGET(irq + i));
+                GIC_DIST_SET_PENDING(irq + i, mask);
             }
         }
     } else if (offset < 0x300) {
@@ -1407,6 +1410,13 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 value = ALL_CPU_MASK;
             }
             s->irq_target[irq] = value & ALL_CPU_MASK;
+            if (irq >= GIC_INTERNAL && s->irq_state[irq].pending) {
+                /*
+                 * Changing the target of an interrupt that is currently
+                 * pending updates the set of CPUs it is pending on.
+                 */
+                s->irq_state[irq].pending = value & ALL_CPU_MASK;
+            }
         }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
