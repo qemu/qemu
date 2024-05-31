@@ -375,7 +375,6 @@ struct MachineState {
     char *dt_compatible;
     bool dump_guest_core;
     bool mem_merge;
-    bool require_guest_memfd;
     bool usb;
     bool usb_disabled;
     char *firmware;
