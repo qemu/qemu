@@ -515,6 +515,9 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
     uint32_t imsic_max_hart_per_socket, imsic_addr, imsic_size;
     g_autofree uint32_t *imsic_cells = NULL;
     g_autofree uint32_t *imsic_regs = NULL;
+    static const char * const imsic_compat[2] = {
+        "qemu,imsics", "riscv,imsics"
+    };
 
     imsic_cells = g_new0(uint32_t, ms->smp.cpus * 2);
     imsic_regs = g_new0(uint32_t, socket_count * 4);
@@ -541,7 +544,10 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
     imsic_name = g_strdup_printf("/soc/interrupt-controller@%lx",
                                  (unsigned long)base_addr);
     qemu_fdt_add_subnode(ms->fdt, imsic_name);
-    qemu_fdt_setprop_string(ms->fdt, imsic_name, "compatible", "riscv,imsics");
+    qemu_fdt_setprop_string_array(ms->fdt, imsic_name, "compatible",
+                                  (char **)&imsic_compat,
+                                  ARRAY_SIZE(imsic_compat));
+
     qemu_fdt_setprop_cell(ms->fdt, imsic_name, "#interrupt-cells",
                           FDT_IMSIC_INT_CELLS);
     qemu_fdt_setprop(ms->fdt, imsic_name, "interrupt-controller", NULL, 0);
