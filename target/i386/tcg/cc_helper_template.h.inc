@@ -39,9 +39,9 @@
 
 /* dynamic flags computation */
 
-static int glue(compute_all_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src2 = dst - src1;
 
     cf = dst < src1;
@@ -58,10 +58,10 @@ static int glue(compute_c_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return dst < src1;
 }
 
-static int glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+static uint32_t glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
                                          DATA_TYPE src3)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src2 = dst - src1 - src3;
 
     cf = (src3 ? dst <= src1 : dst < src1);
@@ -79,9 +79,9 @@ static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
     return src3 ? dst <= src1 : dst < src1;
 }
 
-static int glue(compute_all_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
+static uint32_t glue(compute_all_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src1 = dst + src2;
 
     cf = src1 < src2;
@@ -100,10 +100,10 @@ static int glue(compute_c_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
     return src1 < src2;
 }
 
-static int glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+static uint32_t glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
                                          DATA_TYPE src3)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src1 = dst + src2 + src3;
 
     cf = (src3 ? src1 <= src2 : src1 < src2);
@@ -123,9 +123,9 @@ static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
     return (src3 ? src1 <= src2 : src1 < src2);
 }
 
-static int glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = 0;
     pf = parity_table[(uint8_t)dst];
@@ -136,9 +136,9 @@ static int glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src2;
 
     cf = src1;
@@ -152,9 +152,9 @@ static int glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
     DATA_TYPE src2;
 
     cf = src1;
@@ -168,9 +168,9 @@ static int glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_all_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = (src1 >> (DATA_BITS - 1)) & CC_C;
     pf = parity_table[(uint8_t)dst];
@@ -187,9 +187,9 @@ static int glue(compute_c_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return (src1 >> (DATA_BITS - 1)) & CC_C;
 }
 
-static int glue(compute_all_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = src1 & 1;
     pf = parity_table[(uint8_t)dst];
@@ -204,9 +204,9 @@ static int glue(compute_all_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 /* NOTE: we compute the flags like the P4. On olders CPUs, only OF and
    CF are modified and it is slower to do that.  Note as well that we
    don't truncate SRC1 for computing carry to DATA_TYPE.  */
-static int glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
+static uint32_t glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = (src1 != 0);
     pf = parity_table[(uint8_t)dst];
@@ -217,9 +217,9 @@ static int glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
     return cf | pf | af | zf | sf | of;
 }
 
-static int glue(compute_all_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_all_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = (src1 == 0);
     pf = 0; /* undefined */
@@ -237,7 +237,7 @@ static int glue(compute_c_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 
 static int glue(compute_all_blsi, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    int cf, pf, af, zf, sf, of;
+    uint32_t cf, pf, af, zf, sf, of;
 
     cf = (src1 != 0);
     pf = 0; /* undefined */
