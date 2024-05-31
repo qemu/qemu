@@ -619,7 +619,7 @@ static MemTxResult xlnx_dpdma_read_descriptor(XlnxDPDMAState *s,
                                               DPDMADescriptor *desc)
 {
     MemTxResult res = dma_memory_read(&address_space_memory, desc_addr,
-                                      &desc, sizeof(DPDMADescriptor),
+                                      desc, sizeof(DPDMADescriptor),
                                       MEMTXATTRS_UNSPECIFIED);
     if (res) {
         return res;
