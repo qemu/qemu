@@ -591,7 +591,7 @@ static void create_fdt_imsic(RISCVVirtState *s, const MemMapEntry *memmap,
 /* Caller must free string after use */
 static char *fdt_get_aplic_nodename(unsigned long aplic_addr)
 {
-    return g_strdup_printf("/soc/aplic@%lx", aplic_addr);
+    return g_strdup_printf("/soc/interrupt-controller@%lx", aplic_addr);
 }
 
 static void create_fdt_one_aplic(RISCVVirtState *s, int socket,
