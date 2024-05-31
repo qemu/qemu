@@ -538,7 +538,8 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
         }
     }
 
-    imsic_name = g_strdup_printf("/soc/imsics@%lx", (unsigned long)base_addr);
+    imsic_name = g_strdup_printf("/soc/interrupt-controller@%lx",
+                                 (unsigned long)base_addr);
     qemu_fdt_add_subnode(ms->fdt, imsic_name);
     qemu_fdt_setprop_string(ms->fdt, imsic_name, "compatible", "riscv,imsics");
     qemu_fdt_setprop_cell(ms->fdt, imsic_name, "#interrupt-cells",
