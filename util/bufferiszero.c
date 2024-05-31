@@ -188,14 +188,14 @@ static biz_accel_fn const accel_table[] = {
 
 static unsigned best_accel(void)
 {
+#ifdef CONFIG_AVX2_OPT
     unsigned info = cpuinfo_init();
 
-#ifdef CONFIG_AVX2_OPT
     if (info & CPUINFO_AVX2) {
         return 2;
     }
 #endif
-    return info & CPUINFO_SSE2 ? 1 : 0;
+    return 1;
 }
 
 #elif defined(__aarch64__) && defined(__ARM_NEON)
