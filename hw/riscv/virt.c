@@ -588,6 +588,12 @@ static void create_fdt_imsic(RISCVVirtState *s, const MemMapEntry *memmap,
 
 }
 
+/* Caller must free string after use */
+static char *fdt_get_aplic_nodename(unsigned long aplic_addr)
+{
+    return g_strdup_printf("/soc/aplic@%lx", aplic_addr);
+}
+
 static void create_fdt_one_aplic(RISCVVirtState *s, int socket,
                                  unsigned long aplic_addr, uint32_t aplic_size,
                                  uint32_t msi_phandle,
@@ -597,7 +603,7 @@ static void create_fdt_one_aplic(RISCVVirtState *s, int socket,
                                  bool m_mode, int num_harts)
 {
     int cpu;
-    g_autofree char *aplic_name = NULL;
+    g_autofree char *aplic_name = fdt_get_aplic_nodename(aplic_addr);
     g_autofree uint32_t *aplic_cells = g_new0(uint32_t, num_harts * 2);
     MachineState *ms = MACHINE(s);
 
@@ -606,7 +612,6 @@ static void create_fdt_one_aplic(RISCVVirtState *s, int socket,
         aplic_cells[cpu * 2 + 1] = cpu_to_be32(m_mode ? IRQ_M_EXT : IRQ_S_EXT);
     }
 
-    aplic_name = g_strdup_printf("/soc/aplic@%lx", aplic_addr);
     qemu_fdt_add_subnode(ms->fdt, aplic_name);
     qemu_fdt_setprop_string(ms->fdt, aplic_name, "compatible", "riscv,aplic");
     qemu_fdt_setprop_cell(ms->fdt, aplic_name, "#address-cells",
@@ -648,7 +653,6 @@ static void create_fdt_socket_aplic(RISCVVirtState *s,
                                     uint32_t *aplic_phandles,
                                     int num_harts)
 {
-    g_autofree char *aplic_name = NULL;
     unsigned long aplic_addr;
     MachineState *ms = MACHINE(s);
     uint32_t aplic_m_phandle, aplic_s_phandle;
@@ -674,9 +678,8 @@ static void create_fdt_socket_aplic(RISCVVirtState *s,
                          aplic_s_phandle, 0,
                          false, num_harts);
 
-    aplic_name = g_strdup_printf("/soc/aplic@%lx", aplic_addr);
-
     if (!socket) {
+        g_autofree char *aplic_name = fdt_get_aplic_nodename(aplic_addr);
         platform_bus_add_all_fdt_nodes(ms->fdt, aplic_name,
                                        memmap[VIRT_PLATFORM_BUS].base,
                                        memmap[VIRT_PLATFORM_BUS].size,
