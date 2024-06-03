@@ -3010,6 +3010,11 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
         goto do_gpf;
     }
 
+    /* SSE can be disabled, but only if AVX is disabled too.  */
+    if ((mask & (XSTATE_SSE_MASK | XSTATE_YMM_MASK)) == XSTATE_YMM_MASK) {
+        goto do_gpf;
+    }
+
     /* Disallow enabling unimplemented features.  */
     cpu_x86_cpuid(env, 0x0d, 0, &ena_lo, &dummy, &dummy, &ena_hi);
     ena = ((uint64_t)ena_hi << 32) | ena_lo;
