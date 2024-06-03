@@ -118,7 +118,14 @@ for arch in $ARCHLIST; do
     rm -rf "$output/linux-headers/asm-$arch"
     mkdir -p "$output/linux-headers/asm-$arch"
     for header in kvm.h unistd.h bitsperlong.h mman.h; do
-        cp "$hdrdir/include/asm/$header" "$output/linux-headers/asm-$arch"
+        if test -f "$hdrdir/include/asm/$header"; then
+            cp "$hdrdir/include/asm/$header" "$output/linux-headers/asm-$arch"
+        elif test -f "$hdrdir/include/asm-generic/$header"; then
+            # not installed as <asm/$header>, but used as such in kernel sources
+            cat <<EOF >$output/linux-headers/asm-$arch/$header
+#include <asm-generic/$header>
+EOF
+        fi
     done
 
     if [ $arch = mips ]; then
