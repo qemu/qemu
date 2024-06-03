@@ -377,6 +377,8 @@ typedef enum X86Seg {
 #define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
 #define MCI_STATUS_S     (1ULL<<56)  /* Signaled machine check */
 #define MCI_STATUS_AR    (1ULL<<55)  /* Action required */
+#define MCI_STATUS_DEFERRED    (1ULL<<44)  /* Deferred error */
+#define MCI_STATUS_POISON      (1ULL<<43)  /* Poisoned data consumed */
 
 /* MISC register defines */
 #define MCM_ADDR_SEGOFF  0      /* segment offset */

@@ -638,17 +638,40 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
-    uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
-                      MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
-    uint64_t mcg_status = MCG_STATUS_MCIP;
+    uint64_t status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_MISCV |
+                      MCI_STATUS_ADDRV;
+    uint64_t mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
     int flags = 0;
 
-    if (code == BUS_MCEERR_AR) {
-        status |= MCI_STATUS_AR | 0x134;
-        mcg_status |= MCG_STATUS_RIPV | MCG_STATUS_EIPV;
+    if (!IS_AMD_CPU(env)) {
+        status |= MCI_STATUS_S | MCI_STATUS_UC;
+        if (code == BUS_MCEERR_AR) {
+            status |= MCI_STATUS_AR | 0x134;
+            mcg_status |= MCG_STATUS_EIPV;
+        } else {
+            status |= 0xc0;
+        }
     } else {
-        status |= 0xc0;
-        mcg_status |= MCG_STATUS_RIPV;
+        if (code == BUS_MCEERR_AR) {
+            status |= MCI_STATUS_UC | MCI_STATUS_POISON;
+            mcg_status |= MCG_STATUS_EIPV;
+        } else {
+            /* Setting the POISON bit for deferred errors indicates to the
+             * guest kernel that the address provided by the MCE is valid
+             * and usable which will ensure that the guest kernel will send
+             * a SIGBUS_AO signal to the guest process. This allows for
+             * more desirable behavior in the case that the guest process
+             * with poisoned memory has set the MCE_KILL_EARLY prctl flag
+             * which indicates that the process would prefer to handle or
+             * shutdown due to the poisoned memory condition before the
+             * memory has been accessed.
+             *
+             * While the POISON bit would not be set in a deferred error
+             * sent from hardware, the bit is not meaningful for deferred
+             * errors and can be reused in this scenario.
+             */
+            status |= MCI_STATUS_DEFERRED | MCI_STATUS_POISON;
+        }
     }
 
     flags = cpu_x86_support_mca_broadcast(env) ? MCE_INJECT_BROADCAST : 0;
