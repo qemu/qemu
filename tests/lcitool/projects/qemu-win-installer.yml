@@ -2,3 +2,4 @@
 ---
 packages:
  - g++
+ - mingw-w64-tools
