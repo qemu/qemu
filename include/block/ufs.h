@@ -7,7 +7,7 @@
 
 typedef struct QEMU_PACKED UfsReg {
     uint32_t cap;
-    uint32_t rsvd0;
+    uint32_t mcqcap;
     uint32_t ver;
     uint32_t rsvd1;
     uint32_t hcpid;
@@ -46,6 +46,13 @@ typedef struct QEMU_PACKED UfsReg {
     uint32_t rsvd7[4];
     uint32_t rsvd8[16];
     uint32_t ccap;
+    uint32_t rsvd9[127];
+    uint32_t config;
+    uint32_t rsvd10[3];
+    uint32_t rsvd11[28];
+    uint32_t mcqconfig;
+    uint32_t esilba;
+    uint32_t esiuba;
 } UfsReg;
 
 REG32(CAP, offsetof(UfsReg, cap))
@@ -57,6 +64,15 @@ REG32(CAP, offsetof(UfsReg, cap))
     FIELD(CAP, OODDS, 25, 1)
     FIELD(CAP, UICDMETMS, 26, 1)
     FIELD(CAP, CS, 28, 1)
+    FIELD(CAP, LSDBS, 29, 1)
+    FIELD(CAP, MCQS, 30, 1)
+REG32(MCQCAP, offsetof(UfsReg, mcqcap))
+    FIELD(MCQCAP, MAXQ, 0, 8)
+    FIELD(MCQCAP, SP, 8, 1)
+    FIELD(MCQCAP, RRP, 9, 1)
+    FIELD(MCQCAP, EIS, 10, 1)
+    FIELD(MCQCAP, QCFGPTR, 16, 8)
+    FIELD(MCQCAP, MIAG, 24, 8)
 REG32(VER, offsetof(UfsReg, ver))
 REG32(HCPID, offsetof(UfsReg, hcpid))
 REG32(HCMID, offsetof(UfsReg, hcmid))
@@ -78,6 +94,7 @@ REG32(IS, offsetof(UfsReg, is))
     FIELD(IS, HCFES, 16, 1)
     FIELD(IS, SBFES, 17, 1)
     FIELD(IS, CEFES, 18, 1)
+    FIELD(IS, CQES, 20, 1)
 REG32(IE, offsetof(UfsReg, ie))
     FIELD(IE, UTRCE, 0, 1)
     FIELD(IE, UDEPRIE, 1, 1)
@@ -95,6 +112,7 @@ REG32(IE, offsetof(UfsReg, ie))
     FIELD(IE, HCFEE, 16, 1)
     FIELD(IE, SBFEE, 17, 1)
     FIELD(IE, CEFEE, 18, 1)
+    FIELD(IE, CQEE, 20, 1)
 REG32(HCS, offsetof(UfsReg, hcs))
     FIELD(HCS, DP, 0, 1)
     FIELD(HCS, UTRLRDY, 1, 1)
@@ -128,9 +146,14 @@ REG32(UCMDARG1, offsetof(UfsReg, ucmdarg1))
 REG32(UCMDARG2, offsetof(UfsReg, ucmdarg2))
 REG32(UCMDARG3, offsetof(UfsReg, ucmdarg3))
 REG32(CCAP, offsetof(UfsReg, ccap))
+REG32(CONFIG, offsetof(UfsReg, config))
+    FIELD(CONFIG, QT, 0, 1)
+REG32(MCQCONFIG, offsetof(UfsReg, mcqconfig))
+    FIELD(MCQCONFIG, MAC, 8, 8)
 
 #define UFS_INTR_MASK                                    \
-    ((1 << R_IS_CEFES_SHIFT) | (1 << R_IS_SBFES_SHIFT) | \
+    ((1 << R_IS_CQES_SHIFT) |                            \
+     (1 << R_IS_CEFES_SHIFT) | (1 << R_IS_SBFES_SHIFT) | \
      (1 << R_IS_HCFES_SHIFT) | (1 << R_IS_UTPES_SHIFT) | \
      (1 << R_IS_DFES_SHIFT) | (1 << R_IS_UCCS_SHIFT) |   \
      (1 << R_IS_UTMRCS_SHIFT) | (1 << R_IS_ULSS_SHIFT) | \
@@ -156,6 +179,84 @@ REG32(CCAP, offsetof(UfsReg, ccap))
 #define UFS_UPIU_HEADER_DATA_SEGMENT_LENGTH(dword2)                       \
     ((be32_to_cpu(dword2) >> UFS_UPIU_HEADER_DATA_SEGMENT_LENGTH_SHIFT) & \
      UFS_UPIU_HEADER_DATA_SEGMENT_LENGTH_MASK)
+
+typedef struct QEMU_PACKED UfsMcqReg {
+    uint32_t sqattr;
+    uint32_t sqlba;
+    uint32_t squba;
+    uint32_t sqdao;
+    uint32_t sqisao;
+    uint32_t sqcfg;
+    uint32_t rsvd0[2];
+    uint32_t cqattr;
+    uint32_t cqlba;
+    uint32_t cquba;
+    uint32_t cqdao;
+    uint32_t cqisao;
+    uint32_t cqcfg;
+    uint32_t rsvd1[2];
+} UfsMcqReg;
+
+REG32(SQATTR, offsetof(UfsMcqReg, sqattr))
+    FIELD(SQATTR, SIZE, 0, 16)
+    FIELD(SQATTR, CQID, 16, 8)
+    FIELD(SQATTR, SQPL, 28, 3)
+    FIELD(SQATTR, SQEN, 31, 1)
+REG32(SQLBA, offsetof(UfsMcqReg, sqlba))
+REG32(SQUBA, offsetof(UfsMcqReg, squba))
+REG32(SQDAO, offsetof(UfsMcqReg, sqdao))
+REG32(SQISAO, offsetof(UfsMcqReg, sqisao))
+REG32(SQCFG, offsetof(UfsMcqReg, sqcfg))
+REG32(CQATTR, offsetof(UfsMcqReg, cqattr))
+    FIELD(CQATTR, SIZE, 0, 16)
+    FIELD(CQATTR, CQEN, 31, 1)
+REG32(CQLBA, offsetof(UfsMcqReg, cqlba))
+REG32(CQUBA, offsetof(UfsMcqReg, cquba))
+REG32(CQDAO, offsetof(UfsMcqReg, cqdao))
+REG32(CQISAO, offsetof(UfsMcqReg, cqisao))
+REG32(CQCFG, offsetof(UfsMcqReg, cqcfg))
+
+typedef struct QEMU_PACKED UfsMcqSqReg {
+    uint32_t hp;
+    uint32_t tp;
+    uint32_t rtc;
+    uint32_t cti;
+    uint32_t rts;
+} UfsMcqSqReg;
+
+typedef struct QEMU_PACKED UfsMcqCqReg {
+    uint32_t hp;
+    uint32_t tp;
+} UfsMcqCqReg;
+
+typedef struct QEMU_PACKED UfsMcqSqIntReg {
+    uint32_t is;
+    uint32_t ie;
+} UfsMcqSqIntReg;
+
+typedef struct QEMU_PACKED UfsMcqCqIntReg {
+    uint32_t is;
+    uint32_t ie;
+    uint32_t iacr;
+} UfsMcqCqIntReg;
+
+REG32(CQIS, offsetof(UfsMcqCqIntReg, is))
+    FIELD(CQIS, TEPS, 0, 1)
+
+/*
+ * Provide MCQ Operation & Runtime Registers as a contiguous addressed
+ * registers for the simplicity.
+ * DAO(Doorbell Address Offset) and  ISAO(Interrupt Status Register Address
+ * Offset) registers should be properly configured with the following
+ * structure.
+ */
+#define UFS_MCQ_OPR_START   0x1000
+typedef struct QEMU_PACKED UfsMcqOpReg {
+    UfsMcqSqReg sq;
+    UfsMcqSqIntReg sq_int;
+    UfsMcqCqReg cq;
+    UfsMcqCqIntReg cq_int;
+} UfsMcqOpReg;
 
 typedef struct QEMU_PACKED DeviceDescriptor {
     uint8_t length;
@@ -1064,9 +1165,31 @@ typedef struct QEMU_PACKED UtpUpiuRsp {
     };
 } UtpUpiuRsp;
 
+/*
+ * MCQ Completion Queue Entry
+ */
+typedef UtpTransferReqDesc UfsSqEntry;
+typedef struct QEMU_PACKED UfsCqEntry {
+    uint64_t utp_addr;
+    uint16_t resp_len;
+    uint16_t resp_off;
+    uint16_t prdt_len;
+    uint16_t prdt_off;
+    uint8_t status;
+    uint8_t error;
+    uint16_t rsvd1;
+    uint32_t rsvd2[3];
+} UfsCqEntry;
+
 static inline void _ufs_check_size(void)
 {
-    QEMU_BUILD_BUG_ON(sizeof(UfsReg) != 0x104);
+    QEMU_BUILD_BUG_ON(sizeof(UfsReg) != 0x38C);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqReg) != 64);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqSqReg) != 20);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqCqReg) != 8);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqSqIntReg) != 8);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqCqIntReg) != 12);
+    QEMU_BUILD_BUG_ON(sizeof(UfsMcqOpReg) != 48);
     QEMU_BUILD_BUG_ON(sizeof(DeviceDescriptor) != 89);
     QEMU_BUILD_BUG_ON(sizeof(GeometryDescriptor) != 87);
     QEMU_BUILD_BUG_ON(sizeof(UnitDescriptor) != 45);
@@ -1086,5 +1209,7 @@ static inline void _ufs_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(UtpTaskReqDesc) != 80);
     QEMU_BUILD_BUG_ON(sizeof(UtpCmdRsp) != 40);
     QEMU_BUILD_BUG_ON(sizeof(UtpUpiuRsp) != 288);
+    QEMU_BUILD_BUG_ON(sizeof(UfsSqEntry) != 32);
+    QEMU_BUILD_BUG_ON(sizeof(UfsCqEntry) != 32);
 }
 #endif
