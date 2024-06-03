@@ -1183,7 +1183,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_8000_0007_EBX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
-            NULL, "succor", NULL, NULL,
+            "overflow-recov", "succor", NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,

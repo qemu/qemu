@@ -984,6 +984,7 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_14_0_ECX_LIP              (1U << 31)
 
 /* RAS Features */
+#define CPUID_8000_0007_EBX_OVERFLOW_RECOV    (1U << 0)
 #define CPUID_8000_0007_EBX_SUCCOR      (1U << 1)
 
 /* CLZERO instruction */
