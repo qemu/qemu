@@ -21,7 +21,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
 #include "qom/object.h"
-#include "standard-headers/linux/pvpanic.h"
+#include "standard-headers/misc/pvpanic.h"
 
 static void handle_event(int event)
 {

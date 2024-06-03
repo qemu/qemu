@@ -231,10 +231,12 @@ for i in "$hdrdir"/include/linux/*virtio*.h \
          "$hdrdir/include/linux/const.h" \
          "$hdrdir/include/linux/kernel.h" \
          "$hdrdir/include/linux/vhost_types.h" \
-         "$hdrdir/include/linux/sysinfo.h" \
-         "$hdrdir/include/misc/pvpanic.h"; do
+         "$hdrdir/include/linux/sysinfo.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
 done
+mkdir -p "$output/include/standard-headers/misc"
+cp_portable "$hdrdir/include/misc/pvpanic.h" \
+            "$output/include/standard-headers/misc"
 mkdir -p "$output/include/standard-headers/drm"
 cp_portable "$hdrdir/include/drm/drm_fourcc.h" \
             "$output/include/standard-headers/drm"
