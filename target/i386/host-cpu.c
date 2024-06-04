@@ -42,15 +42,6 @@ static uint32_t host_cpu_phys_bits(void)
     return host_phys_bits;
 }
 
-static void host_cpu_enable_cpu_pm(X86CPU *cpu)
-{
-    CPUX86State *env = &cpu->env;
-
-    host_cpuid(5, 0, &cpu->mwait.eax, &cpu->mwait.ebx,
-               &cpu->mwait.ecx, &cpu->mwait.edx);
-    env->features[FEAT_1_ECX] |= CPUID_EXT_MONITOR;
-}
-
 static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
 {
     uint32_t host_phys_bits = host_cpu_phys_bits();
@@ -83,9 +74,6 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-    if (cpu->max_features && enable_cpu_pm) {
-        host_cpu_enable_cpu_pm(cpu);
-    }
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
         uint32_t phys_bits = host_cpu_adjust_phys_bits(cpu);
 
