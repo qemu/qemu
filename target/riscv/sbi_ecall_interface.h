@@ -12,6 +12,17 @@
 
 /* clang-format off */
 
+#define SBI_SUCCESS                      0
+#define SBI_ERR_FAILED                  -1
+#define SBI_ERR_NOT_SUPPORTED           -2
+#define SBI_ERR_INVALID_PARAM           -3
+#define SBI_ERR_DENIED                  -4
+#define SBI_ERR_INVALID_ADDRESS         -5
+#define SBI_ERR_ALREADY_AVAILABLE       -6
+#define SBI_ERR_ALREADY_STARTED         -7
+#define SBI_ERR_ALREADY_STOPPED         -8
+#define SBI_ERR_NO_SHMEM                -9
+
 /* SBI Extension IDs */
 #define SBI_EXT_0_1_SET_TIMER           0x0
 #define SBI_EXT_0_1_CONSOLE_PUTCHAR     0x1
@@ -27,6 +38,7 @@
 #define SBI_EXT_IPI                     0x735049
 #define SBI_EXT_RFENCE                  0x52464E43
 #define SBI_EXT_HSM                     0x48534D
+#define SBI_EXT_DBCN                    0x4442434E
 
 /* SBI function IDs for BASE extension */
 #define SBI_EXT_BASE_GET_SPEC_VERSION   0x0
@@ -56,6 +68,11 @@
 #define SBI_EXT_HSM_HART_START          0x0
 #define SBI_EXT_HSM_HART_STOP           0x1
 #define SBI_EXT_HSM_HART_GET_STATUS     0x2
+
+/* SBI function IDs for DBCN extension */
+#define SBI_EXT_DBCN_CONSOLE_WRITE      0x0
+#define SBI_EXT_DBCN_CONSOLE_READ       0x1
+#define SBI_EXT_DBCN_CONSOLE_WRITE_BYTE 0x2
 
 #define SBI_HSM_HART_STATUS_STARTED     0x0
 #define SBI_HSM_HART_STATUS_STOPPED     0x1
