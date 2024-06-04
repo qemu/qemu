@@ -3546,8 +3546,8 @@ void qemu_init(int argc, char **argv)
                 if (!opts) {
                     exit(1);
                 }
-                enable_mlock = qemu_opt_get_bool(opts, "mem-lock", false);
-                enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", false);
+                enable_mlock = qemu_opt_get_bool(opts, "mem-lock", enable_mlock);
+                enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", enable_cpu_pm);
                 break;
             case QEMU_OPTION_compat:
                 {
