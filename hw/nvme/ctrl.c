@@ -8104,6 +8104,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     uint8_t *pci_conf = pci_dev->config;
     uint64_t bar_size;
     unsigned msix_table_offset = 0, msix_pba_offset = 0;
+    unsigned nr_vectors;
     int ret;
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
@@ -8136,9 +8137,19 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
         assert(n->params.msix_qsize >= 1);
 
         /* add one to max_ioqpairs to account for the admin queue pair */
-        bar_size = nvme_mbar_size(n->params.max_ioqpairs + 1,
-                                  n->params.msix_qsize, &msix_table_offset,
-                                  &msix_pba_offset);
+        if (!pci_is_vf(pci_dev)) {
+            nr_vectors = n->params.msix_qsize;
+            bar_size = nvme_mbar_size(n->params.max_ioqpairs + 1,
+                                      nr_vectors, &msix_table_offset,
+                                      &msix_pba_offset);
+        } else {
+            NvmeCtrl *pn = NVME(pcie_sriov_get_pf(pci_dev));
+            NvmePriCtrlCap *cap = &pn->pri_ctrl_cap;
+
+            nr_vectors = le16_to_cpu(cap->vifrsm);
+            bar_size = nvme_mbar_size(le16_to_cpu(cap->vqfrsm), nr_vectors,
+                                      &msix_table_offset, &msix_pba_offset);
+        }
 
         memory_region_init(&n->bar0, OBJECT(n), "nvme-bar0", bar_size);
         memory_region_init_io(&n->iomem, OBJECT(n), &nvme_mmio_ops, n, "nvme",
@@ -8152,7 +8163,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
                              PCI_BASE_ADDRESS_MEM_TYPE_64, &n->bar0);
         }
 
-        ret = msix_init(pci_dev, n->params.msix_qsize,
+        ret = msix_init(pci_dev, nr_vectors,
                         &n->bar0, 0, msix_table_offset,
                         &n->bar0, 0, msix_pba_offset, 0, errp);
     }
