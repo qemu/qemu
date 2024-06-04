@@ -391,7 +391,8 @@ struct qemu_work_item;
 #define CPU_UNSET_NUMA_NODE_ID -1
 
 /**
- * CPUState:
+ * struct CPUState - common state of one CPU core or thread.
+ *
  * @cpu_index: CPU index (informative).
  * @cluster_index: Identifies which cluster this CPU is in.
  *   For boards which don't define clusters or for "loose" CPUs not assigned
@@ -403,10 +404,14 @@ struct qemu_work_item;
  * @tcg_cflags: Pre-computed cflags for this cpu.
  * @nr_cores: Number of cores within this CPU package.
  * @nr_threads: Number of threads within this CPU core.
+ * @thread: Host thread details, only live once @created is #true
+ * @sem: WIN32 only semaphore used only for qtest
+ * @thread_id: native thread id of vCPU, only live once @created is #true
  * @running: #true if CPU is currently running (lockless).
  * @has_waiter: #true if a CPU is currently waiting for the cpu_exec_end;
  * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
+ * @halt_cond: condition variable sleeping threads can wait on.
  * @interrupt_request: Indicates a pending interrupt request.
  * @halted: Nonzero if the CPU is in suspended state.
  * @stop: Indicates a pending stop request.
@@ -439,10 +444,15 @@ struct qemu_work_item;
  * @kvm_fetch_index: Keeps the index that we last fetched from the per-vCPU
  *    dirty ring structure.
  *
- * State of one CPU core or thread.
+ * @neg_align: The CPUState is the common part of a concrete ArchCPU
+ * which is allocated when an individual CPU instance is created. As
+ * such care is taken is ensure there is no gap between between
+ * CPUState and CPUArchState within ArchCPU.
  *
- * Align, in order to match possible alignment required by CPUArchState,
- * and eliminate a hole between CPUState and CPUArchState within ArchCPU.
+ * @neg: The architectural register state ("cpu_env") immediately follows
+ * CPUState in ArchCPU and is passed to TCG code. The @neg structure holds
+ * some common TCG CPU variables which are accessed with a negative offset
+ * from cpu_env.
  */
 struct CPUState {
     /*< private >*/

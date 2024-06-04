@@ -1071,11 +1071,6 @@ static void config_load(GAConfig *config)
             g_key_file_get_boolean(keyfile, "general", "retry-path", &gerr);
     }
 
-    if (g_key_file_has_key(keyfile, "general", "blacklist", NULL)) {
-        g_warning("config using deprecated 'blacklist' key, should be replaced"
-                  " with the 'block-rpcs' key.");
-        blockrpcs_key = "blacklist";
-    }
     if (g_key_file_has_key(keyfile, "general", blockrpcs_key, NULL)) {
         config->bliststr =
             g_key_file_get_string(keyfile, "general", blockrpcs_key, &gerr);
@@ -1190,7 +1185,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { "path", 1, NULL, 'p' },
         { "daemonize", 0, NULL, 'd' },
         { "block-rpcs", 1, NULL, 'b' },
-        { "blacklist", 1, NULL, 'b' },  /* deprecated alias for 'block-rpcs' */
         { "allow-rpcs", 1, NULL, 'a' },
 #ifdef _WIN32
         { "service", 1, NULL, 's' },

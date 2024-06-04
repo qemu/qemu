@@ -48,7 +48,6 @@ static bool check_events(bool ignore_unavailable, bool is_pattern,
 }
 
 TraceEventInfoList *qmp_trace_event_get_state(const char *name,
-                                              bool has_vcpu, int64_t vcpu,
                                               Error **errp)
 {
     TraceEventInfoList *events = NULL;
@@ -86,7 +85,6 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
 
 void qmp_trace_event_set_state(const char *name, bool enable,
                                bool has_ignore_unavailable, bool ignore_unavailable,
-                               bool has_vcpu, int64_t vcpu,
                                Error **errp)
 {
     TraceEventIter iter;

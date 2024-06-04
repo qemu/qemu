@@ -1608,34 +1608,6 @@
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
 
 ##
-# @MEM_UNPLUG_ERROR:
-#
-# Emitted when memory hot unplug error occurs.
-#
-# @device: device name
-#
-# @msg: Informative message
-#
-# Features:
-#
-# @deprecated: This event is deprecated.  Use
-#     @DEVICE_UNPLUG_GUEST_ERROR instead.
-#
-# Since: 2.4
-#
-# Example:
-#
-#     <- { "event": "MEM_UNPLUG_ERROR",
-#          "data": { "device": "dimm1",
-#                    "msg": "acpi: device unplug for unsupported device"
-#          },
-#          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-##
-{ 'event': 'MEM_UNPLUG_ERROR',
-  'data': { 'device': 'str', 'msg': 'str' },
-  'features': ['deprecated'] }
-
-##
 # @BootConfiguration:
 #
 # Schema for virtual machine boot configuration.

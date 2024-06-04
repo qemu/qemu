@@ -65,11 +65,7 @@ static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
     CPUState *cpu = container_of(k, CPUState, cpu_index);
     run_on_cpu_data mask = RUN_ON_CPU_HOST_ULONG(*plugin.mask);
 
-    if (DEVICE(cpu)->realized) {
-        async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
-    } else {
-        plugin_cpu_update__async(cpu, mask);
-    }
+    async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
 }
 
 void plugin_unregister_cb__locked(struct qemu_plugin_ctx *ctx,

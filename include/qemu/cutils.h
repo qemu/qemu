@@ -287,8 +287,7 @@ int parse_debug_env(const char *name, int max, int initial);
  */
 #define QEMU_HEXDUMP_LINE_BYTES 16 /* Number of bytes to dump */
 #define QEMU_HEXDUMP_LINE_LEN 75   /* Number of characters in line */
-void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
-                       unsigned int len, bool ascii);
+void qemu_hexdump_line(char *line, const void *bufptr, size_t len);
 
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line

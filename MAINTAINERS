@@ -2142,8 +2142,7 @@ F: tests/qtest/fuzz-sdcard-test.c
 F: tests/qtest/sdhci-test.c
 
 USB
-M: Gerd Hoffmann <kraxel@redhat.com>
-S: Odd Fixes
+S: Orphan
 F: hw/usb/*
 F: stubs/usb-dev-stub.c
 F: tests/qtest/usb-*-test.c
@@ -2152,7 +2151,6 @@ F: include/hw/usb.h
 F: include/hw/usb/
 
 USB (serial adapter)
-R: Gerd Hoffmann <kraxel@redhat.com>
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
 F: hw/usb/dev-serial.c

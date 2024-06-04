@@ -241,7 +241,6 @@ void cpu_exec_initfn(CPUState *cpu)
     cpu->num_ases = 0;
 
 #ifndef CONFIG_USER_ONLY
-    cpu->thread_id = qemu_get_thread_id();
     cpu->memory = get_system_memory();
     object_ref(OBJECT(cpu->memory));
 #endif

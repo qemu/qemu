@@ -2893,7 +2893,7 @@ int kvm_convert_memory(hwaddr start, hwaddr size, bool to_private)
             !memory_region_is_ram_device(mr) &&
             !memory_region_is_rom(mr) &&
             !memory_region_is_romd(mr)) {
-		    ret = 0;
+            ret = 0;
         } else {
             error_report("Convert non guest_memfd backed memory region "
                         "(0x%"HWADDR_PRIx" ,+ 0x%"HWADDR_PRIx") to %s",
@@ -2964,7 +2964,7 @@ int kvm_cpu_exec(CPUState *cpu)
 
         kvm_arch_pre_run(cpu, run);
         if (qatomic_read(&cpu->exit_request)) {
-	    trace_kvm_interrupt_exit_request();
+            trace_kvm_interrupt_exit_request();
             /*
              * KVM requires us to reenter the kernel after IO exits to complete
              * instruction emulation. This self-signal will ensure that we

@@ -3786,7 +3786,6 @@ void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
     SpaprDrc *drc;
     uint32_t nr_lmbs;
     uint64_t size, addr_start, addr;
-    g_autofree char *qapi_error = NULL;
     int i;
 
     if (!dev) {
@@ -3823,16 +3822,8 @@ void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
 
     /*
      * Tell QAPI that something happened and the memory
-     * hotunplug wasn't successful. Keep sending
-     * MEM_UNPLUG_ERROR even while sending
-     * DEVICE_UNPLUG_GUEST_ERROR until the deprecation of
-     * MEM_UNPLUG_ERROR is due.
+     * hotunplug wasn't successful.
      */
-    qapi_error = g_strdup_printf("Memory hotunplug rejected by the guest "
-                                 "for device %s", dev->id);
-
-    qapi_event_send_mem_unplug_error(dev->id ? : "", qapi_error);
-
     qapi_event_send_device_unplug_guest_error(dev->id,
                                               dev->canonical_path);
 }

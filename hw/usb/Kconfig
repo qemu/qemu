@@ -65,6 +65,16 @@ config TUSB6010
     bool
     select USB_MUSB
 
+config USB_HUB
+    bool
+    default y
+    depends on USB
+
+config USB_HID
+    bool
+    default y
+    depends on USB
+
 config USB_TABLET_WACOM
     bool
     default y

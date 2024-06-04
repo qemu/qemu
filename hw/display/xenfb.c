@@ -29,6 +29,7 @@
 
 #include "ui/input.h"
 #include "ui/console.h"
+#include "sysemu/sysemu.h"
 #include "hw/xen/xen-legacy-backend.h"
 
 #include "hw/xen/interface/io/fbif.h"
@@ -972,7 +973,7 @@ static void fb_event(struct XenLegacyDevice *xendev)
 
 /* -------------------------------------------------------------------- */
 
-static struct XenDevOps xen_kbdmouse_ops = {
+static const struct XenDevOps xen_kbdmouse_ops = {
     .size       = sizeof(struct XenInput),
     .init       = input_init,
     .initialise = input_initialise,
@@ -981,7 +982,7 @@ static struct XenDevOps xen_kbdmouse_ops = {
     .event      = input_event,
 };
 
-struct XenDevOps xen_framebuffer_ops = {
+const struct XenDevOps xen_framebuffer_ops = {
     .size       = sizeof(struct XenFB),
     .init       = fb_init,
     .initialise = fb_initialise,
@@ -996,8 +997,12 @@ static const GraphicHwOps xenfb_ops = {
     .ui_info     = xenfb_ui_info,
 };
 
-static void xen_vkbd_register_backend(void)
+static void xen_ui_register_backend(void)
 {
     xen_be_register("vkbd", &xen_kbdmouse_ops);
+
+    if (vga_interface_type == VGA_XENFB) {
+        xen_be_register("vfb", &xen_framebuffer_ops);
+    }
 }
-xen_backend_init(xen_vkbd_register_backend);
+xen_backend_init(xen_ui_register_backend);

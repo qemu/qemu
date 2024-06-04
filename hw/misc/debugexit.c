@@ -12,6 +12,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "sysemu/runstate.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
 OBJECT_DECLARE_SIMPLE_TYPE(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE)
@@ -32,7 +33,8 @@ static uint64_t debug_exit_read(void *opaque, hwaddr addr, unsigned size)
 static void debug_exit_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned width)
 {
-    exit((val << 1) | 1);
+    qemu_system_shutdown_request_with_code(SHUTDOWN_CAUSE_GUEST_SHUTDOWN,
+                                           (val << 1) | 1);
 }
 
 static const MemoryRegionOps debug_exit_ops = {
