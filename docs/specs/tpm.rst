@@ -336,7 +336,7 @@ In case a pSeries machine is emulated, use the following command line:
     -tpmdev emulator,id=tpm0,chardev=chrtpm \
     -device tpm-spapr,tpmdev=tpm0 \
     -device spapr-vscsi,id=scsi0,reg=0x00002000 \
-    -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x3,drive=drive-virtio-disk0,id=virtio-disk0 \
+    -device virtio-blk-pci,bus=pci.0,addr=0x3,drive=drive-virtio-disk0,id=virtio-disk0 \
     -drive file=test.img,format=raw,if=none,id=drive-virtio-disk0
 
 In case an Arm virt machine is emulated, use the following command line:

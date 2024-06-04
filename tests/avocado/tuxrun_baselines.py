@@ -235,7 +235,7 @@ class TuxRunBaselineTest(QemuSystemTest):
             self.vm.add_args('-drive', 'file=' + qcow2.name +
                          ',format=qcow2,if=none,id='
                          'drive-virtio-disk1',
-                         '-device', 'virtio-blk-pci,scsi=off,bus=pci.0,'
+                         '-device', 'virtio-blk-pci,bus=pci.0,'
                          'addr=0xb,drive=drive-virtio-disk1,id=virtio-disk1'
                          ',bootindex=2')
             self.common_tuxrun(csums=sums, drive="scsi-hd")
