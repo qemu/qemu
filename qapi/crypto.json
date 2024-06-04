@@ -485,7 +485,8 @@
 ##
 { 'struct': 'SecretKeyringProperties',
   'base': 'SecretCommonProperties',
-  'data': { 'serial': 'int32' } }
+  'data': { 'serial': 'int32' },
+  'if': 'CONFIG_SECRET_KEYRING' }
 
 ##
 # @TlsCredsProperties:
