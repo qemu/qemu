@@ -79,6 +79,19 @@ aspeed_vic_update_fiq(int flags) "Raising FIQ: %d"
 aspeed_vic_update_irq(int flags) "Raising IRQ: %d"
 aspeed_vic_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
 aspeed_vic_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+# aspeed_intc.c
+aspeed_intc_read(uint64_t offset, unsigned size, uint32_t value) "From 0x%" PRIx64 " of size %u: 0x%" PRIx32
+aspeed_intc_write(uint64_t offset, unsigned size, uint32_t data) "To 0x%" PRIx64 " of size %u: 0x%" PRIx32
+aspeed_intc_set_irq(int irq, int level) "Set IRQ %d: %d"
+aspeed_intc_clear_irq(int irq, int level) "Clear IRQ %d: %d"
+aspeed_intc_update_irq(int irq, int level) "Update IRQ: %d: %d"
+aspeed_intc_pending_irq(int irq, uint32_t value) "Pending IRQ: %d: 0x%x"
+aspeed_intc_trigger_irq(int irq, uint32_t value) "Trigger IRQ: %d: 0x%x"
+aspeed_intc_all_isr_done(int irq) "All source ISR execution are done: %d"
+aspeed_intc_enable(uint32_t value) "Enable: 0x%x"
+aspeed_intc_select(uint32_t value) "Select: 0x%x"
+aspeed_intc_mask(uint32_t change, uint32_t value) "Mask: 0x%x: 0x%x"
+aspeed_intc_unmask(uint32_t change, uint32_t value) "UnMask: 0x%x: 0x%x"
 
 # arm_gic.c
 gic_enable_irq(int irq) "irq %d enabled"
