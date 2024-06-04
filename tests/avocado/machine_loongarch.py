@@ -27,18 +27,18 @@ class LoongArchMachine(QemuSystemTest):
         """
 
         kernel_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                      'releases/download/binary-files/vmlinuz.efi')
+                      'releases/download/2024-05-30/vmlinuz.efi')
         kernel_hash = '951b485b16e3788b6db03a3e1793c067009e31a2'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
         initrd_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                      'releases/download/binary-files/ramdisk')
+                      'releases/download/2024-05-30/ramdisk')
         initrd_hash = 'c67658d9b2a447ce7db2f73ba3d373c9b2b90ab2'
         initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
 
         bios_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                    'releases/download/binary-files/QEMU_EFI.fd')
-        bios_hash = ('dfc1bfba4853cd763b9d392d0031827e8addbca8')
+                    'releases/download/2024-05-30/QEMU_EFI.fd')
+        bios_hash = ('f4d0966b5117d4cd82327c050dd668741046be69')
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
 
         self.vm.set_console()
