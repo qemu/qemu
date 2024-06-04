@@ -1,0 +1,54 @@
+QA output created by nbd-tls-iothread
+
+== preparing TLS creds and spare port ==
+picked unused port
+Generating a self signed certificate...
+Generating a signed certificate...
+Generating a signed certificate...
+
+== preparing image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+Formatting 'TEST_DIR/dst.IMGFMT', fmt=IMGFMT size=1073741824
+
+=== Starting Src QEMU ===
+
+{"execute": "qmp_capabilities"}
+{"return": {}}
+
+=== Starting Dst VM2 ===
+
+{"execute": "qmp_capabilities"}
+{"return": {}}
+
+=== Dst VM: Enable NBD server for incoming storage migration ===
+
+{"execute": "nbd-server-start", "arguments":
+    {"addr": {"type": "inet", "data": {"host": "127.0.0.1", "port": PORT}},
+              "tls-creds": "tls0"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments":
+    {"node-name": "drive_image1", "type": "nbd", "writable": true,
+      "id": "drive_image1"}}
+{"return": {}}
+
+=== Src VM: Mirror to dst NBD for outgoing storage migration ===
+
+{"execute": "blockdev-add", "arguments":
+    {"node-name": "mirror", "driver": "nbd",
+     "server": {"type": "inet", "host": "127.0.0.1", "port": PORT},
+     "export": "drive_image1", "tls-creds": "tls0",
+     "tls-hostname": "127.0.0.1"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments":
+    {"sync": "full", "device": "drive_image1", "target": "mirror",
+     "job-id": "drive_image1_53"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "drive_image1_53"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "drive_image1_53"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "drive_image1_53"}}
+
+=== Cleaning up ===
+
+{"execute":"quit"}
+{"execute":"quit"}
+*** done
