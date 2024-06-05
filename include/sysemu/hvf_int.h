@@ -13,8 +13,10 @@
 
 #ifdef __aarch64__
 #include <Hypervisor/Hypervisor.h>
+typedef hv_vcpu_t hvf_vcpuid;
 #else
 #include <Hypervisor/hv.h>
+typedef hv_vcpuid_t hvf_vcpuid;
 #endif
 
 /* hvf_slot flags */
@@ -50,7 +52,7 @@ struct HVFState {
 extern HVFState *hvf_state;
 
 struct AccelCPUState {
-    uint64_t fd;
+    hvf_vcpuid fd;
     void *exit;
     bool vtimer_masked;
     sigset_t unblock_ipi_mask;
