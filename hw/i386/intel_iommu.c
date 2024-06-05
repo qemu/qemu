@@ -3837,6 +3837,30 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     return vtd_dev_as;
 }
 
+static bool vtd_check_hiod(IntelIOMMUState *s, HostIOMMUDevice *hiod,
+                           Error **errp)
+{
+    HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
+    int ret;
+
+    if (!hiodc->get_cap) {
+        error_setg(errp, ".get_cap() not implemented");
+        return false;
+    }
+
+    /* Common checks */
+    ret = hiodc->get_cap(hiod, HOST_IOMMU_DEVICE_CAP_AW_BITS, errp);
+    if (ret < 0) {
+        return false;
+    }
+    if (s->aw_bits > ret) {
+        error_setg(errp, "aw-bits %d > host aw-bits %d", s->aw_bits, ret);
+        return false;
+    }
+
+    return true;
+}
+
 static bool vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
                                      HostIOMMUDevice *hiod, Error **errp)
 {
@@ -3853,6 +3877,11 @@ static bool vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
 
     if (g_hash_table_lookup(s->vtd_host_iommu_dev, &key)) {
         error_setg(errp, "Host IOMMU device already exist");
+        vtd_iommu_unlock(s);
+        return false;
+    }
+
+    if (!vtd_check_hiod(s, hiod, errp)) {
         vtd_iommu_unlock(s);
         return false;
     }
