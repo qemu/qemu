@@ -1712,7 +1712,9 @@ void sev_es_set_reset_vector(CPUState *cpu)
 {
     X86CPU *x86;
     CPUX86State *env;
-    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
+    SevCommonState *sev_common = SEV_COMMON(
+        object_dynamic_cast(OBJECT(cgs), TYPE_SEV_COMMON));
 
     /* Only update if we have valid reset information */
     if (!sev_common || !sev_common->reset_data_valid) {
