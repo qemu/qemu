@@ -49,6 +49,8 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
+#include "qapi/error.h"
+#include "migration/blocker.h"
 
 #include "sysemu/hvf.h"
 #include "sysemu/hvf_int.h"
@@ -73,6 +75,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/accel.h"
 #include "target/i386/cpu.h"
+
+static Error *invtsc_mig_blocker;
 
 void vmx_update_tpr(CPUState *cpu)
 {
@@ -221,6 +225,8 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
+    Error *local_err = NULL;
+    int r;
     uint64_t reqCap;
 
     init_emu();
@@ -237,6 +243,18 @@ int hvf_arch_init_vcpu(CPUState *cpu)
             error_report("vmware-cpuid-freq: feature couldn't be enabled");
         }
     }
+
+    if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
+        invtsc_mig_blocker == NULL) {
+        error_setg(&invtsc_mig_blocker,
+                   "State blocked by non-migratable CPU device (invtsc flag)");
+        r = migrate_add_blocker(&invtsc_mig_blocker, &local_err);
+        if (r < 0) {
+            error_report_err(local_err);
+            return r;
+        }
+    }
+
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
         &hvf_state->hvf_caps->vmx_cap_pinbased)) {
