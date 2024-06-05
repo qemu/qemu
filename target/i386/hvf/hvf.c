@@ -215,6 +215,7 @@ static inline bool apic_bus_freq_is_known(CPUX86State *env)
 void hvf_kick_vcpu_thread(CPUState *cpu)
 {
     cpus_kick_thread(cpu);
+    hv_vcpu_interrupt(&cpu->accel->fd, 1);
 }
 
 int hvf_arch_init(void)
