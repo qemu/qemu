@@ -154,6 +154,6 @@ void ioapic_init_gsi(GSIState *gsi_state, Object *parent);
 DeviceState *ioapic_init_secondary(GSIState *gsi_state);
 
 /* pc_sysfw.c */
-void x86_firmware_configure(void *ptr, int size);
+void x86_firmware_configure(hwaddr gpa, void *ptr, int size);
 
 #endif

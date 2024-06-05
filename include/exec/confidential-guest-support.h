@@ -32,6 +32,11 @@ struct ConfidentialGuestSupport {
     Object parent;
 
     /*
+     * True if the machine should use guest_memfd for RAM.
+     */
+    bool require_guest_memfd;
+
+    /*
      * ready: flag set by CGS initialization code once it's ready to
      *        start executing instructions in a potentially-secure
      *        guest

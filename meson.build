@@ -336,9 +336,13 @@ if host_arch == 'i386' and not cc.links('''
   qemu_common_flags = ['-march=i486'] + qemu_common_flags
 endif
 
-# ??? Only extremely old AMD cpus do not have cmpxchg16b.
-# If we truly care, we should simply detect this case at
-# runtime and generate the fallback to serial emulation.
+# Assume x86-64-v2 (minus CMPXCHG16B for 32-bit code)
+if host_arch == 'i386'
+  qemu_common_flags = ['-mfpmath=sse'] + qemu_common_flags
+endif
+if host_arch in ['i386', 'x86_64']
+  qemu_common_flags = ['-mpopcnt', '-msse4.2'] + qemu_common_flags
+endif
 if host_arch == 'x86_64'
   qemu_common_flags = ['-mcx16'] + qemu_common_flags
 endif

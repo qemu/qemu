@@ -42,7 +42,7 @@ void qmp_sev_inject_launch_secret(const char *packet_header, const char *secret,
     error_setg(errp, "SEV is not available in this QEMU");
 }
 
-int sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
+int sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
 {
     g_assert_not_reached();
 }
@@ -66,4 +66,8 @@ SevAttestationReport *qmp_query_sev_attestation_report(const char *mnonce,
 void hmp_info_sev(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "SEV is not available in this QEMU\n");
+}
+
+void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size)
+{
 }

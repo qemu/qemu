@@ -20,12 +20,19 @@
 
 #include "exec/confidential-guest-support.h"
 
+#define TYPE_SEV_COMMON "sev-common"
+#define TYPE_SEV_GUEST "sev-guest"
+#define TYPE_SEV_SNP_GUEST "sev-snp-guest"
+
 #define SEV_POLICY_NODBG        0x1
 #define SEV_POLICY_NOKS         0x2
 #define SEV_POLICY_ES           0x4
 #define SEV_POLICY_NOSEND       0x8
 #define SEV_POLICY_DOMAIN       0x10
 #define SEV_POLICY_SEV          0x20
+
+#define SEV_SNP_POLICY_SMT      0x10000
+#define SEV_SNP_POLICY_DBG      0x80000
 
 typedef struct SevKernelLoaderContext {
     char *setup_data;
@@ -41,20 +48,24 @@ typedef struct SevKernelLoaderContext {
 #ifdef CONFIG_SEV
 bool sev_enabled(void);
 bool sev_es_enabled(void);
+bool sev_snp_enabled(void);
 #else
 #define sev_enabled() 0
 #define sev_es_enabled() 0
+#define sev_snp_enabled() 0
 #endif
 
 uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
 bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp);
 
-int sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp);
+int sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp);
 int sev_inject_launch_secret(const char *hdr, const char *secret,
                              uint64_t gpa, Error **errp);
 
 int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size);
 void sev_es_set_reset_vector(CPUState *cpu);
+
+void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
 
 #endif

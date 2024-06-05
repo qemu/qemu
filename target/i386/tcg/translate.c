@@ -3199,7 +3199,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
                 goto illegal_op;
             }
             if (s->prefix & PREFIX_REPZ) {
-                if (!(s->cpuid_ext_features & CPUID_7_0_ECX_RDPID)) {
+                if (!(s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_RDPID)) {
                     goto illegal_op;
                 }
                 gen_helper_rdpid(s->T0, tcg_env);

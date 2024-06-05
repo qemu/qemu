@@ -510,6 +510,14 @@ than zero.
 
 Removed along with the ``compression`` migration capability.
 
+``-device virtio-blk,scsi=on|off`` (since 9.1)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
+and later do not support it because the virtio-scsi device was introduced for
+full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
+
+
 User-mode emulator command line arguments
 -----------------------------------------
 

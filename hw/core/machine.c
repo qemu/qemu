@@ -265,8 +265,6 @@ GlobalProperty hw_compat_2_5[] = {
 const size_t hw_compat_2_5_len = G_N_ELEMENTS(hw_compat_2_5);
 
 GlobalProperty hw_compat_2_4[] = {
-    /* Optional because the 'scsi' property is Linux-only */
-    { "virtio-blk-device", "scsi", "true", .optional = true },
     { "e1000", "extra_mac_registers", "off" },
     { "virtio-pci", "x-disable-pcie", "on" },
     { "virtio-pci", "migrate-extra", "off" },
@@ -1218,7 +1216,7 @@ bool machine_mem_merge(MachineState *machine)
 
 bool machine_require_guest_memfd(MachineState *machine)
 {
-    return machine->require_guest_memfd;
+    return machine->cgs && machine->cgs->require_guest_memfd;
 }
 
 static char *cpu_slot_to_string(const CPUArchId *cpu)

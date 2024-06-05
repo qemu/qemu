@@ -32,7 +32,7 @@ class IntelIOMMU(LinuxTest):
 
     def set_up_boot(self):
         path = self.download_boot()
-        self.vm.add_args('-device', 'virtio-blk-pci,bus=pcie.0,scsi=off,' +
+        self.vm.add_args('-device', 'virtio-blk-pci,bus=pcie.0,' +
                          'drive=drv0,id=virtio-disk0,bootindex=1,'
                          'werror=stop,rerror=stop' + self.IOMMU_ADDON)
         self.vm.add_args('-device', 'virtio-gpu-pci' + self.IOMMU_ADDON)
