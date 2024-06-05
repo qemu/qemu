@@ -2111,7 +2111,7 @@ uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode)
     return decode->len;
 }
 
-void init_decoder()
+void init_decoder(void)
 {
     int i;
     
