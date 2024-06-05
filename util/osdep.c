@@ -64,7 +64,7 @@ int qemu_madvise(void *addr, size_t len, int advice)
     }
     return 0;
 #else
-    errno = EINVAL;
+    errno = ENOSYS;
     return -1;
 #endif
 }
