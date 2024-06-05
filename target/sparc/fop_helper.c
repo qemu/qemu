@@ -343,6 +343,90 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
     return f128_ret(ret);
 }
 
+float32 helper_fmadds(CPUSPARCState *env, float32 s1,
+                      float32 s2, float32 s3, uint32_t op)
+{
+    float32 ret = float32_muladd(s1, s2, s3, op, &env->fp_status);
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
+                      float64 s2, float64 s3, uint32_t op)
+{
+    float64 ret = float64_muladd(s1, s2, s3, op, &env->fp_status);
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float32 helper_fnadds(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float32 ret = float32_add(src1, src2, &env->fp_status);
+
+    /*
+     * NaN inputs or result do not get a sign change.
+     * Nor, apparently, does zero: on hardware, -(x + -x) yields +0.
+     */
+    if (!float32_is_any_nan(ret) && !float32_is_zero(ret)) {
+        ret = float32_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float32 helper_fnmuls(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float32 ret = float32_mul(src1, src2, &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float32_is_any_nan(ret)) {
+        ret = float32_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnaddd(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    float64 ret = float64_add(src1, src2, &env->fp_status);
+
+    /*
+     * NaN inputs or result do not get a sign change.
+     * Nor, apparently, does zero: on hardware, -(x + -x) yields +0.
+     */
+    if (!float64_is_any_nan(ret) && !float64_is_zero(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnmuld(CPUSPARCState *env, float64 src1, float64 src2)
+{
+    float64 ret = float64_mul(src1, src2, &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float64_is_any_nan(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
+float64 helper_fnsmuld(CPUSPARCState *env, float32 src1, float32 src2)
+{
+    float64 ret = float64_mul(float32_to_float64(src1, &env->fp_status),
+                              float32_to_float64(src2, &env->fp_status),
+                              &env->fp_status);
+
+    /* NaN inputs or result do not get a sign change. */
+    if (!float64_is_any_nan(ret)) {
+        ret = float64_chs(ret);
+    }
+    check_ieee_exceptions(env, GETPC());
+    return ret;
+}
+
 static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
 {
     check_ieee_exceptions(env, ra);
@@ -404,6 +488,52 @@ uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
     FloatRelation r = float128_compare(f128_in(src1), f128_in(src2),
                                        &env->fp_status);
     return finish_fcmp(env, r, GETPC());
+}
+
+uint32_t helper_flcmps(float32 src1, float32 src2)
+{
+    /*
+     * FLCMP never raises an exception nor modifies any FSR fields.
+     * Perform the comparison with a dummy fp environment.
+     */
+    float_status discard = { };
+    FloatRelation r = float32_compare_quiet(src1, src2, &discard);
+
+    switch (r) {
+    case float_relation_equal:
+        if (src2 == float32_zero && src1 != float32_zero) {
+            return 1;  /* -0.0 < +0.0 */
+        }
+        return 0;
+    case float_relation_less:
+        return 1;
+    case float_relation_greater:
+        return 0;
+    case float_relation_unordered:
+        return float32_is_any_nan(src2) ? 3 : 2;
+    }
+    g_assert_not_reached();
+}
+
+uint32_t helper_flcmpd(float64 src1, float64 src2)
+{
+    float_status discard = { };
+    FloatRelation r = float64_compare_quiet(src1, src2, &discard);
+
+    switch (r) {
+    case float_relation_equal:
+        if (src2 == float64_zero && src1 != float64_zero) {
+            return 1;  /* -0.0 < +0.0 */
+        }
+        return 0;
+    case float_relation_less:
+        return 1;
+    case float_relation_greater:
+        return 0;
+    case float_relation_unordered:
+        return float64_is_any_nan(src2) ? 3 : 2;
+    }
+    g_assert_not_reached();
 }
 
 target_ulong cpu_get_fsr(CPUSPARCState *env)
@@ -470,5 +600,11 @@ void helper_set_fsr_nofcc_noftt(CPUSPARCState *env, uint32_t fsr)
 {
     env->fsr_cexc_ftt &= FSR_FTT_MASK;
     env->fsr_cexc_ftt |= fsr & FSR_CEXC_MASK;
+    set_fsr_nonsplit(env, fsr);
+}
+
+void helper_set_fsr_nofcc(CPUSPARCState *env, uint32_t fsr)
+{
+    env->fsr_cexc_ftt = fsr & (FSR_CEXC_MASK | FSR_FTT_MASK);
     set_fsr_nonsplit(env, fsr);
 }
