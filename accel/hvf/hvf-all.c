@@ -13,40 +13,33 @@
 #include "sysemu/hvf.h"
 #include "sysemu/hvf_int.h"
 
-void assert_hvf_ok(hv_return_t ret)
+const char *hvf_return_string(hv_return_t ret)
+{
+    switch (ret) {
+    case HV_SUCCESS:      return "HV_SUCCESS";
+    case HV_ERROR:        return "HV_ERROR";
+    case HV_BUSY:         return "HV_BUSY";
+    case HV_BAD_ARGUMENT: return "HV_BAD_ARGUMENT";
+    case HV_NO_RESOURCES: return "HV_NO_RESOURCES";
+    case HV_NO_DEVICE:    return "HV_NO_DEVICE";
+    case HV_UNSUPPORTED:  return "HV_UNSUPPORTED";
+#if defined(MAC_OS_VERSION_11_0) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
+    case HV_DENIED:       return "HV_DENIED";
+#endif
+    default:              return "[unknown hv_return value]";
+    }
+}
+
+void assert_hvf_ok_impl(hv_return_t ret, const char *file, unsigned int line,
+                        const char *exp)
 {
     if (ret == HV_SUCCESS) {
         return;
     }
 
-    switch (ret) {
-    case HV_ERROR:
-        error_report("Error: HV_ERROR");
-        break;
-    case HV_BUSY:
-        error_report("Error: HV_BUSY");
-        break;
-    case HV_BAD_ARGUMENT:
-        error_report("Error: HV_BAD_ARGUMENT");
-        break;
-    case HV_NO_RESOURCES:
-        error_report("Error: HV_NO_RESOURCES");
-        break;
-    case HV_NO_DEVICE:
-        error_report("Error: HV_NO_DEVICE");
-        break;
-    case HV_UNSUPPORTED:
-        error_report("Error: HV_UNSUPPORTED");
-        break;
-#if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
-    case HV_DENIED:
-        error_report("Error: HV_DENIED");
-        break;
-#endif
-    default:
-        error_report("Unknown Error");
-    }
+    error_report("Error: %s = %s (0x%x, at %s:%u)",
+        exp, hvf_return_string(ret), ret, file, line);
 
     abort();
 }

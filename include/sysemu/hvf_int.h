@@ -60,7 +60,10 @@ struct AccelCPUState {
     bool dirty;
 };
 
-void assert_hvf_ok(hv_return_t ret);
+void assert_hvf_ok_impl(hv_return_t ret, const char *file, unsigned int line,
+                        const char *exp);
+#define assert_hvf_ok(EX) assert_hvf_ok_impl((EX), __FILE__, __LINE__, #EX)
+const char *hvf_return_string(hv_return_t ret);
 int hvf_arch_init(void);
 int hvf_arch_init_vcpu(CPUState *cpu);
 void hvf_arch_vcpu_destroy(CPUState *cpu);
