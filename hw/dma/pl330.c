@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -317,22 +318,14 @@ typedef struct PL330InsnDesc {
 
 static void pl330_hexdump(uint8_t *buf, size_t size)
 {
-    unsigned int b, i, len;
-    char tmpbuf[80];
+    g_autoptr(GString) str = g_string_sized_new(64);
+    size_t b, len;
 
-    for (b = 0; b < size; b += 16) {
-        len = size - b;
-        if (len > 16) {
-            len = 16;
-        }
-        tmpbuf[0] = '\0';
-        for (i = 0; i < len; i++) {
-            if ((i % 4) == 0) {
-                strcat(tmpbuf, " ");
-            }
-            sprintf(tmpbuf + strlen(tmpbuf), " %02x", buf[b + i]);
-        }
-        trace_pl330_hexdump(b, tmpbuf);
+    for (b = 0; b < size; b += len) {
+        len = MIN(16, size - b);
+        g_string_truncate(str, 0);
+        qemu_hexdump_line(str, buf + b, len, 1, 4);
+        trace_pl330_hexdump(b, str->str);
     }
 }
 

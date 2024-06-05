@@ -282,12 +282,21 @@ static inline const char *yes_no(bool b)
  */
 int parse_debug_env(const char *name, int max, int initial);
 
-/*
- * Hexdump a line of a byte buffer into a hexadecimal/ASCII buffer
+/**
+ * qemu_hexdump_line:
+ * @str: GString into which to append
+ * @buf: buffer to dump
+ * @len: number of bytes to dump
+ * @unit_len: add a space between every @unit_len bytes
+ * @block_len: add an extra space between every @block_len bytes
+ *
+ * Append @len bytes of @buf as hexadecimal into @str.
+ * Add spaces between every @unit_len and @block_len bytes.
+ * If @str is NULL, allocate a new string and return it;
+ * otherwise return @str.
  */
-#define QEMU_HEXDUMP_LINE_BYTES 16 /* Number of bytes to dump */
-#define QEMU_HEXDUMP_LINE_LEN 75   /* Number of characters in line */
-void qemu_hexdump_line(char *line, const void *bufptr, size_t len);
+GString *qemu_hexdump_line(GString *str, const void *buf, size_t len,
+                           size_t unit_len, size_t block_len);
 
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line

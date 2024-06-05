@@ -944,13 +944,15 @@ static int vhost_vdpa_set_config_call(struct vhost_dev *dev,
 static void vhost_vdpa_dump_config(struct vhost_dev *dev, const uint8_t *config,
                                    uint32_t config_len)
 {
-    int b, len;
-    char line[QEMU_HEXDUMP_LINE_LEN];
+    g_autoptr(GString) str = g_string_sized_new(4 * 16);
+    size_t b, len;
 
-    for (b = 0; b < config_len; b += 16) {
-        len = config_len - b;
-        qemu_hexdump_line(line, config + b, len);
-        trace_vhost_vdpa_dump_config(dev, b, line);
+    for (b = 0; b < config_len; b += len) {
+        len = MIN(config_len - b, 16);
+
+        g_string_truncate(str, 0);
+        qemu_hexdump_line(str, config + b, len, 1, 4);
+        trace_vhost_vdpa_dump_config(dev, b, str->str);
     }
 }
 

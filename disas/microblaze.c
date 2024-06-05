@@ -563,10 +563,7 @@ static const struct op_code_struct {
 };
 
 /* prefix for register names */
-static const char register_prefix[] = "r";
-static const char fsl_register_prefix[] = "rfsl";
-static const char pvr_register_prefix[] = "rpvr";
-
+#define register_prefix "r"
 
 /* #defines for valid immediate range */
 #define MIN_IMM  ((int) 0x80000000)
@@ -579,156 +576,64 @@ static const char pvr_register_prefix[] = "rpvr";
 
 #include "disas/dis-asm.h"
 
-#define get_field_rd(instr) get_field(instr, RD_MASK, RD_LOW)
-#define get_field_r1(instr) get_field(instr, RA_MASK, RA_LOW)
-#define get_field_r2(instr) get_field(instr, RB_MASK, RB_LOW)
+#define PRIreg    register_prefix "%ld"
+#define PRIrfsl   register_prefix "fsl%ld"
+#define PRIpvr    register_prefix "pvr%d"
+#define PRIimm    "%d"
+
+#define get_field_rd(instr)      ((instr & RD_MASK) >> RD_LOW)
+#define get_field_r1(instr)      ((instr & RA_MASK) >> RA_LOW)
+#define get_field_r2(instr)      ((instr & RB_MASK) >> RB_LOW)
+#define get_field_rfsl(instr)    (instr & RFSL_MASK)
+#define get_field_imm(instr)     ((int16_t)instr)
+#define get_field_imm5(instr)    ((int)instr & IMM5_MASK)
+#define get_field_imm15(instr)   ((int)instr & IMM15_MASK)
+
 #define get_int_field_imm(instr) ((instr & IMM_MASK) >> IMM_LOW)
 #define get_int_field_r1(instr) ((instr & RA_MASK) >> RA_LOW)
 
-/* Local function prototypes. */
-
-static char * get_field (long instr, long mask, unsigned short low);
-static char * get_field_imm (long instr);
-static char * get_field_imm5 (long instr);
-static char * get_field_rfsl (long instr);
-static char * get_field_imm15 (long instr);
-#if 0
-static char * get_field_unsigned_imm (long instr);
-#endif
-
-static char *
-get_field (long instr, long mask, unsigned short low)
+static int get_field_special(long instr, const struct op_code_struct *op)
 {
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%s%d", register_prefix,
-           (int)((instr & mask) >> low));
-  return(strdup(tmpstr));
+    return ((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask;
 }
 
-static char *
-get_field_imm (long instr)
+/* Returns NULL for PVR registers, which should be rendered differently. */
+static const char *get_special_name(int special)
 {
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%d",
-           (short)((instr & IMM_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
-
-static char *
-get_field_imm5 (long instr)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%d",
-           (short)((instr & IMM5_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
-
-static char *
-get_field_rfsl (long instr)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%s%d", fsl_register_prefix,
-           (short)((instr & RFSL_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
-
-static char *
-get_field_imm15 (long instr)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%d",
-           (short)((instr & IMM15_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
-
-#if 0
-static char *
-get_field_unsigned_imm (long instr)
-{
-  char tmpstr[25];
-  snprintf(tmpstr, sizeof(tmpstr), "%d",
-           (int)((instr & IMM_MASK) >> IMM_LOW));
-  return(strdup(tmpstr));
-}
-#endif
-
-/*
-  char *
-  get_field_special (instr) 
-  long instr;
-  {
-  char tmpstr[25];
-  
-  snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix,
-          (((instr & IMM_MASK) >> IMM_LOW) & REG_MSR_MASK) == 0 ? "pc" : "msr");
-  
-  return(strdup(tmpstr));
-  }
-*/
-
-static char *
-get_field_special(long instr, const struct op_code_struct *op)
-{
-   char tmpstr[25];
-   char spr[6];
-
-   switch ( (((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) ) {
-
-   case REG_MSR_MASK :
-      strcpy(spr, "msr");
-      break;
-   case REG_PC_MASK :
-      strcpy(spr, "pc");
-      break;
-   case REG_EAR_MASK :
-      strcpy(spr, "ear");
-      break;
-   case REG_ESR_MASK :
-      strcpy(spr, "esr");
-      break;
-   case REG_FSR_MASK :
-      strcpy(spr, "fsr");
-      break;
-   case REG_BTR_MASK :
-      strcpy(spr, "btr");
-      break;      
-   case REG_EDR_MASK :
-      strcpy(spr, "edr");
-      break;
-   case REG_PID_MASK :
-      strcpy(spr, "pid");
-      break;
-   case REG_ZPR_MASK :
-      strcpy(spr, "zpr");
-      break;
-   case REG_TLBX_MASK :
-      strcpy(spr, "tlbx");
-      break;
-   case REG_TLBLO_MASK :
-      strcpy(spr, "tlblo");
-      break;
-   case REG_TLBHI_MASK :
-      strcpy(spr, "tlbhi");
-      break;
-   case REG_TLBSX_MASK :
-      strcpy(spr, "tlbsx");
-      break;
-   default :
-     {
-       if ( ((((instr & IMM_MASK) >> IMM_LOW) ^ op->immval_mask) & 0xE000) == REG_PVR_MASK) {
-          snprintf(tmpstr, sizeof(tmpstr), "%s%u", pvr_register_prefix,
-                 (unsigned short)(((instr & IMM_MASK) >> IMM_LOW) ^
-                                  op->immval_mask) ^ REG_PVR_MASK);
-	 return(strdup(tmpstr));
-       } else {
-	 strcpy(spr, "pc");
-       }
-     }
-     break;
-   }
-   
-   snprintf(tmpstr, sizeof(tmpstr), "%s%s", register_prefix, spr);
-   return(strdup(tmpstr));
+    switch (special) {
+    case REG_MSR_MASK:
+        return register_prefix "msr";
+    case REG_PC_MASK:
+        return register_prefix "pc";
+    case REG_EAR_MASK:
+        return register_prefix "ear";
+    case REG_ESR_MASK:
+        return register_prefix "esr";
+    case REG_FSR_MASK:
+        return register_prefix "fsr";
+    case REG_BTR_MASK:
+        return register_prefix "btr";
+    case REG_EDR_MASK:
+        return register_prefix "edr";
+    case REG_PID_MASK:
+        return register_prefix "pid";
+    case REG_ZPR_MASK:
+        return register_prefix "zpr";
+    case REG_TLBX_MASK:
+        return register_prefix "tlbx";
+    case REG_TLBLO_MASK:
+        return register_prefix "tlblo";
+    case REG_TLBHI_MASK:
+        return register_prefix "tlbhi";
+    case REG_TLBSX_MASK:
+        return register_prefix "tlbsx";
+    default:
+        if ((special & 0xE000) == REG_PVR_MASK) {
+            /* pvr register */
+            return NULL;
+        }
+        return register_prefix "pc";
+    }
 }
 
 static unsigned long
@@ -767,185 +672,189 @@ read_insn_microblaze (bfd_vma memaddr,
   return inst;
 }
 
+static void print_immval_addr(struct disassemble_info *info, bool immfound,
+                              int immval, unsigned inst, int addend)
+{
+    if (info->print_address_func && info->symbol_at_address_func) {
+        if (immfound) {
+            immval |= get_int_field_imm(inst) & 0x0000ffff;
+        } else {
+            immval = (int16_t)get_int_field_imm(inst);
+        }
+        immval += addend;
+        if (immval != 0 && info->symbol_at_address_func(immval, info)) {
+            info->fprintf_func(info->stream, "\t// ");
+            info->print_address_func (immval, info);
+        } else if (addend) {
+            info->fprintf_func(info->stream, "\t// %x", immval);
+        }
+    }
+}
 
 int 
-print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
+print_insn_microblaze(bfd_vma memaddr, struct disassemble_info *info)
 {
-  fprintf_function    fprintf_func = info->fprintf_func;
-  void *              stream = info->stream;
-  unsigned long       inst, prev_inst;
-  const struct op_code_struct *op, *pop;
-  int                 immval = 0;
-  bfd_boolean         immfound = FALSE;
-  static bfd_vma prev_insn_addr = -1; /*init the prev insn addr */
-  static int     prev_insn_vma = -1;  /*init the prev insn vma */
-  int            curr_insn_vma = info->buffer_vma;
+    fprintf_function fprintf_func = info->fprintf_func;
+    void *stream = info->stream;
+    unsigned long inst, prev_inst;
+    const struct op_code_struct *op, *pop;
+    int immval = 0;
+    bool immfound = false;
+    static bfd_vma prev_insn_addr = -1; /*init the prev insn addr */
+    static int prev_insn_vma = -1;  /*init the prev insn vma */
+    int curr_insn_vma = info->buffer_vma;
+    int special;
+    const char *special_name;
 
-  info->bytes_per_chunk = 4;
+    info->bytes_per_chunk = 4;
 
-  inst = read_insn_microblaze (memaddr, info, &op);
-  if (inst == 0) {
-    return -1;
-  }
-  
-  if (prev_insn_vma == curr_insn_vma) {
-  if (memaddr-(info->bytes_per_chunk) == prev_insn_addr) {
-    prev_inst = read_insn_microblaze (prev_insn_addr, info, &pop);
-    if (prev_inst == 0)
-      return -1;
-    if (pop->instr == imm) {
-      immval = (get_int_field_imm(prev_inst) << 16) & 0xffff0000;
-      immfound = TRUE;
-    }
-    else {
-      immval = 0;
-      immfound = FALSE;
-    }
-  }
-  }
-  /* make curr insn as prev insn */
-  prev_insn_addr = memaddr;
-  prev_insn_vma = curr_insn_vma;
-
-  if (op->name == 0) {
-    fprintf_func (stream, ".short 0x%04lx", inst);
-  }
-  else
-    {
-      fprintf_func (stream, "%s", op->name);
-      
-      switch (op->inst_type)
-	{
-  case INST_TYPE_RD_R1_R2:
-     fprintf_func(stream, "\t%s, %s, %s", get_field_rd(inst), get_field_r1(inst), get_field_r2(inst));
-     break;
-        case INST_TYPE_RD_R1_IMM:
-	  fprintf_func(stream, "\t%s, %s, %s", get_field_rd(inst), get_field_r1(inst), get_field_imm(inst));
-	  if (info->print_address_func && get_int_field_r1(inst) == 0 && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    }
-	  }
-	  break;
-	case INST_TYPE_RD_R1_IMM5:
-	  fprintf_func(stream, "\t%s, %s, %s", get_field_rd(inst), get_field_r1(inst), get_field_imm5(inst));
-	  break;
-	case INST_TYPE_RD_RFSL:
-	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_rfsl(inst));
-	  break;
-	case INST_TYPE_R1_RFSL:
-	  fprintf_func(stream, "\t%s, %s", get_field_r1(inst), get_field_rfsl(inst));
-	  break;
-	case INST_TYPE_RD_SPECIAL:
-	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_special(inst, op));
-	  break;
-	case INST_TYPE_SPECIAL_R1:
-	  fprintf_func(stream, "\t%s, %s", get_field_special(inst, op), get_field_r1(inst));
-	  break;
-	case INST_TYPE_RD_R1:
-	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_r1(inst));
-	  break;
-	case INST_TYPE_R1_R2:
-	  fprintf_func(stream, "\t%s, %s", get_field_r1(inst), get_field_r2(inst));
-	  break;
-	case INST_TYPE_R1_IMM:
-	  fprintf_func(stream, "\t%s, %s", get_field_r1(inst), get_field_imm(inst));
-	  /* The non-pc relative instructions are returns, which shouldn't 
-	     have a label printed */
-	  if (info->print_address_func && op->inst_offset_type == INST_PC_OFFSET && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    immval += memaddr;
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } else {
-	      fprintf_func (stream, "\t\t// ");
-	      fprintf_func (stream, "%x", immval);
-	    }
-	  }
-	  break;
-        case INST_TYPE_RD_IMM:
-	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_imm(inst));
-	  if (info->print_address_func && info->symbol_at_address_func) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (op->inst_offset_type == INST_PC_OFFSET)
-	      immval += (int) memaddr;
-	    if (info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } 
-	  }
-	  break;
-        case INST_TYPE_IMM:
-	  fprintf_func(stream, "\t%s", get_field_imm(inst));
-	  if (info->print_address_func && info->symbol_at_address_func && op->instr != imm) {
-	    if (immfound)
-	      immval |= (get_int_field_imm(inst) & 0x0000ffff);
-	    else {
-	      immval = get_int_field_imm(inst);
-	      if (immval & 0x8000)
-		immval |= 0xFFFF0000;
-	    }
-	    if (op->inst_offset_type == INST_PC_OFFSET)
-	      immval += (int) memaddr;
-	    if (immval > 0 && info->symbol_at_address_func(immval, info)) {
-	      fprintf_func (stream, "\t// ");
-	      info->print_address_func (immval, info);
-	    } else if (op->inst_offset_type == INST_PC_OFFSET) {
-	      fprintf_func (stream, "\t\t// ");
-	      fprintf_func (stream, "%x", immval);
-	    }
-	  }
-	  break;
-        case INST_TYPE_RD_R2:
-	  fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_r2(inst));
-	  break;
-  case INST_TYPE_R2:
-     fprintf_func(stream, "\t%s", get_field_r2(inst));
-     break;
-  case INST_TYPE_R1:
-     fprintf_func(stream, "\t%s", get_field_r1(inst));
-     break;
-  case INST_TYPE_RD_R1_SPECIAL:
-     fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_r2(inst));
-     break;
-  case INST_TYPE_RD_IMM15:
-     fprintf_func(stream, "\t%s, %s", get_field_rd(inst), get_field_imm15(inst));
-     break;
-     /* For tuqula instruction */
-  case INST_TYPE_RD:
-     fprintf_func(stream, "\t%s", get_field_rd(inst));
-     break;
-  case INST_TYPE_RFSL:
-     fprintf_func(stream, "\t%s", get_field_rfsl(inst));
-     break;
-  default:
-	  /* if the disassembler lags the instruction set */
-	  fprintf_func (stream, "\tundecoded operands, inst is 0x%04lx", inst);
-	  break;
-	}
+    inst = read_insn_microblaze (memaddr, info, &op);
+    if (inst == 0) {
+        return -1;
     }
   
-  /* Say how many bytes we consumed? */
-  return 4;
+    if (prev_insn_vma == curr_insn_vma) {
+        if (memaddr - info->bytes_per_chunk == prev_insn_addr) {
+            prev_inst = read_insn_microblaze (prev_insn_addr, info, &pop);
+            if (prev_inst == 0)
+                return -1;
+            if (pop->instr == imm) {
+                immval = (get_int_field_imm(prev_inst) << 16) & 0xffff0000;
+                immfound = TRUE;
+            }
+            else {
+                immval = 0;
+                immfound = FALSE;
+            }
+        }
+    }
+    /* make curr insn as prev insn */
+    prev_insn_addr = memaddr;
+    prev_insn_vma = curr_insn_vma;
+
+    if (op->name == 0) {
+        fprintf_func (stream, ".short 0x%04lx", inst);
+        return 4;
+    }
+
+    switch (op->inst_type) {
+    case INST_TYPE_RD_R1_R2:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", " PRIreg,
+                     op->name, get_field_rd(inst), get_field_r1(inst),
+                     get_field_r2(inst));
+        break;
+    case INST_TYPE_RD_R1_IMM:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", " PRIimm,
+                     op->name, get_field_rd(inst), get_field_r1(inst),
+                     get_field_imm(inst));
+        if (get_int_field_r1(inst) == 0) {
+            print_immval_addr(info, immfound, immval, inst, 0);
+        }
+        break;
+    case INST_TYPE_RD_R1_IMM5:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg ", " PRIimm,
+                     op->name, get_field_rd(inst), get_field_r1(inst),
+                     get_field_imm5(inst));
+        break;
+    case INST_TYPE_RD_RFSL:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIrfsl,
+                     op->name, get_field_rd(inst), get_field_rfsl(inst));
+        break;
+    case INST_TYPE_R1_RFSL:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIrfsl,
+                     op->name, get_field_r1(inst), get_field_rfsl(inst));
+        break;
+    case INST_TYPE_RD_SPECIAL:
+        special = get_field_special(inst, op);
+        special_name = get_special_name(special);
+        if (special_name) {
+            fprintf_func(stream, "%s\t" PRIreg ", %s",
+                         op->name, get_field_rd(inst), special_name);
+        } else {
+            fprintf_func(stream, "%s\t" PRIreg ", " PRIpvr,
+                         op->name, get_field_rd(inst), special ^ REG_PVR_MASK);
+        }
+        break;
+    case INST_TYPE_SPECIAL_R1:
+        special = get_field_special(inst, op);
+        special_name = get_special_name(special);
+        if (special_name) {
+            fprintf_func(stream, "%s\t%s, " PRIreg,
+                         op->name, special_name, get_field_r1(inst));
+        } else {
+            fprintf_func(stream, "%s\t" PRIpvr ", " PRIreg,
+                         op->name, special ^ REG_PVR_MASK, get_field_r1(inst));
+        }
+        break;
+    case INST_TYPE_RD_R1:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
+                     op->name, get_field_rd(inst), get_field_r1(inst));
+        break;
+    case INST_TYPE_R1_R2:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
+                     op->name, get_field_r1(inst), get_field_r2(inst));
+        break;
+    case INST_TYPE_R1_IMM:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIimm,
+                     op->name, get_field_r1(inst), get_field_imm(inst));
+        /*
+         * The non-pc relative instructions are returns,
+         * which shouldn't have a label printed.
+         */
+        if (op->inst_offset_type == INST_PC_OFFSET) {
+            print_immval_addr(info, immfound, immval, inst, memaddr);
+        }
+        break;
+    case INST_TYPE_RD_IMM:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIimm,
+                     op->name, get_field_rd(inst), get_field_imm(inst));
+        print_immval_addr(info, immfound, immval, inst,
+                          op->inst_offset_type == INST_PC_OFFSET
+                          ? memaddr : 0);
+        break;
+    case INST_TYPE_IMM:
+        fprintf_func(stream, "%s\t" PRIimm,
+                     op->name, get_field_imm(inst));
+        if (op->instr != imm) {
+            print_immval_addr(info, immfound, immval, inst,
+                              op->inst_offset_type == INST_PC_OFFSET
+                              ? memaddr : 0);
+        }
+        break;
+    case INST_TYPE_RD_R2:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
+                     op->name, get_field_rd(inst), get_field_r2(inst));
+        break;
+    case INST_TYPE_R2:
+        fprintf_func(stream, "%s\t" PRIreg,
+                     op->name, get_field_r2(inst));
+        break;
+    case INST_TYPE_R1:
+        fprintf_func(stream, "%s\t" PRIreg,
+                     op->name, get_field_r1(inst));
+        break;
+    case INST_TYPE_RD_R1_SPECIAL:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIreg,
+                     op->name, get_field_rd(inst), get_field_r2(inst));
+        break;
+    case INST_TYPE_RD_IMM15:
+        fprintf_func(stream, "%s\t" PRIreg ", " PRIimm,
+                     op->name, get_field_rd(inst), get_field_imm15(inst));
+        break;
+        /* For tuqula instruction */
+    case INST_TYPE_RD:
+        fprintf_func(stream, "%s\t" PRIreg,
+                     op->name, get_field_rd(inst));
+        break;
+    case INST_TYPE_RFSL:
+        fprintf_func(stream, "%s\t" PRIrfsl,
+                     op->name, get_field_rfsl(inst));
+        break;
+    default:
+        /* if the disassembler lags the instruction set */
+        fprintf_func(stream, "%s\tundecoded operands, inst is 0x%04lx",
+                     op->name, inst);
+        break;
+    }
+    return 4;
 }

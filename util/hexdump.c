@@ -1,5 +1,5 @@
 /*
- * Helper to hexdump a buffer
+* Helper to hexdump a buffer
  *
  * Copyright (c) 2013 Red Hat, Inc.
  * Copyright (c) 2013 Gerd Hoffmann <kraxel@redhat.com>
@@ -16,22 +16,47 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 
-void qemu_hexdump_line(char *line, const void *bufptr, size_t len)
+static inline char hexdump_nibble(unsigned x)
 {
-    const char *buf = bufptr;
-    int i;
+    return (x < 10 ? '0' : 'a' - 10) + x;
+}
 
-    if (len > QEMU_HEXDUMP_LINE_BYTES) {
-        len = QEMU_HEXDUMP_LINE_BYTES;
-    }
+GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
+                           size_t unit_len, size_t block_len)
+{
+    const uint8_t *buf = vbuf;
+    size_t u, b;
 
-    for (i = 0; i < len; i++) {
-        if (i != 0 && (i % 4) == 0) {
-            *line++ = ' ';
+    if (str == NULL) {
+        /* Estimate the length of the output to avoid reallocs. */
+        size_t est = len * 2;
+        if (unit_len) {
+            est += len / unit_len;
         }
-        line += sprintf(line, " %02x", (unsigned char)buf[i]);
+        if (block_len) {
+            est += len / block_len;
+        }
+        str = g_string_sized_new(est + 1);
     }
-    *line = '\0';
+
+    for (u = 0, b = 0; len; u++, b++, len--, buf++) {
+        uint8_t c;
+
+        if (unit_len && u == unit_len) {
+            g_string_append_c(str, ' ');
+            u = 0;
+        }
+        if (block_len && b == block_len) {
+            g_string_append_c(str, ' ');
+            b = 0;
+        }
+
+        c = *buf;
+        g_string_append_c(str, hexdump_nibble(c / 16));
+        g_string_append_c(str, hexdump_nibble(c % 16));
+    }
+
+    return str;
 }
 
 static void asciidump_line(char *line, const void *bufptr, size_t len)
@@ -49,24 +74,26 @@ static void asciidump_line(char *line, const void *bufptr, size_t len)
     *line = '\0';
 }
 
+#define QEMU_HEXDUMP_LINE_BYTES 16
 #define QEMU_HEXDUMP_LINE_WIDTH \
     (QEMU_HEXDUMP_LINE_BYTES * 2 + QEMU_HEXDUMP_LINE_BYTES / 4)
 
 void qemu_hexdump(FILE *fp, const char *prefix,
                   const void *bufptr, size_t size)
 {
-    char line[QEMU_HEXDUMP_LINE_LEN];
+    g_autoptr(GString) str = g_string_sized_new(QEMU_HEXDUMP_LINE_WIDTH + 1);
     char ascii[QEMU_HEXDUMP_LINE_BYTES + 1];
     size_t b, len;
 
     for (b = 0; b < size; b += len) {
         len = MIN(size - b, QEMU_HEXDUMP_LINE_BYTES);
 
-        qemu_hexdump_line(line, bufptr + b, len);
+        g_string_truncate(str, 0);
+        qemu_hexdump_line(str, bufptr + b, len, 1, 4);
         asciidump_line(ascii, bufptr + b, len);
 
         fprintf(fp, "%s: %04zx: %-*s %s\n",
-                prefix, b, QEMU_HEXDUMP_LINE_WIDTH, line, ascii);
+                prefix, b, QEMU_HEXDUMP_LINE_WIDTH, str->str, ascii);
     }
 
 }
