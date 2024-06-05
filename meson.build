@@ -2556,10 +2556,16 @@ config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(gnu_source_prefix + '''
   #else
   int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
   #endif'''))
-config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
-  #include <sys/mman.h>
-  #include <stddef.h>
-  int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+
+# On Darwin posix_madvise() has the same return semantics as plain madvise(),
+# i.e. errno is set and -1 is returned. That's not really how POSIX defines the
+# function. On the flip side, it has madvise() which is preferred anyways.
+if host_os != 'darwin'
+  config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
+    #include <sys/mman.h>
+    #include <stddef.h>
+    int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+endif
 
 config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links(gnu_source_prefix + '''
   #include <pthread.h>
