@@ -2575,11 +2575,13 @@ static void gen_PMOVMSKB(DisasContext *s, CPUX86State *env, X86DecodedInsn *deco
 
 static void gen_POP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
+    X86DecodedOp *op = &decode->op[0];
     MemOp ot = gen_pop_T0(s);
-    if (decode->op[0].has_ea) {
+
+    if (op->has_ea) {
         /* NOTE: order is important for MMU exceptions */
         gen_op_st_v(s, ot, s->T0, s->A0);
-        decode->op[0].unit = X86_OP_SKIP;
+        op->unit = X86_OP_SKIP;
     }
     /* NOTE: writing back registers after update is important for pop %sp */
     gen_pop_update(s, ot);
