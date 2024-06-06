@@ -143,9 +143,12 @@ static inline void extioi_update_sw_coremap(LoongArchExtIOI *s, int irq,
 
     for (i = 0; i < 4; i++) {
         cpu = val & 0xff;
-        cpu = ctz32(cpu);
-        cpu = (cpu >= 4) ? 0 : cpu;
         val = val >> 8;
+
+        if (!(s->status & BIT(EXTIOI_ENABLE_CPU_ENCODE))) {
+            cpu = ctz32(cpu);
+            cpu = (cpu >= 4) ? 0 : cpu;
+        }
 
         if (s->sw_coremap[irq + i] == cpu) {
             continue;
@@ -265,6 +268,61 @@ static const MemoryRegionOps extioi_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static MemTxResult extioi_virt_readw(void *opaque, hwaddr addr, uint64_t *data,
+                                     unsigned size, MemTxAttrs attrs)
+{
+    LoongArchExtIOI *s = LOONGARCH_EXTIOI(opaque);
+
+    switch (addr) {
+    case EXTIOI_VIRT_FEATURES:
+        *data = s->features;
+        break;
+    case EXTIOI_VIRT_CONFIG:
+        *data = s->status;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return MEMTX_OK;
+}
+
+static MemTxResult extioi_virt_writew(void *opaque, hwaddr addr,
+                          uint64_t val, unsigned size,
+                          MemTxAttrs attrs)
+{
+    LoongArchExtIOI *s = LOONGARCH_EXTIOI(opaque);
+
+    switch (addr) {
+    case EXTIOI_VIRT_FEATURES:
+        return MEMTX_ACCESS_ERROR;
+
+    case EXTIOI_VIRT_CONFIG:
+        /*
+         * extioi features can only be set at disabled status
+         */
+        if ((s->status & BIT(EXTIOI_ENABLE)) && val) {
+            return MEMTX_ACCESS_ERROR;
+        }
+
+        s->status = val & s->features;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return MEMTX_OK;
+}
+
+static const MemoryRegionOps extioi_virt_ops = {
+    .read_with_attrs = extioi_virt_readw,
+    .write_with_attrs = extioi_virt_writew,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 8,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
 {
     LoongArchExtIOI *s = LOONGARCH_EXTIOI(dev);
@@ -284,6 +342,16 @@ static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->extioi_system_mem, OBJECT(s), &extioi_ops,
                           s, "extioi_system_mem", 0x900);
     sysbus_init_mmio(sbd, &s->extioi_system_mem);
+
+    if (s->features & BIT(EXTIOI_HAS_VIRT_EXTENSION)) {
+        memory_region_init_io(&s->virt_extend, OBJECT(s), &extioi_virt_ops,
+                              s, "extioi_virt", EXTIOI_VIRT_SIZE);
+        sysbus_init_mmio(sbd, &s->virt_extend);
+        s->features |= EXTIOI_VIRT_HAS_FEATURES;
+    } else {
+        s->status |= BIT(EXTIOI_ENABLE);
+    }
+
     s->cpu = g_new0(ExtIOICore, s->num_cpu);
     if (s->cpu == NULL) {
         error_setg(errp, "Memory allocation for ExtIOICore faile");
@@ -302,6 +370,13 @@ static void loongarch_extioi_finalize(Object *obj)
     LoongArchExtIOI *s = LOONGARCH_EXTIOI(obj);
 
     g_free(s->cpu);
+}
+
+static void loongarch_extioi_reset(DeviceState *d)
+{
+    LoongArchExtIOI *s = LOONGARCH_EXTIOI(d);
+
+    s->status = 0;
 }
 
 static int vmstate_extioi_post_load(void *opaque, int version_id)
@@ -333,8 +408,8 @@ static const VMStateDescription vmstate_extioi_core = {
 
 static const VMStateDescription vmstate_loongarch_extioi = {
     .name = TYPE_LOONGARCH_EXTIOI,
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .post_load = vmstate_extioi_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(bounce, LoongArchExtIOI, EXTIOI_IRQS_GROUP_COUNT),
@@ -347,12 +422,16 @@ static const VMStateDescription vmstate_loongarch_extioi = {
 
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongArchExtIOI, num_cpu,
                          vmstate_extioi_core, ExtIOICore),
+        VMSTATE_UINT32(features, LoongArchExtIOI),
+        VMSTATE_UINT32(status, LoongArchExtIOI),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property extioi_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", LoongArchExtIOI, num_cpu, 1),
+    DEFINE_PROP_BIT("has-virtualization-extension", LoongArchExtIOI, features,
+                    EXTIOI_HAS_VIRT_EXTENSION, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -361,6 +440,7 @@ static void loongarch_extioi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = loongarch_extioi_realize;
+    dc->reset   = loongarch_extioi_reset;
     device_class_set_props(dc, extioi_properties);
     dc->vmsd = &vmstate_loongarch_extioi;
 }
