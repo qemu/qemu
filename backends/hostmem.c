@@ -178,19 +178,16 @@ static void host_memory_backend_set_merge(Object *obj, bool value, Error **errp)
         return;
     }
 
-    if (!host_memory_backend_mr_inited(backend)) {
-        backend->merge = value;
-        return;
-    }
-
-    if (value != backend->merge) {
+    if (!host_memory_backend_mr_inited(backend) &&
+        value != backend->merge) {
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
         qemu_madvise(ptr, sz,
                      value ? QEMU_MADV_MERGEABLE : QEMU_MADV_UNMERGEABLE);
-        backend->merge = value;
     }
+
+    backend->merge = value;
 }
 
 static bool host_memory_backend_get_dump(Object *obj, Error **errp)
@@ -212,19 +209,16 @@ static void host_memory_backend_set_dump(Object *obj, bool value, Error **errp)
         return;
     }
 
-    if (!host_memory_backend_mr_inited(backend)) {
-        backend->dump = value;
-        return;
-    }
-
-    if (value != backend->dump) {
+    if (host_memory_backend_mr_inited(backend) &&
+        value != backend->dump) {
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
         qemu_madvise(ptr, sz,
                      value ? QEMU_MADV_DODUMP : QEMU_MADV_DONTDUMP);
-        backend->dump = value;
     }
+
+    backend->dump = value;
 }
 
 static bool host_memory_backend_get_prealloc(Object *obj, Error **errp)
