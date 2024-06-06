@@ -301,6 +301,8 @@ class Event(object):
         if fmt.endswith(r'\n"'):
             raise ValueError("Event format must not end with a newline "
                              "character")
+        if '\\n' in fmt:
+            raise ValueError("Event format must not use new line character")
 
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]
