@@ -2580,9 +2580,9 @@ static void gen_POP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
     if (op->has_ea) {
         /* NOTE: order is important for MMU exceptions */
-        gen_op_st_v(s, ot, s->T0, s->A0);
-        op->unit = X86_OP_SKIP;
+        gen_writeback(s, decode, 0, s->T0);
     }
+
     /* NOTE: writing back registers after update is important for pop %sp */
     gen_pop_update(s, ot);
 }
