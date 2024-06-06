@@ -306,13 +306,7 @@ class Event(object):
             fmt = [fmt_trans, fmt]
         args = Arguments.build(groups["args"])
 
-        event = Event(name, props, fmt, args, lineno, filename)
-
-        # add implicit arguments when using the 'vcpu' property
-        import tracetool.vcpu
-        event = tracetool.vcpu.transform_event(event)
-
-        return event
+        return Event(name, props, fmt, args, lineno, filename)
 
     def __repr__(self):
         """Evaluable string representation for this object."""
