@@ -42,7 +42,7 @@
 #include "sysemu/reset.h"
 #include "target/ppc/cpu.h"
 
-void icp_pic_print_info(ICPState *icp, Monitor *mon)
+void icp_pic_print_info(ICPState *icp, GString *buf)
 {
     int cpu_index;
 
@@ -63,9 +63,9 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
         icp_synchronize_state(icp);
     }
 
-    monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
-                   cpu_index, icp->xirr, icp->xirr_owner,
-                   icp->pending_priority, icp->mfrr);
+    g_string_append_printf(buf, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                           cpu_index, icp->xirr, icp->xirr_owner,
+                           icp->pending_priority, icp->mfrr);
 }
 
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
