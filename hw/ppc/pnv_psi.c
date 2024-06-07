@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 #include "sysemu/reset.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "monitor/monitor.h"
 
 
@@ -980,11 +981,16 @@ type_init(pnv_psi_register_types);
 void pnv_psi_pic_print_info(Pnv9Psi *psi9, Monitor *mon)
 {
     PnvPsi *psi = PNV_PSI(psi9);
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
     uint32_t offset =
         (psi->regs[PSIHB_REG(PSIHB9_IVT_OFFSET)] >> PSIHB9_IVT_OFF_SHIFT);
 
-    monitor_printf(mon, "PSIHB Source %08x .. %08x\n",
-                  offset, offset + psi9->source.nr_irqs - 1);
-    xive_source_pic_print_info(&psi9->source, offset, mon);
+    g_string_append_printf(buf, "PSIHB Source %08x .. %08x\n",
+                           offset, offset + psi9->source.nr_irqs - 1);
+    xive_source_pic_print_info(&psi9->source, offset, buf);
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }

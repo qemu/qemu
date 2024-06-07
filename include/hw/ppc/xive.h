@@ -314,7 +314,7 @@ static inline bool xive_source_is_asserted(XiveSource *xsrc, uint32_t srcno)
 }
 
 void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset,
-                                Monitor *mon);
+                                GString *buf);
 
 static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
 {

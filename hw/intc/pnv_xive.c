@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
@@ -1857,10 +1858,14 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     XiveNVT nvt;
     int i;
     uint64_t xive_nvt_per_subpage;
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
-    monitor_printf(mon, "XIVE[%x] #%d Source %08x .. %08x\n", chip_id, blk,
-                   srcno0, srcno0 + nr_ipis - 1);
-    xive_source_pic_print_info(&xive->ipi_source, srcno0, mon);
+    g_string_append_printf(buf, "XIVE[%x] #%d Source %08x .. %08x\n",
+                           chip_id, blk, srcno0, srcno0 + nr_ipis - 1);
+    xive_source_pic_print_info(&xive->ipi_source, srcno0, buf);
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     monitor_printf(mon, "XIVE[%x] #%d EAT %08x .. %08x\n", chip_id, blk,
                    srcno0, srcno0 + nr_ipis - 1);

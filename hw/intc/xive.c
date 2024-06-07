@@ -1209,22 +1209,20 @@ void xive_source_set_irq(void *opaque, int srcno, int val)
     }
 }
 
-void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset, Monitor *mon)
+void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset, GString *buf)
 {
-    int i;
-
-    for (i = 0; i < xsrc->nr_irqs; i++) {
+    for (unsigned i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq = xive_source_esb_get(xsrc, i);
 
         if (pq == XIVE_ESB_OFF) {
             continue;
         }
 
-        monitor_printf(mon, "  %08x %s %c%c%c\n", i + offset,
-                       xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
-                       pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                       pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                       xive_source_is_asserted(xsrc, i) ? 'A' : ' ');
+        g_string_append_printf(buf, "  %08x %s %c%c%c\n", i + offset,
+                               xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
+                               pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                               pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                               xive_source_is_asserted(xsrc, i) ? 'A' : ' ');
     }
 }
 
