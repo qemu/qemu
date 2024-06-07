@@ -1207,6 +1207,18 @@ if not get_option('qpl').auto() or have_system
                     required: get_option('qpl'),
                     method: 'pkg-config')
 endif
+uadk = not_found
+if not get_option('uadk').auto() or have_system
+  libwd = dependency('libwd', version: '>=2.6',
+                      required: get_option('uadk'),
+                      method: 'pkg-config')
+  libwd_comp = dependency('libwd_comp', version: '>=2.6',
+                           required: get_option('uadk'),
+                           method: 'pkg-config')
+  if libwd.found() and libwd_comp.found()
+     uadk = declare_dependency(dependencies: [libwd, libwd_comp])
+  endif
+endif
 virgl = not_found
 
 have_vhost_user_gpu = have_tools and host_os == 'linux' and pixman.found()
@@ -2340,6 +2352,7 @@ config_host_data.set('CONFIG_STATX', has_statx)
 config_host_data.set('CONFIG_STATX_MNT_ID', has_statx_mnt_id)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_QPL', qpl.found())
+config_host_data.set('CONFIG_UADK', uadk.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())
 config_host_data.set('CONFIG_SPICE_PROTOCOL', spice_protocol.found())
@@ -4454,6 +4467,7 @@ summary_info += {'bzip2 support':     libbzip2}
 summary_info += {'lzfse support':     liblzfse}
 summary_info += {'zstd support':      zstd}
 summary_info += {'Query Processing Library support': qpl}
+summary_info += {'UADK Library support': uadk}
 summary_info += {'NUMA host support': numa}
 summary_info += {'capstone':          capstone}
 summary_info += {'libpmem support':   libpmem}
