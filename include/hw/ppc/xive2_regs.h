@@ -134,7 +134,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon);
 void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
                                     Monitor *mon);
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
-                                   Monitor *mon);
+                                  GString *buf);
 
 /*
  * Notification Virtual Processor (NVP)

@@ -116,7 +116,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon)
 }
 
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
-                                  Monitor *mon)
+                                  GString *buf)
 {
     Xive2Eas *eas = (Xive2Eas *) &end->w4;
     uint8_t pq;
@@ -127,15 +127,15 @@ void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
 
     pq = xive_get_field32(END2_W1_ESe, end->w1);
 
-    monitor_printf(mon, "  %08x %c%c %c%c end:%02x/%04x data:%08x\n",
-                   end_idx,
-                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                   xive2_eas_is_valid(eas) ? 'v' : ' ',
-                   xive2_eas_is_masked(eas) ? 'M' : ' ',
-                   (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
+    g_string_append_printf(buf, "  %08x %c%c %c%c end:%02x/%04x data:%08x\n",
+                           end_idx,
+                           pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                           pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                           xive2_eas_is_valid(eas) ? 'v' : ' ',
+                           xive2_eas_is_masked(eas) ? 'M' : ' ',
+                           (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
 }
 
 static void xive2_end_enqueue(Xive2End *end, uint32_t data)

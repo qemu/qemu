@@ -2135,14 +2135,14 @@ void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
         }
     }
 
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
-
-    monitor_printf(mon, "XIVE[%x] #%d END Escalation EAT\n", chip_id, blk);
+    g_string_append_printf(buf, "XIVE[%x] #%d END Escalation EAT\n",
+                           chip_id, blk);
     i = 0;
     while (!xive2_router_get_end(xrtr, blk, i, &end)) {
-        xive2_end_eas_pic_print_info(&end, i++, mon);
+        xive2_end_eas_pic_print_info(&end, i++, buf);
     }
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     monitor_printf(mon, "XIVE[%x] #%d ENDT\n", chip_id, blk);
     i = 0;
