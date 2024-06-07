@@ -864,7 +864,7 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
     g_autoptr(GString) buf = g_string_new("");
     g_autoptr(HumanReadableText) info = NULL;
 
-    pnv_xive2_pic_print_info(&chip10->xive, mon);
+    pnv_xive2_pic_print_info(&chip10->xive, buf);
 
     pnv_psi_pic_print_info(&chip10->psi, buf);
     info = human_readable_text_from_str(buf);

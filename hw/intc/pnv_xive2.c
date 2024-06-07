@@ -10,11 +10,9 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "qapi/type-helpers.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
-#include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_chip.h"
@@ -2105,7 +2103,7 @@ static uint64_t pnv_xive2_vst_per_subpage(PnvXive2 *xive, uint32_t type)
     return (1ull << page_shift) / info->size;
 }
 
-void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
+void pnv_xive2_pic_print_info(PnvXive2 *xive, GString *buf)
 {
     Xive2Router *xrtr = XIVE2_ROUTER(xive);
     uint8_t blk = pnv_xive2_block_id(xive);
@@ -2117,8 +2115,6 @@ void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
     Xive2Nvp nvp;
     int i;
     uint64_t xive_nvp_per_subpage;
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     g_string_append_printf(buf, "XIVE[%x] Source %08x .. %08x\n",
                            blk, srcno0, srcno0 + nr_esbs - 1);
@@ -2156,7 +2152,4 @@ void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
             xive2_nvp_pic_print_info(&nvp, i++, buf);
         }
     }
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
