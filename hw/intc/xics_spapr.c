@@ -409,10 +409,10 @@ static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
 
         icp_pic_print_info(spapr_cpu_state(cpu)->icp, buf);
     }
+    ics_pic_print_info(ics, buf);
+
     info = human_readable_text_from_str(buf);
     monitor_puts(mon, info->human_readable_text);
-
-    ics_pic_print_info(ics, mon);
 }
 
 static int xics_spapr_post_load(SpaprInterruptController *intc, int version_id)

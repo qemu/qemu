@@ -770,20 +770,21 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
     int i;
 
-    ics_pic_print_info(&chip8->psi.ics, mon);
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
+
+    ics_pic_print_info(&chip8->psi.ics, buf);
 
     for (i = 0; i < chip8->num_phbs; i++) {
         PnvPHB *phb = chip8->phbs[i];
         PnvPHB3 *phb3 = PNV_PHB3(phb->backend);
-        g_autoptr(GString) buf = g_string_new("");
-        g_autoptr(HumanReadableText) info = NULL;
 
         pnv_phb3_msi_pic_print_info(&phb3->msis, buf);
-        info = human_readable_text_from_str(buf);
-        monitor_puts(mon, info->human_readable_text);
-
-        ics_pic_print_info(&phb3->lsis, mon);
+        ics_pic_print_info(&phb3->lsis, buf);
     }
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
