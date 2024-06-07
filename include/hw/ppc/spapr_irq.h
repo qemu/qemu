@@ -73,7 +73,7 @@ struct SpaprInterruptControllerClass {
 
     /* These methods should only be called on the active intc */
     void (*set_irq)(SpaprInterruptController *intc, int irq, int val);
-    void (*print_info)(SpaprInterruptController *intc, Monitor *mon);
+    void (*print_info)(SpaprInterruptController *intc, GString *buf);
     void (*dt)(SpaprInterruptController *intc, uint32_t nr_servers,
                void *fdt, uint32_t phandle);
     int (*post_load)(SpaprInterruptController *intc, int version_id);

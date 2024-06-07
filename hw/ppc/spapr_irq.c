@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "hw/irq.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
@@ -18,6 +19,7 @@
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
 #include "hw/qdev-properties.h"
+#include "monitor/monitor.h"
 #include "cpu-models.h"
 #include "sysemu/kvm.h"
 
@@ -269,8 +271,12 @@ void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon)
 {
     SpaprInterruptControllerClass *sicc
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
-    sicc->print_info(spapr->active_intc, mon);
+    sicc->print_info(spapr->active_intc, buf);
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,

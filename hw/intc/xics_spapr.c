@@ -34,8 +34,6 @@
 #include "hw/ppc/xics_spapr.h"
 #include "hw/ppc/fdt.h"
 #include "qapi/visitor.h"
-#include "qapi/type-helpers.h"
-#include "monitor/monitor.h"
 
 /*
  * Guest interfaces
@@ -397,12 +395,10 @@ static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
     ics_set_irq(ics, srcno, val);
 }
 
-static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
+static void xics_spapr_print_info(SpaprInterruptController *intc, GString *buf)
 {
     ICSState *ics = ICS_SPAPR(intc);
     CPUState *cs;
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -410,9 +406,6 @@ static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
         icp_pic_print_info(spapr_cpu_state(cpu)->icp, buf);
     }
     ics_pic_print_info(ics, buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 static int xics_spapr_post_load(SpaprInterruptController *intc, int version_id)

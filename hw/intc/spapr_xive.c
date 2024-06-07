@@ -11,13 +11,11 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/reset.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
@@ -701,12 +699,10 @@ static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
     }
 }
 
-static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
+static void spapr_xive_print_info(SpaprInterruptController *intc, GString *buf)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     CPUState *cs;
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -714,9 +710,6 @@ static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
         xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, buf);
     }
     spapr_xive_pic_print_info(xive, buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
