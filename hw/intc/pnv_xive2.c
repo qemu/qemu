@@ -2028,7 +2028,7 @@ static void pnv_xive2_register_types(void)
 type_init(pnv_xive2_register_types)
 
 static void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx,
-                                     Monitor *mon)
+                                     GString *buf)
 {
     uint8_t  eq_blk = xive_get_field32(NVP2_W5_VP_END_BLOCK, nvp->w5);
     uint32_t eq_idx = xive_get_field32(NVP2_W5_VP_END_INDEX, nvp->w5);
@@ -2037,21 +2037,21 @@ static void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx,
         return;
     }
 
-    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x",
-                   nvp_idx, eq_blk, eq_idx,
-                   xive_get_field32(NVP2_W2_IPB, nvp->w2));
+    g_string_append_printf(buf, "  %08x end:%02x/%04x IPB:%02x",
+                           nvp_idx, eq_blk, eq_idx,
+                           xive_get_field32(NVP2_W2_IPB, nvp->w2));
     /*
      * When the NVP is HW controlled, more fields are updated
      */
     if (xive2_nvp_is_hw(nvp)) {
-        monitor_printf(mon, " CPPR:%02x",
-                       xive_get_field32(NVP2_W2_CPPR, nvp->w2));
+        g_string_append_printf(buf, " CPPR:%02x",
+                               xive_get_field32(NVP2_W2_CPPR, nvp->w2));
         if (xive2_nvp_is_co(nvp)) {
-            monitor_printf(mon, " CO:%04x",
-                           xive_get_field32(NVP2_W1_CO_THRID, nvp->w1));
+            g_string_append_printf(buf, " CO:%04x",
+                                   xive_get_field32(NVP2_W1_CO_THRID, nvp->w1));
         }
     }
-    monitor_printf(mon, "\n");
+    g_string_append_c(buf, '\n');
 }
 
 /*
@@ -2147,15 +2147,16 @@ void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
     while (!xive2_router_get_end(xrtr, blk, i, &end)) {
         xive2_end_pic_print_info(&end, i++, buf);
     }
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 
-    monitor_printf(mon, "XIVE[%x] #%d NVPT %08x .. %08x\n", chip_id, blk,
-                   0, XIVE2_NVP_COUNT - 1);
+    g_string_append_printf(buf, "XIVE[%x] #%d NVPT %08x .. %08x\n",
+                           chip_id, blk, 0, XIVE2_NVP_COUNT - 1);
     xive_nvp_per_subpage = pnv_xive2_vst_per_subpage(xive, VST_NVP);
     for (i = 0; i < XIVE2_NVP_COUNT; i += xive_nvp_per_subpage) {
         while (!xive2_router_get_nvp(xrtr, blk, i, &nvp)) {
-            xive2_nvp_pic_print_info(&nvp, i++, mon);
+            xive2_nvp_pic_print_info(&nvp, i++, buf);
         }
     }
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }
