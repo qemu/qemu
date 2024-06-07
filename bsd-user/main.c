@@ -46,6 +46,7 @@
 #include "crypto/init.h"
 #include "qemu/guest-random.h"
 #include "gdbstub/user.h"
+#include "exec/page-vary.h"
 
 #include "host-os.h"
 #include "target_arch_cpu.h"
@@ -291,6 +292,7 @@ int main(int argc, char **argv)
     char **target_environ, **wrk;
     envlist_t *envlist = NULL;
     char *argv0 = NULL;
+    int host_page_size;
 
     adjust_ssize();
 
@@ -476,6 +478,16 @@ int main(int argc, char **argv)
                                  opt_one_insn_per_tb, &error_abort);
         ac->init_machine(NULL);
     }
+
+    /*
+     * Finalize page size before creating CPUs.
+     * This will do nothing if !TARGET_PAGE_BITS_VARY.
+     * The most efficient setting is to match the host.
+     */
+    host_page_size = qemu_real_host_page_size();
+    set_preferred_target_page_bits(ctz32(host_page_size));
+    finalize_target_page_bits();
+
     cpu = cpu_create(cpu_type);
     env = cpu_env(cpu);
     cpu_reset(cpu);
