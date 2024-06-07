@@ -34,13 +34,14 @@ MultiFDRecvData *multifd_get_recv_data(void);
 /* Multifd Compression flags */
 #define MULTIFD_FLAG_SYNC (1 << 0)
 
-/* We reserve 3 bits for compression methods */
-#define MULTIFD_FLAG_COMPRESSION_MASK (7 << 1)
+/* We reserve 4 bits for compression methods */
+#define MULTIFD_FLAG_COMPRESSION_MASK (0xf << 1)
 /* we need to be compatible. Before compression value was 0 */
 #define MULTIFD_FLAG_NOCOMP (0 << 1)
 #define MULTIFD_FLAG_ZLIB (1 << 1)
 #define MULTIFD_FLAG_ZSTD (2 << 1)
 #define MULTIFD_FLAG_QPL (4 << 1)
+#define MULTIFD_FLAG_UADK (8 << 1)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
 #define MULTIFD_PACKET_SIZE (512 * 1024)

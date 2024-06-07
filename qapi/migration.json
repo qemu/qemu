@@ -559,12 +559,15 @@
 #       In-Memory Analytics Accelerator(IAA) accelerated compression
 #       and decompression.  (Since 9.1)
 #
+# @uadk: use UADK library compression method.  (Since 9.1)
+#
 # Since: 5.0
 ##
 { 'enum': 'MultiFDCompression',
   'data': [ 'none', 'zlib',
             { 'name': 'zstd', 'if': 'CONFIG_ZSTD' },
-            { 'name': 'qpl', 'if': 'CONFIG_QPL' } ] }
+            { 'name': 'qpl', 'if': 'CONFIG_QPL' },
+            { 'name': 'uadk', 'if': 'CONFIG_UADK' } ] }
 
 ##
 # @MigMode:
