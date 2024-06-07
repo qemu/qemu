@@ -1864,19 +1864,19 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     g_string_append_printf(buf, "XIVE[%x] #%d Source %08x .. %08x\n",
                            chip_id, blk, srcno0, srcno0 + nr_ipis - 1);
     xive_source_pic_print_info(&xive->ipi_source, srcno0, buf);
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 
-    monitor_printf(mon, "XIVE[%x] #%d EAT %08x .. %08x\n", chip_id, blk,
-                   srcno0, srcno0 + nr_ipis - 1);
+    g_string_append_printf(buf, "XIVE[%x] #%d EAT %08x .. %08x\n",
+                           chip_id, blk, srcno0, srcno0 + nr_ipis - 1);
     for (i = 0; i < nr_ipis; i++) {
         if (xive_router_get_eas(xrtr, blk, i, &eas)) {
             break;
         }
         if (!xive_eas_is_masked(&eas)) {
-            xive_eas_pic_print_info(&eas, i, mon);
+            xive_eas_pic_print_info(&eas, i, buf);
         }
     }
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     monitor_printf(mon, "XIVE[%x] #%d ENDT\n", chip_id, blk);
     i = 0;

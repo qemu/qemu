@@ -167,7 +167,7 @@ typedef struct XiveEAS {
 #define xive_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS_VALID)
 #define xive_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS_MASKED)
 
-void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, GString *buf);
 
 static inline uint64_t xive_get_field64(uint64_t mask, uint64_t word)
 {

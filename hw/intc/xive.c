@@ -1921,17 +1921,17 @@ static const TypeInfo xive_router_info = {
     }
 };
 
-void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon)
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, GString *buf)
 {
     if (!xive_eas_is_valid(eas)) {
         return;
     }
 
-    monitor_printf(mon, "  %08x %s end:%02x/%04x data:%08x\n",
-                   lisn, xive_eas_is_masked(eas) ? "M" : " ",
-                   (uint8_t)  xive_get_field64(EAS_END_BLOCK, eas->w),
-                   (uint32_t) xive_get_field64(EAS_END_INDEX, eas->w),
-                   (uint32_t) xive_get_field64(EAS_END_DATA, eas->w));
+    g_string_append_printf(buf, "  %08x %s end:%02x/%04x data:%08x\n",
+                           lisn, xive_eas_is_masked(eas) ? "M" : " ",
+                           (uint8_t)  xive_get_field64(EAS_END_BLOCK, eas->w),
+                           (uint32_t) xive_get_field64(EAS_END_INDEX, eas->w),
+                           (uint32_t) xive_get_field64(EAS_END_DATA, eas->w));
 }
 
 /*
