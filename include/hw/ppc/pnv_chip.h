@@ -154,7 +154,7 @@ struct PnvChipClass {
     void (*intc_print_info)(PnvChip *chip, PowerPCCPU *cpu, GString *buf);
     ISABus *(*isa_create)(PnvChip *chip, Error **errp);
     void (*dt_populate)(PnvChip *chip, void *fdt);
-    void (*pic_print_info)(PnvChip *chip, Monitor *mon);
+    void (*pic_print_info)(PnvChip *chip, GString *buf);
     uint64_t (*xscom_core_base)(PnvChip *chip, uint32_t core_id);
     uint32_t (*xscom_pcba)(PnvChip *chip, uint64_t addr);
 };

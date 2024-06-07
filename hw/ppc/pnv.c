@@ -765,13 +765,10 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
-static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power8_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
     int i;
-
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     ics_pic_print_info(&chip8->psi.ics, buf);
 
@@ -782,9 +779,6 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
         pnv_phb3_msi_pic_print_info(&phb3->msis, buf);
         ics_pic_print_info(&phb3->lsis, buf);
     }
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
@@ -801,19 +795,14 @@ static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
     return 0;
 }
 
-static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power9_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     pnv_xive_pic_print_info(&chip9->xive, buf);
     pnv_psi_pic_print_info(&chip9->psi, buf);
     object_child_foreach_recursive(OBJECT(chip),
                          pnv_chip_power9_pic_print_info_child, buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 static uint64_t pnv_chip_power8_xscom_core_base(PnvChip *chip,
@@ -853,19 +842,14 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
     isa_realize_and_unref(dev, bus, &error_fatal);
 }
 
-static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power10_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv10Chip *chip10 = PNV10_CHIP(chip);
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     pnv_xive2_pic_print_info(&chip10->xive, buf);
     pnv_psi_pic_print_info(&chip10->psi, buf);
     object_child_foreach_recursive(OBJECT(chip),
                          pnv_chip_power9_pic_print_info_child, buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 /* Always give the first 1GB to chip 0 else we won't boot */
@@ -2363,12 +2347,13 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
         PNV_CHIP_GET_CLASS(pnv->chips[0])->intc_print_info(pnv->chips[0], cpu,
                                                            buf);
     }
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], mon);
+        PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], buf);
     }
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
