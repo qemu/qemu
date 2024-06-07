@@ -1832,7 +1832,7 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
 };
 
 static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
-                                    Monitor *mon)
+                                    GString *buf)
 {
     uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
     uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
@@ -1841,9 +1841,9 @@ static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
         return;
     }
 
-    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n", nvt_idx,
-                   eq_blk, eq_idx,
-                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+    g_string_append_printf(buf, "  %08x end:%02x/%04x IPB:%02x\n",
+                           nvt_idx, eq_blk, eq_idx,
+                           xive_get_field32(NVT_W4_IPB, nvt->w4));
 }
 
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
@@ -1888,17 +1888,18 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
         xive_end_eas_pic_print_info(&end, i++, buf);
     }
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 
-    monitor_printf(mon, "XIVE[%x] #%d NVTT %08x .. %08x\n", chip_id, blk,
-                   0, XIVE_NVT_COUNT - 1);
+    g_string_append_printf(buf, "XIVE[%x] #%d NVTT %08x .. %08x\n",
+                           chip_id, blk, 0, XIVE_NVT_COUNT - 1);
     xive_nvt_per_subpage = pnv_xive_vst_per_subpage(xive, VST_TSEL_VPDT);
     for (i = 0; i < XIVE_NVT_COUNT; i += xive_nvt_per_subpage) {
         while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
-            xive_nvt_pic_print_info(&nvt, i++, mon);
+            xive_nvt_pic_print_info(&nvt, i++, buf);
         }
     }
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 static void pnv_xive_reset(void *dev)
