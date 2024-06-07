@@ -93,7 +93,7 @@ struct PnvXiveClass {
     DeviceRealize parent_realize;
 };
 
-void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon);
+void pnv_xive_pic_print_info(PnvXive *xive, GString *buf);
 
 /*
  * XIVE2 interrupt controller (POWER10)

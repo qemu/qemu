@@ -808,8 +808,14 @@ static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
-    pnv_xive_pic_print_info(&chip9->xive, mon);
+    pnv_xive_pic_print_info(&chip9->xive, buf);
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
+
     pnv_psi_pic_print_info(&chip9->psi, mon);
 
     object_child_foreach_recursive(OBJECT(chip),
