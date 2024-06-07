@@ -1129,15 +1129,9 @@ static void pnv_chip_power8_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power8_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                            Monitor *mon)
+                                            GString *buf)
 {
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
-
     icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 /*
@@ -1222,15 +1216,9 @@ static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power9_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                            Monitor *mon)
+                                            GString *buf)
 {
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
-
     xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 static void pnv_chip_power10_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1272,15 +1260,9 @@ static void pnv_chip_power10_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                             Monitor *mon)
+                                             GString *buf)
 {
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
-
     xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), buf);
-
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 }
 
 /*
@@ -2363,14 +2345,18 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     PnvMachineState *pnv = PNV_MACHINE(obj);
     int i;
     CPUState *cs;
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         /* XXX: loop on each chip/core/thread instead of CPU_FOREACH() */
         PNV_CHIP_GET_CLASS(pnv->chips[0])->intc_print_info(pnv->chips[0], cpu,
-                                                           mon);
+                                                           buf);
     }
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     for (i = 0; i < pnv->num_chips; i++) {
         PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], mon);
