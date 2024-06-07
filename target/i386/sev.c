@@ -2165,6 +2165,7 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
     struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
     gsize len;
 
+    finish->id_block_en = 0;
     g_free(sev_snp_guest->id_block);
     g_free((guchar *)finish->id_block_uaddr);
 
@@ -2184,7 +2185,7 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
         return;
     }
 
-    finish->id_block_en = (len) ? 1 : 0;
+    finish->id_block_en = 1;
 }
 
 static char *
