@@ -17,6 +17,7 @@
 #include "migration.h"
 #include "multifd.h"
 #include "options.h"
+#include "qemu/error-report.h"
 #include "uadk/wd_comp.h"
 #include "uadk/wd_sched.h"
 
@@ -48,29 +49,29 @@ static struct wd_data *multifd_uadk_init_sess(uint32_t count,
     uint32_t size = count * page_size;
     struct wd_data *wd;
 
-    if (!uadk_hw_init()) {
-        error_setg(errp, "multifd: UADK hardware not available");
-        return NULL;
-    }
-
     wd = g_new0(struct wd_data, 1);
-    ss.alg_type = WD_ZLIB;
-    if (compress) {
-        ss.op_type = WD_DIR_COMPRESS;
-        /* Add an additional page for handling output > input */
-        size += page_size;
+
+    if (uadk_hw_init()) {
+        ss.alg_type = WD_ZLIB;
+        if (compress) {
+            ss.op_type = WD_DIR_COMPRESS;
+            /* Add an additional page for handling output > input */
+            size += page_size;
+        } else {
+            ss.op_type = WD_DIR_DECOMPRESS;
+        }
+        /* We use default level 1 compression and 4K window size */
+        param.type = ss.op_type;
+        ss.sched_param = &param;
+
+        wd->handle = wd_comp_alloc_sess(&ss);
+        if (!wd->handle) {
+            error_setg(errp, "multifd: failed wd_comp_alloc_sess");
+            goto out;
+        }
     } else {
-        ss.op_type = WD_DIR_DECOMPRESS;
-    }
-
-    /* We use default level 1 compression and 4K window size */
-    param.type = ss.op_type;
-    ss.sched_param = &param;
-
-    wd->handle = wd_comp_alloc_sess(&ss);
-    if (!wd->handle) {
-        error_setg(errp, "multifd: failed wd_comp_alloc_sess");
-        goto out;
+        /* For CI test use */
+        warn_report_once("UADK hardware not available. Switch to no compression mode");
     }
 
     wd->buf = g_try_malloc(size);
@@ -82,7 +83,9 @@ static struct wd_data *multifd_uadk_init_sess(uint32_t count,
     return wd;
 
 out_free_sess:
-    wd_comp_free_sess(wd->handle);
+    if (wd->handle) {
+        wd_comp_free_sess(wd->handle);
+    }
 out:
     wd_comp_uninit2();
     g_free(wd);
@@ -91,7 +94,9 @@ out:
 
 static void multifd_uadk_uninit_sess(struct wd_data *wd)
 {
-    wd_comp_free_sess(wd->handle);
+    if (wd->handle) {
+        wd_comp_free_sess(wd->handle);
+    }
     wd_comp_uninit2();
     g_free(wd->buf);
     g_free(wd->buf_hdr);
@@ -188,23 +193,26 @@ static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
             .dst_len = p->page_size * 2,
         };
 
-        ret = wd_do_comp_sync(uadk_data->handle, &creq);
-        if (ret || creq.status) {
-            error_setg(errp, "multifd %u: failed compression, ret %d status %d",
-                       p->id, ret, creq.status);
-            return -1;
+        if (uadk_data->handle) {
+            ret = wd_do_comp_sync(uadk_data->handle, &creq);
+            if (ret || creq.status) {
+                error_setg(errp, "multifd %u: failed compression, ret %d status %d",
+                           p->id, ret, creq.status);
+                return -1;
+            }
+            if (creq.dst_len < p->page_size) {
+                uadk_data->buf_hdr[i] = cpu_to_be32(creq.dst_len);
+                prepare_next_iov(p, buf, creq.dst_len);
+                buf += creq.dst_len;
+            }
         }
-        if (creq.dst_len < p->page_size) {
-            uadk_data->buf_hdr[i] = cpu_to_be32(creq.dst_len);
-            prepare_next_iov(p, buf, creq.dst_len);
-            buf += creq.dst_len;
-        } else {
-            /*
-             * Send raw data if compressed out >= page_size. We might be better
-             * off sending raw data if output is slightly less than page_size
-             * as well because at the receive end we can skip the decompression.
-             * But it is tricky to find the right number here.
-             */
+        /*
+         * Send raw data if no UADK hardware or if compressed out >= page_size.
+         * We might be better off sending raw data if output is slightly less
+         * than page_size as well because at the receive end we can skip the
+         * decompression. But it is tricky to find the right number here.
+         */
+        if (!uadk_data->handle || creq.dst_len >= p->page_size) {
             uadk_data->buf_hdr[i] = cpu_to_be32(p->page_size);
             prepare_next_iov(p, p->pages->block->host + p->pages->offset[i],
                              p->page_size);
@@ -321,6 +329,12 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
             memcpy(p->host + p->normal[i], buf, p->page_size);
             buf += p->page_size;
             continue;
+        }
+
+        if (unlikely(!uadk_data->handle)) {
+            error_setg(errp, "multifd %u: UADK HW not available for decompression",
+                       p->id);
+            return -1;
         }
 
         ret = wd_do_comp_sync(uadk_data->handle, &creq);
