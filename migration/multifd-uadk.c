@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "exec/ramblock.h"
 #include "migration.h"
 #include "multifd.h"
 #include "options.h"
@@ -142,6 +143,15 @@ static void multifd_uadk_send_cleanup(MultiFDSendParams *p, Error **errp)
     p->compress_data = NULL;
 }
 
+static inline void prepare_next_iov(MultiFDSendParams *p, void *base,
+                                    uint32_t len)
+{
+    p->iov[p->iovs_num].iov_base = (uint8_t *)base;
+    p->iov[p->iovs_num].iov_len = len;
+    p->next_packet_size += len;
+    p->iovs_num++;
+}
+
 /**
  * multifd_uadk_send_prepare: prepare data to be able to send
  *
@@ -155,7 +165,56 @@ static void multifd_uadk_send_cleanup(MultiFDSendParams *p, Error **errp)
  */
 static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
 {
-    return -1;
+    struct wd_data *uadk_data = p->compress_data;
+    uint32_t hdr_size;
+    uint8_t *buf = uadk_data->buf;
+    int ret = 0;
+
+    if (!multifd_send_prepare_common(p)) {
+        goto out;
+    }
+
+    hdr_size = p->pages->normal_num * sizeof(uint32_t);
+    /* prepare the header that stores the lengths of all compressed data */
+    prepare_next_iov(p, uadk_data->buf_hdr, hdr_size);
+
+    for (int i = 0; i < p->pages->normal_num; i++) {
+        struct wd_comp_req creq = {
+            .op_type = WD_DIR_COMPRESS,
+            .src     = p->pages->block->host + p->pages->offset[i],
+            .src_len = p->page_size,
+            .dst     = buf,
+            /* Set dst_len to double the src in case compressed out >= page_size */
+            .dst_len = p->page_size * 2,
+        };
+
+        ret = wd_do_comp_sync(uadk_data->handle, &creq);
+        if (ret || creq.status) {
+            error_setg(errp, "multifd %u: failed compression, ret %d status %d",
+                       p->id, ret, creq.status);
+            return -1;
+        }
+        if (creq.dst_len < p->page_size) {
+            uadk_data->buf_hdr[i] = cpu_to_be32(creq.dst_len);
+            prepare_next_iov(p, buf, creq.dst_len);
+            buf += creq.dst_len;
+        } else {
+            /*
+             * Send raw data if compressed out >= page_size. We might be better
+             * off sending raw data if output is slightly less than page_size
+             * as well because at the receive end we can skip the decompression.
+             * But it is tricky to find the right number here.
+             */
+            uadk_data->buf_hdr[i] = cpu_to_be32(p->page_size);
+            prepare_next_iov(p, p->pages->block->host + p->pages->offset[i],
+                             p->page_size);
+            buf += p->page_size;
+        }
+    }
+out:
+    p->flags |= MULTIFD_FLAG_UADK;
+    multifd_send_fill_packet(p);
+    return 0;
 }
 
 /**
@@ -208,7 +267,76 @@ static void multifd_uadk_recv_cleanup(MultiFDRecvParams *p)
  */
 static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
 {
-    return -1;
+    struct wd_data *uadk_data = p->compress_data;
+    uint32_t in_size = p->next_packet_size;
+    uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
+    uint32_t hdr_len = p->normal_num * sizeof(uint32_t);
+    uint32_t data_len = 0;
+    uint8_t *buf = uadk_data->buf;
+    int ret = 0;
+
+    if (flags != MULTIFD_FLAG_UADK) {
+        error_setg(errp, "multifd %u: flags received %x flags expected %x",
+                   p->id, flags, MULTIFD_FLAG_ZLIB);
+        return -1;
+    }
+
+    multifd_recv_zero_page_process(p);
+    if (!p->normal_num) {
+        assert(in_size == 0);
+        return 0;
+    }
+
+    /* read compressed data lengths */
+    assert(hdr_len < in_size);
+    ret = qio_channel_read_all(p->c, (void *) uadk_data->buf_hdr,
+                               hdr_len, errp);
+    if (ret != 0) {
+        return ret;
+    }
+
+    for (int i = 0; i < p->normal_num; i++) {
+        uadk_data->buf_hdr[i] = be32_to_cpu(uadk_data->buf_hdr[i]);
+        data_len += uadk_data->buf_hdr[i];
+        assert(uadk_data->buf_hdr[i] <= p->page_size);
+    }
+
+    /* read compressed data */
+    assert(in_size == hdr_len + data_len);
+    ret = qio_channel_read_all(p->c, (void *)buf, data_len, errp);
+    if (ret != 0) {
+        return ret;
+    }
+
+    for (int i = 0; i < p->normal_num; i++) {
+        struct wd_comp_req creq = {
+            .op_type = WD_DIR_DECOMPRESS,
+            .src     = buf,
+            .src_len = uadk_data->buf_hdr[i],
+            .dst     = p->host + p->normal[i],
+            .dst_len = p->page_size,
+        };
+
+        if (uadk_data->buf_hdr[i] == p->page_size) {
+            memcpy(p->host + p->normal[i], buf, p->page_size);
+            buf += p->page_size;
+            continue;
+        }
+
+        ret = wd_do_comp_sync(uadk_data->handle, &creq);
+        if (ret || creq.status) {
+            error_setg(errp, "multifd %u: failed decompression, ret %d status %d",
+                       p->id, ret, creq.status);
+            return -1;
+        }
+        if (creq.dst_len != p->page_size) {
+            error_setg(errp, "multifd %u: decompressed length error", p->id);
+            return -1;
+        }
+        buf += uadk_data->buf_hdr[i];
+     }
+
+    return 0;
 }
 
 static MultiFDMethods multifd_uadk_ops = {
