@@ -157,7 +157,7 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
 #define spapr_xive_in_kernel(xive) \
     (kvm_irqchip_in_kernel() && (xive)->fd != -1)
 
-static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
+static void spapr_xive_pic_print_info(SpaprXive *xive, GString *buf)
 {
     XiveSource *xsrc = &xive->source;
     int i;
@@ -172,7 +172,7 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
+    g_string_append_printf(buf, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
 
     for (i = 0; i < xive->nr_irqs; i++) {
         uint8_t pq = xive_source_esb_get(xsrc, i);
@@ -182,19 +182,17 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
             continue;
         }
 
-        monitor_printf(mon, "  %08x %s %c%c%c %s %08x ", i,
-                       xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
-                       pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                       pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                       xive_source_is_asserted(xsrc, i) ? 'A' : ' ',
-                       xive_eas_is_masked(eas) ? "M" : " ",
-                       (int) xive_get_field64(EAS_END_DATA, eas->w));
+        g_string_append_printf(buf, "  %08x %s %c%c%c %s %08x ", i,
+                               xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
+                               pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                               pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                               xive_source_is_asserted(xsrc, i) ? 'A' : ' ',
+                               xive_eas_is_masked(eas) ? "M" : " ",
+                               (int) xive_get_field64(EAS_END_DATA, eas->w));
 
         if (!xive_eas_is_masked(eas)) {
             uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
             XiveEND *end;
-            g_autoptr(GString) buf = g_string_new("");
-            g_autoptr(HumanReadableText) info = NULL;
 
             assert(end_idx < xive->nr_ends);
             end = &xive->endt[end_idx];
@@ -203,10 +201,8 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
                 spapr_xive_end_pic_print_info(xive, end, buf);
             }
 
-            info = human_readable_text_from_str(buf);
-            monitor_puts(mon, info->human_readable_text);
         }
-        monitor_printf(mon, "\n");
+        g_string_append_c(buf, '\n');
     }
 }
 
@@ -717,10 +713,10 @@ static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
 
         xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, buf);
     }
+    spapr_xive_pic_print_info(xive, buf);
+
     info = human_readable_text_from_str(buf);
     monitor_puts(mon, info->human_readable_text);
-
-    spapr_xive_pic_print_info(xive, mon);
 }
 
 static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
