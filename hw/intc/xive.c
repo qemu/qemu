@@ -669,7 +669,7 @@ static const char * const xive_tctx_ring_names[] = {
          xpc->in_kernel ? xpc->in_kernel(xptr) : false;                 \
      }))
 
-void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
+void xive_tctx_pic_print_info(XiveTCTX *tctx, GString *buf)
 {
     int cpu_index;
     int i;
@@ -693,13 +693,14 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "CPU[%04x]:   QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
-                   "  W2\n", cpu_index);
+    g_string_append_printf(buf, "CPU[%04x]:   "
+                           "QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR  W2\n",
+                           cpu_index);
 
     for (i = 0; i < XIVE_TM_RING_COUNT; i++) {
         char *s = xive_tctx_ring_print(&tctx->regs[i * XIVE_TM_RING_SIZE]);
-        monitor_printf(mon, "CPU[%04x]: %4s    %s\n", cpu_index,
-                       xive_tctx_ring_names[i], s);
+        g_string_append_printf(buf, "CPU[%04x]: %4s    %s\n",
+                               cpu_index, xive_tctx_ring_names[i], s);
         g_free(s);
     }
 }

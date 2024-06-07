@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
@@ -703,12 +704,16 @@ static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     CPUState *cs;
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
+        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, buf);
     }
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     spapr_xive_pic_print_info(xive, mon);
 }
