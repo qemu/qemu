@@ -130,7 +130,7 @@ static inline uint64_t xive2_end_qaddr(Xive2End *end)
         (be32_to_cpu(end->w3) & END2_W3_EQ_ADDR_LO);
 }
 
-void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon);
+void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf);
 void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
                                     GString *buf);
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
