@@ -791,12 +791,16 @@ static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 {
     Monitor *mon = opaque;
     PnvPHB *phb =  (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
     if (!phb) {
         return 0;
     }
 
-    pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), mon);
+    pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), buf);
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     return 0;
 }
