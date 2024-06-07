@@ -587,6 +587,7 @@ static SevCapability *sev_get_capabilities(Error **errp)
     sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
     if (!sev_common) {
         error_setg(errp, "SEV is not configured");
+        return NULL;
     }
 
     sev_device = object_property_get_str(OBJECT(sev_common), "sev-device",
