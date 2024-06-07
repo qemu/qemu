@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
@@ -40,8 +41,7 @@ void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
                            (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
 }
 
-void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
-                                    Monitor *mon)
+void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width, GString *buf)
 {
     uint64_t qaddr_base = xive2_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
@@ -52,7 +52,7 @@ void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
     /*
      * print out the [ (qindex - (width - 1)) .. (qindex + 1)] window
      */
-    monitor_printf(mon, " [ ");
+    g_string_append_printf(buf, " [ ");
     qindex = (qindex - (width - 1)) & (qentries - 1);
     for (i = 0; i < width; i++) {
         uint64_t qaddr = qaddr_base + (qindex << 2);
@@ -64,11 +64,11 @@ void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
                           HWADDR_PRIx "\n", qaddr);
             return;
         }
-        monitor_printf(mon, "%s%08x ", i == width - 1 ? "^" : "",
-                       be32_to_cpu(qdata));
+        g_string_append_printf(buf, "%s%08x ", i == width - 1 ? "^" : "",
+                               be32_to_cpu(qdata));
         qindex = (qindex + 1) & (qentries - 1);
     }
-    monitor_printf(mon, "]");
+    g_string_append_printf(buf, "]");
 }
 
 void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon)
@@ -108,9 +108,14 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon)
                    priority, nvp_blk, nvp_idx);
 
     if (qaddr_base) {
+        g_autoptr(GString) buf = g_string_new("");
+        g_autoptr(HumanReadableText) info = NULL;
+
         monitor_printf(mon, " eq:@%08"PRIx64"% 6d/%5d ^%d",
                        qaddr_base, qindex, qentries, qgen);
-        xive2_end_queue_pic_print_info(end, 6, mon);
+        xive2_end_queue_pic_print_info(end, 6, buf);
+        info = human_readable_text_from_str(buf);
+        monitor_puts(mon, info->human_readable_text);
     }
     monitor_printf(mon, "\n");
 }

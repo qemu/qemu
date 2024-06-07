@@ -132,7 +132,7 @@ static inline uint64_t xive2_end_qaddr(Xive2End *end)
 
 void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon);
 void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
-                                    Monitor *mon);
+                                    GString *buf);
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
                                   GString *buf);
 
