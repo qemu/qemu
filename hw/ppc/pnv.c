@@ -789,18 +789,14 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 {
-    Monitor *mon = opaque;
+    GString *buf = opaque;
     PnvPHB *phb =  (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     if (!phb) {
         return 0;
     }
 
     pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), buf);
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
 
     return 0;
 }
@@ -813,12 +809,11 @@ static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
 
     pnv_xive_pic_print_info(&chip9->xive, buf);
     pnv_psi_pic_print_info(&chip9->psi, buf);
+    object_child_foreach_recursive(OBJECT(chip),
+                         pnv_chip_power9_pic_print_info_child, buf);
 
     info = human_readable_text_from_str(buf);
     monitor_puts(mon, info->human_readable_text);
-
-    object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
 }
 
 static uint64_t pnv_chip_power8_xscom_core_base(PnvChip *chip,
@@ -865,13 +860,12 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
     g_autoptr(HumanReadableText) info = NULL;
 
     pnv_xive2_pic_print_info(&chip10->xive, buf);
-
     pnv_psi_pic_print_info(&chip10->psi, buf);
+    object_child_foreach_recursive(OBJECT(chip),
+                         pnv_chip_power9_pic_print_info_child, buf);
+
     info = human_readable_text_from_str(buf);
     monitor_puts(mon, info->human_readable_text);
-
-    object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
 }
 
 /* Always give the first 1GB to chip 0 else we won't boot */
