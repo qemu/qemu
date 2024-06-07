@@ -22,7 +22,7 @@ struct InterruptStatsProviderClass {
      */
     bool (*get_statistics)(InterruptStatsProvider *obj, uint64_t **irq_counts,
                            unsigned int *nb_irqs);
-    void (*print_info)(InterruptStatsProvider *obj, Monitor *mon);
+    void (*print_info)(InterruptStatsProvider *obj, GString *buf);
 };
 
 #endif

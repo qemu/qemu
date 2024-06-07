@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/intc/intc.h"
@@ -401,17 +400,17 @@ static bool slavio_intctl_get_statistics(InterruptStatsProvider *obj,
 }
 #endif
 
-static void slavio_intctl_print_info(InterruptStatsProvider *obj, Monitor *mon)
+static void slavio_intctl_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
-        monitor_printf(mon, "per-cpu %d: pending 0x%08x\n", i,
-                       s->slaves[i].intreg_pending);
+        g_string_append_printf(buf, "per-cpu %d: pending 0x%08x\n", i,
+                               s->slaves[i].intreg_pending);
     }
-    monitor_printf(mon, "master: pending 0x%08x, disabled 0x%08x\n",
-                   s->intregm_pending, s->intregm_disabled);
+    g_string_append_printf(buf, "master: pending 0x%08x, disabled 0x%08x\n",
+                           s->intregm_pending, s->intregm_disabled);
 }
 
 static void slavio_intctl_init(Object *obj)

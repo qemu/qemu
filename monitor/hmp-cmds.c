@@ -25,6 +25,7 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/type-helpers.h"
 #include "qemu/cutils.h"
 #include "hw/intc/intc.h"
 #include "qemu/log.h"
@@ -92,7 +93,12 @@ static int hmp_info_pic_foreach(Object *obj, void *opaque)
         intc = INTERRUPT_STATS_PROVIDER(obj);
         k = INTERRUPT_STATS_PROVIDER_GET_CLASS(obj);
         if (k->print_info) {
-            k->print_info(intc, mon);
+            g_autoptr(GString) buf = g_string_new("");
+            g_autoptr(HumanReadableText) info = NULL;
+
+            k->print_info(intc, buf);
+            info = human_readable_text_from_str(buf);
+            monitor_puts(mon, info->human_readable_text);
         } else {
             monitor_printf(mon, "Interrupt controller information not available for %s.\n",
                            object_get_typename(obj));

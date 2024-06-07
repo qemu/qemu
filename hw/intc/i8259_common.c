@@ -28,7 +28,6 @@
 #include "hw/isa/i8259_internal.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "qapi/error.h"
 
 static int irq_level[16];
@@ -132,16 +131,17 @@ static bool pic_get_statistics(InterruptStatsProvider *obj,
     return true;
 }
 
-static void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
+static void pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     PICCommonState *s = PIC_COMMON(obj);
 
     pic_dispatch_pre_save(s);
-    monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
-                   "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                   s->master ? 0 : 1, s->irr, s->imr, s->isr, s->priority_add,
-                   s->irq_base, s->read_reg_select, s->elcr,
-                   s->special_fully_nested_mode);
+    g_string_append_printf(buf, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
+                           "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
+                           s->master ? 0 : 1, s->irr, s->imr, s->isr,
+                           s->priority_add,
+                           s->irq_base, s->read_reg_select, s->elcr,
+                           s->special_fully_nested_mode);
 }
 
 static bool ltim_state_needed(void *opaque)
