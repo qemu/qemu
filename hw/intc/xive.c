@@ -11,7 +11,6 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "qapi/type-helpers.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
@@ -1352,7 +1351,7 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, GString *buf)
     g_string_append_c(buf, ']');
 }
 
-void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, GString *buf)
 {
     uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
@@ -1364,8 +1363,6 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
     uint32_t nvt_idx = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
     uint8_t pq;
-    g_autoptr(GString) buf = g_string_new("");
-    g_autoptr(HumanReadableText) info = NULL;
 
     if (!xive_end_is_valid(end)) {
         return;
@@ -1373,28 +1370,27 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 
     pq = xive_get_field32(END_W1_ESn, end->w1);
 
-    monitor_printf(mon, "  %08x %c%c %c%c%c%c%c%c%c%c prio:%d nvt:%02x/%04x",
-                   end_idx,
-                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                   xive_end_is_valid(end)    ? 'v' : '-',
-                   xive_end_is_enqueue(end)  ? 'q' : '-',
-                   xive_end_is_notify(end)   ? 'n' : '-',
-                   xive_end_is_backlog(end)  ? 'b' : '-',
-                   xive_end_is_escalate(end) ? 'e' : '-',
-                   xive_end_is_uncond_escalation(end)   ? 'u' : '-',
-                   xive_end_is_silent_escalation(end)   ? 's' : '-',
-                   xive_end_is_firmware(end)   ? 'f' : '-',
-                   priority, nvt_blk, nvt_idx);
+    g_string_append_printf(buf,
+                           "  %08x %c%c %c%c%c%c%c%c%c%c prio:%d nvt:%02x/%04x",
+                           end_idx,
+                           pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                           pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                           xive_end_is_valid(end)    ? 'v' : '-',
+                           xive_end_is_enqueue(end)  ? 'q' : '-',
+                           xive_end_is_notify(end)   ? 'n' : '-',
+                           xive_end_is_backlog(end)  ? 'b' : '-',
+                           xive_end_is_escalate(end) ? 'e' : '-',
+                           xive_end_is_uncond_escalation(end)   ? 'u' : '-',
+                           xive_end_is_silent_escalation(end)   ? 's' : '-',
+                           xive_end_is_firmware(end)   ? 'f' : '-',
+                           priority, nvt_blk, nvt_idx);
 
     if (qaddr_base) {
-        monitor_printf(mon, " eq:@%08"PRIx64"% 6d/%5d ^%d",
-                       qaddr_base, qindex, qentries, qgen);
+        g_string_append_printf(buf, " eq:@%08"PRIx64"% 6d/%5d ^%d",
+                               qaddr_base, qindex, qentries, qgen);
         xive_end_queue_pic_print_info(end, 6, buf);
     }
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
-    monitor_printf(mon, "\n");
+    g_string_append_c(buf, '\n');
 }
 
 static void xive_end_enqueue(XiveEND *end, uint32_t data)

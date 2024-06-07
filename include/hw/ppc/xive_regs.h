@@ -261,7 +261,7 @@ static inline uint64_t xive_end_qaddr(XiveEND *end)
         be32_to_cpu(end->w3);
 }
 
-void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, GString *buf);
 void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, GString *buf);
 void xive_end_eas_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
 
