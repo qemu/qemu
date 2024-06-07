@@ -38,6 +38,7 @@
 #include "hw/loader.h"
 #include "hw/nmi.h"
 #include "qapi/visitor.h"
+#include "qapi/type-helpers.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/ipmi/ipmi.h"
@@ -774,8 +775,13 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
     for (i = 0; i < chip8->num_phbs; i++) {
         PnvPHB *phb = chip8->phbs[i];
         PnvPHB3 *phb3 = PNV_PHB3(phb->backend);
+        g_autoptr(GString) buf = g_string_new("");
+        g_autoptr(HumanReadableText) info = NULL;
 
-        pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
+        pnv_phb3_msi_pic_print_info(&phb3->msis, buf);
+        info = human_readable_text_from_str(buf);
+        monitor_puts(mon, info->human_readable_text);
+
         ics_pic_print_info(&phb3->lsis, mon);
     }
 }

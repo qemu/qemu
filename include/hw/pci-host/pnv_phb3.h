@@ -40,7 +40,7 @@ void pnv_phb3_msi_update_config(Phb3MsiState *msis, uint32_t base,
 void pnv_phb3_msi_send(Phb3MsiState *msis, uint64_t addr, uint16_t data,
                        int32_t dev_pe);
 void pnv_phb3_msi_ffi(Phb3MsiState *msis, uint64_t val);
-void pnv_phb3_msi_pic_print_info(Phb3MsiState *msis, Monitor *mon);
+void pnv_phb3_msi_pic_print_info(Phb3MsiState *msis, GString *buf);
 
 
 /*
