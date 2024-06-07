@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/type-helpers.h"
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
@@ -1323,7 +1324,7 @@ static const TypeInfo xive_source_info = {
  * XiveEND helpers
  */
 
-void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
+void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, GString *buf)
 {
     uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
@@ -1334,7 +1335,7 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
     /*
      * print out the [ (qindex - (width - 1)) .. (qindex + 1)] window
      */
-    monitor_printf(mon, " [ ");
+    g_string_append_printf(buf, " [ ");
     qindex = (qindex - (width - 1)) & (qentries - 1);
     for (i = 0; i < width; i++) {
         uint64_t qaddr = qaddr_base + (qindex << 2);
@@ -1346,11 +1347,11 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
                           HWADDR_PRIx "\n", qaddr);
             return;
         }
-        monitor_printf(mon, "%s%08x ", i == width - 1 ? "^" : "",
-                       be32_to_cpu(qdata));
+        g_string_append_printf(buf, "%s%08x ", i == width - 1 ? "^" : "",
+                               be32_to_cpu(qdata));
         qindex = (qindex + 1) & (qentries - 1);
     }
-    monitor_printf(mon, "]");
+    g_string_append_c(buf, ']');
 }
 
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
@@ -1365,6 +1366,8 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
     uint32_t nvt_idx = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
     uint8_t pq;
+    g_autoptr(GString) buf = g_string_new("");
+    g_autoptr(HumanReadableText) info = NULL;
 
     if (!xive_end_is_valid(end)) {
         return;
@@ -1389,8 +1392,10 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
     if (qaddr_base) {
         monitor_printf(mon, " eq:@%08"PRIx64"% 6d/%5d ^%d",
                        qaddr_base, qindex, qentries, qgen);
-        xive_end_queue_pic_print_info(end, 6, mon);
+        xive_end_queue_pic_print_info(end, 6, buf);
     }
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
     monitor_printf(mon, "\n");
 }
 
