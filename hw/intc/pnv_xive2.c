@@ -2120,23 +2120,23 @@ void pnv_xive2_pic_print_info(PnvXive2 *xive, Monitor *mon)
     g_autoptr(GString) buf = g_string_new("");
     g_autoptr(HumanReadableText) info = NULL;
 
-    monitor_printf(mon, "XIVE[%x] Source %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_esbs - 1);
+    g_string_append_printf(buf, "XIVE[%x] Source %08x .. %08x\n",
+                           blk, srcno0, srcno0 + nr_esbs - 1);
     xive_source_pic_print_info(&xive->ipi_source, srcno0, buf);
 
-    info = human_readable_text_from_str(buf);
-    monitor_puts(mon, info->human_readable_text);
-
-    monitor_printf(mon, "XIVE[%x] EAT %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_esbs - 1);
+    g_string_append_printf(buf, "XIVE[%x] EAT %08x .. %08x\n",
+                           blk, srcno0, srcno0 + nr_esbs - 1);
     for (i = 0; i < nr_esbs; i++) {
         if (xive2_router_get_eas(xrtr, blk, i, &eas)) {
             break;
         }
         if (!xive2_eas_is_masked(&eas)) {
-            xive2_eas_pic_print_info(&eas, i, mon);
+            xive2_eas_pic_print_info(&eas, i, buf);
         }
     }
+
+    info = human_readable_text_from_str(buf);
+    monitor_puts(mon, info->human_readable_text);
 
     monitor_printf(mon, "XIVE[%x] #%d END Escalation EAT\n", chip_id, blk);
     i = 0;

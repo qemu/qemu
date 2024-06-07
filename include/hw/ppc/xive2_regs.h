@@ -48,7 +48,7 @@ typedef struct Xive2Eas {
 #define xive2_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS2_VALID)
 #define xive2_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS2_MASKED)
 
-void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, Monitor *mon);
+void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf);
 
 /*
  * Event Notifification Descriptor (END)
