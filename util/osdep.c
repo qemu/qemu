@@ -57,9 +57,14 @@ int qemu_madvise(void *addr, size_t len, int advice)
 #if defined(CONFIG_MADVISE)
     return madvise(addr, len, advice);
 #elif defined(CONFIG_POSIX_MADVISE)
-    return posix_madvise(addr, len, advice);
+    int rc = posix_madvise(addr, len, advice);
+    if (rc) {
+        errno = rc;
+        return -1;
+    }
+    return 0;
 #else
-    errno = EINVAL;
+    errno = ENOSYS;
     return -1;
 #endif
 }

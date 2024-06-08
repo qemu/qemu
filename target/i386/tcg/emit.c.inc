@@ -1638,8 +1638,8 @@ static void gen_HLT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
 #ifdef CONFIG_SYSTEM_ONLY
     gen_update_cc_op(s);
-    gen_update_eip_cur(s);
-    gen_helper_hlt(tcg_env, cur_insn_len_i32(s));
+    gen_update_eip_next(s);
+    gen_helper_hlt(tcg_env);
     s->base.is_jmp = DISAS_NORETURN;
 #endif
 }
@@ -1858,7 +1858,10 @@ static void gen_INT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_INT1(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    gen_exception(s, EXCP01_DB);
+    gen_update_cc_op(s);
+    gen_update_eip_next(s);
+    gen_helper_icebp(tcg_env);
+    s->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_INT3(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -2347,6 +2350,14 @@ static void gen_PANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
                       decode->op[1].offset, vec_len, vec_len);
 }
 
+static void gen_PAUSE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_update_cc_op(s);
+    gen_update_eip_next(s);
+    gen_helper_pause(tcg_env);
+    s->base.is_jmp = DISAS_NORETURN;
+}
+
 static void gen_PCMPESTRI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
@@ -2564,12 +2575,14 @@ static void gen_PMOVMSKB(DisasContext *s, CPUX86State *env, X86DecodedInsn *deco
 
 static void gen_POP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
+    X86DecodedOp *op = &decode->op[0];
     MemOp ot = gen_pop_T0(s);
-    if (decode->op[0].has_ea) {
+
+    if (op->has_ea || op->unit == X86_OP_SEG) {
         /* NOTE: order is important for MMU exceptions */
-        gen_op_st_v(s, ot, s->T0, s->A0);
-        decode->op[0].unit = X86_OP_SKIP;
+        gen_writeback(s, decode, 0, s->T0);
     }
+
     /* NOTE: writing back registers after update is important for pop %sp */
     gen_pop_update(s, ot);
 }
@@ -4011,18 +4024,6 @@ static void gen_WAIT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 
 static void gen_XCHG(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    if (decode->b == 0x90 && !REX_B(s)) {
-        if (s->prefix & PREFIX_REPZ) {
-            gen_update_cc_op(s);
-            gen_update_eip_cur(s);
-            gen_helper_pause(tcg_env, cur_insn_len_i32(s));
-            s->base.is_jmp = DISAS_NORETURN;
-        }
-        /* No writeback.  */
-        decode->op[0].unit = X86_OP_SKIP;
-        return;
-    }
-
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_atomic_xchg_tl(s->T0, s->A0, s->T1,
                                s->mem_index, decode->op[0].ot | MO_LE);

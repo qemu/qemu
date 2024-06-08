@@ -24,6 +24,7 @@ MSR_IA32_VMX_TRUE_EXIT_CTLS = 0x48F
 MSR_IA32_VMX_TRUE_ENTRY_CTLS = 0x490
 MSR_IA32_VMX_VMFUNC = 0x491
 MSR_IA32_VMX_PROCBASED_CTLS3 = 0x492
+MSR_IA32_VMX_EXIT_CTLS2 = 0x493
 
 class msr(object):
     def __init__(self):
@@ -116,6 +117,7 @@ controls = [
             54: 'INS/OUTS instruction information',
             55: 'IA32_VMX_TRUE_*_CTLS support',
             56: 'Skip checks on event error code',
+            58: 'VMX nested exception support',
             },
         msr = MSR_IA32_VMX_BASIC,
         ),
@@ -219,9 +221,19 @@ controls = [
             23: 'Clear IA32_BNDCFGS',
             24: 'Conceal VM exits from PT',
             25: 'Clear IA32_RTIT_CTL',
+            31: 'Activate secondary VM-exit controls',
             },
         cap_msr = MSR_IA32_VMX_EXIT_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_EXIT_CTLS,
+        ),
+
+    Allowed1Control(
+        name = 'secondary VM-Exit controls',
+        bits = {
+            0: 'Save IA32 FRED MSRs',
+            1: 'Load IA32 FRED MSRs',
+            },
+        cap_msr = MSR_IA32_VMX_EXIT_CTLS2,
         ),
 
     Control(
@@ -237,6 +249,7 @@ controls = [
             16: 'Load IA32_BNDCFGS',
             17: 'Conceal VM entries from PT',
             18: 'Load IA32_RTIT_CTL',
+            23: 'Load IA32 FRED MSRs',
             },
         cap_msr = MSR_IA32_VMX_ENTRY_CTLS,
         true_cap_msr = MSR_IA32_VMX_TRUE_ENTRY_CTLS,

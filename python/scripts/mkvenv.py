@@ -13,7 +13,6 @@ Commands:
     create    create a venv
     post_init
               post-venv initialization
-    ensure    Ensure that the specified package is installed.
     ensuregroup
               Ensure that the specified package group is installed.
 
@@ -33,18 +32,6 @@ usage: mkvenv post_init [-h]
 
 options:
   -h, --help         show this help message and exit
-
---------------------------------------------------
-
-usage: mkvenv ensure [-h] [--online] [--dir DIR] dep_spec...
-
-positional arguments:
-  dep_spec    PEP 508 Dependency specification, e.g. 'meson>=0.61.5'
-
-options:
-  -h, --help  show this help message and exit
-  --online    Install packages from PyPI, if necessary.
-  --dir DIR   Path to vendored packages where we may install from.
 
 --------------------------------------------------
 
@@ -726,57 +713,6 @@ def _do_ensure(
     return None
 
 
-def ensure(
-    dep_specs: Sequence[str],
-    online: bool = False,
-    wheels_dir: Optional[Union[str, Path]] = None,
-    prog: Optional[str] = None,
-) -> None:
-    """
-    Use pip to ensure we have the package specified by @dep_specs.
-
-    If the package is already installed, do nothing. If online and
-    wheels_dir are both provided, prefer packages found in wheels_dir
-    first before connecting to PyPI.
-
-    :param dep_specs:
-        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
-    :param online: If True, fall back to PyPI.
-    :param wheels_dir: If specified, search this path for packages.
-    :param prog:
-        If specified, use this program name for error diagnostics that will
-        be presented to the user. e.g., 'sphinx-build' can be used as a
-        bellwether for the presence of 'sphinx'.
-    """
-
-    if not HAVE_DISTLIB:
-        raise Ouch("a usable distlib could not be found, please install it")
-
-    # Convert the depspecs to a dictionary, as if they came
-    # from a section in a pythondeps.toml file
-    group: Dict[str, Dict[str, str]] = {}
-    for spec in dep_specs:
-        name = distlib.version.LegacyMatcher(spec).name
-        group[name] = {}
-
-        spec = spec.strip()
-        pos = len(name)
-        ver = spec[pos:].strip()
-        if ver:
-            group[name]["accepted"] = ver
-
-        if prog:
-            group[name]["canary"] = prog
-            prog = None
-
-    result = _do_ensure(group, online, wheels_dir)
-    if result:
-        # Well, that's not good.
-        if result[1]:
-            raise Ouch(result[0])
-        raise SystemExit(f"\n{result[0]}\n\n")
-
-
 def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
     if not HAVE_TOMLLIB:
         if sys.version_info < (3, 11):
@@ -888,39 +824,6 @@ def _add_ensuregroup_subcommand(subparsers: Any) -> None:
     )
 
 
-def _add_ensure_subcommand(subparsers: Any) -> None:
-    subparser = subparsers.add_parser(
-        "ensure", help="Ensure that the specified package is installed."
-    )
-    subparser.add_argument(
-        "--online",
-        action="store_true",
-        help="Install packages from PyPI, if necessary.",
-    )
-    subparser.add_argument(
-        "--dir",
-        type=str,
-        action="store",
-        help="Path to vendored packages where we may install from.",
-    )
-    subparser.add_argument(
-        "--diagnose",
-        type=str,
-        action="store",
-        help=(
-            "Name of a shell utility to use for "
-            "diagnostics if this command fails."
-        ),
-    )
-    subparser.add_argument(
-        "dep_specs",
-        type=str,
-        action="store",
-        help="PEP 508 Dependency specification, e.g. 'meson>=0.61.5'",
-        nargs="+",
-    )
-
-
 def main() -> int:
     """CLI interface to make_qemu_venv. See module docstring."""
     if os.environ.get("DEBUG") or os.environ.get("GITLAB_CI"):
@@ -944,7 +847,6 @@ def main() -> int:
 
     _add_create_subcommand(subparsers)
     _add_post_init_subcommand(subparsers)
-    _add_ensure_subcommand(subparsers)
     _add_ensuregroup_subcommand(subparsers)
 
     args = parser.parse_args()
@@ -957,13 +859,6 @@ def main() -> int:
             )
         if args.command == "post_init":
             post_venv_setup()
-        if args.command == "ensure":
-            ensure(
-                dep_specs=args.dep_specs,
-                online=args.online,
-                wheels_dir=args.dir,
-                prog=args.diagnose,
-            )
         if args.command == "ensuregroup":
             ensure_group(
                 file=args.file,

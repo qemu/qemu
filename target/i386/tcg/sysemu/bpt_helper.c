@@ -215,6 +215,12 @@ void breakpoint_handler(CPUState *cs)
         if (cs->watchpoint_hit->flags & BP_CPU) {
             cs->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, false)) {
+                /*
+                 * FIXME: #DB should be delayed by one instruction if
+                 * INHIBIT_IRQ is set (STI cannot trigger a watchpoint).
+                 * The delayed #DB should also fuse with one generated
+                 * by ICEBP (aka INT1).
+                 */
                 raise_exception(env, EXCP01_DB);
             } else {
                 cpu_loop_exit_noexc(cs);
@@ -238,6 +244,12 @@ target_ulong helper_get_dr(CPUX86State *env, int reg)
         }
     }
 
+    if (env->dr[7] & DR7_GD) {
+        env->dr[7] &= ~DR7_GD;
+        env->dr[6] |= DR6_BD;
+        raise_exception_ra(env, EXCP01_DB, GETPC());
+    }
+
     return env->dr[reg];
 }
 
@@ -249,6 +261,12 @@ void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
         } else {
             reg += 2;
         }
+    }
+
+    if (env->dr[7] & DR7_GD) {
+        env->dr[7] &= ~DR7_GD;
+        env->dr[6] |= DR6_BD;
+        raise_exception_ra(env, EXCP01_DB, GETPC());
     }
 
     if (reg < 4) {

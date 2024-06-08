@@ -185,14 +185,13 @@ Bundled Python packages
 
 Python packages that are **mandatory** dependencies to build QEMU,
 but are not available in all supported distros, are bundled with the
-QEMU sources.  Currently this includes Meson (outdated in CentOS 8
-and derivatives, Ubuntu 20.04 and 22.04, and openSUSE Leap) and tomli
-(absent in Ubuntu 20.04).
+QEMU sources.  The only one is currently Meson (outdated in Ubuntu
+22.04 and openSUSE Leap).
 
-If you need to update these, please do so by modifying and rerunning
-``python/scripts/vendor.py``.  This script embeds the sha256 hash of
-package sources and checks it.  The pypi.org web site provides an easy
-way to retrieve the sha256 hash of the sources.
+In order to include a new or updated wheel, modify and rerun the
+``python/scripts/vendor.py`` script.  The script embeds the
+sha256 hash of package sources and checks it.  The pypi.org web site
+provides an easy way to retrieve the sha256 hash of the sources.
 
 
 Stage 2: Meson

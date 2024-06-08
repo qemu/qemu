@@ -130,15 +130,26 @@ void x86_cpu_do_interrupt(CPUState *cs)
 
 bool x86_cpu_exec_halt(CPUState *cpu)
 {
-    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
-        X86CPU *x86_cpu = X86_CPU(cpu);
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
 
+    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
         bql_lock();
         apic_poll_irq(x86_cpu->apic_state);
         cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
         bql_unlock();
     }
-    return cpu_has_work(cpu);
+
+    if (!cpu_has_work(cpu)) {
+        return false;
+    }
+
+    /* Complete HLT instruction.  */
+    if (env->eflags & TF_MASK) {
+        env->dr[6] |= DR6_BS;
+        do_interrupt_all(x86_cpu, EXCP01_DB, 0, 0, env->eip, 0);
+    }
+    return true;
 }
 
 bool x86_need_replay_interrupt(int interrupt_request)

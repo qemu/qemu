@@ -91,7 +91,6 @@ extern const uint8_t parity_table[256];
 
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
-G_NORETURN void do_pause(CPUX86State *env);
 
 /* sysemu/svm_helper.c */
 #ifndef CONFIG_USER_ONLY
@@ -111,7 +110,17 @@ int exception_has_error_code(int intno);
 /* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
 
-/* bpt_helper.c */
+/* sysemu/bpt_helper.c */
 bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 
+/*
+ * Do the tasks usually performed by gen_eob().  Callers of this function
+ * should also handle TF as appropriate.
+ */
+static inline void do_end_instruction(CPUX86State *env)
+{
+    /* needed if sti is just before */
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+    env->eflags &= ~HF_RF_MASK;
+}
 #endif /* I386_HELPER_TCG_H */

@@ -80,6 +80,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         g_assert_not_reached();
     }
 
+    backend->aligned = true;
     name = host_memory_backend_get_name(backend);
     ram_flags = backend->share ? RAM_SHARED : 0;
     ram_flags |= fb->readonly ? RAM_READONLY_FD : 0;

@@ -400,7 +400,7 @@ static int hvf_init_vcpu(CPUState *cpu)
     r = hv_vcpu_create(&cpu->accel->fd,
                        (hv_vcpu_exit_t **)&cpu->accel->exit, NULL);
 #else
-    r = hv_vcpu_create((hv_vcpuid_t *)&cpu->accel->fd, HV_VCPU_DEFAULT);
+    r = hv_vcpu_create(&cpu->accel->fd, HV_VCPU_DEFAULT);
 #endif
     cpu->accel->dirty = true;
     assert_hvf_ok(r);

@@ -549,6 +549,19 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
     }
 }
 
+static void gen_update_eip_next(DisasContext *s)
+{
+    assert(s->pc_save != -1);
+    if (tb_cflags(s->base.tb) & CF_PCREL) {
+        tcg_gen_addi_tl(cpu_eip, cpu_eip, s->pc - s->pc_save);
+    } else if (CODE64(s)) {
+        tcg_gen_movi_tl(cpu_eip, s->pc);
+    } else {
+        tcg_gen_movi_tl(cpu_eip, (uint32_t)(s->pc - s->cs_base));
+    }
+    s->pc_save = s->pc;
+}
+
 static void gen_update_eip_cur(DisasContext *s)
 {
     assert(s->pc_save != -1);
@@ -2125,7 +2138,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     }
 
     /* Copy the FrameTemp value to EBP.  */
-    gen_op_mov_reg_v(s, a_ot, R_EBP, s->T1);
+    gen_op_mov_reg_v(s, d_ot, R_EBP, s->T1);
 
     /* Compute the final value of ESP.  */
     tcg_gen_subi_tl(s->T1, s->T1, esp_addend + size * level);
@@ -3732,6 +3745,11 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
+            /*
+             * Reloads INHIBIT_IRQ mask as well as TF and RF with guest state.
+             * The usual gen_eob() handling is performed on vmexit after
+             * host state is reloaded.
+             */
             gen_helper_vmrun(tcg_env, tcg_constant_i32(s->aflag - 1),
                              cur_insn_len_i32(s));
             tcg_gen_exit_tb(NULL, 0);
@@ -4630,6 +4648,14 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
      * If jmp_opt, we want to handle each string instruction individually.
      * For icount also disable repz optimization so that each iteration
      * is accounted separately.
+     *
+     * FIXME: this is messy; it makes REP string instructions a lot less
+     * efficient than they should be and it gets in the way of correct
+     * handling of RF (interrupts or traps arriving after any iteration
+     * of a repeated string instruction but the last should set RF to 1).
+     * Perhaps it would be more efficient if REP string instructions were
+     * always at the beginning of the TB, or even their own TB?  That
+     * would even allow accounting up to 64k iterations at once for icount.
      */
     dc->repz_opt = !dc->jmp_opt && !(cflags & CF_USE_ICOUNT);
 
@@ -4735,6 +4761,17 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 
     switch (dc->base.is_jmp) {
     case DISAS_NORETURN:
+        /*
+         * Most instructions should not use DISAS_NORETURN, as that suppresses
+         * the handling of hflags normally done by gen_eob().  We can
+         * get here:
+         * - for exception and interrupts
+         * - for jump optimization (which is disabled by INHIBIT_IRQ/RF/TF)
+         * - for VMRUN because RF/TF handling for the host is done after vmexit,
+         *   and INHIBIT_IRQ is loaded from the VMCB
+         * - for HLT/PAUSE/MWAIT to exit the main loop with specific EXCP_* values;
+         *   the helpers handle themselves the tasks normally done by gen_eob().
+         */
         break;
     case DISAS_TOO_MANY:
         gen_update_cc_op(dc);

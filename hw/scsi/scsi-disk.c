@@ -58,6 +58,9 @@
 
 #define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
 
+#define MAX_SERIAL_LEN              36
+#define MAX_SERIAL_LEN_FOR_DEVID    20
+
 OBJECT_DECLARE_TYPE(SCSIDiskState, SCSIDiskClass, SCSI_DISK_BASE)
 
 struct SCSIDiskClass {
@@ -648,8 +651,8 @@ static int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
         }
 
         l = strlen(s->serial);
-        if (l > 36) {
-            l = 36;
+        if (l > MAX_SERIAL_LEN) {
+            l = MAX_SERIAL_LEN;
         }
 
         trace_scsi_disk_emulate_vpd_page_80(req->cmd.xfer);
@@ -2501,9 +2504,20 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     if (!s->vendor) {
         s->vendor = g_strdup("QEMU");
     }
+    if (s->serial && strlen(s->serial) > MAX_SERIAL_LEN) {
+        error_setg(errp, "The serial number can't be longer than %d characters",
+                   MAX_SERIAL_LEN);
+        return;
+    }
     if (!s->device_id) {
         if (s->serial) {
-            s->device_id = g_strdup_printf("%.20s", s->serial);
+            if (strlen(s->serial) > MAX_SERIAL_LEN_FOR_DEVID) {
+                error_setg(errp, "The serial number can't be longer than %d "
+                           "characters when it is also used as the default for "
+                           "device_id", MAX_SERIAL_LEN_FOR_DEVID);
+                return;
+            }
+            s->device_id = g_strdup(s->serial);
         } else {
             const char *str = blk_name(s->qdev.conf.blk);
             if (str && *str) {

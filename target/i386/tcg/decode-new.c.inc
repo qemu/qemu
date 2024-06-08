@@ -1359,6 +1359,19 @@ static void decode_group11(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
     }
 }
 
+static void decode_90(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static X86OpEntry pause = X86_OP_ENTRY0(PAUSE, svm(PAUSE));
+    static X86OpEntry nop = X86_OP_ENTRY0(NOP);
+    static X86OpEntry xchg_ax = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v);
+
+    if (REX_B(s)) {
+        *entry = xchg_ax;
+    } else {
+        *entry = (s->prefix & PREFIX_REPZ) ? pause : nop;
+    }
+}
+
 static const X86OpEntry opcodes_root[256] = {
     [0x00] = X86_OP_ENTRY2(ADD, E,b, G,b, lock),
     [0x01] = X86_OP_ENTRY2(ADD, E,v, G,v, lock),
@@ -1441,7 +1454,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0x86] = X86_OP_ENTRY2(XCHG, E,b, G,b, xchg),
     [0x87] = X86_OP_ENTRY2(XCHG, E,v, G,v, xchg),
 
-    [0x90] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
+    [0x90] = X86_OP_GROUP0(90),
     [0x91] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
     [0x92] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
     [0x93] = X86_OP_ENTRY2(XCHG, 0,v, LoBits,v),
@@ -1496,7 +1509,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xE7] = X86_OP_ENTRYrr(OUT,   0,v, I_unsigned,b), /* AX/EAX */
 
     [0xF1] = X86_OP_ENTRY0(INT1,   svm(ICEBP)),
-    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0)),
+    [0xF4] = X86_OP_ENTRY0(HLT,    chk(cpl0) svm(HLT)),
     [0xF5] = X86_OP_ENTRY0(CMC),
     [0xF6] = X86_OP_GROUP1(group3, E,b),
     [0xF7] = X86_OP_GROUP1(group3, E,v),
@@ -2539,7 +2552,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     /*
      * Checks that result in #GP or VMEXIT come second.  Intercepts are
-     * generally checked after non-memory exceptions (i.e. before all
+     * generally checked after non-memory exceptions (i.e. after all
      * exceptions if there is no memory operand).  Exceptions are
      * vm86 checks (INTn, IRET, PUSHF/POPF), RSM and XSETBV (!).
      *
