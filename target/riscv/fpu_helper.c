@@ -676,7 +676,7 @@ uint64_t helper_fround_h(CPURISCVState *env, uint64_t rs1)
 
 uint64_t helper_froundnx_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_s(env, rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     frs1 = float16_round_to_int(frs1, &env->fp_status);
     return nanbox_h(env, frs1);
 }
