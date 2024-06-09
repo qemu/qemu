@@ -20,9 +20,13 @@
 
 #include "qemu/bitops.h"
 
+#define PCALIGN 4
+#define PCALIGN_MASK (PCALIGN - 1)
+
 #define HEX_EXCP_FETCH_NO_UPAGE  0x012
 #define HEX_EXCP_INVALID_PACKET  0x015
 #define HEX_EXCP_INVALID_OPCODE  0x015
+#define HEX_EXCP_PC_NOT_ALIGNED  0x01e
 #define HEX_EXCP_PRIV_NO_UREAD   0x024
 #define HEX_EXCP_PRIV_NO_UWRITE  0x025
 

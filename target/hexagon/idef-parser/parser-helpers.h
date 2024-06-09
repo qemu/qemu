@@ -143,8 +143,6 @@ void commit(Context *c);
 
 #define OUT(c, locp, ...) FOR_EACH((c), (locp), OUT_IMPL, __VA_ARGS__)
 
-const char *cmp_swap(Context *c, YYLTYPE *locp, const char *type);
-
 /**
  * Temporary values creation
  */
@@ -236,8 +234,6 @@ HexValue gen_extract_op(Context *c,
                         HexValue *index,
                         HexExtract *extract);
 
-HexValue gen_read_reg(Context *c, YYLTYPE *locp, HexValue *reg);
-
 void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value);
 
 void gen_assign(Context *c,
@@ -273,13 +269,6 @@ HexValue gen_locnt_op(Context *c, YYLTYPE *locp, HexValue *src);
 HexValue gen_ctpop_op(Context *c, YYLTYPE *locp, HexValue *src);
 
 HexValue gen_rotl(Context *c, YYLTYPE *locp, HexValue *src, HexValue *n);
-
-HexValue gen_deinterleave(Context *c, YYLTYPE *locp, HexValue *mixed);
-
-HexValue gen_interleave(Context *c,
-                        YYLTYPE *locp,
-                        HexValue *odd,
-                        HexValue *even);
 
 HexValue gen_carry_from_add(Context *c,
                             YYLTYPE *locp,
@@ -348,8 +337,6 @@ HexValue gen_rvalue_ternary(Context *c, YYLTYPE *locp, HexValue *cond,
                             HexValue *true_branch, HexValue *false_branch);
 
 const char *cond_to_str(TCGCond cond);
-
-void emit_header(Context *c);
 
 void emit_arg(Context *c, YYLTYPE *locp, HexValue *arg);
 
