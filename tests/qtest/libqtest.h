@@ -950,6 +950,14 @@ bool qtest_has_machine(const char *machine);
 bool qtest_has_machine_with_env(const char *var, const char *machine);
 
 /**
+ * qtest_has_cpu_model:
+ * @cpu: The cpu to look for
+ *
+ * Returns: true if the cpu is available in the target binary.
+ */
+bool qtest_has_cpu_model(const char *cpu);
+
+/**
  * qtest_has_device:
  * @device: The device to look for
  *
