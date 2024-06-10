@@ -554,11 +554,17 @@
 #
 # @zstd: use zstd compression method.
 #
+# @qpl: use qpl compression method.  Query Processing Library(qpl) is
+#       based on the deflate compression algorithm and use the Intel
+#       In-Memory Analytics Accelerator(IAA) accelerated compression
+#       and decompression.  (Since 9.1)
+#
 # Since: 5.0
 ##
 { 'enum': 'MultiFDCompression',
   'data': [ 'none', 'zlib',
-            { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
+            { 'name': 'zstd', 'if': 'CONFIG_ZSTD' },
+            { 'name': 'qpl', 'if': 'CONFIG_QPL' } ] }
 
 ##
 # @MigMode:
