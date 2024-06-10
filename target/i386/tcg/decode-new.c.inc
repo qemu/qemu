@@ -288,6 +288,25 @@ static void decode_group8(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
     }
 }
 
+static void decode_group9(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86OpEntry group9_reg =
+        X86_OP_ENTRY0(multi0F);  /* unconverted */
+    static const X86OpEntry cmpxchg8b =
+        X86_OP_ENTRY1(CMPXCHG8B,  M,q,  lock p_00 cpuid(CX8));
+    static const X86OpEntry cmpxchg16b =
+        X86_OP_ENTRY1(CMPXCHG16B, M,dq, lock p_00 cpuid(CX16));
+
+    int modrm = get_modrm(s, env);
+    int op = (modrm >> 3) & 7;
+
+    if ((modrm >> 6) == 3) {
+        *entry = group9_reg;
+    } else if (op == 1) {
+        *entry = REX_W(s) ? cmpxchg16b : cmpxchg8b;
+    }
+}
+
 static void decode_group15(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
     static const X86OpEntry group15_reg[8] = {
@@ -1203,7 +1222,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
     [0xc5] = X86_OP_ENTRY3(PEXTRW,     G,d, U,dq,I,b,       vex5 mmx p_00_66),
     [0xc6] = X86_OP_ENTRY4(VSHUF,      V,x, H,x, W,x,       vex4 p_00_66),
-    [0xc7] = X86_OP_ENTRY1(multi0F,    nop,v,               nolea), /* unconverted */
+    [0xc7] = X86_OP_GROUP0(group9),
 
     [0xd0] = X86_OP_ENTRY3(VADDSUB,   V,x, H,x, W,x,        vex2 cpuid(SSE3) p_66_f2),
     [0xd1] = X86_OP_ENTRY3(PSRLW_r,   V,x, H,x, W,x,        vex4 mmx avx2_256 p_00_66),
@@ -2245,8 +2264,12 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
         return (s->cpuid_features & CPUID_CMOV);
     case X86_FEAT_CLFLUSH:
         return (s->cpuid_features & CPUID_CLFLUSH);
+    case X86_FEAT_CX8:
+        return (s->cpuid_features & CPUID_CX8);
     case X86_FEAT_FXSR:
         return (s->cpuid_features & CPUID_FXSR);
+    case X86_FEAT_CX16:
+        return (s->cpuid_ext_features & CPUID_EXT_CX16);
     case X86_FEAT_F16C:
         return (s->cpuid_ext_features & CPUID_EXT_F16C);
     case X86_FEAT_FMA:
@@ -2726,15 +2749,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         break;
     }
 
-    /*
-     * hack for old decoder: 0F C7 has both instructions that accept LOCK
-     * and instructions that don't, but also needs X86_SPECIAL_NoLoadEA.
-     * Keep this here until CMPXCHG8B/CMPXCHG16B is separated from the
-     * other unconverted opcodes.
-     */
-    if (decode.e.gen == gen_multi0F) {
-        accept_lock = true;
-    }
     if ((s->prefix & PREFIX_LOCK) && !accept_lock) {
         goto illegal_op;
     }
