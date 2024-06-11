@@ -47,7 +47,6 @@ packages:
  - libfdt
  - libffi
  - libgcrypt
- - libibumad
  - libibverbs
  - libiscsi
  - libjemalloc
