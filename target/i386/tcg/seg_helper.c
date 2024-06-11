@@ -594,13 +594,13 @@ int exception_has_error_code(int intno)
 
 #define POPW_RA(ssp, sp, sp_mask, val, ra)                       \
     {                                                            \
-        val = cpu_lduw_kernel_ra(env, (ssp) + (sp & (sp_mask)), ra); \
+        val = cpu_lduw_data_ra(env, (ssp) + (sp & (sp_mask)), ra); \
         sp += 2;                                                 \
     }
 
 #define POPL_RA(ssp, sp, sp_mask, val, ra)                              \
     {                                                                   \
-        val = (uint32_t)cpu_ldl_kernel_ra(env, (ssp) + (sp & (sp_mask)), ra); \
+        val = (uint32_t)cpu_ldl_data_ra(env, (ssp) + (sp & (sp_mask)), ra); \
         sp += 4;                                                        \
     }
 
@@ -847,7 +847,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
 #define POPQ_RA(sp, val, ra)                    \
     {                                           \
-        val = cpu_ldq_kernel_ra(env, sp, ra);   \
+        val = cpu_ldq_data_ra(env, sp, ra);   \
         sp += 8;                                \
     }
 
@@ -1797,18 +1797,18 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                 PUSHL_RA(ssp, sp, sp_mask, env->segs[R_SS].selector, GETPC());
                 PUSHL_RA(ssp, sp, sp_mask, env->regs[R_ESP], GETPC());
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_ldl_kernel_ra(env, old_ssp +
-                                            ((env->regs[R_ESP] + i * 4) &
-                                             old_sp_mask), GETPC());
+                    val = cpu_ldl_data_ra(env,
+                                          old_ssp + ((env->regs[R_ESP] + i * 4) & old_sp_mask),
+                                          GETPC());
                     PUSHL_RA(ssp, sp, sp_mask, val, GETPC());
                 }
             } else {
                 PUSHW_RA(ssp, sp, sp_mask, env->segs[R_SS].selector, GETPC());
                 PUSHW_RA(ssp, sp, sp_mask, env->regs[R_ESP], GETPC());
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_lduw_kernel_ra(env, old_ssp +
-                                             ((env->regs[R_ESP] + i * 2) &
-                                              old_sp_mask), GETPC());
+                    val = cpu_lduw_data_ra(env,
+                                           old_ssp + ((env->regs[R_ESP] + i * 2) & old_sp_mask),
+                                           GETPC());
                     PUSHW_RA(ssp, sp, sp_mask, val, GETPC());
                 }
             }
