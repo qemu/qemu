@@ -474,6 +474,14 @@ static void sd_set_rca(SDState *sd)
     sd->rca += 0x4567;
 }
 
+static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
+{
+    if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc) {
+        return req.arg >> 16;
+    }
+    return 0;
+}
+
 FIELD(CSR, AKE_SEQ_ERROR,               3,  1)
 FIELD(CSR, APP_CMD,                     5,  1)
 FIELD(CSR, FX_EVENT,                    6,  1)
@@ -1097,7 +1105,7 @@ static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
 
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
-    uint32_t rca = 0x0000;
+    uint16_t rca = sd_req_get_rca(sd, req);
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
 
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
@@ -1111,11 +1119,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     /* Not interpreting this as an app command */
     sd->card_status &= ~APP_CMD;
-
-    if (sd_cmd_type[req.cmd] == sd_ac
-        || sd_cmd_type[req.cmd] == sd_adtc) {
-        rca = req.arg >> 16;
-    }
 
     /* CMD23 (set block count) must be immediately followed by CMD18 or CMD25
      * if not, its effects are cancelled */
