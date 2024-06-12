@@ -301,18 +301,14 @@ class Event(object):
         if fmt.endswith(r'\n"'):
             raise ValueError("Event format must not end with a newline "
                              "character")
+        if '\\n' in fmt:
+            raise ValueError("Event format must not use new line character")
 
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]
         args = Arguments.build(groups["args"])
 
-        event = Event(name, props, fmt, args, lineno, filename)
-
-        # add implicit arguments when using the 'vcpu' property
-        import tracetool.vcpu
-        event = tracetool.vcpu.transform_event(event)
-
-        return event
+        return Event(name, props, fmt, args, lineno, filename)
 
     def __repr__(self):
         """Evaluable string representation for this object."""
