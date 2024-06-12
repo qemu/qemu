@@ -237,7 +237,6 @@ static const char *sd_response_name(sd_rsp_type_t rsp)
 static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 {
     static const char *cmd_abbrev[SDMMC_CMD_MAX] = {
-                                             [7]    = "SELECT/DESELECT_CARD",
          [8]    = "SEND_IF_COND",            [9]    = "SEND_CSD",
         [10]    = "SEND_CID",
         [12]    = "STOP_TRANSMISSION",      [13]    = "SEND_STATUS",
@@ -552,6 +551,11 @@ static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
     default:
         return 0;
     }
+}
+
+static bool sd_req_rca_same(SDState *s, SDRequest req)
+{
+    return sd_req_get_rca(s, req) == s->rca;
 }
 
 /* Card Status register */
@@ -1250,6 +1254,47 @@ static sd_rsp_type_t sd_cmd_SWITCH_FUNCTION(SDState *sd, SDRequest req)
     return sd_cmd_to_sendingdata(sd, req, 0, NULL, 64);
 }
 
+/* CMD7 */
+static sd_rsp_type_t sd_cmd_DE_SELECT_CARD(SDState *sd, SDRequest req)
+{
+    bool same_rca = sd_req_rca_same(sd, req);
+
+    switch (sd->state) {
+    case sd_standby_state:
+        if (!same_rca) {
+            return sd_r0;
+        }
+        sd->state = sd_transfer_state;
+        return sd_r1b;
+
+    case sd_transfer_state:
+    case sd_sendingdata_state:
+        if (same_rca) {
+            break;
+        }
+        sd->state = sd_standby_state;
+        return sd_r1b;
+
+    case sd_disconnect_state:
+        if (!same_rca) {
+            return sd_r0;
+        }
+        sd->state = sd_programming_state;
+        return sd_r1b;
+
+    case sd_programming_state:
+        if (same_rca) {
+            break;
+        }
+        sd->state = sd_disconnect_state;
+        return sd_r1b;
+
+    default:
+        break;
+    }
+    return sd_invalid_state_for_cmd(sd, req);
+}
+
 /* CMD19 */
 static sd_rsp_type_t sd_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
 {
@@ -1316,43 +1361,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     switch (req.cmd) {
     /* Basic commands (Class 0 and Class 1) */
-    case 7:  /* CMD7:   SELECT/DESELECT_CARD */
-        rca = sd_req_get_rca(sd, req);
-        switch (sd->state) {
-        case sd_standby_state:
-            if (sd->rca != rca)
-                return sd_r0;
-
-            sd->state = sd_transfer_state;
-            return sd_r1b;
-
-        case sd_transfer_state:
-        case sd_sendingdata_state:
-            if (sd->rca == rca)
-                break;
-
-            sd->state = sd_standby_state;
-            return sd_r1b;
-
-        case sd_disconnect_state:
-            if (sd->rca != rca)
-                return sd_r0;
-
-            sd->state = sd_programming_state;
-            return sd_r1b;
-
-        case sd_programming_state:
-            if (sd->rca == rca)
-                break;
-
-            sd->state = sd_disconnect_state;
-            return sd_r1b;
-
-        default:
-            break;
-        }
-        break;
-
     case 8:  /* CMD8:   SEND_IF_COND */
         if (sd->spec_version < SD_PHY_SPECv2_00_VERS) {
             break;
@@ -2295,6 +2303,7 @@ static const SDProto sd_proto_sd = {
         [4]  = {0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented},
         [5]  = {9,  sd_bc,   "IO_SEND_OP_COND", sd_cmd_optional},
         [6]  = {10, sd_adtc, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION},
+        [7]  = {0,  sd_ac,   "(DE)SELECT_CARD", sd_cmd_DE_SELECT_CARD},
         [11] = {0,  sd_ac,   "VOLTAGE_SWITCH", sd_cmd_optional},
         [19] = {2,  sd_adtc, "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK},
         [20] = {2,  sd_ac,   "SPEED_CLASS_CONTROL", sd_cmd_optional},
