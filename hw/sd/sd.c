@@ -242,7 +242,6 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
                                             [25]    = "WRITE_MULTIPLE_BLOCK",
         [26]    = "MANUF_RSVD",
         [40]    = "DPS_spec",
-        [54]    = "SDIO_RSVD",              [55]    = "APP_CMD",
         [56]    = "GEN_CMD",
         [60]    = "MANUF_RSVD",             [61]    = "MANUF_RSVD",
         [62]    = "MANUF_RSVD",             [63]    = "MANUF_RSVD",
@@ -1616,9 +1615,34 @@ static sd_rsp_type_t sd_cmd_LOCK_UNLOCK(SDState *sd, SDRequest req)
     return sd_cmd_to_receivingdata(sd, req, 0, 0);
 }
 
+/* CMD55 */
+static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
+{
+    switch (sd->state) {
+    case sd_ready_state:
+    case sd_identification_state:
+    case sd_inactive_state:
+        return sd_invalid_state_for_cmd(sd, req);
+    case sd_idle_state:
+        if (!sd_is_spi(sd) && sd_req_get_rca(sd, req) != 0x0000) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "SD: illegal RCA 0x%04x for APP_CMD\n", req.cmd);
+        }
+        /* fall-through */
+    default:
+        break;
+    }
+    if (!sd_is_spi(sd) && !sd_req_rca_same(sd, req)) {
+        return sd_r0;
+    }
+    sd->expecting_acmd = true;
+    sd->card_status |= APP_CMD;
+
+    return sd_r1;
+}
+
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
-    uint16_t rca;
     uint64_t addr;
 
     sd->last_cmd_name = sd_cmd_name(sd, req.cmd);
@@ -1705,29 +1729,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->cid));
 
     /* Application specific commands (Class 8) */
-    case 55:  /* CMD55:  APP_CMD */
-        rca = sd_req_get_rca(sd, req);
-        switch (sd->state) {
-        case sd_ready_state:
-        case sd_identification_state:
-            return sd_illegal;
-        case sd_idle_state:
-            if (rca) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "SD: illegal RCA 0x%04x for APP_CMD\n", req.cmd);
-            }
-        default:
-            break;
-        }
-        if (!sd_is_spi(sd)) {
-            if (sd->rca != rca) {
-                return sd_r0;
-            }
-        }
-        sd->expecting_acmd = true;
-        sd->card_status |= APP_CMD;
-        return sd_r1;
-
     case 56:  /* CMD56:  GEN_CMD */
         switch (sd->state) {
         case sd_transfer_state:
@@ -2323,6 +2324,7 @@ static const SDProto sd_proto_spi = {
         [50] = {10, sd_spi, "DIRECT_SECURE_READ", sd_cmd_optional},
         [52] = {9,  sd_spi, "IO_RW_DIRECT", sd_cmd_optional},
         [53] = {9,  sd_spi, "IO_RW_EXTENDED", sd_cmd_optional},
+        [55] = {8,  sd_spi, "APP_CMD", sd_cmd_APP_CMD},
         [57] = {10, sd_spi, "DIRECT_SECURE_WRITE", sd_cmd_optional},
     },
     .acmd = {
@@ -2375,6 +2377,7 @@ static const SDProto sd_proto_sd = {
         [50] = {10, sd_adtc, "DIRECT_SECURE_READ", sd_cmd_optional},
         [52] = {9,  sd_bc,   "IO_RW_DIRECT", sd_cmd_optional},
         [53] = {9,  sd_bc,   "IO_RW_EXTENDED", sd_cmd_optional},
+        [55] = {8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD},
         [57] = {10, sd_adtc, "DIRECT_SECURE_WRITE", sd_cmd_optional},
         [58] = {11, sd_adtc, "READ_EXTR_MULTI", sd_cmd_optional},
         [59] = {11, sd_adtc, "WRITE_EXTR_MULTI", sd_cmd_optional},
