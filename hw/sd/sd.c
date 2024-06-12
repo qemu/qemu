@@ -1194,6 +1194,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint16_t rca;
     uint64_t addr;
+    uint32_t data;
 
     sd->last_cmd_name = sd_cmd_name(req.cmd);
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
@@ -1547,12 +1548,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
                                   req.arg, sd->blk_len)) {
                 return sd_r1;
             }
-
-            sd->state = sd_sendingdata_state;
-            stl_be_p(sd->data, sd_wpbits(sd, req.arg));
-            sd->data_start = addr;
-            sd->data_offset = 0;
-            return sd_r1;
+            data = sd_wpbits(sd, req.arg);
+            return sd_cmd_to_sendingdata(sd, req, addr, &data, sizeof(data));
 
         default:
             break;
@@ -2132,6 +2129,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 10: /* CMD10:  SEND_CID */
     case 17: /* CMD17:  READ_SINGLE_BLOCK */
     case 19: /* CMD19:  SEND_TUNING_BLOCK (SD) */
+    case 30: /* CMD30:  SEND_WRITE_PROT */
         sd_generic_read_byte(sd, &ret);
         break;
 
@@ -2167,13 +2165,6 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     case 22:  /* ACMD22: SEND_NUM_WR_BLOCKS */
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= 4)
-            sd->state = sd_transfer_state;
-        break;
-
-    case 30:  /* CMD30:  SEND_WRITE_PROT */
         ret = sd->data[sd->data_offset ++];
 
         if (sd->data_offset >= 4)
