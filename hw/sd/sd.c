@@ -1081,7 +1081,6 @@ static sd_rsp_type_t sd_cmd_unimplemented(SDState *sd, SDRequest req)
 }
 
 /* Configure fields for following sd_generic_read_byte() calls */
-__attribute__((unused))
 static sd_rsp_type_t sd_cmd_to_sendingdata(SDState *sd, SDRequest req,
                                            uint64_t start,
                                            const void *data, size_t size)
@@ -1235,10 +1234,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         }
 
         sd_function_switch(sd, req.arg);
-        sd->state = sd_sendingdata_state;
-        sd->data_start = 0;
-        sd->data_offset = 0;
-        return sd_r1;
+        return sd_cmd_to_sendingdata(sd, req, 0, NULL, 64);
 
     case 7:  /* CMD7:   SELECT/DESELECT_CARD */
         rca = sd_req_get_rca(sd, req);
@@ -1938,7 +1934,6 @@ send_response:
 }
 
 /* Return true when buffer is consumed. Configured by sd_cmd_to_sendingdata() */
-__attribute__((unused))
 static bool sd_generic_read_byte(SDState *sd, uint8_t *value)
 {
     *value = sd->data[sd->data_offset];
@@ -2128,10 +2123,7 @@ uint8_t sd_read_byte(SDState *sd)
                            sd->current_cmd, sd->data_offset, io_len);
     switch (sd->current_cmd) {
     case 6:  /* CMD6:   SWITCH_FUNCTION */
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= 64)
-            sd->state = sd_transfer_state;
+        sd_generic_read_byte(sd, &ret);
         break;
 
     case 9:  /* CMD9:   SEND_CSD */
