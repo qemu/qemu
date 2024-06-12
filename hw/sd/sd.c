@@ -1315,6 +1315,15 @@ static sd_rsp_type_t sd_cmd_SEND_IF_COND(SDState *sd, SDRequest req)
 }
 
 /* CMD9 */
+static sd_rsp_type_t spi_cmd_SEND_CSD(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_standby_state) {
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+    return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+                                 sd->csd, 16);
+}
+
 static sd_rsp_type_t sd_cmd_SEND_CSD(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_standby_state) {
@@ -1325,6 +1334,15 @@ static sd_rsp_type_t sd_cmd_SEND_CSD(SDState *sd, SDRequest req)
 }
 
 /* CMD10 */
+static sd_rsp_type_t spi_cmd_SEND_CID(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_standby_state) {
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+    return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+                                 sd->cid, 16);
+}
+
 static sd_rsp_type_t sd_cmd_SEND_CID(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_standby_state) {
@@ -1400,36 +1418,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     switch (req.cmd) {
     /* Basic commands (Class 0 and Class 1) */
-    case 9:  /* CMD9:   SEND_CSD */
-        rca = sd_req_get_rca(sd, req);
-        switch (sd->state) {
-        case sd_transfer_state:
-            if (!sd_is_spi(sd)) {
-                break;
-            }
-            return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
-                                         sd->csd, 16);
-
-        default:
-            break;
-        }
-        break;
-
-    case 10:  /* CMD10:  SEND_CID */
-        rca = sd_req_get_rca(sd, req);
-        switch (sd->state) {
-        case sd_transfer_state:
-            if (!sd_is_spi(sd)) {
-                break;
-            }
-            return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
-                                         sd->cid, 16);
-
-        default:
-            break;
-        }
-        break;
-
     case 12:  /* CMD12:  STOP_TRANSMISSION */
         switch (sd->state) {
         case sd_sendingdata_state:
@@ -2290,6 +2278,8 @@ static const SDProto sd_proto_spi = {
         [5]  = {9,  sd_spi, "IO_SEND_OP_COND", sd_cmd_optional},
         [6]  = {10, sd_spi, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION},
         [8]  = {0,  sd_spi, "SEND_IF_COND", sd_cmd_SEND_IF_COND},
+        [9]  = {0,  sd_spi, "SEND_CSD", spi_cmd_SEND_CSD},
+        [10] = {0,  sd_spi, "SEND_CID", spi_cmd_SEND_CID},
         [34] = {10, sd_spi, "READ_SEC_CMD", sd_cmd_optional},
         [35] = {10, sd_spi, "WRITE_SEC_CMD", sd_cmd_optional},
         [36] = {10, sd_spi, "SEND_PSI", sd_cmd_optional},
