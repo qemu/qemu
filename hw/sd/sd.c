@@ -258,7 +258,6 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
 {
     static const char *acmd_abbrev[SDMMC_CMD_MAX] = {
-         [6] = "SET_BUS_WIDTH",
         [13] = "SD_STATUS",
         [14] = "DPS_spec",                  [15] = "DPS_spec",
         [16] = "DPS_spec",
@@ -1653,6 +1652,18 @@ static sd_rsp_type_t spi_cmd_CRC_ON_OFF(SDState *sd, SDRequest req)
     return sd_r1;
 }
 
+/* ACMD6 */
+static sd_rsp_type_t sd_acmd_SET_BUS_WIDTH(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_transfer_state) {
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+
+    sd->sd_status[0] &= 0x3f;
+    sd->sd_status[0] |= (req.arg & 0x03) << 6;
+    return sd_r1;
+}
+
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint64_t addr;
@@ -1777,18 +1788,6 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     }
 
     switch (req.cmd) {
-    case 6:  /* ACMD6:  SET_BUS_WIDTH */
-        switch (sd->state) {
-        case sd_transfer_state:
-            sd->sd_status[0] &= 0x3f;
-            sd->sd_status[0] |= (req.arg & 0x03) << 6;
-            return sd_r1;
-
-        default:
-            break;
-        }
-        break;
-
     case 13:  /* ACMD13: SD_STATUS */
         switch (sd->state) {
         case sd_transfer_state:
@@ -2389,6 +2388,9 @@ static const SDProto sd_proto_sd = {
         [57] = {10, sd_adtc, "DIRECT_SECURE_WRITE", sd_cmd_optional},
         [58] = {11, sd_adtc, "READ_EXTR_MULTI", sd_cmd_optional},
         [59] = {11, sd_adtc, "WRITE_EXTR_MULTI", sd_cmd_optional},
+    },
+    .acmd = {
+        [6]  = {8,  sd_ac,   "SET_BUS_WIDTH", sd_acmd_SET_BUS_WIDTH},
     },
 };
 
