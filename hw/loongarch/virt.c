@@ -1054,7 +1054,6 @@ static void fw_cfg_add_memory(MachineState *ms)
         memmap_add_entry(base, gap, 1);
         size -= gap;
         base = VIRT_HIGHMEM_BASE;
-        gap = ram_size - VIRT_LOWMEM_SIZE;
     }
 
     if (size) {
@@ -1067,17 +1066,17 @@ static void fw_cfg_add_memory(MachineState *ms)
     }
 
     /* add fw_cfg memory map of other nodes */
-    size = ram_size - numa_info[0].node_mem;
-    gap  = VIRT_LOWMEM_BASE + VIRT_LOWMEM_SIZE;
-    if (base < gap && (base + size) > gap) {
+    if (numa_info[0].node_mem < gap && ram_size > gap) {
         /*
          * memory map for the maining nodes splited into two part
-         *   lowram:  [base, +(gap - base))
-         *   highram: [VIRT_HIGHMEM_BASE, +(size - (gap - base)))
+         * lowram:  [base, +(gap - numa_info[0].node_mem))
+         * highram: [VIRT_HIGHMEM_BASE, +(ram_size - gap))
          */
-        memmap_add_entry(base, gap - base, 1);
-        size -= gap - base;
+        memmap_add_entry(base, gap - numa_info[0].node_mem, 1);
+        size = ram_size - gap;
         base = VIRT_HIGHMEM_BASE;
+    } else {
+        size = ram_size - numa_info[0].node_mem;
     }
 
    if (size)
