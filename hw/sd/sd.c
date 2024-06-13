@@ -178,6 +178,17 @@ static const char *sd_version_str(enum SDPhySpecificationVersion version)
     return sdphy_version[version];
 }
 
+static const char *sd_mode_name(enum SDCardModes mode)
+{
+    static const char *mode_name[] = {
+        [sd_inactive]                   = "inactive",
+        [sd_card_identification_mode]   = "identification",
+        [sd_data_transfer_mode]         = "transfer",
+    };
+    assert(mode < ARRAY_SIZE(mode_name));
+    return mode_name[mode];
+}
+
 static const char *sd_state_name(enum SDCardStates state)
 {
     static const char *state_name[] = {
@@ -1018,6 +1029,15 @@ static sd_rsp_type_t sd_invalid_state_for_cmd(SDState *sd, SDRequest req)
     return sd_illegal;
 }
 
+static sd_rsp_type_t sd_invalid_mode_for_cmd(SDState *sd, SDRequest req)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong mode: %s (spec %s)\n",
+                  sd_proto(sd)->name, req.cmd, sd_mode_name(sd->mode),
+                  sd_version_str(sd->spec_version));
+
+    return sd_illegal;
+}
+
 static sd_rsp_type_t sd_cmd_illegal(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CMD%i for spec %s\n",
@@ -1156,18 +1176,14 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 6:  /* CMD6:   SWITCH_FUNCTION */
-        switch (sd->mode) {
-        case sd_data_transfer_mode:
-            sd_function_switch(sd, req.arg);
-            sd->state = sd_sendingdata_state;
-            sd->data_start = 0;
-            sd->data_offset = 0;
-            return sd_r1;
-
-        default:
-            break;
+        if (sd->mode != sd_data_transfer_mode) {
+            return sd_invalid_mode_for_cmd(sd, req);
         }
-        break;
+        sd_function_switch(sd, req.arg);
+        sd->state = sd_sendingdata_state;
+        sd->data_start = 0;
+        sd->data_offset = 0;
+        return sd_r1;
 
     case 7:  /* CMD7:   SELECT/DESELECT_CARD */
         rca = sd_req_get_rca(sd, req);
@@ -1291,33 +1307,24 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     case 13:  /* CMD13:  SEND_STATUS */
         rca = sd_req_get_rca(sd, req);
-        switch (sd->mode) {
-        case sd_data_transfer_mode:
-            if (!sd_is_spi(sd) && sd->rca != rca) {
-                return sd_r0;
-            }
-
-            return sd_r1;
-
-        default:
-            break;
+        if (sd->mode != sd_data_transfer_mode) {
+            return sd_invalid_mode_for_cmd(sd, req);
         }
-        break;
+        if (!sd_is_spi(sd) && sd->rca != rca) {
+            return sd_r0;
+        }
+
+        return sd_r1;
 
     case 15:  /* CMD15:  GO_INACTIVE_STATE */
-        rca = sd_req_get_rca(sd, req);
-        switch (sd->mode) {
-        case sd_data_transfer_mode:
-            if (sd->rca != rca)
-                return sd_r0;
-
-            sd->state = sd_inactive_state;
-            return sd_r0;
-
-        default:
-            break;
+        if (sd->mode != sd_data_transfer_mode) {
+            return sd_invalid_mode_for_cmd(sd, req);
         }
-        break;
+        rca = sd_req_get_rca(sd, req);
+        if (sd->rca == rca) {
+            sd->state = sd_inactive_state;
+        }
+        return sd_r0;
 
     /* Block read commands (Class 2) */
     case 16:  /* CMD16:  SET_BLOCKLEN */
