@@ -36,3 +36,7 @@ s390_pci_unknown(const char *msg, uint32_t cmd) "%s unknown command 0x%x"
 s390_pci_bar(uint32_t bar, uint32_t addr, uint64_t size, uint32_t barsize) "bar %d addr 0x%x size 0x%" PRIx64 "barsize 0x%x"
 s390_pci_nodev(const char *cmd, uint32_t fh) "%s no pci dev fh 0x%x"
 s390_pci_invalid(const char *cmd, uint32_t fh) "%s invalid space fh 0x%x"
+
+# s390-skeys.c
+s390_skeys_get_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
+s390_skeys_set_nonzero(int rc) "SKEY: Call to set_skeys unexpectedly returned %d"
