@@ -405,7 +405,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 12:
             readline_clear_screen(rs);
             break;
-        case 10:
+        case 10: /* fallthrough */
         case 13:
             rs->cmd_buf[rs->cmd_buf_size] = '\0';
             if (!rs->read_password) {
@@ -425,7 +425,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 27:
             rs->esc_state = IS_ESC;
             break;
-        case 127:
+        case 127: /* fallthrough */
         case 8:
             readline_backspace(rs);
             break;
@@ -452,11 +452,11 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         break;
     case IS_CSI:
         switch (ch) {
-        case 'A':
+        case 'A': /* fallthrough */
         case 'F':
             readline_up_char(rs);
             break;
-        case 'B':
+        case 'B': /* fallthrough */
         case 'E':
             readline_down_char(rs);
             break;
@@ -480,12 +480,15 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             case 4:
                 readline_eol(rs);
                 break;
+            default:
+                break;
             }
             break;
         default:
             break;
         }
         rs->esc_state = IS_NORM;
+        /* fallthrough */
     the_end:
         break;
     case IS_SS3:
@@ -496,8 +499,12 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 'H':
             readline_bol(rs);
             break;
+        default:
+            break;
         }
         rs->esc_state = IS_NORM;
+        break;
+    default:
         break;
     }
     readline_update(rs);
