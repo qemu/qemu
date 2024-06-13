@@ -2,3 +2,8 @@ config S390X
     bool
     select PCI
     select S390_FLIC
+
+config S390X_LEGACY_CPUS
+    bool
+    default y
+    depends on S390X
