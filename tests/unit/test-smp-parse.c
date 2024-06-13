@@ -48,17 +48,19 @@
         }
 
 /*
- * Currently a 4-level topology hierarchy is supported on PC machines
- *  -sockets/dies/cores/threads
+ * Currently a 5-level topology hierarchy is supported on PC machines
+ *  -sockets/dies/modules/cores/threads
  */
-#define SMP_CONFIG_WITH_DIES(ha, a, hb, b, hc, c, hd, d, he, e, hf, f) \
+#define SMP_CONFIG_WITH_MODS_DIES(ha, a, hb, b, hc, c, hd, d, \
+                                  he, e, hf, f, hg, g)        \
         {                                                     \
             .has_cpus    = ha, .cpus    = a,                  \
             .has_sockets = hb, .sockets = b,                  \
             .has_dies    = hc, .dies    = c,                  \
-            .has_cores   = hd, .cores   = d,                  \
-            .has_threads = he, .threads = e,                  \
-            .has_maxcpus = hf, .maxcpus = f,                  \
+            .has_modules = hd, .modules = d,                  \
+            .has_cores   = he, .cores   = e,                  \
+            .has_threads = hf, .threads = f,                  \
+            .has_maxcpus = hg, .maxcpus = g,                  \
         }
 
 /*
@@ -92,11 +94,11 @@
         }
 
 /*
- * Currently QEMU supports up to a 7-level topology hierarchy, which is the
+ * Currently QEMU supports up to a 8-level topology hierarchy, which is the
  * QEMU's unified abstract representation of CPU topology.
- *  -drawers/books/sockets/dies/clusters/cores/threads
+ *  -drawers/books/sockets/dies/clusters/modules/cores/threads
  */
-#define SMP_CONFIG_WITH_FULL_TOPO(a, b, c, d, e, f, g, h, i)    \
+#define SMP_CONFIG_WITH_FULL_TOPO(a, b, c, d, e, f, g, h, i, j) \
         {                                                       \
             .has_cpus     = true, .cpus     = a,                \
             .has_drawers  = true, .drawers  = b,                \
@@ -104,9 +106,10 @@
             .has_sockets  = true, .sockets  = d,                \
             .has_dies     = true, .dies     = e,                \
             .has_clusters = true, .clusters = f,                \
-            .has_cores    = true, .cores    = g,                \
-            .has_threads  = true, .threads  = h,                \
-            .has_maxcpus  = true, .maxcpus  = i,                \
+            .has_modules  = true, .modules  = g,                \
+            .has_cores    = true, .cores    = h,                \
+            .has_threads  = true, .threads  = i,                \
+            .has_maxcpus  = true, .maxcpus  = j,                \
         }
 
 /**
@@ -333,9 +336,11 @@ static const struct SMPTestData data_generic_valid[] = {
     }, {
         /*
          * Unsupported parameters are always allowed to be set to '1'
-         * config: -smp 8,books=1,drawers=1,sockets=2,modules=1,dies=1,cores=2,threads=2,maxcpus=8
+         * config:
+         *   -smp 8,drawers=1,books=1,sockets=2,dies=1,clusters=1,modules=1,\
+         *        cores=2,threads=2,maxcpus=8
          * expect: cpus=8,sockets=2,cores=2,threads=2,maxcpus=8 */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(8, 1, 1, 2, 1, 1, 2, 2, 8),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(8, 1, 1, 2, 1, 1, 1, 2, 2, 8),
         .expect_prefer_sockets = CPU_TOPOLOGY_GENERIC(8, 2, 2, 2, 8),
         .expect_prefer_cores   = CPU_TOPOLOGY_GENERIC(8, 2, 2, 2, 8),
     },
@@ -343,8 +348,14 @@ static const struct SMPTestData data_generic_valid[] = {
 
 static const struct SMPTestData data_generic_invalid[] = {
     {
+        /* config: -smp 2,modules=2 */
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 2, F, 0, F, 0, T, 2,
+                                            F, 0, F, 0, F, 0),
+        .expect_error = "modules > 1 not supported by this machine's CPU topology",
+    }, {
         /* config: -smp 2,dies=2 */
-        .config = SMP_CONFIG_WITH_DIES(T, 2, F, 0, T, 2, F, 0, F, 0, F, 0),
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 2, F, 0, T, 2, F, 0,
+                                            F, 0, F, 0, F, 0),
         .expect_error = "dies > 1 not supported by this machine's CPU topology",
     }, {
         /* config: -smp 2,clusters=2 */
@@ -395,21 +406,70 @@ static const struct SMPTestData data_generic_invalid[] = {
     },
 };
 
+static const struct SMPTestData data_with_modules_invalid[] = {
+    {
+        /* config: -smp 16,sockets=2,modules=2,cores=4,threads=2,maxcpus=16 */
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 16, T, 2, F, 0, T, 2,
+                                            T, 4, T, 2, T, 16),
+        .expect_error = "Invalid CPU topology: "
+                        "product of the hierarchy must match maxcpus: "
+                        "sockets (2) * modules (2) * cores (4) * threads (2) "
+                        "!= maxcpus (16)",
+    }, {
+        /* config: -smp 34,sockets=2,modules=2,cores=4,threads=2,maxcpus=32 */
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 34, T, 2, F, 0, T, 2,
+                                            T, 4, T, 2, T, 32),
+        .expect_error = "Invalid CPU topology: "
+                        "maxcpus must be equal to or greater than smp: "
+                        "sockets (2) * modules (2) * cores (4) * threads (2) "
+                        "== maxcpus (32) < smp_cpus (34)",
+    },
+};
+
 static const struct SMPTestData data_with_dies_invalid[] = {
     {
         /* config: -smp 16,sockets=2,dies=2,cores=4,threads=2,maxcpus=16 */
-        .config = SMP_CONFIG_WITH_DIES(T, 16, T, 2, T, 2, T, 4, T, 2, T, 16),
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 16, T, 2, T, 2, F, 0,
+                                            T, 4, T, 2, T, 16),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
                         "sockets (2) * dies (2) * cores (4) * threads (2) "
                         "!= maxcpus (16)",
     }, {
         /* config: -smp 34,sockets=2,dies=2,cores=4,threads=2,maxcpus=32 */
-        .config = SMP_CONFIG_WITH_DIES(T, 34, T, 2, T, 2, T, 4, T, 2, T, 32),
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 34, T, 2, T, 2, F, 0,
+                                            T, 4, T, 2, T, 32),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
                         "sockets (2) * dies (2) * cores (4) * threads (2) "
                         "== maxcpus (32) < smp_cpus (34)",
+    },
+};
+
+static const struct SMPTestData data_with_modules_dies_invalid[] = {
+    {
+        /*
+         * config: -smp 200,sockets=3,dies=5,modules=2,cores=4,\
+         * threads=2,maxcpus=200
+         */
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 200, T, 3, T, 5, T,
+                                            2, T, 4, T, 2, T, 200),
+        .expect_error = "Invalid CPU topology: "
+                        "product of the hierarchy must match maxcpus: "
+                        "sockets (3) * dies (5) * modules (2) * "
+                        "cores (4) * threads (2) != maxcpus (200)",
+    }, {
+        /*
+         * config: -smp 242,sockets=3,dies=5,modules=2,cores=4,\
+         * threads=2,maxcpus=240
+         */
+        .config = SMP_CONFIG_WITH_MODS_DIES(T, 242, T, 3, T, 5, T,
+                                            2, T, 4, T, 2, T, 240),
+        .expect_error = "Invalid CPU topology: "
+                        "maxcpus must be equal to or greater than smp: "
+                        "sockets (3) * dies (5) * modules (2) * "
+                        "cores (4) * threads (2) "
+                        "== maxcpus (240) < smp_cpus (242)",
     },
 };
 
@@ -434,7 +494,7 @@ static const struct SMPTestData data_with_clusters_invalid[] = {
 static const struct SMPTestData data_with_books_invalid[] = {
     {
         /* config: -smp 16,books=2,sockets=2,cores=4,threads=2,maxcpus=16 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, F, 1, T, 2, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, F, 0, T, 2, T,
                                                 2, T, 4, T, 2, T, 16),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
@@ -442,7 +502,7 @@ static const struct SMPTestData data_with_books_invalid[] = {
                         "!= maxcpus (16)",
     }, {
         /* config: -smp 34,books=2,sockets=2,cores=4,threads=2,maxcpus=32 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, F, 1, T, 2, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, F, 0, T, 2, T,
                                                 2, T, 4, T, 2, T, 32),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
@@ -454,7 +514,7 @@ static const struct SMPTestData data_with_books_invalid[] = {
 static const struct SMPTestData data_with_drawers_invalid[] = {
     {
         /* config: -smp 16,drawers=2,sockets=2,cores=4,threads=2,maxcpus=16 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, T, 2, F, 1, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 16, T, 2, F, 0, T,
                                                 2, T, 4, T, 2, T, 16),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
@@ -462,7 +522,7 @@ static const struct SMPTestData data_with_drawers_invalid[] = {
                         "!= maxcpus (16)",
     }, {
         /* config: -smp 34,drawers=2,sockets=2,cores=4,threads=2,maxcpus=32 */
-        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, T, 2, F, 1, T,
+        .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 34, T, 2, F, 0, T,
                                                 2, T, 4, T, 2, T, 32),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
@@ -474,8 +534,8 @@ static const struct SMPTestData data_with_drawers_invalid[] = {
 static const struct SMPTestData data_with_drawers_books_invalid[] = {
     {
         /*
-         * config: -smp 200,drawers=2,books=2,sockets=2,cores=4,\
-         * threads=2,maxcpus=200
+         * config: -smp 200,drawers=3,books=5,sockets=2,cores=4,\
+         *              threads=2,maxcpus=200
          */
         .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 200, T, 3, T, 5, T,
                                                 2, T, 4, T, 2, T, 200),
@@ -485,8 +545,8 @@ static const struct SMPTestData data_with_drawers_books_invalid[] = {
                         "cores (4) * threads (2) != maxcpus (200)",
     }, {
         /*
-         * config: -smp 242,drawers=2,books=2,sockets=2,cores=4,\
-         * threads=2,maxcpus=240
+         * config: -smp 242,drawers=3,books=5,sockets=2,cores=4,\
+         *              threads=2,maxcpus=240
          */
         .config = SMP_CONFIG_WITH_BOOKS_DRAWERS(T, 242, T, 3, T, 5, T,
                                                 2, T, 4, T, 2, T, 240),
@@ -502,32 +562,37 @@ static const struct SMPTestData data_full_topo_invalid[] = {
     {
         /*
          * config: -smp 200,drawers=3,books=5,sockets=2,dies=4,\
-         *              clusters=2,cores=7,threads=2,maxcpus=200
+         *              clusters=2,modules=3,cores=7,threads=2,\
+         *              maxcpus=200
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(200, 3, 5, 2, 4, 2, 7, 2, 200),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(200, 3, 5, 2, 4, 2, 3, 7, 2, 200),
         .expect_error = "Invalid CPU topology: "
                         "product of the hierarchy must match maxcpus: "
                         "drawers (3) * books (5) * sockets (2) * dies (4) * "
-                        "clusters (2) * cores (7) * threads (2) "
+                        "clusters (2) * modules (3) * cores (7) * threads (2) "
                         "!= maxcpus (200)",
     }, {
         /*
-         * config: -smp 3361,drawers=3,books=5,sockets=2,dies=4,\
-         *              clusters=2,cores=7,threads=2,maxcpus=3360
+         * config: -smp 2881,drawers=3,books=5,sockets=2,dies=4,\
+         *              clusters=2,modules=3,cores=2,threads=2,
+         *              maxcpus=2880
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(3361, 3, 5, 2, 4, 2, 7, 2, 3360),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(2881, 3, 5, 2, 4,
+                                            2, 3, 2, 2, 2880),
         .expect_error = "Invalid CPU topology: "
                         "maxcpus must be equal to or greater than smp: "
-                        "drawers (3) * books (5) * sockets (2) * dies (4) * "
-                        "clusters (2) * cores (7) * threads (2) "
-                        "== maxcpus (3360) < smp_cpus (3361)",
+                        "drawers (3) * books (5) * sockets (2) * "
+                        "dies (4) * clusters (2) * modules (3) * "
+                        "cores (2) * threads (2) == maxcpus (2880) "
+                        "< smp_cpus (2881)",
     }, {
         /*
          * config: -smp 1,drawers=3,books=5,sockets=2,dies=4,\
-         *              clusters=2,cores=7,threads=3,maxcpus=5040
+         *              clusters=2,modules=3,cores=3,threads=3,\
+         *              maxcpus=6480
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(3361, 3, 5, 2, 4, 2, 7, 3, 5040),
-        .expect_error = "Invalid SMP CPUs 5040. The max CPUs supported "
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 3, 5, 2, 4, 2, 3, 3, 3, 6480),
+        .expect_error = "Invalid SMP CPUs 6480. The max CPUs supported "
                         "by machine '" SMP_MACHINE_NAME "' is 4096",
     },
 };
@@ -537,81 +602,100 @@ static const struct SMPTestData data_zero_topo_invalid[] = {
         /*
          * Test "cpus=0".
          * config: -smp 0,drawers=1,books=1,sockets=1,dies=1,\
-         *              clusters=1,cores=1,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=1,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(0, 1, 1, 1, 1, 1, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(0, 1, 1, 1, 1, 1, 1, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "drawers=0".
          * config: -smp 1,drawers=0,books=1,sockets=1,dies=1,\
-         *              clusters=1,cores=1,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=1,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 0, 1, 1, 1, 1, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 0, 1, 1, 1, 1, 1, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "books=0".
          * config: -smp 1,drawers=1,books=0,sockets=1,dies=1,\
-         *              clusters=1,cores=1,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=1,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 0, 1, 1, 1, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 0, 1, 1, 1, 1, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "sockets=0".
          * config: -smp 1,drawers=1,books=1,sockets=0,dies=1,\
-         *              clusters=1,cores=1,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=1,
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 0, 1, 1, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 0, 1, 1, 1, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "dies=0".
          * config: -smp 1,drawers=1,books=1,sockets=1,dies=0,\
-         *              clusters=1,cores=1,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=1,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 0, 1, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 0, 1, 1, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "clusters=0".
          * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
-         *              clusters=0,cores=1,threads=1,maxcpus=1
+         *              clusters=0,modules=1,cores=1,threads=1,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 0, 1, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 0, 1, 1, 1, 1),
+        .expect_error = "Invalid CPU topology: CPU topology parameters must "
+                        "be greater than zero",
+    }, {
+        /*
+         * Test "modules=0".
+         * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
+         *              clusters=1,modules=0,cores=1,threads=1,\
+         *              maxcpus=1
+         */
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 0, 1, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "cores=0".
          * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
-         *              clusters=1,cores=0,threads=1,maxcpus=1
+         *              clusters=1,modules=1,cores=0,threads=1,
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 0, 1, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 0, 1, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "threads=0".
          * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
-         *              clusters=1,cores=1,threads=0,maxcpus=1
+         *              clusters=1,modules=1,cores=1,threads=0,\
+         *              maxcpus=1
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 0, 1),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 1, 0, 1),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     }, {
         /*
          * Test "maxcpus=0".
          * config: -smp 1,drawers=1,books=1,sockets=1,dies=1,\
-         *              clusters=1,cores=1,threads=1,maxcpus=0
+         *              clusters=1,modules=1,cores=1,threads=1,\
+         *              maxcpus=0
          */
-        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 1, 0),
+        .config = SMP_CONFIG_WITH_FULL_TOPO(1, 1, 1, 1, 1, 1, 1, 1, 1, 0),
         .expect_error = "Invalid CPU topology: CPU topology parameters must "
                         "be greater than zero",
     },
@@ -627,6 +711,7 @@ static char *smp_config_to_string(const SMPConfiguration *config)
         "    .has_sockets  = %5s, sockets  = %" PRId64 ",\n"
         "    .has_dies     = %5s, dies     = %" PRId64 ",\n"
         "    .has_clusters = %5s, clusters = %" PRId64 ",\n"
+        "    .has_modules  = %5s, modules  = %" PRId64 ",\n"
         "    .has_cores    = %5s, cores    = %" PRId64 ",\n"
         "    .has_threads  = %5s, threads  = %" PRId64 ",\n"
         "    .has_maxcpus  = %5s, maxcpus  = %" PRId64 ",\n"
@@ -637,6 +722,7 @@ static char *smp_config_to_string(const SMPConfiguration *config)
         config->has_sockets ? "true" : "false", config->sockets,
         config->has_dies ? "true" : "false", config->dies,
         config->has_clusters ? "true" : "false", config->clusters,
+        config->has_modules ? "true" : "false", config->modules,
         config->has_cores ? "true" : "false", config->cores,
         config->has_threads ? "true" : "false", config->threads,
         config->has_maxcpus ? "true" : "false", config->maxcpus);
@@ -677,6 +763,7 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
         "    .sockets            = %u,\n"
         "    .dies               = %u,\n"
         "    .clusters           = %u,\n"
+        "    .modules            = %u,\n"
         "    .cores              = %u,\n"
         "    .threads            = %u,\n"
         "    .max_cpus           = %u,\n"
@@ -686,8 +773,8 @@ static char *cpu_topology_to_string(const CpuTopology *topo,
         "}",
         topo->cpus, topo->drawers, topo->books,
         topo->sockets, topo->dies, topo->clusters,
-        topo->cores, topo->threads, topo->max_cpus,
-        threads_per_socket, cores_per_socket,
+        topo->modules, topo->cores, topo->threads,
+        topo->max_cpus, threads_per_socket, cores_per_socket,
         has_clusters ? "true" : "false");
 }
 
@@ -730,6 +817,7 @@ static void check_parse(MachineState *ms, const SMPConfiguration *config,
             (ms->smp.sockets == expect_topo->sockets) &&
             (ms->smp.dies == expect_topo->dies) &&
             (ms->smp.clusters == expect_topo->clusters) &&
+            (ms->smp.modules == expect_topo->modules) &&
             (ms->smp.cores == expect_topo->cores) &&
             (ms->smp.threads == expect_topo->threads) &&
             (ms->smp.max_cpus == expect_topo->max_cpus) &&
@@ -810,6 +898,11 @@ static void smp_parse_test(MachineState *ms, SMPTestData *data, bool is_valid)
 /* The parsed results of the unsupported parameters should be 1 */
 static void unsupported_params_init(const MachineClass *mc, SMPTestData *data)
 {
+    if (!mc->smp_props.modules_supported) {
+        data->expect_prefer_sockets.modules = 1;
+        data->expect_prefer_cores.modules = 1;
+    }
+
     if (!mc->smp_props.dies_supported) {
         data->expect_prefer_sockets.dies = 1;
         data->expect_prefer_cores.dies = 1;
@@ -850,10 +943,25 @@ static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS - 1;
 }
 
+static void machine_with_modules_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->smp_props.modules_supported = true;
+}
+
 static void machine_with_dies_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
+    mc->smp_props.dies_supported = true;
+}
+
+static void machine_with_modules_dies_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->smp_props.modules_supported = true;
     mc->smp_props.dies_supported = true;
 }
 
@@ -894,6 +1002,7 @@ static void machine_full_topo_class_init(ObjectClass *oc, void *data)
     mc->smp_props.books_supported = true;
     mc->smp_props.dies_supported = true;
     mc->smp_props.clusters_supported = true;
+    mc->smp_props.modules_supported = true;
 }
 
 static void test_generic_valid(const void *opaque)
@@ -926,6 +1035,56 @@ static void test_generic_invalid(const void *opaque)
 
     for (i = 0; i < ARRAY_SIZE(data_generic_invalid); i++) {
         data = data_generic_invalid[i];
+        unsupported_params_init(mc, &data);
+
+        smp_parse_test(ms, &data, false);
+    }
+
+    object_unref(obj);
+}
+
+static void test_with_modules(const void *opaque)
+{
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
+    MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    SMPTestData data = {};
+    unsigned int num_modules = 2;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
+        data = data_generic_valid[i];
+        unsupported_params_init(mc, &data);
+
+        /* when modules parameter is omitted, it will be set as 1 */
+        data.expect_prefer_sockets.modules = 1;
+        data.expect_prefer_cores.modules = 1;
+
+        smp_parse_test(ms, &data, true);
+
+        /* when modules parameter is specified */
+        data.config.has_modules = true;
+        data.config.modules = num_modules;
+        if (data.config.has_cpus) {
+            data.config.cpus *= num_modules;
+        }
+        if (data.config.has_maxcpus) {
+            data.config.maxcpus *= num_modules;
+        }
+
+        data.expect_prefer_sockets.modules = num_modules;
+        data.expect_prefer_sockets.cpus *= num_modules;
+        data.expect_prefer_sockets.max_cpus *= num_modules;
+        data.expect_prefer_cores.modules = num_modules;
+        data.expect_prefer_cores.cpus *= num_modules;
+        data.expect_prefer_cores.max_cpus *= num_modules;
+
+        smp_parse_test(ms, &data, true);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(data_with_modules_invalid); i++) {
+        data = data_with_modules_invalid[i];
         unsupported_params_init(mc, &data);
 
         smp_parse_test(ms, &data, false);
@@ -976,6 +1135,67 @@ static void test_with_dies(const void *opaque)
 
     for (i = 0; i < ARRAY_SIZE(data_with_dies_invalid); i++) {
         data = data_with_dies_invalid[i];
+        unsupported_params_init(mc, &data);
+
+        smp_parse_test(ms, &data, false);
+    }
+
+    object_unref(obj);
+}
+
+static void test_with_modules_dies(const void *opaque)
+{
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
+    MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    SMPTestData data = {};
+    unsigned int num_modules = 5, num_dies = 3;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
+        data = data_generic_valid[i];
+        unsupported_params_init(mc, &data);
+
+        /*
+         * when modules and dies parameters are omitted, they will
+         * be both set as 1.
+         */
+        data.expect_prefer_sockets.modules = 1;
+        data.expect_prefer_sockets.dies = 1;
+        data.expect_prefer_cores.modules = 1;
+        data.expect_prefer_cores.dies = 1;
+
+        smp_parse_test(ms, &data, true);
+
+        /* when modules and dies parameters are both specified */
+        data.config.has_modules = true;
+        data.config.modules = num_modules;
+        data.config.has_dies = true;
+        data.config.dies = num_dies;
+
+        if (data.config.has_cpus) {
+            data.config.cpus *= num_modules * num_dies;
+        }
+        if (data.config.has_maxcpus) {
+            data.config.maxcpus *= num_modules * num_dies;
+        }
+
+        data.expect_prefer_sockets.modules = num_modules;
+        data.expect_prefer_sockets.dies = num_dies;
+        data.expect_prefer_sockets.cpus *= num_modules * num_dies;
+        data.expect_prefer_sockets.max_cpus *= num_modules * num_dies;
+
+        data.expect_prefer_cores.modules = num_modules;
+        data.expect_prefer_cores.dies = num_dies;
+        data.expect_prefer_cores.cpus *= num_modules * num_dies;
+        data.expect_prefer_cores.max_cpus *= num_modules * num_dies;
+
+        smp_parse_test(ms, &data, true);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(data_with_modules_dies_invalid); i++) {
+        data = data_with_modules_dies_invalid[i];
         unsupported_params_init(mc, &data);
 
         smp_parse_test(ms, &data, false);
@@ -1202,30 +1422,41 @@ static void test_full_topo(const void *opaque)
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData data = {};
-    unsigned int drawers = 5, books = 3, dies = 2, clusters = 7, multiplier;
+    unsigned int drawers, books, dies, clusters, modules, multiplier;
     int i;
 
-    multiplier = drawers * books * dies * clusters;
+    drawers = 5;
+    books = 3;
+    dies = 2;
+    clusters = 3;
+    modules = 2;
+
+    multiplier = drawers * books * dies * clusters * modules;
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
         data = data_generic_valid[i];
         unsupported_params_init(mc, &data);
 
         /*
-         * when drawers, books, dies and clusters parameters are omitted,
-         * they will be set as 1.
+         * when drawers, books, dies, clusters and modules parameters are
+         * omitted, they will be set as 1.
          */
         data.expect_prefer_sockets.drawers = 1;
         data.expect_prefer_sockets.books = 1;
         data.expect_prefer_sockets.dies = 1;
         data.expect_prefer_sockets.clusters = 1;
+        data.expect_prefer_sockets.modules = 1;
         data.expect_prefer_cores.drawers = 1;
         data.expect_prefer_cores.books = 1;
         data.expect_prefer_cores.dies = 1;
         data.expect_prefer_cores.clusters = 1;
+        data.expect_prefer_cores.modules = 1;
 
         smp_parse_test(ms, &data, true);
 
-        /* when drawers, books, dies and clusters parameters are specified. */
+        /*
+         * when drawers, books, dies, clusters and modules parameters
+         * are specified.
+         */
         data.config.has_drawers = true;
         data.config.drawers = drawers;
         data.config.has_books = true;
@@ -1234,6 +1465,8 @@ static void test_full_topo(const void *opaque)
         data.config.dies = dies;
         data.config.has_clusters = true;
         data.config.clusters = clusters;
+        data.config.has_modules = true;
+        data.config.modules = modules;
 
         if (data.config.has_cpus) {
             data.config.cpus *= multiplier;
@@ -1246,6 +1479,7 @@ static void test_full_topo(const void *opaque)
         data.expect_prefer_sockets.books = books;
         data.expect_prefer_sockets.dies = dies;
         data.expect_prefer_sockets.clusters = clusters;
+        data.expect_prefer_sockets.modules = modules;
         data.expect_prefer_sockets.cpus *= multiplier;
         data.expect_prefer_sockets.max_cpus *= multiplier;
 
@@ -1253,6 +1487,7 @@ static void test_full_topo(const void *opaque)
         data.expect_prefer_cores.books = books;
         data.expect_prefer_cores.dies = dies;
         data.expect_prefer_cores.clusters = clusters;
+        data.expect_prefer_cores.modules = modules;
         data.expect_prefer_cores.cpus *= multiplier;
         data.expect_prefer_cores.max_cpus *= multiplier;
 
@@ -1293,9 +1528,17 @@ static const TypeInfo smp_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .class_init     = machine_generic_invalid_class_init,
     }, {
+        .name           = MACHINE_TYPE_NAME("smp-with-modules"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_with_modules_class_init,
+    }, {
         .name           = MACHINE_TYPE_NAME("smp-with-dies"),
         .parent         = TYPE_MACHINE,
         .class_init     = machine_with_dies_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("smp-with-modules-dies"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_with_modules_dies_class_init,
     }, {
         .name           = MACHINE_TYPE_NAME("smp-with-clusters"),
         .parent         = TYPE_MACHINE,
@@ -1333,9 +1576,15 @@ int main(int argc, char *argv[])
     g_test_add_data_func("/test-smp-parse/generic/invalid",
                          MACHINE_TYPE_NAME("smp-generic-invalid"),
                          test_generic_invalid);
+    g_test_add_data_func("/test-smp-parse/with_modules",
+                         MACHINE_TYPE_NAME("smp-with-modules"),
+                         test_with_modules);
     g_test_add_data_func("/test-smp-parse/with_dies",
                          MACHINE_TYPE_NAME("smp-with-dies"),
                          test_with_dies);
+    g_test_add_data_func("/test-smp-parse/with_modules_dies",
+                         MACHINE_TYPE_NAME("smp-with-modules-dies"),
+                         test_with_modules_dies);
     g_test_add_data_func("/test-smp-parse/with_clusters",
                          MACHINE_TYPE_NAME("smp-with-clusters"),
                          test_with_clusters);

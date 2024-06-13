@@ -1885,11 +1885,9 @@ endif
 
 rdma = not_found
 if not get_option('rdma').auto() or have_system
-  libumad = cc.find_library('ibumad', required: get_option('rdma'))
   rdma_libs = [cc.find_library('rdmacm', has_headers: ['rdma/rdma_cma.h'],
                                required: get_option('rdma')),
-               cc.find_library('ibverbs', required: get_option('rdma')),
-               libumad]
+               cc.find_library('ibverbs', required: get_option('rdma'))]
   rdma = declare_dependency(dependencies: rdma_libs)
   foreach lib: rdma_libs
     if not lib.found()
