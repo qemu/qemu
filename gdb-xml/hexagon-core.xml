@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+  Copyright(c) 2023-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
 
   This work is licensed under the terms of the GNU GPL, version 2 or
   (at your option) any later version. See the COPYING file in the
@@ -80,5 +80,9 @@
   <reg name="c29"              bitsize="32" offset="244" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="61"/>
   <reg name="utimerlo"         bitsize="32" offset="248" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="62"/>
   <reg name="utimerhi"         bitsize="32" offset="252" encoding="uint" format="hex" group="Thread Registers" dwarf_regnum="63"/>
+  <reg name="p0"               bitsize="8"  offset="256" encoding="uint" format="hex" group="Predicate Registers" dwarf_regnum="64"/>
+  <reg name="p1"               bitsize="8"  offset="257" encoding="uint" format="hex" group="Predicate Registers" dwarf_regnum="65"/>
+  <reg name="p2"               bitsize="8"  offset="258" encoding="uint" format="hex" group="Predicate Registers" dwarf_regnum="66"/>
+  <reg name="p3"               bitsize="8"  offset="259" encoding="uint" format="hex" group="Predicate Registers" dwarf_regnum="67"/>
 
 </feature>
