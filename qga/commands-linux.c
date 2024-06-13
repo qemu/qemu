@@ -28,6 +28,10 @@
 #include <libudev.h>
 #endif
 
+#ifdef HAVE_GETIFADDRS
+#include <net/if.h>
+#endif
+
 #include <sys/statvfs.h>
 
 #if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
@@ -2087,5 +2091,134 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
 
     free(line);
     fclose(fp);
+    return head;
+}
+
+static char *hexToIPAddress(const void *hexValue, int is_ipv6)
+{
+    if (is_ipv6) {
+        char addr[INET6_ADDRSTRLEN];
+        struct in6_addr in6;
+        const char *hexStr = (const char *)hexValue;
+        int i;
+
+        for (i = 0; i < 16; i++) {
+            sscanf(&hexStr[i * 2], "%02hhx", &in6.s6_addr[i]);
+        }
+        inet_ntop(AF_INET6, &in6, addr, INET6_ADDRSTRLEN);
+
+        return g_strdup(addr);
+    } else {
+        unsigned int hexInt = *(unsigned int *)hexValue;
+        unsigned int byte1 = (hexInt >> 24) & 0xFF;
+        unsigned int byte2 = (hexInt >> 16) & 0xFF;
+        unsigned int byte3 = (hexInt >> 8) & 0xFF;
+        unsigned int byte4 = hexInt & 0xFF;
+
+        return g_strdup_printf("%u.%u.%u.%u", byte4, byte3, byte2, byte1);
+    }
+}
+
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
+{
+    GuestNetworkRouteList *head = NULL, **tail = &head;
+    const char *routeFiles[] = {"/proc/net/route", "/proc/net/ipv6_route"};
+    FILE *fp;
+    size_t n;
+    char *line = NULL;
+    int firstLine;
+    int is_ipv6;
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        firstLine = 1;
+        is_ipv6 = (i == 1);
+        fp = fopen(routeFiles[i], "r");
+        if (fp == NULL) {
+            error_setg_errno(errp, errno, "open(\"%s\")", routeFiles[i]);
+            free(line);
+            continue;
+        }
+
+        while (getline(&line, &n, fp) != -1) {
+            if (firstLine && !is_ipv6) {
+                firstLine = 0;
+                continue;
+            }
+            GuestNetworkRoute *route = NULL;
+            GuestNetworkRoute *networkroute;
+            char Iface[IFNAMSIZ];
+            if (is_ipv6) {
+                char Destination[33], Source[33], NextHop[33];
+                int DesPrefixlen, SrcPrefixlen, Metric, RefCnt, Use, Flags;
+
+                /* Parse the line and extract the values */
+                if (sscanf(line, "%32s %x %32s %x %32s %x %x %x %x %s",
+                           Destination, &DesPrefixlen, Source,
+                           &SrcPrefixlen, NextHop, &Metric, &RefCnt,
+                           &Use, &Flags, Iface) != 10) {
+                    continue;
+                }
+
+                route = g_new0(GuestNetworkRoute, 1);
+                networkroute = route;
+                networkroute->iface = g_strdup(Iface);
+                networkroute->destination = hexToIPAddress(Destination, 1);
+                networkroute->metric = Metric;
+                networkroute->source = hexToIPAddress(Source, 1);
+                networkroute->desprefixlen = g_strdup_printf(
+                    "%d", DesPrefixlen
+                );
+                networkroute->srcprefixlen = g_strdup_printf(
+                    "%d", SrcPrefixlen
+                );
+                networkroute->nexthop = hexToIPAddress(NextHop, 1);
+                networkroute->has_flags = true;
+                networkroute->flags = Flags;
+                networkroute->has_refcnt = true;
+                networkroute->refcnt = RefCnt;
+                networkroute->has_use = true;
+                networkroute->use = Use;
+                networkroute->version = 6;
+            } else {
+                unsigned int Destination, Gateway, Mask, Flags;
+                int RefCnt, Use, Metric, MTU, Window, IRTT;
+
+                /* Parse the line and extract the values */
+                if (sscanf(line, "%s %X %X %x %d %d %d %X %d %d %d",
+                           Iface, &Destination, &Gateway, &Flags, &RefCnt,
+                           &Use, &Metric, &Mask, &MTU, &Window, &IRTT) != 11) {
+                    continue;
+                }
+
+                route = g_new0(GuestNetworkRoute, 1);
+                networkroute = route;
+                networkroute->iface = g_strdup(Iface);
+                networkroute->destination = hexToIPAddress(&Destination, 0);
+                networkroute->gateway = hexToIPAddress(&Gateway, 0);
+                networkroute->mask = hexToIPAddress(&Mask, 0);
+                networkroute->metric = Metric;
+                networkroute->has_flags = true;
+                networkroute->flags = Flags;
+                networkroute->has_refcnt = true;
+                networkroute->refcnt = RefCnt;
+                networkroute->has_use = true;
+                networkroute->use = Use;
+                networkroute->has_mtu = true;
+                networkroute->mtu = MTU;
+                networkroute->has_window = true;
+                networkroute->window = Window;
+                networkroute->has_irtt = true;
+                networkroute->irtt = IRTT;
+                networkroute->version = 4;
+            }
+
+            QAPI_LIST_APPEND(tail, route);
+        }
+
+        free(line);
+        fclose(fp);
+    }
+
     return head;
 }

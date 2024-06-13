@@ -1851,3 +1851,76 @@
   'returns': ['GuestCpuStats'],
   'if': 'CONFIG_LINUX'
 }
+
+##
+# @GuestNetworkRoute:
+#
+# Route information, currently, only linux supported.
+#
+# @iface: The destination network or host's egress network interface in the routing table
+#
+# @destination: The IP address of the target network or host, The final destination of the packet
+#
+# @metric: Route metric
+#
+# @gateway: The IP address of the next hop router
+#
+# @mask: Subnet Mask (IPv4 only)
+#
+# @irtt: Initial round-trip delay (not for windows, IPv4 only)
+#
+# @flags: Route flags (not for windows)
+#
+# @refcnt: The route's reference count (not for windows)
+#
+# @use: Route usage count (not for windows)
+#
+# @window: TCP window size, used for flow control (not for windows, IPv4 only)
+#
+# @mtu: Data link layer maximum packet size (not for windows)
+#
+# @desprefixlen: Destination prefix length (for IPv6)
+#
+# @source: Source IP address (for IPv6)
+#
+# @srcprefixlen: Source prefix length (for IPv6)
+#
+# @nexthop: Next hop IP address (for IPv6)
+#
+# @version: IP version (4 or 6)
+#
+# Since: 9.1
+
+##
+{ 'struct': 'GuestNetworkRoute',
+  'data': {'iface': 'str',
+           'destination': 'str',
+           'metric': 'int',
+           '*gateway': 'str',
+           '*mask': 'str',
+           '*irtt': 'int',
+           '*flags': 'uint64',
+           '*refcnt': 'int',
+           '*use': 'int',
+           '*window': 'int',
+           '*mtu': 'int',
+           '*desprefixlen': 'str',
+           '*source': 'str',
+           '*srcprefixlen': 'str',
+           '*nexthop': 'str',
+           'version': 'int'
+           },
+  'if': 'CONFIG_LINUX' }
+
+##
+# @guest-network-get-route:
+#
+# Retrieve information about route of network.
+# Returns: List of route info of guest.
+#
+# Since: 9.1
+##
+{ 'command': 'guest-network-get-route',
+  'returns': ['GuestNetworkRoute'],
+  'if': 'CONFIG_LINUX'
+}
