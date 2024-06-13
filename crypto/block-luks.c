@@ -1189,7 +1189,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                         QCryptoBlockReadFunc readfunc,
                         void *opaque,
                         unsigned int flags,
-                        size_t n_threads,
                         Error **errp)
 {
     QCryptoBlockLUKS *luks = NULL;
@@ -1262,7 +1261,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                       luks->cipher_mode,
                                       masterkey,
                                       luks->header.master_key_len,
-                                      n_threads,
                                       errp) < 0) {
             goto fail;
         }
@@ -1456,7 +1454,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     /* Setup the block device payload encryption objects */
     if (qcrypto_block_init_cipher(block, luks_opts.cipher_alg,
                                   luks_opts.cipher_mode, masterkey,
-                                  luks->header.master_key_len, 1, errp) < 0) {
+                                  luks->header.master_key_len, errp) < 0) {
         goto error;
     }
 

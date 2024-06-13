@@ -43,7 +43,7 @@ typedef struct BDRVCopyBeforeWriteState {
     BlockCopyState *bcs;
     BdrvChild *target;
     OnCbwError on_cbw_error;
-    uint32_t cbw_timeout_ns;
+    uint64_t cbw_timeout_ns;
     bool discard_source;
 
     /*

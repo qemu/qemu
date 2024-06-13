@@ -44,7 +44,6 @@ qcrypto_block_qcow_has_format(const uint8_t *buf G_GNUC_UNUSED,
 static int
 qcrypto_block_qcow_init(QCryptoBlock *block,
                         const char *keysecret,
-                        size_t n_threads,
                         Error **errp)
 {
     char *password;
@@ -75,7 +74,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
     ret = qcrypto_block_init_cipher(block, QCRYPTO_CIPHER_ALG_AES_128,
                                     QCRYPTO_CIPHER_MODE_CBC,
                                     keybuf, G_N_ELEMENTS(keybuf),
-                                    n_threads, errp);
+                                    errp);
     if (ret < 0) {
         ret = -ENOTSUP;
         goto fail;
@@ -100,7 +99,6 @@ qcrypto_block_qcow_open(QCryptoBlock *block,
                         QCryptoBlockReadFunc readfunc G_GNUC_UNUSED,
                         void *opaque G_GNUC_UNUSED,
                         unsigned int flags,
-                        size_t n_threads,
                         Error **errp)
 {
     if (flags & QCRYPTO_BLOCK_OPEN_NO_IO) {
@@ -115,7 +113,7 @@ qcrypto_block_qcow_open(QCryptoBlock *block,
             return -1;
         }
         return qcrypto_block_qcow_init(block, options->u.qcow.key_secret,
-                                       n_threads, errp);
+                                       errp);
     }
 }
 
@@ -135,7 +133,7 @@ qcrypto_block_qcow_create(QCryptoBlock *block,
         return -1;
     }
     /* QCow2 has no special header, since everything is hardwired */
-    return qcrypto_block_qcow_init(block, options->u.qcow.key_secret, 1, errp);
+    return qcrypto_block_qcow_init(block, options->u.qcow.key_secret, errp);
 }
 
 
