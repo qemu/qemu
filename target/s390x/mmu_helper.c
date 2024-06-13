@@ -25,7 +25,6 @@
 #include "sysemu/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
-#include "trace.h"
 #include "hw/hw.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/boards.h"
@@ -303,7 +302,6 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
     static S390SKeysClass *skeyclass;
     static S390SKeysState *ss;
     uint8_t key, old_key;
-    int rc;
 
     /*
      * We expect to be called with an absolute address that has already been
@@ -341,9 +339,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
      *
      * TODO: we have races between getting and setting the key.
      */
-    rc = skeyclass->get_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
-    if (rc) {
-        trace_get_skeys_nonzero(rc);
+    if (s390_skeys_get(ss, addr / TARGET_PAGE_SIZE, 1, &key)) {
         return;
     }
     old_key = key;
@@ -371,10 +367,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
     key |= SK_R;
 
     if (key != old_key) {
-        rc = skeyclass->set_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
-        if (rc) {
-            trace_set_skeys_nonzero(rc);
-        }
+        s390_skeys_set(ss, addr / TARGET_PAGE_SIZE, 1, &key);
     }
 }
 
