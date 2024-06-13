@@ -271,6 +271,14 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     rs->hist_entry = -1;
 }
 
+static void readline_kill_line(ReadLineState *rs)
+{
+    while (rs->cmd_buf_index > 0) {
+        readline_backward_char(rs);
+        readline_delete_char(rs);
+    }
+}
+
 /* completion support */
 
 void readline_add_completion(ReadLineState *rs, const char *str)
@@ -425,6 +433,10 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 16:
             /* ^P Prev line in history */
             readline_up_char(rs);
+            break;
+        case 21:
+            /* ^U Kill backward from point to the beginning of the line. */
+            readline_kill_line(rs);
             break;
         case 23:
             /* ^W */
