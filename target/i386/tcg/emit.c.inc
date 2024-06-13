@@ -246,7 +246,7 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
     case X86_OP_CR:
         if (op->n == 8) {
             translator_io_start(&s->base);
-            gen_helper_read_crN(v, tcg_env, tcg_constant_i32(op->n));
+            gen_helper_read_cr8(v, tcg_env);
         } else {
             tcg_gen_ld_tl(v, tcg_env, offsetof(CPUX86State, cr[op->n]));
         }
