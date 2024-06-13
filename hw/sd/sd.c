@@ -1090,6 +1090,7 @@ static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
     }
 
     sd->multi_blk_cnt = req.arg;
+    trace_sdcard_set_block_count(sd->multi_blk_cnt);
 
     return sd_r1;
 }
