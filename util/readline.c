@@ -418,6 +418,14 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             rs->last_cmd_buf_size = 0;
             rs->readline_func(rs->opaque, rs->cmd_buf, rs->readline_opaque);
             break;
+        case 14:
+            /* ^N Next line in history */
+            readline_down_char(rs);
+            break;
+        case 16:
+            /* ^P Prev line in history */
+            readline_up_char(rs);
+            break;
         case 23:
             /* ^W */
             readline_backword(rs);
