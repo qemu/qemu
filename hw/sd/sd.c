@@ -680,6 +680,7 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
 static void sd_reset(DeviceState *dev)
 {
     SDState *sd = SD_CARD(dev);
+    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
     uint64_t size;
     uint64_t sect;
 
@@ -700,8 +701,8 @@ static void sd_reset(DeviceState *dev)
     sd->size = size;
     sd_set_ocr(sd);
     sd_set_scr(sd);
-    sd_set_cid(sd);
-    sd_set_csd(sd, size);
+    sc->set_cid(sd);
+    sc->set_csd(sd, size);
     sd_set_cardstatus(sd);
     sd_set_sdstatus(sd);
 
@@ -2475,6 +2476,8 @@ static void sd_class_init(ObjectClass *klass, void *data)
     sc->enable = sd_enable;
     sc->get_inserted = sd_get_inserted;
     sc->get_readonly = sd_get_readonly;
+    sc->set_cid = sd_set_cid;
+    sc->set_csd = sd_set_csd;
     sc->proto = &sd_proto_sd;
 }
 

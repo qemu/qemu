@@ -127,6 +127,8 @@ struct SDCardClass {
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
+    void (*set_cid)(SDState *sd);
+    void (*set_csd)(SDState *sd, uint64_t size);
 
     const struct SDProto *proto;
 };
