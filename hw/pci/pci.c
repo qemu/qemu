@@ -2745,11 +2745,15 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp)
 {
-    PCIBus *iommu_bus;
+    PCIBus *iommu_bus, *aliased_bus;
+    int aliased_devfn;
 
     /* set_iommu_device requires device's direct BDF instead of aliased BDF */
-    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, NULL, NULL);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus,
+                                   &aliased_bus, &aliased_devfn);
     if (iommu_bus && iommu_bus->iommu_ops->set_iommu_device) {
+        hiod->aliased_bus = aliased_bus;
+        hiod->aliased_devfn = aliased_devfn;
         return iommu_bus->iommu_ops->set_iommu_device(pci_get_bus(dev),
                                                       iommu_bus->iommu_opaque,
                                                       dev->devfn, hiod, errp);
