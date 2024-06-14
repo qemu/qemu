@@ -270,7 +270,11 @@ void os_setup_limits(void)
         return;
     }
 
+#ifdef CONFIG_DARWIN
+    nofile.rlim_cur = OPEN_MAX < nofile.rlim_max ? OPEN_MAX : nofile.rlim_max;
+#else
     nofile.rlim_cur = nofile.rlim_max;
+#endif
 
     if (setrlimit(RLIMIT_NOFILE, &nofile) < 0) {
         warn_report("unable to set NOFILE limit: %s", strerror(errno));
