@@ -22,6 +22,7 @@
 /* PPC */
 #define PPC_TEST_MEM_START (1 * 1024 * 1024)
 #define PPC_TEST_MEM_END   (100 * 1024 * 1024)
+#define PPC_H_PUT_TERM_CHAR 0x58
 
 /* ARM */
 #define ARM_TEST_MEM_START (0x40000000 + 1 * 1024 * 1024)
