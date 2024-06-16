@@ -31,6 +31,18 @@ void to_lowercase(char* str) {
 	for (; *str; ++str) *str = tolower(*str);
 }
 
+char* trim_whitespace(char* str) {
+		char* end;
+		while (isspace((unsigned char)*str)) str++;
+		if (*str == 0)
+				return str;
+		end = str + strlen(str) - 1;
+		while (end > str && isspace((unsigned char)*end)) end--;
+		end[1] = '\0';
+
+		return str;
+}
+
 char* read_file(const char* filename) {
 		FILE* file = fopen(filename, "r");
 		if (!file) {
@@ -54,6 +66,92 @@ char* read_file(const char* filename) {
 
 		fclose(file);
 		return content;
+}
+
+RelevantCase* extract_relevant_case(const char* sail_function, const char* keyword) {
+		char* uppercase_keyword = strdup(keyword);
+		if (!uppercase_keyword) {
+				fprintf(stderr, "Could not allocate memory for uppercase conversion\n");
+				return NULL;
+		}
+		to_uppercase(uppercase_keyword);
+
+		char* lowercase_keyword = strdup(keyword);
+		if (!lowercase_keyword) {
+				fprintf(stderr, "Could not allocate memory for lowercase conversion\n");
+				free(uppercase_keyword);
+				return NULL;
+		}
+		to_lowercase(lowercase_keyword);
+
+		const char* match_start = strstr(sail_function, "match op {");
+		if (!match_start) {
+				free(uppercase_keyword);
+				free(lowercase_keyword);
+				return NULL;
+		}
+
+		const char* match_end = strstr(match_start, "};");
+		if (!match_end) {
+				free(uppercase_keyword);
+				free(lowercase_keyword);
+				return NULL;
+		}
+
+		char* keyword_case = strstr(match_start, "RISCV_");
+		while (keyword_case && keyword_case < match_end) {
+				char* keyword_case_end = strchr(keyword_case, ',');
+				if (!keyword_case_end) {
+						keyword_case_end = strchr(keyword_case, '}');
+				}
+				if (keyword_case_end) {
+						size_t case_length = keyword_case_end - keyword_case;
+						char* extracted_case = strndup(keyword_case, case_length);
+						if (extracted_case) {
+								char* case_keyword = extracted_case + strlen("RISCV_");
+								to_lowercase(case_keyword);
+								case_keyword = trim_whitespace(case_keyword);
+								if (strstr(case_keyword, lowercase_keyword)) {
+										RelevantCase* relevant_case = (RelevantCase*)malloc(sizeof(RelevantCase));
+										if (!relevant_case) {
+												fprintf(stderr, "Could not allocate memory for relevant case\n");
+												free(uppercase_keyword);
+												free(lowercase_keyword);
+												free(extracted_case);
+												return NULL;
+										}
+										relevant_case->keyword = strdup(keyword);
+										relevant_case->extracted_case = extracted_case;
+										free(uppercase_keyword);
+										free(lowercase_keyword);
+										return relevant_case;
+								}
+								free(extracted_case);
+						}
+				}
+				keyword_case = strstr(keyword_case_end, "RISCV_");
+		}
+
+		free(uppercase_keyword);
+		free(lowercase_keyword);
+		return NULL;
+}
+
+char* get_extracted_case(const RelevantCase* relevant_case) {
+		if (relevant_case) {
+				return relevant_case->extracted_case;
+		}
+		return NULL;
+}
+
+char* get_rhs_of_extracted_case(const char* extracted_case) {
+		const char* rhs_start = strstr(extracted_case, "=>");
+		if (rhs_start) {
+				rhs_start += 2;
+				while (isspace((unsigned char)*rhs_start)) rhs_start++;
+				return strdup(rhs_start);
+		}
+		return NULL;
 }
 
 char* extract_sail_function(const char* content, const char* keyword) {
@@ -88,6 +186,40 @@ char* extract_sail_function(const char* content, const char* keyword) {
 		}
 		free(uppercase_keyword);
 		return NULL;
+}
+
+char* replace_match_with_rhs(char* sail_function, const char* keyword) {
+		RelevantCase* relevant_case = extract_relevant_case(sail_function, keyword);
+		if (relevant_case) {
+				char* rhs = get_rhs_of_extracted_case(relevant_case->extracted_case);
+				if (rhs) {
+						char* match_start = strstr(sail_function, "match op {");
+						char* match_end = strstr(match_start, "};");
+						if (match_start && match_end && match_end > match_start) {
+								size_t before_match_length = match_start - sail_function;
+								size_t after_match_length = strlen(match_end + 2);
+								size_t new_length = before_match_length + strlen("let ret : xlenbits = ") + strlen(rhs) + after_match_length + 1;
+
+								char* new_function = (char*)malloc(new_length);
+								if (new_function) {
+										strncpy(new_function, sail_function, before_match_length);
+										new_function[before_match_length] = '\0';
+										strcat(new_function, rhs);
+										strcat(new_function, ";\n");
+										strcat(new_function, match_end + 2);
+								} else {
+										fprintf(stderr, "Could not allocate memory for new function\n");
+								}
+								free(rhs);
+								return new_function;
+						}
+						free(rhs);
+				}
+				free(relevant_case->keyword);
+				free(relevant_case->extracted_case);
+				free(relevant_case);
+		}
+		return sail_function;
 }
 
 char* extract_qemu_function(const char* content, const char* keyword) {
@@ -381,6 +513,27 @@ Hashmap* perform_full_instruction_mapping(const char* sail_file, const char* qem
 
 		free(sail_content);
 		free(qemu_content);
+
+		return hashmap;
+}
+
+Hashmap* update_hashmap_with_replacement(Hashmap* hashmap) {
+		if (!hashmap) {
+				fprintf(stderr, "Error: NULL hashmap\n");
+				return NULL;
+		}
+
+		for (size_t i = 0; i < hashmap->size; i++) {
+				HashmapEntry* entry = &(hashmap->entries[i]);
+
+				if (entry->value) {
+						char* modified_record = replace_match_with_rhs(entry->value->sail_function, entry->key);
+						if (modified_record) {
+								free(entry->value->sail_function);
+								entry->value->sail_function = modified_record;
+						}
+				}
+		}
 
 		return hashmap;
 }
