@@ -1949,7 +1949,6 @@ int sd_do_command(SDState *sd, SDRequest *req,
         /* Valid command, we can update the 'state before command' bits.
          * (Do this now so they appear in r1 responses.)
          */
-        sd->current_cmd = req->cmd;
         sd->card_status = FIELD_DP32(sd->card_status, CSR,
                                      CURRENT_STATE, last_state);
     }
@@ -2013,6 +2012,8 @@ send_response:
 #ifdef DEBUG_SD
     qemu_hexdump(stderr, "Response", response, rsplen);
 #endif
+
+    sd->current_cmd = rtype == sd_illegal ? 0 : req->cmd;
 
     return rsplen;
 }
@@ -2167,8 +2168,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: unknown command\n", __func__);
-        break;
+        g_assert_not_reached();
     }
 }
 
@@ -2234,8 +2234,7 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: unknown command\n", __func__);
-        return 0x00;
+        g_assert_not_reached();
     }
 
     return ret;
