@@ -50,4 +50,5 @@ static inline void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
 #endif /* CONFIG_XEN_IS_POSSIBLE */
 
 bool xen_mr_is_memory(MemoryRegion *mr);
+bool xen_mr_is_grants(MemoryRegion *mr);
 #endif
