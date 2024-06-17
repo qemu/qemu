@@ -398,21 +398,8 @@ int qemu_open_old(const char *name, int flags, ...)
 
 int qemu_close(int fd)
 {
-    int64_t fdset_id;
-
     /* Close fd that was dup'd from an fdset */
-    fdset_id = monitor_fdset_dup_fd_find(fd);
-    if (fdset_id != -1) {
-        int ret;
-
-        ret = close(fd);
-        if (ret == 0) {
-            monitor_fdset_dup_fd_remove(fd);
-        }
-
-        return ret;
-    }
-
+    monitor_fdset_dup_fd_remove(fd);
     return close(fd);
 }
 
