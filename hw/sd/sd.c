@@ -1788,8 +1788,8 @@ int sd_do_command(SDState *sd, SDRequest *req,
          * (Do this now so they appear in r1 responses.)
          */
         sd->current_cmd = req->cmd;
-        sd->card_status &= ~CURRENT_STATE;
-        sd->card_status |= (last_state << 9);
+        sd->card_status = FIELD_DP32(sd->card_status, CSR,
+                                     CURRENT_STATE, last_state);
     }
 
 send_response:
