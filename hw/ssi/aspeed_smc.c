@@ -132,6 +132,9 @@
 #define   FMC_WDT2_CTRL_BOOT_SOURCE      BIT(4) /* O: primary 1: alternate */
 #define   FMC_WDT2_CTRL_EN               BIT(0)
 
+/* DMA DRAM Side Address High Part (AST2700) */
+#define R_DMA_DRAM_ADDR_HIGH   (0x7c / 4)
+
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
 #define   DMA_CTRL_REQUEST      (1 << 31)
@@ -178,13 +181,18 @@
  * DMA flash addresses should be 4 bytes aligned and the valid address
  * range is 0x20000000 - 0x2FFFFFFF.
  *
- * DMA length is from 4 bytes to 32MB
+ * DMA length is from 4 bytes to 32MB (AST2500)
  *   0: 4 bytes
- *   0x7FFFFF: 32M bytes
+ *   0x1FFFFFC: 32M bytes
+ *
+ * DMA length is from 1 byte to 32MB (AST2600, AST10x0 and AST2700)
+ *   0: 1 byte
+ *   0x1FFFFFF: 32M bytes
  */
 #define DMA_DRAM_ADDR(asc, val)   ((val) & (asc)->dma_dram_mask)
+#define DMA_DRAM_ADDR_HIGH(val)   ((val) & 0xf)
 #define DMA_FLASH_ADDR(asc, val)  ((val) & (asc)->dma_flash_mask)
-#define DMA_LENGTH(val)         ((val) & 0x01FFFFFC)
+#define DMA_LENGTH(val)         ((val) & 0x01FFFFFF)
 
 /* Flash opcodes. */
 #define SPI_OP_READ       0x03    /* Read data bytes (low frequency) */
@@ -203,6 +211,7 @@ static const AspeedSegments aspeed_2500_spi2_segments[];
 #define ASPEED_SMC_FEATURE_DMA       0x1
 #define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
 #define ASPEED_SMC_FEATURE_WDT_CONTROL 0x4
+#define ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH 0x08
 
 static inline bool aspeed_smc_has_dma(const AspeedSMCClass *asc)
 {
@@ -212,6 +221,11 @@ static inline bool aspeed_smc_has_dma(const AspeedSMCClass *asc)
 static inline bool aspeed_smc_has_wdt_control(const AspeedSMCClass *asc)
 {
     return !!(asc->features & ASPEED_SMC_FEATURE_WDT_CONTROL);
+}
+
+static inline bool aspeed_smc_has_dma64(const AspeedSMCClass *asc)
+{
+    return !!(asc->features & ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH);
 }
 
 #define aspeed_smc_error(fmt, ...)                                      \
@@ -743,6 +757,8 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CTRL) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_FLASH_ADDR) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_DRAM_ADDR) ||
+        (aspeed_smc_has_dma(asc) && aspeed_smc_has_dma64(asc) &&
+         addr == R_DMA_DRAM_ADDR_HIGH) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_LEN) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 &&
@@ -843,6 +859,19 @@ static bool aspeed_smc_inject_read_failure(AspeedSMCState *s)
     }
 }
 
+static uint64_t aspeed_smc_dma_dram_addr(AspeedSMCState *s)
+{
+    return s->regs[R_DMA_DRAM_ADDR] |
+        ((uint64_t) s->regs[R_DMA_DRAM_ADDR_HIGH] << 32);
+}
+
+static uint32_t aspeed_smc_dma_len(AspeedSMCState *s)
+{
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+
+    return QEMU_ALIGN_UP(s->regs[R_DMA_LEN] + asc->dma_start_length, 4);
+}
+
 /*
  * Accumulate the result of the reads to provide a checksum that will
  * be used to validate the read timing settings.
@@ -850,6 +879,7 @@ static bool aspeed_smc_inject_read_failure(AspeedSMCState *s)
 static void aspeed_smc_dma_checksum(AspeedSMCState *s)
 {
     MemTxResult result;
+    uint32_t dma_len;
     uint32_t data;
 
     if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
@@ -861,7 +891,9 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
         aspeed_smc_dma_calibration(s);
     }
 
-    while (s->regs[R_DMA_LEN]) {
+    dma_len = aspeed_smc_dma_len(s);
+
+    while (dma_len) {
         data = address_space_ldl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
                                     MEMTXATTRS_UNSPECIFIED, &result);
         if (result != MEMTX_OK) {
@@ -877,7 +909,8 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
          */
         s->regs[R_DMA_CHECKSUM] += data;
         s->regs[R_DMA_FLASH_ADDR] += 4;
-        s->regs[R_DMA_LEN] -= 4;
+        dma_len -= 4;
+        s->regs[R_DMA_LEN] = dma_len;
     }
 
     if (s->inject_failure && aspeed_smc_inject_read_failure(s)) {
@@ -888,21 +921,34 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
 
 static void aspeed_smc_dma_rw(AspeedSMCState *s)
 {
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+    uint64_t dma_dram_offset;
+    uint64_t dma_dram_addr;
     MemTxResult result;
+    uint32_t dma_len;
     uint32_t data;
+
+    dma_len = aspeed_smc_dma_len(s);
+    dma_dram_addr = aspeed_smc_dma_dram_addr(s);
+
+    if (aspeed_smc_has_dma64(asc)) {
+        dma_dram_offset = dma_dram_addr - s->dram_base;
+    } else {
+        dma_dram_offset = dma_dram_addr;
+    }
 
     trace_aspeed_smc_dma_rw(s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE ?
                             "write" : "read",
                             s->regs[R_DMA_FLASH_ADDR],
-                            s->regs[R_DMA_DRAM_ADDR],
-                            s->regs[R_DMA_LEN]);
-    while (s->regs[R_DMA_LEN]) {
+                            dma_dram_offset,
+                            dma_len);
+    while (dma_len) {
         if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
-            data = address_space_ldl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+            data = address_space_ldl_le(&s->dram_as, dma_dram_offset,
                                         MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                aspeed_smc_error("DRAM read failed @%08x",
-                                 s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM read failed @%" PRIx64,
+                                 dma_dram_offset);
                 return;
             }
 
@@ -922,11 +968,11 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
                 return;
             }
 
-            address_space_stl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+            address_space_stl_le(&s->dram_as, dma_dram_offset,
                                  data, MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                aspeed_smc_error("DRAM write failed @%08x",
-                                 s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM write failed @%" PRIx64,
+                                 dma_dram_offset);
                 return;
             }
         }
@@ -935,9 +981,14 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
          * When the DMA is on-going, the DMA registers are updated
          * with the current working addresses and length.
          */
+        dma_dram_offset += 4;
+        dma_dram_addr += 4;
+
+        s->regs[R_DMA_DRAM_ADDR_HIGH] = dma_dram_addr >> 32;
+        s->regs[R_DMA_DRAM_ADDR] = dma_dram_addr & 0xffffffff;
         s->regs[R_DMA_FLASH_ADDR] += 4;
-        s->regs[R_DMA_DRAM_ADDR] += 4;
-        s->regs[R_DMA_LEN] -= 4;
+        dma_len -= 4;
+        s->regs[R_DMA_LEN] = dma_len;
         s->regs[R_DMA_CHECKSUM] += data;
     }
 }
@@ -1088,6 +1139,9 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (aspeed_smc_has_dma(asc) && addr == R_DMA_LEN &&
                aspeed_smc_dma_granted(s)) {
         s->regs[addr] = DMA_LENGTH(value);
+    } else if (aspeed_smc_has_dma(asc) && aspeed_smc_has_dma64(asc) &&
+               addr == R_DMA_DRAM_ADDR_HIGH) {
+        s->regs[addr] = DMA_DRAM_ADDR_HIGH(value);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
@@ -1220,6 +1274,7 @@ static const VMStateDescription vmstate_aspeed_smc = {
 
 static Property aspeed_smc_properties[] = {
     DEFINE_PROP_BOOL("inject-failure", AspeedSMCState, inject_failure, false),
+    DEFINE_PROP_UINT64("dram-base", AspeedSMCState, dram_base, 0),
     DEFINE_PROP_LINK("dram", AspeedSMCState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
@@ -1261,7 +1316,7 @@ static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)
      * Use the default segment value to size the memory region. This
      * can be changed by FW at runtime.
      */
-    memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_smc_flash_ops,
+    memory_region_init_io(&s->mmio, OBJECT(s), s->asc->reg_ops,
                           s, name, s->asc->segments[s->cs].size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 }
@@ -1336,6 +1391,7 @@ static void aspeed_2400_smc_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_smc_info = {
@@ -1381,10 +1437,12 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
     asc->features          = ASPEED_SMC_FEATURE_DMA;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x1FFFFFFC;
+    asc->dma_start_length  = 4;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_fmc_info = {
@@ -1424,6 +1482,7 @@ static void aspeed_2400_spi1_class_init(ObjectClass *klass, void *data)
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
     asc->addr_width        = aspeed_2400_spi1_addr_width;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2400_spi1_info = {
@@ -1448,7 +1507,7 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
 
-    dc->desc               = "Aspeed 2600 FMC Controller";
+    dc->desc               = "Aspeed 2500 FMC Controller";
     asc->r_conf            = R_CONF;
     asc->r_ce_ctrl         = R_CE_CTRL;
     asc->r_ctrl0           = R_CTRL0;
@@ -1464,10 +1523,12 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     asc->features          = ASPEED_SMC_FEATURE_DMA;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x3FFFFFFC;
+    asc->dma_start_length  = 4;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_fmc_info = {
@@ -1486,7 +1547,7 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
 
-    dc->desc               = "Aspeed 2600 SPI1 Controller";
+    dc->desc               = "Aspeed 2500 SPI1 Controller";
     asc->r_conf            = R_CONF;
     asc->r_ce_ctrl         = R_CE_CTRL;
     asc->r_ctrl0           = R_CTRL0;
@@ -1503,6 +1564,7 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_spi1_info = {
@@ -1521,7 +1583,7 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
 
-    dc->desc               = "Aspeed 2600 SPI2 Controller";
+    dc->desc               = "Aspeed 2500 SPI2 Controller";
     asc->r_conf            = R_CONF;
     asc->r_ce_ctrl         = R_CE_CTRL;
     asc->r_ctrl0           = R_CTRL0;
@@ -1538,6 +1600,7 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
     asc->segment_to_reg    = aspeed_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2500_spi2_info = {
@@ -1620,10 +1683,12 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
                              ASPEED_SMC_FEATURE_WDT_CONTROL;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x3FFFFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_fmc_info = {
@@ -1658,10 +1723,12 @@ static void aspeed_2600_spi1_class_init(ObjectClass *klass, void *data)
                              ASPEED_SMC_FEATURE_DMA_GRANT;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x3FFFFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_spi1_info = {
@@ -1697,10 +1764,12 @@ static void aspeed_2600_spi2_class_init(ObjectClass *klass, void *data)
                              ASPEED_SMC_FEATURE_DMA_GRANT;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x3FFFFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_2600_spi2_info = {
@@ -1778,10 +1847,12 @@ static void aspeed_1030_fmc_class_init(ObjectClass *klass, void *data)
     asc->features          = ASPEED_SMC_FEATURE_DMA;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x000BFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_1030_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_1030_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_fmc_info = {
@@ -1815,10 +1886,12 @@ static void aspeed_1030_spi1_class_init(ObjectClass *klass, void *data)
     asc->features          = ASPEED_SMC_FEATURE_DMA;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x000BFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_spi1_info = {
@@ -1851,16 +1924,246 @@ static void aspeed_1030_spi2_class_init(ObjectClass *klass, void *data)
     asc->features          = ASPEED_SMC_FEATURE_DMA;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x000BFFFC;
+    asc->dma_start_length  = 1;
     asc->nregs             = ASPEED_SMC_R_MAX;
     asc->segment_to_reg    = aspeed_2600_smc_segment_to_reg;
     asc->reg_to_segment    = aspeed_2600_smc_reg_to_segment;
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
 static const TypeInfo aspeed_1030_spi2_info = {
     .name =  "aspeed.spi2-ast1030",
     .parent = TYPE_ASPEED_SMC,
     .class_init = aspeed_1030_spi2_class_init,
+};
+
+/*
+ * The FMC Segment Registers of the AST2700 have a 64KB unit.
+ * Only bits [31:16] are used for decoding.
+ */
+#define AST2700_SEG_ADDR_MASK 0xffff0000
+
+static uint32_t aspeed_2700_smc_segment_to_reg(const AspeedSMCState *s,
+                                               const AspeedSegments *seg)
+{
+    uint32_t reg = 0;
+
+    /* Disabled segments have a nil register */
+    if (!seg->size) {
+        return 0;
+    }
+
+    reg |= (seg->addr & AST2700_SEG_ADDR_MASK) >> 16; /* start offset */
+    reg |= (seg->addr + seg->size - 1) & AST2700_SEG_ADDR_MASK; /* end offset */
+    return reg;
+}
+
+static void aspeed_2700_smc_reg_to_segment(const AspeedSMCState *s,
+                                           uint32_t reg, AspeedSegments *seg)
+{
+    uint32_t start_offset = (reg << 16) & AST2700_SEG_ADDR_MASK;
+    uint32_t end_offset = reg & AST2700_SEG_ADDR_MASK;
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+
+    if (reg) {
+        seg->addr = asc->flash_window_base + start_offset;
+        seg->size = end_offset + (64 * KiB) - start_offset;
+    } else {
+        seg->addr = asc->flash_window_base;
+        seg->size = 0;
+    }
+}
+
+static const uint32_t aspeed_2700_fmc_resets[ASPEED_SMC_R_MAX] = {
+    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+            CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
+    [R_CE_CTRL] = 0x0000aa00,
+    [R_CTRL0] = 0x406b0641,
+    [R_CTRL1] = 0x00000400,
+    [R_CTRL2] = 0x00000400,
+    [R_CTRL3] = 0x00000400,
+    [R_SEG_ADDR0] = 0x08000000,
+    [R_SEG_ADDR1] = 0x10000800,
+    [R_SEG_ADDR2] = 0x00000000,
+    [R_SEG_ADDR3] = 0x00000000,
+    [R_DUMMY_DATA] = 0x00010000,
+    [R_DMA_DRAM_ADDR_HIGH] = 0x00000000,
+    [R_TIMINGS] = 0x007b0000,
+};
+
+static const MemoryRegionOps aspeed_2700_smc_flash_ops = {
+    .read = aspeed_smc_flash_read,
+    .write = aspeed_smc_flash_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static const AspeedSegments aspeed_2700_fmc_segments[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 128 * MiB, 128 * MiB }, /* default is disabled but needed for -kernel */
+    { 256 * MiB, 128 * MiB }, /* default is disabled but needed for -kernel */
+    { 0x0, 0 }, /* disabled */
+};
+
+static void aspeed_2700_fmc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
+
+    dc->desc               = "Aspeed 2700 FMC Controller";
+    asc->r_conf            = R_CONF;
+    asc->r_ce_ctrl         = R_CE_CTRL;
+    asc->r_ctrl0           = R_CTRL0;
+    asc->r_timings         = R_TIMINGS;
+    asc->nregs_timings     = 3;
+    asc->conf_enable_w0    = CONF_ENABLE_W0;
+    asc->cs_num_max        = 3;
+    asc->segments          = aspeed_2700_fmc_segments;
+    asc->segment_addr_mask = 0xffffffff;
+    asc->resets            = aspeed_2700_fmc_resets;
+    asc->flash_window_base = 0x100000000;
+    asc->flash_window_size = 1 * GiB;
+    asc->features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+    asc->dma_flash_mask    = 0x2FFFFFFC;
+    asc->dma_dram_mask     = 0xFFFFFFFC;
+    asc->dma_start_length  = 1;
+    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
+    asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
+    asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_2700_smc_flash_ops;
+}
+
+static const TypeInfo aspeed_2700_fmc_info = {
+    .name =  "aspeed.fmc-ast2700",
+    .parent = TYPE_ASPEED_SMC,
+    .class_init = aspeed_2700_fmc_class_init,
+};
+
+static const AspeedSegments aspeed_2700_spi0_segments[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 128 * MiB, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static void aspeed_2700_spi0_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
+
+    dc->desc               = "Aspeed 2700 SPI0 Controller";
+    asc->r_conf            = R_CONF;
+    asc->r_ce_ctrl         = R_CE_CTRL;
+    asc->r_ctrl0           = R_CTRL0;
+    asc->r_timings         = R_TIMINGS;
+    asc->nregs_timings     = 2;
+    asc->conf_enable_w0    = CONF_ENABLE_W0;
+    asc->cs_num_max        = 2;
+    asc->segments          = aspeed_2700_spi0_segments;
+    asc->segment_addr_mask = 0xffffffff;
+    asc->flash_window_base = 0x180000000;
+    asc->flash_window_size = 1 * GiB;
+    asc->features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+    asc->dma_flash_mask    = 0x2FFFFFFC;
+    asc->dma_dram_mask     = 0xFFFFFFFC;
+    asc->dma_start_length  = 1;
+    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
+    asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
+    asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_2700_smc_flash_ops;
+}
+
+static const TypeInfo aspeed_2700_spi0_info = {
+    .name =  "aspeed.spi0-ast2700",
+    .parent = TYPE_ASPEED_SMC,
+    .class_init = aspeed_2700_spi0_class_init,
+};
+
+static const AspeedSegments aspeed_2700_spi1_segments[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static void aspeed_2700_spi1_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
+
+    dc->desc               = "Aspeed 2700 SPI1 Controller";
+    asc->r_conf            = R_CONF;
+    asc->r_ce_ctrl         = R_CE_CTRL;
+    asc->r_ctrl0           = R_CTRL0;
+    asc->r_timings         = R_TIMINGS;
+    asc->nregs_timings     = 2;
+    asc->conf_enable_w0    = CONF_ENABLE_W0;
+    asc->cs_num_max        = 2;
+    asc->segments          = aspeed_2700_spi1_segments;
+    asc->segment_addr_mask = 0xffffffff;
+    asc->flash_window_base = 0x200000000;
+    asc->flash_window_size = 1 * GiB;
+    asc->features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+    asc->dma_flash_mask    = 0x2FFFFFFC;
+    asc->dma_dram_mask     = 0xFFFFFFFC;
+    asc->dma_start_length  = 1;
+    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
+    asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
+    asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_2700_smc_flash_ops;
+}
+
+static const TypeInfo aspeed_2700_spi1_info = {
+        .name =  "aspeed.spi1-ast2700",
+        .parent = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2700_spi1_class_init,
+};
+
+static const AspeedSegments aspeed_2700_spi2_segments[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static void aspeed_2700_spi2_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
+
+    dc->desc               = "Aspeed 2700 SPI2 Controller";
+    asc->r_conf            = R_CONF;
+    asc->r_ce_ctrl         = R_CE_CTRL;
+    asc->r_ctrl0           = R_CTRL0;
+    asc->r_timings         = R_TIMINGS;
+    asc->nregs_timings     = 2;
+    asc->conf_enable_w0    = CONF_ENABLE_W0;
+    asc->cs_num_max        = 2;
+    asc->segments          = aspeed_2700_spi2_segments;
+    asc->segment_addr_mask = 0xffffffff;
+    asc->flash_window_base = 0x280000000;
+    asc->flash_window_size = 1 * GiB;
+    asc->features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_DRAM_ADDR_HIGH;
+    asc->dma_flash_mask    = 0x0FFFFFFC;
+    asc->dma_dram_mask     = 0xFFFFFFFC;
+    asc->dma_start_length  = 1;
+    asc->nregs             = ASPEED_SMC_R_MAX;
+    asc->segment_to_reg    = aspeed_2700_smc_segment_to_reg;
+    asc->reg_to_segment    = aspeed_2700_smc_reg_to_segment;
+    asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
+    asc->reg_ops           = &aspeed_2700_smc_flash_ops;
+}
+
+static const TypeInfo aspeed_2700_spi2_info = {
+        .name =  "aspeed.spi2-ast2700",
+        .parent = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2700_spi2_class_init,
 };
 
 static void aspeed_smc_register_types(void)
@@ -1879,6 +2182,10 @@ static void aspeed_smc_register_types(void)
     type_register_static(&aspeed_1030_fmc_info);
     type_register_static(&aspeed_1030_spi1_info);
     type_register_static(&aspeed_1030_spi2_info);
+    type_register_static(&aspeed_2700_fmc_info);
+    type_register_static(&aspeed_2700_spi0_info);
+    type_register_static(&aspeed_2700_spi1_info);
+    type_register_static(&aspeed_2700_spi2_info);
 }
 
 type_init(aspeed_smc_register_types)
