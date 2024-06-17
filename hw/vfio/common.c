@@ -1512,6 +1512,7 @@ void vfio_address_space_insert(VFIOAddressSpace *space,
                                VFIOContainerBase *bcontainer)
 {
     QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
+    bcontainer->space = space;
 }
 
 struct vfio_device_info *vfio_get_device_info(int fd)

@@ -394,7 +394,7 @@ static const VFIOIOMMUClass *vfio_get_iommu_class(int iommu_type, Error **errp)
 }
 
 static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
-                           VFIOAddressSpace *space, Error **errp)
+                           Error **errp)
 {
     int iommu_type;
     const VFIOIOMMUClass *vioc;
@@ -432,7 +432,7 @@ static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
         return false;
     }
 
-    vfio_container_init(&container->bcontainer, space, vioc);
+    vfio_container_init(&container->bcontainer, vioc);
     return true;
 }
 
@@ -614,7 +614,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->fd = fd;
     bcontainer = &container->bcontainer;
 
-    if (!vfio_set_iommu(container, group->fd, space, errp)) {
+    if (!vfio_set_iommu(container, group->fd, errp)) {
         goto free_container_exit;
     }
 
