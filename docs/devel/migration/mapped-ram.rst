@@ -16,7 +16,7 @@ location in the file, rather than constantly being added to a
 sequential stream. Having the pages at fixed offsets also allows the
 usage of O_DIRECT for save/restore of the migration stream as the
 pages are ensured to be written respecting O_DIRECT alignment
-restrictions (direct-io support not yet implemented).
+restrictions.
 
 Usage
 -----
@@ -34,6 +34,10 @@ Use a ``file:`` URL for migration:
 
 Mapped-ram migration is best done non-live, i.e. by stopping the VM on
 the source side before migrating.
+
+For best performance enable the ``direct-io`` parameter as well:
+
+    ``migrate_set_parameter direct-io on``
 
 Use-cases
 ---------
