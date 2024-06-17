@@ -239,7 +239,7 @@ static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
     memory_listener_unregister(&bcontainer->listener);
     vfio_container_destroy(bcontainer);
     iommufd_backend_free_id(container->be, container->ioas_id);
-    g_free(container);
+    object_unref(container);
 }
 
 static int iommufd_cdev_ram_block_discard_disable(bool state)
@@ -352,7 +352,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
 
     trace_iommufd_cdev_alloc_ioas(vbasedev->iommufd->fd, ioas_id);
 
-    container = g_malloc0(sizeof(*container));
+    container = VFIO_IOMMU_IOMMUFD(object_new(TYPE_VFIO_IOMMU_IOMMUFD));
     container->be = vbasedev->iommufd;
     container->ioas_id = ioas_id;
 

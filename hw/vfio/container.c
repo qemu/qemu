@@ -435,7 +435,7 @@ static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
     vioc_name = vfio_get_iommu_class_name(iommu_type);
     vioc = VFIO_IOMMU_CLASS(object_class_by_name(vioc_name));
 
-    container = g_malloc0(sizeof(*container));
+    container = VFIO_IOMMU_LEGACY(object_new(vioc_name));
     container->fd = fd;
     container->iommu_type = iommu_type;
     vfio_container_init(&container->bcontainer, vioc);
@@ -674,7 +674,7 @@ unregister_container_exit:
     vfio_cpr_unregister_container(bcontainer);
 
 free_container_exit:
-    g_free(container);
+    object_unref(container);
 
 close_fd_exit:
     close(fd);
@@ -718,7 +718,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         trace_vfio_disconnect_container(container->fd);
         vfio_cpr_unregister_container(bcontainer);
         close(container->fd);
-        g_free(container);
+        object_unref(container);
 
         vfio_put_address_space(space);
     }
