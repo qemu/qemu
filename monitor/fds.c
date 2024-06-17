@@ -175,6 +175,11 @@ static void monitor_fdset_free(MonFdset *mon_fdset)
 
 static void monitor_fdset_free_if_empty(MonFdset *mon_fdset)
 {
+    /*
+     * Only remove an empty fdset. The fds are owned by the user and
+     * should have been removed with qmp_remove_fd(). The dup_fds are
+     * owned by QEMU and should have been removed with qemu_close().
+     */
     if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
         monitor_fdset_free(mon_fdset);
     }
@@ -194,9 +199,7 @@ static void monitor_fdset_cleanup(MonFdset *mon_fdset)
     MonFdsetFd *mon_fdset_fd_next;
 
     QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
-        if ((mon_fdset_fd->removed ||
-                (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) &&
-                runstate_is_running()) {
+        if (mon_fdset_fd->removed) {
             monitor_fdset_fd_free(mon_fdset_fd);
         }
     }
@@ -211,7 +214,7 @@ void monitor_fdsets_cleanup(void)
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
     QLIST_FOREACH_SAFE(mon_fdset, &mon_fdsets, next, mon_fdset_next) {
-        monitor_fdset_cleanup(mon_fdset);
+        monitor_fdset_free_if_empty(mon_fdset);
     }
 }
 
@@ -484,9 +487,7 @@ void monitor_fdset_dup_fd_remove(int dup_fd)
             if (mon_fdset_fd_dup->fd == dup_fd) {
                 QLIST_REMOVE(mon_fdset_fd_dup, next);
                 g_free(mon_fdset_fd_dup);
-                if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
-                    monitor_fdset_cleanup(mon_fdset);
-                }
+                monitor_fdset_free_if_empty(mon_fdset);
                 return;
             }
         }

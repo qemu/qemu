@@ -168,7 +168,6 @@ extern bool qmp_dispatcher_co_shutdown;
 extern QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
-extern int mon_refcount;
 
 extern HMPCommand hmp_cmds[];
 

@@ -64,6 +64,7 @@ static QTestMigrationState dst_state;
 #define DIRTYLIMIT_TOLERANCE_RANGE  25  /* MB/s */
 
 #define ANALYZE_SCRIPT "scripts/analyze-migration.py"
+#define VMSTATE_CHECKER_SCRIPT "scripts/vmstate-static-checker.py"
 
 #define QEMU_VM_FILE_MAGIC 0x5145564d
 #define FILE_TEST_FILENAME "migfile"
@@ -1588,6 +1589,85 @@ static void test_analyze_script(void)
     }
     test_migrate_end(from, to, false);
     cleanup("migfile");
+}
+
+static void test_vmstate_checker_script(void)
+{
+    g_autofree gchar *cmd_src = NULL;
+    g_autofree gchar *cmd_dst = NULL;
+    g_autofree gchar *vmstate_src = NULL;
+    g_autofree gchar *vmstate_dst = NULL;
+    const char *machine_alias, *machine_opts = "";
+    g_autofree char *machine = NULL;
+    const char *arch = qtest_get_arch();
+    int pid, wstatus;
+    const char *python = g_getenv("PYTHON");
+
+    if (!getenv(QEMU_ENV_SRC) && !getenv(QEMU_ENV_DST)) {
+        g_test_skip("Test needs two different QEMU versions");
+        return;
+    }
+
+    if (!python) {
+        g_test_skip("PYTHON variable not set");
+        return;
+    }
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        if (g_str_equal(arch, "i386")) {
+            machine_alias = "pc";
+        } else {
+            machine_alias = "q35";
+        }
+    } else if (g_str_equal(arch, "s390x")) {
+        machine_alias = "s390-ccw-virtio";
+    } else if (strcmp(arch, "ppc64") == 0) {
+        machine_alias = "pseries";
+    } else if (strcmp(arch, "aarch64") == 0) {
+        machine_alias = "virt";
+    } else {
+        g_assert_not_reached();
+    }
+
+    if (!qtest_has_machine(machine_alias)) {
+        g_autofree char *msg = g_strdup_printf("machine %s not supported", machine_alias);
+        g_test_skip(msg);
+        return;
+    }
+
+    machine = resolve_machine_version(machine_alias, QEMU_ENV_SRC,
+                                      QEMU_ENV_DST);
+
+    vmstate_src = g_strdup_printf("%s/vmstate-src", tmpfs);
+    vmstate_dst = g_strdup_printf("%s/vmstate-dst", tmpfs);
+
+    cmd_dst = g_strdup_printf("-machine %s,%s -dump-vmstate %s",
+                              machine, machine_opts, vmstate_dst);
+    cmd_src = g_strdup_printf("-machine %s,%s -dump-vmstate %s",
+                              machine, machine_opts, vmstate_src);
+
+    qtest_init_with_env_no_handshake(QEMU_ENV_SRC, cmd_src);
+    qtest_init_with_env_no_handshake(QEMU_ENV_DST, cmd_dst);
+
+    pid = fork();
+    if (!pid) {
+        close(1);
+        open("/dev/null", O_WRONLY);
+        execl(python, python, VMSTATE_CHECKER_SCRIPT,
+              "-s", vmstate_src,
+              "-d", vmstate_dst,
+              NULL);
+        g_assert_not_reached();
+    }
+
+    g_assert(waitpid(pid, &wstatus, 0) == pid);
+    if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) {
+        g_test_message("Failed to run vmstate-static-checker.py");
+        g_test_fail();
+    }
+
+    cleanup("vmstate-src");
+    cleanup("vmstate-dst");
 }
 #endif
 
@@ -3522,6 +3602,8 @@ int main(int argc, char **argv)
     migration_test_add("/migration/bad_dest", test_baddest);
 #ifndef _WIN32
     migration_test_add("/migration/analyze-script", test_analyze_script);
+    migration_test_add("/migration/vmstate-checker-script",
+                       test_vmstate_checker_script);
 #endif
 
     /*
