@@ -76,7 +76,9 @@ enum SDCardModes {
 };
 
 enum SDCardStates {
+    sd_waitirq_state        = -2, /* emmc */
     sd_inactive_state       = -1,
+
     sd_idle_state           = 0,
     sd_ready_state          = 1,
     sd_identification_state = 2,
@@ -86,6 +88,9 @@ enum SDCardStates {
     sd_receivingdata_state  = 6,
     sd_programming_state    = 7,
     sd_disconnect_state     = 8,
+    sd_bus_test_state       = 9,  /* emmc */
+    sd_sleep_state          = 10, /* emmc */
+    sd_io_state             = 15  /* sd */
 };
 
 #define SDMMC_CMD_MAX 64
@@ -203,12 +208,18 @@ static const char *sd_state_name(enum SDCardStates state)
         [sd_standby_state]          = "standby",
         [sd_transfer_state]         = "transfer",
         [sd_sendingdata_state]      = "sendingdata",
+        [sd_bus_test_state]         = "bus-test",
         [sd_receivingdata_state]    = "receivingdata",
         [sd_programming_state]      = "programming",
         [sd_disconnect_state]       = "disconnect",
+        [sd_sleep_state]            = "sleep",
+        [sd_io_state]               = "i/o"
     };
     if (state == sd_inactive_state) {
         return "inactive";
+    }
+    if (state == sd_waitirq_state) {
+        return "wait-irq";
     }
     assert(state < ARRAY_SIZE(state_name));
     return state_name[state];
