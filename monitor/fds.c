@@ -167,6 +167,27 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
     return -1;
 }
 
+static void monitor_fdset_free(MonFdset *mon_fdset)
+{
+    QLIST_REMOVE(mon_fdset, next);
+    g_free(mon_fdset);
+}
+
+static void monitor_fdset_free_if_empty(MonFdset *mon_fdset)
+{
+    if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
+        monitor_fdset_free(mon_fdset);
+    }
+}
+
+static void monitor_fdset_fd_free(MonFdsetFd *mon_fdset_fd)
+{
+    close(mon_fdset_fd->fd);
+    g_free(mon_fdset_fd->opaque);
+    QLIST_REMOVE(mon_fdset_fd, next);
+    g_free(mon_fdset_fd);
+}
+
 static void monitor_fdset_cleanup(MonFdset *mon_fdset)
 {
     MonFdsetFd *mon_fdset_fd;
@@ -176,17 +197,11 @@ static void monitor_fdset_cleanup(MonFdset *mon_fdset)
         if ((mon_fdset_fd->removed ||
                 (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) &&
                 runstate_is_running()) {
-            close(mon_fdset_fd->fd);
-            g_free(mon_fdset_fd->opaque);
-            QLIST_REMOVE(mon_fdset_fd, next);
-            g_free(mon_fdset_fd);
+            monitor_fdset_fd_free(mon_fdset_fd);
         }
     }
 
-    if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
-        QLIST_REMOVE(mon_fdset, next);
-        g_free(mon_fdset);
-    }
+    monitor_fdset_free_if_empty(mon_fdset);
 }
 
 void monitor_fdsets_cleanup(void)
