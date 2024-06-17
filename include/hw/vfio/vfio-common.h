@@ -207,10 +207,6 @@ typedef struct VFIODisplay {
 VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
 void vfio_put_address_space(VFIOAddressSpace *space);
 
-/* SPAPR specific */
-int vfio_spapr_container_init(VFIOContainer *container, Error **errp);
-void vfio_spapr_container_deinit(VFIOContainer *container);
-
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index);
 void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index);
 void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index);
