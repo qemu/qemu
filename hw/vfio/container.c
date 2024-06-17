@@ -548,6 +548,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     VFIOContainerBase *bcontainer;
     int ret, fd;
     VFIOAddressSpace *space;
+    VFIOIOMMUClass *vioc;
 
     space = vfio_get_address_space(as);
 
@@ -632,9 +633,10 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto unregister_container_exit;
     }
 
-    assert(bcontainer->ops->setup);
+    vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+    assert(vioc->setup);
 
-    if (!bcontainer->ops->setup(bcontainer, errp)) {
+    if (!vioc->setup(bcontainer, errp)) {
         goto enable_discards_exit;
     }
 
@@ -663,8 +665,8 @@ listener_release_exit:
     QLIST_REMOVE(bcontainer, next);
     vfio_kvm_device_del_group(group);
     memory_listener_unregister(&bcontainer->listener);
-    if (bcontainer->ops->release) {
-        bcontainer->ops->release(bcontainer);
+    if (vioc->release) {
+        vioc->release(bcontainer);
     }
 
 enable_discards_exit:
@@ -689,6 +691,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
     VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
@@ -700,8 +703,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
      */
     if (QLIST_EMPTY(&container->group_list)) {
         memory_listener_unregister(&bcontainer->listener);
-        if (bcontainer->ops->release) {
-            bcontainer->ops->release(bcontainer);
+        if (vioc->release) {
+            vioc->release(bcontainer);
         }
     }
 

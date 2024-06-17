@@ -19,62 +19,73 @@ int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly)
 {
-    g_assert(bcontainer->ops->dma_map);
-    return bcontainer->ops->dma_map(bcontainer, iova, size, vaddr, readonly);
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    g_assert(vioc->dma_map);
+    return vioc->dma_map(bcontainer, iova, size, vaddr, readonly);
 }
 
 int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb)
 {
-    g_assert(bcontainer->ops->dma_unmap);
-    return bcontainer->ops->dma_unmap(bcontainer, iova, size, iotlb);
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    g_assert(vioc->dma_unmap);
+    return vioc->dma_unmap(bcontainer, iova, size, iotlb);
 }
 
 bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
                                        MemoryRegionSection *section,
                                        Error **errp)
 {
-    if (!bcontainer->ops->add_window) {
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    if (!vioc->add_window) {
         return true;
     }
 
-    return bcontainer->ops->add_window(bcontainer, section, errp);
+    return vioc->add_window(bcontainer, section, errp);
 }
 
 void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
                                        MemoryRegionSection *section)
 {
-    if (!bcontainer->ops->del_window) {
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    if (!vioc->del_window) {
         return;
     }
 
-    return bcontainer->ops->del_window(bcontainer, section);
+    return vioc->del_window(bcontainer, section);
 }
 
 int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
                                            bool start, Error **errp)
 {
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
     if (!bcontainer->dirty_pages_supported) {
         return 0;
     }
 
-    g_assert(bcontainer->ops->set_dirty_page_tracking);
-    return bcontainer->ops->set_dirty_page_tracking(bcontainer, start, errp);
+    g_assert(vioc->set_dirty_page_tracking);
+    return vioc->set_dirty_page_tracking(bcontainer, start, errp);
 }
 
 int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                    VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
-    g_assert(bcontainer->ops->query_dirty_bitmap);
-    return bcontainer->ops->query_dirty_bitmap(bcontainer, vbmap, iova, size,
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    g_assert(vioc->query_dirty_bitmap);
+    return vioc->query_dirty_bitmap(bcontainer, vbmap, iova, size,
                                                errp);
 }
 
 void vfio_container_init(VFIOContainerBase *bcontainer,
                          const VFIOIOMMUClass *ops)
 {
-    bcontainer->ops = ops;
 }
 
 void vfio_container_destroy(VFIOContainerBase *bcontainer)

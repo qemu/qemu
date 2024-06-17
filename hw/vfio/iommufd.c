@@ -324,7 +324,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
-        if (bcontainer->ops != iommufd_vioc ||
+        if (VFIO_IOMMU_GET_CLASS(bcontainer) != iommufd_vioc ||
             vbasedev->iommufd != container->be) {
             continue;
         }
@@ -465,7 +465,7 @@ static VFIODevice *iommufd_cdev_pci_find_by_devid(__u32 devid)
         VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
 
     QLIST_FOREACH(vbasedev_iter, &vfio_device_list, global_next) {
-        if (vbasedev_iter->bcontainer->ops != iommufd_vioc) {
+        if (VFIO_IOMMU_GET_CLASS(vbasedev_iter->bcontainer) != iommufd_vioc) {
             continue;
         }
         if (devid == vbasedev_iter->devid) {

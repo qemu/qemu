@@ -1573,5 +1573,5 @@ void vfio_detach_device(VFIODevice *vbasedev)
         return;
     }
     object_unref(vbasedev->hiod);
-    vbasedev->bcontainer->ops->detach_device(vbasedev);
+    VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
 }
