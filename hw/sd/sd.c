@@ -94,6 +94,7 @@ typedef sd_rsp_type_t (*sd_cmd_handler)(SDState *sd, SDRequest req);
 typedef struct SDProto {
     const char *name;
     struct {
+        const sd_cmd_type_t type;
         const char *name;
         sd_cmd_handler handler;
     } cmd[SDMMC_CMD_MAX], acmd[SDMMC_CMD_MAX];
@@ -348,20 +349,6 @@ static void sd_set_mode(SDState *sd)
     }
 }
 
-static const sd_cmd_type_t sd_cmd_type[SDMMC_CMD_MAX] = {
-    sd_bc,   sd_none, sd_bcr,  sd_bcr,  sd_none, sd_none, sd_none, sd_ac,
-    sd_bcr,  sd_ac,   sd_ac,   sd_adtc, sd_ac,   sd_ac,   sd_none, sd_ac,
-    /* 16 */
-    sd_ac,   sd_adtc, sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none,
-    sd_adtc, sd_adtc, sd_adtc, sd_adtc, sd_ac,   sd_ac,   sd_adtc, sd_none,
-    /* 32 */
-    sd_ac,   sd_ac,   sd_none, sd_none, sd_none, sd_none, sd_ac,   sd_none,
-    sd_none, sd_none, sd_bc,   sd_none, sd_none, sd_none, sd_none, sd_none,
-    /* 48 */
-    sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_ac,
-    sd_adtc, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none, sd_none,
-};
-
 static const int sd_cmd_class[SDMMC_CMD_MAX] = {
     0,  0,  0,  0,  0,  9, 10,  0,  0,  0,  0,  1,  0,  0,  0,  0,
     2,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,  4,  6,  6,  6,  6,
@@ -567,10 +554,19 @@ static void sd_set_rca(SDState *sd)
 
 static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
 {
-    if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc) {
+    switch (s->proto->cmd[req.cmd].type) {
+    case sd_none:
+        /* Called from legacy code not ported to SDProto array */
+        assert(!s->proto->cmd[req.cmd].handler);
+        /* fall-through */
+    case sd_ac:
+    case sd_adtc:
         return req.arg >> 16;
+    case sd_spi:
+        g_assert_not_reached();
+    default:
+        return 0;
     }
-    return 0;
 }
 
 /* Card Status register */
@@ -2279,22 +2275,22 @@ void sd_enable(SDState *sd, bool enable)
 static const SDProto sd_proto_spi = {
     .name = "SPI",
     .cmd = {
-        [0]  = {            "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
-        [1]  = {            "SEND_OP_COND", spi_cmd_SEND_OP_COND},
+        [0]  = {    sd_spi, "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
+        [1]  = {    sd_spi, "SEND_OP_COND", spi_cmd_SEND_OP_COND},
     },
     .acmd = {
-        [41] = {            "SEND_OP_COND", spi_cmd_SEND_OP_COND},
+        [41] = {    sd_spi, "SEND_OP_COND", spi_cmd_SEND_OP_COND},
     },
 };
 
 static const SDProto sd_proto_sd = {
     .name = "SD",
     .cmd = {
-        [0]  = {             "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
-        [2]  = {             "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
-        [3]  = {             "SEND_RELATIVE_ADDR", sd_cmd_SEND_RELATIVE_ADDR},
-        [19] = {             "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK},
-        [23] = {             "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT},
+        [0]  = {    sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
+        [2]  = {    sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
+        [3]  = {    sd_bcr,  "SEND_RELATIVE_ADDR", sd_cmd_SEND_RELATIVE_ADDR},
+        [19] = {    sd_adtc, "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK},
+        [23] = {    sd_ac,   "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT},
     },
 };
 
