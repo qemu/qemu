@@ -430,6 +430,16 @@ static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
     return true;
 }
 
+static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
+                                            Error **errp)
+{
+    VFIOContainer *container;
+
+    container = g_malloc0(sizeof(*container));
+    container->fd = fd;
+    return container;
+}
+
 static int vfio_get_iommu_info(VFIOContainer *container,
                                struct vfio_iommu_type1_info **info)
 {
@@ -604,13 +614,14 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto close_fd_exit;
     }
 
-    container = g_malloc0(sizeof(*container));
-    container->fd = fd;
-    bcontainer = &container->bcontainer;
-
+    container = vfio_create_container(fd, group, errp);
+    if (!container) {
+        goto close_fd_exit;
+    }
     if (!vfio_set_iommu(container, group->fd, errp)) {
         goto free_container_exit;
     }
+    bcontainer = &container->bcontainer;
 
     if (!vfio_cpr_register_container(bcontainer, errp)) {
         goto free_container_exit;
