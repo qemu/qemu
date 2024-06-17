@@ -2329,7 +2329,7 @@ bool kvm_vcpu_id_is_valid(int vcpu_id)
 
 bool kvm_dirty_ring_enabled(void)
 {
-    return kvm_state->kvm_dirty_ring_size ? true : false;
+    return kvm_state && kvm_state->kvm_dirty_ring_size;
 }
 
 static void query_stats_cb(StatsResultList **result, StatsTarget target,
