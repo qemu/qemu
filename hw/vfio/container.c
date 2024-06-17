@@ -354,7 +354,7 @@ static void vfio_kvm_device_del_group(VFIOGroup *group)
 /*
  * vfio_get_iommu_type - selects the richest iommu_type (v2 first)
  */
-static int vfio_get_iommu_type(VFIOContainer *container,
+static int vfio_get_iommu_type(int container_fd,
                                Error **errp)
 {
     int iommu_types[] = { VFIO_TYPE1v2_IOMMU, VFIO_TYPE1_IOMMU,
@@ -362,7 +362,7 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     int i;
 
     for (i = 0; i < ARRAY_SIZE(iommu_types); i++) {
-        if (ioctl(container->fd, VFIO_CHECK_EXTENSION, iommu_types[i])) {
+        if (ioctl(container_fd, VFIO_CHECK_EXTENSION, iommu_types[i])) {
             return iommu_types[i];
         }
     }
@@ -399,7 +399,7 @@ static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
     int iommu_type;
     const VFIOIOMMUClass *vioc;
 
-    iommu_type = vfio_get_iommu_type(container, errp);
+    iommu_type = vfio_get_iommu_type(container->fd, errp);
     if (iommu_type < 0) {
         return false;
     }
