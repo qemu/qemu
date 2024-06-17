@@ -310,7 +310,6 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
     /* Attempt dup of fd from fd set */
     if (strstart(name, "/dev/fdset/", &fdset_id_str)) {
         int64_t fdset_id;
-        int dupfd;
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
@@ -319,14 +318,7 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
             return -1;
         }
 
-        dupfd = monitor_fdset_dup_fd_add(fdset_id, flags);
-        if (dupfd == -1) {
-            error_setg_errno(errp, errno, "Could not dup FD for %s flags %x",
-                             name, flags);
-            return -1;
-        }
-
-        return dupfd;
+        return monitor_fdset_dup_fd_add(fdset_id, flags, errp);
     }
 #endif
 

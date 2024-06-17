@@ -409,9 +409,10 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     return fdinfo;
 }
 
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
 {
 #ifdef _WIN32
+    error_setg(errp, "Platform does not support fd passing (fdset)");
     return -ENOENT;
 #else
     MonFdset *mon_fdset;
@@ -431,6 +432,8 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
             mon_fd_flags = fcntl(mon_fdset_fd->fd, F_GETFL);
             if (mon_fd_flags == -1) {
+                error_setg(errp, "Failed to read file status flags for fd=%d",
+                           mon_fdset_fd->fd);
                 return -1;
             }
 
@@ -442,11 +445,15 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
 
         if (fd == -1) {
             errno = EACCES;
+            error_setg(errp,
+                       "Failed to find file descriptor with matching flags=0x%x",
+                       flags);
             return -1;
         }
 
         dup_fd = qemu_dup_flags(fd, flags);
         if (dup_fd == -1) {
+            error_setg(errp, "Failed to dup() given file descriptor fd=%d", fd);
             return -1;
         }
 
@@ -456,6 +463,7 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         return dup_fd;
     }
 
+    error_setg(errp, "Failed to find fdset /dev/fdset/%" PRId64, fdset_id);
     errno = ENOENT;
     return -1;
 #endif
