@@ -1044,13 +1044,13 @@ static sd_rsp_type_t sd_cmd_SEND_OP_CMD(SDState *sd, SDRequest req)
 
 static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
 {
-    if (sd->state != sd_ready_state) {
+    switch (sd->state) {
+    case sd_ready_state:
+        sd->state = sd_identification_state;
+        return sd_r2_i;
+    default:
         return sd_invalid_state_for_cmd(sd, req);
     }
-
-    sd->state = sd_identification_state;
-
-    return sd_r2_i;
 }
 
 static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
