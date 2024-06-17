@@ -43,7 +43,6 @@ struct mon_fd_t {
 typedef struct MonFdsetFd MonFdsetFd;
 struct MonFdsetFd {
     int fd;
-    bool removed;
     char *opaque;
     QLIST_ENTRY(MonFdsetFd) next;
 };
@@ -193,20 +192,6 @@ static void monitor_fdset_fd_free(MonFdsetFd *mon_fdset_fd)
     g_free(mon_fdset_fd);
 }
 
-static void monitor_fdset_cleanup(MonFdset *mon_fdset)
-{
-    MonFdsetFd *mon_fdset_fd;
-    MonFdsetFd *mon_fdset_fd_next;
-
-    QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
-        if (mon_fdset_fd->removed) {
-            monitor_fdset_fd_free(mon_fdset_fd);
-        }
-    }
-
-    monitor_fdset_free_if_empty(mon_fdset);
-}
-
 void monitor_fdsets_cleanup(void)
 {
     MonFdset *mon_fdset;
@@ -281,7 +266,7 @@ void qmp_get_win32_socket(const char *infos, const char *fdname, Error **errp)
 void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
 {
     MonFdset *mon_fdset;
-    MonFdsetFd *mon_fdset_fd;
+    MonFdsetFd *mon_fdset_fd, *mon_fdset_fd_next;
     char fd_str[60];
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
@@ -289,21 +274,22 @@ void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
         if (mon_fdset->id != fdset_id) {
             continue;
         }
-        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+        QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next,
+                           mon_fdset_fd_next) {
             if (has_fd) {
                 if (mon_fdset_fd->fd != fd) {
                     continue;
                 }
-                mon_fdset_fd->removed = true;
+                monitor_fdset_fd_free(mon_fdset_fd);
                 break;
             } else {
-                mon_fdset_fd->removed = true;
+                monitor_fdset_fd_free(mon_fdset_fd);
             }
         }
         if (has_fd && !mon_fdset_fd) {
             goto error;
         }
-        monitor_fdset_cleanup(mon_fdset);
+        monitor_fdset_free_if_empty(mon_fdset);
         return;
     }
 
@@ -413,7 +399,6 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
 
     mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
     mon_fdset_fd->fd = fd;
-    mon_fdset_fd->removed = false;
     mon_fdset_fd->opaque = g_strdup(opaque);
     QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
 
