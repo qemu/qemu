@@ -93,8 +93,9 @@ typedef sd_rsp_type_t (*sd_cmd_handler)(SDState *sd, SDRequest req);
 
 typedef struct SDProto {
     const char *name;
-    sd_cmd_handler cmd[SDMMC_CMD_MAX];
-    sd_cmd_handler acmd[SDMMC_CMD_MAX];
+    struct {
+        sd_cmd_handler handler;
+    } cmd[SDMMC_CMD_MAX], acmd[SDMMC_CMD_MAX];
 } SDProto;
 
 struct SDState {
@@ -1297,8 +1298,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         return sd_illegal;
     }
 
-    if (sd->proto->cmd[req.cmd]) {
-        return sd->proto->cmd[req.cmd](sd, req);
+    if (sd->proto->cmd[req.cmd].handler) {
+        return sd->proto->cmd[req.cmd].handler(sd, req);
     }
 
     switch (req.cmd) {
@@ -1745,8 +1746,8 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
                              req.cmd, req.arg, sd_state_name(sd->state));
     sd->card_status |= APP_CMD;
 
-    if (sd->proto->acmd[req.cmd]) {
-        return sd->proto->acmd[req.cmd](sd, req);
+    if (sd->proto->acmd[req.cmd].handler) {
+        return sd->proto->acmd[req.cmd].handler(sd, req);
     }
 
     switch (req.cmd) {
@@ -2269,22 +2270,22 @@ void sd_enable(SDState *sd, bool enable)
 static const SDProto sd_proto_spi = {
     .name = "SPI",
     .cmd = {
-        [0]         = sd_cmd_GO_IDLE_STATE,
-        [1]         = spi_cmd_SEND_OP_COND,
+        [0]  = {sd_cmd_GO_IDLE_STATE},
+        [1]  = {spi_cmd_SEND_OP_COND},
     },
     .acmd = {
-        [41]        = spi_cmd_SEND_OP_COND,
+        [41] = {spi_cmd_SEND_OP_COND},
     },
 };
 
 static const SDProto sd_proto_sd = {
     .name = "SD",
     .cmd = {
-        [0]         = sd_cmd_GO_IDLE_STATE,
-        [2]         = sd_cmd_ALL_SEND_CID,
-        [3]         = sd_cmd_SEND_RELATIVE_ADDR,
-        [19]        = sd_cmd_SEND_TUNING_BLOCK,
-        [23]        = sd_cmd_SET_BLOCK_COUNT,
+        [0]  = {sd_cmd_GO_IDLE_STATE},
+        [2]  = {sd_cmd_ALL_SEND_CID},
+        [3]  = {sd_cmd_SEND_RELATIVE_ADDR},
+        [19] = {sd_cmd_SEND_TUNING_BLOCK},
+        [23] = {sd_cmd_SET_BLOCK_COUNT},
     },
 };
 
