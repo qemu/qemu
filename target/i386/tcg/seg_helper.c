@@ -579,10 +579,6 @@ int exception_has_error_code(int intno)
     } while (0)
 #endif
 
-/* in 64-bit machines, this can overflow. So this segment addition macro
- * can be used to trim the value to 32-bit whenever needed */
-#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t)((ssp) + (sp & (sp_mask))))
-
 /* XXX: add a is_user flag to have proper security support */
 #define PUSHW_RA(ssp, sp, sp_mask, val, ra)                      \
     {                                                            \
@@ -593,7 +589,7 @@ int exception_has_error_code(int intno)
 #define PUSHL_RA(ssp, sp, sp_mask, val, ra)                             \
     {                                                                   \
         sp -= 4;                                                        \
-        cpu_stl_kernel_ra(env, SEG_ADDL(ssp, sp, sp_mask), (uint32_t)(val), ra); \
+        cpu_stl_kernel_ra(env, (ssp) + (sp & (sp_mask)), (val), ra); \
     }
 
 #define POPW_RA(ssp, sp, sp_mask, val, ra)                       \
@@ -604,7 +600,7 @@ int exception_has_error_code(int intno)
 
 #define POPL_RA(ssp, sp, sp_mask, val, ra)                              \
     {                                                                   \
-        val = (uint32_t)cpu_ldl_kernel_ra(env, SEG_ADDL(ssp, sp, sp_mask), ra); \
+        val = (uint32_t)cpu_ldl_kernel_ra(env, (ssp) + (sp & (sp_mask)), ra); \
         sp += 4;                                                        \
     }
 
