@@ -712,8 +712,6 @@ static void vfio_disconnect_container(VFIOGroup *group)
     if (QLIST_EMPTY(&container->group_list)) {
         VFIOAddressSpace *space = bcontainer->space;
 
-        vfio_container_destroy(bcontainer);
-
         trace_vfio_disconnect_container(container->fd);
         vfio_cpr_unregister_container(bcontainer);
         close(container->fd);

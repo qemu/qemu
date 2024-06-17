@@ -83,8 +83,9 @@ int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                                                errp);
 }
 
-void vfio_container_destroy(VFIOContainerBase *bcontainer)
+static void vfio_container_instance_finalize(Object *obj)
 {
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(obj);
     VFIOGuestIOMMU *giommu, *tmp;
 
     QLIST_REMOVE(bcontainer, next);
@@ -116,6 +117,7 @@ static const TypeInfo types[] = {
         .name = TYPE_VFIO_IOMMU,
         .parent = TYPE_OBJECT,
         .instance_init = vfio_container_instance_init,
+        .instance_finalize = vfio_container_instance_finalize,
         .instance_size = sizeof(VFIOContainerBase),
         .class_size = sizeof(VFIOIOMMUClass),
         .abstract = true,

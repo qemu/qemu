@@ -237,7 +237,6 @@ static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
         return;
     }
     memory_listener_unregister(&bcontainer->listener);
-    vfio_container_destroy(bcontainer);
     iommufd_backend_free_id(container->be, container->ioas_id);
     object_unref(container);
 }
