@@ -1717,7 +1717,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     return sd_illegal;
 }
 
-static int cmd_valid_while_locked(SDState *sd, const uint8_t cmd)
+static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
 {
     /* Valid commands in locked state:
      * basic class (0)
@@ -1731,7 +1731,7 @@ static int cmd_valid_while_locked(SDState *sd, const uint8_t cmd)
         return cmd == 41 || cmd == 42;
     }
     if (cmd == 16 || cmd == 55) {
-        return 1;
+        return true;
     }
     return sd_cmd_class[cmd] == 0 || sd_cmd_class[cmd] == 7;
 }
