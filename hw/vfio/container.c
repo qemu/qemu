@@ -389,54 +389,56 @@ static const char *vfio_get_iommu_class_name(int iommu_type)
     };
 }
 
-static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
-                           Error **errp)
+static bool vfio_set_iommu(int container_fd, int group_fd,
+                           int *iommu_type, Error **errp)
 {
-    int iommu_type;
-    const VFIOIOMMUClass *vioc;
-    const char *vioc_name;
-
-    iommu_type = vfio_get_iommu_type(container->fd, errp);
-    if (iommu_type < 0) {
-        return false;
-    }
-
-    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container_fd)) {
         error_setg_errno(errp, errno, "Failed to set group container");
         return false;
     }
 
-    while (ioctl(container->fd, VFIO_SET_IOMMU, iommu_type)) {
-        if (iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+    while (ioctl(container_fd, VFIO_SET_IOMMU, *iommu_type)) {
+        if (*iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
             /*
              * On sPAPR, despite the IOMMU subdriver always advertises v1 and
              * v2, the running platform may not support v2 and there is no
              * way to guess it until an IOMMU group gets added to the container.
              * So in case it fails with v2, try v1 as a fallback.
              */
-            iommu_type = VFIO_SPAPR_TCE_IOMMU;
+            *iommu_type = VFIO_SPAPR_TCE_IOMMU;
             continue;
         }
         error_setg_errno(errp, errno, "Failed to set iommu for container");
         return false;
     }
 
-    container->iommu_type = iommu_type;
-
-    vioc_name = vfio_get_iommu_class_name(iommu_type);
-    vioc = VFIO_IOMMU_CLASS(object_class_by_name(vioc_name));
-
-    vfio_container_init(&container->bcontainer, vioc);
     return true;
 }
 
 static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
                                             Error **errp)
 {
+    int iommu_type;
+    const VFIOIOMMUClass *vioc;
+    const char *vioc_name;
     VFIOContainer *container;
+
+    iommu_type = vfio_get_iommu_type(fd, errp);
+    if (iommu_type < 0) {
+        return NULL;
+    }
+
+    if (!vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
+        return NULL;
+    }
+
+    vioc_name = vfio_get_iommu_class_name(iommu_type);
+    vioc = VFIO_IOMMU_CLASS(object_class_by_name(vioc_name));
 
     container = g_malloc0(sizeof(*container));
     container->fd = fd;
+    container->iommu_type = iommu_type;
+    vfio_container_init(&container->bcontainer, vioc);
     return container;
 }
 
@@ -617,9 +619,6 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container = vfio_create_container(fd, group, errp);
     if (!container) {
         goto close_fd_exit;
-    }
-    if (!vfio_set_iommu(container, group->fd, errp)) {
-        goto free_container_exit;
     }
     bcontainer = &container->bcontainer;
 
