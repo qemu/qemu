@@ -373,24 +373,20 @@ static int vfio_get_iommu_type(int container_fd,
 /*
  * vfio_get_iommu_ops - get a VFIOIOMMUClass associated with a type
  */
-static const VFIOIOMMUClass *vfio_get_iommu_class(int iommu_type, Error **errp)
+static const char *vfio_get_iommu_class_name(int iommu_type)
 {
-    ObjectClass *klass = NULL;
-
     switch (iommu_type) {
     case VFIO_TYPE1v2_IOMMU:
     case VFIO_TYPE1_IOMMU:
-        klass = object_class_by_name(TYPE_VFIO_IOMMU_LEGACY);
+        return TYPE_VFIO_IOMMU_LEGACY;
         break;
     case VFIO_SPAPR_TCE_v2_IOMMU:
     case VFIO_SPAPR_TCE_IOMMU:
-        klass = object_class_by_name(TYPE_VFIO_IOMMU_SPAPR);
+        return TYPE_VFIO_IOMMU_SPAPR;
         break;
     default:
         g_assert_not_reached();
     };
-
-    return VFIO_IOMMU_CLASS(klass);
 }
 
 static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
@@ -398,6 +394,7 @@ static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
 {
     int iommu_type;
     const VFIOIOMMUClass *vioc;
+    const char *vioc_name;
 
     iommu_type = vfio_get_iommu_type(container->fd, errp);
     if (iommu_type < 0) {
@@ -426,11 +423,8 @@ static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
 
     container->iommu_type = iommu_type;
 
-    vioc = vfio_get_iommu_class(iommu_type, errp);
-    if (!vioc) {
-        error_setg(errp, "No available IOMMU models");
-        return false;
-    }
+    vioc_name = vfio_get_iommu_class_name(iommu_type);
+    vioc = VFIO_IOMMU_CLASS(object_class_by_name(vioc_name));
 
     vfio_container_init(&container->bcontainer, vioc);
     return true;
