@@ -34,6 +34,7 @@ typedef struct VFIOAddressSpace {
  * This is the base object for vfio container backends
  */
 typedef struct VFIOContainerBase {
+    Object parent;
     const VFIOIOMMUClass *ops;
     VFIOAddressSpace *space;
     MemoryListener listener;
@@ -96,17 +97,10 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer);
 #define TYPE_VFIO_IOMMU_SPAPR TYPE_VFIO_IOMMU "-spapr"
 #define TYPE_VFIO_IOMMU_IOMMUFD TYPE_VFIO_IOMMU "-iommufd"
 
-/*
- * VFIOContainerBase is not an abstract QOM object because it felt
- * unnecessary to expose all the IOMMU backends to the QEMU machine
- * and human interface. However, we can still abstract the IOMMU
- * backend handlers using a QOM interface class. This provides more
- * flexibility when referencing the various implementations.
- */
-DECLARE_CLASS_CHECKERS(VFIOIOMMUClass, VFIO_IOMMU, TYPE_VFIO_IOMMU)
+OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 
 struct VFIOIOMMUClass {
-    InterfaceClass parent_class;
+    ObjectClass parent_class;
 
     /* Properties */
     const char *hiod_typename;

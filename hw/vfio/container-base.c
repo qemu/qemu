@@ -102,8 +102,10 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer)
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU,
-        .parent = TYPE_INTERFACE,
+        .parent = TYPE_OBJECT,
+        .instance_size = sizeof(VFIOContainerBase),
         .class_size = sizeof(VFIOIOMMUClass),
+        .abstract = true,
     },
 };
 
