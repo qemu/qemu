@@ -83,11 +83,6 @@ int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                                                errp);
 }
 
-void vfio_container_init(VFIOContainerBase *bcontainer,
-                         const VFIOIOMMUClass *ops)
-{
-}
-
 void vfio_container_destroy(VFIOContainerBase *bcontainer)
 {
     VFIOGuestIOMMU *giommu, *tmp;
