@@ -63,23 +63,13 @@ target_ulong helper_inl(CPUX86State *env, uint32_t port)
                              cpu_get_mem_attrs(env), NULL);
 }
 
-target_ulong helper_read_crN(CPUX86State *env, int reg)
+target_ulong helper_read_cr8(CPUX86State *env)
 {
-    target_ulong val;
-
-    switch (reg) {
-    default:
-        val = env->cr[reg];
-        break;
-    case 8:
-        if (!(env->hflags2 & HF2_VINTR_MASK)) {
-            val = cpu_get_apic_tpr(env_archcpu(env)->apic_state);
-        } else {
-            val = env->int_ctl & V_TPR_MASK;
-        }
-        break;
+    if (!(env->hflags2 & HF2_VINTR_MASK)) {
+        return cpu_get_apic_tpr(env_archcpu(env)->apic_state);
+    } else {
+        return env->int_ctl & V_TPR_MASK;
     }
-    return val;
 }
 
 void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)

@@ -6455,10 +6455,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             if (*eax & 31) {
                 int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
 
-                if (cores_per_pkg > 1) {
-                    *eax &= ~0xFC000000;
-                    *eax |= max_core_ids_in_package(&topo_info) << 26;
-                }
+                *eax &= ~0xFC000000;
+                *eax |= max_core_ids_in_package(&topo_info) << 26;
                 if (host_vcpus_per_cache > threads_per_pkg) {
                     *eax &= ~0x3FFC000;
 

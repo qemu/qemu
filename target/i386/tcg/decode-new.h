@@ -90,6 +90,7 @@ typedef enum X86OpSize {
     X86_SIZE_w,  /* 16-bit */
     X86_SIZE_x,  /* 128/256-bit, based on operand size */
     X86_SIZE_y,  /* 32/64-bit, based on operand size */
+    X86_SIZE_y_d64,  /* 32/64-bit, based on 64-bit mode */
     X86_SIZE_z,  /* 16-bit for 16-bit operand size, else 32-bit */
     X86_SIZE_z_f64,  /* 32-bit for 32-bit operand size or 64-bit mode, else 16-bit */
 
@@ -108,12 +109,18 @@ typedef enum X86CPUIDFeature {
     X86_FEAT_AVX2,
     X86_FEAT_BMI1,
     X86_FEAT_BMI2,
+    X86_FEAT_CLFLUSH,
+    X86_FEAT_CLFLUSHOPT,
+    X86_FEAT_CLWB,
     X86_FEAT_CMOV,
     X86_FEAT_CMPCCXADD,
     X86_FEAT_F16C,
     X86_FEAT_FMA,
+    X86_FEAT_FSGSBASE,
+    X86_FEAT_FXSR,
     X86_FEAT_MOVBE,
     X86_FEAT_PCLMULQDQ,
+    X86_FEAT_POPCNT,
     X86_FEAT_SHA_NI,
     X86_FEAT_SSE,
     X86_FEAT_SSE2,
@@ -122,6 +129,8 @@ typedef enum X86CPUIDFeature {
     X86_FEAT_SSE41,
     X86_FEAT_SSE42,
     X86_FEAT_SSE4A,
+    X86_FEAT_XSAVE,
+    X86_FEAT_XSAVEOPT,
 } X86CPUIDFeature;
 
 /* Execution flags */
@@ -142,8 +151,8 @@ typedef enum X86InsnCheck {
     X86_CHECK_i64 = 1,
     X86_CHECK_o64 = 2,
 
-    /* Fault outside protected mode */
-    X86_CHECK_prot = 4,
+    /* Fault in vm86 mode */
+    X86_CHECK_no_vm86 = 4,
 
     /* Privileged instruction checks */
     X86_CHECK_cpl0 = 8,
@@ -159,6 +168,17 @@ typedef enum X86InsnCheck {
 
     /* Fault if VEX.W=0 */
     X86_CHECK_W1 = 256,
+
+    /* Fault outside protected mode, possibly including vm86 mode */
+    X86_CHECK_prot_or_vm86 = 512,
+    X86_CHECK_prot = X86_CHECK_prot_or_vm86 | X86_CHECK_no_vm86,
+
+    /* Fault outside SMM */
+    X86_CHECK_smm = 1024,
+
+    /* Vendor-specific checks for Intel/AMD differences */
+    X86_CHECK_i64_amd = 2048,
+    X86_CHECK_o64_intel = 4096,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {
@@ -170,8 +190,9 @@ typedef enum X86InsnSpecial {
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
 
-    /* Do not apply segment base to effective address */
-    X86_SPECIAL_NoSeg,
+    /* Do not load effective address in s->A0 */
+    X86_SPECIAL_NoLoadEA,
+
     /*
      * Rd/Mb or Rd/Mw in the manual: register operand 0 is treated as 32 bits
      * (and writeback zero-extends it to 64 bits if applicable).  PREFIX_DATA
@@ -245,7 +266,7 @@ typedef struct X86DecodedInsn X86DecodedInsn;
 typedef void (*X86DecodeFunc)(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b);
 
 /* Code generation function.  */
-typedef void (*X86GenFunc)(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode);
+typedef void (*X86GenFunc)(DisasContext *s, X86DecodedInsn *decode);
 
 struct X86OpEntry {
     /* Based on the is_decode flags.  */
@@ -271,6 +292,7 @@ struct X86OpEntry {
     unsigned     valid_prefix:16;
     unsigned     check:16;
     unsigned     intercept:8;
+    bool         has_intercept:1;
     bool         is_decode:1;
 };
 

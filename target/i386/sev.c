@@ -587,6 +587,7 @@ static SevCapability *sev_get_capabilities(Error **errp)
     sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
     if (!sev_common) {
         error_setg(errp, "SEV is not configured");
+        return NULL;
     }
 
     sev_device = object_property_get_str(OBJECT(sev_common), "sev-device",
@@ -1529,11 +1530,12 @@ int
 sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
 {
     SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
-    SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(sev_common);
+    SevCommonStateClass *klass;
 
     if (!sev_common) {
         return 0;
     }
+    klass = SEV_COMMON_GET_CLASS(sev_common);
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(sev_common, SEV_STATE_LAUNCH_UPDATE)) {
@@ -1710,7 +1712,9 @@ void sev_es_set_reset_vector(CPUState *cpu)
 {
     X86CPU *x86;
     CPUX86State *env;
-    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
+    SevCommonState *sev_common = SEV_COMMON(
+        object_dynamic_cast(OBJECT(cgs), TYPE_SEV_COMMON));
 
     /* Only update if we have valid reset information */
     if (!sev_common || !sev_common->reset_data_valid) {
@@ -2165,6 +2169,7 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
     struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
     gsize len;
 
+    finish->id_block_en = 0;
     g_free(sev_snp_guest->id_block);
     g_free((guchar *)finish->id_block_uaddr);
 
@@ -2184,7 +2189,7 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
         return;
     }
 
-    finish->id_block_en = (len) ? 1 : 0;
+    finish->id_block_en = 1;
 }
 
 static char *
