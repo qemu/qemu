@@ -75,12 +75,6 @@ void vfio_container_init(VFIOContainerBase *bcontainer,
                          const VFIOIOMMUClass *ops)
 {
     bcontainer->ops = ops;
-    bcontainer->error = NULL;
-    bcontainer->dirty_pages_supported = false;
-    bcontainer->dma_max_mappings = 0;
-    bcontainer->iova_ranges = NULL;
-    QLIST_INIT(&bcontainer->giommu_list);
-    QLIST_INIT(&bcontainer->vrdl_list);
 }
 
 void vfio_container_destroy(VFIOContainerBase *bcontainer)
@@ -99,10 +93,23 @@ void vfio_container_destroy(VFIOContainerBase *bcontainer)
     g_list_free_full(bcontainer->iova_ranges, g_free);
 }
 
+static void vfio_container_instance_init(Object *obj)
+{
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(obj);
+
+    bcontainer->error = NULL;
+    bcontainer->dirty_pages_supported = false;
+    bcontainer->dma_max_mappings = 0;
+    bcontainer->iova_ranges = NULL;
+    QLIST_INIT(&bcontainer->giommu_list);
+    QLIST_INIT(&bcontainer->vrdl_list);
+}
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU,
         .parent = TYPE_OBJECT,
+        .instance_init = vfio_container_instance_init,
         .instance_size = sizeof(VFIOContainerBase),
         .class_size = sizeof(VFIOIOMMUClass),
         .abstract = true,
