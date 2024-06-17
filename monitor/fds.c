@@ -424,6 +424,11 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
         int fd = -1;
         int dup_fd;
         int mon_fd_flags;
+        int mask = O_ACCMODE;
+
+#ifdef O_DIRECT
+        mask |= O_DIRECT;
+#endif
 
         if (mon_fdset->id != fdset_id) {
             continue;
@@ -437,7 +442,7 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
                 return -1;
             }
 
-            if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
+            if ((flags & mask) == (mon_fd_flags & mask)) {
                 fd = mon_fdset_fd->fd;
                 break;
             }
