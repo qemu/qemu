@@ -2147,12 +2147,6 @@ static const SDProto sd_proto_spi = {
     .cmd = {
         [0]         = sd_cmd_GO_IDLE_STATE,
         [1]         = spi_cmd_SEND_OP_COND,
-        [2 ... 4]   = sd_cmd_illegal,
-        [5]         = sd_cmd_illegal,
-        [7]         = sd_cmd_illegal,
-        [15]        = sd_cmd_illegal,
-        [26]        = sd_cmd_illegal,
-        [52 ... 54] = sd_cmd_illegal,
     },
     .acmd = {
         [41]        = spi_cmd_SEND_OP_COND,
@@ -2163,15 +2157,10 @@ static const SDProto sd_proto_sd = {
     .name = "SD",
     .cmd = {
         [0]         = sd_cmd_GO_IDLE_STATE,
-        [1]         = sd_cmd_illegal,
         [2]         = sd_cmd_ALL_SEND_CID,
         [3]         = sd_cmd_SEND_RELATIVE_ADDR,
-        [5]         = sd_cmd_illegal,
         [19]        = sd_cmd_SEND_TUNING_BLOCK,
         [23]        = sd_cmd_SET_BLOCK_COUNT,
-        [52 ... 54] = sd_cmd_illegal,
-        [58]        = sd_cmd_illegal,
-        [59]        = sd_cmd_illegal,
     },
 };
 
