@@ -24,30 +24,27 @@ static inline TCGv_ptr gen_acc_ptr(int reg)
     return r;
 }
 
-#define VSX_LOAD_SCALAR(name, operation)                      \
-static void gen_##name(DisasContext *ctx)                     \
-{                                                             \
-    TCGv EA;                                                  \
-    TCGv_i64 t0;                                              \
-    if (unlikely(!ctx->vsx_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-        return;                                               \
-    }                                                         \
-    t0 = tcg_temp_new_i64();                                  \
-    gen_set_access_type(ctx, ACCESS_INT);                     \
-    EA = tcg_temp_new();                                      \
-    gen_addr_reg_index(ctx, EA);                              \
-    gen_qemu_##operation(ctx, t0, EA);                        \
-    set_cpu_vsr(xT(ctx->opcode), t0, true);                   \
-    /* NOTE: cpu_vsrl is undefined */                         \
+static bool do_lxs(DisasContext *ctx, arg_X *a,
+                   void (*op)(DisasContext *, TCGv_i64, TCGv))
+{
+    TCGv EA;
+    TCGv_i64 t0;
+    REQUIRE_VSX(ctx);
+    t0 = tcg_temp_new_i64();
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    op(ctx, t0, EA);
+    set_cpu_vsr(a->rt, t0, true);
+    /* NOTE: cpu_vsrl is undefined */
+    return true;
 }
 
-VSX_LOAD_SCALAR(lxsdx, ld64_i64)
-VSX_LOAD_SCALAR(lxsiwax, ld32s_i64)
-VSX_LOAD_SCALAR(lxsibzx, ld8u_i64)
-VSX_LOAD_SCALAR(lxsihzx, ld16u_i64)
-VSX_LOAD_SCALAR(lxsiwzx, ld32u_i64)
-VSX_LOAD_SCALAR(lxsspx, ld32fs)
+TRANS_FLAGS2(VSX, LXSDX, do_lxs, gen_qemu_ld64_i64);
+TRANS_FLAGS2(VSX207, LXSIWAX, do_lxs, gen_qemu_ld32s_i64);
+TRANS_FLAGS2(ISA300, LXSIBZX, do_lxs, gen_qemu_ld8u_i64);
+TRANS_FLAGS2(ISA300, LXSIHZX, do_lxs, gen_qemu_ld16u_i64);
+TRANS_FLAGS2(VSX207, LXSIWZX, do_lxs, gen_qemu_ld32u_i64);
+TRANS_FLAGS2(VSX207, LXSSPX, do_lxs, gen_qemu_ld32fs);
 
 static void gen_lxvd2x(DisasContext *ctx)
 {
@@ -266,29 +263,25 @@ VSX_VECTOR_LOAD_STORE_LENGTH(stxvl)
 VSX_VECTOR_LOAD_STORE_LENGTH(stxvll)
 #endif
 
-#define VSX_STORE_SCALAR(name, operation)                     \
-static void gen_##name(DisasContext *ctx)                     \
-{                                                             \
-    TCGv EA;                                                  \
-    TCGv_i64 t0;                                              \
-    if (unlikely(!ctx->vsx_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                \
-        return;                                               \
-    }                                                         \
-    t0 = tcg_temp_new_i64();                                  \
-    gen_set_access_type(ctx, ACCESS_INT);                     \
-    EA = tcg_temp_new();                                      \
-    gen_addr_reg_index(ctx, EA);                              \
-    get_cpu_vsr(t0, xS(ctx->opcode), true);                   \
-    gen_qemu_##operation(ctx, t0, EA);                        \
+static bool do_stxs(DisasContext *ctx, arg_X *a,
+                    void (*op)(DisasContext *, TCGv_i64, TCGv))
+{
+    TCGv EA;
+    TCGv_i64 t0;
+    REQUIRE_VSX(ctx);
+    t0 = tcg_temp_new_i64();
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    get_cpu_vsr(t0, a->rt, true);
+    op(ctx, t0, EA);
+    return true;
 }
 
-VSX_STORE_SCALAR(stxsdx, st64_i64)
-
-VSX_STORE_SCALAR(stxsibx, st8_i64)
-VSX_STORE_SCALAR(stxsihx, st16_i64)
-VSX_STORE_SCALAR(stxsiwx, st32_i64)
-VSX_STORE_SCALAR(stxsspx, st32fs)
+TRANS_FLAGS2(VSX, STXSDX, do_stxs, gen_qemu_st64_i64);
+TRANS_FLAGS2(ISA300, STXSIBX, do_stxs, gen_qemu_st8_i64);
+TRANS_FLAGS2(ISA300, STXSIHX, do_stxs, gen_qemu_st16_i64);
+TRANS_FLAGS2(VSX207, STXSIWX, do_stxs, gen_qemu_st32_i64);
+TRANS_FLAGS2(VSX207, STXSSPX, do_stxs, gen_qemu_st32fs);
 
 static void gen_stxvd2x(DisasContext *ctx)
 {
