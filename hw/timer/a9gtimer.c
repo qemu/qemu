@@ -32,6 +32,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
+#include "sysemu/qtest.h"
 
 #ifndef A9_GTIMER_ERR_DEBUG
 #define A9_GTIMER_ERR_DEBUG 0
@@ -48,6 +49,10 @@
 
 static inline int a9_gtimer_get_current_cpu(A9GTimerState *s)
 {
+    if (qtest_enabled()) {
+        return 0;
+    }
+
     if (current_cpu->cpu_index >= s->num_cpu) {
         hw_error("a9gtimer: num-cpu %d but this cpu is %d!\n",
                  s->num_cpu, current_cpu->cpu_index);
