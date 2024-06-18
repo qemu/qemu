@@ -27,6 +27,7 @@
 #include "exec/log.h"
 #include "helper-tcg.h"
 #include "seg_helper.h"
+#include "access.h"
 
 #ifdef TARGET_X86_64
 #define SET_ESP(val, sp_mask)                                   \
@@ -313,14 +314,15 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
                          uint32_t e1, uint32_t e2, int source,
                          uint32_t next_eip, uintptr_t retaddr)
 {
-    int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, v1, v2, i;
+    int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, i;
     target_ulong tss_base;
     uint32_t new_regs[8], new_segs[6];
     uint32_t new_eflags, new_eip, new_cr3, new_ldt, new_trap;
     uint32_t old_eflags, eflags_mask;
     SegmentCache *dt;
-    int index;
+    int mmu_index, index;
     target_ulong ptr;
+    X86Access old, new;
 
     type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
     LOG_PCALL("switch_tss: sel=0x%04x type=%d src=%d\n", tss_selector, type,
@@ -374,35 +376,45 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
         raise_exception_err_ra(env, EXCP0A_TSS, tss_selector & 0xfffc, retaddr);
     }
 
+    /* X86Access avoids memory exceptions during the task switch */
+    mmu_index = cpu_mmu_index_kernel(env);
+    access_prepare_mmu(&old, env, env->tr.base, old_tss_limit_max,
+                       MMU_DATA_STORE, mmu_index, retaddr);
+
+    if (source == SWITCH_TSS_CALL) {
+        /* Probe for future write of parent task */
+        probe_access(env, tss_base, 2, MMU_DATA_STORE,
+                     mmu_index, retaddr);
+    }
+    access_prepare_mmu(&new, env, tss_base, tss_limit,
+                       MMU_DATA_LOAD, mmu_index, retaddr);
+
     /* read all the registers from the new TSS */
     if (type & 8) {
         /* 32 bit */
-        new_cr3 = cpu_ldl_kernel_ra(env, tss_base + 0x1c, retaddr);
-        new_eip = cpu_ldl_kernel_ra(env, tss_base + 0x20, retaddr);
-        new_eflags = cpu_ldl_kernel_ra(env, tss_base + 0x24, retaddr);
+        new_cr3 = access_ldl(&new, tss_base + 0x1c);
+        new_eip = access_ldl(&new, tss_base + 0x20);
+        new_eflags = access_ldl(&new, tss_base + 0x24);
         for (i = 0; i < 8; i++) {
-            new_regs[i] = cpu_ldl_kernel_ra(env, tss_base + (0x28 + i * 4),
-                                            retaddr);
+            new_regs[i] = access_ldl(&new, tss_base + (0x28 + i * 4));
         }
         for (i = 0; i < 6; i++) {
-            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x48 + i * 4),
-                                             retaddr);
+            new_segs[i] = access_ldw(&new, tss_base + (0x48 + i * 4));
         }
-        new_ldt = cpu_lduw_kernel_ra(env, tss_base + 0x60, retaddr);
-        new_trap = cpu_ldl_kernel_ra(env, tss_base + 0x64, retaddr);
+        new_ldt = access_ldw(&new, tss_base + 0x60);
+        new_trap = access_ldl(&new, tss_base + 0x64);
     } else {
         /* 16 bit */
         new_cr3 = 0;
-        new_eip = cpu_lduw_kernel_ra(env, tss_base + 0x0e, retaddr);
-        new_eflags = cpu_lduw_kernel_ra(env, tss_base + 0x10, retaddr);
+        new_eip = access_ldw(&new, tss_base + 0x0e);
+        new_eflags = access_ldw(&new, tss_base + 0x10);
         for (i = 0; i < 8; i++) {
-            new_regs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x12 + i * 2), retaddr);
+            new_regs[i] = access_ldw(&new, tss_base + (0x12 + i * 2));
         }
         for (i = 0; i < 4; i++) {
-            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x22 + i * 2),
-                                             retaddr);
+            new_segs[i] = access_ldw(&new, tss_base + (0x22 + i * 2));
         }
-        new_ldt = cpu_lduw_kernel_ra(env, tss_base + 0x2a, retaddr);
+        new_ldt = access_ldw(&new, tss_base + 0x2a);
         new_segs[R_FS] = 0;
         new_segs[R_GS] = 0;
         new_trap = 0;
@@ -411,16 +423,6 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
      http://support.amd.com/us/Processor_TechDocs/24593.pdf
      chapters 12.2.5 and 13.2.4 on how to implement TSS Trap bit */
     (void)new_trap;
-
-    /* NOTE: we must avoid memory exceptions during the task switch,
-       so we make dummy accesses before */
-    /* XXX: it can still fail in some cases, so a bigger hack is
-       necessary to valid the TLB after having done the accesses */
-
-    v1 = cpu_ldub_kernel_ra(env, env->tr.base, retaddr);
-    v2 = cpu_ldub_kernel_ra(env, env->tr.base + old_tss_limit_max, retaddr);
-    cpu_stb_kernel_ra(env, env->tr.base, v1, retaddr);
-    cpu_stb_kernel_ra(env, env->tr.base + old_tss_limit_max, v2, retaddr);
 
     /* clear busy bit (it is restartable) */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
@@ -434,35 +436,35 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
     /* save the current state in the old TSS */
     if (old_type & 8) {
         /* 32 bit */
-        cpu_stl_kernel_ra(env, env->tr.base + 0x20, next_eip, retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + 0x24, old_eflags, retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 1 * 4), env->regs[R_ECX], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 2 * 4), env->regs[R_EDX], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 4 * 4), env->regs[R_ESP], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 5 * 4), env->regs[R_EBP], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 6 * 4), env->regs[R_ESI], retaddr);
-        cpu_stl_kernel_ra(env, env->tr.base + (0x28 + 7 * 4), env->regs[R_EDI], retaddr);
+        access_stl(&old, env->tr.base + 0x20, next_eip);
+        access_stl(&old, env->tr.base + 0x24, old_eflags);
+        access_stl(&old, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
+        access_stl(&old, env->tr.base + (0x28 + 1 * 4), env->regs[R_ECX]);
+        access_stl(&old, env->tr.base + (0x28 + 2 * 4), env->regs[R_EDX]);
+        access_stl(&old, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
+        access_stl(&old, env->tr.base + (0x28 + 4 * 4), env->regs[R_ESP]);
+        access_stl(&old, env->tr.base + (0x28 + 5 * 4), env->regs[R_EBP]);
+        access_stl(&old, env->tr.base + (0x28 + 6 * 4), env->regs[R_ESI]);
+        access_stl(&old, env->tr.base + (0x28 + 7 * 4), env->regs[R_EDI]);
         for (i = 0; i < 6; i++) {
-            cpu_stw_kernel_ra(env, env->tr.base + (0x48 + i * 4),
-                              env->segs[i].selector, retaddr);
+            access_stw(&old, env->tr.base + (0x48 + i * 4),
+                       env->segs[i].selector);
         }
     } else {
         /* 16 bit */
-        cpu_stw_kernel_ra(env, env->tr.base + 0x0e, next_eip, retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + 0x10, old_eflags, retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 1 * 2), env->regs[R_ECX], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 2 * 2), env->regs[R_EDX], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 4 * 2), env->regs[R_ESP], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 5 * 2), env->regs[R_EBP], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI], retaddr);
-        cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI], retaddr);
+        access_stw(&old, env->tr.base + 0x0e, next_eip);
+        access_stw(&old, env->tr.base + 0x10, old_eflags);
+        access_stw(&old, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
+        access_stw(&old, env->tr.base + (0x12 + 1 * 2), env->regs[R_ECX]);
+        access_stw(&old, env->tr.base + (0x12 + 2 * 2), env->regs[R_EDX]);
+        access_stw(&old, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
+        access_stw(&old, env->tr.base + (0x12 + 4 * 2), env->regs[R_ESP]);
+        access_stw(&old, env->tr.base + (0x12 + 5 * 2), env->regs[R_EBP]);
+        access_stw(&old, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI]);
+        access_stw(&old, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI]);
         for (i = 0; i < 4; i++) {
-            cpu_stw_kernel_ra(env, env->tr.base + (0x22 + i * 2),
-                              env->segs[i].selector, retaddr);
+            access_stw(&old, env->tr.base + (0x22 + i * 2),
+                       env->segs[i].selector);
         }
     }
 
@@ -470,7 +472,11 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
        context */
 
     if (source == SWITCH_TSS_CALL) {
-        cpu_stw_kernel_ra(env, tss_base, env->tr.selector, retaddr);
+        /*
+         * Thanks to the probe_access above, we know the first two
+         * bytes addressed by &new are writable too.
+         */
+        access_stw(&new, tss_base, env->tr.selector);
         new_eflags |= NT_MASK;
     }
 
