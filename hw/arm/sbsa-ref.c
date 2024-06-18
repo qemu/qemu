@@ -62,16 +62,12 @@
 
 /*
  * Generic timer frequency in Hz (which drives both the CPU generic timers
- * and the SBSA watchdog-timer). Older versions of the TF-A firmware
- * typically used with sbsa-ref (including the binaries in our Avocado test
- * Aarch64SbsarefMachine.test_sbsaref_alpine_linux_max_pauth_impdef
- * assume it is this value.
+ * and the SBSA watchdog-timer). Older (<2.11) versions of the TF-A firmware
+ * assumed 62.5MHz here.
  *
- * TODO: this value is not architecturally correct for an Armv8.6 or
- * better CPU, so we should move to 1GHz once the TF-A fix above has
- * made it into a release and into our Avocado test.
+ * Starting with Armv8.6 CPU 1GHz timer frequency is mandated.
  */
-#define SBSA_GTIMER_HZ 62500000
+#define SBSA_GTIMER_HZ 1000000000
 
 enum {
     SBSA_FLASH,
