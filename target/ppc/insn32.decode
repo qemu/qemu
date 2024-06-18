@@ -241,6 +241,9 @@
 &XX3            xt xa xb
 @XX3            ...... ..... ..... ..... ........ ...           &XX3 xt=%xx_xt xa=%xx_xa xb=%xx_xb
 
+&XX3_rc         xt xa xb rc:bool
+@XX3_rc         ...... ..... ..... ..... rc:1 ....... ...       &XX3_rc xt=%xx_xt xa=%xx_xa xb=%xx_xb
+
 # 32 bit GER instructions have all mask bits considered 1
 &MMIRR_XX3      xa xb xt pmsk xmsk ymsk
 %xx_at          23:3
@@ -1123,6 +1126,15 @@ XSCMPGTDP       111100 ..... ..... ..... 00001011 ...   @XX3
 XSCMPEQQP       111111 ..... ..... ..... 0001000100 -   @X
 XSCMPGEQP       111111 ..... ..... ..... 0011000100 -   @X
 XSCMPGTQP       111111 ..... ..... ..... 0011100100 -   @X
+
+XVCMPEQSP       111100 ..... ..... ..... . 1000011 ...   @XX3_rc
+XVCMPGTSP       111100 ..... ..... ..... . 1001011 ...   @XX3_rc
+XVCMPGESP       111100 ..... ..... ..... . 1010011 ...   @XX3_rc
+XVCMPNESP       111100 ..... ..... ..... . 1011011 ...   @XX3_rc
+XVCMPEQDP       111100 ..... ..... ..... . 1100011 ...   @XX3_rc
+XVCMPGTDP       111100 ..... ..... ..... . 1101011 ...   @XX3_rc
+XVCMPGEDP       111100 ..... ..... ..... . 1110011 ...   @XX3_rc
+XVCMPNEDP       111100 ..... ..... ..... . 1111011 ...   @XX3_rc
 
 XSMAXDP         111100 ..... ..... ..... 10100000 ...   @XX3
 XSMINDP         111100 ..... ..... ..... 10101000 ...   @XX3

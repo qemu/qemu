@@ -2527,14 +2527,14 @@ uint32_t helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
     return crf6;                                                          \
 }
 
-VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0, 1)
-VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1, 1)
-VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1, 1)
-VSX_CMP(xvcmpnedp, 2, float64, VsrD(i), eq, 0, 0)
-VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0, 1)
-VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1, 1)
-VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1, 1)
-VSX_CMP(xvcmpnesp, 4, float32, VsrW(i), eq, 0, 0)
+VSX_CMP(XVCMPEQDP, 2, float64, VsrD(i), eq, 0, 1)
+VSX_CMP(XVCMPGEDP, 2, float64, VsrD(i), le, 1, 1)
+VSX_CMP(XVCMPGTDP, 2, float64, VsrD(i), lt, 1, 1)
+VSX_CMP(XVCMPNEDP, 2, float64, VsrD(i), eq, 0, 0)
+VSX_CMP(XVCMPEQSP, 4, float32, VsrW(i), eq, 0, 1)
+VSX_CMP(XVCMPGESP, 4, float32, VsrW(i), le, 1, 1)
+VSX_CMP(XVCMPGTSP, 4, float32, VsrW(i), lt, 1, 1)
+VSX_CMP(XVCMPNESP, 4, float32, VsrW(i), eq, 0, 0)
 
 /*
  * VSX_CVT_FP_TO_FP - VSX floating point/floating point conversion

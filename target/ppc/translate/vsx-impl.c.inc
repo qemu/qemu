@@ -792,34 +792,28 @@ static bool do_xvcpsgn(DisasContext *ctx, arg_XX3 *a, unsigned vece)
 TRANS(XVCPSGNSP, do_xvcpsgn, MO_32)
 TRANS(XVCPSGNDP, do_xvcpsgn, MO_64)
 
-#define VSX_CMP(name, op1, op2, inval, type)                                  \
-static void gen_##name(DisasContext *ctx)                                     \
-{                                                                             \
-    TCGv_i32 ignored;                                                         \
-    TCGv_ptr xt, xa, xb;                                                      \
-    if (unlikely(!ctx->vsx_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
-        return;                                                               \
-    }                                                                         \
-    xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
-    xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
-    xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
-    if ((ctx->opcode >> (31 - 21)) & 1) {                                     \
-        gen_helper_##name(cpu_crf[6], tcg_env, xt, xa, xb);                   \
-    } else {                                                                  \
-        ignored = tcg_temp_new_i32();                                         \
-        gen_helper_##name(ignored, tcg_env, xt, xa, xb);                      \
-    }                                                                         \
+static bool do_cmp(DisasContext *ctx, arg_XX3_rc *a,
+            void (*helper)(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_i32 dest;
+    TCGv_ptr xt, xa, xb;
+    REQUIRE_VSX(ctx);
+    xt = gen_vsr_ptr(a->xt);
+    xa = gen_vsr_ptr(a->xa);
+    xb = gen_vsr_ptr(a->xb);
+    dest = a->rc ? cpu_crf[6] : tcg_temp_new_i32();
+    helper(dest, tcg_env, xt, xa, xb);
+    return true;
 }
 
-VSX_CMP(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
-VSX_CMP(xvcmpgedp, 0x0C, 0x0E, 0, PPC2_VSX)
-VSX_CMP(xvcmpgtdp, 0x0C, 0x0D, 0, PPC2_VSX)
-VSX_CMP(xvcmpnedp, 0x0C, 0x0F, 0, PPC2_ISA300)
-VSX_CMP(xvcmpeqsp, 0x0C, 0x08, 0, PPC2_VSX)
-VSX_CMP(xvcmpgesp, 0x0C, 0x0A, 0, PPC2_VSX)
-VSX_CMP(xvcmpgtsp, 0x0C, 0x09, 0, PPC2_VSX)
-VSX_CMP(xvcmpnesp, 0x0C, 0x0B, 0, PPC2_VSX)
+TRANS_FLAGS2(VSX, XVCMPEQSP, do_cmp, gen_helper_XVCMPEQSP);
+TRANS_FLAGS2(VSX, XVCMPGTSP, do_cmp, gen_helper_XVCMPGTSP);
+TRANS_FLAGS2(VSX, XVCMPGESP, do_cmp, gen_helper_XVCMPGESP);
+TRANS_FLAGS2(ISA300, XVCMPNESP, do_cmp, gen_helper_XVCMPNESP);
+TRANS_FLAGS2(VSX, XVCMPEQDP, do_cmp, gen_helper_XVCMPEQDP);
+TRANS_FLAGS2(VSX, XVCMPGTDP, do_cmp, gen_helper_XVCMPGTDP);
+TRANS_FLAGS2(VSX, XVCMPGEDP, do_cmp, gen_helper_XVCMPGEDP);
+TRANS_FLAGS2(ISA300, XVCMPNEDP, do_cmp, gen_helper_XVCMPNEDP);
 
 static bool trans_XSCVQPDP(DisasContext *ctx, arg_X_tb_rc *a)
 {
