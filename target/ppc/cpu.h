@@ -1248,6 +1248,7 @@ struct CPUArchState {
     int access_type;
 
     /* For SMT processors */
+    bool has_smt_siblings;
     int core_index;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1514,7 +1515,7 @@ struct PowerPCCPUClass {
 
 static inline bool ppc_cpu_core_single_threaded(CPUState *cs)
 {
-    return cs->nr_threads == 1;
+    return !POWERPC_CPU(cs)->env.has_smt_siblings;
 }
 
 static inline bool ppc_cpu_lpar_single_threaded(CPUState *cs)
