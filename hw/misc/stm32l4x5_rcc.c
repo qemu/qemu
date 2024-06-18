@@ -543,19 +543,31 @@ static void rcc_update_cfgr_register(Stm32l4x5RccState *s)
     uint32_t val;
     /* MCOPRE */
     val = FIELD_EX32(s->cfgr, CFGR, MCOPRE);
-    assert(val <= 0b100);
-    clock_mux_set_factor(&s->clock_muxes[RCC_CLOCK_MUX_MCO],
-                         1, 1 << val);
+    if (val > 0b100) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Invalid MCOPRE value: 0x%"PRIx32"\n",
+                      __func__, val);
+        clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], false);
+    } else {
+        clock_mux_set_factor(&s->clock_muxes[RCC_CLOCK_MUX_MCO],
+                             1, 1 << val);
+    }
 
     /* MCOSEL */
     val = FIELD_EX32(s->cfgr, CFGR, MCOSEL);
-    assert(val <= 0b111);
-    if (val == 0) {
+    if (val > 0b111) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Invalid MCOSEL value: 0x%"PRIx32"\n",
+                      __func__, val);
         clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], false);
     } else {
-        clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], true);
-        clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_MCO],
-                             val - 1);
+        if (val == 0) {
+            clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], false);
+        } else {
+            clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], true);
+            clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_MCO],
+                                 val - 1);
+        }
     }
 
     /* STOPWUCK */
