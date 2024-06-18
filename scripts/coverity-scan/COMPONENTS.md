@@ -97,7 +97,7 @@ migration
   ~ .*/qemu((/include)?/migration/.*)
 
 monitor
-  ~ .*/qemu(/qapi.*|/qobject/.*|/monitor\..*|/[hq]mp\..*)
+  ~ .*/qemu((/include)?/(qapi|qobject|monitor)/.*|/job-qmp.c)
 
 nbd
   ~ .*/qemu(/nbd/.*|/include/block/nbd.*|/qemu-nbd\.c)
