@@ -336,15 +336,40 @@ if host_arch == 'i386' and not cc.links('''
   qemu_common_flags = ['-march=i486'] + qemu_common_flags
 endif
 
-# Assume x86-64-v2 (minus CMPXCHG16B for 32-bit code)
-if host_arch == 'i386'
-  qemu_common_flags = ['-mfpmath=sse'] + qemu_common_flags
-endif
+# Pick x86-64 baseline version
 if host_arch in ['i386', 'x86_64']
-  qemu_common_flags = ['-mpopcnt', '-msse4.2'] + qemu_common_flags
-endif
-if host_arch == 'x86_64'
-  qemu_common_flags = ['-mcx16'] + qemu_common_flags
+  if get_option('x86_version') == '0' and host_arch == 'x86_64'
+    error('x86_64-v1 required for x86-64 hosts')
+  endif
+
+  # add flags for individual instruction set extensions
+  if get_option('x86_version') >= '1'
+    if host_arch == 'i386'
+      qemu_common_flags = ['-mfpmath=sse'] + qemu_common_flags
+    else
+      # present on basically all processors but technically not part of
+      # x86-64-v1, so only include -mneeded for x86-64 version 2 and above
+      qemu_common_flags = ['-mcx16'] + qemu_common_flags
+    endif
+  endif
+  if get_option('x86_version') >= '2'
+    qemu_common_flags = ['-mpopcnt'] + qemu_common_flags
+    qemu_common_flags = cc.get_supported_arguments('-mneeded') + qemu_common_flags
+  endif
+  if get_option('x86_version') >= '3'
+    qemu_common_flags = ['-mmovbe', '-mabm', '-mbmi1', '-mbmi2', '-mfma', '-mf16c'] + qemu_common_flags
+  endif
+
+  # add required vector instruction set (each level implies those below)
+  if get_option('x86_version') == '1'
+    qemu_common_flags = ['-msse2'] + qemu_common_flags
+  elif get_option('x86_version') == '2'
+    qemu_common_flags = ['-msse4.2'] + qemu_common_flags
+  elif get_option('x86_version') == '3'
+    qemu_common_flags = ['-mavx2'] + qemu_common_flags
+  elif get_option('x86_version') == '4'
+    qemu_common_flags = ['-mavx512f', '-mavx512bw', '-mavx512cd', '-mavx512dq', '-mavx512vl'] + qemu_common_flags
+  endif
 endif
 
 if get_option('prefer_static')
