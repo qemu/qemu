@@ -154,7 +154,7 @@ sysemu
   ~ .*/qemu(/include/.*)
 
 testlibs
-  ~ .*/qemu(/tests/qtest(/libqos/.*|/libqtest.*))
+  ~ .*/qemu(/tests/qtest(/libqos/.*|/libqtest.*|/libqmp.*))
 
 tests
   ~ .*/qemu(/tests/.*)
