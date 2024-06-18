@@ -670,22 +670,20 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         }
         shift = switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
-            uint32_t mask;
-
             /* push the error code */
             if (env->segs[R_SS].flags & DESC_B_MASK) {
-                mask = 0xffffffff;
+                sp_mask = 0xffffffff;
             } else {
-                mask = 0xffff;
+                sp_mask = 0xffff;
             }
-            esp = (env->regs[R_ESP] - (2 << shift)) & mask;
-            ssp = env->segs[R_SS].base + esp;
+            esp = env->regs[R_ESP];
+            ssp = env->segs[R_SS].base;
             if (shift) {
-                cpu_stl_kernel(env, ssp, error_code);
+                PUSHL(ssp, esp, sp_mask, error_code);
             } else {
-                cpu_stw_kernel(env, ssp, error_code);
+                PUSHW(ssp, esp, sp_mask, error_code);
             }
-            SET_ESP(esp, mask);
+            SET_ESP(esp, sp_mask);
         }
         return;
     }
