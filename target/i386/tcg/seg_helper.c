@@ -56,36 +56,37 @@ typedef struct StackAccess
     target_ulong ss_base;
     target_ulong sp;
     target_ulong sp_mask;
+    int mmu_index;
 } StackAccess;
 
 static void pushw(StackAccess *sa, uint16_t val)
 {
     sa->sp -= 2;
-    cpu_stw_kernel_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
-                      val, sa->ra);
+    cpu_stw_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
+                      val, sa->mmu_index, sa->ra);
 }
 
 static void pushl(StackAccess *sa, uint32_t val)
 {
     sa->sp -= 4;
-    cpu_stl_kernel_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
-                      val, sa->ra);
+    cpu_stl_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
+                      val, sa->mmu_index, sa->ra);
 }
 
 static uint16_t popw(StackAccess *sa)
 {
-    uint16_t ret = cpu_lduw_data_ra(sa->env,
-                                    sa->ss_base + (sa->sp & sa->sp_mask),
-                                    sa->ra);
+    uint16_t ret = cpu_lduw_mmuidx_ra(sa->env,
+                                      sa->ss_base + (sa->sp & sa->sp_mask),
+                                      sa->mmu_index, sa->ra);
     sa->sp += 2;
     return ret;
 }
 
 static uint32_t popl(StackAccess *sa)
 {
-    uint32_t ret = cpu_ldl_data_ra(sa->env,
-                                   sa->ss_base + (sa->sp & sa->sp_mask),
-                                   sa->ra);
+    uint32_t ret = cpu_ldl_mmuidx_ra(sa->env,
+                                     sa->ss_base + (sa->sp & sa->sp_mask),
+                                     sa->mmu_index, sa->ra);
     sa->sp += 4;
     return ret;
 }
@@ -677,6 +678,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
     sa.env = env;
     sa.ra = 0;
+    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (type == 5) {
         /* task gate */
@@ -858,12 +860,12 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 static void pushq(StackAccess *sa, uint64_t val)
 {
     sa->sp -= 8;
-    cpu_stq_kernel_ra(sa->env, sa->sp, val, sa->ra);
+    cpu_stq_mmuidx_ra(sa->env, sa->sp, val, sa->mmu_index, sa->ra);
 }
 
 static uint64_t popq(StackAccess *sa)
 {
-    uint64_t ret = cpu_ldq_data_ra(sa->env, sa->sp, sa->ra);
+    uint64_t ret = cpu_ldq_mmuidx_ra(sa->env, sa->sp, sa->mmu_index, sa->ra);
     sa->sp += 8;
     return ret;
 }
@@ -982,6 +984,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
     sa.env = env;
     sa.ra = 0;
+    sa.mmu_index = cpu_mmu_index_kernel(env);
     sa.sp_mask = -1;
     sa.ss_base = 0;
     if (dpl < cpl || ist != 0) {
@@ -1116,6 +1119,7 @@ static void do_interrupt_real(CPUX86State *env, int intno, int is_int,
     sa.sp = env->regs[R_ESP];
     sa.sp_mask = 0xffff;
     sa.ss_base = env->segs[R_SS].base;
+    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (is_int) {
         old_eip = next_eip;
@@ -1579,6 +1583,7 @@ void helper_lcall_real(CPUX86State *env, uint32_t new_cs, uint32_t new_eip,
     sa.sp = env->regs[R_ESP];
     sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sa.ss_base = env->segs[R_SS].base;
+    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (shift) {
         pushl(&sa, env->segs[R_CS].selector);
@@ -1618,6 +1623,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
     sa.env = env;
     sa.ra = GETPC();
+    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK)) {
@@ -1905,6 +1911,7 @@ void helper_iret_real(CPUX86State *env, int shift)
 
     sa.env = env;
     sa.ra = GETPC();
+    sa.mmu_index = x86_mmu_index_pl(env, 0);
     sa.sp_mask = 0xffff; /* XXXX: use SS segment size? */
     sa.sp = env->regs[R_ESP];
     sa.ss_base = env->segs[R_SS].base;
@@ -1976,8 +1983,11 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     target_ulong new_eip, new_esp;
     StackAccess sa;
 
+    cpl = env->hflags & HF_CPL_MASK;
+
     sa.env = env;
     sa.ra = retaddr;
+    sa.mmu_index = x86_mmu_index_pl(env, cpl);
 
 #ifdef TARGET_X86_64
     if (shift == 2) {
@@ -2032,7 +2042,6 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
         !(e2 & DESC_CS_MASK)) {
         raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, retaddr);
     }
-    cpl = env->hflags & HF_CPL_MASK;
     rpl = new_cs & 3;
     if (rpl < cpl) {
         raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, retaddr);
