@@ -116,6 +116,7 @@ struct QEMUS390FLICState {
     uint8_t simm;
     uint8_t nimm;
     QLIST_HEAD(, QEMUS390FlicIO) io[8];
+    bool migrate_all_state;
 };
 
 uint32_t qemu_s390_flic_dequeue_service(QEMUS390FLICState *flic);
