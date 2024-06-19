@@ -1414,6 +1414,12 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to)
     migrate_qmp(from, to, "fd:fd-mig", NULL, "{'resume': true}");
 
     /*
+     * Source QEMU has an extra RECOVER_SETUP phase, dest doesn't have it.
+     * Make sure it appears along the way.
+     */
+    migration_event_wait(from, "postcopy-recover-setup");
+
+    /*
      * Make sure both QEMU instances will go into RECOVER stage, then test
      * kicking them out using migrate-pause.
      */
