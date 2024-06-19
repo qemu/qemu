@@ -389,6 +389,42 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
     access_prepare_mmu(&new, env, tss_base, tss_limit,
                        MMU_DATA_LOAD, mmu_index, retaddr);
 
+    /* save the current state in the old TSS */
+    old_eflags = cpu_compute_eflags(env);
+    if (old_type & 8) {
+        /* 32 bit */
+        access_stl(&old, env->tr.base + 0x20, next_eip);
+        access_stl(&old, env->tr.base + 0x24, old_eflags);
+        access_stl(&old, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
+        access_stl(&old, env->tr.base + (0x28 + 1 * 4), env->regs[R_ECX]);
+        access_stl(&old, env->tr.base + (0x28 + 2 * 4), env->regs[R_EDX]);
+        access_stl(&old, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
+        access_stl(&old, env->tr.base + (0x28 + 4 * 4), env->regs[R_ESP]);
+        access_stl(&old, env->tr.base + (0x28 + 5 * 4), env->regs[R_EBP]);
+        access_stl(&old, env->tr.base + (0x28 + 6 * 4), env->regs[R_ESI]);
+        access_stl(&old, env->tr.base + (0x28 + 7 * 4), env->regs[R_EDI]);
+        for (i = 0; i < 6; i++) {
+            access_stw(&old, env->tr.base + (0x48 + i * 4),
+                       env->segs[i].selector);
+        }
+    } else {
+        /* 16 bit */
+        access_stw(&old, env->tr.base + 0x0e, next_eip);
+        access_stw(&old, env->tr.base + 0x10, old_eflags);
+        access_stw(&old, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
+        access_stw(&old, env->tr.base + (0x12 + 1 * 2), env->regs[R_ECX]);
+        access_stw(&old, env->tr.base + (0x12 + 2 * 2), env->regs[R_EDX]);
+        access_stw(&old, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
+        access_stw(&old, env->tr.base + (0x12 + 4 * 2), env->regs[R_ESP]);
+        access_stw(&old, env->tr.base + (0x12 + 5 * 2), env->regs[R_EBP]);
+        access_stw(&old, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI]);
+        access_stw(&old, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI]);
+        for (i = 0; i < 4; i++) {
+            access_stw(&old, env->tr.base + (0x22 + i * 2),
+                       env->segs[i].selector);
+        }
+    }
+
     /* read all the registers from the new TSS */
     if (type & 8) {
         /* 32 bit */
@@ -428,48 +464,15 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
         tss_set_busy(env, env->tr.selector, 0, retaddr);
     }
-    old_eflags = cpu_compute_eflags(env);
+
     if (source == SWITCH_TSS_IRET) {
         old_eflags &= ~NT_MASK;
+        if (old_type & 8) {
+            access_stl(&old, env->tr.base + 0x24, old_eflags);
+        } else {
+            access_stw(&old, env->tr.base + 0x10, old_eflags);
+	}
     }
-
-    /* save the current state in the old TSS */
-    if (old_type & 8) {
-        /* 32 bit */
-        access_stl(&old, env->tr.base + 0x20, next_eip);
-        access_stl(&old, env->tr.base + 0x24, old_eflags);
-        access_stl(&old, env->tr.base + (0x28 + 0 * 4), env->regs[R_EAX]);
-        access_stl(&old, env->tr.base + (0x28 + 1 * 4), env->regs[R_ECX]);
-        access_stl(&old, env->tr.base + (0x28 + 2 * 4), env->regs[R_EDX]);
-        access_stl(&old, env->tr.base + (0x28 + 3 * 4), env->regs[R_EBX]);
-        access_stl(&old, env->tr.base + (0x28 + 4 * 4), env->regs[R_ESP]);
-        access_stl(&old, env->tr.base + (0x28 + 5 * 4), env->regs[R_EBP]);
-        access_stl(&old, env->tr.base + (0x28 + 6 * 4), env->regs[R_ESI]);
-        access_stl(&old, env->tr.base + (0x28 + 7 * 4), env->regs[R_EDI]);
-        for (i = 0; i < 6; i++) {
-            access_stw(&old, env->tr.base + (0x48 + i * 4),
-                       env->segs[i].selector);
-        }
-    } else {
-        /* 16 bit */
-        access_stw(&old, env->tr.base + 0x0e, next_eip);
-        access_stw(&old, env->tr.base + 0x10, old_eflags);
-        access_stw(&old, env->tr.base + (0x12 + 0 * 2), env->regs[R_EAX]);
-        access_stw(&old, env->tr.base + (0x12 + 1 * 2), env->regs[R_ECX]);
-        access_stw(&old, env->tr.base + (0x12 + 2 * 2), env->regs[R_EDX]);
-        access_stw(&old, env->tr.base + (0x12 + 3 * 2), env->regs[R_EBX]);
-        access_stw(&old, env->tr.base + (0x12 + 4 * 2), env->regs[R_ESP]);
-        access_stw(&old, env->tr.base + (0x12 + 5 * 2), env->regs[R_EBP]);
-        access_stw(&old, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI]);
-        access_stw(&old, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI]);
-        for (i = 0; i < 4; i++) {
-            access_stw(&old, env->tr.base + (0x22 + i * 2),
-                       env->segs[i].selector);
-        }
-    }
-
-    /* now if an exception occurs, it will occurs in the next task
-       context */
 
     if (source == SWITCH_TSS_CALL) {
         /*
@@ -486,7 +489,9 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
     }
 
     /* set the new CPU state */
-    /* from this point, any exception which occurs can give problems */
+
+    /* now if an exception occurs, it will occur in the next task context */
+
     env->cr[0] |= CR0_TS_MASK;
     env->hflags |= HF_TS_MASK;
     env->tr.selector = tss_selector;
