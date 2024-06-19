@@ -3312,6 +3312,7 @@ F: tests/qtest/
 F: docs/devel/qgraph.rst
 F: docs/devel/qtest.rst
 X: tests/qtest/bios-tables-test*
+X: tests/qtest/migration-*
 
 Device Fuzzing
 M: Alexander Bulekov <alxndr@bu.edu>
@@ -3408,7 +3409,7 @@ F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
-F: tests/qtest/migration-test.c
+F: tests/qtest/migration-*
 F: docs/devel/migration/
 F: qapi/migration.json
 F: tests/migration/
