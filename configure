@@ -450,7 +450,7 @@ case "$cpu" in
     linux_arch=loongarch
     ;;
 
-  mips64*)
+  mips64*|mipsisa64*)
     cpu=mips64
     host_arch=mips
     linux_arch=mips
