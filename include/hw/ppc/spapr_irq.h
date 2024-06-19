@@ -73,7 +73,7 @@ struct SpaprInterruptControllerClass {
 
     /* These methods should only be called on the active intc */
     void (*set_irq)(SpaprInterruptController *intc, int irq, int val);
-    void (*print_info)(SpaprInterruptController *intc, Monitor *mon);
+    void (*print_info)(SpaprInterruptController *intc, GString *buf);
     void (*dt)(SpaprInterruptController *intc, uint32_t nr_servers,
                void *fdt, uint32_t phandle);
     int (*post_load)(SpaprInterruptController *intc, int version_id);
@@ -85,7 +85,7 @@ int spapr_irq_cpu_intc_create(struct SpaprMachineState *spapr,
                               PowerPCCPU *cpu, Error **errp);
 void spapr_irq_cpu_intc_reset(struct SpaprMachineState *spapr, PowerPCCPU *cpu);
 void spapr_irq_cpu_intc_destroy(struct SpaprMachineState *spapr, PowerPCCPU *cpu);
-void spapr_irq_print_info(struct SpaprMachineState *spapr, Monitor *mon);
+void spapr_irq_print_info(struct SpaprMachineState *spapr, GString *buf);
 void spapr_irq_dt(struct SpaprMachineState *spapr, uint32_t nr_servers,
                   void *fdt, uint32_t phandle);
 

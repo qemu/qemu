@@ -16,7 +16,6 @@
 #include "sysemu/cpus.h"
 #include "sysemu/reset.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
@@ -132,7 +131,7 @@ static int spapr_xive_target_to_end(uint32_t target, uint8_t prio,
  * structure dumping only the information related to the OS EQ.
  */
 static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
-                                          Monitor *mon)
+                                          GString *buf)
 {
     uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
@@ -142,11 +141,11 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
     uint32_t nvt = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
 
-    monitor_printf(mon, "%3d/%d % 6d/%5d @%"PRIx64" ^%d",
-                   spapr_xive_nvt_to_target(0, nvt),
-                   priority, qindex, qentries, qaddr_base, qgen);
+    g_string_append_printf(buf, "%3d/%d % 6d/%5d @%"PRIx64" ^%d",
+                           spapr_xive_nvt_to_target(0, nvt),
+                           priority, qindex, qentries, qaddr_base, qgen);
 
-    xive_end_queue_pic_print_info(end, 6, mon);
+    xive_end_queue_pic_print_info(end, 6, buf);
 }
 
 /*
@@ -156,7 +155,7 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
 #define spapr_xive_in_kernel(xive) \
     (kvm_irqchip_in_kernel() && (xive)->fd != -1)
 
-static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
+static void spapr_xive_pic_print_info(SpaprXive *xive, GString *buf)
 {
     XiveSource *xsrc = &xive->source;
     int i;
@@ -171,7 +170,7 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
+    g_string_append_printf(buf, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
 
     for (i = 0; i < xive->nr_irqs; i++) {
         uint8_t pq = xive_source_esb_get(xsrc, i);
@@ -181,13 +180,13 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
             continue;
         }
 
-        monitor_printf(mon, "  %08x %s %c%c%c %s %08x ", i,
-                       xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
-                       pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                       pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                       xive_source_is_asserted(xsrc, i) ? 'A' : ' ',
-                       xive_eas_is_masked(eas) ? "M" : " ",
-                       (int) xive_get_field64(EAS_END_DATA, eas->w));
+        g_string_append_printf(buf, "  %08x %s %c%c%c %s %08x ", i,
+                               xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
+                               pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                               pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                               xive_source_is_asserted(xsrc, i) ? 'A' : ' ',
+                               xive_eas_is_masked(eas) ? "M" : " ",
+                               (int) xive_get_field64(EAS_END_DATA, eas->w));
 
         if (!xive_eas_is_masked(eas)) {
             uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
@@ -197,10 +196,11 @@ static void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
             end = &xive->endt[end_idx];
 
             if (xive_end_is_valid(end)) {
-                spapr_xive_end_pic_print_info(xive, end, mon);
+                spapr_xive_end_pic_print_info(xive, end, buf);
             }
+
         }
-        monitor_printf(mon, "\n");
+        g_string_append_c(buf, '\n');
     }
 }
 
@@ -699,7 +699,7 @@ static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
     }
 }
 
-static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
+static void spapr_xive_print_info(SpaprInterruptController *intc, GString *buf)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     CPUState *cs;
@@ -707,10 +707,9 @@ static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
+        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, buf);
     }
-
-    spapr_xive_pic_print_info(xive, mon);
+    spapr_xive_pic_print_info(xive, buf);
 }
 
 static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,

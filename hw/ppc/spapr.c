@@ -89,8 +89,6 @@
 #include "hw/ppc/spapr_nvdimm.h"
 #include "hw/ppc/spapr_numa.h"
 
-#include "monitor/monitor.h"
-
 #include <libfdt.h>
 
 /* SLOF memory layout:
@@ -3700,7 +3698,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    pc_dimm_pre_plug(dimm, MACHINE(hotplug_dev), NULL, errp);
+    pc_dimm_pre_plug(dimm, MACHINE(hotplug_dev), errp);
 }
 
 struct SpaprDimmState {
@@ -4526,14 +4524,13 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? spapr_cpu_state(cpu)->icp : NULL;
 }
 
-static void spapr_pic_print_info(InterruptStatsProvider *obj,
-                                 Monitor *mon)
+static void spapr_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
 
-    spapr_irq_print_info(spapr, mon);
-    monitor_printf(mon, "irqchip: %s\n",
-                   kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
+    spapr_irq_print_info(spapr, buf);
+    g_string_append_printf(buf, "irqchip: %s\n",
+                           kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
 }
 
 /*

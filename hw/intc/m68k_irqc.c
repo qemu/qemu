@@ -10,7 +10,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "hw/qdev-properties.h"
 #include "hw/nmi.h"
 #include "hw/intc/intc.h"
@@ -27,10 +26,10 @@ static bool m68k_irqc_get_statistics(InterruptStatsProvider *obj,
     return true;
 }
 
-static void m68k_irqc_print_info(InterruptStatsProvider *obj, Monitor *mon)
+static void m68k_irqc_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     M68KIRQCState *s = M68K_IRQC(obj);
-    monitor_printf(mon, "m68k-irqc: ipr=0x%x\n", s->ipr);
+    g_string_append_printf(buf, "m68k-irqc: ipr=0x%x\n", s->ipr);
 }
 
 static void m68k_set_irq(void *opaque, int irq, int level)

@@ -15,7 +15,6 @@
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
 #include "sysemu/reset.h"
-#include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_chip.h"
@@ -1831,7 +1830,7 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
 };
 
 static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
-                                    Monitor *mon)
+                                    GString *buf)
 {
     uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
     uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
@@ -1840,12 +1839,12 @@ static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
         return;
     }
 
-    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n", nvt_idx,
-                   eq_blk, eq_idx,
-                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+    g_string_append_printf(buf, "  %08x end:%02x/%04x IPB:%02x\n",
+                           nvt_idx, eq_blk, eq_idx,
+                           xive_get_field32(NVT_W4_IPB, nvt->w4));
 }
 
-void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
+void pnv_xive_pic_print_info(PnvXive *xive, GString *buf)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
     uint8_t blk = pnv_xive_block_id(xive);
@@ -1858,39 +1857,40 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     int i;
     uint64_t xive_nvt_per_subpage;
 
-    monitor_printf(mon, "XIVE[%x] #%d Source %08x .. %08x\n", chip_id, blk,
-                   srcno0, srcno0 + nr_ipis - 1);
-    xive_source_pic_print_info(&xive->ipi_source, srcno0, mon);
+    g_string_append_printf(buf, "XIVE[%x] #%d Source %08x .. %08x\n",
+                           chip_id, blk, srcno0, srcno0 + nr_ipis - 1);
+    xive_source_pic_print_info(&xive->ipi_source, srcno0, buf);
 
-    monitor_printf(mon, "XIVE[%x] #%d EAT %08x .. %08x\n", chip_id, blk,
-                   srcno0, srcno0 + nr_ipis - 1);
+    g_string_append_printf(buf, "XIVE[%x] #%d EAT %08x .. %08x\n",
+                           chip_id, blk, srcno0, srcno0 + nr_ipis - 1);
     for (i = 0; i < nr_ipis; i++) {
         if (xive_router_get_eas(xrtr, blk, i, &eas)) {
             break;
         }
         if (!xive_eas_is_masked(&eas)) {
-            xive_eas_pic_print_info(&eas, i, mon);
+            xive_eas_pic_print_info(&eas, i, buf);
         }
     }
 
-    monitor_printf(mon, "XIVE[%x] #%d ENDT\n", chip_id, blk);
+    g_string_append_printf(buf, "XIVE[%x] #%d ENDT\n", chip_id, blk);
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
-        xive_end_pic_print_info(&end, i++, mon);
+        xive_end_pic_print_info(&end, i++, buf);
     }
 
-    monitor_printf(mon, "XIVE[%x] #%d END Escalation EAT\n", chip_id, blk);
+    g_string_append_printf(buf, "XIVE[%x] #%d END Escalation EAT\n",
+                           chip_id, blk);
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
-        xive_end_eas_pic_print_info(&end, i++, mon);
+        xive_end_eas_pic_print_info(&end, i++, buf);
     }
 
-    monitor_printf(mon, "XIVE[%x] #%d NVTT %08x .. %08x\n", chip_id, blk,
-                   0, XIVE_NVT_COUNT - 1);
+    g_string_append_printf(buf, "XIVE[%x] #%d NVTT %08x .. %08x\n",
+                           chip_id, blk, 0, XIVE_NVT_COUNT - 1);
     xive_nvt_per_subpage = pnv_xive_vst_per_subpage(xive, VST_TSEL_VPDT);
     for (i = 0; i < XIVE_NVT_COUNT; i += xive_nvt_per_subpage) {
         while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
-            xive_nvt_pic_print_info(&nvt, i++, mon);
+            xive_nvt_pic_print_info(&nvt, i++, buf);
         }
     }
 }

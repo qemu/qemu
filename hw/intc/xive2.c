@@ -15,7 +15,6 @@
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
 #include "hw/qdev-properties.h"
-#include "monitor/monitor.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive2_regs.h"
@@ -27,21 +26,20 @@ uint32_t xive2_router_get_config(Xive2Router *xrtr)
     return xrc->get_config(xrtr);
 }
 
-void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, Monitor *mon)
+void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
 {
     if (!xive2_eas_is_valid(eas)) {
         return;
     }
 
-    monitor_printf(mon, "  %08x %s end:%02x/%04x data:%08x\n",
-                   lisn, xive2_eas_is_masked(eas) ? "M" : " ",
-                   (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
+    g_string_append_printf(buf, "  %08x %s end:%02x/%04x data:%08x\n",
+                           lisn, xive2_eas_is_masked(eas) ? "M" : " ",
+                           (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
 }
 
-void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
-                                    Monitor *mon)
+void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width, GString *buf)
 {
     uint64_t qaddr_base = xive2_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
@@ -52,7 +50,7 @@ void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
     /*
      * print out the [ (qindex - (width - 1)) .. (qindex + 1)] window
      */
-    monitor_printf(mon, " [ ");
+    g_string_append_printf(buf, " [ ");
     qindex = (qindex - (width - 1)) & (qentries - 1);
     for (i = 0; i < width; i++) {
         uint64_t qaddr = qaddr_base + (qindex << 2);
@@ -64,14 +62,14 @@ void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
                           HWADDR_PRIx "\n", qaddr);
             return;
         }
-        monitor_printf(mon, "%s%08x ", i == width - 1 ? "^" : "",
-                       be32_to_cpu(qdata));
+        g_string_append_printf(buf, "%s%08x ", i == width - 1 ? "^" : "",
+                               be32_to_cpu(qdata));
         qindex = (qindex + 1) & (qentries - 1);
     }
-    monitor_printf(mon, "]");
+    g_string_append_printf(buf, "]");
 }
 
-void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon)
+void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
 {
     uint64_t qaddr_base = xive2_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END2_W1_PAGE_OFF, end->w1);
@@ -90,33 +88,34 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon)
 
     pq = xive_get_field32(END2_W1_ESn, end->w1);
 
-    monitor_printf(mon,
-                   "  %08x %c%c %c%c%c%c%c%c%c%c%c%c prio:%d nvp:%02x/%04x",
-                   end_idx,
-                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                   xive2_end_is_valid(end)    ? 'v' : '-',
-                   xive2_end_is_enqueue(end)  ? 'q' : '-',
-                   xive2_end_is_notify(end)   ? 'n' : '-',
-                   xive2_end_is_backlog(end)  ? 'b' : '-',
-                   xive2_end_is_escalate(end) ? 'e' : '-',
-                   xive2_end_is_escalate_end(end) ? 'N' : '-',
-                   xive2_end_is_uncond_escalation(end)   ? 'u' : '-',
-                   xive2_end_is_silent_escalation(end)   ? 's' : '-',
-                   xive2_end_is_firmware1(end)   ? 'f' : '-',
-                   xive2_end_is_firmware2(end)   ? 'F' : '-',
-                   priority, nvp_blk, nvp_idx);
+    g_string_append_printf(buf,
+                           "  %08x %c%c %c%c%c%c%c%c%c%c%c%c "
+                           "prio:%d nvp:%02x/%04x",
+                           end_idx,
+                           pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                           pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                           xive2_end_is_valid(end)    ? 'v' : '-',
+                           xive2_end_is_enqueue(end)  ? 'q' : '-',
+                           xive2_end_is_notify(end)   ? 'n' : '-',
+                           xive2_end_is_backlog(end)  ? 'b' : '-',
+                           xive2_end_is_escalate(end) ? 'e' : '-',
+                           xive2_end_is_escalate_end(end) ? 'N' : '-',
+                           xive2_end_is_uncond_escalation(end)   ? 'u' : '-',
+                           xive2_end_is_silent_escalation(end)   ? 's' : '-',
+                           xive2_end_is_firmware1(end)   ? 'f' : '-',
+                           xive2_end_is_firmware2(end)   ? 'F' : '-',
+                           priority, nvp_blk, nvp_idx);
 
     if (qaddr_base) {
-        monitor_printf(mon, " eq:@%08"PRIx64"% 6d/%5d ^%d",
-                       qaddr_base, qindex, qentries, qgen);
-        xive2_end_queue_pic_print_info(end, 6, mon);
+        g_string_append_printf(buf, " eq:@%08"PRIx64"% 6d/%5d ^%d",
+                               qaddr_base, qindex, qentries, qgen);
+        xive2_end_queue_pic_print_info(end, 6, buf);
     }
-    monitor_printf(mon, "\n");
+    g_string_append_c(buf, '\n');
 }
 
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
-                                  Monitor *mon)
+                                  GString *buf)
 {
     Xive2Eas *eas = (Xive2Eas *) &end->w4;
     uint8_t pq;
@@ -127,15 +126,15 @@ void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
 
     pq = xive_get_field32(END2_W1_ESe, end->w1);
 
-    monitor_printf(mon, "  %08x %c%c %c%c end:%02x/%04x data:%08x\n",
-                   end_idx,
-                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                   xive2_eas_is_valid(eas) ? 'v' : ' ',
-                   xive2_eas_is_masked(eas) ? 'M' : ' ',
-                   (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
-                   (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
+    g_string_append_printf(buf, "  %08x %c%c %c%c end:%02x/%04x data:%08x\n",
+                           end_idx,
+                           pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                           pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                           xive2_eas_is_valid(eas) ? 'v' : ' ',
+                           xive2_eas_is_masked(eas) ? 'M' : ' ',
+                           (uint8_t)  xive_get_field64(EAS2_END_BLOCK, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_INDEX, eas->w),
+                           (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
 }
 
 static void xive2_end_enqueue(Xive2End *end, uint32_t data)

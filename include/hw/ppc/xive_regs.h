@@ -167,7 +167,7 @@ typedef struct XiveEAS {
 #define xive_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS_VALID)
 #define xive_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS_MASKED)
 
-void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, GString *buf);
 
 static inline uint64_t xive_get_field64(uint64_t mask, uint64_t word)
 {
@@ -261,9 +261,9 @@ static inline uint64_t xive_end_qaddr(XiveEND *end)
         be32_to_cpu(end->w3);
 }
 
-void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
-void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon);
-void xive_end_eas_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, GString *buf);
+void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, GString *buf);
+void xive_end_eas_pic_print_info(XiveEND *end, uint32_t end_idx, GString *buf);
 
 /* Notification Virtual Target (NVT) */
 typedef struct XiveNVT {

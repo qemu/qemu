@@ -2006,9 +2006,9 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
 }
 
 void memory_region_notify_iommu_one(IOMMUNotifier *notifier,
-                                    IOMMUTLBEvent *event)
+                                    const IOMMUTLBEvent *event)
 {
-    IOMMUTLBEntry *entry = &event->entry;
+    const IOMMUTLBEntry *entry = &event->entry;
     hwaddr entry_end = entry->iova + entry->addr_mask;
     IOMMUTLBEntry tmp = *entry;
 
@@ -2052,7 +2052,7 @@ void memory_region_unmap_iommu_notifier_range(IOMMUNotifier *notifier)
 
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
                                 int iommu_idx,
-                                IOMMUTLBEvent event)
+                                const IOMMUTLBEvent event)
 {
     IOMMUNotifier *iommu_notifier;
 

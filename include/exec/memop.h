@@ -161,7 +161,7 @@ static inline MemOp size_memop(unsigned size)
     /* Power of 2 up to 8.  */
     assert((size & (size - 1)) == 0 && size >= 1 && size <= 8);
 #endif
-    return ctz32(size);
+    return (MemOp)ctz32(size);
 }
 
 /* Big endianness from MemOp.  */

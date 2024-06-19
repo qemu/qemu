@@ -38,7 +38,6 @@
 #include "hw/loader.h"
 #include "hw/nmi.h"
 #include "qapi/visitor.h"
-#include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/ipmi/ipmi.h"
 #include "target/ppc/mmu-hash64.h"
@@ -764,45 +763,44 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
-static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power8_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
     int i;
 
-    ics_pic_print_info(&chip8->psi.ics, mon);
+    ics_pic_print_info(&chip8->psi.ics, buf);
 
     for (i = 0; i < chip8->num_phbs; i++) {
         PnvPHB *phb = chip8->phbs[i];
         PnvPHB3 *phb3 = PNV_PHB3(phb->backend);
 
-        pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
-        ics_pic_print_info(&phb3->lsis, mon);
+        pnv_phb3_msi_pic_print_info(&phb3->msis, buf);
+        ics_pic_print_info(&phb3->lsis, buf);
     }
 }
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 {
-    Monitor *mon = opaque;
+    GString *buf = opaque;
     PnvPHB *phb =  (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
 
     if (!phb) {
         return 0;
     }
 
-    pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), mon);
+    pnv_phb4_pic_print_info(PNV_PHB4(phb->backend), buf);
 
     return 0;
 }
 
-static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power9_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
 
-    pnv_xive_pic_print_info(&chip9->xive, mon);
-    pnv_psi_pic_print_info(&chip9->psi, mon);
-
+    pnv_xive_pic_print_info(&chip9->xive, buf);
+    pnv_psi_pic_print_info(&chip9->psi, buf);
     object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
+                         pnv_chip_power9_pic_print_info_child, buf);
 }
 
 static uint64_t pnv_chip_power8_xscom_core_base(PnvChip *chip,
@@ -842,15 +840,14 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
     isa_realize_and_unref(dev, bus, &error_fatal);
 }
 
-static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
+static void pnv_chip_power10_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv10Chip *chip10 = PNV10_CHIP(chip);
 
-    pnv_xive2_pic_print_info(&chip10->xive, mon);
-    pnv_psi_pic_print_info(&chip10->psi, mon);
-
+    pnv_xive2_pic_print_info(&chip10->xive, buf);
+    pnv_psi_pic_print_info(&chip10->psi, buf);
     object_child_foreach_recursive(OBJECT(chip),
-                         pnv_chip_power9_pic_print_info_child, mon);
+                         pnv_chip_power9_pic_print_info_child, buf);
 }
 
 /* Always give the first 1GB to chip 0 else we won't boot */
@@ -1122,9 +1119,9 @@ static void pnv_chip_power8_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power8_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                            Monitor *mon)
+                                            GString *buf)
 {
-    icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
+    icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), buf);
 }
 
 /*
@@ -1209,9 +1206,9 @@ static void pnv_chip_power9_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power9_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                            Monitor *mon)
+                                            GString *buf)
 {
-    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), mon);
+    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), buf);
 }
 
 static void pnv_chip_power10_intc_create(PnvChip *chip, PowerPCCPU *cpu,
@@ -1253,9 +1250,9 @@ static void pnv_chip_power10_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
 }
 
 static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
-                                             Monitor *mon)
+                                             GString *buf)
 {
-    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), mon);
+    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), buf);
 }
 
 /*
@@ -2264,6 +2261,21 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir)
     return NULL;
 }
 
+static void pnv_chip_foreach_cpu(PnvChip *chip,
+                   void (*fn)(PnvChip *chip, PowerPCCPU *cpu, void *opaque),
+                   void *opaque)
+{
+    int i, j;
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pc = chip->cores[i];
+
+        for (j = 0; j < CPU_CORE(pc)->nr_threads; j++) {
+            fn(chip, pc->threads[j], opaque);
+        }
+    }
+}
+
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
@@ -2332,23 +2344,25 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
     return cpu ? ICP(pnv_cpu_state(cpu)->intc) : NULL;
 }
 
-static void pnv_pic_print_info(InterruptStatsProvider *obj,
-                               Monitor *mon)
+static void pnv_pic_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                    void *opaque)
+{
+    PNV_CHIP_GET_CLASS(chip)->intc_print_info(chip, cpu, opaque);
+}
+
+static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
     int i;
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        /* XXX: loop on each chip/core/thread instead of CPU_FOREACH() */
-        PNV_CHIP_GET_CLASS(pnv->chips[0])->intc_print_info(pnv->chips[0], cpu,
-                                                           mon);
-    }
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], mon);
+        PnvChip *chip = pnv->chips[i];
+
+        /* First CPU presenters */
+        pnv_chip_foreach_cpu(chip, pnv_pic_intc_print_info, buf);
+
+        /* Then other devices, PHB, PSI, XIVE */
+        PNV_CHIP_GET_CLASS(chip)->pic_print_info(chip, buf);
     }
 }
 
@@ -2549,12 +2563,18 @@ static void pnv_cpu_do_nmi_on_cpu(CPUState *cs, run_on_cpu_data arg)
     }
 }
 
+static void pnv_cpu_do_nmi(PnvChip *chip, PowerPCCPU *cpu, void *opaque)
+{
+    async_run_on_cpu(CPU(cpu), pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
+}
+
 static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
 {
-    CPUState *cs;
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    int i;
 
-    CPU_FOREACH(cs) {
-        async_run_on_cpu(cs, pnv_cpu_do_nmi_on_cpu, RUN_ON_CPU_NULL);
+    for (i = 0; i < pnv->num_chips; i++) {
+        pnv_chip_foreach_cpu(pnv->chips[i], pnv_cpu_do_nmi, NULL);
     }
 }
 

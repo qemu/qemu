@@ -23,6 +23,7 @@
 #include "sysemu/kvm.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"
+#include "trace.h"
 
 #define S390_SKEYS_BUFFER_SIZE (128 * KiB)  /* Room for 128k storage keys */
 #define S390_SKEYS_SAVE_FLAG_EOS 0x01
@@ -52,6 +53,32 @@ void s390_skeys_init(void)
     object_unref(obj);
 
     qdev_realize(DEVICE(obj), NULL, &error_fatal);
+}
+
+int s390_skeys_get(S390SKeysState *ks, uint64_t start_gfn,
+                   uint64_t count, uint8_t *keys)
+{
+    S390SKeysClass *kc = S390_SKEYS_GET_CLASS(ks);
+    int rc;
+
+    rc = kc->get_skeys(ks, start_gfn, count, keys);
+    if (rc) {
+        trace_s390_skeys_get_nonzero(rc);
+    }
+    return rc;
+}
+
+int s390_skeys_set(S390SKeysState *ks, uint64_t start_gfn,
+                   uint64_t count, uint8_t *keys)
+{
+    S390SKeysClass *kc = S390_SKEYS_GET_CLASS(ks);
+    int rc;
+
+    rc = kc->set_skeys(ks, start_gfn, count, keys);
+    if (rc) {
+        trace_s390_skeys_set_nonzero(rc);
+    }
+    return rc;
 }
 
 static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,

@@ -265,12 +265,12 @@ static void spapr_set_irq(void *opaque, int irq, int level)
     sicc->set_irq(spapr->active_intc, irq, level);
 }
 
-void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon)
+void spapr_irq_print_info(SpaprMachineState *spapr, GString *buf)
 {
     SpaprInterruptControllerClass *sicc
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
 
-    sicc->print_info(spapr->active_intc, mon);
+    sicc->print_info(spapr->active_intc, buf);
 }
 
 void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,

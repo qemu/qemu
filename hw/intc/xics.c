@@ -35,14 +35,13 @@
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 #include "target/ppc/cpu.h"
 
-void icp_pic_print_info(ICPState *icp, Monitor *mon)
+void icp_pic_print_info(ICPState *icp, GString *buf)
 {
     int cpu_index;
 
@@ -63,17 +62,17 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
         icp_synchronize_state(icp);
     }
 
-    monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
-                   cpu_index, icp->xirr, icp->xirr_owner,
-                   icp->pending_priority, icp->mfrr);
+    g_string_append_printf(buf, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
+                           cpu_index, icp->xirr, icp->xirr_owner,
+                           icp->pending_priority, icp->mfrr);
 }
 
-void ics_pic_print_info(ICSState *ics, Monitor *mon)
+void ics_pic_print_info(ICSState *ics, GString *buf)
 {
     uint32_t i;
 
-    monitor_printf(mon, "ICS %4x..%4x %p\n",
-                   ics->offset, ics->offset + ics->nr_irqs - 1, ics);
+    g_string_append_printf(buf, "ICS %4x..%4x %p\n",
+                           ics->offset, ics->offset + ics->nr_irqs - 1, ics);
 
     if (!ics->irqs) {
         return;
@@ -89,11 +88,11 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
         if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
             continue;
         }
-        monitor_printf(mon, "  %4x %s %02x %02x\n",
-                       ics->offset + i,
-                       (irq->flags & XICS_FLAGS_IRQ_LSI) ?
-                       "LSI" : "MSI",
-                       irq->priority, irq->status);
+        g_string_append_printf(buf, "  %4x %s %02x %02x\n",
+                               ics->offset + i,
+                               (irq->flags & XICS_FLAGS_IRQ_LSI) ?
+                               "LSI" : "MSI",
+                               irq->priority, irq->status);
     }
 }
 

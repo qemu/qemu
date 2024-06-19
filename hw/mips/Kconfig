@@ -67,6 +67,7 @@ config LOONGSON3V
     imply USB_OHCI_PCI
     select SERIAL
     select GOLDFISH_RTC
+    select LOONGSON_IPI
     select LOONGSON_LIOINTC
     select PCI_EXPRESS_GENERIC_BRIDGE
     select MSI_NONBROKEN

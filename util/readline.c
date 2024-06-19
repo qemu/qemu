@@ -271,6 +271,14 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     rs->hist_entry = -1;
 }
 
+static void readline_kill_line(ReadLineState *rs)
+{
+    while (rs->cmd_buf_index > 0) {
+        readline_backward_char(rs);
+        readline_delete_char(rs);
+    }
+}
+
 /* completion support */
 
 void readline_add_completion(ReadLineState *rs, const char *str)
@@ -405,7 +413,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 12:
             readline_clear_screen(rs);
             break;
-        case 10:
+        case 10: /* fallthrough */
         case 13:
             rs->cmd_buf[rs->cmd_buf_size] = '\0';
             if (!rs->read_password) {
@@ -418,6 +426,18 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             rs->last_cmd_buf_size = 0;
             rs->readline_func(rs->opaque, rs->cmd_buf, rs->readline_opaque);
             break;
+        case 14:
+            /* ^N Next line in history */
+            readline_down_char(rs);
+            break;
+        case 16:
+            /* ^P Prev line in history */
+            readline_up_char(rs);
+            break;
+        case 21:
+            /* ^U Kill backward from point to the beginning of the line. */
+            readline_kill_line(rs);
+            break;
         case 23:
             /* ^W */
             readline_backword(rs);
@@ -425,7 +445,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 27:
             rs->esc_state = IS_ESC;
             break;
-        case 127:
+        case 127: /* fallthrough */
         case 8:
             readline_backspace(rs);
             break;
@@ -452,11 +472,11 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         break;
     case IS_CSI:
         switch (ch) {
-        case 'A':
+        case 'A': /* fallthrough */
         case 'F':
             readline_up_char(rs);
             break;
-        case 'B':
+        case 'B': /* fallthrough */
         case 'E':
             readline_down_char(rs);
             break;
@@ -480,12 +500,15 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             case 4:
                 readline_eol(rs);
                 break;
+            default:
+                break;
             }
             break;
         default:
             break;
         }
         rs->esc_state = IS_NORM;
+        /* fallthrough */
     the_end:
         break;
     case IS_SS3:
@@ -496,8 +519,12 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 'H':
             readline_bol(rs);
             break;
+        default:
+            break;
         }
         rs->esc_state = IS_NORM;
+        break;
+    default:
         break;
     }
     readline_update(rs);

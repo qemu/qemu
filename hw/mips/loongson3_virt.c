@@ -36,6 +36,7 @@
 #include "hw/mips/loongson3_bootp.h"
 #include "hw/misc/unimp.h"
 #include "hw/intc/i8259.h"
+#include "hw/intc/loongson_ipi.h"
 #include "hw/loader.h"
 #include "hw/isa/superio.h"
 #include "hw/pci/msi.h"
@@ -74,6 +75,7 @@ const MemMapEntry virt_memmap[] = {
     [VIRT_PCIE_ECAM] =   { 0x1a000000,     0x2000000 },
     [VIRT_BIOS_ROM] =    { 0x1fc00000,      0x200000 },
     [VIRT_UART] =        { 0x1fe001e0,           0x8 },
+    [VIRT_IPI] =         { 0x3ff01000,         0x400 },
     [VIRT_LIOINTC] =     { 0x3ff01400,          0x64 },
     [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
     [VIRT_HIGHMEM] =     { 0x80000000,           0x0 }, /* Variable */
@@ -485,6 +487,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     Clock *cpuclk;
     CPUMIPSState *env;
     DeviceState *liointc;
+    DeviceState *ipi = NULL;
     char *filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *kernel_filename = machine->kernel_filename;
@@ -494,6 +497,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    MemoryRegion *iocsr = g_new(MemoryRegion, 1);
 
     /* TODO: TCG will support all CPU types */
     if (!kvm_enabled()) {
@@ -527,6 +531,19 @@ static void mips_loongson3_virt_init(MachineState *machine)
     create_unimplemented_device("mmio fallback 0", 0x10000000, 256 * MiB);
     create_unimplemented_device("mmio fallback 1", 0x30000000, 256 * MiB);
 
+    memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
+
+    /* IPI controller is in kernel for KVM */
+    if (!kvm_enabled()) {
+        ipi = qdev_new(TYPE_LOONGSON_IPI);
+        qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+        memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
+        memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
+    }
+
     liointc = qdev_new("loongson.liointc");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(liointc), &error_fatal);
 
@@ -543,6 +560,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
     clock_set_hz(cpuclk, DEF_LOONGSON3_FREQ);
 
     for (i = 0; i < machine->smp.cpus; i++) {
+        int node = i / LOONGSON3_CORE_PER_NODE;
+        int core = i % LOONGSON3_CORE_PER_NODE;
         int ip;
 
         /* init CPUs */
@@ -553,12 +572,28 @@ static void mips_loongson3_virt_init(MachineState *machine)
         cpu_mips_clock_init(cpu);
         qemu_register_reset(main_cpu_reset, cpu);
 
-        if (i >= 4) {
+        if (ipi) {
+            hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
+            base += core * 0x100;
+            qdev_connect_gpio_out(ipi, i, cpu->env.irq[6]);
+            sysbus_mmio_map(SYS_BUS_DEVICE(ipi), i + 2, base);
+        }
+
+        if (ase_lcsr_available(&MIPS_CPU(cpu)->env)) {
+            MemoryRegion *core_iocsr = g_new(MemoryRegion, 1);
+            g_autofree char *name = g_strdup_printf("core%d_iocsr", i);
+            memory_region_init_alias(core_iocsr, OBJECT(cpu), name,
+                                     iocsr, 0, UINT32_MAX);
+            memory_region_add_subregion(&MIPS_CPU(cpu)->env.iocsr.mr,
+                                        0, core_iocsr);
+        }
+
+        if (node > 0) {
             continue; /* Only node-0 can be connected to LIOINTC */
         }
 
         for (ip = 0; ip < 4 ; ip++) {
-            int pin = i * 4 + ip;
+            int pin = core * LOONGSON3_CORE_PER_NODE + ip;
             sysbus_connect_irq(SYS_BUS_DEVICE(liointc),
                                pin, cpu->env.irq[ip + 2]);
         }

@@ -1,9 +1,5 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
-# mmu_helper.c
-get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
-set_skeys_nonzero(int rc) "SKEY: Call to set_skeys unexpectedly returned %d"
-
 # ioinst.c
 ioinst(const char *insn) "IOINST: %s"
 ioinst_sch_id(const char *insn, int cssid, int ssid, int schid) "IOINST: %s (%x.%x.%04x)"

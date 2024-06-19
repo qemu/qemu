@@ -48,7 +48,7 @@ typedef struct Xive2Eas {
 #define xive2_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS2_VALID)
 #define xive2_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS2_MASKED)
 
-void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, Monitor *mon);
+void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf);
 
 /*
  * Event Notifification Descriptor (END)
@@ -130,11 +130,11 @@ static inline uint64_t xive2_end_qaddr(Xive2End *end)
         (be32_to_cpu(end->w3) & END2_W3_EQ_ADDR_LO);
 }
 
-void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, Monitor *mon);
+void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf);
 void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width,
-                                    Monitor *mon);
+                                    GString *buf);
 void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
-                                   Monitor *mon);
+                                  GString *buf);
 
 /*
  * Notification Virtual Processor (NVP)

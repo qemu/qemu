@@ -1837,7 +1837,7 @@ uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr);
  */
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
                                 int iommu_idx,
-                                IOMMUTLBEvent event);
+                                const IOMMUTLBEvent event);
 
 /**
  * memory_region_notify_iommu_one: notify a change in an IOMMU translation
@@ -1852,7 +1852,7 @@ void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
  *         range.
  */
 void memory_region_notify_iommu_one(IOMMUNotifier *notifier,
-                                    IOMMUTLBEvent *event);
+                                    const IOMMUTLBEvent *event);
 
 /**
  * memory_region_unmap_iommu_notifier_range: notify a unmap for an IOMMU
