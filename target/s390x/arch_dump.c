@@ -102,7 +102,7 @@ static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu, int id)
         regs->acrs[i] = cpu_to_be32(cpu->env.aregs[i]);
         regs->gprs[i] = cpu_to_be64(cpu->env.regs[i]);
     }
-    note->contents.prstatus.pid = id;
+    note->contents.prstatus.pid = cpu_to_be32(id);
 }
 
 static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu, int id)
