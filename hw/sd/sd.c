@@ -1105,7 +1105,7 @@ static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
 
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
-    uint16_t rca = sd_req_get_rca(sd, req);
+    uint16_t rca;
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
 
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
@@ -1162,6 +1162,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 7:  /* CMD7:   SELECT/DESELECT_CARD */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->state) {
         case sd_standby_state:
             if (sd->rca != rca)
@@ -1216,6 +1217,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         return sd_r7;
 
     case 9:  /* CMD9:   SEND_CSD */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->state) {
         case sd_standby_state:
             if (sd->rca != rca)
@@ -1239,6 +1241,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 10:  /* CMD10:  SEND_CID */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->state) {
         case sd_standby_state:
             if (sd->rca != rca)
@@ -1279,6 +1282,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 13:  /* CMD13:  SEND_STATUS */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->mode) {
         case sd_data_transfer_mode:
             if (!sd_is_spi(sd) && sd->rca != rca) {
@@ -1293,6 +1297,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 15:  /* CMD15:  GO_INACTIVE_STATE */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->mode) {
         case sd_data_transfer_mode:
             if (sd->rca != rca)
@@ -1525,6 +1530,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     /* Application specific commands (Class 8) */
     case 55:  /* CMD55:  APP_CMD */
+        rca = sd_req_get_rca(sd, req);
         switch (sd->state) {
         case sd_ready_state:
         case sd_identification_state:
