@@ -610,6 +610,7 @@ int main(int argc, char **argv)
     init_task_state(ts);
     ts->info = info;
     ts->bprm = &bprm;
+    ts->ts_tid = qemu_get_thread_id();
     cpu->opaque = ts;
 
     target_set_brk(info->brk);
