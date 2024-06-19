@@ -1770,3 +1770,9 @@ void *postcopy_preempt_thread(void *opaque)
 
     return NULL;
 }
+
+bool postcopy_is_paused(MigrationStatus status)
+{
+    return status == MIGRATION_STATUS_POSTCOPY_PAUSED ||
+        status == MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP;
+}
