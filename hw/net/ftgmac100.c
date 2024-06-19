@@ -238,7 +238,8 @@ typedef struct {
  */
 #define FTGMAC100_MAX_FRAME_SIZE    9220
 
-/* Limits depending on the type of the frame
+/*
+ * Limits depending on the type of the frame
  *
  *   9216 for Jumbo frames (+ 4 for VLAN)
  *   1518 for other frames (+ 4 for VLAN)
@@ -533,8 +534,10 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
             break;
         }
 
-        /* record transmit flags as they are valid only on the first
-         * segment */
+        /*
+         * record transmit flags as they are valid only on the first
+         * segment
+         */
         if (bd.des0 & FTGMAC100_TXDES0_FTS) {
             flags = bd.des1;
         }
@@ -639,7 +642,8 @@ static bool ftgmac100_can_receive(NetClientState *nc)
  */
 static uint32_t ftgmac100_rxpoll(FTGMAC100State *s)
 {
-    /* Polling times :
+    /*
+     * Polling times :
      *
      * Speed      TIME_SEL=0    TIME_SEL=1
      *
