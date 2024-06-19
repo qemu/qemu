@@ -73,6 +73,17 @@ static QTestMigrationState dst_state;
 #define QEMU_ENV_SRC "QTEST_QEMU_BINARY_SRC"
 #define QEMU_ENV_DST "QTEST_QEMU_BINARY_DST"
 
+typedef enum PostcopyRecoveryFailStage {
+    /*
+     * "no failure" must be 0 as it's the default.  OTOH, real failure
+     * cases must be >0 to make sure they trigger by a "if" test.
+     */
+    POSTCOPY_FAIL_NONE = 0,
+    POSTCOPY_FAIL_CHANNEL_ESTABLISH,
+    POSTCOPY_FAIL_RECOVERY,
+    POSTCOPY_FAIL_MAX
+} PostcopyRecoveryFailStage;
+
 #if defined(__linux__)
 #include <sys/syscall.h>
 #include <sys/vfs.h>
@@ -693,7 +704,7 @@ typedef struct {
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
-    bool postcopy_recovery_test_fail;
+    PostcopyRecoveryFailStage postcopy_recovery_fail_stage;
 } MigrateCommon;
 
 static int test_migrate_start(QTestState **from, QTestState **to,
@@ -1371,11 +1382,15 @@ static void wait_for_postcopy_status(QTestState *one, const char *status)
                                                   "completed", NULL });
 }
 
-static void postcopy_recover_fail(QTestState *from, QTestState *to)
+static void postcopy_recover_fail(QTestState *from, QTestState *to,
+                                  PostcopyRecoveryFailStage stage)
 {
 #ifndef _WIN32
+    bool fail_early = (stage == POSTCOPY_FAIL_CHANNEL_ESTABLISH);
     int ret, pair1[2], pair2[2];
     char c;
+
+    g_assert(stage > POSTCOPY_FAIL_NONE && stage < POSTCOPY_FAIL_MAX);
 
     /* Create two unrelated socketpairs */
     ret = qemu_socketpair(PF_LOCAL, SOCK_STREAM, 0, pair1);
@@ -1410,6 +1425,14 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to)
     ret = send(pair2[1], &c, 1, 0);
     g_assert_cmpint(ret, ==, 1);
 
+    if (stage == POSTCOPY_FAIL_CHANNEL_ESTABLISH) {
+        /*
+         * This will make src QEMU to fail at an early stage when trying to
+         * resume later, where it shouldn't reach RECOVER stage at all.
+         */
+        close(pair1[1]);
+    }
+
     migrate_recover(to, "fd:fd-mig");
     migrate_qmp(from, to, "fd:fd-mig", NULL, "{'resume': true}");
 
@@ -1419,28 +1442,53 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to)
      */
     migration_event_wait(from, "postcopy-recover-setup");
 
+    if (fail_early) {
+        /*
+         * When fails at reconnection, src QEMU will automatically goes
+         * back to PAUSED state.  Making sure there is an event in this
+         * case: Libvirt relies on this to detect early reconnection
+         * errors.
+         */
+        migration_event_wait(from, "postcopy-paused");
+    } else {
+        /*
+         * We want to test "fail later" at RECOVER stage here.  Make sure
+         * both QEMU instances will go into RECOVER stage first, then test
+         * kicking them out using migrate-pause.
+         *
+         * Explicitly check the RECOVER event on src, that's what Libvirt
+         * relies on, rather than polling.
+         */
+        migration_event_wait(from, "postcopy-recover");
+        wait_for_postcopy_status(from, "postcopy-recover");
+
+        /* Need an explicit kick on src QEMU in this case */
+        migrate_pause(from);
+    }
+
     /*
-     * Make sure both QEMU instances will go into RECOVER stage, then test
-     * kicking them out using migrate-pause.
+     * For all failure cases, we'll reach such states on both sides now.
+     * Check them.
      */
-    wait_for_postcopy_status(from, "postcopy-recover");
+    wait_for_postcopy_status(from, "postcopy-paused");
     wait_for_postcopy_status(to, "postcopy-recover");
 
     /*
-     * This would be issued by the admin upon noticing the hang, we should
-     * make sure we're able to kick this out.
+     * Kick dest QEMU out too. This is normally not needed in reality
+     * because when the channel is shutdown it should also happen on src.
+     * However here we used separate socket pairs so we need to do that
+     * explicitly.
      */
-    migrate_pause(from);
-    wait_for_postcopy_status(from, "postcopy-paused");
-
-    /* Do the same test on dest */
     migrate_pause(to);
     wait_for_postcopy_status(to, "postcopy-paused");
 
     close(pair1[0]);
-    close(pair1[1]);
     close(pair2[0]);
     close(pair2[1]);
+
+    if (stage != POSTCOPY_FAIL_CHANNEL_ESTABLISH) {
+        close(pair1[1]);
+    }
 #endif
 }
 
@@ -1482,12 +1530,12 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     wait_for_postcopy_status(to, "postcopy-paused");
     wait_for_postcopy_status(from, "postcopy-paused");
 
-    if (args->postcopy_recovery_test_fail) {
+    if (args->postcopy_recovery_fail_stage) {
         /*
          * Test when a wrong socket specified for recover, and then the
          * ability to kick it out, and continue with a correct socket.
          */
-        postcopy_recover_fail(from, to);
+        postcopy_recover_fail(from, to, args->postcopy_recovery_fail_stage);
         /* continue with a good recovery */
     }
 
@@ -1518,10 +1566,19 @@ static void test_postcopy_recovery(void)
     test_postcopy_recovery_common(&args);
 }
 
-static void test_postcopy_recovery_double_fail(void)
+static void test_postcopy_recovery_fail_handshake(void)
 {
     MigrateCommon args = {
-        .postcopy_recovery_test_fail = true,
+        .postcopy_recovery_fail_stage = POSTCOPY_FAIL_RECOVERY,
+    };
+
+    test_postcopy_recovery_common(&args);
+}
+
+static void test_postcopy_recovery_fail_reconnect(void)
+{
+    MigrateCommon args = {
+        .postcopy_recovery_fail_stage = POSTCOPY_FAIL_CHANNEL_ESTABLISH,
     };
 
     test_postcopy_recovery_common(&args);
@@ -3791,8 +3848,10 @@ int main(int argc, char **argv)
                            test_postcopy_preempt);
         migration_test_add("/migration/postcopy/preempt/recovery/plain",
                            test_postcopy_preempt_recovery);
-        migration_test_add("/migration/postcopy/recovery/double-failures",
-                           test_postcopy_recovery_double_fail);
+        migration_test_add("/migration/postcopy/recovery/double-failures/handshake",
+                           test_postcopy_recovery_fail_handshake);
+        migration_test_add("/migration/postcopy/recovery/double-failures/reconnect",
+                           test_postcopy_recovery_fail_reconnect);
         if (is_x86) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);
