@@ -369,6 +369,11 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
         old_tss_limit_max = 43;
     }
 
+    /* new TSS must be busy iff the source is an IRET instruction  */
+    if (!!(e2 & DESC_TSS_BUSY_MASK) != (source == SWITCH_TSS_IRET)) {
+        raise_exception_err_ra(env, EXCP0A_TSS, tss_selector & 0xfffc, retaddr);
+    }
+
     /* read all the registers from the new TSS */
     if (type & 8) {
         /* 32 bit */
