@@ -78,9 +78,26 @@ static void gen_NM_exception(DisasContext *s)
     gen_exception(s, EXCP07_PREX);
 }
 
-static void gen_load_ea(DisasContext *s, AddressParts *mem, bool is_vsib)
+static void gen_load_ea(DisasContext *s, X86DecodedInsn *decode)
 {
-    TCGv ea = gen_lea_modrm_1(s, *mem, is_vsib);
+    AddressParts *mem = &decode->mem;
+    TCGv ea;
+
+    ea = gen_lea_modrm_1(s, *mem, decode->e.vex_class == 12);
+    if (decode->e.special == X86_SPECIAL_BitTest) {
+        MemOp ot = decode->op[1].ot;
+        int poslen = 8 << ot;
+        int opn = decode->op[2].n;
+        TCGv ofs = tcg_temp_new();
+
+        /* Extract memory displacement from the second operand.  */
+        assert(decode->op[2].unit == X86_OP_INT && decode->op[2].ot != MO_8);
+        tcg_gen_sextract_tl(ofs, cpu_regs[opn], 3, poslen - 3);
+        tcg_gen_andi_tl(ofs, ofs, -1 << ot);
+        tcg_gen_add_tl(s->A0, ea, ofs);
+        ea = s->A0;
+    }
+
     gen_lea_v_seg(s, ea, mem->def_seg, s->override);
 }
 
@@ -410,6 +427,32 @@ static void prepare_update3_cc(X86DecodedInsn *decode, DisasContext *s, CCOp op,
     decode->cc_src = s->T1;
     decode->cc_dst = s->T0;
     decode->cc_op = op;
+}
+
+/* Set up decode->cc_* to modify CF while keeping other flags unchanged.  */
+static void prepare_update_cf(X86DecodedInsn *decode, DisasContext *s, TCGv cf)
+{
+    switch (s->cc_op) {
+    case CC_OP_ADOX:
+    case CC_OP_ADCOX:
+        decode->cc_src2 = cpu_cc_src2;
+        decode->cc_src = cpu_cc_src;
+        decode->cc_op = CC_OP_ADCOX;
+        break;
+
+    case CC_OP_EFLAGS:
+    case CC_OP_ADCX:
+        decode->cc_src = cpu_cc_src;
+        decode->cc_op = CC_OP_ADCX;
+        break;
+
+    default:
+        decode->cc_src = tcg_temp_new();
+        gen_mov_eflags(s, decode->cc_src);
+        decode->cc_op = CC_OP_ADCX;
+        break;
+    }
+    decode->cc_dst = cf;
 }
 
 static void gen_store_sse(DisasContext *s, X86DecodedInsn *decode, int src_ofs)
@@ -1388,6 +1431,109 @@ static void gen_BSWAP(DisasContext *s, X86DecodedInsn *decode)
     }
 #endif
     tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
+}
+
+static TCGv gen_bt_mask(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[1].ot;
+    TCGv mask = tcg_temp_new();
+
+    tcg_gen_andi_tl(s->T1, s->T1, (8 << ot) - 1);
+    tcg_gen_shl_tl(mask, tcg_constant_tl(1), s->T1);
+    return mask;
+}
+
+/* Expects truncated bit index in s->T1, 1 << s->T1 in MASK.  */
+static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src, TCGv mask)
+{
+    TCGv cf;
+
+    /*
+     * C is the result of the test, Z is unchanged, and the others
+     * are all undefined.
+     */
+    switch (s->cc_op) {
+    case CC_OP_DYNAMIC:
+    case CC_OP_CLR:
+    case CC_OP_EFLAGS:
+    case CC_OP_ADCX:
+    case CC_OP_ADOX:
+    case CC_OP_ADCOX:
+        /* Generate EFLAGS and replace the C bit.  */
+        cf = tcg_temp_new();
+        tcg_gen_setcond_tl(TCG_COND_TSTNE, cf, src, mask);
+        prepare_update_cf(decode, s, cf);
+        break;
+    default:
+        /*
+         * Z was going to be computed from the non-zero status of CC_DST.
+         * We can get that same Z value (and the new C value) by leaving
+         * CC_DST alone, setting CC_SRC, and using a CC_OP_SAR of the
+         * same width.
+         */
+        decode->cc_src = tcg_temp_new();
+        decode->cc_dst = cpu_cc_dst;
+        decode->cc_op = ((s->cc_op - CC_OP_MULB) & 3) + CC_OP_SARB;
+        tcg_gen_shr_tl(decode->cc_src, src, s->T1);
+        break;
+    }
+}
+
+static void gen_BT(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGv mask = gen_bt_mask(s, decode);
+
+    gen_bt_flags(s, decode, s->T0, mask);
+}
+
+static void gen_BTC(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+    TCGv old = tcg_temp_new();
+    TCGv mask = gen_bt_mask(s, decode);
+
+    if (s->prefix & PREFIX_LOCK) {
+        tcg_gen_atomic_fetch_xor_tl(old, s->A0, mask, s->mem_index, ot | MO_LE);
+    } else {
+        tcg_gen_mov_tl(old, s->T0);
+        tcg_gen_xor_tl(s->T0, s->T0, mask);
+    }
+
+    gen_bt_flags(s, decode, old, mask);
+}
+
+static void gen_BTR(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+    TCGv old = tcg_temp_new();
+    TCGv mask = gen_bt_mask(s, decode);
+
+    if (s->prefix & PREFIX_LOCK) {
+        TCGv maskc = tcg_temp_new();
+        tcg_gen_not_tl(maskc, mask);
+        tcg_gen_atomic_fetch_and_tl(old, s->A0, maskc, s->mem_index, ot | MO_LE);
+    } else {
+        tcg_gen_mov_tl(old, s->T0);
+        tcg_gen_andc_tl(s->T0, s->T0, mask);
+    }
+
+    gen_bt_flags(s, decode, old, mask);
+}
+
+static void gen_BTS(DisasContext *s, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[0].ot;
+    TCGv old = tcg_temp_new();
+    TCGv mask = gen_bt_mask(s, decode);
+
+    if (s->prefix & PREFIX_LOCK) {
+        tcg_gen_atomic_fetch_or_tl(old, s->A0, mask, s->mem_index, ot | MO_LE);
+    } else {
+        tcg_gen_mov_tl(old, s->T0);
+        tcg_gen_or_tl(s->T0, s->T0, mask);
+    }
+
+    gen_bt_flags(s, decode, old, mask);
 }
 
 static void gen_BZHI(DisasContext *s, X86DecodedInsn *decode)

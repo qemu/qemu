@@ -205,6 +205,7 @@
 #define sextT0 .special = X86_SPECIAL_SExtT0,
 #define zextT0 .special = X86_SPECIAL_ZExtT0,
 #define op0_Mw .special = X86_SPECIAL_Op0_Mw,
+#define btEvGv .special = X86_SPECIAL_BitTest,
 
 #define vex1 .vex_class = 1,
 #define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
@@ -266,6 +267,24 @@ static inline const X86OpEntry *decode_by_prefix(DisasContext *s, const X86OpEnt
         return &entries[1];
     } else {
         return &entries[0];
+    }
+}
+
+static void decode_group8(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group8_gen[8] = {
+        NULL, NULL, NULL, NULL,
+        gen_BT, gen_BTS, gen_BTR, gen_BTC,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group8_gen[op];
+    if (op == 4) {
+        /* prevent writeback and LOCK for BT */
+        entry->op1 = entry->op0;
+        entry->op0 = X86_TYPE_None;
+        entry->s0 = X86_SIZE_None;
+    } else {
+        entry->special = X86_SPECIAL_HasLock;
     }
 }
 
@@ -1162,12 +1181,14 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xa0] = X86_OP_ENTRYr(PUSH, FS, w),
     [0xa1] = X86_OP_ENTRYw(POP, FS, w),
     [0xa2] = X86_OP_ENTRY0(CPUID),
+    [0xa3] = X86_OP_ENTRYrr(BT,   E,v, G,v,          btEvGv),
     [0xa4] = X86_OP_ENTRY4(SHLD,  E,v, 2op,v, G,v),
     [0xa5] = X86_OP_ENTRY3(SHLD,  E,v, 2op,v, G,v),
 
     [0xb0] = X86_OP_ENTRY2(CMPXCHG,E,b, G,b, lock),
     [0xb1] = X86_OP_ENTRY2(CMPXCHG,E,v, G,v, lock),
     [0xb2] = X86_OP_ENTRY3(LSS,    G,v, EM,p, None, None),
+    [0xb3] = X86_OP_ENTRY2(BTR,    E,v, G,v,             btEvGv),
     [0xb4] = X86_OP_ENTRY3(LFS,    G,v, EM,p, None, None),
     [0xb5] = X86_OP_ENTRY3(LGS,    G,v, EM,p, None, None),
     [0xb6] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, zextT0), /* MOVZX */
@@ -1294,6 +1315,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xa8] = X86_OP_ENTRYr(PUSH,   GS, w),
     [0xa9] = X86_OP_ENTRYw(POP,    GS, w),
     [0xaa] = X86_OP_ENTRY0(RSM,             chk(smm) svm(RSM)),
+    [0xab] = X86_OP_ENTRY2(BTS,    E,v, G,v,             btEvGv),
     [0xac] = X86_OP_ENTRY4(SHRD,   E,v, 2op,v, G,v),
     [0xad] = X86_OP_ENTRY3(SHRD,   E,v, 2op,v, G,v),
     [0xae] = X86_OP_GROUP0(group15),
@@ -1306,6 +1328,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xb8] = X86_OP_GROUP0(0FB8),
     /* decoded as modrm, which is visible as a difference between page fault and #UD */
     [0xb9] = X86_OP_ENTRYr(UD,     nop,v),                        /* UD1 */
+    [0xba] = X86_OP_GROUP2(group8, E,v, I,b),
+    [0xbb] = X86_OP_ENTRY2(BTC,    E,v, G,v,             btEvGv),
     [0xbc] = X86_OP_GROUP0(0FBC),
     [0xbd] = X86_OP_GROUP0(0FBD),
     [0xbe] = X86_OP_ENTRY3(MOV,    G,v, E,b, None, None, sextT0), /* MOVSX */
@@ -2428,6 +2452,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
     CPUX86State *env = cpu_env(cpu);
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
+    bool accept_lock = false;
     uint8_t cc_live, b;
 
     s->pc = s->base.pc_next;
@@ -2601,10 +2626,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             switch (b) {
             case 0x00 ... 0x01: /* mostly privileged instructions */
             case 0x1a ... 0x1b: /* MPX */
-            case 0xa3:          /* bt */
-            case 0xab:          /* bts */
-            case 0xb3:          /* btr */
-            case 0xba ... 0xbb: /* grp8, btc */
             case 0xc7:          /* grp9 */
                 disas_insn_old(s, cpu, b + 0x100);
                 return;
@@ -2666,9 +2687,10 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         if (decode.op[0].has_ea) {
             s->prefix |= PREFIX_LOCK;
         }
-        decode.e.special = X86_SPECIAL_HasLock;
         /* fallthrough */
     case X86_SPECIAL_HasLock:
+    case X86_SPECIAL_BitTest:
+        accept_lock = decode.op[0].has_ea;
         break;
 
     case X86_SPECIAL_Op0_Rd:
@@ -2710,10 +2732,8 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         break;
     }
 
-    if (s->prefix & PREFIX_LOCK) {
-        if (decode.e.special != X86_SPECIAL_HasLock || !decode.op[0].has_ea) {
-            goto illegal_op;
-        }
+    if ((s->prefix & PREFIX_LOCK) && !accept_lock) {
+        goto illegal_op;
     }
 
     if (!validate_vex(s, &decode)) {
@@ -2759,9 +2779,10 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     if (decode.e.special != X86_SPECIAL_NoLoadEA &&
         (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea)) {
-        gen_load_ea(s, &decode.mem, decode.e.vex_class == 12);
+        gen_load_ea(s, &decode);
     }
     if (s->prefix & PREFIX_LOCK) {
+        assert(decode.op[0].has_ea && !decode.op[2].has_ea);
         gen_load(s, &decode, 2, s->T1);
         decode.e.gen(s, &decode);
     } else {

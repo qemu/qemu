@@ -190,6 +190,9 @@ typedef enum X86InsnSpecial {
     /* Always locked if it has a memory operand (XCHG) */
     X86_SPECIAL_Locked,
 
+    /* Like HasLock, but also operand 2 provides bit displacement into memory.  */
+    X86_SPECIAL_BitTest,
+
     /* Do not load effective address in s->A0 */
     X86_SPECIAL_NoLoadEA,
 

@@ -693,11 +693,6 @@ static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
     return dst;
 }
 
-static void gen_exts(MemOp ot, TCGv reg)
-{
-    gen_ext_tl(reg, reg, ot, true);
-}
-
 static void gen_op_j_ecx(DisasContext *s, TCGCond cond, TCGLabel *label1)
 {
     TCGv tmp = gen_ext_tl(NULL, cpu_regs[R_ECX], s->aflag, false);
@@ -2980,7 +2975,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
     int prefixes = s->prefix;
     MemOp dflag = s->dflag;
     MemOp ot;
-    int modrm, reg, rm, mod, op, val;
+    int modrm, reg, rm, mod, op;
 
     /* now check op code */
     switch (b) {
@@ -3046,146 +3041,6 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         }
         break;
 
-        /************************/
-        /* bit operations */
-    case 0x1ba: /* bt/bts/btr/btc Gv, im */
-        ot = dflag;
-        modrm = x86_ldub_code(env, s);
-        op = (modrm >> 3) & 7;
-        mod = (modrm >> 6) & 3;
-        rm = (modrm & 7) | REX_B(s);
-        if (mod != 3) {
-            s->rip_offset = 1;
-            gen_lea_modrm(env, s, modrm);
-            if (!(s->prefix & PREFIX_LOCK)) {
-                gen_op_ld_v(s, ot, s->T0, s->A0);
-            }
-        } else {
-            gen_op_mov_v_reg(s, ot, s->T0, rm);
-        }
-        /* load shift */
-        val = x86_ldub_code(env, s);
-        tcg_gen_movi_tl(s->T1, val);
-        if (op < 4)
-            goto unknown_op;
-        op -= 4;
-        goto bt_op;
-    case 0x1a3: /* bt Gv, Ev */
-        op = 0;
-        goto do_btx;
-    case 0x1ab: /* bts */
-        op = 1;
-        goto do_btx;
-    case 0x1b3: /* btr */
-        op = 2;
-        goto do_btx;
-    case 0x1bb: /* btc */
-        op = 3;
-    do_btx:
-        ot = dflag;
-        modrm = x86_ldub_code(env, s);
-        reg = ((modrm >> 3) & 7) | REX_R(s);
-        mod = (modrm >> 6) & 3;
-        rm = (modrm & 7) | REX_B(s);
-        gen_op_mov_v_reg(s, MO_32, s->T1, reg);
-        if (mod != 3) {
-            AddressParts a = gen_lea_modrm_0(env, s, modrm, false);
-            /* specific case: we need to add a displacement */
-            gen_exts(ot, s->T1);
-            tcg_gen_sari_tl(s->tmp0, s->T1, 3 + ot);
-            tcg_gen_shli_tl(s->tmp0, s->tmp0, ot);
-            tcg_gen_add_tl(s->A0, gen_lea_modrm_1(s, a, false), s->tmp0);
-            gen_lea_v_seg(s, s->A0, a.def_seg, s->override);
-            if (!(s->prefix & PREFIX_LOCK)) {
-                gen_op_ld_v(s, ot, s->T0, s->A0);
-            }
-        } else {
-            gen_op_mov_v_reg(s, ot, s->T0, rm);
-        }
-    bt_op:
-        tcg_gen_andi_tl(s->T1, s->T1, (1 << (3 + ot)) - 1);
-        tcg_gen_movi_tl(s->tmp0, 1);
-        tcg_gen_shl_tl(s->tmp0, s->tmp0, s->T1);
-        if (s->prefix & PREFIX_LOCK) {
-            switch (op) {
-            case 0: /* bt */
-                /* Needs no atomic ops; we suppressed the normal
-                   memory load for LOCK above so do it now.  */
-                gen_op_ld_v(s, ot, s->T0, s->A0);
-                break;
-            case 1: /* bts */
-                tcg_gen_atomic_fetch_or_tl(s->T0, s->A0, s->tmp0,
-                                           s->mem_index, ot | MO_LE);
-                break;
-            case 2: /* btr */
-                tcg_gen_not_tl(s->tmp0, s->tmp0);
-                tcg_gen_atomic_fetch_and_tl(s->T0, s->A0, s->tmp0,
-                                            s->mem_index, ot | MO_LE);
-                break;
-            default:
-            case 3: /* btc */
-                tcg_gen_atomic_fetch_xor_tl(s->T0, s->A0, s->tmp0,
-                                            s->mem_index, ot | MO_LE);
-                break;
-            }
-            tcg_gen_shr_tl(s->tmp4, s->T0, s->T1);
-        } else {
-            tcg_gen_shr_tl(s->tmp4, s->T0, s->T1);
-            switch (op) {
-            case 0: /* bt */
-                /* Data already loaded; nothing to do.  */
-                break;
-            case 1: /* bts */
-                tcg_gen_or_tl(s->T0, s->T0, s->tmp0);
-                break;
-            case 2: /* btr */
-                tcg_gen_andc_tl(s->T0, s->T0, s->tmp0);
-                break;
-            default:
-            case 3: /* btc */
-                tcg_gen_xor_tl(s->T0, s->T0, s->tmp0);
-                break;
-            }
-            if (op != 0) {
-                if (mod != 3) {
-                    gen_op_st_v(s, ot, s->T0, s->A0);
-                } else {
-                    gen_op_mov_reg_v(s, ot, rm, s->T0);
-                }
-            }
-        }
-
-        /* Delay all CC updates until after the store above.  Note that
-           C is the result of the test, Z is unchanged, and the others
-           are all undefined.  */
-        switch (s->cc_op) {
-        case CC_OP_MULB ... CC_OP_MULQ:
-        case CC_OP_ADDB ... CC_OP_ADDQ:
-        case CC_OP_ADCB ... CC_OP_ADCQ:
-        case CC_OP_SUBB ... CC_OP_SUBQ:
-        case CC_OP_SBBB ... CC_OP_SBBQ:
-        case CC_OP_LOGICB ... CC_OP_LOGICQ:
-        case CC_OP_INCB ... CC_OP_INCQ:
-        case CC_OP_DECB ... CC_OP_DECQ:
-        case CC_OP_SHLB ... CC_OP_SHLQ:
-        case CC_OP_SARB ... CC_OP_SARQ:
-        case CC_OP_BMILGB ... CC_OP_BMILGQ:
-        case CC_OP_POPCNT:
-            /* Z was going to be computed from the non-zero status of CC_DST.
-               We can get that same Z value (and the new C value) by leaving
-               CC_DST alone, setting CC_SRC, and using a CC_OP_SAR of the
-               same width.  */
-            tcg_gen_mov_tl(cpu_cc_src, s->tmp4);
-            set_cc_op(s, ((s->cc_op - CC_OP_MULB) & 3) + CC_OP_SARB);
-            break;
-        default:
-            /* Otherwise, generate EFLAGS and replace the C bit.  */
-            gen_compute_eflags(s);
-            tcg_gen_deposit_tl(cpu_cc_src, cpu_cc_src, s->tmp4,
-                               ctz32(CC_C), 1);
-            break;
-        }
-        break;
     case 0x100:
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
