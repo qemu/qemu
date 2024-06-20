@@ -413,6 +413,191 @@ struct MachineState {
     struct NumaState *numa_state;
 };
 
+/*
+ * The macros which follow are intended to facilitate the
+ * definition of versioned machine types, using a somewhat
+ * similar pattern across targets.
+ *
+ * For example, a macro that can be used to define versioned
+ * 'virt' machine types would look like:
+ *
+ *  #define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
+ *      static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \
+ *          ObjectClass *oc, \
+ *          void *data) \
+ *      { \
+ *          MachineClass *mc = MACHINE_CLASS(oc); \
+ *          MACHINE_VER_SYM(options, virt, __VA_ARGS__)(mc); \
+ *          mc->desc = "QEMU " MACHINE_VER_STR(__VA_ARGS__) " Virtual Machine"; \
+ *          if (latest) { \
+ *              mc->alias = "virt"; \
+ *          } \
+ *      } \
+ *      static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = { \
+ *          .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+ *          .parent = TYPE_VIRT_MACHINE, \
+ *          .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
+ *      }; \
+ *      static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
+ *      { \
+ *          type_register_static(&MACHINE_VER_SYM(info, virt, __VA_ARGS__)); \
+ *      } \
+ *      type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
+ *
+ * Following this, one (or more) helpers can be added for
+ * whichever scenarios need to be catered for with a machine:
+ *
+ *  // Normal 2 digit, marked as latest e.g. 'virt-9.0'
+ *  #define DEFINE_VIRT_MACHINE_LATEST(major, minor) \
+ *      DEFINE_VIRT_MACHINE_IMPL(true, major, minor)
+ *
+ *  // Normal 2 digit e.g. 'virt-9.0'
+ *  #define DEFINE_VIRT_MACHINE(major, minor) \
+ *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor)
+ *
+ *  // Bugfix 3 digit e.g. 'virt-9.0.1'
+ *  #define DEFINE_VIRT_MACHINE_BUGFIX(major, minor, micro) \
+ *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro)
+ *
+ *  // Tagged 2 digit e.g. 'virt-9.0-extra'
+ *  #define DEFINE_VIRT_MACHINE_TAGGED(major, minor, tag) \
+ *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, _, tag)
+ *
+ *  // Tagged bugfix 2 digit e.g. 'virt-9.0.1-extra'
+ *  #define DEFINE_VIRT_MACHINE_TAGGED(major, minor, micro, tag) \
+ *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro, _, tag)
+ */
+
+/*
+ * Helper for dispatching different macros based on how
+ * many __VA_ARGS__ are passed. Supports 1 to 5 variadic
+ * arguments, with the called target able to be prefixed
+ * with 0 or more fixed arguments too. To be called thus:
+ *
+ *  _MACHINE_VER_PICK(__VA_ARGS,
+ *                    MACRO_MATCHING_5_ARGS,
+ *                    MACRO_MATCHING_4_ARGS,
+ *                    MACRO_MATCHING_3_ARGS,
+ *                    MACRO_MATCHING_2_ARGS,
+ *                    MACRO_MATCHING_1_ARG) (FIXED-ARG-1,
+ *                                           ...,
+ *                                           FIXED-ARG-N,
+ *                                           __VA_ARGS__)
+ */
+#define _MACHINE_VER_PICK(x1, x2, x3, x4, x5, x6, ...) x6
+
+/*
+ * Construct a human targeted machine version string.
+ *
+ * Can be invoked with various signatures
+ *
+ *  MACHINE_VER_STR(sym, prefix, major, minor)
+ *  MACHINE_VER_STR(sym, prefix, major, minor, micro)
+ *  MACHINE_VER_STR(sym, prefix, major, minor, _, tag)
+ *  MACHINE_VER_STR(sym, prefix, major, minor, micro, _, tag)
+ *
+ * Respectively emitting symbols with the format
+ *
+ *   "{major}.{minor}"
+ *   "{major}.{minor}-{tag}"
+ *   "{major}.{minor}.{micro}"
+ *   "{major}.{minor}.{micro}-{tag}"
+ */
+#define _MACHINE_VER_STR2(major, minor) \
+    #major "." #minor
+
+#define _MACHINE_VER_STR3(major, minor, micro) \
+    #major "." #minor "." #micro
+
+#define _MACHINE_VER_STR4(major, minor, _unused_, tag) \
+    #major "." #minor "-" #tag
+
+#define _MACHINE_VER_STR5(major, minor, micro, _unused_, tag) \
+    #major "." #minor "." #micro "-" #tag
+
+#define MACHINE_VER_STR(...) \
+    _MACHINE_VER_PICK(__VA_ARGS__, \
+                      _MACHINE_VER_STR5, \
+                      _MACHINE_VER_STR4, \
+                      _MACHINE_VER_STR3, \
+                      _MACHINE_VER_STR2) (__VA_ARGS__)
+
+
+/*
+ * Construct a QAPI type name for a versioned machine
+ * type
+ *
+ * Can be invoked with various signatures
+ *
+ *  MACHINE_VER_TYPE_NAME(prefix, major, minor)
+ *  MACHINE_VER_TYPE_NAME(prefix, major, minor, micro)
+ *  MACHINE_VER_TYPE_NAME(prefix, major, minor, _, tag)
+ *  MACHINE_VER_TYPE_NAME(prefix, major, minor, micro, _, tag)
+ *
+ * Respectively emitting symbols with the format
+ *
+ *   "{prefix}-{major}.{minor}"
+ *   "{prefix}-{major}.{minor}.{micro}"
+ *   "{prefix}-{major}.{minor}-{tag}"
+ *   "{prefix}-{major}.{minor}.{micro}-{tag}"
+ */
+#define _MACHINE_VER_TYPE_NAME2(prefix, major, minor)   \
+    prefix "-" #major "." #minor TYPE_MACHINE_SUFFIX
+
+#define _MACHINE_VER_TYPE_NAME3(prefix, major, minor, micro) \
+    prefix "-" #major "." #minor "." #micro TYPE_MACHINE_SUFFIX
+
+#define _MACHINE_VER_TYPE_NAME4(prefix, major, minor, _unused_, tag) \
+    prefix "-" #major "." #minor "-" #tag TYPE_MACHINE_SUFFIX
+
+#define _MACHINE_VER_TYPE_NAME5(prefix, major, minor, micro, _unused_, tag) \
+    prefix "-" #major "." #minor "." #micro "-" #tag TYPE_MACHINE_SUFFIX
+
+#define MACHINE_VER_TYPE_NAME(prefix, ...) \
+    _MACHINE_VER_PICK(__VA_ARGS__, \
+                      _MACHINE_VER_TYPE_NAME5, \
+                      _MACHINE_VER_TYPE_NAME4, \
+                      _MACHINE_VER_TYPE_NAME3, \
+                      _MACHINE_VER_TYPE_NAME2) (prefix, __VA_ARGS__)
+
+/*
+ * Construct a name for a versioned machine type that is
+ * suitable for use as a C symbol (function/variable/etc).
+ *
+ * Can be invoked with various signatures
+ *
+ *  MACHINE_VER_SYM(sym, prefix, major, minor)
+ *  MACHINE_VER_SYM(sym, prefix, major, minor, micro)
+ *  MACHINE_VER_SYM(sym, prefix, major, minor, _, tag)
+ *  MACHINE_VER_SYM(sym, prefix, major, minor, micro, _, tag)
+ *
+ * Respectively emitting symbols with the format
+ *
+ *   {prefix}_machine_{major}_{minor}_{sym}
+ *   {prefix}_machine_{major}_{minor}_{micro}_{sym}
+ *   {prefix}_machine_{major}_{minor}_{tag}_{sym}
+ *   {prefix}_machine_{major}_{minor}_{micro}_{tag}_{sym}
+ */
+#define _MACHINE_VER_SYM2(sym, prefix, major, minor) \
+    prefix ## _machine_ ## major ## _ ## minor ## _ ## sym
+
+#define _MACHINE_VER_SYM3(sym, prefix, major, minor, micro) \
+    prefix ## _machine_ ## major ## _ ## minor ## _ ## micro ## _ ## sym
+
+#define _MACHINE_VER_SYM4(sym, prefix, major, minor, _unused_, tag) \
+    prefix ## _machine_ ## major ## _ ## minor ## _ ## tag ## _ ## sym
+
+#define _MACHINE_VER_SYM5(sym, prefix, major, minor, micro, _unused_, tag) \
+    prefix ## _machine_ ## major ## _ ## minor ## _ ## micro ## _ ## tag ## _ ## sym
+
+#define MACHINE_VER_SYM(sym, prefix, ...) \
+    _MACHINE_VER_PICK(__VA_ARGS__, \
+                      _MACHINE_VER_SYM5, \
+                      _MACHINE_VER_SYM4, \
+                      _MACHINE_VER_SYM3, \
+                      _MACHINE_VER_SYM2) (sym, prefix, __VA_ARGS__)
+
+
 #define DEFINE_MACHINE(namestr, machine_initfn) \
     static void machine_initfn##_class_init(ObjectClass *oc, void *data) \
     { \
