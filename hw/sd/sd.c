@@ -230,7 +230,7 @@ static const char *sd_response_name(sd_rsp_type_t rsp)
     return response_name[rsp];
 }
 
-static const char *sd_cmd_name(uint8_t cmd)
+static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 {
     static const char *cmd_abbrev[SDMMC_CMD_MAX] = {
          [0]    = "GO_IDLE_STATE",           [1]    = "SEND_OP_COND",
@@ -269,7 +269,7 @@ static const char *sd_cmd_name(uint8_t cmd)
     return cmd_abbrev[cmd] ? cmd_abbrev[cmd] : "UNKNOWN_CMD";
 }
 
-static const char *sd_acmd_name(uint8_t cmd)
+static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
 {
     static const char *acmd_abbrev[SDMMC_CMD_MAX] = {
          [6] = "SET_BUS_WIDTH",
@@ -1273,7 +1273,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     uint64_t addr;
     uint32_t data;
 
-    sd->last_cmd_name = sd_cmd_name(req.cmd);
+    sd->last_cmd_name = sd_cmd_name(sd, req.cmd);
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
      * However there is no ACMD55, so we want to trace this particular case.
      */
@@ -1740,7 +1740,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_app_command(SDState *sd,
                                     SDRequest req)
 {
-    sd->last_cmd_name = sd_acmd_name(req.cmd);
+    sd->last_cmd_name = sd_acmd_name(sd, req.cmd);
     trace_sdcard_app_command(sd->proto->name, sd->last_cmd_name,
                              req.cmd, req.arg, sd_state_name(sd->state));
     sd->card_status |= APP_CMD;
