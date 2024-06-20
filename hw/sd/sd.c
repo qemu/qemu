@@ -1114,7 +1114,7 @@ static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint16_t rca;
-    uint64_t addr = sd_req_get_address(sd, req);
+    uint64_t addr;
 
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
      * However there is no ACMD55, so we want to trace this particular case.
@@ -1239,7 +1239,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             }
             sd->state = sd_sendingdata_state;
             memcpy(sd->data, sd->csd, 16);
-            sd->data_start = addr;
+            sd->data_start = sd_req_get_address(sd, req);
             sd->data_offset = 0;
             return sd_r1;
 
@@ -1263,7 +1263,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             }
             sd->state = sd_sendingdata_state;
             memcpy(sd->data, sd->cid, 16);
-            sd->data_start = addr;
+            sd->data_start = sd_req_get_address(sd, req);
             sd->data_offset = 0;
             return sd_r1;
 
@@ -1339,6 +1339,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     case 17:  /* CMD17:  READ_SINGLE_BLOCK */
     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
+        addr = sd_req_get_address(sd, req);
         switch (sd->state) {
         case sd_transfer_state:
 
@@ -1359,6 +1360,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     /* Block write commands (Class 4) */
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
     case 25:  /* CMD25:  WRITE_MULTIPLE_BLOCK */
+        addr = sd_req_get_address(sd, req);
         switch (sd->state) {
         case sd_transfer_state:
 
@@ -1417,7 +1419,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         if (sd->size > SDSC_MAX_CAPACITY) {
             return sd_illegal;
         }
-
+        addr = sd_req_get_address(sd, req);
         switch (sd->state) {
         case sd_transfer_state:
             if (!address_in_range(sd, "SET_WRITE_PROT", addr, 1)) {
@@ -1439,7 +1441,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         if (sd->size > SDSC_MAX_CAPACITY) {
             return sd_illegal;
         }
-
+        addr = sd_req_get_address(sd, req);
         switch (sd->state) {
         case sd_transfer_state:
             if (!address_in_range(sd, "CLR_WRITE_PROT", addr, 1)) {
@@ -1461,7 +1463,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         if (sd->size > SDSC_MAX_CAPACITY) {
             return sd_illegal;
         }
-
+        addr = sd_req_get_address(sd, req);
         switch (sd->state) {
         case sd_transfer_state:
             if (!address_in_range(sd, "SEND_WRITE_PROT",
