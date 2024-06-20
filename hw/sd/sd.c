@@ -94,6 +94,7 @@ typedef sd_rsp_type_t (*sd_cmd_handler)(SDState *sd, SDRequest req);
 typedef struct SDProto {
     const char *name;
     struct {
+        const char *name;
         sd_cmd_handler handler;
     } cmd[SDMMC_CMD_MAX], acmd[SDMMC_CMD_MAX];
 } SDProto;
@@ -234,8 +235,6 @@ static const char *sd_response_name(sd_rsp_type_t rsp)
 static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 {
     static const char *cmd_abbrev[SDMMC_CMD_MAX] = {
-         [0]    = "GO_IDLE_STATE",           [1]    = "SEND_OP_COND",
-         [2]    = "ALL_SEND_CID",            [3]    = "SEND_RELATIVE_ADDR",
          [4]    = "SET_DSR",                 [5]    = "IO_SEND_OP_COND",
          [6]    = "SWITCH_FUNC",             [7]    = "SELECT/DESELECT_CARD",
          [8]    = "SEND_IF_COND",            [9]    = "SEND_CSD",
@@ -243,9 +242,8 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
         [12]    = "STOP_TRANSMISSION",      [13]    = "SEND_STATUS",
                                             [15]    = "GO_INACTIVE_STATE",
         [16]    = "SET_BLOCKLEN",           [17]    = "READ_SINGLE_BLOCK",
-        [18]    = "READ_MULTIPLE_BLOCK",    [19]    = "SEND_TUNING_BLOCK",
+        [18]    = "READ_MULTIPLE_BLOCK",
         [20]    = "SPEED_CLASS_CONTROL",    [21]    = "DPS_spec",
-                                            [23]    = "SET_BLOCK_COUNT",
         [24]    = "WRITE_BLOCK",            [25]    = "WRITE_MULTIPLE_BLOCK",
         [26]    = "MANUF_RSVD",             [27]    = "PROGRAM_CSD",
         [28]    = "SET_WRITE_PROT",         [29]    = "CLR_WRITE_PROT",
@@ -267,6 +265,12 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
         [60]    = "MANUF_RSVD",             [61]    = "MANUF_RSVD",
         [62]    = "MANUF_RSVD",             [63]    = "MANUF_RSVD",
     };
+    const SDProto *sdp = sd->proto;
+
+    if (sdp->cmd[cmd].handler) {
+        assert(!cmd_abbrev[cmd]);
+        return sdp->cmd[cmd].name;
+    }
     return cmd_abbrev[cmd] ? cmd_abbrev[cmd] : "UNKNOWN_CMD";
 }
 
@@ -279,7 +283,6 @@ static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
         [16] = "DPS_spec",
         [18] = "SECU_spec",
         [22] = "SEND_NUM_WR_BLOCKS",        [23] = "SET_WR_BLK_ERASE_COUNT",
-        [41] = "SD_SEND_OP_COND",
         [42] = "SET_CLR_CARD_DETECT",
         [51] = "SEND_SCR",
         [52] = "SECU_spec",                 [53] = "SECU_spec",
@@ -287,6 +290,12 @@ static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
         [56] = "SECU_spec",                 [57] = "SECU_spec",
         [58] = "SECU_spec",                 [59] = "SECU_spec",
     };
+    const SDProto *sdp = sd->proto;
+
+    if (sdp->acmd[cmd].handler) {
+        assert(!acmd_abbrev[cmd]);
+        return sdp->acmd[cmd].name;
+    }
 
     return acmd_abbrev[cmd] ? acmd_abbrev[cmd] : "UNKNOWN_ACMD";
 }
@@ -2270,22 +2279,22 @@ void sd_enable(SDState *sd, bool enable)
 static const SDProto sd_proto_spi = {
     .name = "SPI",
     .cmd = {
-        [0]  = {sd_cmd_GO_IDLE_STATE},
-        [1]  = {spi_cmd_SEND_OP_COND},
+        [0]  = {            "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
+        [1]  = {            "SEND_OP_COND", spi_cmd_SEND_OP_COND},
     },
     .acmd = {
-        [41] = {spi_cmd_SEND_OP_COND},
+        [41] = {            "SEND_OP_COND", spi_cmd_SEND_OP_COND},
     },
 };
 
 static const SDProto sd_proto_sd = {
     .name = "SD",
     .cmd = {
-        [0]  = {sd_cmd_GO_IDLE_STATE},
-        [2]  = {sd_cmd_ALL_SEND_CID},
-        [3]  = {sd_cmd_SEND_RELATIVE_ADDR},
-        [19] = {sd_cmd_SEND_TUNING_BLOCK},
-        [23] = {sd_cmd_SET_BLOCK_COUNT},
+        [0]  = {             "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
+        [2]  = {             "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
+        [3]  = {             "SEND_RELATIVE_ADDR", sd_cmd_SEND_RELATIVE_ADDR},
+        [19] = {             "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK},
+        [23] = {             "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT},
     },
 };
 
