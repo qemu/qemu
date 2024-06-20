@@ -134,11 +134,8 @@ void s390_ipl_clear_reset_request(void);
 /*
  * The QEMU IPL Parameters will be stored at absolute address
  * 204 (0xcc) which means it is 32-bit word aligned but not
- * double-word aligned.
- * Placement of data fields in this area must account for
- * their alignment needs. E.g., netboot_start_address must
- * have an offset of 4 + n * 8 bytes within the struct in order
- * to keep it double-word aligned.
+ * double-word aligned. Placement of 64-bit data fields in this
+ * area must account for their alignment needs.
  * The total size of the struct must never exceed 28 bytes.
  * This definition must be kept in sync with the definition
  * in pc-bios/s390-ccw/iplb.h.
@@ -146,9 +143,9 @@ void s390_ipl_clear_reset_request(void);
 struct QemuIplParameters {
     uint8_t  qipl_flags;
     uint8_t  reserved1[3];
-    uint64_t netboot_start_addr;
+    uint64_t reserved2;
     uint32_t boot_menu_timeout;
-    uint8_t  reserved2[12];
+    uint8_t  reserved3[12];
 } QEMU_PACKED;
 typedef struct QemuIplParameters QemuIplParameters;
 
@@ -178,7 +175,6 @@ struct S390IPLState {
     char *initrd;
     char *cmdline;
     char *firmware;
-    char *netboot_fw;
     uint8_t cssid;
     uint8_t ssid;
     uint16_t devno;
