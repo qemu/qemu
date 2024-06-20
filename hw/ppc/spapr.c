@@ -4811,6 +4811,7 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     {                                                                \
         MachineClass *mc = MACHINE_CLASS(oc);                        \
         MACHINE_VER_SYM(class_options, spapr, __VA_ARGS__)(mc);      \
+        MACHINE_VER_DEPRECATION(__VA_ARGS__);                        \
         if (latest) {                                                \
             spapr_machine_latest_class_options(mc);                  \
         }                                                            \
