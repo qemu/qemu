@@ -539,7 +539,9 @@ which will output an execution trace following this structure::
   0, 0xd34, 0xf9c8f000, "bl #0x10c8"
   0, 0x10c8, 0xfff96c43, "ldr r3, [r0, #0x44]", load, 0x200000e4, RAM
 
-the output can be filtered to only track certain instructions or
+Please note that you need to configure QEMU with Capstone support to get disassembly.
+
+The output can be filtered to only track certain instructions or
 addresses using the ``ifilter`` or ``afilter`` options. You can stack the
 arguments if required::
 
