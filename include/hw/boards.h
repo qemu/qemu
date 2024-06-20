@@ -686,11 +686,28 @@ struct MachineState {
  * suitable period of time has passed, it will cause
  * execution of the method to return, avoiding registration
  * of the machine
+ *
+ * The new deprecation and deletion policy for versioned
+ * machine types was introduced in QEMU 9.1.0.
+ *
+ * Under the new policy a number of old machine types (any
+ * prior to 2.12) would be liable for immediate deletion
+ * which would be a violation of our historical deprecation
+ * and removal policy
+ *
+ * Thus deletions are temporarily gated on existance of
+ * the env variable "QEMU_DELETE_MACHINES" / QEMU version
+ * number >= 10.1.0. This gate can be deleted in the 10.1.0
+ * dev cycle
  */
 #define MACHINE_VER_DELETION(...) \
     do { \
         if (MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)) { \
-            return; \
+            if (getenv("QEMU_DELETE_MACHINES") || \
+                QEMU_VERSION_MAJOR > 10 || (QEMU_VERSION_MAJOR == 10 && \
+                                            QEMU_VERSION_MINOR >= 1)) { \
+                return; \
+            } \
         } \
     } while (0)
 
