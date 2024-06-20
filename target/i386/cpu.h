@@ -1275,6 +1275,7 @@ typedef enum {
     CC_OP_ADCX, /* CC_DST = C, CC_SRC = rest.  */
     CC_OP_ADOX, /* CC_SRC2 = O, CC_SRC = rest.  */
     CC_OP_ADCOX, /* CC_DST = C, CC_SRC2 = O, CC_SRC = rest.  */
+    CC_OP_CLR, /* Z and P set, all other flags clear.  */
 
     CC_OP_MULB, /* modify all flags, C, O = (CC_SRC != 0) */
     CC_OP_MULW,
@@ -1331,8 +1332,16 @@ typedef enum {
     CC_OP_BMILGL,
     CC_OP_BMILGQ,
 
-    CC_OP_CLR, /* Z set, all other flags clear.  */
-    CC_OP_POPCNT, /* Z via CC_DST, all other flags clear.  */
+    /*
+     * Note that only CC_OP_POPCNT (i.e. the one with MO_TL size)
+     * is used or implemented, because the translation needs
+     * to zero-extend CC_DST anyway.
+     */
+    CC_OP_POPCNTB__, /* Z via CC_DST, all other flags clear.  */
+    CC_OP_POPCNTW__,
+    CC_OP_POPCNTL__,
+    CC_OP_POPCNTQ__,
+    CC_OP_POPCNT = sizeof(target_ulong) == 8 ? CC_OP_POPCNTQ__ : CC_OP_POPCNTL__,
 
     CC_OP_NB,
 } CCOp;
