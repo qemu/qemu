@@ -75,8 +75,6 @@ class Aarch64SbsarefMachine(QemuSystemTest):
             f"if=pflash,file={fs0_path},format=raw",
             "-drive",
             f"if=pflash,file={fs1_path},format=raw",
-            "-smp",
-            "1",
             "-machine",
             "sbsa-ref",
         )
