@@ -243,7 +243,6 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
                                             [25]    = "WRITE_MULTIPLE_BLOCK",
         [26]    = "MANUF_RSVD",
         [40]    = "DPS_spec",
-        [56]    = "GEN_CMD",
         [60]    = "MANUF_RSVD",             [61]    = "MANUF_RSVD",
         [62]    = "MANUF_RSVD",             [63]    = "MANUF_RSVD",
     };
@@ -901,9 +900,6 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
-
-#define APP_READ_BLOCK(a, len)  memset(sd->data, 0xec, len)
-#define APP_WRITE_BLOCK(a, len)
 
 static void sd_erase(SDState *sd)
 {
@@ -1641,6 +1637,22 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
     return sd_r1;
 }
 
+/* CMD56 */
+static sd_rsp_type_t sd_cmd_GEN_CMD(SDState *sd, SDRequest req)
+{
+    if (sd->state != sd_transfer_state) {
+        return sd_invalid_state_for_cmd(sd, req);
+    }
+
+    /* Vendor specific command: our model is RAZ/WI */
+    if (req.arg & 1) {
+        memset(sd->data, 0, sizeof(sd->data));
+        return sd_cmd_to_sendingdata(sd, req, 0, NULL, 0);
+    } else {
+        return sd_cmd_to_receivingdata(sd, req, 0, 0);
+    }
+}
+
 /* CMD58 */
 static sd_rsp_type_t spi_cmd_READ_OCR(SDState *sd, SDRequest req)
 {
@@ -1835,22 +1847,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     case 26:  /* CMD26:  PROGRAM_CID */
         return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->cid));
-
-    /* Application specific commands (Class 8) */
-    case 56:  /* CMD56:  GEN_CMD */
-        switch (sd->state) {
-        case sd_transfer_state:
-            sd->data_offset = 0;
-            if (req.arg & 1)
-                sd->state = sd_sendingdata_state;
-            else
-                sd->state = sd_receivingdata_state;
-            return sd_r1;
-
-        default:
-            break;
-        }
-        break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "SD: Unknown CMD%i\n", req.cmd);
@@ -2187,11 +2183,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
-        sd->data[sd->data_offset ++] = value;
-        if (sd->data_offset >= sd->blk_len) {
-            APP_WRITE_BLOCK(sd->data_start, sd->data_offset);
-            sd->state = sd_transfer_state;
-        }
+        sd_generic_write_byte(sd, value);
         break;
 
     default:
@@ -2233,6 +2225,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 22: /* ACMD22: SEND_NUM_WR_BLOCKS */
     case 30: /* CMD30:  SEND_WRITE_PROT */
     case 51: /* ACMD51: SEND_SCR */
+    case 56: /* CMD56:  GEN_CMD */
         sd_generic_read_byte(sd, &ret);
         break;
 
@@ -2258,15 +2251,6 @@ uint8_t sd_read_byte(SDState *sd)
                 }
             }
         }
-        break;
-
-    case 56:  /* CMD56:  GEN_CMD */
-        if (sd->data_offset == 0)
-            APP_READ_BLOCK(sd->data_start, sd->blk_len);
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= sd->blk_len)
-            sd->state = sd_transfer_state;
         break;
 
     default:
@@ -2323,6 +2307,7 @@ static const SDProto sd_proto_spi = {
         [52] = {9,  sd_spi, "IO_RW_DIRECT", sd_cmd_optional},
         [53] = {9,  sd_spi, "IO_RW_EXTENDED", sd_cmd_optional},
         [55] = {8,  sd_spi, "APP_CMD", sd_cmd_APP_CMD},
+        [56] = {8,  sd_spi, "GEN_CMD", sd_cmd_GEN_CMD},
         [57] = {10, sd_spi, "DIRECT_SECURE_WRITE", sd_cmd_optional},
         [58] = {0,  sd_spi, "READ_OCR", spi_cmd_READ_OCR},
         [59] = {0,  sd_spi, "CRC_ON_OFF", spi_cmd_CRC_ON_OFF},
@@ -2383,6 +2368,7 @@ static const SDProto sd_proto_sd = {
         [52] = {9,  sd_bc,   "IO_RW_DIRECT", sd_cmd_optional},
         [53] = {9,  sd_bc,   "IO_RW_EXTENDED", sd_cmd_optional},
         [55] = {8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD},
+        [56] = {8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD},
         [57] = {10, sd_adtc, "DIRECT_SECURE_WRITE", sd_cmd_optional},
         [58] = {11, sd_adtc, "READ_EXTR_MULTI", sd_cmd_optional},
         [59] = {11, sd_adtc, "WRITE_EXTR_MULTI", sd_cmd_optional},
