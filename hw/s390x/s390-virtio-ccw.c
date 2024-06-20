@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "exec/ram_addr.h"
 #include "exec/confidential-guest-support.h"
+#include "hw/boards.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
@@ -817,35 +818,44 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
-#define DEFINE_CCW_MACHINE(suffix, verstr, latest)                            \
-    static void ccw_machine_##suffix##_class_init(ObjectClass *oc,            \
-                                                  void *data)                 \
+#define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
+    static void MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__)(                \
+        ObjectClass *oc,                                                      \
+        void *data)                                                           \
     {                                                                         \
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
-        ccw_machine_##suffix##_class_options(mc);                             \
-        mc->desc = "Virtual s390x machine (version " verstr ")";              \
+        MACHINE_VER_SYM(class_options, ccw, __VA_ARGS__)(mc);                 \
+        mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
             mc->is_default = true;                                            \
         }                                                                     \
     }                                                                         \
-    static void ccw_machine_##suffix##_instance_init(Object *obj)             \
+    static void MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__)(Object *obj) \
     {                                                                         \
         MachineState *machine = MACHINE(obj);                                 \
-        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(machine));          \
-        ccw_machine_##suffix##_instance_options(machine);                     \
+        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(machine));      \
+        MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(machine);         \
     }                                                                         \
-    static const TypeInfo ccw_machine_##suffix##_info = {                     \
-        .name = MACHINE_TYPE_NAME("s390-ccw-virtio-" verstr),                 \
-        .parent = TYPE_S390_CCW_MACHINE,                                      \
-        .class_init = ccw_machine_##suffix##_class_init,                      \
-        .instance_init = ccw_machine_##suffix##_instance_init,                \
-    };                                                                        \
-    static void ccw_machine_register_##suffix(void)                           \
+    static const TypeInfo MACHINE_VER_SYM(info, ccw, __VA_ARGS__) =           \
     {                                                                         \
-        type_register_static(&ccw_machine_##suffix##_info);                   \
+        .name = MACHINE_VER_TYPE_NAME("s390-ccw-virtio", __VA_ARGS__),        \
+        .parent = TYPE_S390_CCW_MACHINE,                                      \
+        .class_init = MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__),          \
+        .instance_init = MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__),    \
+    };                                                                        \
+    static void MACHINE_VER_SYM(register, ccw, __VA_ARGS__)(void)             \
+    {                                                                         \
+        type_register_static(&MACHINE_VER_SYM(info, ccw, __VA_ARGS__));       \
     }                                                                         \
-    type_init(ccw_machine_register_##suffix)
+    type_init(MACHINE_VER_SYM(register, ccw, __VA_ARGS__))
+
+#define DEFINE_CCW_MACHINE_AS_LATEST(major, minor) \
+    DEFINE_CCW_MACHINE_IMPL(true, major, minor)
+
+#define DEFINE_CCW_MACHINE(major, minor) \
+    DEFINE_CCW_MACHINE_IMPL(false, major, minor)
+
 
 static void ccw_machine_9_1_instance_options(MachineState *machine)
 {
@@ -854,7 +864,7 @@ static void ccw_machine_9_1_instance_options(MachineState *machine)
 static void ccw_machine_9_1_class_options(MachineClass *mc)
 {
 }
-DEFINE_CCW_MACHINE(9_1, "9.1", true);
+DEFINE_CCW_MACHINE_AS_LATEST(9, 1);
 
 static void ccw_machine_9_0_instance_options(MachineState *machine)
 {
@@ -866,7 +876,7 @@ static void ccw_machine_9_0_class_options(MachineClass *mc)
     ccw_machine_9_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_9_0, hw_compat_9_0_len);
 }
-DEFINE_CCW_MACHINE(9_0, "9.0", false);
+DEFINE_CCW_MACHINE(9, 0);
 
 static void ccw_machine_8_2_instance_options(MachineState *machine)
 {
@@ -878,7 +888,7 @@ static void ccw_machine_8_2_class_options(MachineClass *mc)
     ccw_machine_9_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_8_2, hw_compat_8_2_len);
 }
-DEFINE_CCW_MACHINE(8_2, "8.2", false);
+DEFINE_CCW_MACHINE(8, 2);
 
 static void ccw_machine_8_1_instance_options(MachineState *machine)
 {
@@ -892,7 +902,7 @@ static void ccw_machine_8_1_class_options(MachineClass *mc)
     mc->smp_props.drawers_supported = false;
     mc->smp_props.books_supported = false;
 }
-DEFINE_CCW_MACHINE(8_1, "8.1", false);
+DEFINE_CCW_MACHINE(8, 1);
 
 static void ccw_machine_8_0_instance_options(MachineState *machine)
 {
@@ -904,7 +914,7 @@ static void ccw_machine_8_0_class_options(MachineClass *mc)
     ccw_machine_8_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_8_0, hw_compat_8_0_len);
 }
-DEFINE_CCW_MACHINE(8_0, "8.0", false);
+DEFINE_CCW_MACHINE(8, 0);
 
 static void ccw_machine_7_2_instance_options(MachineState *machine)
 {
@@ -916,7 +926,7 @@ static void ccw_machine_7_2_class_options(MachineClass *mc)
     ccw_machine_8_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_7_2, hw_compat_7_2_len);
 }
-DEFINE_CCW_MACHINE(7_2, "7.2", false);
+DEFINE_CCW_MACHINE(7, 2);
 
 static void ccw_machine_7_1_instance_options(MachineState *machine)
 {
@@ -940,7 +950,7 @@ static void ccw_machine_7_1_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     s390mc->max_threads = S390_MAX_CPUS;
 }
-DEFINE_CCW_MACHINE(7_1, "7.1", false);
+DEFINE_CCW_MACHINE(7, 1);
 
 static void ccw_machine_7_0_instance_options(MachineState *machine)
 {
@@ -955,7 +965,7 @@ static void ccw_machine_7_0_class_options(MachineClass *mc)
     ccw_machine_7_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_7_0, hw_compat_7_0_len);
 }
-DEFINE_CCW_MACHINE(7_0, "7.0", false);
+DEFINE_CCW_MACHINE(7, 0);
 
 static void ccw_machine_6_2_instance_options(MachineState *machine)
 {
@@ -970,7 +980,7 @@ static void ccw_machine_6_2_class_options(MachineClass *mc)
     ccw_machine_7_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_6_2, hw_compat_6_2_len);
 }
-DEFINE_CCW_MACHINE(6_2, "6.2", false);
+DEFINE_CCW_MACHINE(6, 2);
 
 static void ccw_machine_6_1_instance_options(MachineState *machine)
 {
@@ -988,7 +998,7 @@ static void ccw_machine_6_1_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_6_1, hw_compat_6_1_len);
     mc->smp_props.prefer_sockets = true;
 }
-DEFINE_CCW_MACHINE(6_1, "6.1", false);
+DEFINE_CCW_MACHINE(6, 1);
 
 static void ccw_machine_6_0_instance_options(MachineState *machine)
 {
@@ -1003,7 +1013,7 @@ static void ccw_machine_6_0_class_options(MachineClass *mc)
     ccw_machine_6_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_6_0, hw_compat_6_0_len);
 }
-DEFINE_CCW_MACHINE(6_0, "6.0", false);
+DEFINE_CCW_MACHINE(6, 0);
 
 static void ccw_machine_5_2_instance_options(MachineState *machine)
 {
@@ -1015,7 +1025,7 @@ static void ccw_machine_5_2_class_options(MachineClass *mc)
     ccw_machine_6_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_2, hw_compat_5_2_len);
 }
-DEFINE_CCW_MACHINE(5_2, "5.2", false);
+DEFINE_CCW_MACHINE(5, 2);
 
 static void ccw_machine_5_1_instance_options(MachineState *machine)
 {
@@ -1027,7 +1037,7 @@ static void ccw_machine_5_1_class_options(MachineClass *mc)
     ccw_machine_5_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
 }
-DEFINE_CCW_MACHINE(5_1, "5.1", false);
+DEFINE_CCW_MACHINE(5, 1);
 
 static void ccw_machine_5_0_instance_options(MachineState *machine)
 {
@@ -1039,7 +1049,7 @@ static void ccw_machine_5_0_class_options(MachineClass *mc)
     ccw_machine_5_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
 }
-DEFINE_CCW_MACHINE(5_0, "5.0", false);
+DEFINE_CCW_MACHINE(5, 0);
 
 static void ccw_machine_4_2_instance_options(MachineState *machine)
 {
@@ -1052,7 +1062,7 @@ static void ccw_machine_4_2_class_options(MachineClass *mc)
     mc->fixup_ram_size = s390_fixup_ram_size;
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
-DEFINE_CCW_MACHINE(4_2, "4.2", false);
+DEFINE_CCW_MACHINE(4, 2);
 
 static void ccw_machine_4_1_instance_options(MachineState *machine)
 {
@@ -1066,7 +1076,7 @@ static void ccw_machine_4_1_class_options(MachineClass *mc)
     ccw_machine_4_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
 }
-DEFINE_CCW_MACHINE(4_1, "4.1", false);
+DEFINE_CCW_MACHINE(4, 1);
 
 static void ccw_machine_4_0_instance_options(MachineState *machine)
 {
@@ -1080,7 +1090,7 @@ static void ccw_machine_4_0_class_options(MachineClass *mc)
     ccw_machine_4_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_0, hw_compat_4_0_len);
 }
-DEFINE_CCW_MACHINE(4_0, "4.0", false);
+DEFINE_CCW_MACHINE(4, 0);
 
 static void ccw_machine_3_1_instance_options(MachineState *machine)
 {
@@ -1096,7 +1106,7 @@ static void ccw_machine_3_1_class_options(MachineClass *mc)
     ccw_machine_4_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
 }
-DEFINE_CCW_MACHINE(3_1, "3.1", false);
+DEFINE_CCW_MACHINE(3, 1);
 
 static void ccw_machine_3_0_instance_options(MachineState *machine)
 {
@@ -1111,7 +1121,7 @@ static void ccw_machine_3_0_class_options(MachineClass *mc)
     ccw_machine_3_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_3_0, hw_compat_3_0_len);
 }
-DEFINE_CCW_MACHINE(3_0, "3.0", false);
+DEFINE_CCW_MACHINE(3, 0);
 
 static void ccw_machine_2_12_instance_options(MachineState *machine)
 {
@@ -1125,7 +1135,7 @@ static void ccw_machine_2_12_class_options(MachineClass *mc)
     ccw_machine_3_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_12, hw_compat_2_12_len);
 }
-DEFINE_CCW_MACHINE(2_12, "2.12", false);
+DEFINE_CCW_MACHINE(2, 12);
 
 #ifdef CONFIG_S390X_LEGACY_CPUS
 
@@ -1148,7 +1158,7 @@ static void ccw_machine_2_11_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
-DEFINE_CCW_MACHINE(2_11, "2.11", false);
+DEFINE_CCW_MACHINE(2, 11);
 
 static void ccw_machine_2_10_instance_options(MachineState *machine)
 {
@@ -1160,7 +1170,7 @@ static void ccw_machine_2_10_class_options(MachineClass *mc)
     ccw_machine_2_11_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
 }
-DEFINE_CCW_MACHINE(2_10, "2.10", false);
+DEFINE_CCW_MACHINE(2, 10);
 
 static void ccw_machine_2_9_instance_options(MachineState *machine)
 {
@@ -1184,7 +1194,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     css_migration_enabled = false;
 }
-DEFINE_CCW_MACHINE(2_9, "2.9", false);
+DEFINE_CCW_MACHINE(2, 9);
 
 static void ccw_machine_2_8_instance_options(MachineState *machine)
 {
@@ -1201,7 +1211,7 @@ static void ccw_machine_2_8_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
-DEFINE_CCW_MACHINE(2_8, "2.8", false);
+DEFINE_CCW_MACHINE(2, 8);
 
 static void ccw_machine_2_7_instance_options(MachineState *machine)
 {
@@ -1216,7 +1226,7 @@ static void ccw_machine_2_7_class_options(MachineClass *mc)
     ccw_machine_2_8_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_7, hw_compat_2_7_len);
 }
-DEFINE_CCW_MACHINE(2_7, "2.7", false);
+DEFINE_CCW_MACHINE(2, 7);
 
 static void ccw_machine_2_6_instance_options(MachineState *machine)
 {
@@ -1236,7 +1246,7 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
-DEFINE_CCW_MACHINE(2_6, "2.6", false);
+DEFINE_CCW_MACHINE(2, 6);
 
 static void ccw_machine_2_5_instance_options(MachineState *machine)
 {
@@ -1248,7 +1258,7 @@ static void ccw_machine_2_5_class_options(MachineClass *mc)
     ccw_machine_2_6_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_5, hw_compat_2_5_len);
 }
-DEFINE_CCW_MACHINE(2_5, "2.5", false);
+DEFINE_CCW_MACHINE(2, 5);
 
 static void ccw_machine_2_4_instance_options(MachineState *machine)
 {
@@ -1273,7 +1283,7 @@ static void ccw_machine_2_4_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_4, hw_compat_2_4_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
-DEFINE_CCW_MACHINE(2_4, "2.4", false);
+DEFINE_CCW_MACHINE(2, 4);
 
 #endif
 
