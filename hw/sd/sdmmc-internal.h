@@ -119,30 +119,4 @@
 #define EXT_CSD_PART_CONFIG_EN_BOOT0            (0x1 << 3)
 #define EXT_CSD_PART_CONFIG_EN_USER             (0x7 << 3)
 
-#define SDMMC_CMD_MAX 64
-
-/**
- * sd_cmd_name:
- * @cmd: A SD "normal" command, up to SDMMC_CMD_MAX.
- *
- * Returns a human-readable name describing the command.
- * The return value is always a static string which does not need
- * to be freed after use.
- *
- * Returns: The command name of @cmd or "UNKNOWN_CMD".
- */
-const char *sd_cmd_name(uint8_t cmd);
-
-/**
- * sd_acmd_name:
- * @cmd: A SD "Application-Specific" command, up to SDMMC_CMD_MAX.
- *
- * Returns a human-readable name describing the application command.
- * The return value is always a static string which does not need
- * to be freed after use.
- *
- * Returns: The application command name of @cmd or "UNKNOWN_ACMD".
- */
-const char *sd_acmd_name(uint8_t cmd);
-
 #endif
