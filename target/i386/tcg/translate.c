@@ -1008,15 +1008,19 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
 static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
 {
     switch (s->cc_op) {
-    case CC_OP_DYNAMIC:
-        gen_compute_eflags(s);
-        /* FALLTHRU */
     case CC_OP_EFLAGS:
     case CC_OP_ADCX:
     case CC_OP_ADOX:
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = cpu_cc_src,
                              .imm = CC_Z };
+    case CC_OP_DYNAMIC:
+        gen_update_cc_op(s);
+        if (!reg) {
+            reg = tcg_temp_new();
+        }
+        gen_helper_cc_compute_nz(reg, cpu_cc_dst, cpu_cc_src, cpu_cc_op);
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = reg, .imm = 0 };
     default:
         {
             MemOp size = cc_op_size(s->cc_op);
