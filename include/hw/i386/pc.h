@@ -317,4 +317,30 @@ extern const size_t pc_compat_2_3_len;
     } \
     type_init(pc_machine_init_##suffix)
 
+#define DEFINE_PC_VER_MACHINE(namesym, namestr, initfn, ...) \
+    static void MACHINE_VER_SYM(init, namesym, __VA_ARGS__)( \
+        MachineState *machine) \
+    { \
+        initfn(machine); \
+    } \
+    static void MACHINE_VER_SYM(class_init, namesym, __VA_ARGS__)( \
+        ObjectClass *oc, \
+        void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        MACHINE_VER_SYM(options, namesym, __VA_ARGS__)(mc); \
+        mc->init = MACHINE_VER_SYM(init, namesym, __VA_ARGS__); \
+    } \
+    static const TypeInfo MACHINE_VER_SYM(info, namesym, __VA_ARGS__) = \
+    { \
+        .name       = MACHINE_VER_TYPE_NAME(namestr, __VA_ARGS__), \
+        .parent     = TYPE_PC_MACHINE, \
+        .class_init = MACHINE_VER_SYM(class_init, namesym, __VA_ARGS__), \
+    }; \
+    static void MACHINE_VER_SYM(register, namesym, __VA_ARGS__)(void) \
+    { \
+        type_register(&MACHINE_VER_SYM(info, namesym, __VA_ARGS__)); \
+    } \
+    type_init(MACHINE_VER_SYM(register, namesym, __VA_ARGS__));
+
 #endif
