@@ -1012,6 +1012,7 @@ static sd_rsp_type_t sd_cmd_illegal(SDState *sd, SDRequest req)
 }
 
 /* Commands that are recognised but not yet implemented. */
+__attribute__((unused))
 static sd_rsp_type_t sd_cmd_unimplemented(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_UNIMP, "%s: CMD%i not implemented\n",
@@ -2154,7 +2155,6 @@ static const SDProto sd_proto_spi = {
         [52 ... 54] = sd_cmd_illegal,
     },
     .acmd = {
-        [6]         = sd_cmd_unimplemented,
         [41]        = spi_cmd_SEND_OP_COND,
     },
 };
