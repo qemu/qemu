@@ -2193,8 +2193,8 @@ uint8_t sd_read_byte(SDState *sd)
     io_len = sd_blk_len(sd);
 
     trace_sdcard_read_data(sd->proto->name,
-                           sd->last_cmd_name,
-                           sd->current_cmd, sd->data_offset, io_len);
+                           sd->last_cmd_name, sd->current_cmd,
+                           sd->data_offset, sd->data_size, io_len);
     switch (sd->current_cmd) {
     case 6:  /* CMD6:   SWITCH_FUNCTION */
     case 9:  /* CMD9:   SEND_CSD */
