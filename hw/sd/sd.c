@@ -608,10 +608,15 @@ static void sd_response_r7_make(SDState *sd, uint8_t *response)
 
 static uint64_t sd_req_get_address(SDState *sd, SDRequest req)
 {
+    uint64_t addr;
+
     if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
-        return (uint64_t) req.arg << HWBLOCK_SHIFT;
+        addr = (uint64_t) req.arg << HWBLOCK_SHIFT;
+    } else {
+        addr = req.arg;
     }
-    return req.arg;
+    trace_sdcard_req_addr(req.arg, addr);
+    return addr;
 }
 
 static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
