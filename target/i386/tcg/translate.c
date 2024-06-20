@@ -1069,6 +1069,28 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         }
         break;
 
+    case CC_OP_LOGICB ... CC_OP_LOGICQ:
+        /* Mostly used for test+jump */
+        size = s->cc_op - CC_OP_LOGICB;
+        switch (jcc_op) {
+        case JCC_BE:
+            /* CF = 0, becomes jz/je */
+            jcc_op = JCC_Z;
+            goto slow_jcc;
+        case JCC_L:
+            /* OF = 0, becomes js/jns */
+            jcc_op = JCC_S;
+            goto slow_jcc;
+        case JCC_LE:
+            /* SF or ZF, becomes signed <= 0 */
+            tcg_gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size | MO_SIGN);
+            cc = (CCPrepare) { .cond = TCG_COND_LE, .reg = cpu_cc_dst };
+            break;
+        default:
+            goto slow_jcc;
+        }
+        break;
+
     default:
     slow_jcc:
         /* This actually generates good code for JC, JZ and JS.  */
