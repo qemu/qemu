@@ -47,6 +47,8 @@
 #include "disas/disas.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
+#include "qapi/error.h"
+#include "migration/blocker.h"
 #include "exec/ram_addr.h"
 #include "qemu/plugin-memory.h"
 #include "hw/boards.h"
@@ -589,11 +591,19 @@ uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry)
  * Time control
  */
 static bool has_control;
+#ifdef CONFIG_SOFTMMU
+static Error *migration_blocker;
+#endif
 
 const void *qemu_plugin_request_time_control(void)
 {
     if (!has_control) {
         has_control = true;
+#ifdef CONFIG_SOFTMMU
+        error_setg(&migration_blocker,
+                   "TCG plugin time control does not support migration");
+        migrate_add_blocker(&migration_blocker, NULL);
+#endif
         return &has_control;
     }
     return NULL;
