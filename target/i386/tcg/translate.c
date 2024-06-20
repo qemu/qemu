@@ -309,7 +309,6 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_CLR] = 0,
     [CC_OP_POPCNT] = USES_CC_DST,
 };
 
@@ -803,10 +802,6 @@ static void gen_mov_eflags(DisasContext *s, TCGv reg)
         tcg_gen_mov_tl(reg, cpu_cc_src);
         return;
     }
-    if (s->cc_op == CC_OP_CLR) {
-        tcg_gen_movi_tl(reg, CC_Z | CC_P);
-        return;
-    }
 
     dst = cpu_cc_dst;
     src1 = cpu_cc_src;
@@ -897,7 +892,6 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
                              .reg2 = cpu_cc_src, .use_reg2 = true };
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
 
@@ -969,7 +963,6 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = cpu_cc_src,
                              .imm = CC_S };
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
     default:
@@ -988,7 +981,6 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
                              .no_setcond = true };
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
     case CC_OP_MULB ... CC_OP_MULQ:
@@ -1013,8 +1005,6 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = cpu_cc_src,
                              .imm = CC_Z };
-    case CC_OP_CLR:
-        return (CCPrepare) { .cond = TCG_COND_ALWAYS };
     default:
         {
             MemOp size = (s->cc_op - CC_OP_ADDB) & 3;

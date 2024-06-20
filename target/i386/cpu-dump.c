@@ -91,7 +91,6 @@ static const char * const cc_op_str[] = {
     [CC_OP_BMILGQ] = "BMILGQ",
 
     [CC_OP_POPCNT] = "POPCNT",
-    [CC_OP_CLR] = "CLR",
 };
 
 static void
