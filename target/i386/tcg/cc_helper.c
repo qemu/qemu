@@ -107,7 +107,7 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
     case CC_OP_CLR:
         return CC_Z | CC_P;
     case CC_OP_POPCNT:
-        return src1 ? 0 : CC_Z;
+        return dst ? 0 : CC_Z;
 
     case CC_OP_MULB:
         return compute_all_mulb(dst, src1);

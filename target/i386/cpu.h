@@ -1332,7 +1332,7 @@ typedef enum {
     CC_OP_BMILGQ,
 
     CC_OP_CLR, /* Z set, all other flags clear.  */
-    CC_OP_POPCNT, /* Z via CC_SRC, all other flags clear.  */
+    CC_OP_POPCNT, /* Z via CC_DST, all other flags clear.  */
 
     CC_OP_NB,
 } CCOp;
