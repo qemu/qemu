@@ -109,6 +109,7 @@ undocumented; you can get a complete list by running
    arm/virt
    arm/xenpvh
    arm/xlnx-versal-virt
+   arm/xlnx-zynq
 
 Emulated CPU architecture support
 =================================

@@ -1033,6 +1033,7 @@ F: hw/adc/zynq-xadc.c
 F: include/hw/misc/zynq_slcr.h
 F: include/hw/adc/zynq-xadc.h
 X: hw/ssi/xilinx_*
+F: docs/system/arm/xlnx-zynq.rst
 
 Xilinx ZynqMP and Versal
 M: Alistair Francis <alistair@alistair23.me>
