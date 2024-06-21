@@ -39,7 +39,7 @@ rather than ``delay=off``.
 Plugin argument passing through ``arg=<string>`` (since 6.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Passing TCG plugins arguments through ``arg=`` is redundant is makes the
+Passing TCG plugins arguments through ``arg=`` is redundant and makes the
 command-line less readable, especially when the argument itself consist of a
 name and a value, e.g. ``-plugin plugin_name,arg="arg_name=arg_value"``.
 Therefore, the usage of ``arg`` is redundant. Single-word arguments are treated
