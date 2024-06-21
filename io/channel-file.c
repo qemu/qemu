@@ -68,11 +68,13 @@ qio_channel_file_new_path(const char *path,
 
     ioc = QIO_CHANNEL_FILE(object_new(TYPE_QIO_CHANNEL_FILE));
 
-    ioc->fd = qemu_open_old(path, flags, mode);
+    if (flags & O_CREAT) {
+        ioc->fd = qemu_create(path, flags & ~O_CREAT, mode, errp);
+    } else {
+        ioc->fd = qemu_open(path, flags, errp);
+    }
     if (ioc->fd < 0) {
         object_unref(OBJECT(ioc));
-        error_setg_errno(errp, errno,
-                         "Unable to open %s", path);
         return NULL;
     }
 

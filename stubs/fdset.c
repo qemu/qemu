@@ -3,14 +3,9 @@
 #include "monitor/monitor.h"
 #include "../monitor/monitor-internal.h"
 
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
 {
     errno = ENOSYS;
-    return -1;
-}
-
-int64_t monitor_fdset_dup_fd_find(int dup_fd)
-{
     return -1;
 }
 

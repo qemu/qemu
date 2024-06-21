@@ -43,7 +43,6 @@ struct mon_fd_t {
 typedef struct MonFdsetFd MonFdsetFd;
 struct MonFdsetFd {
     int fd;
-    bool removed;
     char *opaque;
     QLIST_ENTRY(MonFdsetFd) next;
 };
@@ -167,26 +166,30 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
     return -1;
 }
 
-static void monitor_fdset_cleanup(MonFdset *mon_fdset)
+static void monitor_fdset_free(MonFdset *mon_fdset)
 {
-    MonFdsetFd *mon_fdset_fd;
-    MonFdsetFd *mon_fdset_fd_next;
+    QLIST_REMOVE(mon_fdset, next);
+    g_free(mon_fdset);
+}
 
-    QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
-        if ((mon_fdset_fd->removed ||
-                (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) &&
-                runstate_is_running()) {
-            close(mon_fdset_fd->fd);
-            g_free(mon_fdset_fd->opaque);
-            QLIST_REMOVE(mon_fdset_fd, next);
-            g_free(mon_fdset_fd);
-        }
-    }
-
+static void monitor_fdset_free_if_empty(MonFdset *mon_fdset)
+{
+    /*
+     * Only remove an empty fdset. The fds are owned by the user and
+     * should have been removed with qmp_remove_fd(). The dup_fds are
+     * owned by QEMU and should have been removed with qemu_close().
+     */
     if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
-        QLIST_REMOVE(mon_fdset, next);
-        g_free(mon_fdset);
+        monitor_fdset_free(mon_fdset);
     }
+}
+
+static void monitor_fdset_fd_free(MonFdsetFd *mon_fdset_fd)
+{
+    close(mon_fdset_fd->fd);
+    g_free(mon_fdset_fd->opaque);
+    QLIST_REMOVE(mon_fdset_fd, next);
+    g_free(mon_fdset_fd);
 }
 
 void monitor_fdsets_cleanup(void)
@@ -196,7 +199,7 @@ void monitor_fdsets_cleanup(void)
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
     QLIST_FOREACH_SAFE(mon_fdset, &mon_fdsets, next, mon_fdset_next) {
-        monitor_fdset_cleanup(mon_fdset);
+        monitor_fdset_free_if_empty(mon_fdset);
     }
 }
 
@@ -263,7 +266,7 @@ void qmp_get_win32_socket(const char *infos, const char *fdname, Error **errp)
 void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
 {
     MonFdset *mon_fdset;
-    MonFdsetFd *mon_fdset_fd;
+    MonFdsetFd *mon_fdset_fd, *mon_fdset_fd_next;
     char fd_str[60];
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
@@ -271,21 +274,22 @@ void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
         if (mon_fdset->id != fdset_id) {
             continue;
         }
-        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+        QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next,
+                           mon_fdset_fd_next) {
             if (has_fd) {
                 if (mon_fdset_fd->fd != fd) {
                     continue;
                 }
-                mon_fdset_fd->removed = true;
+                monitor_fdset_fd_free(mon_fdset_fd);
                 break;
             } else {
-                mon_fdset_fd->removed = true;
+                monitor_fdset_fd_free(mon_fdset_fd);
             }
         }
         if (has_fd && !mon_fdset_fd) {
             goto error;
         }
-        monitor_fdset_cleanup(mon_fdset);
+        monitor_fdset_free_if_empty(mon_fdset);
         return;
     }
 
@@ -395,7 +399,6 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
 
     mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
     mon_fdset_fd->fd = fd;
-    mon_fdset_fd->removed = false;
     mon_fdset_fd->opaque = g_strdup(opaque);
     QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
 
@@ -406,9 +409,10 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     return fdinfo;
 }
 
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
 {
 #ifdef _WIN32
+    error_setg(errp, "Platform does not support fd passing (fdset)");
     return -ENOENT;
 #else
     MonFdset *mon_fdset;
@@ -420,6 +424,11 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         int fd = -1;
         int dup_fd;
         int mon_fd_flags;
+        int mask = O_ACCMODE;
+
+#ifdef O_DIRECT
+        mask |= O_DIRECT;
+#endif
 
         if (mon_fdset->id != fdset_id) {
             continue;
@@ -428,10 +437,12 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
             mon_fd_flags = fcntl(mon_fdset_fd->fd, F_GETFL);
             if (mon_fd_flags == -1) {
+                error_setg(errp, "Failed to read file status flags for fd=%d",
+                           mon_fdset_fd->fd);
                 return -1;
             }
 
-            if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
+            if ((flags & mask) == (mon_fd_flags & mask)) {
                 fd = mon_fdset_fd->fd;
                 break;
             }
@@ -439,11 +450,15 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
 
         if (fd == -1) {
             errno = EACCES;
+            error_setg(errp,
+                       "Failed to find file descriptor with matching flags=0x%x",
+                       flags);
             return -1;
         }
 
         dup_fd = qemu_dup_flags(fd, flags);
         if (dup_fd == -1) {
+            error_setg(errp, "Failed to dup() given file descriptor fd=%d", fd);
             return -1;
         }
 
@@ -453,12 +468,13 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         return dup_fd;
     }
 
+    error_setg(errp, "Failed to find fdset /dev/fdset/%" PRId64, fdset_id);
     errno = ENOENT;
     return -1;
 #endif
 }
 
-static int64_t monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
+void monitor_fdset_dup_fd_remove(int dup_fd)
 {
     MonFdset *mon_fdset;
     MonFdsetFd *mon_fdset_fd_dup;
@@ -467,31 +483,13 @@ static int64_t monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
     QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
         QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
             if (mon_fdset_fd_dup->fd == dup_fd) {
-                if (remove) {
-                    QLIST_REMOVE(mon_fdset_fd_dup, next);
-                    g_free(mon_fdset_fd_dup);
-                    if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
-                        monitor_fdset_cleanup(mon_fdset);
-                    }
-                    return -1;
-                } else {
-                    return mon_fdset->id;
-                }
+                QLIST_REMOVE(mon_fdset_fd_dup, next);
+                g_free(mon_fdset_fd_dup);
+                monitor_fdset_free_if_empty(mon_fdset);
+                return;
             }
         }
     }
-
-    return -1;
-}
-
-int64_t monitor_fdset_dup_fd_find(int dup_fd)
-{
-    return monitor_fdset_dup_fd_find_remove(dup_fd, false);
-}
-
-void monitor_fdset_dup_fd_remove(int dup_fd)
-{
-    monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
 int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)

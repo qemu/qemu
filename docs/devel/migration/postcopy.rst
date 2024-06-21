@@ -99,17 +99,6 @@ ADVISE->DISCARD->LISTEN->RUNNING->END
     (although it can't do the cleanup it would do as it
     finishes a normal migration).
 
- - Paused
-
-    Postcopy can run into a paused state (normally on both sides when
-    happens), where all threads will be temporarily halted mostly due to
-    network errors.  When reaching paused state, migration will make sure
-    the qemu binary on both sides maintain the data without corrupting
-    the VM.  To continue the migration, the admin needs to fix the
-    migration channel using the QMP command 'migrate-recover' on the
-    destination node, then resume the migration using QMP command 'migrate'
-    again on source node, with resume=true flag set.
-
  - End
 
     The listen thread can now quit, and perform the cleanup of migration
@@ -221,7 +210,8 @@ paused postcopy migration.
 
 The recovery phase normally contains a few steps:
 
-  - When network issue occurs, both QEMU will go into PAUSED state
+  - When network issue occurs, both QEMU will go into **POSTCOPY_PAUSED**
+    migration state.
 
   - When the network is recovered (or a new network is provided), the admin
     can setup the new channel for migration using QMP command
@@ -229,9 +219,20 @@ The recovery phase normally contains a few steps:
 
   - On source host, the admin can continue the interrupted postcopy
     migration using QMP command 'migrate' with resume=true flag set.
+    Source QEMU will go into **POSTCOPY_RECOVER_SETUP** state trying to
+    re-establish the channels.
 
-  - After the connection is re-established, QEMU will continue the postcopy
-    migration on both sides.
+  - When both sides of QEMU successfully reconnect using a new or fixed up
+    channel, they will go into **POSTCOPY_RECOVER** state, some handshake
+    procedure will be needed to properly synchronize the VM states between
+    the two QEMUs to continue the postcopy migration.  For example, there
+    can be pages sent right during the window when the network is
+    interrupted, then the handshake will guarantee pages lost in-flight
+    will be resent again.
+
+  - After a proper handshake synchronization, QEMU will continue the
+    postcopy migration on both sides and go back to **POSTCOPY_ACTIVE**
+    state.  Postcopy migration will continue.
 
 During a paused postcopy migration, the VM can logically still continue
 running, and it will not be impacted from any page access to pages that

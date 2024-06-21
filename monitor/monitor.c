@@ -71,7 +71,6 @@ static GHashTable *monitor_qapi_event_state;
 static GHashTable *coroutine_mon; /* Maps Coroutine* to Monitor* */
 
 MonitorList mon_list;
-int mon_refcount;
 static bool monitor_destroyed;
 
 Monitor *monitor_cur(void)

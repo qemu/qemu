@@ -64,12 +64,25 @@ static QTestMigrationState dst_state;
 #define DIRTYLIMIT_TOLERANCE_RANGE  25  /* MB/s */
 
 #define ANALYZE_SCRIPT "scripts/analyze-migration.py"
+#define VMSTATE_CHECKER_SCRIPT "scripts/vmstate-static-checker.py"
 
 #define QEMU_VM_FILE_MAGIC 0x5145564d
 #define FILE_TEST_FILENAME "migfile"
 #define FILE_TEST_OFFSET 0x1000
+#define FILE_TEST_MARKER 'X'
 #define QEMU_ENV_SRC "QTEST_QEMU_BINARY_SRC"
 #define QEMU_ENV_DST "QTEST_QEMU_BINARY_DST"
+
+typedef enum PostcopyRecoveryFailStage {
+    /*
+     * "no failure" must be 0 as it's the default.  OTOH, real failure
+     * cases must be >0 to make sure they trigger by a "if" test.
+     */
+    POSTCOPY_FAIL_NONE = 0,
+    POSTCOPY_FAIL_CHANNEL_ESTABLISH,
+    POSTCOPY_FAIL_RECOVERY,
+    POSTCOPY_FAIL_MAX
+} PostcopyRecoveryFailStage;
 
 #if defined(__linux__)
 #include <sys/syscall.h>
@@ -406,6 +419,38 @@ static void migrate_set_parameter_str(QTestState *who, const char *parameter,
     migrate_check_parameter_str(who, parameter, value);
 }
 
+static long long migrate_get_parameter_bool(QTestState *who,
+                                           const char *parameter)
+{
+    QDict *rsp;
+    int result;
+
+    rsp = qtest_qmp_assert_success_ref(
+        who, "{ 'execute': 'query-migrate-parameters' }");
+    result = qdict_get_bool(rsp, parameter);
+    qobject_unref(rsp);
+    return !!result;
+}
+
+static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
+                                        int value)
+{
+    int result;
+
+    result = migrate_get_parameter_bool(who, parameter);
+    g_assert_cmpint(result, ==, value);
+}
+
+static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
+                                      int value)
+{
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %i } }",
+                             parameter, value);
+    migrate_check_parameter_bool(who, parameter, value);
+}
+
 static void migrate_ensure_non_converge(QTestState *who)
 {
     /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
@@ -659,7 +704,7 @@ typedef struct {
     /* Postcopy specific fields */
     void *postcopy_data;
     bool postcopy_preempt;
-    bool postcopy_recovery_test_fail;
+    PostcopyRecoveryFailStage postcopy_recovery_fail_stage;
 } MigrateCommon;
 
 static int test_migrate_start(QTestState **from, QTestState **to,
@@ -817,6 +862,13 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     if (args->use_shmem) {
         unlink(shmem_path);
     }
+
+    /*
+     * Always enable migration events.  Libvirt always uses it, let's try
+     * to mimic as closer as that.
+     */
+    migrate_set_capability(*from, "events", true);
+    migrate_set_capability(*to, "events", true);
 
     return 0;
 }
@@ -1330,11 +1382,15 @@ static void wait_for_postcopy_status(QTestState *one, const char *status)
                                                   "completed", NULL });
 }
 
-#ifndef _WIN32
-static void postcopy_recover_fail(QTestState *from, QTestState *to)
+static void postcopy_recover_fail(QTestState *from, QTestState *to,
+                                  PostcopyRecoveryFailStage stage)
 {
+#ifndef _WIN32
+    bool fail_early = (stage == POSTCOPY_FAIL_CHANNEL_ESTABLISH);
     int ret, pair1[2], pair2[2];
     char c;
+
+    g_assert(stage > POSTCOPY_FAIL_NONE && stage < POSTCOPY_FAIL_MAX);
 
     /* Create two unrelated socketpairs */
     ret = qemu_socketpair(PF_LOCAL, SOCK_STREAM, 0, pair1);
@@ -1369,33 +1425,72 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to)
     ret = send(pair2[1], &c, 1, 0);
     g_assert_cmpint(ret, ==, 1);
 
+    if (stage == POSTCOPY_FAIL_CHANNEL_ESTABLISH) {
+        /*
+         * This will make src QEMU to fail at an early stage when trying to
+         * resume later, where it shouldn't reach RECOVER stage at all.
+         */
+        close(pair1[1]);
+    }
+
     migrate_recover(to, "fd:fd-mig");
     migrate_qmp(from, to, "fd:fd-mig", NULL, "{'resume': true}");
 
     /*
-     * Make sure both QEMU instances will go into RECOVER stage, then test
-     * kicking them out using migrate-pause.
+     * Source QEMU has an extra RECOVER_SETUP phase, dest doesn't have it.
+     * Make sure it appears along the way.
      */
-    wait_for_postcopy_status(from, "postcopy-recover");
+    migration_event_wait(from, "postcopy-recover-setup");
+
+    if (fail_early) {
+        /*
+         * When fails at reconnection, src QEMU will automatically goes
+         * back to PAUSED state.  Making sure there is an event in this
+         * case: Libvirt relies on this to detect early reconnection
+         * errors.
+         */
+        migration_event_wait(from, "postcopy-paused");
+    } else {
+        /*
+         * We want to test "fail later" at RECOVER stage here.  Make sure
+         * both QEMU instances will go into RECOVER stage first, then test
+         * kicking them out using migrate-pause.
+         *
+         * Explicitly check the RECOVER event on src, that's what Libvirt
+         * relies on, rather than polling.
+         */
+        migration_event_wait(from, "postcopy-recover");
+        wait_for_postcopy_status(from, "postcopy-recover");
+
+        /* Need an explicit kick on src QEMU in this case */
+        migrate_pause(from);
+    }
+
+    /*
+     * For all failure cases, we'll reach such states on both sides now.
+     * Check them.
+     */
+    wait_for_postcopy_status(from, "postcopy-paused");
     wait_for_postcopy_status(to, "postcopy-recover");
 
     /*
-     * This would be issued by the admin upon noticing the hang, we should
-     * make sure we're able to kick this out.
+     * Kick dest QEMU out too. This is normally not needed in reality
+     * because when the channel is shutdown it should also happen on src.
+     * However here we used separate socket pairs so we need to do that
+     * explicitly.
      */
-    migrate_pause(from);
-    wait_for_postcopy_status(from, "postcopy-paused");
-
-    /* Do the same test on dest */
     migrate_pause(to);
     wait_for_postcopy_status(to, "postcopy-paused");
 
     close(pair1[0]);
-    close(pair1[1]);
     close(pair2[0]);
     close(pair2[1]);
+
+    if (stage != POSTCOPY_FAIL_CHANNEL_ESTABLISH) {
+        close(pair1[1]);
+    }
+#endif
 }
-#endif /* _WIN32 */
 
 static void test_postcopy_recovery_common(MigrateCommon *args)
 {
@@ -1435,16 +1530,14 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     wait_for_postcopy_status(to, "postcopy-paused");
     wait_for_postcopy_status(from, "postcopy-paused");
 
-#ifndef _WIN32
-    if (args->postcopy_recovery_test_fail) {
+    if (args->postcopy_recovery_fail_stage) {
         /*
          * Test when a wrong socket specified for recover, and then the
          * ability to kick it out, and continue with a correct socket.
          */
-        postcopy_recover_fail(from, to);
+        postcopy_recover_fail(from, to, args->postcopy_recovery_fail_stage);
         /* continue with a good recovery */
     }
-#endif /* _WIN32 */
 
     /*
      * Create a new socket to emulate a new channel that is different
@@ -1473,16 +1566,23 @@ static void test_postcopy_recovery(void)
     test_postcopy_recovery_common(&args);
 }
 
-#ifndef _WIN32
-static void test_postcopy_recovery_double_fail(void)
+static void test_postcopy_recovery_fail_handshake(void)
 {
     MigrateCommon args = {
-        .postcopy_recovery_test_fail = true,
+        .postcopy_recovery_fail_stage = POSTCOPY_FAIL_RECOVERY,
     };
 
     test_postcopy_recovery_common(&args);
 }
-#endif /* _WIN32 */
+
+static void test_postcopy_recovery_fail_reconnect(void)
+{
+    MigrateCommon args = {
+        .postcopy_recovery_fail_stage = POSTCOPY_FAIL_CHANNEL_ESTABLISH,
+    };
+
+    test_postcopy_recovery_common(&args);
+}
 
 #ifdef CONFIG_GNUTLS
 static void test_postcopy_recovery_tls_psk(void)
@@ -1587,6 +1687,85 @@ static void test_analyze_script(void)
     }
     test_migrate_end(from, to, false);
     cleanup("migfile");
+}
+
+static void test_vmstate_checker_script(void)
+{
+    g_autofree gchar *cmd_src = NULL;
+    g_autofree gchar *cmd_dst = NULL;
+    g_autofree gchar *vmstate_src = NULL;
+    g_autofree gchar *vmstate_dst = NULL;
+    const char *machine_alias, *machine_opts = "";
+    g_autofree char *machine = NULL;
+    const char *arch = qtest_get_arch();
+    int pid, wstatus;
+    const char *python = g_getenv("PYTHON");
+
+    if (!getenv(QEMU_ENV_SRC) && !getenv(QEMU_ENV_DST)) {
+        g_test_skip("Test needs two different QEMU versions");
+        return;
+    }
+
+    if (!python) {
+        g_test_skip("PYTHON variable not set");
+        return;
+    }
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        if (g_str_equal(arch, "i386")) {
+            machine_alias = "pc";
+        } else {
+            machine_alias = "q35";
+        }
+    } else if (g_str_equal(arch, "s390x")) {
+        machine_alias = "s390-ccw-virtio";
+    } else if (strcmp(arch, "ppc64") == 0) {
+        machine_alias = "pseries";
+    } else if (strcmp(arch, "aarch64") == 0) {
+        machine_alias = "virt";
+    } else {
+        g_assert_not_reached();
+    }
+
+    if (!qtest_has_machine(machine_alias)) {
+        g_autofree char *msg = g_strdup_printf("machine %s not supported", machine_alias);
+        g_test_skip(msg);
+        return;
+    }
+
+    machine = resolve_machine_version(machine_alias, QEMU_ENV_SRC,
+                                      QEMU_ENV_DST);
+
+    vmstate_src = g_strdup_printf("%s/vmstate-src", tmpfs);
+    vmstate_dst = g_strdup_printf("%s/vmstate-dst", tmpfs);
+
+    cmd_dst = g_strdup_printf("-machine %s,%s -dump-vmstate %s",
+                              machine, machine_opts, vmstate_dst);
+    cmd_src = g_strdup_printf("-machine %s,%s -dump-vmstate %s",
+                              machine, machine_opts, vmstate_src);
+
+    qtest_init_with_env_no_handshake(QEMU_ENV_SRC, cmd_src);
+    qtest_init_with_env_no_handshake(QEMU_ENV_DST, cmd_dst);
+
+    pid = fork();
+    if (!pid) {
+        close(1);
+        open("/dev/null", O_WRONLY);
+        execl(python, python, VMSTATE_CHECKER_SCRIPT,
+              "-s", vmstate_src,
+              "-d", vmstate_dst,
+              NULL);
+        g_assert_not_reached();
+    }
+
+    g_assert(waitpid(pid, &wstatus, 0) == pid);
+    if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) {
+        g_test_message("Failed to run vmstate-static-checker.py");
+        g_test_fail();
+    }
+
+    cleanup("vmstate-src");
+    cleanup("vmstate-dst");
 }
 #endif
 
@@ -1693,10 +1872,43 @@ finish:
     test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
+static void file_dirty_offset_region(void)
+{
+    g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+    size_t size = FILE_TEST_OFFSET;
+    g_autofree char *data = g_new0(char, size);
+
+    memset(data, FILE_TEST_MARKER, size);
+    g_assert(g_file_set_contents(path, data, size, NULL));
+}
+
+static void file_check_offset_region(void)
+{
+    g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+    size_t size = FILE_TEST_OFFSET;
+    g_autofree char *expected = g_new0(char, size);
+    g_autofree char *actual = NULL;
+    uint64_t *stream_start;
+
+    /*
+     * Ensure the skipped offset region's data has not been touched
+     * and the migration stream starts at the right place.
+     */
+
+    memset(expected, FILE_TEST_MARKER, size);
+
+    g_assert(g_file_get_contents(path, &actual, NULL, NULL));
+    g_assert(!memcmp(actual, expected, size));
+
+    stream_start = (uint64_t *)(actual + size);
+    g_assert_cmpint(cpu_to_be64(*stream_start) >> 32, ==, QEMU_VM_FILE_MAGIC);
+}
+
 static void test_file_common(MigrateCommon *args, bool stop_src)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
+    bool check_offset = false;
 
     if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
@@ -1708,6 +1920,16 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
      * concurrently.
      */
     g_assert_false(args->live);
+
+    if (g_strrstr(args->connect_uri, "offset=")) {
+        check_offset = true;
+        /*
+         * This comes before the start_hook because it's equivalent to
+         * a management application creating the file and writing to
+         * it so hooks should expect the file to be already present.
+         */
+        file_dirty_offset_region();
+    }
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
@@ -1742,6 +1964,10 @@ static void test_file_common(MigrateCommon *args, bool stop_src)
     wait_for_resume(to, &dst_state);
 
     wait_for_serial("dest_serial");
+
+    if (check_offset) {
+        file_check_offset_region();
+    }
 
 finish:
     if (args->finish_hook) {
@@ -1942,35 +2168,52 @@ static void test_precopy_file(void)
     test_file_common(&args, true);
 }
 
-static void file_offset_finish_hook(QTestState *from, QTestState *to,
-                                    void *opaque)
+#ifndef _WIN32
+static void fdset_add_fds(QTestState *qts, const char *file, int flags,
+                          int num_fds, bool direct_io)
 {
-#if defined(__linux__)
-    g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
-    size_t size = FILE_TEST_OFFSET + sizeof(QEMU_VM_FILE_MAGIC);
-    uintptr_t *addr, *p;
-    int fd;
+    for (int i = 0; i < num_fds; i++) {
+        int fd;
 
-    fd = open(path, O_RDONLY);
-    g_assert(fd != -1);
-    addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-    g_assert(addr != MAP_FAILED);
-
-    /*
-     * Ensure the skipped offset contains zeros and the migration
-     * stream starts at the right place.
-     */
-    p = addr;
-    while (p < addr + FILE_TEST_OFFSET / sizeof(uintptr_t)) {
-        g_assert(*p == 0);
-        p++;
-    }
-    g_assert_cmpint(cpu_to_be64(*p) >> 32, ==, QEMU_VM_FILE_MAGIC);
-
-    munmap(addr, size);
-    close(fd);
+#ifdef O_DIRECT
+        /* only secondary channels can use direct-io */
+        if (direct_io && i != 0) {
+            flags |= O_DIRECT;
+        }
 #endif
+
+        fd = open(file, flags, 0660);
+        assert(fd != -1);
+
+        qtest_qmp_fds_assert_success(qts, &fd, 1, "{'execute': 'add-fd', "
+                                     "'arguments': {'fdset-id': 1}}");
+        close(fd);
+    }
 }
+
+static void *file_offset_fdset_start_hook(QTestState *from, QTestState *to)
+{
+    g_autofree char *file = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+
+    fdset_add_fds(from, file, O_WRONLY, 1, false);
+    fdset_add_fds(to, file, O_RDONLY, 1, false);
+
+    return NULL;
+}
+
+static void test_precopy_file_offset_fdset(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
+                                           FILE_TEST_OFFSET);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = file_offset_fdset_start_hook,
+    };
+
+    test_file_common(&args, false);
+}
+#endif
 
 static void test_precopy_file_offset(void)
 {
@@ -1980,7 +2223,6 @@ static void test_precopy_file_offset(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .finish_hook = file_offset_finish_hook,
     };
 
     test_file_common(&args, false);
@@ -2098,6 +2340,118 @@ static void test_multifd_file_mapped_ram(void)
     test_file_common(&args, true);
 }
 
+static void *multifd_mapped_ram_dio_start(QTestState *from, QTestState *to)
+{
+    migrate_multifd_mapped_ram_start(from, to);
+
+    migrate_set_parameter_bool(from, "direct-io", true);
+    migrate_set_parameter_bool(to, "direct-io", true);
+
+    return NULL;
+}
+
+static void test_multifd_file_mapped_ram_dio(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = multifd_mapped_ram_dio_start,
+    };
+
+    if (!probe_o_direct_support(tmpfs)) {
+        g_test_skip("Filesystem does not support O_DIRECT");
+        return;
+    }
+
+    test_file_common(&args, true);
+}
+
+#ifndef _WIN32
+static void multifd_mapped_ram_fdset_end(QTestState *from, QTestState *to,
+                                         void *opaque)
+{
+    QDict *resp;
+    QList *fdsets;
+
+    /*
+     * Remove the fdsets after migration, otherwise a second migration
+     * would fail due fdset reuse.
+     */
+    qtest_qmp_assert_success(from, "{'execute': 'remove-fd', "
+                             "'arguments': { 'fdset-id': 1}}");
+
+    /*
+     * Make sure no fdsets are left after migration, otherwise a
+     * second migration would fail due fdset reuse.
+     */
+    resp = qtest_qmp(from, "{'execute': 'query-fdsets', "
+                     "'arguments': {}}");
+    g_assert(qdict_haskey(resp, "return"));
+    fdsets = qdict_get_qlist(resp, "return");
+    g_assert(fdsets && qlist_empty(fdsets));
+}
+
+static void *multifd_mapped_ram_fdset_dio(QTestState *from, QTestState *to)
+{
+    g_autofree char *file = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+
+    fdset_add_fds(from, file, O_WRONLY, 2, true);
+    fdset_add_fds(to, file, O_RDONLY, 2, true);
+
+    migrate_multifd_mapped_ram_start(from, to);
+    migrate_set_parameter_bool(from, "direct-io", true);
+    migrate_set_parameter_bool(to, "direct-io", true);
+
+    return NULL;
+}
+
+static void *multifd_mapped_ram_fdset(QTestState *from, QTestState *to)
+{
+    g_autofree char *file = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
+
+    fdset_add_fds(from, file, O_WRONLY, 2, false);
+    fdset_add_fds(to, file, O_RDONLY, 2, false);
+
+    migrate_multifd_mapped_ram_start(from, to);
+
+    return NULL;
+}
+
+static void test_multifd_file_mapped_ram_fdset(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
+                                           FILE_TEST_OFFSET);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = multifd_mapped_ram_fdset,
+        .finish_hook = multifd_mapped_ram_fdset_end,
+    };
+
+    test_file_common(&args, true);
+}
+
+static void test_multifd_file_mapped_ram_fdset_dio(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
+                                           FILE_TEST_OFFSET);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start_hook = multifd_mapped_ram_fdset_dio,
+        .finish_hook = multifd_mapped_ram_fdset_end,
+    };
+
+    if (!probe_o_direct_support(tmpfs)) {
+        g_test_skip("Filesystem does not support O_DIRECT");
+        return;
+    }
+
+    test_file_common(&args, true);
+}
+#endif /* !_WIN32 */
 
 static void test_precopy_tcp_plain(void)
 {
@@ -3465,6 +3819,8 @@ int main(int argc, char **argv)
     migration_test_add("/migration/bad_dest", test_baddest);
 #ifndef _WIN32
     migration_test_add("/migration/analyze-script", test_analyze_script);
+    migration_test_add("/migration/vmstate-checker-script",
+                       test_vmstate_checker_script);
 #endif
 
     /*
@@ -3492,10 +3848,10 @@ int main(int argc, char **argv)
                            test_postcopy_preempt);
         migration_test_add("/migration/postcopy/preempt/recovery/plain",
                            test_postcopy_preempt_recovery);
-#ifndef _WIN32
-        migration_test_add("/migration/postcopy/recovery/double-failures",
-                           test_postcopy_recovery_double_fail);
-#endif /* _WIN32 */
+        migration_test_add("/migration/postcopy/recovery/double-failures/handshake",
+                           test_postcopy_recovery_fail_handshake);
+        migration_test_add("/migration/postcopy/recovery/double-failures/reconnect",
+                           test_postcopy_recovery_fail_reconnect);
         if (is_x86) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);
@@ -3510,6 +3866,10 @@ int main(int argc, char **argv)
                        test_precopy_file);
     migration_test_add("/migration/precopy/file/offset",
                        test_precopy_file_offset);
+#ifndef _WIN32
+    migration_test_add("/migration/precopy/file/offset/fdset",
+                       test_precopy_file_offset_fdset);
+#endif
     migration_test_add("/migration/precopy/file/offset/bad",
                        test_precopy_file_offset_bad);
 
@@ -3530,6 +3890,16 @@ int main(int argc, char **argv)
                        test_multifd_file_mapped_ram);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
+
+    migration_test_add("/migration/multifd/file/mapped-ram/dio",
+                       test_multifd_file_mapped_ram_dio);
+
+#ifndef _WIN32
+    migration_test_add("/migration/multifd/file/mapped-ram/fdset",
+                       test_multifd_file_mapped_ram_fdset);
+    migration_test_add("/migration/multifd/file/mapped-ram/fdset/dio",
+                       test_multifd_file_mapped_ram_fdset_dio);
+#endif
 
 #ifdef CONFIG_GNUTLS
     migration_test_add("/migration/precopy/unix/tls/psk",

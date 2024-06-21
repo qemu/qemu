@@ -2129,7 +2129,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     }
 
     mis->have_listen_thread = true;
-    postcopy_thread_create(mis, &mis->listen_thread, "postcopy/listen",
+    postcopy_thread_create(mis, &mis->listen_thread, "mig/dst/listen",
                            postcopy_ram_listen_thread, QEMU_THREAD_DETACHED);
     trace_loadvm_postcopy_handle_listen("return");
 
@@ -2864,9 +2864,9 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     error_report("Detected IO failure for postcopy. "
                  "Migration paused.");
 
-    while (mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
+    do {
         qemu_sem_wait(&mis->postcopy_pause_sem_dst);
-    }
+    } while (postcopy_is_paused(mis->state));
 
     trace_postcopy_pause_incoming_continued();
 

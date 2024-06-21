@@ -54,5 +54,15 @@ char *find_common_machine_version(const char *mtype, const char *var1,
                                   const char *var2);
 char *resolve_machine_version(const char *alias, const char *var1,
                               const char *var2);
+#ifdef O_DIRECT
+bool probe_o_direct_support(const char *tmpfs);
+#else
+static inline bool probe_o_direct_support(const char *tmpfs)
+{
+    return false;
+}
+#endif
 void migration_test_add(const char *path, void (*fn)(void));
+void migration_event_wait(QTestState *s, const char *target);
+
 #endif /* MIGRATION_HELPERS_H */

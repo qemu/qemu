@@ -388,16 +388,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .offset     = vmstate_offset_varray(_state, _field, _type),      \
 }
 
-#define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\
-    .name         = (stringify(_field)),                              \
-    .field_exists = (_test),                                          \
-    .num          = (_num),                                           \
-    .info         = &(_info),                                         \
-    .size         = sizeof(_type),                                    \
-    .flags        = VMS_ARRAY,                                        \
-    .offset       = vmstate_offset_array(_state, _field, _type, _num),\
-}
-
 #define VMSTATE_SUB_ARRAY(_field, _state, _start, _num, _version, _info, _type) { \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
