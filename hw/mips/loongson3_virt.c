@@ -574,7 +574,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
         cpu_mips_clock_init(cpu);
         qemu_register_reset(main_cpu_reset, cpu);
 
-        if (ipi) {
+        if (!kvm_enabled()) {
             hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
             base += core * 0x100;
             qdev_connect_gpio_out(ipi, i, cpu->env.irq[6]);
