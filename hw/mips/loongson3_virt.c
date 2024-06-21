@@ -97,6 +97,7 @@ struct LoongsonMachineState {
     MemoryRegion *pio_alias;
     MemoryRegion *mmio_alias;
     MemoryRegion *ecam_alias;
+    MemoryRegion *core_iocsr[LOONGSON_MAX_VCPUS];
 };
 typedef struct LoongsonMachineState LoongsonMachineState;
 
@@ -493,6 +494,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     ram_addr_t ram_size = machine->ram_size;
+    LoongsonMachineState *s = LOONGSON_MACHINE(machine);
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
@@ -586,6 +588,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
                                      iocsr, 0, UINT32_MAX);
             memory_region_add_subregion(&MIPS_CPU(cpu)->env.iocsr.mr,
                                         0, core_iocsr);
+            s->core_iocsr[i] = core_iocsr;
         }
 
         if (node > 0) {
