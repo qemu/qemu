@@ -79,11 +79,11 @@ static void acpi_dsdt_add_cpus(Aml *scope, VirtMachineState *vms)
 }
 
 static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
-                                           uint32_t uart_irq)
+                               uint32_t uart_irq, int uartidx)
 {
-    Aml *dev = aml_device("COM0");
+    Aml *dev = aml_device("COM%d", uartidx);
     aml_append(dev, aml_name_decl("_HID", aml_string("ARMH0011")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uartidx)));
 
     Aml *crs = aml_resource_template();
     aml_append(crs, aml_memory32_fixed(uart_memmap->base,
@@ -440,10 +440,10 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         .base_addr.width = 32,
         .base_addr.offset = 0,
         .base_addr.size = 3,
-        .base_addr.addr = vms->memmap[VIRT_UART].base,
+        .base_addr.addr = vms->memmap[VIRT_UART0].base,
         .interrupt_type = (1 << 3),/* Bit[3] ARMH GIC interrupt*/
         .pc_interrupt = 0,         /* IRQ */
-        .interrupt = (vms->irqmap[VIRT_UART] + ARM_SPI_BASE),
+        .interrupt = (vms->irqmap[VIRT_UART0] + ARM_SPI_BASE),
         .baud_rate = 3,            /* 9600 */
         .parity = 0,               /* No Parity */
         .stop_bits = 1,            /* 1 Stop bit */
@@ -631,11 +631,11 @@ build_dbg2(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     /* BaseAddressRegister[] */
     build_append_gas(table_data, AML_AS_SYSTEM_MEMORY, 32, 0, 3,
-                     vms->memmap[VIRT_UART].base);
+                     vms->memmap[VIRT_UART0].base);
 
     /* AddressSize[] */
     build_append_int_noprefix(table_data,
-                              vms->memmap[VIRT_UART].size, 4);
+                              vms->memmap[VIRT_UART0].size, 4);
 
     /* NamespaceString[] */
     g_array_append_vals(table_data, name, namespace_length);
@@ -816,8 +816,12 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      */
     scope = aml_scope("\\_SB");
     acpi_dsdt_add_cpus(scope, vms);
-    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
-                       (irqmap[VIRT_UART] + ARM_SPI_BASE));
+    acpi_dsdt_add_uart(scope, &memmap[VIRT_UART0],
+                       (irqmap[VIRT_UART0] + ARM_SPI_BASE), 0);
+    if (vms->second_ns_uart_present) {
+        acpi_dsdt_add_uart(scope, &memmap[VIRT_UART1],
+                           (irqmap[VIRT_UART1] + ARM_SPI_BASE), 1);
+    }
     if (vmc->acpi_expose_flash) {
         acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     }
