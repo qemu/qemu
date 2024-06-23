@@ -55,17 +55,18 @@ static inline uint64_t ufs_reg_size(UfsHc *u)
     return ufs_mcq_op_reg_addr(u, 0) + sizeof(u->mcq_op_reg);
 }
 
-static inline bool ufs_is_mcq_reg(UfsHc *u, uint64_t addr)
+static inline bool ufs_is_mcq_reg(UfsHc *u, uint64_t addr, unsigned size)
 {
     uint64_t mcq_reg_addr = ufs_mcq_reg_addr(u, 0);
-    return addr >= mcq_reg_addr && addr < mcq_reg_addr + sizeof(u->mcq_reg);
+    return (addr >= mcq_reg_addr &&
+            addr + size <= mcq_reg_addr + sizeof(u->mcq_reg));
 }
 
-static inline bool ufs_is_mcq_op_reg(UfsHc *u, uint64_t addr)
+static inline bool ufs_is_mcq_op_reg(UfsHc *u, uint64_t addr, unsigned size)
 {
     uint64_t mcq_op_reg_addr = ufs_mcq_op_reg_addr(u, 0);
     return (addr >= mcq_op_reg_addr &&
-            addr < mcq_op_reg_addr + sizeof(u->mcq_op_reg));
+            addr + size <= mcq_op_reg_addr + sizeof(u->mcq_op_reg));
 }
 
 static MemTxResult ufs_addr_read(UfsHc *u, hwaddr addr, void *buf, int size)
@@ -774,25 +775,25 @@ static void ufs_write_mcq_op_reg(UfsHc *u, hwaddr offset, uint32_t data,
 static uint64_t ufs_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     UfsHc *u = (UfsHc *)opaque;
-    uint8_t *ptr;
+    uint32_t *ptr;
     uint64_t value;
     uint64_t offset;
 
-    if (addr < sizeof(u->reg)) {
+    if (addr + size <= sizeof(u->reg)) {
         offset = addr;
-        ptr = (uint8_t *)&u->reg;
-    } else if (ufs_is_mcq_reg(u, addr)) {
+        ptr = (uint32_t *)&u->reg;
+    } else if (ufs_is_mcq_reg(u, addr, size)) {
         offset = addr - ufs_mcq_reg_addr(u, 0);
-        ptr = (uint8_t *)&u->mcq_reg;
-    } else if (ufs_is_mcq_op_reg(u, addr)) {
+        ptr = (uint32_t *)&u->mcq_reg;
+    } else if (ufs_is_mcq_op_reg(u, addr, size)) {
         offset = addr - ufs_mcq_op_reg_addr(u, 0);
-        ptr = (uint8_t *)&u->mcq_op_reg;
+        ptr = (uint32_t *)&u->mcq_op_reg;
     } else {
         trace_ufs_err_invalid_register_offset(addr);
         return 0;
     }
 
-    value = *(uint32_t *)(ptr + offset);
+    value = ptr[offset >> 2];
     trace_ufs_mmio_read(addr, value, size);
     return value;
 }
@@ -804,11 +805,11 @@ static void ufs_mmio_write(void *opaque, hwaddr addr, uint64_t data,
 
     trace_ufs_mmio_write(addr, data, size);
 
-    if (addr < sizeof(u->reg)) {
+    if (addr + size <= sizeof(u->reg)) {
         ufs_write_reg(u, addr, data, size);
-    } else if (ufs_is_mcq_reg(u, addr)) {
+    } else if (ufs_is_mcq_reg(u, addr, size)) {
         ufs_write_mcq_reg(u, addr - ufs_mcq_reg_addr(u, 0), data, size);
-    } else if (ufs_is_mcq_op_reg(u, addr)) {
+    } else if (ufs_is_mcq_op_reg(u, addr, size)) {
         ufs_write_mcq_op_reg(u, addr - ufs_mcq_op_reg_addr(u, 0), data, size);
     } else {
         trace_ufs_err_invalid_register_offset(addr);
