@@ -728,14 +728,7 @@ static inline abi_ulong get_sigframe(struct target_sigaction *ka,
         sp = ts->sigaltstack_used.ss_sp + ts->sigaltstack_used.ss_size;
     }
 
-/* TODO: make this a target_arch function / define */
-#if defined(TARGET_ARM)
-    return (sp - frame_size) & ~7;
-#elif defined(TARGET_AARCH64)
-    return (sp - frame_size) & ~15;
-#else
-    return sp - frame_size;
-#endif
+    return ROUND_DOWN(sp - frame_size, TARGET_SIGSTACK_ALIGN);
 }
 
 /* compare to $M/$M/exec_machdep.c sendsig and sys/kern/kern_sig.c sigexit */

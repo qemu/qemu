@@ -77,4 +77,6 @@ struct target_sigframe {
     target_ucontext_t   sf_uc;  /* saved ucontext */
 };
 
+#define TARGET_SIGSTACK_ALIGN 16
+
 #endif /* TARGET_ARCH_SIGNAL_H */
