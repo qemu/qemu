@@ -41,6 +41,7 @@ the following architecture extensions:
 - FEAT_Debugv8p1 (Debug with VHE)
 - FEAT_Debugv8p2 (Debug changes for v8.2)
 - FEAT_Debugv8p4 (Debug changes for v8.4)
+- FEAT_Debugv8p8 (Debug changes for v8.8)
 - FEAT_DotProd (Advanced SIMD dot product instructions)
 - FEAT_DoubleFault (Double Fault Extension)
 - FEAT_E0PD (Preventing EL0 access to halves of address maps)
