@@ -597,7 +597,7 @@ static SevCapability *sev_get_capabilities(Error **errp)
     fd = open(sev_device, O_RDWR);
     if (fd < 0) {
         error_setg_errno(errp, errno, "SEV: Failed to open %s",
-                         DEFAULT_SEV_DEVICE);
+                         sev_device);
         g_free(sev_device);
         return NULL;
     }
