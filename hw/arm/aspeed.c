@@ -1379,6 +1379,8 @@ static void aspeed_machine_tacoma_class_init(ObjectClass *oc, void *data)
     amc->i2c_init  = witherspoon_bmc_i2c_init; /* Same board layout */
     mc->default_ram_size = 1 * GiB;
     aspeed_machine_class_init_cpus_defaults(mc);
+
+    mc->deprecation_reason = "Please use the similar 'rainier-bmc' machine";
 };
 
 static void aspeed_machine_g220a_class_init(ObjectClass *oc, void *data)
