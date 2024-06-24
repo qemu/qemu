@@ -582,14 +582,13 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 
     /* Call the class init function for subchannel. */
     if (cdc->realize) {
-        cdc->realize(cdev, vcdev->vdev.sysfsdev, &err);
-        if (err) {
-            goto out_err_propagate;
+        if (!cdc->realize(cdev, vcdev->vdev.sysfsdev, errp)) {
+            return;
         }
     }
 
     if (!vfio_device_get_name(vbasedev, errp)) {
-        return;
+        goto out_unrealize;
     }
 
     if (!vfio_attach_device(cdev->mdevid, vbasedev,
@@ -597,17 +596,17 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_attach_dev_err;
     }
 
-    if (!vfio_ccw_get_region(vcdev, &err)) {
+    if (!vfio_ccw_get_region(vcdev, errp)) {
         goto out_region_err;
     }
 
-    if (!vfio_ccw_register_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX, &err)) {
+    if (!vfio_ccw_register_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX, errp)) {
         goto out_io_notifier_err;
     }
 
     if (vcdev->crw_region) {
         if (!vfio_ccw_register_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX,
-                                            &err)) {
+                                            errp)) {
             goto out_irq_notifier_err;
         }
     }
@@ -617,7 +616,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
          */
-        error_report_err(err);
+        warn_report_err(err);
     }
 
     return;
@@ -632,11 +631,10 @@ out_region_err:
     vfio_detach_device(vbasedev);
 out_attach_dev_err:
     g_free(vbasedev->name);
+out_unrealize:
     if (cdc->unrealize) {
         cdc->unrealize(cdev);
     }
-out_err_propagate:
-    error_propagate(errp, err);
 }
 
 static void vfio_ccw_unrealize(DeviceState *dev)

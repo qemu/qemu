@@ -31,9 +31,10 @@ static void ccw_device_refill_ids(CcwDevice *dev)
     dev->subch_id.valid = true;
 }
 
-static void ccw_device_realize(CcwDevice *dev, Error **errp)
+static bool ccw_device_realize(CcwDevice *dev, Error **errp)
 {
     ccw_device_refill_ids(dev);
+    return true;
 }
 
 static Property ccw_device_properties[] = {

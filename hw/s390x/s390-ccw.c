@@ -71,7 +71,7 @@ IOInstEnding s390_ccw_store(SubchDev *sch)
     return ret;
 }
 
-static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
+static bool s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
 {
@@ -84,12 +84,12 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
         error_setg(errp, "No host device provided");
         error_append_hint(errp,
                           "Use -device vfio-ccw,sysfsdev=PATH_TO_DEVICE\n");
-        return;
+        return false;
     }
 
     if (!realpath(sysfsdev, dev_path)) {
         error_setg_errno(errp, errno, "Host device '%s' not found", sysfsdev);
-        return;
+        return false;
     }
 
     cdev->mdevid = g_path_get_basename(dev_path);
@@ -98,30 +98,29 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
     tmp = g_path_get_basename(tmp_dir);
     if (sscanf(tmp, "%2x.%1x.%4x", &cssid, &ssid, &devid) != 3) {
         error_setg_errno(errp, errno, "Failed to read %s", tmp);
-        return;
+        return false;
     }
 
     cdev->hostid.cssid = cssid;
     cdev->hostid.ssid = ssid;
     cdev->hostid.devid = devid;
     cdev->hostid.valid = true;
+    return true;
 }
 
-static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
+static bool s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     DeviceState *parent = DEVICE(ccw_dev);
     SubchDev *sch;
     int ret;
-    Error *err = NULL;
 
-    s390_ccw_get_dev_info(cdev, sysfsdev, &err);
-    if (err) {
-        goto out_err_propagate;
+    if (!s390_ccw_get_dev_info(cdev, sysfsdev, errp)) {
+        return false;
     }
 
-    sch = css_create_sch(ccw_dev->devno, &err);
+    sch = css_create_sch(ccw_dev->devno, errp);
     if (!sch) {
         goto out_mdevid_free;
     }
@@ -132,19 +131,18 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     ccw_dev->sch = sch;
     ret = css_sch_build_schib(sch, &cdev->hostid);
     if (ret) {
-        error_setg_errno(&err, -ret, "%s: Failed to build initial schib",
+        error_setg_errno(errp, -ret, "%s: Failed to build initial schib",
                          __func__);
         goto out_err;
     }
 
-    ck->realize(ccw_dev, &err);
-    if (err) {
+    if (!ck->realize(ccw_dev, errp)) {
         goto out_err;
     }
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           parent->hotplugged, 1);
-    return;
+    return true;
 
 out_err:
     css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
@@ -152,8 +150,7 @@ out_err:
     g_free(sch);
 out_mdevid_free:
     g_free(cdev->mdevid);
-out_err_propagate:
-    error_propagate(errp, err);
+    return false;
 }
 
 static void s390_ccw_unrealize(S390CCWDevice *cdev)
