@@ -524,17 +524,12 @@ static void sd_set_rca(SDState *sd, uint16_t value)
 static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
 {
     switch (s->proto->cmd[req.cmd].type) {
-    case sd_none:
-        /* Called from legacy code not ported to SDProto array */
-        assert(!s->proto->cmd[req.cmd].handler);
-        /* fall-through */
     case sd_ac:
     case sd_adtc:
         return req.arg >> 16;
     case sd_spi:
-        g_assert_not_reached();
     default:
-        return 0;
+        g_assert_not_reached();
     }
 }
 
