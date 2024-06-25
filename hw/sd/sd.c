@@ -1453,6 +1453,35 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     /* Block write commands (Class 4) */
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
+        addr = sd_req_get_address(sd, req);
+        switch (sd->state) {
+        case sd_transfer_state:
+
+            if (!address_in_range(sd, "WRITE_SINGLE_BLOCK", addr,
+                                  sd->blk_len)) {
+                return sd_r1;
+            }
+
+            sd->state = sd_receivingdata_state;
+            sd->data_start = addr;
+            sd->data_offset = 0;
+
+            if (sd->size <= SDSC_MAX_CAPACITY) {
+                if (sd_wp_addr(sd, sd->data_start)) {
+                    sd->card_status |= WP_VIOLATION;
+                }
+            }
+            if (sd->csd[14] & 0x30) {
+                sd->card_status |= WP_VIOLATION;
+            }
+            sd->blk_written = 0;
+            return sd_r1;
+
+        default:
+            break;
+        }
+        break;
+
     case 25:  /* CMD25:  WRITE_MULTIPLE_BLOCK */
         addr = sd_req_get_address(sd, req);
         switch (sd->state) {
