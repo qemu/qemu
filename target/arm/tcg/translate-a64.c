@@ -5235,6 +5235,43 @@ static const ENVScalar2 f_scalar_sqrdmulh = {
 };
 TRANS(SQRDMULH_s, do_env_scalar2_hs, a, &f_scalar_sqrdmulh)
 
+typedef struct ENVScalar3 {
+    NeonGenThreeOpEnvFn *gen_hs[2];
+} ENVScalar3;
+
+static bool do_env_scalar3_hs(DisasContext *s, arg_rrr_e *a,
+                              const ENVScalar3 *f)
+{
+    TCGv_i32 t0, t1, t2;
+
+    if (a->esz != MO_16 && a->esz != MO_32) {
+        return false;
+    }
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    t0 = tcg_temp_new_i32();
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    read_vec_element_i32(s, t0, a->rn, 0, a->esz);
+    read_vec_element_i32(s, t1, a->rm, 0, a->esz);
+    read_vec_element_i32(s, t2, a->rd, 0, a->esz);
+    f->gen_hs[a->esz - 1](t0, tcg_env, t0, t1, t2);
+    write_fp_sreg(s, a->rd, t0);
+    return true;
+}
+
+static const ENVScalar3 f_scalar_sqrdmlah = {
+    { gen_helper_neon_qrdmlah_s16, gen_helper_neon_qrdmlah_s32 }
+};
+TRANS_FEAT(SQRDMLAH_s, aa64_rdm, do_env_scalar3_hs, a, &f_scalar_sqrdmlah)
+
+static const ENVScalar3 f_scalar_sqrdmlsh = {
+    { gen_helper_neon_qrdmlsh_s16, gen_helper_neon_qrdmlsh_s32 }
+};
+TRANS_FEAT(SQRDMLSH_s, aa64_rdm, do_env_scalar3_hs, a, &f_scalar_sqrdmlsh)
+
 static bool do_cmop_d(DisasContext *s, arg_rrr_e *a, TCGCond cond)
 {
     if (fp_access_check(s)) {
@@ -5552,6 +5589,8 @@ TRANS(CMTST_v, do_gvec_fn3, a, gen_gvec_cmtst)
 
 TRANS(SQDMULH_v, do_gvec_fn3_no8_no64, a, gen_gvec_sqdmulh_qc)
 TRANS(SQRDMULH_v, do_gvec_fn3_no8_no64, a, gen_gvec_sqrdmulh_qc)
+TRANS_FEAT(SQRDMLAH_v, aa64_rdm, do_gvec_fn3_no8_no64, a, gen_gvec_sqrdmlah_qc)
+TRANS_FEAT(SQRDMLSH_v, aa64_rdm, do_gvec_fn3_no8_no64, a, gen_gvec_sqrdmlsh_qc)
 
 /*
  * Advanced SIMD scalar/vector x indexed element
@@ -5680,6 +5719,29 @@ static bool do_env_scalar2_idx_hs(DisasContext *s, arg_rrx_e *a,
 
 TRANS(SQDMULH_si, do_env_scalar2_idx_hs, a, &f_scalar_sqdmulh)
 TRANS(SQRDMULH_si, do_env_scalar2_idx_hs, a, &f_scalar_sqrdmulh)
+
+static bool do_env_scalar3_idx_hs(DisasContext *s, arg_rrx_e *a,
+                                  const ENVScalar3 *f)
+{
+    if (a->esz < MO_16 || a->esz > MO_32) {
+        return false;
+    }
+    if (fp_access_check(s)) {
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        TCGv_i32 t1 = tcg_temp_new_i32();
+        TCGv_i32 t2 = tcg_temp_new_i32();
+
+        read_vec_element_i32(s, t0, a->rn, 0, a->esz);
+        read_vec_element_i32(s, t1, a->rm, a->idx, a->esz);
+        read_vec_element_i32(s, t2, a->rd, 0, a->esz);
+        f->gen_hs[a->esz - 1](t0, tcg_env, t0, t1, t2);
+        write_fp_sreg(s, a->rd, t0);
+    }
+    return true;
+}
+
+TRANS_FEAT(SQRDMLAH_si, aa64_rdm, do_env_scalar3_idx_hs, a, &f_scalar_sqrdmlah)
+TRANS_FEAT(SQRDMLSH_si, aa64_rdm, do_env_scalar3_idx_hs, a, &f_scalar_sqrdmlsh)
 
 static bool do_fp3_vector_idx(DisasContext *s, arg_qrrx_e *a,
                               gen_helper_gvec_3_ptr * const fns[3])
@@ -5837,6 +5899,20 @@ static gen_helper_gvec_4 * const f_vector_idx_sqrdmulh[2] = {
     gen_helper_neon_sqrdmulh_idx_s,
 };
 TRANS(SQRDMULH_vi, do_int3_qc_vector_idx, a, f_vector_idx_sqrdmulh)
+
+static gen_helper_gvec_4 * const f_vector_idx_sqrdmlah[2] = {
+    gen_helper_neon_sqrdmlah_idx_h,
+    gen_helper_neon_sqrdmlah_idx_s,
+};
+TRANS_FEAT(SQRDMLAH_vi, aa64_rdm, do_int3_qc_vector_idx, a,
+           f_vector_idx_sqrdmlah)
+
+static gen_helper_gvec_4 * const f_vector_idx_sqrdmlsh[2] = {
+    gen_helper_neon_sqrdmlsh_idx_h,
+    gen_helper_neon_sqrdmlsh_idx_s,
+};
+TRANS_FEAT(SQRDMLSH_vi, aa64_rdm, do_int3_qc_vector_idx, a,
+           f_vector_idx_sqrdmlsh)
 
 /*
  * Advanced SIMD scalar pairwise
@@ -9536,84 +9612,6 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD scalar three same extra
- *  31 30  29 28       24 23  22  21 20  16  15 14    11  10 9  5 4  0
- * +-----+---+-----------+------+---+------+---+--------+---+----+----+
- * | 0 1 | U | 1 1 1 1 0 | size | 0 |  Rm  | 1 | opcode | 1 | Rn | Rd |
- * +-----+---+-----------+------+---+------+---+--------+---+----+----+
- */
-static void disas_simd_scalar_three_reg_same_extra(DisasContext *s,
-                                                   uint32_t insn)
-{
-    int rd = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int opcode = extract32(insn, 11, 4);
-    int rm = extract32(insn, 16, 5);
-    int size = extract32(insn, 22, 2);
-    bool u = extract32(insn, 29, 1);
-    TCGv_i32 ele1, ele2, ele3;
-    TCGv_i64 res;
-    bool feature;
-
-    switch (u * 16 + opcode) {
-    case 0x10: /* SQRDMLAH (vector) */
-    case 0x11: /* SQRDMLSH (vector) */
-        if (size != 1 && size != 2) {
-            unallocated_encoding(s);
-            return;
-        }
-        feature = dc_isar_feature(aa64_rdm, s);
-        break;
-    default:
-        unallocated_encoding(s);
-        return;
-    }
-    if (!feature) {
-        unallocated_encoding(s);
-        return;
-    }
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    /* Do a single operation on the lowest element in the vector.
-     * We use the standard Neon helpers and rely on 0 OP 0 == 0
-     * with no side effects for all these operations.
-     * OPTME: special-purpose helpers would avoid doing some
-     * unnecessary work in the helper for the 16 bit cases.
-     */
-    ele1 = tcg_temp_new_i32();
-    ele2 = tcg_temp_new_i32();
-    ele3 = tcg_temp_new_i32();
-
-    read_vec_element_i32(s, ele1, rn, 0, size);
-    read_vec_element_i32(s, ele2, rm, 0, size);
-    read_vec_element_i32(s, ele3, rd, 0, size);
-
-    switch (opcode) {
-    case 0x0: /* SQRDMLAH */
-        if (size == 1) {
-            gen_helper_neon_qrdmlah_s16(ele3, tcg_env, ele1, ele2, ele3);
-        } else {
-            gen_helper_neon_qrdmlah_s32(ele3, tcg_env, ele1, ele2, ele3);
-        }
-        break;
-    case 0x1: /* SQRDMLSH */
-        if (size == 1) {
-            gen_helper_neon_qrdmlsh_s16(ele3, tcg_env, ele1, ele2, ele3);
-        } else {
-            gen_helper_neon_qrdmlsh_s32(ele3, tcg_env, ele1, ele2, ele3);
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    res = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(res, ele3);
-    write_fp_dreg(s, rd, res);
-}
-
 static void handle_2misc_64(DisasContext *s, int opcode, bool u,
                             TCGv_i64 tcg_rd, TCGv_i64 tcg_rn,
                             TCGv_i32 tcg_rmode, TCGv_ptr tcg_fpstatus)
@@ -10892,14 +10890,6 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
     int rot;
 
     switch (u * 16 + opcode) {
-    case 0x10: /* SQRDMLAH (vector) */
-    case 0x11: /* SQRDMLSH (vector) */
-        if (size != 1 && size != 2) {
-            unallocated_encoding(s);
-            return;
-        }
-        feature = dc_isar_feature(aa64_rdm, s);
-        break;
     case 0x02: /* SDOT (vector) */
     case 0x12: /* UDOT (vector) */
         if (size != MO_32) {
@@ -10957,6 +10947,8 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
         }
         break;
     default:
+    case 0x10: /* SQRDMLAH (vector) */
+    case 0x11: /* SQRDMLSH (vector) */
         unallocated_encoding(s);
         return;
     }
@@ -10969,14 +10961,6 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
     }
 
     switch (opcode) {
-    case 0x0: /* SQRDMLAH (vector) */
-        gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_sqrdmlah_qc, size);
-        return;
-
-    case 0x1: /* SQRDMLSH (vector) */
-        gen_gvec_fn3(s, is_q, rd, rn, rm, gen_gvec_sqrdmlsh_qc, size);
-        return;
-
     case 0x2: /* SDOT / UDOT */
         gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, 0,
                          u ? gen_helper_gvec_udot_b : gen_helper_gvec_sdot_b);
@@ -12059,13 +12043,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x0b: /* SQDMULL, SQDMULL2 */
         is_long = true;
         break;
-    case 0x1d: /* SQRDMLAH */
-    case 0x1f: /* SQRDMLSH */
-        if (!dc_isar_feature(aa64_rdm, s)) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
     case 0x0e: /* SDOT */
     case 0x1e: /* UDOT */
         if (is_scalar || size != MO_32 || !dc_isar_feature(aa64_dp, s)) {
@@ -12127,6 +12104,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x18: /* FMLAL2 */
     case 0x19: /* FMULX */
     case 0x1c: /* FMLSL2 */
+    case 0x1d: /* SQRDMLAH */
+    case 0x1f: /* SQRDMLSH */
         unallocated_encoding(s);
         return;
     }
@@ -12320,33 +12299,13 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                                                 tcg_op, tcg_idx);
                 }
                 break;
-            case 0x1d: /* SQRDMLAH */
-                read_vec_element_i32(s, tcg_res, rd, pass,
-                                     is_scalar ? size : MO_32);
-                if (size == 1) {
-                    gen_helper_neon_qrdmlah_s16(tcg_res, tcg_env,
-                                                tcg_op, tcg_idx, tcg_res);
-                } else {
-                    gen_helper_neon_qrdmlah_s32(tcg_res, tcg_env,
-                                                tcg_op, tcg_idx, tcg_res);
-                }
-                break;
-            case 0x1f: /* SQRDMLSH */
-                read_vec_element_i32(s, tcg_res, rd, pass,
-                                     is_scalar ? size : MO_32);
-                if (size == 1) {
-                    gen_helper_neon_qrdmlsh_s16(tcg_res, tcg_env,
-                                                tcg_op, tcg_idx, tcg_res);
-                } else {
-                    gen_helper_neon_qrdmlsh_s32(tcg_res, tcg_env,
-                                                tcg_op, tcg_idx, tcg_res);
-                }
-                break;
             default:
             case 0x01: /* FMLA */
             case 0x05: /* FMLS */
             case 0x09: /* FMUL */
             case 0x19: /* FMULX */
+            case 0x1d: /* SQRDMLAH */
+            case 0x1f: /* SQRDMLSH */
                 g_assert_not_reached();
             }
 
@@ -12538,7 +12497,6 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x0e000000, 0xbf208c00, disas_simd_tb },
     { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
     { 0x2e000000, 0xbf208400, disas_simd_ext },
-    { 0x5e008400, 0xdf208400, disas_simd_scalar_three_reg_same_extra },
     { 0x5e200000, 0xdf200c00, disas_simd_scalar_three_reg_diff },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
     { 0x5f000000, 0xdf000400, disas_simd_indexed }, /* scalar indexed */

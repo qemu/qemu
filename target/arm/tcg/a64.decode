@@ -781,6 +781,8 @@ CMEQ_s          0111 1110 111 ..... 10001 1 ..... ..... @rrr_d
 
 SQDMULH_s       0101 1110 ..1 ..... 10110 1 ..... ..... @rrr_e
 SQRDMULH_s      0111 1110 ..1 ..... 10110 1 ..... ..... @rrr_e
+SQRDMLAH_s      0111 1110 ..0 ..... 10000 1 ..... ..... @rrr_e
+SQRDMLSH_s      0111 1110 ..0 ..... 10001 1 ..... ..... @rrr_e
 
 ### Advanced SIMD scalar pairwise
 
@@ -941,6 +943,8 @@ MLS_v           0.10 1110 ..1 ..... 10010 1 ..... ..... @qrrr_e
 
 SQDMULH_v       0.00 1110 ..1 ..... 10110 1 ..... ..... @qrrr_e
 SQRDMULH_v      0.10 1110 ..1 ..... 10110 1 ..... ..... @qrrr_e
+SQRDMLAH_v      0.10 1110 ..0 ..... 10000 1 ..... ..... @qrrr_e
+SQRDMLSH_v      0.10 1110 ..0 ..... 10001 1 ..... ..... @qrrr_e
 
 ### Advanced SIMD scalar x indexed element
 
@@ -965,6 +969,12 @@ SQDMULH_si      0101 1111 10 .. .... 1100 . 0 ..... .....   @rrx_s
 
 SQRDMULH_si     0101 1111 01 .. .... 1101 . 0 ..... .....   @rrx_h
 SQRDMULH_si     0101 1111 10 . ..... 1101 . 0 ..... .....   @rrx_s
+
+SQRDMLAH_si     0111 1111 01 .. .... 1101 . 0 ..... .....   @rrx_h
+SQRDMLAH_si     0111 1111 10 .. .... 1101 . 0 ..... .....   @rrx_s
+
+SQRDMLSH_si     0111 1111 01 .. .... 1111 . 0 ..... .....   @rrx_h
+SQRDMLSH_si     0111 1111 10 .. .... 1111 . 0 ..... .....   @rrx_s
 
 ### Advanced SIMD vector x indexed element
 
@@ -1003,6 +1013,12 @@ SQDMULH_vi      0.00 1111 10 . ..... 1100 . 0 ..... .....   @qrrx_s
 
 SQRDMULH_vi     0.00 1111 01 .. .... 1101 . 0 ..... .....   @qrrx_h
 SQRDMULH_vi     0.00 1111 10 . ..... 1101 . 0 ..... .....   @qrrx_s
+
+SQRDMLAH_vi     0.10 1111 01 .. .... 1101 . 0 ..... .....   @qrrx_h
+SQRDMLAH_vi     0.10 1111 10 .. .... 1101 . 0 ..... .....   @qrrx_s
+
+SQRDMLSH_vi     0.10 1111 01 .. .... 1111 . 0 ..... .....   @qrrx_h
+SQRDMLSH_vi     0.10 1111 10 .. .... 1111 . 0 ..... .....   @qrrx_s
 
 # Floating-point conditional select
 

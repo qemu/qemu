@@ -347,6 +347,42 @@ void HELPER(neon_sqrdmulh_idx_h)(void *vd, void *vn, void *vm,
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
+void HELPER(neon_sqrdmlah_idx_h)(void *vd, void *vn, void *vm,
+                                 void *vq, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    int idx = simd_data(desc);
+    int16_t *d = vd, *n = vn, *m = (int16_t *)vm + H2(idx);
+    intptr_t elements = opr_sz / 2;
+    intptr_t eltspersegment = MIN(16 / 2, elements);
+
+    for (i = 0; i < elements; i += 16 / 2) {
+        int16_t mm = m[i];
+        for (j = 0; j < eltspersegment; ++j) {
+            d[i + j] = do_sqrdmlah_h(n[i + j], mm, d[i + j], false, true, vq);
+        }
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(neon_sqrdmlsh_idx_h)(void *vd, void *vn, void *vm,
+                                 void *vq, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    int idx = simd_data(desc);
+    int16_t *d = vd, *n = vn, *m = (int16_t *)vm + H2(idx);
+    intptr_t elements = opr_sz / 2;
+    intptr_t eltspersegment = MIN(16 / 2, elements);
+
+    for (i = 0; i < elements; i += 16 / 2) {
+        int16_t mm = m[i];
+        for (j = 0; j < eltspersegment; ++j) {
+            d[i + j] = do_sqrdmlah_h(n[i + j], mm, d[i + j], true, true, vq);
+        }
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
 void HELPER(sve2_sqrdmlah_h)(void *vd, void *vn, void *vm,
                              void *va, uint32_t desc)
 {
@@ -541,6 +577,42 @@ void HELPER(neon_sqrdmulh_idx_s)(void *vd, void *vn, void *vm,
         int32_t mm = m[i];
         for (j = 0; j < eltspersegment; ++j) {
             d[i + j] = do_sqrdmlah_s(n[i + j], mm, 0, false, true, vq);
+        }
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(neon_sqrdmlah_idx_s)(void *vd, void *vn, void *vm,
+                                 void *vq, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    int idx = simd_data(desc);
+    int32_t *d = vd, *n = vn, *m = (int32_t *)vm + H4(idx);
+    intptr_t elements = opr_sz / 4;
+    intptr_t eltspersegment = MIN(16 / 4, elements);
+
+    for (i = 0; i < elements; i += 16 / 4) {
+        int32_t mm = m[i];
+        for (j = 0; j < eltspersegment; ++j) {
+            d[i + j] = do_sqrdmlah_s(n[i + j], mm, d[i + j], false, true, vq);
+        }
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(neon_sqrdmlsh_idx_s)(void *vd, void *vn, void *vm,
+                                 void *vq, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    int idx = simd_data(desc);
+    int32_t *d = vd, *n = vn, *m = (int32_t *)vm + H4(idx);
+    intptr_t elements = opr_sz / 4;
+    intptr_t eltspersegment = MIN(16 / 4, elements);
+
+    for (i = 0; i < elements; i += 16 / 4) {
+        int32_t mm = m[i];
+        for (j = 0; j < eltspersegment; ++j) {
+            d[i + j] = do_sqrdmlah_s(n[i + j], mm, d[i + j], true, true, vq);
         }
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
