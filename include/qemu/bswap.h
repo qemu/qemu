@@ -38,12 +38,14 @@ static inline void bswap64s(uint64_t *s)
 #if HOST_BIG_ENDIAN
 #define be_bswap(v, size) (v)
 #define le_bswap(v, size) glue(__builtin_bswap, size)(v)
+#define be_bswap24(v) (v)
 #define le_bswap24(v) bswap24(v)
 #define be_bswaps(v, size)
 #define le_bswaps(p, size) \
             do { *p = glue(__builtin_bswap, size)(*p); } while (0)
 #else
 #define le_bswap(v, size) (v)
+#define be_bswap24(v) bswap24(v)
 #define le_bswap24(v) (v)
 #define be_bswap(v, size) glue(__builtin_bswap, size)(v)
 #define le_bswaps(v, size)
@@ -355,6 +357,11 @@ static inline uint64_t ldq_be_p(const void *ptr)
 static inline void stw_be_p(void *ptr, uint16_t v)
 {
     stw_he_p(ptr, be_bswap(v, 16));
+}
+
+static inline void st24_be_p(void *ptr, uint32_t v)
+{
+    st24_he_p(ptr, be_bswap24(v));
 }
 
 static inline void stl_be_p(void *ptr, uint32_t v)
