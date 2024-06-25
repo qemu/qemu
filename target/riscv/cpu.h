@@ -124,6 +124,29 @@ typedef enum {
     EXT_STATUS_DIRTY,
 } RISCVExtStatus;
 
+typedef struct riscv_cpu_implied_exts_rule {
+#ifndef CONFIG_USER_ONLY
+    /*
+     * Bitmask indicates the rule enabled status for the harts.
+     * This enhancement is only available in system-mode QEMU,
+     * as we don't have a good way (e.g. mhartid) to distinguish
+     * the SMP cores in user-mode QEMU.
+     */
+    unsigned long *enabled;
+#endif
+    /* True if this is a MISA implied rule. */
+    bool is_misa;
+    /* ext is MISA bit if is_misa flag is true, else multi extension offset. */
+    const uint32_t ext;
+    const uint32_t implied_misa_exts;
+    const uint32_t implied_multi_exts[];
+} RISCVCPUImpliedExtsRule;
+
+extern RISCVCPUImpliedExtsRule *riscv_misa_ext_implied_rules[];
+extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
+
+#define RISCV_IMPLIED_EXTS_RULE_END -1
+
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)
