@@ -2297,12 +2297,352 @@ static RISCVCPUImpliedExtsRule RVV_IMPLIED = {
     },
 };
 
+static RISCVCPUImpliedExtsRule ZCB_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zcb),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zca),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZCD_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zcd),
+    .implied_misa_exts = RVD,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zca),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZCE_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zce),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zcb), CPU_CFG_OFFSET(ext_zcmp),
+        CPU_CFG_OFFSET(ext_zcmt),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZCF_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zcf),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zca),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZCMP_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zcmp),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zca),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZCMT_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zcmt),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zca), CPU_CFG_OFFSET(ext_zicsr),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZDINX_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zdinx),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zfinx),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZFA_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zfa),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = { RISCV_IMPLIED_EXTS_RULE_END },
+};
+
+static RISCVCPUImpliedExtsRule ZFBFMIN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zfbfmin),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = { RISCV_IMPLIED_EXTS_RULE_END },
+};
+
+static RISCVCPUImpliedExtsRule ZFH_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zfh),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zfhmin),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZFHMIN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zfhmin),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = { RISCV_IMPLIED_EXTS_RULE_END },
+};
+
+static RISCVCPUImpliedExtsRule ZFINX_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zfinx),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zicsr),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZHINX_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zhinx),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zhinxmin),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZHINXMIN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zhinxmin),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zfinx),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZICNTR_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zicntr),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zicsr),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZIHPM_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zihpm),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zicsr),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZK_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zk),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zkn), CPU_CFG_OFFSET(ext_zkr),
+        CPU_CFG_OFFSET(ext_zkt),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZKN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zkn),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zbkb), CPU_CFG_OFFSET(ext_zbkc),
+        CPU_CFG_OFFSET(ext_zbkx), CPU_CFG_OFFSET(ext_zkne),
+        CPU_CFG_OFFSET(ext_zknd), CPU_CFG_OFFSET(ext_zknh),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZKS_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zks),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zbkb), CPU_CFG_OFFSET(ext_zbkc),
+        CPU_CFG_OFFSET(ext_zbkx), CPU_CFG_OFFSET(ext_zksed),
+        CPU_CFG_OFFSET(ext_zksh),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVBB_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvbb),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvkb),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVE32F_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zve32f),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32x),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVE32X_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zve32x),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zicsr),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVE64D_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zve64d),
+    .implied_misa_exts = RVD,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve64f),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVE64F_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zve64f),
+    .implied_misa_exts = RVF,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32f), CPU_CFG_OFFSET(ext_zve64x),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVE64X_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zve64x),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32x),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVFBFMIN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvfbfmin),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32f),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVFBFWMA_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvfbfwma),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvfbfmin), CPU_CFG_OFFSET(ext_zfbfmin),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVFH_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvfh),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvfhmin), CPU_CFG_OFFSET(ext_zfhmin),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVFHMIN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvfhmin),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve32f),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvkn),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvkned), CPU_CFG_OFFSET(ext_zvknhb),
+        CPU_CFG_OFFSET(ext_zvkb), CPU_CFG_OFFSET(ext_zvkt),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKNC_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvknc),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvkn), CPU_CFG_OFFSET(ext_zvbc),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKNG_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvkng),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvkn), CPU_CFG_OFFSET(ext_zvkg),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKNHB_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvknhb),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zve64x),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKS_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvks),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvksed), CPU_CFG_OFFSET(ext_zvksh),
+        CPU_CFG_OFFSET(ext_zvkb), CPU_CFG_OFFSET(ext_zvkt),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKSC_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvksc),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvks), CPU_CFG_OFFSET(ext_zvbc),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule ZVKSG_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_zvksg),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_zvks), CPU_CFG_OFFSET(ext_zvkg),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
 RISCVCPUImpliedExtsRule *riscv_misa_ext_implied_rules[] = {
     &RVA_IMPLIED, &RVD_IMPLIED, &RVF_IMPLIED,
     &RVM_IMPLIED, &RVV_IMPLIED, NULL
 };
 
 RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
+    &ZCB_IMPLIED, &ZCD_IMPLIED, &ZCE_IMPLIED,
+    &ZCF_IMPLIED, &ZCMP_IMPLIED, &ZCMT_IMPLIED,
+    &ZDINX_IMPLIED, &ZFA_IMPLIED, &ZFBFMIN_IMPLIED,
+    &ZFH_IMPLIED, &ZFHMIN_IMPLIED, &ZFINX_IMPLIED,
+    &ZHINX_IMPLIED, &ZHINXMIN_IMPLIED, &ZICNTR_IMPLIED,
+    &ZIHPM_IMPLIED, &ZK_IMPLIED, &ZKN_IMPLIED,
+    &ZKS_IMPLIED, &ZVBB_IMPLIED, &ZVE32F_IMPLIED,
+    &ZVE32X_IMPLIED, &ZVE64D_IMPLIED, &ZVE64F_IMPLIED,
+    &ZVE64X_IMPLIED, &ZVFBFMIN_IMPLIED, &ZVFBFWMA_IMPLIED,
+    &ZVFH_IMPLIED, &ZVFHMIN_IMPLIED, &ZVKN_IMPLIED,
+    &ZVKNC_IMPLIED, &ZVKNG_IMPLIED, &ZVKNHB_IMPLIED,
+    &ZVKS_IMPLIED,  &ZVKSC_IMPLIED, &ZVKSG_IMPLIED,
     NULL
 };
 
