@@ -1078,10 +1078,8 @@ static sd_rsp_type_t sd_cmd_unimplemented(SDState *sd, SDRequest req)
 /* CMD0 */
 static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
 {
-    if (sd->state != sd_inactive_state) {
-        sd->state = sd_idle_state;
-        sd_reset(DEVICE(sd));
-    }
+    sd->state = sd_idle_state;
+    sd_reset(DEVICE(sd));
 
     return sd_is_spi(sd) ? sd_r1 : sd_r0;
 }
@@ -1580,7 +1578,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         switch (sd->state) {
         case sd_ready_state:
         case sd_identification_state:
-        case sd_inactive_state:
             return sd_illegal;
         case sd_idle_state:
             if (rca) {
@@ -1799,6 +1796,11 @@ int sd_do_command(SDState *sd, SDRequest *req,
 
     if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable) {
         return 0;
+    }
+
+    if (sd->state == sd_inactive_state) {
+        rtype = sd_illegal;
+        goto send_response;
     }
 
     if (sd_req_crc_validate(req)) {
