@@ -271,6 +271,12 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
     AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
     assert(asc->max_ram_size < 4 * GiB || asc->is_bus64bit);
+
+    if (!s->ram_size) {
+        error_setg(errp, "RAM size is not set");
+        return;
+    }
+
     s->max_ram_size = asc->max_ram_size;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sdmc_ops, s,
