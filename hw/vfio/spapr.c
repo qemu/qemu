@@ -30,6 +30,8 @@ typedef struct VFIOSpaprContainer {
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
 } VFIOSpaprContainer;
 
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOSpaprContainer, VFIO_IOMMU_SPAPR);
+
 static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
 {
     if (memory_region_is_iommu(section->mr)) {
@@ -548,6 +550,7 @@ static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_SPAPR,
         .parent = TYPE_VFIO_IOMMU_LEGACY,
+        .instance_size = sizeof(VFIOSpaprContainer),
         .class_init = vfio_iommu_spapr_class_init,
     },
 };

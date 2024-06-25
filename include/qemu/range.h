@@ -20,6 +20,8 @@
 #ifndef QEMU_RANGE_H
 #define QEMU_RANGE_H
 
+#include "qemu/bitops.h"
+
 /*
  * Operations on 64 bit address ranges.
  * Notes:
@@ -215,6 +217,15 @@ static inline int ranges_overlap(uint64_t first1, uint64_t len1,
     uint64_t last2 = range_get_last(first2, len2);
 
     return !(last2 < first1 || last1 < first2);
+}
+
+/* Get highest non-zero bit position of a range */
+static inline int range_get_last_bit(Range *range)
+{
+    if (range_is_empty(range)) {
+        return -1;
+    }
+    return 63 - clz64(range->upb);
 }
 
 /*

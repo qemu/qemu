@@ -34,7 +34,7 @@ typedef struct VFIOAddressSpace {
  * This is the base object for vfio container backends
  */
 typedef struct VFIOContainerBase {
-    const VFIOIOMMUClass *ops;
+    Object parent;
     VFIOAddressSpace *space;
     MemoryListener listener;
     Error *error;
@@ -86,28 +86,18 @@ int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
 int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                    VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp);
 
-void vfio_container_init(VFIOContainerBase *bcontainer,
-                         VFIOAddressSpace *space,
-                         const VFIOIOMMUClass *ops);
-void vfio_container_destroy(VFIOContainerBase *bcontainer);
-
-
 #define TYPE_VFIO_IOMMU "vfio-iommu"
 #define TYPE_VFIO_IOMMU_LEGACY TYPE_VFIO_IOMMU "-legacy"
 #define TYPE_VFIO_IOMMU_SPAPR TYPE_VFIO_IOMMU "-spapr"
 #define TYPE_VFIO_IOMMU_IOMMUFD TYPE_VFIO_IOMMU "-iommufd"
 
-/*
- * VFIOContainerBase is not an abstract QOM object because it felt
- * unnecessary to expose all the IOMMU backends to the QEMU machine
- * and human interface. However, we can still abstract the IOMMU
- * backend handlers using a QOM interface class. This provides more
- * flexibility when referencing the various implementations.
- */
-DECLARE_CLASS_CHECKERS(VFIOIOMMUClass, VFIO_IOMMU, TYPE_VFIO_IOMMU)
+OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 
 struct VFIOIOMMUClass {
-    InterfaceClass parent_class;
+    ObjectClass parent_class;
+
+    /* Properties */
+    const char *hiod_typename;
 
     /* basic feature */
     bool (*setup)(VFIOContainerBase *bcontainer, Error **errp);

@@ -354,7 +354,7 @@ static void vfio_kvm_device_del_group(VFIOGroup *group)
 /*
  * vfio_get_iommu_type - selects the richest iommu_type (v2 first)
  */
-static int vfio_get_iommu_type(VFIOContainer *container,
+static int vfio_get_iommu_type(int container_fd,
                                Error **errp)
 {
     int iommu_types[] = { VFIO_TYPE1v2_IOMMU, VFIO_TYPE1_IOMMU,
@@ -362,7 +362,7 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     int i;
 
     for (i = 0; i < ARRAY_SIZE(iommu_types); i++) {
-        if (ioctl(container->fd, VFIO_CHECK_EXTENSION, iommu_types[i])) {
+        if (ioctl(container_fd, VFIO_CHECK_EXTENSION, iommu_types[i])) {
             return iommu_types[i];
         }
     }
@@ -373,67 +373,70 @@ static int vfio_get_iommu_type(VFIOContainer *container,
 /*
  * vfio_get_iommu_ops - get a VFIOIOMMUClass associated with a type
  */
-static const VFIOIOMMUClass *vfio_get_iommu_class(int iommu_type, Error **errp)
+static const char *vfio_get_iommu_class_name(int iommu_type)
 {
-    ObjectClass *klass = NULL;
-
     switch (iommu_type) {
     case VFIO_TYPE1v2_IOMMU:
     case VFIO_TYPE1_IOMMU:
-        klass = object_class_by_name(TYPE_VFIO_IOMMU_LEGACY);
+        return TYPE_VFIO_IOMMU_LEGACY;
         break;
     case VFIO_SPAPR_TCE_v2_IOMMU:
     case VFIO_SPAPR_TCE_IOMMU:
-        klass = object_class_by_name(TYPE_VFIO_IOMMU_SPAPR);
+        return TYPE_VFIO_IOMMU_SPAPR;
         break;
     default:
         g_assert_not_reached();
     };
-
-    return VFIO_IOMMU_CLASS(klass);
 }
 
-static bool vfio_set_iommu(VFIOContainer *container, int group_fd,
-                           VFIOAddressSpace *space, Error **errp)
+static bool vfio_set_iommu(int container_fd, int group_fd,
+                           int *iommu_type, Error **errp)
 {
-    int iommu_type;
-    const VFIOIOMMUClass *vioc;
-
-    iommu_type = vfio_get_iommu_type(container, errp);
-    if (iommu_type < 0) {
-        return false;
-    }
-
-    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container_fd)) {
         error_setg_errno(errp, errno, "Failed to set group container");
         return false;
     }
 
-    while (ioctl(container->fd, VFIO_SET_IOMMU, iommu_type)) {
-        if (iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+    while (ioctl(container_fd, VFIO_SET_IOMMU, *iommu_type)) {
+        if (*iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
             /*
              * On sPAPR, despite the IOMMU subdriver always advertises v1 and
              * v2, the running platform may not support v2 and there is no
              * way to guess it until an IOMMU group gets added to the container.
              * So in case it fails with v2, try v1 as a fallback.
              */
-            iommu_type = VFIO_SPAPR_TCE_IOMMU;
+            *iommu_type = VFIO_SPAPR_TCE_IOMMU;
             continue;
         }
         error_setg_errno(errp, errno, "Failed to set iommu for container");
         return false;
     }
 
-    container->iommu_type = iommu_type;
+    return true;
+}
 
-    vioc = vfio_get_iommu_class(iommu_type, errp);
-    if (!vioc) {
-        error_setg(errp, "No available IOMMU models");
-        return false;
+static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
+                                            Error **errp)
+{
+    int iommu_type;
+    const char *vioc_name;
+    VFIOContainer *container;
+
+    iommu_type = vfio_get_iommu_type(fd, errp);
+    if (iommu_type < 0) {
+        return NULL;
     }
 
-    vfio_container_init(&container->bcontainer, space, vioc);
-    return true;
+    if (!vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
+        return NULL;
+    }
+
+    vioc_name = vfio_get_iommu_class_name(iommu_type);
+
+    container = VFIO_IOMMU_LEGACY(object_new(vioc_name));
+    container->fd = fd;
+    container->iommu_type = iommu_type;
+    return container;
 }
 
 static int vfio_get_iommu_info(VFIOContainer *container,
@@ -542,6 +545,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     VFIOContainerBase *bcontainer;
     int ret, fd;
     VFIOAddressSpace *space;
+    VFIOIOMMUClass *vioc;
 
     space = vfio_get_address_space(as);
 
@@ -610,13 +614,11 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto close_fd_exit;
     }
 
-    container = g_malloc0(sizeof(*container));
-    container->fd = fd;
-    bcontainer = &container->bcontainer;
-
-    if (!vfio_set_iommu(container, group->fd, space, errp)) {
-        goto free_container_exit;
+    container = vfio_create_container(fd, group, errp);
+    if (!container) {
+        goto close_fd_exit;
     }
+    bcontainer = &container->bcontainer;
 
     if (!vfio_cpr_register_container(bcontainer, errp)) {
         goto free_container_exit;
@@ -628,16 +630,16 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto unregister_container_exit;
     }
 
-    assert(bcontainer->ops->setup);
+    vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+    assert(vioc->setup);
 
-    if (!bcontainer->ops->setup(bcontainer, errp)) {
+    if (!vioc->setup(bcontainer, errp)) {
         goto enable_discards_exit;
     }
 
     vfio_kvm_device_add_group(group);
 
-    QLIST_INIT(&container->group_list);
-    QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
+    vfio_address_space_insert(space, bcontainer);
 
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
@@ -659,8 +661,8 @@ listener_release_exit:
     QLIST_REMOVE(bcontainer, next);
     vfio_kvm_device_del_group(group);
     memory_listener_unregister(&bcontainer->listener);
-    if (bcontainer->ops->release) {
-        bcontainer->ops->release(bcontainer);
+    if (vioc->release) {
+        vioc->release(bcontainer);
     }
 
 enable_discards_exit:
@@ -670,7 +672,7 @@ unregister_container_exit:
     vfio_cpr_unregister_container(bcontainer);
 
 free_container_exit:
-    g_free(container);
+    object_unref(container);
 
 close_fd_exit:
     close(fd);
@@ -685,6 +687,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
     VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
@@ -696,8 +699,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
      */
     if (QLIST_EMPTY(&container->group_list)) {
         memory_listener_unregister(&bcontainer->listener);
-        if (bcontainer->ops->release) {
-            bcontainer->ops->release(bcontainer);
+        if (vioc->release) {
+            vioc->release(bcontainer);
         }
     }
 
@@ -709,12 +712,10 @@ static void vfio_disconnect_container(VFIOGroup *group)
     if (QLIST_EMPTY(&container->group_list)) {
         VFIOAddressSpace *space = bcontainer->space;
 
-        vfio_container_destroy(bcontainer);
-
         trace_vfio_disconnect_container(container->fd);
         vfio_cpr_unregister_container(bcontainer);
         close(container->fd);
-        g_free(container);
+        object_unref(container);
 
         vfio_put_address_space(space);
     }
@@ -1126,6 +1127,8 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
 
+    vioc->hiod_typename = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO;
+
     vioc->setup = vfio_legacy_setup;
     vioc->dma_map = vfio_legacy_dma_map;
     vioc->dma_unmap = vfio_legacy_dma_unmap;
@@ -1136,12 +1139,75 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
     vioc->pci_hot_reset = vfio_legacy_pci_hot_reset;
 };
 
+static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
+                                     Error **errp)
+{
+    VFIODevice *vdev = opaque;
+
+    hiod->name = g_strdup(vdev->name);
+    hiod->caps.aw_bits = vfio_device_get_aw_bits(vdev);
+    hiod->agent = opaque;
+
+    return true;
+}
+
+static int hiod_legacy_vfio_get_cap(HostIOMMUDevice *hiod, int cap,
+                                    Error **errp)
+{
+    HostIOMMUDeviceCaps *caps = &hiod->caps;
+
+    switch (cap) {
+    case HOST_IOMMU_DEVICE_CAP_AW_BITS:
+        return caps->aw_bits;
+    default:
+        error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
+        return -EINVAL;
+    }
+}
+
+static GList *
+hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod, Error **errp)
+{
+    VFIODevice *vdev = hiod->agent;
+    GList *l = NULL;
+
+    g_assert(vdev);
+
+    if (vdev->bcontainer) {
+        l = g_list_copy(vdev->bcontainer->iova_ranges);
+    }
+
+    return l;
+}
+
+static void vfio_iommu_legacy_instance_init(Object *obj)
+{
+    VFIOContainer *container = VFIO_IOMMU_LEGACY(obj);
+
+    QLIST_INIT(&container->group_list);
+}
+
+static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
+{
+    HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
+
+    hioc->realize = hiod_legacy_vfio_realize;
+    hioc->get_cap = hiod_legacy_vfio_get_cap;
+    hioc->get_iova_ranges = hiod_legacy_vfio_get_iova_ranges;
+};
+
 static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_LEGACY,
         .parent = TYPE_VFIO_IOMMU,
+        .instance_init = vfio_iommu_legacy_instance_init,
+        .instance_size = sizeof(VFIOContainer),
         .class_init = vfio_iommu_legacy_class_init,
-    },
+    }, {
+        .name = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
+        .parent = TYPE_HOST_IOMMU_DEVICE,
+        .class_init = hiod_legacy_vfio_class_init,
+    }
 };
 
 DEFINE_TYPES(types)
