@@ -174,7 +174,7 @@ class QemuGuestAgentClient:
             # On error exception will raise
         except asyncio.TimeoutError:
             # On success command will timed out
-            return
+            pass
 
     def shutdown(self, mode: str = 'powerdown') -> None:
         if mode not in ['powerdown', 'halt', 'reboot']:
