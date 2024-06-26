@@ -218,17 +218,17 @@ Notes:
     A complex configuration here, might be to use the following HDM
     decoders in HB0. HDM0 routes CFMW0 requests to RP0 and hence
     part of CXL Type3 0. HDM1 routes CFMW0 requests from a
-    different region of the CFMW0 PA range to RP2 and hence part
+    different region of the CFMW0 PA range to RP1 and hence part
     of CXL Type 3 1.  HDM2 routes yet another PA range from within
     CFMW0 to be interleaved across RP0 and RP1, providing 2 way
     interleave of part of the memory provided by CXL Type3 0 and
     CXL Type 3 1. HDM3 routes those interleaved accesses from
     CFMW1 that target HB0 to RP 0 and another part of the memory of
     CXL Type 3 0 (as part of a 2 way interleave at the system level
-    across for example CXL Type3 0 and CXL Type3 2.
+    across for example CXL Type3 0 and CXL Type3 2).
     HDM4 is used to enable system wide 4 way interleave across all
     the present CXL type3 devices, by interleaving those (interleaved)
-    requests that HB0 receives from from CFMW1 across RP 0 and
+    requests that HB0 receives from CFMW1 across RP 0 and
     RP 1 and hence to yet more regions of the memory of the
     attached Type3 devices.  Note this is a representative subset
     of the full range of possible HDM decoder configurations in this
