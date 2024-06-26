@@ -55,6 +55,8 @@
 # - {braces}
 ##
 
+# Not a doc comment
+
 ##
 # @Enum:
 #
