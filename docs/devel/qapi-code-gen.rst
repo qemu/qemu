@@ -1011,6 +1011,13 @@ like this::
 "Returns" and "Errors" sections are only valid for commands.  They
 document the success and the error response, respectively.
 
+"Errors" sections should be formatted as an rST list, each entry
+detailing a relevant error condition. For example::
+
+ # Errors:
+ #     - If @device does not exist, DeviceNotFound
+ #     - Any other error returns a GenericError.
+
 A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
