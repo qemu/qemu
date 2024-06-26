@@ -26,6 +26,7 @@ https://www.sphinx-doc.org/en/master/development/index.html
 
 import os
 import re
+import textwrap
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
@@ -51,6 +52,19 @@ else:
 
 
 __version__ = "1.0"
+
+
+def dedent(text: str) -> str:
+    # Adjust indentation to make description text parse as paragraph.
+
+    lines = text.splitlines(True)
+    if re.match(r"\s+", lines[0]):
+        # First line is indented; description started on the line after
+        # the name. dedent the whole block.
+        return textwrap.dedent(text)
+
+    # Descr started on same line. Dedent line 2+.
+    return lines[0] + textwrap.dedent("".join(lines[1:]))
 
 
 # Disable black auto-formatter until re-enabled:
@@ -164,7 +178,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             term = self._nodes_for_one_member(section.member)
             # TODO drop fallbacks when undocumented members are outlawed
             if section.text:
-                defn = section.text
+                defn = dedent(section.text)
             else:
                 defn = [nodes.Text('Not documented')]
 
@@ -202,7 +216,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                 termtext.extend(self._nodes_for_ifcond(section.member.ifcond))
             # TODO drop fallbacks when undocumented members are outlawed
             if section.text:
-                defn = section.text
+                defn = dedent(section.text)
             else:
                 defn = [nodes.Text('Not documented')]
 
@@ -237,7 +251,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         dlnode = nodes.definition_list()
         for section in doc.features.values():
             dlnode += self._make_dlitem(
-                [nodes.literal('', section.member.name)], section.text)
+                [nodes.literal('', section.member.name)], dedent(section.text))
             seen_item = True
 
         if not seen_item:
@@ -260,9 +274,12 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                 continue
             snode = self._make_section(section.tag)
             if section.tag and section.tag.startswith('Example'):
-                snode += self._nodes_for_example(section.text)
+                snode += self._nodes_for_example(dedent(section.text))
             else:
-                self._parse_text_into_node(section.text, snode)
+                self._parse_text_into_node(
+                    dedent(section.text) if section.tag else section.text,
+                    snode,
+                )
             nodelist.append(snode)
         return nodelist
 

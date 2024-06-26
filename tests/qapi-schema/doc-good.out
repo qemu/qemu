@@ -117,8 +117,8 @@ doc symbol=Base
     body=
 
     arg=base1
-description starts on a new line,
-minimally indented
+ description starts on a new line,
+ minimally indented
 doc symbol=Variant1
     body=
 A paragraph
@@ -145,8 +145,8 @@ doc symbol=Alternate
 
     arg=i
 description starts on the same line
-remainder indented the same
-@b is undocumented
+    remainder indented the same
+    @b is undocumented
     arg=b
 
     feature=alt-feat
@@ -158,11 +158,11 @@ doc symbol=cmd
     body=
 
     arg=arg1
-description starts on a new line,
-indented
+    description starts on a new line,
+    indented
     arg=arg2
 description starts on the same line
-remainder indented differently
+    remainder indented differently
     arg=arg3
 
     feature=cmd-feat1
@@ -178,16 +178,16 @@ some
     section=TODO
 frobnicate
     section=Notes
-- Lorem ipsum dolor sit amet
-- Ut enim ad minim veniam
+ - Lorem ipsum dolor sit amet
+ - Ut enim ad minim veniam
 
-Duis aute irure dolor
+ Duis aute irure dolor
     section=Example
--> in
-<- out
+ -> in
+ <- out
     section=Examples
-- *verbatim*
-- {braces}
+ - *verbatim*
+ - {braces}
     section=Since
 2.10
 doc symbol=cmd-boxed
@@ -198,9 +198,9 @@ a feature
     feature=cmd-feat2
 another feature
     section=Example
--> in
+ -> in
 
-<- out
+ <- out
 doc symbol=EVT_BOXED
     body=
 
