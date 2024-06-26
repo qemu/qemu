@@ -121,7 +121,7 @@ struct SevCommonStateClass {
                                        Error **errp);
     int (*launch_start)(SevCommonState *sev_common);
     void (*launch_finish)(SevCommonState *sev_common);
-    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, uint64_t len);
+    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, size_t len);
     int (*kvm_init)(ConfidentialGuestSupport *cgs, Error **errp);
 };
 
@@ -173,7 +173,7 @@ typedef struct SevLaunchUpdateData {
     QTAILQ_ENTRY(SevLaunchUpdateData) next;
     hwaddr gpa;
     void *hva;
-    uint64_t len;
+    size_t len;
     int type;
 } SevLaunchUpdateData;
 
@@ -886,7 +886,7 @@ sev_snp_launch_update(SevSnpGuestState *sev_snp_guest,
 
     if (!data->hva || !data->len) {
         error_report("SNP_LAUNCH_UPDATE called with invalid address"
-                     "/ length: %p / %lx",
+                     "/ length: %p / %zx",
                      data->hva, data->len);
         return 1;
     }
@@ -945,7 +945,8 @@ out:
 }
 
 static int
-sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa, uint8_t *addr, uint64_t len)
+sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
+                       uint8_t *addr, size_t len)
 {
     int ret, fw_error;
     struct kvm_sev_launch_update_data update;
@@ -1090,8 +1091,7 @@ sev_launch_finish(SevCommonState *sev_common)
 }
 
 static int
-snp_launch_update_data(uint64_t gpa, void *hva,
-                       uint32_t len, int type)
+snp_launch_update_data(uint64_t gpa, void *hva, size_t len, int type)
 {
     SevLaunchUpdateData *data;
 
@@ -1108,7 +1108,7 @@ snp_launch_update_data(uint64_t gpa, void *hva,
 
 static int
 sev_snp_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
-                           uint8_t *ptr, uint64_t len)
+                           uint8_t *ptr, size_t len)
 {
        int ret = snp_launch_update_data(gpa, ptr, len,
                                          KVM_SEV_SNP_PAGE_TYPE_NORMAL);
@@ -1165,7 +1165,7 @@ sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
 }
 
 static int
-snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, uint32_t cpuid_len)
+snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, size_t cpuid_len)
 {
     KvmCpuidInfo kvm_cpuid_info = {0};
     SnpCpuidInfo snp_cpuid_info;
