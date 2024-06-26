@@ -361,7 +361,7 @@
 #                    "channel-id": 0,
 #                    "tls": false
 #                 },
-#                 [ ... more channels follow ... ]
+#                 ...
 #              ]
 #           }
 #        }

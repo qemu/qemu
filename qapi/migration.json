@@ -2106,7 +2106,7 @@
 # Example:
 #
 #     -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
-#                                                     'sample-pages': 512} }
+#                                                     "sample-pages": 512} }
 #     <- { "return": {} }
 #
 #     Measure dirty rate using dirty bitmap for 500 milliseconds:

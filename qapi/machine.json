@@ -1057,7 +1057,7 @@
 #            "vcpus-count": 1 },
 #          { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
 #            "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
-#        ]}'
+#        ]}
 #
 #     For pc machine type started with -smp 1,maxcpus=2:
 #
