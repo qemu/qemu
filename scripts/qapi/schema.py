@@ -730,6 +730,7 @@ class QAPISchemaVariants:
         for v in self.variants:
             v.set_defined_in(name)
 
+    # pylint: disable=unused-argument
     def check(
             self, schema: QAPISchema, seen: Dict[str, QAPISchemaMember]
     ) -> None:
@@ -1166,7 +1167,7 @@ class QAPISchema:
                 defn.info, "%s is already defined" % other_defn.describe())
         self._entity_dict[defn.name] = defn
 
-    def lookup_entity(self,name: str) -> Optional[QAPISchemaEntity]:
+    def lookup_entity(self, name: str) -> Optional[QAPISchemaEntity]:
         return self._entity_dict.get(name)
 
     def lookup_type(self, name: str) -> Optional[QAPISchemaType]:
@@ -1302,11 +1303,10 @@ class QAPISchema:
         name = 'q_obj_%s-%s' % (name, role)
         typ = self.lookup_entity(name)
         if typ:
-            assert(isinstance(typ, QAPISchemaObjectType))
+            assert isinstance(typ, QAPISchemaObjectType)
             # The implicit object type has multiple users.  This can
             # only be a duplicate definition, which will be flagged
             # later.
-            pass
         else:
             self._def_definition(QAPISchemaObjectType(
                 name, info, None, ifcond, None, None, members, None))
