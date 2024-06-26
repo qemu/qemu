@@ -28,26 +28,33 @@ import os
 import re
 
 from docutils import nodes
+from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import ViewList
-from docutils.parsers.rst import directives, Directive
+from qapi.error import QAPIError, QAPISemError
+from qapi.gen import QAPISchemaVisitor
+from qapi.schema import QAPISchema
+
+import sphinx
 from sphinx.errors import ExtensionError
 from sphinx.util.nodes import nested_parse_with_titles
-import sphinx
-from qapi.gen import QAPISchemaVisitor
-from qapi.error import QAPIError, QAPISemError
-from qapi.schema import QAPISchema
 
 
 # Sphinx up to 1.6 uses AutodocReporter; 1.7 and later
 # use switch_source_input. Check borrowed from kerneldoc.py.
-Use_SSI = sphinx.__version__[:3] >= '1.7'
-if Use_SSI:
+USE_SSI = sphinx.__version__[:3] >= "1.7"
+if USE_SSI:
     from sphinx.util.docutils import switch_source_input
 else:
-    from sphinx.ext.autodoc import AutodocReporter
+    from sphinx.ext.autodoc import (  # pylint: disable=no-name-in-module
+        AutodocReporter,
+    )
 
 
-__version__ = '1.0'
+__version__ = "1.0"
+
+
+# Disable black auto-formatter until re-enabled:
+# fmt: off
 
 
 class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
@@ -441,6 +448,10 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         return self._top_node.children
 
 
+# Turn the black formatter on for the rest of the file.
+# fmt: on
+
+
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
     """A QAPI schema visitor which adds Sphinx dependencies each module
 
@@ -448,34 +459,34 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
     that the generated documentation output depends on the input
     schema file associated with each module in the QAPI input.
     """
+
     def __init__(self, env, qapidir):
         self._env = env
         self._qapidir = qapidir
 
     def visit_module(self, name):
         if name != "./builtin":
-            qapifile = self._qapidir + '/' + name
+            qapifile = self._qapidir + "/" + name
             self._env.note_dependency(os.path.abspath(qapifile))
         super().visit_module(name)
 
 
 class QAPIDocDirective(Directive):
     """Extract documentation from the specified QAPI .json file"""
+
     required_argument = 1
     optional_arguments = 1
-    option_spec = {
-        'qapifile': directives.unchanged_required
-    }
+    option_spec = {"qapifile": directives.unchanged_required}
     has_content = False
 
     def new_serialno(self):
         """Return a unique new ID string suitable for use as a node's ID"""
         env = self.state.document.settings.env
-        return 'qapidoc-%d' % env.new_serialno('qapidoc')
+        return "qapidoc-%d" % env.new_serialno("qapidoc")
 
     def run(self):
         env = self.state.document.settings.env
-        qapifile = env.config.qapidoc_srctree + '/' + self.arguments[0]
+        qapifile = env.config.qapidoc_srctree + "/" + self.arguments[0]
         qapidir = os.path.dirname(qapifile)
 
         try:
@@ -513,13 +524,14 @@ class QAPIDocDirective(Directive):
         # plain self.state.nested_parse(), and so we can drop the saving
         # of title_styles and section_level that kerneldoc.py does,
         # because nested_parse_with_titles() does that for us.
-        if Use_SSI:
+        if USE_SSI:
             with switch_source_input(self.state, rstlist):
                 nested_parse_with_titles(self.state, rstlist, node)
         else:
             save = self.state.memo.reporter
             self.state.memo.reporter = AutodocReporter(
-                rstlist, self.state.memo.reporter)
+                rstlist, self.state.memo.reporter
+            )
             try:
                 nested_parse_with_titles(self.state, rstlist, node)
             finally:
@@ -527,12 +539,12 @@ class QAPIDocDirective(Directive):
 
 
 def setup(app):
-    """ Register qapi-doc directive with Sphinx"""
-    app.add_config_value('qapidoc_srctree', None, 'env')
-    app.add_directive('qapi-doc', QAPIDocDirective)
+    """Register qapi-doc directive with Sphinx"""
+    app.add_config_value("qapidoc_srctree", None, "env")
+    app.add_directive("qapi-doc", QAPIDocDirective)
 
-    return dict(
-        version=__version__,
-        parallel_read_safe=True,
-        parallel_write_safe=True
-    )
+    return {
+        "version": __version__,
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }
