@@ -104,7 +104,7 @@
 # Returns a list of information about each iothread.
 #
 # .. note:: This list excludes the QEMU main loop thread, which is not
-#    declared using the -object iothread command-line option.  It is
+#    declared using the ``-object iothread`` command-line option.  It is
 #    always the main thread of the process.
 #
 # Returns: a list of @IOThreadInfo for each iothread
@@ -138,8 +138,8 @@
 #
 # .. note:: This function will succeed even if the guest is already in
 #    the stopped state.  In "inmigrate" state, it will ensure that the
-#    guest remains paused once migration finishes, as if the -S option
-#    was passed on the command line.
+#    guest remains paused once migration finishes, as if the ``-S``
+#    option was passed on the command line.
 #
 #    In the "suspended" state, it will completely stop the VM and cause
 #    a transition to the "paused" state.  (Since 9.0)
@@ -161,7 +161,7 @@
 # .. note:: This command will succeed if the guest is currently running.
 #    It will also succeed if the guest is in the "inmigrate" state; in
 #    this case, the effect of the command is to make sure the guest
-#    starts once migration finishes, removing the effect of the -S
+#    starts once migration finishes, removing the effect of the ``-S``
 #    command line option if it was passed.
 #
 #    If the VM was previously suspended, and not been reset or woken,

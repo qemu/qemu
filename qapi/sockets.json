@@ -181,7 +181,7 @@
 #
 # .. note:: This type is deprecated in favor of SocketAddress.  The
 #    difference between SocketAddressLegacy and SocketAddress is that
-#    the latter has fewer {} on the wire.
+#    the latter has fewer ``{}`` on the wire.
 #
 # Since: 1.3
 ##

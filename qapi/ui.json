@@ -1268,7 +1268,7 @@
 # Since: 2.6
 #
 # .. note:: The consoles are visible in the qom tree, under
-#    /backend/console[$index]. They have a device link and head
+#    ``/backend/console[$index]``. They have a device link and head
 #    property, so it is possible to map which console belongs to which
 #    device and display.
 #
