@@ -18,7 +18,7 @@ emulation uses less resources (especially CPU).  So if your guest
 supports XHCI (which should be the case for any operating system
 released around 2010 or later) we recommend using it:
 
-    qemu -device qemu-xhci
+    |qemu_system| -device qemu-xhci
 
 XHCI supports USB 1.1, USB 2.0 and USB 3.0 devices, so this is the
 only controller you need.  With only a single USB controller (and
