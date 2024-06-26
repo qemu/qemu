@@ -6048,9 +6048,9 @@
 #
 # @name: the name of the internal snapshot to be created
 #
-# .. note:: In transaction, if @name is empty, or any snapshot matching
+# .. note:: In a transaction, if @name is empty or any snapshot matching
 #    @name exists, the operation will fail.  Only some image formats
-#    support it, for example, qcow2, and rbd.
+#    support it; for example, qcow2, and rbd.
 #
 # Since: 1.7
 ##

@@ -480,7 +480,7 @@
 #
 # Returns: Number of file systems thawed by this call
 #
-# .. note:: If return value does not match the previous call to
+# .. note:: If the return value does not match the previous call to
 #    guest-fsfreeze-freeze, this likely means some freezable filesystems
 #    were unfrozen before this call, and that the filesystem state may
 #    have changed before issuing this command.
