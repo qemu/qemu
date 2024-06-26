@@ -21,9 +21,9 @@
 #define PPC_PNV_XSCOM_H
 
 #include "exec/memory.h"
-#include "hw/ppc/pnv.h"
 
 typedef struct PnvXScomInterface PnvXScomInterface;
+typedef struct PnvChip PnvChip;
 
 #define TYPE_PNV_XSCOM_INTERFACE "pnv-xscom-interface"
 #define PNV_XSCOM_INTERFACE(obj) \
