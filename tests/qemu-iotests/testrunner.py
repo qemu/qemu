@@ -27,10 +27,13 @@ import json
 import shutil
 import sys
 from multiprocessing import Pool
-from typing import List, Optional, Any, Sequence, Dict, \
-        ContextManager
-
+from typing import List, Optional, Any, Sequence, Dict
 from testenv import TestEnv
+
+if sys.version_info >= (3, 9):
+    from contextlib import AbstractContextManager as ContextManager
+else:
+    from typing import ContextManager
 
 
 def silent_unlink(path: Path) -> None:
