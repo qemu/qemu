@@ -1667,7 +1667,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 {
     ERRP_GUARD();
     const char *machine_type = qdict_get_try_str(qdict, "type");
-    GSList *machines = object_class_get_list(TYPE_MACHINE, false);
+    g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
     MachineClass *machine_class = NULL;
 
     if (machine_type) {
@@ -1683,7 +1683,6 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
         }
     }
 
-    g_slist_free(machines);
     if (!machine_class) {
         error_append_hint(errp,
                           "Use -machine help to list supported machines\n");
