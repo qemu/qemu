@@ -6039,6 +6039,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
     uint64_t r = 0;
+    uint32_t unavail = 0;
 
     if (kvm_enabled()) {
         switch (wi->type) {
@@ -6064,19 +6065,33 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
     } else {
         return ~0;
     }
+
+    switch (w) {
 #ifndef TARGET_X86_64
-    if (w == FEAT_8000_0001_EDX) {
+    case FEAT_8000_0001_EDX:
         /*
          * 32-bit TCG can emulate 64-bit compatibility mode.  If there is no
          * way for userspace to get out of its 32-bit jail, we can leave
          * the LM bit set.
          */
-        uint32_t unavail = tcg_enabled()
+        unavail = tcg_enabled()
             ? CPUID_EXT2_LM & ~CPUID_EXT2_KERNEL_FEATURES
             : CPUID_EXT2_LM;
-        r &= ~unavail;
-    }
+        break;
 #endif
+
+    case FEAT_8000_0007_EBX:
+        if (cpu && !IS_AMD_CPU(&cpu->env)) {
+            /* Disable AMD machine check architecture for Intel CPU.  */
+            unavail = ~0;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    r &= ~unavail;
     if (cpu && cpu->migratable) {
         r &= x86_cpu_get_migratable_flags(w);
     }
