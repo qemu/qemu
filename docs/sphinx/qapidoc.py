@@ -272,14 +272,20 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             if section.tag and section.tag == 'TODO':
                 # Hide TODO: sections
                 continue
+
+            if not section.tag:
+                # Sphinx cannot handle sectionless titles;
+                # Instead, just append the results to the prior section.
+                container = nodes.container()
+                self._parse_text_into_node(section.text, container)
+                nodelist += container.children
+                continue
+
             snode = self._make_section(section.tag)
-            if section.tag and section.tag.startswith('Example'):
+            if section.tag.startswith('Example'):
                 snode += self._nodes_for_example(dedent(section.text))
             else:
-                self._parse_text_into_node(
-                    dedent(section.text) if section.tag else section.text,
-                    snode,
-                )
+                self._parse_text_into_node(dedent(section.text), snode)
             nodelist.append(snode)
         return nodelist
 
