@@ -231,6 +231,9 @@ Examples
    - *verbatim*
    - {braces}
 
+Note::
+   Ceci n'est pas une note
+
 
 Since
 ~~~~~

@@ -190,6 +190,9 @@ frobnicate
     section=Examples
  - *verbatim*
  - {braces}
+    section=None
+Note::
+    Ceci n'est pas une note
     section=Since
 2.10
 doc symbol=cmd-boxed

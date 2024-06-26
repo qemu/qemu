@@ -544,9 +544,14 @@ class QAPISchemaParser:
                         line = self.get_doc_indented(doc)
                     no_more_args = True
                 elif match := re.match(
-                        r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
-                        line):
+                        r'(Returns|Errors|Since|Notes?|Examples?|TODO)'
+                        r'(?!::): *',
+                        line,
+                ):
                     # tagged section
+
+                    # Note: "sections" with two colons are left alone as
+                    # rST markup and not interpreted as a section heading.
 
                     # TODO: Remove this error sometime in 2025 or so
                     # after we've fully transitioned to the new qapidoc

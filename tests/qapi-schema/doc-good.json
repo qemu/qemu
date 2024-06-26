@@ -181,6 +181,9 @@
 #  - *verbatim*
 #  - {braces}
 #
+# Note::
+#     Ceci n'est pas une note
+#
 # Since: 2.10
 ##
 { 'command': 'cmd',
