@@ -155,6 +155,7 @@ struct SevSnpGuestState {
     char *id_block_base64;
     uint8_t *id_block;
     char *id_auth_base64;
+    uint8_t *id_auth;
     char *host_data;
 
     struct kvm_sev_snp_launch_start kvm_start_conf;
@@ -2208,16 +2209,16 @@ sev_snp_guest_set_id_auth(Object *obj, const char *value, Error **errp)
     struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
     gsize len;
 
+    finish->id_auth_uaddr = 0;
+    g_free(sev_snp_guest->id_auth);
     g_free(sev_snp_guest->id_auth_base64);
-    g_free((guchar *)finish->id_auth_uaddr);
 
     /* store the base64 str so we don't need to re-encode in getter */
     sev_snp_guest->id_auth_base64 = g_strdup(value);
+    sev_snp_guest->id_auth =
+        qbase64_decode(sev_snp_guest->id_auth_base64, -1, &len, errp);
 
-    finish->id_auth_uaddr =
-        (uint64_t)qbase64_decode(sev_snp_guest->id_auth_base64, -1, &len, errp);
-
-    if (!finish->id_auth_uaddr) {
+    if (!sev_snp_guest->id_auth) {
         return;
     }
 
@@ -2226,6 +2227,8 @@ sev_snp_guest_set_id_auth(Object *obj, const char *value, Error **errp)
                    len, KVM_SEV_SNP_ID_AUTH_SIZE);
         return;
     }
+
+    finish->id_auth_uaddr = (uintptr_t)sev_snp_guest->id_auth;
 }
 
 static bool
