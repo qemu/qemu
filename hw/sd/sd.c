@@ -257,23 +257,13 @@ static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 
 static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
 {
-    static const char *acmd_abbrev[SDMMC_CMD_MAX] = {
-        [14] = "DPS_spec",                  [15] = "DPS_spec",
-        [16] = "DPS_spec",
-        [18] = "SECU_spec",
-        [52] = "SECU_spec",                 [53] = "SECU_spec",
-        [54] = "SECU_spec",
-        [56] = "SECU_spec",                 [57] = "SECU_spec",
-        [58] = "SECU_spec",                 [59] = "SECU_spec",
-    };
     const SDProto *sdp = sd->proto;
 
     if (sdp->acmd[cmd].handler) {
-        assert(!acmd_abbrev[cmd]);
         return sdp->acmd[cmd].name;
     }
 
-    return acmd_abbrev[cmd] ? acmd_abbrev[cmd] : "UNKNOWN_ACMD";
+    return "UNKNOWN_ACMD";
 }
 
 static uint8_t sd_get_dat_lines(SDState *sd)
