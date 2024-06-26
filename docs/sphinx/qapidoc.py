@@ -50,16 +50,6 @@ else:
 __version__ = '1.0'
 
 
-# Function borrowed from pydash, which is under the MIT license
-def intersperse(iterable, separator):
-    """Yield the members of *iterable* interspersed with *separator*."""
-    iterable = iter(iterable)
-    yield next(iterable)
-    for item in iterable:
-        yield separator
-        yield item
-
-
 class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
     """A QAPI schema visitor which generates docutils/Sphinx nodes
 
