@@ -995,14 +995,13 @@ line "Features:", like this::
   # @feature: Description text
 
 A tagged section begins with a paragraph that starts with one of the
-following words: "Note:"/"Notes:", "Since:", "Example:"/"Examples:",
-"Returns:", "Errors:", "TODO:".  It ends with the start of a new
-section.
+following words: "Since:", "Example:"/"Examples:", "Returns:",
+"Errors:", "TODO:".  It ends with the start of a new section.
 
 The second and subsequent lines of tagged sections must be indented
 like this::
 
- # Note: Ut enim ad minim veniam, quis nostrud exercitation ullamco
+ # TODO: Ut enim ad minim veniam, quis nostrud exercitation ullamco
  #     laboris nisi ut aliquip ex ea commodo consequat.
  #
  #     Duis aute irure dolor in reprehenderit in voluptate velit esse

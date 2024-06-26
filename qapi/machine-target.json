@@ -49,15 +49,15 @@
 #     to be migration-safe, but allows tooling to get an insight and
 #     work with model details.
 #
-# Note: When a non-migration-safe CPU model is expanded in static
-#     mode, some features enabled by the CPU model may be omitted,
-#     because they can't be implemented by a static CPU model
-#     definition (e.g. cache info passthrough and PMU passthrough in
-#     x86). If you need an accurate representation of the features
-#     enabled by a non-migration-safe CPU model, use @full.  If you
-#     need a static representation that will keep ABI compatibility
-#     even when changing QEMU version or machine-type, use @static
-#     (but keep in mind that some features may be omitted).
+# .. note:: When a non-migration-safe CPU model is expanded in static
+#    mode, some features enabled by the CPU model may be omitted,
+#    because they can't be implemented by a static CPU model definition
+#    (e.g. cache info passthrough and PMU passthrough in x86). If you
+#    need an accurate representation of the features enabled by a
+#    non-migration-safe CPU model, use @full.  If you need a static
+#    representation that will keep ABI compatibility even when changing
+#    QEMU version or machine-type, use @static (but keep in mind that
+#    some features may be omitted).
 #
 # Since: 2.8
 ##
@@ -175,8 +175,8 @@
 #     - if a model contains an unknown cpu definition name, unknown
 #       properties or properties with wrong types.
 #
-# Note: this command isn't specific to s390x, but is only implemented
-#     on this architecture currently.
+# .. note:: This command isn't specific to s390x, but is only
+#    implemented on this architecture currently.
 #
 # Since: 2.8
 ##
@@ -229,8 +229,8 @@
 #     - if a model contains an unknown cpu definition name, unknown
 #       properties or properties with wrong types.
 #
-# Note: this command isn't specific to s390x, but is only implemented
-#     on this architecture currently.
+# .. note:: This command isn't specific to s390x, but is only
+#    implemented on this architecture currently.
 #
 # Since: 2.8
 ##

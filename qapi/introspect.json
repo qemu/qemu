@@ -41,9 +41,9 @@
 #     names are guaranteed to be unique (no name will be duplicated
 #     with different meta-types).
 #
-# Note: the QAPI schema is also used to help define *internal*
-#     interfaces, by defining QAPI types.  These are not part of the
-#     QMP wire ABI, and therefore not returned by this command.
+# .. note:: The QAPI schema is also used to help define *internal*
+#    interfaces, by defining QAPI types.  These are not part of the QMP
+#    wire ABI, and therefore not returned by this command.
 #
 # Since: 2.5
 ##

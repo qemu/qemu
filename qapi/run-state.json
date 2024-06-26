@@ -146,9 +146,9 @@
 # @reason: The @ShutdownCause which resulted in the SHUTDOWN.
 #     (since 4.0)
 #
-# Note: If the command-line option "-no-shutdown" has been specified,
-#     qemu will not exit, and a STOP event will eventually follow the
-#     SHUTDOWN event
+# .. note:: If the command-line option "-no-shutdown" has been
+#    specified, qemu will not exit, and a STOP event will eventually
+#    follow the SHUTDOWN event.
 #
 # Since: 0.12
 #
@@ -247,8 +247,8 @@
 # saved on disk, for example, S4 state, which is sometimes called
 # hibernate state
 #
-# Note: QEMU shuts down (similar to event @SHUTDOWN) when entering
-#     this state
+# .. note:: QEMU shuts down (similar to event @SHUTDOWN) when entering
+#    this state.
 #
 # Since: 1.2
 #
@@ -281,11 +281,11 @@
 #
 # @action: action that has been taken
 #
-# Note: If action is "reset", "shutdown", or "pause" the WATCHDOG
-#     event is followed respectively by the RESET, SHUTDOWN, or STOP
-#     events
+# .. note:: If action is "reset", "shutdown", or "pause" the WATCHDOG
+#    event is followed respectively by the RESET, SHUTDOWN, or STOP
+#    events.
 #
-# Note: This event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 0.13
 #

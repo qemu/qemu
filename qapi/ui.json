@@ -107,11 +107,10 @@
 #     - '+INT' where INT is the number of seconds from now (integer)
 #     - 'INT' where INT is the absolute time in seconds
 #
-# Notes: Time is relative to the server and currently there is no way
-#     to coordinate server time with client time.  It is not
-#     recommended to use the absolute time version of the @time
-#     parameter unless you're sure you are on the same machine as the
-#     QEMU instance.
+# .. note:: Time is relative to the server and currently there is no way
+#    to coordinate server time with client time.  It is not recommended
+#    to use the absolute time version of the @time parameter unless
+#    you're sure you are on the same machine as the QEMU instance.
 #
 # Since: 7.0
 ##
@@ -274,7 +273,7 @@
 # @unknown: No information is available about mouse mode used by the
 #     spice server.
 #
-# Note: spice/enums.h has a SpiceMouseMode already, hence the name.
+# .. note:: spice/enums.h has a SpiceMouseMode already, hence the name.
 #
 # Since: 1.1
 ##
@@ -705,9 +704,9 @@
 #
 # Since: 1.1
 #
-# Notes: An empty password in this command will set the password to
-#     the empty string.  Existing clients are unaffected by executing
-#     this command.
+# .. note:: An empty password in this command will set the password to
+#    the empty string.  Existing clients are unaffected by executing
+#    this command.
 ##
 { 'command': 'change-vnc-password',
   'data': { 'password': 'str' },
@@ -722,8 +721,8 @@
 #
 # @client: client information
 #
-# Note: This event is emitted before any authentication takes place,
-#     thus the authentication ID is not provided
+# .. note:: This event is emitted before any authentication takes place,
+#    thus the authentication ID is not provided.
 #
 # Since: 0.13
 #
@@ -1268,10 +1267,10 @@
 #
 # Since: 2.6
 #
-# Note: The consoles are visible in the qom tree, under
-#     /backend/console[$index]. They have a device link and head
-#     property, so it is possible to map which console belongs to
-#     which device and display.
+# .. note:: The consoles are visible in the qom tree, under
+#    /backend/console[$index]. They have a device link and head
+#    property, so it is possible to map which console belongs to which
+#    device and display.
 #
 # Examples:
 #

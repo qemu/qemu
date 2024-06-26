@@ -1456,8 +1456,8 @@
 #
 # Cancel the current executing migration process.
 #
-# Notes: This command succeeds even if there is no migration process
-#     running.
+# .. note:: This command succeeds even if there is no migration process
+#    running.
 #
 # Since: 0.14
 #
@@ -1589,16 +1589,16 @@
 #
 # Since: 0.14
 #
-# Notes:
+# .. admonition:: Notes
 #
 #     1. The 'query-migrate' command should be used to check
 #        migration's progress and final result (this information is
-#        provided by the 'status' member)
+#        provided by the 'status' member).
 #
-#     2. All boolean arguments default to false
+#     2. All boolean arguments default to false.
 #
 #     3. The user Monitor's "detach" argument is invalid in QMP and
-#        should not be used
+#        should not be used.
 #
 #     4. The uri argument should have the Uniform Resource Identifier
 #        of default destination VM. This connection will be bound to
@@ -1672,7 +1672,7 @@
 #
 # Since: 2.3
 #
-# Notes:
+# .. admonition:: Notes
 #
 #     1. It's a bad idea to use a string for the uri, but it needs to
 #        stay compatible with -incoming and the format of the uri is

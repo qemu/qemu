@@ -104,8 +104,8 @@
 #
 # @port: port
 #
-# Note: string types are used to allow for possible future hostname or
-#     service resolution support.
+# .. note:: String types are used to allow for possible future hostname
+#    or service resolution support.
 #
 # Since: 2.8
 ##
@@ -179,9 +179,9 @@
 #
 # @type: Transport type
 #
-# Note: This type is deprecated in favor of SocketAddress.  The
-#     difference between SocketAddressLegacy and SocketAddress is that
-#     the latter has fewer {} on the wire.
+# .. note:: This type is deprecated in favor of SocketAddress.  The
+#    difference between SocketAddressLegacy and SocketAddress is that
+#    the latter has fewer {} on the wire.
 #
 # Since: 1.3
 ##

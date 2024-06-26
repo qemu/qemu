@@ -193,11 +193,9 @@ Features
 "cmd-feat2"
    another feature
 
+Note:
 
-Note
-~~~~
-
-"arg3" is undocumented
+  "arg3" is undocumented
 
 
 Returns
@@ -211,9 +209,7 @@ Errors
 
 some
 
-
-Notes
-~~~~~
+Notes:
 
 * Lorem ipsum dolor sit amet
 

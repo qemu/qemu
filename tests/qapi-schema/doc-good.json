@@ -157,7 +157,7 @@
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
 #
-# Note: @arg3 is undocumented
+# .. note:: @arg3 is undocumented
 #
 # Returns: @Object
 #
@@ -165,7 +165,7 @@
 #
 # TODO: frobnicate
 #
-# Notes:
+# .. admonition:: Notes
 #
 #  - Lorem ipsum dolor sit amet
 #  - Ut enim ad minim veniam

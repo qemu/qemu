@@ -103,9 +103,9 @@
 #
 # Returns a list of information about each iothread.
 #
-# Note: this list excludes the QEMU main loop thread, which is not
-#     declared using the -object iothread command-line option.  It is
-#     always the main thread of the process.
+# .. note:: This list excludes the QEMU main loop thread, which is not
+#    declared using the -object iothread command-line option.  It is
+#    always the main thread of the process.
 #
 # Returns: a list of @IOThreadInfo for each iothread
 #
@@ -136,13 +136,13 @@
 #
 # Since: 0.14
 #
-# Notes: This function will succeed even if the guest is already in
-#     the stopped state.  In "inmigrate" state, it will ensure that
-#     the guest remains paused once migration finishes, as if the -S
-#     option was passed on the command line.
+# .. note:: This function will succeed even if the guest is already in
+#    the stopped state.  In "inmigrate" state, it will ensure that the
+#    guest remains paused once migration finishes, as if the -S option
+#    was passed on the command line.
 #
-#     In the "suspended" state, it will completely stop the VM and
-#     cause a transition to the "paused" state.  (Since 9.0)
+#    In the "suspended" state, it will completely stop the VM and cause
+#    a transition to the "paused" state.  (Since 9.0)
 #
 # Example:
 #
@@ -158,15 +158,15 @@
 #
 # Since: 0.14
 #
-# Notes: This command will succeed if the guest is currently running.
-#     It will also succeed if the guest is in the "inmigrate" state;
-#     in this case, the effect of the command is to make sure the
-#     guest starts once migration finishes, removing the effect of the
-#     -S command line option if it was passed.
+# .. note:: This command will succeed if the guest is currently running.
+#    It will also succeed if the guest is in the "inmigrate" state; in
+#    this case, the effect of the command is to make sure the guest
+#    starts once migration finishes, removing the effect of the -S
+#    command line option if it was passed.
 #
-#     If the VM was previously suspended, and not been reset or woken,
-#     this command will transition back to the "suspended" state.
-#     (Since 9.0)
+#    If the VM was previously suspended, and not been reset or woken,
+#    this command will transition back to the "suspended" state.  (Since
+#    9.0)
 #
 # Example:
 #
@@ -219,18 +219,18 @@
 #
 # Since: 0.14
 #
-# Notes: This command only exists as a stop-gap.  Its use is highly
-#     discouraged.  The semantics of this command are not guaranteed:
-#     this means that command names, arguments and responses can
-#     change or be removed at ANY time.  Applications that rely on
-#     long term stability guarantees should NOT use this command.
+# .. note:: This command only exists as a stop-gap.  Its use is highly
+#    discouraged.  The semantics of this command are not guaranteed:
+#    this means that command names, arguments and responses can change
+#    or be removed at ANY time.  Applications that rely on long term
+#    stability guarantees should NOT use this command.
 #
-#     Known limitations:
+#    Known limitations:
 #
-#     * This command is stateless, this means that commands that
-#       depend on state information (such as getfd) might not work
+#    * This command is stateless, this means that commands that
+#      depend on state information (such as getfd) might not work.
 #
-#     * Commands that prompt the user for data don't currently work
+#    * Commands that prompt the user for data don't currently work.
 #
 # Example:
 #
@@ -252,11 +252,11 @@
 #
 # Since: 0.14
 #
-# Notes: If @fdname already exists, the file descriptor assigned to it
-#     will be closed and replaced by the received file descriptor.
+# .. note:: If @fdname already exists, the file descriptor assigned to
+#    it will be closed and replaced by the received file descriptor.
 #
-#     The 'closefd' command can be used to explicitly close the file
-#     descriptor when it is no longer needed.
+#    The 'closefd' command can be used to explicitly close the file
+#    descriptor when it is no longer needed.
 #
 # Example:
 #
@@ -279,11 +279,11 @@
 #
 # Since: 8.0
 #
-# Notes: If @fdname already exists, the file descriptor assigned to it
-#     will be closed and replaced by the received file descriptor.
+# .. note:: If @fdname already exists, the file descriptor assigned to
+#    it will be closed and replaced by the received file descriptor.
 #
-#     The 'closefd' command can be used to explicitly close the file
-#     descriptor when it is no longer needed.
+#    The 'closefd' command can be used to explicitly close the file
+#    descriptor when it is no longer needed.
 #
 # Example:
 #
@@ -339,10 +339,9 @@
 #     - If file descriptor was not received, GenericError
 #     - If @fdset-id is a negative value, GenericError
 #
-# Notes:
-#     The list of fd sets is shared by all monitor connections.
+# .. note:: The list of fd sets is shared by all monitor connections.
 #
-#     If @fdset-id is not specified, a new fd set will be created.
+# .. note:: If @fdset-id is not specified, a new fd set will be created.
 #
 # Since: 1.2
 #
@@ -370,11 +369,10 @@
 #
 # Since: 1.2
 #
-# Notes:
-#     The list of fd sets is shared by all monitor connections.
+# .. note:: The list of fd sets is shared by all monitor connections.
 #
-#     If @fd is not specified, all file descriptors in @fdset-id will
-#     be removed.
+# .. note:: If @fd is not specified, all file descriptors in @fdset-id
+#    will be removed.
 #
 # Example:
 #
@@ -420,7 +418,7 @@
 #
 # Since: 1.2
 #
-# Note: The list of fd sets is shared by all monitor connections.
+# .. note:: The list of fd sets is shared by all monitor connections.
 #
 # Example:
 #
@@ -561,9 +559,9 @@
 #
 # @qom-path: path to the RTC object in the QOM tree
 #
-# Note: This event is rate-limited.  It is not guaranteed that the RTC
-#     in the system implements this event, or even that the system has
-#     an RTC at all.
+# .. note:: This event is rate-limited.  It is not guaranteed that the
+#    RTC in the system implements this event, or even that the system
+#    has an RTC at all.
 #
 # Since: 0.13
 #

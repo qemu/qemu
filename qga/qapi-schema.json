@@ -422,8 +422,9 @@
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined
 #     below)
 #
-# Note: This may fail to properly report the current state as a result
-#     of some other guest processes having issued an fs freeze/thaw.
+# .. note:: This may fail to properly report the current state as a
+#    result of some other guest processes having issued an fs
+#    freeze/thaw.
 #
 # Since: 0.15.0
 ##
@@ -443,9 +444,9 @@
 #
 # Returns: Number of file systems currently frozen.
 #
-# Note: On Windows, the command is implemented with the help of a
-#     Volume Shadow-copy Service DLL helper.  The frozen state is
-#     limited for up to 10 seconds by VSS.
+# .. note:: On Windows, the command is implemented with the help of a
+#    Volume Shadow-copy Service DLL helper.  The frozen state is limited
+#    for up to 10 seconds by VSS.
 #
 # Since: 0.15.0
 ##
@@ -479,10 +480,10 @@
 #
 # Returns: Number of file systems thawed by this call
 #
-# Note: if return value does not match the previous call to
-#     guest-fsfreeze-freeze, this likely means some freezable
-#     filesystems were unfrozen before this call, and that the
-#     filesystem state may have changed before issuing this command.
+# .. note:: If return value does not match the previous call to
+#    guest-fsfreeze-freeze, this likely means some freezable filesystems
+#    were unfrozen before this call, and that the filesystem state may
+#    have changed before issuing this command.
 #
 # Since: 0.15.0
 ##
@@ -560,8 +561,8 @@
 # Errors:
 #     - If suspend to disk is not supported, Unsupported
 #
-# Notes: It's strongly recommended to issue the guest-sync command
-#     before sending commands when the guest resumes
+# .. note:: It's strongly recommended to issue the guest-sync command
+#    before sending commands when the guest resumes.
 #
 # Since: 1.1
 ##
@@ -596,8 +597,8 @@
 # Errors:
 #     - If suspend to ram is not supported, Unsupported
 #
-# Notes: It's strongly recommended to issue the guest-sync command
-#     before sending commands when the guest resumes
+# .. note:: It's strongly recommended to issue the guest-sync command
+#    before sending commands when the guest resumes.
 #
 # Since: 1.1
 ##
@@ -631,8 +632,8 @@
 # Errors:
 #     - If hybrid suspend is not supported, Unsupported
 #
-# Notes: It's strongly recommended to issue the guest-sync command
-#     before sending commands when the guest resumes
+# .. note:: It's strongly recommended to issue the guest-sync command
+#    before sending commands when the guest resumes.
 #
 # Since: 1.1
 ##
@@ -1461,16 +1462,15 @@
 #     * POSIX: as defined by os-release(5)
 #     * Windows: contains string "server" or "client"
 #
-# Notes: On POSIX systems the fields @id, @name, @pretty-name,
-#     @version, @version-id, @variant and @variant-id follow the
-#     definition specified in os-release(5). Refer to the manual page
-#     for exact description of the fields.  Their values are taken
-#     from the os-release file.  If the file is not present in the
-#     system, or the values are not present in the file, the fields
-#     are not included.
+# .. note:: On POSIX systems the fields @id, @name, @pretty-name,
+#    @version, @version-id, @variant and @variant-id follow the
+#    definition specified in os-release(5). Refer to the manual page for
+#    exact description of the fields.  Their values are taken from the
+#    os-release file.  If the file is not present in the system, or the
+#    values are not present in the file, the fields are not included.
 #
-#     On Windows the values are filled from information gathered from
-#     the system.
+#    On Windows the values are filled from information gathered from
+#    the system.
 #
 # Since: 2.10
 ##

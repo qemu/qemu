@@ -559,12 +559,12 @@
 #
 # Returns: VirtQueueStatus of the VirtQueue
 #
-# Notes: last_avail_idx will not be displayed in the case where the
-#     selected VirtIODevice has a running vhost device and the
-#     VirtIODevice VirtQueue index (queue) does not exist for the
-#     corresponding vhost device vhost_virtqueue.  Also,
-#     shadow_avail_idx will not be displayed in the case where the
-#     selected VirtIODevice has a running vhost device.
+# .. note:: last_avail_idx will not be displayed in the case where the
+#    selected VirtIODevice has a running vhost device and the
+#    VirtIODevice VirtQueue index (queue) does not exist for the
+#    corresponding vhost device vhost_virtqueue.  Also, shadow_avail_idx
+#    will not be displayed in the case where the selected VirtIODevice
+#    has a running vhost device.
 #
 # Since: 7.2
 #

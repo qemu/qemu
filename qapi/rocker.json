@@ -138,8 +138,8 @@
 #
 # @ip-dst: IP header destination address
 #
-# Note: optional members may or may not appear in the flow key
-#     depending if they're relevant to the flow key.
+# .. note:: Optional members may or may not appear in the flow key
+#    depending if they're relevant to the flow key.
 #
 # Since: 2.4
 ##
@@ -168,8 +168,8 @@
 #
 # @ip-tos: IP header TOS field
 #
-# Note: optional members may or may not appear in the flow mask
-#     depending if they're relevant to the flow mask.
+# .. note:: Optional members may or may not appear in the flow mask
+#    depending if they're relevant to the flow mask.
 #
 # Since: 2.4
 ##
@@ -195,8 +195,8 @@
 #
 # @out-pport: physical output port
 #
-# Note: optional members may or may not appear in the flow action
-#     depending if they're relevant to the flow action.
+# .. note:: Optional members may or may not appear in the flow action
+#    depending if they're relevant to the flow action.
 #
 # Since: 2.4
 ##
@@ -288,8 +288,8 @@
 #
 # @ttl-check: perform TTL check
 #
-# Note: optional members may or may not appear in the group depending
-#     if they're relevant to the group type.
+# .. note:: Optional members may or may not appear in the group depending
+#    if they're relevant to the group type.
 #
 # Since: 2.4
 ##

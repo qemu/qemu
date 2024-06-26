@@ -547,6 +547,21 @@ class QAPISchemaParser:
                         r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
                         line):
                     # tagged section
+
+                    # TODO: Remove this error sometime in 2025 or so
+                    # after we've fully transitioned to the new qapidoc
+                    # generator.
+
+                    # See commit message for more markup suggestions O:-)
+                    if 'Note' in match.group(1):
+                        emsg = (
+                            f"The '{match.group(1)}' section is no longer "
+                            "supported. Please use rST's '.. note::' or "
+                            "'.. admonition:: notes' directives, or another "
+                            "suitable admonition instead."
+                        )
+                        raise QAPIParseError(self, emsg)
+
                     doc.new_tagged_section(self.info, match.group(1))
                     text = line[match.end():]
                     if text:

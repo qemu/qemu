@@ -20,9 +20,9 @@
 # Returns: a list of ObjectPropertyInfo describing a devices
 #     properties
 #
-# Note: objects can create properties at runtime, for example to
-#     describe links between different devices and/or objects.  These
-#     properties are not included in the output of this command.
+# .. note:: Objects can create properties at runtime, for example to
+#    describe links between different devices and/or objects.  These
+#    properties are not included in the output of this command.
 #
 # Since: 1.2
 ##
@@ -51,7 +51,7 @@
 #     supports JSON syntax without the reference counting leak that
 #     broke hot-unplug
 #
-# Notes:
+# .. admonition:: Notes
 #
 #     1. Additional arguments depend on the type.
 #
@@ -60,7 +60,7 @@
 #
 #     3. It's possible to list device properties by running QEMU with
 #        the "-device DEVICE,help" command-line argument, where DEVICE
-#        is the device's name
+#        is the device's name.
 #
 # Example:
 #
@@ -92,15 +92,15 @@
 # Errors:
 #     - If @id is not a valid device, DeviceNotFound
 #
-# Notes: When this command completes, the device may not be removed
-#     from the guest.  Hot removal is an operation that requires guest
-#     cooperation.  This command merely requests that the guest begin
-#     the hot removal process.  Completion of the device removal
-#     process is signaled with a DEVICE_DELETED event.  Guest reset
-#     will automatically complete removal for all devices.  If a
-#     guest-side error in the hot removal process is detected, the
-#     device will not be removed and a DEVICE_UNPLUG_GUEST_ERROR event
-#     is sent.  Some errors cannot be detected.
+# .. note:: When this command completes, the device may not be removed
+#    from the guest.  Hot removal is an operation that requires guest
+#    cooperation.  This command merely requests that the guest begin the
+#    hot removal process.  Completion of the device removal process is
+#    signaled with a DEVICE_DELETED event.  Guest reset will
+#    automatically complete removal for all devices.  If a guest-side
+#    error in the hot removal process is detected, the device will not
+#    be removed and a DEVICE_UNPLUG_GUEST_ERROR event is sent.  Some
+#    errors cannot be detected.
 #
 # Since: 0.14
 #

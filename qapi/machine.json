@@ -24,9 +24,9 @@
 #
 # @avr: since 5.1
 #
-# Notes: The resulting QMP strings can be appended to the
-#     "qemu-system-" prefix to produce the corresponding QEMU
-#     executable name.  This is true even for "qemu-system-x86_64".
+# .. note:: The resulting QMP strings can be appended to the
+#    "qemu-system-" prefix to produce the corresponding QEMU executable
+#    name.  This is true even for "qemu-system-x86_64".
 #
 # Since: 3.0
 ##
@@ -305,8 +305,9 @@
 #
 # Since: 0.14
 #
-# Notes: If no UUID was specified for the guest, a null UUID is
-#     returned.
+# .. note:: If no UUID was specified for the guest, a null UUID is
+#    returned.
+#
 ##
 { 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
@@ -367,10 +368,10 @@
 #
 # Since: 0.14
 #
-# Notes: A guest may or may not respond to this command.  This command
-#     returning does not indicate that a guest has accepted the
-#     request or that it has shut down.  Many guests will respond to
-#     this command by prompting the user in some way.
+# .. note:: A guest may or may not respond to this command.  This
+#    command returning does not indicate that a guest has accepted the
+#    request or that it has shut down.  Many guests will respond to this
+#    command by prompting the user in some way.
 #
 # Example:
 #
@@ -389,8 +390,8 @@
 #
 # Since: 1.1
 #
-# Note: prior to 4.0, this command does nothing in case the guest
-#     isn't suspended.
+# .. note:: Prior to 4.0, this command does nothing in case the guest
+#    isn't suspended.
 #
 # Example:
 #
@@ -440,8 +441,8 @@
 #
 # Since: 0.14
 #
-# Note: prior to 2.1, this command was only supported for x86 and s390
-#     VMs
+# .. note:: Prior to 2.1, this command was only supported for x86 and
+#    s390 VMs.
 #
 # Example:
 #
@@ -839,7 +840,7 @@
 #
 # Since: 0.14
 #
-# Notes: Errors were not reliably returned until 1.1
+# .. caution:: Errors were not reliably returned until 1.1.
 #
 # Example:
 #
@@ -865,7 +866,7 @@
 #
 # Since: 0.14
 #
-# Notes: Errors were not reliably returned until 1.1
+# .. caution:: Errors were not reliably returned until 1.1.
 #
 # Example:
 #
@@ -995,8 +996,8 @@
 #
 # @thread-id: thread number within the core the CPU  belongs to
 #
-# Note: management should be prepared to pass through additional
-#     properties with device_add.
+# .. note:: Management should be prepared to pass through additional
+#    properties with device_add.
 #
 # Since: 2.7
 ##
@@ -1123,9 +1124,9 @@
 #       the KVM kernel module cannot support it, KVMMissingCap
 #     - If no balloon device is present, DeviceNotActive
 #
-# Notes: This command just issues a request to the guest.  When it
-#     returns, the balloon size may not have changed.  A guest can
-#     change the balloon size independent of this command.
+# .. note:: This command just issues a request to the guest.  When it
+#    returns, the balloon size may not have changed.  A guest can change
+#    the balloon size independent of this command.
 #
 # Since: 0.14
 #
@@ -1185,7 +1186,7 @@
 # @actual: the logical size of the VM in bytes Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
 #
-# Note: this event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 1.2
 #
@@ -1248,7 +1249,7 @@
 # Emitted when the hv-balloon driver receives a "STATUS" message from
 # the guest.
 #
-# Note: this event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 8.2
 #
@@ -1593,7 +1594,7 @@
 #
 # @qom-path: path to the device object in the QOM tree (since 6.2)
 #
-# Note: this event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 5.1
 #

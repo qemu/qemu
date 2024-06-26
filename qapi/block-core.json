@@ -1619,9 +1619,9 @@
 #
 # @unstable: Member @x-perf is experimental.
 #
-# Note: @on-source-error and @on-target-error only affect background
-#     I/O.  If an error occurs during a guest write request, the
-#     device's rerror/werror actions will be used.
+# .. note:: @on-source-error and @on-target-error only affect background
+#    I/O.  If an error occurs during a guest write request, the device's
+#    rerror/werror actions will be used.
 #
 # Since: 4.2
 ##
@@ -5545,8 +5545,8 @@
 #     after this event and must be repaired (Since 2.2; before, every
 #     BLOCK_IMAGE_CORRUPTED event was fatal)
 #
-# Note: If action is "stop", a STOP event will eventually follow the
-#     BLOCK_IO_ERROR event.
+# .. note:: If action is "stop", a STOP event will eventually follow the
+#    BLOCK_IO_ERROR event.
 #
 # Example:
 #
@@ -5592,8 +5592,8 @@
 #     field is a debugging aid for humans, it should not be parsed by
 #     applications) (since: 2.2)
 #
-# Note: If action is "stop", a STOP event will eventually follow the
-#     BLOCK_IO_ERROR event
+# .. note:: If action is "stop", a STOP event will eventually follow the
+#    BLOCK_IO_ERROR event.
 #
 # Since: 0.13
 #
@@ -5731,8 +5731,8 @@
 #
 # @speed: rate limit, bytes per second
 #
-# Note: The "ready to complete" status is always reset by a
-#     @BLOCK_JOB_ERROR event
+# .. note:: The "ready to complete" status is always reset by a
+#    @BLOCK_JOB_ERROR event.
 #
 # Since: 1.3
 #
@@ -5985,7 +5985,7 @@
 #
 # @sectors-count: failed read operation sector count
 #
-# Note: This event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 2.0
 #
@@ -6016,7 +6016,7 @@
 #
 # @sectors-count: failed read operation sector count
 #
-# Note: This event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 2.0
 #
@@ -6048,9 +6048,9 @@
 #
 # @name: the name of the internal snapshot to be created
 #
-# Notes: In transaction, if @name is empty, or any snapshot matching
-#     @name exists, the operation will fail.  Only some image formats
-#     support it, for example, qcow2, and rbd.
+# .. note:: In transaction, if @name is empty, or any snapshot matching
+#    @name exists, the operation will fail.  Only some image formats
+#    support it, for example, qcow2, and rbd.
 #
 # Since: 1.7
 ##
