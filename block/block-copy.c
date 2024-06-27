@@ -595,7 +595,9 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     if (s->discard_source && ret == 0) {
         int64_t nbytes =
             MIN(t->req.offset + t->req.bytes, s->len) - t->req.offset;
-        bdrv_co_pdiscard(s->source, t->req.offset, nbytes);
+        WITH_GRAPH_RDLOCK_GUARD() {
+            bdrv_co_pdiscard(s->source, t->req.offset, nbytes);
+        }
     }
 
     return ret;
