@@ -283,22 +283,6 @@ enum {
 };
 
 enum {
-    /* I386 int registers */
-    OR_EAX,   /* MUST be even numbered */
-    OR_ECX,
-    OR_EDX,
-    OR_EBX,
-    OR_ESP,
-    OR_EBP,
-    OR_ESI,
-    OR_EDI,
-
-    OR_TMP0 = 16,    /* temporary operand register */
-    OR_TMP1,
-    OR_A0, /* temporary register used when doing address evaluation */
-};
-
-enum {
     USES_CC_DST  = 1,
     USES_CC_SRC  = 2,
     USES_CC_SRC2 = 4,
