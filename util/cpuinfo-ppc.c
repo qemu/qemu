@@ -6,11 +6,13 @@
 #include "qemu/osdep.h"
 #include "host/cpuinfo.h"
 
-#include <asm/cputable.h>
-#ifdef CONFIG_GETAUXVAL
-# include <sys/auxv.h>
-#else
-# include "elf.h"
+#ifdef CONFIG_LINUX
+# include <asm/cputable.h>
+# ifdef CONFIG_GETAUXVAL
+#  include <sys/auxv.h>
+# else
+#  include "elf.h"
+# endif
 #endif
 
 unsigned cpuinfo;
@@ -19,15 +21,16 @@ unsigned cpuinfo;
 unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;
-    unsigned long hwcap, hwcap2;
 
     if (info) {
         return info;
     }
 
-    hwcap = qemu_getauxval(AT_HWCAP);
-    hwcap2 = qemu_getauxval(AT_HWCAP2);
     info = CPUINFO_ALWAYS;
+
+#ifdef CONFIG_LINUX
+    unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+    unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
     /* Version numbers are monotonic, and so imply all lower versions. */
     if (hwcap2 & PPC_FEATURE2_ARCH_3_1) {
@@ -58,6 +61,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
             }
         }
     }
+#endif
 
     cpuinfo = info;
     return info;
