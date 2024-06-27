@@ -13,7 +13,14 @@ static void sigill_handler(int signo, siginfo_t *si, void *data)
 {
     /* Skip the faulty instruction */
     ucontext_t *uc = (ucontext_t *)data;
+
+#ifdef __linux__
     uc->uc_mcontext.__gregs[REG_PC] += 4;
+#elif defined(__OpenBSD__)
+    uc->sc_sepc += 4;
+#else
+# error Unsupported OS
+#endif
 
     got_sigill = 1;
 }
