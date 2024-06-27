@@ -1514,6 +1514,7 @@ static struct MachInfo *qtest_get_machines(const char *var)
     int idx;
 
     if (g_strcmp0(qemu_var, var)) {
+        g_free(qemu_var);
         qemu_var = g_strdup(var);
 
         /* new qemu, clear the cache */
