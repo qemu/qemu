@@ -96,12 +96,14 @@ extern RISCVCPUProfile *riscv_profiles[];
 #define PRIV_VER_1_10_0_STR "v1.10.0"
 #define PRIV_VER_1_11_0_STR "v1.11.0"
 #define PRIV_VER_1_12_0_STR "v1.12.0"
+#define PRIV_VER_1_13_0_STR "v1.13.0"
 enum {
     PRIV_VERSION_1_10_0 = 0,
     PRIV_VERSION_1_11_0,
     PRIV_VERSION_1_12_0,
+    PRIV_VERSION_1_13_0,
 
-    PRIV_VERSION_LATEST = PRIV_VERSION_1_12_0,
+    PRIV_VERSION_LATEST = PRIV_VERSION_1_13_0,
 };
 
 #define VEXT_VERSION_1_00_0 0x00010000
@@ -121,6 +123,29 @@ typedef enum {
     EXT_STATUS_CLEAN,
     EXT_STATUS_DIRTY,
 } RISCVExtStatus;
+
+typedef struct riscv_cpu_implied_exts_rule {
+#ifndef CONFIG_USER_ONLY
+    /*
+     * Bitmask indicates the rule enabled status for the harts.
+     * This enhancement is only available in system-mode QEMU,
+     * as we don't have a good way (e.g. mhartid) to distinguish
+     * the SMP cores in user-mode QEMU.
+     */
+    unsigned long *enabled;
+#endif
+    /* True if this is a MISA implied rule. */
+    bool is_misa;
+    /* ext is MISA bit if is_misa flag is true, else multi extension offset. */
+    const uint32_t ext;
+    const uint32_t implied_misa_exts;
+    const uint32_t implied_multi_exts[];
+} RISCVCPUImpliedExtsRule;
+
+extern RISCVCPUImpliedExtsRule *riscv_misa_ext_implied_rules[];
+extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
+
+#define RISCV_IMPLIED_EXTS_RULE_END -1
 
 #define MMU_USER_IDX 3
 
@@ -830,4 +855,5 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 /* Implemented in th_csr.c */
 void th_register_custom_csrs(RISCVCPU *cpu);
 
+const char *priv_spec_to_str(int priv_version);
 #endif /* RISCV_CPU_H */

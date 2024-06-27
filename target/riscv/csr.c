@@ -762,14 +762,18 @@ static RISCVException write_vcsr(CPURISCVState *env, int csrno,
 }
 
 /* User Timers and Counters */
-static target_ulong get_ticks(bool shift)
+static target_ulong get_ticks(bool shift, bool instructions)
 {
     int64_t val;
     target_ulong result;
 
 #if !defined(CONFIG_USER_ONLY)
     if (icount_enabled()) {
-        val = icount_get();
+        if (instructions) {
+            val = icount_get_raw();
+        } else {
+            val = icount_get();
+        }
     } else {
         val = cpu_get_host_ticks();
     }
@@ -804,14 +808,14 @@ static RISCVException read_timeh(CPURISCVState *env, int csrno,
 static RISCVException read_hpmcounter(CPURISCVState *env, int csrno,
                                       target_ulong *val)
 {
-    *val = get_ticks(false);
+    *val = get_ticks(false, (csrno == CSR_INSTRET));
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException read_hpmcounterh(CPURISCVState *env, int csrno,
                                        target_ulong *val)
 {
-    *val = get_ticks(true);
+    *val = get_ticks(true, (csrno == CSR_INSTRETH));
     return RISCV_EXCP_NONE;
 }
 
@@ -875,11 +879,11 @@ static RISCVException write_mhpmcounter(CPURISCVState *env, int csrno,
     int ctr_idx = csrno - CSR_MCYCLE;
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t mhpmctr_val = val;
+    bool instr = riscv_pmu_ctr_monitor_instructions(env, ctr_idx);
 
     counter->mhpmcounter_val = val;
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        counter->mhpmcounter_prev = get_ticks(false);
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) || instr) {
+        counter->mhpmcounter_prev = get_ticks(false, instr);
         if (ctr_idx > 2) {
             if (riscv_cpu_mxl(env) == MXL_RV32) {
                 mhpmctr_val = mhpmctr_val |
@@ -902,12 +906,12 @@ static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t mhpmctr_val = counter->mhpmcounter_val;
     uint64_t mhpmctrh_val = val;
+    bool instr = riscv_pmu_ctr_monitor_instructions(env, ctr_idx);
 
     counter->mhpmcounterh_val = val;
     mhpmctr_val = mhpmctr_val | (mhpmctrh_val << 32);
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        counter->mhpmcounterh_prev = get_ticks(true);
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) || instr) {
+        counter->mhpmcounterh_prev = get_ticks(true, instr);
         if (ctr_idx > 2) {
             riscv_pmu_setup_timer(env, mhpmctr_val, ctr_idx);
         }
@@ -926,6 +930,7 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                          counter->mhpmcounter_prev;
     target_ulong ctr_val = upper_half ? counter->mhpmcounterh_val :
                                         counter->mhpmcounter_val;
+    bool instr = riscv_pmu_ctr_monitor_instructions(env, ctr_idx);
 
     if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
         /*
@@ -946,9 +951,8 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
      * The kernel computes the perf delta by subtracting the current value from
      * the value it initialized previously (ctr_val).
      */
-    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
-        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
-        *val = get_ticks(upper_half) - ctr_prev + ctr_val;
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) || instr) {
+        *val = get_ticks(upper_half, instr) - ctr_prev + ctr_val;
     } else {
         *val = ctr_val;
     }
@@ -1145,7 +1149,14 @@ static RISCVException write_stimecmph(CPURISCVState *env, int csrno,
 
 #define VSTOPI_NUM_SRCS 5
 
-#define LOCAL_INTERRUPTS (~0x1FFF)
+/*
+ * All core local interrupts except the fixed ones 0:12. This macro is for
+ * virtual interrupts logic so please don't change this to avoid messing up
+ * the whole support, For reference see AIA spec: `5.3 Interrupt filtering and
+ * virtual interrupts for supervisor level` and `6.3.2 Virtual interrupts for
+ * VS level`.
+ */
+#define LOCAL_INTERRUPTS   (~0x1FFFULL)
 
 static const uint64_t delegable_ints =
     S_MODE_INTERRUPTS | VS_MODE_INTERRUPTS | MIP_LCOFIP;
@@ -1197,18 +1208,18 @@ static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
  */
 
 /* Bit STIP can be an alias of mip.STIP that's why it's writable in mvip. */
-static const target_ulong mvip_writable_mask = MIP_SSIP | MIP_STIP | MIP_SEIP |
+static const uint64_t mvip_writable_mask = MIP_SSIP | MIP_STIP | MIP_SEIP |
                                     LOCAL_INTERRUPTS;
-static const target_ulong mvien_writable_mask = MIP_SSIP | MIP_SEIP |
+static const uint64_t mvien_writable_mask = MIP_SSIP | MIP_SEIP |
                                     LOCAL_INTERRUPTS;
 
-static const target_ulong sip_writable_mask = SIP_SSIP | LOCAL_INTERRUPTS;
-static const target_ulong hip_writable_mask = MIP_VSSIP;
-static const target_ulong hvip_writable_mask = MIP_VSSIP | MIP_VSTIP |
+static const uint64_t sip_writable_mask = SIP_SSIP | LOCAL_INTERRUPTS;
+static const uint64_t hip_writable_mask = MIP_VSSIP;
+static const uint64_t hvip_writable_mask = MIP_VSSIP | MIP_VSTIP |
                                     MIP_VSEIP | LOCAL_INTERRUPTS;
-static const target_ulong hvien_writable_mask = LOCAL_INTERRUPTS;
+static const uint64_t hvien_writable_mask = LOCAL_INTERRUPTS;
 
-static const target_ulong vsip_writable_mask = MIP_VSSIP | LOCAL_INTERRUPTS;
+static const uint64_t vsip_writable_mask = MIP_VSSIP | LOCAL_INTERRUPTS;
 
 const bool valid_vm_1_10_32[16] = {
     [VM_1_10_MBARE] = true,
@@ -2245,6 +2256,10 @@ static RISCVException write_mstateen0(CPURISCVState *env, int csrno,
         wr_mask |= SMSTATEEN0_FCSR;
     }
 
+    if (env->priv_ver >= PRIV_VERSION_1_13_0) {
+        wr_mask |= SMSTATEEN0_P1P13;
+    }
+
     return write_mstateen(env, csrno, wr_mask, new_val);
 }
 
@@ -2279,6 +2294,10 @@ static RISCVException write_mstateen0h(CPURISCVState *env, int csrno,
                                        target_ulong new_val)
 {
     uint64_t wr_mask = SMSTATEEN_STATEEN | SMSTATEEN0_HSENVCFG;
+
+    if (env->priv_ver >= PRIV_VERSION_1_13_0) {
+        wr_mask |= SMSTATEEN0_P1P13;
+    }
 
     return write_mstateenh(env, csrno, wr_mask, new_val);
 }
@@ -3211,6 +3230,33 @@ static RISCVException write_hedeleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     env->hedeleg = val & vs_delegable_excps;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_hedelegh(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    RISCVException ret;
+    ret = smstateen_acc_ok(env, 0, SMSTATEEN0_P1P13);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    /* Reserved, now read zero */
+    *val = 0;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_hedelegh(CPURISCVState *env, int csrno,
+                                    target_ulong val)
+{
+    RISCVException ret;
+    ret = smstateen_acc_ok(env, 0, SMSTATEEN0_P1P13);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    /* Reserved, now write ignore */
     return RISCV_EXCP_NONE;
 }
 
@@ -4618,6 +4664,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     [CSR_MSTATUSH]    = { "mstatush",   any32, read_mstatush,
                           write_mstatush                                   },
+    [CSR_MEDELEGH]    = { "medelegh",   any32, read_zero, write_ignore,
+                          .min_priv_ver = PRIV_VERSION_1_13_0              },
+    [CSR_HEDELEGH]    = { "hedelegh",   hmode32, read_hedelegh, write_hedelegh,
+                          .min_priv_ver = PRIV_VERSION_1_13_0              },
 
     /* Machine Trap Handling */
     [CSR_MSCRATCH] = { "mscratch", any,  read_mscratch, write_mscratch,
