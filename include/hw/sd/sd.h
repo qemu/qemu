@@ -56,7 +56,6 @@
 #define AKE_SEQ_ERROR           (1 << 3)
 
 enum SDPhySpecificationVersion {
-    SD_PHY_SPECv1_10_VERS     = 1,
     SD_PHY_SPECv2_00_VERS     = 2,
     SD_PHY_SPECv3_01_VERS     = 3,
 };
