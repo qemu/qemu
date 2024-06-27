@@ -187,67 +187,17 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
 
 static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 {
-    static const int blksize = 32;
-    int blocks = DIV_ROUND_UP(surface_width(ssd->ds), blksize);
-    g_autofree int *dirty_top = NULL;
-    int y, yoff1, yoff2, x, xoff, blk, bw;
-    int bpp = surface_bytes_per_pixel(ssd->ds);
-    uint8_t *guest, *mirror;
-
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
         return;
     };
 
-    dirty_top = g_new(int, blocks);
-    for (blk = 0; blk < blocks; blk++) {
-        dirty_top[blk] = -1;
-    }
-
-    guest = surface_data(ssd->ds);
-    mirror = (void *)pixman_image_get_data(ssd->mirror);
-    for (y = ssd->dirty.top; y < ssd->dirty.bottom; y++) {
-        yoff1 = y * surface_stride(ssd->ds);
-        yoff2 = y * pixman_image_get_stride(ssd->mirror);
-        for (x = ssd->dirty.left; x < ssd->dirty.right; x += blksize) {
-            xoff = x * bpp;
-            blk = x / blksize;
-            bw = MIN(blksize, ssd->dirty.right - x);
-            if (memcmp(guest + yoff1 + xoff,
-                       mirror + yoff2 + xoff,
-                       bw * bpp) == 0) {
-                if (dirty_top[blk] != -1) {
-                    QXLRect update = {
-                        .top    = dirty_top[blk],
-                        .bottom = y,
-                        .left   = x,
-                        .right  = x + bw,
-                    };
-                    qemu_spice_create_one_update(ssd, &update);
-                    dirty_top[blk] = -1;
-                }
-            } else {
-                if (dirty_top[blk] == -1) {
-                    dirty_top[blk] = y;
-                }
-            }
-        }
-    }
-
-    for (x = ssd->dirty.left; x < ssd->dirty.right; x += blksize) {
-        blk = x / blksize;
-        bw = MIN(blksize, ssd->dirty.right - x);
-        if (dirty_top[blk] != -1) {
-            QXLRect update = {
-                .top    = dirty_top[blk],
-                .bottom = ssd->dirty.bottom,
-                .left   = x,
-                .right  = x + bw,
-            };
-            qemu_spice_create_one_update(ssd, &update);
-            dirty_top[blk] = -1;
-        }
-    }
-
+    QXLRect update = {
+        .top    = ssd->dirty.top,
+        .bottom = ssd->dirty.bottom,
+        .left   = ssd->dirty.left,
+        .right  = ssd->dirty.right,
+    };
+    qemu_spice_create_one_update(ssd, &update);
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
 }
 
