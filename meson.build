@@ -2862,6 +2862,12 @@ have_cpuid_h = cc.links('''
   }''')
 config_host_data.set('CONFIG_CPUID_H', have_cpuid_h)
 
+# Don't bother to advertise asm/hwprobe.h for old versions that do
+# not contain RISCV_HWPROBE_EXT_ZBA.
+config_host_data.set('CONFIG_ASM_HWPROBE_H',
+                     cc.has_header_symbol('asm/hwprobe.h',
+                                          'RISCV_HWPROBE_EXT_ZBA'))
+
 config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
   .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX2') \
   .require(cc.links('''

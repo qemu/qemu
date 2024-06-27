@@ -6,6 +6,11 @@
 #include "qemu/osdep.h"
 #include "host/cpuinfo.h"
 
+#ifdef CONFIG_ASM_HWPROBE_H
+#include <asm/hwprobe.h>
+#include <sys/syscall.h>
+#endif
+
 unsigned cpuinfo;
 static volatile sig_atomic_t got_sigill;
 
@@ -46,6 +51,27 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
     info |= CPUINFO_ZICOND;
 #endif
     left &= ~info;
+
+#ifdef CONFIG_ASM_HWPROBE_H
+    if (left) {
+        /*
+         * TODO: glibc 2.40 will introduce <sys/hwprobe.h>, which
+         * provides __riscv_hwprobe and __riscv_hwprobe_one,
+         * which is a slightly cleaner interface.
+         */
+        struct riscv_hwprobe pair = { .key = RISCV_HWPROBE_KEY_IMA_EXT_0 };
+        if (syscall(__NR_riscv_hwprobe, &pair, 1, 0, NULL, 0) == 0
+            && pair.key >= 0) {
+            info |= pair.value & RISCV_HWPROBE_EXT_ZBA ? CPUINFO_ZBA : 0;
+            info |= pair.value & RISCV_HWPROBE_EXT_ZBB ? CPUINFO_ZBB : 0;
+            left &= ~(CPUINFO_ZBA | CPUINFO_ZBB);
+#ifdef RISCV_HWPROBE_EXT_ZICOND
+            info |= pair.value & RISCV_HWPROBE_EXT_ZICOND ? CPUINFO_ZICOND : 0;
+            left &= ~CPUINFO_ZICOND;
+#endif
+        }
+    }
+#endif /* CONFIG_ASM_HWPROBE_H */
 
     if (left) {
         struct sigaction sa_old, sa_new;
