@@ -834,7 +834,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
         case ARM_VFP_FPSCR:
             if (a->rt == 15) {
                 tmp = load_cpu_field_low32(vfp.fpsr);
-                tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
+                tcg_gen_andi_i32(tmp, tmp, FPSR_NZCV_MASK);
             } else {
                 tmp = tcg_temp_new_i32();
                 gen_helper_vfp_get_fpscr(tmp, tcg_env);

@@ -1697,6 +1697,7 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 #define FPSR_MASK 0xf800009f
 #define FPCR_MASK 0x07ff9f00
 
+/* FPCR bits */
 #define FPCR_IOE    (1 << 8)    /* Invalid Operation exception trap enable */
 #define FPCR_DZE    (1 << 9)    /* Divide by Zero exception trap enable */
 #define FPCR_OFE    (1 << 10)   /* Overflow exception trap enable */
@@ -1708,18 +1709,20 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 #define FPCR_FZ     (1 << 24)   /* Flush-to-zero enable bit */
 #define FPCR_DN     (1 << 25)   /* Default NaN enable bit */
 #define FPCR_AHP    (1 << 26)   /* Alternative half-precision */
-#define FPCR_QC     (1 << 27)   /* Cumulative saturation bit */
-#define FPCR_V      (1 << 28)   /* FP overflow flag */
-#define FPCR_C      (1 << 29)   /* FP carry flag */
-#define FPCR_Z      (1 << 30)   /* FP zero flag */
-#define FPCR_N      (1 << 31)   /* FP negative flag */
 
 #define FPCR_LTPSIZE_SHIFT 16   /* LTPSIZE, M-profile only */
 #define FPCR_LTPSIZE_MASK (7 << FPCR_LTPSIZE_SHIFT)
 #define FPCR_LTPSIZE_LENGTH 3
 
-#define FPCR_NZCV_MASK (FPCR_N | FPCR_Z | FPCR_C | FPCR_V)
-#define FPCR_NZCVQC_MASK (FPCR_NZCV_MASK | FPCR_QC)
+/* FPSR bits */
+#define FPSR_QC     (1 << 27)   /* Cumulative saturation bit */
+#define FPSR_V      (1 << 28)   /* FP overflow flag */
+#define FPSR_C      (1 << 29)   /* FP carry flag */
+#define FPSR_Z      (1 << 30)   /* FP zero flag */
+#define FPSR_N      (1 << 31)   /* FP negative flag */
+
+#define FPSR_NZCV_MASK (FPSR_N | FPSR_Z | FPSR_C | FPSR_V)
+#define FPSR_NZCVQC_MASK (FPSR_NZCV_MASK | FPSR_QC)
 
 /**
  * vfp_get_fpsr: read the AArch64 FPSR

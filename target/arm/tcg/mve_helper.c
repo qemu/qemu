@@ -1115,21 +1115,21 @@ static void do_vadc(CPUARMState *env, uint32_t *d, uint32_t *n, uint32_t *m,
 
     if (update_flags) {
         /* Store C, clear NZV. */
-        env->vfp.fpsr &= ~FPCR_NZCV_MASK;
-        env->vfp.fpsr |= carry_in * FPCR_C;
+        env->vfp.fpsr &= ~FPSR_NZCV_MASK;
+        env->vfp.fpsr |= carry_in * FPSR_C;
     }
     mve_advance_vpt(env);
 }
 
 void HELPER(mve_vadc)(CPUARMState *env, void *vd, void *vn, void *vm)
 {
-    bool carry_in = env->vfp.fpsr & FPCR_C;
+    bool carry_in = env->vfp.fpsr & FPSR_C;
     do_vadc(env, vd, vn, vm, 0, carry_in, false);
 }
 
 void HELPER(mve_vsbc)(CPUARMState *env, void *vd, void *vn, void *vm)
 {
-    bool carry_in = env->vfp.fpsr & FPCR_C;
+    bool carry_in = env->vfp.fpsr & FPSR_C;
     do_vadc(env, vd, vn, vm, -1, carry_in, false);
 }
 

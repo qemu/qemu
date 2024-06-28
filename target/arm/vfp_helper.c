@@ -196,7 +196,7 @@ uint32_t vfp_get_fpsr(CPUARMState *env)
     fpsr |= vfp_get_fpsr_from_host(env);
 
     i = env->vfp.qc[0] | env->vfp.qc[1] | env->vfp.qc[2] | env->vfp.qc[3];
-    fpsr |= i ? FPCR_QC : 0;
+    fpsr |= i ? FPSR_QC : 0;
     return fpsr;
 }
 
@@ -222,7 +222,7 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
          * The bit we set within vfp.qc[] is arbitrary; the array as a
          * whole being zero/non-zero is what counts.
          */
-        env->vfp.qc[0] = val & FPCR_QC;
+        env->vfp.qc[0] = val & FPSR_QC;
         env->vfp.qc[1] = 0;
         env->vfp.qc[2] = 0;
         env->vfp.qc[3] = 0;
@@ -234,7 +234,7 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
      * fp_status, and QC is in vfp.qc[]. Store the NZCV bits there,
      * and zero any of the other FPSR bits.
      */
-    val &= FPCR_NZCV_MASK;
+    val &= FPSR_NZCV_MASK;
     env->vfp.fpsr = val;
 }
 
@@ -1156,7 +1156,7 @@ uint32_t HELPER(vjcvt)(float64 value, CPUARMState *env)
     uint32_t z = (pair >> 32) == 0;
 
     /* Store Z, clear NCV, in FPSCR.NZCV.  */
-    env->vfp.fpsr = (env->vfp.fpsr & ~FPCR_NZCV_MASK) | (z * FPCR_Z);
+    env->vfp.fpsr = (env->vfp.fpsr & ~FPSR_NZCV_MASK) | (z * FPSR_Z);
 
     return result;
 }
