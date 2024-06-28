@@ -1730,17 +1730,19 @@ uint32_t vfp_get_fpsr(CPUARMState *env);
  */
 uint32_t vfp_get_fpcr(CPUARMState *env);
 
-static inline void vfp_set_fpsr(CPUARMState *env, uint32_t val)
-{
-    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPSR_MASK) | (val & FPSR_MASK);
-    vfp_set_fpscr(env, new_fpscr);
-}
+/**
+ * vfp_set_fpsr: write the AArch64 FPSR
+ * @env: CPU context
+ * @value: new value
+ */
+void vfp_set_fpsr(CPUARMState *env, uint32_t value);
 
-static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)
-{
-    uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPCR_MASK) | (val & FPCR_MASK);
-    vfp_set_fpscr(env, new_fpscr);
-}
+/**
+ * vfp_set_fpcr: write the AArch64 FPCR
+ * @env: CPU context
+ * @value: new value
+ */
+void vfp_set_fpcr(CPUARMState *env, uint32_t value);
 
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,
