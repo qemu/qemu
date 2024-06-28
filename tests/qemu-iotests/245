@@ -592,7 +592,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
     @iotests.skip_if_unsupported(['compress'])
     def test_insert_compress_filter(self):
         # Add an image to the VM: hd (raw) -> hd0 (qcow2) -> hd0-file (file)
-        opts = {'driver': 'raw', 'node-name': 'hd', 'file': hd_opts(0)}
+        opts = {'driver': 'raw', 'node-name': 'hd', 'file': hd_opts(0), 'discard': 'unmap'}
         self.vm.cmd('blockdev-add', conv_keys = False, **opts)
 
         # Add a 'compress' filter
