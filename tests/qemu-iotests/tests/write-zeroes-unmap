@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# group: quick
+#
+# Test write zeros unmap.
+#
+# Copyright (C) Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+trap _cleanup_test_img exit
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto file
+_supported_os Linux
+
+create_test_image() {
+    _make_test_img -f $IMGFMT 1m
+}
+
+filter_command() {
+    _filter_testdir | _filter_qemu_io | _filter_qemu | _filter_hmp
+}
+
+print_disk_usage() {
+    du -sh $TEST_IMG | _filter_testdir
+}
+
+echo
+echo "=== defaults - write zeros ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -z 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== defaults - write zeros unmap ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -zu 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT \
+    | filter_command
+print_disk_usage
+
+
+echo
+echo "=== defaults - write actual zeros ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -P 0 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== discard=off - write zeroes unmap ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -zu 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT,discard=off \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== detect-zeroes=on - write actual zeros ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -P 0 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT,detect-zeroes=on \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== detect-zeroes=on,discard=on - write actual zeros ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -P 0 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT,detect-zeroes=on,discard=on \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== discard=on - write zeroes ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -z 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT,discard=on \
+    | filter_command
+print_disk_usage
+
+echo
+echo "=== discard=on - write zeroes unmap ==="
+echo
+
+create_test_image
+echo -e 'qemu-io none0 "write -zu 0 1m"\nquit' \
+    | $QEMU -monitor stdio -drive if=none,file=$TEST_IMG,format=$IMGFMT,discard=on \
+    | filter_command
+print_disk_usage
