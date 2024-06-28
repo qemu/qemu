@@ -115,7 +115,7 @@ static void vfp_set_fpsr_to_host(CPUARMState *env, uint32_t val)
 
 static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val)
 {
-    uint32_t changed = env->vfp.xregs[ARM_VFP_FPSCR];
+    uint64_t changed = env->vfp.fpcr;
 
     changed ^= val;
     if (changed & (3 << 22)) {
@@ -175,7 +175,7 @@ static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val)
 
 uint32_t vfp_get_fpcr(CPUARMState *env)
 {
-    uint32_t fpcr = (env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_MASK)
+    uint32_t fpcr = env->vfp.fpcr
         | (env->vfp.vec_len << 16)
         | (env->vfp.vec_stride << 20);
 
@@ -190,7 +190,7 @@ uint32_t vfp_get_fpcr(CPUARMState *env)
 
 uint32_t vfp_get_fpsr(CPUARMState *env)
 {
-    uint32_t fpsr = env->vfp.xregs[ARM_VFP_FPSCR] & FPSR_MASK;
+    uint32_t fpsr = env->vfp.fpsr;
     uint32_t i;
 
     fpsr |= vfp_get_fpsr_from_host(env);
@@ -229,15 +229,13 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
     }
 
     /*
-     * The only FPSR bits we keep in vfp.xregs[FPSCR] are NZCV:
+     * The only FPSR bits we keep in vfp.fpsr are NZCV:
      * the exception flags IOC|DZC|OFC|UFC|IXC|IDC are stored in
      * fp_status, and QC is in vfp.qc[]. Store the NZCV bits there,
-     * and zero any of the other FPSR bits (but preserve the FPCR
-     * bits).
+     * and zero any of the other FPSR bits.
      */
     val &= FPCR_NZCV_MASK;
-    env->vfp.xregs[ARM_VFP_FPSCR] &= ~FPSR_MASK;
-    env->vfp.xregs[ARM_VFP_FPSCR] |= val;
+    env->vfp.fpsr = val;
 }
 
 void vfp_set_fpcr(CPUARMState *env, uint32_t val)
@@ -271,14 +269,13 @@ void vfp_set_fpcr(CPUARMState *env, uint32_t val)
      * We don't implement trapped exception handling, so the
      * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
      *
-     * The FPCR bits we keep in vfp.xregs[FPSCR] are AHP, DN, FZ, RMode
+     * The FPCR bits we keep in vfp.fpcr are AHP, DN, FZ, RMode
      * and FZ16. Len, Stride and LTPSIZE we just handled. Store those bits
      * there, and zero any of the other FPCR bits and the RES0 and RAZ/WI
      * bits.
      */
     val &= FPCR_AHP | FPCR_DN | FPCR_FZ | FPCR_RMODE_MASK | FPCR_FZ16;
-    env->vfp.xregs[ARM_VFP_FPSCR] &= ~FPCR_MASK;
-    env->vfp.xregs[ARM_VFP_FPSCR] |= val;
+    env->vfp.fpcr = val;
 }
 
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
@@ -356,8 +353,7 @@ static void softfloat_to_vfp_compare(CPUARMState *env, FloatRelation cmp)
     default:
         g_assert_not_reached();
     }
-    env->vfp.xregs[ARM_VFP_FPSCR] =
-        deposit32(env->vfp.xregs[ARM_VFP_FPSCR], 28, 4, flags);
+    env->vfp.fpsr = deposit64(env->vfp.fpsr, 28, 4, flags); /* NZCV */
 }
 
 /* XXX: check quiet/signaling case */
@@ -1160,8 +1156,7 @@ uint32_t HELPER(vjcvt)(float64 value, CPUARMState *env)
     uint32_t z = (pair >> 32) == 0;
 
     /* Store Z, clear NCV, in FPSCR.NZCV.  */
-    env->vfp.xregs[ARM_VFP_FPSCR]
-        = (env->vfp.xregs[ARM_VFP_FPSCR] & ~CPSR_NZCV) | (z * CPSR_Z);
+    env->vfp.fpsr = (env->vfp.fpsr & ~FPCR_NZCV_MASK) | (z * FPCR_Z);
 
     return result;
 }

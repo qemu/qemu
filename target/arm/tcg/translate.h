@@ -351,8 +351,7 @@ static inline TCGv_i32 get_ahp_flag(void)
 {
     TCGv_i32 ret = tcg_temp_new_i32();
 
-    tcg_gen_ld_i32(ret, tcg_env,
-                   offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPSCR]));
+    tcg_gen_ld_i32(ret, tcg_env, offsetoflow32(CPUARMState, vfp.fpcr));
     tcg_gen_extract_i32(ret, ret, 26, 1);
 
     return ret;

@@ -341,10 +341,10 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
                                  16, 16, qc);
         }
         tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
-        fpscr = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+        fpscr = load_cpu_field_low32(vfp.fpsr);
         tcg_gen_andi_i32(fpscr, fpscr, ~FPCR_NZCV_MASK);
         tcg_gen_or_i32(fpscr, fpscr, tmp);
-        store_cpu_field(fpscr, vfp.xregs[ARM_VFP_FPSCR]);
+        store_cpu_field_low32(fpscr, vfp.fpsr);
         break;
     }
     case ARM_VFP_FPCXT_NS:
@@ -465,7 +465,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
          * Read just NZCV; this is a special case to avoid the
          * helper call for the "VMRS to CPSR.NZCV" insn.
          */
-        tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+        tmp = load_cpu_field_low32(vfp.fpsr);
         tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
         storefn(s, opaque, tmp, true);
         break;

@@ -833,7 +833,7 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
             break;
         case ARM_VFP_FPSCR:
             if (a->rt == 15) {
-                tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+                tmp = load_cpu_field_low32(vfp.fpsr);
                 tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
             } else {
                 tmp = tcg_temp_new_i32();

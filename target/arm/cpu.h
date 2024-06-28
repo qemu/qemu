@@ -619,6 +619,13 @@ typedef struct CPUArchState {
         int vec_len;
         int vec_stride;
 
+        /*
+         * Floating point status and control registers. Some bits are
+         * stored separately in other fields or in the float_status below.
+         */
+        uint64_t fpsr;
+        uint64_t fpcr;
+
         uint32_t xregs[16];
 
         /* Scratch space for aa32 neon expansion.  */
