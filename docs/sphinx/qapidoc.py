@@ -230,15 +230,15 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         section += dlnode
         return [section]
 
-    def _nodes_for_arguments(self, doc, boxed_arg_type):
+    def _nodes_for_arguments(self, doc, arg_type):
         """Return list of doctree nodes for the arguments section"""
-        if boxed_arg_type:
+        if arg_type and not arg_type.is_implicit():
             assert not doc.args
             section = self._make_section('Arguments')
             dlnode = nodes.definition_list()
             dlnode += self._make_dlitem(
                 [nodes.Text('The members of '),
-                 nodes.literal('', boxed_arg_type.name)],
+                 nodes.literal('', arg_type.name)],
                 None)
             section += dlnode
             return [section]
@@ -352,8 +352,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                       allow_preconfig, coroutine):
         doc = self._cur_doc
         self._add_doc('Command',
-                      self._nodes_for_arguments(doc,
-                                                arg_type if boxed else None)
+                      self._nodes_for_arguments(doc, arg_type)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
                       + self._nodes_for_if_section(ifcond))
@@ -361,8 +360,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
     def visit_event(self, name, info, ifcond, features, arg_type, boxed):
         doc = self._cur_doc
         self._add_doc('Event',
-                      self._nodes_for_arguments(doc,
-                                                arg_type if boxed else None)
+                      self._nodes_for_arguments(doc, arg_type)
                       + self._nodes_for_features(doc)
                       + self._nodes_for_sections(doc)
                       + self._nodes_for_if_section(ifcond))
