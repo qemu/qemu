@@ -113,11 +113,12 @@ static void vfp_set_fpsr_to_host(CPUARMState *env, uint32_t val)
     set_float_exception_flags(0, &env->vfp.standard_fp_status_f16);
 }
 
-static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val)
+static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val, uint32_t mask)
 {
     uint64_t changed = env->vfp.fpcr;
 
     changed ^= val;
+    changed &= mask;
     if (changed & (3 << 22)) {
         int i = (val >> 22) & 3;
         switch (i) {
@@ -167,7 +168,7 @@ static void vfp_set_fpsr_to_host(CPUARMState *env, uint32_t val)
 {
 }
 
-static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val)
+static void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val, uint32_t mask)
 {
 }
 
@@ -239,8 +240,13 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
     env->vfp.fpsr = val;
 }
 
-void vfp_set_fpcr(CPUARMState *env, uint32_t val)
+static void vfp_set_fpcr_masked(CPUARMState *env, uint32_t val, uint32_t mask)
 {
+    /*
+     * We only set FPCR bits defined by mask, and leave the others alone.
+     * We assume the mask is sensible (e.g. doesn't try to set only
+     * part of a field)
+     */
     ARMCPU *cpu = env_archcpu(env);
 
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
@@ -248,22 +254,24 @@ void vfp_set_fpcr(CPUARMState *env, uint32_t val)
         val &= ~FPCR_FZ16;
     }
 
-    vfp_set_fpcr_to_host(env, val);
+    vfp_set_fpcr_to_host(env, val, mask);
 
-    if (!arm_feature(env, ARM_FEATURE_M)) {
-        /*
-         * Short-vector length and stride; on M-profile these bits
-         * are used for different purposes.
-         * We can't make this conditional be "if MVFR0.FPShVec != 0",
-         * because in v7A no-short-vector-support cores still had to
-         * allow Stride/Len to be written with the only effect that
-         * some insns are required to UNDEF if the guest sets them.
-         */
-        env->vfp.vec_len = extract32(val, 16, 3);
-        env->vfp.vec_stride = extract32(val, 20, 2);
-    } else if (cpu_isar_feature(aa32_mve, cpu)) {
-        env->v7m.ltpsize = extract32(val, FPCR_LTPSIZE_SHIFT,
-                                     FPCR_LTPSIZE_LENGTH);
+    if (mask & (FPCR_LEN_MASK | FPCR_STRIDE_MASK)) {
+        if (!arm_feature(env, ARM_FEATURE_M)) {
+            /*
+             * Short-vector length and stride; on M-profile these bits
+             * are used for different purposes.
+             * We can't make this conditional be "if MVFR0.FPShVec != 0",
+             * because in v7A no-short-vector-support cores still had to
+             * allow Stride/Len to be written with the only effect that
+             * some insns are required to UNDEF if the guest sets them.
+             */
+            env->vfp.vec_len = extract32(val, 16, 3);
+            env->vfp.vec_stride = extract32(val, 20, 2);
+        } else if (cpu_isar_feature(aa32_mve, cpu)) {
+            env->v7m.ltpsize = extract32(val, FPCR_LTPSIZE_SHIFT,
+                                         FPCR_LTPSIZE_LENGTH);
+        }
     }
 
     /*
@@ -276,12 +284,18 @@ void vfp_set_fpcr(CPUARMState *env, uint32_t val)
      * bits.
      */
     val &= FPCR_AHP | FPCR_DN | FPCR_FZ | FPCR_RMODE_MASK | FPCR_FZ16;
-    env->vfp.fpcr = val;
+    env->vfp.fpcr &= ~mask;
+    env->vfp.fpcr |= val;
+}
+
+void vfp_set_fpcr(CPUARMState *env, uint32_t val)
+{
+    vfp_set_fpcr_masked(env, val, MAKE_64BIT_MASK(0, 32));
 }
 
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
-    vfp_set_fpcr(env, val & FPSCR_FPCR_MASK);
+    vfp_set_fpcr_masked(env, val, FPSCR_FPCR_MASK);
     vfp_set_fpsr(env, val & FPSCR_FPSR_MASK);
 }
 
