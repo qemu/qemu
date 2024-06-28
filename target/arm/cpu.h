@@ -1714,20 +1714,26 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 #define FPCR_NZCV_MASK (FPCR_N | FPCR_Z | FPCR_C | FPCR_V)
 #define FPCR_NZCVQC_MASK (FPCR_NZCV_MASK | FPCR_QC)
 
-static inline uint32_t vfp_get_fpsr(CPUARMState *env)
-{
-    return vfp_get_fpscr(env) & FPSR_MASK;
-}
+/**
+ * vfp_get_fpsr: read the AArch64 FPSR
+ * @env: CPU context
+ *
+ * Return the current AArch64 FPSR value
+ */
+uint32_t vfp_get_fpsr(CPUARMState *env);
+
+/**
+ * vfp_get_fpcr: read the AArch64 FPCR
+ * @env: CPU context
+ *
+ * Return the current AArch64 FPCR value
+ */
+uint32_t vfp_get_fpcr(CPUARMState *env);
 
 static inline void vfp_set_fpsr(CPUARMState *env, uint32_t val)
 {
     uint32_t new_fpscr = (vfp_get_fpscr(env) & ~FPSR_MASK) | (val & FPSR_MASK);
     vfp_set_fpscr(env, new_fpscr);
-}
-
-static inline uint32_t vfp_get_fpcr(CPUARMState *env)
-{
-    return vfp_get_fpscr(env) & FPCR_MASK;
 }
 
 static inline void vfp_set_fpcr(CPUARMState *env, uint32_t val)

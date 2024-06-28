@@ -85,7 +85,7 @@ static inline int vfp_exceptbits_to_host(int target_bits)
     return host_bits;
 }
 
-static uint32_t vfp_get_fpscr_from_host(CPUARMState *env)
+static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
 {
     uint32_t i;
 
@@ -156,7 +156,7 @@ static void vfp_set_fpscr_to_host(CPUARMState *env, uint32_t val)
 
 #else
 
-static uint32_t vfp_get_fpscr_from_host(CPUARMState *env)
+static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
 {
     return 0;
 }
@@ -167,26 +167,36 @@ static void vfp_set_fpscr_to_host(CPUARMState *env, uint32_t val)
 
 #endif
 
-uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
+uint32_t vfp_get_fpcr(CPUARMState *env)
 {
-    uint32_t i, fpscr;
-
-    fpscr = env->vfp.xregs[ARM_VFP_FPSCR]
-            | (env->vfp.vec_len << 16)
-            | (env->vfp.vec_stride << 20);
+    uint32_t fpcr = (env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_MASK)
+        | (env->vfp.vec_len << 16)
+        | (env->vfp.vec_stride << 20);
 
     /*
      * M-profile LTPSIZE is the same bits [18:16] as A-profile Len; whichever
      * of the two is not applicable to this CPU will always be zero.
      */
-    fpscr |= env->v7m.ltpsize << 16;
+    fpcr |= env->v7m.ltpsize << 16;
 
-    fpscr |= vfp_get_fpscr_from_host(env);
+    return fpcr;
+}
+
+uint32_t vfp_get_fpsr(CPUARMState *env)
+{
+    uint32_t fpsr = env->vfp.xregs[ARM_VFP_FPSCR] & FPSR_MASK;
+    uint32_t i;
+
+    fpsr |= vfp_get_fpsr_from_host(env);
 
     i = env->vfp.qc[0] | env->vfp.qc[1] | env->vfp.qc[2] | env->vfp.qc[3];
-    fpscr |= i ? FPCR_QC : 0;
+    fpsr |= i ? FPCR_QC : 0;
+    return fpsr;
+}
 
-    return fpscr;
+uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
+{
+    return (vfp_get_fpcr(env) & FPCR_MASK) | (vfp_get_fpsr(env) & FPSR_MASK);
 }
 
 uint32_t vfp_get_fpscr(CPUARMState *env)
