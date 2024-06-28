@@ -43,7 +43,8 @@ static bool vfp_fpcr_fpsr_needed(void *opaque)
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
 
-    return (vfp_get_fpcr(env) & ~FPCR_MASK) || (vfp_get_fpsr(env) & ~FPSR_MASK);
+    return (vfp_get_fpcr(env) & ~FPSCR_FPCR_MASK) ||
+        (vfp_get_fpsr(env) & ~FPSCR_FPSR_MASK);
 }
 
 static int get_fpscr(QEMUFile *f, void *opaque, size_t size,

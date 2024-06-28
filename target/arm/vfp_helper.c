@@ -202,7 +202,8 @@ uint32_t vfp_get_fpsr(CPUARMState *env)
 
 uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
-    return (vfp_get_fpcr(env) & FPCR_MASK) | (vfp_get_fpsr(env) & FPSR_MASK);
+    return (vfp_get_fpcr(env) & FPSCR_FPCR_MASK) |
+        (vfp_get_fpsr(env) & FPSCR_FPSR_MASK);
 }
 
 uint32_t vfp_get_fpscr(CPUARMState *env)
@@ -280,8 +281,8 @@ void vfp_set_fpcr(CPUARMState *env, uint32_t val)
 
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
-    vfp_set_fpcr(env, val & FPCR_MASK);
-    vfp_set_fpsr(env, val & FPSR_MASK);
+    vfp_set_fpcr(env, val & FPSCR_FPCR_MASK);
+    vfp_set_fpsr(env, val & FPSCR_FPSR_MASK);
 }
 
 void vfp_set_fpscr(CPUARMState *env, uint32_t val)
