@@ -121,7 +121,7 @@ struct SevCommonStateClass {
                                        Error **errp);
     int (*launch_start)(SevCommonState *sev_common);
     void (*launch_finish)(SevCommonState *sev_common);
-    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, uint64_t len);
+    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, size_t len);
     int (*kvm_init)(ConfidentialGuestSupport *cgs, Error **errp);
 };
 
@@ -152,8 +152,10 @@ struct SevSnpGuestState {
 
     /* configuration parameters */
     char *guest_visible_workarounds;
-    char *id_block;
-    char *id_auth;
+    char *id_block_base64;
+    uint8_t *id_block;
+    char *id_auth_base64;
+    uint8_t *id_auth;
     char *host_data;
 
     struct kvm_sev_snp_launch_start kvm_start_conf;
@@ -171,7 +173,7 @@ typedef struct SevLaunchUpdateData {
     QTAILQ_ENTRY(SevLaunchUpdateData) next;
     hwaddr gpa;
     void *hva;
-    uint64_t len;
+    size_t len;
     int type;
 } SevLaunchUpdateData;
 
@@ -884,7 +886,7 @@ sev_snp_launch_update(SevSnpGuestState *sev_snp_guest,
 
     if (!data->hva || !data->len) {
         error_report("SNP_LAUNCH_UPDATE called with invalid address"
-                     "/ length: %p / %lx",
+                     "/ length: %p / %zx",
                      data->hva, data->len);
         return 1;
     }
@@ -932,8 +934,9 @@ sev_snp_launch_update(SevSnpGuestState *sev_snp_guest,
 
 out:
     if (!ret && update.gfn_start << TARGET_PAGE_BITS != data->gpa + data->len) {
-        error_report("SEV-SNP: expected update of GPA range %lx-%lx,"
-                     "got GPA range %lx-%llx",
+        error_report("SEV-SNP: expected update of GPA range %"
+                     HWADDR_PRIx "-%" HWADDR_PRIx ","
+                     "got GPA range %" HWADDR_PRIx "-%llx",
                      data->gpa, data->gpa + data->len, data->gpa,
                      update.gfn_start << TARGET_PAGE_BITS);
         ret = -EIO;
@@ -943,7 +946,8 @@ out:
 }
 
 static int
-sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa, uint8_t *addr, uint64_t len)
+sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
+                       uint8_t *addr, size_t len)
 {
     int ret, fw_error;
     struct kvm_sev_launch_update_data update;
@@ -1088,8 +1092,7 @@ sev_launch_finish(SevCommonState *sev_common)
 }
 
 static int
-snp_launch_update_data(uint64_t gpa, void *hva,
-                       uint32_t len, int type)
+snp_launch_update_data(uint64_t gpa, void *hva, size_t len, int type)
 {
     SevLaunchUpdateData *data;
 
@@ -1106,7 +1109,7 @@ snp_launch_update_data(uint64_t gpa, void *hva,
 
 static int
 sev_snp_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
-                           uint8_t *ptr, uint64_t len)
+                           uint8_t *ptr, size_t len)
 {
        int ret = snp_launch_update_data(gpa, ptr, len,
                                          KVM_SEV_SNP_PAGE_TYPE_NORMAL);
@@ -1163,7 +1166,7 @@ sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
 }
 
 static int
-snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, uint32_t cpuid_len)
+snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, size_t cpuid_len)
 {
     KvmCpuidInfo kvm_cpuid_info = {0};
     SnpCpuidInfo snp_cpuid_info;
@@ -1296,7 +1299,7 @@ sev_snp_launch_finish(SevCommonState *sev_common)
         }
     }
 
-    trace_kvm_sev_snp_launch_finish(sev_snp->id_block, sev_snp->id_auth,
+    trace_kvm_sev_snp_launch_finish(sev_snp->id_block_base64, sev_snp->id_auth_base64,
                                     sev_snp->host_data);
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_SNP_LAUNCH_FINISH,
                     finish, &error);
@@ -2146,7 +2149,8 @@ sev_snp_guest_set_guest_visible_workarounds(Object *obj, const char *value,
     }
 
     if (len != sizeof(start->gosvw)) {
-        error_setg(errp, "parameter length of %lu exceeds max of %lu",
+        error_setg(errp, "parameter length of %" G_GSIZE_FORMAT
+                   " exceeds max of %zu",
                    len, sizeof(start->gosvw));
         return;
     }
@@ -2159,7 +2163,7 @@ sev_snp_guest_get_id_block(Object *obj, Error **errp)
 {
     SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
 
-    return g_strdup(sev_snp_guest->id_block);
+    return g_strdup(sev_snp_guest->id_block_base64);
 }
 
 static void
@@ -2171,25 +2175,26 @@ sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
 
     finish->id_block_en = 0;
     g_free(sev_snp_guest->id_block);
-    g_free((guchar *)finish->id_block_uaddr);
+    g_free(sev_snp_guest->id_block_base64);
 
     /* store the base64 str so we don't need to re-encode in getter */
-    sev_snp_guest->id_block = g_strdup(value);
+    sev_snp_guest->id_block_base64 = g_strdup(value);
+    sev_snp_guest->id_block =
+        qbase64_decode(sev_snp_guest->id_block_base64, -1, &len, errp);
 
-    finish->id_block_uaddr =
-        (uint64_t)qbase64_decode(sev_snp_guest->id_block, -1, &len, errp);
-
-    if (!finish->id_block_uaddr) {
+    if (!sev_snp_guest->id_block) {
         return;
     }
 
     if (len != KVM_SEV_SNP_ID_BLOCK_SIZE) {
-        error_setg(errp, "parameter length of %lu not equal to %u",
+        error_setg(errp, "parameter length of %" G_GSIZE_FORMAT
+                   " not equal to %u",
                    len, KVM_SEV_SNP_ID_BLOCK_SIZE);
         return;
     }
 
     finish->id_block_en = 1;
+    finish->id_block_uaddr = (uintptr_t)sev_snp_guest->id_block;
 }
 
 static char *
@@ -2197,7 +2202,7 @@ sev_snp_guest_get_id_auth(Object *obj, Error **errp)
 {
     SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
 
-    return g_strdup(sev_snp_guest->id_auth);
+    return g_strdup(sev_snp_guest->id_auth_base64);
 }
 
 static void
@@ -2207,24 +2212,27 @@ sev_snp_guest_set_id_auth(Object *obj, const char *value, Error **errp)
     struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
     gsize len;
 
+    finish->id_auth_uaddr = 0;
     g_free(sev_snp_guest->id_auth);
-    g_free((guchar *)finish->id_auth_uaddr);
+    g_free(sev_snp_guest->id_auth_base64);
 
     /* store the base64 str so we don't need to re-encode in getter */
-    sev_snp_guest->id_auth = g_strdup(value);
+    sev_snp_guest->id_auth_base64 = g_strdup(value);
+    sev_snp_guest->id_auth =
+        qbase64_decode(sev_snp_guest->id_auth_base64, -1, &len, errp);
 
-    finish->id_auth_uaddr =
-        (uint64_t)qbase64_decode(sev_snp_guest->id_auth, -1, &len, errp);
-
-    if (!finish->id_auth_uaddr) {
+    if (!sev_snp_guest->id_auth) {
         return;
     }
 
     if (len > KVM_SEV_SNP_ID_AUTH_SIZE) {
-        error_setg(errp, "parameter length:ID_AUTH %lu exceeds max of %u",
+        error_setg(errp, "parameter length:ID_AUTH %" G_GSIZE_FORMAT
+                   " exceeds max of %u",
                    len, KVM_SEV_SNP_ID_AUTH_SIZE);
         return;
     }
+
+    finish->id_auth_uaddr = (uintptr_t)sev_snp_guest->id_auth;
 }
 
 static bool
@@ -2287,7 +2295,8 @@ sev_snp_guest_set_host_data(Object *obj, const char *value, Error **errp)
     }
 
     if (len != sizeof(finish->host_data)) {
-        error_setg(errp, "parameter length of %lu not equal to %lu",
+        error_setg(errp, "parameter length of %" G_GSIZE_FORMAT
+                   " not equal to %zu",
                    len, sizeof(finish->host_data));
         return;
     }

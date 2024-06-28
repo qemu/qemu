@@ -925,7 +925,7 @@ struct MemoryListener {
      * the current transaction.
      */
     void (*log_start)(MemoryListener *listener, MemoryRegionSection *section,
-                      int old, int new);
+                      int old_val, int new_val);
 
     /**
      * @log_stop:
@@ -944,7 +944,7 @@ struct MemoryListener {
      * the current transaction.
      */
     void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section,
-                     int old, int new);
+                     int old_val, int new_val);
 
     /**
      * @log_sync:
@@ -2764,7 +2764,7 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 #include "exec/memory_ldst_phys.h.inc"
 
 struct MemoryRegionCache {
-    void *ptr;
+    uint8_t *ptr;
     hwaddr xlat;
     hwaddr len;
     FlatView *fv;

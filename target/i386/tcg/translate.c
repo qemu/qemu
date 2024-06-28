@@ -283,22 +283,6 @@ enum {
 };
 
 enum {
-    /* I386 int registers */
-    OR_EAX,   /* MUST be even numbered */
-    OR_ECX,
-    OR_EDX,
-    OR_EBX,
-    OR_ESP,
-    OR_EBP,
-    OR_ESI,
-    OR_EDI,
-
-    OR_TMP0 = 16,    /* temporary operand register */
-    OR_TMP1,
-    OR_A0, /* temporary register used when doing address evaluation */
-};
-
-enum {
     USES_CC_DST  = 1,
     USES_CC_SRC  = 2,
     USES_CC_SRC2 = 4,
@@ -324,7 +308,7 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_CLR] = 0,
-    [CC_OP_POPCNT] = USES_CC_SRC,
+    [CC_OP_POPCNT] = USES_CC_DST,
 };
 
 static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
@@ -1019,8 +1003,6 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
                              .imm = CC_Z };
     case CC_OP_CLR:
         return (CCPrepare) { .cond = TCG_COND_ALWAYS };
-    case CC_OP_POPCNT:
-        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_src };
     default:
         {
             MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
@@ -3177,6 +3159,7 @@ static void disas_insn_old(DisasContext *s, CPUState *cpu, int b)
         case CC_OP_SHLB ... CC_OP_SHLQ:
         case CC_OP_SARB ... CC_OP_SARQ:
         case CC_OP_BMILGB ... CC_OP_BMILGQ:
+        case CC_OP_POPCNT:
             /* Z was going to be computed from the non-zero status of CC_DST.
                We can get that same Z value (and the new C value) by leaving
                CC_DST alone, setting CC_SRC, and using a CC_OP_SAR of the

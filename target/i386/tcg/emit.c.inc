@@ -2804,10 +2804,10 @@ static void gen_POPA(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_POPCNT(DisasContext *s, X86DecodedInsn *decode)
 {
-    decode->cc_src = tcg_temp_new();
+    decode->cc_dst = tcg_temp_new();
     decode->cc_op = CC_OP_POPCNT;
 
-    tcg_gen_mov_tl(decode->cc_src, s->T0);
+    tcg_gen_mov_tl(decode->cc_dst, s->T0);
     tcg_gen_ctpop_tl(s->T0, s->T0);
 }
 
