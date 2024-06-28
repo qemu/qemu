@@ -83,6 +83,13 @@ void store_cpu_offset(TCGv_i32 var, int offset, int size);
                          sizeof_field(CPUARMState, name));              \
     })
 
+/* Store to the low half of a 64-bit field from a TCGv_i32 */
+#define store_cpu_field_low32(val, name)                                \
+    ({                                                                  \
+        QEMU_BUILD_BUG_ON(sizeof_field(CPUARMState, name) != 8);        \
+        store_cpu_offset(val, offsetoflow32(CPUARMState, name), 4);     \
+    })
+
 #define store_cpu_field_constant(val, name) \
     store_cpu_field(tcg_constant_i32(val), name)
 
