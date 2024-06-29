@@ -88,6 +88,7 @@ static void stm32l4x5_exti_reset_hold(Object *obj, ResetType type)
         s->ftsr[bank] = 0x00000000;
         s->swier[bank] = 0x00000000;
         s->pr[bank] = 0x00000000;
+        s->irq_levels[bank] = 0x00000000;
     }
 }
 
@@ -102,27 +103,23 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
     /* Shift the value to enable access in x2 registers. */
     irq %= EXTI_MAX_IRQ_PER_BANK;
 
+    if (level == extract32(s->irq_levels[bank], irq, 1)) {
+        /* No change in IRQ line state: do nothing */
+        return;
+    }
+    s->irq_levels[bank] = deposit32(s->irq_levels[bank], irq, 1, level);
+
     /* If the interrupt is masked, pr won't be raised */
     if (!extract32(s->imr[bank], irq, 1)) {
         return;
     }
 
-    if (((1 << irq) & s->rtsr[bank]) && level) {
-        /* Rising Edge */
-        s->pr[bank] |= 1 << irq;
-        qemu_irq_pulse(s->irq[oirq]);
-    } else if (((1 << irq) & s->ftsr[bank]) && !level) {
-        /* Falling Edge */
+    if ((level && extract32(s->rtsr[bank], irq, 1)) ||
+        (!level && extract32(s->ftsr[bank], irq, 1))) {
+
         s->pr[bank] |= 1 << irq;
         qemu_irq_pulse(s->irq[oirq]);
     }
-    /*
-     * In the following situations :
-     * - falling edge but rising trigger selected
-     * - rising edge but falling trigger selected
-     * - no trigger selected
-     * No action is required
-     */
 }
 
 static uint64_t stm32l4x5_exti_read(void *opaque, hwaddr addr,
@@ -255,8 +252,8 @@ static void stm32l4x5_exti_init(Object *obj)
 
 static const VMStateDescription vmstate_stm32l4x5_exti = {
     .name = TYPE_STM32L4X5_EXTI,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(imr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_UINT32_ARRAY(emr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
@@ -264,6 +261,7 @@ static const VMStateDescription vmstate_stm32l4x5_exti = {
         VMSTATE_UINT32_ARRAY(ftsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_UINT32_ARRAY(swier, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_UINT32_ARRAY(pr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+        VMSTATE_UINT32_ARRAY(irq_levels, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
         VMSTATE_END_OF_LIST()
     }
 };
