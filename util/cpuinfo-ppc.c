@@ -14,6 +14,13 @@
 #  include "elf.h"
 # endif
 #endif
+#ifdef __FreeBSD__
+# include <machine/cpu.h>
+# ifndef PPC_FEATURE2_ARCH_3_1
+#  define PPC_FEATURE2_ARCH_3_1   0
+# endif
+# define PPC_FEATURE2_VEC_CRYPTO  PPC_FEATURE2_HAS_VEC_CRYPTO
+#endif
 
 unsigned cpuinfo;
 
@@ -28,7 +35,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 
     info = CPUINFO_ALWAYS;
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_LINUX) || defined(__FreeBSD__)
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
     unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
