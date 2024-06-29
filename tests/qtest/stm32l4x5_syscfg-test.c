@@ -221,10 +221,10 @@ static void test_interrupt(void)
     g_assert_true(get_irq(1));
 
     /* Clean the test */
-    syscfg_writel(SYSCFG_EXTICR1, 0x00000000);
     syscfg_set_irq(0, 0);
     /* irq 15 is high at reset because GPIOA15 is high at reset */
     syscfg_set_irq(17, 0);
+    syscfg_writel(SYSCFG_EXTICR1, 0x00000000);
 }
 
 static void test_irq_pin_multiplexer(void)
