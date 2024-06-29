@@ -210,35 +210,27 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     BDRVCURLState *s = opaque;
     size_t realsize = size * nmemb;
-    const char *header = (char *)ptr;
-    const char *end = header + realsize;
-    const char *accept_ranges = "accept-ranges:";
-    const char *bytes = "bytes";
+    const char *p = ptr;
+    const char *end = p + realsize;
+    const char *t = "accept-ranges : bytes "; /* A lowercase template */
 
-    if (realsize >= strlen(accept_ranges)
-        && g_ascii_strncasecmp(header, accept_ranges,
-                               strlen(accept_ranges)) == 0) {
-
-        char *p = strchr(header, ':') + 1;
-
-        /* Skip whitespace between the header name and value. */
-        while (p < end && *p && g_ascii_isspace(*p)) {
-            p++;
-        }
-
-        if (end - p >= strlen(bytes)
-            && strncmp(p, bytes, strlen(bytes)) == 0) {
-
-            /* Check that there is nothing but whitespace after the value. */
-            p += strlen(bytes);
-            while (p < end && *p && g_ascii_isspace(*p)) {
-                p++;
+    /* check if header matches the "t" template */
+    for (;;) {
+        if (*t == ' ') { /* space in t matches any amount of isspace in p */
+            if (p < end && g_ascii_isspace(*p)) {
+                ++p;
+            } else {
+                ++t;
             }
-
-            if (p == end || !*p) {
-                s->accept_range = true;
-            }
+        } else if (*t && p < end && *t == g_ascii_tolower(*p)) {
+            ++p, ++t;
+        } else {
+            break;
         }
+    }
+
+    if (!*t && p == end) { /* if we managed to reach ends of both strings */
+        s->accept_range = true;
     }
 
     return realsize;
