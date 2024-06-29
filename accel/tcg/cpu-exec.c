@@ -635,29 +635,33 @@ void afl_setup(void) {
 
 void afl_forkserver(CPUState *cpu) {
 
-  // u32           map_size = 0;
-  unsigned char tmp[4] = {0};
-
   if (forkserver_installed == 1) return;
   forkserver_installed = 1;
 
   if (getenv("AFL_QEMU_DEBUG_MAPS")) open_self_maps(cpu->env_ptr, 1);
 
+  //u32   map_size = 0;
+  unsigned char tmp[4] = {0};
   pid_t child_pid;
   int   t_fd[2];
   u8    child_stopped = 0;
   u32   was_killed;
   int   status = 0;
 
-  // with the max ID value
-  if (MAP_SIZE <= FS_OPT_MAX_MAPSIZE)
-    status |= (FS_OPT_SET_MAPSIZE(MAP_SIZE) | FS_OPT_MAPSIZE);
-  if (lkm_snapshot) status |= FS_OPT_SNAPSHOT;
-  if (sharedmem_fuzzing != 0) status |= FS_OPT_SHDMEM_FUZZ;
-  if (status) status |= (FS_OPT_ENABLED | FS_OPT_NEWCMPLOG);
-  if (getenv("AFL_DEBUG"))
-    fprintf(stderr, "Debug: Sending status %08x\n", status);
+  if (!getenv("AFL_OLD_FORKSERVER")) {
+
+    // with the max ID value
+    if (MAP_SIZE <= FS_OPT_MAX_MAPSIZE)
+      status |= (FS_OPT_SET_MAPSIZE(MAP_SIZE) | FS_OPT_MAPSIZE);
+    if (lkm_snapshot) status |= FS_OPT_SNAPSHOT;
+    if (sharedmem_fuzzing != 0) status |= FS_OPT_SHDMEM_FUZZ;
+    if (status) status |= (FS_OPT_ENABLED | FS_OPT_NEWCMPLOG);
+
+  }
+
   memcpy(tmp, &status, 4);
+  if (getenv("AFL_DEBUG"))
+    fprintf(stderr, "Debug: Sending status 0x%08x\n", status);
 
   /* Tell the parent that we're alive. If the parent doesn't want
      to talk, assume that we're not running in forkserver mode. */
