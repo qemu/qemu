@@ -427,27 +427,6 @@ static void hvf_cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     }
 }
 
-static hv_return_t hvf_vcpu_run(hv_vcpuid_t vcpu_id)
-{
-    /*
-     * hv_vcpu_run_until is available and recommended from macOS 10.15+,
-     * HV_DEADLINE_FOREVER from 11.0. Test for availability at runtime and fall
-     * back to hv_vcpu_run() only where necessary.
-     */
-#ifndef MAC_OS_VERSION_11_0
-    return hv_vcpu_run(vcpu_id);
-#elif MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
-    return hv_vcpu_run_until(vcpu_id, HV_DEADLINE_FOREVER);
-#else /* MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_VERSION_11_0 */
-    /* 11.0 SDK or newer, but could be < 11 at runtime */
-    if (__builtin_available(macOS 11.0, *)) {
-        return hv_vcpu_run_until(vcpu_id, HV_DEADLINE_FOREVER);
-    } else {
-        return hv_vcpu_run(vcpu_id);
-    }
-#endif
-}
-
 int hvf_vcpu_exec(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -476,7 +455,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             return EXCP_HLT;
         }
 
-        hv_return_t r = hvf_vcpu_run(cpu->accel->fd);
+        hv_return_t r = hv_vcpu_run_until(cpu->accel->fd, HV_DEADLINE_FOREVER);
         assert_hvf_ok(r);
 
         /* handle VMEXIT */

@@ -23,10 +23,7 @@ const char *hvf_return_string(hv_return_t ret)
     case HV_NO_RESOURCES: return "HV_NO_RESOURCES";
     case HV_NO_DEVICE:    return "HV_NO_DEVICE";
     case HV_UNSUPPORTED:  return "HV_UNSUPPORTED";
-#if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
     case HV_DENIED:       return "HV_DENIED";
-#endif
     default:              return "[unknown hv_return value]";
     }
 }
