@@ -1,9 +1,20 @@
 #ifndef QEMU_IRQ_H
 #define QEMU_IRQ_H
 
+#include "qom/object.h"
+
 /* Generic IRQ/GPIO pin infrastructure.  */
 
 #define TYPE_IRQ "irq"
+OBJECT_DECLARE_SIMPLE_TYPE(IRQState, IRQ)
+
+struct IRQState {
+    Object parent_obj;
+
+    qemu_irq_handler handler;
+    void *opaque;
+    int n;
+};
 
 void qemu_set_irq(qemu_irq irq, int level);
 
@@ -22,6 +33,13 @@ static inline void qemu_irq_pulse(qemu_irq irq)
     qemu_set_irq(irq, 1);
     qemu_set_irq(irq, 0);
 }
+
+/*
+ * Init a single IRQ. The irq is assigned with a handler, an opaque data
+ * and the interrupt number.
+ */
+void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
+                   int n);
 
 /* Returns an array of N IRQs. Each IRQ is assigned the argument handler and
  * opaque data.
