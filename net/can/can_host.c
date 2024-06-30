@@ -34,12 +34,6 @@
 #include "net/can_emu.h"
 #include "net/can_host.h"
 
-struct CanBusState {
-    Object object;
-
-    QTAILQ_HEAD(, CanBusClientState) clients;
-};
-
 static void can_host_disconnect(CanHostState *ch)
 {
     CanHostClass *chc = CAN_HOST_GET_CLASS(ch);

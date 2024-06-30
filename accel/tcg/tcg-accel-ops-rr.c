@@ -329,6 +329,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
         /* we share the thread, dump spare data */
         g_free(cpu->thread);
         qemu_cond_destroy(cpu->halt_cond);
+        g_free(cpu->halt_cond);
         cpu->thread = single_tcg_cpu_thread;
         cpu->halt_cond = single_tcg_halt_cond;
 
