@@ -88,6 +88,13 @@ int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
 
 GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer);
 
+static inline uint64_t
+vfio_container_get_page_size_mask(const VFIOContainerBase *bcontainer)
+{
+    assert(bcontainer);
+    return bcontainer->pgsizes;
+}
+
 #define TYPE_VFIO_IOMMU "vfio-iommu"
 #define TYPE_VFIO_IOMMU_LEGACY TYPE_VFIO_IOMMU "-legacy"
 #define TYPE_VFIO_IOMMU_SPAPR TYPE_VFIO_IOMMU "-spapr"

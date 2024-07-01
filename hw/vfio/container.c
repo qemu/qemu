@@ -1173,6 +1173,15 @@ hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
     return vfio_container_get_iova_ranges(vdev->bcontainer);
 }
 
+static uint64_t
+hiod_legacy_vfio_get_page_size_mask(HostIOMMUDevice *hiod)
+{
+    VFIODevice *vdev = hiod->agent;
+
+    g_assert(vdev);
+    return vfio_container_get_page_size_mask(vdev->bcontainer);
+}
+
 static void vfio_iommu_legacy_instance_init(Object *obj)
 {
     VFIOContainer *container = VFIO_IOMMU_LEGACY(obj);
@@ -1187,6 +1196,7 @@ static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
     hioc->realize = hiod_legacy_vfio_realize;
     hioc->get_cap = hiod_legacy_vfio_get_cap;
     hioc->get_iova_ranges = hiod_legacy_vfio_get_iova_ranges;
+    hioc->get_page_size_mask = hiod_legacy_vfio_get_page_size_mask;
 };
 
 static const TypeInfo types[] = {

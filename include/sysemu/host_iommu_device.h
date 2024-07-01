@@ -89,6 +89,14 @@ struct HostIOMMUDeviceClass {
      * @hiod: handle to the host IOMMU device
      */
     GList* (*get_iova_ranges)(HostIOMMUDevice *hiod);
+    /**
+     *
+     * @get_page_size_mask: Return the page size mask supported along this
+     * @hiod Host IOMMU device
+     *
+     * @hiod: handle to the host IOMMU device
+     */
+    uint64_t (*get_page_size_mask)(HostIOMMUDevice *hiod);
 };
 
 /*
