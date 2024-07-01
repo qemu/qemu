@@ -3791,7 +3791,12 @@ static RISCVException read_vstvec(CPURISCVState *env, int csrno,
 static RISCVException write_vstvec(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
-    env->vstvec = val;
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if ((val & 3) < 2) {
+        env->vstvec = val;
+    } else {
+        qemu_log_mask(LOG_UNIMP, "CSR_VSTVEC: reserved mode not supported\n");
+    }
     return RISCV_EXCP_NONE;
 }
 
