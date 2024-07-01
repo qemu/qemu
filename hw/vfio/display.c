@@ -171,7 +171,9 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
 
 err:
     trace_vfio_display_edid_write_error();
+    g_free(dpy->edid_info);
     g_free(dpy->edid_regs);
+    dpy->edid_info = NULL;
     dpy->edid_regs = NULL;
     return;
 }
@@ -182,6 +184,7 @@ static void vfio_display_edid_exit(VFIODisplay *dpy)
         return;
     }
 
+    g_free(dpy->edid_info);
     g_free(dpy->edid_regs);
     g_free(dpy->edid_blob);
     timer_free(dpy->edid_link_timer);
