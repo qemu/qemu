@@ -216,8 +216,11 @@ static void s390_init_ipl_dev(const char *kernel_filename,
 static void s390_create_virtio_net(BusState *bus, const char *name)
 {
     DeviceState *dev;
+    int cnt = 0;
 
     while ((dev = qemu_create_nic_device(name, true, "virtio"))) {
+        g_autofree char *childname = g_strdup_printf("%s[%d]", name, cnt++);
+        object_property_add_child(OBJECT(bus), childname, OBJECT(dev));
         qdev_realize_and_unref(dev, bus, &error_fatal);
     }
 }
