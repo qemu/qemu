@@ -2384,7 +2384,7 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
 
     case TCG_COND_TSTEQ:
     case TCG_COND_TSTNE:
-        if (arg_is_const_val(op->args[2], 0)) {
+        if (arg_is_const_val(op->args[3], 0)) {
             goto do_setcond_high;
         }
         if (arg_is_const_val(op->args[4], 0)) {
