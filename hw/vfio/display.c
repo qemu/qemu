@@ -124,7 +124,7 @@ static void vfio_display_edid_ui_info(void *opaque, uint32_t idx,
     }
 }
 
-static void vfio_display_edid_init(VFIOPCIDevice *vdev)
+static bool vfio_display_edid_init(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODisplay *dpy = vdev->dpy;
     int fd = vdev->vbasedev.fd;
@@ -135,7 +135,8 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
                                    VFIO_REGION_SUBTYPE_GFX_EDID,
                                    &dpy->edid_info);
     if (ret) {
-        return;
+        /* Failed to get GFX edid info, allow to go through without edid. */
+        return true;
     }
 
     trace_vfio_display_edid_available();
@@ -167,15 +168,16 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
                                         vfio_display_edid_link_up, vdev);
 
     vfio_display_edid_update(vdev, true, 0, 0);
-    return;
+    return true;
 
 err:
+    error_setg(errp, "vfio: failed to read GFX edid field");
     trace_vfio_display_edid_write_error();
     g_free(dpy->edid_info);
     g_free(dpy->edid_regs);
     dpy->edid_info = NULL;
     dpy->edid_regs = NULL;
-    return;
+    return false;
 }
 
 static void vfio_display_edid_exit(VFIODisplay *dpy)
@@ -368,8 +370,7 @@ static bool vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
             return false;
         }
     }
-    vfio_display_edid_init(vdev);
-    return true;
+    return vfio_display_edid_init(vdev, errp);
 }
 
 static void vfio_display_dmabuf_exit(VFIODisplay *dpy)
