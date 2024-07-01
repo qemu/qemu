@@ -448,6 +448,9 @@ static void test_masked_interrupt(void)
     g_assert_cmphex(exti_readl(EXTI_PR1), ==, 0x00000000);
     /* Check that the interrupt isn't pending in NVIC */
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
+
+    /* Clean EXTI */
+    exti_set_irq(1, 0);
 }
 
 static void test_interrupt(void)
@@ -498,6 +501,9 @@ static void test_interrupt(void)
     /* Clean NVIC */
     unpend_nvic_irq(EXTI1_IRQ);
     g_assert_false(check_nvic_pending(EXTI1_IRQ));
+
+    /* Clean EXTI */
+    exti_set_irq(1, 0);
 }
 
 static void test_orred_interrupts(void)
@@ -531,6 +537,8 @@ static void test_orred_interrupts(void)
 
         unpend_nvic_irq(EXTI5_9_IRQ);
         g_assert_false(check_nvic_pending(EXTI5_9_IRQ));
+
+        exti_set_irq(i, 0);
     }
 }
 

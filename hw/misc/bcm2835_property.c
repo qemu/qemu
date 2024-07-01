@@ -32,6 +32,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
     uint32_t tmp;
     int n;
     uint32_t offset, length, color;
+    uint32_t start_num, number, otp_row;
 
     /*
      * Copy the current state of the framebuffer config; we will update
@@ -322,6 +323,89 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
                         0);
             resplen = VCHI_BUSADDR_SIZE;
             break;
+
+        /* Customer OTP */
+
+        case RPI_FWREQ_GET_CUSTOMER_OTP:
+            start_num = ldl_le_phys(&s->dma_as, value + 12);
+            number = ldl_le_phys(&s->dma_as, value + 16);
+
+            resplen = 8 + 4 * number;
+
+            for (n = start_num; n < start_num + number &&
+                 n < BCM2835_OTP_CUSTOMER_OTP_LEN; n++) {
+                otp_row = bcm2835_otp_get_row(s->otp,
+                                              BCM2835_OTP_CUSTOMER_OTP + n);
+                stl_le_phys(&s->dma_as,
+                            value + 20 + ((n - start_num) << 2), otp_row);
+            }
+            break;
+        case RPI_FWREQ_SET_CUSTOMER_OTP:
+            start_num = ldl_le_phys(&s->dma_as, value + 12);
+            number = ldl_le_phys(&s->dma_as, value + 16);
+
+            resplen = 4;
+
+            /* Magic numbers to permanently lock customer OTP */
+            if (start_num == BCM2835_OTP_LOCK_NUM1 &&
+                number == BCM2835_OTP_LOCK_NUM2) {
+                bcm2835_otp_set_row(s->otp,
+                                    BCM2835_OTP_ROW_32,
+                                    BCM2835_OTP_ROW_32_LOCK);
+                break;
+            }
+
+            /* If row 32 has the lock bit, don't allow further writes */
+            if (bcm2835_otp_get_row(s->otp, BCM2835_OTP_ROW_32) &
+                                    BCM2835_OTP_ROW_32_LOCK) {
+                break;
+            }
+
+            for (n = start_num; n < start_num + number &&
+                 n < BCM2835_OTP_CUSTOMER_OTP_LEN; n++) {
+                otp_row = ldl_le_phys(&s->dma_as,
+                                      value + 20 + ((n - start_num) << 2));
+                bcm2835_otp_set_row(s->otp,
+                                    BCM2835_OTP_CUSTOMER_OTP + n, otp_row);
+            }
+            break;
+
+        /* Device-specific private key */
+
+        case RPI_FWREQ_GET_PRIVATE_KEY:
+            start_num = ldl_le_phys(&s->dma_as, value + 12);
+            number = ldl_le_phys(&s->dma_as, value + 16);
+
+            resplen = 8 + 4 * number;
+
+            for (n = start_num; n < start_num + number &&
+                 n < BCM2835_OTP_PRIVATE_KEY_LEN; n++) {
+                otp_row = bcm2835_otp_get_row(s->otp,
+                                              BCM2835_OTP_PRIVATE_KEY + n);
+                stl_le_phys(&s->dma_as,
+                            value + 20 + ((n - start_num) << 2), otp_row);
+            }
+            break;
+        case RPI_FWREQ_SET_PRIVATE_KEY:
+            start_num = ldl_le_phys(&s->dma_as, value + 12);
+            number = ldl_le_phys(&s->dma_as, value + 16);
+
+            resplen = 4;
+
+            /* If row 32 has the lock bit, don't allow further writes */
+            if (bcm2835_otp_get_row(s->otp, BCM2835_OTP_ROW_32) &
+                                    BCM2835_OTP_ROW_32_LOCK) {
+                break;
+            }
+
+            for (n = start_num; n < start_num + number &&
+                 n < BCM2835_OTP_PRIVATE_KEY_LEN; n++) {
+                otp_row = ldl_le_phys(&s->dma_as,
+                                      value + 20 + ((n - start_num) << 2));
+                bcm2835_otp_set_row(s->otp,
+                                    BCM2835_OTP_PRIVATE_KEY + n, otp_row);
+            }
+            break;
         default:
             qemu_log_mask(LOG_UNIMP,
                           "bcm2835_property: unhandled tag 0x%08x\n", tag);
@@ -448,6 +532,9 @@ static void bcm2835_property_realize(DeviceState *dev, Error **errp)
     obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
     s->dma_mr = MEMORY_REGION(obj);
     address_space_init(&s->dma_as, s->dma_mr, TYPE_BCM2835_PROPERTY "-memory");
+
+    obj = object_property_get_link(OBJECT(dev), "otp", &error_abort);
+    s->otp = BCM2835_OTP(obj);
 
     /* TODO: connect to MAC address of USB NIC device, once we emulate it */
     qemu_macaddr_default_if_unset(&s->macaddr);

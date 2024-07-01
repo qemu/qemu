@@ -45,6 +45,8 @@ struct Stm32l4x5ExtiState {
     uint32_t swier[EXTI_NUM_REGISTER];
     uint32_t pr[EXTI_NUM_REGISTER];
 
+    /* used for edge detection */
+    uint32_t irq_levels[EXTI_NUM_REGISTER];
     qemu_irq irq[EXTI_NUM_INTERRUPT_OUT_LINES];
 };
 

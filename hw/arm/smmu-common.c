@@ -620,20 +620,16 @@ static const PCIIOMMUOps smmu_ops = {
     .get_address_space = smmu_find_add_as,
 };
 
-IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid)
+SMMUDevice *smmu_find_sdev(SMMUState *s, uint32_t sid)
 {
     uint8_t bus_n, devfn;
     SMMUPciBus *smmu_bus;
-    SMMUDevice *smmu;
 
     bus_n = PCI_BUS_NUM(sid);
     smmu_bus = smmu_find_smmu_pcibus(s, bus_n);
     if (smmu_bus) {
         devfn = SMMU_PCI_DEVFN(sid);
-        smmu = smmu_bus->pbdev[devfn];
-        if (smmu) {
-            return &smmu->iommu;
-        }
+        return smmu_bus->pbdev[devfn];
     }
     return NULL;
 }

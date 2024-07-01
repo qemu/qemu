@@ -182,8 +182,8 @@ int smmu_ptw(SMMUTransCfg *cfg, dma_addr_t iova, IOMMUAccessFlags perm,
  */
 SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova);
 
-/* Return the iommu mr associated to @sid, or NULL if none */
-IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid);
+/* Return the SMMUDevice associated to @sid, or NULL if none */
+SMMUDevice *smmu_find_sdev(SMMUState *s, uint32_t sid);
 
 #define SMMU_IOTLB_MAX_SIZE 256
 
