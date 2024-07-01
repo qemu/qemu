@@ -1380,7 +1380,6 @@ typedef enum {
 #define CC_OP_LAST_BWLQ CC_OP_POPCNTQ__
 
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
-    CC_OP_NB,
 } CCOp;
 
 /* See X86DecodedInsn.cc_op, using int8_t. */

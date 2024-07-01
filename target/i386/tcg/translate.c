@@ -291,7 +291,7 @@ enum {
 };
 
 /* Bit set if the global variable is live after setting CC_OP to X.  */
-static const uint8_t cc_op_live[CC_OP_NB] = {
+static const uint8_t cc_op_live_[] = {
     [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_EFLAGS] = USES_CC_SRC,
     [CC_OP_MULB ... CC_OP_MULQ] = USES_CC_DST | USES_CC_SRC,
@@ -312,6 +312,21 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_POPCNT] = USES_CC_DST,
 };
 
+static uint8_t cc_op_live(CCOp op)
+{
+    uint8_t result;
+    assert(op >= 0 && op < ARRAY_SIZE(cc_op_live_));
+
+    /*
+     * Check that the array is fully populated.  A zero entry would correspond
+     * to a fixed value of EFLAGS, which can be obtained with CC_OP_EFLAGS
+     * as well.
+     */
+    result = cc_op_live_[op];
+    assert(result);
+    return result;
+}
+
 static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
 {
     int dead;
@@ -321,7 +336,7 @@ static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
     }
 
     /* Discard CC computation that will no longer be used.  */
-    dead = cc_op_live[s->cc_op] & ~cc_op_live[op];
+    dead = cc_op_live(s->cc_op) & ~cc_op_live(op);
     if (dead & USES_CC_DST) {
         tcg_gen_discard_tl(cpu_cc_dst);
     }
@@ -808,7 +823,7 @@ static void gen_mov_eflags(DisasContext *s, TCGv reg)
     src2 = cpu_cc_src2;
 
     /* Take care to not read values that are not live.  */
-    live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
+    live = cc_op_live(s->cc_op) & ~USES_CC_SRCT;
     dead = live ^ (USES_CC_DST | USES_CC_SRC | USES_CC_SRC2);
     if (dead) {
         TCGv zero = tcg_constant_tl(0);
