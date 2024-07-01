@@ -1408,50 +1408,6 @@ static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
     return 0;
 }
 
-/*
- * The default mask depends on the "granule" property. For example, with
- * 4k granule, it is -(4 * KiB). When an assigned device has page size
- * restrictions due to the hardware IOMMU configuration, apply this restriction
- * to the mask.
- */
-static int virtio_iommu_set_page_size_mask(IOMMUMemoryRegion *mr,
-                                           uint64_t new_mask,
-                                           Error **errp)
-{
-    IOMMUDevice *sdev = container_of(mr, IOMMUDevice, iommu_mr);
-    VirtIOIOMMU *s = sdev->viommu;
-    uint64_t cur_mask = s->config.page_size_mask;
-
-    trace_virtio_iommu_set_page_size_mask(mr->parent_obj.name, cur_mask,
-                                          new_mask);
-
-    if ((cur_mask & new_mask) == 0) {
-        error_setg(errp, "virtio-iommu %s reports a page size mask 0x%"PRIx64
-                   " incompatible with currently supported mask 0x%"PRIx64,
-                   mr->parent_obj.name, new_mask, cur_mask);
-        return -1;
-    }
-
-    /*
-     * Once the granule is frozen we can't change the mask anymore. If by
-     * chance the hotplugged device supports the same granule, we can still
-     * accept it.
-     */
-    if (s->granule_frozen) {
-        int cur_granule = ctz64(cur_mask);
-
-        if (!(BIT_ULL(cur_granule) & new_mask)) {
-            error_setg(errp, "virtio-iommu %s does not support frozen granule 0x%llx",
-                       mr->parent_obj.name, BIT_ULL(cur_granule));
-            return -1;
-        }
-        return 0;
-    }
-
-    s->config.page_size_mask &= new_mask;
-    return 0;
-}
-
 static void virtio_iommu_system_reset(void *opaque)
 {
     VirtIOIOMMU *s = opaque;
@@ -1776,7 +1732,6 @@ static void virtio_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = virtio_iommu_translate;
     imrc->replay = virtio_iommu_replay;
     imrc->notify_flag_changed = virtio_iommu_notify_flag_changed;
-    imrc->iommu_set_page_size_mask = virtio_iommu_set_page_size_mask;
 }
 
 static const TypeInfo virtio_iommu_info = {

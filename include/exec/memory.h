@@ -504,32 +504,6 @@ struct IOMMUMemoryRegionClass {
      * @iommu: the IOMMUMemoryRegion
      */
     int (*num_indexes)(IOMMUMemoryRegion *iommu);
-
-    /**
-     * @iommu_set_page_size_mask:
-     *
-     * Restrict the page size mask that can be supported with a given IOMMU
-     * memory region. Used for example to propagate host physical IOMMU page
-     * size mask limitations to the virtual IOMMU.
-     *
-     * Optional method: if this method is not provided, then the default global
-     * page mask is used.
-     *
-     * @iommu: the IOMMUMemoryRegion
-     *
-     * @page_size_mask: a bitmask of supported page sizes. At least one bit,
-     * representing the smallest page size, must be set. Additional set bits
-     * represent supported block sizes. For example a host physical IOMMU that
-     * uses page tables with a page size of 4kB, and supports 2MB and 4GB
-     * blocks, will set mask 0x40201000. A granule of 4kB with indiscriminate
-     * block sizes is specified with mask 0xfffffffffffff000.
-     *
-     * Returns 0 on success, or a negative error. In case of failure, the error
-     * object must be created.
-     */
-     int (*iommu_set_page_size_mask)(IOMMUMemoryRegion *iommu,
-                                     uint64_t page_size_mask,
-                                     Error **errp);
 };
 
 typedef struct RamDiscardListener RamDiscardListener;
@@ -1918,18 +1892,6 @@ int memory_region_iommu_attrs_to_index(IOMMUMemoryRegion *iommu_mr,
  * @iommu_mr: the memory region
  */
 int memory_region_iommu_num_indexes(IOMMUMemoryRegion *iommu_mr);
-
-/**
- * memory_region_iommu_set_page_size_mask: set the supported page
- * sizes for a given IOMMU memory region
- *
- * @iommu_mr: IOMMU memory region
- * @page_size_mask: supported page size mask
- * @errp: pointer to Error*, to store an error if it happens.
- */
-int memory_region_iommu_set_page_size_mask(IOMMUMemoryRegion *iommu_mr,
-                                           uint64_t page_size_mask,
-                                           Error **errp);
 
 /**
  * memory_region_name: get a memory region's name
