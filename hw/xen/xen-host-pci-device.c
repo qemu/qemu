@@ -9,6 +9,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "hw/xen/xen-legacy-backend.h"
+#include "hw/xen/xen-bus-helper.h"
 #include "xen-host-pci-device.h"
 
 #define XEN_HOST_PCI_MAX_EXT_CAP \
@@ -33,13 +35,73 @@
 #define IORESOURCE_PREFETCH     0x00001000      /* No side effects */
 #define IORESOURCE_MEM_64       0x00100000
 
+/*
+ * Non-passthrough (dom0) accesses are local PCI devices and use the given BDF
+ * Passthough (stubdom) accesses are through PV frontend PCI device.  Those
+ * either have a BDF identical to the backend's BDF (xen-backend.passthrough=1)
+ * or a local virtual BDF (xen-backend.passthrough=0)
+ *
+ * We are always given the backend's BDF and need to lookup the appropriate
+ * local BDF for sysfs access.
+ */
+static void xen_host_pci_fill_local_addr(XenHostPCIDevice *d, Error **errp)
+{
+    unsigned int num_devs, len, i;
+    unsigned int domain, bus, dev, func;
+    char *be_path = NULL;
+    char path[16];
+
+    be_path = qemu_xen_xs_read(xenstore, 0, "device/pci/0/backend", &len);
+    if (!be_path) {
+        error_setg(errp, "Failed to read device/pci/0/backend");
+        goto out;
+    }
+
+    if (xs_node_scanf(xenstore, 0, be_path, "num_devs", NULL,
+                      "%d", &num_devs) != 1) {
+        error_setg(errp, "Failed to read or parse %s/num_devs", be_path);
+        goto out;
+    }
+
+    for (i = 0; i < num_devs; i++) {
+        snprintf(path, sizeof(path), "dev-%d", i);
+        if (xs_node_scanf(xenstore, 0, be_path, path, NULL,
+                          "%x:%x:%x.%x", &domain, &bus, &dev, &func) != 4) {
+            error_setg(errp, "Failed to read or parse %s/%s", be_path, path);
+            goto out;
+        }
+        if (domain != d->domain ||
+                bus != d->bus ||
+                dev != d->dev ||
+                func != d->func)
+            continue;
+        snprintf(path, sizeof(path), "vdev-%d", i);
+        if (xs_node_scanf(xenstore, 0, be_path, path, NULL,
+                          "%x:%x:%x.%x", &domain, &bus, &dev, &func) != 4) {
+            error_setg(errp, "Failed to read or parse %s/%s", be_path, path);
+            goto out;
+        }
+        d->local_domain = domain;
+        d->local_bus = bus;
+        d->local_dev = dev;
+        d->local_func = func;
+        goto out;
+    }
+    error_setg(errp, "Failed to find PCI device %x:%x:%x.%x in xenstore",
+               d->domain, d->bus, d->dev, d->func);
+
+out:
+    free(be_path);
+}
+
 static void xen_host_pci_sysfs_path(const XenHostPCIDevice *d,
                                     const char *name, char *buf, ssize_t size)
 {
     int rc;
 
     rc = snprintf(buf, size, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
-                  d->domain, d->bus, d->dev, d->func, name);
+                  d->local_domain, d->local_bus, d->local_dev, d->local_func,
+                  name);
     assert(rc >= 0 && rc < size);
 }
 
@@ -341,6 +403,18 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     d->bus = bus;
     d->dev = dev;
     d->func = func;
+
+    if (xen_is_stubdomain) {
+        xen_host_pci_fill_local_addr(d, errp);
+        if (*errp) {
+            goto error;
+        }
+    } else {
+        d->local_domain = d->domain;
+        d->local_bus = d->bus;
+        d->local_dev = d->dev;
+        d->local_func = d->func;
+    }
 
     xen_host_pci_config_open(d, errp);
     if (*errp) {
