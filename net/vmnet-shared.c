@@ -21,16 +21,6 @@ static bool validate_options(const Netdev *netdev, Error **errp)
 {
     const NetdevVmnetSharedOptions *options = &(netdev->u.vmnet_shared);
 
-#if !defined(MAC_OS_VERSION_11_0) || \
-    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_VERSION_11_0
-    if (options->has_isolated) {
-        error_setg(errp,
-                   "vmnet-shared.isolated feature is "
-                   "unavailable: outdated vmnet.framework API");
-        return false;
-    }
-#endif
-
     if ((options->start_address ||
          options->end_address ||
          options->subnet_mask) &&
@@ -76,14 +66,11 @@ static xpc_object_t build_if_desc(const Netdev *netdev)
                                   options->subnet_mask);
     }
 
-#if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
     xpc_dictionary_set_bool(
         if_desc,
         vmnet_enable_isolation_key,
         options->isolated
     );
-#endif
 
     return if_desc;
 }

@@ -11,7 +11,6 @@
 #define XLNX_CFI_IF_H 1
 
 #include "qemu/help-texts.h"
-#include "hw/hw.h"
 #include "qom/object.h"
 
 #define TYPE_XLNX_CFI_IF "xlnx-cfi-if"
