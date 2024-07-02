@@ -3823,16 +3823,6 @@ int main(int argc, char **argv)
                        test_vmstate_checker_script);
 #endif
 
-    /*
-     * On s390x with TCG, migration is observed to hang due to the 'pending'
-     * state of the flic interrupt controller not being migrated or
-     * reconstructed post-migration. Disable it until the problem is resolved.
-     */
-    if (g_str_equal(arch, "s390x") && !has_kvm) {
-        g_test_message("Skipping tests: s390x host with KVM is required");
-        goto test_add_done;
-    }
-
     if (is_x86) {
         migration_test_add("/migration/precopy/unix/suspend/live",
                            test_precopy_unix_suspend_live);
@@ -4035,8 +4025,6 @@ int main(int argc, char **argv)
         migration_test_add("/migration/vcpu_dirty_limit",
                            test_vcpu_dirty_limit);
     }
-
-test_add_done:
 
     ret = g_test_run();
 

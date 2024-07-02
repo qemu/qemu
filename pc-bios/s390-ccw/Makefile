@@ -40,7 +40,7 @@ EXTRA_CFLAGS += -ffreestanding -fno-delete-null-pointer-checks -fno-common -fPIE
 EXTRA_CFLAGS += -fwrapv -fno-strict-aliasing -fno-asynchronous-unwind-tables
 EXTRA_CFLAGS += -msoft-float
 EXTRA_CFLAGS += -std=gnu99
-LDFLAGS += -Wl,-pie -nostdlib
+LDFLAGS += -Wl,-pie -nostdlib -z noexecstack
 
 cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>/dev/null
 cc-option = if $(call cc-test, $1); then \
@@ -54,8 +54,6 @@ config-cc.mak: Makefile
 	    $(call cc-option,-Wno-gnu); \
 	    $(call cc-option,-march=z900,-march=z10)) 3> config-cc.mak
 -include config-cc.mak
-
-LDFLAGS += -Wl,-pie -nostdlib -z noexecstack
 
 build-all: s390-ccw.img s390-netboot.img
 

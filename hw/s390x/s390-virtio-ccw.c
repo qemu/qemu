@@ -217,8 +217,11 @@ static void s390_init_ipl_dev(const char *kernel_filename,
 static void s390_create_virtio_net(BusState *bus, const char *name)
 {
     DeviceState *dev;
+    int cnt = 0;
 
     while ((dev = qemu_create_nic_device(name, true, "virtio"))) {
+        g_autofree char *childname = g_strdup_printf("%s[%d]", name, cnt++);
+        object_property_add_child(OBJECT(bus), childname, OBJECT(dev));
         qdev_realize_and_unref(dev, bus, &error_fatal);
     }
 }
@@ -875,8 +878,13 @@ static void ccw_machine_9_0_instance_options(MachineState *machine)
 
 static void ccw_machine_9_0_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        { TYPE_QEMU_S390_FLIC, "migrate-all-state", "off", },
+    };
+
     ccw_machine_9_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_9_0, hw_compat_9_0_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE(9, 0);
 

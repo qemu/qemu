@@ -33,7 +33,6 @@
 static char *old_path;
 
 
-
 /**
  * qos_set_machines_devices_available(): sets availability of qgraph
  * machines and devices.
@@ -191,6 +190,12 @@ static void subprocess_run_one_test(const void *arg)
     g_test_trap_assert_passed();
 }
 
+static void destroy_pathv(void *arg)
+{
+    g_free(((char **)arg)[0]);
+    g_free(arg);
+}
+
 /*
  * in this function, 2 path will be built:
  * path_str, a one-string path (ex "pc/i440FX-pcihost/...")
@@ -295,10 +300,13 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     if (path->u.test.subprocess) {
         gchar *subprocess_path = g_strdup_printf("/%s/%s/subprocess",
                                                  qtest_get_arch(), path_str);
-        qtest_add_data_func(path_str, subprocess_path, subprocess_run_one_test);
-        g_test_add_data_func(subprocess_path, path_vec, run_one_test);
+        qtest_add_data_func_full(path_str, subprocess_path,
+                                 subprocess_run_one_test, g_free);
+        g_test_add_data_func_full(subprocess_path, path_vec,
+                                  run_one_test, destroy_pathv);
     } else {
-        qtest_add_data_func(path_str, path_vec, run_one_test);
+        qtest_add_data_func_full(path_str, path_vec,
+                                 run_one_test, destroy_pathv);
     }
 
     g_free(path_str);
