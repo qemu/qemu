@@ -1758,6 +1758,10 @@ static void nvme_aio_err(NvmeRequest *req, int ret)
         break;
     }
 
+    if (ret == -ECANCELED) {
+        status = NVME_CMD_ABORT_REQ;
+    }
+
     trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), status);
 
     error_setg_errno(&local_err, -ret, "aio failed");
@@ -5950,10 +5954,38 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
 static uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req)
 {
     uint16_t sqid = le32_to_cpu(req->cmd.cdw10) & 0xffff;
+    uint16_t cid  = (le32_to_cpu(req->cmd.cdw10) >> 16) & 0xffff;
+    NvmeSQueue *sq = n->sq[sqid];
+    NvmeRequest *r, *next;
+    int i;
 
     req->cqe.result = 1;
     if (nvme_check_sqid(n, sqid)) {
         return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (sqid == 0) {
+        for (i = 0; i < n->outstanding_aers; i++) {
+            NvmeRequest *re = n->aer_reqs[i];
+            if (re->cqe.cid == cid) {
+                memmove(n->aer_reqs + i, n->aer_reqs + i + 1,
+                         (n->outstanding_aers - i - 1) * sizeof(NvmeRequest *));
+                n->outstanding_aers--;
+                re->status = NVME_CMD_ABORT_REQ;
+                req->cqe.result = 0;
+                nvme_enqueue_req_completion(&n->admin_cq, re);
+                return NVME_SUCCESS;
+            }
+        }
+    }
+
+    QTAILQ_FOREACH_SAFE(r, &sq->out_req_list, entry, next) {
+        if (r->cqe.cid == cid) {
+            if (r->aiocb) {
+                blk_aio_cancel_async(r->aiocb);
+            }
+            break;
+        }
     }
 
     return NVME_SUCCESS;
