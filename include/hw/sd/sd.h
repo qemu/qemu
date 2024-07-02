@@ -76,8 +76,9 @@ typedef enum  {
 } sd_uhs_mode_t;
 
 typedef enum {
-    sd_none = -1,
-    sd_bc = 0, /* broadcast -- no response */
+    sd_none = 0,
+    sd_spi,
+    sd_bc,     /* broadcast -- no response */
     sd_bcr,    /* broadcast with response */
     sd_ac,     /* addressed -- no data transfer */
     sd_adtc,   /* addressed with data transfer */
