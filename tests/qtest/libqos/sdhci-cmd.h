@@ -22,6 +22,7 @@
 #define SDHC_ARGUMENT 0x08
 #define SDHC_TRNMOD 0x0C
 #define SDHC_CMDREG 0x0E
+#define SDHC_RSPREG0 0x10
 #define SDHC_BDATA 0x20
 #define SDHC_PRNSTS 0x24
 #define SDHC_BLKGAP 0x2A
@@ -38,6 +39,7 @@
 #define SDHC_TRNS_MULTI 0x0020
 
 /* CMD Reg */
+#define SDHC_CMD_RESPONSE (3 << 0)
 #define SDHC_CMD_DATA_PRESENT (1 << 5)
 #define SDHC_ALL_SEND_CID (2 << 8)
 #define SDHC_SEND_RELATIVE_ADDR (3 << 8)
