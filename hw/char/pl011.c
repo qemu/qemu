@@ -87,6 +87,12 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 #define CR_DTR      (1 << 10)
 #define CR_LBE      (1 << 7)
 
+/* Integer Baud Rate Divider, UARTIBRD */
+#define IBRD_MASK 0x3f
+
+/* Fractional Baud Rate Divider, UARTFBRD */
+#define FBRD_MASK 0xffff
+
 static const unsigned char pl011_id_arm[8] =
   { 0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 static const unsigned char pl011_id_luminary[8] =
@@ -374,11 +380,11 @@ static void pl011_write(void *opaque, hwaddr offset,
         s->ilpr = value;
         break;
     case 9: /* UARTIBRD */
-        s->ibrd = value;
+        s->ibrd = value & IBRD_MASK;
         pl011_trace_baudrate_change(s);
         break;
     case 10: /* UARTFBRD */
-        s->fbrd = value;
+        s->fbrd = value & FBRD_MASK;
         pl011_trace_baudrate_change(s);
         break;
     case 11: /* UARTLCR_H */
@@ -530,6 +536,9 @@ static int pl011_post_load(void *opaque, int version_id)
         s->read_fifo[0] = s->read_fifo[s->read_pos];
         s->read_pos = 0;
     }
+
+    s->ibrd &= IBRD_MASK;
+    s->fbrd &= FBRD_MASK;
 
     return 0;
 }
