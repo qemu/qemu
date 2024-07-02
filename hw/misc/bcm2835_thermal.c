@@ -80,8 +80,10 @@ static void bcm2835_thermal_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps bcm2835_thermal_ops = {
     .read = bcm2835_thermal_read,
     .write = bcm2835_thermal_write,
+    .impl.min_access_size = 4,
     .impl.max_access_size = 4,
     .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
