@@ -2591,6 +2591,7 @@ next:
 done:
     iocb->aiocb = NULL;
     iocb->common.cb(iocb->common.opaque, iocb->ret);
+    g_free(iocb->range);
     qemu_aio_unref(iocb);
 }
 
