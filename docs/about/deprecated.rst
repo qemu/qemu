@@ -269,6 +269,14 @@ images are not available, OpenWRT dropped support in 2019, U-Boot in
 2017, Linux also is dropping support in 2024. It is time to let go of
 this ancient hardware and focus on newer CPUs and platforms.
 
+Arm ``tacoma-bmc`` machine (since 9.1)
+''''''''''''''''''''''''''''''''''''''''
+
+The ``tacoma-bmc`` machine was a board including an AST2600 SoC based
+BMC and a witherspoon like OpenPOWER system. It was used for bring up
+of the AST2600 SoC in labs.  It can be easily replaced by the
+``rainier-bmc`` machine which is a real product.
+
 Backend options
 ---------------
 
