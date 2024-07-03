@@ -6,11 +6,20 @@
 #include "qemu/osdep.h"
 #include "host/cpuinfo.h"
 
-#include <asm/cputable.h>
-#ifdef CONFIG_GETAUXVAL
-# include <sys/auxv.h>
-#else
-# include "elf.h"
+#ifdef CONFIG_LINUX
+# include <asm/cputable.h>
+# ifdef CONFIG_GETAUXVAL
+#  include <sys/auxv.h>
+# else
+#  include "elf.h"
+# endif
+#endif
+#ifdef __FreeBSD__
+# include <machine/cpu.h>
+# ifndef PPC_FEATURE2_ARCH_3_1
+#  define PPC_FEATURE2_ARCH_3_1   0
+# endif
+# define PPC_FEATURE2_VEC_CRYPTO  PPC_FEATURE2_HAS_VEC_CRYPTO
 #endif
 
 unsigned cpuinfo;
@@ -19,15 +28,16 @@ unsigned cpuinfo;
 unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;
-    unsigned long hwcap, hwcap2;
 
     if (info) {
         return info;
     }
 
-    hwcap = qemu_getauxval(AT_HWCAP);
-    hwcap2 = qemu_getauxval(AT_HWCAP2);
     info = CPUINFO_ALWAYS;
+
+#if defined(CONFIG_LINUX) || defined(__FreeBSD__)
+    unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+    unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
     /* Version numbers are monotonic, and so imply all lower versions. */
     if (hwcap2 & PPC_FEATURE2_ARCH_3_1) {
@@ -58,6 +68,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
             }
         }
     }
+#endif
 
     cpuinfo = info;
     return info;

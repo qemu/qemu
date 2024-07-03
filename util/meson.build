@@ -127,4 +127,6 @@ elif cpu == 'loongarch64'
   util_ss.add(files('cpuinfo-loongarch.c'))
 elif cpu in ['ppc', 'ppc64']
   util_ss.add(files('cpuinfo-ppc.c'))
+elif cpu in ['riscv32', 'riscv64']
+  util_ss.add(files('cpuinfo-riscv.c'))
 endif
