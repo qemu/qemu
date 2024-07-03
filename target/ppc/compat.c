@@ -114,6 +114,17 @@ static const CompatInfo *compat_by_pvr(uint32_t pvr)
     return NULL;
 }
 
+long ppc_compat_cmp(uint32_t pvr1, uint32_t pvr2)
+{
+    const CompatInfo *compat1 = compat_by_pvr(pvr1);
+    const CompatInfo *compat2 = compat_by_pvr(pvr2);
+
+    g_assert(compat1);
+    g_assert(compat2);
+
+    return compat1 - compat2;
+}
+
 static bool pcc_compat(PowerPCCPUClass *pcc, uint32_t compat_pvr,
                        uint32_t min_compat_pvr, uint32_t max_compat_pvr)
 {

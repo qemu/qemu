@@ -1746,6 +1746,13 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
     }
     spapr_caps_apply(spapr);
     spapr_nested_reset(spapr);
+    if (spapr->svm_allowed) {
+#ifdef CONFIG_KVM
+        kvmppc_svm_allow(&error_fatal);
+#else
+        error_setg(&error_fatal, "No PEF support in tcg, try x-svm-allowed=off");
+#endif
+    }
 
     first_ppc_cpu = POWERPC_CPU(first_cpu);
     if (kvm_enabled() && kvmppc_has_cap_mmu_radix() &&
@@ -3452,6 +3459,20 @@ static void spapr_set_host_serial(Object *obj, const char *value, Error **errp)
     spapr->host_serial = g_strdup(value);
 }
 
+static bool spapr_get_svm_allowed(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->svm_allowed;
+}
+
+static void spapr_set_svm_allowed(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->svm_allowed = value;
+}
+
 static void spapr_instance_init(Object *obj)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3530,6 +3551,12 @@ static void spapr_instance_init(Object *obj)
         spapr_get_host_serial, spapr_set_host_serial);
     object_property_set_description(obj, "host-serial",
         "Host serial number to advertise in guest device tree");
+    object_property_add_bool(obj, "x-svm-allowed",
+                            spapr_get_svm_allowed,
+                            spapr_set_svm_allowed);
+    object_property_set_description(obj, "x-svm-allowed",
+                                    "Allow the guest to become a Secure Guest"
+                                    " (experimental only)");
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -4775,6 +4802,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vmc->client_architecture_support = spapr_vof_client_architecture_support;
     vmc->quiesce = spapr_vof_quiesce;
     vmc->setprop = spapr_vof_setprop;
+    smc->has_power9_support = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4830,12 +4858,12 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     }                                                                \
     type_init(MACHINE_VER_SYM(register, spapr, __VA_ARGS__))
 
-#define DEFINE_SPAPR_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_SPAPR_MACHINE_IMPL(true, major, minor)
-#define DEFINE_SPAPR_MACHINE(major, minor) \
-    DEFINE_SPAPR_MACHINE_IMPL(false, major, minor)
-#define DEFINE_SPAPR_MACHINE_TAGGED(major, minor, tag) \
-    DEFINE_SPAPR_MACHINE_IMPL(false, major, minor, _, tag)
+#define DEFINE_SPAPR_MACHINE_AS_LATEST(major, minor, micro) \
+    DEFINE_SPAPR_MACHINE_IMPL(true, major, minor, micro)
+#define DEFINE_SPAPR_MACHINE(major, minor, micro) \
+    DEFINE_SPAPR_MACHINE_IMPL(false, major, minor, micro)
+#define DEFINE_SPAPR_MACHINE_TAGGED(major, minor, micro, tag) \
+    DEFINE_SPAPR_MACHINE_IMPL(false, major, minor, micro, _, tag)
 
 #if 0 /* Disabled for Red Hat Enterprise Linux */
 /*
@@ -5385,6 +5413,220 @@ static void spapr_machine_2_1_class_options(MachineClass *mc)
 }
 DEFINE_SPAPR_MACHINE(2, 1);
 #endif /* disabled for RHEL */
+
+static void spapr_rhel_machine_default_class_options(MachineClass *mc)
+{
+    /*
+     * Defaults for the latest behaviour inherited from the base class
+     * can be overriden here for all pseries-rhel* machines.
+     */
+
+    /* Maximum supported VCPU count */
+    mc->max_cpus = 384;
+}
+
+/*
+ * pseries-rhel8.5.0
+ * like pseries-6.0
+ */
+
+static void spapr_rhel_machine_8_5_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    /* The default machine type must apply the RHEL specific defaults */
+    spapr_rhel_machine_default_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_5,
+                     hw_compat_rhel_8_5_len);
+    smc->pre_6_2_numa_affinity = true;
+    mc->smp_props.prefer_sockets = true;
+}
+
+DEFINE_SPAPR_MACHINE_AS_LATEST(8, 5, 0);
+
+/*
+ * pseries-rhel8.4.0
+ * like pseries-5.2
+ */
+
+static void spapr_rhel_machine_8_4_0_class_options(MachineClass *mc)
+{
+    spapr_rhel_machine_8_5_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_4,
+                     hw_compat_rhel_8_4_len);
+}
+
+DEFINE_SPAPR_MACHINE(8, 4, 0);
+
+/*
+ * pseries-rhel8.3.0
+ * like pseries-5.1
+ */
+
+static void spapr_rhel_machine_8_3_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_rhel_machine_8_4_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_3,
+                     hw_compat_rhel_8_3_len);
+
+    /* from pseries-5.1 */
+    smc->pre_5_2_numa_associativity = true;
+}
+
+DEFINE_SPAPR_MACHINE(8, 3, 0);
+
+/*
+ * pseries-rhel8.2.0
+ * like pseries-4.2 + pseries-5.0
+ * except SPAPR_CAP_CCF_ASSIST that has been backported to pseries-rhel8.1.0
+ */
+
+static void spapr_rhel_machine_8_2_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    /* from pseries-5.0 */
+    static GlobalProperty compat[] = {
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "pre-5.1-associativity", "on" },
+    };
+
+    spapr_rhel_machine_8_3_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_2,
+                     hw_compat_rhel_8_2_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+
+    /* from pseries-4.2 */
+    smc->default_caps.caps[SPAPR_CAP_FWNMI] = SPAPR_CAP_OFF;
+    smc->rma_limit = 16 * GiB;
+    mc->nvdimm_supported = false;
+
+    /* from pseries-5.0 */
+    mc->numa_mem_supported = true;
+    smc->pre_5_1_assoc_refpoints = true;
+}
+
+DEFINE_SPAPR_MACHINE(8, 2, 0);
+
+/*
+ * pseries-rhel8.1.0
+ * like pseries-4.1
+ */
+
+static void spapr_rhel_machine_8_1_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        /* Only allow 4kiB and 64kiB IOMMU pagesizes */
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "pgsz", "0x11000" },
+    };
+
+    spapr_rhel_machine_8_2_0_class_options(mc);
+
+    /* from pseries-4.1 */
+    smc->linux_pci_probe = false;
+    smc->smp_threads_vsmt = false;
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_1,
+                     hw_compat_rhel_8_1_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+
+    /* from pseries-4.2 */
+    smc->default_caps.caps[SPAPR_CAP_CCF_ASSIST] = SPAPR_CAP_OFF;
+}
+
+DEFINE_SPAPR_MACHINE(8, 1, 0);
+
+/*
+ * pseries-rhel8.0.0
+ * like pseries-3.1 and pseries-4.0
+ * except SPAPR_CAP_CFPC, SPAPR_CAP_SBBC and SPAPR_CAP_IBS
+ * that have been backported to pseries-rhel8.0.0
+ */
+
+static void spapr_rhel_machine_8_0_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_rhel_machine_8_1_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_0,
+                     hw_compat_rhel_8_0_len);
+
+    /* pseries-4.0 */
+    smc->phb_placement = phb_placement_4_0;
+    smc->irq = &spapr_irq_xics;
+    smc->pre_4_1_migration = true;
+
+    /* pseries-3.1 */
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
+    smc->update_dt_enabled = false;
+    smc->dr_phb_enabled = false;
+    smc->broken_host_serial_model = true;
+    smc->default_caps.caps[SPAPR_CAP_LARGE_DECREMENTER] = SPAPR_CAP_OFF;
+}
+
+DEFINE_SPAPR_MACHINE(8, 0, 0);
+
+/*
+ * pseries-rhel7.6.0
+ * like spapr_compat_2_12 and spapr_compat_3_0
+ * spapr_compat_0 is empty
+ */
+GlobalProperty spapr_compat_rhel7_6[] = {
+    { TYPE_POWERPC_CPU, "pre-3.0-migration", "on" },
+    { TYPE_SPAPR_CPU_CORE, "pre-3.0-migration", "on" },
+};
+const size_t spapr_compat_rhel7_6_len = G_N_ELEMENTS(spapr_compat_rhel7_6);
+
+
+static void spapr_rhel_machine_7_6_0_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_rhel_machine_8_0_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_7_6, hw_compat_rhel_7_6_len);
+    compat_props_add(mc->compat_props, spapr_compat_rhel7_6, spapr_compat_rhel7_6_len);
+
+    /* from spapr_machine_3_0_class_options() */
+    smc->legacy_irq_allocation = true;
+    smc->nr_xirqs = 0x400;
+    smc->irq = &spapr_irq_xics_legacy;
+
+    /* from spapr_machine_2_12_class_options() */
+    /* We depend on kvm_enabled() to choose a default value for the
+     * hpt-max-page-size capability. Of course we can't do it here
+     * because this is too early and the HW accelerator isn't initialzed
+     * yet. Postpone this to machine init (see default_caps_with_cpu()).
+     */
+    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = 0;
+
+    /* SPAPR_CAP_WORKAROUND enabled in pseries-rhel800 by
+     * f21757edc554
+     * "Enable mitigations by default for pseries-4.0 machine type")
+     */
+    smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
+    smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
+    smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
+}
+
+DEFINE_SPAPR_MACHINE(7, 6, 0);
+
+/*
+ * pseries-rhel7.6.0-sxxm
+ *
+ * pseries-rhel7.6.0 with speculative execution exploit mitigations enabled by default
+ */
+
+static void spapr_rhel_machine_7_6_0_sxxm_class_options(MachineClass *mc)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_rhel_machine_7_6_0_class_options(mc);
+    smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_WORKAROUND;
+    smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_WORKAROUND;
+    smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_FIXED_CCD;
+}
+
+DEFINE_SPAPR_MACHINE_TAGGED(7, 6, 0, sxxm);
 
 static void spapr_machine_register_types(void)
 {

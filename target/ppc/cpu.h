@@ -1673,6 +1673,7 @@ static inline int ppc_env_mmu_index(CPUPPCState *env, bool ifetch)
 
 /* Compatibility modes */
 #if defined(TARGET_PPC64)
+long ppc_compat_cmp(uint32_t pvr1, uint32_t pvr2);
 bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
                       uint32_t min_compat_pvr, uint32_t max_compat_pvr);
 bool ppc_type_check_compat(const char *cputype, uint32_t compat_pvr,

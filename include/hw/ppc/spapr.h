@@ -157,6 +157,7 @@ struct SpaprMachineClass {
     bool pre_5_2_numa_associativity;
     bool pre_6_2_numa_affinity;
 
+    bool has_power9_support;
     bool (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio,
                           hwaddr *mmio32, hwaddr *mmio64,
@@ -258,6 +259,9 @@ struct SpaprMachineState {
 
     /* Set by -boot */
     char *boot_device;
+
+    /* Secure Guest support via x-svm-allowed */
+    bool svm_allowed;
 
     /*< public >*/
     char *kvm_type;

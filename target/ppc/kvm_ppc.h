@@ -46,6 +46,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      bool radix, bool gtse,
                                      uint64_t proc_tbl);
+void kvmppc_svm_allow(Error **errp);
 bool kvmppc_spapr_use_multitce(void);
 int kvmppc_spapr_enable_inkernel_multitce(void);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
@@ -79,6 +80,8 @@ int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable);
 int kvmppc_has_cap_rpt_invalidate(void);
 bool kvmppc_supports_ail_3(void);
 int kvmppc_enable_hwrng(void);
+bool kvmppc_has_cap_secure_guest(void);
+int kvmppc_enable_cap_secure_guest(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
 void kvmppc_check_papr_resize_hpt(Error **errp);
@@ -425,6 +428,16 @@ static inline int kvmppc_has_cap_rpt_invalidate(void)
 static inline bool kvmppc_supports_ail_3(void)
 {
     return false;
+}
+
+static inline bool kvmppc_has_cap_secure_guest(void)
+{
+    return false;
+}
+
+static inline int kvmppc_enable_cap_secure_guest(void)
+{
+    return -1;
 }
 
 static inline int kvmppc_enable_hwrng(void)
