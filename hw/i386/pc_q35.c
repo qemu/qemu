@@ -356,6 +356,7 @@ static void pc_q35_machine_options(MachineClass *m)
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static void pc_q35_machine_9_1_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
@@ -668,3 +669,4 @@ static void pc_q35_machine_2_4_options(MachineClass *m)
 }
 
 DEFINE_Q35_MACHINE(2, 4);
+#endif /* Disabled for Red Hat Enterprise Linux */

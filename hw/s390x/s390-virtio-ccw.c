@@ -871,6 +871,7 @@ static const TypeInfo ccw_machine_info = {
     DEFINE_CCW_MACHINE_IMPL(false, major, minor)
 
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static void ccw_machine_9_1_instance_options(MachineState *machine)
 {
 }
@@ -1305,6 +1306,7 @@ static void ccw_machine_2_4_class_options(MachineClass *mc)
 DEFINE_CCW_MACHINE(2, 4);
 
 #endif
+#endif /* disabled for RHEL */
 
 static void ccw_machine_register_types(void)
 {
