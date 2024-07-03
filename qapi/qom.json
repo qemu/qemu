@@ -860,7 +860,8 @@
 # @ObjectType:
 #
 # Features:
-# @unstable: Member @x-remote-object is experimental.
+# @unstable: Members @x-remote-object and @x-vfio-user-server are
+#            experimental.
 #
 # Since: 6.0
 ##
