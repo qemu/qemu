@@ -837,7 +837,7 @@ static const TypeInfo ccw_machine_info = {
     {                                                                         \
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
         MACHINE_VER_SYM(class_options, ccw, __VA_ARGS__)(mc);                 \
-        mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
+        mc->desc = "Virtual s390x machine (version rhel" MACHINE_VER_STR(__VA_ARGS__) ")"; \
         MACHINE_VER_DEPRECATION(__VA_ARGS__);                                 \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
@@ -864,11 +864,11 @@ static const TypeInfo ccw_machine_info = {
     }                                                                         \
     type_init(MACHINE_VER_SYM(register, ccw, __VA_ARGS__))
 
-#define DEFINE_CCW_MACHINE_AS_LATEST(major, minor) \
-    DEFINE_CCW_MACHINE_IMPL(true, major, minor)
+#define DEFINE_CCW_MACHINE_AS_LATEST(major, minor, micro) \
+    DEFINE_CCW_MACHINE_IMPL(true, major, minor, micro)
 
-#define DEFINE_CCW_MACHINE(major, minor) \
-    DEFINE_CCW_MACHINE_IMPL(false, major, minor)
+#define DEFINE_CCW_MACHINE(major, minor, micro) \
+    DEFINE_CCW_MACHINE_IMPL(false, major, minor, micro)
 
 
 #if 0 /* Disabled for Red Hat Enterprise Linux */
@@ -1307,6 +1307,160 @@ DEFINE_CCW_MACHINE(2, 4);
 
 #endif
 #endif /* disabled for RHEL */
+
+static void ccw_rhel_machine_9_4_0_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_rhel_machine_9_4_0_class_options(MachineClass *mc)
+{
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_5, hw_compat_rhel_9_5_len);
+}
+DEFINE_CCW_MACHINE_AS_LATEST(9, 4, 0);
+
+static void ccw_rhel_machine_9_2_0_instance_options(MachineState *machine)
+{
+    ccw_rhel_machine_9_4_0_instance_options(machine);
+}
+
+static void ccw_rhel_machine_9_2_0_class_options(MachineClass *mc)
+{
+    ccw_rhel_machine_9_4_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_4, hw_compat_rhel_9_4_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_3, hw_compat_rhel_9_3_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_2, hw_compat_rhel_9_2_len);
+    mc->smp_props.drawers_supported = false;    /* from ccw_machine_8_1 */
+    mc->smp_props.books_supported = false;      /* from ccw_machine_8_1 */
+}
+DEFINE_CCW_MACHINE(9, 2, 0);
+
+static void ccw_rhel_machine_9_0_0_instance_options(MachineState *machine)
+{
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V6_2 };
+
+    ccw_rhel_machine_9_2_0_instance_options(machine);
+
+    s390_set_qemu_cpu_model(0x3906, 14, 2, qemu_cpu_feat);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAIE);
+}
+
+static void ccw_rhel_machine_9_0_0_class_options(MachineClass *mc)
+{
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        { TYPE_S390_PCI_DEVICE, "interpret", "off", },
+        { TYPE_S390_PCI_DEVICE, "forwarding-assist", "off", },
+    };
+
+    ccw_rhel_machine_9_2_0_class_options(mc);
+
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_1, hw_compat_rhel_9_1_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_9_0, hw_compat_rhel_9_0_len);
+    s390mc->max_threads = S390_MAX_CPUS;
+}
+DEFINE_CCW_MACHINE(9, 0, 0);
+
+static void ccw_rhel_machine_8_6_0_instance_options(MachineState *machine)
+{
+    /* Note: The -rhel8.6.0 and -rhel9.0.0 machines are technically identical */
+    ccw_rhel_machine_9_0_0_instance_options(machine);
+}
+
+static void ccw_rhel_machine_8_6_0_class_options(MachineClass *mc)
+{
+    static GlobalProperty compat[] = {
+        { TYPE_S390_PCI_DEVICE, "interpret", "on", },
+        { TYPE_S390_PCI_DEVICE, "forwarding-assist", "on", },
+    };
+
+    ccw_rhel_machine_9_0_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_6, hw_compat_rhel_8_6_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+}
+DEFINE_CCW_MACHINE(8, 6, 0);
+
+static void ccw_rhel_machine_8_5_0_instance_options(MachineState *machine)
+{
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V6_0 };
+
+    ccw_rhel_machine_8_6_0_instance_options(machine);
+
+    s390_set_qemu_cpu_model(0x2964, 13, 2, qemu_cpu_feat);
+
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_NNPA);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_VECTOR_PACKED_DECIMAL_ENH2);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_BEAR_ENH);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_RDP);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAI);
+}
+
+static void ccw_rhel_machine_8_5_0_class_options(MachineClass *mc)
+{
+    static GlobalProperty compat[] = {
+        { TYPE_S390_PCI_DEVICE, "interpret", "off", },
+        { TYPE_S390_PCI_DEVICE, "forwarding-assist", "off", },
+    };
+
+    ccw_rhel_machine_8_6_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_5, hw_compat_rhel_8_5_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    mc->smp_props.prefer_sockets = true;
+}
+DEFINE_CCW_MACHINE(8, 5, 0);
+
+static void ccw_rhel_machine_8_4_0_instance_options(MachineState *machine)
+{
+    ccw_rhel_machine_8_5_0_instance_options(machine);
+}
+
+static void ccw_rhel_machine_8_4_0_class_options(MachineClass *mc)
+{
+    ccw_rhel_machine_8_5_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_4, hw_compat_rhel_8_4_len);
+}
+DEFINE_CCW_MACHINE(8, 4, 0);
+
+static void ccw_rhel_machine_8_2_0_instance_options(MachineState *machine)
+{
+    ccw_rhel_machine_8_4_0_instance_options(machine);
+}
+
+static void ccw_rhel_machine_8_2_0_class_options(MachineClass *mc)
+{
+    ccw_rhel_machine_8_4_0_class_options(mc);
+    mc->fixup_ram_size = s390_fixup_ram_size;
+    /* we did not publish a rhel8.3.0 machine */
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_3, hw_compat_rhel_8_3_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_2, hw_compat_rhel_8_2_len);
+}
+DEFINE_CCW_MACHINE(8, 2, 0);
+
+static void ccw_rhel_machine_7_6_0_instance_options(MachineState *machine)
+{
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V3_1 };
+
+    ccw_rhel_machine_8_2_0_instance_options(machine);
+
+    s390_set_qemu_cpu_model(0x2827, 12, 2, qemu_cpu_feat);
+
+    /* The multiple-epoch facility was not available with rhel7.6.0 on z14GA1 */
+    s390_cpudef_featoff(14, 1, S390_FEAT_MULTIPLE_EPOCH);
+    s390_cpudef_featoff(14, 1, S390_FEAT_PTFF_QSIE);
+    s390_cpudef_featoff(14, 1, S390_FEAT_PTFF_QTOUE);
+    s390_cpudef_featoff(14, 1, S390_FEAT_PTFF_STOE);
+    s390_cpudef_featoff(14, 1, S390_FEAT_PTFF_STOUE);
+}
+
+static void ccw_rhel_machine_7_6_0_class_options(MachineClass *mc)
+{
+    ccw_rhel_machine_8_2_0_class_options(mc);
+    /* We never published the s390x version of RHEL-AV 8.0 and 8.1, so add this here */
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_1, hw_compat_rhel_8_1_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_8_0, hw_compat_rhel_8_0_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_7_6, hw_compat_rhel_7_6_len);
+}
+DEFINE_CCW_MACHINE(7, 6, 0);
 
 static void ccw_machine_register_types(void)
 {

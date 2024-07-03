@@ -38,6 +38,8 @@ typedef struct S390CPUDef {
     S390FeatBitmap full_feat;
     /* used to init full_feat from generated data */
     S390FeatInit full_init;
+    /* if deprecated, provides a suggestion */
+    const char *deprecation_note;
 } S390CPUDef;
 
 /* CPU model based on a CPU definition */

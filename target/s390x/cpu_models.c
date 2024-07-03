@@ -47,6 +47,9 @@
  * of a following release have been a superset of the previous release. With
  * generation 15 one base feature and one optional feature have been deprecated.
  */
+
+#define RHEL_CPU_DEPRECATION "use at least 'z14', or 'host' / 'qemu' / 'max'"
+
 static S390CPUDef s390_cpu_defs[] = {
     /*
      * Linux requires at least z10 nowadays, and IBM only supports recent CPUs
@@ -871,22 +874,30 @@ static void s390_host_cpu_model_class_init(ObjectClass *oc, void *data)
 static void s390_base_cpu_model_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *xcc = S390_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     /* all base models are migration safe */
     xcc->cpu_def = (const S390CPUDef *) data;
     xcc->is_migration_safe = true;
     xcc->is_static = true;
     xcc->desc = xcc->cpu_def->desc;
+    if (xcc->cpu_def->gen < 14) {
+        cc->deprecation_note = RHEL_CPU_DEPRECATION;
+    }
 }
 
 static void s390_cpu_model_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *xcc = S390_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     /* model that can change between QEMU versions */
     xcc->cpu_def = (const S390CPUDef *) data;
     xcc->is_migration_safe = true;
     xcc->desc = xcc->cpu_def->desc;
+    if (xcc->cpu_def->gen < 14) {
+        cc->deprecation_note = RHEL_CPU_DEPRECATION;
+    }
 }
 
 static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)

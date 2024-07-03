@@ -59,6 +59,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     CpuDefinitionInfo *info;
     char *name = g_strdup(object_class_get_name(klass));
     S390CPUClass *scc = S390_CPU_CLASS(klass);
+    CPUClass *cc = CPU_CLASS(klass);
 
     /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
@@ -68,6 +69,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     info->migration_safe = scc->is_migration_safe;
     info->q_static = scc->is_static;
     info->q_typename = g_strdup(object_class_get_name(klass));
+    info->deprecated = !!cc->deprecation_note;
     /* check for unavailable features */
     if (cpu_list_data->model) {
         Object *obj;
