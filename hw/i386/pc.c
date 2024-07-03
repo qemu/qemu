@@ -276,6 +276,169 @@ const size_t pc_compat_2_4_len = G_N_ELEMENTS(pc_compat_2_4);
  */
 #define PC_FW_DATA (0x20000 + 0x8000)
 
+/* This macro is for changes to properties that are RHEL specific,
+ * different to the current upstream and to be applied to the latest
+ * machine type.
+ */
+GlobalProperty pc_rhel_compat[] = {
+    /* we don't support s3/s4 suspend */
+    { "PIIX4_PM", "disable_s3", "1" },
+    { "PIIX4_PM", "disable_s4", "1" },
+    { "ICH9-LPC", "disable_s3", "1" },
+    { "ICH9-LPC", "disable_s4", "1" },
+
+    { TYPE_X86_CPU, "host-phys-bits", "on" },
+    { TYPE_X86_CPU, "host-phys-bits-limit", "48" },
+    { TYPE_X86_CPU, "vmx-entry-load-perf-global-ctrl", "off" },
+    { TYPE_X86_CPU, "vmx-exit-load-perf-global-ctrl", "off" },
+    /* bz 1508330 */
+    { "vfio-pci", "x-no-geforce-quirks", "on" },
+    /* bz 1941397 */
+    { TYPE_X86_CPU, "kvm-asyncpf-int", "on" },
+};
+const size_t pc_rhel_compat_len = G_N_ELEMENTS(pc_rhel_compat);
+
+GlobalProperty pc_rhel_9_5_compat[] = {
+    /* pc_rhel_9_5_compat from pc_compat_pc_9_0 (backported from 9.1) */
+    { TYPE_X86_CPU, "guest-phys-bits", "0" },
+    /* pc_rhel_9_5_compat from pc_compat_pc_9_0 (backported from 9.1) */
+    { "sev-guest", "legacy-vm-type", "on" },
+};
+const size_t pc_rhel_9_5_compat_len = G_N_ELEMENTS(pc_rhel_9_5_compat);
+
+GlobalProperty pc_rhel_9_3_compat[] = {
+    /* pc_rhel_9_3_compat from pc_compat_8_0 */
+    { "virtio-mem", "unplugged-inaccessible", "auto" },
+};
+const size_t pc_rhel_9_3_compat_len = G_N_ELEMENTS(pc_rhel_9_3_compat);
+
+GlobalProperty pc_rhel_9_2_compat[] = {
+    /* pc_rhel_9_2_compat from pc_compat_7_2 */
+    { "ICH9-LPC", "noreboot", "true" },
+};
+const size_t pc_rhel_9_2_compat_len = G_N_ELEMENTS(pc_rhel_9_2_compat);
+
+GlobalProperty pc_rhel_9_0_compat[] = {
+    /* pc_rhel_9_0_compat from pc_compat_6_2 */
+    { "virtio-mem", "unplugged-inaccessible", "off" },
+};
+const size_t pc_rhel_9_0_compat_len = G_N_ELEMENTS(pc_rhel_9_0_compat);
+
+GlobalProperty pc_rhel_8_5_compat[] = {
+    /* pc_rhel_8_5_compat from pc_compat_6_0 */
+    { "qemu64" "-" TYPE_X86_CPU, "family", "6" },
+    /* pc_rhel_8_5_compat from pc_compat_6_0 */
+    { "qemu64" "-" TYPE_X86_CPU, "model", "6" },
+    /* pc_rhel_8_5_compat from pc_compat_6_0 */
+    { "qemu64" "-" TYPE_X86_CPU, "stepping", "3" },
+    /* pc_rhel_8_5_compat from pc_compat_6_0 */
+    { TYPE_X86_CPU, "x-vendor-cpuid-only", "off" },
+    /* pc_rhel_8_5_compat from pc_compat_6_0 */
+    { "ICH9-LPC", ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, "off" },
+
+    /* pc_rhel_8_5_compat from pc_compat_6_1 */
+    { TYPE_X86_CPU, "hv-version-id-build", "0x1bbc" },
+    /* pc_rhel_8_5_compat from pc_compat_6_1 */
+    { TYPE_X86_CPU, "hv-version-id-major", "0x0006" },
+    /* pc_rhel_8_5_compat from pc_compat_6_1 */
+    { TYPE_X86_CPU, "hv-version-id-minor", "0x0001" },
+};
+const size_t pc_rhel_8_5_compat_len = G_N_ELEMENTS(pc_rhel_8_5_compat);
+
+GlobalProperty pc_rhel_8_4_compat[] = {
+    /* pc_rhel_8_4_compat from pc_compat_5_2 */
+    { "ICH9-LPC", "x-smi-cpu-hotunplug", "off" },
+    { TYPE_X86_CPU, "kvm-asyncpf-int", "off" },
+};
+const size_t pc_rhel_8_4_compat_len = G_N_ELEMENTS(pc_rhel_8_4_compat);
+
+GlobalProperty pc_rhel_8_3_compat[] = {
+    /* pc_rhel_8_3_compat from pc_compat_5_1 */
+    { "ICH9-LPC", "x-smi-cpu-hotplug", "off" },
+};
+const size_t pc_rhel_8_3_compat_len = G_N_ELEMENTS(pc_rhel_8_3_compat);
+
+GlobalProperty pc_rhel_8_2_compat[] = {
+    /* pc_rhel_8_2_compat from pc_compat_4_2 */
+    { "mch", "smbase-smram", "off" },
+};
+const size_t pc_rhel_8_2_compat_len = G_N_ELEMENTS(pc_rhel_8_2_compat);
+
+/* pc_rhel_8_1_compat is empty since pc_4_1_compat is */
+GlobalProperty pc_rhel_8_1_compat[] = { };
+const size_t pc_rhel_8_1_compat_len = G_N_ELEMENTS(pc_rhel_8_1_compat);
+
+GlobalProperty pc_rhel_8_0_compat[] = {
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "intel-iommu", "dma-drain", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G3" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G4" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G4" "-" TYPE_X86_CPU, "npt", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G4" "-" TYPE_X86_CPU, "nrip-save", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G5" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G5" "-" TYPE_X86_CPU, "npt", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Opteron_G5" "-" TYPE_X86_CPU, "nrip-save", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "EPYC" "-" TYPE_X86_CPU, "npt", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "EPYC" "-" TYPE_X86_CPU, "nrip-save", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "EPYC-IBPB" "-" TYPE_X86_CPU, "npt", "off" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "EPYC-IBPB" "-" TYPE_X86_CPU, "nrip-save", "off" },
+    /** The mpx=on entries from pc_compat_3_1 are in pc_rhel_7_6_compat **/
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "stepping", "5" },
+    /* pc_rhel_8_0_compat from pc_compat_3_1 */
+    { TYPE_X86_CPU, "x-intel-pt-auto-level", "off" },
+};
+const size_t pc_rhel_8_0_compat_len = G_N_ELEMENTS(pc_rhel_8_0_compat);
+
+/* Similar to PC_COMPAT_3_0 + PC_COMPAT_2_12, but:
+ * all of the 2_12 stuff was already in 7.6 from bz 1481253
+ * x-migrate-smi-count comes from PC_COMPAT_2_11 but
+ * is really tied to kernel version so keep it off on 7.x
+ * machine types irrespective of host.
+ */
+GlobalProperty pc_rhel_7_6_compat[] = {
+    /* pc_rhel_7_6_compat from pc_compat_3_0 */
+    { TYPE_X86_CPU, "x-hv-synic-kvm-only", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_3_0 */
+    { "Skylake-Server" "-" TYPE_X86_CPU, "pku", "off" },
+    /* pc_rhel_7_6_compat from pc_compat_3_0 */
+    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "pku", "off" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { TYPE_X86_CPU, "x-migrate-smi-count", "off" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Skylake-Client" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Skylake-Client-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Skylake-Server" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Icelake-Client" "-" TYPE_X86_CPU, "mpx", "on" },
+    /* pc_rhel_7_6_compat from pc_compat_2_11 */
+    { "Icelake-Server" "-" TYPE_X86_CPU, "mpx", "on" },
+};
+const size_t pc_rhel_7_6_compat_len = G_N_ELEMENTS(pc_rhel_7_6_compat);
+
+/*
+ * The PC_RHEL_*_COMPAT serve the same purpose for RHEL-7 machine
+ * types as the PC_COMPAT_* do for upstream types.
+ * PC_RHEL_7_*_COMPAT apply both to i440fx and q35 types.
+ */
+
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
 {
     GSIState *s;
@@ -1767,6 +1930,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->kvmclock_create_always = true;
     x86mc->apic_xrupt_override = true;
     assert(!mc->get_hotplug_handler);
+    mc->async_pf_vmexit_disable = false;
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
     mc->auto_enable_numa_with_memhp = true;
@@ -1774,7 +1938,8 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->has_hotpluggable_cpus = true;
     mc->default_boot_order = "cad";
     mc->block_default_type = IF_IDE;
-    mc->max_cpus = 255;
+    /* 240: max CPU count for RHEL */
+    mc->max_cpus = 240;
     mc->reset = pc_machine_reset;
     mc->wakeup = pc_machine_wakeup;
     hc->pre_plug = pc_machine_device_pre_plug_cb;

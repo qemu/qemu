@@ -18,7 +18,7 @@ static void test_panic_nopause(void)
     QDict *response, *data;
     QTestState *qts;
 
-    qts = qtest_init("-device pvpanic -action panic=none");
+    qts = qtest_init("-M q35 -device pvpanic -action panic=none");
 
     val = qtest_inb(qts, 0x505);
     g_assert_cmpuint(val, ==, PVPANIC_EVENTS);
@@ -41,7 +41,8 @@ static void test_panic(void)
     QDict *response, *data;
     QTestState *qts;
 
-    qts = qtest_init("-device pvpanic -action panic=pause");
+    /* RHEL: Use q35 */
+    qts = qtest_init("-M q35 -device pvpanic -action panic=pause");
 
     val = qtest_inb(qts, 0x505);
     g_assert_cmpuint(val, ==, PVPANIC_EVENTS);

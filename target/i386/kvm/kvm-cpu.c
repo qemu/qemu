@@ -178,6 +178,7 @@ static PropValue kvm_default_props[] = {
     { "acpi", "off" },
     { "monitor", "off" },
     { "svm", "off" },
+    { "kvm-pv-unhalt", "on" },
     { NULL, NULL },
 };
 

@@ -52,6 +52,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/xen.h"
+#include "migration/migration.h"
 #ifdef CONFIG_XEN
 #include <xen/hvm/hvm_info_table.h>
 #include "hw/xen/xen_pt.h"
@@ -445,8 +446,8 @@ static void pc_i440fx_init(MachineState *machine)
     pc_init1(machine, TYPE_I440FX_PCI_DEVICE);
 }
 
-#define DEFINE_I440FX_MACHINE(major, minor) \
-    DEFINE_PC_VER_MACHINE(pc_i440fx, "pc-i440fx", pc_i440fx_init, major, minor);
+#define DEFINE_I440FX_MACHINE(major, minor, micro) \
+    DEFINE_PC_VER_MACHINE(pc_i440fx, "pc-i440fx", pc_i440fx_init, major, minor, micro);
 
 #if 0 /* Disabled for Red Hat Enterprise Linux */
 static void pc_i440fx_machine_options(MachineClass *m)
@@ -826,3 +827,103 @@ static void xenfv_machine_3_1_options(MachineClass *m)
 DEFINE_PC_MACHINE(xenfv, "xenfv-3.1", pc_xen_hvm_init,
                   xenfv_machine_3_1_options);
 #endif
+
+/* Red Hat Enterprise Linux machine types */
+
+/* Options for the latest rhel7 machine type */
+static void pc_machine_rhel7_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    m->family = "pc_piix_Y";
+    m->default_machine_opts = "firmware=bios-256k.bin,hpet=off";
+    pcmc->pci_root_uid = 0;
+    m->default_nic = "e1000";
+    m->default_display = "std";
+    m->no_parallel = 1;
+    m->numa_mem_supported = true;
+    m->auto_enable_numa_with_memdev = false;
+    machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
+    compat_props_add(m->compat_props, pc_rhel_compat, pc_rhel_compat_len);
+    m->alias = "pc";
+    m->is_default = 1;
+    m->smp_props.prefer_sockets = true;
+    pcmc->isa_bios_alias = false;
+}
+
+static void pc_i440fx_rhel_machine_7_6_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    ObjectClass *oc = OBJECT_CLASS(m);
+    pc_machine_rhel7_options(m);
+    m->desc = "RHEL 7.6.0 PC (i440FX + PIIX, 1996)";
+    m->async_pf_vmexit_disable = true;
+    m->smbus_no_migration_support = true;
+
+    pcmc->pvh_enabled = false;
+    pcmc->default_cpu_version = CPU_VERSION_LEGACY;
+    pcmc->kvmclock_create_always = false;
+    /* From pc_i440fx_5_1_machine_options() */
+    pcmc->pci_root_uid = 1;
+    /* From pc_i440fx_7_0_machine_options() */
+    pcmc->enforce_amd_1tb_hole = false;
+    /* From pc_i440fx_8_0_machine_options() */
+    pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_32;
+    /* From pc_i440fx_8_1_machine_options() */
+    pcmc->broken_32bit_mem_addr_check = true;
+    /* Introduced in QEMU 8.2 */
+    pcmc->default_south_bridge = TYPE_PIIX3_DEVICE;
+
+    object_class_property_add_enum(oc, "x-south-bridge", "PCSouthBridgeOption",
+                                   &PCSouthBridgeOption_lookup,
+                                   pc_get_south_bridge,
+                                   pc_set_south_bridge);
+    object_class_property_set_description(oc, "x-south-bridge",
+                                     "Use a different south bridge than PIIX3");
+
+    compat_props_add(m->compat_props, pc_rhel_9_5_compat,
+		     pc_rhel_9_5_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_5,
+		     hw_compat_rhel_9_5_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_4,
+                     hw_compat_rhel_9_4_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_3,
+                     hw_compat_rhel_9_3_len);
+    compat_props_add(m->compat_props, pc_rhel_9_3_compat,
+                     pc_rhel_9_3_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_2,
+                     hw_compat_rhel_9_2_len);
+    compat_props_add(m->compat_props, pc_rhel_9_2_compat,
+                     pc_rhel_9_2_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_1,
+                     hw_compat_rhel_9_1_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_0,
+                     hw_compat_rhel_9_0_len);
+    compat_props_add(m->compat_props, pc_rhel_9_0_compat,
+                     pc_rhel_9_0_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_6,
+                     hw_compat_rhel_8_6_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_5,
+                     hw_compat_rhel_8_5_len);
+    compat_props_add(m->compat_props, pc_rhel_8_5_compat,
+                     pc_rhel_8_5_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_4,
+                     hw_compat_rhel_8_4_len);
+    compat_props_add(m->compat_props, pc_rhel_8_4_compat,
+                     pc_rhel_8_4_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_3,
+                     hw_compat_rhel_8_3_len);
+    compat_props_add(m->compat_props, pc_rhel_8_3_compat,
+                     pc_rhel_8_3_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_2,
+                     hw_compat_rhel_8_2_len);
+    compat_props_add(m->compat_props, pc_rhel_8_2_compat,
+                     pc_rhel_8_2_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_1, hw_compat_rhel_8_1_len);
+    compat_props_add(m->compat_props, pc_rhel_8_1_compat, pc_rhel_8_1_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_8_0, hw_compat_rhel_8_0_len);
+    compat_props_add(m->compat_props, pc_rhel_8_0_compat, pc_rhel_8_0_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_7_6, hw_compat_rhel_7_6_len);
+    compat_props_add(m->compat_props, pc_rhel_7_6_compat, pc_rhel_7_6_compat_len);
+}
+
+DEFINE_I440FX_MACHINE(7, 6, 0);

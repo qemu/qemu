@@ -338,20 +338,19 @@ static void pc_q35_machine_options(MachineClass *m)
     pcmc->pci_root_uid = 0;
     pcmc->default_cpu_version = 1;
 
-    m->family = "pc_q35";
-    m->desc = "Standard PC (Q35 + ICH9, 2009)";
+    m->family = "pc_q35_Z";
     m->units_per_default_bus = 1;
-    m->default_machine_opts = "firmware=bios-256k.bin";
+    m->default_machine_opts = "firmware=bios-256k.bin,hpet=off";
     m->default_display = "std";
     m->default_nic = "e1000e";
-    m->default_kernel_irqchip_split = false;
     m->no_floppy = 1;
-    m->max_cpus = 4096;
-    m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
+    m->max_cpus = 710;
+    m->no_parallel = 1;
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
+    m->alias = "q35";
+    compat_props_add(m->compat_props, pc_rhel_compat, pc_rhel_compat_len);
     compat_props_add(m->compat_props,
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }
@@ -670,3 +669,197 @@ static void pc_q35_machine_2_4_options(MachineClass *m)
 
 DEFINE_Q35_MACHINE(2, 4);
 #endif /* Disabled for Red Hat Enterprise Linux */
+
+/* Red Hat Enterprise Linux machine types */
+
+static void pc_q35_rhel_machine_9_4_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_machine_options(m);
+    m->desc = "RHEL-9.4.0 PC (Q35 + ICH9, 2009)";
+    pcmc->smbios_stream_product = "RHEL";
+    pcmc->smbios_stream_version = "9.4.0";
+    pcmc->isa_bios_alias = false;
+
+    compat_props_add(m->compat_props, pc_rhel_9_5_compat,
+		     pc_rhel_9_5_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_5,
+		     hw_compat_rhel_9_5_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(9, 4, 0);
+
+static void pc_q35_rhel_machine_9_2_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_9_4_0_options(m);
+    m->desc = "RHEL-9.2.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = "RHEL";
+    pcmc->smbios_stream_version = "9.2.0";
+
+    /* From pc_q35_8_0_machine_options() */
+    pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_32;
+    /* From pc_q35_8_1_machine_options() */
+    pcmc->broken_32bit_mem_addr_check = true;
+
+    compat_props_add(m->compat_props, hw_compat_rhel_9_4,
+                     hw_compat_rhel_9_4_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_3,
+                     hw_compat_rhel_9_3_len);
+    compat_props_add(m->compat_props, pc_rhel_9_3_compat,
+                     pc_rhel_9_3_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_2,
+                     hw_compat_rhel_9_2_len);
+    compat_props_add(m->compat_props, pc_rhel_9_2_compat,
+                     pc_rhel_9_2_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(9, 2, 0);
+
+static void pc_q35_rhel_machine_9_0_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_9_2_0_options(m);
+    m->desc = "RHEL-9.0.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = "RHEL";
+    pcmc->smbios_stream_version = "9.0.0";
+    pcmc->enforce_amd_1tb_hole = false;
+    compat_props_add(m->compat_props, hw_compat_rhel_9_1,
+                     hw_compat_rhel_9_1_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9_0,
+                     hw_compat_rhel_9_0_len);
+    compat_props_add(m->compat_props, pc_rhel_9_0_compat,
+                     pc_rhel_9_0_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(9, 0, 0);
+
+static void pc_q35_rhel_machine_8_6_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_9_0_0_options(m);
+    m->desc = "RHEL-8.6.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+
+    pcmc->smbios_stream_product = "RHEL-AV";
+    pcmc->smbios_stream_version = "8.6.0";
+    compat_props_add(m->compat_props, hw_compat_rhel_8_6,
+                     hw_compat_rhel_8_6_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 6, 0);
+
+static void pc_q35_rhel_machine_8_5_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_6_0_options(m);
+    m->desc = "RHEL-8.5.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = "RHEL-AV";
+    pcmc->smbios_stream_version = "8.5.0";
+    compat_props_add(m->compat_props, hw_compat_rhel_8_5,
+                     hw_compat_rhel_8_5_len);
+    compat_props_add(m->compat_props, pc_rhel_8_5_compat,
+                     pc_rhel_8_5_compat_len);
+    m->smp_props.prefer_sockets = true;
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 5, 0);
+
+static void pc_q35_rhel_machine_8_4_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_5_0_options(m);
+    m->desc = "RHEL-8.4.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = "RHEL-AV";
+    pcmc->smbios_stream_version = "8.4.0";
+    compat_props_add(m->compat_props, hw_compat_rhel_8_4,
+                     hw_compat_rhel_8_4_len);
+    compat_props_add(m->compat_props, pc_rhel_8_4_compat,
+                     pc_rhel_8_4_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 4, 0);
+
+static void pc_q35_rhel_machine_8_3_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_4_0_options(m);
+    m->desc = "RHEL-8.3.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = "RHEL-AV";
+    pcmc->smbios_stream_version = "8.3.0";
+    compat_props_add(m->compat_props, hw_compat_rhel_8_3,
+                     hw_compat_rhel_8_3_len);
+    compat_props_add(m->compat_props, pc_rhel_8_3_compat,
+                     pc_rhel_8_3_compat_len);
+    /* From pc_q35_5_1_machine_options() */
+    pcmc->kvmclock_create_always = false;
+    /* From pc_q35_5_1_machine_options() */
+    pcmc->pci_root_uid = 1;
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 3, 0);
+
+static void pc_q35_rhel_machine_8_2_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_3_0_options(m);
+    m->desc = "RHEL-8.2.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    m->numa_mem_supported = true;
+    m->auto_enable_numa_with_memdev = false;
+    pcmc->smbios_stream_product = "RHEL-AV";
+    pcmc->smbios_stream_version = "8.2.0";
+    compat_props_add(m->compat_props, hw_compat_rhel_8_2,
+                     hw_compat_rhel_8_2_len);
+    compat_props_add(m->compat_props, pc_rhel_8_2_compat,
+                     pc_rhel_8_2_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 2, 0);
+
+static void pc_q35_rhel_machine_8_1_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_2_0_options(m);
+    m->desc = "RHEL-8.1.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
+    pcmc->smbios_stream_product = NULL;
+    pcmc->smbios_stream_version = NULL;
+    compat_props_add(m->compat_props, hw_compat_rhel_8_1, hw_compat_rhel_8_1_len);
+    compat_props_add(m->compat_props, pc_rhel_8_1_compat, pc_rhel_8_1_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 1, 0);
+
+static void pc_q35_rhel_machine_8_0_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_8_1_0_options(m);
+    m->desc = "RHEL-8.0.0 PC (Q35 + ICH9, 2009)";
+    m->smbus_no_migration_support = true;
+    m->alias = NULL;
+    pcmc->pvh_enabled = false;
+    pcmc->default_cpu_version = CPU_VERSION_LEGACY;
+    compat_props_add(m->compat_props, hw_compat_rhel_8_0, hw_compat_rhel_8_0_len);
+    compat_props_add(m->compat_props, pc_rhel_8_0_compat, pc_rhel_8_0_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(8, 0, 0);
+
+static void pc_q35_rhel_machine_7_6_0_options(MachineClass *m)
+{
+    pc_q35_rhel_machine_8_0_0_options(m);
+    m->alias = NULL;
+    m->desc = "RHEL-7.6.0 PC (Q35 + ICH9, 2009)";
+    m->async_pf_vmexit_disable = true;
+    compat_props_add(m->compat_props, hw_compat_rhel_7_6, hw_compat_rhel_7_6_len);
+    compat_props_add(m->compat_props, pc_rhel_7_6_compat, pc_rhel_7_6_compat_len);
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(7, 6, 0);
+
