@@ -548,16 +548,16 @@ struct MachineState {
  *   "{prefix}-{major}.{minor}.{micro}-{tag}"
  */
 #define _MACHINE_VER_TYPE_NAME2(prefix, major, minor)   \
-    prefix "-" #major "." #minor TYPE_MACHINE_SUFFIX
+    prefix "-rhel" #major "." #minor TYPE_MACHINE_SUFFIX
 
 #define _MACHINE_VER_TYPE_NAME3(prefix, major, minor, micro) \
-    prefix "-" #major "." #minor "." #micro TYPE_MACHINE_SUFFIX
+    prefix "-rhel" #major "." #minor "." #micro TYPE_MACHINE_SUFFIX
 
 #define _MACHINE_VER_TYPE_NAME4(prefix, major, minor, _unused_, tag) \
-    prefix "-" #major "." #minor "-" #tag TYPE_MACHINE_SUFFIX
+    prefix "-rhel" #major "." #minor "-" #tag TYPE_MACHINE_SUFFIX
 
 #define _MACHINE_VER_TYPE_NAME5(prefix, major, minor, micro, _unused_, tag) \
-    prefix "-" #major "." #minor "." #micro "-" #tag TYPE_MACHINE_SUFFIX
+    prefix "-rhel" #major "." #minor "." #micro "-" #tag TYPE_MACHINE_SUFFIX
 
 #define MACHINE_VER_TYPE_NAME(prefix, ...) \
     _MACHINE_VER_PICK(__VA_ARGS__, \
@@ -585,16 +585,16 @@ struct MachineState {
  *   {prefix}_machine_{major}_{minor}_{micro}_{tag}_{sym}
  */
 #define _MACHINE_VER_SYM2(sym, prefix, major, minor) \
-    prefix ## _machine_ ## major ## _ ## minor ## _ ## sym
+    prefix ## _rhel_machine_ ## major ## _ ## minor ## _ ## sym
 
 #define _MACHINE_VER_SYM3(sym, prefix, major, minor, micro) \
-    prefix ## _machine_ ## major ## _ ## minor ## _ ## micro ## _ ## sym
+    prefix ## _rhel_machine_ ## major ## _ ## minor ## _ ## micro ## _ ## sym
 
 #define _MACHINE_VER_SYM4(sym, prefix, major, minor, _unused_, tag) \
-    prefix ## _machine_ ## major ## _ ## minor ## _ ## tag ## _ ## sym
+    prefix ## _rhel_machine_ ## major ## _ ## minor ## _ ## tag ## _ ## sym
 
 #define _MACHINE_VER_SYM5(sym, prefix, major, minor, micro, _unused_, tag) \
-    prefix ## _machine_ ## major ## _ ## minor ## _ ## micro ## _ ## tag ## _ ## sym
+    prefix ## _rhel_machine_ ## major ## _ ## minor ## _ ## micro ## _ ## tag ## _ ## sym
 
 #define MACHINE_VER_SYM(sym, prefix, ...) \
     _MACHINE_VER_PICK(__VA_ARGS__, \
@@ -605,26 +605,22 @@ struct MachineState {
 
 
 /*
- * How many years/major releases for each phase
- * of the life cycle. Assumes use of versioning
- * scheme where major is bumped each year
+ * How many RHEL major releases for each phase
+ * of the life cycle.
  */
-#define MACHINE_VER_DELETION_MAJOR 6
-#define MACHINE_VER_DEPRECATION_MAJOR 3
+#define MACHINE_VER_DELETION_MAJOR 2
+#define MACHINE_VER_DEPRECATION_MAJOR 1
 
 /*
  * Expands to a static string containing a deprecation
  * message for a versioned machine type
  */
 #define MACHINE_VER_DEPRECATION_MSG \
-    "machines more than " stringify(MACHINE_VER_DEPRECATION_MAJOR) \
-    " years old are subject to deletion after " \
-    stringify(MACHINE_VER_DELETION_MAJOR) " years"
+    "machines from the previous RHEL major release are " \
+    "subject to deletion in the next RHEL major release"
 
 #define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
-    (((QEMU_VERSION_MAJOR - major) > cutoff) || \
-     (((QEMU_VERSION_MAJOR - major) == cutoff) && \
-      (QEMU_VERSION_MINOR - minor) >= 0))
+    ((RHEL_VERSION - major) >= cutoff)
 
 #define _MACHINE_VER_IS_EXPIRED2(cutoff, major, minor) \
     _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
@@ -686,32 +682,14 @@ struct MachineState {
  * This must be unconditionally used in the register
  * method for all machine types which support versioning.
  *
- * Inijtially it will effectively be a no-op, but after a
- * suitable period of time has passed, it will cause
- * execution of the method to return, avoiding registration
- * of the machine
- *
- * The new deprecation and deletion policy for versioned
- * machine types was introduced in QEMU 9.1.0.
- *
- * Under the new policy a number of old machine types (any
- * prior to 2.12) would be liable for immediate deletion
- * which would be a violation of our historical deprecation
- * and removal policy
- *
- * Thus deletions are temporarily gated on existance of
- * the env variable "QEMU_DELETE_MACHINES" / QEMU version
- * number >= 10.1.0. This gate can be deleted in the 10.1.0
- * dev cycle
+ * It will automatically avoid registration of machines
+ * that should have been deleted at the start of this
+ * RHEL release
  */
 #define MACHINE_VER_DELETION(...) \
     do { \
         if (MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)) { \
-            if (getenv("QEMU_DELETE_MACHINES") || \
-                QEMU_VERSION_MAJOR > 10 || (QEMU_VERSION_MAJOR == 10 && \
-                                            QEMU_VERSION_MINOR >= 1)) { \
-                return; \
-            } \
+            return; \
         } \
     } while (0)
 
