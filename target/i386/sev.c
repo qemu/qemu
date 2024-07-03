@@ -945,6 +945,38 @@ out:
     return ret;
 }
 
+static uint32_t
+sev_snp_mask_cpuid_features(X86ConfidentialGuest *cg, uint32_t feature, uint32_t index,
+                            int reg, uint32_t value)
+{
+    switch (feature) {
+    case 1:
+        if (reg == R_ECX) {
+            return value & ~CPUID_EXT_TSC_DEADLINE_TIMER;
+        }
+        break;
+    case 7:
+        if (index == 0 && reg == R_EBX) {
+            return value & ~CPUID_7_0_EBX_TSC_ADJUST;
+        }
+        if (index == 0 && reg == R_EDX) {
+            return value & ~(CPUID_7_0_EDX_SPEC_CTRL |
+                             CPUID_7_0_EDX_STIBP |
+                             CPUID_7_0_EDX_FLUSH_L1D |
+                             CPUID_7_0_EDX_ARCH_CAPABILITIES |
+                             CPUID_7_0_EDX_CORE_CAPABILITY |
+                             CPUID_7_0_EDX_SPEC_CTRL_SSBD);
+        }
+        break;
+    case 0x80000008:
+        if (reg == R_EBX) {
+            return value & ~CPUID_8000_0008_EBX_VIRT_SSBD;
+        }
+        break;
+    }
+    return value;
+}
+
 static int
 sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
                        uint8_t *addr, size_t len)
@@ -2315,6 +2347,7 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
     klass->launch_finish = sev_snp_launch_finish;
     klass->launch_update_data = sev_snp_launch_update_data;
     klass->kvm_init = sev_snp_kvm_init;
+    x86_klass->mask_cpuid_features = sev_snp_mask_cpuid_features;
     x86_klass->kvm_type = sev_snp_kvm_type;
 
     object_class_property_add(oc, "policy", "uint64",
