@@ -39,6 +39,8 @@ struct X86ConfidentialGuestClass {
 
     /* <public> */
     int (*kvm_type)(X86ConfidentialGuest *cg);
+    uint32_t (*mask_cpuid_features)(X86ConfidentialGuest *cg, uint32_t feature, uint32_t index,
+                                    int reg, uint32_t value);
 };
 
 /**
@@ -56,4 +58,26 @@ static inline int x86_confidential_guest_kvm_type(X86ConfidentialGuest *cg)
         return 0;
     }
 }
+
+/**
+ * x86_confidential_guest_mask_cpuid_features:
+ *
+ * Removes unsupported features from a confidential guest's CPUID values, returns
+ * the value with the bits removed.  The bits removed should be those that KVM
+ * provides independent of host-supported CPUID features, but are not supported by
+ * the confidential computing firmware.
+ */
+static inline int x86_confidential_guest_mask_cpuid_features(X86ConfidentialGuest *cg,
+                                                             uint32_t feature, uint32_t index,
+                                                             int reg, uint32_t value)
+{
+    X86ConfidentialGuestClass *klass = X86_CONFIDENTIAL_GUEST_GET_CLASS(cg);
+
+    if (klass->mask_cpuid_features) {
+        return klass->mask_cpuid_features(cg, feature, index, reg, value);
+    } else {
+        return value;
+    }
+}
+
 #endif

@@ -548,6 +548,11 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         ret |= 1U << KVM_HINTS_REALTIME;
     }
 
+    if (current_machine->cgs) {
+        ret = x86_confidential_guest_mask_cpuid_features(
+            X86_CONFIDENTIAL_GUEST(current_machine->cgs),
+            function, index, reg, ret);
+    }
     return ret;
 }
 
