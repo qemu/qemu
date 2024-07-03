@@ -2104,6 +2104,9 @@ struct ArchCPU {
     /* Only advertise CPUID leaves defined by the vendor */
     bool vendor_cpuid_only;
 
+    /* Only advertise TOPOEXT features that AMD defines */
+    bool amd_topoext_features_only;
+
     /* Enable auto level-increase for Intel Processor Trace leave */
     bool intel_pt_auto_level;
 
