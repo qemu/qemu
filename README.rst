@@ -82,7 +82,7 @@ guidelines set out in the `style section
 the Developers Guide.
 
 Additional information on submitting patches can be found online via
-the QEMU website
+the QEMU website:
 
 * `<https://wiki.qemu.org/Contribute/SubmitAPatch>`_
 * `<https://wiki.qemu.org/Contribute/TrivialPatches>`_
@@ -102,7 +102,7 @@ requires a working 'git send-email' setup, and by default doesn't
 automate everything, so you may want to go through the above steps
 manually for once.
 
-For installation instructions, please go to
+For installation instructions, please go to:
 
 *  `<https://github.com/stefanha/git-publish>`_
 
@@ -159,7 +159,7 @@ Contact
 =======
 
 The QEMU community can be contacted in a number of ways, with the two
-main methods being email and IRC
+main methods being email and IRC:
 
 * `<mailto:qemu-devel@nongnu.org>`_
 * `<https://lists.nongnu.org/mailman/listinfo/qemu-devel>`_
