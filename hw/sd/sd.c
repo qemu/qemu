@@ -679,8 +679,8 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
 
 static void sd_reset(DeviceState *dev)
 {
-    SDState *sd = SD_CARD(dev);
-    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
+    SDState *sd = SDMMC_COMMON(dev);
+    SDCardClass *sc = SDMMC_COMMON_GET_CLASS(sd);
     uint64_t size;
     uint64_t sect;
 
@@ -2377,8 +2377,8 @@ static const SDProto sd_proto_sd = {
 
 static void sd_instance_init(Object *obj)
 {
-    SDState *sd = SD_CARD(obj);
-    SDCardClass *sc = SD_CARD_GET_CLASS(sd);
+    SDState *sd = SDMMC_COMMON(obj);
+    SDCardClass *sc = SDMMC_COMMON_GET_CLASS(sd);
 
     sd->proto = sc->proto;
     sd->last_cmd_name = "UNSET";
@@ -2388,14 +2388,14 @@ static void sd_instance_init(Object *obj)
 
 static void sd_instance_finalize(Object *obj)
 {
-    SDState *sd = SD_CARD(obj);
+    SDState *sd = SDMMC_COMMON(obj);
 
     timer_free(sd->ocr_power_timer);
 }
 
 static void sd_realize(DeviceState *dev, Error **errp)
 {
-    SDState *sd = SD_CARD(dev);
+    SDState *sd = SDMMC_COMMON(dev);
     int ret;
 
     switch (sd->spec_version) {
@@ -2446,20 +2446,23 @@ static void sd_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property sd_properties[] = {
-    DEFINE_PROP_UINT8("spec_version", SDState,
-                      spec_version, SD_PHY_SPECv3_01_VERS),
+static Property sdmmc_common_properties[] = {
     DEFINE_PROP_DRIVE("drive", SDState, blk),
     DEFINE_PROP_END_OF_LIST()
 };
 
-static void sd_class_init(ObjectClass *klass, void *data)
+static Property sd_properties[] = {
+    DEFINE_PROP_UINT8("spec_version", SDState,
+                      spec_version, SD_PHY_SPECv3_01_VERS),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void sdmmc_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SDCardClass *sc = SD_CARD_CLASS(klass);
+    SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
-    dc->realize = sd_realize;
-    device_class_set_props(dc, sd_properties);
+    device_class_set_props(dc, sdmmc_common_properties);
     dc->vmsd = &sd_vmstate;
     dc->reset = sd_reset;
     dc->bus_type = TYPE_SD_BUS;
@@ -2476,6 +2479,16 @@ static void sd_class_init(ObjectClass *klass, void *data)
     sc->enable = sd_enable;
     sc->get_inserted = sd_get_inserted;
     sc->get_readonly = sd_get_readonly;
+}
+
+static void sd_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
+
+    dc->realize = sd_realize;
+    device_class_set_props(dc, sd_properties);
+
     sc->set_cid = sd_set_cid;
     sc->set_csd = sd_set_csd;
     sc->proto = &sd_proto_sd;
@@ -2490,7 +2503,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
 static void sd_spi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SDCardClass *sc = SD_CARD_CLASS(klass);
+    SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
     dc->desc = "SD SPI";
     sc->proto = &sd_proto_spi;
@@ -2498,13 +2511,19 @@ static void sd_spi_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo sd_types[] = {
     {
-        .name           = TYPE_SD_CARD,
+        .name           = TYPE_SDMMC_COMMON,
         .parent         = TYPE_DEVICE,
+        .abstract       = true,
         .instance_size  = sizeof(SDState),
         .class_size     = sizeof(SDCardClass),
-        .class_init     = sd_class_init,
+        .class_init     = sdmmc_common_class_init,
         .instance_init  = sd_instance_init,
         .instance_finalize = sd_instance_finalize,
+    },
+    {
+        .name           = TYPE_SD_CARD,
+        .parent         = TYPE_SDMMC_COMMON,
+        .class_init     = sd_class_init,
     },
     {
         .name           = TYPE_SD_CARD_SPI,
