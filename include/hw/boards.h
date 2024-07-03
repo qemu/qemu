@@ -608,7 +608,7 @@ struct MachineState {
  * How many RHEL major releases for each phase
  * of the life cycle.
  */
-#define MACHINE_VER_DELETION_MAJOR 2
+#define MACHINE_VER_DELETION_MAJOR 3
 #define MACHINE_VER_DEPRECATION_MAJOR 1
 
 /*
