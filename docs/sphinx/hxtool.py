@@ -24,16 +24,10 @@ from docutils import nodes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from sphinx.errors import ExtensionError
+from sphinx.util.docutils import switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
 import sphinx
 
-# Sphinx up to 1.6 uses AutodocReporter; 1.7 and later
-# use switch_source_input. Check borrowed from kerneldoc.py.
-Use_SSI = sphinx.__version__[:3] >= '1.7'
-if Use_SSI:
-    from sphinx.util.docutils import switch_source_input
-else:
-    from sphinx.ext.autodoc import AutodocReporter
 
 __version__ = '1.0'
 
@@ -185,16 +179,9 @@ class HxtoolDocDirective(Directive):
     # of title_styles and section_level that kerneldoc.py does,
     # because nested_parse_with_titles() does that for us.
     def do_parse(self, result, node):
-        if Use_SSI:
-            with switch_source_input(self.state, result):
-                nested_parse_with_titles(self.state, result, node)
-        else:
-            save = self.state.memo.reporter
-            self.state.memo.reporter = AutodocReporter(result, self.state.memo.reporter)
-            try:
-                nested_parse_with_titles(self.state, result, node)
-            finally:
-                self.state.memo.reporter = save
+        with switch_source_input(self.state, result):
+            nested_parse_with_titles(self.state, result, node)
+
 
 def setup(app):
     """ Register hxtool-doc directive with Sphinx"""
