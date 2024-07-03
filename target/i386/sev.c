@@ -841,7 +841,7 @@ sev_snp_cpuid_report_mismatches(SnpCpuidInfo *old,
     size_t i;
 
     if (old->count != new->count) {
-        error_report("SEV-SNP: CPUID validation failed due to count mismatch,"
+        error_report("SEV-SNP: CPUID validation failed due to count mismatch, "
                      "provided: %d, expected: %d", old->count, new->count);
         return;
     }
@@ -853,8 +853,8 @@ sev_snp_cpuid_report_mismatches(SnpCpuidInfo *old,
         new_func = &new->entries[i];
 
         if (memcmp(old_func, new_func, sizeof(SnpCpuidFunc))) {
-            error_report("SEV-SNP: CPUID validation failed for function 0x%x, index: 0x%x"
-                         "provided: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x"
+            error_report("SEV-SNP: CPUID validation failed for function 0x%x, index: 0x%x, "
+                         "provided: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x, "
                          "expected: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x",
                          old_func->eax_in, old_func->ecx_in,
                          old_func->eax, old_func->ebx, old_func->ecx, old_func->edx,
