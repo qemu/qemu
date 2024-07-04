@@ -27,7 +27,7 @@ static void handle_event(int event)
 {
     static bool logged;
 
-    if (event & ~(PVPANIC_PANICKED | PVPANIC_CRASH_LOADED) && !logged) {
+    if (event & ~PVPANIC_EVENTS && !logged) {
         qemu_log_mask(LOG_GUEST_ERROR, "pvpanic: unknown event %#x.\n", event);
         logged = true;
     }
@@ -39,6 +39,11 @@ static void handle_event(int event)
 
     if (event & PVPANIC_CRASH_LOADED) {
         qemu_system_guest_crashloaded(NULL);
+        return;
+    }
+
+    if (event & PVPANIC_SHUTDOWN) {
+        qemu_system_guest_pvshutdown();
         return;
     }
 }

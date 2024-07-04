@@ -467,6 +467,26 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
     return &sdev->as;
 }
 
+static void virtio_iommu_device_clear(VirtIOIOMMU *s, PCIBus *bus, int devfn)
+{
+    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    IOMMUDevice *sdev;
+
+    if (!sbus) {
+        return;
+    }
+
+    sdev = sbus->pbdev[devfn];
+    if (!sdev) {
+        return;
+    }
+
+    g_list_free_full(sdev->resv_regions, g_free);
+    sdev->resv_regions = NULL;
+    g_free(sdev);
+    sbus->pbdev[devfn] = NULL;
+}
+
 static gboolean hiod_equal(gconstpointer v1, gconstpointer v2)
 {
     const struct hiod_key *key1 = v1;
@@ -650,6 +670,7 @@ virtio_iommu_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
     }
 
     g_hash_table_remove(viommu->host_iommu_devices, &key);
+    virtio_iommu_device_clear(viommu, bus, devfn);
 }
 
 static const PCIIOMMUOps virtio_iommu_ops = {
@@ -974,6 +995,9 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
         iov = elem->out_sg;
         sz = iov_to_buf(iov, iov_cnt, 0, &head, sizeof(head));
         if (unlikely(sz != sizeof(head))) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: read %zu bytes from command head"
+                          "but expected %zu\n", __func__, sz, sizeof(head));
             tail.status = VIRTIO_IOMMU_S_DEVERR;
             goto out;
         }
@@ -1010,6 +1034,25 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
 out:
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
                           buf ? buf : &tail, output_size);
+        if (unlikely(sz != output_size)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: wrote %zu bytes to command response"
+                          "but response size is %zu\n",
+                          __func__, sz, output_size);
+            tail.status = VIRTIO_IOMMU_S_DEVERR;
+            /*
+             * We checked that sizeof(tail) can fit to elem->in_sg at the
+             * beginning of the loop
+             */
+            output_size = sizeof(tail);
+            g_free(buf);
+            buf = NULL;
+            sz = iov_from_buf(elem->in_sg,
+                              elem->in_num,
+                              0,
+                              &tail,
+                              output_size);
+        }
         assert(sz == output_size);
 
         virtqueue_push(vq, elem, sz);
