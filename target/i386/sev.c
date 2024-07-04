@@ -587,17 +587,17 @@ static SevCapability *sev_get_capabilities(Error **errp)
     }
 
     sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
-    if (!sev_common) {
-        error_setg(errp, "SEV is not configured");
-        return NULL;
+    if (sev_common) {
+        sev_device = object_property_get_str(OBJECT(sev_common), "sev-device",
+                                             &error_abort);
+    } else {
+        sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     }
 
-    sev_device = object_property_get_str(OBJECT(sev_common), "sev-device",
-                                         &error_abort);
     fd = open(sev_device, O_RDWR);
     if (fd < 0) {
         error_setg_errno(errp, errno, "SEV: Failed to open %s",
-                         DEFAULT_SEV_DEVICE);
+                         sev_device);
         g_free(sev_device);
         return NULL;
     }
@@ -841,7 +841,7 @@ sev_snp_cpuid_report_mismatches(SnpCpuidInfo *old,
     size_t i;
 
     if (old->count != new->count) {
-        error_report("SEV-SNP: CPUID validation failed due to count mismatch,"
+        error_report("SEV-SNP: CPUID validation failed due to count mismatch, "
                      "provided: %d, expected: %d", old->count, new->count);
         return;
     }
@@ -853,8 +853,8 @@ sev_snp_cpuid_report_mismatches(SnpCpuidInfo *old,
         new_func = &new->entries[i];
 
         if (memcmp(old_func, new_func, sizeof(SnpCpuidFunc))) {
-            error_report("SEV-SNP: CPUID validation failed for function 0x%x, index: 0x%x"
-                         "provided: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x"
+            error_report("SEV-SNP: CPUID validation failed for function 0x%x, index: 0x%x, "
+                         "provided: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x, "
                          "expected: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x",
                          old_func->eax_in, old_func->ecx_in,
                          old_func->eax, old_func->ebx, old_func->ecx, old_func->edx,
@@ -943,6 +943,38 @@ out:
     }
 
     return ret;
+}
+
+static uint32_t
+sev_snp_mask_cpuid_features(X86ConfidentialGuest *cg, uint32_t feature, uint32_t index,
+                            int reg, uint32_t value)
+{
+    switch (feature) {
+    case 1:
+        if (reg == R_ECX) {
+            return value & ~CPUID_EXT_TSC_DEADLINE_TIMER;
+        }
+        break;
+    case 7:
+        if (index == 0 && reg == R_EBX) {
+            return value & ~CPUID_7_0_EBX_TSC_ADJUST;
+        }
+        if (index == 0 && reg == R_EDX) {
+            return value & ~(CPUID_7_0_EDX_SPEC_CTRL |
+                             CPUID_7_0_EDX_STIBP |
+                             CPUID_7_0_EDX_FLUSH_L1D |
+                             CPUID_7_0_EDX_ARCH_CAPABILITIES |
+                             CPUID_7_0_EDX_CORE_CAPABILITY |
+                             CPUID_7_0_EDX_SPEC_CTRL_SSBD);
+        }
+        break;
+    case 0x80000008:
+        if (reg == R_EBX) {
+            return value & ~CPUID_8000_0008_EBX_VIRT_SSBD;
+        }
+        break;
+    }
+    return value;
 }
 
 static int
@@ -2315,6 +2347,7 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
     klass->launch_finish = sev_snp_launch_finish;
     klass->launch_update_data = sev_snp_launch_update_data;
     klass->kvm_init = sev_snp_kvm_init;
+    x86_klass->mask_cpuid_features = sev_snp_mask_cpuid_features;
     x86_klass->kvm_type = sev_snp_kvm_type;
 
     object_class_property_add(oc, "policy", "uint64",

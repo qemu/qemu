@@ -143,7 +143,7 @@ static void kvm_cpu_xsave_init(void)
         if (!esa->size) {
             continue;
         }
-        if ((x86_cpu_get_supported_feature_word(esa->feature, false) & esa->bits)
+        if ((x86_cpu_get_supported_feature_word(NULL, esa->feature) & esa->bits)
             != esa->bits) {
             continue;
         }

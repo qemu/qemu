@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.63.0',
+project('qemu', ['c'], meson_version: '>=1.1.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -3467,22 +3467,21 @@ endif
 
 if enable_modules
   libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
-  modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
+  modulecommon = declare_dependency(objects: libmodulecommon.extract_all_objects(recursive: false), compile_args: '-DBUILD_DSO')
 endif
 
 qom_ss = qom_ss.apply({})
 libqom = static_library('qom', qom_ss.sources() + genh,
                         dependencies: [qom_ss.dependencies()],
-                        name_suffix: 'fa',
                         build_by_default: false)
-qom = declare_dependency(link_whole: libqom)
+qom = declare_dependency(objects: libqom.extract_all_objects(recursive: false),
+                         dependencies: qom_ss.dependencies())
 
 event_loop_base = files('event-loop-base.c')
 event_loop_base = static_library('event-loop-base',
                                  sources: event_loop_base + genh,
-                                 name_suffix: 'fa',
                                  build_by_default: false)
-event_loop_base = declare_dependency(link_whole: event_loop_base,
+event_loop_base = declare_dependency(objects: event_loop_base.extract_all_objects(recursive: false),
                                      dependencies: [qom])
 
 stub_ss = stub_ss.apply({})
@@ -3531,7 +3530,7 @@ if have_block
     'blockdev-nbd.c',
     'iothread.c',
     'job-qmp.c',
-  ), gnutls)
+  ))
 
   # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
   # os-win32.c does not
@@ -3608,6 +3607,7 @@ modinfo_files = []
 
 block_mods = []
 system_mods = []
+emulator_modules = []
 foreach d, list : modules
   if not (d == 'block' ? have_block : have_system)
     continue
@@ -3615,14 +3615,21 @@ foreach d, list : modules
 
   foreach m, module_ss : list
     if enable_modules
+      module_ss.add(modulecommon)
       module_ss = module_ss.apply(config_all_devices, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
-                          dependencies: [modulecommon, module_ss.dependencies()], pic: true)
+                          dependencies: module_ss.dependencies(), pic: true)
       if d == 'block'
         block_mods += sl
       else
         system_mods += sl
       endif
+      emulator_modules += shared_module(sl.name(),
+                    name_prefix: '',
+                    objects: sl.extract_all_objects(recursive: false),
+                    dependencies: module_ss.dependencies(),
+                    install: true,
+                    install_dir: qemu_moddir)
       if module_ss.sources() != []
         # FIXME: Should use sl.extract_all_objects(recursive: true) as
         # input. Sources can be used multiple times but objects are
@@ -3648,6 +3655,7 @@ endforeach
 foreach d, list : target_modules
   foreach m, module_ss : list
     if enable_modules
+      module_ss.add(modulecommon)
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
@@ -3660,11 +3668,17 @@ foreach d, list : target_modules
             module_name = d + '-' + m + '-' + config_target['TARGET_NAME']
             sl = static_library(module_name,
                                 [genh, target_module_ss.sources()],
-                                dependencies: [modulecommon, target_module_ss.dependencies()],
+                                dependencies: target_module_ss.dependencies(),
                                 include_directories: target_inc,
                                 c_args: c_args,
                                 pic: true)
             system_mods += sl
+            emulator_modules += shared_module(sl.name(),
+                    name_prefix: '',
+                    objects: sl.extract_all_objects(recursive: false),
+                    dependencies: target_module_ss.dependencies(),
+                    install: true,
+                    install_dir: qemu_moddir)
             # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
@@ -3698,6 +3712,10 @@ if enable_modules
       hw_arch[arch].add(modinfo_dep)
     endif
   endforeach
+
+  if emulator_modules.length() > 0
+    alias_target('modules', emulator_modules)
+  endif
 endif
 
 nm = find_program('nm')
@@ -3714,95 +3732,74 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
 authz_ss = authz_ss.apply({})
 libauthz = static_library('authz', authz_ss.sources() + genh,
                           dependencies: [authz_ss.dependencies()],
-                          name_suffix: 'fa',
                           build_by_default: false)
 
-authz = declare_dependency(link_whole: libauthz,
-                           dependencies: qom)
+authz = declare_dependency(objects: libauthz.extract_all_objects(recursive: false),
+                           dependencies: [authz_ss.dependencies(), qom])
 
 crypto_ss = crypto_ss.apply({})
 libcrypto = static_library('crypto', crypto_ss.sources() + genh,
                            dependencies: [crypto_ss.dependencies()],
-                           name_suffix: 'fa',
                            build_by_default: false)
 
-crypto = declare_dependency(link_whole: libcrypto,
-                            dependencies: [authz, qom])
+crypto = declare_dependency(objects: libcrypto.extract_all_objects(recursive: false),
+                            dependencies: [crypto_ss.dependencies(), authz, qom])
 
 io_ss = io_ss.apply({})
 libio = static_library('io', io_ss.sources() + genh,
                        dependencies: [io_ss.dependencies()],
                        link_with: libqemuutil,
-                       name_suffix: 'fa',
                        build_by_default: false)
 
-io = declare_dependency(link_whole: libio, dependencies: [crypto, qom])
+io = declare_dependency(objects: libio.extract_all_objects(recursive: false),
+                        dependencies: [io_ss.dependencies(), crypto, qom])
 
 libmigration = static_library('migration', sources: migration_files + genh,
-                              name_suffix: 'fa',
                               build_by_default: false)
-migration = declare_dependency(link_with: libmigration,
+migration = declare_dependency(objects: libmigration.extract_all_objects(recursive: false),
                                dependencies: [qom, io])
 system_ss.add(migration)
 
 block_ss = block_ss.apply({})
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
-                          link_depends: block_syms,
-                          name_suffix: 'fa',
                           build_by_default: false)
 
-block = declare_dependency(link_whole: [libblock],
-                           link_args: '@block.syms',
-                           dependencies: [crypto, io])
+block = declare_dependency(objects: libblock.extract_all_objects(recursive: false),
+                           dependencies: [block_ss.dependencies(), crypto, io])
 
 blockdev_ss = blockdev_ss.apply({})
 libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
                              dependencies: blockdev_ss.dependencies(),
-                             name_suffix: 'fa',
                              build_by_default: false)
 
-blockdev = declare_dependency(link_whole: [libblockdev],
-                              dependencies: [block, event_loop_base])
+blockdev = declare_dependency(objects: libblockdev.extract_all_objects(recursive: false),
+                              dependencies: [blockdev_ss.dependencies(), block, event_loop_base])
 
 qmp_ss = qmp_ss.apply({})
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         dependencies: qmp_ss.dependencies(),
-                        name_suffix: 'fa',
                         build_by_default: false)
 
-qmp = declare_dependency(link_whole: [libqmp])
+qmp = declare_dependency(objects: libqmp.extract_all_objects(recursive: false),
+                         dependencies: qmp_ss.dependencies())
 
 libchardev = static_library('chardev', chardev_ss.sources() + genh,
-                            name_suffix: 'fa',
                             dependencies: chardev_ss.dependencies(),
                             build_by_default: false)
 
-chardev = declare_dependency(link_whole: libchardev)
+chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false),
+                             dependencies: chardev_ss.dependencies())
 
 hwcore_ss = hwcore_ss.apply({})
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
-                           name_suffix: 'fa',
                            build_by_default: false)
-hwcore = declare_dependency(link_whole: libhwcore)
+hwcore = declare_dependency(objects: libhwcore.extract_all_objects(recursive: false))
 common_ss.add(hwcore)
 
 ###########
 # Targets #
 ###########
-
-emulator_modules = []
-foreach m : block_mods + system_mods
-  emulator_modules += shared_module(m.name(),
-                build_by_default: true,
-                name_prefix: '',
-                link_whole: m,
-                install: true,
-                install_dir: qemu_moddir)
-endforeach
-if emulator_modules.length() > 0
-  alias_target('modules', emulator_modules)
-endif
 
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
@@ -3818,8 +3815,7 @@ common_all = static_library('common',
                             sources: common_ss.all_sources() + genh,
                             include_directories: common_user_inc,
                             implicit_include_directories: false,
-                            dependencies: common_ss.all_dependencies(),
-                            name_suffix: 'fa')
+                            dependencies: common_ss.all_dependencies())
 
 feature_to_c = find_program('scripts/feature_to_c.py')
 
@@ -3928,8 +3924,7 @@ foreach target : target_dirs
                  objects: objects,
                  include_directories: target_inc,
                  c_args: c_args,
-                 build_by_default: false,
-                 name_suffix: 'fa')
+                 build_by_default: false)
 
   if target.endswith('-softmmu')
     execs = [{
@@ -4035,11 +4030,14 @@ endif
 
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
+             link_args: '@block.syms', link_depends: block_syms,
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
+             link_args: '@block.syms', link_depends: block_syms,
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
-               dependencies: [blockdev, qemuutil, gnutls, selinux],
+               link_args: '@block.syms', link_depends: block_syms,
+               dependencies: [blockdev, qemuutil, selinux],
                install: true)
 
   subdir('storage-daemon')
