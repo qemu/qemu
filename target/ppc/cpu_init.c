@@ -1,3 +1,4 @@
+
 /*
  *  PowerPC CPU initialization for qemu.
  *
@@ -7481,6 +7482,7 @@ static const TCGCPUOps ppc_tcg_ops = {
 #else
   .tlb_fill = ppc_cpu_tlb_fill,
   .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .cpu_exec_halt = ppc_cpu_has_work,
   .do_interrupt = ppc_cpu_do_interrupt,
   .cpu_exec_enter = ppc_cpu_exec_enter,
   .cpu_exec_exit = ppc_cpu_exec_exit,

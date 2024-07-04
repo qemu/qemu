@@ -169,6 +169,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .restore_state_to_opc = tricore_restore_state_to_opc,
     .tlb_fill = tricore_cpu_tlb_fill,
+    .cpu_exec_halt = tricore_cpu_has_work,
 };
 
 static void tricore_cpu_class_init(ObjectClass *c, void *data)
