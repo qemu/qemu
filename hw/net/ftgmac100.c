@@ -1107,9 +1107,14 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
         s->rxdes0_edorr = FTGMAC100_RXDES0_EDORR;
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &ftgmac100_ops, s,
-                          TYPE_FTGMAC100, 0x2000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init(&s->iomem_container, OBJECT(s),
+                       TYPE_FTGMAC100 ".container", FTGMAC100_MEM_SIZE);
+    sysbus_init_mmio(sbd, &s->iomem_container);
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &ftgmac100_ops, s,
+                          TYPE_FTGMAC100 ".regs", FTGMAC100_REG_MEM_SIZE);
+    memory_region_add_subregion(&s->iomem_container, 0x0, &s->iomem);
+
     sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 

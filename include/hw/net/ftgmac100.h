@@ -14,6 +14,9 @@
 #define TYPE_FTGMAC100 "ftgmac100"
 OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
 
+#define FTGMAC100_MEM_SIZE 0x1000
+#define FTGMAC100_REG_MEM_SIZE 0x100
+
 #include "hw/sysbus.h"
 #include "net/net.h"
 
@@ -30,6 +33,7 @@ struct FTGMAC100State {
     NICState *nic;
     NICConf conf;
     qemu_irq irq;
+    MemoryRegion iomem_container;
     MemoryRegion iomem;
 
     uint8_t frame[FTGMAC100_MAX_FRAME_SIZE];
