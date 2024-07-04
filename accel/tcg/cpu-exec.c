@@ -682,13 +682,8 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 #ifndef CONFIG_USER_ONLY
     if (cpu->halted) {
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-        bool leave_halt;
+        bool leave_halt = tcg_ops->cpu_exec_halt(cpu);
 
-        if (tcg_ops->cpu_exec_halt) {
-            leave_halt = tcg_ops->cpu_exec_halt(cpu);
-        } else {
-            leave_halt = cpu_has_work(cpu);
-        }
         if (!leave_halt) {
             return true;
         }
@@ -1082,6 +1077,10 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
     static bool tcg_target_initialized;
 
     if (!tcg_target_initialized) {
+        /* Check mandatory TCGCPUOps handlers */
+#ifndef CONFIG_USER_ONLY
+        assert(cpu->cc->tcg_ops->cpu_exec_halt);
+#endif /* !CONFIG_USER_ONLY */
         cpu->cc->tcg_ops->initialize();
         tcg_target_initialized = true;
     }
