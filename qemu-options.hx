@@ -3353,7 +3353,7 @@ SRST
                          -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
-``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off]``
+``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off][,reconnect=seconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a TCP/IP socket.
 
     ``server=on|off``
@@ -3380,6 +3380,10 @@ SRST
     ``ipv6=on|off``
         whether to accept IPv6 addresses, default to try both IPv4 and IPv6
 
+    ``reconnect=seconds``
+        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of seconds.
+        Setting this to zero disables this function.  (default: 0)
+
     Example (two guests connected using a TCP/IP socket):
 
     .. parsed-literal::
@@ -3391,9 +3395,9 @@ SRST
         # second VM
         |qemu_system| linux.img \\
                       -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
-                      -netdev stream,id=net0,server=off,addr.type=inet,addr.host=localhost,addr.port=1234
+                      -netdev stream,id=net0,server=off,addr.type=inet,addr.host=localhost,addr.port=1234,reconnect=5
 
-``-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,abstract=on|off][,tight=on|off]``
+``-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,abstract=on|off][,tight=on|off][,reconnect=seconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented unix domain socket.
 
     ``server=on|off``
@@ -3407,6 +3411,10 @@ SRST
 
     ``tight=on|off``
         if false, pad an abstract socket address with enough null bytes to make it fill struct sockaddr_un member sun_path.
+
+    ``reconnect=seconds``
+        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of seconds.
+        Setting this to zero disables this function.  (default: 0)
 
     Example (using passt as a replacement of -netdev user):
 
@@ -3431,9 +3439,9 @@ SRST
         # second VM
         |qemu_system| linux.img \\
                       -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
-                      -netdev stream,id=net0,server=off,addr.type=unix,addr.path=/tmp/qemu0
+                      -netdev stream,id=net0,server=off,addr.type=unix,addr.path=/tmp/qemu0,reconnect=5
 
-``-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor``
+``-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor[,reconnect=seconds]``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented socket file descriptor.
 
     ``server=on|off``
@@ -3441,6 +3449,10 @@ SRST
 
     ``addr.str=file-descriptor``
         file descriptor number to use as a socket
+
+    ``reconnect=seconds``
+        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of seconds.
+        Setting this to zero disables this function.  (default: 0)
 
 ``-netdev dgram,id=str,remote.type=inet,remote.host=maddr,remote.port=port[,local.type=inet,local.host=addr]``
     Configure a network backend to connect to a multicast address.
