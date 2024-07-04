@@ -3353,6 +3353,120 @@ SRST
                          -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
+``-netdev stream,id=str[,server=on|off],addr.type=inet,addr.host=host,addr.port=port[,to=maxport][,numeric=on|off][,keep-alive=on|off][,mptcp=on|off][,addr.ipv4=on|off][,addr.ipv6=on|off]``
+    Configure a network backend to connect to another QEMU virtual machine or a proxy using a TCP/IP socket.
+
+    ``server=on|off``
+        if ``on`` create a server socket
+
+    ``addr.host=host,addr.port=port``
+        socket address to listen on (server=on) or connect to (server=off)
+
+    ``to=maxport``
+        if present, this is range of possible addresses, with port between ``port`` and ``maxport``.
+
+    ``numeric=on|off``
+        if ``on`` ``host`` and ``port`` are guaranteed to be numeric, otherwise a name resolution should be attempted (default: ``off``)
+
+    ``keep-alive=on|off``
+        enable keep-alive when connecting to this socket.  Not supported for passive sockets.
+
+    ``mptcp=on|off``
+        enable multipath TCP
+
+    ``ipv4=on|off``
+        whether to accept IPv4 addresses, default to try both IPv4 and IPv6
+
+    ``ipv6=on|off``
+        whether to accept IPv6 addresses, default to try both IPv4 and IPv6
+
+    Example (two guests connected using a TCP/IP socket):
+
+    .. parsed-literal::
+
+        # first VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      -netdev stream,id=net0,server=on,addr.type=inet,addr.host=localhost,addr.port=1234
+        # second VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
+                      -netdev stream,id=net0,server=off,addr.type=inet,addr.host=localhost,addr.port=1234
+
+``-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor``
+    Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented socket file descriptor.
+
+    ``server=on|off``
+        if ``on`` create a server socket
+
+    ``addr.str=file-descriptor``
+        file descriptor number to use as a socket
+
+``-netdev dgram,id=str,remote.type=inet,remote.host=maddr,remote.port=port[,local.type=inet,local.host=addr]``
+    Configure a network backend to connect to a multicast address.
+
+    ``remote.host=maddr,remote.port=port``
+        multicast address
+
+    ``local.host=addr``
+        specify the host address to send packets from
+
+    Example:
+
+    .. parsed-literal::
+
+        # launch one QEMU instance
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      -netdev dgram,id=net0,remote.type=inet,remote.host=224.0.0.1,remote.port=1234
+        # launch another QEMU instance on same "bus"
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
+                      -netdev dgram,id=net0,remote.type=inet,remote.host=224.0.0.1,remote.port=1234
+        # launch yet another QEMU instance on same "bus"
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:58 \\
+                      -netdev dgram,id=net0,remote.type=inet,remote.host=224.0.0.1,remote.port=1234
+
+``-netdev dgram,id=str,remote.type=inet,remote.host=maddr,remote.port=port[,local.type=fd,local.str=file-descriptor]``
+    Configure a network backend to connect to a multicast address using a UDP socket file descriptor.
+
+    ``remote.host=maddr,remote.port=port``
+        multicast address
+
+    ``local.str=file-descriptor``
+        File descriptor to use to send packets
+
+``-netdev dgram,id=str,local.type=inet,local.host=addr,local.port=port[,remote.type=inet,remote.host=addr,remote.port=port]``
+    Configure a network backend to connect to another QEMU virtual
+    machine or a proxy using a datagram oriented unix domain socket.
+
+    ``local.host=addr,local.port=port``
+        IP address to use to send the packets from
+
+    ``remote.host=addr,remote.port=port``
+        Destination IP address
+
+    Example (two guests connected using an UDP/IP socket):
+
+    .. parsed-literal::
+
+        # first VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      -netdev dgram,id=net0,local.type=inet,local.host=localhost,local.port=1234,remote.type=inet,remote.host=localhost,remote.port=1235
+        # second VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      -netdev dgram,id=net0,local.type=inet,local.host=localhost,local.port=1235,remote.type=inet,remote.host=localhost,remote.port=1234
+
+``-netdev dgram,id=str,local.type=fd,local.str=file-descriptor``
+    Configure a network backend to connect to another QEMU virtual
+    machine or a proxy using a datagram oriented socket file descriptor.
+
+    ``local.str=file-descriptor``
+        File descriptor to use to send packets
+
 ``-netdev l2tpv3,id=id,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on|off][,udp=on|off][,cookie64=on|off][,counter=on|off][,pincounter=on|off][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]``
     Configure a L2TPv3 pseudowire host network backend. L2TPv3 (RFC3931)
     is a popular protocol to transport Ethernet (and other Layer 2) data
