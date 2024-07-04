@@ -416,6 +416,7 @@ typedef enum {
     /*
      * Micron: 0x35 - enable QPI
      * Spansion: 0x35 - read control register
+     * Winbond: 0x35 - quad enable
      */
     RDCR_EQIO = 0x35,
     RSTQIO = 0xf5,
@@ -796,6 +797,11 @@ static void complete_collecting_data(Flash *s)
             if (s->len > 1) {
                 s->volatile_cfg = s->data[1];
                 s->four_bytes_address_mode = extract32(s->data[1], 5, 1);
+            }
+            break;
+        case MAN_WINBOND:
+            if (s->len > 1) {
+                s->quad_enable = !!(s->data[1] & 0x02);
             }
             break;
         default:
@@ -1254,6 +1260,10 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             s->needed_bytes = 2;
             s->state = STATE_COLLECTING_VAR_LEN_DATA;
             break;
+        case MAN_WINBOND:
+            s->needed_bytes = 2;
+            s->state = STATE_COLLECTING_VAR_LEN_DATA;
+            break;
         default:
             s->needed_bytes = 1;
             s->state = STATE_COLLECTING_DATA;
@@ -1430,6 +1440,12 @@ static void decode_new_cmd(Flash *s, uint32_t value)
             break;
         case MAN_MACRONIX:
             s->quad_enable = true;
+            break;
+        case MAN_WINBOND:
+            s->data[0] = (!!s->quad_enable) << 1;
+            s->pos = 0;
+            s->len = 1;
+            s->state = STATE_READING_DATA;
             break;
         default:
             break;
