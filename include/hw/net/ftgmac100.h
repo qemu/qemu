@@ -16,6 +16,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
 
 #define FTGMAC100_MEM_SIZE 0x1000
 #define FTGMAC100_REG_MEM_SIZE 0x100
+#define FTGMAC100_REG_HIGH_MEM_SIZE 0x100
+#define FTGMAC100_REG_HIGH_OFFSET 0x100
 
 #include "hw/sysbus.h"
 #include "net/net.h"
@@ -35,6 +37,7 @@ struct FTGMAC100State {
     qemu_irq irq;
     MemoryRegion iomem_container;
     MemoryRegion iomem;
+    MemoryRegion iomem_high;
 
     uint8_t frame[FTGMAC100_MAX_FRAME_SIZE];
 
@@ -68,6 +71,7 @@ struct FTGMAC100State {
     bool aspeed;
     uint32_t txdes0_edotr;
     uint32_t rxdes0_edorr;
+    bool dma64;
 };
 
 #define TYPE_ASPEED_MII "aspeed-mmi"

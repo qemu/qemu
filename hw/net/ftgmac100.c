@@ -57,6 +57,16 @@
 #define FTGMAC100_FCR             0x68
 
 /*
+ * FTGMAC100 registers high
+ *
+ * values below are offset by - FTGMAC100_REG_HIGH_OFFSET from datasheet
+ * because its memory region is start at FTGMAC100_REG_HIGH_OFFSET
+ */
+#define FTGMAC100_NPTXR_BADR_HIGH   (0x17C - FTGMAC100_REG_HIGH_OFFSET)
+#define FTGMAC100_HPTXR_BADR_HIGH   (0x184 - FTGMAC100_REG_HIGH_OFFSET)
+#define FTGMAC100_RXR_BADR_HIGH     (0x18C - FTGMAC100_REG_HIGH_OFFSET)
+
+/*
  * Interrupt status register & interrupt enable register
  */
 #define FTGMAC100_INT_RPKT_BUF    (1 << 0)
@@ -913,6 +923,60 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
     ftgmac100_update_irq(s);
 }
 
+static uint64_t ftgmac100_high_read(void *opaque, hwaddr addr, unsigned size)
+{
+    FTGMAC100State *s = FTGMAC100(opaque);
+    uint64_t val = 0;
+
+    switch (addr) {
+    case FTGMAC100_NPTXR_BADR_HIGH:
+        val = extract64(s->tx_ring, 32, 32);
+        break;
+    case FTGMAC100_HPTXR_BADR_HIGH:
+        /* High Priority Transmit Ring Base High Address */
+        qemu_log_mask(LOG_UNIMP, "%s: read to unimplemented register 0x%"
+                      HWADDR_PRIx "\n", __func__, addr);
+        break;
+    case FTGMAC100_RXR_BADR_HIGH:
+        val = extract64(s->rx_ring, 32, 32);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address at offset 0x%"
+                      HWADDR_PRIx "\n", __func__, addr);
+        break;
+    }
+
+    return val;
+}
+
+static void ftgmac100_high_write(void *opaque, hwaddr addr,
+                          uint64_t value, unsigned size)
+{
+    FTGMAC100State *s = FTGMAC100(opaque);
+
+    switch (addr) {
+    case FTGMAC100_NPTXR_BADR_HIGH:
+        s->tx_ring = deposit64(s->tx_ring, 32, 32, value);
+        s->tx_descriptor = deposit64(s->tx_descriptor, 32, 32, value);
+        break;
+    case FTGMAC100_HPTXR_BADR_HIGH:
+        /* High Priority Transmit Ring Base High Address */
+        qemu_log_mask(LOG_UNIMP, "%s: write to unimplemented register 0x%"
+                      HWADDR_PRIx "\n", __func__, addr);
+        break;
+    case FTGMAC100_RXR_BADR_HIGH:
+        s->rx_ring = deposit64(s->rx_ring, 32, 32, value);
+        s->rx_descriptor = deposit64(s->rx_descriptor, 32, 32, value);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad address at offset 0x%"
+                      HWADDR_PRIx "\n", __func__, addr);
+        break;
+    }
+
+    ftgmac100_update_irq(s);
+}
+
 static int ftgmac100_filter(FTGMAC100State *s, const uint8_t *buf, size_t len)
 {
     unsigned mcast_idx;
@@ -1077,6 +1141,14 @@ static const MemoryRegionOps ftgmac100_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static const MemoryRegionOps ftgmac100_high_ops = {
+    .read = ftgmac100_high_read,
+    .write = ftgmac100_high_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static void ftgmac100_cleanup(NetClientState *nc)
 {
     FTGMAC100State *s = FTGMAC100(qemu_get_nic_opaque(nc));
@@ -1113,6 +1185,15 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem, OBJECT(s), &ftgmac100_ops, s,
                           TYPE_FTGMAC100 ".regs", FTGMAC100_REG_MEM_SIZE);
     memory_region_add_subregion(&s->iomem_container, 0x0, &s->iomem);
+
+    if (s->dma64) {
+        memory_region_init_io(&s->iomem_high, OBJECT(s), &ftgmac100_high_ops,
+                              s, TYPE_FTGMAC100 ".regs.high",
+                              FTGMAC100_REG_HIGH_MEM_SIZE);
+        memory_region_add_subregion(&s->iomem_container,
+                                    FTGMAC100_REG_HIGH_OFFSET,
+                                    &s->iomem_high);
+    }
 
     sysbus_init_irq(sbd, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
@@ -1162,6 +1243,7 @@ static const VMStateDescription vmstate_ftgmac100 = {
 static Property ftgmac100_properties[] = {
     DEFINE_PROP_BOOL("aspeed", FTGMAC100State, aspeed, false),
     DEFINE_NIC_PROPERTIES(FTGMAC100State, conf),
+    DEFINE_PROP_BOOL("dma64", FTGMAC100State, dma64, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
