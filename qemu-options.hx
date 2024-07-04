@@ -3393,6 +3393,46 @@ SRST
                       -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
                       -netdev stream,id=net0,server=off,addr.type=inet,addr.host=localhost,addr.port=1234
 
+``-netdev stream,id=str[,server=on|off],addr.type=unix,addr.path=path[,abstract=on|off][,tight=on|off]``
+    Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented unix domain socket.
+
+    ``server=on|off``
+        if ``on`` create a server socket
+
+    ``addr.path=path``
+        filesystem path to use
+
+    ``abstract=on|off``
+        if ``on``, this is a Linux abstract socket address.
+
+    ``tight=on|off``
+        if false, pad an abstract socket address with enough null bytes to make it fill struct sockaddr_un member sun_path.
+
+    Example (using passt as a replacement of -netdev user):
+
+    .. parsed-literal::
+
+        # start passt server as a non privileged user
+        passt
+        UNIX domain socket bound at /tmp/passt_1.socket
+        # start QEMU to connect to passt
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0 \\
+                      -netdev stream,id=net0,server=off,addr.type=unix,addr.path=/tmp/passt_1.socket
+
+    Example (two guests connected using a stream oriented unix domain socket):
+
+    .. parsed-literal::
+
+        # first VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      netdev stream,id=net0,server=on,addr.type=unix,addr.path=/tmp/qemu0
+        # second VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
+                      -netdev stream,id=net0,server=off,addr.type=unix,addr.path=/tmp/qemu0
+
 ``-netdev stream,id=str[,server=on|off],addr.type=fd,addr.str=file-descriptor``
     Configure a network backend to connect to another QEMU virtual machine or a proxy using a stream oriented socket file descriptor.
 
