@@ -3500,6 +3500,29 @@ SRST
                       -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
                       -netdev dgram,id=net0,local.type=inet,local.host=localhost,local.port=1235,remote.type=inet,remote.host=localhost,remote.port=1234
 
+``-netdev dgram,id=str,local.type=unix,local.path=path[,remote.type=unix,remote.path=path]``
+    Configure a network backend to connect to another QEMU virtual
+    machine or a proxy using a datagram oriented unix socket.
+
+    ``local.path=path``
+        filesystem path to use to bind the socket
+
+    ``remote.path=path``
+        filesystem path to use as a destination (see sendto(2))
+
+    Example (two guests connected using an UDP/UNIX socket):
+
+    .. parsed-literal::
+
+        # first VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \\
+                      -netdev dgram,id=net0,local.type=unix,local.path=/tmp/qemu0,remote.type=unix,remote.path=/tmp/qemu1
+        # second VM
+        |qemu_system| linux.img \\
+                      -device virtio-net,netdev=net0,mac=52:54:00:12:34:57 \\
+                      -netdev dgram,id=net0,local.type=unix,local.path=/tmp/qemu1,remote.type=unix,remote.path=/tmp/qemu0
+
 ``-netdev dgram,id=str,local.type=fd,local.str=file-descriptor``
     Configure a network backend to connect to another QEMU virtual
     machine or a proxy using a datagram oriented socket file descriptor.
