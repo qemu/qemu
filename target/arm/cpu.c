@@ -1133,7 +1133,7 @@ static bool arm_cpu_virtio_is_big_endian(CPUState *cs)
 }
 
 #ifdef CONFIG_TCG
-static bool arm_cpu_exec_halt(CPUState *cs)
+bool arm_cpu_exec_halt(CPUState *cs)
 {
     bool leave_halt = cpu_has_work(cs);
 
