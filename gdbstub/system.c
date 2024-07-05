@@ -16,6 +16,7 @@
 #include "qemu/cutils.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/syscalls.h"
+#include "gdbstub/commands.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "sysemu/cpus.h"
@@ -501,7 +502,7 @@ void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *ctx)
         return;
     }
 
-    if (!get_param(params, 0)->val_ul) {
+    if (!gdb_get_cmd_param(params, 0)->val_ul) {
         phy_memory_mode = 0;
     } else {
         phy_memory_mode = 1;
@@ -519,7 +520,7 @@ void gdb_handle_query_rcmd(GArray *params, void *ctx)
         return;
     }
 
-    len = strlen(get_param(params, 0)->data);
+    len = strlen(gdb_get_cmd_param(params, 0)->data);
     if (len % 2) {
         gdb_put_packet("E01");
         return;
@@ -527,7 +528,7 @@ void gdb_handle_query_rcmd(GArray *params, void *ctx)
 
     g_assert(gdbserver_state.mem_buf->len == 0);
     len = len / 2;
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 0)->data, len);
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 0)->data, len);
     g_byte_array_append(gdbserver_state.mem_buf, &zero, 1);
     qemu_chr_be_write(gdbserver_system_state.mon_chr,
                       gdbserver_state.mem_buf->data,

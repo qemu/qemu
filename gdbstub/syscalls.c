@@ -16,6 +16,7 @@
 #include "sysemu/runstate.h"
 #include "gdbstub/user.h"
 #include "gdbstub/syscalls.h"
+#include "gdbstub/commands.h"
 #include "trace.h"
 #include "internals.h"
 
@@ -154,9 +155,9 @@ void gdb_handle_file_io(GArray *params, void *user_ctx)
         uint64_t ret;
         int err;
 
-        ret = get_param(params, 0)->val_ull;
+        ret = gdb_get_cmd_param(params, 0)->val_ull;
         if (params->len >= 2) {
-            err = get_param(params, 1)->val_ull;
+            err = gdb_get_cmd_param(params, 1)->val_ull;
         } else {
             err = 0;
         }
@@ -196,7 +197,7 @@ void gdb_handle_file_io(GArray *params, void *user_ctx)
         gdbserver_syscall_state.current_syscall_cb = NULL;
     }
 
-    if (params->len >= 3 && get_param(params, 2)->opcode == (uint8_t)'C') {
+    if (params->len >= 3 && gdb_get_cmd_param(params, 2)->opcode == (uint8_t)'C') {
         gdb_put_packet("T02");
         return;
     }

@@ -16,6 +16,7 @@
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/commands.h"
 #include "gdbstub/syscalls.h"
 #include "gdbstub/user.h"
 #include "gdbstub/enums.h"
@@ -793,7 +794,7 @@ void gdb_syscall_return(CPUState *cs, int num)
 
 void gdb_handle_set_catch_syscalls(GArray *params, void *user_ctx)
 {
-    const char *param = get_param(params, 0)->data;
+    const char *param = gdb_get_cmd_param(params, 0)->data;
     GDBSyscallsMask catch_syscalls_mask;
     bool catch_all_syscalls;
     unsigned int num;
@@ -858,8 +859,8 @@ void gdb_handle_query_xfer_siginfo(GArray *params, void *user_ctx)
     unsigned long offset, len;
     uint8_t *siginfo_offset;
 
-    offset = get_param(params, 0)->val_ul;
-    len = get_param(params, 1)->val_ul;
+    offset = gdb_get_cmd_param(params, 0)->val_ul;
+    len = gdb_get_cmd_param(params, 1)->val_ul;
 
     if (offset + len > gdbserver_user_state.siginfo_len) {
         /* Invalid offset and/or requested length. */

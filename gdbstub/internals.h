@@ -106,7 +106,6 @@ static inline int tohex(int v)
  */
 
 void gdb_put_strbuf(void);
-int gdb_put_packet(const char *buf);
 int gdb_put_packet_binary(const char *buf, int len, bool dump);
 void gdb_hextomem(GByteArray *mem, const char *buf, int len);
 void gdb_memtohex(GString *buf, const uint8_t *mem, int len);
@@ -165,27 +164,6 @@ void gdb_put_buffer(const uint8_t *buf, int len);
  * Command handlers - either specialised or system or user only
  */
 void gdb_init_gdbserver_state(void);
-
-typedef enum GDBThreadIdKind {
-    GDB_ONE_THREAD = 0,
-    GDB_ALL_THREADS,     /* One process, all threads */
-    GDB_ALL_PROCESSES,
-    GDB_READ_THREAD_ERR
-} GDBThreadIdKind;
-
-typedef union GdbCmdVariant {
-    const char *data;
-    uint8_t opcode;
-    unsigned long val_ul;
-    unsigned long long val_ull;
-    struct {
-        GDBThreadIdKind kind;
-        uint32_t pid;
-        uint32_t tid;
-    } thread_id;
-} GdbCmdVariant;
-
-#define get_param(p, i)    (&g_array_index(p, GdbCmdVariant, i))
 
 void gdb_handle_query_rcmd(GArray *params, void *ctx); /* system */
 void gdb_handle_query_offsets(GArray *params, void *user_ctx); /* user */

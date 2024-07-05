@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/commands.h"
 #include "gdbstub/syscalls.h"
 #ifdef CONFIG_USER_ONLY
 #include "accel/tcg/vcpu-state.h"
@@ -920,43 +921,6 @@ static int cmd_parse_params(const char *data, const char *schema,
     return 0;
 }
 
-typedef void (*GdbCmdHandler)(GArray *params, void *user_ctx);
-
-/*
- * cmd_startswith -> cmd is compared using startswith
- *
- * allow_stop_reply -> true iff the gdbstub can respond to this command with a
- *   "stop reply" packet. The list of commands that accept such response is
- *   defined at the GDB Remote Serial Protocol documentation. see:
- *   https://sourceware.org/gdb/onlinedocs/gdb/Stop-Reply-Packets.html#Stop-Reply-Packets.
- *
- * schema definitions:
- * Each schema parameter entry consists of 2 chars,
- * the first char represents the parameter type handling
- * the second char represents the delimiter for the next parameter
- *
- * Currently supported schema types:
- * 'l' -> unsigned long (stored in .val_ul)
- * 'L' -> unsigned long long (stored in .val_ull)
- * 's' -> string (stored in .data)
- * 'o' -> single char (stored in .opcode)
- * 't' -> thread id (stored in .thread_id)
- * '?' -> skip according to delimiter
- *
- * Currently supported delimiters:
- * '?' -> Stop at any delimiter (",;:=\0")
- * '0' -> Stop at "\0"
- * '.' -> Skip 1 char unless reached "\0"
- * Any other value is treated as the delimiter value itself
- */
-typedef struct GdbCmdParseEntry {
-    GdbCmdHandler handler;
-    const char *cmd;
-    bool cmd_startswith;
-    const char *schema;
-    bool allow_stop_reply;
-} GdbCmdParseEntry;
-
 static inline int startswith(const char *string, const char *pattern)
 {
   return !strncmp(string, pattern, strlen(pattern));
@@ -1023,7 +987,7 @@ static void handle_detach(GArray *params, void *user_ctx)
             return;
         }
 
-        pid = get_param(params, 0)->val_ul;
+        pid = gdb_get_cmd_param(params, 0)->val_ul;
     }
 
 #ifdef CONFIG_USER_ONLY
@@ -1061,13 +1025,13 @@ static void handle_thread_alive(GArray *params, void *user_ctx)
         return;
     }
 
-    if (get_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
+    if (gdb_get_cmd_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    cpu = gdb_get_cpu(get_param(params, 0)->thread_id.pid,
-                      get_param(params, 0)->thread_id.tid);
+    cpu = gdb_get_cpu(gdb_get_cmd_param(params, 0)->thread_id.pid,
+                      gdb_get_cmd_param(params, 0)->thread_id.tid);
     if (!cpu) {
         gdb_put_packet("E22");
         return;
@@ -1079,7 +1043,7 @@ static void handle_thread_alive(GArray *params, void *user_ctx)
 static void handle_continue(GArray *params, void *user_ctx)
 {
     if (params->len) {
-        gdb_set_cpu_pc(get_param(params, 0)->val_ull);
+        gdb_set_cpu_pc(gdb_get_cmd_param(params, 0)->val_ull);
     }
 
     gdbserver_state.signal = 0;
@@ -1095,7 +1059,7 @@ static void handle_cont_with_sig(GArray *params, void *user_ctx)
      *       omit the addr parameter
      */
     if (params->len) {
-        signal = get_param(params, 0)->val_ul;
+        signal = gdb_get_cmd_param(params, 0)->val_ul;
     }
 
     gdbserver_state.signal = gdb_signal_to_target(signal);
@@ -1115,18 +1079,18 @@ static void handle_set_thread(GArray *params, void *user_ctx)
         return;
     }
 
-    if (get_param(params, 1)->thread_id.kind == GDB_READ_THREAD_ERR) {
+    if (gdb_get_cmd_param(params, 1)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    if (get_param(params, 1)->thread_id.kind != GDB_ONE_THREAD) {
+    if (gdb_get_cmd_param(params, 1)->thread_id.kind != GDB_ONE_THREAD) {
         gdb_put_packet("OK");
         return;
     }
 
-    pid = get_param(params, 1)->thread_id.pid;
-    tid = get_param(params, 1)->thread_id.tid;
+    pid = gdb_get_cmd_param(params, 1)->thread_id.pid;
+    tid = gdb_get_cmd_param(params, 1)->thread_id.tid;
 #ifdef CONFIG_USER_ONLY
     if (gdb_handle_set_thread_user(pid, tid)) {
         return;
@@ -1142,7 +1106,7 @@ static void handle_set_thread(GArray *params, void *user_ctx)
      * Note: This command is deprecated and modern gdb's will be using the
      *       vCont command instead.
      */
-    switch (get_param(params, 0)->opcode) {
+    switch (gdb_get_cmd_param(params, 0)->opcode) {
     case 'c':
         gdbserver_state.c_cpu = cpu;
         gdb_put_packet("OK");
@@ -1167,9 +1131,9 @@ static void handle_insert_bp(GArray *params, void *user_ctx)
     }
 
     res = gdb_breakpoint_insert(gdbserver_state.c_cpu,
-                                get_param(params, 0)->val_ul,
-                                get_param(params, 1)->val_ull,
-                                get_param(params, 2)->val_ull);
+                                gdb_get_cmd_param(params, 0)->val_ul,
+                                gdb_get_cmd_param(params, 1)->val_ull,
+                                gdb_get_cmd_param(params, 2)->val_ull);
     if (res >= 0) {
         gdb_put_packet("OK");
         return;
@@ -1191,9 +1155,9 @@ static void handle_remove_bp(GArray *params, void *user_ctx)
     }
 
     res = gdb_breakpoint_remove(gdbserver_state.c_cpu,
-                                get_param(params, 0)->val_ul,
-                                get_param(params, 1)->val_ull,
-                                get_param(params, 2)->val_ull);
+                                gdb_get_cmd_param(params, 0)->val_ul,
+                                gdb_get_cmd_param(params, 1)->val_ull,
+                                gdb_get_cmd_param(params, 2)->val_ull);
     if (res >= 0) {
         gdb_put_packet("OK");
         return;
@@ -1225,10 +1189,10 @@ static void handle_set_reg(GArray *params, void *user_ctx)
         return;
     }
 
-    reg_size = strlen(get_param(params, 1)->data) / 2;
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 1)->data, reg_size);
+    reg_size = strlen(gdb_get_cmd_param(params, 1)->data) / 2;
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 1)->data, reg_size);
     gdb_write_register(gdbserver_state.g_cpu, gdbserver_state.mem_buf->data,
-                       get_param(params, 0)->val_ull);
+                       gdb_get_cmd_param(params, 0)->val_ull);
     gdb_put_packet("OK");
 }
 
@@ -1243,7 +1207,7 @@ static void handle_get_reg(GArray *params, void *user_ctx)
 
     reg_size = gdb_read_register(gdbserver_state.g_cpu,
                                  gdbserver_state.mem_buf,
-                                 get_param(params, 0)->val_ull);
+                                 gdb_get_cmd_param(params, 0)->val_ull);
     if (!reg_size) {
         gdb_put_packet("E14");
         return;
@@ -1264,16 +1228,16 @@ static void handle_write_mem(GArray *params, void *user_ctx)
     }
 
     /* gdb_hextomem() reads 2*len bytes */
-    if (get_param(params, 1)->val_ull >
-        strlen(get_param(params, 2)->data) / 2) {
+    if (gdb_get_cmd_param(params, 1)->val_ull >
+        strlen(gdb_get_cmd_param(params, 2)->data) / 2) {
         gdb_put_packet("E22");
         return;
     }
 
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 2)->data,
-                 get_param(params, 1)->val_ull);
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 2)->data,
+                 gdb_get_cmd_param(params, 1)->val_ull);
     if (gdb_target_memory_rw_debug(gdbserver_state.g_cpu,
-                                   get_param(params, 0)->val_ull,
+                                   gdb_get_cmd_param(params, 0)->val_ull,
                                    gdbserver_state.mem_buf->data,
                                    gdbserver_state.mem_buf->len, true)) {
         gdb_put_packet("E14");
@@ -1291,16 +1255,16 @@ static void handle_read_mem(GArray *params, void *user_ctx)
     }
 
     /* gdb_memtohex() doubles the required space */
-    if (get_param(params, 1)->val_ull > MAX_PACKET_LENGTH / 2) {
+    if (gdb_get_cmd_param(params, 1)->val_ull > MAX_PACKET_LENGTH / 2) {
         gdb_put_packet("E22");
         return;
     }
 
     g_byte_array_set_size(gdbserver_state.mem_buf,
-                          get_param(params, 1)->val_ull);
+                          gdb_get_cmd_param(params, 1)->val_ull);
 
     if (gdb_target_memory_rw_debug(gdbserver_state.g_cpu,
-                                   get_param(params, 0)->val_ull,
+                                   gdb_get_cmd_param(params, 0)->val_ull,
                                    gdbserver_state.mem_buf->data,
                                    gdbserver_state.mem_buf->len, false)) {
         gdb_put_packet("E14");
@@ -1324,8 +1288,8 @@ static void handle_write_all_regs(GArray *params, void *user_ctx)
     }
 
     cpu_synchronize_state(gdbserver_state.g_cpu);
-    len = strlen(get_param(params, 0)->data) / 2;
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 0)->data, len);
+    len = strlen(gdb_get_cmd_param(params, 0)->data) / 2;
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 0)->data, len);
     registers = gdbserver_state.mem_buf->data;
     for (reg_id = 0;
          reg_id < gdbserver_state.g_cpu->gdb_num_g_regs && len > 0;
@@ -1360,7 +1324,7 @@ static void handle_read_all_regs(GArray *params, void *user_ctx)
 static void handle_step(GArray *params, void *user_ctx)
 {
     if (params->len) {
-        gdb_set_cpu_pc(get_param(params, 0)->val_ull);
+        gdb_set_cpu_pc(gdb_get_cmd_param(params, 0)->val_ull);
     }
 
     cpu_single_step(gdbserver_state.c_cpu, gdbserver_state.sstep_flags);
@@ -1373,7 +1337,7 @@ static void handle_backward(GArray *params, void *user_ctx)
         gdb_put_packet("E22");
     }
     if (params->len == 1) {
-        switch (get_param(params, 0)->opcode) {
+        switch (gdb_get_cmd_param(params, 0)->opcode) {
         case 's':
             if (replay_reverse_step()) {
                 gdb_continue();
@@ -1408,7 +1372,7 @@ static void handle_v_cont(GArray *params, void *user_ctx)
         return;
     }
 
-    res = gdb_handle_vcont(get_param(params, 0)->data);
+    res = gdb_handle_vcont(gdb_get_cmd_param(params, 0)->data);
     if ((res == -EINVAL) || (res == -ERANGE)) {
         gdb_put_packet("E22");
     } else if (res) {
@@ -1426,7 +1390,7 @@ static void handle_v_attach(GArray *params, void *user_ctx)
         goto cleanup;
     }
 
-    process = gdb_get_process(get_param(params, 0)->val_ul);
+    process = gdb_get_process(gdb_get_cmd_param(params, 0)->val_ul);
     if (!process) {
         goto cleanup;
     }
@@ -1523,7 +1487,7 @@ static void handle_v_commands(GArray *params, void *user_ctx)
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
+    if (!process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                             gdb_v_commands_table,
                             ARRAY_SIZE(gdb_v_commands_table))) {
         gdb_put_packet("");
@@ -1555,7 +1519,7 @@ static void handle_set_qemu_sstep(GArray *params, void *user_ctx)
         return;
     }
 
-    new_sstep_flags = get_param(params, 0)->val_ul;
+    new_sstep_flags = gdb_get_cmd_param(params, 0)->val_ul;
 
     if (new_sstep_flags  & ~gdbserver_state.supported_sstep_flags) {
         gdb_put_packet("E22");
@@ -1615,13 +1579,13 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
     CPUState *cpu;
 
     if (!params->len ||
-        get_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
+        gdb_get_cmd_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    cpu = gdb_get_cpu(get_param(params, 0)->thread_id.pid,
-                      get_param(params, 0)->thread_id.tid);
+    cpu = gdb_get_cpu(gdb_get_cmd_param(params, 0)->thread_id.pid,
+                      gdb_get_cmd_param(params, 0)->thread_id.tid);
     if (!cpu) {
         return;
     }
@@ -1673,7 +1637,7 @@ static void handle_query_supported(GArray *params, void *user_ctx)
 #endif
 
     if (params->len) {
-        const char *gdb_supported = get_param(params, 0)->data;
+        const char *gdb_supported = gdb_get_cmd_param(params, 0)->data;
 
         if (strstr(gdb_supported, "multiprocess+")) {
             gdbserver_state.multiprocess = true;
@@ -1707,15 +1671,15 @@ static void handle_query_xfer_features(GArray *params, void *user_ctx)
         return;
     }
 
-    p = get_param(params, 0)->data;
+    p = gdb_get_cmd_param(params, 0)->data;
     xml = get_feature_xml(p, &p, process);
     if (!xml) {
         gdb_put_packet("E00");
         return;
     }
 
-    addr = get_param(params, 1)->val_ul;
-    len = get_param(params, 2)->val_ul;
+    addr = gdb_get_cmd_param(params, 1)->val_ul;
+    len = gdb_get_cmd_param(params, 2)->val_ul;
     total_len = strlen(xml);
     if (addr > total_len) {
         gdb_put_packet("E00");
@@ -1889,13 +1853,13 @@ static void handle_gen_query(GArray *params, void *user_ctx)
         return;
     }
 
-    if (process_string_cmd(get_param(params, 0)->data,
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                            gdb_gen_query_set_common_table,
                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
+    if (!process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                             gdb_gen_query_table,
                             ARRAY_SIZE(gdb_gen_query_table))) {
         gdb_put_packet("");
@@ -1908,13 +1872,13 @@ static void handle_gen_set(GArray *params, void *user_ctx)
         return;
     }
 
-    if (process_string_cmd(get_param(params, 0)->data,
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                            gdb_gen_query_set_common_table,
                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
+    if (!process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                            gdb_gen_set_table,
                            ARRAY_SIZE(gdb_gen_set_table))) {
         gdb_put_packet("");
