@@ -1673,6 +1673,10 @@ for target in $target_list; do
           echo "GDB=$gdb_bin" >> $config_target_mak
       fi
 
+      if test "${arch}" = "aarch64" && version_ge ${gdb_version##* } 15.0; then
+          echo "GDB_HAS_MTE=y" >> $config_target_mak
+      fi
+
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> Makefile.prereqs
       tcg_tests_targets="$tcg_tests_targets $target"
   fi
