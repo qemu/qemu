@@ -464,6 +464,14 @@ typedef struct CXLDCRegion {
     unsigned long *blk_bitmap;
 } CXLDCRegion;
 
+typedef struct CXLSetFeatureInfo {
+    QemuUUID uuid;
+    uint8_t data_transfer_flag;
+    bool data_saved_across_reset;
+    uint16_t data_offset;
+    size_t data_size;
+} CXLSetFeatureInfo;
+
 struct CXLType3Dev {
     /* Private */
     PCIDevice parent_obj;
@@ -500,6 +508,8 @@ struct CXLType3Dev {
     CXLPoisonList poison_list_bkp;
     CXLPoisonList scan_media_results;
     bool scan_media_hasrun;
+
+    CXLSetFeatureInfo set_feat_info;
 
     struct dynamic_capacity {
         HostMemoryBackend *host_dc;
