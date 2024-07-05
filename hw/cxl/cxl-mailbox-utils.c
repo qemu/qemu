@@ -2108,6 +2108,7 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
     int ret;
     const struct cxl_cmd *cxl_cmd;
     opcode_handler h;
+    CXLDeviceState *cxl_dstate;
 
     *len_out = 0;
     cxl_cmd = &cci->cxl_cmd_set[set][cmd];
@@ -2128,18 +2129,22 @@ int cxl_process_cci_message(CXLCCI *cci, uint8_t set, uint8_t cmd,
         return CXL_MBOX_BUSY;
     }
 
-    /* forbid any selected commands while overwriting */
-    if (sanitize_running(cci)) {
-        if (h == cmd_events_get_records ||
-            h == cmd_ccls_get_partition_info ||
-            h == cmd_ccls_set_lsa ||
-            h == cmd_ccls_get_lsa ||
-            h == cmd_logs_get_log ||
-            h == cmd_media_get_poison_list ||
-            h == cmd_media_inject_poison ||
-            h == cmd_media_clear_poison ||
-            h == cmd_sanitize_overwrite) {
-            return CXL_MBOX_MEDIA_DISABLED;
+    /* forbid any selected commands while the media is disabled */
+    if (object_dynamic_cast(OBJECT(cci->d), TYPE_CXL_TYPE3)) {
+        cxl_dstate = &CXL_TYPE3(cci->d)->cxl_dstate;
+
+        if (cxl_dev_media_disabled(cxl_dstate)) {
+            if (h == cmd_events_get_records ||
+                h == cmd_ccls_get_partition_info ||
+                h == cmd_ccls_set_lsa ||
+                h == cmd_ccls_get_lsa ||
+                h == cmd_logs_get_log ||
+                h == cmd_media_get_poison_list ||
+                h == cmd_media_inject_poison ||
+                h == cmd_media_clear_poison ||
+                h == cmd_sanitize_overwrite) {
+                return CXL_MBOX_MEDIA_DISABLED;
+            }
         }
     }
 

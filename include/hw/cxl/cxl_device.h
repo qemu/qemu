@@ -397,14 +397,14 @@ static inline void __toggle_media(CXLDeviceState *cxl_dstate, int val)
 #define cxl_dev_enable_media(cxlds)                     \
         do { __toggle_media((cxlds), 0x1); } while (0)
 
+static inline bool cxl_dev_media_disabled(CXLDeviceState *cxl_dstate)
+{
+    uint64_t dev_status_reg = cxl_dstate->mbox_reg_state64[R_CXL_MEM_DEV_STS];
+    return FIELD_EX64(dev_status_reg, CXL_MEM_DEV_STS, MEDIA_STATUS) == 0x3;
+}
 static inline bool scan_media_running(CXLCCI *cci)
 {
     return !!cci->bg.runtime && cci->bg.opcode == 0x4304;
-}
-
-static inline bool sanitize_running(CXLCCI *cci)
-{
-    return !!cci->bg.runtime && cci->bg.opcode == 0x4400;
 }
 
 typedef struct CXLError {
