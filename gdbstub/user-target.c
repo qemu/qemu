@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/commands.h"
 #include "qemu.h"
 #include "internals.h"
 #ifdef CONFIG_LINUX
@@ -250,8 +251,8 @@ void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx)
         return;
     }
 
-    offset = get_param(params, 0)->val_ul;
-    len = get_param(params, 1)->val_ul;
+    offset = gdb_get_cmd_param(params, 0)->val_ul;
+    len = gdb_get_cmd_param(params, 1)->val_ul;
     ts = get_task_state(gdbserver_state.c_cpu);
     saved_auxv = ts->info->saved_auxv;
     auxv_len = ts->info->auxv_len;
@@ -288,7 +289,7 @@ void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx)
 
 static const char *get_filename_param(GArray *params, int i)
 {
-    const char *hex_filename = get_param(params, i)->data;
+    const char *hex_filename = gdb_get_cmd_param(params, i)->data;
     gdb_hextomem(gdbserver_state.mem_buf, hex_filename,
                  strlen(hex_filename) / 2);
     g_byte_array_append(gdbserver_state.mem_buf, (const guint8 *)"", 1);
@@ -306,8 +307,8 @@ static void hostio_reply_with_data(const void *buf, size_t n)
 void gdb_handle_v_file_open(GArray *params, void *user_ctx)
 {
     const char *filename = get_filename_param(params, 0);
-    uint64_t flags = get_param(params, 1)->val_ull;
-    uint64_t mode = get_param(params, 2)->val_ull;
+    uint64_t flags = gdb_get_cmd_param(params, 1)->val_ull;
+    uint64_t mode = gdb_get_cmd_param(params, 2)->val_ull;
 
 #ifdef CONFIG_LINUX
     int fd = do_guest_openat(cpu_env(gdbserver_state.g_cpu), 0, filename,
@@ -325,7 +326,7 @@ void gdb_handle_v_file_open(GArray *params, void *user_ctx)
 
 void gdb_handle_v_file_close(GArray *params, void *user_ctx)
 {
-    int fd = get_param(params, 0)->val_ul;
+    int fd = gdb_get_cmd_param(params, 0)->val_ul;
 
     if (close(fd) == -1) {
         g_string_printf(gdbserver_state.str_buf, "F-1,%d", errno);
@@ -338,9 +339,9 @@ void gdb_handle_v_file_close(GArray *params, void *user_ctx)
 
 void gdb_handle_v_file_pread(GArray *params, void *user_ctx)
 {
-    int fd = get_param(params, 0)->val_ul;
-    size_t count = get_param(params, 1)->val_ull;
-    off_t offset = get_param(params, 2)->val_ull;
+    int fd = gdb_get_cmd_param(params, 0)->val_ul;
+    size_t count = gdb_get_cmd_param(params, 1)->val_ull;
+    off_t offset = gdb_get_cmd_param(params, 2)->val_ull;
 
     size_t bufsiz = MIN(count, BUFSIZ);
     g_autofree char *buf = g_try_malloc(bufsiz);
@@ -383,9 +384,9 @@ void gdb_handle_v_file_readlink(GArray *params, void *user_ctx)
 
 void gdb_handle_query_xfer_exec_file(GArray *params, void *user_ctx)
 {
-    uint32_t pid = get_param(params, 0)->val_ul;
-    uint32_t offset = get_param(params, 1)->val_ul;
-    uint32_t length = get_param(params, 2)->val_ul;
+    uint32_t pid = gdb_get_cmd_param(params, 0)->val_ul;
+    uint32_t offset = gdb_get_cmd_param(params, 1)->val_ul;
+    uint32_t length = gdb_get_cmd_param(params, 2)->val_ul;
 
     GDBProcess *process = gdb_get_process(pid);
     if (!process) {

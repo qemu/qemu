@@ -267,7 +267,7 @@ int load_fit(const struct fit_loader *ldr, const char *filename, void *opaque)
     const char *def_cfg_name;
     char path[FIT_LOADER_MAX_PATH];
     int itb_size, configs, cfg_off, off;
-    hwaddr kernel_end;
+    hwaddr kernel_end = 0;
     int ret;
 
     itb = load_device_tree(filename, &itb_size);

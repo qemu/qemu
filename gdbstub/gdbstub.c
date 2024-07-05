@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/commands.h"
 #include "gdbstub/syscalls.h"
 #ifdef CONFIG_USER_ONLY
 #include "accel/tcg/vcpu-state.h"
@@ -920,60 +921,24 @@ static int cmd_parse_params(const char *data, const char *schema,
     return 0;
 }
 
-typedef void (*GdbCmdHandler)(GArray *params, void *user_ctx);
-
-/*
- * cmd_startswith -> cmd is compared using startswith
- *
- * allow_stop_reply -> true iff the gdbstub can respond to this command with a
- *   "stop reply" packet. The list of commands that accept such response is
- *   defined at the GDB Remote Serial Protocol documentation. see:
- *   https://sourceware.org/gdb/onlinedocs/gdb/Stop-Reply-Packets.html#Stop-Reply-Packets.
- *
- * schema definitions:
- * Each schema parameter entry consists of 2 chars,
- * the first char represents the parameter type handling
- * the second char represents the delimiter for the next parameter
- *
- * Currently supported schema types:
- * 'l' -> unsigned long (stored in .val_ul)
- * 'L' -> unsigned long long (stored in .val_ull)
- * 's' -> string (stored in .data)
- * 'o' -> single char (stored in .opcode)
- * 't' -> thread id (stored in .thread_id)
- * '?' -> skip according to delimiter
- *
- * Currently supported delimiters:
- * '?' -> Stop at any delimiter (",;:=\0")
- * '0' -> Stop at "\0"
- * '.' -> Skip 1 char unless reached "\0"
- * Any other value is treated as the delimiter value itself
- */
-typedef struct GdbCmdParseEntry {
-    GdbCmdHandler handler;
-    const char *cmd;
-    bool cmd_startswith;
-    const char *schema;
-    bool allow_stop_reply;
-} GdbCmdParseEntry;
-
 static inline int startswith(const char *string, const char *pattern)
 {
   return !strncmp(string, pattern, strlen(pattern));
 }
 
-static int process_string_cmd(const char *data,
-                              const GdbCmdParseEntry *cmds, int num_cmds)
+static bool process_string_cmd(const char *data,
+                               const GdbCmdParseEntry *cmds, int num_cmds)
 {
     int i;
     g_autoptr(GArray) params = g_array_new(false, true, sizeof(GdbCmdVariant));
 
     if (!cmds) {
-        return -1;
+        return false;
     }
 
     for (i = 0; i < num_cmds; i++) {
         const GdbCmdParseEntry *cmd = &cmds[i];
+        void *user_ctx = NULL;
         g_assert(cmd->handler && cmd->cmd);
 
         if ((cmd->cmd_startswith && !startswith(data, cmd->cmd)) ||
@@ -984,16 +949,20 @@ static int process_string_cmd(const char *data,
         if (cmd->schema) {
             if (cmd_parse_params(&data[strlen(cmd->cmd)],
                                  cmd->schema, params)) {
-                return -1;
+                return false;
             }
         }
 
+        if (cmd->need_cpu_context) {
+            user_ctx = (void *)gdbserver_state.g_cpu;
+        }
+
         gdbserver_state.allow_stop_reply = cmd->allow_stop_reply;
-        cmd->handler(params, NULL);
-        return 0;
+        cmd->handler(params, user_ctx);
+        return true;
     }
 
-    return -1;
+    return false;
 }
 
 static void run_cmd_parser(const char *data, const GdbCmdParseEntry *cmd)
@@ -1007,7 +976,7 @@ static void run_cmd_parser(const char *data, const GdbCmdParseEntry *cmd)
 
     /* In case there was an error during the command parsing we must
     * send a NULL packet to indicate the command is not supported */
-    if (process_string_cmd(data, cmd, 1)) {
+    if (!process_string_cmd(data, cmd, 1)) {
         gdb_put_packet("");
     }
 }
@@ -1023,7 +992,7 @@ static void handle_detach(GArray *params, void *user_ctx)
             return;
         }
 
-        pid = get_param(params, 0)->val_ul;
+        pid = gdb_get_cmd_param(params, 0)->val_ul;
     }
 
 #ifdef CONFIG_USER_ONLY
@@ -1061,13 +1030,13 @@ static void handle_thread_alive(GArray *params, void *user_ctx)
         return;
     }
 
-    if (get_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
+    if (gdb_get_cmd_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    cpu = gdb_get_cpu(get_param(params, 0)->thread_id.pid,
-                      get_param(params, 0)->thread_id.tid);
+    cpu = gdb_get_cpu(gdb_get_cmd_param(params, 0)->thread_id.pid,
+                      gdb_get_cmd_param(params, 0)->thread_id.tid);
     if (!cpu) {
         gdb_put_packet("E22");
         return;
@@ -1079,7 +1048,7 @@ static void handle_thread_alive(GArray *params, void *user_ctx)
 static void handle_continue(GArray *params, void *user_ctx)
 {
     if (params->len) {
-        gdb_set_cpu_pc(get_param(params, 0)->val_ull);
+        gdb_set_cpu_pc(gdb_get_cmd_param(params, 0)->val_ull);
     }
 
     gdbserver_state.signal = 0;
@@ -1095,7 +1064,7 @@ static void handle_cont_with_sig(GArray *params, void *user_ctx)
      *       omit the addr parameter
      */
     if (params->len) {
-        signal = get_param(params, 0)->val_ul;
+        signal = gdb_get_cmd_param(params, 0)->val_ul;
     }
 
     gdbserver_state.signal = gdb_signal_to_target(signal);
@@ -1115,18 +1084,18 @@ static void handle_set_thread(GArray *params, void *user_ctx)
         return;
     }
 
-    if (get_param(params, 1)->thread_id.kind == GDB_READ_THREAD_ERR) {
+    if (gdb_get_cmd_param(params, 1)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    if (get_param(params, 1)->thread_id.kind != GDB_ONE_THREAD) {
+    if (gdb_get_cmd_param(params, 1)->thread_id.kind != GDB_ONE_THREAD) {
         gdb_put_packet("OK");
         return;
     }
 
-    pid = get_param(params, 1)->thread_id.pid;
-    tid = get_param(params, 1)->thread_id.tid;
+    pid = gdb_get_cmd_param(params, 1)->thread_id.pid;
+    tid = gdb_get_cmd_param(params, 1)->thread_id.tid;
 #ifdef CONFIG_USER_ONLY
     if (gdb_handle_set_thread_user(pid, tid)) {
         return;
@@ -1142,7 +1111,7 @@ static void handle_set_thread(GArray *params, void *user_ctx)
      * Note: This command is deprecated and modern gdb's will be using the
      *       vCont command instead.
      */
-    switch (get_param(params, 0)->opcode) {
+    switch (gdb_get_cmd_param(params, 0)->opcode) {
     case 'c':
         gdbserver_state.c_cpu = cpu;
         gdb_put_packet("OK");
@@ -1167,9 +1136,9 @@ static void handle_insert_bp(GArray *params, void *user_ctx)
     }
 
     res = gdb_breakpoint_insert(gdbserver_state.c_cpu,
-                                get_param(params, 0)->val_ul,
-                                get_param(params, 1)->val_ull,
-                                get_param(params, 2)->val_ull);
+                                gdb_get_cmd_param(params, 0)->val_ul,
+                                gdb_get_cmd_param(params, 1)->val_ull,
+                                gdb_get_cmd_param(params, 2)->val_ull);
     if (res >= 0) {
         gdb_put_packet("OK");
         return;
@@ -1191,9 +1160,9 @@ static void handle_remove_bp(GArray *params, void *user_ctx)
     }
 
     res = gdb_breakpoint_remove(gdbserver_state.c_cpu,
-                                get_param(params, 0)->val_ul,
-                                get_param(params, 1)->val_ull,
-                                get_param(params, 2)->val_ull);
+                                gdb_get_cmd_param(params, 0)->val_ul,
+                                gdb_get_cmd_param(params, 1)->val_ull,
+                                gdb_get_cmd_param(params, 2)->val_ull);
     if (res >= 0) {
         gdb_put_packet("OK");
         return;
@@ -1225,10 +1194,10 @@ static void handle_set_reg(GArray *params, void *user_ctx)
         return;
     }
 
-    reg_size = strlen(get_param(params, 1)->data) / 2;
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 1)->data, reg_size);
+    reg_size = strlen(gdb_get_cmd_param(params, 1)->data) / 2;
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 1)->data, reg_size);
     gdb_write_register(gdbserver_state.g_cpu, gdbserver_state.mem_buf->data,
-                       get_param(params, 0)->val_ull);
+                       gdb_get_cmd_param(params, 0)->val_ull);
     gdb_put_packet("OK");
 }
 
@@ -1243,7 +1212,7 @@ static void handle_get_reg(GArray *params, void *user_ctx)
 
     reg_size = gdb_read_register(gdbserver_state.g_cpu,
                                  gdbserver_state.mem_buf,
-                                 get_param(params, 0)->val_ull);
+                                 gdb_get_cmd_param(params, 0)->val_ull);
     if (!reg_size) {
         gdb_put_packet("E14");
         return;
@@ -1264,16 +1233,16 @@ static void handle_write_mem(GArray *params, void *user_ctx)
     }
 
     /* gdb_hextomem() reads 2*len bytes */
-    if (get_param(params, 1)->val_ull >
-        strlen(get_param(params, 2)->data) / 2) {
+    if (gdb_get_cmd_param(params, 1)->val_ull >
+        strlen(gdb_get_cmd_param(params, 2)->data) / 2) {
         gdb_put_packet("E22");
         return;
     }
 
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 2)->data,
-                 get_param(params, 1)->val_ull);
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 2)->data,
+                 gdb_get_cmd_param(params, 1)->val_ull);
     if (gdb_target_memory_rw_debug(gdbserver_state.g_cpu,
-                                   get_param(params, 0)->val_ull,
+                                   gdb_get_cmd_param(params, 0)->val_ull,
                                    gdbserver_state.mem_buf->data,
                                    gdbserver_state.mem_buf->len, true)) {
         gdb_put_packet("E14");
@@ -1291,16 +1260,16 @@ static void handle_read_mem(GArray *params, void *user_ctx)
     }
 
     /* gdb_memtohex() doubles the required space */
-    if (get_param(params, 1)->val_ull > MAX_PACKET_LENGTH / 2) {
+    if (gdb_get_cmd_param(params, 1)->val_ull > MAX_PACKET_LENGTH / 2) {
         gdb_put_packet("E22");
         return;
     }
 
     g_byte_array_set_size(gdbserver_state.mem_buf,
-                          get_param(params, 1)->val_ull);
+                          gdb_get_cmd_param(params, 1)->val_ull);
 
     if (gdb_target_memory_rw_debug(gdbserver_state.g_cpu,
-                                   get_param(params, 0)->val_ull,
+                                   gdb_get_cmd_param(params, 0)->val_ull,
                                    gdbserver_state.mem_buf->data,
                                    gdbserver_state.mem_buf->len, false)) {
         gdb_put_packet("E14");
@@ -1324,8 +1293,8 @@ static void handle_write_all_regs(GArray *params, void *user_ctx)
     }
 
     cpu_synchronize_state(gdbserver_state.g_cpu);
-    len = strlen(get_param(params, 0)->data) / 2;
-    gdb_hextomem(gdbserver_state.mem_buf, get_param(params, 0)->data, len);
+    len = strlen(gdb_get_cmd_param(params, 0)->data) / 2;
+    gdb_hextomem(gdbserver_state.mem_buf, gdb_get_cmd_param(params, 0)->data, len);
     registers = gdbserver_state.mem_buf->data;
     for (reg_id = 0;
          reg_id < gdbserver_state.g_cpu->gdb_num_g_regs && len > 0;
@@ -1360,7 +1329,7 @@ static void handle_read_all_regs(GArray *params, void *user_ctx)
 static void handle_step(GArray *params, void *user_ctx)
 {
     if (params->len) {
-        gdb_set_cpu_pc(get_param(params, 0)->val_ull);
+        gdb_set_cpu_pc(gdb_get_cmd_param(params, 0)->val_ull);
     }
 
     cpu_single_step(gdbserver_state.c_cpu, gdbserver_state.sstep_flags);
@@ -1373,7 +1342,7 @@ static void handle_backward(GArray *params, void *user_ctx)
         gdb_put_packet("E22");
     }
     if (params->len == 1) {
-        switch (get_param(params, 0)->opcode) {
+        switch (gdb_get_cmd_param(params, 0)->opcode) {
         case 's':
             if (replay_reverse_step()) {
                 gdb_continue();
@@ -1408,7 +1377,7 @@ static void handle_v_cont(GArray *params, void *user_ctx)
         return;
     }
 
-    res = gdb_handle_vcont(get_param(params, 0)->data);
+    res = gdb_handle_vcont(gdb_get_cmd_param(params, 0)->data);
     if ((res == -EINVAL) || (res == -ERANGE)) {
         gdb_put_packet("E22");
     } else if (res) {
@@ -1426,7 +1395,7 @@ static void handle_v_attach(GArray *params, void *user_ctx)
         goto cleanup;
     }
 
-    process = gdb_get_process(get_param(params, 0)->val_ul);
+    process = gdb_get_process(gdb_get_cmd_param(params, 0)->val_ul);
     if (!process) {
         goto cleanup;
     }
@@ -1464,26 +1433,26 @@ static const GdbCmdParseEntry gdb_v_commands_table[] = {
     {
         .handler = handle_v_cont_query,
         .cmd = "Cont?",
-        .cmd_startswith = 1
+        .cmd_startswith = true
     },
     {
         .handler = handle_v_cont,
         .cmd = "Cont",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .allow_stop_reply = true,
         .schema = "s0"
     },
     {
         .handler = handle_v_attach,
         .cmd = "Attach;",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .allow_stop_reply = true,
         .schema = "l0"
     },
     {
         .handler = handle_v_kill,
         .cmd = "Kill;",
-        .cmd_startswith = 1
+        .cmd_startswith = true
     },
 #ifdef CONFIG_USER_ONLY
     /*
@@ -1493,25 +1462,25 @@ static const GdbCmdParseEntry gdb_v_commands_table[] = {
     {
         .handler = gdb_handle_v_file_open,
         .cmd = "File:open:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s,L,L0"
     },
     {
         .handler = gdb_handle_v_file_close,
         .cmd = "File:close:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l0"
     },
     {
         .handler = gdb_handle_v_file_pread,
         .cmd = "File:pread:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l,L,L0"
     },
     {
         .handler = gdb_handle_v_file_readlink,
         .cmd = "File:readlink:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s0"
     },
 #endif
@@ -1523,9 +1492,9 @@ static void handle_v_commands(GArray *params, void *user_ctx)
         return;
     }
 
-    if (process_string_cmd(get_param(params, 0)->data,
-                           gdb_v_commands_table,
-                           ARRAY_SIZE(gdb_v_commands_table))) {
+    if (!process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+                            gdb_v_commands_table,
+                            ARRAY_SIZE(gdb_v_commands_table))) {
         gdb_put_packet("");
     }
 }
@@ -1555,7 +1524,7 @@ static void handle_set_qemu_sstep(GArray *params, void *user_ctx)
         return;
     }
 
-    new_sstep_flags = get_param(params, 0)->val_ul;
+    new_sstep_flags = gdb_get_cmd_param(params, 0)->val_ul;
 
     if (new_sstep_flags  & ~gdbserver_state.supported_sstep_flags) {
         gdb_put_packet("E22");
@@ -1615,13 +1584,13 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
     CPUState *cpu;
 
     if (!params->len ||
-        get_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
+        gdb_get_cmd_param(params, 0)->thread_id.kind == GDB_READ_THREAD_ERR) {
         gdb_put_packet("E22");
         return;
     }
 
-    cpu = gdb_get_cpu(get_param(params, 0)->thread_id.pid,
-                      get_param(params, 0)->thread_id.tid);
+    cpu = gdb_get_cpu(gdb_get_cmd_param(params, 0)->thread_id.pid,
+                      gdb_get_cmd_param(params, 0)->thread_id.tid);
     if (!cpu) {
         return;
     }
@@ -1643,6 +1612,20 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
     trace_gdbstub_op_extra_info(rs->str);
     gdb_memtohex(gdbserver_state.str_buf, (uint8_t *)rs->str, rs->len);
     gdb_put_strbuf();
+}
+
+static char *extended_qsupported_features;
+void gdb_extend_qsupported_features(char *qsupported_features)
+{
+    /*
+     * We don't support different sets of CPU gdb features on different CPUs yet
+     * so assert the feature strings are the same on all CPUs, or is set only
+     * once (1 CPU).
+     */
+    g_assert(extended_qsupported_features == NULL ||
+             g_strcmp0(extended_qsupported_features, qsupported_features) == 0);
+
+    extended_qsupported_features = qsupported_features;
 }
 
 static void handle_query_supported(GArray *params, void *user_ctx)
@@ -1673,7 +1656,7 @@ static void handle_query_supported(GArray *params, void *user_ctx)
 #endif
 
     if (params->len) {
-        const char *gdb_supported = get_param(params, 0)->data;
+        const char *gdb_supported = gdb_get_cmd_param(params, 0)->data;
 
         if (strstr(gdb_supported, "multiprocess+")) {
             gdbserver_state.multiprocess = true;
@@ -1684,6 +1667,11 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     }
 
     g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
+
+    if (extended_qsupported_features) {
+        g_string_append(gdbserver_state.str_buf, extended_qsupported_features);
+    }
+
     gdb_put_strbuf();
 }
 
@@ -1707,15 +1695,15 @@ static void handle_query_xfer_features(GArray *params, void *user_ctx)
         return;
     }
 
-    p = get_param(params, 0)->data;
+    p = gdb_get_cmd_param(params, 0)->data;
     xml = get_feature_xml(p, &p, process);
     if (!xml) {
         gdb_put_packet("E00");
         return;
     }
 
-    addr = get_param(params, 1)->val_ul;
-    len = get_param(params, 2)->val_ul;
+    addr = gdb_get_cmd_param(params, 1)->val_ul;
+    len = gdb_get_cmd_param(params, 2)->val_ul;
     total_len = strlen(xml);
     if (addr > total_len) {
         gdb_put_packet("E00");
@@ -1760,10 +1748,45 @@ static const GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
     {
         .handler = handle_set_qemu_sstep,
         .cmd = "qemu.sstep=",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l0"
     },
 };
+
+/* Compares if a set of command parsers is equal to another set of parsers. */
+static bool cmp_cmds(GdbCmdParseEntry *c, GdbCmdParseEntry *d, int size)
+{
+    for (int i = 0; i < size; i++) {
+        if (!(c[i].handler == d[i].handler &&
+            g_strcmp0(c[i].cmd, d[i].cmd) == 0 &&
+            c[i].cmd_startswith == d[i].cmd_startswith &&
+            g_strcmp0(c[i].schema, d[i].schema) == 0)) {
+
+            /* Sets are different. */
+            return false;
+        }
+    }
+
+    /* Sets are equal, i.e. contain the same command parsers. */
+    return true;
+}
+
+static GdbCmdParseEntry *extended_query_table;
+static int extended_query_table_size;
+void gdb_extend_query_table(GdbCmdParseEntry *table, int size)
+{
+    /*
+     * We don't support different sets of CPU gdb features on different CPUs yet
+     * so assert query table is the same on all CPUs, or is set only once
+     * (1 CPU).
+     */
+    g_assert(extended_query_table == NULL ||
+             (extended_query_table_size == size &&
+              cmp_cmds(extended_query_table, table, size)));
+
+    extended_query_table = table;
+    extended_query_table_size = size;
+}
 
 static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
@@ -1781,7 +1804,7 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = handle_query_thread_extra,
         .cmd = "ThreadExtraInfo,",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "t0"
     },
 #ifdef CONFIG_USER_ONLY
@@ -1793,14 +1816,14 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = gdb_handle_query_rcmd,
         .cmd = "Rcmd,",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s0"
     },
 #endif
     {
         .handler = handle_query_supported,
         .cmd = "Supported:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s0"
     },
     {
@@ -1811,7 +1834,7 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = handle_query_xfer_features,
         .cmd = "Xfer:features:read:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s:l,l0"
     },
 #if defined(CONFIG_USER_ONLY)
@@ -1819,27 +1842,27 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = gdb_handle_query_xfer_auxv,
         .cmd = "Xfer:auxv:read::",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l,l0"
     },
     {
         .handler = gdb_handle_query_xfer_siginfo,
         .cmd = "Xfer:siginfo:read::",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l,l0"
      },
 #endif
     {
         .handler = gdb_handle_query_xfer_exec_file,
         .cmd = "Xfer:exec-file:read:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l:l,l0"
     },
 #endif
     {
         .handler = gdb_handle_query_attached,
         .cmd = "Attached:",
-        .cmd_startswith = 1
+        .cmd_startswith = true
     },
     {
         .handler = gdb_handle_query_attached,
@@ -1857,19 +1880,35 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
 #endif
 };
 
+static GdbCmdParseEntry *extended_set_table;
+static int extended_set_table_size;
+void gdb_extend_set_table(GdbCmdParseEntry *table, int size)
+{
+    /*
+     * We don't support different sets of CPU gdb features on different CPUs yet
+     * so assert set table is the same on all CPUs, or is set only once (1 CPU).
+     */
+    g_assert(extended_set_table == NULL ||
+             (extended_set_table_size == size &&
+              cmp_cmds(extended_set_table, table, size)));
+
+    extended_set_table = table;
+    extended_set_table_size = size;
+}
+
 static const GdbCmdParseEntry gdb_gen_set_table[] = {
     /* Order is important if has same prefix */
     {
         .handler = handle_set_qemu_sstep,
         .cmd = "qemu.sstep:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l0"
     },
 #ifndef CONFIG_USER_ONLY
     {
         .handler = gdb_handle_set_qemu_phy_mem_mode,
         .cmd = "qemu.PhyMemMode:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "l0"
     },
 #endif
@@ -1877,7 +1916,7 @@ static const GdbCmdParseEntry gdb_gen_set_table[] = {
     {
         .handler = gdb_handle_set_catch_syscalls,
         .cmd = "CatchSyscalls:",
-        .cmd_startswith = 1,
+        .cmd_startswith = true,
         .schema = "s0",
     },
 #endif
@@ -1889,17 +1928,27 @@ static void handle_gen_query(GArray *params, void *user_ctx)
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
-                            gdb_gen_query_set_common_table,
-                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+                           gdb_gen_query_set_common_table,
+                           ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (process_string_cmd(get_param(params, 0)->data,
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                            gdb_gen_query_table,
                            ARRAY_SIZE(gdb_gen_query_table))) {
-        gdb_put_packet("");
+        return;
     }
+
+    if (extended_query_table &&
+        process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+                           extended_query_table,
+                           extended_query_table_size)) {
+        return;
+    }
+
+    /* Can't handle query, return Empty response. */
+    gdb_put_packet("");
 }
 
 static void handle_gen_set(GArray *params, void *user_ctx)
@@ -1908,17 +1957,27 @@ static void handle_gen_set(GArray *params, void *user_ctx)
         return;
     }
 
-    if (!process_string_cmd(get_param(params, 0)->data,
-                            gdb_gen_query_set_common_table,
-                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+                           gdb_gen_query_set_common_table,
+                           ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (process_string_cmd(get_param(params, 0)->data,
+    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
                            gdb_gen_set_table,
                            ARRAY_SIZE(gdb_gen_set_table))) {
-        gdb_put_packet("");
+        return;
     }
+
+    if (extended_set_table &&
+        process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+                           extended_set_table,
+                           extended_set_table_size)) {
+        return;
+    }
+
+    /* Can't handle set, return Empty response. */
+    gdb_put_packet("");
 }
 
 static void handle_target_halt(GArray *params, void *user_ctx)
@@ -1953,7 +2012,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry target_halted_cmd_desc = {
                 .handler = handle_target_halt,
                 .cmd = "?",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .allow_stop_reply = true,
             };
             cmd_parser = &target_halted_cmd_desc;
@@ -1964,7 +2023,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry continue_cmd_desc = {
                 .handler = handle_continue,
                 .cmd = "c",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .allow_stop_reply = true,
                 .schema = "L0"
             };
@@ -1976,7 +2035,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry cont_with_sig_cmd_desc = {
                 .handler = handle_cont_with_sig,
                 .cmd = "C",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .allow_stop_reply = true,
                 .schema = "l0"
             };
@@ -1988,7 +2047,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry v_cmd_desc = {
                 .handler = handle_v_commands,
                 .cmd = "v",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "s0"
             };
             cmd_parser = &v_cmd_desc;
@@ -2005,7 +2064,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry detach_cmd_desc = {
                 .handler = handle_detach,
                 .cmd = "D",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "?.l0"
             };
             cmd_parser = &detach_cmd_desc;
@@ -2016,7 +2075,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry step_cmd_desc = {
                 .handler = handle_step,
                 .cmd = "s",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .allow_stop_reply = true,
                 .schema = "L0"
             };
@@ -2028,7 +2087,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry backward_cmd_desc = {
                 .handler = handle_backward,
                 .cmd = "b",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .allow_stop_reply = true,
                 .schema = "o0"
             };
@@ -2040,7 +2099,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry file_io_cmd_desc = {
                 .handler = gdb_handle_file_io,
                 .cmd = "F",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "L,L,o0"
             };
             cmd_parser = &file_io_cmd_desc;
@@ -2051,7 +2110,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry read_all_regs_cmd_desc = {
                 .handler = handle_read_all_regs,
                 .cmd = "g",
-                .cmd_startswith = 1
+                .cmd_startswith = true
             };
             cmd_parser = &read_all_regs_cmd_desc;
         }
@@ -2061,7 +2120,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry write_all_regs_cmd_desc = {
                 .handler = handle_write_all_regs,
                 .cmd = "G",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "s0"
             };
             cmd_parser = &write_all_regs_cmd_desc;
@@ -2072,7 +2131,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry read_mem_cmd_desc = {
                 .handler = handle_read_mem,
                 .cmd = "m",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "L,L0"
             };
             cmd_parser = &read_mem_cmd_desc;
@@ -2083,7 +2142,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry write_mem_cmd_desc = {
                 .handler = handle_write_mem,
                 .cmd = "M",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "L,L:s0"
             };
             cmd_parser = &write_mem_cmd_desc;
@@ -2094,7 +2153,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry get_reg_cmd_desc = {
                 .handler = handle_get_reg,
                 .cmd = "p",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "L0"
             };
             cmd_parser = &get_reg_cmd_desc;
@@ -2105,7 +2164,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry set_reg_cmd_desc = {
                 .handler = handle_set_reg,
                 .cmd = "P",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "L?s0"
             };
             cmd_parser = &set_reg_cmd_desc;
@@ -2116,7 +2175,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry insert_bp_cmd_desc = {
                 .handler = handle_insert_bp,
                 .cmd = "Z",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "l?L?L0"
             };
             cmd_parser = &insert_bp_cmd_desc;
@@ -2127,7 +2186,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry remove_bp_cmd_desc = {
                 .handler = handle_remove_bp,
                 .cmd = "z",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "l?L?L0"
             };
             cmd_parser = &remove_bp_cmd_desc;
@@ -2138,7 +2197,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry set_thread_cmd_desc = {
                 .handler = handle_set_thread,
                 .cmd = "H",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "o.t0"
             };
             cmd_parser = &set_thread_cmd_desc;
@@ -2149,7 +2208,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry thread_alive_cmd_desc = {
                 .handler = handle_thread_alive,
                 .cmd = "T",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "t0"
             };
             cmd_parser = &thread_alive_cmd_desc;
@@ -2160,7 +2219,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry gen_query_cmd_desc = {
                 .handler = handle_gen_query,
                 .cmd = "q",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "s0"
             };
             cmd_parser = &gen_query_cmd_desc;
@@ -2171,7 +2230,7 @@ static int gdb_handle_packet(const char *line_buf)
             static const GdbCmdParseEntry gen_set_cmd_desc = {
                 .handler = handle_gen_set,
                 .cmd = "Q",
-                .cmd_startswith = 1,
+                .cmd_startswith = true,
                 .schema = "s0"
             };
             cmd_parser = &gen_set_cmd_desc;
