@@ -258,7 +258,7 @@ static void convert_double_to_single(void)
 
     for (i = 0; i < ARRAY_SIZE(double_numbers); ++i) {
         double input = double_numbers[i].d;
-        uint32_t output;
+        float output;
 
         feclearexcept(FE_ALL_EXCEPT);
 
