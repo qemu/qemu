@@ -76,7 +76,6 @@ typedef enum  {
 } sd_uhs_mode_t;
 
 typedef enum {
-    sd_none = 0,
     sd_spi,
     sd_bc,     /* broadcast -- no response */
     sd_bcr,    /* broadcast with response */
@@ -128,6 +127,8 @@ struct SDCardClass {
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
+    void (*set_cid)(SDState *sd);
+    void (*set_csd)(SDState *sd, uint64_t size);
 
     const struct SDProto *proto;
 };

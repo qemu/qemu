@@ -11,6 +11,9 @@
 #ifndef SDMMC_INTERNAL_H
 #define SDMMC_INTERNAL_H
 
+#define TYPE_SDMMC_COMMON "sdmmc-common"
+DECLARE_OBJ_CHECKERS(SDState, SDCardClass, SDMMC_COMMON, TYPE_SDMMC_COMMON)
+
 /*
  * EXT_CSD Modes segment
  *

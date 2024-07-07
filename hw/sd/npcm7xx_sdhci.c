@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 
+#include "hw/sd/sdhci.h"
 #include "hw/sd/npcm7xx_sdhci.h"
 #include "migration/vmstate.h"
 #include "sdhci-internal.h"
@@ -162,7 +163,7 @@ static void npcm7xx_sdhci_instance_init(Object *obj)
 {
     NPCM7xxSDHCIState *s = NPCM7XX_SDHCI(obj);
 
-    object_initialize_child(OBJECT(s), "generic-sdhci", &s->sdhci,
+    object_initialize_child(OBJECT(s), TYPE_SYSBUS_SDHCI, &s->sdhci,
                             TYPE_SYSBUS_SDHCI);
 }
 
