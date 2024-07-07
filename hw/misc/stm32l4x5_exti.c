@@ -113,6 +113,13 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
         return;
     }
 
+    /* In case of a direct line interrupt */
+    if (extract32(exti_romask[bank], irq, 1)) {
+        qemu_set_irq(s->irq[oirq], level);
+        return;
+    }
+
+    /* In case of a configurable interrupt */
     if ((level && extract32(s->rtsr[bank], irq, 1)) ||
         (!level && extract32(s->ftsr[bank], irq, 1))) {
 
