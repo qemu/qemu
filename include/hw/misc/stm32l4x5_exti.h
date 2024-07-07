@@ -30,7 +30,7 @@
 #define TYPE_STM32L4X5_EXTI "stm32l4x5-exti"
 OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4x5ExtiState, STM32L4X5_EXTI)
 
-#define EXTI_NUM_INTERRUPT_OUT_LINES 40
+#define EXTI_NUM_LINES 40
 #define EXTI_NUM_REGISTER 2
 
 struct Stm32l4x5ExtiState {
@@ -47,7 +47,7 @@ struct Stm32l4x5ExtiState {
 
     /* used for edge detection */
     uint32_t irq_levels[EXTI_NUM_REGISTER];
-    qemu_irq irq[EXTI_NUM_INTERRUPT_OUT_LINES];
+    qemu_irq irq[EXTI_NUM_LINES];
 };
 
 #endif
