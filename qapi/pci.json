@@ -146,8 +146,8 @@
 #
 # @regions: a list of the PCI I/O regions associated with the device
 #
-# Notes: the contents of @class_info.desc are not stable and should
-#     only be treated as informational.
+# .. note:: The contents of @class_info.desc are not stable and should
+#    only be treated as informational.
 #
 # Since: 0.14
 ##
@@ -311,7 +311,7 @@
 #           ]
 #        }
 #
-# Note: This example has been shortened as the real response is too
-#     long.
+# This example has been shortened as the real response is too long.
+#
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }

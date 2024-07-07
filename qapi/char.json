@@ -21,8 +21,8 @@
 #     backend (e.g. with the chardev=... option) is in open or closed
 #     state (since 2.1)
 #
-# Notes: @filename is encoded using the QEMU command line character
-#     device encoding.  See the QEMU man page for details.
+# .. note:: @filename is encoded using the QEMU command line character
+#    device encoding.  See the QEMU man page for details.
 #
 # Since: 0.14
 ##
@@ -388,9 +388,9 @@
 #
 # @rows: console height, in chars
 #
-# Note: the options are only effective when the VNC or SDL graphical
-#     display backend is active.  They are ignored with the GTK,
-#     Spice, VNC and D-Bus display backends.
+# .. note:: The options are only effective when the VNC or SDL graphical
+#    display backend is active.  They are ignored with the GTK, Spice,
+#    VNC and D-Bus display backends.
 #
 # Since: 1.5
 ##
@@ -806,7 +806,7 @@
 #
 # @open: true if the guest has opened the virtio-serial port
 #
-# Note: This event is rate-limited.
+# .. note:: This event is rate-limited.
 #
 # Since: 2.1
 #

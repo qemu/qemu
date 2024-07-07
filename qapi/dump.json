@@ -90,7 +90,7 @@
 #     and @length is not allowed to be specified with non-elf @format
 #     at the same time (since 2.0)
 #
-# Note: All boolean arguments default to false
+# .. note:: All boolean arguments default to false.
 #
 # Since: 1.2
 #

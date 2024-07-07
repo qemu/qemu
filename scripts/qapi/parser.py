@@ -448,7 +448,7 @@ class QAPISchemaParser:
         indent = must_match(r'\s*', line).end()
         if not indent:
             return line
-        doc.append_line(line[indent:])
+        doc.append_line(line)
         prev_line_blank = False
         while True:
             self.accept(False)
@@ -465,7 +465,7 @@ class QAPISchemaParser:
                     self,
                     "unexpected de-indent (expected at least %d spaces)" %
                     indent)
-            doc.append_line(line[indent:])
+            doc.append_line(line)
             prev_line_blank = True
 
     def get_doc_paragraph(self, doc: 'QAPIDoc') -> Optional[str]:
@@ -544,9 +544,29 @@ class QAPISchemaParser:
                         line = self.get_doc_indented(doc)
                     no_more_args = True
                 elif match := re.match(
-                        r'(Returns|Errors|Since|Notes?|Examples?|TODO): *',
-                        line):
+                        r'(Returns|Errors|Since|Notes?|Examples?|TODO)'
+                        r'(?!::): *',
+                        line,
+                ):
                     # tagged section
+
+                    # Note: "sections" with two colons are left alone as
+                    # rST markup and not interpreted as a section heading.
+
+                    # TODO: Remove this error sometime in 2025 or so
+                    # after we've fully transitioned to the new qapidoc
+                    # generator.
+
+                    # See commit message for more markup suggestions O:-)
+                    if 'Note' in match.group(1):
+                        emsg = (
+                            f"The '{match.group(1)}' section is no longer "
+                            "supported. Please use rST's '.. note::' or "
+                            "'.. admonition:: notes' directives, or another "
+                            "suitable admonition instead."
+                        )
+                        raise QAPIParseError(self, emsg)
+
                     doc.new_tagged_section(self.info, match.group(1))
                     text = line[match.end():]
                     if text:
@@ -583,7 +603,7 @@ class QAPISchemaParser:
                 line = self.get_doc_line()
                 first = False
 
-        self.accept(False)
+        self.accept()
         doc.end()
         return doc
 

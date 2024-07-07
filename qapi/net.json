@@ -22,9 +22,9 @@
 #
 # Since: 0.14
 #
-# Notes: Not all network adapters support setting link status.  This
-#     command will succeed even if the network adapter does not
-#     support link status notification.
+# .. note:: Not all network adapters support setting link status.  This
+#    command will succeed even if the network adapter does not support
+#    link status notification.
 #
 # Example:
 #
@@ -1003,9 +1003,9 @@
 #
 # Example:
 #
-#     <- { 'event': 'NETDEV_STREAM_DISCONNECTED',
-#          'data': {'netdev-id': 'netdev0'},
-#          'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
+#     <- { "event": "NETDEV_STREAM_DISCONNECTED",
+#          "data": {"netdev-id": "netdev0"},
+#          "timestamp": {"seconds": 1663330937, "microseconds": 526695} }
 ##
 { 'event': 'NETDEV_STREAM_DISCONNECTED',
   'data': { 'netdev-id': 'str' } }

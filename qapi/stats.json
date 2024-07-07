@@ -258,17 +258,17 @@
 #
 # @provider: a provider to restrict the query to.
 #
-# Note: runtime-collected statistics and their names fall outside
-#     QEMU's usual deprecation policies.  QEMU will try to keep the
-#     set of available data stable, together with their names, but
-#     will not guarantee stability at all costs; the same is true of
-#     providers that source statistics externally, e.g. from Linux.
-#     For example, if the same value is being tracked with different
-#     names on different architectures or by different providers, one
-#     of them might be renamed.  A statistic might go away if an
-#     algorithm is changed or some code is removed; changing a default
-#     might cause previously useful statistics to always report 0.
-#     Such changes, however, are expected to be rare.
+# .. note:: Runtime-collected statistics and their names fall outside
+#    QEMU's usual deprecation policies.  QEMU will try to keep the set
+#    of available data stable, together with their names, but will not
+#    guarantee stability at all costs; the same is true of providers
+#    that source statistics externally, e.g. from Linux.  For example,
+#    if the same value is being tracked with different names on
+#    different architectures or by different providers, one of them
+#    might be renamed.  A statistic might go away if an algorithm is
+#    changed or some code is removed; changing a default might cause
+#    previously useful statistics to always report 0.  Such changes,
+#    however, are expected to be rare.
 #
 # Since: 7.1
 ##
