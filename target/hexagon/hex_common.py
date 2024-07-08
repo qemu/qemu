@@ -1374,6 +1374,7 @@ def parse_common_args(desc):
     parser.add_argument("semantics", help="semantics file")
     parser.add_argument("overrides", help="overrides file")
     parser.add_argument("overrides_vec", help="vector overrides file")
+    parser.add_argument("overrides_sys", help="system overrides file")
     parser.add_argument("out", help="output file")
     parser.add_argument("--idef-parser",
                         help="file of instructions translated by idef-parser")
@@ -1381,6 +1382,7 @@ def parse_common_args(desc):
     read_semantics_file(args.semantics)
     read_overrides_file(args.overrides)
     read_overrides_file(args.overrides_vec)
+    read_overrides_file(args.overrides_sys)
     if args.idef_parser:
         read_idef_parser_enabled_file(args.idef_parser)
     calculate_attribs()
