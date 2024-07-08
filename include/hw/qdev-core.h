@@ -624,8 +624,9 @@ qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
  * @name: Name of the input GPIO array
  * @n: Number of the GPIO line in that array (which must be in range)
  *
- * Returns the qemu_irq corresponding to a named input GPIO line
- * (which the device has set up with qdev_init_gpio_in_named()).
+ * Returns the qemu_irq corresponding to a single input GPIO line
+ * in a named array of input GPIO lines on a device (which the device
+ * has set up with qdev_init_gpio_in_named()).
  * The @name string must correspond to an input GPIO array which exists on
  * the device, and the index @n of the GPIO line must be valid (i.e.
  * be at least 0 and less than the total number of input GPIOs in that
@@ -673,15 +674,15 @@ void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
  *                              GPIO lines
  * @dev: Device whose GPIO to connect
  * @name: Name of the output GPIO array
- * @n: Number of the anonymous output GPIO line (which must be in range)
+ * @n: Number of the output GPIO line within that array (which must be in range)
  * @input_pin: qemu_irq to connect the output line to
  *
- * This function connects an anonymous output GPIO line on a device
- * up to an arbitrary qemu_irq, so that when the device asserts that
- * output GPIO line, the qemu_irq's callback is invoked.
+ * This function connects a single GPIO output in a named array of output
+ * GPIO lines on a device up to an arbitrary qemu_irq, so that when the
+ * device asserts that output GPIO line, the qemu_irq's callback is invoked.
  * The @name string must correspond to an output GPIO array which exists on
  * the device, and the index @n of the GPIO line must be valid (i.e.
- * be at least 0 and less than the total number of input GPIOs in that
+ * be at least 0 and less than the total number of output GPIOs in that
  * array); this function will assert() if passed an invalid name or index.
  *
  * Outbound GPIO lines can be connected to any qemu_irq, but the common
@@ -796,7 +797,7 @@ void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
  * @dev: Device to create output GPIOs for
  * @pins: Pointer to qemu_irq or qemu_irq array for the GPIO lines
  * @name: Name to give this array of GPIO lines
- * @n: Number of GPIO lines to create
+ * @n: Number of GPIO lines to create in this array
  *
  * Like qdev_init_gpio_out(), but creates an array of GPIO output lines
  * with a name. Code using the device can then connect these GPIO lines
