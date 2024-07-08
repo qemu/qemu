@@ -3353,7 +3353,7 @@ SRST
                          -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
-``-netdev l2tpv3,id=id,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on|off][,udp=on|off][,cookie64][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]``
+``-netdev l2tpv3,id=id,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6=on|off][,udp=on|off][,cookie64=on|off][,counter=on|off][,pincounter=on|off][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]``
     Configure a L2TPv3 pseudowire host network backend. L2TPv3 (RFC3931)
     is a popular protocol to transport Ethernet (and other Layer 2) data
     frames between two systems. It is present in routers, firewalls and
@@ -3368,7 +3368,7 @@ SRST
     ``dst=dstaddr``
         destination address (mandatory)
 
-    ``udp``
+    ``udp=on``
         select udp encapsulation (default is ip).
 
     ``srcport=srcport``
@@ -3377,7 +3377,7 @@ SRST
     ``dstport=dstport``
         destination udp port.
 
-    ``ipv6``
+    ``ipv6=on``
         force v6, otherwise defaults to v4.
 
     ``rxcookie=rxcookie``; \ ``txcookie=txcookie``
@@ -3385,7 +3385,7 @@ SRST
         Their function is mostly to prevent misconfiguration. By default
         they are 32 bit.
 
-    ``cookie64``
+    ``cookie64=on``
         Set cookie size to 64 bit instead of the default 32
 
     ``counter=off``
@@ -3419,7 +3419,7 @@ SRST
         # launch QEMU instance - if your network has reorder or is very lossy add ,pincounter
 
         |qemu_system| linux.img -device e1000,netdev=n1 \\
-            -netdev l2tpv3,id=n1,src=4.2.3.1,dst=1.2.3.4,udp,srcport=16384,dstport=16384,rxsession=0xffffffff,txsession=0xffffffff,counter
+            -netdev l2tpv3,id=n1,src=4.2.3.1,dst=1.2.3.4,udp=on,srcport=16384,dstport=16384,rxsession=0xffffffff,txsession=0xffffffff,counter=on
 
 ``-netdev vde,id=id[,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]``
     Configure VDE backend to connect to PORT n of a vde switch running
