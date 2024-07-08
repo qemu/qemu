@@ -28,7 +28,7 @@ target_ulong spapr_h_vof_client(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt)
 {
-    char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
+    g_autofree char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
 
     vof_build_dt(fdt, spapr->vof);
 
