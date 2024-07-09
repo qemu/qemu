@@ -1165,18 +1165,21 @@ static int hiod_legacy_vfio_get_cap(HostIOMMUDevice *hiod, int cap,
 }
 
 static GList *
-hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod, Error **errp)
+hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
 {
     VFIODevice *vdev = hiod->agent;
-    GList *l = NULL;
 
     g_assert(vdev);
+    return vfio_container_get_iova_ranges(vdev->bcontainer);
+}
 
-    if (vdev->bcontainer) {
-        l = g_list_copy(vdev->bcontainer->iova_ranges);
-    }
+static uint64_t
+hiod_legacy_vfio_get_page_size_mask(HostIOMMUDevice *hiod)
+{
+    VFIODevice *vdev = hiod->agent;
 
-    return l;
+    g_assert(vdev);
+    return vfio_container_get_page_size_mask(vdev->bcontainer);
 }
 
 static void vfio_iommu_legacy_instance_init(Object *obj)
@@ -1193,6 +1196,7 @@ static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
     hioc->realize = hiod_legacy_vfio_realize;
     hioc->get_cap = hiod_legacy_vfio_get_cap;
     hioc->get_iova_ranges = hiod_legacy_vfio_get_iova_ranges;
+    hioc->get_page_size_mask = hiod_legacy_vfio_get_page_size_mask;
 };
 
 static const TypeInfo types[] = {
