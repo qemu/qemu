@@ -5779,6 +5779,65 @@ TRANS(UMLSL_vi, do_3op_widening,
       a->esz, a->q, a->rd, a->rn, a->rm, a->idx,
       gen_mulsub_i64, true)
 
+static void gen_sabd_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_sub_i64(t1, n, m);
+    tcg_gen_sub_i64(t2, m, n);
+    tcg_gen_movcond_i64(TCG_COND_GE, d, n, m, t1, t2);
+}
+
+static void gen_uabd_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_sub_i64(t1, n, m);
+    tcg_gen_sub_i64(t2, m, n);
+    tcg_gen_movcond_i64(TCG_COND_GEU, d, n, m, t1, t2);
+}
+
+static void gen_saba_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+    gen_sabd_i64(t, n, m);
+    tcg_gen_add_i64(d, d, t);
+}
+
+static void gen_uaba_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+    gen_uabd_i64(t, n, m);
+    tcg_gen_add_i64(d, d, t);
+}
+
+TRANS(SADDL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      tcg_gen_add_i64, false)
+TRANS(UADDL_v, do_3op_widening,
+      a->esz, a->q, a->rd, a->rn, a->rm, -1,
+      tcg_gen_add_i64, false)
+TRANS(SSUBL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      tcg_gen_sub_i64, false)
+TRANS(USUBL_v, do_3op_widening,
+      a->esz, a->q, a->rd, a->rn, a->rm, -1,
+      tcg_gen_sub_i64, false)
+TRANS(SABDL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      gen_sabd_i64, false)
+TRANS(UABDL_v, do_3op_widening,
+      a->esz, a->q, a->rd, a->rn, a->rm, -1,
+      gen_uabd_i64, false)
+TRANS(SABAL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      gen_saba_i64, true)
+TRANS(UABAL_v, do_3op_widening,
+      a->esz, a->q, a->rd, a->rn, a->rm, -1,
+      gen_uaba_i64, true)
+
 /*
  * Advanced SIMD scalar/vector x indexed element
  */
@@ -10780,25 +10839,6 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
-            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-                tcg_gen_add_i64(tcg_passres, tcg_op1, tcg_op2);
-                break;
-            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-                tcg_gen_sub_i64(tcg_passres, tcg_op1, tcg_op2);
-                break;
-            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
-            {
-                TCGv_i64 tcg_tmp1 = tcg_temp_new_i64();
-                TCGv_i64 tcg_tmp2 = tcg_temp_new_i64();
-
-                tcg_gen_sub_i64(tcg_tmp1, tcg_op1, tcg_op2);
-                tcg_gen_sub_i64(tcg_tmp2, tcg_op2, tcg_op1);
-                tcg_gen_movcond_i64(is_u ? TCG_COND_GEU : TCG_COND_GE,
-                                    tcg_passres,
-                                    tcg_op1, tcg_op2, tcg_tmp1, tcg_tmp2);
-                break;
-            }
             case 9: /* SQDMLAL, SQDMLAL2 */
             case 11: /* SQDMLSL, SQDMLSL2 */
             case 13: /* SQDMULL, SQDMULL2 */
@@ -10810,20 +10850,20 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
             case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
             case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
+            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
+            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
                 g_assert_not_reached();
             }
 
-            if (opcode == 9 || opcode == 11) {
+            if (accop != 0) {
                 /* saturating accumulate ops */
                 if (accop < 0) {
                     tcg_gen_neg_i64(tcg_passres, tcg_passres);
                 }
                 gen_helper_neon_addl_saturate_s64(tcg_res[pass], tcg_env,
                                                   tcg_res[pass], tcg_passres);
-            } else if (accop > 0) {
-                tcg_gen_add_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
-            } else if (accop < 0) {
-                tcg_gen_sub_i64(tcg_res[pass], tcg_res[pass], tcg_passres);
             }
         }
     } else {
@@ -10844,38 +10884,6 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             }
 
             switch (opcode) {
-            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-            {
-                TCGv_i64 tcg_op2_64 = tcg_temp_new_i64();
-                static NeonGenWidenFn * const widenfns[2][2] = {
-                    { gen_helper_neon_widen_s8, gen_helper_neon_widen_u8 },
-                    { gen_helper_neon_widen_s16, gen_helper_neon_widen_u16 },
-                };
-                NeonGenWidenFn *widenfn = widenfns[size][is_u];
-
-                widenfn(tcg_op2_64, tcg_op2);
-                widenfn(tcg_passres, tcg_op1);
-                gen_neon_addl(size, (opcode == 2), tcg_passres,
-                              tcg_passres, tcg_op2_64);
-                break;
-            }
-            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
-                if (size == 0) {
-                    if (is_u) {
-                        gen_helper_neon_abdl_u16(tcg_passres, tcg_op1, tcg_op2);
-                    } else {
-                        gen_helper_neon_abdl_s16(tcg_passres, tcg_op1, tcg_op2);
-                    }
-                } else {
-                    if (is_u) {
-                        gen_helper_neon_abdl_u32(tcg_passres, tcg_op1, tcg_op2);
-                    } else {
-                        gen_helper_neon_abdl_s32(tcg_passres, tcg_op1, tcg_op2);
-                    }
-                }
-                break;
             case 9: /* SQDMLAL, SQDMLAL2 */
             case 11: /* SQDMLSL, SQDMLSL2 */
             case 13: /* SQDMULL, SQDMULL2 */
@@ -10888,22 +10896,21 @@ static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
             case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
             case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
             case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
+            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
+            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
                 g_assert_not_reached();
             }
 
             if (accop != 0) {
-                if (opcode == 9 || opcode == 11) {
-                    /* saturating accumulate ops */
-                    if (accop < 0) {
-                        gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
-                    }
-                    gen_helper_neon_addl_saturate_s32(tcg_res[pass], tcg_env,
-                                                      tcg_res[pass],
-                                                      tcg_passres);
-                } else {
-                    gen_neon_addl(size, (accop < 0), tcg_res[pass],
-                                  tcg_res[pass], tcg_passres);
+                /* saturating accumulate ops */
+                if (accop < 0) {
+                    gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
                 }
+                gen_helper_neon_addl_saturate_s32(tcg_res[pass], tcg_env,
+                                                  tcg_res[pass],
+                                                  tcg_passres);
             }
         }
     }
@@ -11075,11 +11082,6 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        /* fall through */
-    case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-    case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-    case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-    case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
         /* 64 x 64 -> 128 */
         if (size == 3) {
             unallocated_encoding(s);
@@ -11092,6 +11094,10 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
         handle_3rd_widening(s, is_q, is_u, size, opcode, rd, rn, rm);
         break;
     default:
+    case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
+    case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
+    case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
+    case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
     case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
     case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
     case 12: /* SMULL, SMULL2, UMULL, UMULL2 */
