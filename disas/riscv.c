@@ -946,6 +946,14 @@ typedef enum {
     rv_mop_rr_5    = 915,
     rv_mop_rr_6    = 916,
     rv_mop_rr_7    = 917,
+    rv_c_mop_1     = 918,
+    rv_c_mop_3     = 919,
+    rv_c_mop_5     = 920,
+    rv_c_mop_7     = 921,
+    rv_c_mop_9     = 922,
+    rv_c_mop_11    = 923,
+    rv_c_mop_13    = 924,
+    rv_c_mop_15    = 925,
 } rv_op;
 
 /* register names */
@@ -2176,6 +2184,14 @@ const rv_opcode_data rvi_opcode_data[] = {
     { "mop.rr.5", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
     { "mop.rr.6", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
     { "mop.rr.7", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "c.mop.1",  rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.3",  rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.5",  rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.7",  rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.9",  rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.11", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.13", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "c.mop.15", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2532,6 +2548,13 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             break;
         case 2: op = rv_op_c_li; break;
         case 3:
+            if (dec->cfg->ext_zcmop) {
+                if ((((inst >> 2) & 0b111111) == 0b100000) &&
+                    (((inst >> 11) & 0b11) == 0b0)) {
+                    op = rv_c_mop_1 + ((inst >> 8) & 0b111);
+                    break;
+                }
+            }
             switch ((inst >> 7) & 0b11111) {
             case 2: op = rv_op_c_addi16sp; break;
             default: op = rv_op_c_lui; break;
