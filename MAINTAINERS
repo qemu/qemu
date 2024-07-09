@@ -239,6 +239,7 @@ F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdb-xml/hexagon*.xml
 F: docs/system/target-hexagon.rst
 F: docs/devel/hexagon-sys.rst
+F: docs/devel/hexagon-vm.rst
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser

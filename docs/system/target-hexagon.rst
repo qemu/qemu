@@ -91,6 +91,17 @@ The ``trap0`` instruction can activate these semihosting calls so that the
 guest software can access the host console and filesystem.  Semihosting
 is not yet implemented in QEMU hexagon.
 
+Hexagon Virtual Machine
+-----------------------
+
+The hexagon virtual machine is a hypervisor that can partition a single
+Hexagon DSP among multiple guest operating systems, and abstracts the
+specific details of a DSP architectural revision for the sake of consistency
+among generations.
+
+[minivm](https://github.com/quic/hexagonMVM) is a reference implementation
+of this VM interface.
+
 
 Hexagon Features
 ================
