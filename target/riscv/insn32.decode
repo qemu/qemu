@@ -38,6 +38,8 @@
 %imm_bs   30:2                   !function=ex_shift_3
 %imm_rnum 20:4
 %imm_z6   26:1 15:5
+%imm_mop5 30:1 26:2 20:2
+%imm_mop3 30:1 26:2
 
 # Argument sets:
 &empty
@@ -56,6 +58,8 @@
 &r2nfvm    vm rd rs1 nf
 &rnfvm     vm rd rs1 rs2 nf
 &k_aes     shamt rs2 rs1 rd
+&mop5 imm rd rs1
+&mop3 imm rd rs1 rs2
 
 # Formats 32:
 @r       .......   ..... ..... ... ..... ....... &r                %rs2 %rs1 %rd
@@ -97,6 +101,9 @@
 
 @k_aes   .. ..... ..... .....  ... ..... ....... &k_aes  shamt=%imm_bs   %rs2 %rs1 %rd
 @i_aes   .. ..... ..... .....  ... ..... ....... &i      imm=%imm_rnum        %rs1 %rd
+
+@mop5 . . .. .. .... .. ..... ... ..... ....... &mop5 imm=%imm_mop5 %rd %rs1
+@mop3 . . .. .. . ..... ..... ... ..... ....... &mop3 imm=%imm_mop3 %rd %rs1 %rs2
 
 # Formats 64:
 @sh5     .......  ..... .....  ... ..... ....... &shift  shamt=%sh5      %rs1 %rd
@@ -1010,3 +1017,7 @@ amocas_w    00101 . . ..... ..... 010 ..... 0101111 @atom_st
 amocas_d    00101 . . ..... ..... 011 ..... 0101111 @atom_st
 # *** RV64 Zacas Standard Extension ***
 amocas_q    00101 . . ..... ..... 100 ..... 0101111 @atom_st
+
+# *** Zimop may-be-operation extension ***
+mop_r_n     1 . 00 .. 0111 .. ..... 100 ..... 1110011 @mop5
+mop_rr_n    1 . 00 .. 1 ..... ..... 100 ..... 1110011 @mop3
