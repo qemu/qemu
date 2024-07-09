@@ -96,27 +96,6 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
     return true;
 }
 
-static bool gen_amo(DisasContext *ctx, arg_atomic *a,
-                    void(*func)(TCGv, TCGv, TCGv, TCGArg, MemOp),
-                    MemOp mop)
-{
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1, src2 = get_gpr(ctx, a->rs2, EXT_NONE);
-
-    if (ctx->cfg_ptr->ext_zama16b) {
-        mop |= MO_ATOM_WITHIN16;
-    } else {
-        mop |= MO_ALIGN;
-    }
-
-    decode_save_opc(ctx);
-    src1 = get_address(ctx, a->rs1, 0);
-    func(dest, src1, src2, ctx->mem_idx, mop);
-
-    gen_set_gpr(ctx, a->rd, dest);
-    return true;
-}
-
 static bool trans_lr_w(DisasContext *ctx, arg_lr_w *a)
 {
     REQUIRE_A_OR_ZALRSC(ctx);
