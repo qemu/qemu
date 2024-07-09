@@ -5838,6 +5838,76 @@ TRANS(UABAL_v, do_3op_widening,
       a->esz, a->q, a->rd, a->rn, a->rm, -1,
       gen_uaba_i64, true)
 
+static void gen_sqdmull_h(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    tcg_gen_mul_i64(d, n, m);
+    gen_helper_neon_addl_saturate_s32(d, tcg_env, d, d);
+}
+
+static void gen_sqdmull_s(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    tcg_gen_mul_i64(d, n, m);
+    gen_helper_neon_addl_saturate_s64(d, tcg_env, d, d);
+}
+
+static void gen_sqdmlal_h(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t, n, m);
+    gen_helper_neon_addl_saturate_s32(t, tcg_env, t, t);
+    gen_helper_neon_addl_saturate_s32(d, tcg_env, d, t);
+}
+
+static void gen_sqdmlal_s(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t, n, m);
+    gen_helper_neon_addl_saturate_s64(t, tcg_env, t, t);
+    gen_helper_neon_addl_saturate_s64(d, tcg_env, d, t);
+}
+
+static void gen_sqdmlsl_h(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t, n, m);
+    gen_helper_neon_addl_saturate_s32(t, tcg_env, t, t);
+    tcg_gen_neg_i64(t, t);
+    gen_helper_neon_addl_saturate_s32(d, tcg_env, d, t);
+}
+
+static void gen_sqdmlsl_s(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_mul_i64(t, n, m);
+    gen_helper_neon_addl_saturate_s64(t, tcg_env, t, t);
+    tcg_gen_neg_i64(t, t);
+    gen_helper_neon_addl_saturate_s64(d, tcg_env, d, t);
+}
+
+TRANS(SQDMULL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      a->esz == MO_16 ? gen_sqdmull_h : gen_sqdmull_s, false)
+TRANS(SQDMLAL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      a->esz == MO_16 ? gen_sqdmlal_h : gen_sqdmlal_s, true)
+TRANS(SQDMLSL_v, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, -1,
+      a->esz == MO_16 ? gen_sqdmlsl_h : gen_sqdmlsl_s, true)
+
+TRANS(SQDMULL_vi, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, a->idx,
+      a->esz == MO_16 ? gen_sqdmull_h : gen_sqdmull_s, false)
+TRANS(SQDMLAL_vi, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, a->idx,
+      a->esz == MO_16 ? gen_sqdmlal_h : gen_sqdmlal_s, true)
+TRANS(SQDMLSL_vi, do_3op_widening,
+      a->esz | MO_SIGN, a->q, a->rd, a->rn, a->rm, a->idx,
+      a->esz == MO_16 ? gen_sqdmlsl_h : gen_sqdmlsl_s, true)
+
 /*
  * Advanced SIMD scalar/vector x indexed element
  */
@@ -5988,6 +6058,38 @@ static bool do_env_scalar3_idx_hs(DisasContext *s, arg_rrx_e *a,
 
 TRANS_FEAT(SQRDMLAH_si, aa64_rdm, do_env_scalar3_idx_hs, a, &f_scalar_sqrdmlah)
 TRANS_FEAT(SQRDMLSH_si, aa64_rdm, do_env_scalar3_idx_hs, a, &f_scalar_sqrdmlsh)
+
+static bool do_scalar_muladd_widening_idx(DisasContext *s, arg_rrx_e *a,
+                                          NeonGenTwo64OpFn *fn, bool acc)
+{
+    if (fp_access_check(s)) {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        unsigned vsz, dofs;
+
+        if (acc) {
+            read_vec_element(s, t0, a->rd, 0, a->esz + 1);
+        }
+        read_vec_element(s, t1, a->rn, 0, a->esz | MO_SIGN);
+        read_vec_element(s, t2, a->rm, a->idx, a->esz | MO_SIGN);
+        fn(t0, t1, t2);
+
+        /* Clear the whole register first, then store scalar. */
+        vsz = vec_full_reg_size(s);
+        dofs = vec_full_reg_offset(s, a->rd);
+        tcg_gen_gvec_dup_imm(MO_64, dofs, vsz, vsz, 0);
+        write_vec_element(s, t0, a->rd, 0, a->esz + 1);
+    }
+    return true;
+}
+
+TRANS(SQDMULL_si, do_scalar_muladd_widening_idx, a,
+      a->esz == MO_16 ? gen_sqdmull_h : gen_sqdmull_s, false)
+TRANS(SQDMLAL_si, do_scalar_muladd_widening_idx, a,
+      a->esz == MO_16 ? gen_sqdmlal_h : gen_sqdmlal_s, true)
+TRANS(SQDMLSL_si, do_scalar_muladd_widening_idx, a,
+      a->esz == MO_16 ? gen_sqdmlsl_h : gen_sqdmlsl_s, true)
 
 static bool do_fp3_vector_idx(DisasContext *s, arg_qrrx_e *a,
                               gen_helper_gvec_3_ptr * const fns[3])
@@ -9821,102 +9923,6 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD scalar three different
- *  31 30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
- * +-----+---+-----------+------+---+------+--------+-----+------+------+
- * | 0 1 | U | 1 1 1 1 0 | size | 1 |  Rm  | opcode | 0 0 |  Rn  |  Rd  |
- * +-----+---+-----------+------+---+------+--------+-----+------+------+
- */
-static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
-{
-    bool is_u = extract32(insn, 29, 1);
-    int size = extract32(insn, 22, 2);
-    int opcode = extract32(insn, 12, 4);
-    int rm = extract32(insn, 16, 5);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
-
-    if (is_u) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    switch (opcode) {
-    case 0x9: /* SQDMLAL, SQDMLAL2 */
-    case 0xb: /* SQDMLSL, SQDMLSL2 */
-    case 0xd: /* SQDMULL, SQDMULL2 */
-        if (size == 0 || size == 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
-    default:
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    if (size == 2) {
-        TCGv_i64 tcg_op1 = tcg_temp_new_i64();
-        TCGv_i64 tcg_op2 = tcg_temp_new_i64();
-        TCGv_i64 tcg_res = tcg_temp_new_i64();
-
-        read_vec_element(s, tcg_op1, rn, 0, MO_32 | MO_SIGN);
-        read_vec_element(s, tcg_op2, rm, 0, MO_32 | MO_SIGN);
-
-        tcg_gen_mul_i64(tcg_res, tcg_op1, tcg_op2);
-        gen_helper_neon_addl_saturate_s64(tcg_res, tcg_env, tcg_res, tcg_res);
-
-        switch (opcode) {
-        case 0xd: /* SQDMULL, SQDMULL2 */
-            break;
-        case 0xb: /* SQDMLSL, SQDMLSL2 */
-            tcg_gen_neg_i64(tcg_res, tcg_res);
-            /* fall through */
-        case 0x9: /* SQDMLAL, SQDMLAL2 */
-            read_vec_element(s, tcg_op1, rd, 0, MO_64);
-            gen_helper_neon_addl_saturate_s64(tcg_res, tcg_env,
-                                              tcg_res, tcg_op1);
-            break;
-        default:
-            g_assert_not_reached();
-        }
-
-        write_fp_dreg(s, rd, tcg_res);
-    } else {
-        TCGv_i32 tcg_op1 = read_fp_hreg(s, rn);
-        TCGv_i32 tcg_op2 = read_fp_hreg(s, rm);
-        TCGv_i64 tcg_res = tcg_temp_new_i64();
-
-        gen_helper_neon_mull_s16(tcg_res, tcg_op1, tcg_op2);
-        gen_helper_neon_addl_saturate_s32(tcg_res, tcg_env, tcg_res, tcg_res);
-
-        switch (opcode) {
-        case 0xd: /* SQDMULL, SQDMULL2 */
-            break;
-        case 0xb: /* SQDMLSL, SQDMLSL2 */
-            gen_helper_neon_negl_u32(tcg_res, tcg_res);
-            /* fall through */
-        case 0x9: /* SQDMLAL, SQDMLAL2 */
-        {
-            TCGv_i64 tcg_op3 = tcg_temp_new_i64();
-            read_vec_element(s, tcg_op3, rd, 0, MO_32);
-            gen_helper_neon_addl_saturate_s32(tcg_res, tcg_env,
-                                              tcg_res, tcg_op3);
-            break;
-        }
-        default:
-            g_assert_not_reached();
-        }
-
-        tcg_gen_ext32u_i64(tcg_res, tcg_res);
-        write_fp_dreg(s, rd, tcg_res);
-    }
-}
-
 static void handle_2misc_64(DisasContext *s, int opcode, bool u,
                             TCGv_i64 tcg_rd, TCGv_i64 tcg_rn,
                             TCGv_i32 tcg_rmode, TCGv_ptr tcg_fpstatus)
@@ -10784,141 +10790,6 @@ static void gen_neon_addl(int size, bool is_sub, TCGv_i64 tcg_res,
     genfn(tcg_res, tcg_op1, tcg_op2);
 }
 
-static void handle_3rd_widening(DisasContext *s, int is_q, int is_u, int size,
-                                int opcode, int rd, int rn, int rm)
-{
-    /* 3-reg-different widening insns: 64 x 64 -> 128 */
-    TCGv_i64 tcg_res[2];
-    int pass, accop;
-
-    tcg_res[0] = tcg_temp_new_i64();
-    tcg_res[1] = tcg_temp_new_i64();
-
-    /* Does this op do an adding accumulate, a subtracting accumulate,
-     * or no accumulate at all?
-     */
-    switch (opcode) {
-    case 5:
-    case 8:
-    case 9:
-        accop = 1;
-        break;
-    case 10:
-    case 11:
-        accop = -1;
-        break;
-    default:
-        accop = 0;
-        break;
-    }
-
-    if (accop != 0) {
-        read_vec_element(s, tcg_res[0], rd, 0, MO_64);
-        read_vec_element(s, tcg_res[1], rd, 1, MO_64);
-    }
-
-    /* size == 2 means two 32x32->64 operations; this is worth special
-     * casing because we can generally handle it inline.
-     */
-    if (size == 2) {
-        for (pass = 0; pass < 2; pass++) {
-            TCGv_i64 tcg_op1 = tcg_temp_new_i64();
-            TCGv_i64 tcg_op2 = tcg_temp_new_i64();
-            TCGv_i64 tcg_passres;
-            MemOp memop = MO_32 | (is_u ? 0 : MO_SIGN);
-
-            int elt = pass + is_q * 2;
-
-            read_vec_element(s, tcg_op1, rn, elt, memop);
-            read_vec_element(s, tcg_op2, rm, elt, memop);
-
-            if (accop == 0) {
-                tcg_passres = tcg_res[pass];
-            } else {
-                tcg_passres = tcg_temp_new_i64();
-            }
-
-            switch (opcode) {
-            case 9: /* SQDMLAL, SQDMLAL2 */
-            case 11: /* SQDMLSL, SQDMLSL2 */
-            case 13: /* SQDMULL, SQDMULL2 */
-                tcg_gen_mul_i64(tcg_passres, tcg_op1, tcg_op2);
-                gen_helper_neon_addl_saturate_s64(tcg_passres, tcg_env,
-                                                  tcg_passres, tcg_passres);
-                break;
-            default:
-            case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-            case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-            case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
-            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
-                g_assert_not_reached();
-            }
-
-            if (accop != 0) {
-                /* saturating accumulate ops */
-                if (accop < 0) {
-                    tcg_gen_neg_i64(tcg_passres, tcg_passres);
-                }
-                gen_helper_neon_addl_saturate_s64(tcg_res[pass], tcg_env,
-                                                  tcg_res[pass], tcg_passres);
-            }
-        }
-    } else {
-        /* size 0 or 1, generally helper functions */
-        for (pass = 0; pass < 2; pass++) {
-            TCGv_i32 tcg_op1 = tcg_temp_new_i32();
-            TCGv_i32 tcg_op2 = tcg_temp_new_i32();
-            TCGv_i64 tcg_passres;
-            int elt = pass + is_q * 2;
-
-            read_vec_element_i32(s, tcg_op1, rn, elt, MO_32);
-            read_vec_element_i32(s, tcg_op2, rm, elt, MO_32);
-
-            if (accop == 0) {
-                tcg_passres = tcg_res[pass];
-            } else {
-                tcg_passres = tcg_temp_new_i64();
-            }
-
-            switch (opcode) {
-            case 9: /* SQDMLAL, SQDMLAL2 */
-            case 11: /* SQDMLSL, SQDMLSL2 */
-            case 13: /* SQDMULL, SQDMULL2 */
-                assert(size == 1);
-                gen_helper_neon_mull_s16(tcg_passres, tcg_op1, tcg_op2);
-                gen_helper_neon_addl_saturate_s32(tcg_passres, tcg_env,
-                                                  tcg_passres, tcg_passres);
-                break;
-            default:
-            case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-            case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-            case 12: /* UMULL, UMULL2, SMULL, SMULL2 */
-            case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-            case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-            case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-            case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
-                g_assert_not_reached();
-            }
-
-            if (accop != 0) {
-                /* saturating accumulate ops */
-                if (accop < 0) {
-                    gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
-                }
-                gen_helper_neon_addl_saturate_s32(tcg_res[pass], tcg_env,
-                                                  tcg_res[pass],
-                                                  tcg_passres);
-            }
-        }
-    }
-
-    write_vec_element(s, tcg_res[0], rd, 0, MO_64);
-    write_vec_element(s, tcg_res[1], rd, 1, MO_64);
-}
-
 static void handle_3rd_wide(DisasContext *s, int is_q, int is_u, int size,
                             int opcode, int rd, int rn, int rm)
 {
@@ -11075,32 +10946,17 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             break;
         }
         return;
-    case 9: /* SQDMLAL, SQDMLAL2 */
-    case 11: /* SQDMLSL, SQDMLSL2 */
-    case 13: /* SQDMULL, SQDMULL2 */
-        if (is_u || size == 0) {
-            unallocated_encoding(s);
-            return;
-        }
-        /* 64 x 64 -> 128 */
-        if (size == 3) {
-            unallocated_encoding(s);
-            return;
-        }
-        if (!fp_access_check(s)) {
-            return;
-        }
-
-        handle_3rd_widening(s, is_q, is_u, size, opcode, rd, rn, rm);
-        break;
     default:
     case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
     case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
     case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
     case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
     case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
+    case 9: /* SQDMLAL, SQDMLAL2 */
     case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
+    case 11: /* SQDMLSL, SQDMLSL2 */
     case 12: /* SMULL, SMULL2, UMULL, UMULL2 */
+    case 13: /* SQDMULL, SQDMULL2 */
         /* opcode 15 not allocated */
         unallocated_encoding(s);
         break;
@@ -12049,253 +11905,6 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD scalar x indexed element
- *  31 30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
- * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
- * | 0 1 | U | 1 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
- * +-----+---+-----------+------+---+---+------+-----+---+---+------+------+
- * AdvSIMD vector x indexed element
- *   31  30  29 28       24 23  22 21  20  19  16 15 12  11  10 9    5 4    0
- * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
- * | 0 | Q | U | 0 1 1 1 1 | size | L | M |  Rm  | opc | H | 0 |  Rn  |  Rd  |
- * +---+---+---+-----------+------+---+---+------+-----+---+---+------+------+
- */
-static void disas_simd_indexed(DisasContext *s, uint32_t insn)
-{
-    /* This encoding has two kinds of instruction:
-     *  normal, where we perform elt x idxelt => elt for each
-     *     element in the vector
-     *  long, where we perform elt x idxelt and generate a result of
-     *     double the width of the input element
-     * The long ops have a 'part' specifier (ie come in INSN, INSN2 pairs).
-     */
-    bool is_scalar = extract32(insn, 28, 1);
-    bool is_q = extract32(insn, 30, 1);
-    bool u = extract32(insn, 29, 1);
-    int size = extract32(insn, 22, 2);
-    int l = extract32(insn, 21, 1);
-    int m = extract32(insn, 20, 1);
-    /* Note that the Rm field here is only 4 bits, not 5 as it usually is */
-    int rm = extract32(insn, 16, 4);
-    int opcode = extract32(insn, 12, 4);
-    int h = extract32(insn, 11, 1);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
-    int index;
-
-    switch (16 * u + opcode) {
-    case 0x03: /* SQDMLAL, SQDMLAL2 */
-    case 0x07: /* SQDMLSL, SQDMLSL2 */
-    case 0x0b: /* SQDMULL, SQDMULL2 */
-        break;
-    default:
-    case 0x00: /* FMLAL */
-    case 0x01: /* FMLA */
-    case 0x02: /* SMLAL, SMLAL2 */
-    case 0x04: /* FMLSL */
-    case 0x05: /* FMLS */
-    case 0x06: /* SMLSL, SMLSL2 */
-    case 0x08: /* MUL */
-    case 0x09: /* FMUL */
-    case 0x0a: /* SMULL, SMULL2 */
-    case 0x0c: /* SQDMULH */
-    case 0x0d: /* SQRDMULH */
-    case 0x0e: /* SDOT */
-    case 0x0f: /* SUDOT / BFDOT / USDOT / BFMLAL */
-    case 0x10: /* MLA */
-    case 0x11: /* FCMLA #0 */
-    case 0x12: /* UMLAL, UMLAL2 */
-    case 0x13: /* FCMLA #90 */
-    case 0x14: /* MLS */
-    case 0x15: /* FCMLA #180 */
-    case 0x16: /* UMLSL, UMLSL2 */
-    case 0x17: /* FCMLA #270 */
-    case 0x18: /* FMLAL2 */
-    case 0x19: /* FMULX */
-    case 0x1a: /* UMULL, UMULL2 */
-    case 0x1c: /* FMLSL2 */
-    case 0x1d: /* SQRDMLAH */
-    case 0x1e: /* UDOT */
-    case 0x1f: /* SQRDMLSH */
-        unallocated_encoding(s);
-        return;
-    }
-
-    /* Given MemOp size, adjust register and indexing.  */
-    switch (size) {
-    case MO_8:
-    case MO_64:
-        unallocated_encoding(s);
-        return;
-    case MO_16:
-        index = h << 2 | l << 1 | m;
-        break;
-    case MO_32:
-        index = h << 1 | l;
-        rm |= m << 4;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    if (size == 3) {
-        g_assert_not_reached();
-    } else {
-        /* long ops: 16x16->32 or 32x32->64 */
-        TCGv_i64 tcg_res[2];
-        int pass;
-        bool satop = extract32(opcode, 0, 1);
-        MemOp memop = MO_32;
-
-        if (satop || !u) {
-            memop |= MO_SIGN;
-        }
-
-        if (size == 2) {
-            TCGv_i64 tcg_idx = tcg_temp_new_i64();
-
-            read_vec_element(s, tcg_idx, rm, index, memop);
-
-            for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
-                TCGv_i64 tcg_op = tcg_temp_new_i64();
-                TCGv_i64 tcg_passres;
-                int passelt;
-
-                if (is_scalar) {
-                    passelt = 0;
-                } else {
-                    passelt = pass + (is_q * 2);
-                }
-
-                read_vec_element(s, tcg_op, rn, passelt, memop);
-
-                tcg_res[pass] = tcg_temp_new_i64();
-
-                if (opcode == 0xa || opcode == 0xb) {
-                    /* Non-accumulating ops */
-                    tcg_passres = tcg_res[pass];
-                } else {
-                    tcg_passres = tcg_temp_new_i64();
-                }
-
-                tcg_gen_mul_i64(tcg_passres, tcg_op, tcg_idx);
-
-                if (satop) {
-                    /* saturating, doubling */
-                    gen_helper_neon_addl_saturate_s64(tcg_passres, tcg_env,
-                                                      tcg_passres, tcg_passres);
-                }
-
-                if (opcode == 0xa || opcode == 0xb) {
-                    continue;
-                }
-
-                /* Accumulating op: handle accumulate step */
-                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-
-                switch (opcode) {
-                case 0x7: /* SQDMLSL, SQDMLSL2 */
-                    tcg_gen_neg_i64(tcg_passres, tcg_passres);
-                    /* fall through */
-                case 0x3: /* SQDMLAL, SQDMLAL2 */
-                    gen_helper_neon_addl_saturate_s64(tcg_res[pass], tcg_env,
-                                                      tcg_res[pass],
-                                                      tcg_passres);
-                    break;
-                default:
-                case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-                case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-                    g_assert_not_reached();
-                }
-            }
-
-            clear_vec_high(s, !is_scalar, rd);
-        } else {
-            TCGv_i32 tcg_idx = tcg_temp_new_i32();
-
-            assert(size == 1);
-            read_vec_element_i32(s, tcg_idx, rm, index, size);
-
-            if (!is_scalar) {
-                /* The simplest way to handle the 16x16 indexed ops is to
-                 * duplicate the index into both halves of the 32 bit tcg_idx
-                 * and then use the usual Neon helpers.
-                 */
-                tcg_gen_deposit_i32(tcg_idx, tcg_idx, tcg_idx, 16, 16);
-            }
-
-            for (pass = 0; pass < (is_scalar ? 1 : 2); pass++) {
-                TCGv_i32 tcg_op = tcg_temp_new_i32();
-                TCGv_i64 tcg_passres;
-
-                if (is_scalar) {
-                    read_vec_element_i32(s, tcg_op, rn, pass, size);
-                } else {
-                    read_vec_element_i32(s, tcg_op, rn,
-                                         pass + (is_q * 2), MO_32);
-                }
-
-                tcg_res[pass] = tcg_temp_new_i64();
-
-                if (opcode == 0xa || opcode == 0xb) {
-                    /* Non-accumulating ops */
-                    tcg_passres = tcg_res[pass];
-                } else {
-                    tcg_passres = tcg_temp_new_i64();
-                }
-
-                if (memop & MO_SIGN) {
-                    gen_helper_neon_mull_s16(tcg_passres, tcg_op, tcg_idx);
-                } else {
-                    gen_helper_neon_mull_u16(tcg_passres, tcg_op, tcg_idx);
-                }
-                if (satop) {
-                    gen_helper_neon_addl_saturate_s32(tcg_passres, tcg_env,
-                                                      tcg_passres, tcg_passres);
-                }
-
-                if (opcode == 0xa || opcode == 0xb) {
-                    continue;
-                }
-
-                /* Accumulating op: handle accumulate step */
-                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-
-                switch (opcode) {
-                case 0x7: /* SQDMLSL, SQDMLSL2 */
-                    gen_helper_neon_negl_u32(tcg_passres, tcg_passres);
-                    /* fall through */
-                case 0x3: /* SQDMLAL, SQDMLAL2 */
-                    gen_helper_neon_addl_saturate_s32(tcg_res[pass], tcg_env,
-                                                      tcg_res[pass],
-                                                      tcg_passres);
-                    break;
-                default:
-                case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-                case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-                    g_assert_not_reached();
-                }
-            }
-
-            if (is_scalar) {
-                tcg_gen_ext32u_i64(tcg_res[0], tcg_res[0]);
-            }
-        }
-
-        if (is_scalar) {
-            tcg_res[1] = tcg_constant_i64(0);
-        }
-
-        for (pass = 0; pass < 2; pass++) {
-            write_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-        }
-    }
-}
-
 /* C3.6 Data processing - SIMD, inc Crypto
  *
  * As the decode gets a little complex we are using a table based
@@ -12306,16 +11915,13 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x0e200000, 0x9f200c00, disas_simd_three_reg_diff },
     { 0x0e200800, 0x9f3e0c00, disas_simd_two_reg_misc },
     { 0x0e300800, 0x9f3e0c00, disas_simd_across_lanes },
-    { 0x0f000000, 0x9f000400, disas_simd_indexed }, /* vector indexed */
     /* simd_mod_imm decode is a subset of simd_shift_imm, so must precede it */
     { 0x0f000400, 0x9ff80400, disas_simd_mod_imm },
     { 0x0f000400, 0x9f800400, disas_simd_shift_imm },
     { 0x0e000000, 0xbf208c00, disas_simd_tb },
     { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
     { 0x2e000000, 0xbf208400, disas_simd_ext },
-    { 0x5e200000, 0xdf200c00, disas_simd_scalar_three_reg_diff },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
-    { 0x5f000000, 0xdf000400, disas_simd_indexed }, /* scalar indexed */
     { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
     { 0x0e780800, 0x8f7e0c00, disas_simd_two_reg_misc_fp16 },
     { 0x00000000, 0x00000000, NULL }
