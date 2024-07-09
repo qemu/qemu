@@ -358,7 +358,7 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
 {
     struct vtd_iotlb_key key;
     VTDIOTLBEntry *entry;
-    int level;
+    unsigned level;
 
     for (level = VTD_SL_PT_LEVEL; level < VTD_SL_PML4_LEVEL; level++) {
         key.gfn = vtd_get_iotlb_gfn(addr, level);
