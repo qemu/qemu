@@ -24,25 +24,29 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
     tcg_gen_st_i64(src, tcg_env, avr64_offset(regno, high));
 }
 
+static inline void get_avr_full(TCGv_i128 dst, int regno)
+{
+    tcg_gen_ld_i128(dst, tcg_env, avr_full_offset(regno));
+}
+
+static inline void set_avr_full(int regno, TCGv_i128 src)
+{
+    tcg_gen_st_i128(src, tcg_env, avr_full_offset(regno));
+}
+
 static bool trans_LVX(DisasContext *ctx, arg_X *a)
 {
     TCGv EA;
-    TCGv_i64 avr;
+    TCGv_i128 avr;
     REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
     REQUIRE_VECTOR(ctx);
     gen_set_access_type(ctx, ACCESS_INT);
-    avr = tcg_temp_new_i64();
+    avr = tcg_temp_new_i128();
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_andi_tl(EA, EA, ~0xf);
-    /*
-     * We only need to swap high and low halves. gen_qemu_ld64_i64
-     * does necessary 64-bit byteswap already.
-     */
-    gen_qemu_ld64_i64(ctx, avr, EA);
-    set_avr64(a->rt, avr, !ctx->le_mode);
-    tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_ld64_i64(ctx, avr, EA);
-    set_avr64(a->rt, avr, ctx->le_mode);
+    tcg_gen_qemu_ld_i128(avr, EA, ctx->mem_idx,
+                         DEF_MEMOP(MO_128 | MO_ATOM_IFALIGN_PAIR));
+    set_avr_full(a->rt, avr);
     return true;
 }
 
@@ -56,22 +60,16 @@ static bool trans_LVXL(DisasContext *ctx, arg_LVXL *a)
 static bool trans_STVX(DisasContext *ctx, arg_STVX *a)
 {
     TCGv EA;
-    TCGv_i64 avr;
+    TCGv_i128 avr;
     REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
     REQUIRE_VECTOR(ctx);
     gen_set_access_type(ctx, ACCESS_INT);
-    avr = tcg_temp_new_i64();
+    avr = tcg_temp_new_i128();
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_andi_tl(EA, EA, ~0xf);
-    /*
-     * We only need to swap high and low halves. gen_qemu_st64_i64
-     * does necessary 64-bit byteswap already.
-     */
-    get_avr64(avr, a->rt, !ctx->le_mode);
-    gen_qemu_st64_i64(ctx, avr, EA);
-    tcg_gen_addi_tl(EA, EA, 8);
-    get_avr64(avr, a->rt, ctx->le_mode);
-    gen_qemu_st64_i64(ctx, avr, EA);
+    get_avr_full(avr, a->rt);
+    tcg_gen_qemu_st_i128(avr, EA, ctx->mem_idx,
+                         DEF_MEMOP(MO_128 | MO_ATOM_IFALIGN_PAIR));
     return true;
 }
 
