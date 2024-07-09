@@ -6003,6 +6003,18 @@ TRANS(SUBHN, do_addsub_highnarrow, a, true, false)
 TRANS(RADDHN, do_addsub_highnarrow, a, false, true)
 TRANS(RSUBHN, do_addsub_highnarrow, a, true, true)
 
+static bool do_pmull(DisasContext *s, arg_qrrr_e *a, gen_helper_gvec_3 *fn)
+{
+    if (fp_access_check(s)) {
+        /* The Q field specifies lo/hi half input for these insns.  */
+        gen_gvec_op3_ool(s, true, a->rd, a->rn, a->rm, a->q, fn);
+    }
+    return true;
+}
+
+TRANS(PMULL_p8, do_pmull, a, gen_helper_neon_pmull_h)
+TRANS_FEAT(PMULL_p64, aa64_pmull, do_pmull, a, gen_helper_gvec_pmull_q)
+
 /*
  * Advanced SIMD scalar/vector x indexed element
  */
@@ -10867,87 +10879,6 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     }
 }
 
-/* AdvSIMD three different
- *   31  30  29 28       24 23  22  21 20  16 15    12 11 10 9    5 4    0
- * +---+---+---+-----------+------+---+------+--------+-----+------+------+
- * | 0 | Q | U | 0 1 1 1 0 | size | 1 |  Rm  | opcode | 0 0 |  Rn  |  Rd  |
- * +---+---+---+-----------+------+---+------+--------+-----+------+------+
- */
-static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
-{
-    /* Instructions in this group fall into three basic classes
-     * (in each case with the operation working on each element in
-     * the input vectors):
-     * (1) widening 64 x 64 -> 128 (with possibly Vd as an extra
-     *     128 bit input)
-     * (2) wide 64 x 128 -> 128
-     * (3) narrowing 128 x 128 -> 64
-     * Here we do initial decode, catch unallocated cases and
-     * dispatch to separate functions for each class.
-     */
-    int is_q = extract32(insn, 30, 1);
-    int is_u = extract32(insn, 29, 1);
-    int size = extract32(insn, 22, 2);
-    int opcode = extract32(insn, 12, 4);
-    int rm = extract32(insn, 16, 5);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
-
-    switch (opcode) {
-    case 14: /* PMULL, PMULL2 */
-        if (is_u) {
-            unallocated_encoding(s);
-            return;
-        }
-        switch (size) {
-        case 0: /* PMULL.P8 */
-            if (!fp_access_check(s)) {
-                return;
-            }
-            /* The Q field specifies lo/hi half input for this insn.  */
-            gen_gvec_op3_ool(s, true, rd, rn, rm, is_q,
-                             gen_helper_neon_pmull_h);
-            break;
-
-        case 3: /* PMULL.P64 */
-            if (!dc_isar_feature(aa64_pmull, s)) {
-                unallocated_encoding(s);
-                return;
-            }
-            if (!fp_access_check(s)) {
-                return;
-            }
-            /* The Q field specifies lo/hi half input for this insn.  */
-            gen_gvec_op3_ool(s, true, rd, rn, rm, is_q,
-                             gen_helper_gvec_pmull_q);
-            break;
-
-        default:
-            unallocated_encoding(s);
-            break;
-        }
-        return;
-    default:
-    case 0: /* SADDL, SADDL2, UADDL, UADDL2 */
-    case 1: /* SADDW, SADDW2, UADDW, UADDW2 */
-    case 2: /* SSUBL, SSUBL2, USUBL, USUBL2 */
-    case 3: /* SSUBW, SSUBW2, USUBW, USUBW2 */
-    case 4: /* ADDHN, ADDHN2, RADDHN, RADDHN2 */
-    case 5: /* SABAL, SABAL2, UABAL, UABAL2 */
-    case 6: /* SUBHN, SUBHN2, RSUBHN, RSUBHN2 */
-    case 7: /* SABDL, SABDL2, UABDL, UABDL2 */
-    case 8: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-    case 9: /* SQDMLAL, SQDMLAL2 */
-    case 10: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-    case 11: /* SQDMLSL, SQDMLSL2 */
-    case 12: /* SMULL, SMULL2, UMULL, UMULL2 */
-    case 13: /* SQDMULL, SQDMULL2 */
-        /* opcode 15 not allocated */
-        unallocated_encoding(s);
-        break;
-    }
-}
-
 static void handle_2misc_widening(DisasContext *s, int opcode, bool is_q,
                                   int size, int rn, int rd)
 {
@@ -11897,7 +11828,6 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
  */
 static const AArch64DecodeTable data_proc_simd[] = {
     /* pattern  ,  mask     ,  fn                        */
-    { 0x0e200000, 0x9f200c00, disas_simd_three_reg_diff },
     { 0x0e200800, 0x9f3e0c00, disas_simd_two_reg_misc },
     { 0x0e300800, 0x9f3e0c00, disas_simd_across_lanes },
     /* simd_mod_imm decode is a subset of simd_shift_imm, so must precede it */
