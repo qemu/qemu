@@ -129,3 +129,17 @@ static bool trans_amomaxu_h(DisasContext *ctx, arg_amomaxu_h *a)
     REQUIRE_ZABHA(ctx);
     return gen_amo(ctx, a, &tcg_gen_atomic_fetch_umax_tl, MO_TESW);
 }
+
+static bool trans_amocas_b(DisasContext *ctx, arg_amocas_b *a)
+{
+    REQUIRE_ZACAS(ctx);
+    REQUIRE_ZABHA(ctx);
+    return gen_cmpxchg(ctx, a, MO_SB);
+}
+
+static bool trans_amocas_h(DisasContext *ctx, arg_amocas_h *a)
+{
+    REQUIRE_ZACAS(ctx);
+    REQUIRE_ZABHA(ctx);
+    return gen_cmpxchg(ctx, a, MO_ALIGN | MO_TESW);
+}
