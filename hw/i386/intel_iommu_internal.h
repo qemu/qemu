@@ -436,7 +436,7 @@ struct VTDIOTLBPageInvInfo {
     uint16_t domain_id;
     uint32_t pasid;
     uint64_t addr;
-    uint8_t mask;
+    uint64_t mask;
 };
 typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
 
