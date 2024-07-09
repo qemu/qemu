@@ -16,6 +16,7 @@ Details about QEMU's various subsystems including how to add features to them.
    ebpf_rss
    hexagon-sys
    hexagon-l2vic
+   hexagon-vm
    migration/index
    multi-process
    reset
