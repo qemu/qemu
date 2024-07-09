@@ -1083,8 +1083,9 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1, src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+    MemOp size = mop & MO_SIZE;
 
-    if (ctx->cfg_ptr->ext_zama16b) {
+    if (ctx->cfg_ptr->ext_zama16b && size >= MO_32) {
         mop |= MO_ATOM_WITHIN16;
     } else {
         mop |= MO_ALIGN;
@@ -1118,6 +1119,7 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 #include "insn_trans/trans_rvb.c.inc"
 #include "insn_trans/trans_rvzicond.c.inc"
 #include "insn_trans/trans_rvzacas.c.inc"
+#include "insn_trans/trans_rvzabha.c.inc"
 #include "insn_trans/trans_rvzawrs.c.inc"
 #include "insn_trans/trans_rvzicbo.c.inc"
 #include "insn_trans/trans_rvzimop.c.inc"

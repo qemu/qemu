@@ -84,6 +84,7 @@ struct RISCVCPUConfig {
     bool ext_zaamo;
     bool ext_zacas;
     bool ext_zama16b;
+    bool ext_zabha;
     bool ext_zalrsc;
     bool ext_zawrs;
     bool ext_zfa;
