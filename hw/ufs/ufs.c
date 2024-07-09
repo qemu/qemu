@@ -57,14 +57,26 @@ static inline uint64_t ufs_reg_size(UfsHc *u)
 
 static inline bool ufs_is_mcq_reg(UfsHc *u, uint64_t addr, unsigned size)
 {
-    uint64_t mcq_reg_addr = ufs_mcq_reg_addr(u, 0);
+    uint64_t mcq_reg_addr;
+
+    if (!u->params.mcq) {
+        return false;
+    }
+
+    mcq_reg_addr = ufs_mcq_reg_addr(u, 0);
     return (addr >= mcq_reg_addr &&
             addr + size <= mcq_reg_addr + sizeof(u->mcq_reg));
 }
 
 static inline bool ufs_is_mcq_op_reg(UfsHc *u, uint64_t addr, unsigned size)
 {
-    uint64_t mcq_op_reg_addr = ufs_mcq_op_reg_addr(u, 0);
+    uint64_t mcq_op_reg_addr;
+
+    if (!u->params.mcq) {
+        return false;
+    }
+
+    mcq_op_reg_addr = ufs_mcq_op_reg_addr(u, 0);
     return (addr >= mcq_op_reg_addr &&
             addr + size <= mcq_op_reg_addr + sizeof(u->mcq_op_reg));
 }
