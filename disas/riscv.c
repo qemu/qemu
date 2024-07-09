@@ -954,6 +954,26 @@ typedef enum {
     rv_c_mop_11    = 923,
     rv_c_mop_13    = 924,
     rv_c_mop_15    = 925,
+    rv_op_amoswap_b = 926,
+    rv_op_amoadd_b  = 927,
+    rv_op_amoxor_b  = 928,
+    rv_op_amoor_b   = 929,
+    rv_op_amoand_b  = 930,
+    rv_op_amomin_b  = 931,
+    rv_op_amomax_b  = 932,
+    rv_op_amominu_b = 933,
+    rv_op_amomaxu_b = 934,
+    rv_op_amoswap_h = 935,
+    rv_op_amoadd_h  = 936,
+    rv_op_amoxor_h  = 937,
+    rv_op_amoor_h   = 938,
+    rv_op_amoand_h  = 939,
+    rv_op_amomin_h  = 940,
+    rv_op_amomax_h  = 941,
+    rv_op_amominu_h = 942,
+    rv_op_amomaxu_h = 943,
+    rv_op_amocas_b  = 944,
+    rv_op_amocas_h  = 945,
 } rv_op;
 
 /* register names */
@@ -2192,6 +2212,26 @@ const rv_opcode_data rvi_opcode_data[] = {
     { "c.mop.11", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
     { "c.mop.13", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
     { "c.mop.15", rv_codec_ci_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "amoswap.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoadd.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoxor.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoor.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoand.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomin.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomax.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amominu.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomaxu.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoswap.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoadd.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoxor.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoor.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amoand.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomin.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomax.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amominu.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amomaxu.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amocas.b", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "amocas.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2986,9 +3026,13 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
         case 11:
             switch (((inst >> 24) & 0b11111000) |
                     ((inst >> 12) & 0b00000111)) {
+            case 0: op = rv_op_amoadd_b; break;
+            case 1: op = rv_op_amoadd_h; break;
             case 2: op = rv_op_amoadd_w; break;
             case 3: op = rv_op_amoadd_d; break;
             case 4: op = rv_op_amoadd_q; break;
+            case 8: op = rv_op_amoswap_b; break;
+            case 9: op = rv_op_amoswap_h; break;
             case 10: op = rv_op_amoswap_w; break;
             case 11: op = rv_op_amoswap_d; break;
             case 12: op = rv_op_amoswap_q; break;
@@ -3010,27 +3054,43 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 26: op = rv_op_sc_w; break;
             case 27: op = rv_op_sc_d; break;
             case 28: op = rv_op_sc_q; break;
+            case 32: op = rv_op_amoxor_b; break;
+            case 33: op = rv_op_amoxor_h; break;
             case 34: op = rv_op_amoxor_w; break;
             case 35: op = rv_op_amoxor_d; break;
             case 36: op = rv_op_amoxor_q; break;
+            case 40: op = rv_op_amocas_b; break;
+            case 41: op = rv_op_amocas_h; break;
             case 42: op = rv_op_amocas_w; break;
             case 43: op = rv_op_amocas_d; break;
             case 44: op = rv_op_amocas_q; break;
+            case 64: op = rv_op_amoor_b; break;
+            case 65: op = rv_op_amoor_h; break;
             case 66: op = rv_op_amoor_w; break;
             case 67: op = rv_op_amoor_d; break;
             case 68: op = rv_op_amoor_q; break;
+            case 96: op = rv_op_amoand_b; break;
+            case 97: op = rv_op_amoand_h; break;
             case 98: op = rv_op_amoand_w; break;
             case 99: op = rv_op_amoand_d; break;
             case 100: op = rv_op_amoand_q; break;
+            case 128: op = rv_op_amomin_b; break;
+            case 129: op = rv_op_amomin_h; break;
             case 130: op = rv_op_amomin_w; break;
             case 131: op = rv_op_amomin_d; break;
             case 132: op = rv_op_amomin_q; break;
+            case 160: op = rv_op_amomax_b; break;
+            case 161: op = rv_op_amomax_h; break;
             case 162: op = rv_op_amomax_w; break;
             case 163: op = rv_op_amomax_d; break;
             case 164: op = rv_op_amomax_q; break;
+            case 192: op = rv_op_amominu_b; break;
+            case 193: op = rv_op_amominu_h; break;
             case 194: op = rv_op_amominu_w; break;
             case 195: op = rv_op_amominu_d; break;
             case 196: op = rv_op_amominu_q; break;
+            case 224: op = rv_op_amomaxu_b; break;
+            case 225: op = rv_op_amomaxu_h; break;
             case 226: op = rv_op_amomaxu_w; break;
             case 227: op = rv_op_amomaxu_d; break;
             case 228: op = rv_op_amomaxu_q; break;
