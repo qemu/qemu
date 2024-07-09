@@ -906,6 +906,46 @@ typedef enum {
     rv_op_amocas_w = 875,
     rv_op_amocas_d = 876,
     rv_op_amocas_q = 877,
+    rv_mop_r_0     = 878,
+    rv_mop_r_1     = 879,
+    rv_mop_r_2     = 880,
+    rv_mop_r_3     = 881,
+    rv_mop_r_4     = 882,
+    rv_mop_r_5     = 883,
+    rv_mop_r_6     = 884,
+    rv_mop_r_7     = 885,
+    rv_mop_r_8     = 886,
+    rv_mop_r_9     = 887,
+    rv_mop_r_10    = 888,
+    rv_mop_r_11    = 889,
+    rv_mop_r_12    = 890,
+    rv_mop_r_13    = 891,
+    rv_mop_r_14    = 892,
+    rv_mop_r_15    = 893,
+    rv_mop_r_16    = 894,
+    rv_mop_r_17    = 895,
+    rv_mop_r_18    = 896,
+    rv_mop_r_19    = 897,
+    rv_mop_r_20    = 898,
+    rv_mop_r_21    = 899,
+    rv_mop_r_22    = 900,
+    rv_mop_r_23    = 901,
+    rv_mop_r_24    = 902,
+    rv_mop_r_25    = 903,
+    rv_mop_r_26    = 904,
+    rv_mop_r_27    = 905,
+    rv_mop_r_28    = 906,
+    rv_mop_r_29    = 907,
+    rv_mop_r_30    = 908,
+    rv_mop_r_31    = 909,
+    rv_mop_rr_0    = 910,
+    rv_mop_rr_1    = 911,
+    rv_mop_rr_2    = 912,
+    rv_mop_rr_3    = 913,
+    rv_mop_rr_4    = 914,
+    rv_mop_rr_5    = 915,
+    rv_mop_rr_6    = 916,
+    rv_mop_rr_7    = 917,
 } rv_op;
 
 /* register names */
@@ -2096,6 +2136,46 @@ const rv_opcode_data rvi_opcode_data[] = {
     { "amocas.w", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     { "amocas.d", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     { "amocas.q", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "mop.r.0", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.1", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.2", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.3", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.4", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.5", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.6", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.7", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.8", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.9", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.10", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.11", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.12", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.13", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.14", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.15", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.16", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.17", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.18", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.19", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.20", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.21", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.22", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.23", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.24", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.25", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.26", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.27", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.28", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.29", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.30", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.r.31", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0 },
+    { "mop.rr.0", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.1", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.2", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.3", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.4", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.5", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.6", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "mop.rr.7", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -3855,6 +3935,24 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 1: op = rv_op_csrrw; break;
             case 2: op = rv_op_csrrs; break;
             case 3: op = rv_op_csrrc; break;
+            case 4:
+                if (dec->cfg->ext_zimop) {
+                    int imm_mop5, imm_mop3;
+                    if ((extract32(inst, 22, 10) & 0b1011001111)
+                        == 0b1000000111) {
+                        imm_mop5 = deposit32(deposit32(extract32(inst, 20, 2),
+                                                       2, 2,
+                                                       extract32(inst, 26, 2)),
+                                             4, 1, extract32(inst, 30, 1));
+                        op = rv_mop_r_0 + imm_mop5;
+                    } else if ((extract32(inst, 25, 7) & 0b1011001)
+                               == 0b1000001) {
+                        imm_mop3 = deposit32(extract32(inst, 26, 2),
+                                             2, 1, extract32(inst, 30, 1));
+                        op = rv_mop_rr_0 + imm_mop3;
+                    }
+                }
+                break;
             case 5: op = rv_op_csrrwi; break;
             case 6: op = rv_op_csrrsi; break;
             case 7: op = rv_op_csrrci; break;
