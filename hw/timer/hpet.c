@@ -437,12 +437,12 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     HPETState *s = opaque;
-    uint64_t cur_tick, index;
+    uint64_t cur_tick;
 
     trace_hpet_ram_read(addr);
-    index = addr;
+
     /*address range of all TN regs*/
-    if (index >= 0x100 && index <= 0x3ff) {
+    if (addr >= 0x100 && addr <= 0x3ff) {
         uint8_t timer_id = (addr - 0x100) / 0x20;
         HPETTimer *timer = &s->timer[timer_id];
 
@@ -469,7 +469,7 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             break;
         }
     } else {
-        switch (index) {
+        switch (addr) {
         case HPET_ID:
             return s->capability;
         case HPET_PERIOD:
@@ -510,15 +510,14 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
 {
     int i;
     HPETState *s = opaque;
-    uint64_t old_val, new_val, val, index;
+    uint64_t old_val, new_val, val;
 
     trace_hpet_ram_write(addr, value);
-    index = addr;
     old_val = hpet_ram_read(opaque, addr, 4);
     new_val = value;
 
     /*address range of all TN regs*/
-    if (index >= 0x100 && index <= 0x3ff) {
+    if (addr >= 0x100 && addr <= 0x3ff) {
         uint8_t timer_id = (addr - 0x100) / 0x20;
         HPETTimer *timer = &s->timer[timer_id];
 
@@ -620,7 +619,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         }
         return;
     } else {
-        switch (index) {
+        switch (addr) {
         case HPET_ID:
             return;
         case HPET_CFG:
