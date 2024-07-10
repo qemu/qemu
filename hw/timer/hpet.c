@@ -585,6 +585,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             }
             break;
         case HPET_TN_CMP + 4: // comparator register high order
+            if (timer->config & HPET_TN_32BIT) {
+                trace_hpet_ram_write_invalid_tn_cmp();
+                break;
+            }
             trace_hpet_ram_write_tn_cmp(4);
             if (!timer_is_periodic(timer)
                 || (timer->config & HPET_TN_SETVAL)) {
