@@ -437,6 +437,7 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     HPETState *s = opaque;
+    int shift = (addr & 4) * 8;
     uint64_t cur_tick;
 
     trace_hpet_ram_read(addr);
@@ -451,52 +452,33 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             return 0;
         }
 
-        switch ((addr - 0x100) % 0x20) {
-        case HPET_TN_CFG:
-            return timer->config;
-        case HPET_TN_CFG + 4: // Interrupt capabilities
-            return timer->config >> 32;
+        switch (addr & 0x18) {
+        case HPET_TN_CFG: // including interrupt capabilities
+            return timer->config >> shift;
         case HPET_TN_CMP: // comparator register
-            return timer->cmp;
-        case HPET_TN_CMP + 4:
-            return timer->cmp >> 32;
+            return timer->cmp >> shift;
         case HPET_TN_ROUTE:
-            return timer->fsb;
-        case HPET_TN_ROUTE + 4:
-            return timer->fsb >> 32;
+            return timer->fsb >> shift;
         default:
             trace_hpet_ram_read_invalid();
             break;
         }
     } else {
-        switch (addr) {
-        case HPET_ID:
-            return s->capability;
-        case HPET_PERIOD:
-            return s->capability >> 32;
+        switch (addr & ~4) {
+        case HPET_ID: // including HPET_PERIOD
+            return s->capability >> shift;
         case HPET_CFG:
-            return s->config;
-        case HPET_CFG + 4:
-            trace_hpet_invalid_hpet_cfg(4);
-            return 0;
+            return s->config >> shift;
         case HPET_COUNTER:
             if (hpet_enabled(s)) {
                 cur_tick = hpet_get_ticks(s);
             } else {
                 cur_tick = s->hpet_counter;
             }
-            trace_hpet_ram_read_reading_counter(0, cur_tick);
-            return cur_tick;
-        case HPET_COUNTER + 4:
-            if (hpet_enabled(s)) {
-                cur_tick = hpet_get_ticks(s);
-            } else {
-                cur_tick = s->hpet_counter;
-            }
-            trace_hpet_ram_read_reading_counter(4, cur_tick);
-            return cur_tick >> 32;
+            trace_hpet_ram_read_reading_counter(addr & 4, cur_tick);
+            return cur_tick >> shift;
         case HPET_STATUS:
-            return s->isr;
+            return s->isr >> shift;
         default:
             trace_hpet_ram_read_invalid();
             break;
@@ -510,11 +492,11 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
 {
     int i;
     HPETState *s = opaque;
+    int shift = (addr & 4) * 8;
+    int len = MIN(size * 8, 64 - shift);
     uint64_t old_val, new_val, cleared;
 
     trace_hpet_ram_write(addr, value);
-    old_val = hpet_ram_read(opaque, addr, 4);
-    new_val = value;
 
     /*address range of all TN regs*/
     if (addr >= 0x100 && addr <= 0x3ff) {
@@ -526,9 +508,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             trace_hpet_timer_id_out_of_range(timer_id);
             return;
         }
-        switch ((addr - 0x100) % 0x20) {
+        switch (addr & 0x18) {
         case HPET_TN_CFG:
-            trace_hpet_ram_write_tn_cfg();
+            trace_hpet_ram_write_tn_cfg(addr & 4);
+            old_val = timer->config;
+            new_val = deposit64(old_val, shift, len, value);
+            new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
             if (deactivating_bit(old_val, new_val, HPET_TN_TYPE_LEVEL)) {
                 /*
                  * Do this before changing timer->config; otherwise, if
@@ -536,8 +521,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  */
                 update_irq(timer, 0);
             }
-            new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
-            timer->config = (timer->config & 0xffffffff00000000ULL) | new_val;
+            timer->config = new_val;
             if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
                 && (s->isr & (1 << timer_id))) {
                 update_irq(timer, 1);
@@ -550,56 +534,28 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 hpet_set_timer(timer);
             }
             break;
-        case HPET_TN_CFG + 4: // Interrupt capabilities
-            trace_hpet_ram_write_invalid_tn_cfg(4);
-            break;
         case HPET_TN_CMP: // comparator register
-            trace_hpet_ram_write_tn_cmp(0);
             if (timer->config & HPET_TN_32BIT) {
-                new_val = (uint32_t)new_val;
-            }
-            if (!timer_is_periodic(timer)
-                || (timer->config & HPET_TN_SETVAL)) {
-                timer->cmp = (timer->cmp & 0xffffffff00000000ULL) | new_val;
-            }
-            if (timer_is_periodic(timer)) {
-                /*
-                 * FIXME: Clamp period to reasonable min value?
-                 * Clamp period to reasonable max value
-                 */
-                if (timer->config & HPET_TN_32BIT) {
-                    new_val = MIN(new_val, ~0u >> 1);
+                /* High 32-bits are zero, leave them untouched.  */
+                if (shift) {
+                    trace_hpet_ram_write_invalid_tn_cmp();
+                    break;
                 }
-                timer->period =
-                    (timer->period & 0xffffffff00000000ULL) | new_val;
+                len = 64;
+                value = (uint32_t) value;
             }
-            /*
-             * FIXME: on a 64-bit write, HPET_TN_SETVAL should apply to the
-             * high bits part as well.
-             */
-            timer->config &= ~HPET_TN_SETVAL;
-            if (hpet_enabled(s)) {
-                hpet_set_timer(timer);
-            }
-            break;
-        case HPET_TN_CMP + 4: // comparator register high order
-            if (timer->config & HPET_TN_32BIT) {
-                trace_hpet_ram_write_invalid_tn_cmp();
-                break;
-            }
-            trace_hpet_ram_write_tn_cmp(4);
+            trace_hpet_ram_write_tn_cmp(addr & 4);
             if (!timer_is_periodic(timer)
                 || (timer->config & HPET_TN_SETVAL)) {
-                timer->cmp = (timer->cmp & 0xffffffffULL) | new_val << 32;
+                timer->cmp = deposit64(timer->cmp, shift, len, value);
             }
             if (timer_is_periodic(timer)) {
                 /*
                  * FIXME: Clamp period to reasonable min value?
                  * Clamp period to reasonable max value
                  */
-                new_val = MIN(new_val, ~0u >> 1);
-                timer->period =
-                    (timer->period & 0xffffffffULL) | new_val << 32;
+                new_val = deposit64(timer->period, shift, len, value);
+                timer->period = MIN(new_val, (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1);
             }
             timer->config &= ~HPET_TN_SETVAL;
             if (hpet_enabled(s)) {
@@ -607,10 +563,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             }
             break;
         case HPET_TN_ROUTE:
-            timer->fsb = (timer->fsb & 0xffffffff00000000ULL) | new_val;
-            break;
-        case HPET_TN_ROUTE + 4:
-            timer->fsb = (new_val << 32) | (timer->fsb & 0xffffffff);
+            timer->fsb = deposit64(timer->fsb, shift, len, value);
             break;
         default:
             trace_hpet_ram_write_invalid();
@@ -618,12 +571,14 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         }
         return;
     } else {
-        switch (addr) {
+        switch (addr & ~4) {
         case HPET_ID:
             return;
         case HPET_CFG:
+            old_val = s->config;
+            new_val = deposit64(old_val, shift, len, value);
             new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
-            s->config = (s->config & 0xffffffff00000000ULL) | new_val;
+            s->config = new_val;
             if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Enable main counter and interrupt generation. */
                 s->hpet_offset =
@@ -653,10 +608,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
             }
             break;
-        case HPET_CFG + 4:
-            trace_hpet_invalid_hpet_cfg(4);
-            break;
         case HPET_STATUS:
+            new_val = value << shift;
             cleared = new_val & s->isr;
             for (i = 0; i < s->num_timers; i++) {
                 if (cleared & (1 << i)) {
@@ -668,15 +621,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             if (hpet_enabled(s)) {
                 trace_hpet_ram_write_counter_write_while_enabled();
             }
-            s->hpet_counter =
-                (s->hpet_counter & 0xffffffff00000000ULL) | value;
-            trace_hpet_ram_write_counter_written(0, value, s->hpet_counter);
-            break;
-        case HPET_COUNTER + 4:
-            trace_hpet_ram_write_counter_write_while_enabled();
-            s->hpet_counter =
-                (s->hpet_counter & 0xffffffffULL) | (((uint64_t)value) << 32);
-            trace_hpet_ram_write_counter_written(4, value, s->hpet_counter);
+            s->hpet_counter = deposit64(s->hpet_counter, shift, len, value);
             break;
         default:
             trace_hpet_ram_write_invalid();
@@ -690,7 +635,11 @@ static const MemoryRegionOps hpet_ram_ops = {
     .write = hpet_ram_write,
     .valid = {
         .min_access_size = 4,
-        .max_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 8,
     },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
