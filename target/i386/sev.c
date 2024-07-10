@@ -195,6 +195,7 @@ typedef struct SevLaunchUpdateData {
     hwaddr gpa;
     void *hva;
     size_t len;
+    int vcpu_id;
     int type;
 } SevLaunchUpdateData;
 
@@ -1163,6 +1164,7 @@ snp_page_type_to_str(int type)
 {
     switch (type) {
     case KVM_SEV_SNP_PAGE_TYPE_NORMAL: return "Normal";
+    case KVM_SEV_SNP_PAGE_TYPE_VMSA: return "VMSA";
     case KVM_SEV_SNP_PAGE_TYPE_ZERO: return "Zero";
     case KVM_SEV_SNP_PAGE_TYPE_UNMEASURED: return "Unmeasured";
     case KVM_SEV_SNP_PAGE_TYPE_SECRETS: return "Secrets";
@@ -1195,6 +1197,7 @@ sev_snp_launch_update(SevSnpGuestState *sev_snp_guest,
     update.gfn_start = data->gpa >> TARGET_PAGE_BITS;
     update.len = data->len;
     update.type = data->type;
+    update.vcpu_id = data->vcpu_id;
 
     /*
      * KVM_SEV_SNP_LAUNCH_UPDATE requires that GPA ranges have the private
@@ -1428,7 +1431,7 @@ sev_launch_finish(SevCommonState *sev_common)
 }
 
 static int snp_launch_update_data(uint64_t gpa, void *hva, size_t len,
-                                  int type, Error **errp)
+                                  int type, int vcpu_id, Error **errp)
 {
     SevLaunchUpdateData *data;
 
@@ -1437,6 +1440,7 @@ static int snp_launch_update_data(uint64_t gpa, void *hva, size_t len,
     data->hva = hva;
     data->len = len;
     data->type = type;
+    data->vcpu_id = vcpu_id;
 
     QTAILQ_INSERT_TAIL(&launch_update, data, next);
 
@@ -1447,7 +1451,7 @@ static int sev_snp_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
                                       uint8_t *ptr, size_t len, Error **errp)
 {
     return snp_launch_update_data(gpa, ptr, len,
-                                     KVM_SEV_SNP_PAGE_TYPE_NORMAL, errp);
+                                     KVM_SEV_SNP_PAGE_TYPE_NORMAL, 0, errp);
 }
 
 static int
@@ -1530,7 +1534,7 @@ static int snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva,
     memcpy(hva, &snp_cpuid_info, sizeof(snp_cpuid_info));
 
     return snp_launch_update_data(cpuid_addr, hva, cpuid_len,
-                                  KVM_SEV_SNP_PAGE_TYPE_CPUID, errp);
+                                  KVM_SEV_SNP_PAGE_TYPE_CPUID, 0, errp);
 }
 
 static int snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp,
@@ -1547,7 +1551,7 @@ static int snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp,
                sizeof(*sev_snp->kernel_hashes_data));
         type = KVM_SEV_SNP_PAGE_TYPE_NORMAL;
     }
-    return snp_launch_update_data(addr, hva, len, type, errp);
+    return snp_launch_update_data(addr, hva, len, type, 0, errp);
 }
 
 static int
@@ -1592,7 +1596,7 @@ snp_populate_metadata_pages(SevSnpGuestState *sev_snp,
                                                   desc->len, &error_fatal);
         } else {
             ret = snp_launch_update_data(desc->base, hva, desc->len, type,
-                                         &error_fatal);
+                                         0, &error_fatal);
         }
 
         if (ret) {
@@ -2537,25 +2541,35 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     case CGS_PAGE_TYPE_ZERO:
         return klass->launch_update_data(sev_common, gpa, ptr, len, errp);
 
-    case CGS_PAGE_TYPE_VMSA:
-        if (!sev_es_enabled()) {
+    case CGS_PAGE_TYPE_VMSA: {
+        if (sev_snp_enabled()) {
+            const struct sev_es_save_area * sa = (const struct sev_es_save_area *)ptr;
+            if (check_sev_features(sev_common, sa->sev_features, errp) < 0) {
+                return -1;
+            }
+
+            return snp_launch_update_data(
+                    gpa, ptr, len, KVM_SEV_SNP_PAGE_TYPE_VMSA, cpu_index, errp);
+        } else if (sev_es_enabled()) {
+            if (check_vmsa_supported(sev_common, gpa,
+                                    (const struct sev_es_save_area *)ptr,
+                                    errp) < 0) {
+                return -1;
+            }
+            return sev_set_cpu_context(cpu_index, ptr, len, gpa, errp);
+        } else {
             error_setg(errp,
                        "%s: attempt to configure initial VMSA, but SEV-ES "
                        "is not supported",
                        __func__);
             return -1;
         }
-        if (check_vmsa_supported(sev_common, gpa,
-                                 (const struct sev_es_save_area *)ptr,
-                                 errp) < 0) {
-            return -1;
-        }
-        return sev_set_cpu_context(cpu_index, ptr, len, gpa, errp);
+    }
 
     case CGS_PAGE_TYPE_UNMEASURED:
         if (sev_snp_enabled()) {
             return snp_launch_update_data(
-                gpa, ptr, len, KVM_SEV_SNP_PAGE_TYPE_UNMEASURED, errp);
+                gpa, ptr, len, KVM_SEV_SNP_PAGE_TYPE_UNMEASURED, 0, errp);
         }
         /* No action required if not SEV-SNP */
         return 0;
@@ -2569,7 +2583,7 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
             return -1;
         }
         return snp_launch_update_data(gpa, ptr, len,
-                                      KVM_SEV_SNP_PAGE_TYPE_SECRETS, errp);
+                                      KVM_SEV_SNP_PAGE_TYPE_SECRETS, 0, errp);
 
     case CGS_PAGE_TYPE_REQUIRED_MEMORY:
         if (kvm_convert_memory(gpa, len, true) < 0) {

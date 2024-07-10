@@ -425,6 +425,8 @@ static int qigvm_directive_vp_context(QIgvm *ctx, const uint8_t *header_data,
         (const IGVM_VHS_VP_CONTEXT *)header_data;
     IgvmHandle data_handle;
     uint8_t *data;
+    uint32_t data_size;
+    uint8_t *region;
     int result;
 
     if (!(vp_context->compatibility_mask & ctx->compatibility_mask)) {
@@ -443,19 +445,39 @@ static int qigvm_directive_vp_context(QIgvm *ctx, const uint8_t *header_data,
         return -1;
     }
 
-    data_handle = igvm_get_header_data(ctx->file, IGVM_HEADER_SECTION_DIRECTIVE,
-                                       ctx->current_header_index);
+    /* 
+     * Complete any other page processing first to ensure measurements
+     * are correct.
+     */
+    if (qigvm_process_mem_page(ctx, NULL, errp)) {
+        return -1;
+    }
+
+    data_handle = igvm_get_header_data(ctx->file,
+                                        IGVM_HEADER_SECTION_DIRECTIVE,
+                                        ctx->current_header_index);
     if (data_handle < 0) {
         error_setg(errp, "Invalid VP context in IGVM file. Error code: %X",
                    data_handle);
         return -1;
     }
 
+    data_size = igvm_get_buffer_size(ctx->file, data_handle);
     data = (uint8_t *)igvm_get_buffer(ctx->file, data_handle);
-    result = ctx->cgsc->set_guest_state(
-        vp_context->gpa, data, igvm_get_buffer_size(ctx->file, data_handle),
-        CGS_PAGE_TYPE_VMSA, vp_context->vp_index, errp);
+
+    region = qigvm_prepare_memory(ctx, vp_context->gpa, IGVM_PAGE_SIZE_4K,
+                                 ctx->current_header_index, errp);
+    if (!region) {
+        return -1;
+    }
+    memset(region, 0, IGVM_PAGE_SIZE_4K);
+
+    memcpy(region, data, data_size);
     igvm_free_buffer(ctx->file, data_handle);
+
+    result = ctx->cgsc->set_guest_state(
+        vp_context->gpa, region, IGVM_PAGE_SIZE_4K,
+        CGS_PAGE_TYPE_VMSA, vp_context->vp_index, errp);
     if (result < 0) {
         return result;
     }
