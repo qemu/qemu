@@ -510,7 +510,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
 {
     int i;
     HPETState *s = opaque;
-    uint64_t old_val, new_val, val;
+    uint64_t old_val, new_val, cleared;
 
     trace_hpet_ram_write(addr, value);
     old_val = hpet_ram_read(opaque, addr, 4);
@@ -536,13 +536,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  */
                 update_irq(timer, 0);
             }
-            val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
-            timer->config = (timer->config & 0xffffffff00000000ULL) | val;
+            new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
+            timer->config = (timer->config & 0xffffffff00000000ULL) | new_val;
             if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
                 && (s->isr & (1 << timer_id))) {
                 update_irq(timer, 1);
             }
-
             if (new_val & HPET_TN_32BIT) {
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
@@ -623,8 +622,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         case HPET_ID:
             return;
         case HPET_CFG:
-            val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
-            s->config = (s->config & 0xffffffff00000000ULL) | val;
+            new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
+            s->config = (s->config & 0xffffffff00000000ULL) | new_val;
             if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Enable main counter and interrupt generation. */
                 s->hpet_offset =
@@ -658,9 +657,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             trace_hpet_invalid_hpet_cfg(4);
             break;
         case HPET_STATUS:
-            val = new_val & s->isr;
+            cleared = new_val & s->isr;
             for (i = 0; i < s->num_timers; i++) {
-                if (val & (1 << i)) {
+                if (cleared & (1 << i)) {
                     update_irq(&s->timer[i], 0);
                 }
             }
