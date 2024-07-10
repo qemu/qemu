@@ -1717,7 +1717,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0x8C] = X86_OP_ENTRYwr(MOV, E,v, S,w, op0_Mw),
     [0x8D] = X86_OP_ENTRYwr(LEA, G,v, M,v, nolea),
     [0x8E] = X86_OP_ENTRYwr(MOV, S,w, E,w),
-    [0x8F] = X86_OP_GROUPw(group1A, E,v),
+    [0x8F] = X86_OP_GROUPw(group1A, E,d64),
 
     [0x98] = X86_OP_ENTRY1(CBW,    0,v), /* rAX */
     [0x99] = X86_OP_ENTRYwr(CWD,   2,v, 0,v), /* rDX, rAX */
