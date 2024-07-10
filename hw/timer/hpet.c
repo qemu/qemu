@@ -548,7 +548,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  * FIXME: Clamp period to reasonable min value?
                  * Clamp period to reasonable max value
                  */
-                new_val &= (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1;
+                if (timer->config & HPET_TN_32BIT) {
+                    new_val = MIN(new_val, ~0u >> 1);
+                }
                 timer->period =
                     (timer->period & 0xffffffff00000000ULL) | new_val;
             }
@@ -567,7 +569,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  * FIXME: Clamp period to reasonable min value?
                  * Clamp period to reasonable max value
                  */
-                new_val &= (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1;
+                new_val = MIN(new_val, ~0u >> 1);
                 timer->period =
                     (timer->period & 0xffffffffULL) | new_val << 32;
                 }
