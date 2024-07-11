@@ -93,7 +93,8 @@
 #
 # Information about the Class of a PCI device
 #
-# @desc: a string description of the device's class
+# @desc: a string description of the device's class (not stable, and
+#     should only be treated as informational)
 #
 # @class: the class code of the device
 #
@@ -145,9 +146,6 @@
 # @pci_bridge: if the device is a PCI bridge, the bridge information
 #
 # @regions: a list of the PCI I/O regions associated with the device
-#
-# .. note:: The contents of @class_info.desc are not stable and should
-#    only be treated as informational.
 #
 # Since: 0.14
 ##
