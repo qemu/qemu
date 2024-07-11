@@ -425,6 +425,8 @@ static void pmu_timer_trigger_irq(RISCVCPU *cpu,
     target_ulong *mhpmevent_val;
     uint64_t of_bit_mask;
     int64_t irq_trigger_at;
+    uint64_t curr_ctr_val, curr_ctrh_val;
+    uint64_t ctr_val;
 
     if (evt_idx != RISCV_PMU_EVENT_HW_CPU_CYCLES &&
         evt_idx != RISCV_PMU_EVENT_HW_INSTRUCTIONS) {
@@ -454,6 +456,26 @@ static void pmu_timer_trigger_irq(RISCVCPU *cpu,
         return;
     }
 
+    riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctr_val, false, ctr_idx);
+    ctr_val = counter->mhpmcounter_val;
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        riscv_pmu_read_ctr(env, (target_ulong *)&curr_ctrh_val, true, ctr_idx);
+        curr_ctr_val = curr_ctr_val | (curr_ctrh_val << 32);
+        ctr_val = ctr_val |
+                ((uint64_t)counter->mhpmcounterh_val << 32);
+    }
+
+    /*
+     * We can not accommodate for inhibited modes when setting up timer. Check
+     * if the counter has actually overflowed or not by comparing current
+     * counter value (accommodated for inhibited modes) with software written
+     * counter value.
+     */
+    if (curr_ctr_val >= ctr_val) {
+        riscv_pmu_setup_timer(env, curr_ctr_val, ctr_idx);
+        return;
+    }
+
     if (cpu->pmu_avail_ctrs & BIT(ctr_idx)) {
         /* Generate interrupt only if OF bit is clear */
         if (!(*mhpmevent_val & of_bit_mask)) {
@@ -475,7 +497,7 @@ void riscv_pmu_timer_cb(void *priv)
 
 int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 {
-    uint64_t overflow_delta, overflow_at;
+    uint64_t overflow_delta, overflow_at, curr_ns;
     int64_t overflow_ns, overflow_left = 0;
     RISCVCPU *cpu = env_archcpu(env);
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
@@ -506,8 +528,10 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
     } else {
         return -1;
     }
-    overflow_at = (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                  overflow_ns;
+    curr_ns = (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    overflow_at =  curr_ns + overflow_ns;
+    if (overflow_at <= curr_ns)
+        overflow_at = UINT64_MAX;
 
     if (overflow_at > INT64_MAX) {
         overflow_left += overflow_at - INT64_MAX;

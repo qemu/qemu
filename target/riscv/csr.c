@@ -1039,6 +1039,9 @@ static target_ulong riscv_pmu_ctr_get_fixed_counters_val(CPURISCVState *env,
         goto done;
     }
 
+    /* Update counter before reading. */
+    riscv_pmu_update_fixed_ctrs(env, env->priv, env->virt_enabled);
+
     if (!(cfg_val & MCYCLECFG_BIT_MINH)) {
         curr_val += counter_arr[PRV_M];
     }
@@ -1122,7 +1125,7 @@ static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
+RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                          bool upper_half, uint32_t ctr_idx)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
