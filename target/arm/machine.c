@@ -18,6 +18,35 @@ static bool vfp_needed(void *opaque)
             : cpu_isar_feature(aa32_vfp_simd, cpu));
 }
 
+static bool vfp_fpcr_fpsr_needed(void *opaque)
+{
+    /*
+     * If either the FPCR or the FPSR include set bits that are not
+     * visible in the AArch32 FPSCR view of floating point control/status
+     * then we must send the FPCR and FPSR as two separate fields in the
+     * cpu/vfp/fpcr_fpsr subsection, and we will send a 0 for the old
+     * FPSCR field in cpu/vfp.
+     *
+     * If all the set bits are representable in an AArch32 FPSCR then we
+     * send that value as the cpu/vfp FPSCR field, and don't send the
+     * cpu/vfp/fpcr_fpsr subsection.
+     *
+     * On incoming migration, if the cpu/vfp FPSCR field is non-zero we
+     * use it, and if the fpcr_fpsr subsection is present we use that.
+     * (The subsection will never be present with a non-zero FPSCR field,
+     * and if FPSCR is zero and the subsection is not present that means
+     * that FPSCR/FPSR/FPCR are zero.)
+     *
+     * This preserves migration compatibility with older QEMU versions,
+     * in both directions.
+     */
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return (vfp_get_fpcr(env) & ~FPSCR_FPCR_MASK) ||
+        (vfp_get_fpsr(env) & ~FPSCR_FPSR_MASK);
+}
+
 static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
                      const VMStateField *field)
 {
@@ -25,7 +54,10 @@ static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
     CPUARMState *env = &cpu->env;
     uint32_t val = qemu_get_be32(f);
 
-    vfp_set_fpscr(env, val);
+    if (val) {
+        /* 0 means we might have the data in the fpcr_fpsr subsection */
+        vfp_set_fpscr(env, val);
+    }
     return 0;
 }
 
@@ -34,8 +66,9 @@ static int put_fpscr(QEMUFile *f, void *opaque, size_t size,
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
+    uint32_t fpscr = vfp_fpcr_fpsr_needed(opaque) ? 0 : vfp_get_fpscr(env);
 
-    qemu_put_be32(f, vfp_get_fpscr(env));
+    qemu_put_be32(f, fpscr);
     return 0;
 }
 
@@ -43,6 +76,86 @@ static const VMStateInfo vmstate_fpscr = {
     .name = "fpscr",
     .get = get_fpscr,
     .put = put_fpscr,
+};
+
+static int get_fpcr(QEMUFile *f, void *opaque, size_t size,
+                     const VMStateField *field)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+    uint64_t val = qemu_get_be64(f);
+
+    vfp_set_fpcr(env, val);
+    return 0;
+}
+
+static int put_fpcr(QEMUFile *f, void *opaque, size_t size,
+                     const VMStateField *field, JSONWriter *vmdesc)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    qemu_put_be64(f, vfp_get_fpcr(env));
+    return 0;
+}
+
+static const VMStateInfo vmstate_fpcr = {
+    .name = "fpcr",
+    .get = get_fpcr,
+    .put = put_fpcr,
+};
+
+static int get_fpsr(QEMUFile *f, void *opaque, size_t size,
+                     const VMStateField *field)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+    uint64_t val = qemu_get_be64(f);
+
+    vfp_set_fpsr(env, val);
+    return 0;
+}
+
+static int put_fpsr(QEMUFile *f, void *opaque, size_t size,
+                     const VMStateField *field, JSONWriter *vmdesc)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    qemu_put_be64(f, vfp_get_fpsr(env));
+    return 0;
+}
+
+static const VMStateInfo vmstate_fpsr = {
+    .name = "fpsr",
+    .get = get_fpsr,
+    .put = put_fpsr,
+};
+
+static const VMStateDescription vmstate_vfp_fpcr_fpsr = {
+    .name = "cpu/vfp/fpcr_fpsr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vfp_fpcr_fpsr_needed,
+    .fields = (const VMStateField[]) {
+        {
+            .name = "fpcr",
+            .version_id = 0,
+            .size = sizeof(uint64_t),
+            .info = &vmstate_fpcr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
+        {
+            .name = "fpsr",
+            .version_id = 0,
+            .size = sizeof(uint64_t),
+            .info = &vmstate_fpsr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static const VMStateDescription vmstate_vfp = {
@@ -100,6 +213,10 @@ static const VMStateDescription vmstate_vfp = {
             .offset = 0,
         },
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_vfp_fpcr_fpsr,
+        NULL
     }
 };
 
@@ -783,6 +900,20 @@ static int cpu_pre_load(void *opaque)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
+
+    /*
+     * In an inbound migration where on the source FPSCR/FPSR/FPCR are 0,
+     * there will be no fpcr_fpsr subsection so we won't call vfp_set_fpcr()
+     * and vfp_set_fpsr() from get_fpcr() and get_fpsr(); also the get_fpscr()
+     * function will not call vfp_set_fpscr() because it will see a 0 in the
+     * inbound data. Ensure that in this case we have a correctly set up
+     * zero FPSCR/FPCR/FPSR.
+     *
+     * This is not strictly needed because FPSCR is zero out of reset, but
+     * it avoids the possibility of future confusing migration bugs if some
+     * future architecture change makes the reset value non-zero.
+     */
+    vfp_set_fpscr(env, 0);
 
     /*
      * Pre-initialize irq_line_state to a value that's never valid as

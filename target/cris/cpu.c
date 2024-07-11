@@ -186,6 +186,7 @@ static const TCGCPUOps crisv10_tcg_ops = {
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = cris_cpu_tlb_fill,
     .cpu_exec_interrupt = cris_cpu_exec_interrupt,
+    .cpu_exec_halt = cris_cpu_has_work,
     .do_interrupt = crisv10_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };
@@ -197,6 +198,7 @@ static const TCGCPUOps crisv32_tcg_ops = {
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = cris_cpu_tlb_fill,
     .cpu_exec_interrupt = cris_cpu_exec_interrupt,
+    .cpu_exec_halt = cris_cpu_has_work,
     .do_interrupt = cris_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };

@@ -785,6 +785,14 @@ SQRDMULH_s      0111 1110 ..1 ..... 10110 1 ..... ..... @rrr_e
 SQRDMLAH_s      0111 1110 ..0 ..... 10000 1 ..... ..... @rrr_e
 SQRDMLSH_s      0111 1110 ..0 ..... 10001 1 ..... ..... @rrr_e
 
+# Decode scalar x scalar as scalar x indexed, with index 0.
+SQDMULL_si      0101 1110 011 rm:5  11010 0 rn:5  rd:5  &rrx_e idx=0 esz=1
+SQDMULL_si      0101 1110 101 rm:5  11010 0 rn:5  rd:5  &rrx_e idx=0 esz=2
+SQDMLAL_si      0101 1110 011 rm:5  10010 0 rn:5  rd:5  &rrx_e idx=0 esz=1
+SQDMLAL_si      0101 1110 101 rm:5  10010 0 rn:5  rd:5  &rrx_e idx=0 esz=2
+SQDMLSL_si      0101 1110 011 rm:5  10110 0 rn:5  rd:5  &rrx_e idx=0 esz=1
+SQDMLSL_si      0101 1110 101 rm:5  10110 0 rn:5  rd:5  &rrx_e idx=0 esz=2
+
 ### Advanced SIMD scalar pairwise
 
 FADDP_s         0101 1110 0011 0000 1101 10 ..... ..... @rr_h
@@ -962,6 +970,42 @@ FCADD_270       0.10 1110 ..0 ..... 11110 1 ..... ..... @qrrr_e
 
 FCMLA_v         0 q:1 10 1110 esz:2 0 rm:5 110 rot:2 1 rn:5 rd:5
 
+SMULL_v         0.00 1110 ..1 ..... 11000 0 ..... ..... @qrrr_e
+UMULL_v         0.10 1110 ..1 ..... 11000 0 ..... ..... @qrrr_e
+SMLAL_v         0.00 1110 ..1 ..... 10000 0 ..... ..... @qrrr_e
+UMLAL_v         0.10 1110 ..1 ..... 10000 0 ..... ..... @qrrr_e
+SMLSL_v         0.00 1110 ..1 ..... 10100 0 ..... ..... @qrrr_e
+UMLSL_v         0.10 1110 ..1 ..... 10100 0 ..... ..... @qrrr_e
+
+SADDL_v         0.00 1110 ..1 ..... 00000 0 ..... ..... @qrrr_e
+UADDL_v         0.10 1110 ..1 ..... 00000 0 ..... ..... @qrrr_e
+SSUBL_v         0.00 1110 ..1 ..... 00100 0 ..... ..... @qrrr_e
+USUBL_v         0.10 1110 ..1 ..... 00100 0 ..... ..... @qrrr_e
+SABAL_v         0.00 1110 ..1 ..... 01010 0 ..... ..... @qrrr_e
+UABAL_v         0.10 1110 ..1 ..... 01010 0 ..... ..... @qrrr_e
+SABDL_v         0.00 1110 ..1 ..... 01110 0 ..... ..... @qrrr_e
+UABDL_v         0.10 1110 ..1 ..... 01110 0 ..... ..... @qrrr_e
+
+SQDMULL_v       0.00 1110 011 ..... 11010 0 ..... ..... @qrrr_h
+SQDMULL_v       0.00 1110 101 ..... 11010 0 ..... ..... @qrrr_s
+SQDMLAL_v       0.00 1110 011 ..... 10010 0 ..... ..... @qrrr_h
+SQDMLAL_v       0.00 1110 101 ..... 10010 0 ..... ..... @qrrr_s
+SQDMLSL_v       0.00 1110 011 ..... 10110 0 ..... ..... @qrrr_h
+SQDMLSL_v       0.00 1110 101 ..... 10110 0 ..... ..... @qrrr_s
+
+SADDW           0.00 1110 ..1 ..... 00010 0 ..... ..... @qrrr_e
+UADDW           0.10 1110 ..1 ..... 00010 0 ..... ..... @qrrr_e
+SSUBW           0.00 1110 ..1 ..... 00110 0 ..... ..... @qrrr_e
+USUBW           0.10 1110 ..1 ..... 00110 0 ..... ..... @qrrr_e
+
+ADDHN           0.00 1110 ..1 ..... 01000 0 ..... ..... @qrrr_e
+RADDHN          0.10 1110 ..1 ..... 01000 0 ..... ..... @qrrr_e
+SUBHN           0.00 1110 ..1 ..... 01100 0 ..... ..... @qrrr_e
+RSUBHN          0.10 1110 ..1 ..... 01100 0 ..... ..... @qrrr_e
+
+PMULL_p8        0.00 1110 001 ..... 11100 0 ..... ..... @qrrr_b
+PMULL_p64       0.00 1110 111 ..... 11100 0 ..... ..... @qrrr_b
+
 ### Advanced SIMD scalar x indexed element
 
 FMUL_si         0101 1111 00 .. .... 1001 . 0 ..... .....   @rrx_h
@@ -991,6 +1035,15 @@ SQRDMLAH_si     0111 1111 10 .. .... 1101 . 0 ..... .....   @rrx_s
 
 SQRDMLSH_si     0111 1111 01 .. .... 1111 . 0 ..... .....   @rrx_h
 SQRDMLSH_si     0111 1111 10 .. .... 1111 . 0 ..... .....   @rrx_s
+
+SQDMULL_si      0101 1111 01 .. .... 1011 . 0 ..... .....   @rrx_h
+SQDMULL_si      0101 1111 10 . ..... 1011 . 0 ..... .....   @rrx_s
+
+SQDMLAL_si      0101 1111 01 .. .... 0011 . 0 ..... .....   @rrx_h
+SQDMLAL_si      0101 1111 10 . ..... 0011 . 0 ..... .....   @rrx_s
+
+SQDMLSL_si      0101 1111 01 .. .... 0111 . 0 ..... .....   @rrx_h
+SQDMLSL_si      0101 1111 10 . ..... 0111 . 0 ..... .....   @rrx_s
 
 ### Advanced SIMD vector x indexed element
 
@@ -1046,6 +1099,30 @@ BFMLAL_vi       0.00 1111 11 .. .... 1111 . 0 ..... .....   @qrrx_h
 FCMLA_vi        0 0 10 1111 01 idx:1 rm:5 0 rot:2 1 0 0 rn:5 rd:5 esz=1 q=0
 FCMLA_vi        0 1 10 1111 01 . rm:5 0 rot:2 1 . 0 rn:5 rd:5 esz=1 idx=%hl q=1
 FCMLA_vi        0 1 10 1111 10 0 rm:5 0 rot:2 1 idx:1 0 rn:5 rd:5 esz=2 q=1
+
+SMULL_vi        0.00 1111 01 .. .... 1010 . 0 ..... .....   @qrrx_h
+SMULL_vi        0.00 1111 10 . ..... 1010 . 0 ..... .....   @qrrx_s
+UMULL_vi        0.10 1111 01 .. .... 1010 . 0 ..... .....   @qrrx_h
+UMULL_vi        0.10 1111 10 . ..... 1010 . 0 ..... .....   @qrrx_s
+
+SMLAL_vi        0.00 1111 01 .. .... 0010 . 0 ..... .....   @qrrx_h
+SMLAL_vi        0.00 1111 10 . ..... 0010 . 0 ..... .....   @qrrx_s
+UMLAL_vi        0.10 1111 01 .. .... 0010 . 0 ..... .....   @qrrx_h
+UMLAL_vi        0.10 1111 10 . ..... 0010 . 0 ..... .....   @qrrx_s
+
+SMLSL_vi        0.00 1111 01 .. .... 0110 . 0 ..... .....   @qrrx_h
+SMLSL_vi        0.00 1111 10 . ..... 0110 . 0 ..... .....   @qrrx_s
+UMLSL_vi        0.10 1111 01 .. .... 0110 . 0 ..... .....   @qrrx_h
+UMLSL_vi        0.10 1111 10 . ..... 0110 . 0 ..... .....   @qrrx_s
+
+SQDMULL_vi      0.00 1111 01 .. .... 1011 . 0 ..... .....   @qrrx_h
+SQDMULL_vi      0.00 1111 10 . ..... 1011 . 0 ..... .....   @qrrx_s
+
+SQDMLAL_vi      0.00 1111 01 .. .... 0011 . 0 ..... .....   @qrrx_h
+SQDMLAL_vi      0.00 1111 10 . ..... 0011 . 0 ..... .....   @qrrx_s
+
+SQDMLSL_vi      0.00 1111 01 .. .... 0111 . 0 ..... .....   @qrrx_h
+SQDMLSL_vi      0.00 1111 10 . ..... 0111 . 0 ..... .....   @qrrx_s
 
 # Floating-point conditional select
 

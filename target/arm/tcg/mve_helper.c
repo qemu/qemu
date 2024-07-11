@@ -1115,21 +1115,21 @@ static void do_vadc(CPUARMState *env, uint32_t *d, uint32_t *n, uint32_t *m,
 
     if (update_flags) {
         /* Store C, clear NZV. */
-        env->vfp.xregs[ARM_VFP_FPSCR] &= ~FPCR_NZCV_MASK;
-        env->vfp.xregs[ARM_VFP_FPSCR] |= carry_in * FPCR_C;
+        env->vfp.fpsr &= ~FPSR_NZCV_MASK;
+        env->vfp.fpsr |= carry_in * FPSR_C;
     }
     mve_advance_vpt(env);
 }
 
 void HELPER(mve_vadc)(CPUARMState *env, void *vd, void *vn, void *vm)
 {
-    bool carry_in = env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_C;
+    bool carry_in = env->vfp.fpsr & FPSR_C;
     do_vadc(env, vd, vn, vm, 0, carry_in, false);
 }
 
 void HELPER(mve_vsbc)(CPUARMState *env, void *vd, void *vn, void *vm)
 {
-    bool carry_in = env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_C;
+    bool carry_in = env->vfp.fpsr & FPSR_C;
     do_vadc(env, vd, vn, vm, -1, carry_in, false);
 }
 
@@ -3343,7 +3343,7 @@ static void do_vcvt_sh(CPUARMState *env, void *vd, void *vm, int top)
     uint32_t *m = vm;
     uint16_t r;
     uint16_t mask = mve_element_mask(env);
-    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    bool ieee = !(env->vfp.fpcr & FPCR_AHP);
     unsigned e;
     float_status *fpst;
     float_status scratch_fpst;
@@ -3373,7 +3373,7 @@ static void do_vcvt_hs(CPUARMState *env, void *vd, void *vm, int top)
     uint16_t *m = vm;
     uint32_t r;
     uint16_t mask = mve_element_mask(env);
-    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    bool ieee = !(env->vfp.fpcr & FPCR_AHP);
     unsigned e;
     float_status *fpst;
     float_status scratch_fpst;
