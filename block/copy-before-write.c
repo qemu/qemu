@@ -417,6 +417,7 @@ static BlockdevOptions *cbw_parse_options(QDict *options, Error **errp)
     qdict_extract_subqdict(options, NULL, "bitmap");
     qdict_del(options, "on-cbw-error");
     qdict_del(options, "cbw-timeout");
+    qdict_del(options, "min-cluster-size");
 
 out:
     visit_free(v);
@@ -476,8 +477,10 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
              bs->file->bs->supported_zero_flags);
 
     s->discard_source = flags & BDRV_O_CBW_DISCARD_SOURCE;
+
     s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap,
-                                  flags & BDRV_O_CBW_DISCARD_SOURCE, errp);
+                                  flags & BDRV_O_CBW_DISCARD_SOURCE,
+                                  opts->min_cluster_size, errp);
     if (!s->bcs) {
         error_prepend(errp, "Cannot create block-copy-state: ");
         return -EINVAL;
