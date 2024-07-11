@@ -305,9 +305,8 @@
 #
 # Since: 0.14
 #
-# .. note:: If no UUID was specified for the guest, a null UUID is
-#    returned.
-#
+# .. note:: If no UUID was specified for the guest, the nil UUID (all
+#    zeroes) is returned.
 ##
 { 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
