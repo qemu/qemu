@@ -264,7 +264,7 @@ void helper_cbo_inval(CPURISCVState *env, target_ulong address)
 target_ulong helper_sret(CPURISCVState *env)
 {
     uint64_t mstatus;
-    target_ulong prev_priv, prev_virt;
+    target_ulong prev_priv, prev_virt = env->virt_enabled;
 
     if (!(env->priv >= PRV_S)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
@@ -307,11 +307,9 @@ target_ulong helper_sret(CPURISCVState *env)
         if (prev_virt) {
             riscv_cpu_swap_hypervisor_regs(env);
         }
-
-        riscv_cpu_set_virt_enabled(env, prev_virt);
     }
 
-    riscv_cpu_set_mode(env, prev_priv);
+    riscv_cpu_set_mode(env, prev_priv, prev_virt);
 
     return retpc;
 }
@@ -347,15 +345,12 @@ target_ulong helper_mret(CPURISCVState *env)
         mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
     }
     env->mstatus = mstatus;
-    riscv_cpu_set_mode(env, prev_priv);
 
-    if (riscv_has_ext(env, RVH)) {
-        if (prev_virt) {
-            riscv_cpu_swap_hypervisor_regs(env);
-        }
-
-        riscv_cpu_set_virt_enabled(env, prev_virt);
+    if (riscv_has_ext(env, RVH) && prev_virt) {
+        riscv_cpu_swap_hypervisor_regs(env);
     }
+
+    riscv_cpu_set_mode(env, prev_priv, prev_virt);
 
     return retpc;
 }
