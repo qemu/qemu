@@ -179,10 +179,6 @@
 #
 # @type: Transport type
 #
-# .. note:: This type is deprecated in favor of SocketAddress.  The
-#    difference between SocketAddressLegacy and SocketAddress is that
-#    the latter has fewer ``{}`` on the wire.
-#
 # Since: 1.3
 ##
 { 'union': 'SocketAddressLegacy',
@@ -193,6 +189,9 @@
     'unix': 'UnixSocketAddressWrapper',
     'vsock': 'VsockSocketAddressWrapper',
     'fd': 'FdSocketAddressWrapper' } }
+# Note: This type is deprecated in favor of SocketAddress.  The
+# difference between SocketAddressLegacy and SocketAddress is that the
+# latter has fewer ``{}`` on the wire.
 
 ##
 # @SocketAddressType:
