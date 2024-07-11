@@ -521,6 +521,7 @@ typedef struct NvmeParams {
     uint32_t num_queues; /* deprecated since 5.1 */
     uint32_t max_ioqpairs;
     uint16_t msix_qsize;
+    uint16_t mqes;
     uint32_t cmb_size_mb;
     uint8_t  aerl;
     uint32_t aer_max_queued;
@@ -531,11 +532,11 @@ typedef struct NvmeParams {
     bool     auto_transition_zones;
     bool     legacy_cmb;
     bool     ioeventfd;
-    uint8_t  sriov_max_vfs;
+    uint16_t  sriov_max_vfs;
     uint16_t sriov_vq_flexible;
     uint16_t sriov_vi_flexible;
-    uint8_t  sriov_max_vq_per_vf;
-    uint8_t  sriov_max_vi_per_vf;
+    uint32_t  sriov_max_vq_per_vf;
+    uint32_t  sriov_max_vi_per_vf;
     bool     msix_exclusive_bar;
 } NvmeParams;
 
@@ -612,7 +613,8 @@ typedef struct NvmeCtrl {
     } features;
 
     NvmePriCtrlCap  pri_ctrl_cap;
-    NvmeSecCtrlList sec_ctrl_list;
+    uint32_t nr_sec_ctrls;
+    NvmeSecCtrlEntry *sec_ctrl_list;
     struct {
         uint16_t    vqrfap;
         uint16_t    virfap;
@@ -662,7 +664,7 @@ static inline NvmeSecCtrlEntry *nvme_sctrl(NvmeCtrl *n)
     NvmeCtrl *pf = NVME(pcie_sriov_get_pf(pci_dev));
 
     if (pci_is_vf(pci_dev)) {
-        return &pf->sec_ctrl_list.sec[pcie_sriov_vf_number(pci_dev)];
+        return &pf->sec_ctrl_list[pcie_sriov_vf_number(pci_dev)];
     }
 
     return NULL;
@@ -671,12 +673,12 @@ static inline NvmeSecCtrlEntry *nvme_sctrl(NvmeCtrl *n)
 static inline NvmeSecCtrlEntry *nvme_sctrl_for_cntlid(NvmeCtrl *n,
                                                       uint16_t cntlid)
 {
-    NvmeSecCtrlList *list = &n->sec_ctrl_list;
+    NvmeSecCtrlEntry *list = n->sec_ctrl_list;
     uint8_t i;
 
-    for (i = 0; i < list->numcntl; i++) {
-        if (le16_to_cpu(list->sec[i].scid) == cntlid) {
-            return &list->sec[i];
+    for (i = 0; i < n->nr_sec_ctrls; i++) {
+        if (le16_to_cpu(list[i].scid) == cntlid) {
+            return &list[i];
         }
     }
 

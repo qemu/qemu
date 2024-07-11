@@ -17,13 +17,13 @@
 static int nvme_subsys_reserve_cntlids(NvmeCtrl *n, int start, int num)
 {
     NvmeSubsystem *subsys = n->subsys;
-    NvmeSecCtrlList *list = &n->sec_ctrl_list;
+    NvmeSecCtrlEntry *list = n->sec_ctrl_list;
     NvmeSecCtrlEntry *sctrl;
     int i, cnt = 0;
 
     for (i = start; i < ARRAY_SIZE(subsys->ctrls) && cnt < num; i++) {
         if (!subsys->ctrls[i]) {
-            sctrl = &list->sec[cnt];
+            sctrl = &list[cnt];
             sctrl->scid = cpu_to_le16(i);
             subsys->ctrls[i] = SUBSYS_SLOT_RSVD;
             cnt++;
@@ -36,12 +36,12 @@ static int nvme_subsys_reserve_cntlids(NvmeCtrl *n, int start, int num)
 static void nvme_subsys_unreserve_cntlids(NvmeCtrl *n)
 {
     NvmeSubsystem *subsys = n->subsys;
-    NvmeSecCtrlList *list = &n->sec_ctrl_list;
+    NvmeSecCtrlEntry *list = n->sec_ctrl_list;
     NvmeSecCtrlEntry *sctrl;
     int i, cntlid;
 
     for (i = 0; i < n->params.sriov_max_vfs; i++) {
-        sctrl = &list->sec[i];
+        sctrl = &list[i];
         cntlid = le16_to_cpu(sctrl->scid);
 
         if (cntlid) {
@@ -61,6 +61,8 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
     if (pci_is_vf(&n->parent_obj)) {
         cntlid = le16_to_cpu(sctrl->scid);
     } else {
+        n->sec_ctrl_list = g_new0(NvmeSecCtrlEntry, num_vfs);
+
         for (cntlid = 0; cntlid < ARRAY_SIZE(subsys->ctrls); cntlid++) {
             if (!subsys->ctrls[cntlid]) {
                 break;
