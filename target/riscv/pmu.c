@@ -285,8 +285,7 @@ int riscv_pmu_incr_ctr(RISCVCPU *cpu, enum riscv_pmu_event_idx event_idx)
     }
 
     ctr_idx = GPOINTER_TO_UINT(value);
-    if (!riscv_pmu_counter_enabled(cpu, ctr_idx) ||
-        get_field(env->mcountinhibit, BIT(ctr_idx))) {
+    if (!riscv_pmu_counter_enabled(cpu, ctr_idx)) {
         return -1;
     }
 
