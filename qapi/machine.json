@@ -960,9 +960,7 @@
 ##
 # @CpuInstanceProperties:
 #
-# List of properties to be used for hotplugging a CPU instance, it
-# should be passed by management with device_add command when a CPU is
-# being hotplugged.
+# Properties identifying a CPU.
 #
 # Which members are optional and which mandatory depends on the
 # architecture and board.
@@ -996,9 +994,6 @@
 #
 # @thread-id: thread number within the core the CPU  belongs to
 #
-# .. note:: Management should be prepared to pass through additional
-#    properties with device_add.
-#
 # Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
@@ -1020,13 +1015,17 @@
 #
 # @type: CPU object type for usage with device_add command
 #
-# @props: list of properties to be used for hotplugging CPU
+# @props: list of properties to pass for hotplugging a CPU with
+#     device_add
 #
 # @vcpus-count: number of logical VCPU threads @HotpluggableCPU
 #     provides
 #
 # @qom-path: link to existing CPU object if CPU is present or omitted
 #     if CPU is not present.
+#
+# .. note:: Management should be prepared to pass through additional
+#    properties with device_add.
 #
 # Since: 2.7
 ##
