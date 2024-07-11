@@ -926,6 +926,18 @@ typedef enum RISCVException {
 #define MHPMEVENT_BIT_VUINH                BIT_ULL(58)
 #define MHPMEVENTH_BIT_VUINH               BIT(26)
 
+#define MHPMEVENT_FILTER_MASK              (MHPMEVENT_BIT_MINH  | \
+                                            MHPMEVENT_BIT_SINH  | \
+                                            MHPMEVENT_BIT_UINH  | \
+                                            MHPMEVENT_BIT_VSINH | \
+                                            MHPMEVENT_BIT_VUINH)
+
+#define MHPMEVENTH_FILTER_MASK              (MHPMEVENTH_BIT_MINH  | \
+                                            MHPMEVENTH_BIT_SINH  | \
+                                            MHPMEVENTH_BIT_UINH  | \
+                                            MHPMEVENTH_BIT_VSINH | \
+                                            MHPMEVENTH_BIT_VUINH)
+
 #define MHPMEVENT_SSCOF_MASK               _ULL(0xFFFF000000000000)
 #define MHPMEVENT_IDX_MASK                 0xFFFFF
 #define MHPMEVENT_SSCOF_RESVD              16
