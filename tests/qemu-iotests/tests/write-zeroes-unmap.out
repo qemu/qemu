@@ -1,0 +1,81 @@
+QA output created by write-zeroes-unmap
+
+=== defaults - write zeros ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -z 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== defaults - write zeros unmap ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -zu 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== defaults - write actual zeros ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -P 0 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== discard=off - write zeroes unmap ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -zu 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== detect-zeroes=on - write actual zeros ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -P 0 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== detect-zeroes=on,discard=on - write actual zeros ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -P 0 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== discard=on - write zeroes ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -z 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+1.0M	TEST_DIR/t.raw
+
+=== discard=on - write zeroes unmap ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io none0 "write -zu 0 1m"
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+(qemu) quit
+0	TEST_DIR/t.raw
