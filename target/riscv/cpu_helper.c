@@ -695,9 +695,14 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
 {
     g_assert(newpriv <= PRV_M && newpriv != PRV_RESERVED);
 
-    if (icount_enabled() && newpriv != env->priv) {
-        riscv_itrigger_update_priv(env);
+    if (newpriv != env->priv || env->virt_enabled != virt_en) {
+        if (icount_enabled()) {
+            riscv_itrigger_update_priv(env);
+        }
+
+        riscv_pmu_update_fixed_ctrs(env, newpriv, virt_en);
     }
+
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
     env->xl = cpu_recompute_xl(env);
