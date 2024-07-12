@@ -1958,12 +1958,6 @@ done:
     g_free(rawpasswddata);
 }
 
-/* add unsupported commands to the list of blocked RPCs */
-GList *ga_command_init_blockedrpcs(GList *blockedrpcs)
-{
-    return blockedrpcs;
-}
-
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {

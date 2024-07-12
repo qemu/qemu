@@ -28,6 +28,20 @@ configuration options on the command line. For the same key, the last
 option wins, but the lists accumulate (see below for configuration
 file format).
 
+If an allowed RPCs list is defined in the configuration, then all
+RPCs will be blocked by default, except for the allowed list.
+
+If a blocked RPCs list is defined in the configuration, then all
+RPCs will be allowed by default, except for the blocked list.
+
+If both allowed and blocked RPCs lists are defined in the configuration,
+then all RPCs will be blocked by default, then the allowed list will
+be applied, followed by the blocked list.
+
+While filesystems are frozen, all except for a designated safe set
+of RPCs will blocked, regardless of what the general configuration
+declares.
+
 Options
 -------
 

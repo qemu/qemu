@@ -423,58 +423,77 @@ static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
     return strcmp(str1, str2);
 }
 
-/* disable commands that aren't safe for fsfreeze */
-static void ga_disable_not_allowed_freeze(const QmpCommand *cmd, void *opaque)
+static bool ga_command_is_allowed(const QmpCommand *cmd, GAState *state)
 {
-    bool allowed = false;
     int i = 0;
+    GAConfig *config = state->config;
     const char *name = qmp_command_name(cmd);
+    /* Fallback policy is allow everything */
+    bool allowed = true;
 
-    while (ga_freeze_allowlist[i] != NULL) {
-        if (strcmp(name, ga_freeze_allowlist[i]) == 0) {
+    if (config->allowedrpcs) {
+        /*
+         * If an allow-list is given, this changes the fallback
+         * policy to deny everything
+         */
+        allowed = false;
+
+        if (g_list_find_custom(config->allowedrpcs, name, ga_strcmp) != NULL) {
             allowed = true;
         }
-        i++;
     }
-    if (!allowed) {
-        g_debug("disabling command: %s", name);
-        qmp_disable_command(&ga_commands, name, "the agent is in frozen state");
+
+    /*
+     * If both allowedrpcs and blockedrpcs are set, the blocked
+     * list will take priority
+     */
+    if (config->blockedrpcs) {
+        if (g_list_find_custom(config->blockedrpcs, name, ga_strcmp) != NULL) {
+            allowed = false;
+        }
     }
+
+    /*
+     * If frozen, this filtering must take priority over
+     * absolutely everything
+     */
+    if (state->frozen) {
+        allowed = false;
+
+        while (ga_freeze_allowlist[i] != NULL) {
+            if (strcmp(name, ga_freeze_allowlist[i]) == 0) {
+                allowed = true;
+            }
+            i++;
+        }
+    }
+
+    return allowed;
 }
 
-/* [re-]enable all commands, except those explicitly blocked by user */
-static void ga_enable_non_blocked(const QmpCommand *cmd, void *opaque)
+static void ga_apply_command_filters_iter(const QmpCommand *cmd, void *opaque)
 {
-    GAState *s = opaque;
-    GList *blockedrpcs = s->blockedrpcs;
-    GList *allowedrpcs = s->allowedrpcs;
+    GAState *state = opaque;
+    bool want = ga_command_is_allowed(cmd, state);
+    bool have = qmp_command_is_enabled(cmd);
     const char *name = qmp_command_name(cmd);
 
-    if (g_list_find_custom(blockedrpcs, name, ga_strcmp) == NULL) {
-        if (qmp_command_is_enabled(cmd)) {
-            return;
-        }
+    if (want == have) {
+        return;
+    }
 
-        if (allowedrpcs &&
-            g_list_find_custom(allowedrpcs, name, ga_strcmp) == NULL) {
-            return;
-        }
-
+    if (have) {
+        g_debug("disabling command: %s", name);
+        qmp_disable_command(&ga_commands, name, "the command is not allowed");
+    } else {
         g_debug("enabling command: %s", name);
         qmp_enable_command(&ga_commands, name);
     }
 }
 
-/* disable commands that aren't allowed */
-static void ga_disable_not_allowed(const QmpCommand *cmd, void *opaque)
+static void ga_apply_command_filters(GAState *state)
 {
-    GList *allowedrpcs = opaque;
-    const char *name = qmp_command_name(cmd);
-
-    if (g_list_find_custom(allowedrpcs, name, ga_strcmp) == NULL) {
-        g_debug("disabling command: %s", name);
-        qmp_disable_command(&ga_commands, name, "the command is not allowed");
-    }
+    qmp_for_each_command(&ga_commands, ga_apply_command_filters_iter, state);
 }
 
 static bool ga_create_file(const char *path)
@@ -509,15 +528,14 @@ void ga_set_frozen(GAState *s)
     if (ga_is_frozen(s)) {
         return;
     }
-    /* disable all forbidden (for frozen state) commands */
-    qmp_for_each_command(&ga_commands, ga_disable_not_allowed_freeze, NULL);
     g_warning("disabling logging due to filesystem freeze");
-    ga_disable_logging(s);
     s->frozen = true;
     if (!ga_create_file(s->state_filepath_isfrozen)) {
         g_warning("unable to create %s, fsfreeze may not function properly",
                   s->state_filepath_isfrozen);
     }
+    ga_apply_command_filters(s);
+    ga_disable_logging(s);
 }
 
 void ga_unset_frozen(GAState *s)
@@ -549,12 +567,12 @@ void ga_unset_frozen(GAState *s)
     }
 
     /* enable all disabled, non-blocked and allowed commands */
-    qmp_for_each_command(&ga_commands, ga_enable_non_blocked, s);
     s->frozen = false;
     if (!ga_delete_file(s->state_filepath_isfrozen)) {
         g_warning("unable to delete %s, fsfreeze may not function properly",
                   s->state_filepath_isfrozen);
     }
+    ga_apply_command_filters(s);
 }
 
 #ifdef CONFIG_FSFREEZE
@@ -1086,13 +1104,6 @@ static void config_load(GAConfig *config, const char *confpath, bool required)
                                           split_list(config->aliststr, ","));
     }
 
-    if (g_key_file_has_key(keyfile, "general", "block-rpcs", NULL) &&
-        g_key_file_has_key(keyfile, "general", "allow-rpcs", NULL)) {
-        g_critical("wrong config, using 'block-rpcs' and 'allow-rpcs' keys at"
-                   " the same time is not allowed");
-        exit(EXIT_FAILURE);
-    }
-
 end:
     g_key_file_free(keyfile);
     if (gerr && (required ||
@@ -1172,7 +1183,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
 {
     const char *sopt = "hVvdc:m:p:l:f:F::b:a:s:t:Dr";
     int opt_ind = 0, ch;
-    bool block_rpcs = false, allow_rpcs = false;
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -1268,7 +1278,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             }
             config->blockedrpcs = g_list_concat(config->blockedrpcs,
                                                 split_list(optarg, ","));
-            block_rpcs = true;
             break;
         }
         case 'a': {
@@ -1278,7 +1287,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             }
             config->allowedrpcs = g_list_concat(config->allowedrpcs,
                                                 split_list(optarg, ","));
-            allow_rpcs = true;
             break;
         }
 #ifdef _WIN32
@@ -1318,12 +1326,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
                     argv[0]);
             exit(EXIT_FAILURE);
         }
-    }
-
-    if (block_rpcs && allow_rpcs) {
-        g_critical("wrong commandline, using --block-rpcs and --allow-rpcs at the"
-                   " same time is not allowed");
-        exit(EXIT_FAILURE);
     }
 }
 
@@ -1435,7 +1437,6 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
             s->deferred_options.log_filepath = config->log_filepath;
         }
         ga_disable_logging(s);
-        qmp_for_each_command(&ga_commands, ga_disable_not_allowed_freeze, NULL);
     } else {
         if (config->daemonize) {
             become_daemon(config->pid_filepath);
@@ -1459,25 +1460,6 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         return NULL;
     }
 
-    if (config->allowedrpcs) {
-        qmp_for_each_command(&ga_commands, ga_disable_not_allowed, config->allowedrpcs);
-        s->allowedrpcs = config->allowedrpcs;
-    }
-
-    /*
-     * Some commands can be blocked due to system limitation.
-     * Initialize blockedrpcs list even if allowedrpcs specified.
-     */
-    config->blockedrpcs = ga_command_init_blockedrpcs(config->blockedrpcs);
-    if (config->blockedrpcs) {
-        GList *l = config->blockedrpcs;
-        s->blockedrpcs = config->blockedrpcs;
-        do {
-            g_debug("disabling command: %s", (char *)l->data);
-            qmp_disable_command(&ga_commands, l->data, NULL);
-            l = g_list_next(l);
-        } while (l);
-    }
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
@@ -1502,6 +1484,8 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         return NULL;
     }
 #endif
+
+    ga_apply_command_filters(s);
 
     ga_state = s;
     return s;
