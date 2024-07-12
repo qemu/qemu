@@ -67,19 +67,9 @@ static void gen_rotr_d(TCGv dest, TCGv src1, TCGv src2)
     tcg_gen_rotr_tl(dest, src1, t0);
 }
 
-static bool trans_srai_w(DisasContext *ctx, arg_srai_w *a)
+static void gen_sari_w(TCGv dest, TCGv src1, target_long imm)
 {
-    TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
-    TCGv src1 = gpr_src(ctx, a->rj, EXT_ZERO);
-
-    if (!avail_64(ctx)) {
-        return false;
-    }
-
-    tcg_gen_sextract_tl(dest, src1, a->imm, 32 - a->imm);
-    gen_set_gpr(a->rd, dest, EXT_NONE);
-
-    return true;
+    tcg_gen_sextract_tl(dest, src1, imm, 32 - imm);
 }
 
 TRANS(sll_w, ALL, gen_rrr, EXT_ZERO, EXT_NONE, EXT_SIGN, gen_sll_w)
@@ -94,6 +84,7 @@ TRANS(slli_w, ALL, gen_rri_c, EXT_NONE, EXT_SIGN, tcg_gen_shli_tl)
 TRANS(slli_d, 64, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_shli_tl)
 TRANS(srli_w, ALL, gen_rri_c, EXT_ZERO, EXT_SIGN, tcg_gen_shri_tl)
 TRANS(srli_d, 64, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_shri_tl)
+TRANS(srai_w, ALL, gen_rri_c, EXT_NONE, EXT_NONE, gen_sari_w)
 TRANS(srai_d, 64, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_sari_tl)
 TRANS(rotri_w, 64, gen_rri_v, EXT_NONE, EXT_NONE, gen_rotr_w)
 TRANS(rotri_d, 64, gen_rri_c, EXT_NONE, EXT_NONE, tcg_gen_rotri_tl)

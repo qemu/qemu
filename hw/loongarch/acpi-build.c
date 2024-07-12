@@ -646,6 +646,9 @@ void loongarch_acpi_setup(LoongArchVirtMachineState *lvms)
                                              build_state, tables.rsdp,
                                              ACPI_BUILD_RSDP_FILE);
 
+    fw_cfg_add_file(lvms->fw_cfg, ACPI_BUILD_TPMLOG_FILE, tables.tcpalog->data,
+                    acpi_data_len(tables.tcpalog));
+
     qemu_register_reset(acpi_build_reset, build_state);
     acpi_build_reset(build_state);
     vmstate_register(NULL, 0, &vmstate_acpi_build, build_state);

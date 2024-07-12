@@ -163,7 +163,7 @@ static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
     info->a0 = 1;
     info->a1 = cmdline_addr;
 
-    memcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
+    g_strlcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
 }
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
