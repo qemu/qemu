@@ -33,6 +33,11 @@ Options
 
 .. program:: qemu-ga
 
+.. option:: -c, --config=PATH
+
+  Configuration file path (the default is |CONFDIR|\ ``/qemu-ga.conf``,
+  unless overriden by the QGA_CONF environment variable)
+
 .. option:: -m, --method=METHOD
 
   Transport method: one of ``unix-listen``, ``virtio-serial``, or
