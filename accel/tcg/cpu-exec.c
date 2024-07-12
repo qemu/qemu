@@ -857,8 +857,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         else {
             const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
-            if (tcg_ops->cpu_exec_interrupt &&
-                tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
+            if (tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
                 if (!tcg_ops->need_replay_interrupt ||
                     tcg_ops->need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
@@ -1080,6 +1079,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
         /* Check mandatory TCGCPUOps handlers */
 #ifndef CONFIG_USER_ONLY
         assert(cpu->cc->tcg_ops->cpu_exec_halt);
+        assert(cpu->cc->tcg_ops->cpu_exec_interrupt);
 #endif /* !CONFIG_USER_ONLY */
         cpu->cc->tcg_ops->initialize();
         tcg_target_initialized = true;
