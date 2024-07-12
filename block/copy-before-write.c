@@ -66,7 +66,8 @@ typedef struct BDRVCopyBeforeWriteState {
 
     /*
      * @frozen_read_reqs: current read requests for fleecing user in bs->file
-     * node. These areas must not be rewritten by guest.
+     * node. These areas must not be rewritten by guest. There can be multiple
+     * overlapping read requests.
      */
     BlockReqList frozen_read_reqs;
 
