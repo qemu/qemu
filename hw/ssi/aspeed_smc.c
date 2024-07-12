@@ -789,8 +789,7 @@ static uint8_t aspeed_smc_hclk_divisor(uint8_t hclk_mask)
         }
     }
 
-    aspeed_smc_error("invalid HCLK mask %x", hclk_mask);
-    return 0;
+    g_assert_not_reached();
 }
 
 /*
