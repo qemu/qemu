@@ -1280,7 +1280,7 @@ GList *ga_command_init_blockedrpcs(GList *blockedrpcs)
             "guest-get-memory-blocks", "guest-set-memory-blocks",
             "guest-get-memory-block-info",
             NULL};
-        char **p = (char **)list;
+        const char **p = list;
 
         while (*p) {
             blockedrpcs = g_list_append(blockedrpcs, g_strdup(*p++));

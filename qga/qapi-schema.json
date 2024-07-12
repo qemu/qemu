@@ -637,7 +637,8 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-hybrid', 'success-response': false }
+{ 'command': 'guest-suspend-hybrid', 'success-response': false,
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestIpAddressType:
@@ -807,7 +808,8 @@
 ##
 { 'command': 'guest-set-vcpus',
   'data':    {'vcpus': ['GuestLogicalProcessor'] },
-  'returns': 'int' }
+  'returns': 'int',
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestDiskBusType:
@@ -1100,7 +1102,8 @@
 { 'struct': 'GuestMemoryBlock',
   'data': {'phys-index': 'uint64',
            'online': 'bool',
-           '*can-offline': 'bool'} }
+           '*can-offline': 'bool'},
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-get-memory-blocks:
@@ -1116,7 +1119,8 @@
 # Since: 2.3
 ##
 { 'command': 'guest-get-memory-blocks',
-  'returns': ['GuestMemoryBlock'] }
+  'returns': ['GuestMemoryBlock'],
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestMemoryBlockResponseType:
@@ -1139,7 +1143,8 @@
 ##
 { 'enum': 'GuestMemoryBlockResponseType',
   'data': ['success', 'not-found', 'operation-not-supported',
-           'operation-failed'] }
+           'operation-failed'],
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestMemoryBlockResponse:
@@ -1157,7 +1162,8 @@
 { 'struct': 'GuestMemoryBlockResponse',
   'data': { 'phys-index': 'uint64',
             'response': 'GuestMemoryBlockResponseType',
-            '*error-code': 'int' }}
+            '*error-code': 'int' },
+  'if': 'CONFIG_POSIX'}
 
 ##
 # @guest-set-memory-blocks:
@@ -1188,7 +1194,8 @@
 ##
 { 'command': 'guest-set-memory-blocks',
   'data':    {'mem-blks': ['GuestMemoryBlock'] },
-  'returns': ['GuestMemoryBlockResponse'] }
+  'returns': ['GuestMemoryBlockResponse'],
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestMemoryBlockInfo:
@@ -1200,7 +1207,8 @@
 # Since: 2.3
 ##
 { 'struct': 'GuestMemoryBlockInfo',
-  'data': {'size': 'uint64'} }
+  'data': {'size': 'uint64'},
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-get-memory-block-info:
@@ -1212,7 +1220,8 @@
 # Since: 2.3
 ##
 { 'command': 'guest-get-memory-block-info',
-  'returns': 'GuestMemoryBlockInfo' }
+  'returns': 'GuestMemoryBlockInfo',
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestExecStatus:
@@ -1702,7 +1711,8 @@
   'data': {'name': 'str',
            'major': 'uint64',
            'minor': 'uint64',
-           'stats': 'GuestDiskStats' } }
+           'stats': 'GuestDiskStats' },
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-get-diskstats:
@@ -1714,7 +1724,8 @@
 # Since: 7.1
 ##
 { 'command': 'guest-get-diskstats',
-  'returns': ['GuestDiskStatsInfo']
+  'returns': ['GuestDiskStatsInfo'],
+  'if': 'CONFIG_POSIX'
 }
 
 ##
@@ -1727,7 +1738,8 @@
 # Since: 7.1
 ##
 { 'enum': 'GuestCpuStatsType',
-  'data': [ 'linux' ] }
+  'data': [ 'linux' ],
+  'if': 'CONFIG_POSIX' }
 
 
 ##
@@ -1772,7 +1784,8 @@
            '*steal': 'uint64',
            '*guest': 'uint64',
            '*guestnice': 'uint64'
-           } }
+           },
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @GuestCpuStats:
@@ -1786,7 +1799,8 @@
 { 'union': 'GuestCpuStats',
   'base': { 'type': 'GuestCpuStatsType' },
   'discriminator': 'type',
-  'data': { 'linux': 'GuestLinuxCpuStats' } }
+  'data': { 'linux': 'GuestLinuxCpuStats' },
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-get-cpustats:
@@ -1798,5 +1812,6 @@
 # Since: 7.1
 ##
 { 'command': 'guest-get-cpustats',
-  'returns': ['GuestCpuStats']
+  'returns': ['GuestCpuStats'],
+  'if': 'CONFIG_POSIX'
 }
