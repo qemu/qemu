@@ -196,7 +196,7 @@ vub_discard_write_zeroes(VubReq *req, struct iovec *iov, uint32_t iovcnt,
     VubDev *vdev_blk = req->vdev_blk;
     desc = buf;
     uint64_t range[2] = { le64_to_cpu(desc->sector) << 9,
-                          le32_to_cpu(desc->num_sectors) << 9 };
+                          (uint64_t)le32_to_cpu(desc->num_sectors) << 9 };
     if (type == VIRTIO_BLK_T_DISCARD) {
         if (ioctl(vdev_blk->blk_fd, BLKDISCARD, range) == 0) {
             g_free(buf);
