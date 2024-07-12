@@ -597,7 +597,17 @@ static void xen_invalidate_map_cache_entry_unlocked(MapCache *mc,
         pentry->next = entry->next;
         g_free(entry);
     } else {
-        memset(entry, 0, sizeof *entry);
+        /*
+         * Invalidate mapping but keep entry->next pointing to the rest
+         * of the list.
+         *
+         * Note that lock is already zero here, otherwise we don't unmap.
+         */
+        entry->paddr_index = 0;
+        entry->vaddr_base = NULL;
+        entry->valid_mapping = NULL;
+        entry->flags = 0;
+        entry->size = 0;
     }
 }
 
