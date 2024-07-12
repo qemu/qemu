@@ -510,7 +510,8 @@
 ##
 { 'struct': 'GuestFilesystemTrimResult',
   'data': {'path': 'str',
-           '*trimmed': 'int', '*minimum': 'int', '*error': 'str'} }
+           '*trimmed': 'int', '*minimum': 'int', '*error': 'str'},
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
 
 ##
 # @GuestFilesystemTrimResponse:
@@ -520,7 +521,8 @@
 # Since: 2.4
 ##
 { 'struct': 'GuestFilesystemTrimResponse',
-  'data': {'paths': ['GuestFilesystemTrimResult']} }
+  'data': {'paths': ['GuestFilesystemTrimResult']},
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
 
 ##
 # @guest-fstrim:
@@ -542,7 +544,8 @@
 ##
 { 'command': 'guest-fstrim',
   'data': { '*minimum': 'int' },
-  'returns': 'GuestFilesystemTrimResponse' }
+  'returns': 'GuestFilesystemTrimResponse',
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_FSTRIM'] } }
 
 ##
 # @guest-suspend-disk:
