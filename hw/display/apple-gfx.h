@@ -14,6 +14,7 @@
 #include "ui/surface.h"
 
 #define TYPE_APPLE_GFX_MMIO         "apple-gfx-mmio"
+#define TYPE_APPLE_GFX_PCI          "apple-gfx-pci"
 
 @class PGDeviceDescriptor;
 @protocol PGDevice;
