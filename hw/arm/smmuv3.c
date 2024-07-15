@@ -910,6 +910,20 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
     if (!cached_entry) {
         /* All faults from PTW has S2 field. */
         event->u.f_walk_eabt.s2 = (ptw_info.stage == SMMU_STAGE_2);
+        /*
+         * Fault class is set as follows based on "class" input to
+         * the function and to "ptw_info" from "smmu_translate()"
+         * For stage-1:
+         *   - EABT => CLASS_TT (hardcoded)
+         *   - other events => CLASS_IN (input to function)
+         * For stage-2 => CLASS_IN (input to function)
+         * For nested, for all events:
+         *  - CD fetch => CLASS_CD (input to function)
+         *  - walking stage 1 translation table  => CLASS_TT (from
+         *    is_ipa_descriptor or input in case of TTBx)
+         *  - s2 translation => CLASS_IN (input to function)
+         */
+        class = ptw_info.is_ipa_descriptor ? SMMU_CLASS_TT : class;
         switch (ptw_info.type) {
         case SMMU_PTW_ERR_WALK_EABT:
             event->type = SMMU_EVT_F_WALK_EABT;

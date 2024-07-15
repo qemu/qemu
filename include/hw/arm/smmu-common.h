@@ -63,6 +63,7 @@ typedef struct SMMUPTWEventInfo {
     SMMUStage stage;
     SMMUPTWEventType type;
     dma_addr_t addr; /* fetched address that induced an abort, if any */
+    bool is_ipa_descriptor; /* src for fault in nested translation. */
 } SMMUPTWEventInfo;
 
 typedef struct SMMUTransTableInfo {
@@ -184,9 +185,9 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
  * smmu_ptw - Perform the page table walk for a given iova / access flags
  * pair, according to @cfg translation config
  */
-int smmu_ptw(SMMUTransCfg *cfg, dma_addr_t iova, IOMMUAccessFlags perm,
-             SMMUTLBEntry *tlbe, SMMUPTWEventInfo *info);
-
+int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
+             IOMMUAccessFlags perm, SMMUTLBEntry *tlbe,
+             SMMUPTWEventInfo *info);
 
 /*
  * smmu_translate - Look for a translation in TLB, if not, do a PTW.
