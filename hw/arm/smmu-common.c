@@ -448,7 +448,7 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
      */
     if (ipa >= (1ULL << inputsize)) {
         info->type = SMMU_PTW_ERR_TRANSLATION;
-        goto error;
+        goto error_ipa;
     }
 
     while (level < VMSA_LEVELS) {
@@ -494,13 +494,13 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
          */
         if (!PTE_AF(pte) && !cfg->s2cfg.affd) {
             info->type = SMMU_PTW_ERR_ACCESS;
-            goto error;
+            goto error_ipa;
         }
 
         s2ap = PTE_AP(pte);
         if (is_permission_fault_s2(s2ap, perm)) {
             info->type = SMMU_PTW_ERR_PERMISSION;
-            goto error;
+            goto error_ipa;
         }
 
         /*
@@ -509,7 +509,7 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
          */
         if (gpa >= (1ULL << cfg->s2cfg.eff_ps)) {
             info->type = SMMU_PTW_ERR_ADDR_SIZE;
-            goto error;
+            goto error_ipa;
         }
 
         tlbe->entry.translated_addr = gpa;
@@ -522,6 +522,8 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
     }
     info->type = SMMU_PTW_ERR_TRANSLATION;
 
+error_ipa:
+    info->addr = ipa;
 error:
     info->stage = 2;
     tlbe->entry.perm = IOMMU_NONE;

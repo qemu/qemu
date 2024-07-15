@@ -949,6 +949,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             if (PTW_RECORD_FAULT(cfg)) {
                 event.type = SMMU_EVT_F_TRANSLATION;
                 event.u.f_translation.addr = addr;
+                event.u.f_translation.addr2 = ptw_info.addr;
                 event.u.f_translation.rnw = flag & 0x1;
             }
             break;
@@ -956,6 +957,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             if (PTW_RECORD_FAULT(cfg)) {
                 event.type = SMMU_EVT_F_ADDR_SIZE;
                 event.u.f_addr_size.addr = addr;
+                event.u.f_addr_size.addr2 = ptw_info.addr;
                 event.u.f_addr_size.rnw = flag & 0x1;
             }
             break;
@@ -963,6 +965,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             if (PTW_RECORD_FAULT(cfg)) {
                 event.type = SMMU_EVT_F_ACCESS;
                 event.u.f_access.addr = addr;
+                event.u.f_access.addr2 = ptw_info.addr;
                 event.u.f_access.rnw = flag & 0x1;
             }
             break;
@@ -970,6 +973,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             if (PTW_RECORD_FAULT(cfg)) {
                 event.type = SMMU_EVT_F_PERMISSION;
                 event.u.f_permission.addr = addr;
+                event.u.f_permission.addr2 = ptw_info.addr;
                 event.u.f_permission.rnw = flag & 0x1;
             }
             break;
