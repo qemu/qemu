@@ -41,6 +41,8 @@ struct LoongsonIPICommonState {
 struct LoongsonIPICommonClass {
     SysBusDeviceClass parent_class;
 
+    DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     AddressSpace *(*get_iocsr_as)(CPUState *cpu);
     CPUState *(*cpu_by_arch_id)(int64_t id);
 };
