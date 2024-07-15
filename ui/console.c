@@ -49,7 +49,8 @@ typedef struct QemuGraphicConsole {
     uint32_t head;
 
     QEMUCursor *cursor;
-    int cursor_x, cursor_y, cursor_on;
+    int cursor_x, cursor_y;
+    bool cursor_on;
 } QemuGraphicConsole;
 
 typedef QemuConsoleClass QemuGraphicConsoleClass;
@@ -957,7 +958,7 @@ void dpy_text_resize(QemuConsole *con, int w, int h)
     }
 }
 
-void dpy_mouse_set(QemuConsole *c, int x, int y, int on)
+void dpy_mouse_set(QemuConsole *c, int x, int y, bool on)
 {
     QemuGraphicConsole *con = QEMU_GRAPHIC_CONSOLE(c);
     DisplayState *s = c->ds;

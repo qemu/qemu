@@ -254,7 +254,7 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 static SimpleSpiceCursor*
 qemu_spice_create_cursor_update(SimpleSpiceDisplay *ssd,
                                 QEMUCursor *c,
-                                int on)
+                                bool on)
 {
     size_t size = c ? c->width * c->height * 4 : 0;
     SimpleSpiceCursor *update;
@@ -448,7 +448,8 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     qemu_mutex_lock(&ssd->lock);
     if (ssd->cursor) {
         g_free(ssd->ptr_define);
-        ssd->ptr_define = qemu_spice_create_cursor_update(ssd, ssd->cursor, 0);
+        ssd->ptr_define =
+            qemu_spice_create_cursor_update(ssd, ssd->cursor, false);
     }
     qemu_mutex_unlock(&ssd->lock);
 }
@@ -476,7 +477,7 @@ void qemu_spice_cursor_refresh_bh(void *opaque)
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
         qemu_mutex_unlock(&ssd->lock);
-        dpy_mouse_set(ssd->dcl.con, x, y, 1);
+        dpy_mouse_set(ssd->dcl.con, x, y, true);
     } else {
         qemu_mutex_unlock(&ssd->lock);
     }
@@ -747,7 +748,7 @@ static void display_refresh(DisplayChangeListener *dcl)
 }
 
 static void display_mouse_set(DisplayChangeListener *dcl,
-                              int x, int y, int on)
+                              int x, int y, bool on)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
@@ -774,7 +775,7 @@ static void display_mouse_define(DisplayChangeListener *dcl,
     g_free(ssd->ptr_move);
     ssd->ptr_move = NULL;
     g_free(ssd->ptr_define);
-    ssd->ptr_define = qemu_spice_create_cursor_update(ssd, c, 0);
+    ssd->ptr_define = qemu_spice_create_cursor_update(ssd, c, false);
     qemu_mutex_unlock(&ssd->lock);
     qemu_spice_wakeup(ssd);
 }

@@ -742,7 +742,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         if (!s->cursor_guest_mode &&
             (s->regs.crtc_gen_cntl & CRTC2_CUR_EN) && !(t & BIT(31))) {
             dpy_mouse_set(s->vga.con, s->regs.cur_hv_pos >> 16,
-                          s->regs.cur_hv_pos & 0xffff, 1);
+                          s->regs.cur_hv_pos & 0xffff, true);
         }
         break;
     }

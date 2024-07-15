@@ -981,7 +981,7 @@ int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 }
 
 static void vnc_mouse_set(DisplayChangeListener *dcl,
-                          int x, int y, int visible)
+                          int x, int y, bool visible)
 {
     /* can we ask the client(s) to move the pointer ??? */
 }

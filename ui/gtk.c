@@ -446,7 +446,7 @@ static GdkDevice *gd_get_pointer(GdkDisplay *dpy)
 }
 
 static void gd_mouse_set(DisplayChangeListener *dcl,
-                         int x, int y, int visible)
+                         int x, int y, bool visible)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GdkDisplay *dpy;
