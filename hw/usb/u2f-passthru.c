@@ -482,10 +482,8 @@ static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
         return;
 #endif
     } else {
-        fd = qemu_open_old(key->hidraw, O_RDWR);
+        fd = qemu_open(key->hidraw, O_RDWR, errp);
         if (fd < 0) {
-            error_setg(errp, "%s: Failed to open %s", TYPE_U2F_PASSTHRU,
-                       key->hidraw);
             return;
         }
 
