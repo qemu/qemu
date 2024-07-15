@@ -188,7 +188,7 @@ static const char *names[] = {
 #define LSI_TAG_VALID     (1 << 16)
 
 /* Maximum instructions to process. */
-#define LSI_MAX_INSN    100
+#define LSI_MAX_INSN    500
 
 typedef struct lsi_request {
     SCSIRequest *req;
