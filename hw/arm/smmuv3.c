@@ -942,7 +942,9 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
             event.type = SMMU_EVT_F_WALK_EABT;
             event.u.f_walk_eabt.addr = addr;
             event.u.f_walk_eabt.rnw = flag & 0x1;
-            event.u.f_walk_eabt.class = 0x1;
+            /* Stage-2 (only) is class IN while stage-1 is class TT */
+            event.u.f_walk_eabt.class = (ptw_info.stage == 2) ?
+                                         SMMU_CLASS_IN : SMMU_CLASS_TT;
             event.u.f_walk_eabt.addr2 = ptw_info.addr;
             break;
         case SMMU_PTW_ERR_TRANSLATION:
@@ -950,6 +952,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                 event.type = SMMU_EVT_F_TRANSLATION;
                 event.u.f_translation.addr = addr;
                 event.u.f_translation.addr2 = ptw_info.addr;
+                event.u.f_translation.class = SMMU_CLASS_IN;
                 event.u.f_translation.rnw = flag & 0x1;
             }
             break;
@@ -958,6 +961,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                 event.type = SMMU_EVT_F_ADDR_SIZE;
                 event.u.f_addr_size.addr = addr;
                 event.u.f_addr_size.addr2 = ptw_info.addr;
+                event.u.f_translation.class = SMMU_CLASS_IN;
                 event.u.f_addr_size.rnw = flag & 0x1;
             }
             break;
@@ -966,6 +970,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                 event.type = SMMU_EVT_F_ACCESS;
                 event.u.f_access.addr = addr;
                 event.u.f_access.addr2 = ptw_info.addr;
+                event.u.f_translation.class = SMMU_CLASS_IN;
                 event.u.f_access.rnw = flag & 0x1;
             }
             break;
@@ -974,6 +979,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                 event.type = SMMU_EVT_F_PERMISSION;
                 event.u.f_permission.addr = addr;
                 event.u.f_permission.addr2 = ptw_info.addr;
+                event.u.f_translation.class = SMMU_CLASS_IN;
                 event.u.f_permission.rnw = flag & 0x1;
             }
             break;
