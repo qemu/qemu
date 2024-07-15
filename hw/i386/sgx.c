@@ -157,10 +157,12 @@ SGXInfo *qmp_query_sgx_capabilities(Error **errp)
 {
     SGXInfo *info = NULL;
     uint32_t eax, ebx, ecx, edx;
+    Error *local_err = NULL;
 
-    int fd = qemu_open_old("/dev/sgx_vepc", O_RDWR);
+    int fd = qemu_open("/dev/sgx_vepc", O_RDWR, &local_err);
     if (fd < 0) {
-        error_setg(errp, "SGX is not enabled in KVM");
+        error_append_hint(&local_err, "SGX is not enabled in KVM");
+        error_propagate(errp, local_err);
         return NULL;
     }
 
