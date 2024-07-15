@@ -35,20 +35,9 @@ from qapi.error import QAPIError, QAPISemError
 from qapi.gen import QAPISchemaVisitor
 from qapi.schema import QAPISchema
 
-import sphinx
 from sphinx.errors import ExtensionError
+from sphinx.util.docutils import switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
-
-
-# Sphinx up to 1.6 uses AutodocReporter; 1.7 and later
-# use switch_source_input. Check borrowed from kerneldoc.py.
-USE_SSI = sphinx.__version__[:3] >= "1.7"
-if USE_SSI:
-    from sphinx.util.docutils import switch_source_input
-else:
-    from sphinx.ext.autodoc import (  # pylint: disable=no-name-in-module
-        AutodocReporter,
-    )
 
 
 __version__ = "1.0"
@@ -539,24 +528,8 @@ class QAPIDocDirective(Directive):
         subheadings (titles) without confusing the rendering of
         anything else.
         """
-        # This is from kerneldoc.py -- it works around an API change in
-        # Sphinx between 1.6 and 1.7. Unlike kerneldoc.py, we use
-        # sphinx.util.nodes.nested_parse_with_titles() rather than the
-        # plain self.state.nested_parse(), and so we can drop the saving
-        # of title_styles and section_level that kerneldoc.py does,
-        # because nested_parse_with_titles() does that for us.
-        if USE_SSI:
-            with switch_source_input(self.state, rstlist):
-                nested_parse_with_titles(self.state, rstlist, node)
-        else:
-            save = self.state.memo.reporter
-            self.state.memo.reporter = AutodocReporter(
-                rstlist, self.state.memo.reporter
-            )
-            try:
-                nested_parse_with_titles(self.state, rstlist, node)
-            finally:
-                self.state.memo.reporter = save
+        with switch_source_input(self.state, rstlist):
+            nested_parse_with_titles(self.state, rstlist, node)
 
 
 def setup(app):
