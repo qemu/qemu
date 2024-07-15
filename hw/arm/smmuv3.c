@@ -1240,7 +1240,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
         }
         case SMMU_CMD_TLBI_NH_ASID:
         {
-            uint16_t asid = CMD_ASID(&cmd);
+            int asid = CMD_ASID(&cmd);
 
             if (!STAGE1_SUPPORTED(s)) {
                 cmd_error = SMMU_CERROR_ILL;
@@ -1273,7 +1273,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
             break;
         case SMMU_CMD_TLBI_S12_VMALL:
         {
-            uint16_t vmid = CMD_VMID(&cmd);
+            int vmid = CMD_VMID(&cmd);
 
             if (!STAGE2_SUPPORTED(s)) {
                 cmd_error = SMMU_CERROR_ILL;
