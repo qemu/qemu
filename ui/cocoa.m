@@ -307,6 +307,7 @@ static void handleAnyDeviceErrors(Error * err)
     BOOL isMouseGrabbed;
     BOOL isAbsoluteEnabled;
     CFMachPortRef eventsTap;
+    CGColorSpaceRef colorspace;
 }
 - (void) switchSurface:(pixman_image_t *)image;
 - (void) grabMouse;
@@ -359,6 +360,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         [trackingArea release];
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
+        colorspace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_14_0
         [self setClipsToBounds:YES];
 #endif
@@ -379,6 +381,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
         CFRelease(eventsTap);
     }
 
+    CGColorSpaceRelease(colorspace);
     [super dealloc];
 }
 
@@ -456,7 +459,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             DIV_ROUND_UP(bitsPerPixel, 8) * 2, //bitsPerComponent
             bitsPerPixel, //bitsPerPixel
             stride, //bytesPerRow
-            CGColorSpaceCreateWithName(kCGColorSpaceSRGB), //colorspace
+            colorspace, //colorspace
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, //bitmapInfo
             dataProviderRef, //provider
             NULL, //decode
