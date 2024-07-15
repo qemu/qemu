@@ -2013,11 +2013,15 @@ static void gen_movl_seg(DisasContext *s, X86Seg seg_reg, TCGv src, bool inhibit
      * stop as a special handling must be done to disable hardware
      * interrupts for the next instruction.
      *
+     * This is the last instruction, so it's okay to overwrite
+     * HF_TF_MASK; the next TB will start with the flag set.
+     *
      * DISAS_EOB_INHIBIT_IRQ is a superset of DISAS_EOB_NEXT which
      * might have been set above.
      */
     if (inhibit_irq) {
         s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
+        s->flags &= ~HF_TF_MASK;
     }
 }
 
@@ -2265,7 +2269,7 @@ gen_eob(DisasContext *s, int mode)
     if (mode == DISAS_EOB_RECHECK_TF) {
         gen_helper_rechecking_single_step(tcg_env);
         tcg_gen_exit_tb(NULL, 0);
-    } else if ((s->flags & HF_TF_MASK) && mode != DISAS_EOB_INHIBIT_IRQ) {
+    } else if (s->flags & HF_TF_MASK) {
         gen_helper_single_step(tcg_env);
     } else if (mode == DISAS_JUMP &&
                /* give irqs a chance to happen */
