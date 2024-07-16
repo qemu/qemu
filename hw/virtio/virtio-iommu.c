@@ -467,26 +467,6 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
     return &sdev->as;
 }
 
-static void virtio_iommu_device_clear(VirtIOIOMMU *s, PCIBus *bus, int devfn)
-{
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
-    IOMMUDevice *sdev;
-
-    if (!sbus) {
-        return;
-    }
-
-    sdev = sbus->pbdev[devfn];
-    if (!sdev) {
-        return;
-    }
-
-    g_list_free_full(sdev->resv_regions, g_free);
-    sdev->resv_regions = NULL;
-    g_free(sdev);
-    sbus->pbdev[devfn] = NULL;
-}
-
 static gboolean hiod_equal(gconstpointer v1, gconstpointer v2)
 {
     const struct hiod_key *key1 = v1;
@@ -728,7 +708,6 @@ virtio_iommu_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
     }
 
     g_hash_table_remove(viommu->host_iommu_devices, &key);
-    virtio_iommu_device_clear(viommu, bus, devfn);
 }
 
 static const PCIIOMMUOps virtio_iommu_ops = {
