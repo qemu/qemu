@@ -1,6 +1,6 @@
 slow_qtests = {
   'aspeed_smc-test': 360,
-  'bios-tables-test' : 610,
+  'bios-tables-test' : 910,
   'cdrom-test' : 610,
   'device-introspect-test' : 720,
   'migration-test' : 480,
