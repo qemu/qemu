@@ -49,7 +49,8 @@ typedef struct QemuGraphicConsole {
     uint32_t head;
 
     QEMUCursor *cursor;
-    int cursor_x, cursor_y, cursor_on;
+    int cursor_x, cursor_y;
+    bool cursor_on;
 } QemuGraphicConsole;
 
 typedef QemuConsoleClass QemuGraphicConsoleClass;
@@ -957,7 +958,7 @@ void dpy_text_resize(QemuConsole *con, int w, int h)
     }
 }
 
-void dpy_mouse_set(QemuConsole *c, int x, int y, int on)
+void dpy_mouse_set(QemuConsole *c, int x, int y, bool on)
 {
     QemuGraphicConsole *con = QEMU_GRAPHIC_CONSOLE(c);
     DisplayState *s = c->ds;
@@ -998,19 +999,6 @@ void dpy_cursor_define(QemuConsole *c, QEMUCursor *cursor)
             dcl->ops->dpy_cursor_define(dcl, cursor);
         }
     }
-}
-
-bool dpy_cursor_define_supported(QemuConsole *con)
-{
-    DisplayState *s = con->ds;
-    DisplayChangeListener *dcl;
-
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->ops->dpy_cursor_define) {
-            return true;
-        }
-    }
-    return false;
 }
 
 QEMUGLContext dpy_gl_ctx_create(QemuConsole *con,

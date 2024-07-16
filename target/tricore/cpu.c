@@ -155,6 +155,11 @@ static void tc37x_initfn(Object *obj)
     set_feature(&cpu->env, TRICORE_FEATURE_162);
 }
 
+static bool tricore_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    /* Interrupts are not implemented */
+    return false;
+}
 
 #include "hw/core/sysemu-cpu-ops.h"
 
@@ -169,6 +174,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .restore_state_to_opc = tricore_restore_state_to_opc,
     .tlb_fill = tricore_cpu_tlb_fill,
+    .cpu_exec_interrupt = tricore_cpu_exec_interrupt,
     .cpu_exec_halt = tricore_cpu_has_work,
 };
 

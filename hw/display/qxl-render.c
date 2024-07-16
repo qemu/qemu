@@ -307,10 +307,6 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         return 1;
     }
 
-    if (!dpy_cursor_define_supported(qxl->vga.con)) {
-        return 0;
-    }
-
     if (qxl->debug > 1 && cmd->type != QXL_CURSOR_MOVE) {
         fprintf(stderr, "%s", __func__);
         qxl_log_cmd_cursor(qxl, cmd, ext->group_id);

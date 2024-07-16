@@ -726,7 +726,7 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
-                           int x, int y, int on)
+                           int x, int y, bool on)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
