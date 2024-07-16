@@ -2653,6 +2653,7 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
     size_t len = nvme_l2b(ns, nlb);
+    size_t data_len = len;
     int64_t offset = nvme_l2b(ns, slba);
     uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint32_t reftag = le32_to_cpu(rw->reftag);
@@ -2672,7 +2673,11 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
         }
     }
 
-    if (len > n->page_size << n->params.vsl) {
+    if (nvme_ns_ext(ns) && !(NVME_ID_CTRL_CTRATT_MEM(n->id_ctrl.ctratt))) {
+        data_len += nvme_m2b(ns, nlb);
+    }
+
+    if (data_len > (n->page_size << n->params.vsl)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -3413,7 +3418,11 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
         len += nvme_m2b(ns, nlb);
     }
 
-    status = nvme_check_mdts(n, len);
+    if (NVME_ID_CTRL_CTRATT_MEM(n->id_ctrl.ctratt)) {
+        status = nvme_check_mdts(n, data_len);
+    } else {
+        status = nvme_check_mdts(n, len);
+    }
     if (status) {
         return status;
     }
@@ -3590,7 +3599,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
     BlockBackend *blk = ns->blkconf.blk;
     uint16_t status;
 
-    if (nvme_ns_ext(ns)) {
+    if (nvme_ns_ext(ns) && !(NVME_ID_CTRL_CTRATT_MEM(n->id_ctrl.ctratt))) {
         mapped_size += nvme_m2b(ns, nlb);
 
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
@@ -3702,7 +3711,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
     BlockBackend *blk = ns->blkconf.blk;
     uint16_t status;
 
-    if (nvme_ns_ext(ns)) {
+    if (nvme_ns_ext(ns) && !(NVME_ID_CTRL_CTRATT_MEM(n->id_ctrl.ctratt))) {
         mapped_size += nvme_m2b(ns, nlb);
 
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
@@ -8483,7 +8492,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->cntlid = cpu_to_le16(n->cntlid);
 
     id->oaes = cpu_to_le32(NVME_OAES_NS_ATTR);
-    ctratt = NVME_CTRATT_ELBAS;
+    ctratt = NVME_CTRATT_ELBAS | NVME_CTRATT_MEM;
 
     id->rab = 6;
 

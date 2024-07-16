@@ -1182,6 +1182,7 @@ enum NvmeIdCtrlOaes {
 enum NvmeIdCtrlCtratt {
     NVME_CTRATT_ENDGRPS = 1 <<  4,
     NVME_CTRATT_ELBAS   = 1 << 15,
+    NVME_CTRATT_MEM     = 1 << 16,
     NVME_CTRATT_FDPS    = 1 << 19,
 };
 
@@ -1284,6 +1285,8 @@ enum NvmeNsAttachmentOperation {
 
 #define NVME_ERR_REC_TLER(err_rec)  (err_rec & 0xffff)
 #define NVME_ERR_REC_DULBE(err_rec) (err_rec & 0x10000)
+
+#define NVME_ID_CTRL_CTRATT_MEM(ctratt) (ctratt & NVME_CTRATT_MEM)
 
 enum NvmeFeatureIds {
     NVME_ARBITRATION                = 0x1,
