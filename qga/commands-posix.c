@@ -48,7 +48,7 @@
 #endif
 #endif
 
-static void ga_wait_child(pid_t pid, int *status, Error **errp)
+static bool ga_wait_child(pid_t pid, int *status, Error **errp)
 {
     pid_t rpid;
 
@@ -59,10 +59,11 @@ static void ga_wait_child(pid_t pid, int *status, Error **errp)
     if (rpid == -1) {
         error_setg_errno(errp, errno, "failed to wait for child (pid: %d)",
                          pid);
-        return;
+        return false;
     }
 
     g_assert(rpid == pid);
+    return true;
 }
 
 static ssize_t ga_pipe_read_str(int fd[2], char **str)
@@ -167,8 +168,7 @@ static int ga_run_command(const char *argv[], const char *in_str,
         goto out;
     }
 
-    ga_wait_child(pid, &status, errp);
-    if (*errp) {
+    if (!ga_wait_child(pid, &status, errp)) {
         goto out;
     }
 
