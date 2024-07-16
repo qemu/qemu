@@ -43,7 +43,6 @@ typedef struct IOMMUDevice {
     MemoryRegion bypass_mr;     /* The alias of shared memory MR */
     GList *resv_regions;
     GList *host_resv_ranges;
-    bool probe_done;
 } IOMMUDevice;
 
 typedef struct IOMMUPciBus {

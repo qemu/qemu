@@ -555,8 +555,6 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
 
     current_ranges = sdev->host_resv_ranges;
 
-    g_assert(!sdev->probe_done);
-
     /* check that each new resv region is included in an existing one */
     if (sdev->host_resv_ranges) {
         range_inverse_array(iova_ranges,
@@ -956,7 +954,6 @@ static int virtio_iommu_probe(VirtIOIOMMU *s,
     }
     buf += count;
     free -= count;
-    sdev->probe_done = true;
 
     return VIRTIO_IOMMU_S_OK;
 }
