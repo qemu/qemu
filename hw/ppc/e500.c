@@ -721,9 +721,19 @@ static int ppce500_prep_device_tree(PPCE500MachineState *machine,
                                     kernel_base, kernel_size, true);
 }
 
-hwaddr booke206_page_size_to_tlb(uint64_t size)
+static hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
     return 63 - clz64(size / KiB);
+}
+
+void booke206_set_tlb(ppcmas_tlb_t *tlb, target_ulong va, hwaddr pa,
+                      hwaddr len)
+{
+    tlb->mas1 = booke206_page_size_to_tlb(len) << MAS1_TSIZE_SHIFT;
+    tlb->mas1 |= MAS1_VALID;
+    tlb->mas2 = va & TARGET_PAGE_MASK;
+    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
+    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 }
 
 static int booke206_initial_map_tsize(CPUPPCState *env)
@@ -751,25 +761,6 @@ static uint64_t mmubooke_initial_mapsize(CPUPPCState *env)
     return (1ULL << 10 << tsize);
 }
 
-/* Create -kernel TLB entries for BookE. */
-static void mmubooke_create_initial_mapping(CPUPPCState *env)
-{
-    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
-    hwaddr size;
-    int ps;
-
-    ps = booke206_initial_map_tsize(env);
-    size = (ps << MAS1_TSIZE_SHIFT);
-    tlb->mas1 = MAS1_VALID | size;
-    tlb->mas2 = 0;
-    tlb->mas7_3 = 0;
-    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
-
-#ifdef CONFIG_KVM
-    env->tlb_dirty = true;
-#endif
-}
-
 static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -786,6 +777,8 @@ static void ppce500_cpu_reset(void *opaque)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     struct boot_info *bi = env->load_info;
+    uint64_t map_size = mmubooke_initial_mapsize(env);
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
 
     cpu_reset(cs);
 
@@ -796,11 +789,15 @@ static void ppce500_cpu_reset(void *opaque)
     env->gpr[4] = 0;
     env->gpr[5] = 0;
     env->gpr[6] = EPAPR_MAGIC;
-    env->gpr[7] = mmubooke_initial_mapsize(env);
+    env->gpr[7] = map_size;
     env->gpr[8] = 0;
     env->gpr[9] = 0;
     env->nip = bi->entry;
-    mmubooke_create_initial_mapping(env);
+    /* create initial mapping */
+    booke206_set_tlb(tlb, 0, 0, map_size);
+#ifdef CONFIG_KVM
+    env->tlb_dirty = true;
+#endif
 }
 
 static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
