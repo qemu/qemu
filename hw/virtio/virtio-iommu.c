@@ -308,6 +308,7 @@ static void virtio_iommu_detach_endpoint_from_domain(VirtIOIOMMUEndpoint *ep)
     if (!ep->domain) {
         return;
     }
+    trace_virtio_iommu_detach_endpoint_from_domain(domain->id, ep->id);
     g_tree_foreach(domain->mappings, virtio_iommu_notify_unmap_cb,
                    ep->iommu_mr);
     QLIST_REMOVE(ep, next);
