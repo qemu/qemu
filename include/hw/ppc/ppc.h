@@ -119,6 +119,8 @@ enum {
 #ifndef CONFIG_USER_ONLY
 void booke206_set_tlb(ppcmas_tlb_t *tlb, target_ulong va, hwaddr pa,
                       hwaddr len);
+void booke_set_tlb(ppcemb_tlb_t *tlb, target_ulong va, hwaddr pa,
+                   target_ulong size);
 #endif
 
 /* ppc_booke.c */
