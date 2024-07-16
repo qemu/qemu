@@ -59,6 +59,7 @@ typedef struct HPETTimer {  /* timers */
     uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
                              * mode. Next pop will be actual timer expiration.
                              */
+    uint64_t last;          /* last value armed, to avoid timer storms */
 } HPETTimer;
 
 struct HPETState {
@@ -266,6 +267,7 @@ static int hpet_post_load(void *opaque, int version_id)
     for (i = 0; i < s->num_timers; i++) {
         HPETTimer *t = &s->timer[i];
         t->cmp64 = hpet_calculate_cmp64(t, s->hpet_counter, t->cmp);
+        t->last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - NANOSECONDS_PER_SECOND;
     }
     /* Recalculate the offset between the main counter and guest time */
     if (!s->hpet_offset_saved) {
@@ -364,8 +366,15 @@ static const VMStateDescription vmstate_hpet = {
 
 static void hpet_arm(HPETTimer *t, uint64_t tick)
 {
-    /* FIXME: Clamp period to reasonable min value? */
-    timer_mod(t->qemu_timer, hpet_get_ns(t->state, tick));
+    uint64_t ns = hpet_get_ns(t->state, tick);
+
+    /* Clamp period to reasonable min value (1 us) */
+    if (timer_is_periodic(t) && ns - t->last < 1000) {
+        ns = t->last + 1000;
+    }
+
+    t->last = ns;
+    timer_mod(t->qemu_timer, ns);
 }
 
 /*
