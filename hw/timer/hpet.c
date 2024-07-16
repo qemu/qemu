@@ -196,21 +196,31 @@ static void update_irq(struct HPETTimer *timer, int set)
     }
     s = timer->state;
     mask = 1 << timer->tn;
-    if (!set || !timer_enabled(timer) || !hpet_enabled(timer->state)) {
+
+    if (set && (timer->config & HPET_TN_TYPE_LEVEL)) {
+        /*
+         * If HPET_TN_ENABLE bit is 0, "the timer will still operate and
+         * generate appropriate status bits, but will not cause an interrupt"
+         */
+        s->isr |= mask;
+    } else {
         s->isr &= ~mask;
+    }
+
+    if (set && timer_enabled(timer) && hpet_enabled(s)) {
+        if (timer_fsb_route(timer)) {
+            address_space_stl_le(&address_space_memory, timer->fsb >> 32,
+                                 timer->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
+                                 NULL);
+        } else if (timer->config & HPET_TN_TYPE_LEVEL) {
+            qemu_irq_raise(s->irqs[route]);
+        } else {
+            qemu_irq_pulse(s->irqs[route]);
+        }
+    } else {
         if (!timer_fsb_route(timer)) {
             qemu_irq_lower(s->irqs[route]);
         }
-    } else if (timer_fsb_route(timer)) {
-        address_space_stl_le(&address_space_memory, timer->fsb >> 32,
-                             timer->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
-                             NULL);
-    } else if (timer->config & HPET_TN_TYPE_LEVEL) {
-        s->isr |= mask;
-        qemu_irq_raise(s->irqs[route]);
-    } else {
-        s->isr &= ~mask;
-        qemu_irq_pulse(s->irqs[route]);
     }
 }
 
@@ -414,8 +424,13 @@ static void hpet_set_timer(HPETTimer *t)
 
 static void hpet_del_timer(HPETTimer *t)
 {
+    HPETState *s = t->state;
     timer_del(t->qemu_timer);
-    update_irq(t, 0);
+
+    if (s->isr & (1 << t->tn)) {
+        /* For level-triggered interrupt, this leaves ISR set but lowers irq.  */
+        update_irq(t, 1);
+    }
 }
 
 static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
@@ -515,20 +530,26 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         switch ((addr - 0x100) % 0x20) {
         case HPET_TN_CFG:
             trace_hpet_ram_write_tn_cfg();
-            if (activating_bit(old_val, new_val, HPET_TN_FSB_ENABLE)) {
+            if (deactivating_bit(old_val, new_val, HPET_TN_TYPE_LEVEL)) {
+                /*
+                 * Do this before changing timer->config; otherwise, if
+                 * HPET_TN_FSB is set, update_irq will not lower the qemu_irq.
+                 */
                 update_irq(timer, 0);
             }
             val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
             timer->config = (timer->config & 0xffffffff00000000ULL) | val;
+            if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
+                && (s->isr & (1 << timer_id))) {
+                update_irq(timer, 1);
+            }
+
             if (new_val & HPET_TN_32BIT) {
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
             }
-            if (activating_bit(old_val, new_val, HPET_TN_ENABLE) &&
-                hpet_enabled(s)) {
+            if (hpet_enabled(s)) {
                 hpet_set_timer(timer);
-            } else if (deactivating_bit(old_val, new_val, HPET_TN_ENABLE)) {
-                hpet_del_timer(timer);
             }
             break;
         case HPET_TN_CFG + 4: // Interrupt capabilities
@@ -606,9 +627,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 s->hpet_offset =
                     ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 for (i = 0; i < s->num_timers; i++) {
-                    if ((&s->timer[i])->cmp != ~0ULL) {
-                        hpet_set_timer(&s->timer[i]);
+                    if (timer_enabled(&s->timer[i]) && (s->isr & (1 << i))) {
+                        update_irq(&s->timer[i], 1);
                     }
+                    hpet_set_timer(&s->timer[i]);
                 }
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Halt main counter and disable interrupt generation. */
