@@ -54,6 +54,7 @@ typedef struct HPETTimer {  /* timers */
     uint64_t cmp;           /* comparator */
     uint64_t fsb;           /* FSB route */
     /* Hidden register state */
+    uint64_t cmp64;         /* comparator (extended to counter width) */
     uint64_t period;        /* Last value written to comparator */
     uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
                              * mode. Next pop will be actual timer expiration.
@@ -116,11 +117,6 @@ static uint32_t timer_enabled(HPETTimer *t)
 
 static uint32_t hpet_time_after(uint64_t a, uint64_t b)
 {
-    return ((int32_t)(b - a) < 0);
-}
-
-static uint32_t hpet_time_after64(uint64_t a, uint64_t b)
-{
     return ((int64_t)(b - a) < 0);
 }
 
@@ -156,27 +152,32 @@ static uint64_t hpet_get_ticks(HPETState *s)
     return ns_to_ticks(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->hpet_offset);
 }
 
-/*
- * calculate diff between comparator value and current ticks
- */
-static inline uint64_t hpet_calculate_diff(HPETTimer *t, uint64_t current)
+static uint64_t hpet_get_ns(HPETState *s, uint64_t tick)
 {
+    return ticks_to_ns(tick) - s->hpet_offset;
+}
 
+/*
+ * calculate next value of the general counter that matches the
+ * target (either entirely, or the low 32-bit only depending on
+ * the timer mode).
+ */
+static uint64_t hpet_calculate_cmp64(HPETTimer *t, uint64_t cur_tick, uint64_t target)
+{
     if (t->config & HPET_TN_32BIT) {
-        uint32_t diff, cmp;
-
-        cmp = (uint32_t)t->cmp;
-        diff = cmp - (uint32_t)current;
-        diff = (int32_t)diff > 0 ? diff : (uint32_t)1;
-        return (uint64_t)diff;
+        uint64_t result = deposit64(cur_tick, 0, 32, target);
+        if (result < cur_tick) {
+            result += 0x100000000ULL;
+        }
+        return result;
     } else {
-        uint64_t diff, cmp;
-
-        cmp = t->cmp;
-        diff = cmp - current;
-        diff = (int64_t)diff > 0 ? diff : (uint64_t)1;
-        return diff;
+        return target;
     }
+}
+
+static uint64_t hpet_next_wrap(uint64_t cur_tick)
+{
+    return (cur_tick | 0xffffffffU) + 1;
 }
 
 static void update_irq(struct HPETTimer *timer, int set)
@@ -260,7 +261,12 @@ static bool hpet_validate_num_timers(void *opaque, int version_id)
 static int hpet_post_load(void *opaque, int version_id)
 {
     HPETState *s = opaque;
+    int i;
 
+    for (i = 0; i < s->num_timers; i++) {
+        HPETTimer *t = &s->timer[i];
+        t->cmp64 = hpet_calculate_cmp64(t, s->hpet_counter, t->cmp);
+    }
     /* Recalculate the offset between the main counter and guest time */
     if (!s->hpet_offset_saved) {
         s->hpet_offset = ticks_to_ns(s->hpet_counter)
@@ -356,14 +362,10 @@ static const VMStateDescription vmstate_hpet = {
     }
 };
 
-static void hpet_arm(HPETTimer *t, uint64_t ticks)
+static void hpet_arm(HPETTimer *t, uint64_t tick)
 {
-    if (ticks < ns_to_ticks(INT64_MAX / 2)) {
-        timer_mod(t->qemu_timer,
-                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ticks_to_ns(ticks));
-    } else {
-        timer_del(t->qemu_timer);
-    }
+    /* FIXME: Clamp period to reasonable min value? */
+    timer_mod(t->qemu_timer, hpet_get_ns(t->state, tick));
 }
 
 /*
@@ -372,54 +374,44 @@ static void hpet_arm(HPETTimer *t, uint64_t ticks)
 static void hpet_timer(void *opaque)
 {
     HPETTimer *t = opaque;
-    uint64_t diff;
-
     uint64_t period = t->period;
     uint64_t cur_tick = hpet_get_ticks(t->state);
 
     if (timer_is_periodic(t) && period != 0) {
+        while (hpet_time_after(cur_tick, t->cmp64)) {
+            t->cmp64 += period;
+        }
         if (t->config & HPET_TN_32BIT) {
-            while (hpet_time_after(cur_tick, t->cmp)) {
-                t->cmp = (uint32_t)(t->cmp + t->period);
-            }
+            t->cmp = (uint32_t)t->cmp64;
         } else {
-            while (hpet_time_after64(cur_tick, t->cmp)) {
-                t->cmp += period;
-            }
+            t->cmp = t->cmp64;
         }
-        diff = hpet_calculate_diff(t, cur_tick);
-        hpet_arm(t, diff);
-    } else if (t->config & HPET_TN_32BIT && !timer_is_periodic(t)) {
-        if (t->wrap_flag) {
-            diff = hpet_calculate_diff(t, cur_tick);
-            hpet_arm(t, diff);
-            t->wrap_flag = 0;
-        }
+        hpet_arm(t, t->cmp64);
+    } else if (t->wrap_flag) {
+        t->wrap_flag = 0;
+        hpet_arm(t, t->cmp64);
     }
     update_irq(t, 1);
 }
 
 static void hpet_set_timer(HPETTimer *t)
 {
-    uint64_t diff;
-    uint32_t wrap_diff;  /* how many ticks until we wrap? */
     uint64_t cur_tick = hpet_get_ticks(t->state);
 
-    /* whenever new timer is being set up, make sure wrap_flag is 0 */
     t->wrap_flag = 0;
-    diff = hpet_calculate_diff(t, cur_tick);
+    t->cmp64 = hpet_calculate_cmp64(t, cur_tick, t->cmp);
+    if (t->config & HPET_TN_32BIT) {
 
-    /* hpet spec says in one-shot 32-bit mode, generate an interrupt when
-     * counter wraps in addition to an interrupt with comparator match.
-     */
-    if (t->config & HPET_TN_32BIT && !timer_is_periodic(t)) {
-        wrap_diff = 0xffffffff - (uint32_t)cur_tick;
-        if (wrap_diff < (uint32_t)diff) {
-            diff = wrap_diff;
+        /* hpet spec says in one-shot 32-bit mode, generate an interrupt when
+         * counter wraps in addition to an interrupt with comparator match.
+         */
+        if (!timer_is_periodic(t) && t->cmp64 > hpet_next_wrap(cur_tick)) {
             t->wrap_flag = 1;
+            hpet_arm(t, hpet_next_wrap(cur_tick));
+            return;
         }
     }
-    hpet_arm(t, diff);
+    hpet_arm(t, t->cmp64);
 }
 
 static void hpet_del_timer(HPETTimer *t)
@@ -550,12 +542,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                 timer->cmp = deposit64(timer->cmp, shift, len, value);
             }
             if (timer_is_periodic(timer)) {
-                /*
-                 * FIXME: Clamp period to reasonable min value?
-                 * Clamp period to reasonable max value
-                 */
-                new_val = deposit64(timer->period, shift, len, value);
-                timer->period = MIN(new_val, (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1);
+                timer->period = deposit64(timer->period, shift, len, value);
             }
             timer->config &= ~HPET_TN_SETVAL;
             if (hpet_enabled(s)) {
