@@ -786,6 +786,7 @@ static int virtio_iommu_detach(VirtIOIOMMU *s,
     if (QLIST_EMPTY(&domain->endpoint_list)) {
         g_tree_remove(s->domains, GUINT_TO_POINTER(domain->id));
     }
+    g_tree_remove(s->endpoints, GUINT_TO_POINTER(ep_id));
     return VIRTIO_IOMMU_S_OK;
 }
 
