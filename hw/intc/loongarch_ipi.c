@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
+#include "exec/memory.h"
 #include "hw/loongarch/virt.h"
 #include "migration/vmstate.h"
 #include "target/loongarch/internals.h"
@@ -61,8 +62,8 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
      * if the mask is 0, we need not to do anything.
      */
     if ((val >> 27) & 0xf) {
-        data = address_space_ldl(&env->address_space_iocsr, addr,
-                                 MEMTXATTRS_UNSPECIFIED, NULL);
+        data = address_space_ldl_le(&env->address_space_iocsr, addr,
+                                    MEMTXATTRS_UNSPECIFIED, NULL);
         for (i = 0; i < 4; i++) {
             /* get mask for byte writing */
             if (val & (0x1 << (27 + i))) {
@@ -73,8 +74,8 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
 
     data &= mask;
     data |= (val >> 32) & ~mask;
-    address_space_stl(&env->address_space_iocsr, addr,
-                      data, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl_le(&env->address_space_iocsr, addr,
+                         data, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static int archid_cmp(const void *a, const void *b)
