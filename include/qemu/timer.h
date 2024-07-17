@@ -1016,6 +1016,15 @@ static inline int64_t cpu_get_host_ticks(void)
     return val;
 }
 
+#elif defined(__loongarch64)
+static inline int64_t cpu_get_host_ticks(void)
+{
+    uint64_t val;
+
+    asm volatile("rdtime.d %0, $zero" : "=r"(val));
+    return val;
+}
+
 #else
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be

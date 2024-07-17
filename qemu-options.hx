@@ -5024,8 +5024,11 @@ SRST
     in combination with -runas.
 
     ``user=username`` or ``user=uid:gid`` can be used to drop root privileges
-    by switching to the specified user (via username) or user and group
-    (via uid:gid) immediately before starting guest execution.
+    before starting guest execution. QEMU will use the ``setuid`` and ``setgid``
+    system calls to switch to the specified identity.  Note that the
+    ``user=username`` syntax will also apply the full set of supplementary
+    groups for the user, whereas the ``user=uid:gid`` will use only the
+    ``gid`` group.
 ERST
 #endif
 

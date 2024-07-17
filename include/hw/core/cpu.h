@@ -1009,6 +1009,12 @@ void cpu_resume(CPUState *cpu);
 void cpu_remove_sync(CPUState *cpu);
 
 /**
+ * free_queued_cpu_work() - free all items on CPU work queue
+ * @cpu: The CPU which work queue to free.
+ */
+void free_queued_cpu_work(CPUState *cpu);
+
+/**
  * process_queued_cpu_work() - process all items on CPU work queue
  * @cpu: The CPU which work queue to process.
  */

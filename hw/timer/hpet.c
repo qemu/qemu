@@ -548,10 +548,16 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  * FIXME: Clamp period to reasonable min value?
                  * Clamp period to reasonable max value
                  */
-                new_val &= (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1;
+                if (timer->config & HPET_TN_32BIT) {
+                    new_val = MIN(new_val, ~0u >> 1);
+                }
                 timer->period =
                     (timer->period & 0xffffffff00000000ULL) | new_val;
             }
+            /*
+             * FIXME: on a 64-bit write, HPET_TN_SETVAL should apply to the
+             * high bits part as well.
+             */
             timer->config &= ~HPET_TN_SETVAL;
             if (hpet_enabled(s)) {
                 hpet_set_timer(timer);
@@ -562,20 +568,21 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             if (!timer_is_periodic(timer)
                 || (timer->config & HPET_TN_SETVAL)) {
                 timer->cmp = (timer->cmp & 0xffffffffULL) | new_val << 32;
-            } else {
+            }
+            if (timer_is_periodic(timer)) {
                 /*
                  * FIXME: Clamp period to reasonable min value?
                  * Clamp period to reasonable max value
                  */
-                new_val &= (timer->config & HPET_TN_32BIT ? ~0u : ~0ull) >> 1;
+                new_val = MIN(new_val, ~0u >> 1);
                 timer->period =
                     (timer->period & 0xffffffffULL) | new_val << 32;
-                }
-                timer->config &= ~HPET_TN_SETVAL;
-                if (hpet_enabled(s)) {
-                    hpet_set_timer(timer);
-                }
-                break;
+            }
+            timer->config &= ~HPET_TN_SETVAL;
+            if (hpet_enabled(s)) {
+                hpet_set_timer(timer);
+            }
+            break;
         case HPET_TN_ROUTE:
             timer->fsb = (timer->fsb & 0xffffffff00000000ULL) | new_val;
             break;

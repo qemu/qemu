@@ -331,6 +331,17 @@ void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
     queue_work_on_cpu(cpu, wi);
 }
 
+void free_queued_cpu_work(CPUState *cpu)
+{
+    while (!QSIMPLEQ_EMPTY(&cpu->work_list)) {
+        struct qemu_work_item *wi = QSIMPLEQ_FIRST(&cpu->work_list);
+        QSIMPLEQ_REMOVE_HEAD(&cpu->work_list, node);
+        if (wi->free) {
+            g_free(wi);
+        }
+    }
+}
+
 void process_queued_cpu_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;

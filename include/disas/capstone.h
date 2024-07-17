@@ -3,6 +3,7 @@
 
 #ifdef CONFIG_CAPSTONE
 
+#define CAPSTONE_AARCH64_COMPAT_HEADER
 #include <capstone.h>
 
 #else
