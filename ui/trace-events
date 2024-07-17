@@ -130,6 +130,7 @@ xkeymap_keymap(const char *name) "keymap '%s'"
 
 # clipboard.c
 clipboard_check_serial(int cur, int recv, bool ok) "cur:%d recv:%d %d"
+clipboard_reset_serial(void) ""
 
 # vdagent.c
 vdagent_fe_open(bool fe_open) "fe_open=%d"

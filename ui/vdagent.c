@@ -720,6 +720,8 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
     memset(vd->last_serial, 0, sizeof(vd->last_serial));
 
     if (have_clipboard(vd) && vd->cbpeer.notifier.notify == NULL) {
+        qemu_clipboard_reset_serial();
+
         vd->cbpeer.name = "vdagent";
         vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
         vd->cbpeer.request = vdagent_clipboard_request;
