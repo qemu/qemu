@@ -105,7 +105,7 @@ static size_t dbus_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
     assert(buf == vo->buf + vo->buf_pos && vo->buf_pos + size <= vo->buf_size);
     vo->buf_pos += size;
 
-    trace_dbus_audio_put_buffer_out(size);
+    trace_dbus_audio_put_buffer_out(vo->buf_pos, vo->buf_size);
 
     if (vo->buf_pos < vo->buf_size) {
         return size;
