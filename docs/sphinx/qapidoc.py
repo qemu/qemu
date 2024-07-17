@@ -26,6 +26,7 @@ https://www.sphinx-doc.org/en/master/development/index.html
 
 import os
 import re
+import sys
 import textwrap
 from typing import List
 
@@ -36,6 +37,7 @@ from qapi.error import QAPIError, QAPISemError
 from qapi.gen import QAPISchemaVisitor
 from qapi.schema import QAPISchema
 
+from sphinx import addnodes
 from sphinx.directives.code import CodeBlock
 from sphinx.errors import ExtensionError
 from sphinx.util.docutils import switch_source_input
@@ -545,10 +547,10 @@ class QMPExample(CodeBlock, NestedDirective):
     Custom admonition for QMP code examples.
 
     When the :annotated: option is present, the body of this directive
-    is parsed as normal rST instead. Code blocks must be explicitly
-    written by the user, but this allows for intermingling explanatory
-    paragraphs with arbitrary rST syntax and code blocks for more
-    involved examples.
+    is parsed as normal rST, but with any '::' code blocks set to use
+    the QMP lexer. Code blocks must be explicitly written by the user,
+    but this allows for intermingling explanatory paragraphs with
+    arbitrary rST syntax and code blocks for more involved examples.
 
     When :annotated: is absent, the directive body is treated as a
     simple standalone QMP code block literal.
@@ -561,6 +563,33 @@ class QMPExample(CodeBlock, NestedDirective):
         "annotated": directives.flag,
         "title": directives.unchanged,
     }
+
+    def _highlightlang(self) -> addnodes.highlightlang:
+        """Return the current highlightlang setting for the document"""
+        node = None
+        doc = self.state.document
+
+        if hasattr(doc, "findall"):
+            # docutils >= 0.18.1
+            for node in doc.findall(addnodes.highlightlang):
+                pass
+        else:
+            for elem in doc.traverse():
+                if isinstance(elem, addnodes.highlightlang):
+                    node = elem
+
+        if node:
+            return node
+
+        # No explicit directive found, use defaults
+        node = addnodes.highlightlang(
+            lang=self.env.config.highlight_language,
+            force=False,
+            # Yes, Sphinx uses this value to effectively disable line
+            # numbers and not 0 or None or -1 or something. ¯\_(ツ)_/¯
+            linenothreshold=sys.maxsize,
+        )
+        return node
 
     def admonition_wrap(self, *content) -> List[nodes.Node]:
         title = "Example:"
@@ -576,8 +605,24 @@ class QMPExample(CodeBlock, NestedDirective):
         return [admon]
 
     def run_annotated(self) -> List[nodes.Node]:
+        lang_node = self._highlightlang()
+
         content_node: nodes.Element = nodes.section()
+
+        # Configure QMP highlighting for "::" blocks, if needed
+        if lang_node["lang"] != "QMP":
+            content_node += addnodes.highlightlang(
+                lang="QMP",
+                force=False,  # "True" ignores lexing errors
+                linenothreshold=lang_node["linenothreshold"],
+            )
+
         self.do_parse(self.content, content_node)
+
+        # Restore prior language highlighting, if needed
+        if lang_node["lang"] != "QMP":
+            content_node += addnodes.highlightlang(**lang_node.attributes)
+
         return content_node.children
 
     def run(self) -> List[nodes.Node]:
