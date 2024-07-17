@@ -87,6 +87,55 @@ div[class^="highlight"] pre {
     padding-bottom: 1px;
 }
 
+/* qmp-example directive styling */
+
+.rst-content .admonition-example {
+    /* do not apply the standard admonition background */
+    background-color: transparent;
+    border: solid #ffd2ed 1px;
+}
+
+.rst-content .admonition-example > .admonition-title:before {
+    content: "▷";
+}
+
+.rst-content .admonition-example > .admonition-title {
+    background-color: #5980a6;
+}
+
+.rst-content .admonition-example > div[class^="highlight"] {
+    /* make code boxes take up the full width of the admonition w/o margin */
+    margin-left: -12px;
+    margin-right: -12px;
+
+    border-top: 1px solid #ffd2ed;
+    border-bottom: 1px solid #ffd2ed;
+    border-left: 0px;
+    border-right: 0px;
+}
+
+.rst-content .admonition-example > div[class^="highlight"]:nth-child(2) {
+    /* If a code box is the second element in an example admonition,
+     * it is the first child after the title. let it sit flush against
+     * the title. */
+    margin-top: -12px;
+    border-top: 0px;
+}
+
+.rst-content .admonition-example > div[class^="highlight"]:last-child {
+    /* If a code box is the final element in an example admonition, don't
+     * render margin below it; let it sit flush with the end of the
+     * admonition box */
+    margin-bottom: -12px;
+    border-bottom: 0px;
+}
+
+.rst-content .admonition-example .highlight {
+    background-color: #fffafd;
+}
+
+/* end qmp-example styling */
+
 @media screen {
 
     /* content column
