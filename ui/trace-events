@@ -132,7 +132,7 @@ xkeymap_keymap(const char *name) "keymap '%s'"
 clipboard_check_serial(int cur, int recv, bool ok) "cur:%d recv:%d %d"
 
 # vdagent.c
-vdagent_open(void) ""
+vdagent_fe_open(bool fe_open) "fe_open=%d"
 vdagent_close(void) ""
 vdagent_disconnect(void) ""
 vdagent_send(const char *name) "msg %s"

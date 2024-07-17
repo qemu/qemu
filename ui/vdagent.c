@@ -872,6 +872,8 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
 
+    trace_vdagent_fe_open(fe_open);
+
     if (!fe_open) {
         trace_vdagent_close();
         vdagent_disconnect(vd);
@@ -881,7 +883,6 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
         return;
     }
 
-    trace_vdagent_open();
 }
 
 static void vdagent_chr_parse(QemuOpts *opts, ChardevBackend *backend,
