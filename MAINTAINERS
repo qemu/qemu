@@ -3218,6 +3218,7 @@ M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi/*.json
+F: qga/qapi-schema.json
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QObject
