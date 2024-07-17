@@ -1270,9 +1270,8 @@
 #    property, so it is possible to map which console belongs to which
 #    device and display.
 #
-# Examples:
-#
-#     1. Press left mouse button.
+# .. qmp-example::
+#    :title: Press left mouse button
 #
 #     -> { "execute": "input-send-event",
 #         "arguments": { "device": "video0",
@@ -1286,7 +1285,8 @@
 #                        "data" : { "down": false, "button": "left" } } ] } }
 #     <- { "return": {} }
 #
-#     2. Press ctrl-alt-del.
+# .. qmp-example::
+#    :title: Press ctrl-alt-del
 #
 #     -> { "execute": "input-send-event",
 #          "arguments": { "events": [
@@ -1298,7 +1298,8 @@
 #               "key": {"type": "qcode", "data": "delete" } } } ] } }
 #     <- { "return": {} }
 #
-#     3. Move mouse pointer to absolute coordinates (20000, 400).
+# .. qmp-example::
+#    :title: Move mouse pointer to absolute coordinates
 #
 #     -> { "execute": "input-send-event" ,
 #       "arguments": { "events": [

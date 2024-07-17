@@ -287,14 +287,14 @@
 #
 # Since: 0.14
 #
-# Examples:
-#
-#     1. Before the first migration
+# .. qmp-example::
+#    :title: Before the first migration
 #
 #     -> { "execute": "query-migrate" }
 #     <- { "return": {} }
 #
-#     2. Migration is done and has succeeded
+# .. qmp-example::
+#    :title: Migration is done and has succeeded
 #
 #     -> { "execute": "query-migrate" }
 #     <- { "return": {
@@ -314,12 +314,14 @@
 #          }
 #        }
 #
-#     3. Migration is done and has failed
+# .. qmp-example::
+#    :title: Migration is done and has failed
 #
 #     -> { "execute": "query-migrate" }
 #     <- { "return": { "status": "failed" } }
 #
-#     4. Migration is being performed:
+# .. qmp-example::
+#    :title: Migration is being performed
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -340,7 +342,8 @@
 #           }
 #        }
 #
-#     5. Migration is being performed and XBZRLE is active:
+# .. qmp-example::
+#    :title: Migration is being performed and XBZRLE is active
 #
 #     -> { "execute": "query-migrate" }
 #     <- {
@@ -2131,15 +2134,15 @@
 #
 # Since: 5.2
 #
-# Examples:
-#
-#     1. Measurement is in progress:
+# .. qmp-example::
+#    :title: Measurement is in progress
 #
 #     <- {"status": "measuring", "sample-pages": 512,
 #         "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
 #         "calc-time-unit": "second"}
 #
-#     2. Measurement has been completed:
+# .. qmp-example::
+#    :title: Measurement has been completed
 #
 #     <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
 #         "mode": "page-sampling", "start-time": 1693900454, "calc-time": 10,
