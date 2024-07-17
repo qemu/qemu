@@ -111,7 +111,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-acpi-ospm-status" }
 #     <- { "return": [ { "device": "d1", "slot": "0", "slot-type": "DIMM", "source": 1, "status": 0},
@@ -131,7 +131,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "ACPI_DEVICE_OST",
 #          "data": { "info": { "device": "d1", "slot": "0",

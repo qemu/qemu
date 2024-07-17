@@ -34,7 +34,7 @@
 #
 # Since: 7.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "x-query-virtio" }
 #     <- { "return": [

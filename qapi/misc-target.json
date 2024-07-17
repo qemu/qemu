@@ -11,7 +11,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "rtc-reset-reinjection" }
 #     <- { "return": {} }
@@ -133,7 +133,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-sev" }
 #     <- { "return": { "enabled": true, "api-major" : 0, "api-minor" : 0,
@@ -164,7 +164,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-sev-launch-measure" }
 #     <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ" } }
@@ -209,7 +209,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-sev-capabilities" }
 #     <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
@@ -263,7 +263,7 @@
 #
 # Since: 6.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute" : "query-sev-attestation-report",
 #                      "arguments": { "mnonce": "aaaaaaa" } }
@@ -283,7 +283,7 @@
 #
 # Since: 2.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "dump-skeys",
 #          "arguments": { "filename": "/tmp/skeys" } }
@@ -328,7 +328,7 @@
 #
 # Since: 2.6
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-gic-capabilities" }
 #     <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
@@ -386,7 +386,7 @@
 #
 # Since: 6.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-sgx" }
 #     <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
@@ -405,7 +405,7 @@
 #
 # Since: 6.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-sgx-capabilities" }
 #     <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
@@ -480,7 +480,7 @@
 #
 # Since: 8.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "xen-event-list" }
 #     <- { "return": [
@@ -518,7 +518,7 @@
 #
 # Since: 8.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "xen-event-inject", "arguments": { "port": 1 } }
 #     <- { "return": { } }

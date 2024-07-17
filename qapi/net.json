@@ -26,7 +26,7 @@
 #    command will succeed even if the network adapter does not support
 #    link status notification.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "set_link",
 #          "arguments": { "name": "e1000.0", "up": false } }
@@ -46,7 +46,7 @@
 # Errors:
 #     - If @type is not a valid network backend, DeviceNotFound
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "netdev_add",
 #          "arguments": { "type": "user", "id": "netdev1",
@@ -68,7 +68,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
 #     <- { "return": {} }
@@ -836,7 +836,7 @@
 #
 # Since: 1.6
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
 #     <- { "return": [
@@ -881,7 +881,7 @@
 #
 # Since: 1.6
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "NIC_RX_FILTER_CHANGED",
 #          "data": { "name": "vnet0",
@@ -930,7 +930,9 @@
 # switches.  This can be useful when network bonds fail-over the
 # active slave.
 #
-# Example:
+# TODO: This line is a hack to separate the example from the body
+#
+# .. qmp-example::
 #
 #     -> { "execute": "announce-self",
 #          "arguments": {
@@ -955,7 +957,7 @@
 #
 # Since: 4.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "FAILOVER_NEGOTIATED",
 #          "data": { "device-id": "net1" },
@@ -975,13 +977,15 @@
 #
 # Since: 7.2
 #
-# Examples:
+# .. qmp-example::
 #
 #     <- { "event": "NETDEV_STREAM_CONNECTED",
 #          "data": { "netdev-id": "netdev0",
 #                    "addr": { "port": "47666", "ipv6": true,
 #                              "host": "::1", "type": "inet" } },
 #          "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
+#
+# .. qmp-example::
 #
 #     <- { "event": "NETDEV_STREAM_CONNECTED",
 #          "data": { "netdev-id": "netdev0",
@@ -1001,7 +1005,7 @@
 #
 # Since: 7.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "NETDEV_STREAM_DISCONNECTED",
 #          "data": {"netdev-id": "netdev0"},

@@ -16,7 +16,7 @@
 #     the QMP greeting message.  If the field is not provided, it
 #     means no QMP capabilities will be enabled.  (since 2.12)
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "qmp_capabilities",
 #          "arguments": { "enable": [ "oob" ] } }
@@ -97,7 +97,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-version" }
 #     <- {
@@ -134,7 +134,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-commands" }
 #     <- {
@@ -165,7 +165,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "quit" }
 #     <- { "return": {} }

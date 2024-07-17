@@ -764,7 +764,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-block" }
 #     <- {
@@ -1168,7 +1168,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-blockstats" }
 #     <- {
@@ -1461,7 +1461,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block_resize",
 #          "arguments": { "device": "scratch", "size": 1073741824 } }
@@ -1680,7 +1680,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-sync",
 #          "arguments": { "device": "ide-hd0",
@@ -1711,7 +1711,7 @@
 #
 # Since: 2.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": { "driver": "qcow2",
@@ -1857,7 +1857,7 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-commit",
 #          "arguments": { "device": "virtio0",
@@ -1895,7 +1895,7 @@
 #
 # Since: 1.6
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "drive-backup",
 #          "arguments": { "device": "drive0",
@@ -1921,7 +1921,7 @@
 #
 # Since: 2.3
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-backup",
 #          "arguments": { "device": "src-id",
@@ -1945,7 +1945,7 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-named-block-nodes" }
 #     <- { "return": [ { "ro":false,
@@ -2126,7 +2126,7 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "drive-mirror",
 #          "arguments": { "device": "ide-hd0",
@@ -2303,7 +2303,7 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-add",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2327,7 +2327,7 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-remove",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2350,7 +2350,7 @@
 #
 # Since: 2.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-clear",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2371,7 +2371,7 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-enable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2392,7 +2392,7 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-disable",
 #          "arguments": { "node": "drive0", "name": "bitmap0" } }
@@ -2424,7 +2424,7 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-dirty-bitmap-merge",
 #          "arguments": { "node": "drive0", "target": "bitmap0",
@@ -2533,7 +2533,7 @@
 #
 # Since: 2.6
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-mirror",
 #          "arguments": { "device": "ide-hd0",
@@ -2858,7 +2858,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-stream",
 #          "arguments": { "device": "virtio0",
@@ -4797,7 +4797,7 @@
 #
 # Since: 2.9
 #
-# Examples:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -4810,6 +4810,8 @@
 #           }
 #         }
 #     <- { "return": {} }
+#
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -4895,7 +4897,7 @@
 #
 # Since: 2.9
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -5544,7 +5546,7 @@
 # .. note:: If action is "stop", a STOP event will eventually follow the
 #    BLOCK_IO_ERROR event.
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_IMAGE_CORRUPTED",
 #          "data": { "device": "", "node-name": "drive", "fatal": false,
@@ -5593,7 +5595,7 @@
 #
 # Since: 0.13
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_IO_ERROR",
 #          "data": { "device": "ide0-hd1",
@@ -5633,7 +5635,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_COMPLETED",
 #          "data": { "type": "stream", "device": "virtio-disk0",
@@ -5668,7 +5670,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_CANCELLED",
 #          "data": { "type": "stream", "device": "virtio-disk0",
@@ -5697,7 +5699,7 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_ERROR",
 #          "data": { "device": "ide0-hd1",
@@ -5732,7 +5734,7 @@
 #
 # Since: 1.3
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_READY",
 #          "data": { "device": "drive0", "type": "mirror", "speed": 0,
@@ -5760,7 +5762,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BLOCK_JOB_PENDING",
 #          "data": { "type": "mirror", "id": "backup_1" },
@@ -5834,7 +5836,7 @@
 #
 # Since: 2.3
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "block-set-write-threshold",
 #          "arguments": { "node-name": "mydev",
@@ -5985,7 +5987,7 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "QUORUM_FAILURE",
 #          "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
@@ -6070,7 +6072,7 @@
 #
 # Since: 1.7
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-internal-sync",
 #          "arguments": { "device": "ide-hd0",
@@ -6109,7 +6111,7 @@
 #
 # Since: 1.7
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-snapshot-delete-internal-sync",
 #          "arguments": { "device": "ide-hd0",

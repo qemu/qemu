@@ -475,7 +475,7 @@
 #
 # Since: 8.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "CPU_POLARIZATION_CHANGE",
 #          "data": { "polarization": "horizontal" },
