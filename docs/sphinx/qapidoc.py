@@ -27,6 +27,7 @@ https://www.sphinx-doc.org/en/master/development/index.html
 import os
 import re
 import textwrap
+from typing import List
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
@@ -35,6 +36,7 @@ from qapi.error import QAPIError, QAPISemError
 from qapi.gen import QAPISchemaVisitor
 from qapi.schema import QAPISchema
 
+from sphinx.directives.code import CodeBlock
 from sphinx.errors import ExtensionError
 from sphinx.util.docutils import switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
@@ -538,10 +540,63 @@ class QAPIDocDirective(NestedDirective):
             raise ExtensionError(str(err)) from err
 
 
+class QMPExample(CodeBlock, NestedDirective):
+    """
+    Custom admonition for QMP code examples.
+
+    When the :annotated: option is present, the body of this directive
+    is parsed as normal rST instead. Code blocks must be explicitly
+    written by the user, but this allows for intermingling explanatory
+    paragraphs with arbitrary rST syntax and code blocks for more
+    involved examples.
+
+    When :annotated: is absent, the directive body is treated as a
+    simple standalone QMP code block literal.
+    """
+
+    required_argument = 0
+    optional_arguments = 0
+    has_content = True
+    option_spec = {
+        "annotated": directives.flag,
+        "title": directives.unchanged,
+    }
+
+    def admonition_wrap(self, *content) -> List[nodes.Node]:
+        title = "Example:"
+        if "title" in self.options:
+            title = f"{title} {self.options['title']}"
+
+        admon = nodes.admonition(
+            "",
+            nodes.title("", title),
+            *content,
+            classes=["admonition", "admonition-example"],
+        )
+        return [admon]
+
+    def run_annotated(self) -> List[nodes.Node]:
+        content_node: nodes.Element = nodes.section()
+        self.do_parse(self.content, content_node)
+        return content_node.children
+
+    def run(self) -> List[nodes.Node]:
+        annotated = "annotated" in self.options
+
+        if annotated:
+            content_nodes = self.run_annotated()
+        else:
+            self.arguments = ["QMP"]
+            content_nodes = super().run()
+
+        return self.admonition_wrap(*content_nodes)
+
+
 def setup(app):
     """Register qapi-doc directive with Sphinx"""
     app.add_config_value("qapidoc_srctree", None, "env")
     app.add_directive("qapi-doc", QAPIDocDirective)
+    app.add_directive("qmp-example", QMPExample)
 
     return {
         "version": __version__,
