@@ -899,7 +899,7 @@ Documentation markup
 ~~~~~~~~~~~~~~~~~~~~
 
 Documentation comments can use most rST markup.  In particular,
-a ``::`` literal block can be used for examples::
+a ``::`` literal block can be used for pre-formatted text::
 
     # ::
     #
@@ -995,8 +995,8 @@ line "Features:", like this::
   # @feature: Description text
 
 A tagged section begins with a paragraph that starts with one of the
-following words: "Since:", "Example:"/"Examples:", "Returns:",
-"Errors:", "TODO:".  It ends with the start of a new section.
+following words: "Since:", "Returns:", "Errors:", "TODO:".  It ends with
+the start of a new section.
 
 The second and subsequent lines of tagged sections must be indented
 like this::
@@ -1020,12 +1020,52 @@ detailing a relevant error condition. For example::
 A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
-An "Example" or "Examples" section is rendered entirely
-as literal fixed-width text.  "TODO" sections are not rendered at all
-(they are for developers, not users of QMP).  In other sections, the
-text is formatted, and rST markup can be used.
+"TODO" sections are not rendered (they are for developers, not users of
+QMP).  In other sections, the text is formatted, and rST markup can be
+used.
+
+QMP Examples can be added by using the ``.. qmp-example::``
+directive. In its simplest form, this can be used to contain a single
+QMP code block which accepts standard JSON syntax with additional server
+directionality indicators (``->`` and ``<-``), and elisions (``...``).
+
+Optionally, a plaintext title may be provided by using the ``:title:``
+directive option. If the title is omitted, the example title will
+default to "Example:".
+
+A simple QMP example::
+
+  # .. qmp-example::
+  #    :title: Using query-block
+  #
+  #    -> { "execute": "query-block" }
+  #    <- { ... }
+
+More complex or multi-step examples where exposition is needed before or
+between QMP code blocks can be created by using the ``:annotated:``
+directive option. When using this option, nested QMP code blocks must be
+entered explicitly with rST's ``::`` syntax.
+
+Highlighting in non-QMP languages can be accomplished by using the
+``.. code-block:: lang`` directive, and non-highlighted text can be
+achieved by omitting the language argument.
 
 For example::
+
+  # .. qmp-example::
+  #    :annotated:
+  #    :title: A more complex demonstration
+  #
+  #    This is a more complex example that can use
+  #    ``arbitrary rST syntax`` in its exposition::
+  #
+  #      -> { "execute": "query-block" }
+  #      <- { ... }
+  #
+  #    Above, lengthy output has been omitted for brevity.
+
+
+Examples of complete definition documentation::
 
  ##
  # @BlockStats:
@@ -1058,11 +1098,11 @@ For example::
  #
  # Since: 0.14
  #
- # Example:
+ # .. qmp-example::
  #
  #     -> { "execute": "query-blockstats" }
  #     <- {
- #          ... lots of output ...
+ #          ...
  #        }
  ##
  { 'command': 'query-blockstats',

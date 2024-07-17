@@ -184,13 +184,21 @@ frobnicate
  - Ut enim ad minim veniam
 
  Duis aute irure dolor
-    section=Example
- -> in
- <- out
-    section=Examples
+
+.. qmp-example::
+   :title: Ideal fast-food burger situation
+
+   -> "in"
+   <- "out"
+
+Examples::
+
+ - Not a QMP code block
+ - Merely a preformatted code block literal
+ It isn't even an rST list.
  - *verbatim*
  - {braces}
-    section=None
+
 Note::
     Ceci n'est pas une note
     section=Since
@@ -202,10 +210,12 @@ If you're bored enough to read this, go see a video of boxed cats
 a feature
     feature=cmd-feat2
 another feature
-    section=Example
- -> in
+    section=None
+.. qmp-example::
 
- <- out
+   -> "this example"
+
+   <- "has no title"
 doc symbol=EVT_BOXED
     body=
 

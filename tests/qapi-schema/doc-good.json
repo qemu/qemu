@@ -172,12 +172,17 @@
 #
 #  Duis aute irure dolor
 #
-# Example:
+# .. qmp-example::
+#    :title: Ideal fast-food burger situation
 #
-#  -> in
-#  <- out
+#    -> "in"
+#    <- "out"
 #
-# Examples:
+# Examples::
+#
+#  - Not a QMP code block
+#  - Merely a preformatted code block literal
+#  It isn't even an rST list.
 #  - *verbatim*
 #  - {braces}
 #
@@ -199,11 +204,11 @@
 # @cmd-feat1: a feature
 # @cmd-feat2: another feature
 #
-# Example:
+# .. qmp-example::
 #
-#  -> in
+#    -> "this example"
 #
-#  <- out
+#    <- "has no title"
 ##
 { 'command': 'cmd-boxed', 'boxed': true,
   'data': 'Object',

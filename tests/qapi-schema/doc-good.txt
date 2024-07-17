@@ -217,17 +217,16 @@ Notes:
 
 Duis aute irure dolor
 
+Example: Ideal fast-food burger situation:
 
-Example
-~~~~~~~
+   -> "in"
+   <- "out"
 
-   -> in
-   <- out
+Examples:
 
-
-Examples
-~~~~~~~~
-
+   - Not a QMP code block
+   - Merely a preformatted code block literal
+   It isn't even an rST list.
    - *verbatim*
    - {braces}
 
@@ -261,13 +260,11 @@ Features
 "cmd-feat2"
    another feature
 
+Example::
 
-Example
-~~~~~~~
+   -> "this example"
 
-   -> in
-
-   <- out
+   <- "has no title"
 
 
 "EVT_BOXED" (Event)
