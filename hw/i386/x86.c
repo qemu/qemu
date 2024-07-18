@@ -242,7 +242,7 @@ static void x86_machine_get_pit(Object *obj, Visitor *v, const char *name,
 static void x86_machine_set_pit(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
-    X86MachineState *x86ms = X86_MACHINE(obj);;
+    X86MachineState *x86ms = X86_MACHINE(obj);
 
     visit_type_OnOffAuto(v, name, &x86ms->pit, errp);
 }

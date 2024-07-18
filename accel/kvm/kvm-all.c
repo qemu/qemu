@@ -3878,7 +3878,7 @@ static StatsList *add_kvmstat_entry(struct kvm_stats_desc *pdesc,
     /* Alloc and populate data list */
     stats = g_new0(Stats, 1);
     stats->name = g_strdup(pdesc->name);
-    stats->value = g_new0(StatsValue, 1);;
+    stats->value = g_new0(StatsValue, 1);
 
     if ((pdesc->flags & KVM_STATS_UNIT_MASK) == KVM_STATS_UNIT_BOOLEAN) {
         stats->value->u.boolean = *stats_data;

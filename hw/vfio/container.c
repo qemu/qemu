@@ -600,9 +600,8 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         }
     }
 
-    fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
+    fd = qemu_open("/dev/vfio/vfio", O_RDWR, errp);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
         goto put_space_exit;
     }
 
@@ -743,9 +742,8 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     group = g_malloc0(sizeof(*group));
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-    group->fd = qemu_open_old(path, O_RDWR);
+    group->fd = qemu_open(path, O_RDWR, errp);
     if (group->fd < 0) {
-        error_setg_errno(errp, errno, "failed to open %s", path);
         goto free_group_exit;
     }
 

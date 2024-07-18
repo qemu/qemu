@@ -29,10 +29,8 @@ sgx_epc_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         return false;
     }
 
-    fd = qemu_open_old("/dev/sgx_vepc", O_RDWR);
+    fd = qemu_open("/dev/sgx_vepc", O_RDWR, errp);
     if (fd < 0) {
-        error_setg_errno(errp, errno,
-                         "failed to open /dev/sgx_vepc to alloc SGX EPC");
         return false;
     }
 

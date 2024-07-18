@@ -77,9 +77,8 @@ bool iommufd_backend_connect(IOMMUFDBackend *be, Error **errp)
     int fd;
 
     if (be->owned && !be->users) {
-        fd = qemu_open_old("/dev/iommu", O_RDWR);
+        fd = qemu_open("/dev/iommu", O_RDWR, errp);
         if (fd < 0) {
-            error_setg_errno(errp, errno, "/dev/iommu opening failed");
             return false;
         }
         be->fd = fd;

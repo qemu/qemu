@@ -263,7 +263,7 @@ int qemu_socketpair(int domain, int type, int protocol, int sv[2])
         return ret;
     }
 #endif
-    ret = socketpair(domain, type, protocol, sv);;
+    ret = socketpair(domain, type, protocol, sv);
     if (ret == 0) {
         qemu_set_cloexec(sv[0]);
         qemu_set_cloexec(sv[1]);

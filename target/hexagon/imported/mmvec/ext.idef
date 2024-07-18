@@ -2855,7 +2855,7 @@ EXTINSN(V6_vscattermhw_add,  "vscatter(Rt32,Mu2,Vvv32.w).h+=Vw32", ATTRIBS(A_EXT
     fVALIGN(RtV, element_size);
     fVFOREACH(32, i) {
         for(j = 0; j < 2; j++) {
-             EA =  RtV + fVALIGN(VvvV.v[j].uw[i],ALIGNMENT);;
+             EA =  RtV + fVALIGN(VvvV.v[j].uw[i],ALIGNMENT);
              fVLOG_VTCM_HALFWORD_INCREMENT_DV(EA,VvvV.v[j].uw[i],VwV,(2*i+j),i,j,ALIGNMENT,MuV);
         }
     }
