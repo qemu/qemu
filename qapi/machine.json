@@ -104,7 +104,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-cpus-fast" }
 #     <- { "return": [
@@ -221,7 +221,7 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-machines", "arguments": { "compat-props": true } }
 #     <- { "return": [
@@ -305,9 +305,8 @@
 #
 # Since: 0.14
 #
-# .. note:: If no UUID was specified for the guest, a null UUID is
-#    returned.
-#
+# .. note:: If no UUID was specified for the guest, the nil UUID (all
+#    zeroes) is returned.
 ##
 { 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
@@ -320,7 +319,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-uuid" }
 #     <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
@@ -354,7 +353,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "system_reset" }
 #     <- { "return": {} }
@@ -373,7 +372,7 @@
 #    request or that it has shut down.  Many guests will respond to this
 #    command by prompting the user in some way.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "system_powerdown" }
 #     <- { "return": {} }
@@ -393,7 +392,7 @@
 # .. note:: Prior to 4.0, this command does nothing in case the guest
 #    isn't suspended.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "system_wakeup" }
 #     <- { "return": {} }
@@ -444,7 +443,7 @@
 # .. note:: Prior to 2.1, this command was only supported for x86 and
 #    s390 VMs.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "inject-nmi" }
 #     <- { "return": {} }
@@ -473,7 +472,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-kvm" }
 #     <- { "return": { "enabled": true, "present": true } }
@@ -842,7 +841,7 @@
 #
 # .. caution:: Errors were not reliably returned until 1.1.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "memsave",
 #          "arguments": { "val": 10,
@@ -868,7 +867,7 @@
 #
 # .. caution:: Errors were not reliably returned until 1.1.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "pmemsave",
 #          "arguments": { "val": 10,
@@ -929,7 +928,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-memdev" }
 #     <- { "return": [
@@ -960,9 +959,7 @@
 ##
 # @CpuInstanceProperties:
 #
-# List of properties to be used for hotplugging a CPU instance, it
-# should be passed by management with device_add command when a CPU is
-# being hotplugged.
+# Properties identifying a CPU.
 #
 # Which members are optional and which mandatory depends on the
 # architecture and board.
@@ -996,9 +993,6 @@
 #
 # @thread-id: thread number within the core the CPU  belongs to
 #
-# .. note:: Management should be prepared to pass through additional
-#    properties with device_add.
-#
 # Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
@@ -1020,13 +1014,17 @@
 #
 # @type: CPU object type for usage with device_add command
 #
-# @props: list of properties to be used for hotplugging CPU
+# @props: list of properties to pass for hotplugging a CPU with
+#     device_add
 #
 # @vcpus-count: number of logical VCPU threads @HotpluggableCPU
 #     provides
 #
 # @qom-path: link to existing CPU object if CPU is present or omitted
 #     if CPU is not present.
+#
+# .. note:: Management should be prepared to pass through additional
+#    properties with device_add.
 #
 # Since: 2.7
 ##
@@ -1047,10 +1045,11 @@
 #
 # Since: 2.7
 #
-# Examples:
+# .. qmp-example::
+#    :annotated:
 #
-#     For pseries machine type started with -smp 2,cores=2,maxcpus=4
-#     -cpu POWER8:
+#    For pseries machine type started with
+#    ``-smp 2,cores=2,maxcpus=4 -cpu POWER8``::
 #
 #     -> { "execute": "query-hotpluggable-cpus" }
 #     <- {"return": [
@@ -1060,7 +1059,10 @@
 #            "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
 #        ]}
 #
-#     For pc machine type started with -smp 1,maxcpus=2:
+# .. qmp-example::
+#    :annotated:
+#
+#    For pc machine type started with ``-smp 1,maxcpus=2``::
 #
 #     -> { "execute": "query-hotpluggable-cpus" }
 #     <- {"return": [
@@ -1075,8 +1077,11 @@
 #          }
 #        ]}
 #
-#     For s390x-virtio-ccw machine type started with -smp 1,maxcpus=2
-#     -cpu qemu (Since: 2.11):
+# .. qmp-example::
+#    :annotated:
+#
+#    For s390x-virtio-ccw machine type started with
+#    ``-smp 1,maxcpus=2 -cpu qemu`` (Since: 2.11)::
 #
 #     -> { "execute": "query-hotpluggable-cpus" }
 #     <- {"return": [
@@ -1130,12 +1135,15 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
+#    :annotated:
 #
-#     -> { "execute": "balloon", "arguments": { "value": 536870912 } }
-#     <- { "return": {} }
+#    ::
 #
-#     With a 2.5GiB guest this command inflated the ballon to 3GiB.
+#      -> { "execute": "balloon", "arguments": { "value": 536870912 } }
+#      <- { "return": {} }
+#
+#    With a 2.5GiB guest this command inflated the ballon to 3GiB.
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
@@ -1166,7 +1174,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-balloon" }
 #     <- { "return": {
@@ -1190,7 +1198,7 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "BALLOON_CHANGE",
 #          "data": { "actual": 944766976 },
@@ -1232,7 +1240,7 @@
 #
 # Since: 8.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-hv-balloon-status-report" }
 #     <- { "return": {
@@ -1253,7 +1261,7 @@
 #
 # Since: 8.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "HV_BALLOON_STATUS_REPORT",
 #          "data": { "committed": 816640000, "available": 3333054464 },
@@ -1285,7 +1293,7 @@
 # Return the amount of initially allocated and present hotpluggable
 # (if enabled) memory in bytes.
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-memory-size-summary" }
 #     <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
@@ -1564,7 +1572,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-memory-devices" }
 #     <- { "return": [ { "data":
@@ -1598,7 +1606,7 @@
 #
 # Since: 5.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
 #          "data": { "id": "vm0", "size": 1073741824,
@@ -1856,7 +1864,7 @@
 #
 # Since: 7.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "dumpdtb" }
 #          "arguments": { "filename": "fdt.dtb" } }

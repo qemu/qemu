@@ -117,7 +117,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "eject", "arguments": { "id": "ide1-0-1" } }
 #     <- { "return": {} }
@@ -161,7 +161,7 @@
 #
 # Since: 2.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-open-tray",
 #          "arguments": { "id": "ide0-1-0" } }
@@ -199,7 +199,7 @@
 #
 # Since: 2.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-close-tray",
 #          "arguments": { "id": "ide0-1-0" } }
@@ -231,7 +231,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-remove-medium",
 #          "arguments": { "id": "ide0-1-0" } }
@@ -272,7 +272,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "blockdev-add",
 #          "arguments": {
@@ -342,9 +342,8 @@
 #
 # Since: 2.5
 #
-# Examples:
-#
-#     1. Change a removable medium
+# .. qmp-example::
+#    :title: Change a removable medium
 #
 #     -> { "execute": "blockdev-change-medium",
 #          "arguments": { "id": "ide0-1-0",
@@ -352,7 +351,8 @@
 #                         "format": "raw" } }
 #     <- { "return": {} }
 #
-#     2. Load a read-only medium into a writable drive
+# .. qmp-example::
+#    :title: Load a read-only medium into a writable drive
 #
 #     -> { "execute": "blockdev-change-medium",
 #          "arguments": { "id": "floppyA",
@@ -397,7 +397,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "DEVICE_TRAY_MOVED",
 #          "data": { "device": "ide1-cd0",
@@ -421,7 +421,7 @@
 #
 # Since: 3.0
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "PR_MANAGER_STATUS_CHANGED",
 #          "data": { "id": "pr-helper0",
@@ -463,7 +463,7 @@
 #
 # Since: 1.1
 #
-# Examples:
+# .. qmp-example::
 #
 #     -> { "execute": "block_set_io_throttle",
 #          "arguments": { "id": "virtio-blk-pci0/virtio-backend",
@@ -482,6 +482,8 @@
 #                         "bps_max_length": 0,
 #                         "iops_size": 0 } }
 #     <- { "return": {} }
+#
+# .. qmp-example::
 #
 #     -> { "execute": "block_set_io_throttle",
 #          "arguments": { "id": "ide0-1-0",
@@ -543,31 +545,37 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. qmp-example::
+#    :annotated:
 #
-#     Set new histograms for all io types with intervals
-#     [0, 10), [10, 50), [50, 100), [100, +inf):
+#    Set new histograms for all io types with intervals
+#    [0, 10), [10, 50), [50, 100), [100, +inf)::
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",
 #                         "boundaries": [10, 50, 100] } }
 #     <- { "return": {} }
 #
-# Example:
+# .. qmp-example::
+#    :annotated:
 #
-#     Set new histogram only for write, other histograms will remain
-#     not changed (or not created):
+#    Set new histogram only for write, other histograms will remain
+#    not changed (or not created)::
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",
 #                         "boundaries-write": [10, 50, 100] } }
 #     <- { "return": {} }
 #
-# Example:
+# .. qmp-example::
+#    :annotated:
 #
-#     Set new histograms with the following intervals:
-#       read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
-#       write: [0, 1000), [1000, 5000), [5000, +inf)
+#    Set new histograms with the following intervals:
+#
+#    - read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
+#    - write: [0, 1000), [1000, 5000), [5000, +inf)
+#
+#    ::
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0",
@@ -575,9 +583,10 @@
 #                         "boundaries-write": [1000, 5000] } }
 #     <- { "return": {} }
 #
-# Example:
+# .. qmp-example::
+#    :annotated:
 #
-#     Remove all latency histograms:
+#    Remove all latency histograms::
 #
 #     -> { "execute": "block-latency-histogram-set",
 #          "arguments": { "id": "drive0" } }

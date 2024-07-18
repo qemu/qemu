@@ -40,7 +40,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-chardev" }
 #     <- {
@@ -86,7 +86,7 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-chardev-backends" }
 #     <- {
@@ -141,7 +141,7 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "ringbuf-write",
 #          "arguments": { "device": "foo",
@@ -177,7 +177,7 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "ringbuf-read",
 #          "arguments": { "device": "foo",
@@ -699,18 +699,22 @@
 #
 # Since: 1.4
 #
-# Examples:
+# .. qmp-example::
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "foo",
 #                          "backend" : { "type" : "null", "data" : {} } } }
 #     <- { "return": {} }
 #
+# .. qmp-example::
+#
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "bar",
 #                          "backend" : { "type" : "file",
 #                                        "data" : { "out" : "/tmp/bar.log" } } } }
 #     <- { "return": {} }
+#
+# .. qmp-example::
 #
 #     -> { "execute" : "chardev-add",
 #          "arguments" : { "id" : "baz",
@@ -735,12 +739,14 @@
 #
 # Since: 2.10
 #
-# Examples:
+# .. qmp-example::
 #
 #     -> { "execute" : "chardev-change",
 #          "arguments" : { "id" : "baz",
 #                          "backend" : { "type" : "pty", "data" : {} } } }
 #     <- { "return": { "pty" : "/dev/pty/42" } }
+#
+# .. qmp-example::
 #
 #     -> {"execute" : "chardev-change",
 #         "arguments" : {
@@ -772,7 +778,7 @@
 #
 # Since: 1.4
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
@@ -789,7 +795,7 @@
 #
 # Since: 2.10
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
 #     <- { "return": {} }
@@ -810,7 +816,7 @@
 #
 # Since: 2.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "VSERPORT_CHANGE",
 #          "data": { "id": "channel0", "open": true },

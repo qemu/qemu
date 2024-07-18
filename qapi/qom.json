@@ -59,7 +59,7 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "qom-list",
 #          "arguments": { "path": "/chardevs" } }
@@ -104,16 +104,16 @@
 #
 # Since: 1.2
 #
-# Examples:
-#
-#     1. Use absolute path
+# .. qmp-example::
+#    :title: Use absolute path
 #
 #     -> { "execute": "qom-get",
 #          "arguments": { "path": "/machine/unattached/device[0]",
 #                         "property": "hotplugged" } }
 #     <- { "return": false }
 #
-#     2. Use partial path
+# .. qmp-example::
+#    :title: Use partial path
 #
 #     -> { "execute": "qom-get",
 #          "arguments": { "path": "unattached/sysbus",
@@ -139,7 +139,7 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "qom-set",
 #          "arguments": { "path": "/machine",
@@ -1028,7 +1028,8 @@
 #
 # Features:
 #
-# @unstable: Member @x-remote-object is experimental.
+# @unstable: Members @x-remote-object and @x-vfio-user-server are
+#     experimental.
 #
 # Since: 6.0
 ##
@@ -1175,7 +1176,7 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "object-add",
 #          "arguments": { "qom-type": "rng-random", "id": "rng1",
@@ -1197,7 +1198,7 @@
 #
 # Since: 2.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "object-del", "arguments": { "id": "rng1" } }
 #     <- { "return": {} }

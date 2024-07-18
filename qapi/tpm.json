@@ -31,7 +31,7 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-tpm-models" }
 #     <- { "return": [ "tpm-tis", "tpm-crb", "tpm-spapr" ] }
@@ -62,7 +62,7 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-tpm-types" }
 #     <- { "return": [ "passthrough", "emulator" ] }
@@ -168,7 +168,7 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-tpm" }
 #     <- { "return":

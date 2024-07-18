@@ -123,7 +123,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "query-status" }
 #     <- { "return": { "running": true,
@@ -152,7 +152,7 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "SHUTDOWN",
 #          "data": { "guest": true, "reason": "guest-shutdown" },
@@ -168,7 +168,7 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "POWERDOWN",
 #          "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
@@ -189,7 +189,7 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "RESET",
 #          "data": { "guest": false, "reason": "guest-reset" },
@@ -204,7 +204,7 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "STOP",
 #          "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
@@ -218,7 +218,7 @@
 #
 # Since: 0.12
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "RESUME",
 #          "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
@@ -233,7 +233,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "SUSPEND",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
@@ -252,7 +252,7 @@
 #
 # Since: 1.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "SUSPEND_DISK",
 #          "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
@@ -267,7 +267,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "WAKEUP",
 #          "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
@@ -289,7 +289,7 @@
 #
 # Since: 0.13
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "WATCHDOG",
 #          "data": { "action": "reset" },
@@ -382,7 +382,7 @@
 #
 # Since: 2.11
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "watchdog-set-action",
 #          "arguments": { "action": "inject-nmi" } }
@@ -406,7 +406,7 @@
 #
 # Since: 6.0
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "set-action",
 #          "arguments": { "reboot": "shutdown",
@@ -433,7 +433,7 @@
 #
 # Since: 1.5
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "GUEST_PANICKED",
 #          "data": { "action": "pause" },
@@ -453,7 +453,7 @@
 #
 # Since: 5.0
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "GUEST_CRASHLOADED",
 #          "data": { "action": "run" },
@@ -469,7 +469,7 @@
 #
 # Since: 9.1
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "GUEST_PVSHUTDOWN",
 #          "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
@@ -611,7 +611,7 @@
 #
 # Since: 5.2
 #
-# Example:
+# .. qmp-example::
 #
 #     <- { "event": "MEMORY_FAILURE",
 #          "data": { "recipient": "hypervisor",

@@ -34,7 +34,7 @@
 #
 # Since: 7.2
 #
-# Example:
+# .. qmp-example::
 #
 #     -> { "execute": "x-query-virtio" }
 #     <- { "return": [
@@ -203,9 +203,11 @@
 #
 # Since: 7.2
 #
-# Examples:
+# .. qmp-example::
+#    :annotated:
 #
-#     1. Poll for the status of virtio-crypto (no vhost-crypto active)
+#    Poll for the status of virtio-crypto (no vhost-crypto active)
+#    ::
 #
 #     -> { "execute": "x-query-virtio-status",
 #          "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend" }
@@ -261,7 +263,11 @@
 #          }
 #        }
 #
-#     2. Poll for the status of virtio-net (vhost-net is active)
+# .. qmp-example::
+#    :annotated:
+#
+#    Poll for the status of virtio-net (vhost-net is active)
+#    ::
 #
 #     -> { "execute": "x-query-virtio-status",
 #          "arguments": { "path": "/machine/peripheral-anon/device[1]/virtio-backend" }
@@ -568,9 +574,11 @@
 #
 # Since: 7.2
 #
-# Examples:
+# .. qmp-example::
+#    :annotated:
 #
-#     1. Get VirtQueueStatus for virtio-vsock (vhost-vsock running)
+#    Get VirtQueueStatus for virtio-vsock (vhost-vsock running)
+#    ::
 #
 #     -> { "execute": "x-query-virtio-queue-status",
 #          "arguments": { "path": "/machine/peripheral/vsock0/virtio-backend",
@@ -593,7 +601,11 @@
 #          }
 #        }
 #
-#     2. Get VirtQueueStatus for virtio-serial (no vhost)
+# .. qmp-example::
+#    :annotated:
+#
+#    Get VirtQueueStatus for virtio-serial (no vhost)
+#    ::
 #
 #     -> { "execute": "x-query-virtio-queue-status",
 #          "arguments": { "path": "/machine/peripheral-anon/device[0]/virtio-backend",
@@ -690,9 +702,8 @@
 #
 # Since: 7.2
 #
-# Examples:
-#
-#     1. Get vhost_virtqueue status for vhost-crypto
+# .. qmp-example::
+#    :title: Get vhost_virtqueue status for vhost-crypto
 #
 #     -> { "execute": "x-query-virtio-vhost-queue-status",
 #          "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend",
@@ -715,7 +726,8 @@
 #          }
 #        }
 #
-#     2. Get vhost_virtqueue status for vhost-vsock
+# .. qmp-example::
+#    :title: Get vhost_virtqueue status for vhost-vsock
 #
 #     -> { "execute": "x-query-virtio-vhost-queue-status",
 #          "arguments": { "path": "/machine/peripheral/vsock0/virtio-backend",
@@ -839,9 +851,8 @@
 #
 # Since: 7.2
 #
-# Examples:
-#
-#     1. Introspect on virtio-net's VirtQueue 0 at index 5
+# .. qmp-example::
+#    :title: Introspect on virtio-net's VirtQueue 0 at index 5
 #
 #     -> { "execute": "x-query-virtio-queue-element",
 #          "arguments": { "path": "/machine/peripheral-anon/device[1]/virtio-backend",
@@ -870,7 +881,8 @@
 #          }
 #        }
 #
-#     2. Introspect on virtio-crypto's VirtQueue 1 at head
+# .. qmp-example::
+#    :title: Introspect on virtio-crypto's VirtQueue 1 at head
 #
 #     -> { "execute": "x-query-virtio-queue-element",
 #          "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend",
@@ -898,7 +910,8 @@
 #          }
 #        }
 #
-#     3. Introspect on virtio-scsi's VirtQueue 2 at head
+# .. qmp-example::
+#    :title: Introspect on virtio-scsi's VirtQueue 2 at head
 #
 #     -> { "execute": "x-query-virtio-queue-element",
 #          "arguments": { "path": "/machine/peripheral-anon/device[2]/virtio-backend",
