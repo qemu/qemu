@@ -283,7 +283,7 @@ struct AspeedI2CClass {
     uint8_t *(*bus_pool_base)(AspeedI2CBus *);
     bool check_sram;
     bool has_dma;
-
+    uint64_t mem_size;
 };
 
 static inline bool aspeed_i2c_is_new_mode(AspeedI2CState *s)
