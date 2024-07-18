@@ -38,6 +38,8 @@
 %imm_bs   30:2                   !function=ex_shift_3
 %imm_rnum 20:4
 %imm_z6   26:1 15:5
+%imm_mop5 30:1 26:2 20:2
+%imm_mop3 30:1 26:2
 
 # Argument sets:
 &empty
@@ -56,6 +58,8 @@
 &r2nfvm    vm rd rs1 nf
 &rnfvm     vm rd rs1 rs2 nf
 &k_aes     shamt rs2 rs1 rd
+&mop5 imm rd rs1
+&mop3 imm rd rs1 rs2
 
 # Formats 32:
 @r       .......   ..... ..... ... ..... ....... &r                %rs2 %rs1 %rd
@@ -97,6 +101,9 @@
 
 @k_aes   .. ..... ..... .....  ... ..... ....... &k_aes  shamt=%imm_bs   %rs2 %rs1 %rd
 @i_aes   .. ..... ..... .....  ... ..... ....... &i      imm=%imm_rnum        %rs1 %rd
+
+@mop5 . . .. .. .... .. ..... ... ..... ....... &mop5 imm=%imm_mop5 %rd %rs1
+@mop3 . . .. .. . ..... ..... ... ..... ....... &mop3 imm=%imm_mop3 %rd %rs1 %rs2
 
 # Formats 64:
 @sh5     .......  ..... .....  ... ..... ....... &shift  shamt=%sh5      %rs1 %rd
@@ -1010,3 +1017,29 @@ amocas_w    00101 . . ..... ..... 010 ..... 0101111 @atom_st
 amocas_d    00101 . . ..... ..... 011 ..... 0101111 @atom_st
 # *** RV64 Zacas Standard Extension ***
 amocas_q    00101 . . ..... ..... 100 ..... 0101111 @atom_st
+
+# *** Zimop may-be-operation extension ***
+mop_r_n     1 . 00 .. 0111 .. ..... 100 ..... 1110011 @mop5
+mop_rr_n    1 . 00 .. 1 ..... ..... 100 ..... 1110011 @mop3
+
+# *** Zabhb Standard Extension ***
+amoswap_b  00001 . . ..... ..... 000 ..... 0101111 @atom_st
+amoadd_b   00000 . . ..... ..... 000 ..... 0101111 @atom_st
+amoxor_b   00100 . . ..... ..... 000 ..... 0101111 @atom_st
+amoand_b   01100 . . ..... ..... 000 ..... 0101111 @atom_st
+amoor_b    01000 . . ..... ..... 000 ..... 0101111 @atom_st
+amomin_b   10000 . . ..... ..... 000 ..... 0101111 @atom_st
+amomax_b   10100 . . ..... ..... 000 ..... 0101111 @atom_st
+amominu_b  11000 . . ..... ..... 000 ..... 0101111 @atom_st
+amomaxu_b  11100 . . ..... ..... 000 ..... 0101111 @atom_st
+amoswap_h  00001 . . ..... ..... 001 ..... 0101111 @atom_st
+amoadd_h   00000 . . ..... ..... 001 ..... 0101111 @atom_st
+amoxor_h   00100 . . ..... ..... 001 ..... 0101111 @atom_st
+amoand_h   01100 . . ..... ..... 001 ..... 0101111 @atom_st
+amoor_h    01000 . . ..... ..... 001 ..... 0101111 @atom_st
+amomin_h   10000 . . ..... ..... 001 ..... 0101111 @atom_st
+amomax_h   10100 . . ..... ..... 001 ..... 0101111 @atom_st
+amominu_h  11000 . . ..... ..... 001 ..... 0101111 @atom_st
+amomaxu_h  11100 . . ..... ..... 001 ..... 0101111 @atom_st
+amocas_b    00101 . . ..... ..... 000 ..... 0101111 @atom_st
+amocas_h    00101 . . ..... ..... 001 ..... 0101111 @atom_st
