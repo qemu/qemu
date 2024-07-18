@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Loongarch LS7A Real Time Clock emulation
+ * LoongArch LS7A Real Time Clock emulation
  *
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
