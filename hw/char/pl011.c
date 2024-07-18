@@ -138,6 +138,11 @@ static void pl011_update(PL011State *s)
     }
 }
 
+static bool pl011_loopback_enabled(PL011State *s)
+{
+    return !!(s->cr & CR_LBE);
+}
+
 static bool pl011_is_fifo_enabled(PL011State *s)
 {
     return (s->lcr & LCR_FEN) != 0;
@@ -179,6 +184,34 @@ static void pl011_put_fifo(void *opaque, uint32_t value)
         s->int_level |= INT_RX;
         pl011_update(s);
     }
+}
+
+static void pl011_loopback_tx(PL011State *s, uint32_t value)
+{
+    if (!pl011_loopback_enabled(s)) {
+        return;
+    }
+
+    /*
+     * Caveat:
+     *
+     * In real hardware, TX loopback happens at the serial-bit level
+     * and then reassembled by the RX logics back into bytes and placed
+     * into the RX fifo. That is, loopback happens after TX fifo.
+     *
+     * Because the real hardware TX fifo is time-drained at the frame
+     * rate governed by the configured serial format, some loopback
+     * bytes in TX fifo may still be able to get into the RX fifo
+     * that could be full at times while being drained at software
+     * pace.
+     *
+     * In such scenario, the RX draining pace is the major factor
+     * deciding which loopback bytes get into the RX fifo, unless
+     * hardware flow-control is enabled.
+     *
+     * For simplicity, the above described is not emulated.
+     */
+    pl011_put_fifo(s, value);
 }
 
 static uint64_t pl011_read(void *opaque, hwaddr offset,
@@ -290,11 +323,6 @@ static void pl011_trace_baudrate_change(const PL011State *s)
                                 s->ibrd, s->fbrd);
 }
 
-static bool pl011_loopback_enabled(PL011State *s)
-{
-    return !!(s->cr & CR_LBE);
-}
-
 static void pl011_loopback_mdmctrl(PL011State *s)
 {
     uint32_t cr, fr, il;
@@ -334,34 +362,6 @@ static void pl011_loopback_mdmctrl(PL011State *s)
     s->flags = fr;
     s->int_level = il;
     pl011_update(s);
-}
-
-static void pl011_loopback_tx(PL011State *s, uint32_t value)
-{
-    if (!pl011_loopback_enabled(s)) {
-        return;
-    }
-
-    /*
-     * Caveat:
-     *
-     * In real hardware, TX loopback happens at the serial-bit level
-     * and then reassembled by the RX logics back into bytes and placed
-     * into the RX fifo. That is, loopback happens after TX fifo.
-     *
-     * Because the real hardware TX fifo is time-drained at the frame
-     * rate governed by the configured serial format, some loopback
-     * bytes in TX fifo may still be able to get into the RX fifo
-     * that could be full at times while being drained at software
-     * pace.
-     *
-     * In such scenario, the RX draining pace is the major factor
-     * deciding which loopback bytes get into the RX fifo, unless
-     * hardware flow-control is enabled.
-     *
-     * For simplicity, the above described is not emulated.
-     */
-    pl011_put_fifo(s, value);
 }
 
 static void pl011_loopback_break(PL011State *s, int brk_enable)
