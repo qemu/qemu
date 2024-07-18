@@ -6047,10 +6047,6 @@
 #
 # @name: the name of the internal snapshot to be created
 #
-# .. note:: In a transaction, if @name is empty or any snapshot
-#    matching @name exists, the operation will fail.  Only some image
-#    formats support it; for example, qcow2, and rbd.
-#
 # Since: 1.7
 ##
 { 'struct': 'BlockdevSnapshotInternal',
@@ -6070,6 +6066,9 @@
 #       GenericError
 #     - If the format of the image used does not support it,
 #       GenericError
+#
+# .. note:: Only some image formats such as qcow2 and rbd support
+#    internal snapshots.
 #
 # Since: 1.7
 #
