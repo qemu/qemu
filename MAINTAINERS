@@ -1727,7 +1727,6 @@ S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*
 F: include/hw/*/grlib*
-F: tests/avocado/machine_sparc_leon3.py
 
 S390 Machines
 -------------
