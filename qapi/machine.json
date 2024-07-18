@@ -24,6 +24,8 @@
 #
 # @avr: since 5.1
 #
+# @loongarch64: since 7.1
+#
 # .. note:: The resulting QMP strings can be appended to the
 #    "qemu-system-" prefix to produce the corresponding QEMU executable
 #    name.  This is true even for "qemu-system-x86_64".
