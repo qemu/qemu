@@ -33,6 +33,7 @@ RUN zypper update -y && \
            glibc-locale \
            glibc-static \
            glusterfs-devel \
+           gtk-vnc-devel \
            gtk3-devel \
            hostname \
            jemalloc-devel \

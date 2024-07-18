@@ -29,6 +29,7 @@
     "gmake",
     "gnutls",
     "gsed",
+    "gtk-vnc",
     "gtk3",
     "json-c",
     "libepoxy",

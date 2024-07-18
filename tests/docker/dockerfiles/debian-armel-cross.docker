@@ -30,6 +30,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       git \
                       hostname \
                       libglib2.0-dev \
+                      libgtk-vnc-2.0-dev \
                       libpcre2-dev \
                       libsndio-dev \
                       libspice-protocol-dev \
