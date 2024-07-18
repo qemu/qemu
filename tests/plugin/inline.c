@@ -71,10 +71,12 @@ static void stats_insn(void)
     const uint64_t cond_track_left = qemu_plugin_u64_sum(insn_cond_track_count);
     const uint64_t conditional =
         cond_num_trigger * cond_trigger_limit + cond_track_left;
-    printf("insn: %" PRIu64 "\n", expected);
-    printf("insn: %" PRIu64 " (per vcpu)\n", per_vcpu);
-    printf("insn: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
-    printf("insn: %" PRIu64 " (cond cb)\n", conditional);
+    g_autoptr(GString) stats = g_string_new("");
+    g_string_append_printf(stats, "insn: %" PRIu64 "\n", expected);
+    g_string_append_printf(stats, "insn: %" PRIu64 " (per vcpu)\n", per_vcpu);
+    g_string_append_printf(stats, "insn: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
+    g_string_append_printf(stats, "insn: %" PRIu64 " (cond cb)\n", conditional);
+    qemu_plugin_outs(stats->str);
     g_assert(expected > 0);
     g_assert(per_vcpu == expected);
     g_assert(inl_per_vcpu == expected);
@@ -91,10 +93,12 @@ static void stats_tb(void)
     const uint64_t cond_track_left = qemu_plugin_u64_sum(tb_cond_track_count);
     const uint64_t conditional =
         cond_num_trigger * cond_trigger_limit + cond_track_left;
-    printf("tb: %" PRIu64 "\n", expected);
-    printf("tb: %" PRIu64 " (per vcpu)\n", per_vcpu);
-    printf("tb: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
-    printf("tb: %" PRIu64 " (conditional cb)\n", conditional);
+    g_autoptr(GString) stats = g_string_new("");
+    g_string_append_printf(stats, "tb: %" PRIu64 "\n", expected);
+    g_string_append_printf(stats, "tb: %" PRIu64 " (per vcpu)\n", per_vcpu);
+    g_string_append_printf(stats, "tb: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
+    g_string_append_printf(stats, "tb: %" PRIu64 " (conditional cb)\n", conditional);
+    qemu_plugin_outs(stats->str);
     g_assert(expected > 0);
     g_assert(per_vcpu == expected);
     g_assert(inl_per_vcpu == expected);
@@ -107,9 +111,11 @@ static void stats_mem(void)
     const uint64_t per_vcpu = qemu_plugin_u64_sum(count_mem);
     const uint64_t inl_per_vcpu =
         qemu_plugin_u64_sum(count_mem_inline);
-    printf("mem: %" PRIu64 "\n", expected);
-    printf("mem: %" PRIu64 " (per vcpu)\n", per_vcpu);
-    printf("mem: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
+    g_autoptr(GString) stats = g_string_new("");
+    g_string_append_printf(stats, "mem: %" PRIu64 "\n", expected);
+    g_string_append_printf(stats, "mem: %" PRIu64 " (per vcpu)\n", per_vcpu);
+    g_string_append_printf(stats, "mem: %" PRIu64 " (per vcpu inline)\n", inl_per_vcpu);
+    qemu_plugin_outs(stats->str);
     g_assert(expected > 0);
     g_assert(per_vcpu == expected);
     g_assert(inl_per_vcpu == expected);
@@ -118,6 +124,7 @@ static void stats_mem(void)
 static void plugin_exit(qemu_plugin_id_t id, void *udata)
 {
     const unsigned int num_cpus = qemu_plugin_num_vcpus();
+    g_autoptr(GString) stats = g_string_new("");
     g_assert(num_cpus == max_cpu_index + 1);
 
     for (int i = 0; i < num_cpus ; ++i) {
@@ -135,20 +142,21 @@ static void plugin_exit(qemu_plugin_id_t id, void *udata)
             qemu_plugin_u64_get(insn_cond_num_trigger, i);
         const uint64_t insn_cond_left =
             qemu_plugin_u64_get(insn_cond_track_count, i);
-        printf("cpu %d: tb (%" PRIu64 ", %" PRIu64
-               ", %" PRIu64 " * %" PRIu64 " + %" PRIu64
-               ") | "
-               "insn (%" PRIu64 ", %" PRIu64
-               ", %" PRIu64 " * %" PRIu64 " + %" PRIu64
-               ") | "
-               "mem (%" PRIu64 ", %" PRIu64 ")"
-               "\n",
-               i,
-               tb, tb_inline,
-               tb_cond_trigger, cond_trigger_limit, tb_cond_left,
-               insn, insn_inline,
-               insn_cond_trigger, cond_trigger_limit, insn_cond_left,
-               mem, mem_inline);
+        g_string_printf(stats, "cpu %d: tb (%" PRIu64 ", %" PRIu64
+                        ", %" PRIu64 " * %" PRIu64 " + %" PRIu64
+                        ") | "
+                        "insn (%" PRIu64 ", %" PRIu64
+                        ", %" PRIu64 " * %" PRIu64 " + %" PRIu64
+                        ") | "
+                        "mem (%" PRIu64 ", %" PRIu64 ")"
+                        "\n",
+                        i,
+                        tb, tb_inline,
+                        tb_cond_trigger, cond_trigger_limit, tb_cond_left,
+                        insn, insn_inline,
+                        insn_cond_trigger, cond_trigger_limit, insn_cond_left,
+                        mem, mem_inline);
+        qemu_plugin_outs(stats->str);
         g_assert(tb == tb_inline);
         g_assert(insn == insn_inline);
         g_assert(mem == mem_inline);
