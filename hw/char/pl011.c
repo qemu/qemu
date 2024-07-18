@@ -85,7 +85,9 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
 #define CR_OUT1     (1 << 12)
 #define CR_RTS      (1 << 11)
 #define CR_DTR      (1 << 10)
+#define CR_TXE      (1 << 8)
 #define CR_LBE      (1 << 7)
+#define CR_UARTEN   (1 << 0)
 
 /* Integer Baud Rate Divider, UARTIBRD */
 #define IBRD_MASK 0x3f
@@ -223,7 +225,14 @@ static void pl011_loopback_tx(PL011State *s, uint32_t value)
 
 static void pl011_write_txdata(PL011State *s, uint8_t data)
 {
-    /* ??? Check if transmitter is enabled.  */
+    if (!(s->cr & CR_UARTEN)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "PL011 data written to disabled UART\n");
+    }
+    if (!(s->cr & CR_TXE)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "PL011 data written to disabled TX UART\n");
+    }
 
     /*
      * XXX this blocks entire thread. Rewrite to use
