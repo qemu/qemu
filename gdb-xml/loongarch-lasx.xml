@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2022-2024 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.loongarch.lasx">
+  <vector id="v8f32" type="ieee_single" count="8"/>
+  <vector id="v4f64" type="ieee_double" count="4"/>
+  <vector id="v32i8" type="int8" count="32"/>
+  <vector id="v16i16" type="int16" count="16"/>
+  <vector id="v8i32" type="int32" count="8"/>
+  <vector id="v4i64" type="int64" count="4"/>
+  <vector id="v2ui128" type="uint128" count="2"/>
+
+  <union id="lasxv">
+    <field name="v8_float" type="v8f32"/>
+    <field name="v4_double" type="v4f64"/>
+    <field name="v32_int8" type="v32i8"/>
+    <field name="v16_int16" type="v16i16"/>
+    <field name="v8_int32" type="v8i32"/>
+    <field name="v4_int64" type="v4i64"/>
+    <field name="v2_uint128" type="v2ui128"/>
+  </union>
+
+  <reg name="xr0" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr1" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr2" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr3" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr4" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr5" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr6" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr7" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr8" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr9" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr10" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr11" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr12" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr13" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr14" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr15" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr16" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr17" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr18" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr19" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr20" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr21" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr22" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr23" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr24" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr25" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr26" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr27" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr28" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr29" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr30" bitsize="256" type="lasxv" group="lasx"/>
+  <reg name="xr31" bitsize="256" type="lasxv" group="lasx"/>
+</feature>
