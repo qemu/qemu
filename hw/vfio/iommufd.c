@@ -172,7 +172,7 @@ out:
     return ret;
 }
 
-static bool iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
+static int iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
                                          Error **errp)
 {
     int iommufd = vbasedev->iommufd->fd;
@@ -187,12 +187,12 @@ static bool iommufd_cdev_attach_ioas_hwpt(VFIODevice *vbasedev, uint32_t id,
         error_setg_errno(errp, errno,
                          "[iommufd=%d] error attach %s (%d) to id=%d",
                          iommufd, vbasedev->name, vbasedev->fd, id);
-        return false;
+        return -errno;
     }
 
     trace_iommufd_cdev_attach_ioas_hwpt(iommufd, vbasedev->name,
                                         vbasedev->fd, id);
-    return true;
+    return 0;
 }
 
 static bool iommufd_cdev_detach_ioas_hwpt(VFIODevice *vbasedev, Error **errp)
@@ -216,7 +216,7 @@ static bool iommufd_cdev_attach_container(VFIODevice *vbasedev,
                                           VFIOIOMMUFDContainer *container,
                                           Error **errp)
 {
-    return iommufd_cdev_attach_ioas_hwpt(vbasedev, container->ioas_id, errp);
+    return !iommufd_cdev_attach_ioas_hwpt(vbasedev, container->ioas_id, errp);
 }
 
 static void iommufd_cdev_detach_container(VFIODevice *vbasedev,
