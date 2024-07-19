@@ -19,7 +19,7 @@ from avocado.utils import network
 from avocado.utils import vmimage
 from avocado.utils import datadrainer
 from avocado.utils.path import find_command
-from avocado_qemu import LinuxTest
+from avocado_qemu.linuxtest import LinuxTest
 
 class ReplayLinux(LinuxTest):
     """

@@ -9,7 +9,7 @@
 
 import time
 
-from avocado_qemu import LinuxTest
+from avocado_qemu.linuxtest import LinuxTest
 
 
 class HotPlug(LinuxTest):
