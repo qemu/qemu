@@ -116,6 +116,7 @@ typedef struct VFIODevice {
     DeviceState *dev;
     int fd;
     int type;
+    bool mdev;
     bool reset_works;
     bool needs_reset;
     bool no_mmap;
@@ -231,6 +232,7 @@ void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
 void vfio_reset_handler(void *opaque);
 struct vfio_device_info *vfio_get_device_info(int fd);
+bool vfio_device_is_mdev(VFIODevice *vbasedev);
 bool vfio_attach_device(char *name, VFIODevice *vbasedev,
                         AddressSpace *as, Error **errp);
 void vfio_detach_device(VFIODevice *vbasedev);
