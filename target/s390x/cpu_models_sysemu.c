@@ -174,10 +174,14 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
                                 bool delta_changes)
 {
     QDict *qdict = qdict_new();
-    S390FeatBitmap bitmap;
+    S390FeatBitmap bitmap, deprecated;
 
     /* always fallback to the static base model */
     info->name = g_strdup_printf("%s-base", model->def->name);
+
+    /* features flagged as deprecated */
+    bitmap_zero(deprecated, S390_FEAT_MAX);
+    s390_get_deprecated_features(deprecated);
 
     if (delta_changes) {
         /* features deleted from the base feature set */
@@ -193,6 +197,9 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
         if (!bitmap_empty(bitmap, S390_FEAT_MAX)) {
             s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_enabled_feat);
         }
+
+        /* deprecated features that are a subset of the model's enabled features */
+        bitmap_and(deprecated, deprecated, model->features, S390_FEAT_MAX);
     } else {
         /* expand all features */
         s390_feat_bitmap_to_ascii(model->features, qdict,
@@ -207,12 +214,7 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
         info->props = QOBJECT(qdict);
     }
 
-    /* features flagged as deprecated */
-    bitmap_zero(bitmap, S390_FEAT_MAX);
-    s390_get_deprecated_features(bitmap);
-
-    bitmap_and(bitmap, bitmap, model->def->full_feat, S390_FEAT_MAX);
-    s390_feat_bitmap_to_ascii(bitmap, &info->deprecated_props, list_add_feat);
+    s390_feat_bitmap_to_ascii(deprecated, &info->deprecated_props, list_add_feat);
     info->has_deprecated_props = !!info->deprecated_props;
 }
 
