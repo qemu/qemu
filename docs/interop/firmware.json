@@ -15,7 +15,6 @@
 ##
 
 { 'include' : 'machine.json' }
-{ 'include' : 'block-core.json' }
 
 ##
 # @FirmwareOSInterface:
@@ -201,6 +200,20 @@
              'verbose-dynamic', 'verbose-static' ] }
 
 ##
+# @FirmwareFormat:
+#
+# Formats that are supported for firmware images.
+#
+# @raw: Raw disk image format.
+#
+# @qcow2: The QCOW2 image format.
+#
+# Since: 3.0
+##
+{ 'enum': 'FirmwareFormat',
+  'data': [ 'raw', 'qcow2' ] }
+
+##
 # @FirmwareFlashFile:
 #
 # Defines common properties that are necessary for loading a firmware
@@ -219,7 +232,7 @@
 ##
 { 'struct' : 'FirmwareFlashFile',
   'data'   : { 'filename' : 'str',
-               'format'   : 'BlockdevDriver' } }
+               'format'   : 'FirmwareFormat' } }
 
 
 ##
