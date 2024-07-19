@@ -209,7 +209,7 @@ int iommufd_backend_unmap_dma(IOMMUFDBackend *be, uint32_t ioas_id,
 
 bool iommufd_backend_get_device_info(IOMMUFDBackend *be, uint32_t devid,
                                      uint32_t *type, void *data, uint32_t len,
-                                     Error **errp)
+                                     uint64_t *caps, Error **errp)
 {
     struct iommu_hw_info info = {
         .size = sizeof(info),
@@ -225,6 +225,8 @@ bool iommufd_backend_get_device_info(IOMMUFDBackend *be, uint32_t devid,
 
     g_assert(type);
     *type = info.out_data_type;
+    g_assert(caps);
+    *caps = info.out_capabilities;
 
     return true;
 }

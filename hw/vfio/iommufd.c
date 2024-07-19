@@ -628,11 +628,13 @@ static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
     union {
         struct iommu_hw_info_vtd vtd;
     } data;
+    uint64_t hw_caps;
 
     hiod->agent = opaque;
 
     if (!iommufd_backend_get_device_info(vdev->iommufd, vdev->devid,
-                                         &type, &data, sizeof(data), errp)) {
+                                         &type, &data, sizeof(data),
+                                         &hw_caps, errp)) {
         return false;
     }
 
