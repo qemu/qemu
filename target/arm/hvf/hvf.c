@@ -1586,10 +1586,10 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
     case SYSREG_ICC_SGI1R_EL1:
     case SYSREG_ICC_SRE_EL1:
         /* Call the TCG sysreg handler. This is only safe for GICv3 regs. */
-        if (!hvf_sysreg_write_cp(cpu, reg, val)) {
-            hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
+        if (hvf_sysreg_write_cp(cpu, reg, val)) {
+            return 0;
         }
-        return 0;
+        break;
     case SYSREG_MDSCR_EL1:
         env->cp15.mdscr_el1 = val;
         return 0;
