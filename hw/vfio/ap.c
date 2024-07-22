@@ -230,6 +230,9 @@ static void vfio_ap_instance_init(Object *obj)
      */
     vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_AP, &vfio_ap_ops,
                      DEVICE(vapdev), true);
+
+    /* AP device is mdev type device */
+    vbasedev->mdev = true;
 }
 
 #ifdef CONFIG_IOMMUFD
