@@ -349,7 +349,7 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
                               "allwinner_emac: TX length > fifo data length\n");
             }
             if (len > 0) {
-                data = fifo8_pop_buf(fifo, len, &ret);
+                data = fifo8_pop_bufptr(fifo, len, &ret);
                 qemu_send_packet(nc, data, ret);
                 aw_emac_tx_reset(s, chan);
                 /* Raise TX interrupt */

@@ -287,7 +287,7 @@ static void kbd_send_chars(QemuTextConsole *s)
         const uint8_t *buf;
         uint32_t size;
 
-        buf = fifo8_pop_buf(&s->out_fifo, MIN(len, avail), &size);
+        buf = fifo8_pop_bufptr(&s->out_fifo, MIN(len, avail), &size);
         qemu_chr_be_write(s->chr, buf, size);
         len = qemu_chr_be_can_write(s->chr);
         avail -= size;

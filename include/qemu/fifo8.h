@@ -63,15 +63,15 @@ void fifo8_push_all(Fifo8 *fifo, const uint8_t *data, uint32_t num);
 uint8_t fifo8_pop(Fifo8 *fifo);
 
 /**
- * fifo8_pop_buf:
+ * fifo8_pop_bufptr:
  * @fifo: FIFO to pop from
  * @max: maximum number of bytes to pop
  * @numptr: pointer filled with number of bytes returned (can be NULL)
  *
  * Pop a number of elements from the FIFO up to a maximum of @max. The buffer
  * containing the popped data is returned. This buffer points directly into
- * the FIFO backing store and data is invalidated once any of the fifo8_* APIs
- * are called on the FIFO.
+ * the internal FIFO backing store and data (without checking for overflow!)
+ * and is invalidated once any of the fifo8_* APIs are called on the FIFO.
  *
  * The function may return fewer bytes than requested when the data wraps
  * around in the ring buffer; in this case only a contiguous part of the data
@@ -86,7 +86,7 @@ uint8_t fifo8_pop(Fifo8 *fifo);
  *
  * Returns: A pointer to popped data.
  */
-const uint8_t *fifo8_pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *numptr);
+const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr);
 
 /**
  * fifo8_peek_bufptr: read upto max bytes from the fifo
@@ -96,10 +96,9 @@ const uint8_t *fifo8_pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *numptr);
  *
  * Peek into a number of elements from the FIFO up to a maximum of @max.
  * The buffer containing the data peeked into is returned. This buffer points
- * directly into the internal FIFO backing store (without checking for
- * overflow!). Since data is invalidated once any of the fifo8_* APIs are
- * called on the FIFO, it is the caller responsibility to access it before
- * doing further API calls.
+ * directly into the FIFO backing store. Since data is invalidated once any
+ * of the fifo8_* APIs are called on the FIFO, it is the caller responsibility
+ * to access it before doing further API calls.
  *
  * The function may return fewer bytes than requested when the data wraps
  * around in the ring buffer; in this case only a contiguous part of the data

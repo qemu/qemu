@@ -109,7 +109,7 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
         len = s->data_len;
         ptr = s->data_ptr;
         while (len && !fifo8_is_empty(&s->rx_fifo)) {
-            const uint8_t *buf = fifo8_pop_buf(&s->rx_fifo, len, &to_copy);
+            const uint8_t *buf = fifo8_pop_bufptr(&s->rx_fifo, len, &to_copy);
 
             dma_memory_write_relaxed(&address_space_memory, ptr, buf, to_copy);
 
