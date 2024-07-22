@@ -404,6 +404,17 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
 
     space = vfio_get_address_space(as);
 
+    /*
+     * The HostIOMMUDevice data from legacy backend is static and doesn't need
+     * any information from the (type1-iommu) backend to be initialized. In
+     * contrast however, the IOMMUFD HostIOMMUDevice data requires the iommufd
+     * FD to be connected and having a devid to be able to successfully call
+     * iommufd_backend_get_device_info().
+     */
+    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+        goto err_alloc_ioas;
+    }
+
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);

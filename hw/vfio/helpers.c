@@ -689,3 +689,14 @@ bool vfio_device_is_mdev(VFIODevice *vbasedev)
     subsys = realpath(tmp, NULL);
     return subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
 }
+
+bool vfio_device_hiod_realize(VFIODevice *vbasedev, Error **errp)
+{
+    HostIOMMUDevice *hiod = vbasedev->hiod;
+
+    if (!hiod) {
+        return true;
+    }
+
+    return HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp);
+}

@@ -914,6 +914,10 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
 
     trace_vfio_attach_device(vbasedev->name, groupid);
 
+    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+        return false;
+    }
+
     group = vfio_get_group(groupid, as, errp);
     if (!group) {
         return false;
