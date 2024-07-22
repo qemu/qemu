@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/range.h"
 #include "qapi/error.h"
 
 #include "sysemu/memory_mapping.h"
@@ -353,8 +354,7 @@ void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
     MemoryMapping *cur, *next;
 
     QTAILQ_FOREACH_SAFE(cur, &list->head, next, next) {
-        if (cur->phys_addr >= begin + length ||
-            cur->phys_addr + cur->length <= begin) {
+        if (!ranges_overlap(cur->phys_addr, cur->length, begin, length)) {
             QTAILQ_REMOVE(&list->head, cur, next);
             g_free(cur);
             list->num--;
