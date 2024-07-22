@@ -132,6 +132,15 @@ const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr);
 const uint8_t *fifo8_peek_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr);
 
 /**
+ * fifo8_drop:
+ * @fifo: FIFO to drop bytes
+ * @len: number of bytes to drop
+ *
+ * Drop (consume) bytes from a FIFO.
+ */
+void fifo8_drop(Fifo8 *fifo, uint32_t len);
+
+/**
  * fifo8_reset:
  * @fifo: FIFO to reset
  *

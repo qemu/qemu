@@ -131,6 +131,12 @@ uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
     return n1 + n2;
 }
 
+void fifo8_drop(Fifo8 *fifo, uint32_t len)
+{
+    len -= fifo8_pop_buf(fifo, NULL, len);
+    assert(len == 0);
+}
+
 bool fifo8_is_empty(Fifo8 *fifo)
 {
     return (fifo->num == 0);

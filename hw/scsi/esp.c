@@ -351,7 +351,7 @@ static void do_message_phase(ESPState *s)
     /* Ignore extended messages for now */
     if (s->cmdfifo_cdb_offset) {
         int len = MIN(s->cmdfifo_cdb_offset, fifo8_num_used(&s->cmdfifo));
-        fifo8_pop_buf(&s->cmdfifo, NULL, len);
+        fifo8_drop(&s->cmdfifo, len);
         s->cmdfifo_cdb_offset = 0;
     }
 }
