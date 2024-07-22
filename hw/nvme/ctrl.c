@@ -4340,7 +4340,7 @@ static bool nvme_zone_matches_filter(uint32_t zafs, NvmeZone *zl)
 
 static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
 {
-    NvmeCmd *cmd = (NvmeCmd *)&req->cmd;
+    NvmeCmd *cmd = &req->cmd;
     NvmeNamespace *ns = req->ns;
     /* cdw12 is zero-based number of dwords to return. Convert to bytes */
     uint32_t data_size = (le32_to_cpu(cmd->cdw12) + 1) << 2;
