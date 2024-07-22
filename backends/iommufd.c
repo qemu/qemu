@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "monitor/monitor.h"
 #include "trace.h"
+#include "hw/vfio/vfio-common.h"
 #include <sys/ioctl.h>
 #include <linux/iommufd.h>
 
@@ -269,7 +270,7 @@ static int hiod_iommufd_get_cap(HostIOMMUDevice *hiod, int cap, Error **errp)
     case HOST_IOMMU_DEVICE_CAP_IOMMU_TYPE:
         return caps->type;
     case HOST_IOMMU_DEVICE_CAP_AW_BITS:
-        return caps->aw_bits;
+        return vfio_device_get_aw_bits(hiod->agent);
     default:
         error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
         return -EINVAL;

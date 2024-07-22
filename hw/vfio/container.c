@@ -1141,7 +1141,6 @@ static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
     VFIODevice *vdev = opaque;
 
     hiod->name = g_strdup(vdev->name);
-    hiod->caps.aw_bits = vfio_device_get_aw_bits(vdev);
     hiod->agent = opaque;
 
     return true;
@@ -1150,11 +1149,9 @@ static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
 static int hiod_legacy_vfio_get_cap(HostIOMMUDevice *hiod, int cap,
                                     Error **errp)
 {
-    HostIOMMUDeviceCaps *caps = &hiod->caps;
-
     switch (cap) {
     case HOST_IOMMU_DEVICE_CAP_AW_BITS:
-        return caps->aw_bits;
+        return vfio_device_get_aw_bits(hiod->agent);
     default:
         error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
         return -EINVAL;

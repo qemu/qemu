@@ -19,12 +19,9 @@
  * struct HostIOMMUDeviceCaps - Define host IOMMU device capabilities.
  *
  * @type: host platform IOMMU type.
- *
- * @aw_bits: host IOMMU address width. 0xff if no limitation.
  */
 typedef struct HostIOMMUDeviceCaps {
     uint32_t type;
-    uint8_t aw_bits;
 } HostIOMMUDeviceCaps;
 
 #define TYPE_HOST_IOMMU_DEVICE "host-iommu-device"
