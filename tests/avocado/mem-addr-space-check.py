@@ -9,7 +9,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from avocado_qemu import QemuSystemTest
-import signal
 import time
 
 class MemAddrCheck(QemuSystemTest):

@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/range.h"
 
 #include <wordexp.h>
 
@@ -211,7 +212,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
          i < dma_regions->len && (avoid_double_fetches || qtest_log_enabled);
          ++i) {
         region = g_array_index(dma_regions, address_range, i);
-        if (addr < region.addr + region.size && addr + len > region.addr) {
+        if (ranges_overlap(addr, len, region.addr, region.size)) {
             double_fetch = true;
             if (addr < region.addr
                 && avoid_double_fetches) {
