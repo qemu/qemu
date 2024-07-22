@@ -486,7 +486,7 @@ static bool esp_cdb_ready(ESPState *s)
         return false;
     }
 
-    pbuf = fifo8_peek_buf(&s->cmdfifo, len, &n);
+    pbuf = fifo8_peek_bufptr(&s->cmdfifo, len, &n);
     if (n < len) {
         /*
          * In normal use the cmdfifo should never wrap, but include this check
