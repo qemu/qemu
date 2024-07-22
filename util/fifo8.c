@@ -102,6 +102,35 @@ const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
     return fifo8_peekpop_buf(fifo, max, numptr, true);
 }
 
+uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
+{
+    const uint8_t *buf;
+    uint32_t n1, n2 = 0;
+    uint32_t len;
+
+    if (destlen == 0) {
+        return 0;
+    }
+
+    len = destlen;
+    buf = fifo8_pop_bufptr(fifo, len, &n1);
+    if (dest) {
+        memcpy(dest, buf, n1);
+    }
+
+    /* Add FIFO wraparound if needed */
+    len -= n1;
+    len = MIN(len, fifo8_num_used(fifo));
+    if (len) {
+        buf = fifo8_pop_bufptr(fifo, len, &n2);
+        if (dest) {
+            memcpy(&dest[n1], buf, n2);
+        }
+    }
+
+    return n1 + n2;
+}
+
 bool fifo8_is_empty(Fifo8 *fifo)
 {
     return (fifo->num == 0);

@@ -63,10 +63,26 @@ void fifo8_push_all(Fifo8 *fifo, const uint8_t *data, uint32_t num);
 uint8_t fifo8_pop(Fifo8 *fifo);
 
 /**
+ * fifo8_pop_buf:
+ * @fifo: FIFO to pop from
+ * @dest: the buffer to write the data into (can be NULL)
+ * @destlen: size of @dest and maximum number of bytes to pop
+ *
+ * Pop a number of elements from the FIFO up to a maximum of @destlen.
+ * The popped data is copied into the @dest buffer.
+ * Care is taken when the data wraps around in the ring buffer.
+ *
+ * Returns: number of bytes popped.
+ */
+uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen);
+
+/**
  * fifo8_pop_bufptr:
  * @fifo: FIFO to pop from
  * @max: maximum number of bytes to pop
  * @numptr: pointer filled with number of bytes returned (can be NULL)
+ *
+ * New code should prefer to use fifo8_pop_buf() instead of fifo8_pop_bufptr().
  *
  * Pop a number of elements from the FIFO up to a maximum of @max. The buffer
  * containing the popped data is returned. This buffer points directly into
