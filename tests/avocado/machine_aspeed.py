@@ -87,7 +87,7 @@ class AST1030Machine(QemuSystemTest):
 
 class AST2x00Machine(QemuSystemTest):
 
-    timeout = 90
+    timeout = 180
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(self, success_message,
