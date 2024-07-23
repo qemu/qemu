@@ -130,9 +130,10 @@ xkeymap_keymap(const char *name) "keymap '%s'"
 
 # clipboard.c
 clipboard_check_serial(int cur, int recv, bool ok) "cur:%d recv:%d %d"
+clipboard_reset_serial(void) ""
 
 # vdagent.c
-vdagent_open(void) ""
+vdagent_fe_open(bool fe_open) "fe_open=%d"
 vdagent_close(void) ""
 vdagent_disconnect(void) ""
 vdagent_send(const char *name) "msg %s"
@@ -157,7 +158,9 @@ dbus_mouse_rel_motion(int dx, int dy) "dx=%d, dy=%d"
 dbus_touch_send_event(unsigned int kind, uint32_t num_slot, uint32_t x, uint32_t y) "kind=%u, num_slot=%u, x=%d, y=%d"
 dbus_update(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
 dbus_update_gl(int x, int y, int w, int h) "x=%d, y=%d, w=%d, h=%d"
+dbus_clipboard_grab(int selection, unsigned int serial) "selection=%d serial=%u"
 dbus_clipboard_grab_failed(void) ""
+dbus_clipboard_qemu_request(int type) "type=%d"
 dbus_clipboard_register(const char *bus_name) "peer %s"
 dbus_clipboard_unregister(const char *bus_name) "peer %s"
 dbus_scanout_texture(uint32_t tex_id, bool backing_y_0_top, uint32_t backing_width, uint32_t backing_height, uint32_t x, uint32_t y, uint32_t w, uint32_t h) "tex_id:%u y0top:%d back:%ux%u %u+%u-%ux%u"

@@ -232,7 +232,7 @@ void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask)
     for (y = 0; y < c->height; y++) {
         bit = 0x80;
         for (x = 0; x < c->width; x++, data++) {
-            if ((*data & 0xff000000) != 0xff000000) {
+            if ((*data & 0x80000000) == 0x0) { /* Alpha < 0x80 (128) */
                 if (transparent != 0) {
                     mask[x/8] |= bit;
                 }
