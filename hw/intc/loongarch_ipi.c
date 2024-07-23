@@ -301,6 +301,13 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_ipi_unrealize(DeviceState *dev)
+{
+    LoongArchIPI *s = LOONGARCH_IPI(dev);
+
+    g_free(s->cpu);
+}
+
 static const VMStateDescription vmstate_ipi_core = {
     .name = "ipi-single",
     .version_id = 2,
@@ -336,15 +343,9 @@ static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = loongarch_ipi_realize;
+    dc->unrealize = loongarch_ipi_unrealize;
     device_class_set_props(dc, ipi_properties);
     dc->vmsd = &vmstate_loongarch_ipi;
-}
-
-static void loongarch_ipi_finalize(Object *obj)
-{
-    LoongArchIPI *s = LOONGARCH_IPI(obj);
-
-    g_free(s->cpu);
 }
 
 static const TypeInfo loongarch_ipi_info = {
@@ -352,7 +353,6 @@ static const TypeInfo loongarch_ipi_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LoongArchIPI),
     .class_init    = loongarch_ipi_class_init,
-    .instance_finalize = loongarch_ipi_finalize,
 };
 
 static void loongarch_ipi_register_types(void)
