@@ -3343,6 +3343,7 @@ if have_block
   trace_events_subdirs += [
     'authz',
     'block',
+    'chardev',
     'io',
     'nbd',
     'scsi',
@@ -3354,7 +3355,6 @@ if have_system
     'audio',
     'backends',
     'backends/tpm',
-    'chardev',
     'ebpf',
     'hw/9pfs',
     'hw/acpi',
