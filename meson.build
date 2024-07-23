@@ -3292,17 +3292,17 @@ if have_libvduse
   libvduse = libvduse_proj.get_variable('libvduse_dep')
 endif
 
+spdm = []
 if have_libspdm
-  libspdm_dir = meson.current_source_dir() / 'subprojects/libspdm'
   libspdm_opt = cmake.subproject_options()
   libspdm_opt.add_cmake_defines({'ARCH': libspdm_host_arch, \
                                  'TOOLCHAIN': libspdm_toolchain, \
                                  'TARGET': libspdm_target, \
-                                 'CRYPTO': 'mbedtls', \
-                                 'DISABLE_TESTS': libspdm_tests})
+                                 'CRYPTO': get_option('libspdm-crypto'), \
+                                 'DISABLE_TESTS': libspdm_tests, \
+                                 'GCOV': get_option('b_coverage')})
   libspdm_proj = cmake.subproject('libspdm', options: libspdm_opt)
 
-  spdm = []
   foreach dep : libspdm_dep_targets
     spdm += libspdm_proj.dependency(dep)
   endforeach
@@ -3890,7 +3890,7 @@ common_ss.add(hwcore)
 
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
-common_ss.add(when: have_libspdm, if_true: spdm)
+common_ss.add(when: spdm, if_true: spdm)
 
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
@@ -4469,6 +4469,7 @@ summary_info += {'AF_ALG support':    have_afalg}
 summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
 summary_info += {'Linux keyutils':    keyutils}
+summary_info += {'LibSPDM algorithm': get_option('libspdm-crypto')}
 summary(summary_info, bool_yn: true, section: 'Crypto')
 
 # UI
