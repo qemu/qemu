@@ -477,11 +477,9 @@ static GDBFeature *arm_gen_dynamic_m_secextreg_feature(CPUState *cs,
 
 void arm_cpu_register_gdb_commands(ARMCPU *cpu)
 {
-    GArray *query_table =
-        g_array_new(FALSE, FALSE, sizeof(GdbCmdParseEntry));
-    GArray *set_table =
-        g_array_new(FALSE, FALSE, sizeof(GdbCmdParseEntry));
-    GString *qsupported_features = g_string_new(NULL);
+    g_autoptr(GPtrArray) query_table = g_ptr_array_new();
+    g_autoptr(GPtrArray) set_table = g_ptr_array_new();
+    g_autoptr(GString) qsupported_features = g_string_new(NULL);
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
     #ifdef TARGET_AARCH64
@@ -492,16 +490,12 @@ void arm_cpu_register_gdb_commands(ARMCPU *cpu)
 
     /* Set arch-specific handlers for 'q' commands. */
     if (query_table->len) {
-        gdb_extend_query_table(&g_array_index(query_table,
-                                              GdbCmdParseEntry, 0),
-                                              query_table->len);
+        gdb_extend_query_table(query_table);
     }
 
     /* Set arch-specific handlers for 'Q' commands. */
     if (set_table->len) {
-        gdb_extend_set_table(&g_array_index(set_table,
-                             GdbCmdParseEntry, 0),
-                             set_table->len);
+        gdb_extend_set_table(set_table);
     }
 
     /* Set arch-specific qSupported feature. */
