@@ -25,11 +25,7 @@
 
 static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
 {
-    uint32_t tag;
-    uint32_t bufsize;
     uint32_t tot_len;
-    size_t resplen;
-    uint32_t tmp;
 
     /*
      * Copy the current state of the framebuffer config; we will update
@@ -48,10 +44,10 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
     /* @(addr + 4) : Buffer response code */
     value = s->addr + 8;
     while (value + 8 <= s->addr + tot_len) {
-        tag = ldl_le_phys(&s->dma_as, value);
-        bufsize = ldl_le_phys(&s->dma_as, value + 4);
+        uint32_t tag = ldl_le_phys(&s->dma_as, value);
+        uint32_t bufsize = ldl_le_phys(&s->dma_as, value + 4);
         /* @(value + 8) : Request/response indicator */
-        resplen = 0;
+        size_t resplen = 0;
         switch (tag) {
         case RPI_FWREQ_PROPERTY_END:
             break;
@@ -95,13 +91,16 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 8;
             break;
         case RPI_FWREQ_SET_POWER_STATE:
-            /* Assume that whatever device they asked for exists,
-             * and we'll just claim we set it to the desired state
+        {
+            /*
+             * Assume that whatever device they asked for exists,
+             * and we'll just claim we set it to the desired state.
              */
-            tmp = ldl_le_phys(&s->dma_as, value + 16);
-            stl_le_phys(&s->dma_as, value + 16, (tmp & 1));
+            uint32_t state = ldl_le_phys(&s->dma_as, value + 16);
+            stl_le_phys(&s->dma_as, value + 16, (state & 1));
             resplen = 8;
             break;
+        }
 
         /* Clocks */
 
