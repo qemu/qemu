@@ -349,6 +349,10 @@ uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s);
 #define SCU_AST2600_H_PLL_BYPASS_EN                        (0x1 << 24)
 #define SCU_AST2600_H_PLL_OFF                              (0x1 << 23)
 
+/* STRAP1 SCU500 */
+#define SCU_AST2600_HW_STRAP_BOOT_SRC_EMMC            (0x1 << 2)
+#define SCU_AST2600_HW_STRAP_BOOT_SRC_SPI             (0x0 << 2)
+
 /*
  * SCU310   Clock Selection Register Set 4 (for Aspeed AST1030 SOC)
  *

@@ -170,3 +170,4 @@ static void virtio_register_types(void)
 type_init(virtio_register_types)
 
 module_dep("hw-display-virtio-gpu");
+module_dep("ui-opengl");

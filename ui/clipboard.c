@@ -155,6 +155,8 @@ void qemu_clipboard_reset_serial(void)
     QemuClipboardNotify notify = { .type = QEMU_CLIPBOARD_RESET_SERIAL };
     int i;
 
+    trace_clipboard_reset_serial();
+
     for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
         QemuClipboardInfo *info = qemu_clipboard_info(i);
         if (info) {

@@ -15,7 +15,7 @@ oss_version(int version) "OSS version = 0x%x"
 
 # dbusaudio.c
 dbus_audio_register(const char *s, const char *dir) "sender = %s, dir = %s"
-dbus_audio_put_buffer_out(size_t len) "len = %zu"
+dbus_audio_put_buffer_out(size_t pos, size_t size) "buf_pos = %zu, buf_size = %zu"
 dbus_audio_read(size_t len) "len = %zu"
 
 # pwaudio.c

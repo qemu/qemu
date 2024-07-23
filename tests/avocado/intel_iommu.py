@@ -10,7 +10,7 @@
 import os
 
 from avocado import skipUnless
-from avocado_qemu import LinuxTest
+from avocado_qemu.linuxtest import LinuxTest
 
 @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
 

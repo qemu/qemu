@@ -50,7 +50,6 @@
 #define  EXTIOI_HAS_CPU_ENCODE       (3)
 #define  EXTIOI_VIRT_HAS_FEATURES    (BIT(EXTIOI_HAS_VIRT_EXTENSION)  \
                                       | BIT(EXTIOI_HAS_ENABLE_OPTION) \
-                                      | BIT(EXTIOI_HAS_INT_ENCODE)    \
                                       | BIT(EXTIOI_HAS_CPU_ENCODE))
 #define EXTIOI_VIRT_CONFIG           (0x4)
 #define  EXTIOI_ENABLE               (1)

@@ -1614,18 +1614,21 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
     gdb_put_strbuf();
 }
 
-static char *extended_qsupported_features;
-void gdb_extend_qsupported_features(char *qsupported_features)
-{
-    /*
-     * We don't support different sets of CPU gdb features on different CPUs yet
-     * so assert the feature strings are the same on all CPUs, or is set only
-     * once (1 CPU).
-     */
-    g_assert(extended_qsupported_features == NULL ||
-             g_strcmp0(extended_qsupported_features, qsupported_features) == 0);
 
-    extended_qsupported_features = qsupported_features;
+static char **extra_query_flags;
+
+void gdb_extend_qsupported_features(char *qflags)
+{
+    if (!extra_query_flags) {
+        extra_query_flags = g_new0(char *, 2);
+        extra_query_flags[0] = g_strdup(qflags);
+    } else if (!g_strv_contains((const gchar * const *) extra_query_flags,
+                                qflags)) {
+        int len = g_strv_length(extra_query_flags);
+        extra_query_flags = g_realloc_n(extra_query_flags, len + 2,
+                                        sizeof(char *));
+        extra_query_flags[len] = g_strdup(qflags);
+    }
 }
 
 static void handle_query_supported(GArray *params, void *user_ctx)
@@ -1668,8 +1671,11 @@ static void handle_query_supported(GArray *params, void *user_ctx)
 
     g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
 
-    if (extended_qsupported_features) {
-        g_string_append(gdbserver_state.str_buf, extended_qsupported_features);
+    if (extra_query_flags) {
+        int extras = g_strv_length(extra_query_flags);
+        for (int i = 0; i < extras; i++) {
+            g_string_append(gdbserver_state.str_buf, extra_query_flags[i]);
+        }
     }
 
     gdb_put_strbuf();
@@ -1753,39 +1759,58 @@ static const GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
     },
 };
 
-/* Compares if a set of command parsers is equal to another set of parsers. */
-static bool cmp_cmds(GdbCmdParseEntry *c, GdbCmdParseEntry *d, int size)
+/**
+ * extend_table() - extend one of the command tables
+ * @table: the command table to extend (or NULL)
+ * @extensions: a list of GdbCmdParseEntry pointers
+ *
+ * The entries themselves should be pointers to static const
+ * GdbCmdParseEntry entries. If the entry is already in the table we
+ * skip adding it again.
+ *
+ * Returns (a potentially freshly allocated) GPtrArray of GdbCmdParseEntry
+ */
+static GPtrArray *extend_table(GPtrArray *table, GPtrArray *extensions)
 {
-    for (int i = 0; i < size; i++) {
-        if (!(c[i].handler == d[i].handler &&
-            g_strcmp0(c[i].cmd, d[i].cmd) == 0 &&
-            c[i].cmd_startswith == d[i].cmd_startswith &&
-            g_strcmp0(c[i].schema, d[i].schema) == 0)) {
+    if (!table) {
+        table = g_ptr_array_new();
+    }
 
-            /* Sets are different. */
-            return false;
+    for (int i = 0; i < extensions->len; i++) {
+        gpointer entry = g_ptr_array_index(extensions, i);
+        if (!g_ptr_array_find(table, entry, NULL)) {
+            g_ptr_array_add(table, entry);
         }
     }
 
-    /* Sets are equal, i.e. contain the same command parsers. */
-    return true;
+    return table;
 }
 
-static GdbCmdParseEntry *extended_query_table;
-static int extended_query_table_size;
-void gdb_extend_query_table(GdbCmdParseEntry *table, int size)
+/**
+ * process_extended_table() - run through an extended command table
+ * @table: the command table to check
+ * @data: parameters
+ *
+ * returns true if the command was found and executed
+ */
+static bool process_extended_table(GPtrArray *table, const char *data)
 {
-    /*
-     * We don't support different sets of CPU gdb features on different CPUs yet
-     * so assert query table is the same on all CPUs, or is set only once
-     * (1 CPU).
-     */
-    g_assert(extended_query_table == NULL ||
-             (extended_query_table_size == size &&
-              cmp_cmds(extended_query_table, table, size)));
+    for (int i = 0; i < table->len; i++) {
+        const GdbCmdParseEntry *entry = g_ptr_array_index(table, i);
+        if (process_string_cmd(data, entry, 1)) {
+            return true;
+        }
+    }
+    return false;
+}
 
-    extended_query_table = table;
-    extended_query_table_size = size;
+
+/* Ptr to GdbCmdParseEntry */
+static GPtrArray *extended_query_table;
+
+void gdb_extend_query_table(GPtrArray *new_queries)
+{
+    extended_query_table = extend_table(extended_query_table, new_queries);
 }
 
 static const GdbCmdParseEntry gdb_gen_query_table[] = {
@@ -1880,20 +1905,12 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
 #endif
 };
 
-static GdbCmdParseEntry *extended_set_table;
-static int extended_set_table_size;
-void gdb_extend_set_table(GdbCmdParseEntry *table, int size)
-{
-    /*
-     * We don't support different sets of CPU gdb features on different CPUs yet
-     * so assert set table is the same on all CPUs, or is set only once (1 CPU).
-     */
-    g_assert(extended_set_table == NULL ||
-             (extended_set_table_size == size &&
-              cmp_cmds(extended_set_table, table, size)));
+/* Ptr to GdbCmdParseEntry */
+static GPtrArray *extended_set_table;
 
-    extended_set_table = table;
-    extended_set_table_size = size;
+void gdb_extend_set_table(GPtrArray *new_set)
+{
+    extended_set_table = extend_table(extended_set_table, new_set);
 }
 
 static const GdbCmdParseEntry gdb_gen_set_table[] = {
@@ -1924,26 +1941,28 @@ static const GdbCmdParseEntry gdb_gen_set_table[] = {
 
 static void handle_gen_query(GArray *params, void *user_ctx)
 {
+    const char *data;
+
     if (!params->len) {
         return;
     }
 
-    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+    data = gdb_get_cmd_param(params, 0)->data;
+
+    if (process_string_cmd(data,
                            gdb_gen_query_set_common_table,
                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+    if (process_string_cmd(data,
                            gdb_gen_query_table,
                            ARRAY_SIZE(gdb_gen_query_table))) {
         return;
     }
 
     if (extended_query_table &&
-        process_string_cmd(gdb_get_cmd_param(params, 0)->data,
-                           extended_query_table,
-                           extended_query_table_size)) {
+        process_extended_table(extended_query_table, data)) {
         return;
     }
 
@@ -1953,26 +1972,28 @@ static void handle_gen_query(GArray *params, void *user_ctx)
 
 static void handle_gen_set(GArray *params, void *user_ctx)
 {
+    const char *data;
+
     if (!params->len) {
         return;
     }
 
-    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+    data = gdb_get_cmd_param(params, 0)->data;
+
+    if (process_string_cmd(data,
                            gdb_gen_query_set_common_table,
                            ARRAY_SIZE(gdb_gen_query_set_common_table))) {
         return;
     }
 
-    if (process_string_cmd(gdb_get_cmd_param(params, 0)->data,
+    if (process_string_cmd(data,
                            gdb_gen_set_table,
                            ARRAY_SIZE(gdb_gen_set_table))) {
         return;
     }
 
     if (extended_set_table &&
-        process_string_cmd(gdb_get_cmd_param(params, 0)->data,
-                           extended_set_table,
-                           extended_set_table_size)) {
+        process_extended_table(extended_set_table, data)) {
         return;
     }
 

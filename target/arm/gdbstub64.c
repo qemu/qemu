@@ -564,7 +564,7 @@ enum Command {
     NUM_CMDS
 };
 
-static GdbCmdParseEntry cmd_handler_table[NUM_CMDS] = {
+static const GdbCmdParseEntry cmd_handler_table[NUM_CMDS] = {
     [qMemTags] = {
         .handler = handle_q_memtag,
         .cmd_startswith = true,
@@ -590,17 +590,16 @@ static GdbCmdParseEntry cmd_handler_table[NUM_CMDS] = {
 #endif /* CONFIG_USER_ONLY */
 
 void aarch64_cpu_register_gdb_commands(ARMCPU *cpu, GString *qsupported,
-                                       GArray *qtable, GArray *stable)
+                                       GPtrArray *qtable, GPtrArray *stable)
 {
 #ifdef CONFIG_USER_ONLY
     /* MTE */
     if (cpu_isar_feature(aa64_mte, cpu)) {
         g_string_append(qsupported, ";memory-tagging+");
 
-        g_array_append_val(qtable, cmd_handler_table[qMemTags]);
-        g_array_append_val(qtable, cmd_handler_table[qIsAddressTagged]);
-
-        g_array_append_val(stable, cmd_handler_table[QMemTags]);
+        g_ptr_array_add(qtable, (gpointer) &cmd_handler_table[qMemTags]);
+        g_ptr_array_add(qtable, (gpointer) &cmd_handler_table[qIsAddressTagged]);
+        g_ptr_array_add(stable, (gpointer) &cmd_handler_table[QMemTags]);
     }
 #endif
 }

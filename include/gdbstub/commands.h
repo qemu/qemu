@@ -74,23 +74,28 @@ int gdb_put_packet(const char *buf);
 
 /**
  * gdb_extend_query_table() - Extend query table.
- * @table: The table with the additional query packet handlers.
- * @size: The number of handlers to be added.
+ * @table: GPtrArray of GdbCmdParseEntry entries.
+ *
+ * The caller should free @table afterwards
  */
-void gdb_extend_query_table(GdbCmdParseEntry *table, int size);
+void gdb_extend_query_table(GPtrArray *table);
 
 /**
  * gdb_extend_set_table() - Extend set table.
- * @table: The table with the additional set packet handlers.
- * @size: The number of handlers to be added.
+ * @table: GPtrArray of GdbCmdParseEntry entries.
+ *
+ * The caller should free @table afterwards
  */
-void gdb_extend_set_table(GdbCmdParseEntry *table, int size);
+void gdb_extend_set_table(GPtrArray *table);
 
 /**
  * gdb_extend_qsupported_features() - Extend the qSupported features string.
  * @qsupported_features: The additional qSupported feature(s) string. The string
  * should start with a semicolon and, if there are more than one feature, the
- * features should be separate by a semiocolon.
+ * features should be separate by a semicolon.
+ *
+ * The caller should free @qsupported_features afterwards if
+ * dynamically allocated.
  */
 void gdb_extend_qsupported_features(char *qsupported_features);
 
