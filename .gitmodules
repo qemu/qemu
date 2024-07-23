@@ -43,6 +43,3 @@
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
 	url = https://gitlab.com/libvirt/libvirt-ci.git
-[submodule "libspdm"]
-	path = libspdm
-	url = https://github.com/DMTF/libspdm
