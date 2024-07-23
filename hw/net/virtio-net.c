@@ -3896,8 +3896,23 @@ static bool dev_unplug_pending(void *opaque)
 static struct vhost_dev *virtio_net_get_vhost(VirtIODevice *vdev)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
-    NetClientState *nc = qemu_get_queue(n->nic);
-    struct vhost_net *net = get_vhost_net(nc->peer);
+    NetClientState *nc;
+    struct vhost_net *net;
+
+    if (!n->nic) {
+        return NULL;
+    }
+
+    nc = qemu_get_queue(n->nic);
+    if (!nc) {
+        return NULL;
+    }
+
+    net = get_vhost_net(nc->peer);
+    if (!net) {
+        return NULL;
+    }
+
     return &net->dev;
 }
 

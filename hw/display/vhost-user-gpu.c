@@ -642,7 +642,7 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
 static struct vhost_dev *vhost_user_gpu_get_vhost(VirtIODevice *vdev)
 {
     VhostUserGPU *g = VHOST_USER_GPU(vdev);
-    return &g->vhost->dev;
+    return g->vhost ? &g->vhost->dev : NULL;
 }
 
 static Property vhost_user_gpu_properties[] = {
