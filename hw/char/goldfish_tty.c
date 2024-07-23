@@ -16,6 +16,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
+#include "sysemu/dma.h"
 #include "hw/char/goldfish_tty.h"
 
 #define GOLDFISH_TTY_VERSION 1
@@ -69,7 +70,6 @@ static uint64_t goldfish_tty_read(void *opaque, hwaddr addr,
 static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
 {
     uint32_t to_copy;
-    uint8_t *buf;
     uint8_t data_out[GOLFISH_TTY_BUFFER_SIZE];
     int len;
     uint64_t ptr;
@@ -97,8 +97,8 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
         while (len) {
             to_copy = MIN(GOLFISH_TTY_BUFFER_SIZE, len);
 
-            address_space_rw(&address_space_memory, ptr,
-                             MEMTXATTRS_UNSPECIFIED, data_out, to_copy, 0);
+            dma_memory_read_relaxed(&address_space_memory, ptr,
+                                    data_out, to_copy);
             qemu_chr_fe_write_all(&s->chr, data_out, to_copy);
 
             len -= to_copy;
@@ -109,9 +109,9 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
         len = s->data_len;
         ptr = s->data_ptr;
         while (len && !fifo8_is_empty(&s->rx_fifo)) {
-            buf = (uint8_t *)fifo8_pop_buf(&s->rx_fifo, len, &to_copy);
-            address_space_rw(&address_space_memory, ptr,
-                            MEMTXATTRS_UNSPECIFIED, buf, to_copy, 1);
+            const uint8_t *buf = fifo8_pop_buf(&s->rx_fifo, len, &to_copy);
+
+            dma_memory_write_relaxed(&address_space_memory, ptr, buf, to_copy);
 
             len -= to_copy;
             ptr += to_copy;
