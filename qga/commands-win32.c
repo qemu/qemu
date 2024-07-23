@@ -1203,7 +1203,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "fsfreeze not possible as VSS failed to initialize");
         return 0;
     }
 
@@ -1231,7 +1231,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
     Error *local_err = NULL;
 
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "fsfreeze not possible as VSS failed to initialize");
         return 0;
     }
 
@@ -1266,7 +1266,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
     int i;
 
     if (!vss_initialized()) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "fsfreeze not possible as VSS failed to initialize");
         return 0;
     }
 
@@ -1492,11 +1492,6 @@ out:
         error_propagate(errp, local_err);
         g_free(mode);
     }
-}
-
-void qmp_guest_suspend_hybrid(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 static IP_ADAPTER_ADDRESSES *guest_get_adapters_addresses(Error **errp)
@@ -1862,12 +1857,6 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
     return NULL;
 }
 
-int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return -1;
-}
-
 static gchar *
 get_net_error_message(gint error)
 {
@@ -1967,55 +1956,6 @@ done:
     g_free(user);
     g_free(wpass);
     g_free(rawpasswddata);
-}
-
-GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
-
-GuestMemoryBlockResponseList *
-qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
-
-GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
-
-/* add unsupported commands to the list of blocked RPCs */
-GList *ga_command_init_blockedrpcs(GList *blockedrpcs)
-{
-    const char *list_unsupported[] = {
-        "guest-suspend-hybrid",
-        "guest-set-vcpus",
-        "guest-get-memory-blocks", "guest-set-memory-blocks",
-        "guest-get-memory-block-size", "guest-get-memory-block-info",
-        NULL};
-    char **p = (char **)list_unsupported;
-
-    while (*p) {
-        blockedrpcs = g_list_append(blockedrpcs, g_strdup(*p++));
-    }
-
-    if (!vss_init(true)) {
-        g_debug("vss_init failed, vss commands are going to be disabled");
-        const char *list[] = {
-            "guest-get-fsinfo", "guest-fsfreeze-status",
-            "guest-fsfreeze-freeze", "guest-fsfreeze-thaw", NULL};
-        p = (char **)list;
-
-        while (*p) {
-            blockedrpcs = g_list_append(blockedrpcs, g_strdup(*p++));
-        }
-    }
-
-    return blockedrpcs;
 }
 
 /* register init/cleanup routines for stateful command groups */
@@ -2504,16 +2444,4 @@ char *qga_get_host_name(Error **errp)
     }
 
     return g_utf16_to_utf8(tmp, size, NULL, NULL, NULL);
-}
-
-GuestDiskStatsInfoList *qmp_guest_get_diskstats(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
-
-GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
 }
