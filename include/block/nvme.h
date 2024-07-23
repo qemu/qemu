@@ -799,6 +799,8 @@ typedef struct QEMU_PACKED NvmeDsmRange {
 enum {
     NVME_COPY_FORMAT_0 = 0x0,
     NVME_COPY_FORMAT_1 = 0x1,
+    NVME_COPY_FORMAT_2 = 0x2,
+    NVME_COPY_FORMAT_3 = 0x3,
 };
 
 typedef struct QEMU_PACKED NvmeCopyCmd {
@@ -820,25 +822,30 @@ typedef struct QEMU_PACKED NvmeCopyCmd {
     uint16_t    appmask;
 } NvmeCopyCmd;
 
-typedef struct QEMU_PACKED NvmeCopySourceRangeFormat0 {
-    uint8_t  rsvd0[8];
+typedef struct QEMU_PACKED NvmeCopySourceRangeFormat0_2 {
+    uint32_t sparams;
+    uint8_t  rsvd4[4];
     uint64_t slba;
     uint16_t nlb;
-    uint8_t  rsvd18[6];
+    uint8_t  rsvd18[4];
+    uint16_t sopt;
     uint32_t reftag;
     uint16_t apptag;
     uint16_t appmask;
-} NvmeCopySourceRangeFormat0;
+} NvmeCopySourceRangeFormat0_2;
 
-typedef struct QEMU_PACKED NvmeCopySourceRangeFormat1 {
-    uint8_t  rsvd0[8];
+typedef struct QEMU_PACKED NvmeCopySourceRangeFormat1_3 {
+    uint32_t sparams;
+    uint8_t  rsvd4[4];
     uint64_t slba;
     uint16_t nlb;
-    uint8_t  rsvd18[8];
+    uint8_t  rsvd18[4];
+    uint16_t sopt;
+    uint8_t  rsvd24[2];
     uint8_t  sr[10];
     uint16_t apptag;
     uint16_t appmask;
-} NvmeCopySourceRangeFormat1;
+} NvmeCopySourceRangeFormat1_3;
 
 enum NvmeAsyncEventRequest {
     NVME_AER_TYPE_ERROR                     = 0,
@@ -937,6 +944,8 @@ enum NvmeStatusCodes {
     NVME_INVALID_PROT_INFO      = 0x0181,
     NVME_WRITE_TO_RO            = 0x0182,
     NVME_CMD_SIZE_LIMIT         = 0x0183,
+    NVME_CMD_INCOMP_NS_OR_FMT   = 0x0185,
+    NVME_CMD_OVERLAP_IO_RANGE   = 0x0187,
     NVME_INVALID_ZONE_OP        = 0x01b6,
     NVME_NOZRWA                 = 0x01b7,
     NVME_ZONE_BOUNDARY_ERROR    = 0x01b8,
@@ -1195,11 +1204,15 @@ enum NvmeIdCtrlOncs {
     NVME_ONCS_TIMESTAMP     = 1 << 6,
     NVME_ONCS_VERIFY        = 1 << 7,
     NVME_ONCS_COPY          = 1 << 8,
+    NVME_ONCS_NVMCSA        = 1 << 9,
+    NVME_ONCS_NVMAFC        = 1 << 10,
 };
 
 enum NvmeIdCtrlOcfs {
     NVME_OCFS_COPY_FORMAT_0 = 1 << NVME_COPY_FORMAT_0,
     NVME_OCFS_COPY_FORMAT_1 = 1 << NVME_COPY_FORMAT_1,
+    NVME_OCFS_COPY_FORMAT_2 = 1 << NVME_COPY_FORMAT_2,
+    NVME_OCFS_COPY_FORMAT_3 = 1 << NVME_COPY_FORMAT_3,
 };
 
 enum NvmeIdctrlVwc {
@@ -1333,7 +1346,9 @@ typedef struct NvmeHostBehaviorSupport {
     uint8_t     acre;
     uint8_t     etdas;
     uint8_t     lbafee;
-    uint8_t     rsvd3[509];
+    uint8_t     rsvd3;
+    uint16_t    cdfe;
+    uint8_t     rsvd6[506];
 } NvmeHostBehaviorSupport;
 
 typedef struct QEMU_PACKED NvmeLBAF {
@@ -1833,8 +1848,8 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeZonedResult) != 8);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCqe) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDsmRange) != 16);
-    QEMU_BUILD_BUG_ON(sizeof(NvmeCopySourceRangeFormat0) != 32);
-    QEMU_BUILD_BUG_ON(sizeof(NvmeCopySourceRangeFormat1) != 40);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeCopySourceRangeFormat0_2) != 32);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeCopySourceRangeFormat1_3) != 40);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCmd) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDeleteQ) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCreateCq) != 64);
