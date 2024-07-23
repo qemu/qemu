@@ -374,9 +374,12 @@ static Property ipi_properties[] = {
 static void loongson_ipi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    LoongsonIPIClass *lic = LOONGSON_IPI_CLASS(klass);
 
-    dc->realize = loongson_ipi_realize;
-    dc->unrealize = loongson_ipi_unrealize;
+    device_class_set_parent_realize(dc, loongson_ipi_realize,
+                                    &lic->parent_realize);
+    device_class_set_parent_unrealize(dc, loongson_ipi_unrealize,
+                                      &lic->parent_unrealize);
     device_class_set_props(dc, ipi_properties);
     dc->vmsd = &vmstate_loongson_ipi;
 }
@@ -384,8 +387,9 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo loongson_ipi_types[] = {
     {
         .name               = TYPE_LOONGSON_IPI,
-        .parent             = TYPE_SYS_BUS_DEVICE,
+        .parent             = TYPE_LOONGSON_IPI_COMMON,
         .instance_size      = sizeof(LoongsonIPIState),
+        .class_size         = sizeof(LoongsonIPIClass),
         .class_init         = loongson_ipi_class_init,
     }
 };
