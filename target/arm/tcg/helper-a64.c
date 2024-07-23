@@ -928,6 +928,8 @@ uint32_t HELPER(sqrt_f16)(uint32_t a, void *fpstp)
 
 void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
 {
+    uintptr_t ra = GETPC();
+
     /*
      * Implement DC ZVA, which zeroes a fixed-length block of memory.
      * Note that we do not implement the (architecturally mandated)
@@ -948,8 +950,6 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
 
 #ifndef CONFIG_USER_ONLY
     if (unlikely(!mem)) {
-        uintptr_t ra = GETPC();
-
         /*
          * Trap if accessing an invalid page.  DC_ZVA requires that we supply
          * the original pointer for an invalid page.  But watchpoints require
@@ -971,7 +971,9 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
     }
 #endif
 
+    set_helper_retaddr(ra);
     memset(mem, 0, blocklen);
+    clear_helper_retaddr();
 }
 
 void HELPER(unaligned_access)(CPUARMState *env, uint64_t addr,
@@ -1120,7 +1122,9 @@ static uint64_t set_step(CPUARMState *env, uint64_t toaddr,
     }
 #endif
     /* Easy case: just memset the host memory */
+    set_helper_retaddr(ra);
     memset(mem, data, setsize);
+    clear_helper_retaddr();
     return setsize;
 }
 
@@ -1163,7 +1167,9 @@ static uint64_t set_step_tags(CPUARMState *env, uint64_t toaddr,
     }
 #endif
     /* Easy case: just memset the host memory */
+    set_helper_retaddr(ra);
     memset(mem, data, setsize);
+    clear_helper_retaddr();
     mte_mops_set_tags(env, toaddr, setsize, *mtedesc);
     return setsize;
 }
@@ -1497,7 +1503,9 @@ static uint64_t copy_step(CPUARMState *env, uint64_t toaddr, uint64_t fromaddr,
     }
 #endif
     /* Easy case: just memmove the host memory */
+    set_helper_retaddr(ra);
     memmove(wmem, rmem, copysize);
+    clear_helper_retaddr();
     return copysize;
 }
 
@@ -1572,7 +1580,9 @@ static uint64_t copy_step_rev(CPUARMState *env, uint64_t toaddr,
      * Easy case: just memmove the host memory. Note that wmem and
      * rmem here point to the *last* byte to copy.
      */
+    set_helper_retaddr(ra);
     memmove(wmem - (copysize - 1), rmem - (copysize - 1), copysize);
+    clear_helper_retaddr();
     return copysize;
 }
 
