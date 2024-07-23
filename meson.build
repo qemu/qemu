@@ -17,6 +17,7 @@ not_found = dependency('', required: false)
 keyval = import('keyval')
 ss = import('sourceset')
 fs = import('fs')
+cmake = import('cmake')
 
 host_os = host_machine.system()
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
@@ -149,6 +150,10 @@ have_tpm = get_option('tpm') \
   .require(host_os != 'windows', error_message: 'TPM emulation only available on POSIX systems') \
   .allowed()
 
+have_libspdm = get_option('libspdm') \
+  .require(host_os == 'linux', error_message: 'LibSPDM is supported only on Linux') \
+  .allowed()
+
 # vhost
 have_vhost_user = get_option('vhost_user') \
   .disable_auto_if(host_os != 'linux') \
@@ -265,6 +270,70 @@ modular_tcg = []
 if host_os != 'darwin'
   modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
 endif
+
+libspdm_dep_targets = [
+  'cryptlib_mbedtls',
+  'debuglib',
+  'debuglib_null',
+  'malloclib',
+  'mbedcrypto',
+  'mbedtls',
+  'mbedx509',
+  'memlib',
+  'platform_lib',
+  'platform_lib_null',
+  'rnglib',
+  'spdm_common_lib',
+  'spdm_crypt_ext_lib',
+  'spdm_crypt_lib',
+  'spdm_device_secret_lib_null',
+  'spdm_device_secret_lib_sample',
+  'spdm_requester_lib',
+  'spdm_responder_lib',
+  'spdm_secured_message_lib',
+  'spdm_transport_mctp_lib',
+  'spdm_transport_pcidoe_lib',
+  ]
+
+if cpu not in supported_cpus
+  libspdm_host_arch = 'unknown'
+  libspdm_toolchain = 'UNKNOWN'
+  message(f'LibSPDM will not compile with CMake defines: -DARCH=@libspdm_host_arch@ -DTOOLCHAIN=@libspdm_toolchain@')
+elif cpu == 'x86_64'
+  libspdm_host_arch = 'x64'
+  libspdm_toolchain = 'GCC'
+elif cpu == 'x86'
+  libspdm_host_arch = 'ia32'
+  libspdm_toolchain = 'GCC'
+elif cpu == 'aarch64'
+  libspdm_host_arch = cpu
+  libspdm_toolchain = 'AARCH64_GCC'
+else
+  libspdm_host_arch = cpu
+endif
+
+if get_option('debug')
+  libspdm_target = 'Debug'
+else 
+  libspdm_target = 'Release'
+endif
+
+# TODO: create option to compile LibSPDM tests
+if false 
+  lib = 0 
+  libspdm_dep_targets += [
+    'cmockalib',
+    'cryptlib_null',
+    'cryptstublib_dummy',
+    'intrinsiclib',
+    'malloclib_null',
+    'malloclib_simple',
+    'rnglib_null',
+    'spdm_transport_test_lib',
+    ]
+else 
+  libspdm_tests = 1 
+endif 
 
 ##################
 # Compiler flags #
@@ -2335,6 +2404,7 @@ if get_option('tcg').allowed()
   config_host_data.set('CONFIG_TCG', 1)
   config_host_data.set('CONFIG_TCG_INTERPRETER', tcg_arch == 'tci')
 endif
+config_host_data.set('CONFIG_SPDM', have_libspdm)
 config_host_data.set('CONFIG_TPM', have_tpm)
 config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
@@ -3222,6 +3292,22 @@ if have_libvduse
   libvduse = libvduse_proj.get_variable('libvduse_dep')
 endif
 
+if have_libspdm
+  libspdm_dir = meson.current_source_dir() / 'subprojects/libspdm'
+  libspdm_opt = cmake.subproject_options()
+  libspdm_opt.add_cmake_defines({'ARCH': libspdm_host_arch, \
+                                 'TOOLCHAIN': libspdm_toolchain, \
+                                 'TARGET': libspdm_target, \
+                                 'CRYPTO': 'mbedtls', \
+                                 'DISABLE_TESTS': libspdm_tests})
+  libspdm_proj = cmake.subproject('libspdm', options: libspdm_opt)
+
+  spdm = []
+  foreach dep : libspdm_dep_targets
+    spdm += libspdm_proj.dependency(dep)
+  endforeach
+endif
+
 #####################
 # Generated sources #
 #####################
@@ -3804,6 +3890,7 @@ common_ss.add(hwcore)
 
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
+common_ss.add(when: have_libspdm, if_true: spdm)
 
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
