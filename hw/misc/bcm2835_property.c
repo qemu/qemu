@@ -28,8 +28,6 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
     uint32_t tot_len;
     size_t resplen;
     uint32_t tmp;
-    int n;
-    uint32_t offset, length, color;
 
     /*
      * Copy the current state of the framebuffer config; we will update
@@ -264,18 +262,25 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 16;
             break;
         case RPI_FWREQ_FRAMEBUFFER_SET_PALETTE:
-            offset = ldl_le_phys(&s->dma_as, value + 12);
-            length = ldl_le_phys(&s->dma_as, value + 16);
-            n = 0;
-            while (n < length - offset) {
-                color = ldl_le_phys(&s->dma_as, value + 20 + (n << 2));
-                stl_le_phys(&s->dma_as,
-                            s->fbdev->vcram_base + ((offset + n) << 2), color);
-                n++;
+        {
+            uint32_t offset = ldl_le_phys(&s->dma_as, value + 12);
+            uint32_t length = ldl_le_phys(&s->dma_as, value + 16);
+            int resp;
+
+            if (offset > 255 || length < 1 || length > 256) {
+                resp = 1; /* invalid request */
+            } else {
+                for (uint32_t e = 0; e < length; e++) {
+                    uint32_t color = ldl_le_phys(&s->dma_as, value + 20 + (e << 2));
+                    stl_le_phys(&s->dma_as,
+                                s->fbdev->vcram_base + ((offset + e) << 2), color);
+                }
+                resp = 0;
             }
-            stl_le_phys(&s->dma_as, value + 12, 0);
+            stl_le_phys(&s->dma_as, value + 12, resp);
             resplen = 4;
             break;
+        }
         case RPI_FWREQ_FRAMEBUFFER_GET_NUM_DISPLAYS:
             stl_le_phys(&s->dma_as, value + 12, 1);
             resplen = 4;
