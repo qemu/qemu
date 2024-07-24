@@ -16,9 +16,12 @@
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include <math.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -27,6 +30,7 @@
 
 #include "cpu.h"
 #include "host-cpu.h"
+#include "vmsr_energy.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm_int.h"
@@ -2559,13 +2563,61 @@ static int kvm_get_supported_msrs(KVMState *s)
     return ret;
 }
 
-static bool kvm_rdmsr_core_thread_count(X86CPU *cpu, uint32_t msr,
+static bool kvm_rdmsr_core_thread_count(X86CPU *cpu,
+                                        uint32_t msr,
                                         uint64_t *val)
 {
     CPUState *cs = CPU(cpu);
 
     *val = cs->nr_threads * cs->nr_cores; /* thread count, bits 15..0 */
     *val |= ((uint32_t)cs->nr_cores << 16); /* core count, bits 31..16 */
+
+    return true;
+}
+
+static bool kvm_rdmsr_rapl_power_unit(X86CPU *cpu,
+                                      uint32_t msr,
+                                      uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_unit;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_power_limit(X86CPU *cpu,
+                                      uint32_t msr,
+                                      uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_limit;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_power_info(X86CPU *cpu,
+                                     uint32_t msr,
+                                     uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->kvm_state->msr_energy.msr_info;
+
+    return true;
+}
+
+static bool kvm_rdmsr_pkg_energy_status(X86CPU *cpu,
+                                        uint32_t msr,
+                                        uint64_t *val)
+{
+
+    CPUState *cs = CPU(cpu);
+    *val = cs->kvm_state->msr_energy.msr_value[cs->cpu_index];
 
     return true;
 }
@@ -2602,6 +2654,340 @@ static void register_smram_listener(Notifier *n, void *unused)
     address_space_init(&smram_address_space, &smram_as_root, "KVM-SMRAM");
     kvm_memory_listener_register(kvm_state, &smram_listener,
                                  &smram_address_space, 1, "kvm-smram");
+}
+
+static void *kvm_msr_energy_thread(void *data)
+{
+    KVMState *s = data;
+    struct KVMMsrEnergy *vmsr = &s->msr_energy;
+
+    g_autofree vmsr_package_energy_stat *pkg_stat = NULL;
+    g_autofree vmsr_thread_stat *thd_stat = NULL;
+    g_autofree CPUState *cpu = NULL;
+    g_autofree unsigned int *vpkgs_energy_stat = NULL;
+    unsigned int num_threads = 0;
+
+    X86CPUTopoIDs topo_ids;
+
+    rcu_register_thread();
+
+    /* Allocate memory for each package energy status */
+    pkg_stat = g_new0(vmsr_package_energy_stat, vmsr->host_topo.maxpkgs);
+
+    /* Allocate memory for thread stats */
+    thd_stat = g_new0(vmsr_thread_stat, 1);
+
+    /* Allocate memory for holding virtual package energy counter */
+    vpkgs_energy_stat = g_new0(unsigned int, vmsr->guest_vsockets);
+
+    /* Populate the max tick of each packages */
+    for (int i = 0; i < vmsr->host_topo.maxpkgs; i++) {
+        /*
+         * Max numbers of ticks per package
+         * Time in second * Number of ticks/second * Number of cores/package
+         * ex: 100 ticks/second/CPU, 12 CPUs per Package gives 1200 ticks max
+         */
+        vmsr->host_topo.maxticks[i] = (MSR_ENERGY_THREAD_SLEEP_US / 1000000)
+                        * sysconf(_SC_CLK_TCK)
+                        * vmsr->host_topo.pkg_cpu_count[i];
+    }
+
+    while (true) {
+        /* Get all qemu threads id */
+        g_autofree pid_t *thread_ids =
+            thread_ids = vmsr_get_thread_ids(vmsr->pid, &num_threads);
+
+        if (thread_ids == NULL) {
+            goto clean;
+        }
+
+        thd_stat = g_renew(vmsr_thread_stat, thd_stat, num_threads);
+        /* Unlike g_new0, g_renew0 function doesn't exist yet... */
+        memset(thd_stat, 0, num_threads * sizeof(vmsr_thread_stat));
+
+        /* Populate all the thread stats */
+        for (int i = 0; i < num_threads; i++) {
+            thd_stat[i].utime = g_new0(unsigned long long, 2);
+            thd_stat[i].stime = g_new0(unsigned long long, 2);
+            thd_stat[i].thread_id = thread_ids[i];
+            vmsr_read_thread_stat(vmsr->pid,
+                                  thd_stat[i].thread_id,
+                                  thd_stat[i].utime,
+                                  thd_stat[i].stime,
+                                  &thd_stat[i].cpu_id);
+            thd_stat[i].pkg_id =
+                vmsr_get_physical_package_id(thd_stat[i].cpu_id);
+        }
+
+        /* Retrieve all packages power plane energy counter */
+        for (int i = 0; i < vmsr->host_topo.maxpkgs; i++) {
+            for (int j = 0; j < num_threads; j++) {
+                /*
+                 * Use the first thread we found that ran on the CPU
+                 * of the package to read the packages energy counter
+                 */
+                if (thd_stat[j].pkg_id == i) {
+                    pkg_stat[i].e_start =
+                    vmsr_read_msr(MSR_PKG_ENERGY_STATUS,
+                                  thd_stat[j].cpu_id,
+                                  thd_stat[j].thread_id,
+                                  s->msr_energy.sioc);
+                    break;
+                }
+            }
+        }
+
+        /* Sleep a short period while the other threads are working */
+        usleep(MSR_ENERGY_THREAD_SLEEP_US);
+
+        /*
+         * Retrieve all packages power plane energy counter
+         * Calculate the delta of all packages
+         */
+        for (int i = 0; i < vmsr->host_topo.maxpkgs; i++) {
+            for (int j = 0; j < num_threads; j++) {
+                /*
+                 * Use the first thread we found that ran on the CPU
+                 * of the package to read the packages energy counter
+                 */
+                if (thd_stat[j].pkg_id == i) {
+                    pkg_stat[i].e_end =
+                    vmsr_read_msr(MSR_PKG_ENERGY_STATUS,
+                                  thd_stat[j].cpu_id,
+                                  thd_stat[j].thread_id,
+                                  s->msr_energy.sioc);
+                    /*
+                     * Prevent the case we have migrate the VM
+                     * during the sleep period or any other cases
+                     * were energy counter might be lower after
+                     * the sleep period.
+                     */
+                    if (pkg_stat[i].e_end > pkg_stat[i].e_start) {
+                        pkg_stat[i].e_delta =
+                            pkg_stat[i].e_end - pkg_stat[i].e_start;
+                    } else {
+                        pkg_stat[i].e_delta = 0;
+                    }
+                    break;
+                }
+            }
+        }
+
+        /* Delta of ticks spend by each thread between the sample */
+        for (int i = 0; i < num_threads; i++) {
+            vmsr_read_thread_stat(vmsr->pid,
+                                  thd_stat[i].thread_id,
+                                  thd_stat[i].utime,
+                                  thd_stat[i].stime,
+                                  &thd_stat[i].cpu_id);
+
+            if (vmsr->pid < 0) {
+                /*
+                 * We don't count the dead thread
+                 * i.e threads that existed before the sleep
+                 * and not anymore
+                 */
+                thd_stat[i].delta_ticks = 0;
+            } else {
+                vmsr_delta_ticks(thd_stat, i);
+            }
+        }
+
+        /*
+         * Identify the vcpu threads
+         * Calculate the number of vcpu per package
+         */
+        CPU_FOREACH(cpu) {
+            for (int i = 0; i < num_threads; i++) {
+                if (cpu->thread_id == thd_stat[i].thread_id) {
+                    thd_stat[i].is_vcpu = true;
+                    thd_stat[i].vcpu_id = cpu->cpu_index;
+                    pkg_stat[thd_stat[i].pkg_id].nb_vcpu++;
+                    thd_stat[i].acpi_id = kvm_arch_vcpu_id(cpu);
+                    break;
+                }
+            }
+        }
+
+        /* Retrieve the virtual package number of each vCPU */
+        for (int i = 0; i < vmsr->guest_cpu_list->len; i++) {
+            for (int j = 0; j < num_threads; j++) {
+                if ((thd_stat[j].acpi_id ==
+                        vmsr->guest_cpu_list->cpus[i].arch_id)
+                    && (thd_stat[j].is_vcpu == true)) {
+                    x86_topo_ids_from_apicid(thd_stat[j].acpi_id,
+                        &vmsr->guest_topo_info, &topo_ids);
+                    thd_stat[j].vpkg_id = topo_ids.pkg_id;
+                }
+            }
+        }
+
+        /* Calculate the total energy of all non-vCPU thread */
+        for (int i = 0; i < num_threads; i++) {
+            if ((thd_stat[i].is_vcpu != true) &&
+                (thd_stat[i].delta_ticks > 0)) {
+                double temp;
+                temp = vmsr_get_ratio(pkg_stat[thd_stat[i].pkg_id].e_delta,
+                    thd_stat[i].delta_ticks,
+                    vmsr->host_topo.maxticks[thd_stat[i].pkg_id]);
+                pkg_stat[thd_stat[i].pkg_id].e_ratio
+                    += (uint64_t)lround(temp);
+            }
+        }
+
+        /* Calculate the ratio per non-vCPU thread of each package */
+        for (int i = 0; i < vmsr->host_topo.maxpkgs; i++) {
+            if (pkg_stat[i].nb_vcpu > 0) {
+                pkg_stat[i].e_ratio = pkg_stat[i].e_ratio / pkg_stat[i].nb_vcpu;
+            }
+        }
+
+        /*
+         * Calculate the energy for each Package:
+         * Energy Package = sum of each vCPU energy that belongs to the package
+         */
+        for (int i = 0; i < num_threads; i++) {
+            if ((thd_stat[i].is_vcpu == true) && \
+                    (thd_stat[i].delta_ticks > 0)) {
+                double temp;
+                temp = vmsr_get_ratio(pkg_stat[thd_stat[i].pkg_id].e_delta,
+                    thd_stat[i].delta_ticks,
+                    vmsr->host_topo.maxticks[thd_stat[i].pkg_id]);
+                vpkgs_energy_stat[thd_stat[i].vpkg_id] +=
+                    (uint64_t)lround(temp);
+                vpkgs_energy_stat[thd_stat[i].vpkg_id] +=
+                    pkg_stat[thd_stat[i].pkg_id].e_ratio;
+            }
+        }
+
+        /*
+         * Finally populate the vmsr register of each vCPU with the total
+         * package value to emulate the real hardware where each CPU return the
+         * value of the package it belongs.
+         */
+        for (int i = 0; i < num_threads; i++) {
+            if ((thd_stat[i].is_vcpu == true) && \
+                    (thd_stat[i].delta_ticks > 0)) {
+                vmsr->msr_value[thd_stat[i].vcpu_id] = \
+                                        vpkgs_energy_stat[thd_stat[i].vpkg_id];
+          }
+        }
+
+        /* Freeing memory before zeroing the pointer */
+        for (int i = 0; i < num_threads; i++) {
+            g_free(thd_stat[i].utime);
+            g_free(thd_stat[i].stime);
+        }
+   }
+
+clean:
+    rcu_unregister_thread();
+    return NULL;
+}
+
+static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    struct KVMMsrEnergy *r = &s->msr_energy;
+    int ret = 0;
+
+    /*
+     * Sanity check
+     * 1. Host cpu must be Intel cpu
+     * 2. RAPL must be enabled on the Host
+     */
+    if (is_host_cpu_intel()) {
+        error_report("The RAPL feature can only be enabled on hosts\
+                      with Intel CPU models");
+        ret = 1;
+        goto out;
+    }
+
+    if (!is_rapl_enabled()) {
+        ret = 1;
+        goto out;
+    }
+
+    /* Retrieve the virtual topology */
+    vmsr_init_topo_info(&r->guest_topo_info, ms);
+
+    /* Retrieve the number of vcpu */
+    r->guest_vcpus = ms->smp.cpus;
+
+    /* Retrieve the number of virtual sockets */
+    r->guest_vsockets = ms->smp.sockets;
+
+    /* Allocate register memory (MSR_PKG_STATUS) for each vcpu */
+    r->msr_value = g_new0(uint64_t, r->guest_vcpus);
+
+    /* Retrieve the CPUArchIDlist */
+    r->guest_cpu_list = mc->possible_cpu_arch_ids(ms);
+
+    /* Max number of cpus on the Host */
+    r->host_topo.maxcpus = vmsr_get_maxcpus();
+    if (r->host_topo.maxcpus == 0) {
+        error_report("host max cpus = 0");
+        ret = 1;
+        goto out;
+    }
+
+    /* Max number of packages on the host */
+    r->host_topo.maxpkgs = vmsr_get_max_physical_package(r->host_topo.maxcpus);
+    if (r->host_topo.maxpkgs == 0) {
+        error_report("host max pkgs = 0");
+        ret = 1;
+        goto out;
+    }
+
+    /* Allocate memory for each package on the host */
+    r->host_topo.pkg_cpu_count = g_new0(unsigned int, r->host_topo.maxpkgs);
+    r->host_topo.maxticks = g_new0(unsigned int, r->host_topo.maxpkgs);
+
+    vmsr_count_cpus_per_package(r->host_topo.pkg_cpu_count,
+                                r->host_topo.maxpkgs);
+    for (int i = 0; i < r->host_topo.maxpkgs; i++) {
+        if (r->host_topo.pkg_cpu_count[i] == 0) {
+            error_report("cpu per packages = 0 on package_%d", i);
+            ret = 1;
+            goto out;
+        }
+    }
+
+    /* Get QEMU PID*/
+    r->pid = getpid();
+
+    /* Compute the socket path if necessary */
+    if (s->msr_energy.socket_path == NULL) {
+        s->msr_energy.socket_path = vmsr_compute_default_paths();
+    }
+
+    /* Open socket with vmsr helper */
+    s->msr_energy.sioc = vmsr_open_socket(s->msr_energy.socket_path);
+
+    if (s->msr_energy.sioc == NULL) {
+        error_report("vmsr socket opening failed");
+        ret = 1;
+        goto out;
+    }
+
+    /* Those MSR values should not change */
+    r->msr_unit  = vmsr_read_msr(MSR_RAPL_POWER_UNIT, 0, r->pid,
+                                    s->msr_energy.sioc);
+    r->msr_limit = vmsr_read_msr(MSR_PKG_POWER_LIMIT, 0, r->pid,
+                                    s->msr_energy.sioc);
+    r->msr_info  = vmsr_read_msr(MSR_PKG_POWER_INFO, 0, r->pid,
+                                    s->msr_energy.sioc);
+    if (r->msr_unit == 0 || r->msr_limit == 0 || r->msr_info == 0) {
+        error_report("can't read any virtual msr");
+        ret = 1;
+        goto out;
+    }
+
+    qemu_thread_create(&r->msr_thr, "kvm-msr",
+                       kvm_msr_energy_thread,
+                       s, QEMU_THREAD_JOINABLE);
+out:
+    return ret;
 }
 
 int kvm_arch_get_default_type(MachineState *ms)
@@ -2803,6 +3189,49 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
                          strerror(-ret));
             exit(1);
+        }
+
+        if (s->msr_energy.enable == true) {
+            r = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
+                               kvm_rdmsr_rapl_power_unit, NULL);
+            if (!r) {
+                error_report("Could not install MSR_RAPL_POWER_UNIT \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+
+            r = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
+                               kvm_rdmsr_pkg_power_limit, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_POWER_LIMIT \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+
+            r = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
+                               kvm_rdmsr_pkg_power_info, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_POWER_INFO \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+            r = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
+                               kvm_rdmsr_pkg_energy_status, NULL);
+            if (!r) {
+                error_report("Could not install MSR_PKG_ENERGY_STATUS \
+                                handler: %s",
+                             strerror(-ret));
+                exit(1);
+            }
+            r = kvm_msr_energy_thread_init(s, ms);
+            if (r) {
+                error_report("kvm : error RAPL feature requirement not meet");
+                exit(1);
+            }
+
         }
     }
 

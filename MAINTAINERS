@@ -140,6 +140,7 @@ F: docs/system/target-i386*
 F: target/i386/*.[ch]
 F: target/i386/Kconfig
 F: target/i386/meson.build
+F: tools/i386/
 
 Guest CPU cores (TCG)
 ---------------------
