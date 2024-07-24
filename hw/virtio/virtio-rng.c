@@ -184,8 +184,9 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 
     /* Workaround: Property parsing does not enforce unsigned integers,
      * So this is a hack to reject such numbers. */
-    if (vrng->conf.max_bytes > INT64_MAX) {
-        error_setg(errp, "'max-bytes' parameter must be non-negative, "
+    if (vrng->conf.max_bytes == 0 ||
+        vrng->conf.max_bytes > INT64_MAX) {
+        error_setg(errp, "'max-bytes' parameter must be positive, "
                    "and less than 2^63");
         return;
     }
