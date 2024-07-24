@@ -230,7 +230,6 @@ S: Maintained
 F: target/cris/
 F: hw/cris/
 F: include/hw/cris/
-F: tests/tcg/cris/
 F: disas/cris.c
 
 Hexagon TCG CPUs
