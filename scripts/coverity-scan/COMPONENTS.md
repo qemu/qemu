@@ -10,7 +10,7 @@ avr
   ~ .*/qemu((/include)?/hw/avr/.*|/target/avr/.*)
 
 cris
-  ~ .*/qemu(/hw/cris/.*|/target/cris/.*)
+  ~ .*/qemu/target/cris/.*
 
 hexagon-gen (component should be ignored in analysis)
   ~ .*/qemu(/target/hexagon/.*generated.*)

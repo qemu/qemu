@@ -1,3 +1,0 @@
-config ETRAXFS
-   bool
-   select PTIMER
