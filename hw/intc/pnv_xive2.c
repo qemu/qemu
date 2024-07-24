@@ -244,6 +244,11 @@ static uint64_t pnv_xive2_vst_addr(PnvXive2 *xive, uint32_t type, uint8_t blk,
     }
 
     vsd = xive->vsds[type][blk];
+    if (vsd == 0) {
+        xive2_error(xive, "VST: vsd == 0 block id %d for VST %s %d !?",
+                   blk, info->name, idx);
+        return 0;
+    }
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
