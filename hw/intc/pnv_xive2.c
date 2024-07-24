@@ -465,10 +465,30 @@ static int pnv_xive2_write_nvp(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
                               word_number);
 }
 
-static int pnv_xive2_nvp_update(PnvXive2 *xive, uint8_t watch_engine)
+static int pnv_xive2_nxc_to_table_type(uint8_t nxc_type, uint32_t *table_type)
 {
-    uint8_t  blk;
-    uint32_t idx;
+    switch (nxc_type) {
+    case PC_NXC_WATCH_NXC_NVP:
+        *table_type = VST_NVP;
+        break;
+    case PC_NXC_WATCH_NXC_NVG:
+        *table_type = VST_NVG;
+        break;
+    case PC_NXC_WATCH_NXC_NVC:
+        *table_type = VST_NVC;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: invalid table type for nxc operation\n");
+        return -1;
+    }
+    return 0;
+}
+
+static int pnv_xive2_nxc_update(PnvXive2 *xive, uint8_t watch_engine)
+{
+    uint8_t  blk, nxc_type;
+    uint32_t idx, table_type = -1;
     int i, spec_reg, data_reg;
     uint64_t nxc_watch[4];
 
@@ -476,21 +496,24 @@ static int pnv_xive2_nvp_update(PnvXive2 *xive, uint8_t watch_engine)
 
     spec_reg = (PC_NXC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
     data_reg = (PC_NXC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    nxc_type = GETFIELD(PC_NXC_WATCH_NXC_TYPE, xive->pc_regs[spec_reg]);
     blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID, xive->pc_regs[spec_reg]);
     idx = GETFIELD(PC_NXC_WATCH_INDEX, xive->pc_regs[spec_reg]);
+
+    assert(!pnv_xive2_nxc_to_table_type(nxc_type, &table_type));
 
     for (i = 0; i < ARRAY_SIZE(nxc_watch); i++) {
         nxc_watch[i] = cpu_to_be64(xive->pc_regs[data_reg + i]);
     }
 
-    return pnv_xive2_vst_write(xive, VST_NVP, blk, idx, nxc_watch,
+    return pnv_xive2_vst_write(xive, table_type, blk, idx, nxc_watch,
                               XIVE_VST_WORD_ALL);
 }
 
-static void pnv_xive2_nvp_cache_load(PnvXive2 *xive, uint8_t watch_engine)
+static void pnv_xive2_nxc_cache_load(PnvXive2 *xive, uint8_t watch_engine)
 {
-    uint8_t  blk;
-    uint32_t idx;
+    uint8_t  blk, nxc_type;
+    uint32_t idx, table_type = -1;
     uint64_t nxc_watch[4] = { 0 };
     int i, spec_reg, data_reg;
 
@@ -498,11 +521,15 @@ static void pnv_xive2_nvp_cache_load(PnvXive2 *xive, uint8_t watch_engine)
 
     spec_reg = (PC_NXC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
     data_reg = (PC_NXC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    nxc_type = GETFIELD(PC_NXC_WATCH_NXC_TYPE, xive->pc_regs[spec_reg]);
     blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID, xive->pc_regs[spec_reg]);
     idx = GETFIELD(PC_NXC_WATCH_INDEX, xive->pc_regs[spec_reg]);
 
-    if (pnv_xive2_vst_read(xive, VST_NVP, blk, idx, nxc_watch)) {
-        xive2_error(xive, "VST: no NVP entry %x/%x !?", blk, idx);
+    assert(!pnv_xive2_nxc_to_table_type(nxc_type, &table_type));
+
+    if (pnv_xive2_vst_read(xive, table_type, blk, idx, nxc_watch)) {
+        xive2_error(xive, "VST: no NXC entry %x/%x in %s table!?",
+                    blk, idx, vst_infos[table_type].name);
     }
 
     for (i = 0; i < ARRAY_SIZE(nxc_watch); i++) {
@@ -1432,7 +1459,7 @@ static uint64_t pnv_xive2_ic_pc_read(void *opaque, hwaddr offset,
         * SPEC register
         */
         watch_engine = (offset - PC_NXC_WATCH0_DATA0) >> 6;
-        pnv_xive2_nvp_cache_load(xive, watch_engine);
+        pnv_xive2_nxc_cache_load(xive, watch_engine);
         val = xive->pc_regs[reg];
         break;
 
@@ -1506,7 +1533,7 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
         /* writing to DATA0 triggers the cache write */
         watch_engine = (offset - PC_NXC_WATCH0_DATA0) >> 6;
         xive->pc_regs[reg] = val;
-        pnv_xive2_nvp_update(xive, watch_engine);
+        pnv_xive2_nxc_update(xive, watch_engine);
         break;
 
    /* case PC_NXC_FLUSH_CTRL: */
