@@ -3451,6 +3451,7 @@ Detached LUKS header
 M: Hyman Huang <yong.huang@smartx.com>
 S: Maintained
 F: tests/qemu-iotests/tests/luks-detached-header
+F: docs/devel/luks-detached-header.rst
 
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
@@ -3484,7 +3485,7 @@ F: qapi/crypto.json
 F: tests/unit/test-crypto-*
 F: tests/bench/benchmark-crypto-*
 F: tests/unit/crypto-tls-*
-F: tests/unit/pkix_asn1_tab.c
+F: tests/unit/pkix_asn1_tab.c.inc
 F: qemu.sasl
 
 Coroutines
