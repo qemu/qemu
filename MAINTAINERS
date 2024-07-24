@@ -1216,10 +1216,9 @@ F: hw/avr/arduino.c
 
 CRIS Machines
 -------------
-Axis Dev88
+Etrax hardware
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: hw/cris/axis_dev88.c
 F: hw/*/etraxfs_*.c
 
 HP-PARISC Machines
