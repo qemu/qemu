@@ -88,4 +88,6 @@ struct target_sigframe {
     uint32_t    __spare__[2];
 };
 
+#define TARGET_SIGSTACK_ALIGN 8
+
 #endif /* TARGET_ARCH_SIGNAL_H */
