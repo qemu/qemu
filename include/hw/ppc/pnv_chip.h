@@ -139,6 +139,7 @@ struct Pnv10Chip {
 
 #define PNV10_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
 #define PNV10_PIR2CHIP(pir)      (((pir) >> 8) & 0x7f)
+#define PNV10_PIR2THREAD(pir)    (((pir) & 0x7f))
 
 struct PnvChipClass {
     /*< private >*/

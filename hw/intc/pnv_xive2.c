@@ -25,12 +25,23 @@
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/reset.h"
+#include "sysemu/qtest.h"
 
 #include <libfdt.h>
 
 #include "pnv_xive2_regs.h"
 
 #undef XIVE2_DEBUG
+
+/* XIVE Sync or Flush Notification Block */
+typedef struct XiveSfnBlock {
+    uint8_t bytes[32];
+} XiveSfnBlock;
+
+/* XIVE Thread Sync or Flush Notification Area */
+typedef struct XiveThreadNA {
+    XiveSfnBlock topo[16];
+} XiveThreadNA;
 
 /*
  * Virtual structures table (VST)
@@ -54,7 +65,7 @@ static const XiveVstInfo vst_infos[] = {
     [VST_NVC]  = { "NVCT", sizeof(Xive2Nvgc),    16 },
 
     [VST_IC]  =  { "IC",   1, /* ? */            16 }, /* Topology # */
-    [VST_SYNC] = { "SYNC", 1, /* ? */            16 }, /* Topology # */
+    [VST_SYNC] = { "SYNC", sizeof(XiveThreadNA), 16 }, /* Topology # */
 
     /*
      * This table contains the backing store pages for the interrupt
@@ -327,6 +338,73 @@ static int pnv_xive2_write_end(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
 {
     return pnv_xive2_vst_write(PNV_XIVE2(xrtr), VST_END, blk, idx, end,
                               word_number);
+}
+
+static inline int pnv_xive2_get_current_pir(PnvXive2 *xive)
+{
+    if (!qtest_enabled()) {
+        PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+        return ppc_cpu_pir(cpu);
+    }
+    return 0;
+}
+
+/*
+ * After SW injects a Queue Sync or Cache Flush operation, HW will notify
+ * SW of the completion of the operation by writing a byte of all 1's (0xff)
+ * to a specific memory location.  The memory location is calculated by first
+ * looking up a base address in the SYNC VSD using the Topology ID of the
+ * originating thread as the "block" number.  This points to a
+ * 64k block of memory that is further divided into 128 512 byte chunks of
+ * memory, which is indexed by the thread id of the requesting thread.
+ * Finally, this 512 byte chunk of memory is divided into 16 32 byte
+ * chunks which are indexed by the topology id of the targeted IC's chip.
+ * The values below are the offsets into that 32 byte chunk of memory for
+ * each type of cache flush or queue sync operation.
+ */
+#define PNV_XIVE2_QUEUE_IPI              0x00
+#define PNV_XIVE2_QUEUE_HW               0x01
+#define PNV_XIVE2_QUEUE_NXC              0x02
+#define PNV_XIVE2_QUEUE_INT              0x03
+#define PNV_XIVE2_QUEUE_OS               0x04
+#define PNV_XIVE2_QUEUE_POOL             0x05
+#define PNV_XIVE2_QUEUE_HARD             0x06
+#define PNV_XIVE2_CACHE_ENDC             0x08
+#define PNV_XIVE2_CACHE_ESBC             0x09
+#define PNV_XIVE2_CACHE_EASC             0x0a
+#define PNV_XIVE2_QUEUE_NXC_LD_LCL_NCO   0x10
+#define PNV_XIVE2_QUEUE_NXC_LD_LCL_CO    0x11
+#define PNV_XIVE2_QUEUE_NXC_ST_LCL_NCI   0x12
+#define PNV_XIVE2_QUEUE_NXC_ST_LCL_CI    0x13
+#define PNV_XIVE2_QUEUE_NXC_ST_RMT_NCI   0x14
+#define PNV_XIVE2_QUEUE_NXC_ST_RMT_CI    0x15
+#define PNV_XIVE2_CACHE_NXC              0x18
+
+static int pnv_xive2_inject_notify(PnvXive2 *xive, int type)
+{
+    uint64_t addr;
+    int pir = pnv_xive2_get_current_pir(xive);
+    int thread_nr = PNV10_PIR2THREAD(pir);
+    int thread_topo_id = PNV10_PIR2CHIP(pir);
+    int ic_topo_id = xive->chip->chip_id;
+    uint64_t offset = ic_topo_id * sizeof(XiveSfnBlock);
+    uint8_t byte = 0xff;
+    MemTxResult result;
+
+    /* Retrieve the address of requesting thread's notification area */
+    addr = pnv_xive2_vst_addr(xive, VST_SYNC, thread_topo_id, thread_nr);
+
+    if (!addr) {
+        xive2_error(xive, "VST: no SYNC entry %x/%x !?",
+                    thread_topo_id, thread_nr);
+        return -1;
+    }
+
+    address_space_stb(&address_space_memory, addr + offset + type, byte,
+                      MEMTXATTRS_UNSPECIFIED, &result);
+    assert(result == MEMTX_OK);
+
+    return 0;
 }
 
 static int pnv_xive2_end_update(PnvXive2 *xive, uint8_t watch_engine)
@@ -1178,6 +1256,10 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
         /* ESB update */
         break;
 
+    case VC_ESBC_FLUSH_INJECT:
+        pnv_xive2_inject_notify(xive, PNV_XIVE2_CACHE_ESBC);
+        break;
+
     case VC_ESBC_CFG:
         break;
 
@@ -1188,6 +1270,10 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     case VC_EASC_FLUSH_POLL:
         xive->vc_regs[VC_EASC_FLUSH_CTRL >> 3] |= VC_EASC_FLUSH_CTRL_POLL_VALID;
         /* EAS update */
+        break;
+
+    case VC_EASC_FLUSH_INJECT:
+        pnv_xive2_inject_notify(xive, PNV_XIVE2_CACHE_EASC);
         break;
 
     case VC_ENDC_CFG:
@@ -1222,6 +1308,10 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     /* case VC_ENDC_FLUSH_CTRL: */
     case VC_ENDC_FLUSH_POLL:
         xive->vc_regs[VC_ENDC_FLUSH_CTRL >> 3] |= VC_ENDC_FLUSH_CTRL_POLL_VALID;
+        break;
+
+    case VC_ENDC_FLUSH_INJECT:
+        pnv_xive2_inject_notify(xive, PNV_XIVE2_CACHE_ENDC);
         break;
 
     /*
@@ -1422,6 +1512,10 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
    /* case PC_NXC_FLUSH_CTRL: */
     case PC_NXC_FLUSH_POLL:
         xive->pc_regs[PC_NXC_FLUSH_CTRL >> 3] |= PC_NXC_FLUSH_CTRL_POLL_VALID;
+        break;
+
+    case PC_NXC_FLUSH_INJECT:
+        pnv_xive2_inject_notify(xive, PNV_XIVE2_CACHE_NXC);
         break;
 
     /*
@@ -1727,6 +1821,12 @@ static const MemoryRegionOps pnv_xive2_ic_lsi_ops = {
 #define PNV_XIVE2_SYNC_OS_ESC           0x200
 #define PNV_XIVE2_SYNC_POOL_ESC         0x280
 #define PNV_XIVE2_SYNC_HARD_ESC         0x300
+#define PNV_XIVE2_SYNC_NXC_LD_LCL_NCO   0x800
+#define PNV_XIVE2_SYNC_NXC_LD_LCL_CO    0x880
+#define PNV_XIVE2_SYNC_NXC_ST_LCL_NCI   0x900
+#define PNV_XIVE2_SYNC_NXC_ST_LCL_CI    0x980
+#define PNV_XIVE2_SYNC_NXC_ST_RMT_NCI   0xA00
+#define PNV_XIVE2_SYNC_NXC_ST_RMT_CI    0xA80
 
 static uint64_t pnv_xive2_ic_sync_read(void *opaque, hwaddr offset,
                                        unsigned size)
@@ -1738,22 +1838,72 @@ static uint64_t pnv_xive2_ic_sync_read(void *opaque, hwaddr offset,
     return -1;
 }
 
+/*
+ * The sync MMIO space spans two pages.  The lower page is use for
+ * queue sync "poll" requests while the upper page is used for queue
+ * sync "inject" requests.  Inject requests require the HW to write
+ * a byte of all 1's to a predetermined location in memory in order
+ * to signal completion of the request.  Both pages have the same
+ * layout, so it is easiest to handle both with a single function.
+ */
 static void pnv_xive2_ic_sync_write(void *opaque, hwaddr offset,
                                     uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    int inject_type;
+    hwaddr pg_offset_mask = (1ull << xive->ic_shift) - 1;
 
-    switch (offset) {
+    /* adjust offset for inject page */
+    hwaddr adj_offset = offset & pg_offset_mask;
+
+    switch (adj_offset) {
     case PNV_XIVE2_SYNC_IPI:
+        inject_type = PNV_XIVE2_QUEUE_IPI;
+        break;
     case PNV_XIVE2_SYNC_HW:
+        inject_type = PNV_XIVE2_QUEUE_HW;
+        break;
     case PNV_XIVE2_SYNC_NxC:
+        inject_type = PNV_XIVE2_QUEUE_NXC;
+        break;
     case PNV_XIVE2_SYNC_INT:
+        inject_type = PNV_XIVE2_QUEUE_INT;
+        break;
     case PNV_XIVE2_SYNC_OS_ESC:
+        inject_type = PNV_XIVE2_QUEUE_OS;
+        break;
     case PNV_XIVE2_SYNC_POOL_ESC:
+        inject_type = PNV_XIVE2_QUEUE_POOL;
+        break;
     case PNV_XIVE2_SYNC_HARD_ESC:
+        inject_type = PNV_XIVE2_QUEUE_HARD;
+        break;
+    case PNV_XIVE2_SYNC_NXC_LD_LCL_NCO:
+        inject_type = PNV_XIVE2_QUEUE_NXC_LD_LCL_NCO;
+        break;
+    case PNV_XIVE2_SYNC_NXC_LD_LCL_CO:
+        inject_type = PNV_XIVE2_QUEUE_NXC_LD_LCL_CO;
+        break;
+    case PNV_XIVE2_SYNC_NXC_ST_LCL_NCI:
+        inject_type = PNV_XIVE2_QUEUE_NXC_ST_LCL_NCI;
+        break;
+    case PNV_XIVE2_SYNC_NXC_ST_LCL_CI:
+        inject_type = PNV_XIVE2_QUEUE_NXC_ST_LCL_CI;
+        break;
+    case PNV_XIVE2_SYNC_NXC_ST_RMT_NCI:
+        inject_type = PNV_XIVE2_QUEUE_NXC_ST_RMT_NCI;
+        break;
+    case PNV_XIVE2_SYNC_NXC_ST_RMT_CI:
+        inject_type = PNV_XIVE2_QUEUE_NXC_ST_RMT_CI;
         break;
     default:
         xive2_error(xive, "SYNC: invalid write @%"HWADDR_PRIx, offset);
+        return;
+    }
+
+    /* Write Queue Sync notification byte if writing to sync inject page */
+    if ((offset & ~pg_offset_mask) != 0) {
+        pnv_xive2_inject_notify(xive, inject_type);
     }
 }
 

@@ -232,6 +232,10 @@
 #define  VC_ESBC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(32, 35)
 #define  VC_ESBC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(36, 63) /* 28-bit */
 
+/* ESBC cache flush inject register */
+#define X_VC_ESBC_FLUSH_INJECT                  0x142
+#define VC_ESBC_FLUSH_INJECT                    0x210
+
 /* ESBC configuration */
 #define X_VC_ESBC_CFG                           0x148
 #define VC_ESBC_CFG                             0x240
@@ -249,6 +253,10 @@
 #define  VC_EASC_FLUSH_POLL_OFFSET              PPC_BITMASK(4, 31)  /* 28-bit */
 #define  VC_EASC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(32, 35)
 #define  VC_EASC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(36, 63) /* 28-bit */
+
+/* EASC flush inject register */
+#define X_VC_EASC_FLUSH_INJECT                  0x162
+#define VC_EASC_FLUSH_INJECT                    0x310
 
 /*
  * VC2
@@ -269,6 +277,10 @@
 #define  VC_ENDC_FLUSH_POLL_OFFSET              PPC_BITMASK(8, 31)  /* 24-bit */
 #define  VC_ENDC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(36, 39)
 #define  VC_ENDC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(40, 63) /* 24-bit */
+
+/* ENDC flush inject register */
+#define X_VC_ENDC_FLUSH_INJECT                  0x182
+#define VC_ENDC_FLUSH_INJECT                    0x410
 
 /* ENDC Sync done */
 #define X_VC_ENDC_SYNC_DONE                     0x184
@@ -402,6 +414,10 @@
 #define  PC_NXC_FLUSH_POLL_NXC_TYPE_MASK        PPC_BITMASK(34, 35) /* 0: Ign */
 #define  PC_NXC_FLUSH_POLL_BLOCK_ID_MASK        PPC_BITMASK(36, 39)
 #define  PC_NXC_FLUSH_POLL_OFFSET_MASK          PPC_BITMASK(40, 63) /* 24-bit */
+
+/* NxC Cache flush inject */
+#define X_PC_NXC_FLUSH_INJECT                   0x282
+#define PC_NXC_FLUSH_INJECT                     0x410
 
 /* NxC Cache watch assign */
 #define X_PC_NXC_WATCH_ASSIGN                   0x286
