@@ -27,28 +27,10 @@
 
 #include "net/net.h"
 #include "hw/cris/etraxfs_dma.h"
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
 #include "qapi/error.h"
 
 DeviceState *etraxfs_eth_init(hwaddr base, int phyaddr,
                               struct etraxfs_dma_client *dma_out,
                               struct etraxfs_dma_client *dma_in);
-
-static inline DeviceState *etraxfs_ser_create(hwaddr addr,
-                                              qemu_irq irq,
-                                              Chardev *chr)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    dev = qdev_new("etraxfs-serial");
-    s = SYS_BUS_DEVICE(dev);
-    qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_mmio_map(s, 0, addr);
-    sysbus_connect_irq(s, 0, irq);
-    return dev;
-}
 
 #endif
