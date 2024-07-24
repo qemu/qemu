@@ -3889,8 +3889,8 @@ common_ss.add(hwcore)
 ###########
 
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
+system_ss.add(when: spdm, if_true: spdm)
 common_ss.add(qom, qemuutil)
-common_ss.add(when: spdm, if_true: spdm)
 
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
