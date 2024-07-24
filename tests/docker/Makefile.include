@@ -117,7 +117,6 @@ docker-image-debian-microblaze-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docke
 # These images may be good enough for building tests but not for test builds
 DOCKER_PARTIAL_IMAGES += debian-microblaze-cross
 DOCKER_PARTIAL_IMAGES += debian-xtensa-cross
-DOCKER_PARTIAL_IMAGES += fedora-cris-cross
 
 # images that are only used to build other images
 DOCKER_VIRTUAL_IMAGES := debian-bootstrap debian-toolchain

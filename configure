@@ -1250,7 +1250,6 @@ probe_target_compiler() {
     aarch64) container_hosts="x86_64 aarch64" ;;
     alpha) container_hosts=x86_64 ;;
     arm) container_hosts="x86_64 aarch64" ;;
-    cris) container_hosts=x86_64 ;;
     hexagon) container_hosts=x86_64 ;;
     hppa) container_hosts=x86_64 ;;
     i386) container_hosts=x86_64 ;;
@@ -1308,9 +1307,6 @@ probe_target_compiler() {
         # We don't have any bigendian build tools so we only use this for ARM
         container_image=debian-armhf-cross
         container_cross_prefix=arm-linux-gnueabihf-
-        ;;
-      cris)
-        container_image=fedora-cris-cross
         ;;
       hexagon)
         container_cross_prefix=hexagon-unknown-linux-musl-

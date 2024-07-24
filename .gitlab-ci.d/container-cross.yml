@@ -90,11 +90,6 @@ xtensa-debian-cross-container:
   variables:
     NAME: debian-xtensa-cross
 
-cris-fedora-cross-container:
-  extends: .container_job_template
-  variables:
-    NAME: fedora-cris-cross
-
 win64-fedora-cross-container:
   extends: .container_job_template
   variables:
