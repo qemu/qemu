@@ -38,22 +38,6 @@ struct SH7750State;
 
 struct SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem);
 
-typedef struct {
-    /* The callback will be triggered if any of the designated lines change */
-    uint16_t portamask_trigger;
-    uint16_t portbmask_trigger;
-    /* Return 0 if no action was taken */
-    int (*port_change_cb) (uint16_t porta, uint16_t portb,
-                           uint16_t *periph_pdtra,
-                           uint16_t *periph_portdira,
-                           uint16_t *periph_pdtrb,
-                           uint16_t *periph_portdirb);
-} sh7750_io_device;
-
-int sh7750_register_io_device(struct SH7750State *s,
-                              sh7750_io_device *device);
-
-/* sh_serial.c */
 #define TYPE_SH_SERIAL "sh-serial"
 #define SH_SERIAL_FEAT_SCIF (1 << 0)
 
