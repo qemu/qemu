@@ -227,7 +227,6 @@ F: tests/functional/test_avr_mega2560.py
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
-F: target/cris/
 F: disas/cris.c
 
 Hexagon TCG CPUs

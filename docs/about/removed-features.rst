@@ -889,6 +889,13 @@ Nios II CPU (removed in 9.1)
 QEMU Nios II architecture was orphan; Intel has EOL'ed the Nios II
 processor IP (see `Intel discontinuance notification`_).
 
+CRIS CPU architecture (removed in 9.2)
+''''''''''''''''''''''''''''''''''''''
+
+The CRIS architecture was pulled from Linux in 4.17 and the compiler
+was no longer packaged in any distro making it harder to run the
+``check-tcg`` tests.
+
 System accelerators
 -------------------
 

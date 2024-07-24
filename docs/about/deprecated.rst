@@ -206,14 +206,6 @@ in the QEMU object model anymore. ``Sun-UltraSparc-IIIi+`` and
 but for consistency these will get removed in a future release, too.
 Use ``Sun-UltraSparc-IIIi-plus`` and ``Sun-UltraSparc-IV-plus`` instead.
 
-CRIS CPU architecture (since 9.0)
-'''''''''''''''''''''''''''''''''
-
-The CRIS architecture was pulled from Linux in 4.17 and the compiler
-is no longer packaged in any distro making it harder to run the
-``check-tcg`` tests. Unless we can improve the testing situation there
-is a chance the code will bitrot without anyone noticing.
-
 System emulator machines
 ------------------------
 

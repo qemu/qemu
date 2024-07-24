@@ -26,10 +26,6 @@ depending on the guest architecture.
     - :ref:`Yes<AVR-System-emulator>`
     - No
     - 8 bit micro controller, often used in maker projects
-  * - Cris
-    - Yes
-    - Yes
-    - Embedded RISC chip developed by AXIS
   * - Hexagon
     - No
     - Yes
