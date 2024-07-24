@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
+#include "exec/memory.h"
 #include "migration/vmstate.h"
 #ifdef TARGET_LOONGARCH64
 #include "target/loongarch/cpu.h"
@@ -102,7 +103,7 @@ static MemTxResult send_ipi_data(CPUState *cpu, uint64_t val, hwaddr addr,
      * if the mask is 0, we need not to do anything.
      */
     if ((val >> 27) & 0xf) {
-        data = address_space_ldl(iocsr_as, addr, attrs, NULL);
+        data = address_space_ldl_le(iocsr_as, addr, attrs, NULL);
         for (i = 0; i < 4; i++) {
             /* get mask for byte writing */
             if (val & (0x1 << (27 + i))) {
@@ -113,7 +114,7 @@ static MemTxResult send_ipi_data(CPUState *cpu, uint64_t val, hwaddr addr,
 
     data &= mask;
     data |= (val >> 32) & ~mask;
-    address_space_stl(iocsr_as, addr, data, attrs, NULL);
+    address_space_stl_le(iocsr_as, addr, data, attrs, NULL);
 
     return MEMTX_OK;
 }
@@ -317,6 +318,13 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongson_ipi_unrealize(DeviceState *dev)
+{
+    LoongsonIPI *s = LOONGSON_IPI(dev);
+
+    g_free(s->cpu);
+}
+
 static const VMStateDescription vmstate_ipi_core = {
     .name = "ipi-single",
     .version_id = 2,
@@ -352,28 +360,18 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = loongson_ipi_realize;
+    dc->unrealize = loongson_ipi_unrealize;
     device_class_set_props(dc, ipi_properties);
     dc->vmsd = &vmstate_loongson_ipi;
 }
 
-static void loongson_ipi_finalize(Object *obj)
-{
-    LoongsonIPI *s = LOONGSON_IPI(obj);
-
-    g_free(s->cpu);
-}
-
-static const TypeInfo loongson_ipi_info = {
-    .name          = TYPE_LOONGSON_IPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongsonIPI),
-    .class_init    = loongson_ipi_class_init,
-    .instance_finalize = loongson_ipi_finalize,
+static const TypeInfo loongson_ipi_types[] = {
+    {
+        .name               = TYPE_LOONGSON_IPI,
+        .parent             = TYPE_SYS_BUS_DEVICE,
+        .instance_size      = sizeof(LoongsonIPI),
+        .class_init         = loongson_ipi_class_init,
+    }
 };
 
-static void loongson_ipi_register_types(void)
-{
-    type_register_static(&loongson_ipi_info);
-}
-
-type_init(loongson_ipi_register_types)
+DEFINE_TYPES(loongson_ipi_types)

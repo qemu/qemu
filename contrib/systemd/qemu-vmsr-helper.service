@@ -1,0 +1,15 @@
+[Unit]
+Description=Virtual RAPL MSR Daemon for QEMU
+
+[Service]
+WorkingDirectory=/tmp
+Type=simple
+ExecStart=/usr/bin/qemu-vmsr-helper
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/run
+RestrictAddressFamilies=AF_UNIX
+Restart=always
+RestartSec=0
+
+[Install]

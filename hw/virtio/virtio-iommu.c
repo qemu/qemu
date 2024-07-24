@@ -308,6 +308,7 @@ static void virtio_iommu_detach_endpoint_from_domain(VirtIOIOMMUEndpoint *ep)
     if (!ep->domain) {
         return;
     }
+    trace_virtio_iommu_detach_endpoint_from_domain(domain->id, ep->id);
     g_tree_foreach(domain->mappings, virtio_iommu_notify_unmap_cb,
                    ep->iommu_mr);
     QLIST_REMOVE(ep, next);
@@ -467,26 +468,6 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
     return &sdev->as;
 }
 
-static void virtio_iommu_device_clear(VirtIOIOMMU *s, PCIBus *bus, int devfn)
-{
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
-    IOMMUDevice *sdev;
-
-    if (!sbus) {
-        return;
-    }
-
-    sdev = sbus->pbdev[devfn];
-    if (!sdev) {
-        return;
-    }
-
-    g_list_free_full(sdev->resv_regions, g_free);
-    sdev->resv_regions = NULL;
-    g_free(sdev);
-    sbus->pbdev[devfn] = NULL;
-}
-
 static gboolean hiod_equal(gconstpointer v1, gconstpointer v2)
 {
     const struct hiod_key *key1 = v1;
@@ -558,8 +539,6 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
 {
     IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
     IOMMUDevice *sdev;
-    GList *current_ranges;
-    GList *l, *tmp, *new_ranges = NULL;
     int ret = -EINVAL;
 
     if (!sbus) {
@@ -573,35 +552,10 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
         return ret;
     }
 
-    current_ranges = sdev->host_resv_ranges;
-
-    g_assert(!sdev->probe_done);
-
-    /* check that each new resv region is included in an existing one */
     if (sdev->host_resv_ranges) {
-        range_inverse_array(iova_ranges,
-                            &new_ranges,
-                            0, UINT64_MAX);
-
-        for (tmp = new_ranges; tmp; tmp = tmp->next) {
-            Range *newr = (Range *)tmp->data;
-            bool included = false;
-
-            for (l = current_ranges; l; l = l->next) {
-                Range * r = (Range *)l->data;
-
-                if (range_contains_range(r, newr)) {
-                    included = true;
-                    break;
-                }
-            }
-            if (!included) {
-                goto error;
-            }
-        }
-        /* all new reserved ranges are included in existing ones */
-        ret = 0;
-        goto out;
+        error_setg(errp, "%s virtio-iommu does not support aliased BDF",
+                   __func__);
+        return ret;
     }
 
     range_inverse_array(iova_ranges,
@@ -610,13 +564,30 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
     rebuild_resv_regions(sdev);
 
     return 0;
-error:
-    error_setg(errp, "%s Conflicting host reserved ranges set!",
-               __func__);
-out:
-    g_list_free_full(new_ranges, g_free);
-    return ret;
 }
+
+static void virtio_iommu_unset_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
+                                                int devfn)
+{
+    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    IOMMUDevice *sdev;
+
+    if (!sbus) {
+        return;
+    }
+
+    sdev = sbus->pbdev[devfn];
+    if (!sdev) {
+        return;
+    }
+
+    g_list_free_full(g_steal_pointer(&sdev->host_resv_ranges), g_free);
+    g_list_free_full(sdev->resv_regions, g_free);
+    sdev->host_resv_ranges = NULL;
+    sdev->resv_regions = NULL;
+    add_prop_resv_regions(sdev);
+}
+
 
 static bool check_page_size_mask(VirtIOIOMMU *viommu, uint64_t new_mask,
                                  Error **errp)
@@ -726,9 +697,10 @@ virtio_iommu_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
     if (!hiod) {
         return;
     }
+    virtio_iommu_unset_host_iova_ranges(viommu, hiod->aliased_bus,
+                                        hiod->aliased_devfn);
 
     g_hash_table_remove(viommu->host_iommu_devices, &key);
-    virtio_iommu_device_clear(viommu, bus, devfn);
 }
 
 static const PCIIOMMUOps virtio_iommu_ops = {
@@ -815,6 +787,7 @@ static int virtio_iommu_detach(VirtIOIOMMU *s,
     if (QLIST_EMPTY(&domain->endpoint_list)) {
         g_tree_remove(s->domains, GUINT_TO_POINTER(domain->id));
     }
+    g_tree_remove(s->endpoints, GUINT_TO_POINTER(ep_id));
     return VIRTIO_IOMMU_S_OK;
 }
 
@@ -977,7 +950,6 @@ static int virtio_iommu_probe(VirtIOIOMMU *s,
     }
     buf += count;
     free -= count;
-    sdev->probe_done = true;
 
     return VIRTIO_IOMMU_S_OK;
 }

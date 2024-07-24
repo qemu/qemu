@@ -1,0 +1,9 @@
+[Unit]
+Description=Virtual RAPL MSR helper for QEMU
+
+[Socket]
+ListenStream=/run/qemu-vmsr-helper.sock
+SocketMode=0600
+
+[Install]
+WantedBy=multi-user.target

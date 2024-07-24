@@ -160,6 +160,9 @@ struct QIOChannelClass {
                                   void *opaque);
     int (*io_flush)(QIOChannel *ioc,
                     Error **errp);
+    int (*io_peerpid)(QIOChannel *ioc,
+                       unsigned int *pid,
+                       Error **errp);
 };
 
 /* General I/O handling functions */
@@ -980,5 +983,23 @@ int coroutine_mixed_fn qio_channel_writev_full_all(QIOChannel *ioc,
 
 int qio_channel_flush(QIOChannel *ioc,
                       Error **errp);
+
+/**
+ * qio_channel_get_peercred:
+ * @ioc: the channel object
+ * @pid: pointer to pid
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Returns the pid of the peer process connected to this socket.
+ *
+ * The use of this function is possible only for connected
+ * AF_UNIX stream sockets and for AF_UNIX stream and datagram
+ * socket pairs on Linux.
+ * Return -1 on error with pid -1 for the non-Linux OS.
+ *
+ */
+int qio_channel_get_peerpid(QIOChannel *ioc,
+                             unsigned int *pid,
+                             Error **errp);
 
 #endif /* QIO_CHANNEL_H */

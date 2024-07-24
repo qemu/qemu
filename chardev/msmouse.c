@@ -81,7 +81,7 @@ static void msmouse_chr_accept_input(Chardev *chr)
         const uint8_t *buf;
         uint32_t size;
 
-        buf = fifo8_pop_buf(&mouse->outbuf, MIN(len, avail), &size);
+        buf = fifo8_pop_bufptr(&mouse->outbuf, MIN(len, avail), &size);
         qemu_chr_be_write(chr, buf, size);
         len = qemu_chr_be_can_write(chr);
         avail -= size;
