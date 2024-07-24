@@ -329,40 +329,48 @@ static int pnv_xive2_write_end(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
                               word_number);
 }
 
-static int pnv_xive2_end_update(PnvXive2 *xive)
+static int pnv_xive2_end_update(PnvXive2 *xive, uint8_t watch_engine)
 {
-    uint8_t  blk = GETFIELD(VC_ENDC_WATCH_BLOCK_ID,
-                           xive->vc_regs[(VC_ENDC_WATCH0_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(VC_ENDC_WATCH_INDEX,
-                           xive->vc_regs[(VC_ENDC_WATCH0_SPEC >> 3)]);
-    int i;
+    uint8_t  blk;
+    uint32_t idx;
+    int i, spec_reg, data_reg;
     uint64_t endc_watch[4];
 
+    assert(watch_engine < ARRAY_SIZE(endc_watch));
+
+    spec_reg = (VC_ENDC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
+    data_reg = (VC_ENDC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    blk = GETFIELD(VC_ENDC_WATCH_BLOCK_ID, xive->vc_regs[spec_reg]);
+    idx = GETFIELD(VC_ENDC_WATCH_INDEX, xive->vc_regs[spec_reg]);
+
     for (i = 0; i < ARRAY_SIZE(endc_watch); i++) {
-        endc_watch[i] =
-            cpu_to_be64(xive->vc_regs[(VC_ENDC_WATCH0_DATA0 >> 3) + i]);
+        endc_watch[i] = cpu_to_be64(xive->vc_regs[data_reg + i]);
     }
 
     return pnv_xive2_vst_write(xive, VST_END, blk, idx, endc_watch,
                               XIVE_VST_WORD_ALL);
 }
 
-static void pnv_xive2_end_cache_load(PnvXive2 *xive)
+static void pnv_xive2_end_cache_load(PnvXive2 *xive, uint8_t watch_engine)
 {
-    uint8_t  blk = GETFIELD(VC_ENDC_WATCH_BLOCK_ID,
-                           xive->vc_regs[(VC_ENDC_WATCH0_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(VC_ENDC_WATCH_INDEX,
-                           xive->vc_regs[(VC_ENDC_WATCH0_SPEC >> 3)]);
+    uint8_t  blk;
+    uint32_t idx;
     uint64_t endc_watch[4] = { 0 };
-    int i;
+    int i, spec_reg, data_reg;
+
+    assert(watch_engine < ARRAY_SIZE(endc_watch));
+
+    spec_reg = (VC_ENDC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
+    data_reg = (VC_ENDC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    blk = GETFIELD(VC_ENDC_WATCH_BLOCK_ID, xive->vc_regs[spec_reg]);
+    idx = GETFIELD(VC_ENDC_WATCH_INDEX, xive->vc_regs[spec_reg]);
 
     if (pnv_xive2_vst_read(xive, VST_END, blk, idx, endc_watch)) {
         xive2_error(xive, "VST: no END entry %x/%x !?", blk, idx);
     }
 
     for (i = 0; i < ARRAY_SIZE(endc_watch); i++) {
-        xive->vc_regs[(VC_ENDC_WATCH0_DATA0 >> 3) + i] =
-            be64_to_cpu(endc_watch[i]);
+        xive->vc_regs[data_reg + i] = be64_to_cpu(endc_watch[i]);
     }
 }
 
@@ -379,40 +387,48 @@ static int pnv_xive2_write_nvp(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
                               word_number);
 }
 
-static int pnv_xive2_nvp_update(PnvXive2 *xive)
+static int pnv_xive2_nvp_update(PnvXive2 *xive, uint8_t watch_engine)
 {
-    uint8_t  blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID,
-                            xive->pc_regs[(PC_NXC_WATCH0_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(PC_NXC_WATCH_INDEX,
-                            xive->pc_regs[(PC_NXC_WATCH0_SPEC >> 3)]);
-    int i;
+    uint8_t  blk;
+    uint32_t idx;
+    int i, spec_reg, data_reg;
     uint64_t nxc_watch[4];
 
+    assert(watch_engine < ARRAY_SIZE(nxc_watch));
+
+    spec_reg = (PC_NXC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
+    data_reg = (PC_NXC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID, xive->pc_regs[spec_reg]);
+    idx = GETFIELD(PC_NXC_WATCH_INDEX, xive->pc_regs[spec_reg]);
+
     for (i = 0; i < ARRAY_SIZE(nxc_watch); i++) {
-        nxc_watch[i] =
-            cpu_to_be64(xive->pc_regs[(PC_NXC_WATCH0_DATA0 >> 3) + i]);
+        nxc_watch[i] = cpu_to_be64(xive->pc_regs[data_reg + i]);
     }
 
     return pnv_xive2_vst_write(xive, VST_NVP, blk, idx, nxc_watch,
                               XIVE_VST_WORD_ALL);
 }
 
-static void pnv_xive2_nvp_cache_load(PnvXive2 *xive)
+static void pnv_xive2_nvp_cache_load(PnvXive2 *xive, uint8_t watch_engine)
 {
-    uint8_t  blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID,
-                           xive->pc_regs[(PC_NXC_WATCH0_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(PC_NXC_WATCH_INDEX,
-                           xive->pc_regs[(PC_NXC_WATCH0_SPEC >> 3)]);
+    uint8_t  blk;
+    uint32_t idx;
     uint64_t nxc_watch[4] = { 0 };
-    int i;
+    int i, spec_reg, data_reg;
+
+    assert(watch_engine < ARRAY_SIZE(nxc_watch));
+
+    spec_reg = (PC_NXC_WATCH0_SPEC + watch_engine * 0x40) >> 3;
+    data_reg = (PC_NXC_WATCH0_DATA0 + watch_engine * 0x40) >> 3;
+    blk = GETFIELD(PC_NXC_WATCH_BLOCK_ID, xive->pc_regs[spec_reg]);
+    idx = GETFIELD(PC_NXC_WATCH_INDEX, xive->pc_regs[spec_reg]);
 
     if (pnv_xive2_vst_read(xive, VST_NVP, blk, idx, nxc_watch)) {
         xive2_error(xive, "VST: no NVP entry %x/%x !?", blk, idx);
     }
 
     for (i = 0; i < ARRAY_SIZE(nxc_watch); i++) {
-        xive->pc_regs[(PC_NXC_WATCH0_DATA0 >> 3) + i] =
-            be64_to_cpu(nxc_watch[i]);
+        xive->pc_regs[data_reg + i] = be64_to_cpu(nxc_watch[i]);
     }
 }
 
@@ -964,12 +980,70 @@ static const MemoryRegionOps pnv_xive2_ic_cq_ops = {
     },
 };
 
+static uint8_t pnv_xive2_cache_watch_assign(uint64_t engine_mask,
+                                            uint64_t *state)
+{
+    uint8_t val = 0xFF;
+    int i;
+
+    for (i = 3; i >= 0; i--) {
+        if (BIT(i) & engine_mask) {
+            if (!(BIT(i) & *state)) {
+                *state |= BIT(i);
+                val = 3 - i;
+                break;
+            }
+        }
+    }
+    return val;
+}
+
+static void pnv_xive2_cache_watch_release(uint64_t *state, uint8_t watch_engine)
+{
+    uint8_t engine_bit = 3 - watch_engine;
+
+    if (*state & BIT(engine_bit)) {
+        *state &= ~BIT(engine_bit);
+    }
+}
+
+static uint8_t pnv_xive2_endc_cache_watch_assign(PnvXive2 *xive)
+{
+    uint64_t engine_mask = GETFIELD(VC_ENDC_CFG_CACHE_WATCH_ASSIGN,
+                                    xive->vc_regs[VC_ENDC_CFG >> 3]);
+    uint64_t state = xive->vc_regs[VC_ENDC_WATCH_ASSIGN >> 3];
+    uint8_t val;
+
+    /*
+     * We keep track of which engines are currently busy in the
+     * VC_ENDC_WATCH_ASSIGN register directly. When the firmware reads
+     * the register, we don't return its value but the ID of an engine
+     * it can use.
+     * There are 4 engines. 0xFF means no engine is available.
+     */
+    val = pnv_xive2_cache_watch_assign(engine_mask, &state);
+    if (val != 0xFF) {
+        xive->vc_regs[VC_ENDC_WATCH_ASSIGN >> 3] = state;
+    }
+    return val;
+}
+
+static void pnv_xive2_endc_cache_watch_release(PnvXive2 *xive,
+                                               uint8_t watch_engine)
+{
+    uint64_t state = xive->vc_regs[VC_ENDC_WATCH_ASSIGN >> 3];
+
+    pnv_xive2_cache_watch_release(&state, watch_engine);
+    xive->vc_regs[VC_ENDC_WATCH_ASSIGN >> 3] = state;
+}
+
 static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
                                      unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
     uint64_t val = 0;
     uint32_t reg = offset >> 3;
+    uint8_t watch_engine;
 
     switch (offset) {
     /*
@@ -1000,24 +1074,44 @@ static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
         val = xive->vc_regs[reg];
         break;
 
+    case VC_ENDC_WATCH_ASSIGN:
+        val = pnv_xive2_endc_cache_watch_assign(xive);
+        break;
+
+    case VC_ENDC_CFG:
+        val = xive->vc_regs[reg];
+        break;
+
     /*
      * END cache updates
      */
     case VC_ENDC_WATCH0_SPEC:
+    case VC_ENDC_WATCH1_SPEC:
+    case VC_ENDC_WATCH2_SPEC:
+    case VC_ENDC_WATCH3_SPEC:
+        watch_engine = (offset - VC_ENDC_WATCH0_SPEC) >> 6;
         xive->vc_regs[reg] &= ~(VC_ENDC_WATCH_FULL | VC_ENDC_WATCH_CONFLICT);
+        pnv_xive2_endc_cache_watch_release(xive, watch_engine);
         val = xive->vc_regs[reg];
         break;
 
     case VC_ENDC_WATCH0_DATA0:
+    case VC_ENDC_WATCH1_DATA0:
+    case VC_ENDC_WATCH2_DATA0:
+    case VC_ENDC_WATCH3_DATA0:
         /*
          * Load DATA registers from cache with data requested by the
          * SPEC register
          */
-        pnv_xive2_end_cache_load(xive);
+        watch_engine = (offset - VC_ENDC_WATCH0_DATA0) >> 6;
+        pnv_xive2_end_cache_load(xive, watch_engine);
         val = xive->vc_regs[reg];
         break;
 
     case VC_ENDC_WATCH0_DATA1 ... VC_ENDC_WATCH0_DATA3:
+    case VC_ENDC_WATCH1_DATA1 ... VC_ENDC_WATCH1_DATA3:
+    case VC_ENDC_WATCH2_DATA1 ... VC_ENDC_WATCH2_DATA3:
+    case VC_ENDC_WATCH3_DATA1 ... VC_ENDC_WATCH3_DATA3:
         val = xive->vc_regs[reg];
         break;
 
@@ -1063,6 +1157,7 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
     uint32_t reg = offset >> 3;
+    uint8_t watch_engine;
 
     switch (offset) {
     /*
@@ -1095,19 +1190,32 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
         /* EAS update */
         break;
 
+    case VC_ENDC_CFG:
+        break;
+
     /*
      * END cache updates
      */
     case VC_ENDC_WATCH0_SPEC:
+    case VC_ENDC_WATCH1_SPEC:
+    case VC_ENDC_WATCH2_SPEC:
+    case VC_ENDC_WATCH3_SPEC:
          val &= ~VC_ENDC_WATCH_CONFLICT; /* HW will set this bit */
         break;
 
     case VC_ENDC_WATCH0_DATA1 ... VC_ENDC_WATCH0_DATA3:
+    case VC_ENDC_WATCH1_DATA1 ... VC_ENDC_WATCH1_DATA3:
+    case VC_ENDC_WATCH2_DATA1 ... VC_ENDC_WATCH2_DATA3:
+    case VC_ENDC_WATCH3_DATA1 ... VC_ENDC_WATCH3_DATA3:
         break;
     case VC_ENDC_WATCH0_DATA0:
+    case VC_ENDC_WATCH1_DATA0:
+    case VC_ENDC_WATCH2_DATA0:
+    case VC_ENDC_WATCH3_DATA0:
         /* writing to DATA0 triggers the cache write */
+        watch_engine = (offset - VC_ENDC_WATCH0_DATA0) >> 6;
         xive->vc_regs[reg] = val;
-        pnv_xive2_end_update(xive);
+        pnv_xive2_end_update(xive, watch_engine);
         break;
 
 
@@ -1157,12 +1265,43 @@ static const MemoryRegionOps pnv_xive2_ic_vc_ops = {
     },
 };
 
+static uint8_t pnv_xive2_nxc_cache_watch_assign(PnvXive2 *xive)
+{
+    uint64_t engine_mask = GETFIELD(PC_NXC_PROC_CONFIG_WATCH_ASSIGN,
+                                    xive->pc_regs[PC_NXC_PROC_CONFIG >> 3]);
+    uint64_t state = xive->pc_regs[PC_NXC_WATCH_ASSIGN >> 3];
+    uint8_t val;
+
+    /*
+     * We keep track of which engines are currently busy in the
+     * PC_NXC_WATCH_ASSIGN register directly. When the firmware reads
+     * the register, we don't return its value but the ID of an engine
+     * it can use.
+     * There are 4 engines. 0xFF means no engine is available.
+     */
+    val = pnv_xive2_cache_watch_assign(engine_mask, &state);
+    if (val != 0xFF) {
+        xive->pc_regs[PC_NXC_WATCH_ASSIGN >> 3] = state;
+    }
+    return val;
+}
+
+static void pnv_xive2_nxc_cache_watch_release(PnvXive2 *xive,
+                                              uint8_t watch_engine)
+{
+    uint64_t state = xive->pc_regs[PC_NXC_WATCH_ASSIGN >> 3];
+
+    pnv_xive2_cache_watch_release(&state, watch_engine);
+    xive->pc_regs[PC_NXC_WATCH_ASSIGN >> 3] = state;
+}
+
 static uint64_t pnv_xive2_ic_pc_read(void *opaque, hwaddr offset,
                                      unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
     uint64_t val = -1;
     uint32_t reg = offset >> 3;
+    uint8_t watch_engine;
 
     switch (offset) {
     /*
@@ -1173,24 +1312,44 @@ static uint64_t pnv_xive2_ic_pc_read(void *opaque, hwaddr offset,
         val = xive->pc_regs[reg];
         break;
 
+    case PC_NXC_WATCH_ASSIGN:
+        val = pnv_xive2_nxc_cache_watch_assign(xive);
+        break;
+
+    case PC_NXC_PROC_CONFIG:
+        val = xive->pc_regs[reg];
+        break;
+
     /*
      * cache updates
      */
     case PC_NXC_WATCH0_SPEC:
+    case PC_NXC_WATCH1_SPEC:
+    case PC_NXC_WATCH2_SPEC:
+    case PC_NXC_WATCH3_SPEC:
+        watch_engine = (offset - PC_NXC_WATCH0_SPEC) >> 6;
         xive->pc_regs[reg] &= ~(PC_NXC_WATCH_FULL | PC_NXC_WATCH_CONFLICT);
+        pnv_xive2_nxc_cache_watch_release(xive, watch_engine);
         val = xive->pc_regs[reg];
         break;
 
     case PC_NXC_WATCH0_DATA0:
+    case PC_NXC_WATCH1_DATA0:
+    case PC_NXC_WATCH2_DATA0:
+    case PC_NXC_WATCH3_DATA0:
        /*
         * Load DATA registers from cache with data requested by the
         * SPEC register
         */
-        pnv_xive2_nvp_cache_load(xive);
+        watch_engine = (offset - PC_NXC_WATCH0_DATA0) >> 6;
+        pnv_xive2_nvp_cache_load(xive, watch_engine);
         val = xive->pc_regs[reg];
         break;
 
     case PC_NXC_WATCH0_DATA1 ... PC_NXC_WATCH0_DATA3:
+    case PC_NXC_WATCH1_DATA1 ... PC_NXC_WATCH1_DATA3:
+    case PC_NXC_WATCH2_DATA1 ... PC_NXC_WATCH2_DATA3:
+    case PC_NXC_WATCH3_DATA1 ... PC_NXC_WATCH3_DATA3:
         val = xive->pc_regs[reg];
         break;
 
@@ -1219,6 +1378,7 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
     uint32_t reg = offset >> 3;
+    uint8_t watch_engine;
 
     switch (offset) {
 
@@ -1231,19 +1391,32 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
     case PC_VSD_TABLE_DATA:
         break;
 
+    case PC_NXC_PROC_CONFIG:
+        break;
+
     /*
      * cache updates
      */
     case PC_NXC_WATCH0_SPEC:
+    case PC_NXC_WATCH1_SPEC:
+    case PC_NXC_WATCH2_SPEC:
+    case PC_NXC_WATCH3_SPEC:
         val &= ~PC_NXC_WATCH_CONFLICT; /* HW will set this bit */
         break;
 
     case PC_NXC_WATCH0_DATA1 ... PC_NXC_WATCH0_DATA3:
+    case PC_NXC_WATCH1_DATA1 ... PC_NXC_WATCH1_DATA3:
+    case PC_NXC_WATCH2_DATA1 ... PC_NXC_WATCH2_DATA3:
+    case PC_NXC_WATCH3_DATA1 ... PC_NXC_WATCH3_DATA3:
         break;
     case PC_NXC_WATCH0_DATA0:
+    case PC_NXC_WATCH1_DATA0:
+    case PC_NXC_WATCH2_DATA0:
+    case PC_NXC_WATCH3_DATA0:
         /* writing to DATA0 triggers the cache write */
+        watch_engine = (offset - PC_NXC_WATCH0_DATA0) >> 6;
         xive->pc_regs[reg] = val;
-        pnv_xive2_nvp_update(xive);
+        pnv_xive2_nvp_update(xive, watch_engine);
         break;
 
    /* case PC_NXC_FLUSH_CTRL: */
@@ -1813,6 +1986,12 @@ static void pnv_xive2_reset(void *dev)
     /* HW hardwires the #Topology of the chip in the block field */
     xive->cq_regs[CQ_XIVE_CFG >> 3] |=
         SETFIELD(CQ_XIVE_CFG_HYP_HARD_BLOCK_ID, 0ull, xive->chip->chip_id);
+
+    /* VC and PC cache watch assign mechanism */
+    xive->vc_regs[VC_ENDC_CFG >> 3] =
+        SETFIELD(VC_ENDC_CFG_CACHE_WATCH_ASSIGN, 0ull, 0b0111);
+    xive->pc_regs[PC_NXC_PROC_CONFIG >> 3] =
+        SETFIELD(PC_NXC_PROC_CONFIG_WATCH_ASSIGN, 0ull, 0b0111);
 
     /* Set default page size to 64k */
     xive->ic_shift = xive->esb_shift = xive->end_shift = 16;
