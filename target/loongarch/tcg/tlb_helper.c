@@ -525,6 +525,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
         if (unlikely(level == 4)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Attempted use of level 4 huge page\n");
+            return base;
         }
 
         if (FIELD_EX64(base, TLBENTRY, LEVEL)) {
