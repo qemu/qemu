@@ -60,7 +60,4 @@ int sh7750_register_io_device(struct SH7750State *s,
 /* sh7750.c */
 qemu_irq sh7750_irl(struct SH7750State *s);
 
-/* tc58128.c */
-int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2);
-
 #endif

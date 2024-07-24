@@ -1688,12 +1688,6 @@ F: hw/timer/sh_timer.c
 F: include/hw/sh4/sh_intc.h
 F: include/hw/timer/tmu012.h
 
-TC58128 NAND EEPROM
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
-R: Magnus Damm <magnus.damm@gmail.com>
-S: Odd Fixes
-F: hw/block/tc58128.c
-
 SPARC Machines
 --------------
 Sun4m
