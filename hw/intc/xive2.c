@@ -89,7 +89,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
     pq = xive_get_field32(END2_W1_ESn, end->w1);
 
     g_string_append_printf(buf,
-                           "  %08x %c%c %c%c%c%c%c%c%c%c%c%c "
+                           "  %08x %c%c %c%c%c%c%c%c%c%c%c%c%c %c%c "
                            "prio:%d nvp:%02x/%04x",
                            end_idx,
                            pq & XIVE_ESB_VAL_P ? 'P' : '-',
@@ -98,12 +98,15 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
                            xive2_end_is_enqueue(end)  ? 'q' : '-',
                            xive2_end_is_notify(end)   ? 'n' : '-',
                            xive2_end_is_backlog(end)  ? 'b' : '-',
+                           xive2_end_is_precluded_escalation(end) ? 'p' : '-',
                            xive2_end_is_escalate(end) ? 'e' : '-',
                            xive2_end_is_escalate_end(end) ? 'N' : '-',
                            xive2_end_is_uncond_escalation(end)   ? 'u' : '-',
                            xive2_end_is_silent_escalation(end)   ? 's' : '-',
                            xive2_end_is_firmware1(end)   ? 'f' : '-',
                            xive2_end_is_firmware2(end)   ? 'F' : '-',
+                           xive2_end_is_ignore(end) ? 'i' : '-',
+                           xive2_end_is_crowd(end)  ? 'c' : '-',
                            priority, nvp_blk, nvp_idx);
 
     if (qaddr_base) {
@@ -676,7 +679,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     }
 
     found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
-                          xive_get_field32(END2_W6_IGNORE, end.w7),
+                          xive2_end_is_ignore(&end),
                           priority,
                           xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7));
 
