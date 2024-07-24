@@ -722,6 +722,7 @@ static int pnv_xive2_stt_set_data(PnvXive2 *xive, uint64_t val)
     case CQ_TAR_NVPG:
     case CQ_TAR_ESB:
     case CQ_TAR_END:
+    case CQ_TAR_NVC:
         xive->tables[tsel][entry] = val;
         break;
     default:
