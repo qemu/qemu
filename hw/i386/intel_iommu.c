@@ -2666,13 +2666,43 @@ static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
     return true;
 }
 
+static void do_invalidate_device_tlb(VTDAddressSpace *vtd_dev_as,
+                                     bool size, hwaddr addr)
+{
+    /*
+     * According to ATS spec table 2.4:
+     * S = 0, bits 15:12 = xxxx     range size: 4K
+     * S = 1, bits 15:12 = xxx0     range size: 8K
+     * S = 1, bits 15:12 = xx01     range size: 16K
+     * S = 1, bits 15:12 = x011     range size: 32K
+     * S = 1, bits 15:12 = 0111     range size: 64K
+     * ...
+     */
+
+    IOMMUTLBEvent event;
+    uint64_t sz;
+
+    if (size) {
+        sz = (VTD_PAGE_SIZE * 2) << cto64(addr >> VTD_PAGE_SHIFT);
+        addr &= ~(sz - 1);
+    } else {
+        sz = VTD_PAGE_SIZE;
+    }
+
+    event.type = IOMMU_NOTIFIER_DEVIOTLB_UNMAP;
+    event.entry.target_as = &vtd_dev_as->as;
+    event.entry.addr_mask = sz - 1;
+    event.entry.iova = addr;
+    event.entry.perm = IOMMU_NONE;
+    event.entry.translated_addr = 0;
+    memory_region_notify_iommu(&vtd_dev_as->iommu, 0, event);
+}
+
 static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
                                           VTDInvDesc *inv_desc)
 {
     VTDAddressSpace *vtd_dev_as;
-    IOMMUTLBEvent event;
     hwaddr addr;
-    uint64_t sz;
     uint16_t sid;
     bool size;
 
@@ -2697,28 +2727,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
         goto done;
     }
 
-    /* According to ATS spec table 2.4:
-     * S = 0, bits 15:12 = xxxx     range size: 4K
-     * S = 1, bits 15:12 = xxx0     range size: 8K
-     * S = 1, bits 15:12 = xx01     range size: 16K
-     * S = 1, bits 15:12 = x011     range size: 32K
-     * S = 1, bits 15:12 = 0111     range size: 64K
-     * ...
-     */
-    if (size) {
-        sz = (VTD_PAGE_SIZE * 2) << cto64(addr >> VTD_PAGE_SHIFT);
-        addr &= ~(sz - 1);
-    } else {
-        sz = VTD_PAGE_SIZE;
-    }
-
-    event.type = IOMMU_NOTIFIER_DEVIOTLB_UNMAP;
-    event.entry.target_as = &vtd_dev_as->as;
-    event.entry.addr_mask = sz - 1;
-    event.entry.iova = addr;
-    event.entry.perm = IOMMU_NONE;
-    event.entry.translated_addr = 0;
-    memory_region_notify_iommu(&vtd_dev_as->iommu, 0, event);
+    do_invalidate_device_tlb(vtd_dev_as, size, addr);
 
 done:
     return true;

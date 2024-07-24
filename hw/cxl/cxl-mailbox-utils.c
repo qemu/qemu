@@ -1653,8 +1653,8 @@ static CXLRetCode cmd_media_get_poison_list(const struct cxl_cmd *cmd,
 
     QLIST_FOREACH(ent, poison_list, node) {
         /* Check for no overlap */
-        if (ent->start >= query_start + query_length ||
-            ent->start + ent->length <= query_start) {
+        if (!ranges_overlap(ent->start, ent->length,
+                            query_start, query_length)) {
             continue;
         }
         record_count++;
@@ -1666,8 +1666,8 @@ static CXLRetCode cmd_media_get_poison_list(const struct cxl_cmd *cmd,
         uint64_t start, stop;
 
         /* Check for no overlap */
-        if (ent->start >= query_start + query_length ||
-            ent->start + ent->length <= query_start) {
+        if (!ranges_overlap(ent->start, ent->length,
+                            query_start, query_length)) {
             continue;
         }
 

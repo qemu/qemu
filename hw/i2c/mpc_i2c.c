@@ -82,7 +82,7 @@ struct MPCI2CState {
     uint8_t cr;
     uint8_t sr;
     uint8_t dr;
-    uint8_t dfssr;
+    uint8_t dfsrr;
 };
 
 static bool mpc_i2c_is_enabled(MPCI2CState *s)
@@ -293,7 +293,7 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
         }
         break;
     case MPC_I2C_DFSRR:
-        s->dfssr = value;
+        s->dfsrr = value;
         break;
     default:
         DPRINTF("ERROR: Bad write addr 0x%x\n", (unsigned int)addr);
@@ -319,7 +319,7 @@ static const VMStateDescription mpc_i2c_vmstate = {
         VMSTATE_UINT8(cr, MPCI2CState),
         VMSTATE_UINT8(sr, MPCI2CState),
         VMSTATE_UINT8(dr, MPCI2CState),
-        VMSTATE_UINT8(dfssr, MPCI2CState),
+        VMSTATE_UINT8(dfsrr, MPCI2CState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -329,7 +329,7 @@ static void mpc_i2c_realize(DeviceState *dev, Error **errp)
     MPCI2CState  *i2c = MPC_I2C(dev);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &i2c->irq);
     memory_region_init_io(&i2c->iomem, OBJECT(i2c), &i2c_ops, i2c,
-                          "mpc-i2c", 0x14);
+                          "mpc-i2c", 0x15);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &i2c->iomem);
     i2c->bus = i2c_init_bus(dev, "i2c");
 }

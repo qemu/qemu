@@ -42,7 +42,7 @@ depending on the guest architecture.
     - :ref:`Yes<QEMU-PC-System-emulator>`
     - Yes
     - The ubiquitous desktop PC CPU architecture, 32 and 64 bit.
-  * - Loongarch
+  * - LoongArch
     - Yes
     - Yes
     - A MIPS-like 64bit RISC architecture developed in China

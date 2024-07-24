@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/range.h"
 #include "cpu.h"
 #include "tcg/tcg.h"
 #include "exec/helper-proto.h"
@@ -240,9 +241,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
             if (new_ctx == ctx) {
                 uint64_t vaddr = tlb[i].tag & ~0x1fffULL;
                 uint64_t size = 8192ULL << 3 * TTE_PGSIZE(tlb[i].tte);
-                if (new_vaddr == vaddr
-                    || (new_vaddr < vaddr + size
-                        && vaddr < new_vaddr + new_size)) {
+                if (ranges_overlap(new_vaddr, new_size, vaddr, size)) {
                     DPRINTF_MMU("auto demap entry [%d] %lx->%lx\n", i, vaddr,
                                 new_vaddr);
                     replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
