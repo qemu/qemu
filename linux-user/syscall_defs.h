@@ -62,7 +62,7 @@
 #if (defined(TARGET_I386) && defined(TARGET_ABI32))                     \
     || (defined(TARGET_ARM) && defined(TARGET_ABI32))                   \
     || (defined(TARGET_SPARC) && defined(TARGET_ABI32))                 \
-    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
+    || defined(TARGET_M68K) || defined(TARGET_SH4)
 /* 16 bit uid wrappers emulation */
 #define USE_UID16
 #define target_id uint16_t
@@ -71,7 +71,7 @@
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4)  \
-    || defined(TARGET_M68K) || defined(TARGET_CRIS)                     \
+    || defined(TARGET_M68K)                                             \
     || defined(TARGET_S390X) || defined(TARGET_OPENRISC)                \
     || defined(TARGET_RISCV)                                            \
     || defined(TARGET_XTENSA) || defined(TARGET_LOONGARCH64)
@@ -1234,8 +1234,7 @@ struct target_winsize {
 #include "target_mman.h"
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32))     \
-    || (defined(TARGET_ARM) && defined(TARGET_ABI32))   \
-    || defined(TARGET_CRIS)
+    || (defined(TARGET_ARM) && defined(TARGET_ABI32))
 #define TARGET_STAT_HAVE_NSEC
 struct target_stat {
     abi_ushort st_dev;
