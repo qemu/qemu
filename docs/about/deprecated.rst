@@ -232,12 +232,6 @@ These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
 
-``shix`` (since 9.0)
-''''''''''''''''''''
-
-The machine is no longer in existence and has been long unmaintained
-in QEMU. This also holds for the TC51828 16MiB flash that it uses.
-
 ``pseries-2.1`` up to ``pseries-2.12`` (since 9.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''
 

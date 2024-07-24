@@ -978,6 +978,11 @@ Nios II ``10m50-ghrd`` and ``nios2-generic-nommu`` machines (removed in 9.1)
 
 The Nios II architecture was orphan.
 
+``shix`` (removed in 9.2)
+'''''''''''''''''''''''''
+
+The machine was unmaintained.
+
 linux-user mode CPUs
 --------------------
 
