@@ -128,4 +128,5 @@ DEF_HELPER_2(start, void, env, i32)
 DEF_HELPER_1(stop, void, env)
 DEF_HELPER_2(wait, void, env, i32)
 DEF_HELPER_2(resume, void, env, i32)
+DEF_HELPER_2(nmi, void, env, i32)
 #endif
