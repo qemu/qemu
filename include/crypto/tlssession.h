@@ -107,6 +107,7 @@
 
 typedef struct QCryptoTLSSession QCryptoTLSSession;
 
+#define QCRYPTO_TLS_SESSION_ERR_BLOCK -2
 
 /**
  * qcrypto_tls_session_new:
@@ -177,12 +178,18 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSSession, qcrypto_tls_session_free)
 int qcrypto_tls_session_check_credentials(QCryptoTLSSession *sess,
                                           Error **errp);
 
+/*
+ * These must return QCRYPTO_TLS_SESSION_ERR_BLOCK if the I/O
+ * would block, but on other errors, must fill 'errp'
+ */
 typedef ssize_t (*QCryptoTLSSessionWriteFunc)(const char *buf,
                                               size_t len,
-                                              void *opaque);
+                                              void *opaque,
+                                              Error **errp);
 typedef ssize_t (*QCryptoTLSSessionReadFunc)(char *buf,
                                              size_t len,
-                                             void *opaque);
+                                             void *opaque,
+                                             Error **errp);
 
 /**
  * qcrypto_tls_session_set_callbacks:
@@ -212,6 +219,7 @@ void qcrypto_tls_session_set_callbacks(QCryptoTLSSession *sess,
  * @sess: the TLS session object
  * @buf: the plain text to send
  * @len: the length of @buf
+ * @errp: pointer to hold returned error object
  *
  * Encrypt @len bytes of the data in @buf and send
  * it to the remote peer using the callback previously
@@ -221,32 +229,45 @@ void qcrypto_tls_session_set_callbacks(QCryptoTLSSession *sess,
  * qcrypto_tls_session_get_handshake_status() returns
  * QCRYPTO_TLS_HANDSHAKE_COMPLETE
  *
- * Returns: the number of bytes sent, or -1 on error
+ * Returns: the number of bytes sent,
+ * or QCRYPTO_TLS_SESSION_ERR_BLOCK if the write would block,
+ * or -1 on error.
  */
 ssize_t qcrypto_tls_session_write(QCryptoTLSSession *sess,
                                   const char *buf,
-                                  size_t len);
+                                  size_t len,
+                                  Error **errp);
 
 /**
  * qcrypto_tls_session_read:
  * @sess: the TLS session object
  * @buf: to fill with plain text received
  * @len: the length of @buf
+ * @gracefulTermination: treat premature termination as graceful EOF
+ * @errp: pointer to hold returned error object
  *
  * Receive up to @len bytes of data from the remote peer
  * using the callback previously registered with
  * qcrypto_tls_session_set_callbacks(), decrypt it and
  * store it in @buf.
  *
+ * If @gracefulTermination is true, then a premature termination
+ * of the TLS session will be treated as indicating EOF, as
+ * opposed to an error.
+ *
  * It is an error to call this before
  * qcrypto_tls_session_get_handshake_status() returns
  * QCRYPTO_TLS_HANDSHAKE_COMPLETE
  *
- * Returns: the number of bytes received, or -1 on error
+ * Returns: the number of bytes received,
+ * or QCRYPTO_TLS_SESSION_ERR_BLOCK if the receive would block,
+ * or -1 on error.
  */
 ssize_t qcrypto_tls_session_read(QCryptoTLSSession *sess,
                                  char *buf,
-                                 size_t len);
+                                 size_t len,
+                                 bool gracefulTermination,
+                                 Error **errp);
 
 /**
  * qcrypto_tls_session_check_pending:

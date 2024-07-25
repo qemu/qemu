@@ -44,6 +44,13 @@ struct QCryptoTLSSession {
     QCryptoTLSSessionReadFunc readFunc;
     void *opaque;
     char *peername;
+
+    /*
+     * Allow concurrent reads and writes, so track
+     * errors separately
+     */
+    Error *rerr;
+    Error *werr;
 };
 
 
@@ -53,6 +60,9 @@ qcrypto_tls_session_free(QCryptoTLSSession *session)
     if (!session) {
         return;
     }
+
+    error_free(session->rerr);
+    error_free(session->werr);
 
     gnutls_deinit(session->handle);
     g_free(session->hostname);
@@ -67,13 +77,26 @@ static ssize_t
 qcrypto_tls_session_push(void *opaque, const void *buf, size_t len)
 {
     QCryptoTLSSession *session = opaque;
+    ssize_t ret;
 
     if (!session->writeFunc) {
         errno = EIO;
         return -1;
     };
 
-    return session->writeFunc(buf, len, session->opaque);
+    error_free(session->werr);
+    session->werr = NULL;
+
+    ret = session->writeFunc(buf, len, session->opaque, &session->werr);
+    if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
+        errno = EAGAIN;
+        return -1;
+    } else if (ret < 0) {
+        errno = EIO;
+        return -1;
+    } else {
+        return ret;
+    }
 }
 
 
@@ -81,13 +104,26 @@ static ssize_t
 qcrypto_tls_session_pull(void *opaque, void *buf, size_t len)
 {
     QCryptoTLSSession *session = opaque;
+    ssize_t ret;
 
     if (!session->readFunc) {
         errno = EIO;
         return -1;
     };
 
-    return session->readFunc(buf, len, session->opaque);
+    error_free(session->rerr);
+    session->rerr = NULL;
+
+    ret = session->readFunc(buf, len, session->opaque, &session->rerr);
+    if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
+        errno = EAGAIN;
+        return -1;
+    } else if (ret < 0) {
+        errno = EIO;
+        return -1;
+    } else {
+        return ret;
+    }
 }
 
 #define TLS_PRIORITY_ADDITIONAL_ANON "+ANON-DH"
@@ -441,23 +477,25 @@ qcrypto_tls_session_set_callbacks(QCryptoTLSSession *session,
 ssize_t
 qcrypto_tls_session_write(QCryptoTLSSession *session,
                           const char *buf,
-                          size_t len)
+                          size_t len,
+                          Error **errp)
 {
     ssize_t ret = gnutls_record_send(session->handle, buf, len);
 
     if (ret < 0) {
-        switch (ret) {
-        case GNUTLS_E_AGAIN:
-            errno = EAGAIN;
-            break;
-        case GNUTLS_E_INTERRUPTED:
-            errno = EINTR;
-            break;
-        default:
-            errno = EIO;
-            break;
+        if (ret == GNUTLS_E_AGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else {
+            if (session->werr) {
+                error_propagate(errp, session->werr);
+                session->werr = NULL;
+            } else {
+                error_setg(errp,
+                           "Cannot write to TLS channel: %s",
+                           gnutls_strerror(ret));
+            }
+            return -1;
         }
-        ret = -1;
     }
 
     return ret;
@@ -467,26 +505,29 @@ qcrypto_tls_session_write(QCryptoTLSSession *session,
 ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *session,
                          char *buf,
-                         size_t len)
+                         size_t len,
+                         bool gracefulTermination,
+                         Error **errp)
 {
     ssize_t ret = gnutls_record_recv(session->handle, buf, len);
 
     if (ret < 0) {
-        switch (ret) {
-        case GNUTLS_E_AGAIN:
-            errno = EAGAIN;
-            break;
-        case GNUTLS_E_INTERRUPTED:
-            errno = EINTR;
-            break;
-        case GNUTLS_E_PREMATURE_TERMINATION:
-            errno = ECONNABORTED;
-            break;
-        default:
-            errno = EIO;
-            break;
+        if (ret == GNUTLS_E_AGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else if ((ret == GNUTLS_E_PREMATURE_TERMINATION) &&
+                   gracefulTermination){
+            return 0;
+        } else {
+            if (session->rerr) {
+                error_propagate(errp, session->rerr);
+                session->rerr = NULL;
+            } else {
+                error_setg(errp,
+                           "Cannot read from TLS channel: %s",
+                           gnutls_strerror(ret));
+            }
+            return -1;
         }
-        ret = -1;
     }
 
     return ret;
@@ -512,11 +553,21 @@ qcrypto_tls_session_handshake(QCryptoTLSSession *session,
             ret == GNUTLS_E_AGAIN) {
             ret = 1;
         } else {
-            error_setg(errp, "TLS handshake failed: %s",
-                       gnutls_strerror(ret));
+            if (session->rerr || session->werr) {
+                error_setg(errp, "TLS handshake failed: %s: %s",
+                           gnutls_strerror(ret),
+                           error_get_pretty(session->rerr ?
+                                            session->rerr : session->werr));
+            } else {
+                error_setg(errp, "TLS handshake failed: %s",
+                           gnutls_strerror(ret));
+            }
             ret = -1;
         }
     }
+    error_free(session->rerr);
+    error_free(session->werr);
+    session->rerr = session->werr = NULL;
 
     return ret;
 }
@@ -605,9 +656,10 @@ qcrypto_tls_session_set_callbacks(
 ssize_t
 qcrypto_tls_session_write(QCryptoTLSSession *sess,
                           const char *buf,
-                          size_t len)
+                          size_t len,
+                          Error **errp)
 {
-    errno = -EIO;
+    error_setg(errp, "TLS requires GNUTLS support");
     return -1;
 }
 
@@ -615,9 +667,11 @@ qcrypto_tls_session_write(QCryptoTLSSession *sess,
 ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *sess,
                          char *buf,
-                         size_t len)
+                         size_t len,
+                         bool gracefulTermination,
+                         Error **errp)
 {
-    errno = -EIO;
+    error_setg(errp, "TLS requires GNUTLS support");
     return -1;
 }
 

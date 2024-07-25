@@ -20,3 +20,4 @@ Details about QEMU's various subsystems including how to add features to them.
    vfio-iommufd
    writing-monitor-commands
    virtio-backends
+   crypto
