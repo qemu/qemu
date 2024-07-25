@@ -1367,6 +1367,26 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
     g_assert_not_reached();
 }
 
+void HELPER(start)(CPUHexagonState *env, uint32_t imask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(stop)(CPUHexagonState *env)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(wait)(CPUHexagonState *env, target_ulong PC)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
 uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
 {
     g_assert_not_reached();

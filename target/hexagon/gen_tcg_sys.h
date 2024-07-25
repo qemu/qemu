@@ -63,4 +63,22 @@
         tcg_gen_extrh_i64_i32(ctx->t_sreg_new_value[HEX_SREG_SGP1], tmp); \
     } while (0)
 
+#define fGEN_TCG_Y2_wait(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        gen_helper_wait(tcg_env, tcg_constant_tl(ctx->pkt->pc)); \
+    } while (0)
+
+#define fGEN_TCG_Y2_resume(SHORTCODE) \
+    gen_helper_resume(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_start(SHORTCODE) \
+    gen_helper_start(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_stop(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        gen_helper_stop(tcg_env); \
+    } while (0)
+
 #endif
