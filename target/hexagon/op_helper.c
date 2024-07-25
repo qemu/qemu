@@ -1337,6 +1337,46 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
+void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
+{
+    g_assert_not_reached();
+}
+
+uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
+{
+    g_assert_not_reached();
+}
+
+uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(setimask)(CPUHexagonState *env, uint32_t pred, uint32_t imask)
+{
+    g_assert_not_reached();
+}
+
 void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
     g_assert_not_reached();

@@ -7,6 +7,31 @@
 #ifndef HEXAGON_GEN_TCG_SYS_H
 #define HEXAGON_GEN_TCG_SYS_H
 
+/* System mode instructions */
+#define fGEN_TCG_Y2_swi(SHORTCODE) \
+    gen_helper_swi(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_cswi(SHORTCODE) \
+    gen_helper_cswi(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_ciad(SHORTCODE) \
+    gen_helper_ciad(tcg_env, RsV)
+
+#define fGEN_TCG_Y4_siad(SHORTCODE) \
+    gen_helper_siad(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_iassignw(SHORTCODE) \
+    gen_helper_iassignw(tcg_env, RsV)
+
+#define fGEN_TCG_Y2_iassignr(SHORTCODE) \
+    gen_helper_iassignr(RdV, tcg_env, RsV)
+
+#define fGEN_TCG_Y2_getimask(SHORTCODE) \
+    gen_helper_getimask(RdV, tcg_env, RsV)
+
+#define fGEN_TCG_Y2_setimask(SHORTCODE) \
+    gen_helper_setimask(tcg_env, PtV, RsV)
+
 #define fGEN_TCG_Y2_setprio(SHORTCODE) \
     gen_helper_setprio(tcg_env, PtV, RsV)
 
