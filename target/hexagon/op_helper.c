@@ -1433,6 +1433,10 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     g_assert_not_reached();
 }
 
+void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
+{
+    g_assert_not_reached();
+}
 #endif
 
 
