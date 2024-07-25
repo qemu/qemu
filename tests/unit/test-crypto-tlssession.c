@@ -35,18 +35,40 @@
 #define PSKFILE WORKDIR "keys.psk"
 #define KEYFILE WORKDIR "key-ctx.pem"
 
-static ssize_t testWrite(const char *buf, size_t len, void *opaque)
+static ssize_t
+testWrite(const char *buf, size_t len, void *opaque, Error **errp)
 {
     int *fd = opaque;
+    int ret;
 
-    return write(*fd, buf, len);
+    ret = write(*fd, buf, len);
+    if (ret < 0) {
+        if (errno == EAGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else {
+            error_setg_errno(errp, errno, "unable to write");
+            return -1;
+        }
+    }
+    return ret;
 }
 
-static ssize_t testRead(char *buf, size_t len, void *opaque)
+static ssize_t
+testRead(char *buf, size_t len, void *opaque, Error **errp)
 {
     int *fd = opaque;
+    int ret;
 
-    return read(*fd, buf, len);
+    ret = read(*fd, buf, len);
+    if (ret < 0) {
+        if (errno == EAGAIN) {
+            return QCRYPTO_TLS_SESSION_ERR_BLOCK;
+        } else {
+            error_setg_errno(errp, errno, "unable to read");
+            return -1;
+        }
+    }
+    return ret;
 }
 
 static QCryptoTLSCreds *test_tls_creds_psk_create(

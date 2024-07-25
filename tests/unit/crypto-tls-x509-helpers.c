@@ -20,15 +20,19 @@
 
 #include "qemu/osdep.h"
 
+#include <libtasn1.h>
+
 #include "crypto-tls-x509-helpers.h"
 #include "crypto/init.h"
 #include "qemu/sockets.h"
+
+#include "pkix_asn1_tab.c.inc"
 
 /*
  * This stores some static data that is needed when
  * encoding extensions in the x509 certs
  */
-asn1_node pkix_asn1;
+static asn1_node pkix_asn1;
 
 /*
  * To avoid consuming random entropy to generate keys,

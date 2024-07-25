@@ -3,10 +3,7 @@
  * and is under copyright of various GNUTLS contributors.
  */
 
-#include "qemu/osdep.h"
-#include "crypto-tls-x509-helpers.h"
-
-const asn1_static_node pkix_asn1_tab[] = {
+static const asn1_static_node pkix_asn1_tab[] = {
   {"PKIX1", 536875024, 0},
   {0, 1073741836, 0},
   {"id-ce", 1879048204, 0},
