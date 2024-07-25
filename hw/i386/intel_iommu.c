@@ -2947,7 +2947,9 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
 
     /* Invalidation Queue Address Register, 64-bit */
     case DMAR_IQA_REG:
-        val = s->iq | (vtd_get_quad(s, DMAR_IQA_REG) & VTD_IQA_QS);
+        val = s->iq |
+              (vtd_get_quad(s, DMAR_IQA_REG) &
+              (VTD_IQA_QS | VTD_IQA_DW_MASK));
         if (size == 4) {
             val = val & ((1ULL << 32) - 1);
         }
