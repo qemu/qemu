@@ -270,7 +270,7 @@ void vmsr_read_thread_stat(pid_t pid,
 
     FILE *file = fopen(path, "r");
     if (file == NULL) {
-        pid = -1;
+        error_report("Error opening %s", path_name);
         return;
     }
 
@@ -279,7 +279,8 @@ void vmsr_read_thread_stat(pid_t pid,
         " %*u %*u %*u %*u %*u %*u %*u %*u %*u %*d %*u %*u %u",
            utime, stime, cpu_id) != 3)
     {
-        pid = -1;
+        fclose(file);
+        error_report("Error fscanf did not report the right amount of items");
         return;
     }
 
