@@ -321,6 +321,7 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     qemu_init_vcpu(cs);
     cpu_reset(cs);
 #ifndef CONFIG_USER_ONLY
+    CPUHexagonState *env = cpu_env(cs);
     if (cs->cpu_index == 0) {
         env->g_sreg = g_new0(target_ulong, NUM_SREGS);
     } else {
