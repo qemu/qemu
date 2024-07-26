@@ -8,6 +8,7 @@
 
 #include <glib.h>
 #include "hal/base.h"
+#include "hal/library/debuglib.h"
 #include "hal/library/memlib.h"
 #include "industry_standard/spdm.h"
 #include "library/spdm_responder_lib.h"
