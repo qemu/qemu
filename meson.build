@@ -150,6 +150,7 @@ have_tpm = get_option('tpm') \
   .require(host_os != 'windows', error_message: 'TPM emulation only available on POSIX systems') \
   .allowed()
 
+# TODO: support for Windows
 have_libspdm = get_option('libspdm') \
   .require(host_os == 'linux', error_message: 'LibSPDM is supported only on Linux') \
   .allowed()
@@ -3124,7 +3125,8 @@ host_kconfig = \
   (host_os == 'linux' ? ['CONFIG_LINUX=y'] : []) + \
   (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : []) + \
   (vfio_user_server_allowed ? ['CONFIG_VFIO_USER_SERVER_ALLOWED=y'] : []) + \
-  (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : [])
+  (hv_balloon ? ['CONFIG_HV_BALLOON_POSSIBLE=y'] : []) + \
+  (have_libspdm ? ['CONFIG_SPDM=y'] : [])
 
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
