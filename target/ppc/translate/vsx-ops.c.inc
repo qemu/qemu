@@ -1,34 +1,3 @@
-GEN_HANDLER_E(lxsdx, 0x1F, 0x0C, 0x12, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxsiwax, 0x1F, 0x0C, 0x02, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxsiwzx, 0x1F, 0x0C, 0x00, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxsibzx, 0x1F, 0x0D, 0x18, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(lxsihzx, 0x1F, 0x0D, 0x19, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(lxsspx, 0x1F, 0x0C, 0x10, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(lxvd2x, 0x1F, 0x0C, 0x1A, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxvwsx, 0x1F, 0x0C, 0x0B, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(lxvdsx, 0x1F, 0x0C, 0x0A, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxvw4x, 0x1F, 0x0C, 0x18, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(lxvh8x, 0x1F, 0x0C, 0x19, 0, PPC_NONE,  PPC2_ISA300),
-GEN_HANDLER_E(lxvb16x, 0x1F, 0x0C, 0x1B, 0, PPC_NONE, PPC2_ISA300),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(lxvl, 0x1F, 0x0D, 0x08, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(lxvll, 0x1F, 0x0D, 0x09, 0, PPC_NONE, PPC2_ISA300),
-#endif
-
-GEN_HANDLER_E(stxsdx, 0x1F, 0xC, 0x16, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(stxsibx, 0x1F, 0xD, 0x1C, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(stxsihx, 0x1F, 0xD, 0x1D, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(stxsiwx, 0x1F, 0xC, 0x04, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(stxsspx, 0x1F, 0xC, 0x14, 0, PPC_NONE, PPC2_VSX207),
-GEN_HANDLER_E(stxvd2x, 0x1F, 0xC, 0x1E, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(stxvw4x, 0x1F, 0xC, 0x1C, 0, PPC_NONE, PPC2_VSX),
-GEN_HANDLER_E(stxvh8x, 0x1F, 0x0C, 0x1D, 0, PPC_NONE,  PPC2_ISA300),
-GEN_HANDLER_E(stxvb16x, 0x1F, 0x0C, 0x1F, 0, PPC_NONE, PPC2_ISA300),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(stxvl, 0x1F, 0x0D, 0x0C, 0, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(stxvll, 0x1F, 0x0D, 0x0D, 0, PPC_NONE, PPC2_ISA300),
-#endif
-
 GEN_HANDLER_E(mfvsrwz, 0x1F, 0x13, 0x03, 0x0000F800, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER_E(mtvsrwa, 0x1F, 0x13, 0x06, 0x0000F800, PPC_NONE, PPC2_VSX207),
 GEN_HANDLER_E(mtvsrwz, 0x1F, 0x13, 0x07, 0x0000F800, PPC_NONE, PPC2_VSX207),
@@ -73,16 +42,6 @@ GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 1, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 1, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 1, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 1, PPC_NONE, fl2)
-
-#define GEN_XX3_RC_FORM(name, opc2, opc3, fl2)                          \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x00, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x01, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x02, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x03, opc3 | 0x00, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x00, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x01, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x02, opc3 | 0x10, 0, PPC_NONE, fl2), \
-GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x03, opc3 | 0x10, 0, PPC_NONE, fl2)
 
 #define GEN_XX3FORM_DM(name, opc2, opc3) \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2|0x00, opc3|0x00, 0, PPC_NONE, PPC2_VSX),\
@@ -153,12 +112,8 @@ GEN_XX2FORM_EO(xvxexpdp, 0x16, 0x1D, 0x00, PPC2_ISA300),
 GEN_XX2FORM_EO(xvxsigdp, 0x16, 0x1D, 0x01, PPC2_ISA300),
 GEN_XX2FORM_EO(xvxexpsp, 0x16, 0x1D, 0x08, PPC2_ISA300),
 
-GEN_XX3FORM(xsadddp, 0x00, 0x04, PPC2_VSX),
 GEN_VSX_XFORM_300(xsaddqp, 0x04, 0x00, 0x0),
-GEN_XX3FORM(xssubdp, 0x00, 0x05, PPC2_VSX),
-GEN_XX3FORM(xsmuldp, 0x00, 0x06, PPC2_VSX),
 GEN_VSX_XFORM_300(xsmulqp, 0x04, 0x01, 0x0),
-GEN_XX3FORM(xsdivdp, 0x00, 0x07, PPC2_VSX),
 GEN_XX2FORM(xsredp,  0x14, 0x05, PPC2_VSX),
 GEN_XX2FORM(xssqrtdp,  0x16, 0x04, PPC2_VSX),
 GEN_XX2FORM(xsrsqrtedp,  0x14, 0x04, PPC2_VSX),
@@ -170,8 +125,6 @@ GEN_XX2IFORM(xscmpodp,  0x0C, 0x05, PPC2_VSX),
 GEN_XX2IFORM(xscmpudp,  0x0C, 0x04, PPC2_VSX),
 GEN_VSX_XFORM_300(xscmpoqp, 0x04, 0x04, 0x00600001),
 GEN_VSX_XFORM_300(xscmpuqp, 0x04, 0x14, 0x00600001),
-GEN_XX3FORM(xsmaxdp, 0x00, 0x14, PPC2_VSX),
-GEN_XX3FORM(xsmindp, 0x00, 0x15, PPC2_VSX),
 GEN_XX2FORM_EO(xscvdphp, 0x16, 0x15, 0x11, PPC2_ISA300),
 GEN_XX2FORM(xscvdpsp, 0x12, 0x10, PPC2_VSX),
 GEN_XX2FORM(xscvdpspn, 0x16, 0x10, PPC2_VSX207),
@@ -191,10 +144,6 @@ GEN_XX2FORM(xsrdpim, 0x12, 0x07, PPC2_VSX),
 GEN_XX2FORM(xsrdpip, 0x12, 0x06, PPC2_VSX),
 GEN_XX2FORM(xsrdpiz, 0x12, 0x05, PPC2_VSX),
 
-GEN_XX3FORM(xsaddsp, 0x00, 0x00, PPC2_VSX207),
-GEN_XX3FORM(xssubsp, 0x00, 0x01, PPC2_VSX207),
-GEN_XX3FORM(xsmulsp, 0x00, 0x02, PPC2_VSX207),
-GEN_XX3FORM(xsdivsp, 0x00, 0x03, PPC2_VSX207),
 GEN_VSX_XFORM_300(xsdivqp, 0x04, 0x11, 0x0),
 GEN_XX2FORM(xsresp,  0x14, 0x01, PPC2_VSX207),
 GEN_XX2FORM(xsrsp, 0x12, 0x11, PPC2_VSX207),
@@ -203,10 +152,6 @@ GEN_XX2FORM(xsrsqrtesp,  0x14, 0x00, PPC2_VSX207),
 GEN_XX2FORM(xscvsxdsp, 0x10, 0x13, PPC2_VSX207),
 GEN_XX2FORM(xscvuxdsp, 0x10, 0x12, PPC2_VSX207),
 
-GEN_XX3FORM(xvadddp, 0x00, 0x0C, PPC2_VSX),
-GEN_XX3FORM(xvsubdp, 0x00, 0x0D, PPC2_VSX),
-GEN_XX3FORM(xvmuldp, 0x00, 0x0E, PPC2_VSX),
-GEN_XX3FORM(xvdivdp, 0x00, 0x0F, PPC2_VSX),
 GEN_XX2FORM(xvredp,  0x14, 0x0D, PPC2_VSX),
 GEN_XX2FORM(xvsqrtdp,  0x16, 0x0C, PPC2_VSX),
 GEN_XX2FORM(xvrsqrtedp,  0x14, 0x0C, PPC2_VSX),
@@ -220,12 +165,6 @@ GEN_XX3FORM_NAME(xvnmadddp, "xvnmaddadp", 0x04, 0x1C, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmadddp, "xvnmaddmdp", 0x04, 0x1D, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmsubdp, "xvnmsubadp", 0x04, 0x1E, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmsubdp, "xvnmsubmdp", 0x04, 0x1F, PPC2_VSX),
-GEN_XX3FORM(xvmaxdp, 0x00, 0x1C, PPC2_VSX),
-GEN_XX3FORM(xvmindp, 0x00, 0x1D, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpeqdp, 0x0C, 0x0C, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgtdp, 0x0C, 0x0D, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgedp, 0x0C, 0x0E, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpnedp, 0x0C, 0x0F, PPC2_ISA300),
 GEN_XX2FORM(xvcvdpsp, 0x12, 0x18, PPC2_VSX),
 GEN_XX2FORM(xvcvdpsxds, 0x10, 0x1D, PPC2_VSX),
 GEN_XX2FORM(xvcvdpsxws, 0x10, 0x0D, PPC2_VSX),
@@ -241,10 +180,6 @@ GEN_XX2FORM(xvrdpim, 0x12, 0x0F, PPC2_VSX),
 GEN_XX2FORM(xvrdpip, 0x12, 0x0E, PPC2_VSX),
 GEN_XX2FORM(xvrdpiz, 0x12, 0x0D, PPC2_VSX),
 
-GEN_XX3FORM(xvaddsp, 0x00, 0x08, PPC2_VSX),
-GEN_XX3FORM(xvsubsp, 0x00, 0x09, PPC2_VSX),
-GEN_XX3FORM(xvmulsp, 0x00, 0x0A, PPC2_VSX),
-GEN_XX3FORM(xvdivsp, 0x00, 0x0B, PPC2_VSX),
 GEN_XX2FORM(xvresp, 0x14, 0x09, PPC2_VSX),
 GEN_XX2FORM(xvsqrtsp, 0x16, 0x08, PPC2_VSX),
 GEN_XX2FORM(xvrsqrtesp, 0x14, 0x08, PPC2_VSX),
@@ -258,12 +193,6 @@ GEN_XX3FORM_NAME(xvnmaddsp, "xvnmaddasp", 0x04, 0x18, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmaddsp, "xvnmaddmsp", 0x04, 0x19, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmsubsp, "xvnmsubasp", 0x04, 0x1A, PPC2_VSX),
 GEN_XX3FORM_NAME(xvnmsubsp, "xvnmsubmsp", 0x04, 0x1B, PPC2_VSX),
-GEN_XX3FORM(xvmaxsp, 0x00, 0x18, PPC2_VSX),
-GEN_XX3FORM(xvminsp, 0x00, 0x19, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpeqsp, 0x0C, 0x08, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgtsp, 0x0C, 0x09, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpgesp, 0x0C, 0x0A, PPC2_VSX),
-GEN_XX3_RC_FORM(xvcmpnesp, 0x0C, 0x0B, PPC2_ISA300),
 GEN_XX2FORM(xvcvspdp, 0x12, 0x1C, PPC2_VSX),
 GEN_XX2FORM(xvcvspsxds, 0x10, 0x19, PPC2_VSX),
 GEN_XX2FORM(xvcvspsxws, 0x10, 0x09, PPC2_VSX),
@@ -285,17 +214,6 @@ GEN_XX2FORM_EO(xvcvhpsp, 0x16, 0x1D, 0x18, PPC2_ISA300),
 GEN_XX2FORM_EO(xvcvsphp, 0x16, 0x1D, 0x19, PPC2_ISA300),
 GEN_XX2FORM_EO(xxbrq, 0x16, 0x1D, 0x1F, PPC2_ISA300),
 
-#define VSX_LOGICAL(name, opc2, opc3, fl2) \
-GEN_XX3FORM(name, opc2, opc3, fl2)
-
-VSX_LOGICAL(xxland, 0x8, 0x10, PPC2_VSX),
-VSX_LOGICAL(xxlandc, 0x8, 0x11, PPC2_VSX),
-VSX_LOGICAL(xxlor, 0x8, 0x12, PPC2_VSX),
-VSX_LOGICAL(xxlxor, 0x8, 0x13, PPC2_VSX),
-VSX_LOGICAL(xxlnor, 0x8, 0x14, PPC2_VSX),
-VSX_LOGICAL(xxleqv, 0x8, 0x17, PPC2_VSX207),
-VSX_LOGICAL(xxlnand, 0x8, 0x16, PPC2_VSX207),
-VSX_LOGICAL(xxlorc, 0x8, 0x15, PPC2_VSX207),
 GEN_XX3FORM(xxmrghw, 0x08, 0x02, PPC2_VSX),
 GEN_XX3FORM(xxmrglw, 0x08, 0x06, PPC2_VSX),
 GEN_XX3FORM_DM(xxsldwi, 0x08, 0x00),

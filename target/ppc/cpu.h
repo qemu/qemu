@@ -1197,21 +1197,6 @@ DEXCR_ASPECT(NPHIE, 5)
 DEXCR_ASPECT(PHIE, 6)
 
 /*****************************************************************************/
-/* PowerNV ChipTOD and TimeBase State Machine */
-struct pnv_tod_tbst {
-    int tb_ready_for_tod; /* core TB ready to receive TOD from chiptod */
-    int tod_sent_to_tb;   /* chiptod sent TOD to the core TB */
-
-    /*
-     * "Timers" for async TBST events are simulated by mfTFAC because TFAC
-     * is polled for such events. These are just used to ensure firmware
-     * performs the polling at least a few times.
-     */
-    int tb_state_timer;
-    int tb_sync_pulse_timer;
-};
-
-/*****************************************************************************/
 /* The whole PowerPC CPU context */
 
 /*
@@ -1262,15 +1247,16 @@ struct CPUArchState {
     /* when a memory exception occurs, the access type is stored here */
     int access_type;
 
+    /* For SMT processors */
+    bool has_smt_siblings;
+    int core_index;
+
 #if !defined(CONFIG_USER_ONLY)
     /* MMU context, only relevant for full system emulation */
 #if defined(TARGET_PPC64)
     ppc_slb_t slb[MAX_SLB_ENTRIES]; /* PowerPC 64 SLB area */
     struct CPUBreakpoint *ciabr_breakpoint;
     struct CPUWatchpoint *dawr0_watchpoint;
-
-    /* POWER CPU regs/state */
-    target_ulong scratch[8]; /* SCRATCH registers (shared across core) */
 #endif
     target_ulong sr[32];   /* segment registers */
     uint32_t nb_BATs;      /* number of BATs */
@@ -1291,12 +1277,6 @@ struct CPUArchState {
     uint32_t tlb_need_flush; /* Delayed flush needed */
 #define TLB_NEED_LOCAL_FLUSH   0x1
 #define TLB_NEED_GLOBAL_FLUSH  0x2
-
-#if defined(TARGET_PPC64)
-    /* PowerNV chiptod / timebase facility state. */
-    /* Would be nice to put these into PnvCore */
-    struct pnv_tod_tbst pnv_tod_tbst;
-#endif
 #endif
 
     /* Other registers */
@@ -1426,12 +1406,10 @@ struct CPUArchState {
     uint64_t pmu_base_time;
 };
 
-#define _CORE_ID(cs)                                            \
-    (POWERPC_CPU(cs)->env.spr_cb[SPR_PIR].default_value & ~(cs->nr_threads - 1))
-
 #define THREAD_SIBLING_FOREACH(cs, cs_sibling)                  \
     CPU_FOREACH(cs_sibling)                                     \
-        if (_CORE_ID(cs) == _CORE_ID(cs_sibling))
+        if (POWERPC_CPU(cs)->env.core_index ==                  \
+            POWERPC_CPU(cs_sibling)->env.core_index)
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
 do {                                            \
@@ -1534,6 +1512,17 @@ struct PowerPCCPUClass {
     int  (*check_pow)(CPUPPCState *env);
     int  (*check_attn)(CPUPPCState *env);
 };
+
+static inline bool ppc_cpu_core_single_threaded(CPUState *cs)
+{
+    return !POWERPC_CPU(cs)->env.has_smt_siblings;
+}
+
+static inline bool ppc_cpu_lpar_single_threaded(CPUState *cs)
+{
+    return !(POWERPC_CPU(cs)->env.flags & POWERPC_FLAG_SMT_1LPAR) ||
+           ppc_cpu_core_single_threaded(cs);
+}
 
 ObjectClass *ppc_cpu_class_by_name(const char *name);
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);

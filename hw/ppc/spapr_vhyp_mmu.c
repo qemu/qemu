@@ -15,19 +15,6 @@
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
-#include "mmu-book3s-v3.h"
-
-
-static inline bool valid_ptex(PowerPCCPU *cpu, target_ulong ptex)
-{
-    /*
-     * hash value/pteg group index is normalized by HPT mask
-     */
-    if (((ptex & ~7ULL) / HPTES_PER_GROUP) & ~ppc_hash64_hpt_mask(cpu)) {
-        return false;
-    }
-    return true;
-}
 
 static target_ulong h_enter(PowerPCCPU *cpu, SpaprMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
@@ -70,7 +57,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     pteh &= ~0x60ULL;
 
-    if (!valid_ptex(cpu, ptex)) {
+    if (!ppc_hash64_valid_ptex(cpu, ptex)) {
         return H_PARAMETER;
     }
 
@@ -119,7 +106,7 @@ static RemoveResult remove_hpte(PowerPCCPU *cpu
     const ppc_hash_pte64_t *hptes;
     target_ulong v, r;
 
-    if (!valid_ptex(cpu, ptex)) {
+    if (!ppc_hash64_valid_ptex(cpu, ptex)) {
         return REMOVE_PARM;
     }
 
@@ -250,7 +237,7 @@ static target_ulong h_protect(PowerPCCPU *cpu, SpaprMachineState *spapr,
     const ppc_hash_pte64_t *hptes;
     target_ulong v, r;
 
-    if (!valid_ptex(cpu, ptex)) {
+    if (!ppc_hash64_valid_ptex(cpu, ptex)) {
         return H_PARAMETER;
     }
 
@@ -287,7 +274,7 @@ static target_ulong h_read(PowerPCCPU *cpu, SpaprMachineState *spapr,
     int i, ridx, n_entries = 1;
     const ppc_hash_pte64_t *hptes;
 
-    if (!valid_ptex(cpu, ptex)) {
+    if (!ppc_hash64_valid_ptex(cpu, ptex)) {
         return H_PARAMETER;
     }
 
