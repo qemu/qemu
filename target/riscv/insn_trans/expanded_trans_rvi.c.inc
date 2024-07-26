@@ -250,14 +250,6 @@ static bool trans_lui(DisasContext *ctx, arg_lui *a)
     return true;
 }
 
-static TCGv dest_gpr(DisasContext *ctx, int reg_num)
-{
-    if (reg_num == 0 || get_olen(ctx) < TARGET_LONG_BITS) {
-        return tcg_temp_new();
-    }
-    return cpu_gpr[reg_num];
-}
-
 static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
     TCGv target_pc;
@@ -318,13 +310,6 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 
     gen_goto_tb(ctx, 0, imm); /* must use this for safety */
     ctx->base.is_jmp = DISAS_NORETURN;
-}
-
-void tcg_gen_mov_i32(TCGv_i32 ret, TCGv_i32 arg)
-{
-    if (ret != arg) {
-        tcg_gen_op2_i32(INDEX_op_mov_i32, ret, arg);
-    }
 }
 
 static bool trans_jal(DisasContext *ctx, arg_jal *a)
@@ -406,7 +391,132 @@ static bool trans_jal(DisasContext *ctx, arg_jal *a)
         }
     }
 
-    gen_goto_tb(ctx, 0, a->imm); /* must use this for safety */
+    /* must use this for safety */
+    target_ulong dest = ctx->base.pc_next + a->imm;
+
+     /*
+      * Under itrigger, instruction executes one by one like singlestep,
+      * direct block chain benefits will be small.
+      */
+    if (translator_use_goto_tb(&ctx->base, dest) && !ctx->itrigger) {
+        /*
+         * For pcrel, the pc must always be up-to-date on entry to
+         * the linked TB, so that it can use simple additions for all
+         * further adjustments.  For !pcrel, the linked TB is compiled
+         * to know its full virtual address, so we can delay the
+         * update to pc to the unlinked path.  A long chain of links
+         * can thus avoid many updates to the PC.
+         */
+        if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+            gen_update_pc(ctx, a->imm);
+            /* We tested CF_NO_GOTO_TB in translator_use_goto_tb. */
+            tcg_debug_assert(!(tcg_ctx->gen_tb->cflags & CF_NO_GOTO_TB));
+            /* We only support two chained exits.  */
+            tcg_debug_assert(0 <= TB_EXIT_IDXMAX);
+#ifdef CONFIG_DEBUG_TCG
+            /* Verify that we haven't seen this numbered exit before.  */
+            tcg_debug_assert((tcg_ctx->goto_tb_issue_mask & (1 << idx)) == 0);
+            tcg_ctx->goto_tb_issue_mask |= 1 << idx;
+#endif
+            plugin_gen_disable_mem_helpers();
+            TCGOp *op = tcg_op_alloc(INDEX_op_goto_tb, 1);
+            if (tcg_ctx->emit_before_op) {
+                QTAILQ_INSERT_BEFORE(tcg_ctx->emit_before_op, op, link);
+            } else {
+                QTAILQ_INSERT_TAIL(&tcg_ctx->ops, op, link);
+            }
+            op->args[0] = 0;
+        } else {
+            /* We tested CF_NO_GOTO_TB in translator_use_goto_tb. */
+            tcg_debug_assert(!(tcg_ctx->gen_tb->cflags & CF_NO_GOTO_TB));
+            /* We only support two chained exits.  */
+            tcg_debug_assert(0 <= TB_EXIT_IDXMAX);
+#ifdef CONFIG_DEBUG_TCG
+            /* Verify that we haven't seen this numbered exit before.  */
+            tcg_debug_assert((tcg_ctx->goto_tb_issue_mask & (1 << idx)) == 0);
+            tcg_ctx->goto_tb_issue_mask |= 1 << idx;
+#endif
+            plugin_gen_disable_mem_helpers();
+            TCGOp *op = tcg_op_alloc(INDEX_op_goto_tb, 1);
+            if (tcg_ctx->emit_before_op) {
+                QTAILQ_INSERT_BEFORE(tcg_ctx->emit_before_op, op, link);
+            } else {
+                QTAILQ_INSERT_TAIL(&tcg_ctx->ops, op, link);
+            }
+            op->args[0] = 0;
+            target_ulong dest = ctx->base.pc_next + a->imm;
+            assert(ctx->pc_save != -1);
+            if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+                tcg_gen_addi_tl(cpu_pc, cpu_pc, dest - ctx->pc_save);
+                if (get_xl(ctx) == MXL_RV32) {
+                    tcg_gen_ext32s_tl(cpu_pc, cpu_pc);
+                }
+            } else {
+                if (get_xl(ctx) == MXL_RV32) {
+                    dest = (int32_t)dest;
+                }
+                tcg_gen_movi_tl(cpu_pc, dest);
+            }
+            ctx->pc_save = ctx->base.pc_next + a->imm;
+        }
+        tcg_gen_exit_tb(ctx->base.tb, 0);
+    } else {
+        target_ulong dest = ctx->base.pc_next + a->imm;
+        assert(ctx->pc_save != -1);
+        if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+            tcg_gen_addi_tl(cpu_pc, cpu_pc, dest - ctx->pc_save);
+            if (get_xl(ctx) == MXL_RV32) {
+                tcg_gen_ext32s_tl(cpu_pc, cpu_pc);
+            }
+        } else {
+            if (get_xl(ctx) == MXL_RV32) {
+                dest = (int32_t)dest;
+            }
+            tcg_gen_movi_tl(cpu_pc, dest);
+        }
+        ctx->pc_save = ctx->base.pc_next + a->imm;
+    #ifndef CONFIG_USER_ONLY
+        if (ctx->itrigger) {
+            gen_helper_itrigger_match(tcg_env);
+        }
+    #endif
+        TCGv_ptr ptr;
+
+        if (tcg_ctx->gen_tb->cflags & CF_NO_GOTO_PTR) {
+            tcg_gen_exit_tb(NULL, 0);
+            return;
+        }
+
+        if (tcg_ctx->plugin_insn) {
+            tcg_gen_plugin_cb(PLUGIN_GEN_AFTER_TB);
+        }
+        ptr = tcg_temp_ebb_new_ptr();
+        gen_helper_lookup_tb_ptr(ptr, tcg_env);
+        tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
+        TCGTEMP* i32_temp = NULL;
+        uintptr_t o = (uintptr_t)ptr - offsetof(TCGContext, temps);
+
+        assert(o < sizeof(TCGTemp) * tcg_ctx->nb_temps);
+        assert(o % sizeof(TCGTemp) == 0);
+
+        *i32_temp = (void *)tcg_ctx + (uintptr_t)ptr;
+        TCGContext *s = tcg_ctx;
+
+        switch (i32_temp->kind) {
+        case TEMP_CONST:
+        case TEMP_TB:
+            /* Silently ignore free. */
+            break;
+        case TEMP_EBB:
+            tcg_debug_assert(i32_temp->temp_allocated != 0);
+            ts->temp_allocated = 0;
+            set_bit(temp_idx(i32_temp), s->free_temps[i32_temp->base_type].l);
+            break;
+        default:
+            /* It never made sense to free TEMP_FIXED or TEMP_GLOBAL. */
+            g_assert_not_reached();
+        }
+    }
     ctx->base.is_jmp = DISAS_NORETURN;
     TCGv succ_pc = dest_gpr(ctx, a->rd);
 
@@ -479,11 +589,20 @@ static bool trans_jal(DisasContext *ctx, arg_jal *a)
     
     target_ulong dest = ctx->base.pc_next + a->imm;
 
-     /*
-      * Under itrigger, instruction executes one by one like singlestep,
-      * direct block chain benefits will be small.
-      */
-    if (translator_use_goto_tb(&ctx->base, dest) && !ctx->itrigger) {
+    /*
+    * Under itrigger, instruction executes one by one like singlestep,
+    * direct block chain benefits will be small.
+    */
+    /* Suppress goto_tb if requested. */
+    bool cflags = false;
+    if (tb_cflags(&ctx->base->dest) & CF_NO_GOTO_TB) {
+        cflags = false;
+    } else {
+        cflags = true;
+    }
+    /* Check for the dest on the same page as the start of the TB.  */
+    return ((db->pc_first ^ dest) & TARGET_PAGE_MASK) == 0;
+    if (cflags && !ctx->itrigger) {
         /*
          * For pcrel, the pc must always be up-to-date on entry to
          * the linked TB, so that it can use simple additions for all
@@ -512,9 +631,36 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
 {
     TCGLabel *misaligned = NULL;
     TCGv target_pc = tcg_temp_new();
-    TCGv succ_pc = dest_gpr(ctx, a->rd);
-
-    tcg_gen_addi_tl(target_pc, get_gpr(ctx, a->rs1, EXT_NONE), a->imm);
+    TCGv succ_pc;
+    if (reg_num == 0 || get_olen(ctx) < TARGET_LONG_BITS) {
+        succ_pc = tcg_temp_new();
+    } else {
+        succ_pc = cpu_gpr[a->rd];
+    }
+    /* some cases can be optimized here */
+    if (arg2 == 0) {
+        tcg_gen_mov_i64(target_pc, get_gpr(ctx, a->rs1, EXT_NONE));
+    } else if (TCG_TARGET_REG_BITS == 64) {
+        if (TCG_TARGET_REG_BITS == 64) {
+            tcg_gen_op3_i64(INDEX_op_add_i64, target_pc, get_gpr(ctx, a->rs1, EXT_NONE), tcg_constant_i64(a->imm));
+        } else {
+            tcg_gen_add2_i32(TCGV_LOW(target_pc), TCGV_HIGH(target_pc), TCGV_LOW(get_gpr(ctx, a->rs1, EXT_NONE)),
+                            TCGV_HIGH(get_gpr(ctx, a->rs1, EXT_NONE)), TCGV_LOW(tcg_constant_i64(a->imm)), TCGV_HIGH(tcg_constant_i64(a->imm)));
+        }
+    } else {
+        if (TCG_TARGET_HAS_add2_i32) {
+            tcg_gen_op6_i32(INDEX_op_add2_i32, TCGV_LOW(target_pc), TCGV_HIGH(target_pc), TCGV_LOW(get_gpr(ctx, a->rs1, EXT_NONE)), TCGV_HIGH(get_gpr(ctx, a->rs1, EXT_NONE)), tcg_constant_i32(a->imm), tcg_constant_i32(a->imm >> 32));
+        } else {
+            TCGv_i64 t0 = tcg_temp_ebb_new_i64();
+            TCGv_i64 t1 = tcg_temp_ebb_new_i64();
+            tcg_gen_concat_i32_i64(t0, TCGV_LOW(get_gpr(ctx, a->rs1, EXT_NONE)), TCGV_LOW(get_gpr(ctx, a->rs1, EXT_NONE)));
+            tcg_gen_concat_i32_i64(t1, tcg_constant_i32(a->imm), tcg_constant_i32(a->imm >> 32));
+            tcg_gen_add_i64(t0, t0, t1);
+            tcg_gen_extr_i64_i32(TCGV_LOW(target_pc), TCGV_HIGH(target_pc), t0);
+            tcg_temp_free_i64(t0);
+            tcg_temp_free_i64(t1);
+        }
+    }
     tcg_gen_andi_tl(target_pc, target_pc, (target_ulong)-2);
 
     if (get_xl(ctx) == MXL_RV32) {
@@ -529,15 +675,180 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
         tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0x0, misaligned);
     }
 
-    gen_pc_plus_diff(succ_pc, ctx, ctx->cur_insn_len);
-    gen_set_gpr(ctx, a->rd, succ_pc);
+    target_ulong dest = ctx->base.pc_next + ctx->cur_insn_len;
+    assert(ctx->pc_save != -1);
+    if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+        tcg_gen_addi_tl(succ_pc, cpu_pc, dest - ctx->pc_save);
+        if (get_xl(ctx) == MXL_RV32) {
+            tcg_gen_ext32s_tl(succ_pc, succ_pc);
+        }
+    } else {
+        if ((ctx)->xl == MXL_RV32) {
+            dest = (int32_t)dest;
+        }
+        tcg_gen_movi_tl(succ_pc, dest);
+    }
+    if (a->rd != 0) {
+        switch (get_ol(ctx)) {
+        case MXL_RV32:
+            tcg_gen_ext32s_tl(cpu_gpr[a->rd], succ_pc);
+            break;
+        case MXL_RV64:
+        case MXL_RV128:
+            tcg_gen_mov_tl(cpu_gpr[a->rd], succ_pc);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        if ((ctx)->misa_mxl_max == MXL_RV128) {
+            tcg_gen_sari_tl(cpu_gprh[a->rd], cpu_gpr[a->rd], 63);
+        }
+    }
 
     tcg_gen_mov_tl(cpu_pc, target_pc);
-    lookup_and_goto_ptr(ctx);
+    #ifndef CONFIG_USER_ONLY
+    if (ctx->itrigger) {
+        gen_helper_itrigger_match(tcg_env);
+    }
+    #endif
+        tcg_gen_lookup_and_goto_ptr();
+    }
+
+    static void exit_tb(DisasContext *ctx)
+    {
+    #ifndef CONFIG_USER_ONLY
+        if (ctx->itrigger) {
+            gen_helper_itrigger_match(tcg_env);
+        }
+    #endif
+        /*
+        * Let the jit code return the read-only version of the
+        * TranslationBlock, so that we minimize the pc-relative
+        * distance of the address of the exit_tb code to TB.
+        * This will improve utilization of pc-relative address loads.
+        *
+        * TODO: Move this to translator_loop, so that all const
+        * TranslationBlock pointers refer to read-only memory.
+        * This requires coordination with targets that do not use
+        * the translator_loop.
+        */
+#ifdef CONFIG_DEBUG_TCG
+        uintptr_t val = 0;
+        if ((void *)NULL) {
+            g_assert((size_t)((void *)NULL - region.start_aligned) <= region.total_size);
+            (void *)NULL += tcg_splitwx_diff;
+        }
+        val = (uintptr_t)(void *)NULL;
+
+        if (NULL) {
+            do { assert(0); } while (0);
+        } else if (0 <= TB_EXIT_IDXMAX) {
+#ifdef CONFIG_DEBUG_TCG
+            /* This is an exit following a goto_tb.  Verify that we have
+            seen this numbered exit before, via tcg_gen_goto_tb.  */
+            do { assert(tcg_ctx->goto_tb_issue_mask & (1 << idx)); } while (0);
+    #endif
+        } else {
+            /* This is an exit via the exitreq label.  */
+            do { assert(0 == TB_EXIT_REQUESTED); } while (0);
+        }
+
+        TCGOp *op = tcg_op_alloc(INDEX_op_exit_tb, 1);
+
+        if (tcg_ctx->emit_before_op) {
+            QTAILQ_INSERT_BEFORE(tcg_ctx->emit_before_op, op, link);
+        } else {
+            QTAILQ_INSERT_TAIL(&tcg_ctx->ops, op, link);
+        }
+        op->args[0] = val;
 
     if (misaligned) {
-        gen_set_label(misaligned);
-        gen_exception_inst_addr_mis(ctx, target_pc);
+        l->present = 1;
+        TCGOp *op = tcg_op_alloc(INDEX_op_set_label, 1);
+        if (tcg_ctx->emit_before_op) {
+            QTAILQ_INSERT_BEFORE(tcg_ctx->emit_before_op, op, link);
+        } else {
+            QTAILQ_INSERT_TAIL(&tcg_ctx->ops, op, link);
+        }
+        op->args[0] = (uintptr_t)misaligned;
+        tcg_gen_st_tl(target_pc, tcg_env, offsetof(CPURISCVState, badaddr));
+        target_ulong dest = ctx->base.pc_next + 0;
+        assert(ctx->pc_save != -1);
+        if (tb_cflags(ctx->base.tb) & CF_PCREL) {
+            tcg_gen_addi_tl(cpu_pc, cpu_pc, dest - ctx->pc_save);
+            if ((ctx)->xl == MXL_RV32) {
+                tcg_gen_ext32s_tl(cpu_pc, cpu_pc);
+            }
+        } else {
+            if ((ctx)->xl == MXL_RV32) {
+                dest = (int32_t)dest;
+            }
+            tcg_gen_movi_tl(cpu_pc, dest);
+        }
+        ctx->pc_save = ctx->base.pc_next + 0;
+        TCGContext *s = TCG_TYPE_I32;
+        GHashTable *h = s->const_table[TCG_TYPE_I32];
+        TCGTemp *ts;
+
+        if (h == NULL) {
+            h = g_hash_table_new(g_int64_hash, g_int64_equal);
+            s->const_table[TCG_TYPE_I32] = h;
+        }
+
+        ts = g_hash_table_lookup(h, &RISCV_EXCP_INST_ADDR_MIS);
+        if (ts == NULL) {
+            int64_t *val_ptr;
+
+            int n = s->nb_temps++;
+            if (n >= TCG_MAX_TEMPS) {
+                 siglongjmp(s->jmp_trans, -2);
+            } else {
+                ts = memset(&s->temps[n], 0, sizeof(TCGTemp));
+            }
+
+            if (TCG_TARGET_REG_BITS == 32 && TCG_TYPE_I32 == TCG_TYPE_I64) {
+                int n = s->nb_temps++;
+                if (n >= TCG_MAX_TEMPS) {
+                    siglongjmp(s->jmp_trans, -2);
+                } else {
+                    *ts2 = memset(&s->temps[n], 0, sizeof(TCGTemp));
+                }
+
+                tcg_debug_assert(ts2 == ts + 1);
+
+                ts->base_type = TCG_TYPE_I64;
+                ts->type = TCG_TYPE_I32;
+                ts->kind = TEMP_CONST;
+                ts->temp_allocated = 1;
+
+                ts2->base_type = TCG_TYPE_I64;
+                ts2->type = TCG_TYPE_I32;
+                ts2->kind = TEMP_CONST;
+                ts2->temp_allocated = 1;
+                ts2->temp_subindex = 1;
+
+                /*
+                * Retain the full value of the 64-bit constant in the low
+                * part, so that the hash table works.  Actual uses will
+                * truncate the value to the low part.
+                */
+                ts[HOST_BIG_ENDIAN].val = RISCV_EXCP_INST_ADDR_MIS;
+                ts[!HOST_BIG_ENDIAN].val = RISCV_EXCP_INST_ADDR_MIS >> 32;
+                val_ptr = &ts[HOST_BIG_ENDIAN].val;
+            } else {
+                ts->base_type = tcg_env;
+                ts->type = TCG_TYPE_I32;
+                ts->kind = TEMP_CONST;
+                ts->temp_allocated = 1;
+                ts->val = RISCV_EXCP_INST_ADDR_MIS;
+                val_ptr = &ts->RISCV_EXCP_INST_ADDR_MIS;
+            }
+            g_hash_table_insert(h, val_ptr, ts);
+        } 
+        (void)temp_idx(ts);
+        gen_helper_raise_exception(tcg_env, (TCGv_i32)((void *)ts - (void *)tcg_ctx));
+        ctx->base.is_jmp = DISAS_NORETURN;  
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 
