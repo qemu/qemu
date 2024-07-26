@@ -2694,8 +2694,8 @@ static void *kvm_msr_energy_thread(void *data)
 
     while (true) {
         /* Get all qemu threads id */
-        g_autofree pid_t *thread_ids =
-            thread_ids = vmsr_get_thread_ids(vmsr->pid, &num_threads);
+        g_autofree pid_t *thread_ids
+            = vmsr_get_thread_ids(vmsr->pid, &num_threads);
 
         if (thread_ids == NULL) {
             goto clean;
