@@ -22,7 +22,7 @@
 #include "sysemu/block-ram-registrar.h"
 #include "qom/object.h"
 #include "qapi/qapi-types-virtio.h"
-#ifdef CONFIG_SPDM
+#ifdef CONFIG_LIBSPDM
 #include "sysemu/spdm.h"
 #endif
 
@@ -77,7 +77,7 @@ struct VirtIOBlock {
     uint64_t host_features;
     size_t config_size;
     BlockRAMRegistrar blk_ram_registrar;
-#ifdef CONFIG_SPDM
+#ifdef CONFIG_LIBSPDM
     SpdmDev *spdm_dev;
 #endif
 };

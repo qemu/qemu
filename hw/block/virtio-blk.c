@@ -36,7 +36,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-blk-common.h"
 #include "qemu/coroutine.h"
-#ifdef CONFIG_SPDM
+#ifdef CONFIG_LIBSPDM
 #include "hw/virtio/virtio-blk-spdm.h"
 #endif
 
@@ -1947,9 +1947,9 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lheads,
                          conf->conf.lsecs);
 
-#ifdef CONFIG_SPDM
+#ifdef CONFIG_LIBSPDM
     //*
-    spdm_responder_init(s->spdm_dev);
+    vblk_init_spdm_dev(s);
     //*/
 #endif 
 }

@@ -12,7 +12,7 @@ libspdm_return_t vblk_spdm_acquire_buffer(void *context, void **msg_buf_ptr)
 
     LIBSPDM_ASSERT(!spdm_dev->sender_receiver_buffer_acquired);
     *msg_buf_ptr = spdm_dev->sender_receiver_buffer;
-    libspdm_zero_mem (spdm_dev->sender_receiver_buffer, sizeof(sender_receiver_buffer));
+    libspdm_zero_mem (spdm_dev->sender_receiver_buffer, sizeof(spdm_dev->sender_receiver_buffer));
     spdm_dev->sender_receiver_buffer_acquired = true;
     
     return LIBSPDM_STATUS_SUCCESS;
@@ -24,36 +24,56 @@ void vblk_spdm_release_buffer(void *context, const void* msg_buf_ptr)
 
     LIBSPDM_ASSERT(spdm_dev->sender_receiver_buffer_acquired);
     LIBSPDM_ASSERT(msg_buf_ptr == spdm_dev->sender_receiver_buffer);
-    g_free(msg_buf_ptr);
+    g_free((void *)msg_buf_ptr);
     spdm_dev->sender_receiver_buffer_acquired = false;
 
     return;
 }
 
-/*
+//*
 libspdm_return_t vblk_spdm_send_message(void *spdm_context,
                                         size_t response_size,
                                         const void *response,
-                                        uint64_t timeout);
+                                        uint64_t timeout)
+{
+    SpdmDev *spdm_dev = container_of(spdm_context, SpdmDev, spdm_context);
+
+    if (response_size > sizeof(spdm_dev->sender_receiver_buffer)) {
+        error_report("response_size requested is bigger than buffer size.",
+                     LIBSPDM_STATUS_BUFFER_TOO_SMALL);
+        return LIBSPDM_STATUS_BUFFER_TOO_SMALL;
+    }
+
+    qemu_mutex_lock(spdm_dev->spdm_io_mutex);
+    memcpy(spdm_dev->sender_receiver_buffer, response, response_size);
+    qemu_mutex_unlock(spdm_dev->spdm_io_mutex);
+
+    return LIBSPDM_STATUS_SUCCESS;
+}
 
 
 libspdm_return_t vblk_spdm_receive_message(void *spdm_context,
                                            size_t *request_size,
                                            void **request,
-                                           uint64_t timeout);
+                                           uint64_t timeout)
+{
+    SpdmDev *spdm_dev = container_of(spdm_context, SpdmDev, spdm_context);
+
+    return LIBSPDM_STATUS_SUCCESS;
+}
 
 //*/
 
 static const SpdmIO vblk_spdm_io = {
-    .spdm_device_send_message = vblk_spdm_send_message;
-    .spdm_device_receive_message = vblk_spdm_receive_message;
+    .spdm_device_send_message = vblk_spdm_send_message,
+    .spdm_device_receive_message = vblk_spdm_receive_message,
 };
 
 static const SpdmBufferIO vblk_spdm_buffer_io = {
-    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer;
-    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer;
-    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer;
-    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer;
+    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
+    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
+    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
+    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
 };
 
 void *vblk_init_spdm_dev(VirtIOBlock *s)

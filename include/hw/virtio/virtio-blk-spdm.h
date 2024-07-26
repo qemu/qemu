@@ -1,6 +1,8 @@
 #ifndef VIRTIO_BLK_SPDM_H
 #define VIRTIO_BLK_SPDM_H 
 
+#include "qemu/error-report.h"
+#include "hw/virtio/virtio-blk.h"
 #include "sysemu/spdm.h"
 
 libspdm_return_t vblk_spdm_acquire_buffer(void *context, void **msg_buf_ptr);
