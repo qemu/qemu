@@ -1490,6 +1490,19 @@ And run with::
 Adding ``V=1`` to the invocation will show the details of how to
 invoke QEMU for the test which is useful for debugging tests.
 
+Running individual tests
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tests can also be run directly from the test build directory. If you
+run ``make help`` from the test build directory you will get a list of
+all the tests that can be run. Please note that same binaries are used
+in multiple tests, for example::
+
+  make run-plugin-test-mmap-with-libinline.so
+
+will run the mmap test with the ``libinline.so`` TCG plugin. The
+gdbstub tests also re-use the test binaries but while exercising gdb.
+
 TCG test dependencies
 ~~~~~~~~~~~~~~~~~~~~~
 
