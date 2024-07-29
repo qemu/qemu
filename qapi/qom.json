@@ -222,7 +222,8 @@
 ##
 { 'struct': 'CanHostSocketcanProperties',
   'data': { 'if': 'str',
-            'canbus': 'str' } }
+            'canbus': 'str' },
+  'if': 'CONFIG_LINUX' }
 
 ##
 # @ColoCompareProperties:
@@ -305,7 +306,8 @@
 ##
 { 'struct': 'CryptodevVhostUserProperties',
   'base': 'CryptodevBackendProperties',
-  'data': { 'chardev': 'str' } }
+  'data': { 'chardev': 'str' },
+  'if': 'CONFIG_VHOST_CRYPTO' }
 
 ##
 # @DBusVMStateProperties:
@@ -514,7 +516,8 @@
   'data': { 'evdev': 'str',
             '*grab_all': 'bool',
             '*repeat': 'bool',
-            '*grab-toggle': 'GrabToggleKeys' } }
+            '*grab-toggle': 'GrabToggleKeys' },
+  'if': 'CONFIG_LINUX' }
 
 ##
 # @EventLoopBaseProperties:
@@ -718,7 +721,8 @@
   'base': 'MemoryBackendProperties',
   'data': { '*hugetlb': 'bool',
             '*hugetlbsize': 'size',
-            '*seal': 'bool' } }
+            '*seal': 'bool' },
+  'if': 'CONFIG_LINUX' }
 
 ##
 # @MemoryBackendShmProperties:
@@ -748,7 +752,8 @@
 ##
 { 'struct': 'MemoryBackendEpcProperties',
   'base': 'MemoryBackendProperties',
-  'data': {} }
+  'data': {},
+  'if': 'CONFIG_LINUX' }
 
 ##
 # @PrManagerHelperProperties:
@@ -761,7 +766,8 @@
 # Since: 2.11
 ##
 { 'struct': 'PrManagerHelperProperties',
-  'data': { 'path': 'str' } }
+  'data': { 'path': 'str' },
+  'if': 'CONFIG_LINUX' }
 
 ##
 # @QtestProperties:
@@ -884,7 +890,8 @@
 ##
 { 'struct': 'RngRandomProperties',
   'base': 'RngProperties',
-  'data': { '*filename': 'str' } }
+  'data': { '*filename': 'str' },
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @SevCommonProperties:
