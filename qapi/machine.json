@@ -27,8 +27,8 @@
 # @loongarch64: since 7.1
 #
 # .. note:: The resulting QMP strings can be appended to the
-#    "qemu-system-" prefix to produce the corresponding QEMU executable
-#    name.  This is true even for "qemu-system-x86_64".
+#    "qemu-system-" prefix to produce the corresponding QEMU
+#    executable name.  This is true even for "qemu-system-x86_64".
 #
 # Since: 3.0
 ##
@@ -371,8 +371,8 @@
 #
 # .. note:: A guest may or may not respond to this command.  This
 #    command returning does not indicate that a guest has accepted the
-#    request or that it has shut down.  Many guests will respond to this
-#    command by prompting the user in some way.
+#    request or that it has shut down.  Many guests will respond to
+#    this command by prompting the user in some way.
 #
 # .. qmp-example::
 #
@@ -437,7 +437,7 @@
 # @inject-nmi:
 #
 # Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or
-# all CPUs (ppc64). The command fails when the guest doesn't support
+# all CPUs (ppc64).  The command fails when the guest doesn't support
 # injecting.
 #
 # Since: 0.14
@@ -988,8 +988,8 @@
 # @cluster-id: cluster number within the parent container the CPU
 #     belongs to (since 7.1)
 #
-# @module-id: module number within the parent container the CPU belongs
-#     to (since 9.1)
+# @module-id: module number within the parent container the CPU
+#    belongs to (since 9.1)
 #
 # @core-id: core number within the parent container the CPU belongs to
 #
@@ -1132,8 +1132,8 @@
 #     - If no balloon device is present, DeviceNotActive
 #
 # .. note:: This command just issues a request to the guest.  When it
-#    returns, the balloon size may not have changed.  A guest can change
-#    the balloon size independent of this command.
+#    returns, the balloon size may not have changed.  A guest can
+#    change the balloon size independent of this command.
 #
 # Since: 0.14
 #
@@ -1659,8 +1659,8 @@
 # The members other than @cpus and @maxcpus define a topology of
 # containers.
 #
-# The ordering from highest/coarsest to lowest/finest is:
-# @drawers, @books, @sockets, @dies, @clusters, @cores, @threads.
+# The ordering from highest/coarsest to lowest/finest is: @drawers,
+# @books, @sockets, @dies, @clusters, @cores, @threads.
 #
 # Different architectures support different subsets of topology
 # containers.

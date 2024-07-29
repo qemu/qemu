@@ -29,6 +29,7 @@
 # @InetSocketAddressBase:
 #
 # @host: host part of the address
+#
 # @port: port part of the address
 ##
 { 'struct': 'InetSocketAddressBase',
@@ -104,8 +105,8 @@
 #
 # @port: port
 #
-# .. note:: String types are used to allow for possible future hostname
-#    or service resolution support.
+# .. note:: String types are used to allow for possible future
+#    hostname or service resolution support.
 #
 # Since: 2.8
 ##

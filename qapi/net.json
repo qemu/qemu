@@ -22,9 +22,9 @@
 #
 # Since: 0.14
 #
-# .. note:: Not all network adapters support setting link status.  This
-#    command will succeed even if the network adapter does not support
-#    link status notification.
+# .. note:: Not all network adapters support setting link status.
+#    This command will succeed even if the network adapter does not
+#    support link status notification.
 #
 # .. qmp-example::
 #
@@ -403,7 +403,7 @@
 # Connect a client to a netmap-enabled NIC or to a VALE switch port
 #
 # @ifname: Either the name of an existing network interface supported
-#     by netmap, or the name of a VALE port (created on the fly). A
+#     by netmap, or the name of a VALE port (created on the fly).  A
 #     VALE port name is in the form 'valeXXX:YYY', where XXX and YYY
 #     are non-negative integers.  XXX identifies a switch and YYY
 #     identifies a port of the switch.  VALE ports having the same XXX
@@ -535,13 +535,13 @@
 # interfaces that are in host mode and also with the host.
 #
 # @start-address: The starting IPv4 address to use for the interface.
-#     Must be in the private IP range (RFC 1918). Must be specified
+#     Must be in the private IP range (RFC 1918).  Must be specified
 #     along with @end-address and @subnet-mask.  This address is used
 #     as the gateway address.  The subsequent address up to and
 #     including end-address are placed in the DHCP pool.
 #
 # @end-address: The DHCP IPv4 range end address to use for the
-#     interface.  Must be in the private IP range (RFC 1918). Must be
+#     interface.  Must be in the private IP range (RFC 1918).  Must be
 #     specified along with @start-address and @subnet-mask.
 #
 # @subnet-mask: The IPv4 subnet mask to use on the interface.  Must be
@@ -556,7 +556,7 @@
 #     network vmnet interface should be added to.  If set, no DHCP
 #     service is provided for this interface and network communication
 #     is allowed only with other interfaces added to this network
-#     identified by the UUID. Requires at least macOS Big Sur 11.0.
+#     identified by the UUID.  Requires at least macOS Big Sur 11.0.
 #
 # Since: 7.1
 ##
@@ -575,20 +575,20 @@
 # vmnet (shared mode) network backend.
 #
 # Allows traffic originating from the vmnet interface to reach the
-# Internet through a network address translator (NAT). The vmnet
+# Internet through a network address translator (NAT).  The vmnet
 # interface can communicate with the host and with other shared mode
 # interfaces on the same subnet.  If no DHCP settings, subnet mask and
 # IPv6 prefix specified, the interface can communicate with any of
 # other interfaces in shared mode.
 #
 # @start-address: The starting IPv4 address to use for the interface.
-#     Must be in the private IP range (RFC 1918). Must be specified
+#     Must be in the private IP range (RFC 1918).  Must be specified
 #     along with @end-address and @subnet-mask.  This address is used
 #     as the gateway address.  The subsequent address up to and
 #     including end-address are placed in the DHCP pool.
 #
 # @end-address: The DHCP IPv4 range end address to use for the
-#     interface.  Must be in the private IP range (RFC 1918). Must be
+#     interface.  Must be in the private IP range (RFC 1918).  Must be
 #     specified along with @start-address and @subnet-mask.
 #
 # @subnet-mask: The IPv4 subnet mask to use on the interface.  Must be
@@ -703,12 +703,19 @@
 # Available netdev drivers.
 #
 # @l2tpv3: since 2.1
+#
 # @vhost-vdpa: since 5.1
+#
 # @vmnet-host: since 7.1
+#
 # @vmnet-shared: since 7.1
+#
 # @vmnet-bridged: since 7.1
+#
 # @stream: since 7.2
+#
 # @dgram: since 7.2
+#
 # @af-xdp: since 8.2
 #
 # Since: 2.7

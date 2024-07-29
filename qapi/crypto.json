@@ -44,13 +44,13 @@
 #
 # The supported algorithms for computing content digests
 #
-# @md5: MD5. Should not be used in any new code, legacy compat only
+# @md5: MD5.  Should not be used in any new code, legacy compat only
 #
-# @sha1: SHA-1. Should not be used in any new code, legacy compat only
+# @sha1: SHA-1.  Should not be used in any new code, legacy compat only
 #
 # @sha224: SHA-224.  (since 2.7)
 #
-# @sha256: SHA-256. Current recommended strong hash.
+# @sha256: SHA-256.  Current recommended strong hash.
 #
 # @sha384: SHA-384.  (since 2.7)
 #
@@ -440,7 +440,7 @@
 #
 # @iv: the random initialization vector used for encryption of this
 #     particular secret.  Should be a base64 encrypted string of the
-#     16-byte IV. Mandatory if @keyid is given.  Ignored if @keyid is
+#     16-byte IV.  Mandatory if @keyid is given.  Ignored if @keyid is
 #     absent.
 #
 # Features:
