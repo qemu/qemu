@@ -63,6 +63,8 @@ meson_options_help() {
   printf "%s\n" '  --libexecdir=VALUE       Library executable directory [libexec]'
   printf "%s\n" '  --libspdm-crypto=CHOICE  Set LibSPDM crypto algorithm [mbedtls] (choices:'
   printf "%s\n" '                           mbedtls/openssl)'
+  printf "%s\n" '  --libspdm-toolchain=VALUE'
+  printf "%s\n" '                           Toolchain to use for LibSPDM compilation [GCC]'
   printf "%s\n" '  --localedir=VALUE        Locale data directory [share/locale]'
   printf "%s\n" '  --localstatedir=VALUE    Localstate data directory [/var/local]'
   printf "%s\n" '  --mandir=VALUE           Manual page directory [share/man]'
@@ -375,6 +377,7 @@ _meson_option_parse() {
     --enable-libspdm) printf "%s" -Dlibspdm=enabled ;;
     --disable-libspdm) printf "%s" -Dlibspdm=disabled ;;
     --libspdm-crypto=*) quote_sh "-Dlibspdm-crypto=$2" ;;
+    --libspdm-toolchain=*) quote_sh "-Dlibspdm-toolchain=$2" ;;
     --enable-libssh) printf "%s" -Dlibssh=enabled ;;
     --disable-libssh) printf "%s" -Dlibssh=disabled ;;
     --enable-libudev) printf "%s" -Dlibudev=enabled ;;

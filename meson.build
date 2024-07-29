@@ -273,13 +273,9 @@ if host_os != 'darwin'
 endif
 
 libspdm_dep_targets = [
-  'cryptlib_mbedtls',
   'debuglib',
   'debuglib_null',
   'malloclib',
-  'mbedcrypto',
-  'mbedtls',
-  'mbedx509',
   'memlib',
   'platform_lib',
   'platform_lib_null',
@@ -298,17 +294,13 @@ libspdm_dep_targets = [
 
 if cpu not in supported_cpus
   libspdm_host_arch = 'unknown'
-  libspdm_toolchain = 'UNKNOWN'
-  message(f'LibSPDM will not compile with CMake defines: -DARCH=@libspdm_host_arch@ -DTOOLCHAIN=@libspdm_toolchain@')
+  message(f'LibSPDM will not compile with CMake defines: -DARCH=@libspdm_host_arch@')
 elif cpu == 'x86_64'
   libspdm_host_arch = 'x64'
-  libspdm_toolchain = 'GCC'
 elif cpu == 'x86'
   libspdm_host_arch = 'ia32'
-  libspdm_toolchain = 'GCC'
-elif cpu == 'aarch64'
-  libspdm_host_arch = cpu
-  libspdm_toolchain = 'AARCH64_GCC'
+elif cpu in ['arm', 'aarch64']
+  libspdm_host_arch = 'arm'
 else
   libspdm_host_arch = cpu
 endif
@@ -319,22 +311,25 @@ else
   libspdm_target = 'Release'
 endif
 
-# TODO: create option to compile LibSPDM tests
-if false 
-  lib = 0 
+if get_option('libspdm-crypto') == 'openssl'
   libspdm_dep_targets += [
-    'cmockalib',
-    'cryptlib_null',
-    'cryptstublib_dummy',
-    'intrinsiclib',
-    'malloclib_null',
-    'malloclib_simple',
-    'rnglib_null',
-    'spdm_transport_test_lib',
-    ]
+    'cryptlib_openssl',
+    'openssllib',
+  ]
+elif get_option('libspdm-crypto') == 'mbedtls'
+  libspdm_dep_targets += [
+    'cryptlib_mbedtls',
+    'mbedcrypto',
+    'mbedtls',
+    'mbedx509',
+  ]
+endif
+
+if get_option('b_coverage')
+  libspdm_gcov = 'ON'
 else 
-  libspdm_tests = 1 
-endif 
+  libspdm_gcov = 'OFF'
+endif
 
 ##################
 # Compiler flags #
@@ -3314,11 +3309,11 @@ spdm = []
 if have_libspdm
   libspdm_opt = cmake.subproject_options()
   libspdm_opt.add_cmake_defines({'ARCH': libspdm_host_arch, \
-                                 'TOOLCHAIN': libspdm_toolchain, \
+                                 'TOOLCHAIN': get_option('libspdm-toolchain'), \
                                  'TARGET': libspdm_target, \
                                  'CRYPTO': get_option('libspdm-crypto'), \
-                                 'DISABLE_TESTS': libspdm_tests, \
-                                 'GCOV': get_option('b_coverage')})
+                                 'DISABLE_TESTS': 1, \
+                                 'GCOV': libspdm_gcov})
   libspdm_proj = cmake.subproject('libspdm', options: libspdm_opt)
 
   foreach dep : libspdm_dep_targets
