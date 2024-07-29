@@ -32,6 +32,7 @@ class OpenBSDVM(basevm.BaseVM):
         "pkgconf",
         "bzip2", "xz",
         "ninja",
+        "py3-tomli",
 
         # gnu tools
         "bash",
