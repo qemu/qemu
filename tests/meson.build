@@ -78,7 +78,7 @@ subdir('decode')
 
 if 'CONFIG_TCG' in config_all_accel
   subdir('fp')
-  subdir('plugin')
+  subdir('tcg/plugins')
 endif
 
 subdir('unit')
