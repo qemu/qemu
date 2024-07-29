@@ -11,6 +11,18 @@ config-cc.mak: Makefile
 
 -include config-cc.mak
 
+# multi-threaded tests are known to fail (e.g., clang-user CI job)
+# See: https://gitlab.com/qemu-project/qemu/-/issues/2456
+run-signals: signals
+	$(call skip-test, $<, "BROKEN (flaky with clang) ")
+run-plugin-signals-with-%:
+	$(call skip-test, $<, "BROKEN (flaky with clang) ")
+
+run-threadcount: threadcount
+	$(call skip-test, $<, "BROKEN (flaky with clang) ")
+run-plugin-threadcount-with-%:
+	$(call skip-test, $<, "BROKEN (flaky with clang) ")
+
 ifneq ($(CROSS_CC_HAS_POWER8_VECTOR),)
 PPC64_TESTS=bcdsub non_signalling_xscv
 endif

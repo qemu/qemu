@@ -75,11 +75,6 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case PRD_P9_IPOLL_REG_MASK:
     case PRD_P9_IPOLL_REG_STATUS:
 
-        /* P9 xscom reset */
-    case 0x0090018:     /* Receive status reg */
-    case 0x0090012:     /* log register */
-    case 0x0090013:     /* error register */
-
         /* P8 xscom reset */
     case 0x2020007:     /* ADU stuff, log register */
     case 0x2020009:     /* ADU stuff, error register */
@@ -119,10 +114,6 @@ static bool xscom_write_default(PnvChip *chip, uint32_t pcba, uint64_t val)
     case 0x1010c03:     /* PIBAM FIR MASK */
     case 0x1010c04:     /* PIBAM FIR MASK */
     case 0x1010c05:     /* PIBAM FIR MASK */
-        /* P9 xscom reset */
-    case 0x0090018:     /* Receive status reg */
-    case 0x0090012:     /* log register */
-    case 0x0090013:     /* error register */
 
         /* P8 xscom reset */
     case 0x2020007:     /* ADU stuff, log register */

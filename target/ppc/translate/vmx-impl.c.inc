@@ -14,25 +14,39 @@ static inline TCGv_ptr gen_avr_ptr(int reg)
     return r;
 }
 
+static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
+{
+    tcg_gen_ld_i64(dst, tcg_env, avr64_offset(regno, high));
+}
+
+static inline void set_avr64(int regno, TCGv_i64 src, bool high)
+{
+    tcg_gen_st_i64(src, tcg_env, avr64_offset(regno, high));
+}
+
+static inline void get_avr_full(TCGv_i128 dst, int regno)
+{
+    tcg_gen_ld_i128(dst, tcg_env, avr_full_offset(regno));
+}
+
+static inline void set_avr_full(int regno, TCGv_i128 src)
+{
+    tcg_gen_st_i128(src, tcg_env, avr_full_offset(regno));
+}
+
 static bool trans_LVX(DisasContext *ctx, arg_X *a)
 {
     TCGv EA;
-    TCGv_i64 avr;
+    TCGv_i128 avr;
     REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
     REQUIRE_VECTOR(ctx);
     gen_set_access_type(ctx, ACCESS_INT);
-    avr = tcg_temp_new_i64();
+    avr = tcg_temp_new_i128();
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_andi_tl(EA, EA, ~0xf);
-    /*
-     * We only need to swap high and low halves. gen_qemu_ld64_i64
-     * does necessary 64-bit byteswap already.
-     */
-    gen_qemu_ld64_i64(ctx, avr, EA);
-    set_avr64(a->rt, avr, !ctx->le_mode);
-    tcg_gen_addi_tl(EA, EA, 8);
-    gen_qemu_ld64_i64(ctx, avr, EA);
-    set_avr64(a->rt, avr, ctx->le_mode);
+    tcg_gen_qemu_ld_i128(avr, EA, ctx->mem_idx,
+                         DEF_MEMOP(MO_128 | MO_ATOM_IFALIGN_PAIR));
+    set_avr_full(a->rt, avr);
     return true;
 }
 
@@ -46,22 +60,16 @@ static bool trans_LVXL(DisasContext *ctx, arg_LVXL *a)
 static bool trans_STVX(DisasContext *ctx, arg_STVX *a)
 {
     TCGv EA;
-    TCGv_i64 avr;
+    TCGv_i128 avr;
     REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
     REQUIRE_VECTOR(ctx);
     gen_set_access_type(ctx, ACCESS_INT);
-    avr = tcg_temp_new_i64();
+    avr = tcg_temp_new_i128();
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
     tcg_gen_andi_tl(EA, EA, ~0xf);
-    /*
-     * We only need to swap high and low halves. gen_qemu_st64_i64
-     * does necessary 64-bit byteswap already.
-     */
-    get_avr64(avr, a->rt, !ctx->le_mode);
-    gen_qemu_st64_i64(ctx, avr, EA);
-    tcg_gen_addi_tl(EA, EA, 8);
-    get_avr64(avr, a->rt, ctx->le_mode);
-    gen_qemu_st64_i64(ctx, avr, EA);
+    get_avr_full(avr, a->rt);
+    tcg_gen_qemu_st_i128(avr, EA, ctx->mem_idx,
+                         DEF_MEMOP(MO_128 | MO_ATOM_IFALIGN_PAIR));
     return true;
 }
 
@@ -1047,58 +1055,6 @@ TRANS(VRLQ, do_vector_rotl_quad, false, false)
 TRANS(VRLQNM, do_vector_rotl_quad, true, false)
 TRANS(VRLQMI, do_vector_rotl_quad, false, true)
 
-#define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
-static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
-                                         TCGv_vec sat, TCGv_vec a,      \
-                                         TCGv_vec b)                    \
-{                                                                       \
-    TCGv_vec x = tcg_temp_new_vec_matching(t);                          \
-    glue(glue(tcg_gen_, NORM), _vec)(VECE, x, a, b);                    \
-    glue(glue(tcg_gen_, SAT), _vec)(VECE, t, a, b);                     \
-    tcg_gen_cmp_vec(TCG_COND_NE, VECE, x, x, t);                        \
-    tcg_gen_or_vec(VECE, sat, sat, x);                                  \
-}                                                                       \
-static void glue(gen_, NAME)(DisasContext *ctx)                         \
-{                                                                       \
-    static const TCGOpcode vecop_list[] = {                             \
-        glue(glue(INDEX_op_, NORM), _vec),                              \
-        glue(glue(INDEX_op_, SAT), _vec),                               \
-        INDEX_op_cmp_vec, 0                                             \
-    };                                                                  \
-    static const GVecGen4 g = {                                         \
-        .fniv = glue(glue(gen_, NAME), _vec),                           \
-        .fno = glue(gen_helper_, NAME),                                 \
-        .opt_opc = vecop_list,                                          \
-        .write_aofs = true,                                             \
-        .vece = VECE,                                                   \
-    };                                                                  \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-    tcg_gen_gvec_4(avr_full_offset(rD(ctx->opcode)),                    \
-                   offsetof(CPUPPCState, vscr_sat),                     \
-                   avr_full_offset(rA(ctx->opcode)),                    \
-                   avr_full_offset(rB(ctx->opcode)),                    \
-                   16, 16, &g);                                         \
-}
-
-GEN_VXFORM_SAT(vaddubs, MO_8, add, usadd, 0, 8);
-GEN_VXFORM_DUAL_EXT(vaddubs, PPC_ALTIVEC, PPC_NONE, 0,       \
-                    vmul10uq, PPC_NONE, PPC2_ISA300, 0x0000F800)
-GEN_VXFORM_SAT(vadduhs, MO_16, add, usadd, 0, 9);
-GEN_VXFORM_DUAL(vadduhs, PPC_ALTIVEC, PPC_NONE, \
-                vmul10euq, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_SAT(vadduws, MO_32, add, usadd, 0, 10);
-GEN_VXFORM_SAT(vaddsbs, MO_8, add, ssadd, 0, 12);
-GEN_VXFORM_SAT(vaddshs, MO_16, add, ssadd, 0, 13);
-GEN_VXFORM_SAT(vaddsws, MO_32, add, ssadd, 0, 14);
-GEN_VXFORM_SAT(vsububs, MO_8, sub, ussub, 0, 24);
-GEN_VXFORM_SAT(vsubuhs, MO_16, sub, ussub, 0, 25);
-GEN_VXFORM_SAT(vsubuws, MO_32, sub, ussub, 0, 26);
-GEN_VXFORM_SAT(vsubsbs, MO_8, sub, sssub, 0, 28);
-GEN_VXFORM_SAT(vsubshs, MO_16, sub, sssub, 0, 29);
-GEN_VXFORM_SAT(vsubsws, MO_32, sub, sssub, 0, 30);
 GEN_VXFORM_TRANS(vsl, 2, 7);
 GEN_VXFORM_TRANS(vsr, 2, 11);
 GEN_VXFORM_ENV(vpkuhum, 7, 0);
@@ -2641,26 +2597,14 @@ static void gen_xpnd04_2(DisasContext *ctx)
     }
 }
 
-
-GEN_VXFORM_DUAL(vsubsws, PPC_ALTIVEC, PPC_NONE, \
-                xpnd04_2, PPC_NONE, PPC2_ISA300)
-
 GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
-                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsububs, PPC_ALTIVEC, PPC_NONE, \
                 bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM_DUAL(vsubuhm, PPC_ALTIVEC, PPC_NONE, \
                 bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsubuhs, PPC_ALTIVEC, PPC_NONE, \
-                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vaddshs, PPC_ALTIVEC, PPC_NONE, \
-                bcdcpsgn, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM_DUAL(vsubudm, PPC2_ALTIVEC_207, PPC_NONE, \
                 bcds, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM_DUAL(vsubuwm, PPC_ALTIVEC, PPC_NONE, \
                 bcdus, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_DUAL(vsubsbs, PPC_ALTIVEC, PPC_NONE, \
-                bcdtrunc, PPC_NONE, PPC2_ISA300)
 
 static void gen_vsbox(DisasContext *ctx)
 {
@@ -2936,6 +2880,180 @@ static bool do_vx_vaddsubcuw(DisasContext *ctx, arg_VX *a, int add)
 
 TRANS(VSUBCUW, do_vx_vaddsubcuw, 0)
 TRANS(VADDCUW, do_vx_vaddsubcuw, 1)
+
+/* Integer Add/Sub Saturate Instructions */
+static inline void do_vadd_vsub_sat
+(
+    unsigned vece, TCGv_vec t, TCGv_vec qc, TCGv_vec a, TCGv_vec b,
+    void (*norm_op)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec),
+    void (*sat_op)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
+{
+    TCGv_vec x = tcg_temp_new_vec_matching(t);
+    norm_op(vece, x, a, b);
+    sat_op(vece, t, a, b);
+    tcg_gen_xor_vec(vece, x, x, t);
+    tcg_gen_or_vec(vece, qc, qc, x);
+}
+
+static void gen_vadd_sat_u(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                           TCGv_vec a, TCGv_vec b)
+{
+    do_vadd_vsub_sat(vece, t, sat, a, b, tcg_gen_add_vec, tcg_gen_usadd_vec);
+}
+
+static void gen_vadd_sat_s(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                           TCGv_vec a, TCGv_vec b)
+{
+    do_vadd_vsub_sat(vece, t, sat, a, b, tcg_gen_add_vec, tcg_gen_ssadd_vec);
+}
+
+static void gen_vsub_sat_u(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                           TCGv_vec a, TCGv_vec b)
+{
+    do_vadd_vsub_sat(vece, t, sat, a, b, tcg_gen_sub_vec, tcg_gen_ussub_vec);
+}
+
+static void gen_vsub_sat_s(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                           TCGv_vec a, TCGv_vec b)
+{
+    do_vadd_vsub_sat(vece, t, sat, a, b, tcg_gen_sub_vec, tcg_gen_sssub_vec);
+}
+
+/*
+ * Signed/Unsigned add/sub helper ops for byte/halfword/word
+ * GVecGen4 struct variants.
+ */
+static const TCGOpcode vecop_list_sub_u[] = {
+    INDEX_op_sub_vec, INDEX_op_ussub_vec, 0
+};
+static const TCGOpcode vecop_list_sub_s[] = {
+    INDEX_op_sub_vec, INDEX_op_sssub_vec, 0
+};
+static const TCGOpcode vecop_list_add_u[] = {
+    INDEX_op_add_vec, INDEX_op_usadd_vec, 0
+};
+static const TCGOpcode vecop_list_add_s[] = {
+    INDEX_op_add_vec, INDEX_op_ssadd_vec, 0
+};
+
+static const GVecGen4 op_vsububs = {
+    .fniv = gen_vsub_sat_u,
+    .fno = gen_helper_VSUBUBS,
+    .opt_opc = vecop_list_sub_u,
+    .write_aofs = true,
+    .vece = MO_8
+};
+
+static const GVecGen4 op_vaddubs = {
+    .fniv = gen_vadd_sat_u,
+    .fno = gen_helper_VADDUBS,
+    .opt_opc = vecop_list_add_u,
+    .write_aofs = true,
+    .vece = MO_8
+};
+
+static const GVecGen4 op_vsubuhs = {
+    .fniv = gen_vsub_sat_u,
+    .fno = gen_helper_VSUBUHS,
+    .opt_opc = vecop_list_sub_u,
+    .write_aofs = true,
+    .vece = MO_16
+};
+
+static const GVecGen4 op_vadduhs = {
+    .fniv = gen_vadd_sat_u,
+    .fno = gen_helper_VADDUHS,
+    .opt_opc = vecop_list_add_u,
+    .write_aofs = true,
+    .vece = MO_16
+};
+
+static const GVecGen4 op_vsubuws = {
+    .fniv = gen_vsub_sat_u,
+    .fno = gen_helper_VSUBUWS,
+    .opt_opc = vecop_list_sub_u,
+    .write_aofs = true,
+    .vece = MO_32
+};
+
+static const GVecGen4 op_vadduws = {
+    .fniv = gen_vadd_sat_u,
+    .fno = gen_helper_VADDUWS,
+    .opt_opc = vecop_list_add_u,
+    .write_aofs = true,
+    .vece = MO_32
+};
+
+static const GVecGen4 op_vsubsbs = {
+    .fniv = gen_vsub_sat_s,
+    .fno = gen_helper_VSUBSBS,
+    .opt_opc = vecop_list_sub_s,
+    .write_aofs = true,
+    .vece = MO_8
+};
+
+static const GVecGen4 op_vaddsbs = {
+    .fniv = gen_vadd_sat_s,
+    .fno = gen_helper_VADDSBS,
+    .opt_opc = vecop_list_add_s,
+    .write_aofs = true,
+    .vece = MO_8
+};
+
+static const GVecGen4 op_vsubshs = {
+    .fniv = gen_vsub_sat_s,
+    .fno = gen_helper_VSUBSHS,
+    .opt_opc = vecop_list_sub_s,
+    .write_aofs = true,
+    .vece = MO_16
+};
+
+static const GVecGen4 op_vaddshs = {
+    .fniv = gen_vadd_sat_s,
+    .fno = gen_helper_VADDSHS,
+    .opt_opc = vecop_list_add_s,
+    .write_aofs = true,
+    .vece = MO_16
+};
+
+static const GVecGen4 op_vsubsws = {
+    .fniv = gen_vsub_sat_s,
+    .fno = gen_helper_VSUBSWS,
+    .opt_opc = vecop_list_sub_s,
+    .write_aofs = true,
+    .vece = MO_32
+};
+
+static const GVecGen4 op_vaddsws = {
+    .fniv = gen_vadd_sat_s,
+    .fno = gen_helper_VADDSWS,
+    .opt_opc = vecop_list_add_s,
+    .write_aofs = true,
+    .vece = MO_32
+};
+
+static bool do_vx_vadd_vsub_sat(DisasContext *ctx, arg_VX *a, const GVecGen4 *op)
+{
+    REQUIRE_VECTOR(ctx);
+    tcg_gen_gvec_4(avr_full_offset(a->vrt), offsetof(CPUPPCState, vscr_sat),
+                   avr_full_offset(a->vra), avr_full_offset(a->vrb),
+                   16, 16, op);
+
+    return true;
+}
+
+TRANS_FLAGS(ALTIVEC, VSUBUBS, do_vx_vadd_vsub_sat, &op_vsububs)
+TRANS_FLAGS(ALTIVEC, VSUBUHS, do_vx_vadd_vsub_sat, &op_vsubuhs)
+TRANS_FLAGS(ALTIVEC, VSUBUWS, do_vx_vadd_vsub_sat, &op_vsubuws)
+TRANS_FLAGS(ALTIVEC, VSUBSBS, do_vx_vadd_vsub_sat, &op_vsubsbs)
+TRANS_FLAGS(ALTIVEC, VSUBSHS, do_vx_vadd_vsub_sat, &op_vsubshs)
+TRANS_FLAGS(ALTIVEC, VSUBSWS, do_vx_vadd_vsub_sat, &op_vsubsws)
+TRANS_FLAGS(ALTIVEC, VADDUBS, do_vx_vadd_vsub_sat, &op_vaddubs)
+TRANS_FLAGS(ALTIVEC, VADDUHS, do_vx_vadd_vsub_sat, &op_vadduhs)
+TRANS_FLAGS(ALTIVEC, VADDUWS, do_vx_vadd_vsub_sat, &op_vadduws)
+TRANS_FLAGS(ALTIVEC, VADDSBS, do_vx_vadd_vsub_sat, &op_vaddsbs)
+TRANS_FLAGS(ALTIVEC, VADDSHS, do_vx_vadd_vsub_sat, &op_vaddshs)
+TRANS_FLAGS(ALTIVEC, VADDSWS, do_vx_vadd_vsub_sat, &op_vaddsws)
 
 static bool do_vx_vmuleo(DisasContext *ctx, arg_VX *a, bool even,
                          void (*gen_mul)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
