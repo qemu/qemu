@@ -1599,14 +1599,14 @@ void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                          \
     do_float_check_status(env, sfifprf, GETPC());                            \
 }
 
-VSX_ADD_SUB(xsadddp, add, 1, float64, VsrD(0), 1, 0)
-VSX_ADD_SUB(xsaddsp, add, 1, float64, VsrD(0), 1, 1)
-VSX_ADD_SUB(xvadddp, add, 2, float64, VsrD(i), 0, 0)
-VSX_ADD_SUB(xvaddsp, add, 4, float32, VsrW(i), 0, 0)
-VSX_ADD_SUB(xssubdp, sub, 1, float64, VsrD(0), 1, 0)
-VSX_ADD_SUB(xssubsp, sub, 1, float64, VsrD(0), 1, 1)
-VSX_ADD_SUB(xvsubdp, sub, 2, float64, VsrD(i), 0, 0)
-VSX_ADD_SUB(xvsubsp, sub, 4, float32, VsrW(i), 0, 0)
+VSX_ADD_SUB(XSADDDP, add, 1, float64, VsrD(0), 1, 0)
+VSX_ADD_SUB(XSADDSP, add, 1, float64, VsrD(0), 1, 1)
+VSX_ADD_SUB(XVADDDP, add, 2, float64, VsrD(i), 0, 0)
+VSX_ADD_SUB(XVADDSP, add, 4, float32, VsrW(i), 0, 0)
+VSX_ADD_SUB(XSSUBDP, sub, 1, float64, VsrD(0), 1, 0)
+VSX_ADD_SUB(XSSUBSP, sub, 1, float64, VsrD(0), 1, 1)
+VSX_ADD_SUB(XVSUBDP, sub, 2, float64, VsrD(i), 0, 0)
+VSX_ADD_SUB(XVSUBSP, sub, 4, float32, VsrW(i), 0, 0)
 
 void helper_xsaddqp(CPUPPCState *env, uint32_t opcode,
                     ppc_vsr_t *xt, ppc_vsr_t *xa, ppc_vsr_t *xb)
@@ -1676,10 +1676,10 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                            \
     do_float_check_status(env, sfifprf, GETPC());                            \
 }
 
-VSX_MUL(xsmuldp, 1, float64, VsrD(0), 1, 0)
-VSX_MUL(xsmulsp, 1, float64, VsrD(0), 1, 1)
-VSX_MUL(xvmuldp, 2, float64, VsrD(i), 0, 0)
-VSX_MUL(xvmulsp, 4, float32, VsrW(i), 0, 0)
+VSX_MUL(XSMULDP, 1, float64, VsrD(0), 1, 0)
+VSX_MUL(XSMULSP, 1, float64, VsrD(0), 1, 1)
+VSX_MUL(XVMULDP, 2, float64, VsrD(i), 0, 0)
+VSX_MUL(XVMULSP, 4, float32, VsrW(i), 0, 0)
 
 void helper_xsmulqp(CPUPPCState *env, uint32_t opcode,
                     ppc_vsr_t *xt, ppc_vsr_t *xa, ppc_vsr_t *xb)
@@ -1750,10 +1750,10 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
     do_float_check_status(env, sfifprf, GETPC());                             \
 }
 
-VSX_DIV(xsdivdp, 1, float64, VsrD(0), 1, 0)
-VSX_DIV(xsdivsp, 1, float64, VsrD(0), 1, 1)
-VSX_DIV(xvdivdp, 2, float64, VsrD(i), 0, 0)
-VSX_DIV(xvdivsp, 4, float32, VsrW(i), 0, 0)
+VSX_DIV(XSDIVDP, 1, float64, VsrD(0), 1, 0)
+VSX_DIV(XSDIVSP, 1, float64, VsrD(0), 1, 1)
+VSX_DIV(XVDIVDP, 2, float64, VsrD(i), 0, 0)
+VSX_DIV(XVDIVSP, 4, float32, VsrW(i), 0, 0)
 
 void helper_xsdivqp(CPUPPCState *env, uint32_t opcode,
                     ppc_vsr_t *xt, ppc_vsr_t *xa, ppc_vsr_t *xb)
@@ -2383,12 +2383,12 @@ void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                           \
     do_float_check_status(env, false, GETPC());                               \
 }
 
-VSX_MAX_MIN(xsmaxdp, maxnum, 1, float64, VsrD(0))
-VSX_MAX_MIN(xvmaxdp, maxnum, 2, float64, VsrD(i))
-VSX_MAX_MIN(xvmaxsp, maxnum, 4, float32, VsrW(i))
-VSX_MAX_MIN(xsmindp, minnum, 1, float64, VsrD(0))
-VSX_MAX_MIN(xvmindp, minnum, 2, float64, VsrD(i))
-VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
+VSX_MAX_MIN(XSMAXDP, maxnum, 1, float64, VsrD(0))
+VSX_MAX_MIN(XVMAXDP, maxnum, 2, float64, VsrD(i))
+VSX_MAX_MIN(XVMAXSP, maxnum, 4, float32, VsrW(i))
+VSX_MAX_MIN(XSMINDP, minnum, 1, float64, VsrD(0))
+VSX_MAX_MIN(XVMINDP, minnum, 2, float64, VsrD(i))
+VSX_MAX_MIN(XVMINSP, minnum, 4, float32, VsrW(i))
 
 #define VSX_MAX_MINC(name, max, tp, fld)                                      \
 void helper_##name(CPUPPCState *env,                                          \
@@ -2527,14 +2527,14 @@ uint32_t helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
     return crf6;                                                          \
 }
 
-VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0, 1)
-VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1, 1)
-VSX_CMP(xvcmpgtdp, 2, float64, VsrD(i), lt, 1, 1)
-VSX_CMP(xvcmpnedp, 2, float64, VsrD(i), eq, 0, 0)
-VSX_CMP(xvcmpeqsp, 4, float32, VsrW(i), eq, 0, 1)
-VSX_CMP(xvcmpgesp, 4, float32, VsrW(i), le, 1, 1)
-VSX_CMP(xvcmpgtsp, 4, float32, VsrW(i), lt, 1, 1)
-VSX_CMP(xvcmpnesp, 4, float32, VsrW(i), eq, 0, 0)
+VSX_CMP(XVCMPEQDP, 2, float64, VsrD(i), eq, 0, 1)
+VSX_CMP(XVCMPGEDP, 2, float64, VsrD(i), le, 1, 1)
+VSX_CMP(XVCMPGTDP, 2, float64, VsrD(i), lt, 1, 1)
+VSX_CMP(XVCMPNEDP, 2, float64, VsrD(i), eq, 0, 0)
+VSX_CMP(XVCMPEQSP, 4, float32, VsrW(i), eq, 0, 1)
+VSX_CMP(XVCMPGESP, 4, float32, VsrW(i), le, 1, 1)
+VSX_CMP(XVCMPGTSP, 4, float32, VsrW(i), lt, 1, 1)
+VSX_CMP(XVCMPNESP, 4, float32, VsrW(i), eq, 0, 0)
 
 /*
  * VSX_CVT_FP_TO_FP - VSX floating point/floating point conversion

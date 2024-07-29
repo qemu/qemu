@@ -32,3 +32,24 @@ ibex_spi_host_reset(const char *msg) "%s"
 ibex_spi_host_transfer(uint32_t tx_data, uint32_t rx_data) "tx_data: 0x%" PRIx32 " rx_data: @0x%" PRIx32
 ibex_spi_host_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
 ibex_spi_host_read(uint64_t addr, uint32_t size) "@0x%" PRIx64 " size %u:"
+
+#pnv_spi.c
+pnv_spi_read(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_spi_write(uint64_t addr, uint64_t val) "addr 0x%" PRIx64 " val 0x%" PRIx64
+pnv_spi_read_RDR(uint64_t val) "data extracted = 0x%" PRIx64
+pnv_spi_write_TDR(uint64_t val) "being written, data written = 0x%" PRIx64
+pnv_spi_start_sequencer(void) ""
+pnv_spi_reset(void) "spic engine sequencer configuration and spi communication"
+pnv_spi_sequencer_op(const char* op, uint8_t index) "%s at index = 0x%x"
+pnv_spi_shifter_stating(void) "pull CS line low"
+pnv_spi_shifter_done(void) "pull the CS line high"
+pnv_spi_log_Ncounts(uint8_t N1_bits, uint8_t N1_bytes, uint8_t N1_tx, uint8_t N1_rx, uint8_t N2_bits, uint8_t N2_bytes, uint8_t N2_tx, uint8_t N2_rx) "N1_bits = %d, N1_bytes = %d, N1_tx = %d, N1_rx = %d, N2_bits = %d, N2_bytes = %d, N2_tx = %d, N2_rx = %d"
+pnv_spi_tx_append(const char* frame, uint8_t byte, uint8_t tdr_index) "%s = 0x%2.2x to payload from TDR at index %d"
+pnv_spi_tx_append_FF(const char* frame) "%s to Payload"
+pnv_spi_tx_request(const char* frame, uint32_t payload_len) "%s, payload len = %d"
+pnv_spi_rx_received(uint32_t payload_len) "payload len = %d"
+pnv_spi_rx_read_N1frame(void) ""
+pnv_spi_rx_read_N2frame(void) ""
+pnv_spi_shift_rx(uint8_t byte, uint32_t index) "byte = 0x%2.2x into RDR from payload index %d"
+pnv_spi_sequencer_stop_requested(const char* reason) "due to %s"
+pnv_spi_RDR_match(const char* result) "%s"

@@ -22,6 +22,9 @@
 #include "sysemu/block-ram-registrar.h"
 #include "qom/object.h"
 #include "qapi/qapi-types-virtio.h"
+#ifdef CONFIG_SPDM
+#include "sysemu/spdm.h"
+#endif
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBlock, VIRTIO_BLK)
@@ -74,6 +77,9 @@ struct VirtIOBlock {
     uint64_t host_features;
     size_t config_size;
     BlockRAMRegistrar blk_ram_registrar;
+#ifdef CONFIG_SPDM
+    SpdmDev *spdm_dev;
+#endif
 };
 
 typedef struct VirtIOBlockReq {
