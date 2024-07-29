@@ -56,7 +56,7 @@ static const PnvChip pnv_chips[] = {
         .chip_type  = PNV_CHIP_POWER10,
         .cpu_model  = "POWER10",
         .xscom_base = 0x000603fc00000000ull,
-        .cfam_id    = 0x120da04900008000ull,
+        .cfam_id    = 0x220da04980000000ull,
         .first_core = 0x0,
         .num_i2c    = 4,
     },

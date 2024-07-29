@@ -232,6 +232,10 @@
 #define  VC_ESBC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(32, 35)
 #define  VC_ESBC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(36, 63) /* 28-bit */
 
+/* ESBC cache flush inject register */
+#define X_VC_ESBC_FLUSH_INJECT                  0x142
+#define VC_ESBC_FLUSH_INJECT                    0x210
+
 /* ESBC configuration */
 #define X_VC_ESBC_CFG                           0x148
 #define VC_ESBC_CFG                             0x240
@@ -249,6 +253,10 @@
 #define  VC_EASC_FLUSH_POLL_OFFSET              PPC_BITMASK(4, 31)  /* 28-bit */
 #define  VC_EASC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(32, 35)
 #define  VC_EASC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(36, 63) /* 28-bit */
+
+/* EASC flush inject register */
+#define X_VC_EASC_FLUSH_INJECT                  0x162
+#define VC_EASC_FLUSH_INJECT                    0x310
 
 /*
  * VC2
@@ -270,6 +278,10 @@
 #define  VC_ENDC_FLUSH_POLL_BLOCK_ID_MASK       PPC_BITMASK(36, 39)
 #define  VC_ENDC_FLUSH_POLL_OFFSET_MASK         PPC_BITMASK(40, 63) /* 24-bit */
 
+/* ENDC flush inject register */
+#define X_VC_ENDC_FLUSH_INJECT                  0x182
+#define VC_ENDC_FLUSH_INJECT                    0x410
+
 /* ENDC Sync done */
 #define X_VC_ENDC_SYNC_DONE                     0x184
 #define VC_ENDC_SYNC_DONE                       0x420
@@ -282,6 +294,15 @@
 #define   VC_ENDC_SYNC_QUEUE_POOL               PPC_BIT(5)
 #define   VC_ENDC_SYNC_QUEUE_HARD               PPC_BIT(6)
 #define   VC_QUEUE_COUNT                        7
+
+/* ENDC cache watch assign */
+#define X_VC_ENDC_WATCH_ASSIGN                  0x186
+#define VC_ENDC_WATCH_ASSIGN                    0x430
+
+/* ENDC configuration register */
+#define X_VC_ENDC_CFG                           0x188
+#define VC_ENDC_CFG                             0x440
+#define   VC_ENDC_CFG_CACHE_WATCH_ASSIGN        PPC_BITMASK(32, 35)
 
 /* ENDC cache watch specification 0  */
 #define X_VC_ENDC_WATCH0_SPEC                   0x1A0
@@ -301,6 +322,42 @@
 #define VC_ENDC_WATCH0_DATA1                    0x528
 #define VC_ENDC_WATCH0_DATA2                    0x530
 #define VC_ENDC_WATCH0_DATA3                    0x538
+
+/* ENDC cache watch 1  */
+#define X_VC_ENDC_WATCH1_SPEC                   0x1A8
+#define VC_ENDC_WATCH1_SPEC                     0x540
+#define X_VC_ENDC_WATCH1_DATA0                  0x1AC
+#define X_VC_ENDC_WATCH1_DATA1                  0x1AD
+#define X_VC_ENDC_WATCH1_DATA2                  0x1AE
+#define X_VC_ENDC_WATCH1_DATA3                  0x1AF
+#define VC_ENDC_WATCH1_DATA0                    0x560
+#define VC_ENDC_WATCH1_DATA1                    0x568
+#define VC_ENDC_WATCH1_DATA2                    0x570
+#define VC_ENDC_WATCH1_DATA3                    0x578
+
+/* ENDC cache watch 2  */
+#define X_VC_ENDC_WATCH2_SPEC                   0x1B0
+#define VC_ENDC_WATCH2_SPEC                     0x580
+#define X_VC_ENDC_WATCH2_DATA0                  0x1B4
+#define X_VC_ENDC_WATCH2_DATA1                  0x1B5
+#define X_VC_ENDC_WATCH2_DATA2                  0x1B6
+#define X_VC_ENDC_WATCH2_DATA3                  0x1B7
+#define VC_ENDC_WATCH2_DATA0                    0x5A0
+#define VC_ENDC_WATCH2_DATA1                    0x5A8
+#define VC_ENDC_WATCH2_DATA2                    0x5B0
+#define VC_ENDC_WATCH2_DATA3                    0x5B8
+
+/* ENDC cache watch 3  */
+#define X_VC_ENDC_WATCH3_SPEC                   0x1B8
+#define VC_ENDC_WATCH3_SPEC                     0x5C0
+#define X_VC_ENDC_WATCH3_DATA0                  0x1BC
+#define X_VC_ENDC_WATCH3_DATA1                  0x1BD
+#define X_VC_ENDC_WATCH3_DATA2                  0x1BE
+#define X_VC_ENDC_WATCH3_DATA3                  0x1BF
+#define VC_ENDC_WATCH3_DATA0                    0x5E0
+#define VC_ENDC_WATCH3_DATA1                    0x5E8
+#define VC_ENDC_WATCH3_DATA2                    0x5F0
+#define VC_ENDC_WATCH3_DATA3                    0x5F8
 
 /*
  * PC LSB1
@@ -358,6 +415,21 @@
 #define  PC_NXC_FLUSH_POLL_BLOCK_ID_MASK        PPC_BITMASK(36, 39)
 #define  PC_NXC_FLUSH_POLL_OFFSET_MASK          PPC_BITMASK(40, 63) /* 24-bit */
 
+/* NxC Cache flush inject */
+#define X_PC_NXC_FLUSH_INJECT                   0x282
+#define PC_NXC_FLUSH_INJECT                     0x410
+
+/* NxC Cache watch assign */
+#define X_PC_NXC_WATCH_ASSIGN                   0x286
+#define PC_NXC_WATCH_ASSIGN                     0x430
+
+/* NxC Proc config */
+#define X_PC_NXC_PROC_CONFIG                    0x28A
+#define PC_NXC_PROC_CONFIG                      0x450
+#define   PC_NXC_PROC_CONFIG_WATCH_ASSIGN       PPC_BITMASK(0, 3)
+#define   PC_NXC_PROC_CONFIG_NVG_TABLE_COMPRESS PPC_BITMASK(32, 35)
+#define   PC_NXC_PROC_CONFIG_NVC_TABLE_COMPRESS PPC_BITMASK(36, 39)
+
 /* NxC Cache Watch 0 Specification */
 #define X_PC_NXC_WATCH0_SPEC                    0x2A0
 #define PC_NXC_WATCH0_SPEC                      0x500
@@ -380,6 +452,42 @@
 #define PC_NXC_WATCH0_DATA1                     0x528
 #define PC_NXC_WATCH0_DATA2                     0x530
 #define PC_NXC_WATCH0_DATA3                     0x538
+
+/* NxC Cache Watch 1 */
+#define X_PC_NXC_WATCH1_SPEC                    0x2A8
+#define PC_NXC_WATCH1_SPEC                      0x540
+#define X_PC_NXC_WATCH1_DATA0                   0x2AC
+#define X_PC_NXC_WATCH1_DATA1                   0x2AD
+#define X_PC_NXC_WATCH1_DATA2                   0x2AE
+#define X_PC_NXC_WATCH1_DATA3                   0x2AF
+#define PC_NXC_WATCH1_DATA0                     0x560
+#define PC_NXC_WATCH1_DATA1                     0x568
+#define PC_NXC_WATCH1_DATA2                     0x570
+#define PC_NXC_WATCH1_DATA3                     0x578
+
+/* NxC Cache Watch 2 */
+#define X_PC_NXC_WATCH2_SPEC                    0x2B0
+#define PC_NXC_WATCH2_SPEC                      0x580
+#define X_PC_NXC_WATCH2_DATA0                   0x2B4
+#define X_PC_NXC_WATCH2_DATA1                   0x2B5
+#define X_PC_NXC_WATCH2_DATA2                   0x2B6
+#define X_PC_NXC_WATCH2_DATA3                   0x2B7
+#define PC_NXC_WATCH2_DATA0                     0x5A0
+#define PC_NXC_WATCH2_DATA1                     0x5A8
+#define PC_NXC_WATCH2_DATA2                     0x5B0
+#define PC_NXC_WATCH2_DATA3                     0x5B8
+
+/* NxC Cache Watch 3 */
+#define X_PC_NXC_WATCH3_SPEC                    0x2B8
+#define PC_NXC_WATCH3_SPEC                      0x5C0
+#define X_PC_NXC_WATCH3_DATA0                   0x2BC
+#define X_PC_NXC_WATCH3_DATA1                   0x2BD
+#define X_PC_NXC_WATCH3_DATA2                   0x2BE
+#define X_PC_NXC_WATCH3_DATA3                   0x2BF
+#define PC_NXC_WATCH3_DATA0                     0x5E0
+#define PC_NXC_WATCH3_DATA1                     0x5E8
+#define PC_NXC_WATCH3_DATA2                     0x5F0
+#define PC_NXC_WATCH3_DATA3                     0x5F8
 
 /*
  * TCTXT Registers

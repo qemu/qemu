@@ -21,9 +21,9 @@
 #define PPC_PNV_XSCOM_H
 
 #include "exec/memory.h"
-#include "hw/ppc/pnv.h"
 
 typedef struct PnvXScomInterface PnvXScomInterface;
+typedef struct PnvChip PnvChip;
 
 #define TYPE_PNV_XSCOM_INTERFACE "pnv-xscom-interface"
 #define PNV_XSCOM_INTERFACE(obj) \
@@ -82,6 +82,9 @@ struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_PBCQ_SPCI_BASE  0x9013c00
 #define PNV_XSCOM_PBCQ_SPCI_SIZE  0x5
 
+#define PNV9_XSCOM_ADU_BASE       0x0090000
+#define PNV9_XSCOM_ADU_SIZE       0x55
+
 /*
  * Layout of the XSCOM PCB addresses (POWER 9)
  */
@@ -127,6 +130,9 @@ struct PnvXScomInterfaceClass {
 #define PNV9_XSCOM_PEC_PCI_STK0   0x100
 #define PNV9_XSCOM_PEC_PCI_STK1   0x140
 #define PNV9_XSCOM_PEC_PCI_STK2   0x180
+
+#define PNV10_XSCOM_ADU_BASE      0x0090000
+#define PNV10_XSCOM_ADU_SIZE      0x55
 
 /*
  * Layout of the XSCOM PCB addresses (POWER 10)
@@ -193,6 +199,9 @@ struct PnvXScomInterfaceClass {
 
 #define PNV10_XSCOM_PEC_PCI_BASE   0x8010800 /* index goes upwards ... */
 #define PNV10_XSCOM_PEC_PCI_SIZE   0x200
+
+#define PNV10_XSCOM_PIB_SPIC_BASE 0xc0000
+#define PNV10_XSCOM_PIB_SPIC_SIZE 0x20
 
 void pnv_xscom_init(PnvChip *chip, uint64_t size, hwaddr addr);
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,

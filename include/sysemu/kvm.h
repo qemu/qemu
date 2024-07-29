@@ -338,6 +338,14 @@ void kvm_park_vcpu(CPUState *cpu);
  */
 int kvm_unpark_vcpu(KVMState *s, unsigned long vcpu_id);
 
+/**
+ * kvm_create_and_park_vcpu - Create and park a KVM vCPU
+ * @cpu: QOM CPUState object for which KVM vCPU has to be created and parked.
+ *
+ * @returns: 0 when success, errno (<0) when failed.
+ */
+int kvm_create_and_park_vcpu(CPUState *cpu);
+
 /* Arch specific hooks */
 
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];

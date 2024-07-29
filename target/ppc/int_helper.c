@@ -541,7 +541,7 @@ VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
     }
 
 #define VARITHSAT_DO(name, op, optype, cvt, element)                    \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *vscr_sat,              \
+    void helper_V##name(ppc_avr_t *r, ppc_avr_t *vscr_sat,              \
                         ppc_avr_t *a, ppc_avr_t *b, uint32_t desc)      \
     {                                                                   \
         int sat = 0;                                                    \
@@ -555,17 +555,17 @@ VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
         }                                                               \
     }
 #define VARITHSAT_SIGNED(suffix, element, optype, cvt)          \
-    VARITHSAT_DO(adds##suffix##s, +, optype, cvt, element)      \
-    VARITHSAT_DO(subs##suffix##s, -, optype, cvt, element)
+    VARITHSAT_DO(ADDS##suffix##S, +, optype, cvt, element)      \
+    VARITHSAT_DO(SUBS##suffix##S, -, optype, cvt, element)
 #define VARITHSAT_UNSIGNED(suffix, element, optype, cvt)        \
-    VARITHSAT_DO(addu##suffix##s, +, optype, cvt, element)      \
-    VARITHSAT_DO(subu##suffix##s, -, optype, cvt, element)
-VARITHSAT_SIGNED(b, s8, int16_t, cvtshsb)
-VARITHSAT_SIGNED(h, s16, int32_t, cvtswsh)
-VARITHSAT_SIGNED(w, s32, int64_t, cvtsdsw)
-VARITHSAT_UNSIGNED(b, u8, uint16_t, cvtshub)
-VARITHSAT_UNSIGNED(h, u16, uint32_t, cvtswuh)
-VARITHSAT_UNSIGNED(w, u32, uint64_t, cvtsduw)
+    VARITHSAT_DO(ADDU##suffix##S, +, optype, cvt, element)      \
+    VARITHSAT_DO(SUBU##suffix##S, -, optype, cvt, element)
+VARITHSAT_SIGNED(B, s8, int16_t, cvtshsb)
+VARITHSAT_SIGNED(H, s16, int32_t, cvtswsh)
+VARITHSAT_SIGNED(W, s32, int64_t, cvtsdsw)
+VARITHSAT_UNSIGNED(B, u8, uint16_t, cvtshub)
+VARITHSAT_UNSIGNED(H, u16, uint32_t, cvtswuh)
+VARITHSAT_UNSIGNED(W, u32, uint64_t, cvtsduw)
 #undef VARITHSAT_CASE
 #undef VARITHSAT_DO
 #undef VARITHSAT_SIGNED
