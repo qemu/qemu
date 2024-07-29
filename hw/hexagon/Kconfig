@@ -4,3 +4,11 @@ config HEX_DSP
     depends on HEXAGON && TCG
     imply PTIMER
     select L2VIC  # Vector PIC
+
+config HEX_VIRT
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select DEVICE_TREE
+    select VIRTIO_MMIO
+    select PL011
