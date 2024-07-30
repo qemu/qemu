@@ -273,16 +273,13 @@ endif
 
 libspdm_dep_targets = [
   'debuglib',
-  'debuglib_null',
   'malloclib',
   'memlib',
   'platform_lib',
-  'platform_lib_null',
   'rnglib',
   'spdm_common_lib',
   'spdm_crypt_ext_lib',
   'spdm_crypt_lib',
-  'spdm_device_secret_lib_null',
   'spdm_device_secret_lib_sample',
   'spdm_requester_lib',
   'spdm_responder_lib',
@@ -3311,7 +3308,8 @@ if have_libspdm
                                  'TARGET': libspdm_target, \
                                  'CRYPTO': get_option('libspdm-crypto'), \
                                  'DISABLE_TESTS': 1, \
-                                 'GCOV': libspdm_gcov})
+                                 'GCOV': libspdm_gcov, \
+                                 'BUILD_LINUX_SHARED_LIB': 'ON'})
   libspdm_proj = cmake.subproject('libspdm', options: libspdm_opt)
 
   foreach dep : libspdm_dep_targets
