@@ -227,19 +227,17 @@ static void coroutine_fn vh_co_entry(void *opaque)
                                 &peer_pid,
                                 &local_err);
     if (r < 0) {
-        error_report_err(local_err);
         goto out;
     }
 
-    while (r < 0) {
+    for (;;) {
         /*
          * Read the requested MSR
          * Only RAPL MSR in rapl-msr-index.h is allowed
          */
-        r = qio_channel_read_all(QIO_CHANNEL(client->ioc),
-                                (char *) &request, sizeof(request), &local_err);
-        if (r < 0) {
-            error_report_err(local_err);
+        r = qio_channel_read_all_eof(QIO_CHANNEL(client->ioc),
+                                     (char *) &request, sizeof(request), &local_err);
+        if (r <= 0) {
             break;
         }
 
@@ -261,11 +259,15 @@ static void coroutine_fn vh_co_entry(void *opaque)
                                   sizeof(vmsr),
                                   &local_err);
         if (r < 0) {
-            error_report_err(local_err);
             break;
         }
     }
+
 out:
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
     object_unref(OBJECT(client->ioc));
     g_free(client);
 }
