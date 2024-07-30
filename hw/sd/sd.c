@@ -2540,7 +2540,9 @@ uint8_t sd_read_byte(SDState *sd)
         break;
 
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DAT read illegal for command %s\n",
+                                       __func__, sd->last_cmd_name);
+        return dummy_byte;
     }
 
     return ret;
