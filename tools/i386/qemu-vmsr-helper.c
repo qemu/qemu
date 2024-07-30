@@ -54,6 +54,7 @@ static enum { RUNNING, TERMINATE, TERMINATING } state;
 static QIOChannelSocket *server_ioc;
 static int server_watch;
 static int num_active_sockets = 1;
+static bool verbose;
 
 #ifdef CONFIG_LIBCAP_NG
 static int uid = -1;
@@ -265,7 +266,11 @@ static void coroutine_fn vh_co_entry(void *opaque)
 
 out:
     if (local_err) {
-        error_report_err(local_err);
+        if (!verbose) {
+            error_free(local_err);
+        } else {
+            error_report_err(local_err);
+        }
     }
 
     object_unref(OBJECT(client->ioc));
@@ -430,6 +435,9 @@ int main(int argc, char **argv)
 #endif
         case 'd':
             daemonize = true;
+            break;
+        case 'v':
+            verbose = true;
             break;
         case 'T':
             trace_opt_parse(optarg);
