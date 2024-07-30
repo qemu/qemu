@@ -58,6 +58,7 @@ typedef struct SGXEPCState {
     int nr_sections;
 } SGXEPCState;
 
+bool check_sgx_support(void);
 bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size);
 void sgx_epc_build_srat(GArray *table_data);
 

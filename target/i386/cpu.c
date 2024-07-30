@@ -6103,6 +6103,21 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
         }
         break;
 
+    case FEAT_7_0_EBX:
+#ifndef CONFIG_USER_ONLY
+        if (!check_sgx_support()) {
+            unavail = CPUID_7_0_EBX_SGX;
+        }
+#endif
+        break;
+    case FEAT_7_0_ECX:
+#ifndef CONFIG_USER_ONLY
+        if (!check_sgx_support()) {
+            unavail = CPUID_7_0_ECX_SGX_LC;
+        }
+#endif
+        break;
+
     default:
         break;
     }
