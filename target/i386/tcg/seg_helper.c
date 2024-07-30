@@ -926,7 +926,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     target_ulong ptr;
     int type, dpl, selector, cpl, ist;
     int has_error_code, new_stack;
-    uint32_t e1, e2, e3, ss, eflags;
+    uint32_t e1, e2, e3, eflags;
     target_ulong old_eip, offset;
     bool set_rf;
     StackAccess sa;
@@ -1007,7 +1007,6 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         /* to inner privilege */
         new_stack = 1;
         sa.sp = get_rsp_from_tss(env, ist != 0 ? ist + 3 : dpl);
-        ss = 0;
     } else {
         /* to same privilege */
         if (env->eflags & VM_MASK) {
@@ -1040,7 +1039,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     env->eflags &= ~(TF_MASK | VM_MASK | RF_MASK | NT_MASK);
 
     if (new_stack) {
-        ss = 0 | dpl;
+        uint32_t ss = 0 | dpl; /* SS = NULL selector with RPL = new CPL */
         cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, dpl << DESC_DPL_SHIFT);
     }
     env->regs[R_ESP] = sa.sp;

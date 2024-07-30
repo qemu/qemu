@@ -1505,8 +1505,8 @@ uint32_t helper_sub_h(CPUTriCoreState *env, target_ulong r1, target_ulong r2)
 
 uint32_t helper_eq_b(target_ulong r1, target_ulong r2)
 {
-    int32_t ret;
-    int32_t i, msk;
+    uint32_t ret, msk;
+    int32_t i;
 
     ret = 0;
     msk = 0xff;
