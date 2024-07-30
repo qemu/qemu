@@ -6,15 +6,28 @@
 #ifndef QEMU_SPDM_H
 #define QEMU_SPDM_H
 
+#include "qemu/osdep.h"
 #include <glib.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include "hal/base.h"
 #include "hal/library/debuglib.h"
 #include "hal/library/memlib.h"
+#include "hal/library/cryptlib/cryptlib_hash.h"
 #include "industry_standard/spdm.h"
+#include "internal/libspdm_common_lib.h"
+#include "internal/libspdm_secured_message_lib.h"
 #include "library/spdm_responder_lib.h"
 #include "library/spdm_requester_lib.h"
 #include "library/spdm_transport_mctp_lib.h"
 #include "library/spdm_transport_pcidoe_lib.h"
+#include "spdm_device_secret_lib_internal.h"
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
+
+#define SPDM_BLK_APP_TAMPER   0x01
+#define SPDM_BLK_APP_MSG      0x02
 
 #define SOCKET_TRANSPORT_TYPE_NONE 0x00
 #define SOCKET_TRANSPORT_TYPE_MCTP 0x01
@@ -189,5 +202,7 @@ struct SpdmDev {
 
 void *spdm_responder_init(SpdmDev *spdm_dev);
 void *spdm_requester_init(SpdmDev *spdm_dev);
+void dump_data(const uint8_t *buffer, size_t buffer_size);
+void dump_hex(const uint8_t *data, size_t size);
 
 #endif /* QEMU_SPDM_H */
