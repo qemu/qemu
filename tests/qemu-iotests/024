@@ -283,7 +283,7 @@ TEST_IMG=$BASE_OLD _make_test_img -b "$BASE_NEW" -F $IMGFMT \
 CLUSTER_SIZE=$(( CLUSTER_SIZE * 2 )) TEST_IMG=$OVERLAY \
     _make_test_img -b "$BASE_OLD" -F $IMGFMT $(( CLUSTER_SIZE * 6 ))
 
-TEST_IMG=$OVERLAY _img_info
+TEST_IMG=$OVERLAY _img_info | grep -v '^backing file format:'
 
 echo
 echo "Fill backing files with data"
