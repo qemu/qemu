@@ -6537,8 +6537,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 7:
         /* Structured Extended Feature Flags Enumeration Leaf */
         if (count == 0) {
-            uint32_t eax_0_unused, ebx_0, ecx_0, edx_0_unused;
-
             /* Maximum ECX value for sub-leaves */
             *eax = env->cpuid_level_func7;
             *ebx = env->features[FEAT_7_0_EBX]; /* Feature flags */
@@ -6548,20 +6546,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             }
             *edx = env->features[FEAT_7_0_EDX]; /* Feature flags */
 
-            /*
-             * SGX cannot be emulated in software.  If hardware does not
-             * support enabling SGX and/or SGX flexible launch control,
-             * then we need to update the VM's CPUID values accordingly.
-             */
-            x86_cpu_get_supported_cpuid(0x7, 0,
-                                        &eax_0_unused, &ebx_0,
-                                        &ecx_0, &edx_0_unused);
-            if ((*ebx & CPUID_7_0_EBX_SGX) && !(ebx_0 & CPUID_7_0_EBX_SGX)) {
-                *ebx &= ~CPUID_7_0_EBX_SGX;
-            }
-
             if ((*ecx & CPUID_7_0_ECX_SGX_LC)
-                    && (!(*ebx & CPUID_7_0_EBX_SGX) || !(ecx_0 & CPUID_7_0_ECX_SGX_LC))) {
+                    && (!(*ebx & CPUID_7_0_EBX_SGX))) {
                 *ecx &= ~CPUID_7_0_ECX_SGX_LC;
             }
         } else if (count == 1) {
