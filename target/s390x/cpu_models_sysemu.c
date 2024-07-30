@@ -174,14 +174,10 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
                                 bool delta_changes)
 {
     QDict *qdict = qdict_new();
-    S390FeatBitmap bitmap, deprecated;
+    S390FeatBitmap bitmap;
 
     /* always fallback to the static base model */
     info->name = g_strdup_printf("%s-base", model->def->name);
-
-    /* features flagged as deprecated */
-    bitmap_zero(deprecated, S390_FEAT_MAX);
-    s390_get_deprecated_features(deprecated);
 
     if (delta_changes) {
         /* features deleted from the base feature set */
@@ -197,9 +193,6 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
         if (!bitmap_empty(bitmap, S390_FEAT_MAX)) {
             s390_feat_bitmap_to_ascii(bitmap, qdict, qdict_add_enabled_feat);
         }
-
-        /* deprecated features that are a subset of the model's enabled features */
-        bitmap_and(deprecated, deprecated, model->features, S390_FEAT_MAX);
     } else {
         /* expand all features */
         s390_feat_bitmap_to_ascii(model->features, qdict,
@@ -213,9 +206,6 @@ static void cpu_info_from_model(CpuModelInfo *info, const S390CPUModel *model,
     } else {
         info->props = QOBJECT(qdict);
     }
-
-    s390_feat_bitmap_to_ascii(deprecated, &info->deprecated_props, list_add_feat);
-    info->has_deprecated_props = !!info->deprecated_props;
 }
 
 CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
@@ -226,6 +216,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     CpuModelExpansionInfo *expansion_info = NULL;
     S390CPUModel s390_model;
     bool delta_changes = false;
+    S390FeatBitmap deprecated_feats;
 
     /* convert it to our internal representation */
     cpu_model_from_info(&s390_model, model, "model", &err);
@@ -245,6 +236,22 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     expansion_info = g_new0(CpuModelExpansionInfo, 1);
     expansion_info->model = g_malloc0(sizeof(*expansion_info->model));
     cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
+
+    /* populate list of deprecated features */
+    bitmap_zero(deprecated_feats, S390_FEAT_MAX);
+    s390_get_deprecated_features(deprecated_feats);
+
+    if (delta_changes) {
+        /*
+         * Only populate deprecated features that are a
+         * subset of the features enabled on the CPU model.
+         */
+        bitmap_and(deprecated_feats, deprecated_feats,
+                   s390_model.features, S390_FEAT_MAX);
+    }
+
+    s390_feat_bitmap_to_ascii(deprecated_feats,
+                              &expansion_info->deprecated_props, list_add_feat);
     return expansion_info;
 }
 

@@ -20,17 +20,11 @@
 #
 # @props: a dictionary of QOM properties to be applied
 #
-# @deprecated-props: a list of properties that are flagged as deprecated
-#     by the CPU vendor.  These properties are either a subset of the
-#     properties enabled on the CPU model, or a set of properties
-#     deprecated across all models for the architecture.
-#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelInfo',
   'data': { 'name': 'str',
-            '*props': 'any',
-            '*deprecated-props': ['str'] } }
+            '*props': 'any' } }
 
 ##
 # @CpuModelExpansionType:
@@ -248,10 +242,19 @@
 #
 # @model: the expanded CpuModelInfo.
 #
+# @deprecated-props: a list of properties that are flagged as deprecated
+#     by the CPU vendor.  The list depends on the CpuModelExpansionType:
+#     "static" properties are a subset of the enabled-properties for
+#     the expanded model; "full" properties are a set of properties
+#     that are deprecated across all models for the architecture.
+#     (since: 9.1).
+#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelExpansionInfo',
-  'data': { 'model': 'CpuModelInfo' },
+  'data': { 'model': 'CpuModelInfo',
+            'deprecated-props' : { 'type': ['str'],
+                                   'if': 'TARGET_S390X' } },
   'if': { 'any': [ 'TARGET_S390X',
                    'TARGET_I386',
                    'TARGET_ARM',
