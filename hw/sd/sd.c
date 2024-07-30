@@ -2478,20 +2478,22 @@ void sd_write_byte(SDState *sd, uint8_t value)
 uint8_t sd_read_byte(SDState *sd)
 {
     /* TODO: Append CRCs */
+    const uint8_t dummy_byte = 0x00;
     uint8_t ret;
     uint32_t io_len;
 
     if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable)
-        return 0x00;
+        return dummy_byte;
 
     if (sd->state != sd_sendingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: not in Sending-Data state\n", __func__);
-        return 0x00;
+        return dummy_byte;
     }
 
-    if (sd->card_status & (ADDRESS_ERROR | WP_VIOLATION))
-        return 0x00;
+    if (sd->card_status & (ADDRESS_ERROR | WP_VIOLATION)) {
+        return dummy_byte;
+    }
 
     io_len = sd_blk_len(sd);
 
@@ -2517,7 +2519,7 @@ uint8_t sd_read_byte(SDState *sd)
         if (sd->data_offset == 0) {
             if (!address_in_range(sd, "READ_MULTIPLE_BLOCK",
                                   sd->data_start, io_len)) {
-                return 0x00;
+                return dummy_byte;
             }
             sd_blk_read(sd, sd->data_start, io_len);
         }
