@@ -85,7 +85,8 @@ static uint32_t decode_load_bytes(DisasContext *ctx, uint32_t insn,
 
 static uint32_t li(DisasContext *ctx, int sz)
 {
-    int32_t tmp, addr;
+    target_ulong addr;
+    uint32_t tmp;
     CPURXState *env = ctx->env;
     addr = ctx->base.pc_next;
 

@@ -14,7 +14,8 @@
 #  include "elf.h"
 # endif
 #endif
-#ifdef __FreeBSD__
+#if defined(CONFIG_ELF_AUX_INFO)
+# include <sys/auxv.h>
 # include <machine/cpu.h>
 # ifndef PPC_FEATURE2_ARCH_3_1
 #  define PPC_FEATURE2_ARCH_3_1   0
@@ -35,7 +36,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 
     info = CPUINFO_ALWAYS;
 
-#if defined(CONFIG_LINUX) || defined(__FreeBSD__)
+#if defined(CONFIG_LINUX) || defined(CONFIG_ELF_AUX_INFO)
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
     unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
