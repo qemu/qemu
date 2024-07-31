@@ -245,6 +245,7 @@ F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdb-xml/hexagon*.xml
+T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
 M: Alessandro Di Federico <ale@rev.ng>
