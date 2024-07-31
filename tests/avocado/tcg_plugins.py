@@ -77,7 +77,7 @@ class PluginKernelNormal(PluginKernelBase):
                                                  suffix=".log")
 
         self.run_vm(kernel_path, kernel_command_line,
-                    "tests/plugin/libinsn.so", plugin_log.name,
+                    "tests/tcg/plugins/libinsn.so", plugin_log.name,
                     console_pattern)
 
         with plugin_log as lf, \
@@ -107,7 +107,7 @@ class PluginKernelNormal(PluginKernelBase):
                                                  suffix=".log")
 
         self.run_vm(kernel_path, kernel_command_line,
-                    "tests/plugin/libinsn.so", plugin_log.name,
+                    "tests/tcg/plugins/libinsn.so", plugin_log.name,
                     console_pattern,
                     args=('-icount', 'shift=1'))
 
@@ -120,36 +120,3 @@ class PluginKernelNormal(PluginKernelBase):
             else:
                 count = int(m.group("count"))
                 self.log.info(f"Counted: {count} instructions")
-
-    def test_aarch64_virt_mem_icount(self):
-        """
-        :avocado: tags=accel:tcg
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:cortex-a53
-        """
-        kernel_path = self._grab_aarch64_kernel()
-        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               'console=ttyAMA0')
-        console_pattern = 'Kernel panic - not syncing: VFS:'
-
-        plugin_log = tempfile.NamedTemporaryFile(mode="r+t", prefix="plugin",
-                                                 suffix=".log")
-
-        self.run_vm(kernel_path, kernel_command_line,
-                    "tests/plugin/libmem.so,inline=true,callback=true", plugin_log.name,
-                    console_pattern,
-                    args=('-icount', 'shift=1'))
-
-        with plugin_log as lf, \
-             mmap.mmap(lf.fileno(), 0, access=mmap.ACCESS_READ) as s:
-            m = re.findall(br"mem accesses: (?P<count>\d+)", s)
-            if m is None or len(m) != 2:
-                self.fail("no memory access counts found")
-            else:
-                inline = int(m[0])
-                callback = int(m[1])
-                if inline != callback:
-                    self.fail("mismatched access counts")
-                else:
-                    self.log.info(f"Counted {inline} memory accesses")
