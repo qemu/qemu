@@ -2832,19 +2832,6 @@ static void scsi_block_sgio_complete(void *opaque, int ret)
         } else {
             ret = io_hdr->status;
         }
-
-        if (ret > 0) {
-            aio_context_acquire(blk_get_aio_context(s->conf.blk));
-            if (scsi_handle_rw_error(r, ret, true)) {
-                aio_context_release(blk_get_aio_context(s->conf.blk));
-                scsi_req_unref(&r->req);
-                return;
-            }
-            aio_context_release(blk_get_aio_context(s->conf.blk));
-
-            /* Ignore error.  */
-            ret = 0;
-        }
     }
 
     req->cb(req->cb_opaque, ret);
