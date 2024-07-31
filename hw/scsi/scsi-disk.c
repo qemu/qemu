@@ -65,6 +65,9 @@ struct SCSIDiskClass {
     /*
      * Callbacks receive ret == 0 for success. Errors are represented either as
      * negative errno values, or as positive SAM status codes.
+     *
+     * Beware: For errors returned in host_status, the function may directly
+     * complete the request and never call the callback.
      */
     DMAIOFunc       *dma_readv;
     DMAIOFunc       *dma_writev;
@@ -359,6 +362,7 @@ done:
 }
 
 /* Called with AioContext lock held */
+/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_dma_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -394,6 +398,7 @@ done:
     scsi_req_unref(&r->req);
 }
 
+/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_read_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -534,6 +539,7 @@ done:
     scsi_req_unref(&r->req);
 }
 
+/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_write_complete(void * opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -2821,6 +2827,7 @@ static void scsi_block_sgio_complete(void *opaque, int ret)
     sg_io_hdr_t *io_hdr = &req->io_header;
 
     if (ret == 0) {
+        /* FIXME This skips calling req->cb() and any cleanup in it */
         if (io_hdr->host_status != SCSI_HOST_OK) {
             scsi_req_complete_failed(&r->req, io_hdr->host_status);
             scsi_req_unref(&r->req);
