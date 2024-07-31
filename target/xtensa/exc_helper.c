@@ -171,7 +171,7 @@ static void handle_interrupt(CPUXtensaState *env)
 
         if (level > 1) {
             /* env->config->nlevel check should have ensured this */
-            assert(level < sizeof(env->config->interrupt_vector));
+            assert(level < ARRAY_SIZE(env->config->interrupt_vector));
 
             env->sregs[EPC1 + level - 1] = env->pc;
             env->sregs[EPS2 + level - 2] = env->sregs[PS];
