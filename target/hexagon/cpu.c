@@ -48,13 +48,13 @@ static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static Property hexagon_lldb_compat_property =
-    DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false);
-static Property hexagon_lldb_stack_adjust_property =
-    DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust,
-                         0, qdev_prop_uint32, target_ulong);
-static Property hexagon_short_circuit_property =
-    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true);
+static Property hexagon_cpu_properties[] = {
+    DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
+    DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
+                         qdev_prop_uint32, target_ulong),
+    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true),
+    DEFINE_PROP_END_OF_LIST()
+};
 
 const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
    "r0", "r1",  "r2",  "r3",  "r4",   "r5",  "r6",  "r7",
@@ -317,9 +317,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
 static void hexagon_cpu_init(Object *obj)
 {
-    qdev_property_add_static(DEVICE(obj), &hexagon_lldb_compat_property);
-    qdev_property_add_static(DEVICE(obj), &hexagon_lldb_stack_adjust_property);
-    qdev_property_add_static(DEVICE(obj), &hexagon_short_circuit_property);
 }
 
 #include "hw/core/tcg-cpu-ops.h"
@@ -340,6 +337,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_parent_realize(dc, hexagon_cpu_realize,
                                     &mcc->parent_realize);
 
+    device_class_set_props(dc, hexagon_cpu_properties);
     resettable_class_set_parent_phases(rc, NULL, hexagon_cpu_reset_hold, NULL,
                                        &mcc->parent_phases);
 
