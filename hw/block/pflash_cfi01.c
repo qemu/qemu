@@ -614,6 +614,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             if (!pfl->counter) {
                 trace_pflash_write(pfl->name, "block write finished");
                 pfl->wcycle++;
+                break;
             }
 
             pfl->counter--;
