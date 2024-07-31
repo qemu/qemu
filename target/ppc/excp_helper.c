@@ -1661,6 +1661,7 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp)
     case POWERPC_EXCP_POWER8:
     case POWERPC_EXCP_POWER9:
     case POWERPC_EXCP_POWER10:
+    case POWERPC_EXCP_POWER11:
         powerpc_excp_books(cpu, excp);
         break;
     default:
@@ -2018,6 +2019,7 @@ static int ppc_next_unmasked_interrupt(CPUPPCState *env)
         return p8_next_unmasked_interrupt(env);
     case POWERPC_EXCP_POWER9:
     case POWERPC_EXCP_POWER10:
+    case POWERPC_EXCP_POWER11:
         return p9_next_unmasked_interrupt(env);
     default:
         break;
@@ -2378,6 +2380,7 @@ static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
         return p8_deliver_interrupt(env, interrupt);
     case POWERPC_EXCP_POWER9:
     case POWERPC_EXCP_POWER10:
+    case POWERPC_EXCP_POWER11:
         return p9_deliver_interrupt(env, interrupt);
     default:
         break;
@@ -3168,6 +3171,7 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     case POWERPC_EXCP_POWER8:
     case POWERPC_EXCP_POWER9:
     case POWERPC_EXCP_POWER10:
+    case POWERPC_EXCP_POWER11:
         /*
          * Machine check codes can be found in processor User Manual or
          * Linux or skiboot source.
