@@ -1972,7 +1972,7 @@ static void nbd_export_request_shutdown(BlockExport *blk_exp)
 
     blk_exp_ref(&exp->common);
     /*
-     * TODO: Should we expand QMP NbdServerRemoveNode enum to allow a
+     * TODO: Should we expand QMP BlockExportRemoveMode enum to allow a
      * close mode that stops advertising the export to new clients but
      * still permits existing clients to run to completion? Because of
      * that possibility, nbd_export_close() can be called more than
