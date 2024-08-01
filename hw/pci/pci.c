@@ -1437,11 +1437,7 @@ static pcibus_t pci_config_get_bar_addr(PCIDevice *d, int reg,
             pci_get_word(pf->config + sriov_cap + PCI_SRIOV_VF_OFFSET);
         uint16_t vf_stride =
             pci_get_word(pf->config + sriov_cap + PCI_SRIOV_VF_STRIDE);
-        uint32_t vf_num = d->devfn - (pf->devfn + vf_offset);
-
-        if (vf_num) {
-            vf_num /= vf_stride;
-        }
+        uint32_t vf_num = (d->devfn - (pf->devfn + vf_offset)) / vf_stride;
 
         if (type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
             new_addr = pci_get_quad(pf->config + bar);
