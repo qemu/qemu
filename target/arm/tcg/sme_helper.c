@@ -976,12 +976,23 @@ static inline uint32_t f16mop_adj_pair(uint32_t pair, uint32_t pg, uint32_t neg)
 }
 
 static float32 f16_dotadd(float32 sum, uint32_t e1, uint32_t e2,
-                          float_status *s_std, float_status *s_odd)
+                          float_status *s_f16, float_status *s_std,
+                          float_status *s_odd)
 {
-    float64 e1r = float16_to_float64(e1 & 0xffff, true, s_std);
-    float64 e1c = float16_to_float64(e1 >> 16, true, s_std);
-    float64 e2r = float16_to_float64(e2 & 0xffff, true, s_std);
-    float64 e2c = float16_to_float64(e2 >> 16, true, s_std);
+    /*
+     * We need three different float_status for different parts of this
+     * operation:
+     *  - the input conversion of the float16 values must use the
+     *    f16-specific float_status, so that the FPCR.FZ16 control is applied
+     *  - operations on float32 including the final accumulation must use
+     *    the normal float_status, so that FPCR.FZ is applied
+     *  - we have pre-set-up copy of s_std which is set to round-to-odd,
+     *    for the multiply (see below)
+     */
+    float64 e1r = float16_to_float64(e1 & 0xffff, true, s_f16);
+    float64 e1c = float16_to_float64(e1 >> 16, true, s_f16);
+    float64 e2r = float16_to_float64(e2 & 0xffff, true, s_f16);
+    float64 e2c = float16_to_float64(e2 >> 16, true, s_f16);
     float64 t64;
     float32 t32;
 
@@ -1003,20 +1014,23 @@ static float32 f16_dotadd(float32 sum, uint32_t e1, uint32_t e2,
 }
 
 void HELPER(sme_fmopa_h)(void *vza, void *vzn, void *vzm, void *vpn,
-                         void *vpm, void *vst, uint32_t desc)
+                         void *vpm, CPUARMState *env, uint32_t desc)
 {
     intptr_t row, col, oprsz = simd_maxsz(desc);
     uint32_t neg = simd_data(desc) * 0x80008000u;
     uint16_t *pn = vpn, *pm = vpm;
-    float_status fpst_odd, fpst_std;
+    float_status fpst_odd, fpst_std, fpst_f16;
 
     /*
-     * Make a copy of float_status because this operation does not
-     * update the cumulative fp exception status.  It also produces
-     * default nans.  Make a second copy with round-to-odd -- see above.
+     * Make copies of fp_status and fp_status_f16, because this operation
+     * does not update the cumulative fp exception status.  It also
+     * produces default NaNs. We also need a second copy of fp_status with
+     * round-to-odd -- see above.
      */
-    fpst_std = *(float_status *)vst;
+    fpst_f16 = env->vfp.fp_status_f16;
+    fpst_std = env->vfp.fp_status;
     set_default_nan_mode(true, &fpst_std);
+    set_default_nan_mode(true, &fpst_f16);
     fpst_odd = fpst_std;
     set_float_rounding_mode(float_round_to_odd, &fpst_odd);
 
@@ -1036,7 +1050,8 @@ void HELPER(sme_fmopa_h)(void *vza, void *vzn, void *vzm, void *vpn,
                         uint32_t m = *(uint32_t *)(vzm + H1_4(col));
 
                         m = f16mop_adj_pair(m, pcol, 0);
-                        *a = f16_dotadd(*a, n, m, &fpst_std, &fpst_odd);
+                        *a = f16_dotadd(*a, n, m,
+                                        &fpst_f16, &fpst_std, &fpst_odd);
                     }
                     col += 4;
                     pcol >>= 4;
