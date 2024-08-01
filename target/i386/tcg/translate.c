@@ -865,6 +865,18 @@ static CCPrepare gen_prepare_sign_nz(TCGv src, MemOp size)
     }
 }
 
+static CCPrepare gen_prepare_val_nz(TCGv src, MemOp size, bool eqz)
+{
+    if (size == MO_TL) {
+        return (CCPrepare) { .cond = eqz ? TCG_COND_EQ : TCG_COND_NE,
+                             .reg = src };
+    } else {
+        return (CCPrepare) { .cond = eqz ? TCG_COND_TSTEQ : TCG_COND_TSTNE,
+                             .imm = MAKE_64BIT_MASK(0, 8 << size),
+                             .reg = src };
+    }
+}
+
 /* compute eflags.C, trying to store it in reg if not NULL */
 static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 {
@@ -908,8 +920,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 
     case CC_OP_BMILGB ... CC_OP_BMILGQ:
         size = s->cc_op - CC_OP_BMILGB;
-        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
-        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_src };
+        return gen_prepare_val_nz(cpu_cc_src, size, true);
 
     case CC_OP_ADCX:
     case CC_OP_ADCOX:
@@ -1006,12 +1017,7 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     default:
         {
             MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
-            if (size == MO_TL) {
-                return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_dst };
-            } else {
-                return (CCPrepare) { .cond = TCG_COND_TSTEQ, .reg = cpu_cc_dst,
-                                     .imm = (1ull << (8 << size)) - 1 };
-            }
+            return gen_prepare_val_nz(cpu_cc_dst, size, true);
         }
     }
 }
