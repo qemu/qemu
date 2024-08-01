@@ -1217,17 +1217,24 @@ static void gt64120_pci_realize(PCIDevice *d, Error **errp)
 {
     /* Values from chapter 17.16 "PCI Configuration" */
 
-    pci_set_word(d->config + PCI_COMMAND, 0);
-    pci_set_word(d->config + PCI_STATUS,
-                 PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
-    pci_config_set_prog_interface(d->config, 0);
-
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_0, 0xfffff008); /* SCS[1:0] */
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_1, 0xfffff008); /* SCS[3:2] */
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_2, 0xfffff008); /* CS[2:0] */
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_3, 0xfffff008); /* CS[3], BootCS */
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_4, 0xfffff000); /* ISD MMIO */
     pci_set_long(d->wmask + PCI_BASE_ADDRESS_5, 0xfffff001); /* ISD I/O */
+}
+
+static void gt64120_pci_reset_hold(Object *obj, ResetType type)
+{
+    PCIDevice *d = PCI_DEVICE(obj);
+
+    /* Values from chapter 17.16 "PCI Configuration" */
+
+    pci_set_word(d->config + PCI_COMMAND, 0);
+    pci_set_word(d->config + PCI_STATUS,
+                 PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
+    pci_config_set_prog_interface(d->config, 0);
 
     pci_set_long(d->config + PCI_BASE_ADDRESS_0, 0x00000008);
     pci_set_long(d->config + PCI_BASE_ADDRESS_1, 0x01000008);
@@ -1243,7 +1250,9 @@ static void gt64120_pci_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    rc->phases.hold = gt64120_pci_reset_hold;
     k->realize = gt64120_pci_realize;
     k->vendor_id = PCI_VENDOR_ID_MARVELL;
     k->device_id = PCI_DEVICE_ID_MARVELL_GT6412X;
