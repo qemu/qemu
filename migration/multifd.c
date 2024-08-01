@@ -1145,7 +1145,6 @@ static bool multifd_new_send_channel_create(gpointer opaque, Error **errp)
 bool multifd_send_setup(void)
 {
     MigrationState *s = migrate_get_current();
-    Error *local_err = NULL;
     int thread_count, ret = 0;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     bool use_packets = multifd_use_packets();
@@ -1166,6 +1165,7 @@ bool multifd_send_setup(void)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
+        Error *local_err = NULL;
 
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->sem_sync, 0);
@@ -1190,7 +1190,8 @@ bool multifd_send_setup(void)
         p->write_flags = 0;
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
-            return false;
+            migrate_set_error(s, local_err);
+            ret = -1;
         }
     }
 
@@ -1203,24 +1204,27 @@ bool multifd_send_setup(void)
         qemu_sem_wait(&multifd_send_state->channels_created);
     }
 
+    if (ret) {
+        goto err;
+    }
+
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
+        Error *local_err = NULL;
 
         ret = multifd_send_state->ops->send_setup(p, &local_err);
         if (ret) {
-            break;
+            migrate_set_error(s, local_err);
+            goto err;
         }
     }
 
-    if (ret) {
-        migrate_set_error(s, local_err);
-        error_report_err(local_err);
-        migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
-                          MIGRATION_STATUS_FAILED);
-        return false;
-    }
-
     return true;
+
+err:
+    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_FAILED);
+    return false;
 }
 
 bool multifd_recv(void)
