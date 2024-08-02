@@ -852,7 +852,11 @@
 #     <- { "return": {} }
 ##
 { 'command': 'memsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
+  'data': {
+     'val': 'uint64',
+     'size': 'size',
+     'filename': 'str',
+     '*cpu-index': 'int' } }
 
 ##
 # @pmemsave:
@@ -878,7 +882,10 @@
 #     <- { "return": {} }
 ##
 { 'command': 'pmemsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
+  'data': {
+    'val': 'uint64',
+    'size': 'size',
+    'filename': 'str' } }
 
 ##
 # @Memdev:
