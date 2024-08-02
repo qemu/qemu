@@ -50,6 +50,7 @@ static const int kernel_feature_bits[] = {
     VIRTIO_F_RING_RESET,
     VIRTIO_F_IN_ORDER,
     VIRTIO_F_NOTIFICATION_DATA,
+    VIRTIO_NET_F_RSC_EXT,
     VIRTIO_NET_F_HASH_REPORT,
     VHOST_INVALID_FEATURE_BIT
 };
@@ -81,6 +82,7 @@ static const int user_feature_bits[] = {
     VIRTIO_F_RING_RESET,
     VIRTIO_F_IN_ORDER,
     VIRTIO_NET_F_RSS,
+    VIRTIO_NET_F_RSC_EXT,
     VIRTIO_NET_F_HASH_REPORT,
     VIRTIO_NET_F_GUEST_USO4,
     VIRTIO_NET_F_GUEST_USO6,
