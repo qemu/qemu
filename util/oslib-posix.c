@@ -808,27 +808,16 @@ int qemu_msync(void *addr, size_t length, int fd)
     return msync(addr, length, MS_SYNC);
 }
 
-/*
- * Close all open file descriptors.
- */
-void qemu_close_all_open_fd(void)
+static bool qemu_close_all_open_fd_proc(void)
 {
     struct dirent *de;
     int fd, dfd;
     DIR *dir;
 
-#ifdef CONFIG_CLOSE_RANGE
-    int r = close_range(0, ~0U, 0);
-    if (!r) {
-        /* Success, no need to try other ways. */
-        return;
-    }
-#endif
-
     dir = opendir("/proc/self/fd");
     if (!dir) {
         /* If /proc is not mounted, there is nothing that can be done. */
-        return;
+        return false;
     }
     /* Avoid closing the directory. */
     dfd = dirfd(dir);
@@ -840,4 +829,39 @@ void qemu_close_all_open_fd(void)
         }
     }
     closedir(dir);
+
+    return true;
+}
+
+static bool qemu_close_all_open_fd_close_range(void)
+{
+#ifdef CONFIG_CLOSE_RANGE
+    int r = close_range(0, ~0U, 0);
+    if (!r) {
+        /* Success, no need to try other ways. */
+        return true;
+    }
+#endif
+    return false;
+}
+
+static void qemu_close_all_open_fd_fallback(void)
+{
+    int open_max = sysconf(_SC_OPEN_MAX), i;
+
+    /* Fallback */
+    for (i = 0; i < open_max; i++) {
+        close(i);
+    }
+}
+
+/*
+ * Close all open file descriptors.
+ */
+void qemu_close_all_open_fd(void)
+{
+    if (!qemu_close_all_open_fd_close_range() &&
+        !qemu_close_all_open_fd_proc()) {
+        qemu_close_all_open_fd_fallback();
+    }
 }
