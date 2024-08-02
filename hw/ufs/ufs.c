@@ -851,6 +851,14 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
     req->rsp_upiu.header.data_segment_length = cpu_to_be16(data_segment_length);
 }
 
+void ufs_build_query_response(UfsRequest *req)
+{
+    req->rsp_upiu.qr.opcode = req->req_upiu.qr.opcode;
+    req->rsp_upiu.qr.idn = req->req_upiu.qr.idn;
+    req->rsp_upiu.qr.index = req->req_upiu.qr.index;
+    req->rsp_upiu.qr.selector = req->req_upiu.qr.selector;
+}
+
 static UfsReqResult ufs_exec_scsi_cmd(UfsRequest *req)
 {
     UfsHc *u = req->hc;
@@ -1327,10 +1335,6 @@ static QueryRespCode ufs_read_desc(UfsRequest *req)
     if (length > req->rsp_upiu.qr.data[0]) {
         length = req->rsp_upiu.qr.data[0];
     }
-    req->rsp_upiu.qr.opcode = req->req_upiu.qr.opcode;
-    req->rsp_upiu.qr.idn = req->req_upiu.qr.idn;
-    req->rsp_upiu.qr.index = req->req_upiu.qr.index;
-    req->rsp_upiu.qr.selector = req->req_upiu.qr.selector;
     req->rsp_upiu.qr.length = cpu_to_be16(length);
 
     return status;
@@ -1411,6 +1415,7 @@ static UfsReqResult ufs_exec_query_cmd(UfsRequest *req)
     data_segment_length = be16_to_cpu(req->rsp_upiu.qr.length);
     ufs_build_upiu_header(req, UFS_UPIU_TRANSACTION_QUERY_RSP, 0, status, 0,
                           data_segment_length);
+    ufs_build_query_response(req);
 
     if (status != UFS_QUERY_RESULT_SUCCESS) {
         return UFS_REQUEST_FAIL;
