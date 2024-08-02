@@ -387,13 +387,20 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
 
 static void close_all_fds_after_fork(int excluded_fd)
 {
-    int open_max = sysconf(_SC_OPEN_MAX), i;
+    const int skip_fd[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO,
+                           excluded_fd};
+    unsigned int nskip = ARRAY_SIZE(skip_fd);
 
-    for (i = 3; i < open_max; i++) {
-        if (i != excluded_fd) {
-            close(i);
-        }
+    /*
+     * skip_fd must be an ordered array of distinct fds, exclude
+     * excluded_fd if already included in the [STDIN_FILENO - STDERR_FILENO]
+     * range
+     */
+    if (excluded_fd <= STDERR_FILENO) {
+        nskip--;
     }
+
+    qemu_close_all_open_fd(skip_fd, nskip);
 }
 
 static void launch_script(const char *setup_script, const char *ifname,
