@@ -760,9 +760,13 @@ int qemu_fdatasync(int fd);
 /**
  * qemu_close_all_open_fd:
  *
- * Close all open file descriptors
+ * Close all open file descriptors except the ones supplied in the @skip array
+ *
+ * @skip: ordered array of distinct file descriptors that should not be closed
+ *        if any, or NULL.
+ * @nskip: number of entries in the @skip array or 0 if @skip is NULL.
  */
-void qemu_close_all_open_fd(void);
+void qemu_close_all_open_fd(const int *skip, unsigned int nskip);
 
 /**
  * Sync changes made to the memory mapped file back to the backing
