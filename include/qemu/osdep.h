@@ -758,6 +758,13 @@ static inline void qemu_reset_optind(void)
 int qemu_fdatasync(int fd);
 
 /**
+ * qemu_close_all_open_fd:
+ *
+ * Close all open file descriptors
+ */
+void qemu_close_all_open_fd(void);
+
+/**
  * Sync changes made to the memory mapped file back to the backing
  * storage. For POSIX compliant systems this will fallback
  * to regular msync call. Otherwise it will trigger whole file sync
