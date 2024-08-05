@@ -15,16 +15,16 @@
 #
 # @running: The device is running.
 #
-# @stop-copy: The device is stopped and its internal state is available
-#     for reading.
+# @stop-copy: The device is stopped and its internal state is
+#     available for reading.
 #
 # @resuming: The device is stopped and its internal state is available
 #     for writing.
 #
 # @running-p2p: The device is running in the P2P quiescent state.
 #
-# @pre-copy: The device is running, tracking its internal state and its
-#     internal state is available for reading.
+# @pre-copy: The device is running, tracking its internal state and
+#     its internal state is available for reading.
 #
 # @pre-copy-p2p: The device is running in the P2P quiescent state,
 #     tracking its internal state and its internal state is available

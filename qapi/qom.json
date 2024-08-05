@@ -356,7 +356,7 @@
 #     filter list.  "head" means the filter is inserted at the head of
 #     the filter list, before any existing filters.  "tail" means the
 #     filter is inserted at the tail of the filter list, behind any
-#     existing filters (default). "id=<id>" means the filter is
+#     existing filters (default).  "id=<id>" means the filter is
 #     inserted before or behind the filter specified by <id>,
 #     depending on the @insert property.  (default: "tail")
 #
@@ -620,8 +620,8 @@
 # .. note:: prealloc=true and reserve=false cannot be set at the same
 #    time.  With reserve=true, the behavior depends on the operating
 #    system: for example, Linux will not reserve swap space for shared
-#    file mappings -- "not applicable". In contrast, reserve=false will
-#    bail out if it cannot be configured accordingly.
+#    file mappings -- "not applicable".  In contrast, reserve=false
+#    will bail out if it cannot be configured accordingly.
 #
 # Since: 2.1
 ##
@@ -646,9 +646,9 @@
 # @align: the base address alignment when QEMU mmap(2)s @mem-path.
 #     Some backend stores specified by @mem-path require an alignment
 #     different than the default one used by QEMU, e.g. the device DAX
-#     /dev/dax0.0 requires 2M alignment rather than 4K. In such cases,
-#     users can specify the required alignment via this option.  0
-#     selects a default alignment (currently the page size).
+#     /dev/dax0.0 requires 2M alignment rather than 4K.  In such
+#     cases, users can specify the required alignment via this option.
+#     0 selects a default alignment (currently the page size).
 #     (default: 0)
 #
 # @offset: the offset into the target file that the region starts at.
@@ -709,7 +709,7 @@
 #
 # @hugetlbsize: the hugetlb page size on systems that support multiple
 #     hugetlb page sizes (it must be a power of 2 value supported by
-#     the system). 0 selects a default page size.  This option is
+#     the system).  0 selects a default page size.  This option is
 #     ignored if @hugetlb is false.  (default: 0)
 #
 # @seal: if true, create a sealed-file, which will block further
@@ -930,17 +930,17 @@
 #
 # @handle: SEV firmware handle (default: 0)
 #
-# @legacy-vm-type: Use legacy KVM_SEV_INIT KVM interface for creating the VM.
-#                  The newer KVM_SEV_INIT2 interface, from Linux >= 6.10, syncs
-#                  additional vCPU state when initializing the VMSA structures,
-#                  which will result in a different guest measurement. Set
-#                  this to 'on' to force compatibility with older QEMU or kernel
-#                  versions that rely on legacy KVM_SEV_INIT behavior. 'auto'
-#                  will behave identically to 'on', but will automatically
-#                  switch to using KVM_SEV_INIT2 if the user specifies any
-#                  additional options that require it. If set to 'off', QEMU
-#                  will require KVM_SEV_INIT2 unconditionally.
-#                  (default: off) (since 9.1)
+# @legacy-vm-type: Use legacy KVM_SEV_INIT KVM interface for creating
+#    the VM.  The newer KVM_SEV_INIT2 interface, from Linux >= 6.10,
+#    syncs additional vCPU state when initializing the VMSA
+#    structures, which will result in a different guest measurement.
+#    Set this to 'on' to force compatibility with older QEMU or kernel
+#    versions that rely on legacy KVM_SEV_INIT behavior.  'auto' will
+#    behave identically to 'on', but will automatically switch to
+#    using KVM_SEV_INIT2 if the user specifies any additional options
+#    that require it.  If set to 'off', QEMU will require
+#    KVM_SEV_INIT2 unconditionally.
+#    (default: off) (since 9.1)
 #
 # Since: 2.12
 ##
@@ -992,7 +992,7 @@
 # @vcek-disabled: Guests are by default allowed to choose between VLEK
 #     (Versioned Loaded Endorsement Key) or VCEK (Versioned Chip
 #     Endorsement Key) when requesting attestation reports from
-#     firmware. Set this to true to disable the use of VCEK.
+#     firmware.  Set this to true to disable the use of VCEK.
 #     (default: false) (since: 9.1)
 #
 # Since: 9.1

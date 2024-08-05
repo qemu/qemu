@@ -310,6 +310,5 @@
 #        }
 #
 # This example has been shortened as the real response is too long.
-#
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }

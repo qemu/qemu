@@ -22,13 +22,14 @@
 #          "arguments": { "enable": [ "oob" ] } }
 #     <- { "return": {} }
 #
-# .. note:: This command is valid exactly when first connecting: it must
-#    be issued before any other command will be accepted, and will fail
-#    once the monitor is accepting other commands.
-#    (see :doc:`/interop/qmp-spec`)
+# .. note:: This command is valid exactly when first connecting: it
+#    must be issued before any other command will be accepted, and
+#    will fail once the monitor is accepting other commands.  (see
+#    :doc:`/interop/qmp-spec`)
 #
-# .. note:: The QMP client needs to explicitly enable QMP capabilities,
-#    otherwise all the QMP capabilities will be turned off by default.
+# .. note:: The QMP client needs to explicitly enable QMP
+#    capabilities, otherwise all the QMP capabilities will be turned
+#    off by default.
 #
 # Since: 0.13
 ##
@@ -150,7 +151,6 @@
 #        }
 #
 # This example has been shortened as the real response is too long.
-#
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'],
   'allow-preconfig': true }
