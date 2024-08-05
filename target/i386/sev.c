@@ -2422,7 +2422,7 @@ sev_snp_guest_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "author-key-enabled",
                                    sev_snp_guest_get_author_key_enabled,
                                    sev_snp_guest_set_author_key_enabled);
-    object_class_property_add_bool(oc, "vcek-required",
+    object_class_property_add_bool(oc, "vcek-disabled",
                                    sev_snp_guest_get_vcek_disabled,
                                    sev_snp_guest_set_vcek_disabled);
     object_class_property_add_str(oc, "host-data",
