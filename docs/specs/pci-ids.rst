@@ -77,11 +77,11 @@ PCI devices (other than virtio):
 1b36:0008
   PCIe host bridge
 1b36:0009
-  PCI Expander Bridge (-device pxb)
+  PCI Expander Bridge (``-device pxb``)
 1b36:000a
   PCI-PCI bridge (multiseat)
 1b36:000b
-  PCIe Expander Bridge (-device pxb-pcie)
+  PCIe Expander Bridge (``-device pxb-pcie``)
 1b36:000c
   PCIe Root Port (``-device pcie-root-port``)
 1b36:000d
