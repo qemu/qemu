@@ -204,6 +204,7 @@ static void riscv_pmu_icount_update_priv(CPURISCVState *env,
     }
 
     if (env->virt_enabled) {
+        g_assert(env->priv <= PRV_S);
         counter_arr = env->pmu_fixed_ctrs[1].counter_virt;
         snapshot_prev = env->pmu_fixed_ctrs[1].counter_virt_prev;
     } else {
@@ -212,6 +213,7 @@ static void riscv_pmu_icount_update_priv(CPURISCVState *env,
     }
 
     if (new_virt) {
+        g_assert(newpriv <= PRV_S);
         snapshot_new = env->pmu_fixed_ctrs[1].counter_virt_prev;
     } else {
         snapshot_new = env->pmu_fixed_ctrs[1].counter_prev;
@@ -242,6 +244,7 @@ static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
     }
 
     if (env->virt_enabled) {
+        g_assert(env->priv <= PRV_S);
         counter_arr = env->pmu_fixed_ctrs[0].counter_virt;
         snapshot_prev = env->pmu_fixed_ctrs[0].counter_virt_prev;
     } else {
@@ -250,6 +253,7 @@ static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
     }
 
     if (new_virt) {
+        g_assert(newpriv <= PRV_S);
         snapshot_new = env->pmu_fixed_ctrs[0].counter_virt_prev;
     } else {
         snapshot_new = env->pmu_fixed_ctrs[0].counter_prev;

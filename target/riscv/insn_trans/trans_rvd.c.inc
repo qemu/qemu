@@ -47,8 +47,18 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
 
-    if (ctx->cfg_ptr->ext_zama16b && (ctx->cur_insn_len != 2)) {
+    /*
+     * FLD and FSD are only guaranteed to execute atomically if the effective
+     * address is naturally aligned and XLEN≥64. Also, zama16b applies to
+     * loads and stores of no more than MXLEN bits defined in the F, D, and
+     * Q extensions.
+     */
+    if (get_xl_max(ctx) == MXL_RV32) {
+        memop |= MO_ATOM_NONE;
+    } else if (ctx->cfg_ptr->ext_zama16b) {
         memop |= MO_ATOM_WITHIN16;
+    } else {
+        memop |= MO_ATOM_IFALIGN;
     }
 
     decode_save_opc(ctx);
@@ -67,8 +77,12 @@ static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
 
-    if (ctx->cfg_ptr->ext_zama16b && (ctx->cur_insn_len != 2)) {
+    if (get_xl_max(ctx) == MXL_RV32) {
+        memop |= MO_ATOM_NONE;
+    } else if (ctx->cfg_ptr->ext_zama16b) {
         memop |= MO_ATOM_WITHIN16;
+    } else {
+        memop |= MO_ATOM_IFALIGN;
     }
 
     decode_save_opc(ctx);
