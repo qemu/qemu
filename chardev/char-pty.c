@@ -29,6 +29,7 @@
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qemu/qemu-print.h"
 
 #include "chardev/char-io.h"
@@ -41,6 +42,7 @@ struct PtyChardev {
 
     int connected;
     GSource *timer_src;
+    char *path;
 };
 typedef struct PtyChardev PtyChardev;
 
@@ -204,6 +206,12 @@ static void char_pty_finalize(Object *obj)
     Chardev *chr = CHARDEV(obj);
     PtyChardev *s = PTY_CHARDEV(obj);
 
+    /* unlink symlink */
+    if (s->path) {
+        unlink(s->path);
+        g_free(s->path);
+    }
+
     pty_chr_state(chr, 0);
     object_unref(OBJECT(s->ioc));
     pty_chr_timer_cancel(s);
@@ -330,6 +338,7 @@ static void char_pty_open(Chardev *chr,
     int master_fd, slave_fd;
     char pty_name[PATH_MAX];
     char *name;
+    char *path = backend->u.pty.data->path;
 
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
@@ -354,12 +363,36 @@ static void char_pty_open(Chardev *chr,
     g_free(name);
     s->timer_src = NULL;
     *be_opened = false;
+
+    /* create symbolic link */
+    if (path) {
+        int res = symlink(pty_name, path);
+
+        if (res != 0) {
+            error_setg_errno(errp, errno, "Failed to create PTY symlink");
+        } else {
+            s->path = g_strdup(path);
+        }
+    }
+}
+
+static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
+                           Error **errp)
+{
+    const char *path = qemu_opt_get(opts, "path");
+    ChardevPty *pty;
+
+    backend->type = CHARDEV_BACKEND_KIND_PTY;
+    pty = backend->u.pty.data = g_new0(ChardevPty, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevPty_base(pty));
+    pty->path = g_strdup(path);
 }
 
 static void char_pty_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    cc->parse = char_pty_parse;
     cc->open = char_pty_open;
     cc->chr_write = char_pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
