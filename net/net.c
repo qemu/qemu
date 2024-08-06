@@ -1748,7 +1748,7 @@ void net_check_clients(void)
 
 static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 {
-    const char *model = qemu_opt_get_del(opts, "model");
+    const char *model = qemu_opt_get(opts, "model");
 
     if (is_nic_model_help_option(model)) {
         return 0;
