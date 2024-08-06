@@ -207,7 +207,6 @@ class ReverseDebugging_X86_64(ReverseDebugging):
 
     # unidentified gitlab timeout problem
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
@@ -225,7 +224,6 @@ class ReverseDebugging_AArch64(ReverseDebugging):
 
     # unidentified gitlab timeout problem
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_aarch64_virt(self):
         """
         :avocado: tags=arch:aarch64
@@ -250,7 +248,6 @@ class ReverseDebugging_ppc64(ReverseDebugging):
 
     # unidentified gitlab timeout problem
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_ppc64_pseries(self):
         """
         :avocado: tags=arch:ppc64
@@ -265,7 +262,6 @@ class ReverseDebugging_ppc64(ReverseDebugging):
 
     # See https://gitlab.com/qemu-project/qemu/-/issues/1992
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_ppc64_powernv(self):
         """
         :avocado: tags=arch:ppc64

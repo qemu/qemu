@@ -102,7 +102,6 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         self.do_test_i6400_framebuffer_logo(1)
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_mips_malta_i6400_framebuffer_logo_7cores(self):
         """
         :avocado: tags=arch:mips64el
@@ -114,7 +113,6 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         self.do_test_i6400_framebuffer_logo(7)
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_mips_malta_i6400_framebuffer_logo_8cores(self):
         """
         :avocado: tags=arch:mips64el

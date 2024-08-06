@@ -13,7 +13,6 @@ from avocado import skipUnless
 from avocado_qemu.linuxtest import LinuxTest
 
 @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
 class IntelIOMMU(LinuxTest):
     """
     :avocado: tags=arch:x86_64
