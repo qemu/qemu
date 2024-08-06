@@ -427,8 +427,8 @@ static void pnv_lpc_eval_serirq_routes(PnvLpcController *lpc)
     int irq;
 
     if (!lpc->psi_has_serirq) {
-        if ((lpc->opb_irq_route0 & PPC_BITMASK(8, 13)) ||
-            (lpc->opb_irq_route1 & PPC_BITMASK(4, 31))) {
+        if ((lpc->opb_irq_route0 & PPC_BITMASK32(8, 13)) ||
+            (lpc->opb_irq_route1 & PPC_BITMASK32(4, 31))) {
             qemu_log_mask(LOG_GUEST_ERROR,
                 "OPB: setting serirq routing on POWER8 system, ignoring.\n");
         }
