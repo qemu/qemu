@@ -28,7 +28,7 @@
 # @max-connections: The maximum number of connections to allow at the
 #     same time, 0 for unlimited.  Setting this to 1 also stops the
 #     server from advertising multiple client support (since 5.2;
-#     default: 0)
+#     default: 100)
 #
 # Since: 4.2
 ##
@@ -63,7 +63,7 @@
 # @max-connections: The maximum number of connections to allow at the
 #     same time, 0 for unlimited.  Setting this to 1 also stops the
 #     server from advertising multiple client support (since 5.2;
-#     default: 0).
+#     default: 100).
 #
 # Returns: error if the server is already running.
 #

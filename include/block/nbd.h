@@ -39,6 +39,13 @@ extern const BlockExportDriver blk_exp_nbd;
  */
 #define NBD_DEFAULT_HANDSHAKE_MAX_SECS 10
 
+/*
+ * NBD_DEFAULT_MAX_CONNECTIONS: Number of client sockets to allow at
+ * once; must be large enough to allow a MULTI_CONN-aware client like
+ * nbdcopy to create its typical number of 8-16 sockets.
+ */
+#define NBD_DEFAULT_MAX_CONNECTIONS 100
+
 /* Handshake phase structs - this struct is passed on the wire */
 
 typedef struct NBDOption {
