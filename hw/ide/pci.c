@@ -237,7 +237,7 @@ static int32_t bmdma_prepare_buf(const IDEDMA *dma, int32_t limit)
             /* end of table (with a fail safe of one page) */
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE) {
-                return s->sg.size;
+                break;
             }
             pci_dma_read(pci_dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
@@ -266,10 +266,7 @@ static int32_t bmdma_prepare_buf(const IDEDMA *dma, int32_t limit)
             s->io_buffer_size += l;
         }
     }
-
-    qemu_sglist_destroy(&s->sg);
-    s->io_buffer_size = 0;
-    return -1;
+    return s->sg.size;
 }
 
 /* return 0 if buffer completed */

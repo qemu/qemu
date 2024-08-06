@@ -147,6 +147,8 @@ static void isa_fdc_get_drive_max_chs(FloppyDriveType type, uint8_t *maxc,
             *maxs = fdf->last_sect;
         }
     }
+    /* fd_formats must contain at least one entry per FloppyDriveType */
+    assert(*maxc);
     (*maxc)--;
 }
 
