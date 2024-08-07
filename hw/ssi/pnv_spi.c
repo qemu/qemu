@@ -53,8 +53,8 @@ static PnvXferBuffer *pnv_spi_xfer_buffer_new(void)
 
 static void pnv_spi_xfer_buffer_free(PnvXferBuffer *payload)
 {
-    free(payload->data);
-    free(payload);
+    g_free(payload->data);
+    g_free(payload);
 }
 
 static uint8_t *pnv_spi_xfer_buffer_write_ptr(PnvXferBuffer *payload,
