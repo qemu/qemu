@@ -239,6 +239,7 @@ static void transfer(PnvSpi *s, PnvXferBuffer *payload)
         }
     }
     spi_response(s, s->N1_bits, rsp_payload);
+    pnv_spi_xfer_buffer_free(rsp_payload);
 }
 
 static inline uint8_t get_seq_index(PnvSpi *s)
