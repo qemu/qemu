@@ -389,7 +389,9 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(cioc, tlscreds, tlsauthz, nbd_client_closed);
+    /* TODO - expose handshake timeout as command line option */
+    nbd_client_new(cioc, NBD_DEFAULT_HANDSHAKE_MAX_SECS,
+                   tlscreds, tlsauthz, nbd_client_closed, NULL);
 }
 
 static void nbd_update_server_watch(void)

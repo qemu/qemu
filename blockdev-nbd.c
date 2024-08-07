@@ -64,8 +64,10 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
     nbd_update_server_watch(nbd_server);
 
     qio_channel_set_name(QIO_CHANNEL(cioc), "nbd-server");
-    nbd_client_new(cioc, nbd_server->tlscreds, nbd_server->tlsauthz,
-                   nbd_blockdev_client_closed);
+    /* TODO - expose handshake timeout as QMP option */
+    nbd_client_new(cioc, NBD_DEFAULT_HANDSHAKE_MAX_SECS,
+                   nbd_server->tlscreds, nbd_server->tlsauthz,
+                   nbd_blockdev_client_closed, NULL);
 }
 
 static void nbd_update_server_watch(NBDServerData *s)
