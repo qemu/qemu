@@ -437,7 +437,7 @@ print_sockaddr(abi_ulong addr, abi_long addrlen, int last)
         }
         unlock_user(sa, addr, 0);
     } else {
-        print_raw_param("0x"TARGET_ABI_FMT_lx, addr, 0);
+        print_pointer(addr, 0);
     }
     qemu_log(TARGET_ABI_FMT_ld"%s", addrlen, get_comma(last));
 }
