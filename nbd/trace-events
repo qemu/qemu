@@ -76,6 +76,7 @@ nbd_co_receive_request_payload_received(uint64_t cookie, uint64_t len) "Payload 
 nbd_co_receive_ext_payload_compliance(uint64_t from, uint64_t len) "client sent non-compliant write without payload flag: from=0x%" PRIx64 ", len=0x%" PRIx64
 nbd_co_receive_align_compliance(const char *op, uint64_t from, uint64_t len, uint32_t align) "client sent non-compliant unaligned %s request: from=0x%" PRIx64 ", len=0x%" PRIx64 ", align=0x%" PRIx32
 nbd_trip(void) "Reading request"
+nbd_handshake_timer_cb(void) "client took too long to negotiate"
 
 # client-connection.c
 nbd_connect_thread_sleep(uint64_t timeout) "timeout %" PRIu64
