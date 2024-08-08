@@ -3189,22 +3189,48 @@ static void nbd_client_receive_next_request(NBDClient *client)
     }
 }
 
+static void nbd_handshake_timer_cb(void *opaque)
+{
+    QIOChannel *ioc = opaque;
+
+    trace_nbd_handshake_timer_cb();
+    qio_channel_shutdown(ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+}
+
 static coroutine_fn void nbd_co_client_start(void *opaque)
 {
     NBDClient *client = opaque;
     Error *local_err = NULL;
+    QEMUTimer *handshake_timer = NULL;
 
     qemu_co_mutex_init(&client->send_lock);
 
-    /* TODO - utilize client->handshake_max_secs */
+    /*
+     * Create a timer to bound the time spent in negotiation. If the
+     * timer expires, it is likely nbd_negotiate will fail because the
+     * socket was shutdown.
+     */
+    if (client->handshake_max_secs > 0) {
+        handshake_timer = aio_timer_new(qemu_get_aio_context(),
+                                        QEMU_CLOCK_REALTIME,
+                                        SCALE_NS,
+                                        nbd_handshake_timer_cb,
+                                        client->sioc);
+        timer_mod(handshake_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
+                  client->handshake_max_secs * NANOSECONDS_PER_SECOND);
+    }
+
     if (nbd_negotiate(client, &local_err)) {
         if (local_err) {
             error_report_err(local_err);
         }
+        timer_free(handshake_timer);
         client_close(client, false);
         return;
     }
 
+    timer_free(handshake_timer);
     WITH_QEMU_LOCK_GUARD(&client->lock) {
         nbd_client_receive_next_request(client);
     }
