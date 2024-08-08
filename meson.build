@@ -2118,6 +2118,8 @@ config_host_data.set('CONFIG_BLKIO', blkio.found())
 if blkio.found()
   config_host_data.set('CONFIG_BLKIO_VHOST_VDPA_FD',
                        blkio.version().version_compare('>=1.3.0'))
+  config_host_data.set('CONFIG_BLKIO_WRITE_ZEROS_FUA',
+                       blkio.version().version_compare('>=1.4.0'))
 endif
 config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
