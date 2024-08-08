@@ -800,7 +800,6 @@ rvalue : FAIL
 
 lvalue : FAIL
          {
-             @1.last_column = @1.last_column;
              yyassert(c, &@1, false, "Encountered a FAIL token as lvalue.\n");
          }
        | REG
