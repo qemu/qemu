@@ -25,6 +25,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"
+#include "cpu_helper.h"
 
 static void hexagon_v66_cpu_init(Object *obj) { }
 static void hexagon_v67_cpu_init(Object *obj) { }
@@ -289,11 +290,18 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     set_float_default_nan_pattern(0b11111111, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+
     if (cs->cpu_index == 0) {
         memset(env->g_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     }
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+
+    if (cs->cpu_index == 0) {
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
+    }
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, cs->cpu_index);
 #endif
 }
 
