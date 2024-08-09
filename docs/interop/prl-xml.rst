@@ -13,15 +13,15 @@ Parallels Disk Format
    See the COPYING file in the top-level directory.
 
 This specification contains minimal information about Parallels Disk Format,
-which is enough to proper work with QEMU. Nevertheless, Parallels Cloud Server
-and Parallels Desktop are able to add some unspecified nodes to xml and use
+which is enough to properly work with QEMU. Nevertheless, Parallels Cloud Server
+and Parallels Desktop are able to add some unspecified nodes to the xml and use
 them, but they are for internal work and don't affect functionality. Also it
-uses auxiliary xml ``Snapshot.xml``, which allows to store optional snapshot
-information, but it doesn't influence open/read/write functionality. QEMU and
-other software should not use fields not covered in this document and
-``Snapshot.xml`` file and must leave them as is.
+uses auxiliary xml ``Snapshot.xml``, which allows storage of optional snapshot
+information, but this doesn't influence open/read/write functionality. QEMU and
+other software should not use fields not covered in this document or the
+``Snapshot.xml`` file, and must leave them as is.
 
-Parallels disk consists of two parts: the set of snapshots and the disk
+A Parallels disk consists of two parts: the set of snapshots and the disk
 descriptor file, which stores information about all files and snapshots.
 
 Definitions
@@ -29,7 +29,7 @@ Definitions
 
 Snapshot
   a record of the contents captured at a particular time, capable
-  of storing current state. A snapshot has UUID and parent UUID.
+  of storing current state. A snapshot has a UUID and a parent UUID.
 
 Snapshot image
   an overlay representing the difference between this
@@ -39,13 +39,13 @@ Overlay
   an image storing the different sectors between two captured states.
 
 Root image
-  snapshot image with no parent, the root of snapshot tree.
+  a snapshot image with no parent, the root of the snapshot tree.
 
 Storage
   the backing storage for a subset of the virtual disk. When
   there is more than one storage in a Parallels disk then that
   is referred to as a split image. In this case every storage
-  covers specific address space area of the disk and has its
+  covers a specific address space area of the disk and has its
   particular root image. Split images are not considered here
   and are not supported. Each storage consists of disk
   parameters and a list of images. The list of images always
@@ -55,7 +55,7 @@ Storage
 
 Description file
   ``DiskDescriptor.xml`` stores information about disk parameters,
-  snapshots, storages.
+  snapshots, and storages.
 
 Top Snapshot
   The overlay between actual state and some previous snapshot.
@@ -70,9 +70,9 @@ Description file
 
 All information is placed in a single XML element
 ``Parallels_disk_image``.
-The element has only one attribute ``Version``, that must be ``1.0``.
+The element has only one attribute, ``Version``, which must be ``1.0``.
 
-Schema of ``DiskDescriptor.xml``::
+The schema of ``DiskDescriptor.xml``::
 
  <Parallels_disk_image Version="1.0">
     <Disk_Parameters>
@@ -100,11 +100,11 @@ The ``Disk_Parameters`` element MUST contain the following child elements:
 * ``Heads``     - number of the disk heads.
 * ``Sectors``   - number of the disk sectors per cylinder
   (sector size is 512 bytes)
-  Limitation: Product of the ``Heads``, ``Sectors`` and ``Cylinders``
+  Limitation: The product of the ``Heads``, ``Sectors`` and ``Cylinders``
   values MUST be equal to the value of the Disk_size parameter.
 * ``Padding``   - must be 0. Parallels Cloud Server and Parallels Desktop may
-  use padding set to 1, however this case is not covered
-  by this spec, QEMU and other software should not open
+  use padding set to 1; however this case is not covered
+  by this specification. QEMU and other software should not open
   such disks and should not create them.
 
 ``StorageData`` element
@@ -121,20 +121,20 @@ as shown below::
     </Storage>
  </StorageData>
 
-A ``Storage`` element has following child elements:
+A ``Storage`` element has the following child elements:
 
 * ``Start``     - start sector of the storage, in case of non split storage
   equals to 0.
 * ``End``       - number of sector following the last sector, in case of non
   split storage equals to ``Disk_size``.
 * ``Blocksize`` - storage cluster size, number of sectors per one cluster.
-  Cluster size for each "Compressed" (see below) image in
-  parallels disk must be equal to this field. Note: cluster
-  size for Parallels Expandable Image is in ``tracks`` field of
+  The cluster size for each "Compressed" (see below) image in
+  a parallels disk must be equal to this field. Note: the cluster
+  size for a Parallels Expandable Image is in the ``tracks`` field of
   its header (see :doc:`parallels`).
 * Several ``Image`` child elements.
 
-Each ``Image`` element has following child elements:
+Each ``Image`` element has the following child elements:
 
 * ``GUID`` - image identifier, UUID in curly brackets.
   For instance, ``{12345678-9abc-def1-2345-6789abcdef12}.``
@@ -145,7 +145,7 @@ Each ``Image`` element has following child elements:
   * ``Plain`` for raw files.
   * ``Compressed`` for expanding disks.
 
-* ``File`` - path to image file. Path can be relative to
+* ``File`` - path to image file. The path can be relative to
   ``DiskDescriptor.xml`` or absolute.
 
 ``Snapshots`` element
@@ -171,17 +171,22 @@ Each ``Shot`` element contains the following child elements:
 * ``GUID``       - an image GUID.
 * ``ParentGUID`` - GUID of the image of the parent snapshot.
 
-The software may traverse snapshots from child to parent using ``<ParentGUID>``
-field as reference. ``ParentGUID`` of root snapshot is
-``{00000000-0000-0000-0000-000000000000}``. There should be only one root
-snapshot. Top snapshot could be described via two ways: via ``TopGUID`` child
-element of the ``Snapshots`` element or via predefined GUID
+The software may traverse snapshots from child to parent using the
+``<ParentGUID>`` field as reference. The ``ParentGUID`` of the root
+snapshot is ``{00000000-0000-0000-0000-000000000000}``.
+There should be only one root snapshot.
+
+The Top snapshot could be
+described via two ways: via the ``TopGUID`` child
+element of the ``Snapshots`` element, or via the predefined GUID
 ``{5fbaabe3-6958-40ff-92a7-860e329aab41}``. If ``TopGUID`` is defined,
-predefined GUID is interpreted as usual GUID. All snapshot images
-(except Top Snapshot) should be
-opened read-only. There is another predefined GUID,
+the predefined GUID is interpreted as a normal GUID. All snapshot images
+(except the Top Snapshot) should be
+opened read-only.
+
+There is another predefined GUID,
 ``BackupID = {704718e1-2314-44c8-9087-d78ed36b0f4e}``, which is used by
-original and some third-party software for backup, QEMU and other
-software may operate with images with ``GUID = BackupID`` as usual,
-however, it is not recommended to use this
-GUID for new disks. Top snapshot cannot have this GUID.
+original and some third-party software for backup. QEMU and other
+software may operate with images with ``GUID = BackupID`` as usual.
+However, it is not recommended to use this
+GUID for new disks. The Top snapshot cannot have this GUID.
