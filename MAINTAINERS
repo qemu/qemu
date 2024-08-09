@@ -3965,6 +3965,7 @@ S: Supported
 F: block/parallels.c
 F: block/parallels-ext.c
 F: docs/interop/parallels.rst
+F: docs/interop/prl-xml.rst
 T: git https://src.openvz.org/scm/~den/qemu.git parallels
 
 qed

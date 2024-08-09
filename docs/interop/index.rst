@@ -16,6 +16,7 @@ are useful for making QEMU interoperate with other software.
    live-block-operations
    nbd
    parallels
+   prl-xml
    pr-helper
    qmp-spec
    qemu-ga
