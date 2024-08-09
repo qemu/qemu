@@ -2465,7 +2465,7 @@ S: Maintained
 F: hw/net/rocker/
 F: qapi/rocker.json
 F: tests/rocker/
-F: docs/specs/rocker.txt
+F: docs/specs/rocker.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
