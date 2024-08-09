@@ -1,41 +1,46 @@
-= License =
+Parallels Expandable Image File Format
+======================================
 
-Copyright (c) 2015 Denis Lunev
-Copyright (c) 2015 Vladimir Sementsov-Ogievskiy
+..
+   Copyright (c) 2015 Denis Lunev
+   Copyright (c) 2015 Vladimir Sementsov-Ogievskiy
 
-This work is licensed under the terms of the GNU GPL, version 2 or later.
-See the COPYING file in the top-level directory.
+   This work is licensed under the terms of the GNU GPL, version 2 or later.
+   See the COPYING file in the top-level directory.
 
-= Parallels Expandable Image File Format =
 
 A Parallels expandable image file consists of three consecutive parts:
-    * header
-    * BAT
-    * data area
+
+* header
+* BAT
+* data area
 
 All numbers in a Parallels expandable image are stored in little-endian byte
 order.
 
 
-== Definitions ==
+Definitions
+-----------
 
-    Sector    A 512-byte data chunk.
+Sector
+  A 512-byte data chunk.
 
-    Cluster   A data chunk of the size specified in the image header.
-              Currently, the default size is 1MiB (2048 sectors). In previous
-              versions, cluster sizes of 63 sectors, 256 and 252 kilobytes were
-              used.
+Cluster
+  A data chunk of the size specified in the image header.
+  Currently, the default size is 1MiB (2048 sectors). In previous
+  versions, cluster sizes of 63 sectors, 256 and 252 kilobytes were used.
 
-    BAT       Block Allocation Table, an entity that contains information for
-              guest-to-host I/O data address translation.
+BAT
+  Block Allocation Table, an entity that contains information for
+  guest-to-host I/O data address translation.
 
-
-== Header ==
+Header
+------
 
 The header is placed at the start of an image and contains the following
-fields:
+fields::
 
-Bytes:
+ Bytes:
    0 - 15:    magic
               Must contain "WithoutFreeSpace" or "WithouFreSpacExt".
 
@@ -103,44 +108,46 @@ Bytes:
               ext_off must meet the same requirements as cluster offsets
               defined by BAT entries (see below).
 
-
-== BAT ==
+BAT
+---
 
 BAT is placed immediately after the image header. In the file, BAT is a
 contiguous array of 32-bit unsigned little-endian integers with
-(bat_entries * 4) bytes size.
+``(bat_entries * 4)`` bytes size.
 
 Each BAT entry contains an offset from the start of the file to the
-corresponding cluster. The offset set in clusters for "WithouFreSpacExt" images
-and in sectors for "WithoutFreeSpace" images.
+corresponding cluster. The offset set in clusters for ``WithouFreSpacExt``
+images and in sectors for ``WithoutFreeSpace`` images.
 
 If a BAT entry is zero, the corresponding cluster is not allocated and should
 be considered as filled with zeroes.
 
 Cluster offsets specified by BAT entries must meet the following requirements:
-    - the value must not be lower than data offset (provided by header.data_off
-      or calculated as specified above),
-    - the value must be lower than the desired file size,
-    - the value must be unique among all BAT entries,
-    - the result of (cluster offset - data offset) must be aligned to cluster
-      size.
 
+- the value must not be lower than data offset (provided by ``header.data_off``
+  or calculated as specified above)
+- the value must be lower than the desired file size
+- the value must be unique among all BAT entries
+- the result of ``(cluster offset - data offset)`` must be aligned to
+  cluster size
 
-== Data Area ==
+Data Area
+---------
 
-The data area is an area from the data offset (provided by header.data_off or
-calculated as specified above) to the end of the file. It represents a
+The data area is an area from the data offset (provided by ``header.data_off``
+or calculated as specified above) to the end of the file. It represents a
 contiguous array of clusters. Most of them are allocated by the BAT, some may
-be allocated by the ext_off field in the header while other may be allocated by
-extensions. All clusters allocated by ext_off and extensions should meet the
-same requirements as clusters specified by BAT entries.
+be allocated by the ``ext_off`` field in the header while other may be
+allocated by extensions. All clusters allocated by ``ext_off`` and extensions
+should meet the same requirements as clusters specified by BAT entries.
 
 
-== Format Extension ==
+Format Extension
+----------------
 
 The Format Extension is an area 1 cluster in size that provides additional
 format features. This cluster is addressed by the ext_off field in the header.
-The format of the Format Extension area is the following:
+The format of the Format Extension area is the following::
 
    0 -  7:    magic
               Must be 0xAB234CEF23DCEA87
@@ -149,10 +156,10 @@ The format of the Format Extension area is the following:
               The MD5 checksum of the entire Header Extension cluster except
               the first 24 bytes.
 
-    The above are followed by feature sections or "extensions". The last
-    extension must be "End of features" (see below).
+The above are followed by feature sections or "extensions". The last
+extension must be "End of features" (see below).
 
-Each feature section has the following format:
+Each feature section has the following format::
 
    0 -  7:    magic
               The identifier of the feature:
@@ -183,16 +190,17 @@ Each feature section has the following format:
 
   variable:   data (data_size bytes)
 
-    The above is followed by padding to the next 8 bytes boundary, then the
-    next extension starts.
+The above is followed by padding to the next 8 bytes boundary, then the
+next extension starts.
 
-    The last extension must be "End of features" with all the fields set to 0.
+The last extension must be "End of features" with all the fields set to 0.
 
 
-=== Dirty bitmaps feature ===
+Dirty bitmaps feature
+---------------------
 
 This feature provides a way of storing dirty bitmaps in the image. The fields
-of its data area are:
+of its data area are::
 
    0 -  7:    size
               The bitmap size, should be equal to disk size in sectors.
@@ -215,7 +223,7 @@ clusters inside the Parallels image file. The offsets of these clusters are
 saved in the L1 offset table specified by the feature extension. Each L1 table
 entry is a 64 bit integer as described below:
 
-Given an offset in bytes into the bitmap data, corresponding L1 entry is
+Given an offset in bytes into the bitmap data, corresponding L1 entry is::
 
     l1_table[offset / cluster_size]
 
@@ -227,6 +235,6 @@ are assumed to be 1.
 
 If an L1 table entry is not 0 or 1, it contains the corresponding cluster
 offset (in 512b sectors). Given an offset in bytes into the bitmap data the
-offset in bytes into the image file can be obtained as follows:
+offset in bytes into the image file can be obtained as follows::
 
     offset = l1_table[offset / cluster_size] * 512 + (offset % cluster_size)
