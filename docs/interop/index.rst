@@ -14,6 +14,7 @@ are useful for making QEMU interoperate with other software.
    dbus-vmstate
    dbus-display
    live-block-operations
+   nbd
    pr-helper
    qmp-spec
    qemu-ga
