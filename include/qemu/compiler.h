@@ -38,7 +38,7 @@
 #endif
 
 /* Expands into an identifier stemN, where N is another number each time */
-#define MAKE_IDENTFIER(stem) glue(stem, __COUNTER__)
+#define MAKE_IDENTIFIER(stem) glue(stem, __COUNTER__)
 
 #ifndef likely
 #define likely(x)   __builtin_expect(!!(x), 1)
