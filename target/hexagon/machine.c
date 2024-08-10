@@ -19,6 +19,10 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINTTL_ARRAY(env.pred, HexagonCPU, NUM_PREGS),
         VMSTATE_UINTTL_ARRAY(env.t_sreg, HexagonCPU, NUM_SREGS),
         VMSTATE_UINTTL_ARRAY(env.greg, HexagonCPU, NUM_GREGS),
+        VMSTATE_UINTTL(env.next_PC, HexagonCPU),
+        VMSTATE_UINTTL(env.tlb_lock_state, HexagonCPU),
+        VMSTATE_UINTTL(env.k0_lock_state, HexagonCPU),
+        VMSTATE_UINTTL(env.threadId, HexagonCPU),
         VMSTATE_END_OF_LIST()
     },
 };
