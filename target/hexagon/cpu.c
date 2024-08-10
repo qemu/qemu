@@ -302,6 +302,12 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
         ARCH_SET_SYSTEM_REG(env, HEX_SREG_MODECTL, 0x1);
     }
     ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, cs->cpu_index);
+    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
+    env->threadId = cs->cpu_index;
+    env->tlb_lock_state = HEX_LOCK_UNLOCKED;
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->next_PC = 0;
 #endif
 }
 
