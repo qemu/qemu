@@ -172,6 +172,7 @@ struct ArchCPU {
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool short_circuit;
+    uint32_t num_tlbs;
 };
 
 #include "cpu_bits.h"
