@@ -899,8 +899,10 @@ static int blkio_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     bs->supported_write_flags = BDRV_REQ_FUA | BDRV_REQ_REGISTERED_BUF;
-    bs->supported_zero_flags = BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP |
-                               BDRV_REQ_NO_FALLBACK;
+    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
+#ifdef CONFIG_BLKIO_WRITE_ZEROS_FUA
+    bs->supported_zero_flags |= BDRV_REQ_FUA;
+#endif
 
     qemu_mutex_init(&s->blkio_lock);
     qemu_co_mutex_init(&s->bounce_lock);
