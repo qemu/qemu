@@ -33,8 +33,13 @@
 #define TCG_TARGET_extract_tl_valid     TCG_TARGET_extract_i32_valid
 #endif
 
+#define MMX_OFFSET(reg)                        \
+  ({ assert((reg) >= 0 && (reg) <= 7);         \
+     offsetof(CPUX86State, fpregs[reg].mmx); })
 
-#define ZMM_OFFSET(reg) offsetof(CPUX86State, xmm_regs[reg])
+#define ZMM_OFFSET(reg)                        \
+  ({ assert((reg) >= 0 && (reg) <= 15);        \
+     offsetof(CPUX86State, xmm_regs[reg]); })
 
 typedef void (*SSEFunc_i_ep)(TCGv_i32 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_l_ep)(TCGv_i64 val, TCGv_ptr env, TCGv_ptr reg);
@@ -168,7 +173,7 @@ static int vector_elem_offset(X86DecodedOp *op, MemOp ot, int n)
 static void compute_mmx_offset(X86DecodedOp *op)
 {
     if (!op->has_ea) {
-        op->offset = offsetof(CPUX86State, fpregs[op->n].mmx) + mmx_offset(op->ot);
+        op->offset = MMX_OFFSET(op->n) + mmx_offset(op->ot);
     } else {
         op->offset = offsetof(CPUX86State, mmx_t0) + mmx_offset(op->ot);
     }
