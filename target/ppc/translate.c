@@ -1820,7 +1820,7 @@ static inline void gen_op_arith_divd(DisasContext *ctx, TCGv ret,
         tcg_gen_or_tl(cpu_so, cpu_so, cpu_ov);
     }
 
-    if (unlikely(Rc(ctx->opcode) != 0)) {
+    if (unlikely(compute_rc0)) {
         gen_set_Rc0(ctx, ret);
     }
 }
