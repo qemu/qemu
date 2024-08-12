@@ -163,8 +163,6 @@ typedef struct DisasContext {
     uint8_t dcz_blocksize;
     /* A copy of cpu->gm_blocksize. */
     uint8_t gm_blocksize;
-    /* True if this page is guarded.  */
-    bool guarded_page;
     /* True if the current insn_start has been updated. */
     bool insn_start_updated;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */

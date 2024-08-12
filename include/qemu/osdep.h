@@ -399,7 +399,7 @@ void QEMU_ERROR("code path is reachable")
     })
 #undef MIN
 #define MIN(a, b) \
-    MIN_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MIN_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 #define MAX_INTERNAL(a, b, _a, _b)                      \
     ({                                                  \
@@ -408,7 +408,7 @@ void QEMU_ERROR("code path is reachable")
     })
 #undef MAX
 #define MAX(a, b) \
-    MAX_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MAX_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 #ifdef __COVERITY__
 # define MIN_CONST(a, b) ((a) < (b) ? (a) : (b))
@@ -440,7 +440,7 @@ void QEMU_ERROR("code path is reachable")
         _a == 0 ? _b : (_b == 0 || _b > _a) ? _a : _b;  \
     })
 #define MIN_NON_ZERO(a, b) \
-    MIN_NON_ZERO_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MIN_NON_ZERO_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 /*
  * Round number down to multiple. Safe when m is not a power of 2 (see

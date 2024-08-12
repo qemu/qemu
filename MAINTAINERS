@@ -2465,7 +2465,7 @@ S: Maintained
 F: hw/net/rocker/
 F: qapi/rocker.json
 F: tests/rocker/
-F: docs/specs/rocker.txt
+F: docs/specs/rocker.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
@@ -3871,7 +3871,7 @@ F: nbd/
 F: include/block/nbd*
 F: qemu-nbd.*
 F: blockdev-nbd.c
-F: docs/interop/nbd.txt
+F: docs/interop/nbd.rst
 F: docs/tools/qemu-nbd.rst
 F: tests/qemu-iotests/tests/*nbd*
 T: git https://repo.or.cz/qemu/ericb.git nbd
@@ -3964,7 +3964,8 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/parallels.c
 F: block/parallels-ext.c
-F: docs/interop/parallels.txt
+F: docs/interop/parallels.rst
+F: docs/interop/prl-xml.rst
 T: git https://src.openvz.org/scm/~den/qemu.git parallels
 
 qed

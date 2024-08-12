@@ -54,7 +54,7 @@ struct QObject {
     typeof(obj) _obj = (obj);                                   \
     _obj ? container_of(&_obj->base, QObject, base) : NULL;     \
 })
-#define QOBJECT(obj) QOBJECT_INTERNAL((obj), MAKE_IDENTFIER(_obj))
+#define QOBJECT(obj) QOBJECT_INTERNAL((obj), MAKE_IDENTIFIER(_obj))
 
 /* Required for qobject_to() */
 #define QTYPE_CAST_TO_QNull     QTYPE_QNULL

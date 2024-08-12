@@ -763,6 +763,33 @@ static void check_oneshot_with_load_0(gconstpointer arg)
     ptimer_free(ptimer);
 }
 
+static void check_freq_more_than_1000M(gconstpointer arg)
+{
+    const uint8_t *policy = arg;
+    ptimer_state *ptimer = ptimer_init(ptimer_trigger, NULL, *policy);
+    bool no_round_down = (*policy & PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
+
+    triggered = false;
+
+    ptimer_transaction_begin(ptimer);
+    ptimer_set_freq(ptimer, 2000000000);
+    ptimer_set_limit(ptimer, 8, 1);
+    ptimer_run(ptimer, 1);
+    ptimer_transaction_commit(ptimer);
+
+    qemu_clock_step(3);
+
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==, no_round_down ? 3 : 2);
+    g_assert_false(triggered);
+
+    qemu_clock_step(1);
+
+    g_assert_cmpuint(ptimer_get_count(ptimer), ==, 0);
+    g_assert_true(triggered);
+
+    ptimer_free(ptimer);
+}
+
 static void add_ptimer_tests(uint8_t policy)
 {
     char policy_name[256] = "";
@@ -856,6 +883,12 @@ static void add_ptimer_tests(uint8_t policy)
         tmp = g_strdup_printf("/ptimer/oneshot_with_load_0 policy=%s",
                               policy_name),
         g_memdup2(&policy, 1), check_oneshot_with_load_0, g_free);
+    g_free(tmp);
+
+    g_test_add_data_func_full(
+        tmp = g_strdup_printf("/ptimer/freq_more_than_1000M policy=%s",
+                              policy_name),
+        g_memdup2(&policy, 1), check_freq_more_than_1000M, g_free);
     g_free(tmp);
 }
 
