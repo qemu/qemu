@@ -493,8 +493,15 @@ if get_option('ubsan')
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
   if cc.links('int main(int argc, char **argv) { return argc + 1; }',
               args: [qemu_ldflags, '-fsanitize=undefined'])
-    qemu_cflags = ['-fsanitize=undefined'] + qemu_cflags
-    qemu_ldflags = ['-fsanitize=undefined'] + qemu_ldflags
+    qemu_cflags += ['-fsanitize=undefined']
+    qemu_ldflags += ['-fsanitize=undefined']
+
+    # Suppress undefined behaviour from function call to mismatched type.
+    # In addition, tcg prologue does not emit function type prefix
+    # required by function call sanitizer.
+    if cc.has_argument('-fno-sanitize=function')
+      qemu_cflags += ['-fno-sanitize=function']
+    endif
   else
     error('Your compiler does not support -fsanitize=undefined')
   endif
