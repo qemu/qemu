@@ -24,8 +24,8 @@ Configure with (substitute the clang binaries with the version you installed).
 Here, enable-sanitizers, is optional but it allows us to reliably detect bugs
 such as out-of-bounds accesses, use-after-frees, double-frees etc.::
 
-    CC=clang-8 CXX=clang++-8 /path/to/configure --enable-fuzzing \
-                                                --enable-sanitizers
+    CC=clang-8 CXX=clang++-8 /path/to/configure \
+        --enable-fuzzing --enable-asan --enable-ubsan
 
 Fuzz targets are built similarly to system targets::
 
