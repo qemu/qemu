@@ -593,16 +593,21 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
  */
 
 static bool get_pte(CPUMIPSState *env, uint64_t vaddr, MemOp op,
-        uint64_t *pte)
+                    uint64_t *pte, unsigned ptw_mmu_idx)
 {
+    MemOpIdx oi;
+
     if ((vaddr & (memop_size(op) - 1)) != 0) {
         return false;
     }
+
+    oi = make_memop_idx(op | MO_TE, ptw_mmu_idx);
     if (op == MO_64) {
-        *pte = cpu_ldq_code(env, vaddr);
+        *pte = cpu_ldq_code_mmu(env, vaddr, oi, 0);
     } else {
-        *pte = cpu_ldl_code(env, vaddr);
+        *pte = cpu_ldl_code_mmu(env, vaddr, oi, 0);
     }
+
     return true;
 }
 
@@ -642,7 +647,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         /* wrong base address */
         return 0;
     }
-    if (!get_pte(env, *vaddr, directory_mop, &entry)) {
+    if (!get_pte(env, *vaddr, directory_mop, &entry, ptw_mmu_idx)) {
         return 0;
     }
 
@@ -668,7 +673,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
                                      ptw_mmu_idx) != TLBRET_MATCH) {
                 return 0;
             }
-            if (!get_pte(env, vaddr2, leaf_mop, &entry)) {
+            if (!get_pte(env, vaddr2, leaf_mop, &entry, ptw_mmu_idx)) {
                 return 0;
             }
             entry = get_tlb_entry_layout(env, entry, leaf_mop, pf_ptew);
@@ -823,7 +828,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
                              ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
-    if (!get_pte(env, vaddr, leaf_mop, &dir_entry)) {
+    if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
         return false;
     }
     dir_entry = get_tlb_entry_layout(env, dir_entry, leaf_mop, pf_ptew);
@@ -835,7 +840,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
                              ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
-    if (!get_pte(env, vaddr, leaf_mop, &dir_entry)) {
+    if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
         return false;
     }
     dir_entry = get_tlb_entry_layout(env, dir_entry, leaf_mop, pf_ptew);
