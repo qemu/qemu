@@ -10141,6 +10141,7 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
         tcg_gen_shli_i64(tcg_rd, tcg_rd, shift);
         write_vec_element(s, tcg_rd, rd, i, size + 1);
     }
+    clear_vec_high(s, true, rd);
 }
 
 /* SHRN/RSHRN - Shift right with narrowing (and potential rounding) */
