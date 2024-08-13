@@ -560,8 +560,12 @@ static abi_long mmap_h_eq_g(abi_ulong start, abi_ulong len,
                             int host_prot, int flags, int page_flags,
                             int fd, off_t offset)
 {
-    void *p, *want_p = g2h_untagged(start);
+    void *p, *want_p = NULL;
     abi_ulong last;
+
+    if (start || (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
+        want_p = g2h_untagged(start);
+    }
 
     p = mmap(want_p, len, host_prot, flags, fd, offset);
     if (p == MAP_FAILED) {
@@ -610,10 +614,14 @@ static abi_long mmap_h_lt_g(abi_ulong start, abi_ulong len, int host_prot,
                             int mmap_flags, int page_flags, int fd,
                             off_t offset, int host_page_size)
 {
-    void *p, *want_p = g2h_untagged(start);
+    void *p, *want_p = NULL;
     off_t fileend_adj = 0;
     int flags = mmap_flags;
     abi_ulong last, pass_last;
+
+    if (start || (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
+        want_p = g2h_untagged(start);
+    }
 
     if (!(flags & MAP_ANONYMOUS)) {
         struct stat sb;
@@ -740,11 +748,15 @@ static abi_long mmap_h_gt_g(abi_ulong start, abi_ulong len,
                             int flags, int page_flags, int fd,
                             off_t offset, int host_page_size)
 {
-    void *p, *want_p = g2h_untagged(start);
+    void *p, *want_p = NULL;
     off_t host_offset = offset & -host_page_size;
     abi_ulong last, real_start, real_last;
     bool misaligned_offset = false;
     size_t host_len;
+
+    if (start || (flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
+        want_p = g2h_untagged(start);
+    }
 
     if (!(flags & (MAP_FIXED | MAP_FIXED_NOREPLACE))) {
         /*
