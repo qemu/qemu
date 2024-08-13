@@ -65,7 +65,7 @@ msgid "Detach Tab"
 msgstr "_Sposta in una nuova finestra"
 
 msgid "Show Menubar"
-msgstr ""
+msgstr "Mostra _barra dei menu"
 
 msgid "_Machine"
 msgstr "_Macchina virtuale"
