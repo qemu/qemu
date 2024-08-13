@@ -3576,7 +3576,11 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
     case ARMMMUIdx_E2:
-        ss = arm_security_space_below_el3(env);
+        if (arm_aa32_secure_pl1_0(env)) {
+            ss = ARMSS_Secure;
+        } else {
+            ss = arm_security_space_below_el3(env);
+        }
         break;
     case ARMMMUIdx_Stage2:
         /*

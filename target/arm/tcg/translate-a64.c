@@ -10756,6 +10756,7 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
         tcg_gen_shli_i64(tcg_rd, tcg_rd, shift);
         write_vec_element(s, tcg_rd, rd, i, size + 1);
     }
+    clear_vec_high(s, true, rd);
 }
 
 /* SHRN/RSHRN - Shift right with narrowing (and potential rounding) */
@@ -11978,7 +11979,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->tbii = EX_TBFLAG_A64(tb_flags, TBII);
     dc->tbid = EX_TBFLAG_A64(tb_flags, TBID);
     dc->tcma = EX_TBFLAG_A64(tb_flags, TCMA);
-    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx, false);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
 #endif

@@ -3700,7 +3700,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
          */
         format64 = arm_s1_regime_using_lpae_format(env, mmu_idx);
 
-        if (arm_feature(env, ARM_FEATURE_EL2)) {
+        if (arm_feature(env, ARM_FEATURE_EL2) && !arm_aa32_secure_pl1_0(env)) {
             if (mmu_idx == ARMMMUIdx_E10_0 ||
                 mmu_idx == ARMMMUIdx_E10_1 ||
                 mmu_idx == ARMMMUIdx_E10_1_PAN) {
@@ -3774,13 +3774,11 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     case 0:
         /* stage 1 current state PL1: ATS1CPR, ATS1CPW, ATS1CPRP, ATS1CPWP */
         switch (el) {
-        case 3:
-            mmu_idx = ARMMMUIdx_E3;
-            break;
         case 2:
             g_assert(ss != ARMSS_Secure);  /* ARMv8.4-SecEL2 is 64-bit only */
             /* fall through */
         case 1:
+        case 3:
             if (ri->crm == 9 && arm_pan_enabled(env)) {
                 mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
             } else {
@@ -11861,8 +11859,11 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
 uint64_t arm_sctlr(CPUARMState *env, int el)
 {
-    /* Only EL0 needs to be adjusted for EL1&0 or EL2&0. */
-    if (el == 0) {
+    if (arm_aa32_secure_pl1_0(env)) {
+        /* In Secure PL1&0 SCTLR_S is always controlling */
+        el = 3;
+    } else if (el == 0) {
+        /* Only EL0 needs to be adjusted for EL1&0 or EL2&0. */
         ARMMMUIdx mmu_idx = arm_mmu_idx_el(env, 0);
         el = mmu_idx == ARMMMUIdx_E20_0 ? 2 : 1;
     }
@@ -12522,8 +12523,12 @@ int fp_exception_el(CPUARMState *env, int cur_el)
     return 0;
 }
 
-/* Return the exception level we're running at if this is our mmu_idx */
-int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
+/*
+ * Return the exception level we're running at if this is our mmu_idx.
+ * s_pl1_0 should be true if this is the AArch32 Secure PL1&0 translation
+ * regime.
+ */
+int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx, bool s_pl1_0)
 {
     if (mmu_idx & ARM_MMU_IDX_M) {
         return mmu_idx & ARM_MMU_IDX_M_PRIV;
@@ -12535,7 +12540,7 @@ int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
         return 0;
     case ARMMMUIdx_E10_1:
     case ARMMMUIdx_E10_1_PAN:
-        return 1;
+        return s_pl1_0 ? 3 : 1;
     case ARMMMUIdx_E2:
     case ARMMMUIdx_E20_2:
     case ARMMMUIdx_E20_2_PAN:
@@ -12573,6 +12578,15 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
             idx = ARMMMUIdx_E10_0;
         }
         break;
+    case 3:
+        /*
+         * AArch64 EL3 has its own translation regime; AArch32 EL3
+         * uses the Secure PL1&0 translation regime.
+         */
+        if (arm_el_is_aa64(env, 3)) {
+            return ARMMMUIdx_E3;
+        }
+        /* fall through */
     case 1:
         if (arm_pan_enabled(env)) {
             idx = ARMMMUIdx_E10_1_PAN;
@@ -12592,8 +12606,6 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
             idx = ARMMMUIdx_E2;
         }
         break;
-    case 3:
-        return ARMMMUIdx_E3;
     default:
         g_assert_not_reached();
     }
