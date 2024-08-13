@@ -603,9 +603,9 @@ static bool get_pte(CPUMIPSState *env, uint64_t vaddr, MemOp op,
 
     oi = make_memop_idx(op | MO_TE, ptw_mmu_idx);
     if (op == MO_64) {
-        *pte = cpu_ldq_code_mmu(env, vaddr, oi, 0);
+        *pte = cpu_ldq_mmu(env, vaddr, oi, 0);
     } else {
-        *pte = cpu_ldl_code_mmu(env, vaddr, oi, 0);
+        *pte = cpu_ldl_mmu(env, vaddr, oi, 0);
     }
 
     return true;
