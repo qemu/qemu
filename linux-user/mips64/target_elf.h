@@ -17,8 +17,13 @@ static inline const char *cpu_get_model(uint32_t eflags)
     default:
         break;
     }
-    if ((eflags & EF_MIPS_ARCH) == EF_MIPS_ARCH_64R6) {
+    switch (eflags & EF_MIPS_ARCH) {
+    case EF_MIPS_ARCH_64R6:
         return "I6400";
+    case EF_MIPS_ARCH_64R2:
+        return "MIPS64R2-generic";
+    default:
+        break;
     }
     return "5KEf";
 }
