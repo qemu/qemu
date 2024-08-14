@@ -1193,6 +1193,10 @@ static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
+    /*
+     * Note that this must be _after_ gen_prepare_cc, because it
+     * can change the cc_op from CC_OP_DYNAMIC to CC_OP_EFLAGS!
+     */
     gen_update_cc_op(s);
     if (cc.use_reg2) {
         tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
