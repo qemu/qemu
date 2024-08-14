@@ -14,6 +14,12 @@ static inline const char *cpu_get_model(uint32_t eflags)
     case EF_MIPS_MACH_OCTEON2:
     case EF_MIPS_MACH_OCTEON3:
         return "Octeon68XX";
+    case EF_MIPS_MACH_LS2E:
+        return "Loongson-2E";
+    case EF_MIPS_MACH_LS2F:
+        return "Loongson-2F";
+    case EF_MIPS_MACH_LS3A:
+        return "Loongson-3A1000";
     default:
         break;
     }
