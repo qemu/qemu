@@ -283,6 +283,40 @@ static int do_munmap(void *addr, size_t len)
 }
 
 /*
+ * Perform a pread on behalf of target_mmap.  We can reach EOF, we can be
+ * interrupted by signals, and in general there's no good error return path.
+ * If @zero, zero the rest of the block at EOF.
+ * Return true on success.
+ */
+static bool mmap_pread(int fd, void *p, size_t len, off_t offset, bool zero)
+{
+    while (1) {
+        ssize_t r = pread(fd, p, len, offset);
+
+        if (likely(r == len)) {
+            /* Complete */
+            return true;
+        }
+        if (r == 0) {
+            /* EOF */
+            if (zero) {
+                memset(p, 0, len);
+            }
+            return true;
+        }
+        if (r > 0) {
+            /* Short read */
+            p += r;
+            len -= r;
+            offset += r;
+        } else if (errno != EINTR) {
+            /* Error */
+            return false;
+        }
+    }
+}
+
+/*
  * Map an incomplete host page.
  *
  * Here be dragons.  This case will not work if there is an existing
@@ -356,10 +390,9 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
     /* Read or zero the new guest pages. */
     if (flags & MAP_ANONYMOUS) {
         memset(g2h_untagged(start), 0, last - start + 1);
-    } else {
-        if (pread(fd, g2h_untagged(start), last - start + 1, offset) == -1) {
-            return false;
-        }
+    } else if (!mmap_pread(fd, g2h_untagged(start), last - start + 1,
+                           offset, true)) {
+        return false;
     }
 
     /* Put final protection */
@@ -852,8 +885,7 @@ static abi_long mmap_h_gt_g(abi_ulong start, abi_ulong len,
     }
 
     if (misaligned_offset) {
-        /* TODO: The read could be short. */
-        if (pread(fd, p, host_len, offset + real_start - start) != host_len) {
+        if (!mmap_pread(fd, p, host_len, offset + real_start - start, false)) {
             do_munmap(p, host_len);
             return -1;
         }
