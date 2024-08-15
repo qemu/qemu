@@ -414,7 +414,7 @@ int kvm_create_and_park_vcpu(CPUState *cpu)
 static int do_kvm_destroy_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
-    long mmap_size;
+    int mmap_size;
     int ret = 0;
 
     trace_kvm_destroy_vcpu(cpu->cpu_index, kvm_arch_vcpu_id(cpu));
@@ -459,7 +459,7 @@ void kvm_destroy_vcpu(CPUState *cpu)
 int kvm_init_vcpu(CPUState *cpu, Error **errp)
 {
     KVMState *s = kvm_state;
-    long mmap_size;
+    int mmap_size;
     int ret;
 
     trace_kvm_init_vcpu(cpu->cpu_index, kvm_arch_vcpu_id(cpu));
