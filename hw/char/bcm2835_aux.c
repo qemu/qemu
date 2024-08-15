@@ -138,7 +138,7 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
         res = 0x30e; /* space in the output buffer, empty tx fifo, idle tx/rx */
         if (s->read_count > 0) {
             res |= 0x1; /* data in input buffer */
-            assert(s->read_count < BCM2835_AUX_RX_FIFO_LEN);
+            assert(s->read_count <= BCM2835_AUX_RX_FIFO_LEN);
             res |= ((uint32_t)s->read_count) << 16; /* rx fifo fill level */
         }
         return res;

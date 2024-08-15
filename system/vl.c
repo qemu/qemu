@@ -1973,9 +1973,10 @@ static void qemu_create_early_backends(void)
 
     if (dpy.has_gl && dpy.gl != DISPLAYGL_MODE_OFF && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
-        error_report("OpenGL is not supported by the display");
+        error_report("OpenGL is not supported by display backend '%s'",
+                     DisplayType_str(dpy.type));
 #else
-        error_report("OpenGL support is disabled");
+        error_report("OpenGL support was not enabled in this build of QEMU");
 #endif
         exit(1);
     }

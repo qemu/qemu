@@ -2694,8 +2694,8 @@ static void *kvm_msr_energy_thread(void *data)
 
     while (true) {
         /* Get all qemu threads id */
-        g_autofree pid_t *thread_ids =
-            thread_ids = vmsr_get_thread_ids(vmsr->pid, &num_threads);
+        g_autofree pid_t *thread_ids
+            = vmsr_get_thread_ids(vmsr->pid, &num_threads);
 
         if (thread_ids == NULL) {
             goto clean;
@@ -2712,8 +2712,8 @@ static void *kvm_msr_energy_thread(void *data)
             thd_stat[i].thread_id = thread_ids[i];
             vmsr_read_thread_stat(vmsr->pid,
                                   thd_stat[i].thread_id,
-                                  thd_stat[i].utime,
-                                  thd_stat[i].stime,
+                                  &thd_stat[i].utime[0],
+                                  &thd_stat[i].stime[0],
                                   &thd_stat[i].cpu_id);
             thd_stat[i].pkg_id =
                 vmsr_get_physical_package_id(thd_stat[i].cpu_id);
@@ -2777,8 +2777,8 @@ static void *kvm_msr_energy_thread(void *data)
         for (int i = 0; i < num_threads; i++) {
             vmsr_read_thread_stat(vmsr->pid,
                                   thd_stat[i].thread_id,
-                                  thd_stat[i].utime,
-                                  thd_stat[i].stime,
+                                  &thd_stat[i].utime[1],
+                                  &thd_stat[i].stime[1],
                                   &thd_stat[i].cpu_id);
 
             if (vmsr->pid < 0) {

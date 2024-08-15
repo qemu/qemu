@@ -214,7 +214,6 @@ file format: IMGFMT
 virtual size: 384 KiB (393216 bytes)
 cluster_size: 131072
 backing file: TEST_DIR/subdir/t.IMGFMT.base_old
-backing file format: IMGFMT
 
 Fill backing files with data
 

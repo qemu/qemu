@@ -26,7 +26,7 @@
 # @skipauth: whether to skip authentication.  Only applies to "vnc"
 #     and "spice" protocols
 #
-# @tls: whether to perform TLS. Only applies to the "spice" protocol
+# @tls: whether to perform TLS.  Only applies to the "spice" protocol
 #
 # Since: 0.14
 #
@@ -104,8 +104,8 @@
 # Returns a list of information about each iothread.
 #
 # .. note:: This list excludes the QEMU main loop thread, which is not
-#    declared using the ``-object iothread`` command-line option.  It is
-#    always the main thread of the process.
+#    declared using the ``-object iothread`` command-line option.  It
+#    is always the main thread of the process.
 #
 # Returns: a list of @IOThreadInfo for each iothread
 #
@@ -141,8 +141,8 @@
 #    guest remains paused once migration finishes, as if the ``-S``
 #    option was passed on the command line.
 #
-#    In the "suspended" state, it will completely stop the VM and cause
-#    a transition to the "paused" state.  (Since 9.0)
+#    In the "suspended" state, it will completely stop the VM and
+#    cause a transition to the "paused" state.  (Since 9.0)
 #
 # .. qmp-example::
 #
@@ -158,15 +158,15 @@
 #
 # Since: 0.14
 #
-# .. note:: This command will succeed if the guest is currently running.
-#    It will also succeed if the guest is in the "inmigrate" state; in
-#    this case, the effect of the command is to make sure the guest
-#    starts once migration finishes, removing the effect of the ``-S``
-#    command line option if it was passed.
+# .. note:: This command will succeed if the guest is currently
+#    running.  It will also succeed if the guest is in the "inmigrate"
+#    state; in this case, the effect of the command is to make sure
+#    the guest starts once migration finishes, removing the effect of
+#    the ``-S`` command line option if it was passed.
 #
 #    If the VM was previously suspended, and not been reset or woken,
-#    this command will transition back to the "suspended" state.  (Since
-#    9.0)
+#    this command will transition back to the "suspended" state.
+#    (Since 9.0)
 #
 # .. qmp-example::
 #
@@ -227,8 +227,8 @@
 #
 #    Known limitations:
 #
-#    * This command is stateless, this means that commands that
-#      depend on state information (such as getfd) might not work.
+#    * This command is stateless, this means that commands that depend
+#      on state information (such as getfd) might not work.
 #
 #    * Commands that prompt the user for data don't currently work.
 #
@@ -341,7 +341,8 @@
 #
 # .. note:: The list of fd sets is shared by all monitor connections.
 #
-# .. note:: If @fdset-id is not specified, a new fd set will be created.
+# .. note:: If @fdset-id is not specified, a new fd set will be
+#    created.
 #
 # Since: 1.2
 #

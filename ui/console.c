@@ -1632,4 +1632,9 @@ void qemu_display_help(void)
             printf("%s\n",  DisplayType_str(dpys[idx]->type));
         }
     }
+    printf("\n"
+           "Some display backends support suboptions, which can be set with\n"
+           "   -display backend,option=value,option=value...\n"
+           "For a short list of the suboptions for each display, see the "
+           "top-level -help output; more detail is in the documentation.\n");
 }

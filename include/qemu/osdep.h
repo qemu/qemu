@@ -399,7 +399,7 @@ void QEMU_ERROR("code path is reachable")
     })
 #undef MIN
 #define MIN(a, b) \
-    MIN_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MIN_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 #define MAX_INTERNAL(a, b, _a, _b)                      \
     ({                                                  \
@@ -408,7 +408,7 @@ void QEMU_ERROR("code path is reachable")
     })
 #undef MAX
 #define MAX(a, b) \
-    MAX_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MAX_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 #ifdef __COVERITY__
 # define MIN_CONST(a, b) ((a) < (b) ? (a) : (b))
@@ -440,7 +440,7 @@ void QEMU_ERROR("code path is reachable")
         _a == 0 ? _b : (_b == 0 || _b > _a) ? _a : _b;  \
     })
 #define MIN_NON_ZERO(a, b) \
-    MIN_NON_ZERO_INTERNAL((a), (b), MAKE_IDENTFIER(_a), MAKE_IDENTFIER(_b))
+    MIN_NON_ZERO_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
 /*
  * Round number down to multiple. Safe when m is not a power of 2 (see
@@ -758,6 +758,17 @@ static inline void qemu_reset_optind(void)
 int qemu_fdatasync(int fd);
 
 /**
+ * qemu_close_all_open_fd:
+ *
+ * Close all open file descriptors except the ones supplied in the @skip array
+ *
+ * @skip: ordered array of distinct file descriptors that should not be closed
+ *        if any, or NULL.
+ * @nskip: number of entries in the @skip array or 0 if @skip is NULL.
+ */
+void qemu_close_all_open_fd(const int *skip, unsigned int nskip);
+
+/**
  * Sync changes made to the memory mapped file back to the backing
  * storage. For POSIX compliant systems this will fallback
  * to regular msync call. Otherwise it will trigger whole file sync
@@ -786,8 +797,7 @@ size_t qemu_get_host_physmem(void);
  * Toggle write/execute on the pages marked MAP_JIT
  * for the current thread.
  */
-#if defined(MAC_OS_VERSION_11_0) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_VERSION_11_0
+#ifdef __APPLE__
 static inline void qemu_thread_jit_execute(void)
 {
     pthread_jit_write_protect_np(true);

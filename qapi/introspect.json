@@ -42,8 +42,8 @@
 #     with different meta-types).
 #
 # .. note:: The QAPI schema is also used to help define *internal*
-#    interfaces, by defining QAPI types.  These are not part of the QMP
-#    wire ABI, and therefore not returned by this command.
+#    interfaces, by defining QAPI types.  These are not part of the
+#    QMP wire ABI, and therefore not returned by this command.
 #
 # Since: 2.5
 ##

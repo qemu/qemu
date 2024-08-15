@@ -8168,6 +8168,16 @@ static int open_self_stat(CPUArchState *cpu_env, int fd)
         } else if (i == 3) {
             /* ppid */
             g_string_printf(buf, FMT_pid " ", getppid());
+        } else if (i == 19) {
+            /* num_threads */
+            int cpus = 0;
+            WITH_RCU_READ_LOCK_GUARD() {
+                CPUState *cpu_iter;
+                CPU_FOREACH(cpu_iter) {
+                    cpus++;
+                }
+            }
+            g_string_printf(buf, "%d ", cpus);
         } else if (i == 21) {
             /* starttime */
             g_string_printf(buf, "%" PRIu64 " ", ts->start_boottime);

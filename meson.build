@@ -710,7 +710,19 @@ warn_flags = [
 ]
 
 if host_os != 'darwin'
-  warn_flags += ['-Wthread-safety']
+  tsa_has_cleanup = cc.compiles('''
+    struct __attribute__((capability("mutex"))) mutex {};
+    void lock(struct mutex *m) __attribute__((acquire_capability(m)));
+    void unlock(struct mutex *m) __attribute__((release_capability(m)));
+
+    void test(void) {
+      struct mutex __attribute__((cleanup(unlock))) m;
+      lock(&m);
+    }
+  ''', args: ['-Wthread-safety', '-Werror'])
+  if tsa_has_cleanup
+    warn_flags += ['-Wthread-safety']
+  endif
 endif
 
 # Set up C++ compiler flags
@@ -2354,6 +2366,8 @@ config_host_data.set('CONFIG_BLKIO', blkio.found())
 if blkio.found()
   config_host_data.set('CONFIG_BLKIO_VHOST_VDPA_FD',
                        blkio.version().version_compare('>=1.3.0'))
+  config_host_data.set('CONFIG_BLKIO_WRITE_ZEROS_FUA',
+                       blkio.version().version_compare('>=1.4.0'))
 endif
 config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
@@ -2895,6 +2909,14 @@ config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
   #include <sys/auxv.h>
   int main(void) {
     return getauxval(AT_HWCAP) == 0;
+  }'''))
+
+config_host_data.set('CONFIG_ELF_AUX_INFO', cc.links(gnu_source_prefix + '''
+  #include <sys/auxv.h>
+  int main(void) {
+    unsigned long hwcap = 0;
+    elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap));
+    return hwcap;
   }'''))
 
 config_host_data.set('CONFIG_USBFS', have_linux_user and cc.compiles('''

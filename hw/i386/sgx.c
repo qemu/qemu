@@ -266,6 +266,14 @@ void hmp_info_sgx(Monitor *mon, const QDict *qdict)
                    size);
 }
 
+bool check_sgx_support(void)
+{
+    if (!object_dynamic_cast(qdev_get_machine(), TYPE_PC_MACHINE)) {
+        return false;
+    }
+    return true;
+}
+
 bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {
     PCMachineState *pcms =

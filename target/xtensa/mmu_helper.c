@@ -991,7 +991,7 @@ uint32_t HELPER(rptlb1)(CPUXtensaState *env, uint32_t s)
 uint32_t HELPER(pptlb)(CPUXtensaState *env, uint32_t v)
 {
     unsigned nhits;
-    unsigned segment = XTENSA_MPU_PROBE_B;
+    unsigned segment;
     unsigned bg_segment;
 
     nhits = xtensa_mpu_lookup(env->mpu_fg, env->config->n_mpu_fg_segments,
@@ -1005,7 +1005,7 @@ uint32_t HELPER(pptlb)(CPUXtensaState *env, uint32_t v)
         xtensa_mpu_lookup(env->config->mpu_bg,
                           env->config->n_mpu_bg_segments,
                           v, &bg_segment);
-        return env->config->mpu_bg[bg_segment].attr | segment;
+        return env->config->mpu_bg[bg_segment].attr | XTENSA_MPU_PROBE_B;
     }
 }
 

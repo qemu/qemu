@@ -187,7 +187,7 @@ void superh_cpu_do_interrupt(CPUState *cs)
 
 static void update_itlb_use(CPUSH4State * env, int itlbnb)
 {
-    uint8_t or_mask = 0, and_mask = (uint8_t) - 1;
+    uint32_t or_mask = 0, and_mask = 0xff;
 
     switch (itlbnb) {
     case 0:

@@ -1158,11 +1158,11 @@
 #
 # @query-nodes: If true, the command will query all the block nodes
 #     that have a node name, in a list which will include "parent"
-#     information, but not "backing". If false or omitted, the
+#     information, but not "backing".  If false or omitted, the
 #     behavior is as before - query all the device backends,
-#     recursively including their "parent" and "backing". Filter nodes
-#     that were created implicitly are skipped over in this mode.
-#     (Since 2.3)
+#     recursively including their "parent" and "backing".  Filter
+#     nodes that were created implicitly are skipped over in this
+#     mode.  (Since 2.3)
 #
 # Returns: A list of @BlockStats for each virtual block devices.
 #
@@ -1286,7 +1286,7 @@
 #     jobs, cancel the job
 #
 # @ignore: ignore the error, only report a QMP event (BLOCK_IO_ERROR
-#     or BLOCK_JOB_ERROR). The backup, mirror and commit block jobs
+#     or BLOCK_JOB_ERROR).  The backup, mirror and commit block jobs
 #     retry the failing request later and may still complete
 #     successfully.  The stream block job continues to stream and will
 #     complete with an error.
@@ -1574,7 +1574,7 @@
 #     for unlimited.
 #
 # @bitmap: The name of a dirty bitmap to use.  Must be present if sync
-#     is "bitmap" or "incremental". Can be present if sync is "full"
+#     is "bitmap" or "incremental".  Can be present if sync is "full"
 #     or "top".  Must not be present otherwise.
 #     (Since 2.4 (drive-backup), 3.1 (blockdev-backup))
 #
@@ -1619,9 +1619,9 @@
 #
 # @unstable: Member @x-perf is experimental.
 #
-# .. note:: @on-source-error and @on-target-error only affect background
-#    I/O.  If an error occurs during a guest write request, the device's
-#    rerror/werror actions will be used.
+# .. note:: @on-source-error and @on-target-error only affect
+#    background I/O.  If an error occurs during a guest write request,
+#    the device's rerror/werror actions will be used.
 #
 # Since: 4.2
 ##
@@ -1699,7 +1699,7 @@
 # Takes a snapshot of a block device.
 #
 # Take a snapshot, by installing 'node' as the backing image of
-# 'overlay'. Additionally, if 'node' is associated with a block
+# 'overlay'.  Additionally, if 'node' is associated with a block
 # device, the block device changes to using 'overlay' as its new
 # active image.
 #
@@ -1738,7 +1738,7 @@
 # Change the backing file in the image file metadata.  This does not
 # cause QEMU to reopen the image file to reparse the backing filename
 # (it may, however, perform a reopen to change permissions from r/o ->
-# r/w -> r/o, if needed). The new backing file string is written into
+# r/w -> r/o, if needed).  The new backing file string is written into
 # the image file metadata, and the QEMU internal strings are updated.
 #
 # @image-node-name: The name of the block driver state node of the
@@ -1882,8 +1882,8 @@
 # Start a point-in-time copy of a block device to a new destination.
 # The status of ongoing drive-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
-# 'backup'. The operation can be stopped before it has completed using
-# the block-job-cancel command.
+# 'backup'.  The operation can be stopped before it has completed
+# using the block-job-cancel command.
 #
 # Features:
 #
@@ -1913,8 +1913,8 @@
 # Start a point-in-time copy of a block device to a new destination.
 # The status of ongoing blockdev-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
-# 'backup'. The operation can be stopped before it has completed using
-# the block-job-cancel command.
+# 'backup'.  The operation can be stopped before it has completed
+# using the block-job-cancel command.
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
@@ -2832,7 +2832,7 @@
 #
 # @speed: the maximum speed, in bytes per second
 #
-# @on-error: the action to take on an error (default report). 'stop'
+# @on-error: the action to take on an error (default report).  'stop'
 #     and 'enospc' can only be used if the block device supports
 #     io-status (see BlockInfo).  (Since 1.3)
 #
@@ -3034,8 +3034,8 @@
 # semantics.
 #
 # This command will refuse to operate on any job that has not yet
-# reached its terminal state, JOB_STATUS_CONCLUDED. For jobs that make
-# use of the BLOCK_JOB_READY event, block-job-cancel or
+# reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
+# make use of the BLOCK_JOB_READY event, block-job-cancel or
 # block-job-complete will still need to be used as appropriate.
 #
 # @id: The job identifier.
@@ -3351,7 +3351,7 @@
 # Driver specific block device options for LUKS.
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
-#     decryption key (since 2.6). Mandatory except when doing a
+#     decryption key (since 2.6).  Mandatory except when doing a
 #     metadata-only probe of the image.
 #
 # @header: block device holding a detached LUKS header.  (since 9.0)
@@ -4050,6 +4050,7 @@
 # @path: path to the vhost-vdpa character device.
 #
 # Features:
+#
 # @fdset: Member @path supports the special "/dev/fdset/N" path
 #     (since 8.1)
 #
@@ -4427,7 +4428,7 @@
 # curl backend.  URLs must start with "http://".
 #
 # @cookie: List of cookies to set; format is "name1=content1;
-#     name2=content2;" as explained by CURLOPT_COOKIE(3). Defaults to
+#     name2=content2;" as explained by CURLOPT_COOKIE(3).  Defaults to
 #     no cookies.
 #
 # @cookie-secret: ID of a QCryptoSecret object providing the cookie
@@ -4447,7 +4448,7 @@
 # curl backend.  URLs must start with "https://".
 #
 # @cookie: List of cookies to set; format is "name1=content1;
-#     name2=content2;" as explained by CURLOPT_COOKIE(3). Defaults to
+#     name2=content2;" as explained by CURLOPT_COOKIE(3).  Defaults to
 #     no cookies.
 #
 # @sslverify: Whether to verify the SSL certificate's validity
@@ -4653,10 +4654,10 @@
 #
 # @driver: block driver name
 #
-# @node-name: the node name of the new node (Since 2.0). This option
+# @node-name: the node name of the new node (Since 2.0).  This option
 #     is required on the top level of blockdev-add.  Valid node names
 #     start with an alphabetic character and may contain only
-#     alphanumeric characters, '-', '.' and '_'. Their maximum length
+#     alphanumeric characters, '-', '.' and '_'.  Their maximum length
 #     is 31 characters.
 #
 # @discard: discard-related options (default: ignore)
@@ -4664,7 +4665,7 @@
 # @cache: cache-related options
 #
 # @read-only: whether the block device should be read-only (default:
-#     false). Note that some block drivers support only read-only
+#     false).  Note that some block drivers support only read-only
 #     access, either generally or in certain configurations.  In this
 #     case, the default value does not work and the option must be
 #     specified explicitly.
@@ -5231,8 +5232,8 @@
 #     monolithcFlat, twoGbMaxExtentSparse and twoGbMaxExtentFlat
 #     formats.  For monolithicFlat, only one entry is required; for
 #     twoGbMaxExtent* formats, the number of entries required is
-#     calculated as extent_number = virtual_size / 2GB. Providing more
-#     extents than will be used is an error.
+#     calculated as extent_number = virtual_size / 2GB.  Providing
+#     more extents than will be used is an error.
 #
 # @subformat: The subformat of the VMDK image.  Default:
 #     "monolithicSparse".
@@ -5244,7 +5245,7 @@
 #     Default: ide.
 #
 # @hwversion: Hardware version.  The meaningful options are "4" or
-#     "6". Default: "4".
+#     "6".  Default: "4".
 #
 # @toolsversion: VMware guest tools version.  Default: "2147483647"
 #     (Since 6.2)
@@ -5440,7 +5441,7 @@
 ##
 # @BlockdevAmendOptionsQcow2:
 #
-# Driver specific image amend options for qcow2. For now, only
+# Driver specific image amend options for qcow2.  For now, only
 # encryption options can be amended
 #
 # @encrypt: Encryption options to be amended
@@ -5543,8 +5544,8 @@
 #     after this event and must be repaired (Since 2.2; before, every
 #     BLOCK_IMAGE_CORRUPTED event was fatal)
 #
-# .. note:: If action is "stop", a STOP event will eventually follow the
-#    BLOCK_IO_ERROR event.
+# .. note:: If action is "stop", a STOP event will eventually follow
+#    the BLOCK_IO_ERROR event.
 #
 # .. qmp-example::
 #
@@ -5590,8 +5591,8 @@
 #     field is a debugging aid for humans, it should not be parsed by
 #     applications) (since: 2.2)
 #
-# .. note:: If action is "stop", a STOP event will eventually follow the
-#    BLOCK_IO_ERROR event.
+# .. note:: If action is "stop", a STOP event will eventually follow
+#    the BLOCK_IO_ERROR event.
 #
 # Since: 0.13
 #
@@ -6046,10 +6047,6 @@
 #
 # @name: the name of the internal snapshot to be created
 #
-# .. note:: In a transaction, if @name is empty or any snapshot matching
-#    @name exists, the operation will fail.  Only some image formats
-#    support it; for example, qcow2, and rbd.
-#
 # Since: 1.7
 ##
 { 'struct': 'BlockdevSnapshotInternal',
@@ -6069,6 +6066,9 @@
 #       GenericError
 #     - If the format of the image used does not support it,
 #       GenericError
+#
+# .. note:: Only some image formats such as qcow2 and rbd support
+#    internal snapshots.
 #
 # Since: 1.7
 #

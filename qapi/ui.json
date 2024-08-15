@@ -48,8 +48,8 @@
 # @password: the new password
 #
 # @connected: How to handle existing clients when changing the
-#     password.  If nothing is specified, defaults to 'keep'. For VNC,
-#     only 'keep' is currently implemented.
+#     password.  If nothing is specified, defaults to 'keep'.  For
+#     VNC, only 'keep' is currently implemented.
 #
 # Since: 7.0
 ##
@@ -107,10 +107,11 @@
 #     - '+INT' where INT is the number of seconds from now (integer)
 #     - 'INT' where INT is the absolute time in seconds
 #
-# .. note:: Time is relative to the server and currently there is no way
-#    to coordinate server time with client time.  It is not recommended
-#    to use the absolute time version of the @time parameter unless
-#    you're sure you are on the same machine as the QEMU instance.
+# .. note:: Time is relative to the server and currently there is no
+#    way to coordinate server time with client time.  It is not
+#    recommended to use the absolute time version of the @time
+#    parameter unless you're sure you are on the same machine as the
+#    QEMU instance.
 #
 # Since: 7.0
 ##
@@ -624,7 +625,7 @@
 # @id: vnc server name.
 #
 # @server: A list of @VncBasincInfo describing all listening sockets.
-#     The list can be empty (in case the vnc server is disabled). It
+#     The list can be empty (in case the vnc server is disabled).  It
 #     also may have multiple entries: normal + websocket, possibly
 #     also ipv4 + ipv6 in the future.
 #
@@ -719,8 +720,8 @@
 #
 # @client: client information
 #
-# .. note:: This event is emitted before any authentication takes place,
-#    thus the authentication ID is not provided.
+# .. note:: This event is emitted before any authentication takes
+#    place, thus the authentication ID is not provided.
 #
 # Since: 0.13
 #
@@ -1266,7 +1267,7 @@
 # Since: 2.6
 #
 # .. note:: The consoles are visible in the qom tree, under
-#    ``/backend/console[$index]``. They have a device link and head
+#    ``/backend/console[$index]``.  They have a device link and head
 #    property, so it is possible to map which console belongs to which
 #    device and display.
 #
@@ -1416,11 +1417,11 @@
 #
 # @left-command-key: Enable/disable forwarding of left command key to
 #     guest.  Allows command-tab window switching on the host without
-#     sending this key to the guest when "off". Defaults to "on"
+#     sending this key to the guest when "off".  Defaults to "on"
 #
 # @full-grab: Capture all key presses, including system combos.  This
 #     requires accessibility permissions, since it performs a global
-#     grab on key events.  (default: off) See
+#     grab on key events.  (default: off)  See
 #     https://support.apple.com/en-in/guide/mac-help/mh32356/mac
 #
 # @swap-opt-cmd: Swap the Option and Command keys so that their key
@@ -1432,7 +1433,7 @@
 #     "off".  (Since 8.2)
 #
 # @zoom-interpolation: Apply interpolation to smooth output when
-#     zoom-to-fit is enabled. Defaults to "off".  (Since 9.0)
+#     zoom-to-fit is enabled.  Defaults to "off".  (Since 9.0)
 #
 # Since: 7.0
 ##

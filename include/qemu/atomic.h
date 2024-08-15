@@ -128,7 +128,7 @@
     _val;                                               \
     })
 #define qatomic_rcu_read(ptr) \
-    qatomic_rcu_read_internal((ptr), MAKE_IDENTFIER(_val))
+    qatomic_rcu_read_internal((ptr), MAKE_IDENTIFIER(_val))
 
 #define qatomic_rcu_set(ptr, i) do {                   \
     qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \

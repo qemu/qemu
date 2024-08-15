@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2022-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2022-2024 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1007,6 +1007,11 @@ int main()
     TEST_P_OP_R(conv_sf2d_chop,   SF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
     TEST_P_OP_R(conv_sf2d_chop,   SF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
 
+    TEST_R_OP_R(conv_sf2uw,       SF_zero_neg,  0, USR_CLEAR);
+    TEST_R_OP_R(conv_sf2uw_chop,  SF_zero_neg,  0, USR_CLEAR);
+    TEST_P_OP_R(conv_sf2ud,       SF_zero_neg,  0, USR_CLEAR);
+    TEST_P_OP_R(conv_sf2ud_chop,  SF_zero_neg,  0, USR_CLEAR);
+
     TEST_R_OP_P(conv_df2sf,       DF_QNaN,  SF_HEX_NaN,             USR_CLEAR);
     TEST_R_OP_P(conv_df2sf,       DF_SNaN,  SF_HEX_NaN,             USR_FPINVF);
     TEST_R_OP_P(conv_df2uw,       DF_QNaN,  0xffffffff,             USR_FPINVF);
@@ -1019,6 +1024,11 @@ int main()
     TEST_P_OP_P(conv_df2d,        DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
     TEST_R_OP_P(conv_df2uw_chop,  DF_QNaN,  0xffffffff,             USR_FPINVF);
     TEST_R_OP_P(conv_df2uw_chop,  DF_SNaN,  0xffffffff,             USR_FPINVF);
+
+    TEST_R_OP_P(conv_df2uw,       DF_zero_neg,  0, USR_CLEAR);
+    TEST_R_OP_P(conv_df2uw_chop,  DF_zero_neg,  0, USR_CLEAR);
+    TEST_P_OP_P(conv_df2ud,       DF_zero_neg,  0, USR_CLEAR);
+    TEST_P_OP_P(conv_df2ud_chop,  DF_zero_neg,  0, USR_CLEAR);
 
     /* Test for typo in HELPER(conv_df2uw_chop) */
     TEST_R_OP_P(conv_df2uw_chop, 0xffffff7f00000001ULL, 0xffffffff, USR_FPINVF);

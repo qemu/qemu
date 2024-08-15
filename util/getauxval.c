@@ -95,16 +95,20 @@ unsigned long qemu_getauxval(unsigned long type)
         }
     }
 
+    errno = ENOENT;
     return 0;
 }
 
-#elif defined(__FreeBSD__)
+#elif defined(CONFIG_ELF_AUX_INFO)
 #include <sys/auxv.h>
 
 unsigned long qemu_getauxval(unsigned long type)
 {
     unsigned long aux = 0;
-    elf_aux_info(type, &aux, sizeof(aux));
+    int ret = elf_aux_info(type, &aux, sizeof(aux));
+    if (ret != 0) {
+        errno = ret;
+    }
     return aux;
 }
 
@@ -112,6 +116,7 @@ unsigned long qemu_getauxval(unsigned long type)
 
 unsigned long qemu_getauxval(unsigned long type)
 {
+    errno = ENOSYS;
     return 0;
 }
 

@@ -3,13 +3,28 @@
 Testing in QEMU
 ===============
 
-This document describes the testing infrastructure in QEMU.
+QEMU's testing infrastructure is fairly complex as it covers
+everything from unit testing and exercising specific sub-systems all
+the way to full blown acceptance tests. To get an overview of the
+tests you can run ``make check-help`` from either the source or build
+tree.
+
+Most (but not all) tests are also integrated into the meson build
+system so can be run directly from the build tree, for example:
+
+.. code::
+
+  [./pyvenv/bin/]meson test --suite qemu:softfloat
+
+will run just the softfloat tests.
+
+The rest of this document will cover the details for specific test
+groups.
 
 Testing with "make check"
 -------------------------
 
-The "make check" testing family includes most of the C based tests in QEMU. For
-a quick help, run ``make check-help`` from the source tree.
+The "make check" testing family includes most of the C based tests in QEMU.
 
 The usual way to run these tests is:
 
@@ -1474,6 +1489,19 @@ And run with::
 
 Adding ``V=1`` to the invocation will show the details of how to
 invoke QEMU for the test which is useful for debugging tests.
+
+Running individual tests
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tests can also be run directly from the test build directory. If you
+run ``make help`` from the test build directory you will get a list of
+all the tests that can be run. Please note that same binaries are used
+in multiple tests, for example::
+
+  make run-plugin-test-mmap-with-libinline.so
+
+will run the mmap test with the ``libinline.so`` TCG plugin. The
+gdbstub tests also re-use the test binaries but while exercising gdb.
 
 TCG test dependencies
 ~~~~~~~~~~~~~~~~~~~~~

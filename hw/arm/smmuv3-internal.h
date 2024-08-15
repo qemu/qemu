@@ -599,7 +599,8 @@ static inline int oas2bits(int oas_field)
     case 5:
         return 48;
     }
-    return -1;
+
+    g_assert_not_reached();
 }
 
 /* CD fields */

@@ -245,6 +245,7 @@ F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
 F: gdb-xml/hexagon*.xml
+T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
 M: Alessandro Di Federico <ale@rev.ng>
@@ -1250,9 +1251,9 @@ F: configs/devices/loongarch64-softmmu/default.mak
 F: hw/loongarch/
 F: include/hw/loongarch/virt.h
 F: include/hw/intc/loongarch_*.h
-F: include/hw/intc/loongson_ipi.h
+F: include/hw/intc/loongson_ipi_common.h
 F: hw/intc/loongarch_*.c
-F: hw/intc/loongson_ipi.c
+F: hw/intc/loongson_ipi_common.c
 F: include/hw/pci-host/ls7a.h
 F: hw/rtc/ls7a_rtc.c
 F: gdb-xml/loongarch*.xml
@@ -1386,11 +1387,13 @@ Loongson-3 virtual platforms
 M: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
+F: hw/intc/loongson_ipi_common.c
 F: hw/intc/loongson_ipi.c
 F: hw/intc/loongson_liointc.c
 F: hw/mips/loongson3_bootp.c
 F: hw/mips/loongson3_bootp.h
 F: hw/mips/loongson3_virt.c
+F: include/hw/intc/loongson_ipi_common.h
 F: include/hw/intc/loongson_ipi.h
 F: include/hw/intc/loongson_liointc.h
 F: tests/avocado/machine_mips_loongson3v.py
@@ -2011,7 +2014,6 @@ F: hw/pci-bridge/*
 F: qapi/pci.json
 F: docs/pci*
 F: docs/specs/*pci*
-F: docs/system/sriov.rst
 
 PCIE DOE
 M: Huai-Cheng Kuo <hchkuo@avery-design.com.tw>
@@ -2463,7 +2465,7 @@ S: Maintained
 F: hw/net/rocker/
 F: qapi/rocker.json
 F: tests/rocker/
-F: docs/specs/rocker.txt
+F: docs/specs/rocker.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
@@ -3751,7 +3753,7 @@ R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
 S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
-F: tests/plugin/
+F: tests/tcg/plugins/
 F: tests/avocado/tcg_plugins.py
 F: contrib/plugins/
 
@@ -3869,7 +3871,7 @@ F: nbd/
 F: include/block/nbd*
 F: qemu-nbd.*
 F: blockdev-nbd.c
-F: docs/interop/nbd.txt
+F: docs/interop/nbd.rst
 F: docs/tools/qemu-nbd.rst
 F: tests/qemu-iotests/tests/*nbd*
 T: git https://repo.or.cz/qemu/ericb.git nbd
@@ -3962,7 +3964,8 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/parallels.c
 F: block/parallels-ext.c
-F: docs/interop/parallels.txt
+F: docs/interop/parallels.rst
+F: docs/interop/prl-xml.rst
 T: git https://src.openvz.org/scm/~den/qemu.git parallels
 
 qed

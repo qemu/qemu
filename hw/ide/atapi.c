@@ -265,7 +265,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
                     byte_count_limit--;
                 size = byte_count_limit;
             }
-            s->lcyl = size;
+            s->lcyl = size & 0xff;
             s->hcyl = size >> 8;
             s->elementary_transfer_size = size;
             /* we cannot transmit more than one sector at a time */

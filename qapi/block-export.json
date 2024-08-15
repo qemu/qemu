@@ -28,7 +28,7 @@
 # @max-connections: The maximum number of connections to allow at the
 #     same time, 0 for unlimited.  Setting this to 1 also stops the
 #     server from advertising multiple client support (since 5.2;
-#     default: 0)
+#     default: 100)
 #
 # Since: 4.2
 ##
@@ -63,7 +63,7 @@
 # @max-connections: The maximum number of connections to allow at the
 #     same time, 0 for unlimited.  Setting this to 1 also stops the
 #     server from advertising multiple client support (since 5.2;
-#     default: 0).
+#     default: 100).
 #
 # Errors:
 #     - if the server is already running
@@ -163,8 +163,8 @@
 # Options for exporting a block graph node on some (file) mountpoint
 # as a raw image.
 #
-# @mountpoint: Path on which to export the block device via FUSE. This
-#     must point to an existing regular file.
+# @mountpoint: Path on which to export the block device via FUSE.
+#     This must point to an existing regular file.
 #
 # @growable: Whether writes beyond the EOF should grow the block node
 #     accordingly.  (default: false)
@@ -172,7 +172,7 @@
 # @allow-other: If this is off, only qemu's user is allowed access to
 #     this export.  That cannot be changed even with chmod or chown.
 #     Enabling this option will allow other users access to the export
-#     with the FUSE mount option "allow_other". Note that using
+#     with the FUSE mount option "allow_other".  Note that using
 #     allow_other as a non-root user requires user_allow_other to be
 #     enabled in the global fuse.conf configuration file.  In auto
 #     mode (the default), the FUSE export driver will first attempt to
@@ -199,7 +199,7 @@
 # @queue-size: the size of virtqueue.  Defaults to 256.
 #
 # @logical-block-size: Logical block size in bytes.  Range [512,
-#     PAGE_SIZE] and must be power of 2. Defaults to 512 bytes.
+#     PAGE_SIZE] and must be power of 2.  Defaults to 512 bytes.
 #
 # @serial: the serial number of virtio block device.  Defaults to
 #     empty string.

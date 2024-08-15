@@ -117,10 +117,10 @@
 # information for that target.
 #
 # @target: the kind of objects to query.  Note that each possible
-#          target may enable additional filtering options
+#     target may enable additional filtering options
 #
-# @providers: which providers to request statistics from, and optionally
-#             which named values to return within each provider
+# @providers: which providers to request statistics from, and
+#     optionally which named values to return within each provider
 #
 # Since: 7.1
 ##

@@ -454,8 +454,8 @@
 # different group.  In this case the limits specified in the
 # parameters will be applied to the new group only.
 #
-# I/O limits can be disabled by setting all of them to 0. In this case
-# the device will be removed from its group and the rest of its
+# I/O limits can be disabled by setting all of them to 0.  In this
+# case the device will be removed from its group and the rest of its
 # members will not be affected.  The 'group' parameter is ignored.
 #
 # Errors:
@@ -519,10 +519,10 @@
 # @id: The name or QOM path of the guest device.
 #
 # @boundaries: list of interval boundary values (see description in
-#     BlockLatencyHistogramInfo definition). If specified, all latency
-#     histograms are removed, and empty ones created for all io types
-#     with intervals corresponding to @boundaries (except for io
-#     types, for which specific boundaries are set through the
+#     BlockLatencyHistogramInfo definition).  If specified, all
+#     latency histograms are removed, and empty ones created for all
+#     io types with intervals corresponding to @boundaries (except for
+#     io types, for which specific boundaries are set through the
 #     following parameters).
 #
 # @boundaries-read: list of interval boundary values for read latency

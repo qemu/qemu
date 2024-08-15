@@ -12,25 +12,20 @@
 # Virtual CPU model.
 #
 # A CPU model consists of the name of a CPU definition, to which delta
-# changes are applied (e.g. features added/removed). Most magic values
-# that an architecture might require should be hidden behind the name.
-# However, if required, architectures can expose relevant properties.
+# changes are applied (e.g. features added/removed).  Most magic
+# values that an architecture might require should be hidden behind
+# the name.  However, if required, architectures can expose relevant
+# properties.
 #
 # @name: the name of the CPU definition the model is based on
 #
 # @props: a dictionary of QOM properties to be applied
 #
-# @deprecated-props: a list of properties that are flagged as deprecated
-#     by the CPU vendor.  These properties are either a subset of the
-#     properties enabled on the CPU model, or a set of properties
-#     deprecated across all models for the architecture.
-#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelInfo',
   'data': { 'name': 'str',
-            '*props': 'any',
-            '*deprecated-props': ['str'] } }
+            '*props': 'any' } }
 
 ##
 # @CpuModelExpansionType:
@@ -52,13 +47,13 @@
 #
 # .. note:: When a non-migration-safe CPU model is expanded in static
 #    mode, some features enabled by the CPU model may be omitted,
-#    because they can't be implemented by a static CPU model definition
-#    (e.g. cache info passthrough and PMU passthrough in x86). If you
-#    need an accurate representation of the features enabled by a
-#    non-migration-safe CPU model, use @full.  If you need a static
-#    representation that will keep ABI compatibility even when changing
-#    QEMU version or machine-type, use @static (but keep in mind that
-#    some features may be omitted).
+#    because they can't be implemented by a static CPU model
+#    definition (e.g. cache info passthrough and PMU passthrough in
+#    x86).  If you need an accurate representation of the features
+#    enabled by a non-migration-safe CPU model, use @full.  If you
+#    need a static representation that will keep ABI compatibility
+#    even when changing QEMU version or machine-type, use @static (but
+#    keep in mind that some features may be omitted).
 #
 # Since: 2.8
 ##
@@ -161,11 +156,11 @@
 # Some architectures may not support comparing CPU models.  s390x
 # supports comparing CPU models.
 #
-# @modela: description of the first CPU model to compare, referred to as
-#     "model A" in CpuModelCompareResult
+# @modela: description of the first CPU model to compare, referred to
+#     as "model A" in CpuModelCompareResult
 #
-# @modelb: description of the second CPU model to compare, referred to as
-#     "model B" in CpuModelCompareResult
+# @modelb: description of the second CPU model to compare, referred to
+#     as "model B" in CpuModelCompareResult
 #
 # Returns: a CpuModelCompareInfo describing how both CPU models
 #     compare
@@ -191,7 +186,8 @@
 #
 # Baseline two CPU models, @modela and @modelb, creating a compatible
 # third model.  The created model will always be a static,
-# migration-safe CPU model (see "static" CPU model expansion for details).
+# migration-safe CPU model (see "static" CPU model expansion for
+# details).
 #
 # This interface can be used by tooling to create a compatible CPU
 # model out two CPU models.  The created CPU model will be identical
@@ -248,10 +244,19 @@
 #
 # @model: the expanded CpuModelInfo.
 #
+# @deprecated-props: a list of properties that are flagged as
+#     deprecated by the CPU vendor.  The list depends on the
+#     CpuModelExpansionType: "static" properties are a subset of the
+#     enabled-properties for the expanded model; "full" properties are
+#     a set of properties that are deprecated across all models for
+#     the architecture.  (since: 9.1).
+#
 # Since: 2.8
 ##
 { 'struct': 'CpuModelExpansionInfo',
-  'data': { 'model': 'CpuModelInfo' },
+  'data': { 'model': 'CpuModelInfo',
+            'deprecated-props' : { 'type': ['str'],
+                                   'if': 'TARGET_S390X' } },
   'if': { 'any': [ 'TARGET_S390X',
                    'TARGET_I386',
                    'TARGET_ARM',
@@ -262,9 +267,9 @@
 # @query-cpu-model-expansion:
 #
 # Expands a given CPU model, @model, (or a combination of CPU model +
-# additional options) to different granularities, specified by
-# @type, allowing tooling to get an understanding what a specific
-# CPU model looks like in QEMU under a certain configuration.
+# additional options) to different granularities, specified by @type,
+# allowing tooling to get an understanding what a specific CPU model
+# looks like in QEMU under a certain configuration.
 #
 # This interface can be used to query the "host" CPU model.
 #
@@ -285,7 +290,7 @@
 #   Using query-cpu-model-expansion while using these is not advised.
 #
 # Some architectures may not support all expansion types.  s390x
-# supports "full" and "static". Arm only supports "full".
+# supports "full" and "static".  Arm only supports "full".
 #
 # @model: description of the CPU model to expand
 #
@@ -352,7 +357,7 @@
 # CPU model attributes that prevent the CPU from running.  If the QOM
 # property is read-only, that means there's no known way to make the
 # CPU model run in the current host.  Implementations that choose not
-# to provide specific information return the property name "type". If
+# to provide specific information return the property name "type".  If
 # the property is read-write, it means that it MAY be possible to run
 # the CPU model in the current host if that property is changed.
 # Management software can use it as hints to suggest or choose an

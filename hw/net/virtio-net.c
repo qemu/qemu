@@ -1641,24 +1641,28 @@ static bool virtio_net_can_receive(NetClientState *nc)
 
 static int virtio_net_has_buffers(VirtIONetQueue *q, int bufsize)
 {
+    int opaque;
+    unsigned int in_bytes;
     VirtIONet *n = q->n;
-    if (virtio_queue_empty(q->rx_vq) ||
-        (n->mergeable_rx_bufs &&
-         !virtqueue_avail_bytes(q->rx_vq, bufsize, 0))) {
-        virtio_queue_set_notification(q->rx_vq, 1);
 
-        /* To avoid a race condition where the guest has made some buffers
-         * available after the above check but before notification was
-         * enabled, check for available buffers again.
-         */
-        if (virtio_queue_empty(q->rx_vq) ||
-            (n->mergeable_rx_bufs &&
-             !virtqueue_avail_bytes(q->rx_vq, bufsize, 0))) {
+    while (virtio_queue_empty(q->rx_vq) || n->mergeable_rx_bufs) {
+        opaque = virtqueue_get_avail_bytes(q->rx_vq, &in_bytes, NULL,
+                                           bufsize, 0);
+        /* Buffer is enough, disable notifiaction */
+        if (bufsize <= in_bytes) {
+            break;
+        }
+
+        if (virtio_queue_enable_notification_and_check(q->rx_vq, opaque)) {
+            /* Guest has added some buffers, try again */
+            continue;
+        } else {
             return 0;
         }
     }
 
     virtio_queue_set_notification(q->rx_vq, 0);
+
     return 1;
 }
 
@@ -1905,7 +1909,8 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
     if (!no_rss && n->rss_data.enabled && n->rss_data.enabled_software_rss) {
         int index = virtio_net_process_rss(nc, buf, size, &extra_hdr);
         if (index >= 0) {
-            NetClientState *nc2 = qemu_get_subqueue(n->nic, index);
+            NetClientState *nc2 =
+                qemu_get_subqueue(n->nic, index % n->curr_queue_pairs);
             return virtio_net_receive_rcu(nc2, buf, size, true);
         }
     }

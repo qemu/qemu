@@ -362,6 +362,7 @@ int kvm_unpark_vcpu(KVMState *s, unsigned long vcpu_id)
             QLIST_REMOVE(cpu, node);
             kvm_fd = cpu->kvm_fd;
             g_free(cpu);
+            break;
         }
     }
 

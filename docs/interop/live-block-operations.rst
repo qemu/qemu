@@ -931,8 +931,8 @@ Shutdown the guest, by issuing the ``quit`` QMP command::
     }
 
 
-Live disk backup --- ``blockdev-backup`` and the deprecated``drive-backup``
----------------------------------------------------------------------------
+Live disk backup --- ``blockdev-backup`` and the deprecated ``drive-backup``
+----------------------------------------------------------------------------
 
 The ``blockdev-backup`` (and the deprecated ``drive-backup``) allows
 you to create a point-in-time snapshot.

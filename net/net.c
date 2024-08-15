@@ -1139,6 +1139,21 @@ NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
     return NULL;
 }
 
+static bool is_nic_model_help_option(const char *model)
+{
+    if (model && is_help_option(model)) {
+        /*
+         * Trigger the help output by instantiating the hash table which
+         * will gather tha available models as they get registered.
+         */
+        if (!nic_model_help) {
+            nic_model_help = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                                   g_free, NULL);
+        }
+        return true;
+    }
+    return false;
+}
 
 /* "I have created a device. Please configure it if you can" */
 bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
@@ -1722,6 +1737,12 @@ void net_check_clients(void)
 
 static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 {
+    const char *model = qemu_opt_get(opts, "model");
+
+    if (is_nic_model_help_option(model)) {
+        return 0;
+    }
+
     return net_client_init(opts, false, errp);
 }
 
@@ -1778,9 +1799,7 @@ static int net_param_nic(void *dummy, QemuOpts *opts, Error **errp)
     memset(ni, 0, sizeof(*ni));
     ni->model = qemu_opt_get_del(opts, "model");
 
-    if (!nic_model_help && !g_strcmp0(ni->model, "help")) {
-        nic_model_help = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                               g_free, NULL);
+    if (is_nic_model_help_option(ni->model)) {
         return 0;
     }
 

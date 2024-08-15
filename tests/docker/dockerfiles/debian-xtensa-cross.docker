@@ -16,7 +16,8 @@ RUN apt-get update && \
         curl \
         gettext \
         git \
-        python3-minimal
+        python3-minimal && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
 
 ENV CPU_LIST dc232b dc233c de233_fpu dsp3400
 ENV TOOLCHAIN_RELEASE 2020.07

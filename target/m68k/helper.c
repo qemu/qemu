@@ -479,7 +479,6 @@ static void print_address_zone(uint32_t logical, uint32_t physical,
 
 static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
 {
-    int i, j, k;
     int tic_size, tic_shift;
     uint32_t tib_mask;
     uint32_t tia, tib, tic;
@@ -502,19 +501,19 @@ static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
         tic_shift = 12;
         tib_mask = M68K_4K_PAGE_MASK;
     }
-    for (i = 0; i < M68K_ROOT_POINTER_ENTRIES; i++) {
+    for (unsigned i = 0; i < M68K_ROOT_POINTER_ENTRIES; i++) {
         tia = address_space_ldl(cs->as, M68K_POINTER_BASE(root_pointer) + i * 4,
                                 MEMTXATTRS_UNSPECIFIED, &txres);
         if (txres != MEMTX_OK || !M68K_UDT_VALID(tia)) {
             continue;
         }
-        for (j = 0; j < M68K_ROOT_POINTER_ENTRIES; j++) {
+        for (unsigned j = 0; j < M68K_ROOT_POINTER_ENTRIES; j++) {
             tib = address_space_ldl(cs->as, M68K_POINTER_BASE(tia) + j * 4,
                                     MEMTXATTRS_UNSPECIFIED, &txres);
             if (txres != MEMTX_OK || !M68K_UDT_VALID(tib)) {
                 continue;
             }
-            for (k = 0; k < tic_size; k++) {
+            for (unsigned k = 0; k < tic_size; k++) {
                 tic = address_space_ldl(cs->as, (tib & tib_mask) + k * 4,
                                         MEMTXATTRS_UNSPECIFIED, &txres);
                 if (txres != MEMTX_OK || !M68K_PDT_VALID(tic)) {
