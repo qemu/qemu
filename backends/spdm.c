@@ -118,8 +118,6 @@ bool libspdm_write_output_file(const char *file_name, const void *file_data,
 #pragma GCC diagnostic ignored "-Wunused-value"
 void *spdm_responder_init(SpdmDev *spdm_dev)
 {
-    SpdmIO *spdm_io = &spdm_dev->spdm_io;
-    SpdmBufferIO *spdm_buffer_io = &spdm_dev->spdm_buffer_io;
     libspdm_data_parameter_t parameter;
     uint8_t data8;
     uint16_t data16;
@@ -139,8 +137,8 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
     libspdm_init_context(spdm_dev->spdm_context);
 
     libspdm_register_device_io_func(spdm_dev->spdm_context,
-                                    spdm_io->spdm_device_send_message,
-                                    spdm_io->spdm_device_receive_message);
+                                    spdm_dev->spdm_device_send_message,
+                                    spdm_dev->spdm_device_receive_message);
 
     if (spdm_dev->use_transport_layer == SOCKET_TRANSPORT_TYPE_MCTP) {
         libspdm_register_transport_layer_func(
@@ -166,10 +164,10 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
     libspdm_register_device_buffer_func(spdm_dev->spdm_context,
                                         LIBSPDM_SENDER_BUFFER_SIZE,
                                         LIBSPDM_RECEIVER_BUFFER_SIZE,
-                                        spdm_buffer_io->spdm_device_acquire_sender_buffer,
-                                        spdm_buffer_io->spdm_device_release_sender_buffer,
-                                        spdm_buffer_io->spdm_device_acquire_receiver_buffer,
-                                        spdm_buffer_io->spdm_device_release_receiver_buffer);
+                                        spdm_dev->spdm_device_acquire_sender_buffer,
+                                        spdm_dev->spdm_device_release_sender_buffer,
+                                        spdm_dev->spdm_device_acquire_receiver_buffer,
+                                        spdm_dev->spdm_device_release_receiver_buffer);
 
     spdm_dev->scratch_buffer_size = libspdm_get_sizeof_required_scratch_buffer(spdm_dev->spdm_context);
     spdm_dev->scratch_buffer = g_malloc(spdm_dev->scratch_buffer_size);

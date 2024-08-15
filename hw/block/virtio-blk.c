@@ -1977,6 +1977,71 @@ static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_stopping = false;
 }
 
+struct SpdmDev vblk_spdm_dev = {
+    .use_transport_layer = SOCKET_TRANSPORT_TYPE_MCTP,
+    .use_version = SPDM_MESSAGE_VERSION_12,
+    .use_secured_message_version = SECURED_SPDM_VERSION_11,
+    .use_responder_capability_flags =
+        (0 | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CACHE_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CERT_CAP | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CHAL_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_SIG | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_NO_SIG */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_FRESH_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_EX_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER_WITH_CONTEXT | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCAP_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HBEAT_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_UPD_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP |
+        0),
+    .use_capability_flags = 0,
+    .use_basic_mut_auth = 1,
+    . use_mut_auth = 
+        SPDM_KEY_EXCHANGE_RESPONSE_MUT_AUTH_REQUESTED_WITH_ENCAP_REQUEST,
+    .use_measurement_summary_hash_type =
+        SPDM_CHALLENGE_REQUEST_ALL_MEASUREMENTS_HASH,
+    .use_measurement_operation =
+        SPDM_GET_MEASUREMENTS_REQUEST_MEASUREMENT_OPERATION_TOTAL_NUMBER_OF_MEASUREMENTS,
+    .use_slot_id = 0,
+    .use_slot_count = 3,
+    .use_key_update_action = LIBSPDM_KEY_UPDATE_ACTION_MAX,
+    .support_measurement_spec =
+        SPDM_MEASUREMENT_SPECIFICATION_DMTF,
+    .support_measurement_hash_algo =
+        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_512 |
+        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_384,
+    .support_hash_algo = SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_384 |
+                    SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+    .support_asym_algo =
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P384 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P256,
+    .support_req_asym_algo =
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_3072 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_2048 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_3072 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048,
+    .support_dhe_algo =
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_384_R1 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_256_R1 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_3072 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_2048,
+    .support_aead_algo =
+        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_AES_256_GCM |
+        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_CHACHA20_POLY1305,
+    .support_key_schedule_algo = SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH,
+    
+    .spdm_device_send_message = vblk_spdm_send_message,
+    .spdm_device_receive_message = vblk_spdm_receive_message,
+    
+    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
+    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
+    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
+    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
+};
+
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -2103,11 +2168,11 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lsecs);
 
 #ifdef CONFIG_LIBSPDM
-    vblk_init_spdm_dev(s);
+    s->spdm_dev = &vblk_spdm_dev;
+    qemu_mutex_init(&m_spdm_mutex);
     spdm_responder_init(s->spdm_dev);
     libspdm_register_connection_state_callback_func(
         s->spdm_dev->spdm_context, vblk_spdm_connection_state_callback);
-    qemu_mutex_init(&m_spdm_mutex);
 #endif 
 }
 

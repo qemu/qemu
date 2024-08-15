@@ -101,27 +101,6 @@
 #endif
 
 typedef struct SpdmDev SpdmDev;
-typedef struct SpdmIO SpdmIO;
-typedef struct SpdmBufferIO SpdmBufferIO;
-
-struct SpdmIO {
-    libspdm_return_t (*spdm_device_send_message)(void *spdm_context,
-                                                 size_t response_size,
-                                                 const void *response,
-                                                 uint64_t timeout);
-    libspdm_return_t (*spdm_device_receive_message)(void *spdm_context,
-                                                    size_t *request_size,
-                                                    void **request,
-                                                    uint64_t timeout);
-};
-
-struct SpdmBufferIO {
-    libspdm_return_t (*spdm_device_acquire_sender_buffer)(void *context, void **msg_buffer_ptr);
-    void (*spdm_device_release_sender_buffer)(void *context, const void *msg_buf_ptr);
-
-    libspdm_return_t (*spdm_device_acquire_receiver_buffer)(void *context, void **msg_buf_ptr);
-    void (*spdm_device_release_receiver_buffer)(void *context, const void *msg_buf_ptr);
-};
 
 struct SpdmDev {
     bool isResponder;
@@ -190,14 +169,26 @@ struct SpdmDev {
 
     uint32_t exe_session;
     
-    /**/ 
-    SpdmIO spdm_io;
-    SpdmBufferIO spdm_buffer_io;
-
+    /* Methods */ 
     libspdm_return_t (*spdm_get_response_vendor_defined_request)(
         void *spdm_context, const uint32_t *session_id, bool is_app_message,
         size_t request_size, const void *request, size_t *response_size,
         void *response);
+    
+    libspdm_return_t (*spdm_device_send_message)(void *spdm_context,
+                                                 size_t response_size,
+                                                 const void *response,
+                                                 uint64_t timeout);
+    libspdm_return_t (*spdm_device_receive_message)(void *spdm_context,
+                                                    size_t *request_size,
+                                                    void **request,
+                                                    uint64_t timeout);
+    
+    libspdm_return_t (*spdm_device_acquire_sender_buffer)(void *context, void **msg_buffer_ptr);
+    void (*spdm_device_release_sender_buffer)(void *context, const void *msg_buf_ptr);
+
+    libspdm_return_t (*spdm_device_acquire_receiver_buffer)(void *context, void **msg_buf_ptr);
+    void (*spdm_device_release_receiver_buffer)(void *context, const void *msg_buf_ptr);
 };
 
 void *spdm_responder_init(SpdmDev *spdm_dev);
