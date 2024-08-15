@@ -1525,11 +1525,7 @@ static void *kvm_dirty_ring_reaper_thread(void *data)
         r->reaper_iteration++;
     }
 
-    trace_kvm_dirty_ring_reaper("exit");
-
-    rcu_unregister_thread();
-
-    return NULL;
+    g_assert_not_reached();
 }
 
 static void kvm_dirty_ring_reaper_init(KVMState *s)
