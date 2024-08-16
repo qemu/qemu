@@ -22,7 +22,11 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINTTL(env.next_PC, HexagonCPU),
         VMSTATE_UINTTL(env.tlb_lock_state, HexagonCPU),
         VMSTATE_UINTTL(env.k0_lock_state, HexagonCPU),
+        VMSTATE_UINTTL(env.tlb_lock_count, HexagonCPU),
+        VMSTATE_UINTTL(env.k0_lock_count, HexagonCPU),
         VMSTATE_UINTTL(env.threadId, HexagonCPU),
+        VMSTATE_UINTTL(env.cause_code, HexagonCPU),
+        VMSTATE_UINTTL(env.wait_next_pc, HexagonCPU),
         VMSTATE_END_OF_LIST()
     },
 };
