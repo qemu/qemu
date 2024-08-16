@@ -69,5 +69,13 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
     g_assert_not_reached();
 }
 
+void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    g_assert_not_reached();
+}
 
+int get_exe_mode(CPUHexagonState *env)
+{
+    g_assert_not_reached();
+}
 #endif

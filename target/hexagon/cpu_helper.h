@@ -14,6 +14,8 @@ uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env);
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t);
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t);
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t);
+void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old);
+int get_exe_mode(CPUHexagonState *env);
 
 static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
