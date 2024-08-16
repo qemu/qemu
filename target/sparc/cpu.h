@@ -184,6 +184,8 @@ enum {
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)
 #define FSR_FTT_INVAL_FPR (6ULL << 14)
 
+#define FSR_QNE    (1ULL << 13)
+
 #define FSR_FCC0_SHIFT    10
 #define FSR_FCC1_SHIFT    32
 #define FSR_FCC2_SHIFT    34
@@ -437,6 +439,26 @@ struct CPUArchState {
     uint32_t fsr;                    /* rm, tem, aexc */
     uint32_t fsr_cexc_ftt;           /* cexc, ftt */
     uint32_t fcc[TARGET_FCCREGS];    /* fcc* */
+
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    /*
+     * Single-element FPU fault queue, with address and insn,
+     * packaged into the double-word with which it is stored.
+     */
+    uint32_t fsr_qne;                /* qne */
+    union {
+        uint64_t d;
+        struct {
+#if HOST_BIG_ENDIAN
+            uint32_t addr;
+            uint32_t insn;
+#else
+            uint32_t insn;
+            uint32_t addr;
+#endif
+        } s;
+    } fq;
+#endif
 
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
