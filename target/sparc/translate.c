@@ -185,6 +185,8 @@ typedef struct DisasContext {
     bool supervisor;
 #ifdef TARGET_SPARC64
     bool hypervisor;
+#else
+    bool fsr_qne;
 #endif
 #endif
 
@@ -5596,13 +5598,15 @@ static void sparc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->address_mask_32bit = tb_am_enabled(dc->base.tb->flags);
 #ifndef CONFIG_USER_ONLY
     dc->supervisor = (dc->base.tb->flags & TB_FLAG_SUPER) != 0;
+# ifdef TARGET_SPARC64
+    dc->hypervisor = (dc->base.tb->flags & TB_FLAG_HYPER) != 0;
+# else
+    dc->fsr_qne = (dc->base.tb->flags & TB_FLAG_FSR_QNE) != 0;
+# endif
 #endif
 #ifdef TARGET_SPARC64
     dc->fprs_dirty = 0;
     dc->asi = (dc->base.tb->flags >> TB_FLAG_ASI_SHIFT) & 0xff;
-#ifndef CONFIG_USER_ONLY
-    dc->hypervisor = (dc->base.tb->flags & TB_FLAG_HYPER) != 0;
-#endif
 #endif
     /*
      * if we reach a page boundary, we stop generation so that the
