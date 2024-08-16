@@ -1522,7 +1522,6 @@ class BootLinuxConsole(LinuxKernelTest):
     # like issues with a buggy kernel. As a result we don't want it
     # gating releases on Gitlab.
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_sh4_r2d(self):
         """
         :avocado: tags=arch:sh4

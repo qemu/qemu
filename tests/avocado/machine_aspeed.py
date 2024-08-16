@@ -323,7 +323,6 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         self.wait_for_console_pattern('Starting kernel ...')
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_arm_ast2500_evb_sdk(self):
         """
         :avocado: tags=arch:arm
@@ -343,7 +342,6 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
         self.wait_for_console_pattern('nodistro.0 ast2500-default ttyS4')
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_arm_ast2600_evb_sdk(self):
         """
         :avocado: tags=arch:arm

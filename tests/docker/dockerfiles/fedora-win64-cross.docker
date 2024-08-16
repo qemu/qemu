@@ -34,6 +34,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                git \
                glib2-devel \
                glibc-langpack-en \
+               gtk-vnc2-devel \
                hostname \
                llvm \
                make \

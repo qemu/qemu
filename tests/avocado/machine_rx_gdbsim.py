@@ -49,7 +49,6 @@ class RxGdbSimMachine(QemuSystemTest):
         #exec_command_and_wait_for_pattern(self, 'version', gcc_version)
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_linux_sash(self):
         """
         Boots a Linux kernel and checks that the console is operational.

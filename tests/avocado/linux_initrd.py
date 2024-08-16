@@ -54,7 +54,6 @@ class LinuxInitrd(QemuSystemTest):
             self.assertRegex(self.vm.get_log(), expected_msg)
 
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-
     def test_with_2gib_file_should_work_with_linux_v4_16(self):
         """
         :avocado: tags=flaky
