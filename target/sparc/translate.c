@@ -4531,17 +4531,41 @@ TRANS(STQFA, 64, do_st_fpr, a, MO_128)
 
 static bool trans_STDFQ(DisasContext *dc, arg_STDFQ *a)
 {
+    TCGv addr;
+
     if (!avail_32(dc)) {
+        return false;
+    }
+    addr = gen_ldst_addr(dc, a->rs1, a->imm, a->rs2_or_imm);
+    if (addr == NULL) {
         return false;
     }
     if (!supervisor(dc)) {
         return raise_priv(dc);
     }
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
     if (gen_trap_ifnofpu(dc)) {
         return true;
     }
-    gen_op_fpexception_im(dc, FSR_FTT_SEQ_ERROR);
-    return true;
+    if (!dc->fsr_qne) {
+        gen_op_fpexception_im(dc, FSR_FTT_SEQ_ERROR);
+        return true;
+    }
+
+    /* Store the single element from the queue. */
+    TCGv_i64 fq = tcg_temp_new_i64();
+    tcg_gen_ld_i64(fq, tcg_env, offsetof(CPUSPARCState, fq.d));
+    tcg_gen_qemu_st_i64(fq, addr, dc->mem_idx, MO_TEUQ | MO_ALIGN_4);
+
+    /* Mark the queue empty, transitioning to fp_execute state. */
+    tcg_gen_st_i32(tcg_constant_i32(0), tcg_env,
+                   offsetof(CPUSPARCState, fsr_qne));
+    dc->fsr_qne = 0;
+
+    return advance_pc(dc);
+#else
+    qemu_build_not_reached();
+#endif
 }
 
 static bool trans_LDFSR(DisasContext *dc, arg_r_r_ri *a)
