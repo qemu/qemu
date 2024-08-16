@@ -122,6 +122,64 @@ static void xen_enable_tpm(XenPVHMachineState *s)
 }
 #endif
 
+/*
+ * We use the GPEX PCIe controller with its internal INTX PCI interrupt
+ * swizzling. This swizzling is emulated in QEMU and routes all INTX
+ * interrupts from endpoints down to only 4 INTX interrupts.
+ * See include/hw/pci/pci.h : pci_swizzle()
+ */
+static inline void xenpvh_gpex_init(XenPVHMachineState *s,
+                                    XenPVHMachineClass *xpc,
+                                    MemoryRegion *sysmem)
+{
+    MemoryRegion *ecam_reg;
+    MemoryRegion *mmio_reg;
+    DeviceState *dev;
+    int i;
+
+    object_initialize_child(OBJECT(s), "gpex", &s->pci.gpex,
+                            TYPE_GPEX_HOST);
+    dev = DEVICE(&s->pci.gpex);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion(sysmem, s->cfg.pci_ecam.base, ecam_reg);
+
+    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+
+    if (s->cfg.pci_mmio.size) {
+        memory_region_init_alias(&s->pci.mmio_alias, OBJECT(dev), "pcie-mmio",
+                                 mmio_reg,
+                                 s->cfg.pci_mmio.base, s->cfg.pci_mmio.size);
+        memory_region_add_subregion(sysmem, s->cfg.pci_mmio.base,
+                                    &s->pci.mmio_alias);
+    }
+
+    if (s->cfg.pci_mmio_high.size) {
+        memory_region_init_alias(&s->pci.mmio_high_alias, OBJECT(dev),
+                "pcie-mmio-high",
+                mmio_reg, s->cfg.pci_mmio_high.base, s->cfg.pci_mmio_high.size);
+        memory_region_add_subregion(sysmem, s->cfg.pci_mmio_high.base,
+                &s->pci.mmio_high_alias);
+    }
+
+    /*
+     * PVH implementations with PCI enabled must provide set_pci_intx_irq()
+     * and optionally an implementation of set_pci_link_route().
+     */
+    assert(xpc->set_pci_intx_irq);
+
+    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+        qemu_irq irq = qemu_allocate_irq(xpc->set_pci_intx_irq, s, i);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
+        gpex_set_irq_num(GPEX_HOST(dev), i, s->cfg.pci_intx_irq_base + i);
+        if (xpc->set_pci_link_route) {
+            xpc->set_pci_link_route(i, s->cfg.pci_intx_irq_base + i);
+        }
+    }
+}
+
 static void xen_pvh_init(MachineState *ms)
 {
     XenPVHMachineState *s = XEN_PVH_MACHINE(ms);
@@ -151,6 +209,15 @@ static void xen_pvh_init(MachineState *ms)
         }
     }
 #endif
+
+    /* Non-zero pci-ecam-size enables PCI.  */
+    if (s->cfg.pci_ecam.size) {
+        if (s->cfg.pci_ecam.size != 256 * MiB) {
+            error_report("pci-ecam-size only supports values 0 or 0x10000000");
+            exit(EXIT_FAILURE);
+        }
+        xenpvh_gpex_init(s, xpc, sysmem);
+    }
 
     /* Call the implementation specific init.  */
     if (xpc->init) {
@@ -200,6 +267,9 @@ XEN_PVH_PROP_MEMMAP(ram_high)
 /* TPM only has a base-addr option.  */
 XEN_PVH_PROP_MEMMAP_BASE(tpm)
 XEN_PVH_PROP_MEMMAP(virtio_mmio)
+XEN_PVH_PROP_MEMMAP(pci_ecam)
+XEN_PVH_PROP_MEMMAP(pci_mmio)
+XEN_PVH_PROP_MEMMAP(pci_mmio_high)
 
 void xen_pvh_class_setup_common_props(XenPVHMachineClass *xpc)
 {
@@ -240,6 +310,12 @@ do {                                                                      \
 
     if (xpc->has_virtio_mmio) {
         OC_MEMMAP_PROP(oc, "virtio-mmio", virtio_mmio);
+    }
+
+    if (xpc->has_pci) {
+        OC_MEMMAP_PROP(oc, "pci-ecam", pci_ecam);
+        OC_MEMMAP_PROP(oc, "pci-mmio", pci_mmio);
+        OC_MEMMAP_PROP(oc, "pci-mmio-high", pci_mmio_high);
     }
 
 #ifdef CONFIG_TPM

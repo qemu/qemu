@@ -26,9 +26,28 @@ struct XenPVHMachineClass {
     void (*init)(MachineState *state);
 
     /*
+     * set_pci_intx_irq - Deliver INTX irqs to the guest.
+     *
+     * @opaque: pointer to XenPVHMachineState.
+     * @irq: IRQ after swizzling, between 0-3.
+     * @level: IRQ level.
+     */
+    void (*set_pci_intx_irq)(void *opaque, int irq, int level);
+
+    /*
+     * set_pci_link_route: - optional implementation call to setup
+     * routing between INTX IRQ (0 - 3) and GSI's.
+     *
+     * @line: line the INTx line (0 => A .. 3 => B)
+     * @irq: GSI
+     */
+    int (*set_pci_link_route)(uint8_t line, uint8_t irq);
+
+    /*
      * Each implementation can optionally enable features that it
      * supports and are known to work.
      */
+    bool has_pci;
     bool has_tpm;
     bool has_virtio_mmio;
 };
@@ -45,6 +64,12 @@ struct XenPVHMachineState {
     } ram;
 
     struct {
+        GPEXHost gpex;
+        MemoryRegion mmio_alias;
+        MemoryRegion mmio_high_alias;
+    } pci;
+
+    struct {
         MemMapEntry ram_low, ram_high;
         MemMapEntry tpm;
 
@@ -52,6 +77,10 @@ struct XenPVHMachineState {
         MemMapEntry virtio_mmio;
         uint32_t virtio_mmio_num;
         uint32_t virtio_mmio_irq_base;
+
+        /* PCI */
+        MemMapEntry pci_ecam, pci_mmio, pci_mmio_high;
+        uint32_t pci_intx_irq_base;
     } cfg;
 };
 
