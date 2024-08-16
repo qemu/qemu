@@ -311,7 +311,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->threadId = cs->cpu_index;
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    env->tlb_lock_count = 0;
+    env->k0_lock_count = 0;
     env->next_PC = 0;
+    env->wait_next_pc = 0;
+    env->cause_code = -1;
 #endif
 }
 

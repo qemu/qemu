@@ -103,6 +103,7 @@ typedef struct {
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
+    target_ulong cause_code;
 
     /* For comparing with LLDB on target - see adjust_stack_ptrs function */
     target_ulong last_pc_dumped;
@@ -118,11 +119,14 @@ typedef struct CPUArchState {
 
     target_ulong greg[NUM_GREGS];
     target_ulong greg_written[NUM_GREGS];
+    target_ulong wait_next_pc;
 
     /* This alias of CPUState.cpu_index is used by imported sources: */
     target_ulong threadId;
     hex_lock_state_t tlb_lock_state;
     hex_lock_state_t k0_lock_state;
+    target_ulong tlb_lock_count;
+    target_ulong k0_lock_count;
     target_ulong next_PC;
 #endif
     target_ulong new_value_usr;
