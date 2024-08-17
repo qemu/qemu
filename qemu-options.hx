@@ -68,8 +68,8 @@ SRST
 
     ``vmport=on|off|auto``
         Enables emulation of VMWare IO port, for vmmouse etc. auto says
-        to select the value based on accel. For accel=xen the default is
-        off otherwise the default is on.
+        to select the value based on accel and i8042. For accel=xen or
+        i8042=off the default is off otherwise the default is on.
 
     ``dump-guest-core=on|off``
         Include guest memory in a core dump. The default is on.
