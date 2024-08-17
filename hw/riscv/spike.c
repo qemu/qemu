@@ -198,6 +198,7 @@ static void spike_board_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     target_ulong firmware_end_addr = memmap[SPIKE_DRAM].base;
+    hwaddr firmware_load_addr = memmap[SPIKE_DRAM].base;
     target_ulong kernel_start_addr;
     char *firmware_name;
     uint32_t fdt_load_addr;
@@ -290,7 +291,7 @@ static void spike_board_init(MachineState *machine)
     /* Load firmware */
     if (firmware_name) {
         firmware_end_addr = riscv_load_firmware(firmware_name,
-                                                memmap[SPIKE_DRAM].base,
+                                                &firmware_load_addr,
                                                 htif_symbol_callback);
         g_free(firmware_name);
     }
@@ -320,7 +321,7 @@ static void spike_board_init(MachineState *machine)
     riscv_load_fdt(fdt_load_addr, machine->fdt);
 
     /* load the reset vector */
-    riscv_setup_rom_reset_vec(machine, &s->soc[0], memmap[SPIKE_DRAM].base,
+    riscv_setup_rom_reset_vec(machine, &s->soc[0], firmware_load_addr,
                               memmap[SPIKE_MROM].base,
                               memmap[SPIKE_MROM].size, kernel_entry,
                               fdt_load_addr);

@@ -98,7 +98,8 @@ static void opentitan_machine_init(MachineState *machine)
         memmap[IBEX_DEV_RAM].base, machine->ram);
 
     if (machine->firmware) {
-        riscv_load_firmware(machine->firmware, memmap[IBEX_DEV_RAM].base, NULL);
+        hwaddr firmware_load_addr = memmap[IBEX_DEV_RAM].base;
+        riscv_load_firmware(machine->firmware, &firmware_load_addr, NULL);
     }
 
     if (machine->kernel_filename) {
