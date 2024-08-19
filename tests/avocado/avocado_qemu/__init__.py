@@ -135,6 +135,13 @@ def _console_interaction(test, success_message, failure_message,
             vm.console_socket.sendall(send_string.encode())
             if not keep_sending:
                 send_string = None # send only once
+
+        # Only consume console output if waiting for something
+        if success_message is None and failure_message is None:
+            if send_string is None:
+                break
+            continue
+
         try:
             msg = console.readline().decode().strip()
         except UnicodeDecodeError:
