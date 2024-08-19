@@ -243,6 +243,7 @@ qcrypto_tls_creds_psk_finalize(Object *obj)
     QCryptoTLSCredsPSK *creds = QCRYPTO_TLS_CREDS_PSK(obj);
 
     qcrypto_tls_creds_psk_unload(creds);
+    g_free(creds->username);
 }
 
 static void
