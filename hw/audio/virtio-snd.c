@@ -282,12 +282,12 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
         error_report("Number of channels is not supported.");
         return cpu_to_le32(VIRTIO_SND_S_NOT_SUPP);
     }
-    if (BIT(params->format) > sizeof(supported_formats) ||
+    if (params->format >= sizeof(supported_formats) * BITS_PER_BYTE ||
         !(supported_formats & BIT(params->format))) {
         error_report("Stream format is not supported.");
         return cpu_to_le32(VIRTIO_SND_S_NOT_SUPP);
     }
-    if (BIT(params->rate) > sizeof(supported_rates) ||
+    if (params->rate >= sizeof(supported_rates) * BITS_PER_BYTE ||
         !(supported_rates & BIT(params->rate))) {
         error_report("Stream rate is not supported.");
         return cpu_to_le32(VIRTIO_SND_S_NOT_SUPP);
