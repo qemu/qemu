@@ -82,11 +82,10 @@ static QDict *SocketAddress_to_qdict(SocketAddress *addr)
     return dict;
 }
 
-static SocketAddress *migrate_get_socket_address(QTestState *who)
+static SocketAddressList *migrate_get_socket_address(QTestState *who)
 {
     QDict *rsp;
     SocketAddressList *addrs;
-    SocketAddress *addr;
     Visitor *iv = NULL;
     QObject *object;
 
@@ -95,36 +94,35 @@ static SocketAddress *migrate_get_socket_address(QTestState *who)
 
     iv = qobject_input_visitor_new(object);
     visit_type_SocketAddressList(iv, NULL, &addrs, &error_abort);
-    addr = addrs->value;
     visit_free(iv);
 
     qobject_unref(rsp);
-    return addr;
+    return addrs;
 }
 
 static char *
 migrate_get_connect_uri(QTestState *who)
 {
-    SocketAddress *addrs;
+    SocketAddressList *addrs;
     char *connect_uri;
 
     addrs = migrate_get_socket_address(who);
-    connect_uri = SocketAddress_to_str(addrs);
+    connect_uri = SocketAddress_to_str(addrs->value);
 
-    qapi_free_SocketAddress(addrs);
+    qapi_free_SocketAddressList(addrs);
     return connect_uri;
 }
 
 static QDict *
 migrate_get_connect_qdict(QTestState *who)
 {
-    SocketAddress *addrs;
+    SocketAddressList *addrs;
     QDict *connect_qdict;
 
     addrs = migrate_get_socket_address(who);
-    connect_qdict = SocketAddress_to_qdict(addrs);
+    connect_qdict = SocketAddress_to_qdict(addrs->value);
 
-    qapi_free_SocketAddress(addrs);
+    qapi_free_SocketAddressList(addrs);
     return connect_qdict;
 }
 
