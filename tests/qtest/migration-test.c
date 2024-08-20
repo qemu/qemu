@@ -145,6 +145,9 @@ static char *bootpath;
 
 static void bootfile_delete(void)
 {
+    if (!bootpath) {
+        return;
+    }
     unlink(bootpath);
     g_free(bootpath);
     bootpath = NULL;
@@ -156,10 +159,7 @@ static void bootfile_create(char *dir, bool suspend_me)
     unsigned char *content;
     size_t len;
 
-    if (bootpath) {
-        bootfile_delete();
-    }
-
+    bootfile_delete();
     bootpath = g_strdup_printf("%s/bootsect", dir);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
