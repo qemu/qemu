@@ -135,6 +135,7 @@ void test_tls_init(const char *keyfile)
 void test_tls_cleanup(const char *keyfile)
 {
     asn1_delete_structure(&pkix_asn1);
+    gnutls_x509_privkey_deinit(privkey);
     unlink(keyfile);
 }
 
