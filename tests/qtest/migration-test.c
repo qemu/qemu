@@ -2315,6 +2315,7 @@ static void multifd_mapped_ram_fdset_end(QTestState *from, QTestState *to,
     g_assert(qdict_haskey(resp, "return"));
     fdsets = qdict_get_qlist(resp, "return");
     g_assert(fdsets && qlist_empty(fdsets));
+    qobject_unref(resp);
 }
 
 static void *multifd_mapped_ram_fdset_dio(QTestState *from, QTestState *to)
