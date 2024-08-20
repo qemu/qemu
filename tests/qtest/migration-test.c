@@ -1061,12 +1061,15 @@ test_migrate_tls_x509_start_common(QTestState *from,
                                    QCRYPTO_TLS_TEST_CLIENT_HOSTILE_NAME :
                                    QCRYPTO_TLS_TEST_CLIENT_NAME,
                                    data->clientcert);
+        test_tls_deinit_cert(&servercertreq);
     }
 
     TLS_CERT_REQ_SIMPLE_SERVER(clientcertreq, cacertreq,
                                data->servercert,
                                args->certhostname,
                                args->certipaddr);
+    test_tls_deinit_cert(&clientcertreq);
+    test_tls_deinit_cert(&cacertreq);
 
     qtest_qmp_assert_success(from,
                              "{ 'execute': 'object-add',"

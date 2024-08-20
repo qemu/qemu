@@ -73,6 +73,12 @@ void test_tls_generate_cert(QCryptoTLSTestCertReq *req,
 void test_tls_write_cert_chain(const char *filename,
                                gnutls_x509_crt_t *certs,
                                size_t ncerts);
+/*
+ * Deinitialize the QCryptoTLSTestCertReq, but don't delete the certificate
+ * file on disk. (The caller is then responsible for doing that themselves.
+ */
+void test_tls_deinit_cert(QCryptoTLSTestCertReq *req);
+/* Deinit the QCryptoTLSTestCertReq, and delete the certificate file */
 void test_tls_discard_cert(QCryptoTLSTestCertReq *req);
 
 void test_tls_init(const char *keyfile);
