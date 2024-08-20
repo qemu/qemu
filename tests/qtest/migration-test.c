@@ -3355,7 +3355,7 @@ static void wait_for_calc_dirtyrate_complete(QTestState *who,
 static int64_t get_dirty_rate(QTestState *who)
 {
     QDict *rsp_return;
-    gchar *status;
+    const char *status;
     QList *rates;
     const QListEntry *entry;
     QDict *rate;
@@ -3364,7 +3364,7 @@ static int64_t get_dirty_rate(QTestState *who)
     rsp_return = query_dirty_rate(who);
     g_assert(rsp_return);
 
-    status = g_strdup(qdict_get_str(rsp_return, "status"));
+    status = qdict_get_str(rsp_return, "status");
     g_assert(status);
     g_assert_cmpstr(status, ==, "measured");
 
