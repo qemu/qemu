@@ -1357,6 +1357,8 @@ static void multifd_recv_cleanup_channel(MultiFDRecvParams *p)
     qemu_mutex_destroy(&p->mutex);
     qemu_sem_destroy(&p->sem_sync);
     qemu_sem_destroy(&p->sem);
+    g_free(p->data);
+    p->data = NULL;
     g_free(p->name);
     p->name = NULL;
     p->packet_len = 0;
