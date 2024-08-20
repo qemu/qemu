@@ -142,7 +142,7 @@ static void migrate_set_ports(QTestState *to, QList *channel_list)
             qdict_haskey(addr, "port") &&
             (strcmp(qdict_get_str(addrdict, "port"), "0") == 0)) {
                 addr_port = qdict_get_str(addr, "port");
-                qdict_put_str(addrdict, "port", g_strdup(addr_port));
+                qdict_put_str(addrdict, "port", addr_port);
         }
     }
 
