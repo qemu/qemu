@@ -1228,7 +1228,6 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         isa_realize_and_unref(pcms->pcspk, isa_bus, &error_fatal);
     }
 
-    assert(pcms->vmport >= 0 && pcms->vmport < ON_OFF_AUTO__MAX);
     if (pcms->vmport == ON_OFF_AUTO_AUTO) {
         pcms->vmport = (xen_enabled() || !pcms->i8042_enabled)
             ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
