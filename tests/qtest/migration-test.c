@@ -3318,15 +3318,18 @@ static QDict *query_vcpu_dirty_limit(QTestState *who)
 static bool calc_dirtyrate_ready(QTestState *who)
 {
     QDict *rsp_return;
-    gchar *status;
+    const char *status;
+    bool ready;
 
     rsp_return = query_dirty_rate(who);
     g_assert(rsp_return);
 
-    status = g_strdup(qdict_get_str(rsp_return, "status"));
+    status = qdict_get_str(rsp_return, "status");
     g_assert(status);
+    ready = g_strcmp0(status, "measuring");
+    qobject_unref(rsp_return);
 
-    return g_strcmp0(status, "measuring");
+    return ready;
 }
 
 static void wait_for_calc_dirtyrate_complete(QTestState *who,
