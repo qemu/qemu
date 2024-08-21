@@ -7,7 +7,7 @@
 # "freeze" argument before the filesystem is frozen. And for fsfreeze-thaw
 # request, it is issued with "thaw" argument after filesystem is thawed.
 
-LOGFILE=/var/log/qga-fsfreeze-hook.log
+LOGFILE=/var/log/qemu-ga/qga-fsfreeze-hook.log
 FSFREEZE_D=$(dirname -- "$(realpath $0)")/fsfreeze-hook.d
 
 # Check whether file $1 is a backup or rpm-generated file and should be ignored
