@@ -218,7 +218,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
          *   highram: [VIRT_HIGHMEM_BASE, +(len - gap))
          */
         if (len >= gap) {
-            build_srat_memory(table_data, base, len, i, MEM_AFFINITY_ENABLED);
+            build_srat_memory(table_data, base, gap, i, MEM_AFFINITY_ENABLED);
             len -= gap;
             base = VIRT_HIGHMEM_BASE;
             gap = machine->ram_size - VIRT_LOWMEM_SIZE;
