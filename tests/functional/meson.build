@@ -146,16 +146,24 @@ tests_ppc64_system_thorough = [
   'ppc64_tuxrun',
 ]
 
-tests_rx_system_thorough = [
-  'rx_gdbsim',
+tests_riscv32_system_quick = [
+  'riscv_opensbi',
 ]
 
 tests_riscv32_system_thorough = [
   'riscv32_tuxrun',
 ]
 
+tests_riscv64_system_quick = [
+  'riscv_opensbi',
+]
+
 tests_riscv64_system_thorough = [
   'riscv64_tuxrun',
+]
+
+tests_rx_system_thorough = [
+  'rx_gdbsim',
 ]
 
 tests_s390x_system_thorough = [
