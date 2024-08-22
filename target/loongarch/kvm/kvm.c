@@ -476,9 +476,12 @@ static int kvm_loongarch_put_regs_fp(CPUState *cs)
     return ret;
 }
 
-void kvm_arch_reset_vcpu(CPULoongArchState *env)
+void kvm_arch_reset_vcpu(CPUState *cs)
 {
+    CPULoongArchState *env = cpu_env(cs);
+
     env->mp_state = KVM_MP_STATE_RUNNABLE;
+    kvm_set_one_reg(cs, KVM_REG_LOONGARCH_VCPU_RESET, 0);
 }
 
 static int kvm_loongarch_get_mpstate(CPUState *cs)
