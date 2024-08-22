@@ -92,10 +92,13 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
 static void nbd_update_server_watch(NBDServerData *s)
 {
-    if (!s->max_connections || s->connections < s->max_connections) {
-        qio_net_listener_set_client_func(s->listener, nbd_accept, NULL, NULL);
-    } else {
-        qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+    if (s->listener) {
+        if (!s->max_connections || s->connections < s->max_connections) {
+            qio_net_listener_set_client_func(s->listener, nbd_accept, NULL,
+                                             NULL);
+        } else {
+            qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+        }
     }
 }
 
@@ -113,6 +116,7 @@ static void nbd_server_free(NBDServerData *server)
      */
     qio_net_listener_disconnect(server->listener);
     object_unref(OBJECT(server->listener));
+    server->listener = NULL;
     QLIST_FOREACH_SAFE(conn, &server->conns, next, tmp) {
         qio_channel_shutdown(QIO_CHANNEL(conn->cioc), QIO_CHANNEL_SHUTDOWN_BOTH,
                              NULL);
