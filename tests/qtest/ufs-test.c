@@ -119,6 +119,7 @@ static void ufs_send_nop_out(QUfs *ufs, uint8_t slot,
 
 static void ufs_send_query(QUfs *ufs, uint8_t slot, uint8_t query_function,
                            uint8_t query_opcode, uint8_t idn, uint8_t index,
+                           uint8_t selector, uint32_t attr_value,
                            UtpTransferReqDesc *utrd_out, UtpUpiuRsp *rsp_out)
 {
     /* Build up utp transfer request descriptor */
@@ -136,13 +137,16 @@ static void ufs_send_query(QUfs *ufs, uint8_t slot, uint8_t query_function,
     req_upiu.header.query_func = query_function;
     req_upiu.header.task_tag = slot;
     /*
-     * QEMU UFS does not currently support Write descriptor and Write attribute,
+     * QEMU UFS does not currently support Write descriptor,
      * so the value of data_segment_length is always 0.
      */
     req_upiu.header.data_segment_length = 0;
     req_upiu.qr.opcode = query_opcode;
     req_upiu.qr.idn = idn;
     req_upiu.qr.index = index;
+    req_upiu.qr.selector = selector;
+    req_upiu.qr.value = attr_value;
+    req_upiu.qr.length = UFS_QUERY_DESC_MAX_SIZE;
     qtest_memwrite(ufs->dev.bus->qts, req_upiu_addr, &req_upiu,
                    sizeof(req_upiu));
 
@@ -344,7 +348,7 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     /* Set fDeviceInit flag via query request */
     ufs_send_query(ufs, 0, UFS_UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST,
                    UFS_UPIU_QUERY_OPCODE_SET_FLAG,
-                   UFS_QUERY_FLAG_IDN_FDEVICEINIT, 0, &utrd, &rsp_upiu);
+                   UFS_QUERY_FLAG_IDN_FDEVICEINIT, 0, 0, 0, &utrd, &rsp_upiu);
     g_assert_cmpuint(le32_to_cpu(utrd.header.dword_2), ==, UFS_OCS_SUCCESS);
 
     /* Wait for device to reset */
@@ -353,7 +357,8 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
         qtest_clock_step(ufs->dev.bus->qts, 100);
         ufs_send_query(ufs, 0, UFS_UPIU_QUERY_FUNC_STANDARD_READ_REQUEST,
                        UFS_UPIU_QUERY_OPCODE_READ_FLAG,
-                       UFS_QUERY_FLAG_IDN_FDEVICEINIT, 0, &utrd, &rsp_upiu);
+                       UFS_QUERY_FLAG_IDN_FDEVICEINIT, 0, 0, 0, &utrd,
+                       &rsp_upiu);
     } while (be32_to_cpu(rsp_upiu.qr.value) != 0 &&
              g_get_monotonic_time() < end_time);
     g_assert_cmpuint(be32_to_cpu(rsp_upiu.qr.value), ==, 0);

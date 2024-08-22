@@ -1111,10 +1111,13 @@ static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
     return 0;
 }
 
-static void ufs_write_attr_value(UfsHc *u, uint8_t idn, uint32_t value)
+static QueryRespCode ufs_write_attr_value(UfsHc *u, uint8_t idn, uint32_t value)
 {
     switch (idn) {
     case UFS_QUERY_ATTR_IDN_ACTIVE_ICC_LVL:
+        if (value > UFS_QUERY_ATTR_ACTIVE_ICC_MAXVALUE) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
         u->attributes.active_icc_level = value;
         break;
     case UFS_QUERY_ATTR_IDN_MAX_DATA_IN:
@@ -1142,6 +1145,7 @@ static void ufs_write_attr_value(UfsHc *u, uint8_t idn, uint32_t value)
         u->attributes.psa_data_size = cpu_to_be32(value);
         break;
     }
+    return UFS_QUERY_RESULT_SUCCESS;
 }
 
 static QueryRespCode ufs_exec_query_attr(UfsRequest *req, int op)
@@ -1158,13 +1162,13 @@ static QueryRespCode ufs_exec_query_attr(UfsRequest *req, int op)
 
     if (op == UFS_QUERY_ATTR_READ) {
         value = ufs_read_attr_value(u, idn);
+        ret = UFS_QUERY_RESULT_SUCCESS;
     } else {
-        value = be32_to_cpu(req->req_upiu.qr.value);
-        ufs_write_attr_value(u, idn, value);
+        value = req->req_upiu.qr.value;
+        ret = ufs_write_attr_value(u, idn, value);
     }
-
     req->rsp_upiu.qr.value = cpu_to_be32(value);
-    return UFS_QUERY_RESULT_SUCCESS;
+    return ret;
 }
 
 static const RpmbUnitDescriptor rpmb_unit_desc = {
@@ -1287,9 +1291,12 @@ static QueryRespCode ufs_read_desc(UfsRequest *req)
     UfsHc *u = req->hc;
     QueryRespCode status;
     uint8_t idn = req->req_upiu.qr.idn;
+    uint8_t selector = req->req_upiu.qr.selector;
     uint16_t length = be16_to_cpu(req->req_upiu.qr.length);
     InterconnectDescriptor desc;
-
+    if (selector != 0) {
+        return UFS_QUERY_RESULT_INVALID_SELECTOR;
+    }
     switch (idn) {
     case UFS_QUERY_DESC_IDN_DEVICE:
         memcpy(&req->rsp_upiu.qr.data, &u->device_desc, sizeof(u->device_desc));
