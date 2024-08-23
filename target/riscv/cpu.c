@@ -680,6 +680,11 @@ static void rv32_ibex_cpu_init(Object *obj)
     cpu->cfg.ext_zicsr = true;
     cpu->cfg.pmp = true;
     cpu->cfg.ext_smepmp = true;
+
+    cpu->cfg.ext_zba = true;
+    cpu->cfg.ext_zbb = true;
+    cpu->cfg.ext_zbc = true;
+    cpu->cfg.ext_zbs = true;
 }
 
 static void rv32_imafcu_nommu_cpu_init(Object *obj)
