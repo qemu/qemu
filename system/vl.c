@@ -1679,10 +1679,10 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 
     if (machine_type) {
         machine_class = find_machine(machine_type, machines);
-        qdict_del(qdict, "type");
         if (!machine_class) {
-            error_setg(errp, "unsupported machine type: \"%s\"", optarg);
+            error_setg(errp, "unsupported machine type: \"%s\"", machine_type);
         }
+        qdict_del(qdict, "type");
     } else {
         machine_class = find_default_machine(machines);
         if (!machine_class) {

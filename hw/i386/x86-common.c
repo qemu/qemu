@@ -665,8 +665,11 @@ void x86_load_linux(X86MachineState *x86ms,
         exit(1);
     }
 
-    /* kernel protocol version */
-    if (ldl_p(header + 0x202) == 0x53726448) {
+    /*
+     * kernel protocol version.
+     * Please see https://www.kernel.org/doc/Documentation/x86/boot.txt
+     */
+    if (ldl_p(header + 0x202) == 0x53726448) /* Magic signature "HdrS" */ {
         protocol = lduw_p(header + 0x206);
     } else {
         /*
