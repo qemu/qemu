@@ -5,7 +5,6 @@ config LOONGARCH_VIRT
     select DEVICE_TREE
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
-    imply VIRTIO_VGA
     imply PCI_DEVICES
     imply NVDIMM
     imply TPM_TIS_SYSBUS
