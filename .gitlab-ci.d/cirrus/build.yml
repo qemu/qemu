@@ -26,7 +26,7 @@ build_task:
     - git clone --depth 100 "$CI_REPOSITORY_URL" .
     - git fetch origin "$CI_COMMIT_REF_NAME"
     - git reset --hard "$CI_COMMIT_SHA"
-  build_script:
+  step_script:
     - mkdir build
     - cd build
     - ../configure --enable-werror $CONFIGURE_ARGS
