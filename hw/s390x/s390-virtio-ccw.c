@@ -1314,8 +1314,13 @@ static void ccw_rhel_machine_9_4_0_instance_options(MachineState *machine)
 
 static void ccw_rhel_machine_9_4_0_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        { TYPE_QEMU_S390_FLIC, "migrate-all-state", "off", },
+    };
+
     compat_props_add(mc->compat_props, hw_compat_rhel_9_6, hw_compat_rhel_9_6_len);
     compat_props_add(mc->compat_props, hw_compat_rhel_9_5, hw_compat_rhel_9_5_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE_AS_LATEST(9, 4, 0);
 
