@@ -35,6 +35,8 @@
 #error "Hexagon does not support system emulation"
 #endif
 
+typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
+
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
 
@@ -130,6 +132,7 @@ typedef struct CPUArchState {
     target_ulong tlb_lock_count;
     target_ulong k0_lock_count;
     target_ulong next_PC;
+    CPUHexagonTLBContext *hex_tlb;
 #endif
     target_ulong new_value_usr;
 
@@ -176,12 +179,15 @@ struct ArchCPU {
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool short_circuit;
+#ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
+#endif
 };
 
 #include "cpu_bits.h"
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
+FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
@@ -193,6 +199,7 @@ uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
 void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
 #endif
 
+#include "exec/cpu-all.h"
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
@@ -206,6 +213,12 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
     if (*pc & PCALIGN_MASK) {
         hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
+#ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
+                           cpu_mmu_index(env_cpu(env), false));
+#else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
+#endif
 }
 
 typedef HexagonCPU ArchCPU;
