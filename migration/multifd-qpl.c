@@ -220,16 +220,6 @@ static void multifd_qpl_deinit(QplData *qpl)
     }
 }
 
-/**
- * multifd_qpl_send_setup: set up send side
- *
- * Set up the channel with QPL compression.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
 {
     QplData *qpl;
@@ -251,14 +241,6 @@ static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
     return 0;
 }
 
-/**
- * multifd_qpl_send_cleanup: clean up send side
- *
- * Close the channel and free memory.
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static void multifd_qpl_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     multifd_qpl_deinit(p->compress_data);
@@ -487,17 +469,6 @@ static void multifd_qpl_compress_pages(MultiFDSendParams *p)
     }
 }
 
-/**
- * multifd_qpl_send_prepare: prepare data to be able to send
- *
- * Create a compressed buffer with all the pages that we are going to
- * send.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;
@@ -523,16 +494,6 @@ out:
     return 0;
 }
 
-/**
- * multifd_qpl_recv_setup: set up receive side
- *
- * Create the compressed channel and buffer.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl;
@@ -547,13 +508,6 @@ static int multifd_qpl_recv_setup(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-/**
- * multifd_qpl_recv_cleanup: set up receive side
- *
- * Close the channel and free memory.
- *
- * @p: Params for the channel being used
- */
 static void multifd_qpl_recv_cleanup(MultiFDRecvParams *p)
 {
     multifd_qpl_deinit(p->compress_data);
@@ -694,17 +648,6 @@ static int multifd_qpl_decompress_pages(MultiFDRecvParams *p, Error **errp)
     }
     return 0;
 }
-/**
- * multifd_qpl_recv: read the data from the channel into actual pages
- *
- * Read the compressed buffer, and uncompress it into the actual
- * pages.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;

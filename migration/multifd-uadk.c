@@ -103,14 +103,6 @@ static void multifd_uadk_uninit_sess(struct wd_data *wd)
     g_free(wd);
 }
 
-/**
- * multifd_uadk_send_setup: setup send side
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
 static int multifd_uadk_send_setup(MultiFDSendParams *p, Error **errp)
 {
     struct wd_data *wd;
@@ -134,14 +126,6 @@ static int multifd_uadk_send_setup(MultiFDSendParams *p, Error **errp)
     return 0;
 }
 
-/**
- * multifd_uadk_send_cleanup: cleanup send side
- *
- * Close the channel and return memory.
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
 static void multifd_uadk_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     struct wd_data *wd = p->compress_data;
@@ -159,17 +143,6 @@ static inline void prepare_next_iov(MultiFDSendParams *p, void *base,
     p->iovs_num++;
 }
 
-/**
- * multifd_uadk_send_prepare: prepare data to be able to send
- *
- * Create a compressed buffer with all the pages that we are going to
- * send.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
 static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     struct wd_data *uadk_data = p->compress_data;
@@ -229,16 +202,6 @@ out:
     return 0;
 }
 
-/**
- * multifd_uadk_recv_setup: setup receive side
- *
- * Create the compressed channel and buffer.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
 static int multifd_uadk_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     struct wd_data *wd;
@@ -253,13 +216,6 @@ static int multifd_uadk_recv_setup(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-/**
- * multifd_uadk_recv_cleanup: cleanup receive side
- *
- * Close the channel and return memory.
- *
- * @p: Params for the channel that we are using
- */
 static void multifd_uadk_recv_cleanup(MultiFDRecvParams *p)
 {
     struct wd_data *wd = p->compress_data;
@@ -268,17 +224,6 @@ static void multifd_uadk_recv_cleanup(MultiFDRecvParams *p)
     p->compress_data = NULL;
 }
 
-/**
- * multifd_uadk_recv: read the data from the channel into actual pages
- *
- * Read the compressed buffer, and uncompress it into the actual
- * pages.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
 static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
 {
     struct wd_data *uadk_data = p->compress_data;

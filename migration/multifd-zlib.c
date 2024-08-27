@@ -34,17 +34,7 @@ struct zlib_data {
 
 /* Multifd zlib compression */
 
-/**
- * zlib_send_setup: setup send side
- *
- * Setup each channel with zlib compression.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
+static int multifd_zlib_send_setup(MultiFDSendParams *p, Error **errp)
 {
     struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
@@ -86,15 +76,7 @@ err_free_z:
     return -1;
 }
 
-/**
- * zlib_send_cleanup: cleanup send side
- *
- * Close the channel and return memory.
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
+static void multifd_zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     struct zlib_data *z = p->compress_data;
 
@@ -110,18 +92,7 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
     p->iov = NULL;
 }
 
-/**
- * zlib_send_prepare: prepare date to be able to send
- *
- * Create a compressed buffer with all the pages that we are going to
- * send.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
+static int multifd_zlib_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     MultiFDPages_t *pages = &p->data->u.ram;
     struct zlib_data *z = p->compress_data;
@@ -189,17 +160,7 @@ out:
     return 0;
 }
 
-/**
- * zlib_recv_setup: setup receive side
- *
- * Create the compressed channel and buffer.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
+static int multifd_zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
@@ -225,14 +186,7 @@ static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-/**
- * zlib_recv_cleanup: setup receive side
- *
- * For no compression this function does nothing.
- *
- * @p: Params for the channel that we are using
- */
-static void zlib_recv_cleanup(MultiFDRecvParams *p)
+static void multifd_zlib_recv_cleanup(MultiFDRecvParams *p)
 {
     struct zlib_data *z = p->compress_data;
 
@@ -243,18 +197,7 @@ static void zlib_recv_cleanup(MultiFDRecvParams *p)
     p->compress_data = NULL;
 }
 
-/**
- * zlib_recv: read the data from the channel into actual pages
- *
- * Read the compressed buffer, and uncompress it into the actual
- * pages.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_recv(MultiFDRecvParams *p, Error **errp)
+static int multifd_zlib_recv(MultiFDRecvParams *p, Error **errp)
 {
     struct zlib_data *z = p->compress_data;
     z_stream *zs = &z->zs;
@@ -335,12 +278,12 @@ static int zlib_recv(MultiFDRecvParams *p, Error **errp)
 }
 
 static MultiFDMethods multifd_zlib_ops = {
-    .send_setup = zlib_send_setup,
-    .send_cleanup = zlib_send_cleanup,
-    .send_prepare = zlib_send_prepare,
-    .recv_setup = zlib_recv_setup,
-    .recv_cleanup = zlib_recv_cleanup,
-    .recv = zlib_recv
+    .send_setup = multifd_zlib_send_setup,
+    .send_cleanup = multifd_zlib_send_cleanup,
+    .send_prepare = multifd_zlib_send_prepare,
+    .recv_setup = multifd_zlib_recv_setup,
+    .recv_cleanup = multifd_zlib_recv_cleanup,
+    .recv = multifd_zlib_recv
 };
 
 static void multifd_zlib_register(void)
