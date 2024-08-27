@@ -143,7 +143,7 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
     }
     *flags = hex_flags;
     if (*pc & PCALIGN_MASK) {
-        hexagon_raise_exception_err(env, HEX_EXCP_PC_NOT_ALIGNED, 0);
+        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 }
 
