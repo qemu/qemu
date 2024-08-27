@@ -277,7 +277,7 @@ static int multifd_zlib_recv(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-static MultiFDMethods multifd_zlib_ops = {
+static const MultiFDMethods multifd_zlib_ops = {
     .send_setup = multifd_zlib_send_setup,
     .send_cleanup = multifd_zlib_send_cleanup,
     .send_prepare = multifd_zlib_send_prepare,

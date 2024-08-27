@@ -694,7 +694,7 @@ static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
     return multifd_qpl_decompress_pages_slow_path(p, errp);
 }
 
-static MultiFDMethods multifd_qpl_ops = {
+static const MultiFDMethods multifd_qpl_ops = {
     .send_setup = multifd_qpl_send_setup,
     .send_cleanup = multifd_qpl_send_cleanup,
     .send_prepare = multifd_qpl_send_prepare,

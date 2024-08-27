@@ -305,7 +305,7 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-static MultiFDMethods multifd_uadk_ops = {
+static const MultiFDMethods multifd_uadk_ops = {
     .send_setup = multifd_uadk_send_setup,
     .send_cleanup = multifd_uadk_send_cleanup,
     .send_prepare = multifd_uadk_send_prepare,

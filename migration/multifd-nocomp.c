@@ -377,7 +377,7 @@ bool multifd_send_prepare_common(MultiFDSendParams *p)
     return true;
 }
 
-static MultiFDMethods multifd_nocomp_ops = {
+static const MultiFDMethods multifd_nocomp_ops = {
     .send_setup = multifd_nocomp_send_setup,
     .send_cleanup = multifd_nocomp_send_cleanup,
     .send_prepare = multifd_nocomp_send_prepare,

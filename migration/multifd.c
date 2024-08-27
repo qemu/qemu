@@ -76,7 +76,7 @@ struct {
      */
     int exiting;
     /* multifd ops */
-    MultiFDMethods *ops;
+    const MultiFDMethods *ops;
 } *multifd_send_state;
 
 struct {
@@ -93,7 +93,7 @@ struct {
     uint64_t packet_num;
     int exiting;
     /* multifd ops */
-    MultiFDMethods *ops;
+    const MultiFDMethods *ops;
 } *multifd_recv_state;
 
 MultiFDSendData *multifd_send_data_alloc(void)
@@ -128,9 +128,9 @@ void multifd_send_channel_created(void)
     qemu_sem_post(&multifd_send_state->channels_created);
 }
 
-static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {};
+static const MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {};
 
-void multifd_register_ops(int method, MultiFDMethods *ops)
+void multifd_register_ops(int method, const MultiFDMethods *ops)
 {
     assert(0 <= method && method < MULTIFD_COMPRESSION__MAX);
     assert(!multifd_ops[method]);
