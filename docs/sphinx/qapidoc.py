@@ -388,6 +388,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         self._active_headings[level - 1] += snode
         self._active_headings = self._active_headings[:level]
         self._active_headings.append(snode)
+        return snode
 
     def _add_node_to_current_heading(self, node):
         """Add the node to whatever the current active heading is"""
@@ -417,13 +418,11 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             # the first line of the block)
             (heading, _, text) = text.partition('\n')
             (leader, _, heading) = heading.partition(' ')
-            self._start_new_heading(heading, len(leader))
+            node = self._start_new_heading(heading, len(leader))
             if text == '':
                 return
 
-        node = self._make_section(None)
         self._parse_text_into_node(text, node)
-        self._add_node_to_current_heading(node)
         self._cur_doc = None
 
     def _parse_text_into_node(self, doctext, node):
