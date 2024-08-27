@@ -1505,6 +1505,17 @@ void HELPER(sreg_write)(CPUHexagonState *env, uint32_t reg, uint32_t val)
     sreg_write(env, reg, val);
 }
 
+void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    BQL_LOCK_GUARD();
+    sreg_write(env, reg, val);
+    /*
+     * The above is needed to run special logic for regs like syscfg, but it
+     * won't set read-only bits. This will:
+     */
+    ARCH_SET_SYSTEM_REG(env, reg, val);
+}
+
 void HELPER(sreg_write_pair)(CPUHexagonState *env, uint32_t reg, uint64_t val)
 {
     BQL_LOCK_GUARD();
@@ -1545,6 +1556,11 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 {
     BQL_LOCK_GUARD();
+    return sreg_read(env, reg);
+}
+
+uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg)
+{
     return sreg_read(env, reg);
 }
 

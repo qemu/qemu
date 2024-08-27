@@ -29,6 +29,10 @@
 #include "max.h"
 #include "hex_mmu.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "sys_macros.h"
+#endif
+
 static void hexagon_v66_cpu_init(Object *obj) { }
 static void hexagon_v67_cpu_init(Object *obj) { }
 static void hexagon_v68_cpu_init(Object *obj) { }
@@ -362,6 +366,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"), 0);
 
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
+                             hexagon_sys_gdb_write_register,
+                             gdb_find_static_feature("hexagon-sys.xml"), 0);
+#endif
+
     qemu_init_vcpu(cs);
 #ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
@@ -425,6 +435,13 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->disas_set_info = hexagon_cpu_disas_set_info;
     cc->tcg_ops = &hexagon_tcg_ops;
 }
+
+#ifndef CONFIG_USER_ONLY
+uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
+{
+    g_assert_not_reached();
+}
+#endif
 
 #define DEFINE_CPU(type_name, initfn)      \
     {                                      \

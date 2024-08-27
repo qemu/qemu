@@ -191,7 +191,14 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
                                             uintptr_t pc);
 
+#ifndef CONFIG_USER_ONLY
+uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
+uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
+#endif
+
 #include "exec/cpu-all.h"
+
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
