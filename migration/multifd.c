@@ -49,7 +49,6 @@ typedef struct {
 
 struct {
     MultiFDSendParams *params;
-    MultiFDSendData *data;
     /*
      * Global number of generated multifd packets.
      *
@@ -97,6 +96,8 @@ struct {
     MultiFDMethods *ops;
 } *multifd_recv_state;
 
+static MultiFDSendData *multifd_ram_send;
+
 static size_t multifd_ram_payload_size(void)
 {
     uint32_t n = multifd_ram_page_count();
@@ -128,6 +129,17 @@ static MultiFDSendData *multifd_send_data_alloc(void)
     size_minus_payload = sizeof(MultiFDSendData) - sizeof(MultiFDPayload);
 
     return g_malloc0(size_minus_payload + max_payload_size);
+}
+
+void multifd_ram_save_setup(void)
+{
+    multifd_ram_send = multifd_send_data_alloc();
+}
+
+void multifd_ram_save_cleanup(void)
+{
+    g_free(multifd_ram_send);
+    multifd_ram_send = NULL;
 }
 
 static bool multifd_use_packets(void)
@@ -610,25 +622,20 @@ static void multifd_send_kick_main(MultiFDSendParams *p)
 }
 
 /*
- * How we use multifd_send_state->pages and channel->pages?
+ * multifd_send() works by exchanging the MultiFDSendData object
+ * provided by the caller with an unused MultiFDSendData object from
+ * the next channel that is found to be idle.
  *
- * We create a pages for each channel, and a main one.  Each time that
- * we need to send a batch of pages we interchange the ones between
- * multifd_send_state and the channel that is sending it.  There are
- * two reasons for that:
- *    - to not have to do so many mallocs during migration
- *    - to make easier to know what to free at the end of migration
+ * The channel owns the data until it finishes transmitting and the
+ * caller owns the empty object until it fills it with data and calls
+ * this function again. No locking necessary.
  *
- * This way we always know who is the owner of each "pages" struct,
- * and we don't need any locking.  It belongs to the migration thread
- * or to the channel thread.  Switching is safe because the migration
- * thread is using the channel mutex when changing it, and the channel
- * have to had finish with its own, otherwise pending_job can't be
- * false.
+ * Switching is safe because both the migration thread and the channel
+ * thread have barriers in place to serialize access.
  *
  * Returns true if succeed, false otherwise.
  */
-static bool multifd_send_pages(void)
+static bool multifd_send(MultiFDSendData **send_data)
 {
     int i;
     static int next_channel;
@@ -669,11 +676,16 @@ static bool multifd_send_pages(void)
      */
     smp_mb_acquire();
 
-    assert(!p->data->u.ram.num);
+    assert(multifd_payload_empty(p->data));
 
-    tmp = multifd_send_state->data;
-    multifd_send_state->data = p->data;
+    /*
+     * Swap the pointers. The channel gets the client data for
+     * transferring and the client gets back an unused data slot.
+     */
+    tmp = *send_data;
+    *send_data = p->data;
     p->data = tmp;
+
     /*
      * Making sure p->data is setup before marking pending_job=true. Pairs
      * with the qatomic_load_acquire() in multifd_send_thread().
@@ -705,7 +717,12 @@ bool multifd_queue_page(RAMBlock *block, ram_addr_t offset)
     MultiFDPages_t *pages;
 
 retry:
-    pages = &multifd_send_state->data->u.ram;
+    pages = &multifd_ram_send->u.ram;
+
+    if (multifd_payload_empty(multifd_ram_send)) {
+        multifd_pages_reset(pages);
+        multifd_set_payload_type(multifd_ram_send, MULTIFD_PAYLOAD_RAM);
+    }
 
     /* If the queue is empty, we can already enqueue now */
     if (multifd_queue_empty(pages)) {
@@ -723,7 +740,7 @@ retry:
      * After flush, always retry.
      */
     if (pages->block != block || multifd_queue_full(pages)) {
-        if (!multifd_send_pages()) {
+        if (!multifd_send(&multifd_ram_send)) {
             return false;
         }
         goto retry;
@@ -853,8 +870,6 @@ static void multifd_send_cleanup_state(void)
     qemu_sem_destroy(&multifd_send_state->channels_ready);
     g_free(multifd_send_state->params);
     multifd_send_state->params = NULL;
-    g_free(multifd_send_state->data);
-    multifd_send_state->data = NULL;
     g_free(multifd_send_state);
     multifd_send_state = NULL;
 }
@@ -903,15 +918,14 @@ int multifd_send_sync_main(void)
 {
     int i;
     bool flush_zero_copy;
-    MultiFDPages_t *pages;
 
     if (!migrate_multifd()) {
         return 0;
     }
-    pages = &multifd_send_state->data->u.ram;
-    if (pages->num) {
-        if (!multifd_send_pages()) {
-            error_report("%s: multifd_send_pages fail", __func__);
+
+    if (!multifd_payload_empty(multifd_ram_send)) {
+        if (!multifd_send(&multifd_ram_send)) {
+            error_report("%s: multifd_send fail", __func__);
             return -1;
         }
     }
@@ -985,13 +999,11 @@ static void *multifd_send_thread(void *opaque)
 
         /*
          * Read pending_job flag before p->data.  Pairs with the
-         * qatomic_store_release() in multifd_send_pages().
+         * qatomic_store_release() in multifd_send().
          */
         if (qatomic_load_acquire(&p->pending_job)) {
-            MultiFDPages_t *pages = &p->data->u.ram;
-
             p->iovs_num = 0;
-            assert(pages->num);
+            assert(!multifd_payload_empty(p->data));
 
             ret = multifd_send_state->ops->send_prepare(p, &local_err);
             if (ret != 0) {
@@ -1014,13 +1026,13 @@ static void *multifd_send_thread(void *opaque)
             stat64_add(&mig_stats.multifd_bytes,
                        p->next_packet_size + p->packet_len);
 
-            multifd_pages_reset(pages);
             p->next_packet_size = 0;
+            multifd_set_payload_type(p->data, MULTIFD_PAYLOAD_NONE);
 
             /*
              * Making sure p->data is published before saying "we're
              * free".  Pairs with the smp_mb_acquire() in
-             * multifd_send_pages().
+             * multifd_send().
              */
             qatomic_store_release(&p->pending_job, false);
         } else {
@@ -1212,7 +1224,6 @@ bool multifd_send_setup(void)
     thread_count = migrate_multifd_channels();
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
-    multifd_send_state->data = multifd_send_data_alloc();
     qemu_sem_init(&multifd_send_state->channels_created, 0);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
     qatomic_set(&multifd_send_state->exiting, 0);
