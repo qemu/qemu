@@ -453,8 +453,6 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
     }
 
     p->packets_sent++;
-    p->total_normal_pages += pages->normal_num;
-    p->total_zero_pages += zero_num;
 
     trace_multifd_send(p->id, packet_num, pages->normal_num, zero_num,
                        p->flags, p->next_packet_size);
@@ -516,8 +514,6 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     p->next_packet_size = be32_to_cpu(packet->next_packet_size);
     p->packet_num = be64_to_cpu(packet->packet_num);
     p->packets_recved++;
-    p->total_normal_pages += p->normal_num;
-    p->total_zero_pages += p->zero_num;
 
     trace_multifd_recv(p->id, p->packet_num, p->normal_num, p->zero_num,
                        p->flags, p->next_packet_size);
@@ -1036,8 +1032,7 @@ out:
 
     rcu_unregister_thread();
     migration_threads_remove(thread);
-    trace_multifd_send_thread_end(p->id, p->packets_sent, p->total_normal_pages,
-                                  p->total_zero_pages);
+    trace_multifd_send_thread_end(p->id, p->packets_sent);
 
     return NULL;
 }
@@ -1561,7 +1556,6 @@ static void *multifd_recv_thread(void *opaque)
                 qemu_sem_wait(&p->sem_sync);
             }
         } else {
-            p->total_normal_pages += p->data->size / qemu_target_page_size();
             p->data->size = 0;
             /*
              * Order data->size update before clearing
@@ -1578,9 +1572,7 @@ static void *multifd_recv_thread(void *opaque)
     }
 
     rcu_unregister_thread();
-    trace_multifd_recv_thread_end(p->id, p->packets_recved,
-                                  p->total_normal_pages,
-                                  p->total_zero_pages);
+    trace_multifd_recv_thread_end(p->id, p->packets_recved);
 
     return NULL;
 }

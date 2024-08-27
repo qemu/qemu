@@ -162,10 +162,6 @@ typedef struct {
     uint32_t next_packet_size;
     /* packets sent through this channel */
     uint64_t packets_sent;
-    /* non zero pages sent through this channel */
-    uint64_t total_normal_pages;
-    /* zero pages sent through this channel */
-    uint64_t total_zero_pages;
     /* buffers to send */
     struct iovec *iov;
     /* number of iovs used */
@@ -218,10 +214,6 @@ typedef struct {
     RAMBlock *block;
     /* ramblock host address */
     uint8_t *host;
-    /* non zero pages recv through this channel */
-    uint64_t total_normal_pages;
-    /* zero pages recv through this channel */
-    uint64_t total_zero_pages;
     /* buffers to recv */
     struct iovec *iov;
     /* Pages that are not zero */
