@@ -15,7 +15,7 @@
 #include "net/net.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 #include "qom/object.h"
 
 //#define DEBUG_STELLARIS_ENET 1

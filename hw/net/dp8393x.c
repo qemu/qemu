@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 #include "qom/object.h"
 #include "trace.h"
 

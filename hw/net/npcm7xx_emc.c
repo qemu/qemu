@@ -29,8 +29,7 @@
 
 #include "qemu/osdep.h"
 
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
