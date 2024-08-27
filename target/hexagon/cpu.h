@@ -181,6 +181,7 @@ struct ArchCPU {
     bool short_circuit;
 #ifndef CONFIG_USER_ONLY
     uint32_t num_tlbs;
+    uint32_t l2vic_base_addr;
 #endif
 };
 
