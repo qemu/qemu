@@ -133,15 +133,17 @@ static void multifd_set_file_bitmap(MultiFDSendParams *p)
  */
 static int nocomp_send_setup(MultiFDSendParams *p, Error **errp)
 {
+    uint32_t page_count = multifd_ram_page_count();
+
     if (migrate_zero_copy_send()) {
         p->write_flags |= QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
     }
 
     if (multifd_use_packets()) {
         /* We need one extra place for the packet header */
-        p->iov = g_new0(struct iovec, p->page_count + 1);
+        p->iov = g_new0(struct iovec, page_count + 1);
     } else {
-        p->iov = g_new0(struct iovec, p->page_count);
+        p->iov = g_new0(struct iovec, page_count);
     }
 
     return 0;
@@ -165,14 +167,15 @@ static void nocomp_send_cleanup(MultiFDSendParams *p, Error **errp)
 static void multifd_send_prepare_iovs(MultiFDSendParams *p)
 {
     MultiFDPages_t *pages = p->pages;
+    uint32_t page_size = multifd_ram_page_size();
 
     for (int i = 0; i < pages->normal_num; i++) {
         p->iov[p->iovs_num].iov_base = pages->block->host + pages->offset[i];
-        p->iov[p->iovs_num].iov_len = p->page_size;
+        p->iov[p->iovs_num].iov_len = page_size;
         p->iovs_num++;
     }
 
-    p->next_packet_size = pages->normal_num * p->page_size;
+    p->next_packet_size = pages->normal_num * page_size;
 }
 
 /**
@@ -237,7 +240,7 @@ static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
  */
 static int nocomp_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
-    p->iov = g_new0(struct iovec, p->page_count);
+    p->iov = g_new0(struct iovec, multifd_ram_page_count());
     return 0;
 }
 
@@ -288,7 +291,7 @@ static int nocomp_recv(MultiFDRecvParams *p, Error **errp)
 
     for (int i = 0; i < p->normal_num; i++) {
         p->iov[i].iov_base = p->host + p->normal[i];
-        p->iov[i].iov_len = p->page_size;
+        p->iov[i].iov_len = multifd_ram_page_size();
         ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
     }
     return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
@@ -447,6 +450,8 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
     MultiFDPacket_t *packet = p->packet;
+    uint32_t page_count = multifd_ram_page_count();
+    uint32_t page_size = multifd_ram_page_size();
     int i;
 
     packet->magic = be32_to_cpu(packet->magic);
@@ -472,10 +477,10 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
      * If we received a packet that is 100 times bigger than expected
      * just stop migration.  It is a magic number.
      */
-    if (packet->pages_alloc > p->page_count) {
+    if (packet->pages_alloc > page_count) {
         error_setg(errp, "multifd: received packet "
                    "with size %u and expected a size of %u",
-                   packet->pages_alloc, p->page_count) ;
+                   packet->pages_alloc, page_count) ;
         return -1;
     }
 
@@ -521,7 +526,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     for (i = 0; i < p->normal_num; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[i]);
 
-        if (offset > (p->block->used_length - p->page_size)) {
+        if (offset > (p->block->used_length - page_size)) {
             error_setg(errp, "multifd: offset too long %" PRIu64
                        " (max " RAM_ADDR_FMT ")",
                        offset, p->block->used_length);
@@ -533,7 +538,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     for (i = 0; i < p->zero_num; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[p->normal_num + i]);
 
-        if (offset > (p->block->used_length - p->page_size)) {
+        if (offset > (p->block->used_length - page_size)) {
             error_setg(errp, "multifd: offset too long %" PRIu64
                        " (max " RAM_ADDR_FMT ")",
                        offset, p->block->used_length);
@@ -1157,7 +1162,7 @@ bool multifd_send_setup(void)
 {
     MigrationState *s = migrate_get_current();
     int thread_count, ret = 0;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count = multifd_ram_page_count();
     bool use_packets = multifd_use_packets();
     uint8_t i;
 
@@ -1191,8 +1196,6 @@ bool multifd_send_setup(void)
             p->packet->version = cpu_to_be32(MULTIFD_VERSION);
         }
         p->name = g_strdup_printf("mig/src/send_%d", i);
-        p->page_size = qemu_target_page_size();
-        p->page_count = page_count;
         p->write_flags = 0;
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
@@ -1569,7 +1572,7 @@ static void *multifd_recv_thread(void *opaque)
 int multifd_recv_setup(Error **errp)
 {
     int thread_count;
-    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    uint32_t page_count = multifd_ram_page_count();
     bool use_packets = multifd_use_packets();
     uint8_t i;
 
@@ -1613,8 +1616,6 @@ int multifd_recv_setup(Error **errp)
         p->name = g_strdup_printf("mig/dst/recv_%d", i);
         p->normal = g_new0(ram_addr_t, page_count);
         p->zero = g_new0(ram_addr_t, page_count);
-        p->page_count = page_count;
-        p->page_size = qemu_target_page_size();
     }
 
     for (i = 0; i < thread_count; i++) {

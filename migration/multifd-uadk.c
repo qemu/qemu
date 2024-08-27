@@ -114,8 +114,10 @@ static void multifd_uadk_uninit_sess(struct wd_data *wd)
 static int multifd_uadk_send_setup(MultiFDSendParams *p, Error **errp)
 {
     struct wd_data *wd;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    wd = multifd_uadk_init_sess(p->page_count, p->page_size, true, errp);
+    wd = multifd_uadk_init_sess(page_count, page_size, true, errp);
     if (!wd) {
         return -1;
     }
@@ -128,7 +130,7 @@ static int multifd_uadk_send_setup(MultiFDSendParams *p, Error **errp)
      * length
      */
 
-    p->iov = g_new0(struct iovec, p->page_count + 2);
+    p->iov = g_new0(struct iovec, page_count + 2);
     return 0;
 }
 
@@ -172,6 +174,7 @@ static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     struct wd_data *uadk_data = p->compress_data;
     uint32_t hdr_size;
+    uint32_t page_size = multifd_ram_page_size();
     uint8_t *buf = uadk_data->buf;
     int ret = 0;
     MultiFDPages_t *pages = p->pages;
@@ -188,7 +191,7 @@ static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
         struct wd_comp_req creq = {
             .op_type = WD_DIR_COMPRESS,
             .src     = pages->block->host + pages->offset[i],
-            .src_len = p->page_size,
+            .src_len = page_size,
             .dst     = buf,
             /* Set dst_len to double the src in case compressed out >= page_size */
             .dst_len = p->page_size * 2,
@@ -201,7 +204,7 @@ static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
                            p->id, ret, creq.status);
                 return -1;
             }
-            if (creq.dst_len < p->page_size) {
+            if (creq.dst_len < page_size) {
                 uadk_data->buf_hdr[i] = cpu_to_be32(creq.dst_len);
                 prepare_next_iov(p, buf, creq.dst_len);
                 buf += creq.dst_len;
@@ -213,11 +216,11 @@ static int multifd_uadk_send_prepare(MultiFDSendParams *p, Error **errp)
          * than page_size as well because at the receive end we can skip the
          * decompression. But it is tricky to find the right number here.
          */
-        if (!uadk_data->handle || creq.dst_len >= p->page_size) {
-            uadk_data->buf_hdr[i] = cpu_to_be32(p->page_size);
+        if (!uadk_data->handle || creq.dst_len >= page_size) {
+            uadk_data->buf_hdr[i] = cpu_to_be32(page_size);
             prepare_next_iov(p, pages->block->host + pages->offset[i],
-                             p->page_size);
-            buf += p->page_size;
+                             page_size);
+            buf += page_size;
         }
     }
 out:
@@ -239,8 +242,10 @@ out:
 static int multifd_uadk_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     struct wd_data *wd;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    wd = multifd_uadk_init_sess(p->page_count, p->page_size, false, errp);
+    wd = multifd_uadk_init_sess(page_count, page_size, false, errp);
     if (!wd) {
         return -1;
     }
@@ -281,6 +286,7 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     uint32_t hdr_len = p->normal_num * sizeof(uint32_t);
     uint32_t data_len = 0;
+    uint32_t page_size = multifd_ram_page_size();
     uint8_t *buf = uadk_data->buf;
     int ret = 0;
 
@@ -307,7 +313,7 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
     for (int i = 0; i < p->normal_num; i++) {
         uadk_data->buf_hdr[i] = be32_to_cpu(uadk_data->buf_hdr[i]);
         data_len += uadk_data->buf_hdr[i];
-        assert(uadk_data->buf_hdr[i] <= p->page_size);
+        assert(uadk_data->buf_hdr[i] <= page_size);
     }
 
     /* read compressed data */
@@ -323,12 +329,12 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
             .src     = buf,
             .src_len = uadk_data->buf_hdr[i],
             .dst     = p->host + p->normal[i],
-            .dst_len = p->page_size,
+            .dst_len = page_size,
         };
 
-        if (uadk_data->buf_hdr[i] == p->page_size) {
-            memcpy(p->host + p->normal[i], buf, p->page_size);
-            buf += p->page_size;
+        if (uadk_data->buf_hdr[i] == page_size) {
+            memcpy(p->host + p->normal[i], buf, page_size);
+            buf += page_size;
             continue;
         }
 
@@ -344,7 +350,7 @@ static int multifd_uadk_recv(MultiFDRecvParams *p, Error **errp)
                        p->id, ret, creq.status);
             return -1;
         }
-        if (creq.dst_len != p->page_size) {
+        if (creq.dst_len != page_size) {
             error_setg(errp, "multifd %u: decompressed length error", p->id);
             return -1;
         }

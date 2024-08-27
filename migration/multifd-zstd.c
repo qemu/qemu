@@ -139,7 +139,7 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
             flush = ZSTD_e_flush;
         }
         z->in.src = pages->block->host + pages->offset[i];
-        z->in.size = p->page_size;
+        z->in.size = multifd_ram_page_size();
         z->in.pos = 0;
 
         /*
@@ -254,7 +254,8 @@ static int zstd_recv(MultiFDRecvParams *p, Error **errp)
 {
     uint32_t in_size = p->next_packet_size;
     uint32_t out_size = 0;
-    uint32_t expected_size = p->normal_num * p->page_size;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     struct zstd_data *z = p->compress_data;
     int ret;
@@ -286,7 +287,7 @@ static int zstd_recv(MultiFDRecvParams *p, Error **errp)
     for (i = 0; i < p->normal_num; i++) {
         ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
         z->out.dst = p->host + p->normal[i];
-        z->out.size = p->page_size;
+        z->out.size = page_size;
         z->out.pos = 0;
 
         /*
@@ -300,8 +301,8 @@ static int zstd_recv(MultiFDRecvParams *p, Error **errp)
         do {
             ret = ZSTD_decompressStream(z->zds, &z->out, &z->in);
         } while (ret > 0 && (z->in.size - z->in.pos > 0)
-                         && (z->out.pos < p->page_size));
-        if (ret > 0 && (z->out.pos < p->page_size)) {
+                         && (z->out.pos < page_size));
+        if (ret > 0 && (z->out.pos < page_size)) {
             error_setg(errp, "multifd %u: decompressStream buffer too small",
                        p->id);
             return -1;

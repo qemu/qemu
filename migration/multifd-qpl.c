@@ -233,8 +233,10 @@ static void multifd_qpl_deinit(QplData *qpl)
 static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
 {
     QplData *qpl;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    qpl = multifd_qpl_init(p->page_count, p->page_size, errp);
+    qpl = multifd_qpl_init(page_count, page_size, errp);
     if (!qpl) {
         return -1;
     }
@@ -245,7 +247,7 @@ static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
      * additional two IOVs are used to store packet header and compressed data
      * length
      */
-    p->iov = g_new0(struct iovec, p->page_count + 2);
+    p->iov = g_new0(struct iovec, page_count + 2);
     return 0;
 }
 
@@ -534,8 +536,10 @@ out:
 static int multifd_qpl_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    qpl = multifd_qpl_init(p->page_count, p->page_size, errp);
+    qpl = multifd_qpl_init(page_count, page_size, errp);
     if (!qpl) {
         return -1;
     }

@@ -13,6 +13,7 @@
 #ifndef QEMU_MIGRATION_MULTIFD_H
 #define QEMU_MIGRATION_MULTIFD_H
 
+#include "exec/target_page.h"
 #include "ram.h"
 
 typedef struct MultiFDRecvData MultiFDRecvData;
@@ -106,10 +107,6 @@ typedef struct {
     QIOChannel *c;
     /* packet allocated len */
     uint32_t packet_len;
-    /* guest page size */
-    uint32_t page_size;
-    /* number of pages in a full packet */
-    uint32_t page_count;
     /* multifd flags for sending ram */
     int write_flags;
 
@@ -173,10 +170,6 @@ typedef struct {
     QIOChannel *c;
     /* packet allocated len */
     uint32_t packet_len;
-    /* guest page size */
-    uint32_t page_size;
-    /* number of pages in a full packet */
-    uint32_t page_count;
 
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
@@ -254,4 +247,13 @@ static inline void multifd_send_prepare_header(MultiFDSendParams *p)
 
 void multifd_channel_connect(MultiFDSendParams *p, QIOChannel *ioc);
 
+static inline uint32_t multifd_ram_page_size(void)
+{
+    return qemu_target_page_size();
+}
+
+static inline uint32_t multifd_ram_page_count(void)
+{
+    return MULTIFD_PACKET_SIZE / qemu_target_page_size();
+}
 #endif
