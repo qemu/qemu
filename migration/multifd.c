@@ -98,6 +98,17 @@ struct {
     MultiFDMethods *ops;
 } *multifd_recv_state;
 
+static size_t multifd_ram_payload_size(void)
+{
+    uint32_t n = multifd_ram_page_count();
+
+    /*
+     * We keep an array of page offsets at the end of MultiFDPages_t,
+     * add space for it in the allocation.
+     */
+    return sizeof(MultiFDPages_t) + n * sizeof(ram_addr_t);
+}
+
 static bool multifd_use_packets(void)
 {
     return !migrate_mapped_ram();
@@ -394,18 +405,12 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
 
 static MultiFDPages_t *multifd_pages_init(uint32_t n)
 {
-    MultiFDPages_t *pages = g_new0(MultiFDPages_t, 1);
-
-    pages->offset = g_new0(ram_addr_t, n);
-
-    return pages;
+    return g_malloc0(multifd_ram_payload_size());
 }
 
 static void multifd_pages_clear(MultiFDPages_t *pages)
 {
     multifd_pages_reset(pages);
-    g_free(pages->offset);
-    pages->offset = NULL;
     g_free(pages);
 }
 
