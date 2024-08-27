@@ -26,6 +26,28 @@
 enum hex_event {
     HEX_EVENT_NONE           = -1,
     HEX_EVENT_TRAP0          =  0x008,
+    HEX_EVENT_FETCH_NO_UPAGE =  0x012,
+    HEX_EVENT_INVALID_PACKET =  0x015,
+    HEX_EVENT_INVALID_OPCODE =  0x015,
+    HEX_EVENT_PC_NOT_ALIGNED =  0x01e,
+    HEX_EVENT_PRIV_NO_UREAD  =  0x024,
+    HEX_EVENT_PRIV_NO_UWRITE =  0x025,
+    HEX_EVENT_INT0 = 0x10,
+    HEX_EVENT_INT1 = 0x11,
+    HEX_EVENT_INT2 = 0x12,
+    HEX_EVENT_INT3 = 0x13,
+    HEX_EVENT_INT4 = 0x14,
+    HEX_EVENT_INT5 = 0x15,
+    HEX_EVENT_INT6 = 0x16,
+    HEX_EVENT_INT7 = 0x17,
+    HEX_EVENT_INT8 = 0x18,
+    HEX_EVENT_INT9 = 0x19,
+    HEX_EVENT_INTA = 0x1a,
+    HEX_EVENT_INTB = 0x1b,
+    HEX_EVENT_INTC = 0x1c,
+    HEX_EVENT_INTD = 0x1d,
+    HEX_EVENT_INTE = 0x1e,
+    HEX_EVENT_INTF = 0x1f,
 };
 
 enum hex_cause {
@@ -39,6 +61,18 @@ enum hex_cause {
     HEX_CAUSE_PRIV_NO_UWRITE =  0x025,
     HEX_CAUSE_PRIV_USER_NO_GINSN = 0x01a,
     HEX_CAUSE_PRIV_USER_NO_SINSN = 0x01b,
+    HEX_CAUSE_INT0 = 0x0c0,
+    HEX_CAUSE_INT1 = 0x0c1,
+    HEX_CAUSE_INT2 = 0x0c2,
+    HEX_CAUSE_INT3 = 0x0c3,
+    HEX_CAUSE_INT4 = 0x0c4,
+    HEX_CAUSE_INT5 = 0x0c5,
+    HEX_CAUSE_INT6 = 0x0c6,
+    HEX_CAUSE_INT7 = 0x0c7,
+    HEX_CAUSE_VIC0 = 0x0c2,
+    HEX_CAUSE_VIC1 = 0x0c3,
+    HEX_CAUSE_VIC2 = 0x0c4,
+    HEX_CAUSE_VIC3 = 0x0c5,
 };
 
 enum data_cache_state {
