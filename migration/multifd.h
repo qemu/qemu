@@ -257,6 +257,8 @@ static inline void multifd_send_prepare_header(MultiFDSendParams *p)
 }
 
 void multifd_channel_connect(MultiFDSendParams *p, QIOChannel *ioc);
+bool multifd_send(MultiFDSendData **send_data);
+MultiFDSendData *multifd_send_data_alloc(void);
 
 static inline uint32_t multifd_ram_page_size(void)
 {
@@ -271,4 +273,7 @@ static inline uint32_t multifd_ram_page_count(void)
 void multifd_ram_save_setup(void);
 void multifd_ram_save_cleanup(void);
 int multifd_ram_flush_and_sync(void);
+size_t multifd_ram_payload_size(void);
+void multifd_ram_fill_packet(MultiFDSendParams *p);
+int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp);
 #endif

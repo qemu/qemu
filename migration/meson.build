@@ -21,6 +21,7 @@ system_ss.add(files(
   'migration-hmp-cmds.c',
   'migration.c',
   'multifd.c',
+  'multifd-nocomp.c',
   'multifd-zlib.c',
   'multifd-zero-page.c',
   'options.c',
