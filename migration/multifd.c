@@ -287,22 +287,12 @@ static int multifd_nocomp_recv(MultiFDRecvParams *p, Error **errp)
     return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
 }
 
-static MultiFDMethods multifd_nocomp_ops = {
-    .send_setup = multifd_nocomp_send_setup,
-    .send_cleanup = multifd_nocomp_send_cleanup,
-    .send_prepare = multifd_nocomp_send_prepare,
-    .recv_setup = multifd_nocomp_recv_setup,
-    .recv_cleanup = multifd_nocomp_recv_cleanup,
-    .recv = multifd_nocomp_recv
-};
-
-static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {
-    [MULTIFD_COMPRESSION_NONE] = &multifd_nocomp_ops,
-};
+static MultiFDMethods *multifd_ops[MULTIFD_COMPRESSION__MAX] = {};
 
 void multifd_register_ops(int method, MultiFDMethods *ops)
 {
-    assert(0 < method && method < MULTIFD_COMPRESSION__MAX);
+    assert(0 <= method && method < MULTIFD_COMPRESSION__MAX);
+    assert(!multifd_ops[method]);
     multifd_ops[method] = ops;
 }
 
@@ -1701,3 +1691,19 @@ bool multifd_send_prepare_common(MultiFDSendParams *p)
 
     return true;
 }
+
+static MultiFDMethods multifd_nocomp_ops = {
+    .send_setup = multifd_nocomp_send_setup,
+    .send_cleanup = multifd_nocomp_send_cleanup,
+    .send_prepare = multifd_nocomp_send_prepare,
+    .recv_setup = multifd_nocomp_recv_setup,
+    .recv_cleanup = multifd_nocomp_recv_cleanup,
+    .recv = multifd_nocomp_recv
+};
+
+static void multifd_nocomp_register(void)
+{
+    multifd_register_ops(MULTIFD_COMPRESSION_NONE, &multifd_nocomp_ops);
+}
+
+migration_init(multifd_nocomp_register);
