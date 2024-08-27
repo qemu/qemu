@@ -649,6 +649,16 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
                    reg_field_info[FIELD].width, \
                    reg_field_info[FIELD].offset)
 
+#define fGET_FIELD(VAL, FIELD) \
+    fEXTRACTU_BITS(VAL, \
+                   reg_field_info[FIELD].width, \
+                   reg_field_info[FIELD].offset)
+#define fSET_FIELD(VAL, FIELD, NEWVAL) \
+    fINSERT_BITS(VAL, \
+                 reg_field_info[FIELD].width, \
+                 reg_field_info[FIELD].offset, \
+                 (NEWVAL))
+
 #ifdef QEMU_GENERATE
 #define fDCZEROA(REG) \
     do { \
