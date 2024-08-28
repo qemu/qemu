@@ -72,18 +72,20 @@ uint8_t fifo8_pop(Fifo8 *fifo)
 }
 
 static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
-                                           uint32_t *numptr, bool do_pop)
+                                           uint32_t skip, uint32_t *numptr,
+                                           bool do_pop)
 {
     uint8_t *ret;
     uint32_t num, head;
 
     assert(max > 0 && max <= fifo->num);
-    head = fifo->head;
+    assert(skip <= fifo->num);
+    head = (fifo->head + skip) % fifo->capacity;
     num = MIN(fifo->capacity - head, max);
     ret = &fifo->data[head];
 
     if (do_pop) {
-        fifo->head += num;
+        fifo->head = head + num;
         fifo->head %= fifo->capacity;
         fifo->num -= num;
     }
@@ -95,12 +97,12 @@ static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
 
 const uint8_t *fifo8_peek_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_bufptr(fifo, max, numptr, false);
+    return fifo8_peekpop_bufptr(fifo, max, 0, numptr, false);
 }
 
 const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_bufptr(fifo, max, numptr, true);
+    return fifo8_peekpop_bufptr(fifo, max, 0, numptr, true);
 }
 
 uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
