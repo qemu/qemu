@@ -90,7 +90,11 @@ static int igd_gen(VFIOPCIDevice *vdev)
         return 8;
     }
 
-    return 8; /* Assume newer is compatible */
+    /*
+     * Unfortunately, Intel changes it's specification quite often. This makes
+     * it impossible to use a suitable default value for unknown devices.
+     */
+    return -1;
 }
 
 typedef struct VFIOIGDQuirk {
