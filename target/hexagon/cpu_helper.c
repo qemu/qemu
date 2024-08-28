@@ -36,7 +36,14 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
 
 uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    if (reg == HEX_SREG_PCYCLELO) {
+        return hexagon_get_sys_pcycle_count_low(env);
+    } else if (reg == HEX_SREG_PCYCLEHI) {
+        return hexagon_get_sys_pcycle_count_high(env);
+    }
+
+    g_assert(reg < NUM_SREGS);
+    return reg < HEX_SREG_GLB_START ? env->t_sreg[reg] : env->g_sreg[reg];
 }
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
