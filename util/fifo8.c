@@ -71,8 +71,8 @@ uint8_t fifo8_pop(Fifo8 *fifo)
     return ret;
 }
 
-static const uint8_t *fifo8_peekpop_buf(Fifo8 *fifo, uint32_t max,
-                                        uint32_t *numptr, bool do_pop)
+static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
+                                           uint32_t *numptr, bool do_pop)
 {
     uint8_t *ret;
     uint32_t num;
@@ -94,12 +94,12 @@ static const uint8_t *fifo8_peekpop_buf(Fifo8 *fifo, uint32_t max,
 
 const uint8_t *fifo8_peek_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_buf(fifo, max, numptr, false);
+    return fifo8_peekpop_bufptr(fifo, max, numptr, false);
 }
 
 const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_buf(fifo, max, numptr, true);
+    return fifo8_peekpop_bufptr(fifo, max, numptr, true);
 }
 
 uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
