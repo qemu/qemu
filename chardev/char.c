@@ -726,7 +726,7 @@ static Chardev *__qemu_chr_new(const char *label, const char *filename,
 
     if (strstart(filename, "chardev:", &p)) {
         chr = qemu_chr_find(p);
-        if (replay) {
+        if (replay && chr) {
             qemu_chardev_set_replay(chr, &err);
             if (err) {
                 error_report_err(err);
