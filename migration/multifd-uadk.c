@@ -132,6 +132,8 @@ static void multifd_uadk_send_cleanup(MultiFDSendParams *p, Error **errp)
 
     multifd_uadk_uninit_sess(wd);
     p->compress_data = NULL;
+    g_free(p->iov);
+    p->iov = NULL;
 }
 
 static inline void prepare_next_iov(MultiFDSendParams *p, void *base,
