@@ -466,6 +466,7 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
     g_free(p->packet);
     p->packet = NULL;
     multifd_send_state->ops->send_cleanup(p, errp);
+    assert(!p->iov);
 
     return *errp == NULL;
 }
@@ -871,6 +872,7 @@ bool multifd_send_setup(void)
             migrate_set_error(s, local_err);
             goto err;
         }
+        assert(p->iov);
     }
 
     return true;
