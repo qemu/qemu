@@ -75,11 +75,12 @@ static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
                                            uint32_t *numptr, bool do_pop)
 {
     uint8_t *ret;
-    uint32_t num;
+    uint32_t num, head;
 
     assert(max > 0 && max <= fifo->num);
-    num = MIN(fifo->capacity - fifo->head, max);
-    ret = &fifo->data[fifo->head];
+    head = fifo->head;
+    num = MIN(fifo->capacity - head, max);
+    ret = &fifo->data[head];
 
     if (do_pop) {
         fifo->head += num;
