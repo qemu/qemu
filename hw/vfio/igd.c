@@ -100,11 +100,12 @@ static int igd_gen(VFIOPCIDevice *vdev)
 typedef struct VFIOIGDQuirk {
     struct VFIOPCIDevice *vdev;
     uint32_t index;
-    uint32_t bdsm;
+    uint64_t bdsm;
 } VFIOIGDQuirk;
 
 #define IGD_GMCH 0x50 /* Graphics Control Register */
 #define IGD_BDSM 0x5c /* Base Data of Stolen Memory */
+#define IGD_BDSM_GEN11 0xc0 /* Base Data of Stolen Memory of gen 11 and later */
 
 
 /*
@@ -313,9 +314,13 @@ static void vfio_igd_quirk_data_write(void *opaque, hwaddr addr,
      */
     if ((igd->index % 4 == 1) && igd->index < vfio_igd_gtt_max(vdev)) {
         if (gen < 8 || (igd->index % 8 == 1)) {
-            uint32_t base;
+            uint64_t base;
 
-            base = pci_get_long(vdev->pdev.config + IGD_BDSM);
+            if (gen < 11) {
+                base = pci_get_long(vdev->pdev.config + IGD_BDSM);
+            } else {
+                base = pci_get_quad(vdev->pdev.config + IGD_BDSM_GEN11);
+            }
             if (!base) {
                 hw_error("vfio-igd: Guest attempted to program IGD GTT before "
                          "BIOS reserved stolen memory.  Unsupported BIOS?");
@@ -519,7 +524,13 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     igd = quirk->data = g_malloc0(sizeof(*igd));
     igd->vdev = vdev;
     igd->index = ~0;
-    igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    if (gen < 11) {
+        igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    } else {
+        igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM_GEN11, 4);
+        igd->bdsm |=
+            (uint64_t)vfio_pci_read_config(&vdev->pdev, IGD_BDSM_GEN11 + 4, 4) << 32;
+    }
     igd->bdsm &= ~((1 * MiB) - 1); /* 1MB aligned */
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_igd_index_quirk,
@@ -577,9 +588,15 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
 
     /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
-    pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
-    pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
-    pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+    if (gen < 11) {
+        pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
+        pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
+        pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+    } else {
+        pci_set_quad(vdev->pdev.config + IGD_BDSM_GEN11, 0);
+        pci_set_quad(vdev->pdev.wmask + IGD_BDSM_GEN11, ~0);
+        pci_set_quad(vdev->emulated_config_bits + IGD_BDSM_GEN11, ~0);
+    }
 
     /*
      * This IOBAR gives us access to GTTADR, which allows us to write to
