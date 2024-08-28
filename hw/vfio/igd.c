@@ -478,6 +478,23 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 }
 
+static int igd_get_stolen_mb(int gen, uint32_t gmch)
+{
+    int gms;
+
+    if (gen < 8) {
+        gms = (gmch >> 3) & 0x1f;
+    } else {
+        gms = (gmch >> 8) & 0xff;
+    }
+
+    if (gms > 0x10) {
+        error_report("Unsupported IGD GMS value 0x%x", gms);
+        return 0;
+    }
+    return gms * 32;
+}
+
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 {
     g_autofree struct vfio_region_info *rom = NULL;
@@ -655,23 +672,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         ggms_mb = 1 << ggms_mb;
     }
 
-    /*
-     * Assume we have no GMS memory, but allow it to be overridden by device
-     * option (experimental).  The spec doesn't actually allow zero GMS when
-     * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
-     * so let's not waste VM memory for it.
-     */
-    gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
-
-    if (vdev->igd_gms) {
-        if (vdev->igd_gms <= 0x10) {
-            gms_mb = vdev->igd_gms * 32;
-            gmch |= vdev->igd_gms << (gen < 8 ? 3 : 8);
-        } else {
-            error_report("Unsupported IGD GMS value 0x%x", vdev->igd_gms);
-            vdev->igd_gms = 0;
-        }
-    }
+    gms_mb = igd_get_stolen_mb(gen, gmch);
 
     /*
      * Request reserved memory for stolen memory via fw_cfg.  VM firmware
