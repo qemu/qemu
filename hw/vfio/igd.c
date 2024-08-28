@@ -488,11 +488,18 @@ static int igd_get_stolen_mb(int gen, uint32_t gmch)
         gms = (gmch >> 8) & 0xff;
     }
 
-    if (gms > 0x10) {
-        error_report("Unsupported IGD GMS value 0x%x", gms);
-        return 0;
+    if (gen < 9) {
+        if (gms > 0x10) {
+            error_report("Unsupported IGD GMS value 0x%x", gms);
+            return 0;
+        }
+        return gms * 32;
+    } else {
+        if (gms < 0xf0)
+            return gms * 32;
+        else
+            return gms * 4 + 4;
     }
-    return gms * 32;
 }
 
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
