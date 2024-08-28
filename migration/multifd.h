@@ -229,17 +229,81 @@ typedef struct {
 } MultiFDRecvParams;
 
 typedef struct {
-    /* Setup for sending side */
+    /*
+     * The send_setup, send_cleanup, send_prepare are only called on
+     * the QEMU instance at the migration source.
+     */
+
+    /*
+     * Setup for sending side. Called once per channel during channel
+     * setup phase.
+     *
+     * Must allocate p->iov. If packets are in use (default), one
+     * extra iovec must be allocated for the packet header. Any memory
+     * allocated in this hook must be released at send_cleanup.
+     *
+     * p->write_flags may be used for passing flags to the QIOChannel.
+     *
+     * p->compression_data may be used by compression methods to store
+     * compression data.
+     */
     int (*send_setup)(MultiFDSendParams *p, Error **errp);
-    /* Cleanup for sending side */
+
+    /*
+     * Cleanup for sending side. Called once per channel during
+     * channel cleanup phase.
+     */
     void (*send_cleanup)(MultiFDSendParams *p, Error **errp);
-    /* Prepare the send packet */
+
+    /*
+     * Prepare the send packet. Called as a result of multifd_send()
+     * on the client side, with p pointing to the MultiFDSendParams of
+     * a channel that is currently idle.
+     *
+     * Must populate p->iov with the data to be sent, increment
+     * p->iovs_num to match the amount of iovecs used and set
+     * p->next_packet_size with the amount of data currently present
+     * in p->iov.
+     *
+     * Must indicate whether this is a compression packet by setting
+     * p->flags.
+     *
+     * As a last step, if packets are in use (default), must prepare
+     * the packet by calling multifd_send_fill_packet().
+     */
     int (*send_prepare)(MultiFDSendParams *p, Error **errp);
-    /* Setup for receiving side */
+
+    /*
+     * The recv_setup, recv_cleanup, recv are only called on the QEMU
+     * instance at the migration destination.
+     */
+
+    /*
+     * Setup for receiving side. Called once per channel during
+     * channel setup phase. May be empty.
+     *
+     * May allocate data structures for the receiving of data. May use
+     * p->iov. Compression methods may use p->compress_data.
+     */
     int (*recv_setup)(MultiFDRecvParams *p, Error **errp);
-    /* Cleanup for receiving side */
+
+    /*
+     * Cleanup for receiving side. Called once per channel during
+     * channel cleanup phase. May be empty.
+     */
     void (*recv_cleanup)(MultiFDRecvParams *p);
-    /* Read all data */
+
+    /*
+     * Data receive method. Called as a result of multifd_recv() on
+     * the client side, with p pointing to the MultiFDRecvParams of a
+     * channel that is currently idle. Only called if there is data
+     * available to receive.
+     *
+     * Must validate p->flags according to what was set at
+     * send_prepare.
+     *
+     * Must read the data from the QIOChannel p->c.
+     */
     int (*recv)(MultiFDRecvParams *p, Error **errp);
 } MultiFDMethods;
 
