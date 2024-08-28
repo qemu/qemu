@@ -63,6 +63,17 @@ void fifo8_push_all(Fifo8 *fifo, const uint8_t *data, uint32_t num);
 uint8_t fifo8_pop(Fifo8 *fifo);
 
 /**
+ * fifo8_peek:
+ * @fifo: fifo to peek from
+ *
+ * Peek the data byte at the current head of the FIFO. Clients are responsible
+ * for checking for emptyness using fifo8_is_empty().
+ *
+ * Returns: The peeked data byte.
+ */
+uint8_t fifo8_peek(Fifo8 *fifo);
+
+/**
  * fifo8_pop_buf:
  * @fifo: FIFO to pop from
  * @dest: the buffer to write the data into (can be NULL)

@@ -71,6 +71,12 @@ uint8_t fifo8_pop(Fifo8 *fifo)
     return ret;
 }
 
+uint8_t fifo8_peek(Fifo8 *fifo)
+{
+    assert(fifo->num > 0);
+    return fifo->data[fifo->head];
+}
+
 static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
                                            uint32_t skip, uint32_t *numptr,
                                            bool do_pop)
