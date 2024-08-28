@@ -14,6 +14,8 @@
 #else
 #include "hw/boards.h"
 #include "hw/hexagon/hexagon.h"
+#include "hex_interrupts.h"
+#include "hex_mmu.h"
 #endif
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
@@ -69,9 +71,106 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
     g_assert_not_reached();
 }
 
+static MMVector VRegs[VECTOR_UNIT_MAX][NUM_VREGS];
+static MMQReg QRegs[VECTOR_UNIT_MAX][NUM_QREGS];
+
+/*
+ *                            EXT_CONTEXTS
+ * SSR.XA   2              4              6              8
+ * 000      HVX Context 0  HVX Context 0  HVX Context 0  HVX Context 0
+ * 001      HVX Context 1  HVX Context 1  HVX Context 1  HVX Context 1
+ * 010      HVX Context 0  HVX Context 2  HVX Context 2  HVX Context 2
+ * 011      HVX Context 1  HVX Context 3  HVX Context 3  HVX Context 3
+ * 100      HVX Context 0  HVX Context 0  HVX Context 4  HVX Context 4
+ * 101      HVX Context 1  HVX Context 1  HVX Context 5  HVX Context 5
+ * 110      HVX Context 0  HVX Context 2  HVX Context 2  HVX Context 6
+ * 111      HVX Context 1  HVX Context 3  HVX Context 3  HVX Context 7
+ */
+static int parse_context_idx(CPUHexagonState *env, uint8_t XA)
+{
+    int ret;
+    HexagonCPU *cpu = env_archcpu(env);
+    if (cpu->hvx_contexts == 6 && XA >= 6) {
+        ret = XA - 6 + 2;
+    } else {
+        ret = XA % cpu->hvx_contexts;
+    }
+    g_assert(ret >= 0 && ret < VECTOR_UNIT_MAX);
+    return ret;
+}
+
+static void check_overcommitted_hvx(CPUHexagonState *env, uint32_t ssr)
+{
+    if (!GET_FIELD(SSR_XE, ssr)) {
+        return;
+    }
+
+    uint8_t XA = GET_SSR_FIELD(SSR_XA, ssr);
+
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *env_ = &cpu->env;
+        if (env_ == env) {
+            continue;
+        }
+        /* Check if another thread has the XE bit set and same XA */
+        uint32_t ssr_ = ARCH_GET_SYSTEM_REG(env_, HEX_SREG_SSR);
+        if (GET_SSR_FIELD(SSR_XE2, ssr_) && GET_FIELD(SSR_XA, ssr_) == XA) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "setting SSR.XA '%d' on thread %d but thread"
+                    " %d has same extension active\n", XA, env->threadId,
+                    env_->threadId);
+        }
+    }
+}
+
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
-    g_assert_not_reached();
+    g_assert(bql_locked());
+
+    bool old_EX = GET_SSR_FIELD(SSR_EX, old);
+    bool old_UM = GET_SSR_FIELD(SSR_UM, old);
+    bool old_GM = GET_SSR_FIELD(SSR_GM, old);
+    bool old_IE = GET_SSR_FIELD(SSR_IE, old);
+    uint8_t old_XA = GET_SSR_FIELD(SSR_XA, old);
+    bool new_EX = GET_SSR_FIELD(SSR_EX, new);
+    bool new_UM = GET_SSR_FIELD(SSR_UM, new);
+    bool new_GM = GET_SSR_FIELD(SSR_GM, new);
+    bool new_IE = GET_SSR_FIELD(SSR_IE, new);
+    uint8_t new_XA = GET_SSR_FIELD(SSR_XA, new);
+
+    if ((old_EX != new_EX) ||
+        (old_UM != new_UM) ||
+        (old_GM != new_GM)) {
+        hex_mmu_mode_change(env);
+    }
+
+    uint8_t old_asid = GET_SSR_FIELD(SSR_ASID, old);
+    uint8_t new_asid = GET_SSR_FIELD(SSR_ASID, new);
+    if (new_asid != old_asid) {
+        CPUState *cs = env_cpu(env);
+        tlb_flush(cs);
+    }
+
+    if (old_XA != new_XA) {
+        int old_unit = parse_context_idx(env, old_XA);
+        int new_unit = parse_context_idx(env, new_XA);
+
+        /* Ownership exchange */
+        memcpy(VRegs[old_unit], env->VRegs, sizeof(env->VRegs));
+        memcpy(QRegs[old_unit], env->QRegs, sizeof(env->QRegs));
+        memcpy(env->VRegs, VRegs[new_unit], sizeof(env->VRegs));
+        memcpy(env->QRegs, QRegs[new_unit], sizeof(env->QRegs));
+
+        check_overcommitted_hvx(env, new);
+    }
+
+    /* See if the interrupts have been enabled or we have exited EX mode */
+    if ((new_IE && !old_IE) ||
+        (!new_EX && old_EX)) {
+        hex_interrupt_update(env);
+    }
 }
 
 void clear_wait_mode(CPUHexagonState *env)
