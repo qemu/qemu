@@ -416,7 +416,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * devices maintain compatibility with generation 8.
      */
     gen = igd_gen(vdev);
-    if (gen != 6 && gen != 8) {
+    if (gen == -1) {
         error_report("IGD device %s is unsupported in legacy mode, "
                      "try SandyBridge or newer", vdev->vbasedev.name);
         return;
