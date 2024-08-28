@@ -117,7 +117,7 @@ static uint32_t fifo8_peekpop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen,
     }
 
     len = destlen;
-    buf = fifo8_peekpop_bufptr(fifo, len, 0, &n1, true);
+    buf = fifo8_peekpop_bufptr(fifo, len, 0, &n1, do_pop);
     if (dest) {
         memcpy(dest, buf, n1);
     }
@@ -126,7 +126,7 @@ static uint32_t fifo8_peekpop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen,
     len -= n1;
     len = MIN(len, fifo8_num_used(fifo));
     if (len) {
-        buf = fifo8_peekpop_bufptr(fifo, len, 0, &n2, true);
+        buf = fifo8_peekpop_bufptr(fifo, len, do_pop ? 0 : n1, &n2, do_pop);
         if (dest) {
             memcpy(&dest[n1], buf, n2);
         }
