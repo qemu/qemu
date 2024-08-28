@@ -238,6 +238,30 @@ void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause)
 
 int get_exe_mode(CPUHexagonState *env)
 {
+    g_assert(bql_locked());
+
+    target_ulong modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
+    uint32_t thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
+    bool W_bit = thread_wait_mask & (0x1 << env->threadId);
+    target_ulong isdbst = ARCH_GET_SYSTEM_REG(env, HEX_SREG_ISDBST);
+    uint32_t debugmode = GET_FIELD(ISDBST_DEBUGMODE, isdbst);
+    bool D_bit = debugmode & (0x1 << env->threadId);
+
+    /* Figure 4-2 */
+    if (!D_bit && !W_bit && !E_bit) {
+        return HEX_EXE_MODE_OFF;
+    }
+    if (!D_bit && !W_bit && E_bit) {
+        return HEX_EXE_MODE_RUN;
+    }
+    if (!D_bit && W_bit && E_bit) {
+        return HEX_EXE_MODE_WAIT;
+    }
+    if (D_bit && !W_bit && E_bit) {
+        return HEX_EXE_MODE_DEBUG;
+    }
     g_assert_not_reached();
 }
 
