@@ -230,22 +230,20 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
 
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
-    MultiFDPacket_t *packet = p->packet;
+    const MultiFDPacket_t *packet = p->packet;
+    uint32_t magic = be32_to_cpu(packet->magic);
+    uint32_t version = be32_to_cpu(packet->version);
     int ret = 0;
 
-    packet->magic = be32_to_cpu(packet->magic);
-    if (packet->magic != MULTIFD_MAGIC) {
-        error_setg(errp, "multifd: received packet "
-                   "magic %x and expected magic %x",
-                   packet->magic, MULTIFD_MAGIC);
+    if (magic != MULTIFD_MAGIC) {
+        error_setg(errp, "multifd: received packet magic %x, expected %x",
+                   magic, MULTIFD_MAGIC);
         return -1;
     }
 
-    packet->version = be32_to_cpu(packet->version);
-    if (packet->version != MULTIFD_VERSION) {
-        error_setg(errp, "multifd: received packet "
-                   "version %u and expected version %u",
-                   packet->version, MULTIFD_VERSION);
+    if (version != MULTIFD_VERSION) {
+        error_setg(errp, "multifd: received packet version %u, expected %u",
+                   version, MULTIFD_VERSION);
         return -1;
     }
 

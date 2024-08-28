@@ -220,33 +220,28 @@ int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp)
     MultiFDPacket_t *packet = p->packet;
     uint32_t page_count = multifd_ram_page_count();
     uint32_t page_size = multifd_ram_page_size();
+    uint32_t pages_per_packet = be32_to_cpu(packet->pages_alloc);
     int i;
 
-    packet->pages_alloc = be32_to_cpu(packet->pages_alloc);
-    /*
-     * If we received a packet that is 100 times bigger than expected
-     * just stop migration.  It is a magic number.
-     */
-    if (packet->pages_alloc > page_count) {
-        error_setg(errp, "multifd: received packet "
-                   "with size %u and expected a size of %u",
-                   packet->pages_alloc, page_count) ;
+    if (pages_per_packet > page_count) {
+        error_setg(errp, "multifd: received packet with %u pages, expected %u",
+                   pages_per_packet, page_count);
         return -1;
     }
 
     p->normal_num = be32_to_cpu(packet->normal_pages);
-    if (p->normal_num > packet->pages_alloc) {
-        error_setg(errp, "multifd: received packet "
-                   "with %u normal pages and expected maximum pages are %u",
-                   p->normal_num, packet->pages_alloc) ;
+    if (p->normal_num > pages_per_packet) {
+        error_setg(errp, "multifd: received packet with %u non-zero pages, "
+                   "which exceeds maximum expected pages %u",
+                   p->normal_num, pages_per_packet);
         return -1;
     }
 
     p->zero_num = be32_to_cpu(packet->zero_pages);
-    if (p->zero_num > packet->pages_alloc - p->normal_num) {
-        error_setg(errp, "multifd: received packet "
-                   "with %u zero pages and expected maximum zero pages are %u",
-                   p->zero_num, packet->pages_alloc - p->normal_num) ;
+    if (p->zero_num > pages_per_packet - p->normal_num) {
+        error_setg(errp,
+                   "multifd: received packet with %u zero pages, expected maximum %u",
+                   p->zero_num, pages_per_packet - p->normal_num);
         return -1;
     }
 
