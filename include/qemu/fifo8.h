@@ -77,6 +77,20 @@ uint8_t fifo8_pop(Fifo8 *fifo);
 uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen);
 
 /**
+ * fifo8_peek_buf:
+ * @fifo: FIFO to read from
+ * @dest: the buffer to write the data into (can be NULL)
+ * @destlen: size of @dest and maximum number of bytes to peek
+ *
+ * Peek a number of elements from the FIFO up to a maximum of @destlen.
+ * The peeked data is copied into the @dest buffer.
+ * Care is taken when the data wraps around in the ring buffer.
+ *
+ * Returns: number of bytes peeked.
+ */
+uint32_t fifo8_peek_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen);
+
+/**
  * fifo8_pop_bufptr:
  * @fifo: FIFO to pop from
  * @max: maximum number of bytes to pop

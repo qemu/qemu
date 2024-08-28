@@ -140,6 +140,11 @@ uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
     return fifo8_peekpop_buf(fifo, dest, destlen, true);
 }
 
+uint32_t fifo8_peek_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
+{
+    return fifo8_peekpop_buf(fifo, dest, destlen, false);
+}
+
 void fifo8_drop(Fifo8 *fifo, uint32_t len)
 {
     len -= fifo8_pop_buf(fifo, NULL, len);
