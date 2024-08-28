@@ -34,7 +34,11 @@
 #include "op_helper.h"
 #include "cpu_helper.h"
 #include "translate.h"
+#ifndef CONFIG_USER_ONLY
+#include "hex_mmu.h"
 #include "hw/intc/l2vic.h"
+#include "hex_interrupts.h"
+#endif
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -1378,9 +1382,36 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
+static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, int val)
+{
+    g_assert((offset == L2VIC_VID_0) || (offset == L2VIC_VID_1));
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
+    cpu_physical_memory_write(pend_mem, &val, sizeof(val));
+}
+
+static void hexagon_clear_last_irq(CPUHexagonState *env, uint32_t offset)
+{
+    /*
+     * currently only l2vic is the only attached it uses vid0, remove
+     * the assert below if anther is added
+     */
+    hexagon_set_vid(env, offset, L2VIC_CIAD_INSTRUCTION);
+}
+
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    uint32_t ipendad;
+    uint32_t iad;
+
+    BQL_LOCK_GUARD();
+    ipendad = READ_SREG(HEX_SREG_IPENDAD);
+    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
+    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_IPENDAD, ipendad);
+    hexagon_clear_last_irq(env, L2VIC_VID_0);
+    hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
@@ -1452,11 +1483,6 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
 }
 
 static void modify_syscfg(CPUHexagonState *env, uint32_t val)
-{
-    g_assert_not_reached();
-}
-
-static void hexagon_set_vid(CPUHexagonState *env, uint32_t offset, int val)
 {
     g_assert_not_reached();
 }
