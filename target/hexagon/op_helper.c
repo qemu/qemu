@@ -1433,12 +1433,55 @@ void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
 {
-    g_assert_not_reached();
+    uint32_t modectl;
+    uint32_t thread_enabled_mask;
+    CPUState *cpu;
+
+    BQL_LOCK_GUARD();
+    modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+
+    CPU_FOREACH(cpu) {
+        CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if (thread_enabled_mask & thread_id_mask) {
+            uint32_t imask = ARCH_GET_SYSTEM_REG(thread_env, HEX_SREG_IMASK);
+            uint32_t intbitpos = (src >> 16) & 0xF;
+            uint32_t val = (src >> thread_env->threadId) & 0x1;
+            imask = deposit32(imask, intbitpos, 1, val);
+            ARCH_SET_SYSTEM_REG(thread_env, HEX_SREG_IMASK, imask);
+
+            qemu_log_mask(CPU_LOG_INT, "%s: thread %d, new imask 0x%x\n",
+                          __func__, thread_env->threadId, imask);
+        }
+    }
+    hex_interrupt_update(env);
 }
 
 uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
 {
-    g_assert_not_reached();
+    uint32_t modectl;
+    uint32_t thread_enabled_mask;
+    uint32_t intbitpos;
+    uint32_t dest_reg;
+    CPUState *cpu;
+
+    BQL_LOCK_GUARD();
+    modectl = ARCH_GET_SYSTEM_REG(env, HEX_SREG_MODECTL);
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    /* src fields are in same position as modectl, but mean different things */
+    intbitpos = GET_FIELD(MODECTL_W, src);
+    dest_reg = 0;
+    CPU_FOREACH(cpu) {
+        CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if (thread_enabled_mask & thread_id_mask) {
+            uint32_t imask = ARCH_GET_SYSTEM_REG(thread_env, HEX_SREG_IMASK);
+            dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
+        }
+    }
+
+    return dest_reg;
 }
 
 void HELPER(start)(CPUHexagonState *env, uint32_t imask)
