@@ -1486,12 +1486,12 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
 
 void HELPER(start)(CPUHexagonState *env, uint32_t imask)
 {
-    g_assert_not_reached();
+    hexagon_start_threads(env, imask);
 }
 
 void HELPER(stop)(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    hexagon_stop_thread(env);
 }
 
 void HELPER(wait)(CPUHexagonState *env, target_ulong PC)

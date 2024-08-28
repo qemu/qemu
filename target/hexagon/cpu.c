@@ -31,6 +31,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "sys_macros.h"
+#include "qemu/main-loop.h"
 #endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
@@ -60,6 +61,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("num-tlbs", HexagonCPU, num_tlbs, MAX_TLB_ENTRIES),
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
         0xffffffffULL),
+    DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -294,8 +296,17 @@ static void mmu_reset(CPUHexagonState *env)
         memset(env->hex_tlb, 0, sizeof(*env->hex_tlb));
     }
 }
-#endif
 
+void hexagon_cpu_soft_reset(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_SSR, 0);
+    hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
+
+    target_ulong evb = ARCH_GET_SYSTEM_REG(env, HEX_SREG_EVB);
+    ARCH_SET_THREAD_REG(env, HEX_REG_PC, evb);
+}
+#endif
 
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
@@ -326,6 +337,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     }
     mmu_reset(env);
     ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, cs->cpu_index);
+    hexagon_cpu_soft_reset(env);
     memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->threadId = cs->cpu_index;

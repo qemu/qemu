@@ -52,6 +52,7 @@ enum hex_event {
 
 enum hex_cause {
     HEX_CAUSE_NONE = -1,
+    HEX_CAUSE_RESET = 0x000,
     HEX_CAUSE_TRAP0 = 0x172,
     HEX_CAUSE_FETCH_NO_UPAGE =  0x012,
     HEX_CAUSE_INVALID_PACKET =  0x015,
