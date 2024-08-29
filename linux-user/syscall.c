@@ -7265,7 +7265,7 @@ static inline abi_long target_truncate64(CPUArchState *cpu_env, const char *arg1
         arg2 = arg3;
         arg3 = arg4;
     }
-    return get_errno(truncate64(arg1, target_offset64(arg2, arg3)));
+    return get_errno(truncate(arg1, target_offset64(arg2, arg3)));
 }
 #endif
 
@@ -7279,7 +7279,7 @@ static inline abi_long target_ftruncate64(CPUArchState *cpu_env, abi_long arg1,
         arg2 = arg3;
         arg3 = arg4;
     }
-    return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
+    return get_errno(ftruncate(arg1, target_offset64(arg2, arg3)));
 }
 #endif
 
@@ -8664,7 +8664,7 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
     void *tdirp;
     int hlen, hoff, toff;
     int hreclen, treclen;
-    off64_t prev_diroff = 0;
+    off_t prev_diroff = 0;
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
@@ -8717,7 +8717,7 @@ static int do_getdents(abi_long dirfd, abi_long arg2, abi_long count)
              * Return what we have, resetting the file pointer to the
              * location of the first record not returned.
              */
-            lseek64(dirfd, prev_diroff, SEEK_SET);
+            lseek(dirfd, prev_diroff, SEEK_SET);
             break;
         }
 
@@ -8751,7 +8751,7 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
     void *tdirp;
     int hlen, hoff, toff;
     int hreclen, treclen;
-    off64_t prev_diroff = 0;
+    off_t prev_diroff = 0;
 
     hdirp = g_try_malloc(count);
     if (!hdirp) {
@@ -8793,7 +8793,7 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
              * Return what we have, resetting the file pointer to the
              * location of the first record not returned.
              */
-            lseek64(dirfd, prev_diroff, SEEK_SET);
+            lseek(dirfd, prev_diroff, SEEK_SET);
             break;
         }
 
@@ -11524,7 +11524,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 return -TARGET_EFAULT;
             }
         }
-        ret = get_errno(pread64(arg1, p, arg3, target_offset64(arg4, arg5)));
+        ret = get_errno(pread(arg1, p, arg3, target_offset64(arg4, arg5)));
         unlock_user(p, arg2, ret);
         return ret;
     case TARGET_NR_pwrite64:
@@ -11541,7 +11541,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 return -TARGET_EFAULT;
             }
         }
-        ret = get_errno(pwrite64(arg1, p, arg3, target_offset64(arg4, arg5)));
+        ret = get_errno(pwrite(arg1, p, arg3, target_offset64(arg4, arg5)));
         unlock_user(p, arg2, 0);
         return ret;
 #endif
