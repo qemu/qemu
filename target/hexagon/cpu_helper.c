@@ -48,17 +48,24 @@ uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    uint64_t cycles = 0;
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *env_ = &cpu->env;
+        cycles += env_->t_cycle_count;
+    }
+    return *(env->g_pcycle_base) + cycles;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return hexagon_get_sys_pcycle_count(env) >> 32;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return extract64(hexagon_get_sys_pcycle_count(env), 0, 32);
 }
 
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,

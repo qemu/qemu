@@ -27,11 +27,15 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-common.h"
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
 #include "hw/registerfields.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "reg_fields.h"
 typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
+#endif
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -190,6 +194,7 @@ struct ArchCPU {
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
+FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
@@ -204,6 +209,10 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env);
 
 #include "exec/cpu-all.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "cpu_helper.h"
+#endif
+
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)
 {
@@ -213,22 +222,31 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
     if (*pc == env->gpr[HEX_REG_SA0]) {
         hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
     }
-    *flags = hex_flags;
     if (*pc & PCALIGN_MASK) {
         hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 #ifndef CONFIG_USER_ONLY
+    target_ulong syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+
+    bool pcycle_enabled = extract32(syscfg,
+                                    reg_field_info[SYSCFG_PCYCLEEN].offset,
+                                    reg_field_info[SYSCFG_PCYCLEEN].width);
+
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
+
+    if (pcycle_enabled) {
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
+    }
 #else
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, true);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
+    *flags = hex_flags;
 }
 
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);
-
-#include "exec/cpu-all.h"
 
 #endif /* HEXAGON_CPU_H */
