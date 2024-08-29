@@ -177,7 +177,7 @@ static void pnv_nest_pervasive_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&nest_pervasive->xscom_ctrl_regs_mr,
                           OBJECT(nest_pervasive),
                           &pnv_nest_pervasive_control_xscom_ops,
-                          nest_pervasive, "pervasive-control",
+                          nest_pervasive, "xscom-pervasive-control",
                           PNV10_XSCOM_CHIPLET_CTRL_REGS_SIZE);
 }
 
