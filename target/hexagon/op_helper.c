@@ -1560,7 +1560,57 @@ static bool handle_pmu_sreg_write(CPUHexagonState *env, uint32_t reg,
 
 static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 {
-    g_assert_not_reached();
+    g_assert(bql_locked());
+
+    uint32_t old;
+    uint32_t syscfg_read_only_mask = 0x80001c00;
+    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+
+    /* clear read-only bits if they are set in the new value. */
+    val &= ~syscfg_read_only_mask;
+    /* if read-only are currently set in syscfg keep them set. */
+    val |= (syscfg & syscfg_read_only_mask);
+
+    uint32_t tmp = val;
+    old = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_SYSCFG, tmp);
+
+    /* Check for change in MMU enable */
+    target_ulong old_mmu_enable = GET_SYSCFG_FIELD(SYSCFG_MMUEN, old);
+    uint8_t old_en = GET_SYSCFG_FIELD(SYSCFG_PCYCLEEN, old);
+    uint8_t old_gie = GET_SYSCFG_FIELD(SYSCFG_GIE, old);
+    target_ulong new_mmu_enable =
+        GET_SYSCFG_FIELD(SYSCFG_MMUEN, val);
+    if (new_mmu_enable && !old_mmu_enable) {
+        hex_mmu_on(env);
+    } else if (!new_mmu_enable && old_mmu_enable) {
+        hex_mmu_off(env);
+    }
+
+    /* Changing pcycle enable from 0 to 1 resets the counters */
+    uint8_t new_en = GET_SYSCFG_FIELD(SYSCFG_PCYCLEEN, val);
+    CPUState *cs;
+    if (old_en == 0 && new_en == 1) {
+        CPU_FOREACH(cs) {
+            HexagonCPU *cpu = HEXAGON_CPU(cs);
+            CPUHexagonState *_env = &cpu->env;
+            _env->t_cycle_count = 0;
+        }
+    }
+
+    /* See if global interrupts are turned on */
+    uint8_t new_gie = GET_SYSCFG_FIELD(SYSCFG_GIE, val);
+    if (!old_gie && new_gie) {
+        qemu_log_mask(CPU_LOG_INT, "%s: global interrupts enabled\n", __func__);
+        hex_interrupt_update(env);
+    }
+
+    if (qemu_loglevel_mask(LOG_UNIMP)) {
+        int new_v2x = GET_SYSCFG_FIELD(SYSCFG_V2X, val);
+        if (!new_v2x) {
+            qemu_log("HVX: 64 byte vector length is unsupported\n");
+        }
+    }
 }
 
 static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
