@@ -31,6 +31,7 @@ the :ref:`tcg_internals`.
 
    index-process
    index-build
+   testing/index
    index-api
    index-internals
    index-tcg
