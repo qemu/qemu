@@ -35,6 +35,13 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     uint8_t *rom_ptr;
     int ret;
 
+    if (nd->slot < 0 || nd->slot >= NUBUS_SLOT_NB) {
+        error_setg(errp,
+                   "'slot' value %d out of range (must be between 0 and %d)",
+                   nd->slot, NUBUS_SLOT_NB - 1);
+        return;
+    }
+
     /* Super */
     slot_offset = nd->slot * NUBUS_SUPER_SLOT_SIZE;
 
