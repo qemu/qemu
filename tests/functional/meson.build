@@ -79,6 +79,7 @@ tests_x86_64_system_quick = [
 
 tests_x86_64_system_thorough = [
   'netdev_ethtool',
+  'virtio_gpu',
 ]
 
 precache_all = []
