@@ -1282,6 +1282,7 @@ S: Odd Fixes
 F: hw/m68k/next-*.c
 F: hw/display/next-fb.c
 F: include/hw/m68k/next-cube.h
+F: tests/functional/test_m68k_nextcube.py
 
 q800
 M: Laurent Vivier <laurent@vivier.eu>

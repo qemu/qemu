@@ -43,6 +43,10 @@ tests_loongarch64_system_thorough = [
   'loongarch64_virt',
 ]
 
+tests_m68k_system_thorough = [
+  'm68k_nextcube'
+]
+
 tests_microblaze_system_thorough = [
   'microblaze_s3adsp1800'
 ]
