@@ -39,6 +39,7 @@ tests_x86_64_system_quick = [
 tests_x86_64_system_thorough = [
 ]
 
+precache_all = []
 foreach speed : ['quick', 'thorough']
   foreach dir : target_dirs
 
@@ -78,11 +79,35 @@ foreach speed : ['quick', 'thorough']
                                meson.current_source_dir())
 
     foreach test : target_tests
-      test('func-@0@/@1@'.format(target_base, test),
+      testname = '@0@-@1@'.format(target_base, test)
+      testfile = 'test_' + test + '.py'
+      testpath = meson.current_source_dir() / testfile
+      teststamp = testname + '.tstamp'
+      test_precache_env = environment()
+      test_precache_env.set('QEMU_TEST_PRECACHE', meson.current_build_dir() / teststamp)
+      test_precache_env.set('PYTHONPATH', meson.project_source_root() / 'python:' +
+                                          meson.current_source_dir())
+      precache = custom_target('func-precache-' + testname,
+                               output: teststamp,
+                               command: [python, testpath],
+                               depend_files: files(testpath),
+                               build_by_default: false,
+                               env: test_precache_env)
+      precache_all += precache
+
+      # Ideally we would add 'precache' to 'depends' here, such that
+      # 'build_by_default: false' lets the pre-caching automatically
+      # run immediately before the test runs. In practice this is
+      # broken in meson, with it running the pre-caching in the normal
+      # compile phase https://github.com/mesonbuild/meson/issues/2518
+      # If the above bug ever gets fixed, when QEMU changes the min
+      # meson version, add the 'depends' and remove the custom
+      # 'run_target' logic below & in Makefile.include
+      test('func-' + testname,
            python,
            depends: [test_deps, test_emulator, emulator_modules],
            env: test_env,
-           args: [meson.current_source_dir() / 'test_' + test + '.py'],
+           args: [testpath],
            protocol: 'tap',
            timeout: test_timeouts.get(test, 60),
            priority: test_timeouts.get(test, 60),
@@ -90,3 +115,7 @@ foreach speed : ['quick', 'thorough']
     endforeach
   endforeach
 endforeach
+
+run_target('precache-functional',
+           depends: precache_all,
+           command: ['true'])

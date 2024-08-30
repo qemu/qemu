@@ -21,6 +21,7 @@ import uuid
 from qemu.machine import QEMUMachine
 from qemu.utils import kvm_available, tcg_available
 
+from .asset import Asset
 from .cmd import run_cmd
 from .config import BUILD_DIR
 
@@ -58,6 +59,12 @@ class QemuBaseTest(unittest.TestCase):
 
     def main():
         path = os.path.basename(sys.argv[0])[:-3]
+
+        cache = os.environ.get("QEMU_TEST_PRECACHE", None)
+        if cache is not None:
+            Asset.precache_suites(path, cache)
+            return
+
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
         unittest.main(module = None, testRunner = tr, argv=["__dummy__", path])

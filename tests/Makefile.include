@@ -161,7 +161,8 @@ $(FUNCTIONAL_TARGETS):
 
 .PHONY: check-functional
 check-functional:
-	@$(MAKE) SPEED=thorough check-func check-func-quick
+	@$(NINJA) precache-functional
+	@QEMU_TEST_NO_DOWNLOAD=1 $(MAKE) SPEED=thorough check-func check-func-quick
 
 # Consolidated targets
 
