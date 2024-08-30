@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Functional test that boots a Linux kernel and checks the console
 #
 # Copyright IBM Corp. 2023
@@ -9,16 +11,13 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
-import shutil
 import time
 
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import interrupt_interactive_console_until_pattern
-from avocado_qemu import wait_for_console_pattern
-from avocado.utils import process
-from avocado.utils import archive
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import exec_command
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
+from qemu_test.utils import lzma_uncompress
 
 
 class S390CPUTopology(QemuSystemTest):
@@ -47,6 +46,17 @@ class S390CPUTopology(QemuSystemTest):
                                   'root=/dev/ram '
                                   'selinux=0 '
                                   'rdinit=/bin/sh')
+    ASSET_F35_KERNEL = Asset(
+        ('https://archives.fedoraproject.org/pub/archive'
+         '/fedora-secondary/releases/35/Server/s390x/os'
+         '/images/kernel.img'),
+        '1f2dddfd11bb1393dd2eb2e784036fbf6fc11057a6d7d27f9eb12d3edc67ef73')
+
+    ASSET_F35_INITRD = Asset(
+        ('https://archives.fedoraproject.org/pub/archive'
+         '/fedora-secondary/releases/35/Server/s390x/os'
+         '/images/initrd.img'),
+        '1100145fbca00240c8c372ae4b89b48c99844bc189b3dfbc3f481dc60055ca46')
 
     def wait_until_booted(self):
         wait_for_console_pattern(self, 'no job control',
@@ -78,21 +88,10 @@ class S390CPUTopology(QemuSystemTest):
         We need a minimal root filesystem with a shell.
         """
         self.require_accelerator("kvm")
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive'
-                      '/fedora-secondary/releases/35/Server/s390x/os'
-                      '/images/kernel.img')
-        kernel_hash = '0d1aaaf303f07cf0160c8c48e56fe638'
-        kernel_path = self.fetch_asset(kernel_url, algorithm='md5',
-                                       asset_hash=kernel_hash)
-
-        initrd_url = ('https://archives.fedoraproject.org/pub/archive'
-                      '/fedora-secondary/releases/35/Server/s390x/os'
-                      '/images/initrd.img')
-        initrd_hash = 'a122057d95725ac030e2ec51df46e172'
-        initrd_path_xz = self.fetch_asset(initrd_url, algorithm='md5',
-                                          asset_hash=initrd_hash)
+        kernel_path = self.ASSET_F35_KERNEL.fetch()
+        initrd_path_xz = self.ASSET_F35_INITRD.fetch()
         initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
-        archive.lzma_uncompress(initrd_path_xz, initrd_path)
+        lzma_uncompress(initrd_path_xz, initrd_path)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
@@ -115,10 +114,8 @@ class S390CPUTopology(QemuSystemTest):
     def test_single(self):
         """
         This test checks the simplest topology with a single CPU.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -127,10 +124,8 @@ class S390CPUTopology(QemuSystemTest):
     def test_default(self):
         """
         This test checks the implicit topology.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.add_args('-smp',
                          '13,drawers=2,books=2,sockets=3,cores=2,maxcpus=24')
@@ -154,10 +149,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test checks the topology modification by moving a CPU
         to another socket: CPU 0 is moved from socket 0 to socket 2.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.add_args('-smp',
                          '1,drawers=2,books=2,sockets=3,cores=2,maxcpus=24')
@@ -174,10 +167,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test verifies that a CPU defined with the '-device'
         command line option finds its right place inside the topology.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.add_args('-smp',
                          '1,drawers=2,books=2,sockets=3,cores=2,maxcpus=24')
@@ -221,10 +212,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test verifies that QEMU modifies the entitlement change after
         several guest polarization change requests.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -267,10 +256,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test verifies that QEMU modifies the entitlement
         after a guest request and that the guest sees the change.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -313,10 +300,8 @@ class S390CPUTopology(QemuSystemTest):
         CPU is made dedicated.
         QEMU retains the entitlement value when horizontal polarization is in effect.
         For the guest, the field shows the effective value of the entitlement.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -345,10 +330,8 @@ class S390CPUTopology(QemuSystemTest):
         This test verifies that QEMU does not accept to overload a socket.
         The socket-id 0 on book-id 0 already contains CPUs 0 and 1 and can
         not accept any new CPU while socket-id 0 on book-id 1 is free.
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.add_args('-smp',
                          '3,drawers=2,books=2,sockets=3,cores=2,maxcpus=24')
@@ -369,10 +352,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test verifies that QEMU refuses to lower the entitlement
         of a dedicated CPU
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -417,10 +398,8 @@ class S390CPUTopology(QemuSystemTest):
         """
         This test verifies that QEMU refuses to move a CPU to an
         nonexistent location
-
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
         """
+        self.set_machine('s390-ccw-virtio')
         self.kernel_init()
         self.vm.launch()
         self.wait_until_booted()
@@ -437,3 +416,6 @@ class S390CPUTopology(QemuSystemTest):
         self.assertEqual(res['error']['class'], 'GenericError')
 
         self.check_topology(0, 0, 0, 0, 'medium', False)
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

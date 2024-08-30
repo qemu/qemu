@@ -1743,7 +1743,7 @@ S: Supported
 F: hw/s390x/
 F: include/hw/s390x/
 F: configs/devices/s390x-softmmu/default.mak
-F: tests/avocado/machine_s390_ccw_virtio.py
+F: tests/functional/test_s390x_ccw_virtio.py
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
@@ -1806,7 +1806,7 @@ F: hw/s390x/cpu-topology.c
 F: target/s390x/kvm/stsi-topology.c
 F: docs/devel/s390-cpu-topology.rst
 F: docs/system/s390x/cpu-topology.rst
-F: tests/avocado/s390_topology.py
+F: tests/functional/test_s390x_topology.py
 
 X86 Machines
 ------------

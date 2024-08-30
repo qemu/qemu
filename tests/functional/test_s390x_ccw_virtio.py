@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Functional test that boots an s390x Linux guest with ccw and PCI devices
 # attached and checks whether the devices are recognized by Linux
 #
@@ -12,16 +14,37 @@
 import os
 import tempfile
 
-from avocado import skipUnless
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
-from avocado.utils import archive
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
+from qemu_test.utils import lzma_uncompress
 
 class S390CCWVirtioMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     timeout = 120
+
+    ASSET_BUSTER_KERNEL = Asset(
+        ('https://snapshot.debian.org/archive/debian/'
+         '20201126T092837Z/dists/buster/main/installer-s390x/'
+         '20190702+deb10u6/images/generic/kernel.debian'),
+        'd411d17c39ae7ad38d27534376cbe88b68b403c325739364122c2e6f1537e818')
+    ASSET_BUSTER_INITRD = Asset(
+        ('https://snapshot.debian.org/archive/debian/'
+         '20201126T092837Z/dists/buster/main/installer-s390x/'
+         '20190702+deb10u6/images/generic/initrd.debian'),
+        '836bbd0fe6a5ca81274c28c2b063ea315ce1868660866e9b60180c575fef9fd5')
+
+    ASSET_F31_KERNEL = Asset(
+        ('https://archives.fedoraproject.org/pub/archive'
+         '/fedora-secondary/releases/31/Server/s390x/os'
+         '/images/kernel.img'),
+        '480859574f3f44caa6cd35c62d70e1ac0609134e22ce2a954bbed9b110c06e0b')
+    ASSET_F31_INITRD = Asset(
+        ('https://archives.fedoraproject.org/pub/archive'
+         '/fedora-secondary/releases/31/Server/s390x/os'
+         '/images/initrd.img'),
+        '04c46095b2c49020b1c2327158898b7db747e4892ae319726192fb949716aa9c')
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(self, success_message,
@@ -41,23 +64,10 @@ class S390CCWVirtioMachine(QemuSystemTest):
         self.dmesg_clear_count += 1
 
     def test_s390x_devices(self):
+        self.set_machine('s390-ccw-virtio')
 
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        """
-
-        kernel_url = ('https://snapshot.debian.org/archive/debian/'
-                      '20201126T092837Z/dists/buster/main/installer-s390x/'
-                      '20190702+deb10u6/images/generic/kernel.debian')
-        kernel_hash = '5821fbee57d6220a067a8b967d24595621aa1eb6'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        initrd_url = ('https://snapshot.debian.org/archive/debian/'
-                      '20201126T092837Z/dists/buster/main/installer-s390x/'
-                      '20190702+deb10u6/images/generic/initrd.debian')
-        initrd_hash = '81ba09c97bef46e8f4660ac25b4ac0a5be3a94d6'
-        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        kernel_path = self.ASSET_BUSTER_KERNEL.fetch()
+        initrd_path = self.ASSET_BUSTER_INITRD.fetch()
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -160,29 +170,13 @@ class S390CCWVirtioMachine(QemuSystemTest):
 
 
     def test_s390x_fedora(self):
+        self.set_machine('s390-ccw-virtio')
 
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        :avocado: tags=device:virtio-gpu
-        :avocado: tags=device:virtio-crypto
-        :avocado: tags=device:virtio-net
-        :avocado: tags=flaky
-        """
+        kernel_path = self.ASSET_F31_KERNEL.fetch()
 
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive'
-                      '/fedora-secondary/releases/31/Server/s390x/os'
-                      '/images/kernel.img')
-        kernel_hash = 'b93d1efcafcf29c1673a4ce371a1f8b43941cfeb'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        initrd_url = ('https://archives.fedoraproject.org/pub/archive'
-                      '/fedora-secondary/releases/31/Server/s390x/os'
-                      '/images/initrd.img')
-        initrd_hash = '3de45d411df5624b8d8ef21cd0b44419ab59b12f'
-        initrd_path_xz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_xz = self.ASSET_F31_INITRD.fetch()
         initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
-        archive.lzma_uncompress(initrd_path_xz, initrd_path)
+        lzma_uncompress(initrd_path_xz, initrd_path)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE + ' audit=0 '
@@ -277,3 +271,6 @@ class S390CCWVirtioMachine(QemuSystemTest):
         exec_command_and_wait_for_pattern(self,
                         'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
                         ' sleep 1 ; done', 'Start virtcrypto_remove.')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
