@@ -13,6 +13,7 @@ endif
 test_timeouts = {
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
+  'ppc64_hv' : 1000,
   'ppc64_powernv' : 120,
   'ppc64_pseries' : 120,
   's390x_ccw_virtio' : 180,
@@ -68,6 +69,7 @@ tests_ppc_system_thorough = [
 ]
 
 tests_ppc64_system_thorough = [
+  'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
 ]
