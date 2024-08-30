@@ -61,6 +61,7 @@ tests_ppc_system_quick = [
 tests_ppc_system_thorough = [
   'ppc_405',
   'ppc_40p',
+  'ppc_amiga',
   'ppc_bamboo',
   'ppc_mpc8544ds',
   'ppc_virtex_ml507',
