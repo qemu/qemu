@@ -11,6 +11,7 @@ endif
 
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
+  'aarch64_sbsaref' : 600,
   'acpi_bits' : 240,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
@@ -30,6 +31,10 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
+]
+
+tests_aarch64_system_thorough = [
+  'aarch64_sbsaref',
 ]
 
 tests_arm_system_thorough = [
