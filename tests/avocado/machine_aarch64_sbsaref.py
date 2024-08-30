@@ -129,7 +129,7 @@ class Aarch64SbsarefMachine(QemuSystemTest):
             "-cpu",
             cpu,
             "-drive",
-            f"file={iso_path},format=raw",
+            f"file={iso_path},media=cdrom,format=raw",
         )
 
         self.vm.launch()
