@@ -2074,8 +2074,8 @@ ACPI/AVOCADO/BIOSBITS
 M: Ani Sinha <anisinha@redhat.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
-F: tests/avocado/acpi-bits/*
-F: tests/avocado/acpi-bits.py
+F: tests/functional/acpi-bits/*
+F: tests/functional/test_acpi_bits.py
 F: docs/devel/acpi-bits.rst
 
 ACPI/HEST/GHES

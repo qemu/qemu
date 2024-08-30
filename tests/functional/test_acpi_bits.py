@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# group: rw quick
+#
 # Exercise QEMU generated ACPI/SMBIOS tables using biosbits,
 # https://biosbits.org/
 #
@@ -24,7 +24,7 @@
 # pylint: disable=consider-using-f-string
 
 """
-This is QEMU ACPI/SMBIOS avocado tests using biosbits.
+This is QEMU ACPI/SMBIOS functional tests using biosbits.
 Biosbits is available originally at https://biosbits.org/.
 This test uses a fork of the upstream bits and has numerous fixes
 including an upgraded acpica. The fork is located here:
@@ -41,15 +41,16 @@ import tarfile
 import tempfile
 import time
 import zipfile
+
+from pathlib import Path
 from typing import (
     List,
     Optional,
     Sequence,
 )
 from qemu.machine import QEMUMachine
-from avocado import skipIf
-from avocado.utils import datadrainer as drainer
-from avocado_qemu import QemuBaseTest
+from unittest import skipIf
+from qemu_test import QemuBaseTest, Asset
 
 deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
 supported_platforms = ['x86_64'] # supported test platforms.
@@ -129,13 +130,22 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
 class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
     """
     ACPI and SMBIOS tests using biosbits.
-
-    :avocado: tags=arch:x86_64
-    :avocado: tags=acpi
-
     """
     # in slower systems the test can take as long as 3 minutes to complete.
     timeout = BITS_TIMEOUT
+
+    # following are some standard configuration constants
+    # gitlab CI does shallow clones of depth 20
+    BITS_INTERNAL_VER = 2020
+    # commit hash must match the artifact tag below
+    BITS_COMMIT_HASH = 'c7920d2b'
+    # this is the latest bits release as of today.
+    BITS_TAG = "qemu-bits-10262023"
+
+    ASSET_BITS = Asset(("https://gitlab.com/qemu-project/"
+                        "biosbits-bits/-/jobs/artifacts/%s/"
+                        "download?job=qemu-bits-build" % BITS_TAG),
+                       '1b8dd612c6831a6b491716a77acc486666aaa867051cdc34f7ce169c2e25f487')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -143,20 +153,9 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._workDir = None
         self._baseDir = None
 
-        # following are some standard configuration constants
-        self._bitsInternalVer = 2020 # gitlab CI does shallow clones of depth 20
-        self._bitsCommitHash = 'c7920d2b' # commit hash must match
-                                          # the artifact tag below
-        self._bitsTag = "qemu-bits-10262023" # this is the latest bits
-                                             # release as of today.
-        self._bitsArtSHA1Hash = 'b22cdfcfc7453875297d06d626f5474ee36a343f'
-        self._bitsArtURL = ("https://gitlab.com/qemu-project/"
-                            "biosbits-bits/-/jobs/artifacts/%s/"
-                            "download?job=qemu-bits-build" %self._bitsTag)
         self._debugcon_addr = '0x403'
         self._debugcon_log = 'debugcon-log.txt'
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger('acpi-bits')
+        self.logger = self.log
 
     def _print_log(self, log):
         self.logger.info('\nlogs from biosbits follows:')
@@ -171,7 +170,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         bits_config_dir = os.path.join(self._baseDir, 'acpi-bits',
                                        'bits-config')
         target_config_dir = os.path.join(self._workDir,
-                                         'bits-%d' %self._bitsInternalVer,
+                                         'bits-%d' %self.BITS_INTERNAL_VER,
                                          'boot')
         self.assertTrue(os.path.exists(bits_config_dir))
         self.assertTrue(os.path.exists(target_config_dir))
@@ -188,7 +187,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         bits_test_dir = os.path.join(self._baseDir, 'acpi-bits',
                                      'bits-tests')
         target_test_dir = os.path.join(self._workDir,
-                                       'bits-%d' %self._bitsInternalVer,
+                                       'bits-%d' %self.BITS_INTERNAL_VER,
                                        'boot', 'python')
 
         self.assertTrue(os.path.exists(bits_test_dir))
@@ -248,9 +247,9 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
             test scripts
         """
         bits_dir = os.path.join(self._workDir,
-                                'bits-%d' %self._bitsInternalVer)
+                                'bits-%d' %self.BITS_INTERNAL_VER)
         iso_file = os.path.join(self._workDir,
-                                'bits-%d.iso' %self._bitsInternalVer)
+                                'bits-%d.iso' %self.BITS_INTERNAL_VER)
         mkrescue_script = os.path.join(self._workDir,
                                        'grub-inst-x86_64-efi', 'bin',
                                        'grub-mkrescue')
@@ -264,8 +263,12 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
 
         try:
             if os.getenv('V') or os.getenv('BITS_DEBUG'):
-                subprocess.check_call([mkrescue_script, '-o', iso_file,
-                                       bits_dir], stderr=subprocess.STDOUT)
+                proc = subprocess.run([mkrescue_script, '-o', iso_file,
+                                       bits_dir],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT,
+                                      check=True)
+                self.logger.info("grub-mkrescue output %s" % proc.stdout)
             else:
                 subprocess.check_call([mkrescue_script, '-o',
                                       iso_file, bits_dir],
@@ -282,8 +285,9 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
 
     def setUp(self): # pylint: disable=arguments-differ
         super().setUp('qemu-system-')
+        self.logger = self.log
 
-        self._baseDir = os.getenv('AVOCADO_TEST_BASEDIR')
+        self._baseDir = Path(__file__).parent
 
         # workdir could also be avocado's own workdir in self.workdir.
         # At present, I prefer to maintain my own temporary working
@@ -300,15 +304,14 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
             os.mkdir(prebuiltDir, mode=0o775)
 
         bits_zip_file = os.path.join(prebuiltDir, 'bits-%d-%s.zip'
-                                     %(self._bitsInternalVer,
-                                       self._bitsCommitHash))
+                                     %(self.BITS_INTERNAL_VER,
+                                       self.BITS_COMMIT_HASH))
         grub_tar_file = os.path.join(prebuiltDir,
                                      'bits-%d-%s-grub.tar.gz'
-                                     %(self._bitsInternalVer,
-                                       self._bitsCommitHash))
+                                     %(self.BITS_INTERNAL_VER,
+                                       self.BITS_COMMIT_HASH))
 
-        bitsLocalArtLoc = self.fetch_asset(self._bitsArtURL,
-                                           asset_hash=self._bitsArtSHA1Hash)
+        bitsLocalArtLoc = self.ASSET_BITS.fetch()
         self.logger.info("downloaded bits artifacts to %s", bitsLocalArtLoc)
 
         # extract the bits artifact in the temp working directory
@@ -369,7 +372,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         """The main test case implementation."""
 
         iso_file = os.path.join(self._workDir,
-                                'bits-%d.iso' %self._bitsInternalVer)
+                                'bits-%d.iso' %self.BITS_INTERNAL_VER)
 
         self.assertTrue(os.access(iso_file, os.R_OK))
 
@@ -393,12 +396,6 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._vm.set_console()
         self._vm.launch()
 
-        self.logger.debug("Console output from bits VM follows ...")
-        c_drainer = drainer.LineLogger(self._vm.console_socket.fileno(),
-                                       logger=self.logger.getChild("console"),
-                                       stop_check=(lambda :
-                                                   not self._vm.is_running()))
-        c_drainer.start()
 
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
@@ -406,4 +403,8 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         # with the avocado test timeout.
         self._vm.event_wait('SHUTDOWN', timeout=BITS_TIMEOUT)
         self._vm.wait(timeout=None)
+        self.logger.debug("Checking console output ...")
         self.parse_log()
+
+if __name__ == '__main__':
+    QemuBaseTest.main()
