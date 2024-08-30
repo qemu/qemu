@@ -862,6 +862,18 @@ supported. To start the fuzzer, run
 Alternatively, some command different from ``qemu-img info`` can be tested, by
 changing the ``-c`` option.
 
+Functional tests using Python
+-----------------------------
+
+The ``tests/functional`` directory hosts functional tests written in
+Python. You can run the functional tests simply by executing:
+
+.. code::
+
+  make check-functional
+
+See :ref:`checkfunctional-ref` for more details.
+
 Integration tests using the Avocado Framework
 ---------------------------------------------
 
