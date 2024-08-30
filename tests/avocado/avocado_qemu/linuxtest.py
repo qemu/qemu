@@ -13,8 +13,8 @@ import shutil
 
 from avocado.utils import cloudinit, datadrainer, process, vmimage
 
-from . import LinuxSSHMixIn
-from . import QemuSystemTest
+from avocado_qemu import LinuxSSHMixIn
+from avocado_qemu import QemuSystemTest
 
 if os.path.islink(os.path.dirname(os.path.dirname(__file__))):
     # The link to the avocado tests dir in the source code directory
