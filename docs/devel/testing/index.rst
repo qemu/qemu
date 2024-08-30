@@ -9,6 +9,7 @@ testing infrastructure.
 
    main
    qtest
+   avocado
    acpi-bits
    ci
    fuzzing
