@@ -318,6 +318,7 @@ F: configs/devices/ppc*
 F: docs/system/ppc/embedded.rst
 F: docs/system/target-ppc.rst
 F: tests/tcg/ppc*/*
+F: tests/functional/test_ppc_74xx.py
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
@@ -2107,6 +2108,7 @@ S: Odd Fixes
 F: hw/net/
 F: include/hw/net/
 F: tests/qtest/virtio-net-test.c
+F: tests/functional/test_info_usernet.py
 F: docs/virtio-net-failover.rst
 T: git https://github.com/jasowang/qemu.git net
 
@@ -2976,6 +2978,7 @@ S: Supported
 F: include/qemu/option.h
 F: tests/unit/test-keyval.c
 F: tests/unit/test-qemu-opts.c
+F: tests/functional/test_version.py
 F: util/keyval.c
 F: util/qemu-option.c
 
