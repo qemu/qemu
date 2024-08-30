@@ -8,6 +8,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import gzip
 import lzma
 import os
 import shutil
@@ -22,6 +23,17 @@ def archive_extract(archive, dest_dir, member=None):
             tf.extract(member=member, path=dest_dir)
         else:
             tf.extractall(path=dest_dir)
+
+def gzip_uncompress(gz_path, output_path):
+    if os.path.exists(output_path):
+        return
+    with gzip.open(gz_path, 'rb') as gz_in:
+        try:
+            with open(output_path, 'wb') as raw_out:
+                shutil.copyfileobj(gz_in, raw_out)
+        except:
+            os.remove(output_path)
+            raise
 
 def lzma_uncompress(xz_path, output_path):
     if os.path.exists(output_path):

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Functional test that boots a Linux kernel and checks the console
 #
 # Copyright (c) 2018 Red Hat, Inc.
@@ -10,11 +12,11 @@
 
 import os
 
-from avocado import skipUnless
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
-from avocado.utils import archive
+from unittest import skipUnless
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
+from qemu_test.utils import gzip_uncompress
 
 
 class RxGdbSimMachine(QemuSystemTest):
@@ -22,19 +24,25 @@ class RxGdbSimMachine(QemuSystemTest):
     timeout = 30
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
+    ASSET_UBOOT = Asset(
+        'https://acc.dl.osdn.jp/users/23/23888/u-boot.bin.gz',
+        '7146567d669e91dbac166384b29aeba1715beb844c8551e904b86831bfd9d046')
+    ASSET_DTB = Asset(
+        'https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb',
+        'aa278d9c1907a4501741d7ee57e7f65c02dd1b3e0323b33c6d4247f1b32cf29a')
+    ASSET_KERNEL = Asset(
+        'http://acc.dl.osdn.jp/users/23/23845/zImage',
+        'baa43205e74a7220ed8482188c5e9ce497226712abb7f4e7e4f825ce19ff9656')
+
     def test_uboot(self):
         """
         U-Boot and checks that the console is operational.
-
-        :avocado: tags=arch:rx
-        :avocado: tags=machine:gdbsim-r5f562n8
-        :avocado: tags=endian:little
-        :avocado: tags=flaky
         """
-        uboot_url = ('https://acc.dl.osdn.jp/users/23/23888/u-boot.bin.gz')
-        uboot_hash = '9b78dbd43b40b2526848c0b1ce9de02c24f4dcdb'
-        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
-        uboot_path = archive.uncompress(uboot_path, self.workdir)
+        self.set_machine('gdbsim-r5f562n8')
+
+        uboot_path_gz = self.ASSET_UBOOT.fetch()
+        uboot_path = os.path.join(self.workdir, 'u-boot.bin')
+        gzip_uncompress(uboot_path_gz, uboot_path)
 
         self.vm.set_console()
         self.vm.add_args('-bios', uboot_path,
@@ -50,18 +58,11 @@ class RxGdbSimMachine(QemuSystemTest):
     def test_linux_sash(self):
         """
         Boots a Linux kernel and checks that the console is operational.
-
-        :avocado: tags=arch:rx
-        :avocado: tags=machine:gdbsim-r5f562n7
-        :avocado: tags=endian:little
-        :avocado: tags=flaky
         """
-        dtb_url = ('https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb')
-        dtb_hash = '7b4e4e2c71905da44e86ce47adee2210b026ac18'
-        dtb_path = self.fetch_asset(dtb_url, asset_hash=dtb_hash)
-        kernel_url = ('http://acc.dl.osdn.jp/users/23/23845/zImage')
-        kernel_hash = '39a81067f8d72faad90866ddfefa19165d68fc99'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        self.set_machine('gdbsim-r5f562n7')
+
+        dtb_path = self.ASSET_DTB.fetch()
+        kernel_path = self.ASSET_KERNEL.fetch()
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'earlycon'
@@ -72,3 +73,6 @@ class RxGdbSimMachine(QemuSystemTest):
         wait_for_console_pattern(self, 'Sash command shell (version 1.1.1)',
                                  failure_message='Kernel panic - not syncing')
         exec_command_and_wait_for_pattern(self, 'printenv', 'TERM=linux')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

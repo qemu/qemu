@@ -79,6 +79,10 @@ tests_ppc64_system_thorough = [
   'ppc64_pseries',
 ]
 
+tests_rx_system_thorough = [
+  'rx_gdbsim',
+]
+
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',
