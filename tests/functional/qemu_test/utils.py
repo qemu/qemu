@@ -12,6 +12,7 @@ import gzip
 import lzma
 import os
 import shutil
+import subprocess
 import tarfile
 
 def archive_extract(archive, dest_dir, member=None):
@@ -45,3 +46,11 @@ def lzma_uncompress(xz_path, output_path):
         except:
             os.remove(output_path)
             raise
+
+def cpio_extract(cpio_handle, output_path):
+    cwd = os.getcwd()
+    os.chdir(output_path)
+    subprocess.run(['cpio', '-i'],
+                   input=cpio_handle.read(),
+                   stderr=subprocess.DEVNULL)
+    os.chdir(cwd)

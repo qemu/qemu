@@ -44,6 +44,10 @@ tests_arm_system_thorough = [
   'arm_integratorcp',
 ]
 
+tests_arm_linuxuser_thorough = [
+  'arm_bflt',
+]
+
 tests_avr_system_thorough = [
   'avr_mega2560',
 ]
