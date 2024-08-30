@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # LoongArch virt test.
@@ -5,14 +7,27 @@
 # Copyright (c) 2023 Loongson Technology Corporation Limited
 #
 
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import wait_for_console_pattern
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern
 
 class LoongArchMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     timeout = 120
+
+    ASSET_KERNEL = Asset(
+        ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
+         'releases/download/2024-05-30/vmlinuz.efi'),
+        '08b88a45f48a5fd92260bae895be4e5175be2397481a6f7821b9f39b2965b79e')
+    ASSET_INITRD = Asset(
+        ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
+         'releases/download/2024-05-30/ramdisk'),
+        '03d6fb6f8ee64ecac961120a0bdacf741f17b3bee2141f17fa01908c8baf176a')
+    ASSET_BIOS = Asset(
+        ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
+         'releases/download/2024-05-30/QEMU_EFI.fd'),
+        '937c1e7815e2340150c194a9f8f0474259038a3d7b8845ed62cc08163c46bea1')
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(self, success_message,
@@ -21,25 +36,11 @@ class LoongArchMachine(QemuSystemTest):
 
     def test_loongarch64_devices(self):
 
-        """
-        :avocado: tags=arch:loongarch64
-        :avocado: tags=machine:virt
-        """
+        self.set_machine('virt')
 
-        kernel_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                      'releases/download/2024-05-30/vmlinuz.efi')
-        kernel_hash = '951b485b16e3788b6db03a3e1793c067009e31a2'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        initrd_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                      'releases/download/2024-05-30/ramdisk')
-        initrd_hash = 'c67658d9b2a447ce7db2f73ba3d373c9b2b90ab2'
-        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
-
-        bios_url = ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-                    'releases/download/2024-05-30/QEMU_EFI.fd')
-        bios_hash = ('f4d0966b5117d4cd82327c050dd668741046be69')
-        bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
+        kernel_path = self.ASSET_KERNEL.fetch()
+        initrd_path = self.ASSET_INITRD.fetch()
+        bios_path = self.ASSET_BIOS.fetch()
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -56,3 +57,6 @@ class LoongArchMachine(QemuSystemTest):
         self.wait_for_console_pattern('Run /sbin/init as init process')
         exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
                                           'processor		: 3')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

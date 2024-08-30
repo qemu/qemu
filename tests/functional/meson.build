@@ -11,6 +11,7 @@ endif
 
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
+  'netdev_ethtool' : 180,
 }
 
 tests_generic_system = [
@@ -19,14 +20,30 @@ tests_generic_system = [
   'version',
 ]
 
-tests_ppc_quick = [
-  'ppc_74xx',
-]
-
 tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
+]
+
+tests_avr_system_thorough = [
+  'avr_mega2560',
+]
+
+tests_loongarch64_system_thorough = [
+  'loongarch64_virt',
+]
+
+tests_mips64el_system_thorough = [
+  'mips64el_loongson3v',
+]
+
+tests_ppc_system_quick = [
+  'ppc_74xx',
+]
+
+tests_ppc_system_thorough = [
+  'ppc_405',
 ]
 
 tests_x86_64_system_quick = [
@@ -37,6 +54,7 @@ tests_x86_64_system_quick = [
 ]
 
 tests_x86_64_system_thorough = [
+  'netdev_ethtool',
 ]
 
 precache_all = []

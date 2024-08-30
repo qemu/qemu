@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # ethtool tests for emulated network devices
 #
 # This test leverages ethtool's --test sequence to validate network
@@ -5,39 +7,33 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-late
 
-from avocado import skip
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import wait_for_console_pattern
+from unittest import skip
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import wait_for_console_pattern
 
 class NetDevEthtool(QemuSystemTest):
-    """
-    :avocado: tags=arch:x86_64
-    :avocado: tags=machine:q35
-    """
 
     # Runs in about 17s under KVM, 19s under TCG, 25s under GCOV
     timeout = 45
 
     # Fetch assets from the netdev-ethtool subdir of my shared test
     # images directory on fileserver.linaro.org.
-    def get_asset(self, name, sha1):
-        base_url = ('https://fileserver.linaro.org/s/'
-                    'kE4nCFLdQcoBF9t/download?'
-                    'path=%2Fnetdev-ethtool&files=' )
-        url = base_url + name
-        # use explicit name rather than failing to neatly parse the
-        # URL into a unique one
-        return self.fetch_asset(name=name, locations=(url), asset_hash=sha1)
+    ASSET_BASEURL = ('https://fileserver.linaro.org/s/kE4nCFLdQcoBF9t/'
+                     'download?path=%2Fnetdev-ethtool&files=')
+    ASSET_BZIMAGE = Asset(
+        ASSET_BASEURL + "bzImage",
+        "ed62ee06ea620b1035747f3f66a5e9fc5d3096b29f75562ada888b04cd1c4baf")
+    ASSET_ROOTFS = Asset(
+        ASSET_BASEURL + "rootfs.squashfs",
+        "8f0207e3c4d40832ae73c1a927e42ca30ccb1e71f047acb6ddb161ba422934e6")
 
     def common_test_code(self, netdev, extra_args=None):
+        self.set_machine('q35')
 
         # This custom kernel has drivers for all the supported network
         # devices we can emulate in QEMU
-        kernel = self.get_asset("bzImage",
-                                "33469d7802732d5815226166581442395cb289e2")
-
-        rootfs = self.get_asset("rootfs.squashfs",
-                                "9793cea7021414ae844bda51f558bd6565b50cdc")
+        kernel = self.ASSET_BZIMAGE.fetch()
+        rootfs = self.ASSET_ROOTFS.fetch()
 
         append = 'printk.time=0 console=ttyS0 '
         append += 'root=/dev/sr0 rootfstype=squashfs '
@@ -68,15 +64,9 @@ class NetDevEthtool(QemuSystemTest):
         self.vm.kill()
 
     def test_igb(self):
-        """
-        :avocado: tags=device:igb
-        """
         self.common_test_code("igb")
 
     def test_igb_nomsi(self):
-        """
-        :avocado: tags=device:igb
-        """
         self.common_test_code("igb", "pci=nomsi")
 
     # It seems the other popular cards we model in QEMU currently fail
@@ -88,14 +78,11 @@ class NetDevEthtool(QemuSystemTest):
 
     @skip("Incomplete reg 0x00178 support")
     def test_e1000(self):
-        """
-        :avocado: tags=device:e1000
-        """
         self.common_test_code("e1000")
 
     @skip("Incomplete reg 0x00178 support")
     def test_i82550(self):
-        """
-        :avocado: tags=device:i82550
-        """
         self.common_test_code("i82550")
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
