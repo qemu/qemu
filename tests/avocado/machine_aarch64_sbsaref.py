@@ -190,7 +190,7 @@ class Aarch64SbsarefMachine(QemuSystemTest):
             "-cpu",
             cpu,
             "-drive",
-            f"file={img_path},format=raw",
+            f"file={img_path},format=raw,snapshot=on",
         )
 
         self.vm.launch()
