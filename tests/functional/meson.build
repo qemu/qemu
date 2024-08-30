@@ -64,6 +64,10 @@ tests_microblazeel_system_thorough = [
   'microblazeel_s3adsp1800'
 ]
 
+tests_mips64el_system_quick = [
+  'mips64el_fuloong2e',
+]
+
 tests_mips64el_system_thorough = [
   'mips64el_loongson3v',
 ]
