@@ -34,6 +34,7 @@ tests_generic_bsduser = [
 
 tests_arm_system_thorough = [
   'arm_canona1100',
+  'arm_integratorcp',
 ]
 
 tests_avr_system_thorough = [
