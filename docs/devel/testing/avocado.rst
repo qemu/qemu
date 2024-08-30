@@ -8,11 +8,11 @@ The ``tests/avocado`` directory hosts integration tests. They're usually
 higher level tests, and may interact with external resources and with
 various guest operating systems.
 
-These tests are written using the Avocado Testing Framework (which must
-be installed separately) in conjunction with a the ``avocado_qemu.Test``
+These tests are written using the Avocado Testing Framework (which must be
+installed separately) in conjunction with a the ``avocado_qemu.QemuSystemTest``
 class, implemented at ``tests/avocado/avocado_qemu``.
 
-Tests based on ``avocado_qemu.Test`` can easily:
+Tests based on ``avocado_qemu.QemuSystemTest`` can easily:
 
  * Customize the command line arguments given to the convenience
    ``self.vm`` attribute (a QEMUMachine instance)
@@ -154,7 +154,7 @@ Overview
 --------
 
 The ``tests/avocado/avocado_qemu`` directory provides the
-``avocado_qemu`` Python module, containing the ``avocado_qemu.Test``
+``avocado_qemu`` Python module, containing the ``avocado_qemu.QemuSystemTest``
 class.  Here's a simple usage example:
 
 .. code::
@@ -186,11 +186,11 @@ in the current directory, tagged as "quick", run:
 
   avocado run -t quick .
 
-The ``avocado_qemu.Test`` base test class
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The ``avocado_qemu.QemuSystemTest`` base test class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``avocado_qemu.Test`` class has a number of characteristics that
-are worth being mentioned right away.
+The ``avocado_qemu.QemuSystemTest`` class has a number of characteristics
+that are worth being mentioned right away.
 
 First of all, it attempts to give each test a ready to use QEMUMachine
 instance, available at ``self.vm``.  Because many tests will tweak the
@@ -233,15 +233,15 @@ and hypothetical example follows:
 
           self.assertEqual(first_res, second_res, third_res)
 
-At test "tear down", ``avocado_qemu.Test`` handles all the QEMUMachines
-shutdown.
+At test "tear down", ``avocado_qemu.QemuSystemTest`` handles all the
+QEMUMachines shutdown.
 
 The ``avocado_qemu.LinuxTest`` base test class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``avocado_qemu.LinuxTest`` is further specialization of the
-``avocado_qemu.Test`` class, so it contains all the characteristics of
-the later plus some extra features.
+``avocado_qemu.QemuSystemTest`` class, so it contains all the characteristics
+of the later plus some extra features.
 
 First of all, this base class is intended for tests that need to
 interact with a fully booted and operational Linux guest.  At this
@@ -298,7 +298,7 @@ the following approaches:
    working directory, or in the current source tree.
 
 The resulting ``qemu_bin`` value will be preserved in the
-``avocado_qemu.Test`` as an attribute with the same name.
+``avocado_qemu.QemuSystemTest`` as an attribute with the same name.
 
 Attribute reference
 -------------------
@@ -308,7 +308,7 @@ Test
 
 Besides the attributes and methods that are part of the base
 ``avocado.Test`` class, the following attributes are available on any
-``avocado_qemu.Test`` instance.
+``avocado_qemu.QemuSystemTest`` instance.
 
 vm
 ""
@@ -365,7 +365,7 @@ source tree.
 LinuxTest
 ^^^^^^^^^
 
-Besides the attributes present on the ``avocado_qemu.Test`` base
+Besides the attributes present on the ``avocado_qemu.QemuSystemTest`` base
 class, the ``avocado_qemu.LinuxTest`` adds the following attributes:
 
 distro
@@ -446,7 +446,7 @@ The exact QEMU binary to be used on QEMUMachine.
 LinuxTest
 ^^^^^^^^^
 
-Besides the parameters present on the ``avocado_qemu.Test`` base
+Besides the parameters present on the ``avocado_qemu.QemuSystemTest`` base
 class, the ``avocado_qemu.LinuxTest`` adds the following parameters:
 
 distro
