@@ -102,6 +102,7 @@ tests_x86_64_system_quick = [
 
 tests_x86_64_system_thorough = [
   'acpi_bits',
+  'linux_initrd',
   'netdev_ethtool',
   'virtio_gpu',
 ]

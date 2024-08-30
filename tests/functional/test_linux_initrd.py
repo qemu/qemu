@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Linux initrd integration test.
 #
 # Copyright (c) 2018 Red Hat, Inc.
@@ -12,19 +14,26 @@ import os
 import logging
 import tempfile
 
-from avocado_qemu import QemuSystemTest
-from avocado import skipUnless
+from qemu_test import QemuSystemTest, Asset
+from unittest import skipUnless
 
 
 class LinuxInitrd(QemuSystemTest):
     """
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
-
-    :avocado: tags=arch:x86_64
-    :avocado: tags=machine:pc
     """
 
     timeout = 300
+
+    ASSET_F18_KERNEL = Asset(
+        ('https://archives.fedoraproject.org/pub/archive/fedora/linux/'
+         'releases/18/Fedora/x86_64/os/images/pxeboot/vmlinuz'),
+        '1a27cb42559ce29237ac186699d063556ad69c8349d732bb1bd8d614e5a8cc2e')
+
+    ASSET_F28_KERNEL = Asset(
+        ('https://archives.fedoraproject.org/pub/archive/fedora/linux/'
+         'releases/28/Everything/x86_64/os/images/pxeboot/vmlinuz'),
+        'd05909c9d4a742a6fcc84dcc0361009e4611769619cc187a07107579a035f24e')
 
     def test_with_2gib_file_should_exit_error_msg_with_linux_v3_6(self):
         """
@@ -33,10 +42,8 @@ class LinuxInitrd(QemuSystemTest):
         Fedora-18 shipped with linux-3.6 which have not supported xloadflags
         cannot support more than 2GiB initrd.
         """
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora/li'
-                      'nux/releases/18/Fedora/x86_64/os/images/pxeboot/vmlinuz')
-        kernel_hash = '41464f68efe42b9991250bed86c7081d2ccdbb21'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        self.set_machine('pc')
+        kernel_path = self.ASSET_F18_KERNEL.fetch()
         max_size = 2 * (1024 ** 3) - 1
 
         with tempfile.NamedTemporaryFile() as initrd:
@@ -56,16 +63,11 @@ class LinuxInitrd(QemuSystemTest):
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_with_2gib_file_should_work_with_linux_v4_16(self):
         """
-        :avocado: tags=flaky
-
         QEMU has supported up to 4 GiB initrd for recent kernel
         Expect guest can reach 'Unpacking initramfs...'
         """
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
-                      '/linux/releases/28/Everything/x86_64/os/images/pxeboot/'
-                      'vmlinuz')
-        kernel_hash = '238e083e114c48200f80d889f7e32eeb2793e02a'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        self.set_machine('pc')
+        kernel_path = self.ASSET_F28_KERNEL.fetch()
         max_size = 2 * (1024 ** 3) + 1
 
         with tempfile.NamedTemporaryFile() as initrd:
@@ -89,3 +91,6 @@ class LinuxInitrd(QemuSystemTest):
                     break
                 if 'Kernel panic - not syncing' in msg:
                     self.fail("Kernel panic reached")
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
