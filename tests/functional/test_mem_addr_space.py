@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Check for crash when using memory beyond the available guest processor
 # address space.
 #
@@ -8,7 +10,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from avocado_qemu import QemuSystemTest
+from qemu_test import QemuSystemTest
 import time
 
 class MemAddrCheck(QemuSystemTest):
@@ -22,9 +24,6 @@ class MemAddrCheck(QemuSystemTest):
     # for all 32-bit cases, pci64_hole_size is 0.
     def test_phybits_low_pse36(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         With pse36 feature ON, a processor has 36 bits of addressing. So it can
         access up to a maximum of 64GiB of memory. Memory hotplug region begins
         at 4 GiB boundary when "above_4g_mem_size" is 0 (this would be true when
@@ -52,9 +51,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_low_pae(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         With pae feature ON, a processor has 36 bits of addressing. So it can
         access up to a maximum of 64GiB of memory. Rest is the same as the case
         with pse36 above.
@@ -72,9 +68,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_pentium_pse36(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Setting maxmem to 59.5G and making sure that QEMU can start with the
         same options as the failing case above with pse36 cpu feature.
         """
@@ -91,9 +84,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_pentium_pae(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Test is same as above but now with pae cpu feature turned on.
         Setting maxmem to 59.5G and making sure that QEMU can start fine
         with the same options as the case above.
@@ -111,9 +101,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_pentium2(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Pentium2 has 36 bits of addressing, so its same as pentium
         with pse36 ON.
         """
@@ -130,9 +117,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_low_nonpse36(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Pentium processor has 32 bits of addressing without pse36 or pae
         so it can access physical address up to 4 GiB. Setting maxmem to
         4 GiB should make QEMU fail to start with "phys-bits too low"
@@ -153,9 +137,6 @@ class MemAddrCheck(QemuSystemTest):
     # now lets test some 64-bit CPU cases.
     def test_phybits_low_tcg_q35_70_amd(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         For q35 7.1 machines and above, there is a HT window that starts at
         1024 GiB and ends at 1 TiB - 1. If the max GPA falls in this range,
         "above_4G" memory is adjusted to start at 1 TiB boundary for AMD cpus
@@ -182,9 +163,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_low_tcg_q35_71_amd(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         AMD_HT_START is defined to be at 1012 GiB. So for q35 machines
         version > 7.0 and AMD cpus, instead of 1024 GiB limit for 40 bit
         processor address space, it has to be 1012 GiB , that is 12 GiB
@@ -205,9 +183,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_tcg_q35_70_amd(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Same as q35-7.0 AMD case except that here we check that QEMU can
         successfully start when maxmem is < 988G.
         """
@@ -224,9 +199,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_tcg_q35_71_amd(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Same as q35-7.1 AMD case except that here we check that QEMU can
         successfully start when maxmem is < 976G.
         """
@@ -243,9 +215,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_tcg_q35_71_intel(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Same parameters as test_phybits_low_tcg_q35_71_amd() but use
         Intel cpu instead. QEMU should start fine in this case as
         "above_4G" memory starts at 4G.
@@ -264,9 +233,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_low_tcg_q35_71_amd_41bits(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         AMD processor with 41 bits. Max cpu hw address = 2 TiB.
         By setting maxram above 1012 GiB  - 32 GiB - 4 GiB = 976 GiB, we can
         force "above_4G" memory to start at 1 TiB for q35-7.1 machines
@@ -291,9 +257,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_tcg_q35_71_amd_41bits(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         AMD processor with 41 bits. Max cpu hw address = 2 TiB.
         Same as above but by setting maxram between 976 GiB and 992 Gib,
         QEMU should start fine.
@@ -312,9 +275,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_low_tcg_q35_intel_cxl(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         cxl memory window starts after memory device range. Here, we use 1 GiB
         of cxl window memory. 4G_mem end aligns at 4G. pci64_hole is 32 GiB and
         starts after the cxl memory window.
@@ -335,9 +295,6 @@ class MemAddrCheck(QemuSystemTest):
 
     def test_phybits_ok_tcg_q35_intel_cxl(self):
         """
-        :avocado: tags=machine:q35
-        :avocado: tags=arch:x86_64
-
         Same as above but here we do not reserve any cxl memory window. Hence,
         with the exact same parameters as above, QEMU should start fine even
         with cxl enabled.
@@ -352,3 +309,6 @@ class MemAddrCheck(QemuSystemTest):
         time.sleep(self.DELAY_Q35_BOOT_SEQUENCE)
         self.vm.shutdown()
         self.assertNotRegex(self.vm.get_log(), r'phys-bits too low')
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

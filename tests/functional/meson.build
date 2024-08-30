@@ -14,6 +14,7 @@ test_timeouts = {
 }
 
 tests_generic_system = [
+  'empty_cpu_model',
 ]
 
 tests_generic_linuxuser = [
@@ -23,6 +24,10 @@ tests_generic_bsduser = [
 ]
 
 tests_x86_64_system_quick = [
+  'cpu_queries',
+  'mem_addr_space',
+  'pc_cpu_hotplug_props',
+  'virtio_version',
 ]
 
 tests_x86_64_system_thorough = [

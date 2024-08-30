@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Sanity check of query-cpu-* results
 #
 # Copyright (c) 2019 Red Hat, Inc.
@@ -8,7 +10,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from avocado_qemu import QemuSystemTest
+from qemu_test import QemuSystemTest
 
 class QueryCPUModelExpansion(QemuSystemTest):
     """
@@ -16,10 +18,7 @@ class QueryCPUModelExpansion(QemuSystemTest):
     """
 
     def test(self):
-        """
-        :avocado: tags=arch:x86_64
-        :avocado: tags=machine:none
-        """
+        self.set_machine('none')
         self.vm.add_args('-S')
         self.vm.launch()
 
@@ -33,3 +32,6 @@ class QueryCPUModelExpansion(QemuSystemTest):
             e = self.vm.cmd('query-cpu-model-expansion', model=model,
                             type='full')
             self.assertEqual(e['model']['name'], c['name'])
+
+if __name__ == '__main__':
+    QemuSystemTest.main()

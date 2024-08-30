@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Check compatibility of virtio device types
 """
@@ -12,7 +13,7 @@ import sys
 import os
 
 from qemu.machine import QEMUMachine
-from avocado_qemu import QemuSystemTest
+from qemu_test import QemuSystemTest
 
 # Virtio Device IDs:
 VIRTIO_NET = 1
@@ -60,8 +61,6 @@ class VirtioVersionCheck(QemuSystemTest):
     Check if virtio-version-specific device types result in the
     same device tree created by `disable-modern` and
     `disable-legacy`.
-
-    :avocado: tags=arch:x86_64
     """
 
     # just in case there are failures, show larger diff:
@@ -173,3 +172,6 @@ class VirtioVersionCheck(QemuSystemTest):
         self.check_modern_only('virtio-mouse-pci', VIRTIO_INPUT)
         self.check_modern_only('virtio-tablet-pci', VIRTIO_INPUT)
         self.check_modern_only('virtio-keyboard-pci', VIRTIO_INPUT)
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
