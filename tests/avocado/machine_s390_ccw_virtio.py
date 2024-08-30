@@ -200,6 +200,8 @@ class S390CCWVirtioMachine(QemuSystemTest):
                          '-device', 'virtio-rng-ccw,devno=fe.1.9876',
                          '-device', 'virtio-gpu-ccw,devno=fe.2.5432')
         self.vm.launch()
+        self.wait_for_console_pattern('Kernel command line: %s'
+                                      % kernel_command_line)
         self.wait_for_console_pattern('Entering emergency mode')
 
         # Some tests to see whether the CLI options have been considered:
