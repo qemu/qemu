@@ -13,6 +13,7 @@
 
 import logging
 import os
+import subprocess
 import pycotap
 import sys
 import unittest
@@ -69,6 +70,22 @@ class QemuBaseTest(unittest.TestCase):
                                    test_output_log = pycotap.LogMode.LogToError)
         unittest.main(module = None, testRunner = tr, argv=["__dummy__", path])
 
+
+class QemuUserTest(QemuBaseTest):
+
+    def setUp(self):
+        super().setUp('qemu-')
+        self._ldpath = []
+
+    def add_ldpath(self, ldpath):
+        self._ldpath.append(os.path.abspath(ldpath))
+
+    def run_cmd(self, bin_path, args=[]):
+        return subprocess.run([self.qemu_bin]
+                              + ["-L %s" % ldpath for ldpath in self._ldpath]
+                              + [bin_path]
+                              + args,
+                              text=True, capture_output=True)
 
 class QemuSystemTest(QemuBaseTest):
     """Facilitates system emulation tests."""
