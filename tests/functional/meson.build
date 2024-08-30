@@ -26,6 +26,10 @@ tests_generic_linuxuser = [
 tests_generic_bsduser = [
 ]
 
+tests_arm_system_thorough = [
+  'arm_canona1100',
+]
+
 tests_avr_system_thorough = [
   'avr_mega2560',
 ]
@@ -44,6 +48,11 @@ tests_ppc_system_quick = [
 
 tests_ppc_system_thorough = [
   'ppc_405',
+  'ppc_bamboo',
+]
+
+tests_sparc64_system_thorough = [
+  'sparc64_sun4u',
 ]
 
 tests_x86_64_system_quick = [
