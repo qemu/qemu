@@ -12,6 +12,9 @@ endif
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
   'netdev_ethtool' : 180,
+  'ppc_40p' : 240,
+  'ppc64_powernv' : 120,
+  'ppc64_pseries' : 120,
   's390x_ccw_virtio' : 180,
 }
 
@@ -57,7 +60,15 @@ tests_ppc_system_quick = [
 
 tests_ppc_system_thorough = [
   'ppc_405',
+  'ppc_40p',
   'ppc_bamboo',
+  'ppc_mpc8544ds',
+  'ppc_virtex_ml507',
+]
+
+tests_ppc64_system_thorough = [
+  'ppc64_powernv',
+  'ppc64_pseries',
 ]
 
 tests_s390x_system_thorough = [
