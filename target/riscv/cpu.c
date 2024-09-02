@@ -823,6 +823,12 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
     if (flags & CPU_DUMP_FPU) {
+        target_ulong val = 0;
+        RISCVException res = riscv_csrrw_debug(env, CSR_FCSR, &val, 0, 0);
+        if (res == RISCV_EXCP_NONE) {
+            qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+                    csr_ops[CSR_FCSR].name, val);
+        }
         for (i = 0; i < 32; i++) {
             qemu_fprintf(f, " %-8s %016" PRIx64,
                          riscv_fpr_regnames[i], env->fpr[i]);
