@@ -94,14 +94,6 @@ config INTEGRATOR
     select PL181 # display
     select SMC91C111
 
-config MAINSTONE
-    bool
-    default y
-    depends on TCG && ARM
-    select PXA2XX
-    select PFLASH_CFI01
-    select SMC91C111
-
 config MPS3R
     bool
     default y
