@@ -188,7 +188,7 @@ typedef struct CPUArchState {
 
     target_ulong psw;        /* All psw bits except the following:  */
     target_ulong psw_n;      /* boolean */
-    target_long psw_v;       /* in most significant bit */
+    target_long psw_v;       /* in bit 31 */
 
     /* Splitting the carry-borrow field into the MSB and "the rest", allows
      * for "the rest" to be deleted when it is unused, but the MSB is in use.
