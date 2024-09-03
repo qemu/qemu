@@ -1085,32 +1085,62 @@ void HELPER(sme_bfmopa)(void *vza, void *vzn, void *vzm,
     intptr_t row, col, oprsz = simd_maxsz(desc);
     uint32_t neg = simd_data(desc) * 0x80008000u;
     uint16_t *pn = vpn, *pm = vpm;
+    float_status fpst, fpst_odd;
 
-    for (row = 0; row < oprsz; ) {
-        uint16_t prow = pn[H2(row >> 4)];
-        do {
-            void *vza_row = vza + tile_vslice_offset(row);
-            uint32_t n = *(uint32_t *)(vzn + H1_4(row));
+    if (is_ebf(env, &fpst, &fpst_odd)) {
+        for (row = 0; row < oprsz; ) {
+            uint16_t prow = pn[H2(row >> 4)];
+            do {
+                void *vza_row = vza + tile_vslice_offset(row);
+                uint32_t n = *(uint32_t *)(vzn + H1_4(row));
 
-            n = f16mop_adj_pair(n, prow, neg);
+                n = f16mop_adj_pair(n, prow, neg);
 
-            for (col = 0; col < oprsz; ) {
-                uint16_t pcol = pm[H2(col >> 4)];
-                do {
-                    if (prow & pcol & 0b0101) {
-                        uint32_t *a = vza_row + H1_4(col);
-                        uint32_t m = *(uint32_t *)(vzm + H1_4(col));
+                for (col = 0; col < oprsz; ) {
+                    uint16_t pcol = pm[H2(col >> 4)];
+                    do {
+                        if (prow & pcol & 0b0101) {
+                            uint32_t *a = vza_row + H1_4(col);
+                            uint32_t m = *(uint32_t *)(vzm + H1_4(col));
 
-                        m = f16mop_adj_pair(m, pcol, 0);
-                        *a = bfdotadd(*a, n, m);
-                    }
-                    col += 4;
-                    pcol >>= 4;
-                } while (col & 15);
-            }
-            row += 4;
-            prow >>= 4;
-        } while (row & 15);
+                            m = f16mop_adj_pair(m, pcol, 0);
+                            *a = bfdotadd_ebf(*a, n, m, &fpst, &fpst_odd);
+                        }
+                        col += 4;
+                        pcol >>= 4;
+                    } while (col & 15);
+                }
+                row += 4;
+                prow >>= 4;
+            } while (row & 15);
+        }
+    } else {
+        for (row = 0; row < oprsz; ) {
+            uint16_t prow = pn[H2(row >> 4)];
+            do {
+                void *vza_row = vza + tile_vslice_offset(row);
+                uint32_t n = *(uint32_t *)(vzn + H1_4(row));
+
+                n = f16mop_adj_pair(n, prow, neg);
+
+                for (col = 0; col < oprsz; ) {
+                    uint16_t pcol = pm[H2(col >> 4)];
+                    do {
+                        if (prow & pcol & 0b0101) {
+                            uint32_t *a = vza_row + H1_4(col);
+                            uint32_t m = *(uint32_t *)(vzm + H1_4(col));
+
+                            m = f16mop_adj_pair(m, pcol, 0);
+                            *a = bfdotadd(*a, n, m, &fpst);
+                        }
+                        col += 4;
+                        pcol >>= 4;
+                    } while (col & 15);
+                }
+                row += 4;
+                prow >>= 4;
+            } while (row & 15);
+        }
     }
 }
 
