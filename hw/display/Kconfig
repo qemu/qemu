@@ -66,9 +66,6 @@ config BOCHS_DISPLAY
     select VGA
     select EDID
 
-config BLIZZARD
-    bool
-
 config FRAMEBUFFER
     bool
 
