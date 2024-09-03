@@ -199,29 +199,6 @@ config GUMSTIX
     select SMC91C111
     select PXA2XX
 
-config TOSA
-    bool
-    default y
-    depends on TCG && ARM
-    select ZAURUS  # scoop
-    select MICRODRIVE
-    select PXA2XX
-    select LED
-
-config SPITZ
-    bool
-    default y
-    depends on TCG && ARM
-    select ADS7846 # touch-screen controller
-    select MAX111X # A/D converter
-    select WM8750  # audio codec
-    select MAX7310 # GPIO expander
-    select ZAURUS  # scoop
-    select NAND    # memory
-    select ECC     # Error-correcting for NAND
-    select MICRODRIVE
-    select PXA2XX
-
 config Z2
     bool
     default y

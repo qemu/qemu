@@ -101,7 +101,6 @@ undocumented; you can get a complete list by running
    arm/orangepi
    arm/palm
    arm/raspi
-   arm/xscale
    arm/collie
    arm/sx1
    arm/stellaris
