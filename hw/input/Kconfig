@@ -20,9 +20,6 @@ config PS2
 config STELLARIS_GAMEPAD
     bool
 
-config TSC2005
-    bool
-
 config VIRTIO_INPUT
     bool
     default y
