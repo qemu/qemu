@@ -175,6 +175,7 @@ config PXA2XX
     select SSI
     select USB_OHCI_SYSBUS
     select PCMCIA
+    select PXA2XX_TIMER
 
 config REALVIEW
     bool
@@ -261,7 +262,8 @@ config STM32VLDISCOVERY
 
 config STRONGARM
     bool
-    select PXA2XX
+    select PXA2XX_TIMER
+    select SSI
 
 config COLLIE
     bool
