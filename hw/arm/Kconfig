@@ -300,7 +300,7 @@ config COLLIE
     default y
     depends on TCG && ARM
     select PFLASH_CFI01
-    select ZAURUS  # scoop
+    select ZAURUS_SCOOP
     select STRONGARM
 
 config SX1
@@ -661,11 +661,6 @@ config MSF2
     select SERIAL
     select SSI
     select UNIMP
-
-config ZAURUS
-    bool
-    select NAND
-    select ECC
 
 config ARMSSE
     bool
