@@ -76,7 +76,6 @@ system_ss.add(when: 'CONFIG_NPCM7XX', if_true: files(
 system_ss.add(when: 'CONFIG_OMAP', if_true: files(
   'omap_clk.c',
   'omap_l4.c',
-  'omap_tap.c',
 ))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
   'bcm2835_mbox.c',
