@@ -624,9 +624,9 @@ static void trng_init(Object *obj)
     s->prng = g_rand_new();
 }
 
-static void trng_unrealize(DeviceState *dev)
+static void trng_finalize(Object *obj)
 {
-    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(dev);
+    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
 
     g_rand_free(s->prng);
     s->prng = NULL;
@@ -689,7 +689,6 @@ static void trng_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_trng;
-    dc->unrealize = trng_unrealize;
     rc->phases.hold = trng_reset_hold;
 
     /* Clone uint64 property with set allowed after realized */
@@ -706,6 +705,7 @@ static const TypeInfo trng_info = {
     .instance_size = sizeof(XlnxVersalTRng),
     .class_init    = trng_class_init,
     .instance_init = trng_init,
+    .instance_finalize = trng_finalize,
 };
 
 static void trng_register_types(void)
