@@ -14,10 +14,6 @@ config M48T59
 config PL031
     bool
 
-config TWL92230
-    bool
-    depends on I2C
-
 config MC146818RTC
     depends on ISA_BUS
     bool
