@@ -39,6 +39,7 @@ tests_aarch64_system_thorough = [
   'aarch64_raspi4',
   'aarch64_sbsaref',
   'aarch64_virt',
+  'multiprocess',
 ]
 
 tests_alpha_system_thorough = [
@@ -141,6 +142,7 @@ tests_x86_64_system_quick = [
 tests_x86_64_system_thorough = [
   'acpi_bits',
   'linux_initrd',
+  'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
 ]
