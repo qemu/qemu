@@ -91,7 +91,6 @@ undocumented; you can get a complete list by running
    arm/cubieboard
    arm/emcraft-sf2
    arm/musicpal
-   arm/gumstix
    arm/mainstone
    arm/kzm
    arm/nseries

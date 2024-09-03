@@ -184,14 +184,6 @@ config PXA2XX
     select USB_OHCI_SYSBUS
     select PCMCIA
 
-config GUMSTIX
-    bool
-    default y
-    depends on TCG && ARM
-    select PFLASH_CFI01
-    select SMC91C111
-    select PXA2XX
-
 config Z2
     bool
     default y
