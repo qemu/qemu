@@ -147,12 +147,6 @@ hwaddr omap_l4_region_base(struct omap_target_agent_s *ta,
 hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
                                        int region);
 
-/* OMAP2 SDRAM controller */
-struct omap_sdrc_s;
-struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
-                                   hwaddr base);
-void omap_sdrc_reset(struct omap_sdrc_s *s);
-
 /* OMAP2 general purpose memory controller */
 struct omap_gpmc_s;
 struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
@@ -954,7 +948,6 @@ struct omap_mpu_state_s {
     struct omap_gp_timer_s *gptimer[12];
     struct omap_synctimer_s *synctimer;
 
-    struct omap_sdrc_s *sdrc;
     struct omap_gpmc_s *gpmc;
 
     struct omap_mcspi_s *mcspi[2];

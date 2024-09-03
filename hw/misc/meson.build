@@ -77,7 +77,6 @@ system_ss.add(when: 'CONFIG_OMAP', if_true: files(
   'omap_clk.c',
   'omap_gpmc.c',
   'omap_l4.c',
-  'omap_sdrc.c',
   'omap_tap.c',
 ))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
