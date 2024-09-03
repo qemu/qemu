@@ -147,15 +147,6 @@ hwaddr omap_l4_region_base(struct omap_target_agent_s *ta,
 hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
                                        int region);
 
-/* OMAP2 general purpose memory controller */
-struct omap_gpmc_s;
-struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
-                                   hwaddr base,
-                                   qemu_irq irq, qemu_irq drq);
-void omap_gpmc_reset(struct omap_gpmc_s *s);
-void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem);
-void omap_gpmc_attach_nand(struct omap_gpmc_s *s, int cs, DeviceState *nand);
-
 /*
  * Common IRQ numbers for level 1 interrupt handler
  * See /usr/include/asm-arm/arch-omap/irqs.h in Linux.
@@ -947,8 +938,6 @@ struct omap_mpu_state_s {
 
     struct omap_gp_timer_s *gptimer[12];
     struct omap_synctimer_s *synctimer;
-
-    struct omap_gpmc_s *gpmc;
 
     struct omap_mcspi_s *mcspi[2];
 
