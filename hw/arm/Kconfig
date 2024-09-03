@@ -142,20 +142,6 @@ config OLIMEX_STM32_H405
     depends on TCG && ARM
     select STM32F405_SOC
 
-config NSERIES
-    bool
-    default y
-    depends on TCG && ARM
-    select OMAP
-    select TMP105   # temperature sensor
-    select BLIZZARD # LCD/TV controller
-    select ONENAND
-    select TSC210X  # touchscreen/sensors/audio
-    select TSC2005  # touchscreen/sensors/keypad
-    select LM832X   # GPIO keyboard chip
-    select TWL92230 # energy-management
-    select TUSB6010
-
 config OMAP
     bool
     select FRAMEBUFFER
