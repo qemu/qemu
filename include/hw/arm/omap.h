@@ -734,23 +734,6 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
                                         struct omap_dma_lcd_channel_s *dma,
                                         omap_clk clk);
 
-/* omap_dss.c */
-struct rfbi_chip_s {
-    void *opaque;
-    void (*write)(void *opaque, int dc, uint16_t value);
-    void (*block)(void *opaque, int dc, void *buf, size_t len, int pitch);
-    uint16_t (*read)(void *opaque, int dc);
-};
-struct omap_dss_s;
-void omap_dss_reset(struct omap_dss_s *s);
-struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
-                MemoryRegion *sysmem,
-                hwaddr l3_base,
-                qemu_irq irq, qemu_irq drq,
-                omap_clk fck1, omap_clk fck2, omap_clk ck54m,
-                omap_clk ick1, omap_clk ick2);
-void omap_rfbi_attach(struct omap_dss_s *s, int cs, struct rfbi_chip_s *chip);
-
 /* omap_mmc.c */
 struct omap_mmc_s;
 struct omap_mmc_s *omap_mmc_init(hwaddr base,
@@ -910,8 +893,6 @@ struct omap_mpu_state_s {
 
     /* OMAP2-only peripherals */
     struct omap_l4_s *l4;
-
-    struct omap_dss_s *dss;
 };
 
 /* omap1.c */
