@@ -433,9 +433,25 @@ class AST2x00MachineSDK(QemuSystemTest, LinuxSSHMixIn):
                              f'loader,addr=0x430000000,cpu-num={i}')
 
         self.vm.add_args('-smp', str(num_cpu))
+        self.vm.add_args('-device',
+                         'tmp105,bus=aspeed.i2c.bus.1,address=0x4d,id=tmp-test')
         self.do_test_aarch64_aspeed_sdk_start(image_dir + 'image-bmc')
         self.wait_for_console_pattern('nodistro.0 ast2700-default ttyS12')
+
         self.ssh_connect('root', '0penBmc', False)
+        self.ssh_command('dmesg -c > /dev/null')
+
+        self.ssh_command_output_contains(
+            'echo lm75 0x4d > /sys/class/i2c-dev/i2c-1/device/new_device '
+            '&& dmesg -c',
+            'i2c i2c-1: new_device: Instantiated device lm75 at 0x4d');
+
+        self.ssh_command_output_contains(
+            'cat /sys/class/hwmon/hwmon20/temp1_input', '0')
+        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
+                    property='temperature', value=18000)
+        self.ssh_command_output_contains(
+            'cat /sys/class/hwmon/hwmon20/temp1_input', '18000')
 
 class AST2x00MachineMMC(QemuSystemTest):
 
