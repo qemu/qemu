@@ -608,9 +608,8 @@ static void trng_init(Object *obj)
 {
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    RegisterInfoArray *reg_array;
 
-    reg_array =
+    s->reg_array =
         register_init_block32(DEVICE(obj), trng_regs_info,
                               ARRAY_SIZE(trng_regs_info),
                               s->regs_info, s->regs,
@@ -618,7 +617,7 @@ static void trng_init(Object *obj)
                               XLNX_VERSAL_TRNG_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_mmio(sbd, &s->reg_array->mem);
     sysbus_init_irq(sbd, &s->irq);
 
     s->prng = g_rand_new();
@@ -628,6 +627,7 @@ static void trng_finalize(Object *obj)
 {
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
 
+    register_finalize_block(s->reg_array);
     g_rand_free(s->prng);
     s->prng = NULL;
 }

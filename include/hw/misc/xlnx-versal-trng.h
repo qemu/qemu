@@ -50,6 +50,7 @@ typedef struct XlnxVersalTRng {
     uint64_t forced_prng_count;
     uint64_t tst_seed[2];
 
+    RegisterInfoArray *reg_array;
     uint32_t regs[RMAX_XLNX_VERSAL_TRNG];
     RegisterInfo regs_info[RMAX_XLNX_VERSAL_TRNG];
 } XlnxVersalTRng;
