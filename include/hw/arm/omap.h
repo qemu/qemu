@@ -108,45 +108,6 @@ DECLARE_INSTANCE_CHECKER(Omap1GpioState, OMAP1_GPIO,
 /* TODO: clock framework (see above) */
 void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 
-/* OMAP2 l4 Interconnect */
-struct omap_l4_s;
-struct omap_l4_region_s {
-    hwaddr offset;
-    size_t size;
-    int access;
-};
-struct omap_l4_agent_info_s {
-    int ta;
-    int region;
-    int regions;
-    int ta_region;
-};
-struct omap_target_agent_s {
-    MemoryRegion iomem;
-    struct omap_l4_s *bus;
-    int regions;
-    const struct omap_l4_region_s *start;
-    hwaddr base;
-    uint32_t component;
-    uint32_t control;
-    uint32_t status;
-};
-struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
-                               hwaddr base, int ta_num);
-
-struct omap_target_agent_s;
-struct omap_target_agent_s *omap_l4ta_get(
-    struct omap_l4_s *bus,
-    const struct omap_l4_region_s *regions,
-    const struct omap_l4_agent_info_s *agents,
-    int cs);
-hwaddr omap_l4_attach(struct omap_target_agent_s *ta,
-                                         int region, MemoryRegion *mr);
-hwaddr omap_l4_region_base(struct omap_target_agent_s *ta,
-                                       int region);
-hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
-                                       int region);
-
 /*
  * Common IRQ numbers for level 1 interrupt handler
  * See /usr/include/asm-arm/arch-omap/irqs.h in Linux.
@@ -890,9 +851,6 @@ struct omap_mpu_state_s {
         uint16_t dsp_idlect2;
         uint16_t dsp_rstct2;
     } clkm;
-
-    /* OMAP2-only peripherals */
-    struct omap_l4_s *l4;
 };
 
 /* omap1.c */
