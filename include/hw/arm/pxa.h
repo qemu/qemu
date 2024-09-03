@@ -80,12 +80,6 @@ void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler);
 DeviceState *pxa255_dma_init(hwaddr base, qemu_irq irq);
 DeviceState *pxa27x_dma_init(hwaddr base, qemu_irq irq);
 
-/* pxa2xx_lcd.c */
-typedef struct PXA2xxLCDState PXA2xxLCDState;
-PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
-                hwaddr base, qemu_irq irq);
-void pxa2xx_lcd_vsync_notifier(PXA2xxLCDState *s, qemu_irq handler);
-
 /* pxa2xx_pcmcia.c */
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPCMCIAState, PXA2XX_PCMCIA)
