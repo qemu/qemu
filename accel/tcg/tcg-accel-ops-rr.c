@@ -302,9 +302,7 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_deal_with_unplugged_cpus();
     }
 
-    rcu_remove_force_rcu_notifier(&force_rcu);
-    rcu_unregister_thread();
-    return NULL;
+    g_assert_not_reached();
 }
 
 void rr_start_vcpu_thread(CPUState *cpu)
