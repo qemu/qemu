@@ -94,16 +94,4 @@ int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
 int pxa2xx_pcmcia_detach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);
 
-/* pxa2xx_keypad.c */
-struct  keymap {
-    int8_t column;
-    int8_t row;
-};
-typedef struct PXA2xxKeyPadState PXA2xxKeyPadState;
-PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
-                                      hwaddr base,
-                                      qemu_irq irq);
-void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
-                            const struct keymap *map, int size);
-
 #endif /* PXA_H */
