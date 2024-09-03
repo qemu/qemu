@@ -920,7 +920,6 @@ S: Odd Fixes
 F: hw/arm/z2.c
 F: hw/*/pxa2xx*
 F: hw/gpio/max7310.c
-F: hw/misc/mst_fpga.c
 F: hw/adc/max111x.c
 F: include/hw/adc/max111x.h
 F: include/hw/arm/pxa.h

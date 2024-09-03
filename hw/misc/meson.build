@@ -67,7 +67,6 @@ system_ss.add(when: 'CONFIG_IMX', if_true: files(
   'imx_ccm.c',
   'imx_rngc.c',
 ))
-system_ss.add(when: 'CONFIG_MAINSTONE', if_true: files('mst_fpga.c'))
 system_ss.add(when: 'CONFIG_NPCM7XX', if_true: files(
   'npcm7xx_clk.c',
   'npcm7xx_gcr.c',
