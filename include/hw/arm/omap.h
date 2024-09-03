@@ -698,15 +698,6 @@ struct omap_uwire_s;
 void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect);
 
-/* OMAP2 spi */
-struct omap_mcspi_s;
-struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
-                qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk);
-void omap_mcspi_attach(struct omap_mcspi_s *s,
-                uint32_t (*txrx)(void *opaque, uint32_t, int), void *opaque,
-                int chipselect);
-void omap_mcspi_reset(struct omap_mcspi_s *s);
-
 struct I2SCodec {
     void *opaque;
 
@@ -922,8 +913,6 @@ struct omap_mpu_state_s {
 
     /* OMAP2-only peripherals */
     struct omap_l4_s *l4;
-
-    struct omap_mcspi_s *mcspi[2];
 
     struct omap_dss_s *dss;
 };
