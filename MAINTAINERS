@@ -913,16 +913,6 @@ F: hw/intc/realview_gic.c
 F: include/hw/intc/realview_gic.h
 F: docs/system/arm/realview.rst
 
-PXA2XX
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/*/pxa2xx*
-F: hw/gpio/max7310.c
-F: hw/adc/max111x.c
-F: include/hw/adc/max111x.h
-F: include/hw/arm/pxa.h
-
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Jean-Christophe Dubois <jcd@tribudubois.net>

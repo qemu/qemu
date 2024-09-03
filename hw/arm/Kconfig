@@ -166,17 +166,6 @@ config OMAP
     select SD
     select SERIAL
 
-config PXA2XX
-    bool
-    select FRAMEBUFFER
-    select I2C
-    select SERIAL
-    select SD
-    select SSI
-    select USB_OHCI_SYSBUS
-    select PCMCIA
-    select PXA2XX_TIMER
-
 config REALVIEW
     bool
     default y
