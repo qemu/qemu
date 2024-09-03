@@ -76,10 +76,6 @@ DeviceState *pxa2xx_gpio_init(hwaddr base,
                               ARMCPU *cpu, DeviceState *pic, int lines);
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler);
 
-/* pxa2xx_dma.c */
-DeviceState *pxa255_dma_init(hwaddr base, qemu_irq irq);
-DeviceState *pxa27x_dma_init(hwaddr base, qemu_irq irq);
-
 /* pxa2xx_pcmcia.c */
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPCMCIAState, PXA2XX_PCMCIA)
