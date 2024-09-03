@@ -1,9 +1,6 @@
 config ADB
     bool
 
-config ADS7846
-    bool
-
 config LM832X
     bool
     depends on I2C

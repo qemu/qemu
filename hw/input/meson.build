@@ -1,6 +1,5 @@
 system_ss.add(files('hid.c'))
 system_ss.add(when: 'CONFIG_ADB', if_true: files('adb.c', 'adb-mouse.c', 'adb-kbd.c'))
-system_ss.add(when: 'CONFIG_ADS7846', if_true: files('ads7846.c'))
 system_ss.add(when: 'CONFIG_LM832X', if_true: files('lm832x.c'))
 system_ss.add(when: 'CONFIG_PCKBD', if_true: files('pckbd.c'))
 system_ss.add(when: 'CONFIG_PL050', if_true: files('pl050.c'))
