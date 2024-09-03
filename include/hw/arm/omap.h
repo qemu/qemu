@@ -105,16 +105,8 @@ typedef struct Omap1GpioState Omap1GpioState;
 DECLARE_INSTANCE_CHECKER(Omap1GpioState, OMAP1_GPIO,
                          TYPE_OMAP1_GPIO)
 
-#define TYPE_OMAP2_GPIO "omap2-gpio"
-typedef struct Omap2GpioState Omap2GpioState;
-DECLARE_INSTANCE_CHECKER(Omap2GpioState, OMAP2_GPIO,
-                         TYPE_OMAP2_GPIO)
-
 /* TODO: clock framework (see above) */
 void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
-
-void omap2_gpio_set_iclk(Omap2GpioState *gpio, omap_clk clk);
-void omap2_gpio_set_fclk(Omap2GpioState *gpio, uint8_t i, omap_clk clk);
 
 /* OMAP2 l4 Interconnect */
 struct omap_l4_s;
