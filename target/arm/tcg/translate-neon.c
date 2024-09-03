@@ -391,8 +391,8 @@ static bool trans_VDOT_b16_scal(DisasContext *s, arg_VDOT_b16_scal *a)
     if (!dc_isar_feature(aa32_bf16, s)) {
         return false;
     }
-    return do_neon_ddda(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
-                        gen_helper_gvec_bfdot_idx);
+    return do_neon_ddda_env(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
+                            gen_helper_gvec_bfdot_idx);
 }
 
 static bool trans_VFML_scalar(DisasContext *s, arg_VFML_scalar *a)

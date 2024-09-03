@@ -2828,7 +2828,7 @@ void HELPER(gvec_bfdot)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_bfdot_idx)(void *vd, void *vn, void *vm,
-                            void *va, uint32_t desc)
+                            void *va, CPUARMState *env, uint32_t desc)
 {
     intptr_t i, j, opr_sz = simd_oprsz(desc);
     intptr_t index = simd_data(desc);
