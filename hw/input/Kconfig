@@ -35,8 +35,5 @@ config VHOST_USER_INPUT
     default y
     depends on VIRTIO_INPUT && VHOST_USER
 
-config TSC210X
-    bool
-
 config LASIPS2
     select PS2

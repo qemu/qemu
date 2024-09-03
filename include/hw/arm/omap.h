@@ -21,7 +21,6 @@
 #define HW_ARM_OMAP_H
 
 #include "exec/memory.h"
-#include "hw/input/tsc2xxx.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/log.h"
 #include "qom/object.h"
@@ -729,6 +728,12 @@ struct omap_mpuio_s;
 qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
+
+typedef struct uWireSlave {
+    uint16_t (*receive)(void *opaque);
+    void (*send)(void *opaque, uint16_t data);
+    void *opaque;
+} uWireSlave;
 
 struct omap_uwire_s;
 void omap_uwire_attach(struct omap_uwire_s *s,
