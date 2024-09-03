@@ -148,6 +148,37 @@ static bool do_neon_ddda(DisasContext *s, int q, int vd, int vn, int vm,
     return true;
 }
 
+static bool do_neon_ddda_env(DisasContext *s, int q, int vd, int vn, int vm,
+                             int data, gen_helper_gvec_4_ptr *fn_gvec)
+{
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (((vd | vn | vm) & 0x10) && !dc_isar_feature(aa32_simd_r32, s)) {
+        return false;
+    }
+
+    /*
+     * UNDEF accesses to odd registers for each bit of Q.
+     * Q will be 0b111 for all Q-reg instructions, otherwise
+     * when we have mixed Q- and D-reg inputs.
+     */
+    if (((vd & 1) * 4 | (vn & 1) * 2 | (vm & 1)) & q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    int opr_sz = q ? 16 : 8;
+    tcg_gen_gvec_4_ptr(vfp_reg_offset(1, vd),
+                       vfp_reg_offset(1, vn),
+                       vfp_reg_offset(1, vm),
+                       vfp_reg_offset(1, vd),
+                       tcg_env,
+                       opr_sz, opr_sz, data, fn_gvec);
+    return true;
+}
+
 static bool do_neon_ddda_fpst(DisasContext *s, int q, int vd, int vn, int vm,
                               int data, ARMFPStatusFlavour fp_flavour,
                               gen_helper_gvec_4_ptr *fn_gvec_ptr)
@@ -266,8 +297,8 @@ static bool trans_VDOT_b16(DisasContext *s, arg_VDOT_b16 *a)
     if (!dc_isar_feature(aa32_bf16, s)) {
         return false;
     }
-    return do_neon_ddda(s, a->q * 7, a->vd, a->vn, a->vm, 0,
-                        gen_helper_gvec_bfdot);
+    return do_neon_ddda_env(s, a->q * 7, a->vd, a->vn, a->vm, 0,
+                            gen_helper_gvec_bfdot);
 }
 
 static bool trans_VFML(DisasContext *s, arg_VFML *a)

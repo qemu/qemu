@@ -2814,7 +2814,8 @@ float32 bfdotadd(float32 sum, uint32_t e1, uint32_t e2)
     return t1;
 }
 
-void HELPER(gvec_bfdot)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
+void HELPER(gvec_bfdot)(void *vd, void *vn, void *vm, void *va,
+                        CPUARMState *env, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc);
     float32 *d = vd, *a = va;
