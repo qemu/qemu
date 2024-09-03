@@ -397,6 +397,13 @@ static void cfu_fdro_init(Object *obj)
     fifo32_create(&s->fdro_data, 8 * KiB / sizeof(uint32_t));
 }
 
+static void cfu_fdro_finalize(Object *obj)
+{
+    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(obj);
+
+    fifo32_destroy(&s->fdro_data);
+}
+
 static void cfu_fdro_reset_enter(Object *obj, ResetType type)
 {
     XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(obj);
@@ -539,6 +546,7 @@ static const TypeInfo cfu_fdro_info = {
     .instance_size = sizeof(XlnxVersalCFUFDRO),
     .class_init    = cfu_fdro_class_init,
     .instance_init = cfu_fdro_init,
+    .instance_finalize = cfu_fdro_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_XLNX_CFI_IF },
         { }
