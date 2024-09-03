@@ -92,7 +92,6 @@ undocumented; you can get a complete list by running
    arm/emcraft-sf2
    arm/musicpal
    arm/kzm
-   arm/nseries
    arm/nrf
    arm/nuvoton
    arm/imx25-pdk
