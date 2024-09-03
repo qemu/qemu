@@ -86,16 +86,6 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                 hwaddr base, qemu_irq irq);
 void pxa2xx_lcd_vsync_notifier(PXA2xxLCDState *s, qemu_irq handler);
 
-/* pxa2xx_mmci.c */
-#define TYPE_PXA2XX_MMCI "pxa2xx-mmci"
-OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxMMCIState, PXA2XX_MMCI)
-
-PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
-                hwaddr base,
-                qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma);
-void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
-                qemu_irq coverswitch);
-
 /* pxa2xx_pcmcia.c */
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPCMCIAState, PXA2XX_PCMCIA)
