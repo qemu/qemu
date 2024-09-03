@@ -284,6 +284,7 @@ struct AspeedI2CClass {
 
     uint64_t pool_size;
     hwaddr pool_base;
+    uint32_t pool_gap_size;
     uint8_t *(*bus_pool_base)(AspeedI2CBus *);
     bool check_sram;
     bool has_dma;
