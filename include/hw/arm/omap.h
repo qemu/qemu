@@ -421,7 +421,6 @@ enum omap_dma_model {
     omap_dma_3_0,
     omap_dma_3_1,
     omap_dma_3_2,
-    omap_dma_4,
 };
 
 struct soc_dma_s;
