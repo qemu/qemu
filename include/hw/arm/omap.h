@@ -676,13 +676,6 @@ struct omap_dma_lcd_channel_s {
 # define OMAP24XX_DMA_MS		63	/* Not in OMAP2420 */
 # define OMAP24XX_DMA_EXT_DMAREQ5	64
 
-/* omap[123].c */
-/* OMAP2 gp timer */
-struct omap_gp_timer_s;
-struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
-                qemu_irq irq, omap_clk fclk, omap_clk iclk);
-void omap_gp_timer_reset(struct omap_gp_timer_s *s);
-
 /* OMAP2 sysctimer */
 struct omap_synctimer_s;
 struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
@@ -936,7 +929,6 @@ struct omap_mpu_state_s {
     /* OMAP2-only peripherals */
     struct omap_l4_s *l4;
 
-    struct omap_gp_timer_s *gptimer[12];
     struct omap_synctimer_s *synctimer;
 
     struct omap_mcspi_s *mcspi[2];
