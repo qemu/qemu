@@ -972,24 +972,16 @@ struct omap_mpu_state_s {
     struct omap_gp_timer_s *gptimer[12];
     struct omap_synctimer_s *synctimer;
 
-    struct omap_prcm_s *prcm;
     struct omap_sdrc_s *sdrc;
     struct omap_gpmc_s *gpmc;
-    struct omap_sysctl_s *sysc;
 
     struct omap_mcspi_s *mcspi[2];
 
     struct omap_dss_s *dss;
-
-    struct omap_eac_s *eac;
 };
 
 /* omap1.c */
 struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *sdram,
-                const char *core);
-
-/* omap2.c */
-struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
                 const char *core);
 
 uint32_t omap_badwidth_read8(void *opaque, hwaddr addr);
