@@ -47,6 +47,7 @@ struct XlnxBBRam {
     bool bbram8_wo;
     bool blk_ro;
 
+    RegisterInfoArray *reg_array;
     uint32_t regs[RMAX_XLNX_BBRAM];
     RegisterInfo regs_info[RMAX_XLNX_BBRAM];
 };
