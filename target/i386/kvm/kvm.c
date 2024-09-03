@@ -2906,9 +2906,9 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
      * 1. Host cpu must be Intel cpu
      * 2. RAPL must be enabled on the Host
      */
-    if (is_host_cpu_intel()) {
-        error_report("The RAPL feature can only be enabled on hosts\
-                      with Intel CPU models");
+    if (!is_host_cpu_intel()) {
+        error_report("The RAPL feature can only be enabled on hosts "
+                     "with Intel CPU models");
         ret = 1;
         goto out;
     }
