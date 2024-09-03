@@ -37,6 +37,7 @@ struct XlnxZynqMPEFuse {
     qemu_irq irq;
 
     XlnxEFuse *efuse;
+    RegisterInfoArray *reg_array;
     uint32_t regs[XLNX_ZYNQMP_EFUSE_R_MAX];
     RegisterInfo regs_info[XLNX_ZYNQMP_EFUSE_R_MAX];
 };

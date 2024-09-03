@@ -803,9 +803,8 @@ static void zynqmp_efuse_init(Object *obj)
 {
     XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    RegisterInfoArray *reg_array;
 
-    reg_array =
+    s->reg_array =
         register_init_block32(DEVICE(obj), zynqmp_efuse_regs_info,
                               ARRAY_SIZE(zynqmp_efuse_regs_info),
                               s->regs_info, s->regs,
@@ -813,8 +812,15 @@ static void zynqmp_efuse_init(Object *obj)
                               ZYNQMP_EFUSE_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_mmio(sbd, &s->reg_array->mem);
     sysbus_init_irq(sbd, &s->irq);
+}
+
+static void zynqmp_efuse_finalize(Object *obj)
+{
+    XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
+
+    register_finalize_block(s->reg_array);
 }
 
 static const VMStateDescription vmstate_efuse = {
@@ -853,6 +859,7 @@ static const TypeInfo efuse_info = {
     .instance_size = sizeof(XlnxZynqMPEFuse),
     .class_init    = zynqmp_efuse_class_init,
     .instance_init = zynqmp_efuse_init,
+    .instance_finalize = zynqmp_efuse_finalize,
 };
 
 static void efuse_register_types(void)
