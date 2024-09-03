@@ -3952,8 +3952,10 @@ int main(int argc, char **argv)
     if (g_str_equal(arch, "x86_64") && has_kvm && kvm_dirty_ring_supported()) {
         migration_test_add("/migration/dirty_ring",
                            test_precopy_unix_dirty_ring);
-        migration_test_add("/migration/vcpu_dirty_limit",
-                           test_vcpu_dirty_limit);
+        if (qtest_has_machine("pc")) {
+            migration_test_add("/migration/vcpu_dirty_limit",
+                               test_vcpu_dirty_limit);
+        }
     }
 
     ret = g_test_run();
