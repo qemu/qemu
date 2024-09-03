@@ -37,13 +37,6 @@ config ARM_VIRT
     select ACPI_CXL
     select ACPI_HMAT
 
-config CHEETAH
-    bool
-    default y
-    depends on TCG && ARM
-    select OMAP
-    select TSC210X
-
 config CUBIEBOARD
     bool
     default y

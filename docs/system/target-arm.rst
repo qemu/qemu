@@ -99,7 +99,6 @@ undocumented; you can get a complete list by running
    arm/nuvoton
    arm/imx25-pdk
    arm/orangepi
-   arm/palm
    arm/raspi
    arm/collie
    arm/sx1

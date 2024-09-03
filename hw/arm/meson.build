@@ -65,7 +65,6 @@ arm_ss.add(when: 'CONFIG_XEN', if_true: files(
 ))
 
 system_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmu-common.c'))
-system_ss.add(when: 'CONFIG_CHEETAH', if_true: files('palm.c'))
 system_ss.add(when: 'CONFIG_COLLIE', if_true: files('collie.c'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4_boards.c'))
 system_ss.add(when: 'CONFIG_GUMSTIX', if_true: files('gumstix.c'))
