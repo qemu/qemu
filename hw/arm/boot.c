@@ -839,6 +839,8 @@ static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
                       1, data_swab, as);
     if (ret <= 0) {
         /* The header loaded but the image didn't */
+        error_report("Couldn't load elf '%s': %s",
+                     info->kernel_filename, load_elf_strerror(ret));
         exit(1);
     }
 
