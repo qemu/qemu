@@ -254,6 +254,10 @@ static void vfp_set_fpcr_masked(CPUARMState *env, uint32_t val, uint32_t mask)
         val &= ~FPCR_FZ16;
     }
 
+    if (!cpu_isar_feature(aa64_ebf16, cpu)) {
+        val &= ~FPCR_EBF;
+    }
+
     vfp_set_fpcr_to_host(env, val, mask);
 
     if (mask & (FPCR_LEN_MASK | FPCR_STRIDE_MASK)) {
@@ -278,12 +282,12 @@ static void vfp_set_fpcr_masked(CPUARMState *env, uint32_t val, uint32_t mask)
      * We don't implement trapped exception handling, so the
      * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
      *
-     * The FPCR bits we keep in vfp.fpcr are AHP, DN, FZ, RMode
+     * The FPCR bits we keep in vfp.fpcr are AHP, DN, FZ, RMode, EBF
      * and FZ16. Len, Stride and LTPSIZE we just handled. Store those bits
      * there, and zero any of the other FPCR bits and the RES0 and RAZ/WI
      * bits.
      */
-    val &= FPCR_AHP | FPCR_DN | FPCR_FZ | FPCR_RMODE_MASK | FPCR_FZ16;
+    val &= FPCR_AHP | FPCR_DN | FPCR_FZ | FPCR_RMODE_MASK | FPCR_FZ16 | FPCR_EBF;
     env->vfp.fpcr &= ~mask;
     env->vfp.fpcr |= val;
 }

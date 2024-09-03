@@ -1707,6 +1707,7 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 #define FPCR_OFE    (1 << 10)   /* Overflow exception trap enable */
 #define FPCR_UFE    (1 << 11)   /* Underflow exception trap enable */
 #define FPCR_IXE    (1 << 12)   /* Inexact exception trap enable */
+#define FPCR_EBF    (1 << 13)   /* Extended BFloat16 behaviors */
 #define FPCR_IDE    (1 << 15)   /* Input Denormal exception trap enable */
 #define FPCR_LEN_MASK (7 << 16) /* LEN, A-profile only */
 #define FPCR_FZ16   (1 << 19)   /* ARMv8.2+, FP16 flush-to-zero */
