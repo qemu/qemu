@@ -936,7 +936,6 @@ S: Odd Fixes
 F: hw/arm/mainstone.c
 F: hw/arm/z2.c
 F: hw/*/pxa2xx*
-F: hw/display/tc6393xb.c
 F: hw/gpio/max7310.c
 F: hw/gpio/zaurus.c
 F: hw/misc/mst_fpga.c
@@ -944,7 +943,6 @@ F: hw/adc/max111x.c
 F: include/hw/adc/max111x.h
 F: include/hw/arm/pxa.h
 F: include/hw/arm/sharpsl.h
-F: include/hw/display/tc6393xb.h
 F: docs/system/arm/mainstone.rst
 
 SABRELITE / i.MX6
