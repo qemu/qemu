@@ -248,6 +248,7 @@ struct AspeedI2CBus {
 
     uint32_t regs[ASPEED_I2C_NEW_NUM_REG];
     uint8_t pool[ASPEED_I2C_BUS_POOL_SIZE];
+    uint64_t dma_dram_offset;
 };
 
 struct AspeedI2CState {
@@ -367,14 +368,6 @@ static inline uint32_t aspeed_i2c_bus_dma_len_offset(AspeedI2CBus *bus)
         return R_I2CC_DMA_LEN;
     }
     return R_I2CD_DMA_LEN;
-}
-
-static inline uint32_t aspeed_i2c_bus_dma_addr_offset(AspeedI2CBus *bus)
-{
-    if (aspeed_i2c_is_new_mode(bus->controller)) {
-        return R_I2CC_DMA_ADDR;
-    }
-    return R_I2CD_DMA_ADDR;
 }
 
 static inline bool aspeed_i2c_bus_is_master(AspeedI2CBus *bus)
