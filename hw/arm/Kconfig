@@ -176,15 +176,6 @@ config PXA2XX
     select USB_OHCI_SYSBUS
     select PCMCIA
 
-config Z2
-    bool
-    default y
-    depends on TCG && ARM
-    select PFLASH_CFI01
-    select WM8750
-    select PL011 # UART
-    select PXA2XX
-
 config REALVIEW
     bool
     default y
