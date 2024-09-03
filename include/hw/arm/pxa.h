@@ -71,9 +71,4 @@
 /* pxa2xx_pic.c */
 DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu);
 
-/* pxa2xx_gpio.c */
-DeviceState *pxa2xx_gpio_init(hwaddr base,
-                              ARMCPU *cpu, DeviceState *pic, int lines);
-void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler);
-
 #endif /* PXA_H */
