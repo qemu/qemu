@@ -81,6 +81,16 @@
     do { } while (0)
 #endif
 
+/*
+ * On older Intel CPUs, KVM uses vm86 mode to emulate 16-bit code directly.
+ * In order to use vm86 mode, an EPT identity map and a TSS  are needed.
+ * Since these must be part of guest physical memory, we need to allocate
+ * them, both by setting their start addresses in the kernel and by
+ * creating a corresponding e820 entry. We need 4 pages before the BIOS,
+ * so this value allows up to 16M BIOSes.
+ */
+#define KVM_IDENTITY_BASE 0xfeffc000
+
 /* From arch/x86/kvm/lapic.h */
 #define KVM_APIC_BUS_CYCLE_NS       1
 #define KVM_APIC_BUS_FREQUENCY      (1000000000ULL / KVM_APIC_BUS_CYCLE_NS)
@@ -3036,18 +3046,9 @@ static int kvm_vm_enable_triple_fault_event(KVMState *s)
     return ret;
 }
 
-static int kvm_vm_set_identity_map_addr(KVMState *s, uint64_t *identity_base)
+static int kvm_vm_set_identity_map_addr(KVMState *s, uint64_t identity_base)
 {
-    /*
-     * On older Intel CPUs, KVM uses vm86 mode to emulate 16-bit code directly.
-     * In order to use vm86 mode, an EPT identity map and a TSS  are needed.
-     * Since these must be part of guest physical memory, we need to allocate
-     * them, both by setting their start addresses in the kernel and by
-     * creating a corresponding e820 entry. We need 4 pages before the BIOS,
-     * so this value allows up to 16M BIOSes.
-     */
-    *identity_base = 0xfeffc000;
-    return kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, identity_base);
+    return kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
 }
 
 static int kvm_vm_set_nr_mmu_pages(KVMState *s)
@@ -3064,10 +3065,9 @@ static int kvm_vm_set_nr_mmu_pages(KVMState *s)
     return ret;
 }
 
-static int kvm_vm_set_tss_addr(KVMState *s, uint64_t identity_base)
+static int kvm_vm_set_tss_addr(KVMState *s, uint64_t tss_base)
 {
-    /* Set TSS base one page after EPT identity map. */
-    return kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, identity_base);
+    return kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, tss_base);
 }
 
 static int kvm_vm_enable_disable_exits(KVMState *s)
@@ -3183,7 +3183,6 @@ static void kvm_vm_enable_energy_msrs(KVMState *s)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
-    uint64_t identity_base = 0xfffbc000;
     int ret;
     struct utsname utsname;
     Error *local_err = NULL;
@@ -3251,18 +3250,19 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     uname(&utsname);
     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
 
-    ret = kvm_vm_set_identity_map_addr(s, &identity_base);
+    ret = kvm_vm_set_identity_map_addr(s, KVM_IDENTITY_BASE);
     if (ret < 0) {
         return ret;
     }
 
-    ret = kvm_vm_set_tss_addr(s, identity_base + 0x1000);
+    /* Set TSS base one page after EPT identity map. */
+    ret = kvm_vm_set_tss_addr(s, KVM_IDENTITY_BASE + 0x1000);
     if (ret < 0) {
         return ret;
     }
 
     /* Tell fw_cfg to notify the BIOS to reserve the range. */
-    e820_add_entry(identity_base, 0x4000, E820_RESERVED);
+    e820_add_entry(KVM_IDENTITY_BASE, 0x4000, E820_RESERVED);
 
     ret = kvm_vm_set_nr_mmu_pages(s);
     if (ret < 0) {
