@@ -67,6 +67,15 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define MMU_GUEST_IDX        1
 #define MMU_KERNEL_IDX       2
 
+#define HEXAGON_CPU_IRQ_0 0
+#define HEXAGON_CPU_IRQ_1 1
+#define HEXAGON_CPU_IRQ_2 2
+#define HEXAGON_CPU_IRQ_3 3
+#define HEXAGON_CPU_IRQ_4 4
+#define HEXAGON_CPU_IRQ_5 5
+#define HEXAGON_CPU_IRQ_6 6
+#define HEXAGON_CPU_IRQ_7 7
+
 typedef enum {
     HEX_LOCK_UNLOCKED       = 0,
     HEX_LOCK_WAITING        = 1,
@@ -74,7 +83,6 @@ typedef enum {
     HEX_LOCK_QUEUED        = 3
 } hex_lock_state_t;
 #endif
-
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 
