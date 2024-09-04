@@ -890,6 +890,9 @@ static uint64_t virtio_mem_get_features(VirtIODevice *vdev, uint64_t features,
     if (vmem->unplugged_inaccessible == ON_OFF_AUTO_ON) {
         virtio_add_feature(&features, VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE);
     }
+    if (qemu_wakeup_suspend_enabled()) {
+        virtio_add_feature(&features, VIRTIO_MEM_F_PERSISTENT_SUSPEND);
+    }
     return features;
 }
 
@@ -1847,6 +1850,13 @@ static ResettableState *virtio_mem_get_reset_state(Object *obj)
 static void virtio_mem_system_reset_hold(Object *obj, ResetType type)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
+
+    /*
+     * When waking up from standby/suspend-to-ram, do not unplug any memory.
+     */
+    if (type == RESET_TYPE_WAKEUP) {
+        return;
+    }
 
     /*
      * During usual resets, we will unplug all memory and shrink the usable
