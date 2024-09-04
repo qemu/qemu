@@ -360,7 +360,31 @@ bool hex_tlb_find_match(CPUHexagonState *env, target_ulong VA,
 static uint32_t hex_tlb_lookup_by_asid(CPUHexagonState *env, uint32_t asid,
                                        uint32_t VA)
 {
-    g_assert_not_reached();
+    uint32_t not_found = 0x80000000;
+    uint32_t idx = not_found;
+    int i;
+
+    HexagonCPU *cpu = env_archcpu(env);
+    for (i = 0; i < cpu->num_tlbs; i++) {
+        uint64_t entry = env->hex_tlb->entries[i];
+        if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
+            if (idx != not_found) {
+                env->cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
+                break;
+            }
+            idx = i;
+        }
+    }
+
+    if (idx == not_found) {
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%08x => NOT FOUND\n",
+                      __func__, asid, VA);
+    } else {
+        qemu_log_mask(CPU_LOG_MMU, "%s: 0x%x, 0x%08x => %d\n",
+                      __func__, asid, VA, idx);
+    }
+
+    return idx;
 }
 
 /* Called from tlbp instruction */
