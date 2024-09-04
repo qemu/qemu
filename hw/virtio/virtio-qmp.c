@@ -450,6 +450,9 @@ static const qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE, \
             "VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE: Unplugged memory cannot be "
             "accessed"),
+    FEATURE_ENTRY(VIRTIO_MEM_F_PERSISTENT_SUSPEND, \
+            "VIRTIO_MEM_F_PERSISTENT_SUSPND: Plugged memory will remain "
+            "plugged when suspending+resuming"),
     { -1, "" }
 };
 #endif
