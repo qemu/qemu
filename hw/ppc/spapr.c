@@ -1725,7 +1725,7 @@ void spapr_check_mmu_mode(bool guest_radix)
     }
 }
 
-static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
+static void spapr_machine_reset(MachineState *machine, ResetType type)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
@@ -1733,7 +1733,7 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
     void *fdt;
     int rc;
 
-    if (reason != SHUTDOWN_CAUSE_SNAPSHOT_LOAD) {
+    if (type != RESET_TYPE_SNAPSHOT_LOAD) {
         /*
          * Record-replay snapshot load must not consume random, this was
          * already replayed from initial machine reset.
@@ -1762,7 +1762,7 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
         spapr_setup_hpt(spapr);
     }
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     spapr_ovec_cleanup(spapr->ov5_cas);
     spapr->ov5_cas = spapr_ovec_new();
