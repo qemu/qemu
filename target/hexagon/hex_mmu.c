@@ -265,7 +265,59 @@ static inline void hex_tlb_entry_get_perm(CPUHexagonState *env, uint64_t entry,
                                           int mmu_idx, int *prot,
                                           int32_t *excp)
 {
-    g_assert_not_reached();
+    bool perm_x = GET_TLB_FIELD(entry, PTE_X);
+    bool perm_w = GET_TLB_FIELD(entry, PTE_W);
+    bool perm_r = GET_TLB_FIELD(entry, PTE_R);
+    bool perm_u = GET_TLB_FIELD(entry, PTE_U);
+    bool user_idx = mmu_idx == MMU_USER_IDX;
+
+    if (mmu_idx == MMU_KERNEL_IDX) {
+        *prot = PAGE_VALID | PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return;
+    }
+
+    *prot = PAGE_VALID;
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        if (user_idx && !perm_u) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_FETCH_NO_UPAGE;
+        } else if (!perm_x) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_FETCH_NO_XPAGE;
+        }
+        break;
+    case MMU_DATA_LOAD:
+        if (user_idx && !perm_u) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_PRIV_NO_UREAD;
+        } else if (!perm_r) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_PRIV_NO_READ;
+        }
+        break;
+    case MMU_DATA_STORE:
+        if (user_idx && !perm_u) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_PRIV_NO_UWRITE;
+        } else if (!perm_w) {
+            *excp = HEX_EVENT_PRECISE;
+            env->cause_code = HEX_CAUSE_PRIV_NO_WRITE;
+        }
+        break;
+    }
+
+    if (!user_idx || perm_u) {
+        if (perm_x) {
+            *prot |= PAGE_EXEC;
+        }
+        if (perm_r) {
+            *prot |= PAGE_READ;
+        }
+        if (perm_w) {
+            *prot |= PAGE_WRITE;
+        }
+    }
 }
 
 static inline bool hex_tlb_entry_match(CPUHexagonState *env, uint64_t entry,
