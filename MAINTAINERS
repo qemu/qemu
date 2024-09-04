@@ -224,11 +224,6 @@ F: gdb-xml/avr-cpu.xml
 F: target/avr/
 F: tests/functional/test_avr_mega2560.py
 
-CRIS TCG CPUs
-M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
-S: Maintained
-F: disas/cris.c
-
 Hexagon TCG CPUs
 M: Brian Cain <bcain@quicinc.com>
 S: Supported
