@@ -62,7 +62,7 @@
   'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
 
 ##
-# @QCryptoCipherAlgorithm:
+# @QCryptoCipherAlgo:
 #
 # The supported algorithms for content encryption ciphers
 #
@@ -95,8 +95,7 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoCipherAlgorithm',
-  'prefix': 'QCRYPTO_CIPHER_ALG',
+{ 'enum': 'QCryptoCipherAlgo',
   'data': ['aes-128', 'aes-192', 'aes-256',
            'des', '3des',
            'cast5-128',
@@ -225,7 +224,7 @@
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',
   'base': 'QCryptoBlockOptionsLUKS',
-  'data': { '*cipher-alg': 'QCryptoCipherAlgorithm',
+  'data': { '*cipher-alg': 'QCryptoCipherAlgo',
             '*cipher-mode': 'QCryptoCipherMode',
             '*ivgen-alg': 'QCryptoIVGenAlgorithm',
             '*ivgen-hash-alg': 'QCryptoHashAlgo',
@@ -322,7 +321,7 @@
 # Since: 2.7
 ##
 { 'struct': 'QCryptoBlockInfoLUKS',
-  'data': {'cipher-alg': 'QCryptoCipherAlgorithm',
+  'data': {'cipher-alg': 'QCryptoCipherAlgo',
            'cipher-mode': 'QCryptoCipherMode',
            'ivgen-alg': 'QCryptoIVGenAlgorithm',
            '*ivgen-hash-alg': 'QCryptoHashAlgo',

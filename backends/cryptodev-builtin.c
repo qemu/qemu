@@ -138,18 +138,18 @@ cryptodev_builtin_get_aes_algo(uint32_t key_len, int mode, Error **errp)
     int algo;
 
     if (key_len == AES_KEYSIZE_128) {
-        algo = QCRYPTO_CIPHER_ALG_AES_128;
+        algo = QCRYPTO_CIPHER_ALGO_AES_128;
     } else if (key_len == AES_KEYSIZE_192) {
-        algo = QCRYPTO_CIPHER_ALG_AES_192;
+        algo = QCRYPTO_CIPHER_ALGO_AES_192;
     } else if (key_len == AES_KEYSIZE_256) { /* equals AES_KEYSIZE_128_XTS */
         if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-            algo = QCRYPTO_CIPHER_ALG_AES_128;
+            algo = QCRYPTO_CIPHER_ALGO_AES_128;
         } else {
-            algo = QCRYPTO_CIPHER_ALG_AES_256;
+            algo = QCRYPTO_CIPHER_ALGO_AES_256;
         }
     } else if (key_len == AES_KEYSIZE_256_XTS) {
         if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-            algo = QCRYPTO_CIPHER_ALG_AES_256;
+            algo = QCRYPTO_CIPHER_ALGO_AES_256;
         } else {
             goto err;
         }
@@ -271,15 +271,15 @@ static int cryptodev_builtin_create_cipher_session(
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_ECB:
         mode = QCRYPTO_CIPHER_MODE_ECB;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_CBC:
         mode = QCRYPTO_CIPHER_MODE_CBC;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_CTR:
         mode = QCRYPTO_CIPHER_MODE_CTR;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     default:
         error_setg(errp, "Unsupported cipher alg :%u",

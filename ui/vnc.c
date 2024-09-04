@@ -2783,7 +2783,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     vnc_munge_des_rfb_key(key, sizeof(key));
 
     cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_DES,
+        QCRYPTO_CIPHER_ALGO_DES,
         QCRYPTO_CIPHER_MODE_ECB,
         key, G_N_ELEMENTS(key),
         &err);
@@ -4064,7 +4064,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
     if (password) {
         if (!qcrypto_cipher_supports(
-                QCRYPTO_CIPHER_ALG_DES, QCRYPTO_CIPHER_MODE_ECB)) {
+                QCRYPTO_CIPHER_ALGO_DES, QCRYPTO_CIPHER_MODE_ECB)) {
             error_setg(errp,
                        "Cipher backend does not support DES algorithm");
             goto fail;

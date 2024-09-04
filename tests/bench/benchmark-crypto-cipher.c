@@ -17,7 +17,7 @@
 
 static void test_cipher_speed(size_t chunk_size,
                               QCryptoCipherMode mode,
-                              QCryptoCipherAlgorithm alg)
+                              QCryptoCipherAlgo alg)
 {
     QCryptoCipher *cipher;
     Error *err = NULL;
@@ -71,7 +71,7 @@ static void test_cipher_speed(size_t chunk_size,
     g_test_timer_elapsed();
 
     g_test_message("enc(%s-%s) chunk %zu bytes %.2f MB/sec ",
-                   QCryptoCipherAlgorithm_str(alg),
+                   QCryptoCipherAlgo_str(alg),
                    QCryptoCipherMode_str(mode),
                    chunk_size, (double)total / MiB / g_test_timer_last());
 
@@ -88,7 +88,7 @@ static void test_cipher_speed(size_t chunk_size,
     g_test_timer_elapsed();
 
     g_test_message("dec(%s-%s) chunk %zu bytes %.2f MB/sec ",
-                   QCryptoCipherAlgorithm_str(alg),
+                   QCryptoCipherAlgo_str(alg),
                    QCryptoCipherMode_str(mode),
                    chunk_size, (double)total / MiB / g_test_timer_last());
 
@@ -105,7 +105,7 @@ static void test_cipher_speed_ecb_aes_128(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_ECB,
-                      QCRYPTO_CIPHER_ALG_AES_128);
+                      QCRYPTO_CIPHER_ALGO_AES_128);
 }
 
 static void test_cipher_speed_ecb_aes_256(const void *opaque)
@@ -113,7 +113,7 @@ static void test_cipher_speed_ecb_aes_256(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_ECB,
-                      QCRYPTO_CIPHER_ALG_AES_256);
+                      QCRYPTO_CIPHER_ALGO_AES_256);
 }
 
 static void test_cipher_speed_cbc_aes_128(const void *opaque)
@@ -121,7 +121,7 @@ static void test_cipher_speed_cbc_aes_128(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_CBC,
-                      QCRYPTO_CIPHER_ALG_AES_128);
+                      QCRYPTO_CIPHER_ALGO_AES_128);
 }
 
 static void test_cipher_speed_cbc_aes_256(const void *opaque)
@@ -129,7 +129,7 @@ static void test_cipher_speed_cbc_aes_256(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_CBC,
-                      QCRYPTO_CIPHER_ALG_AES_256);
+                      QCRYPTO_CIPHER_ALGO_AES_256);
 }
 
 static void test_cipher_speed_ctr_aes_128(const void *opaque)
@@ -137,7 +137,7 @@ static void test_cipher_speed_ctr_aes_128(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_CTR,
-                      QCRYPTO_CIPHER_ALG_AES_128);
+                      QCRYPTO_CIPHER_ALGO_AES_128);
 }
 
 static void test_cipher_speed_ctr_aes_256(const void *opaque)
@@ -145,7 +145,7 @@ static void test_cipher_speed_ctr_aes_256(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_CTR,
-                      QCRYPTO_CIPHER_ALG_AES_256);
+                      QCRYPTO_CIPHER_ALGO_AES_256);
 }
 
 static void test_cipher_speed_xts_aes_128(const void *opaque)
@@ -153,7 +153,7 @@ static void test_cipher_speed_xts_aes_128(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_XTS,
-                      QCRYPTO_CIPHER_ALG_AES_128);
+                      QCRYPTO_CIPHER_ALGO_AES_128);
 }
 
 static void test_cipher_speed_xts_aes_256(const void *opaque)
@@ -161,7 +161,7 @@ static void test_cipher_speed_xts_aes_256(const void *opaque)
     size_t chunk_size = (size_t)opaque;
     test_cipher_speed(chunk_size,
                       QCRYPTO_CIPHER_MODE_XTS,
-                      QCRYPTO_CIPHER_ALG_AES_256);
+                      QCRYPTO_CIPHER_ALGO_AES_256);
 }
 
 

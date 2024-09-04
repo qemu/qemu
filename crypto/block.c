@@ -267,7 +267,7 @@ static void qcrypto_block_push_cipher(QCryptoBlock *block,
 
 
 int qcrypto_block_init_cipher(QCryptoBlock *block,
-                              QCryptoCipherAlgorithm alg,
+                              QCryptoCipherAlgo alg,
                               QCryptoCipherMode mode,
                               const uint8_t *key, size_t nkey,
                               Error **errp)

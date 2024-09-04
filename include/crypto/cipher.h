@@ -26,7 +26,7 @@
 typedef struct QCryptoCipher QCryptoCipher;
 typedef struct QCryptoCipherDriver QCryptoCipherDriver;
 
-/* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
+/* See also "QCryptoCipherAlgo" and "QCryptoCipherMode"
  * enums defined in qapi/crypto.json */
 
 /**
@@ -50,12 +50,12 @@ typedef struct QCryptoCipherDriver QCryptoCipherDriver;
  * size_t keylen = 16;
  * uint8_t iv = ....;
  *
- * if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALG_AES_128)) {
+ * if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALGO_AES_128)) {
  *    error_report(errp, "Feature <blah> requires AES cipher support");
  *    return -1;
  * }
  *
- * cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+ * cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALGO_AES_128,
  *                             QCRYPTO_CIPHER_MODE_CBC,
  *                             key, keylen,
  *                             errp);
@@ -78,7 +78,7 @@ typedef struct QCryptoCipherDriver QCryptoCipherDriver;
  */
 
 struct QCryptoCipher {
-    QCryptoCipherAlgorithm alg;
+    QCryptoCipherAlgo alg;
     QCryptoCipherMode mode;
     const QCryptoCipherDriver *driver;
 };
@@ -93,7 +93,7 @@ struct QCryptoCipher {
  *
  * Returns: true if the algorithm is supported, false otherwise
  */
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode);
 
 /**
@@ -106,7 +106,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
  *
  * Returns: the block size in bytes
  */
-size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg);
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgo alg);
 
 
 /**
@@ -117,7 +117,7 @@ size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg);
  *
  * Returns: the key size in bytes
  */
-size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg);
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgo alg);
 
 
 /**
@@ -130,7 +130,7 @@ size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg);
  *
  * Returns: the IV size in bytes, or 0 if no IV is permitted
  */
-size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgo alg,
                                  QCryptoCipherMode mode);
 
 
@@ -156,7 +156,7 @@ size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
  *
  * Returns: a new cipher object, or NULL on error
  */
-QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
+QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgo alg,
                                   QCryptoCipherMode mode,
                                   const uint8_t *key, size_t nkey,
                                   Error **errp);

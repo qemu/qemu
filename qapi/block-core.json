@@ -4163,7 +4163,7 @@
 ##
 { 'struct': 'RbdEncryptionCreateOptionsLUKSBase',
   'base': 'RbdEncryptionOptionsLUKSBase',
-  'data': { '*cipher-alg': 'QCryptoCipherAlgorithm' } }
+  'data': { '*cipher-alg': 'QCryptoCipherAlgo' } }
 
 ##
 # @RbdEncryptionOptionsLUKS:

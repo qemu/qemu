@@ -41,7 +41,7 @@ struct QCryptoIVGen {
     void *private;
 
     QCryptoIVGenAlgorithm algorithm;
-    QCryptoCipherAlgorithm cipher;
+    QCryptoCipherAlgo cipher;
     QCryptoHashAlgo hash;
 };
 

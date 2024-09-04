@@ -20,33 +20,33 @@
 
 #include <gcrypt.h>
 
-static int qcrypto_cipher_alg_to_gcry_alg(QCryptoCipherAlgorithm alg)
+static int qcrypto_cipher_alg_to_gcry_alg(QCryptoCipherAlgo alg)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES:
+    case QCRYPTO_CIPHER_ALGO_DES:
         return GCRY_CIPHER_DES;
-    case QCRYPTO_CIPHER_ALG_3DES:
+    case QCRYPTO_CIPHER_ALGO_3DES:
         return GCRY_CIPHER_3DES;
-    case QCRYPTO_CIPHER_ALG_AES_128:
+    case QCRYPTO_CIPHER_ALGO_AES_128:
         return GCRY_CIPHER_AES128;
-    case QCRYPTO_CIPHER_ALG_AES_192:
+    case QCRYPTO_CIPHER_ALGO_AES_192:
         return GCRY_CIPHER_AES192;
-    case QCRYPTO_CIPHER_ALG_AES_256:
+    case QCRYPTO_CIPHER_ALGO_AES_256:
         return GCRY_CIPHER_AES256;
-    case QCRYPTO_CIPHER_ALG_CAST5_128:
+    case QCRYPTO_CIPHER_ALGO_CAST5_128:
         return GCRY_CIPHER_CAST5;
-    case QCRYPTO_CIPHER_ALG_SERPENT_128:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_128:
         return GCRY_CIPHER_SERPENT128;
-    case QCRYPTO_CIPHER_ALG_SERPENT_192:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_192:
         return GCRY_CIPHER_SERPENT192;
-    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_256:
         return GCRY_CIPHER_SERPENT256;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_128:
         return GCRY_CIPHER_TWOFISH128;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_256:
         return GCRY_CIPHER_TWOFISH;
 #ifdef CONFIG_CRYPTO_SM4
-    case QCRYPTO_CIPHER_ALG_SM4:
+    case QCRYPTO_CIPHER_ALGO_SM4:
         return GCRY_CIPHER_SM4;
 #endif
     default:
@@ -70,23 +70,23 @@ static int qcrypto_cipher_mode_to_gcry_mode(QCryptoCipherMode mode)
     }
 }
 
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES:
-    case QCRYPTO_CIPHER_ALG_3DES:
-    case QCRYPTO_CIPHER_ALG_AES_128:
-    case QCRYPTO_CIPHER_ALG_AES_192:
-    case QCRYPTO_CIPHER_ALG_AES_256:
-    case QCRYPTO_CIPHER_ALG_CAST5_128:
-    case QCRYPTO_CIPHER_ALG_SERPENT_128:
-    case QCRYPTO_CIPHER_ALG_SERPENT_192:
-    case QCRYPTO_CIPHER_ALG_SERPENT_256:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+    case QCRYPTO_CIPHER_ALGO_DES:
+    case QCRYPTO_CIPHER_ALGO_3DES:
+    case QCRYPTO_CIPHER_ALGO_AES_128:
+    case QCRYPTO_CIPHER_ALGO_AES_192:
+    case QCRYPTO_CIPHER_ALGO_AES_256:
+    case QCRYPTO_CIPHER_ALGO_CAST5_128:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_128:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_192:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_256:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_128:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_256:
 #ifdef CONFIG_CRYPTO_SM4
-    case QCRYPTO_CIPHER_ALG_SM4:
+    case QCRYPTO_CIPHER_ALGO_SM4:
 #endif
         break;
     default:
@@ -228,7 +228,7 @@ static const struct QCryptoCipherDriver qcrypto_gcrypt_ctr_driver = {
     .cipher_free = qcrypto_gcrypt_ctx_free,
 };
 
-static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
                                              QCryptoCipherMode mode,
                                              const uint8_t *key,
                                              size_t nkey,
@@ -246,7 +246,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     gcryalg = qcrypto_cipher_alg_to_gcry_alg(alg);
     if (gcryalg == GCRY_CIPHER_NONE) {
         error_setg(errp, "Unsupported cipher algorithm %s",
-                   QCryptoCipherAlgorithm_str(alg));
+                   QCryptoCipherAlgo_str(alg));
         return NULL;
     }
 

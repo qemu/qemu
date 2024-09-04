@@ -28,7 +28,7 @@ struct QCryptoIVGenTestData {
     uint64_t sector;
     QCryptoIVGenAlgorithm ivalg;
     QCryptoHashAlgo hashalg;
-    QCryptoCipherAlgorithm cipheralg;
+    QCryptoCipherAlgo cipheralg;
     const uint8_t *key;
     size_t nkey;
     const uint8_t *iv;
@@ -93,7 +93,7 @@ struct QCryptoIVGenTestData {
         "/crypto/ivgen/essiv/1",
         .sector = 0x1,
         .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
         .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
@@ -107,7 +107,7 @@ struct QCryptoIVGenTestData {
         "/crypto/ivgen/essiv/1f2e3d4c",
         .sector = 0x1f2e3d4cULL,
         .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
         .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
@@ -121,7 +121,7 @@ struct QCryptoIVGenTestData {
         "/crypto/ivgen/essiv/1f2e3d4c5b6a7988",
         .sector = 0x1f2e3d4c5b6a7988ULL,
         .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
         .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",

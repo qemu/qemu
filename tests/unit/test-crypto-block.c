@@ -77,7 +77,7 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
     .u.luks = {
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .has_cipher_mode = true,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .has_ivgen_alg = true,
@@ -91,7 +91,7 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
     .u.luks = {
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .has_cipher_mode = true,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .has_ivgen_alg = true,
@@ -112,7 +112,7 @@ static struct QCryptoBlockTestData {
 
     bool expect_header;
 
-    QCryptoCipherAlgorithm cipher_alg;
+    QCryptoCipherAlgo cipher_alg;
     QCryptoCipherMode cipher_mode;
     QCryptoHashAlgo hash_alg;
 
@@ -128,7 +128,7 @@ static struct QCryptoBlockTestData {
 
         .expect_header = false,
 
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
 
         .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
@@ -141,7 +141,7 @@ static struct QCryptoBlockTestData {
 
         .expect_header = true,
 
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_XTS,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
@@ -156,7 +156,7 @@ static struct QCryptoBlockTestData {
 
         .expect_header = true,
 
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
@@ -171,7 +171,7 @@ static struct QCryptoBlockTestData {
 
         .expect_header = true,
 
-        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
 

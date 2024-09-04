@@ -38,7 +38,7 @@
  * ....
  *
  * char *password = "a-typical-awful-user-password";
- * size_t nkey = qcrypto_cipher_get_key_len(QCRYPTO_CIPHER_ALG_AES_128);
+ * size_t nkey = qcrypto_cipher_get_key_len(QCRYPTO_CIPHER_ALGO_AES_128);
  * uint8_t *salt = g_new0(uint8_t, nkey);
  * uint8_t *key = g_new0(uint8_t, nkey);
  * int iterations;
@@ -70,7 +70,7 @@
  *
  * g_free(salt);
  *
- * cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+ * cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALGO_AES_128,
  *                             QCRYPTO_CIPHER_MODE_ECB,
  *                             key, nkey, errp);
  * g_free(key);

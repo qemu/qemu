@@ -45,21 +45,21 @@
  * g_assert((ndata % 512) == 0);
  *
  * QCryptoIVGen *ivgen = qcrypto_ivgen_new(QCRYPTO_IVGEN_ALG_ESSIV,
- *                                         QCRYPTO_CIPHER_ALG_AES_128,
+ *                                         QCRYPTO_CIPHER_ALGO_AES_128,
  *                                         QCRYPTO_HASH_ALGO_SHA256,
  *                                         key, nkey, errp);
  * if (!ivgen) {
  *    return -1;
  * }
  *
- * QCryptoCipher *cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+ * QCryptoCipher *cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALGO_AES_128,
  *                                            QCRYPTO_CIPHER_MODE_CBC,
  *                                            key, nkey, errp);
  * if (!cipher) {
  *     goto error;
  * }
  *
- * niv =  qcrypto_cipher_get_iv_len(QCRYPTO_CIPHER_ALG_AES_128,
+ * niv =  qcrypto_cipher_get_iv_len(QCRYPTO_CIPHER_ALGO_AES_128,
  *                                  QCRYPTO_CIPHER_MODE_CBC);
  * iv = g_new0(uint8_t, niv);
  *
@@ -134,7 +134,7 @@ typedef struct QCryptoIVGen QCryptoIVGen;
  * Returns: a new IV generator, or NULL on error
  */
 QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
-                                QCryptoCipherAlgorithm cipheralg,
+                                QCryptoCipherAlgo cipheralg,
                                 QCryptoHashAlgo hash,
                                 const uint8_t *key, size_t nkey,
                                 Error **errp);
@@ -179,7 +179,7 @@ QCryptoIVGenAlgorithm qcrypto_ivgen_get_algorithm(QCryptoIVGen *ivgen);
  *
  * Returns: the cipher algorithm
  */
-QCryptoCipherAlgorithm qcrypto_ivgen_get_cipher(QCryptoIVGen *ivgen);
+QCryptoCipherAlgo qcrypto_ivgen_get_cipher(QCryptoIVGen *ivgen);
 
 
 /**

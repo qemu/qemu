@@ -367,11 +367,11 @@ static int qemu_rbd_convert_luks_create_options(
 
     if (luks_opts->has_cipher_alg) {
         switch (luks_opts->cipher_alg) {
-            case QCRYPTO_CIPHER_ALG_AES_128: {
+            case QCRYPTO_CIPHER_ALGO_AES_128: {
                 *alg = RBD_ENCRYPTION_ALGORITHM_AES128;
                 break;
             }
-            case QCRYPTO_CIPHER_ALG_AES_256: {
+            case QCRYPTO_CIPHER_ALGO_AES_256: {
                 *alg = RBD_ENCRYPTION_ALGORITHM_AES256;
                 break;
             }

@@ -18,7 +18,7 @@
 
 
 static char *
-qcrypto_afalg_cipher_format_name(QCryptoCipherAlgorithm alg,
+qcrypto_afalg_cipher_format_name(QCryptoCipherAlgo alg,
                                  QCryptoCipherMode mode,
                                  Error **errp)
 {
@@ -27,22 +27,22 @@ qcrypto_afalg_cipher_format_name(QCryptoCipherAlgorithm alg,
     const char *mode_name;
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_AES_128:
-    case QCRYPTO_CIPHER_ALG_AES_192:
-    case QCRYPTO_CIPHER_ALG_AES_256:
+    case QCRYPTO_CIPHER_ALGO_AES_128:
+    case QCRYPTO_CIPHER_ALGO_AES_192:
+    case QCRYPTO_CIPHER_ALGO_AES_256:
         alg_name = "aes";
         break;
-    case QCRYPTO_CIPHER_ALG_CAST5_128:
+    case QCRYPTO_CIPHER_ALGO_CAST5_128:
         alg_name = "cast5";
         break;
-    case QCRYPTO_CIPHER_ALG_SERPENT_128:
-    case QCRYPTO_CIPHER_ALG_SERPENT_192:
-    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_128:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_192:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_256:
         alg_name = "serpent";
         break;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_192:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_128:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_192:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_256:
         alg_name = "twofish";
         break;
 
@@ -60,7 +60,7 @@ qcrypto_afalg_cipher_format_name(QCryptoCipherAlgorithm alg,
 static const struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
 
 QCryptoCipher *
-qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode,
                              const uint8_t *key,
                              size_t nkey, Error **errp)
