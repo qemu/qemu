@@ -686,7 +686,6 @@
 # Since: 5.0
 ##
 { 'enum': 'HmatLBMemoryHierarchy',
-  'prefix': 'HMATLB_MEMORY_HIERARCHY', # TODO drop
   'data': [ 'memory', 'first-level', 'second-level', 'third-level' ] }
 
 ##
@@ -713,7 +712,6 @@
 # Since: 5.0
 ##
 { 'enum': 'HmatLBDataType',
-  'prefix': 'HMATLB_DATA_TYPE', # TODO drop
   'data': [ 'access-latency', 'read-latency', 'write-latency',
             'access-bandwidth', 'read-bandwidth', 'write-bandwidth' ] }
 
