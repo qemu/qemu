@@ -20,7 +20,6 @@
 # Since: 2.5
 ##
 { 'enum': 'QCryptoTLSCredsEndpoint',
-  'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
   'data': ['client', 'server']}
 
 ##
@@ -36,7 +35,6 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoSecretFormat',
-  'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
 
 ##
@@ -123,7 +121,6 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
-  'prefix': 'QCRYPTO_CIPHER_MODE',
   'data': ['ecb', 'cbc', 'xts', 'ctr']}
 
 ##
@@ -160,7 +157,7 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoBlockFormat',
-#  'prefix': 'QCRYPTO_BLOCK_FORMAT',
+  'prefix': 'Q_CRYPTO_BLOCK_FORMAT', # TODO drop
   'data': ['qcow', 'luks']}
 
 ##
@@ -363,6 +360,7 @@
 # Since: 5.1
 ##
 { 'enum': 'QCryptoBlockLUKSKeyslotState',
+  'prefix': 'Q_CRYPTO_BLOCKLUKS_KEYSLOT_STATE', # TODO drop
   'data': [ 'active', 'inactive' ] }
 
 ##

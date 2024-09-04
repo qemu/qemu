@@ -42,6 +42,7 @@
 # Since: 9.0
 ##
 { 'enum': 'EbpfProgramID',
+  'prefix': 'EBPF_PROGRAMID',   # TODO drop
   'if': 'CONFIG_EBPF',
   'data': [ { 'name': 'rss' } ] }
 

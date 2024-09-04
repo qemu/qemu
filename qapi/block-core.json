@@ -2011,6 +2011,7 @@
 # Since: 4.0
 ##
 { 'enum': 'XDbgBlockGraphNodeType',
+  'prefix': 'X_DBG_BLOCK_GRAPH_NODE_TYPE', # TODO drop
   'data': [ 'block-backend', 'block-job', 'block-driver' ] }
 
 ##
@@ -3746,7 +3747,7 @@
 #
 # Since: 4.1
 ##
-{ 'enum': 'BlkdebugIOType', 'prefix': 'BLKDEBUG_IO_TYPE',
+{ 'enum': 'BlkdebugIOType',
   'data': [ 'read', 'write', 'write-zeroes', 'discard', 'flush',
             'block-status' ] }
 

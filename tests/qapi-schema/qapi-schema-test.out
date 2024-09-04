@@ -1,7 +1,6 @@
 module ./builtin
 object q_empty
 enum QType
-    prefix QTYPE
     member none
     member qnull
     member qnum
@@ -109,6 +108,7 @@ enum TestUnionEnum
     member value-a
     member value-b
 enum TestUnionEnumA
+    prefix TEST_UNION_ENUMA
     member value-a1
     member value-a2
 object TestUnionTypeA1

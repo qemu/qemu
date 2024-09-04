@@ -40,22 +40,28 @@ def camel_to_upper(value: str) -> str:
         ENUM_Name2 -> ENUM_NAME2
         ENUM24_Name -> ENUM24_NAME
     """
-    c_fun_str = c_name(value, False)
-    if value.isupper():
-        return c_fun_str
+    ret = value[0]
+    upc = value[0].isupper()
 
-    new_name = ''
-    length = len(c_fun_str)
-    for i in range(length):
-        char = c_fun_str[i]
-        # When char is upper case and no '_' appears before, do more checks
-        if char.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
-            if i < length - 1 and c_fun_str[i + 1].islower():
-                new_name += '_'
-            elif c_fun_str[i - 1].isdigit():
-                new_name += '_'
-        new_name += char
-    return new_name.lstrip('_').upper()
+    # Copy remainder of ``value`` to ``ret`` with '_' inserted
+    for ch in value[1:]:
+        if ch.isupper() == upc:
+            pass
+        elif upc:
+            # ``ret`` ends in upper case, next char isn't: insert '_'
+            # before the last upper case char unless there is one
+            # already, or it's at the beginning
+            if len(ret) > 2 and ret[-2].isalnum():
+                ret = ret[:-1] + '_' + ret[-1]
+        else:
+            # ``ret`` doesn't end in upper case, next char is: insert
+            # '_' before it
+            if ret[-1].isalnum():
+                ret += '_'
+        ret += ch
+        upc = ch.isupper()
+
+    return c_name(ret.upper()).lstrip('_')
 
 
 def c_enum_const(type_name: str,
@@ -68,9 +74,9 @@ def c_enum_const(type_name: str,
     :param const_name: The name of this constant.
     :param prefix: Optional, prefix that overrides the type_name.
     """
-    if prefix is not None:
-        type_name = prefix
-    return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
+    if prefix is None:
+        prefix = camel_to_upper(type_name)
+    return prefix + '_' + c_name(const_name, False).upper()
 
 
 def c_name(name: str, protect: bool = True) -> str:

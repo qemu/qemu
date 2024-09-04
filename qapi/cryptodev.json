@@ -48,7 +48,6 @@
 # Since: 8.0
 ##
 { 'enum': 'QCryptodevBackendType',
-  'prefix': 'QCRYPTODEV_BACKEND_TYPE',
   'data': ['builtin', 'vhost-user', 'lkcf']}
 
 ##
