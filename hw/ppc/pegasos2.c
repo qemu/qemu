@@ -291,14 +291,14 @@ static void pegasos2_superio_write(uint8_t addr, uint8_t val)
     cpu_physical_memory_write(PCI1_IO_BASE + 0x3f1, &val, 1);
 }
 
-static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
+static void pegasos2_machine_reset(MachineState *machine, ResetType type)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
     void *fdt;
     uint64_t d[2];
     int sz;
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
     if (!pm->vof) {
         return; /* Firmware should set up machine so nothing to do */
     }

@@ -462,7 +462,7 @@ static void microvm_machine_state_init(MachineState *machine)
     microvm_devices_init(mms);
 }
 
-static void microvm_machine_reset(MachineState *machine, ShutdownCause reason)
+static void microvm_machine_reset(MachineState *machine, ResetType type)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(machine);
     CPUState *cs;
@@ -475,7 +475,7 @@ static void microvm_machine_reset(MachineState *machine, ShutdownCause reason)
         mms->kernel_cmdline_fixed = true;
     }
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     CPU_FOREACH(cs) {
         cpu = X86_CPU(cs);
