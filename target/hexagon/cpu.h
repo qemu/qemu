@@ -260,5 +260,4 @@ typedef HexagonCPU ArchCPU;
 void hexagon_translate_init(void);
 void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
                             int *max_insns, vaddr pc, void *host_pc);
-
 #endif /* HEXAGON_CPU_H */

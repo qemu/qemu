@@ -38,6 +38,7 @@
 #include "hex_mmu.h"
 #include "hw/intc/l2vic.h"
 #include "hex_interrupts.h"
+#include "hexswi.h"
 #endif
 
 #define SF_BIAS        127

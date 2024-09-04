@@ -33,6 +33,8 @@
 #ifndef CONFIG_USER_ONLY
 #include "sys_macros.h"
 #include "qemu/main-loop.h"
+#include "hex_interrupts.h"
+#include "hexswi.h"
 #endif
 
 static void hexagon_v66_cpu_init(Object *obj) { }
