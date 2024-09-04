@@ -1732,7 +1732,7 @@ static void pc_machine_reset(MachineState *machine, ResetType type)
 static void pc_machine_wakeup(MachineState *machine)
 {
     cpu_synchronize_all_states();
-    pc_machine_reset(machine, RESET_TYPE_COLD);
+    pc_machine_reset(machine, RESET_TYPE_WAKEUP);
     cpu_synchronize_all_post_reset();
 }
 

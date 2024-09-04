@@ -44,6 +44,17 @@ The Resettable interface handles reset types with an enum ``ResetType``:
   value on each cold reset, such as RNG seed information, and which they
   must not reinitialize on a snapshot-load reset.
 
+``RESET_TYPE_WAKEUP``
+  If the machine supports waking up from a suspended state and needs to reset
+  its devices during wake-up (from the ``MachineClass::wakeup()`` method), this
+  reset type should be used for such a request. Devices can utilize this reset
+  type to differentiate the reset requested during machine wake-up from other
+  reset requests. For example, RAM content must not be lost during wake-up, and
+  memory devices like virtio-mem that provide additional RAM must not reset
+  such state during wake-ups, but might do so during cold resets. However, this
+  reset type should not be used for wake-up detection, as not every machine
+  type issues a device reset request during wake-up.
+
 ``RESET_TYPE_S390_CPU_NORMAL``
   This is only used for S390 CPU objects; it clears interrupts, stops
   processing, and clears the TLB, but does not touch register contents.
@@ -52,7 +63,6 @@ The Resettable interface handles reset types with an enum ``ResetType``:
   This is only used for S390 CPU objects; it does everything
   ``RESET_TYPE_S390_CPU_NORMAL`` does and also clears the PSW, prefix,
   FPC, timer and control registers. It does not touch gprs, fprs or acrs.
-
 
 Devices which implement reset methods must treat any unknown ``ResetType``
 as equivalent to ``RESET_TYPE_COLD``; this will reduce the amount of
