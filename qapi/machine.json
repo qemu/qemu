@@ -41,15 +41,14 @@
              'x86_64', 'xtensa', 'xtensaeb' ] }
 
 ##
-# @CpuS390State:
+# @S390CpuState:
 #
 # An enumeration of cpu states that can be assumed by a virtual S390
 # CPU
 #
 # Since: 2.12
 ##
-{ 'enum': 'CpuS390State',
-  'prefix': 'S390_CPU_STATE',
+{ 'enum': 'S390CpuState',
   'data': [ 'uninitialized', 'stopped', 'check-stop', 'operating', 'load' ] }
 
 ##
@@ -66,9 +65,9 @@
 # Since: 2.12
 ##
 { 'struct': 'CpuInfoS390',
-  'data': { 'cpu-state': 'CpuS390State',
+  'data': { 'cpu-state': 'S390CpuState',
             '*dedicated': 'bool',
-            '*entitlement': 'CpuS390Entitlement' } }
+            '*entitlement': 'S390CpuEntitlement' } }
 
 ##
 # @CpuInfoFast:

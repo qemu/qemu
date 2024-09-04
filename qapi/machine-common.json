@@ -9,13 +9,12 @@
 ##
 
 ##
-# @CpuS390Entitlement:
+# @S390CpuEntitlement:
 #
 # An enumeration of CPU entitlements that can be assumed by a virtual
 # S390 CPU
 #
 # Since: 8.2
 ##
-{ 'enum': 'CpuS390Entitlement',
-  'prefix': 'S390_CPU_ENTITLEMENT',
+{ 'enum': 'S390CpuEntitlement',
   'data': [ 'auto', 'low', 'medium', 'high' ] }

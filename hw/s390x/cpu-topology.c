@@ -105,7 +105,7 @@ static void s390_topology_init(MachineState *ms)
  */
 void s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
 {
-    CpuS390Polarization polarization;
+    S390CpuPolarization polarization;
     CPUS390XState *env = &cpu->env;
     uint64_t reg = env->regs[r1];
     int fc = reg & S390_TOPO_FC_MASK;
@@ -357,7 +357,7 @@ static void s390_change_topology(uint16_t core_id,
                                  bool has_book_id, uint16_t book_id,
                                  bool has_drawer_id, uint16_t drawer_id,
                                  bool has_entitlement,
-                                 CpuS390Entitlement entitlement,
+                                 S390CpuEntitlement entitlement,
                                  bool has_dedicated, bool dedicated,
                                  Error **errp)
 {
@@ -446,7 +446,7 @@ void qmp_set_cpu_topology(uint16_t core,
                           bool has_socket, uint16_t socket,
                           bool has_book, uint16_t book,
                           bool has_drawer, uint16_t drawer,
-                          bool has_entitlement, CpuS390Entitlement entitlement,
+                          bool has_entitlement, S390CpuEntitlement entitlement,
                           bool has_dedicated, bool dedicated,
                           Error **errp)
 {
