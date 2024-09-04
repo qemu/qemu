@@ -185,10 +185,10 @@ static int cryptodev_backend_operation(
 static int cryptodev_backend_account(CryptoDevBackend *backend,
                  CryptoDevBackendOpInfo *op_info)
 {
-    enum QCryptodevBackendAlgType algtype = op_info->algtype;
+    enum QCryptodevBackendAlgoType algtype = op_info->algtype;
     int len;
 
-    if (algtype == QCRYPTODEV_BACKEND_ALG_ASYM) {
+    if (algtype == QCRYPTODEV_BACKEND_ALGO_TYPE_ASYM) {
         CryptoDevBackendAsymOpInfo *asym_op_info = op_info->u.asym_op_info;
         len = asym_op_info->src_len;
 
@@ -212,7 +212,7 @@ static int cryptodev_backend_account(CryptoDevBackend *backend,
         default:
             return -VIRTIO_CRYPTO_NOTSUPP;
         }
-    } else if (algtype == QCRYPTODEV_BACKEND_ALG_SYM) {
+    } else if (algtype == QCRYPTODEV_BACKEND_ALGO_TYPE_SYM) {
         CryptoDevBackendSymOpInfo *sym_op_info = op_info->u.sym_op_info;
         len = sym_op_info->src_len;
 

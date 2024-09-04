@@ -9,7 +9,7 @@
 ##
 
 ##
-# @QCryptodevBackendAlgType:
+# @QCryptodevBackendAlgoType:
 #
 # The supported algorithm types of a crypto device.
 #
@@ -19,8 +19,7 @@
 #
 # Since: 8.0
 ##
-{ 'enum': 'QCryptodevBackendAlgType',
-  'prefix': 'QCRYPTODEV_BACKEND_ALG',
+{ 'enum': 'QCryptodevBackendAlgoType',
   'data': ['sym', 'asym']}
 
 ##

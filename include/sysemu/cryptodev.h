@@ -178,7 +178,7 @@ typedef struct CryptoDevBackendAsymOpInfo {
 typedef void (*CryptoDevCompletionFunc) (void *opaque, int ret);
 
 typedef struct CryptoDevBackendOpInfo {
-    QCryptodevBackendAlgType algtype;
+    QCryptodevBackendAlgoType algtype;
     uint32_t op_code;
     uint32_t queue_index;
     CryptoDevCompletionFunc cb;
