@@ -29,6 +29,7 @@ typedef struct ResettableState ResettableState;
  * Types of reset.
  *
  * + Cold: reset resulting from a power cycle of the object.
+ * + Wakeup: reset resulting from a wake-up from a suspended state.
  *
  * TODO: Support has to be added to handle more types. In particular,
  * ResettableState structure needs to be expanded.
@@ -36,6 +37,7 @@ typedef struct ResettableState ResettableState;
 typedef enum ResetType {
     RESET_TYPE_COLD,
     RESET_TYPE_SNAPSHOT_LOAD,
+    RESET_TYPE_WAKEUP,
     RESET_TYPE_S390_CPU_INITIAL,
     RESET_TYPE_S390_CPU_NORMAL,
 } ResetType;
