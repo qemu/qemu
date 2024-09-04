@@ -81,7 +81,7 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
         .has_cipher_mode = true,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .has_ivgen_alg = true,
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
     },
 };
 
@@ -95,7 +95,7 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
         .has_cipher_mode = true,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .has_ivgen_alg = true,
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_ESSIV,
         .has_ivgen_hash_alg = true,
         .ivgen_hash_alg = QCRYPTO_HASH_ALGO_SHA256,
         .has_hash_alg = true,
@@ -116,7 +116,7 @@ static struct QCryptoBlockTestData {
     QCryptoCipherMode cipher_mode;
     QCryptoHashAlgo hash_alg;
 
-    QCryptoIVGenAlgorithm ivgen_alg;
+    QCryptoIVGenAlgo ivgen_alg;
     QCryptoHashAlgo ivgen_hash;
 
     bool slow;
@@ -131,7 +131,7 @@ static struct QCryptoBlockTestData {
         .cipher_alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
 
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
     },
 #ifdef TEST_LUKS
     {
@@ -145,7 +145,7 @@ static struct QCryptoBlockTestData {
         .cipher_mode = QCRYPTO_CIPHER_MODE_XTS,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
 
         .slow = true,
     },
@@ -160,7 +160,7 @@ static struct QCryptoBlockTestData {
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
 
         .slow = true,
     },
@@ -175,7 +175,7 @@ static struct QCryptoBlockTestData {
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
         .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
 
-        .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
+        .ivgen_alg = QCRYPTO_IV_GEN_ALGO_ESSIV,
         .ivgen_hash = QCRYPTO_HASH_ALGO_SHA256,
 
         .slow = true,

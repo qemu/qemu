@@ -129,7 +129,7 @@ struct QCryptoBlockLUKS {
     QCryptoCipherMode cipher_mode;
 
     /* Initialization vector generation algorithm */
-    QCryptoIVGenAlgorithm ivgen_alg;
+    QCryptoIVGenAlgo ivgen_alg;
 
     /* Hash algorithm used for IV generation*/
     QCryptoHashAlgo ivgen_hash_alg;
@@ -229,7 +229,7 @@ static int qcrypto_block_luks_name_lookup(const char *name,
 
 #define qcrypto_block_luks_ivgen_name_lookup(name, errp)                \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   &QCryptoIVGenAlgorithm_lookup,       \
+                                   &QCryptoIVGenAlgo_lookup,       \
                                    "IV generator",                      \
                                    errp)
 
@@ -660,7 +660,7 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
         return -1;
     }
 
-    if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks->ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         if (!ivhash_name) {
             error_setg(errp, "Missing IV generator hash specification");
             return -1;
@@ -1328,12 +1328,12 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         luks_opts.cipher_mode = QCRYPTO_CIPHER_MODE_XTS;
     }
     if (!luks_opts.has_ivgen_alg) {
-        luks_opts.ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64;
+        luks_opts.ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64;
     }
     if (!luks_opts.has_hash_alg) {
         luks_opts.hash_alg = QCRYPTO_HASH_ALGO_SHA256;
     }
-    if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks_opts.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         if (!luks_opts.has_ivgen_hash_alg) {
             luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALGO_SHA256;
             luks_opts.has_ivgen_hash_alg = true;
@@ -1384,7 +1384,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     }
 
     cipher_mode = QCryptoCipherMode_str(luks_opts.cipher_mode);
-    ivgen_alg = QCryptoIVGenAlgorithm_str(luks_opts.ivgen_alg);
+    ivgen_alg = QCryptoIVGenAlgo_str(luks_opts.ivgen_alg);
     if (luks_opts.has_ivgen_hash_alg) {
         ivgen_hash_alg = QCryptoHashAlgo_str(luks_opts.ivgen_hash_alg);
         cipher_mode_spec = g_strdup_printf("%s-%s:%s", cipher_mode, ivgen_alg,
@@ -1411,7 +1411,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
-    if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks_opts.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         luks->ivgen_cipher_alg =
                 qcrypto_block_luks_essiv_cipher(luks_opts.cipher_alg,
                                                 luks_opts.ivgen_hash_alg,
@@ -1886,7 +1886,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
     info->u.luks.cipher_alg = luks->cipher_alg;
     info->u.luks.cipher_mode = luks->cipher_mode;
     info->u.luks.ivgen_alg = luks->ivgen_alg;
-    if (info->u.luks.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (info->u.luks.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         info->u.luks.has_ivgen_hash_alg = true;
         info->u.luks.ivgen_hash_alg = luks->ivgen_hash_alg;
     }

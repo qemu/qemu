@@ -64,7 +64,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
 
     block->niv = qcrypto_cipher_get_iv_len(QCRYPTO_CIPHER_ALGO_AES_128,
                                            QCRYPTO_CIPHER_MODE_CBC);
-    block->ivgen = qcrypto_ivgen_new(QCRYPTO_IVGEN_ALG_PLAIN64,
+    block->ivgen = qcrypto_ivgen_new(QCRYPTO_IV_GEN_ALGO_PLAIN64,
                                      0, 0, NULL, 0, errp);
     if (!block->ivgen) {
         ret = -ENOTSUP;

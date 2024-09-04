@@ -27,7 +27,7 @@
 #include "ivgen-essiv.h"
 
 
-QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
+QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgo alg,
                                 QCryptoCipherAlgo cipheralg,
                                 QCryptoHashAlgo hash,
                                 const uint8_t *key, size_t nkey,
@@ -40,13 +40,13 @@ QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
     ivgen->hash = hash;
 
     switch (alg) {
-    case QCRYPTO_IVGEN_ALG_PLAIN:
+    case QCRYPTO_IV_GEN_ALGO_PLAIN:
         ivgen->driver = &qcrypto_ivgen_plain;
         break;
-    case QCRYPTO_IVGEN_ALG_PLAIN64:
+    case QCRYPTO_IV_GEN_ALGO_PLAIN64:
         ivgen->driver = &qcrypto_ivgen_plain64;
         break;
-    case QCRYPTO_IVGEN_ALG_ESSIV:
+    case QCRYPTO_IV_GEN_ALGO_ESSIV:
         ivgen->driver = &qcrypto_ivgen_essiv;
         break;
     default:
@@ -73,7 +73,7 @@ int qcrypto_ivgen_calculate(QCryptoIVGen *ivgen,
 }
 
 
-QCryptoIVGenAlgorithm qcrypto_ivgen_get_algorithm(QCryptoIVGen *ivgen)
+QCryptoIVGenAlgo qcrypto_ivgen_get_algorithm(QCryptoIVGen *ivgen)
 {
     return ivgen->algorithm;
 }

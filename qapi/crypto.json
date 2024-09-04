@@ -122,7 +122,7 @@
   'data': ['ecb', 'cbc', 'xts', 'ctr']}
 
 ##
-# @QCryptoIVGenAlgorithm:
+# @QCryptoIVGenAlgo:
 #
 # The supported algorithms for generating initialization vectors for
 # full disk encryption.  The 'plain' generator should not be used for
@@ -138,8 +138,7 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoIVGenAlgorithm',
-  'prefix': 'QCRYPTO_IVGEN_ALG',
+{ 'enum': 'QCryptoIVGenAlgo',
   'data': ['plain', 'plain64', 'essiv']}
 
 ##
@@ -226,7 +225,7 @@
   'base': 'QCryptoBlockOptionsLUKS',
   'data': { '*cipher-alg': 'QCryptoCipherAlgo',
             '*cipher-mode': 'QCryptoCipherMode',
-            '*ivgen-alg': 'QCryptoIVGenAlgorithm',
+            '*ivgen-alg': 'QCryptoIVGenAlgo',
             '*ivgen-hash-alg': 'QCryptoHashAlgo',
             '*hash-alg': 'QCryptoHashAlgo',
             '*iter-time': 'int' }}
@@ -323,7 +322,7 @@
 { 'struct': 'QCryptoBlockInfoLUKS',
   'data': {'cipher-alg': 'QCryptoCipherAlgo',
            'cipher-mode': 'QCryptoCipherMode',
-           'ivgen-alg': 'QCryptoIVGenAlgorithm',
+           'ivgen-alg': 'QCryptoIVGenAlgo',
            '*ivgen-hash-alg': 'QCryptoHashAlgo',
            'hash-alg': 'QCryptoHashAlgo',
            'detached-header': 'bool',
