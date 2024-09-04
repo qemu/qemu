@@ -256,5 +256,10 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);
+#ifndef CONFIG_USER_ONLY
+void hexagon_cpu_do_interrupt(CPUState *cpu);
+void register_trap_exception(CPUHexagonState *env, int type, int imm,
+                             target_ulong PC);
+#endif
 
 #endif /* HEXAGON_CPU_H */
