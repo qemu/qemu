@@ -46,7 +46,7 @@
  *
  * QCryptoIVGen *ivgen = qcrypto_ivgen_new(QCRYPTO_IVGEN_ALG_ESSIV,
  *                                         QCRYPTO_CIPHER_ALG_AES_128,
- *                                         QCRYPTO_HASH_ALG_SHA256,
+ *                                         QCRYPTO_HASH_ALGO_SHA256,
  *                                         key, nkey, errp);
  * if (!ivgen) {
  *    return -1;
@@ -135,7 +135,7 @@ typedef struct QCryptoIVGen QCryptoIVGen;
  */
 QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
                                 QCryptoCipherAlgorithm cipheralg,
-                                QCryptoHashAlgorithm hash,
+                                QCryptoHashAlgo hash,
                                 const uint8_t *key, size_t nkey,
                                 Error **errp);
 
@@ -191,7 +191,7 @@ QCryptoCipherAlgorithm qcrypto_ivgen_get_cipher(QCryptoIVGen *ivgen);
  *
  * Returns: the hash algorithm
  */
-QCryptoHashAlgorithm qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen);
+QCryptoHashAlgo qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen);
 
 
 /**

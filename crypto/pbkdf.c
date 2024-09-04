@@ -87,7 +87,7 @@ static int qcrypto_pbkdf2_get_thread_cpu(unsigned long long *val_ms,
 }
 
 typedef struct CountItersData {
-    QCryptoHashAlgorithm hash;
+    QCryptoHashAlgo hash;
     const uint8_t *key;
     size_t nkey;
     const uint8_t *salt;
@@ -100,7 +100,7 @@ typedef struct CountItersData {
 static void *threaded_qcrypto_pbkdf2_count_iters(void *data)
 {
     CountItersData *iters_data = (CountItersData *) data;
-    QCryptoHashAlgorithm hash = iters_data->hash;
+    QCryptoHashAlgo hash = iters_data->hash;
     const uint8_t *key = iters_data->key;
     size_t nkey = iters_data->nkey;
     const uint8_t *salt = iters_data->salt;
@@ -153,7 +153,7 @@ static void *threaded_qcrypto_pbkdf2_count_iters(void *data)
     return NULL;
 }
 
-uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
+uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgo hash,
                                     const uint8_t *key, size_t nkey,
                                     const uint8_t *salt, size_t nsalt,
                                     size_t nout,

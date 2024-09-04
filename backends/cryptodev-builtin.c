@@ -169,16 +169,16 @@ static int cryptodev_builtin_get_rsa_hash_algo(
 {
     switch (virtio_rsa_hash) {
     case VIRTIO_CRYPTO_RSA_MD5:
-        return QCRYPTO_HASH_ALG_MD5;
+        return QCRYPTO_HASH_ALGO_MD5;
 
     case VIRTIO_CRYPTO_RSA_SHA1:
-        return QCRYPTO_HASH_ALG_SHA1;
+        return QCRYPTO_HASH_ALGO_SHA1;
 
     case VIRTIO_CRYPTO_RSA_SHA256:
-        return QCRYPTO_HASH_ALG_SHA256;
+        return QCRYPTO_HASH_ALGO_SHA256;
 
     case VIRTIO_CRYPTO_RSA_SHA512:
-        return QCRYPTO_HASH_ALG_SHA512;
+        return QCRYPTO_HASH_ALGO_SHA512;
 
     default:
         error_setg(errp, "Unsupported rsa hash algo: %d", virtio_rsa_hash);

@@ -25,17 +25,17 @@
 #include "hashpriv.h"
 
 
-static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = GNUTLS_DIG_MD5,
-    [QCRYPTO_HASH_ALG_SHA1] = GNUTLS_DIG_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224] = GNUTLS_DIG_SHA224,
-    [QCRYPTO_HASH_ALG_SHA256] = GNUTLS_DIG_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384] = GNUTLS_DIG_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512] = GNUTLS_DIG_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = GNUTLS_DIG_RMD160,
+static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5] = GNUTLS_DIG_MD5,
+    [QCRYPTO_HASH_ALGO_SHA1] = GNUTLS_DIG_SHA1,
+    [QCRYPTO_HASH_ALGO_SHA224] = GNUTLS_DIG_SHA224,
+    [QCRYPTO_HASH_ALGO_SHA256] = GNUTLS_DIG_SHA256,
+    [QCRYPTO_HASH_ALGO_SHA384] = GNUTLS_DIG_SHA384,
+    [QCRYPTO_HASH_ALGO_SHA512] = GNUTLS_DIG_SHA512,
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = GNUTLS_DIG_RMD160,
 };
 
-gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
+gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
     size_t i;
     const gnutls_digest_algorithm_t *algs;
@@ -54,7 +54,7 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 
 
 static int
-qcrypto_gnutls_hash_bytesv(QCryptoHashAlgorithm alg,
+qcrypto_gnutls_hash_bytesv(QCryptoHashAlgo alg,
                            const struct iovec *iov,
                            size_t niov,
                            uint8_t **result,

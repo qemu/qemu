@@ -332,7 +332,7 @@ QCryptoIVGen *qcrypto_block_get_ivgen(QCryptoBlock *block)
 }
 
 
-QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block)
+QCryptoHashAlgo qcrypto_block_get_kdf_hash(QCryptoBlock *block)
 {
     return block->kdfhash;
 }

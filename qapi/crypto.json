@@ -38,7 +38,7 @@
   'data': ['raw', 'base64']}
 
 ##
-# @QCryptoHashAlgorithm:
+# @QCryptoHashAlgo:
 #
 # The supported algorithms for computing content digests
 #
@@ -58,8 +58,7 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoHashAlgorithm',
-  'prefix': 'QCRYPTO_HASH_ALG',
+{ 'enum': 'QCryptoHashAlgo',
   'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
 
 ##
@@ -229,8 +228,8 @@
   'data': { '*cipher-alg': 'QCryptoCipherAlgorithm',
             '*cipher-mode': 'QCryptoCipherMode',
             '*ivgen-alg': 'QCryptoIVGenAlgorithm',
-            '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
-            '*hash-alg': 'QCryptoHashAlgorithm',
+            '*ivgen-hash-alg': 'QCryptoHashAlgo',
+            '*hash-alg': 'QCryptoHashAlgo',
             '*iter-time': 'int' }}
 
 ##
@@ -326,8 +325,8 @@
   'data': {'cipher-alg': 'QCryptoCipherAlgorithm',
            'cipher-mode': 'QCryptoCipherMode',
            'ivgen-alg': 'QCryptoIVGenAlgorithm',
-           '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
-           'hash-alg': 'QCryptoHashAlgorithm',
+           '*ivgen-hash-alg': 'QCryptoHashAlgo',
+           'hash-alg': 'QCryptoHashAlgo',
            'detached-header': 'bool',
            'payload-offset': 'int',
            'master-key-iters': 'int',
@@ -631,14 +630,14 @@
 #
 # Specific parameters for RSA algorithm.
 #
-# @hash-alg: QCryptoHashAlgorithm
+# @hash-alg: QCryptoHashAlgo
 #
 # @padding-alg: QCryptoRSAPaddingAlgorithm
 #
 # Since: 7.1
 ##
 { 'struct': 'QCryptoAkCipherOptionsRSA',
-  'data': { 'hash-alg':'QCryptoHashAlgorithm',
+  'data': { 'hash-alg':'QCryptoHashAlgo',
             'padding-alg': 'QCryptoRSAPaddingAlgorithm'}}
 
 ##

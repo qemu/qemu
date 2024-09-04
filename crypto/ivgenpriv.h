@@ -42,7 +42,7 @@ struct QCryptoIVGen {
 
     QCryptoIVGenAlgorithm algorithm;
     QCryptoCipherAlgorithm cipher;
-    QCryptoHashAlgorithm hash;
+    QCryptoHashAlgo hash;
 };
 
 

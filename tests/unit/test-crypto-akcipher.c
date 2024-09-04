@@ -808,7 +808,7 @@ static QCryptoAkCipherTestData akcipher_test_data[] = {
             .alg = QCRYPTO_AKCIPHER_ALG_RSA,
             .u.rsa = {
                 .padding_alg = QCRYPTO_RSA_PADDING_ALG_PKCS1,
-                .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+                .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
             },
         },
         .pub_key = rsa1024_public_key,
@@ -853,7 +853,7 @@ static QCryptoAkCipherTestData akcipher_test_data[] = {
             .alg = QCRYPTO_AKCIPHER_ALG_RSA,
             .u.rsa = {
                 .padding_alg = QCRYPTO_RSA_PADDING_ALG_PKCS1,
-                .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+                .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
             },
         },
         .pub_key = rsa2048_public_key,
@@ -947,7 +947,7 @@ static void test_rsakey(const void *opaque)
         .alg = QCRYPTO_AKCIPHER_ALG_RSA,
         .u.rsa = {
             .padding_alg = QCRYPTO_RSA_PADDING_ALG_PKCS1,
-            .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+            .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
         }
     };
     g_autoptr(QCryptoAkCipher) key = qcrypto_akcipher_new(

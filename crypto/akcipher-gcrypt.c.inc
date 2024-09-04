@@ -33,7 +33,7 @@ typedef struct QCryptoGcryptRSA {
     QCryptoAkCipher akcipher;
     gcry_sexp_t key;
     QCryptoRSAPaddingAlgorithm padding_alg;
-    QCryptoHashAlgorithm hash_alg;
+    QCryptoHashAlgo hash_alg;
 } QCryptoGcryptRSA;
 
 static void qcrypto_gcrypt_rsa_free(QCryptoAkCipher *akcipher)
@@ -417,7 +417,7 @@ static int qcrypto_gcrypt_rsa_sign(QCryptoAkCipher *akcipher,
 
     err = gcry_sexp_build(&dgst_sexp, NULL,
                           "(data (flags pkcs1) (hash %s %b))",
-                          QCryptoHashAlgorithm_str(rsa->hash_alg),
+                          QCryptoHashAlgo_str(rsa->hash_alg),
                           in_len, in);
     if (gcry_err_code(err) != 0) {
         error_setg(errp, "Failed to build dgst: %s/%s",
@@ -497,7 +497,7 @@ static int qcrypto_gcrypt_rsa_verify(QCryptoAkCipher *akcipher,
 
     err = gcry_sexp_build(&dgst_sexp, NULL,
                           "(data (flags pkcs1) (hash %s %b))",
-                          QCryptoHashAlgorithm_str(rsa->hash_alg),
+                          QCryptoHashAlgo_str(rsa->hash_alg),
                           in2_len, in2);
     if (gcry_err_code(err) != 0) {
         error_setg(errp, "Failed to build dgst: %s/%s",
@@ -575,10 +575,10 @@ bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
 
         case QCRYPTO_RSA_PADDING_ALG_PKCS1:
             switch (opts->u.rsa.hash_alg) {
-            case QCRYPTO_HASH_ALG_MD5:
-            case QCRYPTO_HASH_ALG_SHA1:
-            case QCRYPTO_HASH_ALG_SHA256:
-            case QCRYPTO_HASH_ALG_SHA512:
+            case QCRYPTO_HASH_ALGO_MD5:
+            case QCRYPTO_HASH_ALGO_SHA1:
+            case QCRYPTO_HASH_ALGO_SHA256:
+            case QCRYPTO_HASH_ALGO_SHA512:
                 return true;
 
             default:

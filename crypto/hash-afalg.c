@@ -20,7 +20,7 @@
 #include "hmacpriv.h"
 
 static char *
-qcrypto_afalg_hash_format_name(QCryptoHashAlgorithm alg,
+qcrypto_afalg_hash_format_name(QCryptoHashAlgo alg,
                                bool is_hmac,
                                Error **errp)
 {
@@ -28,25 +28,25 @@ qcrypto_afalg_hash_format_name(QCryptoHashAlgorithm alg,
     const char *alg_name;
 
     switch (alg) {
-    case QCRYPTO_HASH_ALG_MD5:
+    case QCRYPTO_HASH_ALGO_MD5:
         alg_name = "md5";
         break;
-    case QCRYPTO_HASH_ALG_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA1:
         alg_name = "sha1";
         break;
-    case QCRYPTO_HASH_ALG_SHA224:
+    case QCRYPTO_HASH_ALGO_SHA224:
         alg_name = "sha224";
         break;
-    case QCRYPTO_HASH_ALG_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA256:
         alg_name = "sha256";
         break;
-    case QCRYPTO_HASH_ALG_SHA384:
+    case QCRYPTO_HASH_ALGO_SHA384:
         alg_name = "sha384";
         break;
-    case QCRYPTO_HASH_ALG_SHA512:
+    case QCRYPTO_HASH_ALGO_SHA512:
         alg_name = "sha512";
         break;
-    case QCRYPTO_HASH_ALG_RIPEMD160:
+    case QCRYPTO_HASH_ALGO_RIPEMD160:
         alg_name = "rmd160";
         break;
 
@@ -65,7 +65,7 @@ qcrypto_afalg_hash_format_name(QCryptoHashAlgorithm alg,
 }
 
 static QCryptoAFAlg *
-qcrypto_afalg_hash_hmac_ctx_new(QCryptoHashAlgorithm alg,
+qcrypto_afalg_hash_hmac_ctx_new(QCryptoHashAlgo alg,
                                 const uint8_t *key, size_t nkey,
                                 bool is_hmac, Error **errp)
 {
@@ -99,14 +99,14 @@ qcrypto_afalg_hash_hmac_ctx_new(QCryptoHashAlgorithm alg,
 }
 
 static QCryptoAFAlg *
-qcrypto_afalg_hash_ctx_new(QCryptoHashAlgorithm alg,
+qcrypto_afalg_hash_ctx_new(QCryptoHashAlgo alg,
                            Error **errp)
 {
     return qcrypto_afalg_hash_hmac_ctx_new(alg, NULL, 0, false, errp);
 }
 
 QCryptoAFAlg *
-qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
+qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgo alg,
                            const uint8_t *key, size_t nkey,
                            Error **errp)
 {
@@ -115,7 +115,7 @@ qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
 static int
 qcrypto_afalg_hash_hmac_bytesv(QCryptoAFAlg *hmac,
-                               QCryptoHashAlgorithm alg,
+                               QCryptoHashAlgo alg,
                                const struct iovec *iov,
                                size_t niov, uint8_t **result,
                                size_t *resultlen,
@@ -173,7 +173,7 @@ out:
 }
 
 static int
-qcrypto_afalg_hash_bytesv(QCryptoHashAlgorithm alg,
+qcrypto_afalg_hash_bytesv(QCryptoHashAlgo alg,
                           const struct iovec *iov,
                           size_t niov, uint8_t **result,
                           size_t *resultlen,

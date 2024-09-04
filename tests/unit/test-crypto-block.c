@@ -97,9 +97,9 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
         .has_ivgen_alg = true,
         .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
         .has_ivgen_hash_alg = true,
-        .ivgen_hash_alg = QCRYPTO_HASH_ALG_SHA256,
+        .ivgen_hash_alg = QCRYPTO_HASH_ALGO_SHA256,
         .has_hash_alg = true,
-        .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+        .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
     },
 };
 #endif /* TEST_LUKS */
@@ -114,10 +114,10 @@ static struct QCryptoBlockTestData {
 
     QCryptoCipherAlgorithm cipher_alg;
     QCryptoCipherMode cipher_mode;
-    QCryptoHashAlgorithm hash_alg;
+    QCryptoHashAlgo hash_alg;
 
     QCryptoIVGenAlgorithm ivgen_alg;
-    QCryptoHashAlgorithm ivgen_hash;
+    QCryptoHashAlgo ivgen_hash;
 
     bool slow;
 } test_data[] = {
@@ -143,7 +143,7 @@ static struct QCryptoBlockTestData {
 
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_XTS,
-        .hash_alg = QCRYPTO_HASH_ALG_SHA256,
+        .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
         .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
 
@@ -158,7 +158,7 @@ static struct QCryptoBlockTestData {
 
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
-        .hash_alg = QCRYPTO_HASH_ALG_SHA256,
+        .hash_alg = QCRYPTO_HASH_ALGO_SHA256,
 
         .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
 
@@ -173,10 +173,10 @@ static struct QCryptoBlockTestData {
 
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
         .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
-        .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+        .hash_alg = QCRYPTO_HASH_ALGO_SHA1,
 
         .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .ivgen_hash = QCRYPTO_HASH_ALG_SHA256,
+        .ivgen_hash = QCRYPTO_HASH_ALGO_SHA256,
 
         .slow = true,
     },

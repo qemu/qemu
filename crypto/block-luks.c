@@ -132,7 +132,7 @@ struct QCryptoBlockLUKS {
     QCryptoIVGenAlgorithm ivgen_alg;
 
     /* Hash algorithm used for IV generation*/
-    QCryptoHashAlgorithm ivgen_hash_alg;
+    QCryptoHashAlgo ivgen_hash_alg;
 
     /*
      * Encryption algorithm used for IV generation.
@@ -141,7 +141,7 @@ struct QCryptoBlockLUKS {
     QCryptoCipherAlgorithm ivgen_cipher_alg;
 
     /* Hash algorithm used in pbkdf2 function */
-    QCryptoHashAlgorithm hash_alg;
+    QCryptoHashAlgo hash_alg;
 
     /* Name of the secret that was used to open the image */
     char *secret;
@@ -223,7 +223,7 @@ static int qcrypto_block_luks_name_lookup(const char *name,
 
 #define qcrypto_block_luks_hash_name_lookup(name, errp)                 \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   &QCryptoHashAlgorithm_lookup,        \
+                                   &QCryptoHashAlgo_lookup,        \
                                    "Hash algorithm",                    \
                                    errp)
 
@@ -264,7 +264,7 @@ qcrypto_block_luks_has_format(const uint8_t *buf,
  */
 static QCryptoCipherAlgorithm
 qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
-                                QCryptoHashAlgorithm hash,
+                                QCryptoHashAlgo hash,
                                 Error **errp)
 {
     size_t digestlen = qcrypto_hash_digest_len(hash);
@@ -1331,11 +1331,11 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         luks_opts.ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64;
     }
     if (!luks_opts.has_hash_alg) {
-        luks_opts.hash_alg = QCRYPTO_HASH_ALG_SHA256;
+        luks_opts.hash_alg = QCRYPTO_HASH_ALGO_SHA256;
     }
     if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
         if (!luks_opts.has_ivgen_hash_alg) {
-            luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALG_SHA256;
+            luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALGO_SHA256;
             luks_opts.has_ivgen_hash_alg = true;
         }
     }
@@ -1386,13 +1386,13 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     cipher_mode = QCryptoCipherMode_str(luks_opts.cipher_mode);
     ivgen_alg = QCryptoIVGenAlgorithm_str(luks_opts.ivgen_alg);
     if (luks_opts.has_ivgen_hash_alg) {
-        ivgen_hash_alg = QCryptoHashAlgorithm_str(luks_opts.ivgen_hash_alg);
+        ivgen_hash_alg = QCryptoHashAlgo_str(luks_opts.ivgen_hash_alg);
         cipher_mode_spec = g_strdup_printf("%s-%s:%s", cipher_mode, ivgen_alg,
                                            ivgen_hash_alg);
     } else {
         cipher_mode_spec = g_strdup_printf("%s-%s", cipher_mode, ivgen_alg);
     }
-    hash_alg = QCryptoHashAlgorithm_str(luks_opts.hash_alg);
+    hash_alg = QCryptoHashAlgo_str(luks_opts.hash_alg);
 
 
     if (strlen(cipher_alg) >= QCRYPTO_BLOCK_LUKS_CIPHER_NAME_LEN) {

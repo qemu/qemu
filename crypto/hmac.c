@@ -83,7 +83,7 @@ int qcrypto_hmac_digest(QCryptoHmac *hmac,
     return qcrypto_hmac_digestv(hmac, &iov, 1, digest, errp);
 }
 
-QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
+QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgo alg,
                               const uint8_t *key, size_t nkey,
                               Error **errp)
 {

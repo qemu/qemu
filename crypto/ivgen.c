@@ -29,7 +29,7 @@
 
 QCryptoIVGen *qcrypto_ivgen_new(QCryptoIVGenAlgorithm alg,
                                 QCryptoCipherAlgorithm cipheralg,
-                                QCryptoHashAlgorithm hash,
+                                QCryptoHashAlgo hash,
                                 const uint8_t *key, size_t nkey,
                                 Error **errp)
 {
@@ -85,7 +85,7 @@ QCryptoCipherAlgorithm qcrypto_ivgen_get_cipher(QCryptoIVGen *ivgen)
 }
 
 
-QCryptoHashAlgorithm qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen)
+QCryptoHashAlgo qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen)
 {
     return ivgen->hash;
 }

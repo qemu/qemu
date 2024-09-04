@@ -142,7 +142,7 @@ static int cryptodev_lkcf_set_op_desc(QCryptoAkCipherOptions *opts,
     if (rsa_opt->padding_alg == QCRYPTO_RSA_PADDING_ALG_PKCS1) {
         snprintf(key_desc, desc_len, "enc=%s hash=%s",
                  QCryptoRSAPaddingAlgorithm_str(rsa_opt->padding_alg),
-                 QCryptoHashAlgorithm_str(rsa_opt->hash_alg));
+                 QCryptoHashAlgo_str(rsa_opt->hash_alg));
 
     } else {
         snprintf(key_desc, desc_len, "enc=%s",
@@ -161,19 +161,19 @@ static int cryptodev_lkcf_set_rsa_opt(int virtio_padding_alg,
 
         switch (virtio_hash_alg) {
         case VIRTIO_CRYPTO_RSA_MD5:
-            opt->hash_alg = QCRYPTO_HASH_ALG_MD5;
+            opt->hash_alg = QCRYPTO_HASH_ALGO_MD5;
             break;
 
         case VIRTIO_CRYPTO_RSA_SHA1:
-            opt->hash_alg = QCRYPTO_HASH_ALG_SHA1;
+            opt->hash_alg = QCRYPTO_HASH_ALGO_SHA1;
             break;
 
         case VIRTIO_CRYPTO_RSA_SHA256:
-            opt->hash_alg = QCRYPTO_HASH_ALG_SHA256;
+            opt->hash_alg = QCRYPTO_HASH_ALGO_SHA256;
             break;
 
         case VIRTIO_CRYPTO_RSA_SHA512:
-            opt->hash_alg = QCRYPTO_HASH_ALG_SHA512;
+            opt->hash_alg = QCRYPTO_HASH_ALGO_SHA512;
             break;
 
         default:

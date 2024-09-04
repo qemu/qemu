@@ -22,23 +22,23 @@
 #include "crypto/hash.h"
 #include "hashpriv.h"
 
-static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5]       = QCRYPTO_HASH_DIGEST_LEN_MD5,
-    [QCRYPTO_HASH_ALG_SHA1]      = QCRYPTO_HASH_DIGEST_LEN_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224]    = QCRYPTO_HASH_DIGEST_LEN_SHA224,
-    [QCRYPTO_HASH_ALG_SHA256]    = QCRYPTO_HASH_DIGEST_LEN_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384]    = QCRYPTO_HASH_DIGEST_LEN_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512]    = QCRYPTO_HASH_DIGEST_LEN_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = QCRYPTO_HASH_DIGEST_LEN_RIPEMD160,
+static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5]       = QCRYPTO_HASH_DIGEST_LEN_MD5,
+    [QCRYPTO_HASH_ALGO_SHA1]      = QCRYPTO_HASH_DIGEST_LEN_SHA1,
+    [QCRYPTO_HASH_ALGO_SHA224]    = QCRYPTO_HASH_DIGEST_LEN_SHA224,
+    [QCRYPTO_HASH_ALGO_SHA256]    = QCRYPTO_HASH_DIGEST_LEN_SHA256,
+    [QCRYPTO_HASH_ALGO_SHA384]    = QCRYPTO_HASH_DIGEST_LEN_SHA384,
+    [QCRYPTO_HASH_ALGO_SHA512]    = QCRYPTO_HASH_DIGEST_LEN_SHA512,
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = QCRYPTO_HASH_DIGEST_LEN_RIPEMD160,
 };
 
-size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg)
+size_t qcrypto_hash_digest_len(QCryptoHashAlgo alg)
 {
     assert(alg < G_N_ELEMENTS(qcrypto_hash_alg_size));
     return qcrypto_hash_alg_size[alg];
 }
 
-int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
+int qcrypto_hash_bytesv(QCryptoHashAlgo alg,
                         const struct iovec *iov,
                         size_t niov,
                         uint8_t **result,
@@ -65,7 +65,7 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
 }
 
 
-int qcrypto_hash_bytes(QCryptoHashAlgorithm alg,
+int qcrypto_hash_bytes(QCryptoHashAlgo alg,
                        const char *buf,
                        size_t len,
                        uint8_t **result,
@@ -79,7 +79,7 @@ int qcrypto_hash_bytes(QCryptoHashAlgorithm alg,
 
 static const char hex[] = "0123456789abcdef";
 
-int qcrypto_hash_digestv(QCryptoHashAlgorithm alg,
+int qcrypto_hash_digestv(QCryptoHashAlgo alg,
                          const struct iovec *iov,
                          size_t niov,
                          char **digest,
@@ -103,7 +103,7 @@ int qcrypto_hash_digestv(QCryptoHashAlgorithm alg,
     return 0;
 }
 
-int qcrypto_hash_digest(QCryptoHashAlgorithm alg,
+int qcrypto_hash_digest(QCryptoHashAlgo alg,
                         const char *buf,
                         size_t len,
                         char **digest,
@@ -114,7 +114,7 @@ int qcrypto_hash_digest(QCryptoHashAlgorithm alg,
     return qcrypto_hash_digestv(alg, &iov, 1, digest, errp);
 }
 
-int qcrypto_hash_base64v(QCryptoHashAlgorithm alg,
+int qcrypto_hash_base64v(QCryptoHashAlgo alg,
                          const struct iovec *iov,
                          size_t niov,
                          char **base64,
@@ -132,7 +132,7 @@ int qcrypto_hash_base64v(QCryptoHashAlgorithm alg,
     return 0;
 }
 
-int qcrypto_hash_base64(QCryptoHashAlgorithm alg,
+int qcrypto_hash_base64(QCryptoHashAlgo alg,
                         const char *buf,
                         size_t len,
                         char **base64,

@@ -34,7 +34,7 @@ typedef struct QCryptoNettleRSA {
     struct rsa_public_key pub;
     struct rsa_private_key priv;
     QCryptoRSAPaddingAlgorithm padding_alg;
-    QCryptoHashAlgorithm hash_alg;
+    QCryptoHashAlgo hash_alg;
 } QCryptoNettleRSA;
 
 static void qcrypto_nettle_rsa_free(QCryptoAkCipher *akcipher)
@@ -276,19 +276,19 @@ static int qcrypto_nettle_rsa_sign(QCryptoAkCipher *akcipher,
 
     mpz_init(s);
     switch (rsa->hash_alg) {
-    case QCRYPTO_HASH_ALG_MD5:
+    case QCRYPTO_HASH_ALGO_MD5:
         rv = rsa_md5_sign_digest(&rsa->priv, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA1:
         rv = rsa_sha1_sign_digest(&rsa->priv, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA256:
         rv = rsa_sha256_sign_digest(&rsa->priv, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA512:
+    case QCRYPTO_HASH_ALGO_SHA512:
         rv = rsa_sha512_sign_digest(&rsa->priv, data, s);
         break;
 
@@ -341,19 +341,19 @@ static int qcrypto_nettle_rsa_verify(QCryptoAkCipher *akcipher,
 
     nettle_mpz_init_set_str_256_u(s, sig_len, sig);
     switch (rsa->hash_alg) {
-    case QCRYPTO_HASH_ALG_MD5:
+    case QCRYPTO_HASH_ALGO_MD5:
         rv = rsa_md5_verify_digest(&rsa->pub, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA1:
         rv = rsa_sha1_verify_digest(&rsa->pub, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA256:
         rv = rsa_sha256_verify_digest(&rsa->pub, data, s);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA512:
+    case QCRYPTO_HASH_ALGO_SHA512:
         rv = rsa_sha512_verify_digest(&rsa->pub, data, s);
         break;
 
@@ -429,10 +429,10 @@ bool qcrypto_akcipher_supports(QCryptoAkCipherOptions *opts)
         switch (opts->u.rsa.padding_alg) {
         case QCRYPTO_RSA_PADDING_ALG_PKCS1:
             switch (opts->u.rsa.hash_alg) {
-            case QCRYPTO_HASH_ALG_MD5:
-            case QCRYPTO_HASH_ALG_SHA1:
-            case QCRYPTO_HASH_ALG_SHA256:
-            case QCRYPTO_HASH_ALG_SHA512:
+            case QCRYPTO_HASH_ALGO_MD5:
+            case QCRYPTO_HASH_ALGO_SHA1:
+            case QCRYPTO_HASH_ALGO_SHA256:
+            case QCRYPTO_HASH_ALGO_SHA512:
                 return true;
 
             default:

@@ -50,7 +50,7 @@
  *     return -1;
  * }
  *
- * iterations = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALG_SHA256,
+ * iterations = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALGO_SHA256,
  *                                         (const uint8_t *)password,
  *                                         strlen(password),
  *                                         salt, nkey, errp);
@@ -60,7 +60,7 @@
  *     return -1;
  * }
  *
- * if (qcrypto_pbkdf2(QCRYPTO_HASH_ALG_SHA256,
+ * if (qcrypto_pbkdf2(QCRYPTO_HASH_ALGO_SHA256,
  *                    (const uint8_t *)password, strlen(password),
  *                    salt, nkey, iterations, key, nkey, errp) < 0) {
  *     g_free(key);
@@ -92,7 +92,7 @@
  *
  * Returns true if supported, false otherwise
  */
-bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash);
+bool qcrypto_pbkdf2_supports(QCryptoHashAlgo hash);
 
 
 /**
@@ -119,7 +119,7 @@ bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash);
  *
  * Returns: 0 on success, -1 on error
  */
-int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
+int qcrypto_pbkdf2(QCryptoHashAlgo hash,
                    const uint8_t *key, size_t nkey,
                    const uint8_t *salt, size_t nsalt,
                    uint64_t iterations,
@@ -147,7 +147,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
  *
  * Returns: number of iterations in 1 second, -1 on error
  */
-uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgorithm hash,
+uint64_t qcrypto_pbkdf2_count_iters(QCryptoHashAlgo hash,
                                     const uint8_t *key, size_t nkey,
                                     const uint8_t *salt, size_t nsalt,
                                     size_t nout,

@@ -3852,7 +3852,7 @@ static int vnc_display_get_addresses(QemuOpts *opts,
         return 0;
     }
     if (qemu_opt_get(opts, "websocket") &&
-        !qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA1)) {
+        !qcrypto_hash_supports(QCRYPTO_HASH_ALGO_SHA1)) {
         error_setg(errp,
                    "SHA1 hash support is required for websockets");
         return -1;
