@@ -1476,7 +1476,8 @@ void HELPER(wait)(CPUHexagonState *env, target_ulong PC)
 
 void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    hexagon_resume_threads(env, mask);
 }
 
 uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)

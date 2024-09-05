@@ -125,6 +125,43 @@ void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC)
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
 }
 
+static void hexagon_resume_thread(CPUHexagonState *env)
+{
+    CPUState *cs = env_cpu(env);
+    clear_wait_mode(env);
+    /*
+     * The wait instruction keeps the PC pointing to itself
+     * so that it has an opportunity to check for interrupts.
+     *
+     * When we come out of wait mode, adjust the PC to the
+     * next executable instruction.
+     */
+    env->gpr[HEX_REG_PC] = env->wait_next_pc;
+    cs = env_cpu(env);
+    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+    cs->halted = false;
+    cs->exception_index = HEX_EVENT_NONE;
+    qemu_cpu_kick(cs);
+}
+
+void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
+{
+    CPUState *cs;
+    CPUHexagonState *env;
+
+    g_assert(bql_locked());
+    CPU_FOREACH(cs) {
+        env = cpu_env(cs);
+        g_assert(env->threadId < THREADS_MAX);
+        if ((mask & (0x1 << env->threadId))) {
+            if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+                hexagon_resume_thread(env);
+            }
+        }
+    }
+}
+
+
 static MMVector VRegs[VECTOR_UNIT_MAX][NUM_VREGS];
 static MMQReg QRegs[VECTOR_UNIT_MAX][NUM_QREGS];
 

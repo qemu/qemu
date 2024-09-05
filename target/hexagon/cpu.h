@@ -49,6 +49,7 @@ typedef struct CPUHexagonTLBContext CPUHexagonTLBContext;
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
+#define THREADS_MAX 8
 #define VECTOR_UNIT_MAX 8
 
 #ifndef CONFIG_USER_ONLY
