@@ -3580,15 +3580,22 @@ static void virt_machine_2_6_options(MachineClass *mc)
 DEFINE_VIRT_MACHINE(2, 6)
 #endif /* disabled for RHEL */
 
+static void virt_rhel_machine_9_6_0_options(MachineClass *mc)
+{
+}
+DEFINE_VIRT_MACHINE_AS_LATEST(9, 6, 0)
+
 static void virt_rhel_machine_9_4_0_options(MachineClass *mc)
 {
+    virt_rhel_machine_9_6_0_options(mc);
+
     /* From virt_machine_9_0_options() */
     mc->smbios_memory_device_size = 16 * GiB;
 
     compat_props_add(mc->compat_props, hw_compat_rhel_9_6, hw_compat_rhel_9_6_len);
     compat_props_add(mc->compat_props, hw_compat_rhel_9_5, hw_compat_rhel_9_5_len);
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(9, 4, 0)
+DEFINE_VIRT_MACHINE(9, 4, 0)
 
 static void virt_rhel_machine_9_2_0_options(MachineClass *mc)
 {
