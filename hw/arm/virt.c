@@ -3582,6 +3582,9 @@ DEFINE_VIRT_MACHINE(2, 6)
 
 static void virt_rhel_machine_9_4_0_options(MachineClass *mc)
 {
+    /* From virt_machine_9_0_options() */
+    mc->smbios_memory_device_size = 16 * GiB;
+
     compat_props_add(mc->compat_props, hw_compat_rhel_9_6, hw_compat_rhel_9_6_len);
     compat_props_add(mc->compat_props, hw_compat_rhel_9_5, hw_compat_rhel_9_5_len);
 }
