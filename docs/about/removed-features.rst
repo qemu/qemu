@@ -517,6 +517,20 @@ The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
 and later do not support it because the virtio-scsi device was introduced for
 full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
 
+``-fsdev proxy`` and ``-virtfs proxy`` (since 9.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The 9p ``proxy`` filesystem backend driver was originally developed to
+enhance security by dispatching low level filesystem operations from 9p
+server (QEMU process) over to a separate process (the virtfs-proxy-helper
+binary). However the proxy backend was much slower than the local backend,
+didn't see any development in years, and showed to be less secure,
+especially due to the fact that its helper daemon must be run as root.
+
+Use ``local``, possibly mapping permissions et al by using its 'mapped'
+security model option, or switch to ``virtiofs``.   The virtiofs daemon
+``virtiofsd`` uses vhost to eliminate the high latency costs of the 9p
+``proxy`` backend.
 
 User-mode emulator command line arguments
 -----------------------------------------

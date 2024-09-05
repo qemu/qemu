@@ -2258,19 +2258,11 @@ S: Maintained
 W: https://wiki.qemu.org/Documentation/9p
 F: hw/9pfs/
 X: hw/9pfs/xen-9p*
-X: hw/9pfs/9p-proxy*
 F: fsdev/
-X: fsdev/virtfs-proxy-helper.c
 F: tests/qtest/virtio-9p-test.c
 F: tests/qtest/libqos/virtio-9p*
 T: git https://gitlab.com/gkurz/qemu.git 9p-next
 T: git https://github.com/cschoenebeck/qemu.git 9p.next
-
-virtio-9p-proxy
-F: hw/9pfs/9p-proxy*
-F: fsdev/virtfs-proxy-helper.c
-F: docs/tools/virtfs-proxy-helper.rst
-S: Obsolete
 
 virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>

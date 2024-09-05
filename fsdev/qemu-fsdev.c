@@ -89,17 +89,6 @@ static FsDriverTable FsDrivers[] = {
             NULL
         },
     },
-    {
-        .name = "proxy",
-        .ops = &proxy_ops,
-        .opts = (const char * []) {
-            COMMON_FS_DRIVER_OPTIONS,
-            "socket",
-            "sock_fd",
-            "writeout",
-            NULL
-        },
-    },
 };
 
 static int validate_opt(void *opaque, const char *name, const char *value,
@@ -133,14 +122,6 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
     }
 
     if (fsdriver) {
-        if (strncmp(fsdriver, "proxy", 5) == 0) {
-            warn_report(
-                "'-fsdev proxy' and '-virtfs proxy' are deprecated, use "
-                "'local' instead of 'proxy, or consider deploying virtiofsd "
-                "as alternative to 9p"
-            );
-        }
-
         for (i = 0; i < ARRAY_SIZE(FsDrivers); i++) {
             if (strcmp(FsDrivers[i].name, fsdriver) == 0) {
                 break;
