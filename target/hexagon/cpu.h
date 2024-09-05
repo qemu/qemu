@@ -209,6 +209,11 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uintptr_t pc);
 
 #ifndef CONFIG_USER_ONLY
+/*
+ * @return true if the @a thread_env hardware thread is
+ * not stopped.
+ */
+bool hexagon_thread_is_enabled(CPUHexagonState *thread_env);
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
 uint32_t hexagon_sreg_read(CPUHexagonState *env, uint32_t reg);
 void hexagon_gdb_sreg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
