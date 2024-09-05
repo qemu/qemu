@@ -202,6 +202,8 @@ static void test_write_read(void)
     qtest_writel(qts, USART1_BASE_ADDR + A_TDR, 0xFFFFFFFF);
     const uint32_t tdr = qtest_readl(qts, USART1_BASE_ADDR + A_TDR);
     g_assert_cmpuint(tdr, ==, 0x000001FF);
+
+    qtest_quit(qts);
 }
 
 static void test_receive_char(void)
