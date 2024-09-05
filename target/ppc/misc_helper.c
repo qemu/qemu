@@ -332,6 +332,10 @@ target_ulong helper_load_sprd(CPUPPCState *env)
     PnvCore *pc = pnv_cpu_state(cpu)->pnv_core;
     target_ulong sprc = env->spr[SPR_POWER_SPRC];
 
+    if (pc->big_core) {
+        pc = pnv_chip_find_core(pc->chip, CPU_CORE(pc)->core_id & ~0x1);
+    }
+
     switch (sprc & 0x3e0) {
     case 0: /* SCRATCH0-3 */
     case 1: /* SCRATCH4-7 */
@@ -368,6 +372,10 @@ void helper_store_sprd(CPUPPCState *env, target_ulong val)
     PnvCore *pc = pnv_cpu_state(cpu)->pnv_core;
     int nr;
 
+    if (pc->big_core) {
+        pc = pnv_chip_find_core(pc->chip, CPU_CORE(pc)->core_id & ~0x1);
+    }
+
     switch (sprc & 0x3e0) {
     case 0: /* SCRATCH0-3 */
     case 1: /* SCRATCH4-7 */
@@ -378,7 +386,6 @@ void helper_store_sprd(CPUPPCState *env, target_ulong val)
          * information. Could also dump these upon checkstop.
          */
         nr = (sprc >> 3) & 0x7;
-        qemu_log("SPRD write 0x" TARGET_FMT_lx " to SCRATCH%d\n", val, nr);
         pc->scratch[nr] = val;
         break;
     default:
