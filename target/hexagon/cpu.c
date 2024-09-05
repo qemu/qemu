@@ -64,6 +64,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT32("l2vic-base-addr", HexagonCPU, l2vic_base_addr,
         0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
+    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -361,8 +362,6 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     mmu_reset(env);
     ARCH_SET_SYSTEM_REG(env, HEX_SREG_HTID, cs->cpu_index);
     hexagon_cpu_soft_reset(env);
-    memset(env->t_sreg, 0, sizeof(target_ulong) * NUM_SREGS);
-    memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
     env->threadId = cs->cpu_index;
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
@@ -371,6 +370,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->next_PC = 0;
     env->wait_next_pc = 0;
     env->cause_code = -1;
+    ARCH_SET_THREAD_REG(env, HEX_REG_PC, cpu->boot_addr);
 #endif
 }
 
@@ -413,9 +413,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
     hex_mmu_realize(env);
-#endif
-    cpu_reset(cs);
-#ifndef CONFIG_USER_ONLY
     if (cs->cpu_index == 0) {
         env->g_sreg = g_new0(target_ulong, NUM_SREGS);
         env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));

@@ -195,6 +195,7 @@ struct ArchCPU {
     uint32_t num_tlbs;
     uint32_t l2vic_base_addr;
     uint32_t hvx_contexts;
+    uint32_t boot_addr;
 #endif
 };
 
