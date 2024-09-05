@@ -467,7 +467,142 @@ static void hexagon_cpu_init(Object *obj)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-#ifndef CONFIG_USER_ONLY
+#if !defined(CONFIG_USER_ONLY)
+static bool get_physical_address(CPUHexagonState *env, hwaddr *phys, int *prot,
+                                 int *size, int32_t *excp, target_ulong address,
+                                 MMUAccessType access_type, int mmu_idx)
+
+{
+    if (hexagon_cpu_mmu_enabled(env)) {
+        return hex_tlb_find_match(env, address, access_type, phys, prot, size,
+                                  excp, mmu_idx);
+    } else {
+        *phys = address & 0xFFFFFFFF;
+        *prot = PAGE_VALID | PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        *size = TARGET_PAGE_SIZE;
+        return true;
+    }
+}
+
+/* qemu seems to only want to know about TARGET_PAGE_SIZE pages */
+static void find_qemu_subpage(vaddr *addr, hwaddr *phys, int page_size)
+{
+    vaddr page_start = *addr & ~((vaddr)(page_size - 1));
+    vaddr offset = ((*addr - page_start) / TARGET_PAGE_SIZE) * TARGET_PAGE_SIZE;
+    *addr = page_start + offset;
+    *phys += offset;
+}
+
+
+#define INVALID_BADVA 0xbadabada
+
+static void set_badva_regs(CPUHexagonState *env, target_ulong VA, int slot,
+                           MMUAccessType access_type)
+{
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA, VA);
+
+    if (access_type == MMU_INST_FETCH || slot == 0) {
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA0, VA);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA1, INVALID_BADVA);
+        SET_SSR_FIELD(env, SSR_V0, 1);
+        SET_SSR_FIELD(env, SSR_V1, 0);
+        SET_SSR_FIELD(env, SSR_BVS, 0);
+    } else if (slot == 1) {
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA0, INVALID_BADVA);
+        ARCH_SET_SYSTEM_REG(env, HEX_SREG_BADVA1, VA);
+        SET_SSR_FIELD(env, SSR_V0, 0);
+        SET_SSR_FIELD(env, SSR_V1, 1);
+        SET_SSR_FIELD(env, SSR_BVS, 1);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void raise_tlbmiss_exception(CPUState *cs, target_ulong VA, int slot,
+                                    MMUAccessType access_type)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
+    set_badva_regs(env, VA, slot, access_type);
+
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        cs->exception_index = HEX_EVENT_TLB_MISS_X;
+        if ((VA & ~TARGET_PAGE_MASK) == 0) {
+            env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NEXTPAGE;
+        } else {
+            env->cause_code = HEX_CAUSE_TLBMISSX_CAUSE_NORMAL;
+        }
+        break;
+    case MMU_DATA_LOAD:
+        cs->exception_index = HEX_EVENT_TLB_MISS_RW;
+        env->cause_code = HEX_CAUSE_TLBMISSRW_CAUSE_READ;
+        break;
+    case MMU_DATA_STORE:
+        cs->exception_index = HEX_EVENT_TLB_MISS_RW;
+        env->cause_code = HEX_CAUSE_TLBMISSRW_CAUSE_WRITE;
+        break;
+    }
+}
+
+static void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
+                                 MMUAccessType access_type, int32_t excp);
+static void raise_perm_exception(CPUState *cs, target_ulong VA, int slot,
+                                 MMUAccessType access_type, int32_t excp)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
+    set_badva_regs(env, VA, slot, access_type);
+    cs->exception_index = excp;
+}
+
+static const char *access_type_names[] = { "MMU_DATA_LOAD ", "MMU_DATA_STORE",
+                                           "MMU_INST_FETCH" };
+
+static const char *mmu_idx_names[] = { "MMU_USER_IDX", "MMU_GUEST_IDX",
+                                       "MMU_KERNEL_IDX" };
+
+static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
+                             MMUAccessType access_type, int mmu_idx, bool probe,
+                             uintptr_t retaddr)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+    int slot = 0 /* This is broken FIXME */;
+    hwaddr phys;
+    int prot = 0;
+    int page_size = 0;
+    int32_t excp = 0;
+    bool ret = 0;
+
+    qemu_log_mask(
+        CPU_LOG_MMU,
+        "%s: tid = 0x%x, pc = 0x%08" PRIx32 ", vaddr = 0x%08" VADDR_PRIx
+        ", size = %d, %s,\tprobe = %d, %s\n",
+        __func__, env->threadId, env->gpr[HEX_REG_PC], address, size,
+        access_type_names[access_type], probe, mmu_idx_names[mmu_idx]);
+    ret = get_physical_address(env, &phys, &prot, &page_size, &excp, address,
+                               access_type, mmu_idx);
+    if (ret) {
+        if (!excp) {
+            find_qemu_subpage(&address, &phys, page_size);
+            tlb_set_page(cs, address, phys, prot, mmu_idx, TARGET_PAGE_SIZE);
+            return ret;
+        } else {
+            raise_perm_exception(cs, address, slot, access_type, excp);
+            do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC],
+                               retaddr);
+        }
+    }
+    if (probe) {
+        return false;
+    }
+    raise_tlbmiss_exception(cs, address, slot, access_type);
+    do_raise_exception(env, cs->exception_index, env->gpr[HEX_REG_PC], retaddr);
+}
+
 
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
@@ -497,6 +632,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .restore_state_to_opc = hexagon_restore_state_to_opc,
 #if !defined(CONFIG_USER_ONLY)
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
+    .tlb_fill = hexagon_tlb_fill,
 #endif /* !CONFIG_USER_ONLY */
 };
 
