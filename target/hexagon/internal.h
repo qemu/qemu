@@ -44,4 +44,9 @@ void G_NORETURN do_raise_exception(CPUHexagonState *env,
 #define hexagon_cpu_mmu_enabled(env) \
     GET_SYSCFG_FIELD(SYSCFG_MMUEN, ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG))
 
+#ifndef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_hexagon_cpu;
+#endif
+
+
 #endif

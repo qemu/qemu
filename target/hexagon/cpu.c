@@ -690,6 +690,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->disas_set_info = hexagon_cpu_disas_set_info;
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &hexagon_sysemu_ops;
+    dc->vmsd = &vmstate_hexagon_cpu;
 #endif
 #ifdef CONFIG_TCG
     cc->tcg_ops = &hexagon_tcg_ops;
