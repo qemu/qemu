@@ -489,7 +489,6 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
             insn->iclass = iclass_bits(encoding);
             return 1;
         }
-        g_assert_not_reached();
     } else {
         uint32_t iclass = get_duplex_iclass(encoding);
         unsigned int slot0_subinsn = get_slot0_subinsn(encoding);
@@ -512,6 +511,11 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
         }
         g_assert_not_reached();
     }
+    /*
+     * invalid/unrecognized opcode; return 1 and let gen_insn() raise an
+     * exception when it sees this empty insn.
+     */
+    return 1;
 }
 
 static void decode_add_endloop_insn(Insn *insn, int loopnum)
