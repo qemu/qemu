@@ -604,6 +604,11 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 }
 
 
+#include "hw/core/sysemu-cpu-ops.h"
+
+static const struct SysemuCPUOps hexagon_sysemu_ops = {
+};
+
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
@@ -633,6 +638,8 @@ static const TCGCPUOps hexagon_tcg_ops = {
 #if !defined(CONFIG_USER_ONLY)
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
     .tlb_fill = hexagon_tlb_fill,
+    .cpu_exec_halt = hexagon_cpu_has_work,
+    .do_interrupt = hexagon_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };
 
@@ -661,7 +668,12 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->gdb_core_xml_file = "hexagon-core.xml";
     cc->disas_set_info = hexagon_cpu_disas_set_info;
+#ifndef CONFIG_USER_ONLY
+    cc->sysemu_ops = &hexagon_sysemu_ops;
+#endif
+#ifdef CONFIG_TCG
     cc->tcg_ops = &hexagon_tcg_ops;
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
