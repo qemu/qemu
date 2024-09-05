@@ -18,4 +18,4 @@ config XTENSA_XTFPGA
     select DEVICE_TREE
     select OPENCORES_ETH
     select PFLASH_CFI01
-    select SERIAL
+    select SERIAL_MM

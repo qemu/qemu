@@ -136,7 +136,7 @@ config MUSICPAL
     select MARVELL_88W8618
     select PTIMER
     select PFLASH_CFI02
-    select SERIAL
+    select SERIAL_MM
     select WM8750
 
 config NETDUINO2
@@ -179,13 +179,13 @@ config OMAP
     select NAND
     select PFLASH_CFI01
     select SD
-    select SERIAL
+    select SERIAL_MM
 
 config PXA2XX
     bool
     select FRAMEBUFFER
     select I2C
-    select SERIAL
+    select SERIAL_MM
     select SD
     select SSI
     select USB_OHCI_SYSBUS
@@ -399,7 +399,7 @@ config ALLWINNER_A10
     select ALLWINNER_EMAC
     select ALLWINNER_I2C
     select AXP2XX_PMU
-    select SERIAL
+    select SERIAL_MM
     select UNIMP
     select USB_OHCI_SYSBUS
 
@@ -411,7 +411,7 @@ config ALLWINNER_H3
     select ALLWINNER_SUN8I_EMAC
     select ALLWINNER_I2C
     select ALLWINNER_WDT
-    select SERIAL
+    select SERIAL_MM
     select ARM_TIMER
     select ARM_GIC
     select UNIMP
@@ -427,7 +427,7 @@ config ALLWINNER_R40
     select ALLWINNER_A10_PIT
     select ALLWINNER_WDT
     select AXP2XX_PMU
-    select SERIAL
+    select SERIAL_MM
     select ARM_TIMER
     select ARM_GIC
     select UNIMP
@@ -542,7 +542,7 @@ config NPCM7XX
     select ISL_PMBUS_VR
     select PL310  # cache controller
     select PMBUS
-    select SERIAL
+    select SERIAL_MM
     select SSI
     select UNIMP
     select PCA954X
@@ -564,7 +564,7 @@ config FSL_IMX31
     default y
     depends on TCG && ARM
     imply I2C_DEVICES
-    select SERIAL
+    select SERIAL_MM
     select IMX
     select IMX_I2C
     select WDT_IMX2
@@ -593,7 +593,7 @@ config ASPEED_SOC
     select I2C
     select DPS310
     select PCA9552
-    select SERIAL
+    select SERIAL_MM
     select SMBUS_EEPROM
     select PCA954X
     select SSI
@@ -681,7 +681,7 @@ config MSF2
     bool
     select ARM_V7M
     select PTIMER
-    select SERIAL
+    select SERIAL_MM
     select SSI
     select UNIMP
 

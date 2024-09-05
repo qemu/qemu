@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "chardev/char.h"
 #include "hw/arm/omap.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "exec/address-spaces.h"
 
 /* UARTs */

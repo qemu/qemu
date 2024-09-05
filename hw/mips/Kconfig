@@ -10,14 +10,14 @@ config MALTA
     select MIPS_CPS
     select PIIX
     select PFLASH_CFI01
-    select SERIAL
+    select SERIAL_MM
     select SMBUS_EEPROM
 
 config MIPSSIM
     bool
     default y
     depends on MIPS
-    select SERIAL
+    select SERIAL_MM
     select MIPSNET
 
 config JAZZ
@@ -37,7 +37,7 @@ config JAZZ
     select FDC_SYSBUS
     select MC146818RTC
     select PCKBD
-    select SERIAL
+    select SERIAL_MM
     select PARALLEL
     select DS1225Y
     select JAZZ_LED
@@ -65,7 +65,7 @@ config LOONGSON3V
     imply VIRTIO_VGA
     imply QXL if SPICE
     imply USB_OHCI_PCI
-    select SERIAL
+    select SERIAL_MM
     select GOLDFISH_RTC
     select LOONGSON_IPI
     select LOONGSON_LIOINTC
@@ -89,7 +89,7 @@ config MIPS_BOSTON
     select MIPS_CPS
     select PCI_EXPRESS_XILINX
     select AHCI_ICH9
-    select SERIAL
+    select SERIAL_MM
 
 config FW_CFG_MIPS
     bool

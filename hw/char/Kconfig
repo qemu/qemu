@@ -21,6 +21,10 @@ config SERIAL_ISA
     depends on ISA_BUS
     select SERIAL
 
+config SERIAL_MM
+    bool
+    select SERIAL
+
 config SERIAL_PCI
     bool
     default y if PCI_DEVICES
