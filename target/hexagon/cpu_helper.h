@@ -21,6 +21,7 @@ void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause);
 void hexagon_start_threads(CPUHexagonState *env, uint32_t mask);
 void hexagon_stop_thread(CPUHexagonState *env);
 void hexagon_wait_thread(CPUHexagonState *env, target_ulong PC);
+void hexagon_resume_threads(CPUHexagonState *env, uint32_t mask);
 
 static inline void arch_set_thread_reg(CPUHexagonState *env, uint32_t reg,
                                        uint32_t val)
