@@ -672,11 +672,23 @@ DEFINE_Q35_MACHINE(2, 4);
 
 /* Red Hat Enterprise Linux machine types */
 
-static void pc_q35_rhel_machine_9_4_0_options(MachineClass *m)
+static void pc_q35_rhel_machine_9_6_0_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_machine_options(m);
+    m->desc = "RHEL-9.6.0 PC (Q35 + ICH9, 2009)";
+    pcmc->smbios_stream_product = "RHEL";
+    pcmc->smbios_stream_version = "9.6.0";
+}
+
+DEFINE_Q35_MACHINE_BUGFIX(9, 6, 0);
+
+static void pc_q35_rhel_machine_9_4_0_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_rhel_machine_9_6_0_options(m);
     m->desc = "RHEL-9.4.0 PC (Q35 + ICH9, 2009)";
+    m->alias = NULL;
     pcmc->smbios_stream_product = "RHEL";
     pcmc->smbios_stream_version = "9.4.0";
 
