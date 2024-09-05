@@ -212,6 +212,14 @@ build-previous-qemu:
     # testing an old QEMU against new features/tests that it is not
     # compatible with.
     - cd build-previous
+    # Don't allow python-based tests to run. The
+    # vmstate-checker-script test has a race that causes it to fail
+    # sometimes. It cannot be fixed it because this job runs the test
+    # from the old QEMU version. The test will be removed on master,
+    # but this job will only see the change in the next release.
+    #
+    # TODO: remove this line after 9.2 release
+    - unset PYTHON
     # old to new
     - QTEST_QEMU_BINARY_SRC=./qemu-system-${TARGET}
           QTEST_QEMU_BINARY=../build/qemu-system-${TARGET} ./tests/qtest/migration-test
