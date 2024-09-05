@@ -660,6 +660,28 @@ static const TCGCPUOps hexagon_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
+static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+#ifndef CONFIG_USER_ONLY
+    BQL_LOCK_GUARD();
+    CPUHexagonState *env = cpu_env(cs);
+    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
+    if (!mmuen) {
+        return MMU_KERNEL_IDX;
+    }
+
+    int cpu_mode = get_cpu_mode(env);
+    if (cpu_mode == HEX_CPU_MODE_MONITOR) {
+        return MMU_KERNEL_IDX;
+    } else if (cpu_mode == HEX_CPU_MODE_GUEST) {
+        return MMU_GUEST_IDX;
+    }
+#endif
+
+    return MMU_USER_IDX;
+}
+
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 {
@@ -677,6 +699,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = hexagon_cpu_class_by_name;
     cc->has_work = hexagon_cpu_has_work;
+    cc->mmu_index = hexagon_cpu_mmu_index;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->get_pc = hexagon_cpu_get_pc;
