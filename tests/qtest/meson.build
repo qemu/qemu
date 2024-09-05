@@ -1,4 +1,5 @@
 slow_qtests = {
+  'ahci-test': 150,
   'aspeed_smc-test': 360,
   'bios-tables-test' : 910,
   'cdrom-test' : 610,
