@@ -35,6 +35,12 @@ void hexagon_debug(CPUHexagonState *env);
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 
+void G_NORETURN do_raise_exception(CPUHexagonState *env,
+        uint32_t exception,
+        target_ulong PC,
+        uintptr_t retaddr);
+
+
 #define hexagon_cpu_mmu_enabled(env) \
     GET_SYSCFG_FIELD(SYSCFG_MMUEN, ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG))
 
