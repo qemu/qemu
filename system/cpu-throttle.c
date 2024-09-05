@@ -28,6 +28,7 @@
 #include "qemu/main-loop.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-throttle.h"
+#include "trace.h"
 
 /* vcpu throttling controls */
 static QEMUTimer *throttle_timer;
@@ -94,6 +95,8 @@ void cpu_throttle_set(int new_throttle_pct)
      * before modifying throttle_percentage
      */
     bool throttle_active = cpu_throttle_active();
+
+    trace_cpu_throttle_set(new_throttle_pct);
 
     /* Ensure throttle percentage is within valid range */
     new_throttle_pct = MIN(new_throttle_pct, CPU_THROTTLE_PCT_MAX);
