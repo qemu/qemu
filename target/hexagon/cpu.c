@@ -289,20 +289,16 @@ bool hexagon_thread_is_enabled(CPUHexagonState *env)
 
     return E_bit;
 }
-#endif
 
 static bool hexagon_cpu_has_work(CPUState *cs)
 {
-#ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
 
     return hexagon_thread_is_enabled(env) &&
         (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
             | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
-#else
-    return true;
-#endif
 }
+#endif
 
 static void hexagon_restore_state_to_opc(CPUState *cs,
                                          const TranslationBlock *tb,
@@ -652,6 +648,28 @@ static const TCGCPUOps hexagon_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
+static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+#ifndef CONFIG_USER_ONLY
+    BQL_LOCK_GUARD();
+    CPUHexagonState *env = cpu_env(cs);
+    uint32_t syscfg = arch_get_system_reg(env, HEX_SREG_SYSCFG);
+    uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
+    if (!mmuen) {
+        return MMU_KERNEL_IDX;
+    }
+
+    int cpu_mode = get_cpu_mode(env);
+    if (cpu_mode == HEX_CPU_MODE_MONITOR) {
+        return MMU_KERNEL_IDX;
+    } else if (cpu_mode == HEX_CPU_MODE_GUEST) {
+        return MMU_GUEST_IDX;
+    }
+#endif
+
+    return MMU_USER_IDX;
+}
+
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 {
@@ -668,6 +686,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
+    cc->mmu_index = hexagon_cpu_mmu_index;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->get_pc = hexagon_cpu_get_pc;
