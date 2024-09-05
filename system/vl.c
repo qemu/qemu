@@ -2427,15 +2427,15 @@ static void qemu_validate_options(const QDict *machine_opts)
     const char *kernel_cmdline = qdict_get_try_str(machine_opts, "append");
 
     if (kernel_filename == NULL) {
-         if (kernel_cmdline != NULL) {
-              error_report("-append only allowed with -kernel option");
-              exit(1);
-          }
+        if (kernel_cmdline != NULL) {
+            error_report("-append only allowed with -kernel option");
+            exit(1);
+        }
 
-          if (initrd_filename != NULL) {
-              error_report("-initrd only allowed with -kernel option");
-              exit(1);
-          }
+        if (initrd_filename != NULL) {
+            error_report("-initrd only allowed with -kernel option");
+            exit(1);
+        }
     }
 
     if (loadvm && incoming) {
