@@ -872,6 +872,9 @@ static void pc_i440fx_rhel_machine_7_6_0_options(MachineClass *m)
     pcmc->broken_32bit_mem_addr_check = true;
     /* Introduced in QEMU 8.2 */
     pcmc->default_south_bridge = TYPE_PIIX3_DEVICE;
+    /* From pc_i440fx_machine_9_0_options() */
+    m->smbios_memory_device_size = 16 * GiB;
+    pcmc->isa_bios_alias = false;
 
     object_class_property_add_enum(oc, "x-south-bridge", "PCSouthBridgeOption",
                                    &PCSouthBridgeOption_lookup,

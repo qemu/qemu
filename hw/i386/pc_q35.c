@@ -679,7 +679,10 @@ static void pc_q35_rhel_machine_9_4_0_options(MachineClass *m)
     m->desc = "RHEL-9.4.0 PC (Q35 + ICH9, 2009)";
     pcmc->smbios_stream_product = "RHEL";
     pcmc->smbios_stream_version = "9.4.0";
+
+    /* From pc_q35_machine_9_0_options() */
     pcmc->isa_bios_alias = false;
+    m->smbios_memory_device_size = 16 * GiB;
 
     compat_props_add(m->compat_props, hw_compat_rhel_9_6,
                      hw_compat_rhel_9_6_len);
