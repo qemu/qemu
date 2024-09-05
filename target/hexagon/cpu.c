@@ -493,6 +493,25 @@ static void find_qemu_subpage(vaddr *addr, hwaddr *phys, int page_size)
     *phys += offset;
 }
 
+static hwaddr hexagon_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+    hwaddr phys_addr;
+    int prot;
+    int page_size = 0;
+    int32_t excp = 0;
+    int mmu_idx = MMU_KERNEL_IDX;
+
+    if (get_physical_address(env, &phys_addr, &prot, &page_size, &excp,
+                             addr, 0, mmu_idx)) {
+        find_qemu_subpage(&addr, &phys_addr, page_size);
+        return phys_addr;
+    }
+
+    return -1;
+}
+
 
 #define INVALID_BADVA 0xbadabada
 
@@ -607,6 +626,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 #include "hw/core/sysemu-cpu-ops.h"
 
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
+    .get_phys_page_debug = hexagon_cpu_get_phys_page_debug,
 };
 
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
