@@ -31,6 +31,7 @@
 #include "hex_mmu.h"
 
 #ifndef CONFIG_USER_ONLY
+#include "macros.h"
 #include "sys_macros.h"
 #include "qemu/main-loop.h"
 #include "hex_interrupts.h"
@@ -277,6 +278,30 @@ static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
     cpu_env(cs)->gpr[HEX_REG_PC] = tb->pc;
 }
 
+#ifndef CONFIG_USER_ONLY
+bool hexagon_thread_is_enabled(CPUHexagonState *env)
+{
+    target_ulong modectl = arch_get_system_reg(env, HEX_SREG_MODECTL);
+    uint32_t thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    bool E_bit = thread_enabled_mask & (0x1 << env->threadId);
+
+    return E_bit;
+}
+#endif
+
+static bool hexagon_cpu_has_work(CPUState *cs)
+{
+#ifndef CONFIG_USER_ONLY
+    CPUHexagonState *env = cpu_env(cs);
+
+    return hexagon_thread_is_enabled(env) &&
+        (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
+            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
+#else
+    return true;
+#endif
+}
+
 static void hexagon_restore_state_to_opc(CPUState *cs,
                                          const TranslationBlock *tb,
                                          const uint64_t *data)
@@ -406,18 +431,71 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     mcc->parent_realize(dev, errp);
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static void hexagon_cpu_set_irq(void *opaque, int irq, int level)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(opaque);
+    CPUState *cs = CPU(cpu);
+    CPUHexagonState *env = cpu_env(cs);
+
+    switch (irq) {
+    case HEXAGON_CPU_IRQ_0 ... HEXAGON_CPU_IRQ_7:
+        qemu_log_mask(CPU_LOG_INT, "%s: irq %d, level %d\n",
+                      __func__, irq, level);
+        if (level) {
+            hex_raise_interrupts(env, 1 << irq, CPU_INTERRUPT_HARD);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+#endif
+
+
 static void hexagon_cpu_init(Object *obj)
 {
+#if !defined(CONFIG_USER_ONLY)
+    HexagonCPU *cpu = HEXAGON_CPU(obj);
+    qdev_init_gpio_in(DEVICE(cpu), hexagon_cpu_set_irq, 8);
+#endif
 }
 
 #include "accel/tcg/cpu-ops.h"
+
+#ifndef CONFIG_USER_ONLY
+
+static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    if (interrupt_request & CPU_INTERRUPT_TLB_UNLOCK) {
+        cs->halted = false;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
+        return true;
+    }
+    if (interrupt_request & CPU_INTERRUPT_K0_UNLOCK) {
+        cs->halted = false;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
+        return true;
+    }
+    if (interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI)) {
+        return hex_check_interrupts(env);
+    }
+    return false;
+}
+
+#endif
 
 static const TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .translate_code = hexagon_translate_code,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,
+#if !defined(CONFIG_USER_ONLY)
+    .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
+#endif /* !CONFIG_USER_ONLY */
 };
+
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 {
