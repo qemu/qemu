@@ -31,6 +31,11 @@ void hexagon_debug(CPUHexagonState *env);
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 
+void G_NORETURN do_raise_exception(CPUHexagonState *env,
+        uint32_t exception,
+        target_ulong PC,
+        uintptr_t retaddr);
+
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_hexagon_cpu;
 #endif

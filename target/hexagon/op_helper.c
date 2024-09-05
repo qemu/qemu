@@ -37,6 +37,26 @@
 #define SF_MANTBITS    23
 
 /* Exceptions processing helpers */
+G_NORETURN
+void do_raise_exception(CPUHexagonState *env, uint32_t exception,
+                        target_ulong PC, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+#ifdef CONFIG_USER_ONLY
+    qemu_log_mask(CPU_LOG_INT, "%s: 0x%08x\n", __func__, exception);
+#else
+    qemu_log_mask(CPU_LOG_INT, "%s: 0x%08x, @ %08" PRIx32 "\n",
+                  __func__, exception, PC);
+
+    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
+#endif
+
+    env->gpr[HEX_REG_PC] = PC;
+    cs->exception_index = exception;
+    cpu_loop_exit_restore(cs, retaddr);
+    cs->halted = false;
+}
+
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
                                             uintptr_t pc)
