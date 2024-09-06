@@ -41,6 +41,10 @@ tests_aarch64_system_thorough = [
   'aarch64_virt',
 ]
 
+tests_alpha_system_thorough = [
+  'alpha_clipper',
+]
+
 tests_arm_system_thorough = [
   'arm_canona1100',
   'arm_integratorcp',

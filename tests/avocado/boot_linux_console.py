@@ -882,27 +882,6 @@ class BootLinuxConsole(LinuxKernelTest):
         # Wait for user-space
         wait_for_console_pattern(self, 'Starting root file system check')
 
-    def test_alpha_clipper(self):
-        """
-        :avocado: tags=arch:alpha
-        :avocado: tags=machine:clipper
-        """
-        kernel_url = ('http://archive.debian.org/debian/dists/lenny/main/'
-                      'installer-alpha/20090123lenny10/images/cdrom/vmlinuz')
-        kernel_hash = '3a943149335529e2ed3e74d0d787b85fb5671ba3'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        uncompressed_kernel = archive.uncompress(kernel_path, self.workdir)
-
-        self.vm.set_console()
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
-        self.vm.add_args('-nodefaults',
-                         '-kernel', uncompressed_kernel,
-                         '-append', kernel_command_line)
-        self.vm.launch()
-        console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
-
     def do_test_advcal_2018(self, day, tar_hash, kernel_name, console=0):
         tar_url = ('https://qemu-advcal.gitlab.io'
                    '/qac-best-of-multiarch/download/day' + day + '.tar.xz')
