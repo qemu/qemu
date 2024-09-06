@@ -927,14 +927,6 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("SMP: Total of 2 processors activated")
         self.wait_for_console_pattern("No filesystem could mount root")
 
-    def test_or1k_sim(self):
-        """
-        :avocado: tags=arch:or1k
-        :avocado: tags=machine:or1k-sim
-        """
-        tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
-        self.do_test_advcal_2018('20', tar_hash, 'vmlinux')
-
     def test_ppc64_e500(self):
         """
         :avocado: tags=arch:ppc64

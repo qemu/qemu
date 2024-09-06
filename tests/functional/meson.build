@@ -94,6 +94,10 @@ tests_mips64el_system_thorough = [
   'mips64el_malta',
 ]
 
+tests_or1k_system_quick = [
+  'or1k_sim',
+]
+
 tests_ppc_system_quick = [
   'ppc_74xx',
 ]
