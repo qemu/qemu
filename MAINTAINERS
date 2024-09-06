@@ -912,6 +912,7 @@ F: include/hw/arm/rasp*
 F: include/hw/*/bcm283*
 F: docs/system/arm/raspi.rst
 F: tests/functional/test_arm_raspi2.py
+F: tests/functional/test_aarch64_raspi3.py
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>

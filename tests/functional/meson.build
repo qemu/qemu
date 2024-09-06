@@ -35,6 +35,7 @@ tests_generic_bsduser = [
 ]
 
 tests_aarch64_system_thorough = [
+  'aarch64_raspi3',
   'aarch64_sbsaref',
   'aarch64_virt',
 ]
