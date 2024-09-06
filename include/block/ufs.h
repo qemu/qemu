@@ -764,6 +764,12 @@ typedef struct QEMU_PACKED UtpTaskReqDesc {
 #define UFS_WB_EXCEED_LIFETIME 0x0B
 
 /*
+ * The range of valid value of Active ICC attritbute
+ * is from 0x00 to 0x0F.
+ */
+#define UFS_QUERY_ATTR_ACTIVE_ICC_MAXVALUE 0x0F
+
+/*
  * In UFS Spec, the Extra Header Segment (EHS) starts from byte 32 in UPIU
  * request/response packet
  */
