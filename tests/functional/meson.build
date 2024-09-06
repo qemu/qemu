@@ -42,6 +42,7 @@ tests_aarch64_system_thorough = [
 tests_arm_system_thorough = [
   'arm_canona1100',
   'arm_integratorcp',
+  'arm_raspi2',
 ]
 
 tests_arm_linuxuser_thorough = [
