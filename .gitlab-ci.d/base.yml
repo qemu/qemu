@@ -128,7 +128,7 @@ variables:
       when: manual
 
     # Jobs can run if any jobs they depend on were successful
-    - if: '$QEMU_JOB_SKIPPED && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /staging-[[:digit:]]+\.[[:digit:]]/'
+    - if: '$CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /staging-[[:digit:]]+\.[[:digit:]]/'
       when: on_success
       variables:
         QEMU_CI_CONTAINER_TAG: $CI_COMMIT_REF_SLUG
