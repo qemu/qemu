@@ -16,6 +16,7 @@ config VIRTIO_PCI
     default y if PCI_DEVICES
     depends on PCI
     select VIRTIO
+    select VIRTIO_MD_SUPPORTED
 
 config VIRTIO_MMIO
     bool
@@ -35,10 +36,17 @@ config VIRTIO_CRYPTO
     default y
     depends on VIRTIO
 
+# not all virtio transports support memory devices; if none does,
+# no need to include the code
+config VIRTIO_MD_SUPPORTED
+    bool
+
 config VIRTIO_MD
     bool
+    depends on VIRTIO_MD_SUPPORTED
     select MEM_DEVICE
 
+# selected by the board if it has the required support code
 config VIRTIO_PMEM_SUPPORTED
     bool
 
@@ -46,9 +54,11 @@ config VIRTIO_PMEM
     bool
     default y
     depends on VIRTIO
+    depends on VIRTIO_MD_SUPPORTED
     depends on VIRTIO_PMEM_SUPPORTED
     select VIRTIO_MD
 
+# selected by the board if it has the required support code
 config VIRTIO_MEM_SUPPORTED
     bool
 
@@ -57,6 +67,7 @@ config VIRTIO_MEM
     default y
     depends on VIRTIO
     depends on LINUX
+    depends on VIRTIO_MD_SUPPORTED
     depends on VIRTIO_MEM_SUPPORTED
     select VIRTIO_MD
 
