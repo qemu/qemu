@@ -26,23 +26,31 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "hw/registerfields.h"
+
+FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
+FIELD(CONFIG, THERMOSTAT_MODE,      1, 1)
+FIELD(CONFIG, POLARITY,             2, 1)
+FIELD(CONFIG, FAULT_QUEUE,          3, 2)
+FIELD(CONFIG, CONVERTER_RESOLUTION, 5, 2)
+FIELD(CONFIG, ONE_SHOT,             7, 1)
 
 static void tmp105_interrupt_update(TMP105State *s)
 {
-    qemu_set_irq(s->pin, s->alarm ^ ((~s->config >> 2) & 1));   /* POL */
+    qemu_set_irq(s->pin, s->alarm ^ FIELD_EX8(~s->config, CONFIG, POLARITY));
 }
 
 static void tmp105_alarm_update(TMP105State *s)
 {
-    if ((s->config >> 0) & 1) {                                 /* SD */
-        if ((s->config >> 7) & 1) {                             /* OS */
-            s->config &= ~(1 << 7);                             /* OS */
+    if (FIELD_EX8(s->config, CONFIG, SHUTDOWN_MODE)) {
+        if (FIELD_EX8(s->config, CONFIG, ONE_SHOT)) {
+            s->config = FIELD_DP8(s->config, CONFIG, ONE_SHOT, 0);
         } else {
             return;
         }
     }
 
-    if (s->config >> 1 & 1) {
+    if (FIELD_EX8(s->config, CONFIG, THERMOSTAT_MODE)) {
         /*
          * TM == 1 : Interrupt mode. We signal Alert when the
          * temperature rises above T_high, and expect the guest to clear
@@ -120,7 +128,7 @@ static void tmp105_read(TMP105State *s)
 {
     s->len = 0;
 
-    if ((s->config >> 1) & 1) {                                 /* TM */
+    if (FIELD_EX8(s->config, CONFIG, THERMOSTAT_MODE)) {
         s->alarm = 0;
         tmp105_interrupt_update(s);
     }
@@ -129,7 +137,7 @@ static void tmp105_read(TMP105State *s)
     case TMP105_REG_TEMPERATURE:
         s->buf[s->len++] = (((uint16_t) s->temperature) >> 8);
         s->buf[s->len++] = (((uint16_t) s->temperature) >> 0) &
-                (0xf0 << ((~s->config >> 5) & 3));              /* R */
+                (0xf0 << (FIELD_EX8(~s->config, CONFIG, CONVERTER_RESOLUTION)));
         break;
 
     case TMP105_REG_CONFIG:
@@ -155,11 +163,11 @@ static void tmp105_write(TMP105State *s)
         break;
 
     case TMP105_REG_CONFIG:
-        if (s->buf[0] & ~s->config & (1 << 0)) {                /* SD */
+        if (FIELD_EX8(s->buf[0] & ~s->config, CONFIG, SHUTDOWN_MODE)) {
             printf("%s: TMP105 shutdown\n", __func__);
         }
         s->config = s->buf[0];
-        s->faults = tmp105_faultq[(s->config >> 3) & 3];        /* F */
+        s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
         tmp105_alarm_update(s);
         break;
 
@@ -219,7 +227,7 @@ static int tmp105_post_load(void *opaque, int version_id)
 {
     TMP105State *s = opaque;
 
-    s->faults = tmp105_faultq[(s->config >> 3) & 3];            /* F */
+    s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
 
     tmp105_interrupt_update(s);
     return 0;
@@ -277,7 +285,7 @@ static void tmp105_reset(I2CSlave *i2c)
     s->temperature = 0;
     s->pointer = 0;
     s->config = 0;
-    s->faults = tmp105_faultq[(s->config >> 3) & 3];
+    s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
     s->alarm = 0;
     s->detect_falling = false;
 
