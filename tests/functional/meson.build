@@ -75,6 +75,7 @@ tests_mips64el_system_quick = [
 
 tests_mips64el_system_thorough = [
   'mips64el_loongson3v',
+  'mips64el_malta',
 ]
 
 tests_ppc_system_quick = [
