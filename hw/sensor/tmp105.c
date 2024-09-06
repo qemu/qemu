@@ -40,10 +40,10 @@ static void tmp105_interrupt_update(TMP105State *s)
     qemu_set_irq(s->pin, s->alarm ^ FIELD_EX8(~s->config, CONFIG, POLARITY));
 }
 
-static void tmp105_alarm_update(TMP105State *s)
+static void tmp105_alarm_update(TMP105State *s, bool one_shot)
 {
     if (FIELD_EX8(s->config, CONFIG, SHUTDOWN_MODE)) {
-        if (FIELD_EX8(s->config, CONFIG, ONE_SHOT)) {
+        if (one_shot) {
             s->config = FIELD_DP8(s->config, CONFIG, ONE_SHOT, 0);
         } else {
             return;
@@ -119,7 +119,7 @@ static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
 
     s->temperature = (int16_t) (temp * 256 / 1000);
 
-    tmp105_alarm_update(s);
+    tmp105_alarm_update(s, false);
 }
 
 static const int tmp105_faultq[4] = { 1, 2, 4, 6 };
@@ -168,7 +168,7 @@ static void tmp105_write(TMP105State *s)
         }
         s->config = s->buf[0];
         s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
-        tmp105_alarm_update(s);
+        tmp105_alarm_update(s, FIELD_EX8(s->buf[0], CONFIG, ONE_SHOT));
         break;
 
     case TMP105_REG_T_LOW:
@@ -177,7 +177,7 @@ static void tmp105_write(TMP105State *s)
             s->limit[s->pointer & 1] = (int16_t)
                     ((((uint16_t) s->buf[0]) << 8) | s->buf[1]);
         }
-        tmp105_alarm_update(s);
+        tmp105_alarm_update(s, false);
         break;
     }
 }
