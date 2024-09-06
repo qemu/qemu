@@ -711,6 +711,15 @@ static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
     tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
 }
 
+static void tcg_out_vex_modrm_type(TCGContext *s, int opc,
+                                   int r, int v, int rm, TCGType type)
+{
+    if (type == TCG_TYPE_V256) {
+        opc |= P_VEXL;
+    }
+    tcg_out_vex_modrm(s, opc, r, v, rm);
+}
+
 /* Output an opcode with a full "rm + (index<<shift) + offset" address mode.
    We handle either RM and INDEX missing with a negative value.  In 64-bit
    mode for absolute addresses, ~RM is the size of the immediate operand
@@ -904,8 +913,7 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg r, TCGReg a)
 {
     if (have_avx2) {
-        int vex_l = (type == TCG_TYPE_V256 ? P_VEXL : 0);
-        tcg_out_vex_modrm(s, avx2_dup_insn[vece] + vex_l, r, 0, a);
+        tcg_out_vex_modrm_type(s, avx2_dup_insn[vece], r, 0, a, type);
     } else {
         switch (vece) {
         case MO_8:
@@ -3231,10 +3239,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_simd;
     gen_simd:
         tcg_debug_assert(insn != OPC_UD2);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
+        tcg_out_vex_modrm_type(s, insn, a0, a1, a2, type);
         break;
 
     case INDEX_op_cmp_vec:
@@ -3250,10 +3255,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_andc_vec:
         insn = OPC_PANDN;
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a2, a1);
+        tcg_out_vex_modrm_type(s, insn, a0, a2, a1, type);
         break;
 
     case INDEX_op_shli_vec:
@@ -3281,10 +3283,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_shift;
     gen_shift:
         tcg_debug_assert(vece != MO_8);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, sub, a0, a1);
+        tcg_out_vex_modrm_type(s, insn, sub, a0, a1, type);
         tcg_out8(s, a2);
         break;
 
@@ -3361,19 +3360,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     gen_simd_imm8:
         tcg_debug_assert(insn != OPC_UD2);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
+        tcg_out_vex_modrm_type(s, insn, a0, a1, a2, type);
         tcg_out8(s, sub);
         break;
 
     case INDEX_op_x86_vpblendvb_vec:
-        insn = OPC_VPBLENDVB;
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
+        tcg_out_vex_modrm_type(s, OPC_VPBLENDVB, a0, a1, a2, type);
         tcg_out8(s, args[3] << 4);
         break;
 
