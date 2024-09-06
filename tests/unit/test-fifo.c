@@ -158,7 +158,7 @@ static void test_fifo8_peek_buf_wrap(void)
     Fifo8 fifo;
     uint8_t data_in1[] = { 0x1, 0x2, 0x3, 0x4 };
     uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc };
-    uint8_t data_out[4];
+    uint8_t data_out[8];
     int count;
 
     fifo8_create(&fifo, 8);
@@ -173,6 +173,13 @@ static void test_fifo8_peek_buf_wrap(void)
     g_assert(count == 4);
     g_assert(data_out[0] == 0x5 && data_out[1] == 0x6 &&
              data_out[2] == 0x7 && data_out[3] == 0x8);
+
+    count = fifo8_peek_buf(&fifo, data_out, 8);
+    g_assert(count == 8);
+    g_assert(data_out[0] == 0x5 && data_out[1] == 0x6 &&
+             data_out[2] == 0x7 && data_out[3] == 0x8);
+    g_assert(data_out[4] == 0x9 && data_out[5] == 0xa &&
+             data_out[6] == 0xb && data_out[7] == 0xc);
 
     g_assert(fifo8_num_used(&fifo) == 8);
     fifo8_destroy(&fifo);
