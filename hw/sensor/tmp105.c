@@ -42,12 +42,8 @@ static void tmp105_interrupt_update(TMP105State *s)
 
 static void tmp105_alarm_update(TMP105State *s, bool one_shot)
 {
-    if (FIELD_EX8(s->config, CONFIG, SHUTDOWN_MODE)) {
-        if (one_shot) {
-            s->config = FIELD_DP8(s->config, CONFIG, ONE_SHOT, 0);
-        } else {
-            return;
-        }
+    if (FIELD_EX8(s->config, CONFIG, SHUTDOWN_MODE) && !one_shot) {
+        return;
     }
 
     if (FIELD_EX8(s->config, CONFIG, THERMOSTAT_MODE)) {
@@ -166,7 +162,7 @@ static void tmp105_write(TMP105State *s)
         if (FIELD_EX8(s->buf[0] & ~s->config, CONFIG, SHUTDOWN_MODE)) {
             printf("%s: TMP105 shutdown\n", __func__);
         }
-        s->config = s->buf[0];
+        s->config = FIELD_DP8(s->buf[0], CONFIG, ONE_SHOT, 0);
         s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
         tmp105_alarm_update(s, FIELD_EX8(s->buf[0], CONFIG, ONE_SHOT));
         break;
