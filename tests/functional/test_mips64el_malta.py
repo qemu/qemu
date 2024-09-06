@@ -30,7 +30,7 @@ except ImportError:
     CV2_AVAILABLE = False
 
 
-class MaltaMachineConsole(QemuSystemTest):
+class MaltaMachineConsole(LinuxKernelTest):
 
     ASSET_KERNEL_2_63_2 = Asset(
         ('http://snapshot.debian.org/archive/debian/'
@@ -52,17 +52,17 @@ class MaltaMachineConsole(QemuSystemTest):
             ch-common-tasks.html#s-common-official
         """
         deb_path = self.ASSET_KERNEL_2_63_2.fetch()
-        kernel_path = extract_from_deb(deb_path, self.workdir,
-                                       '/boot/vmlinux-2.6.32-5-5kc-malta')
+        kernel_path = self.extract_from_deb(deb_path,
+                                            '/boot/vmlinux-2.6.32-5-5kc-malta')
 
         self.set_machine('malta')
         self.vm.set_console()
-        kernel_command_line = KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        linux_kernel_wait_for_pattern(self, console_pattern)
+        self.wait_for_console_pattern(console_pattern)
 
     ASSET_KERNEL_3_19_3 = Asset(
         ('https://github.com/philmd/qemu-testing-blob/'
@@ -85,7 +85,7 @@ class MaltaMachineConsole(QemuSystemTest):
 
         self.set_machine('malta')
         self.vm.set_console()
-        kernel_command_line = (KERNEL_COMMON_COMMAND_LINE
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
                                + 'console=ttyS0 console=tty '
                                + 'rdinit=/sbin/init noreboot')
         self.vm.add_args('-cpu', '5KEc',
@@ -94,7 +94,7 @@ class MaltaMachineConsole(QemuSystemTest):
                          '-append', kernel_command_line,
                          '-no-reboot')
         self.vm.launch()
-        linux_kernel_wait_for_pattern(self, 'Boot successful.')
+        self.wait_for_console_pattern('Boot successful.')
 
         exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
                                                 'MIPS 5KE')
@@ -179,6 +179,8 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
     def test_mips_malta_i6400_framebuffer_logo_8cores(self):
         self.do_test_i6400_framebuffer_logo(8)
 
+
+from test_mipsel_malta import MaltaMachineYAMON
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
