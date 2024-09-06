@@ -69,6 +69,10 @@ tests_microblazeel_system_thorough = [
   'microblazeel_s3adsp1800'
 ]
 
+tests_mips_system_thorough = [
+  'mips_malta',
+]
+
 tests_mipsel_system_thorough = [
   'mipsel_malta',
 ]

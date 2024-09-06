@@ -1370,6 +1370,7 @@ F: hw/mips/malta.c
 F: hw/pci-host/gt64120.c
 F: include/hw/southbridge/piix.h
 F: tests/avocado/linux_ssh_mips_malta.py
+F: tests/functional/test_mips_malta.py
 F: tests/functional/test_mipsel_malta.py
 F: tests/functional/test_mips64el_malta.py
 
