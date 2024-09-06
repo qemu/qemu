@@ -193,6 +193,8 @@ static bool decode_opcode_can_jump(int opcode)
     if ((GET_ATTRIB(opcode, A_JUMP)) ||
         (GET_ATTRIB(opcode, A_CALL)) ||
         (opcode == J2_trap0) ||
+        (opcode == J2_trap1) ||
+        (opcode == J2_rte) ||
         (opcode == J2_pause)) {
         /* Exception to A_JUMP attribute */
         if (opcode == J4_hintjumpr) {
@@ -371,6 +373,18 @@ static void decode_shuffle_for_execution(Packet *packet)
             break;
         }
     }
+    /*
+     * And at the very very very end, move any RTE's, since they update
+     * user/supervisor mode.
+     */
+#if !defined(CONFIG_USER_ONLY)
+    for (i = 0; i < last_insn; i++) {
+        if (packet->insn[i].opcode == J2_rte) {
+            decode_send_insn_to(packet, i, last_insn);
+            break;
+        }
+    }
+#endif
 }
 
 static void
