@@ -67,7 +67,7 @@ struct UHCIPCIDeviceClass {
     UHCIInfo       info;
 };
 
-/* 
+/*
  * Pending async transaction.
  * 'packet' must be the first field because completion
  * handler does "(UHCIAsync *) pkt" cast.
@@ -220,8 +220,9 @@ static void uhci_async_cancel(UHCIAsync *async)
     uhci_async_unlink(async);
     trace_usb_uhci_packet_cancel(async->queue->token, async->td_addr,
                                  async->done);
-    if (!async->done)
+    if (!async->done) {
         usb_cancel_packet(&async->packet);
+    }
     uhci_async_free(async);
 }
 
@@ -322,7 +323,7 @@ static void uhci_reset(DeviceState *dev)
     s->fl_base_addr = 0;
     s->sof_timing = 64;
 
-    for(i = 0; i < UHCI_PORTS; i++) {
+    for (i = 0; i < UHCI_PORTS; i++) {
         port = &s->ports[i];
         port->ctrl = 0x0080;
         if (port->port.dev && port->port.dev->attached) {
@@ -387,7 +388,7 @@ static void uhci_port_write(void *opaque, hwaddr addr,
 
     trace_usb_uhci_mmio_writew(addr, val);
 
-    switch(addr) {
+    switch (addr) {
     case 0x00:
         if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
             /* start frame processing */
@@ -404,7 +405,7 @@ static void uhci_port_write(void *opaque, hwaddr addr,
             int i;
 
             /* send reset on the USB bus */
-            for(i = 0; i < UHCI_PORTS; i++) {
+            for (i = 0; i < UHCI_PORTS; i++) {
                 port = &s->ports[i];
                 usb_device_reset(port->port.dev);
             }
@@ -425,10 +426,13 @@ static void uhci_port_write(void *opaque, hwaddr addr,
         break;
     case 0x02:
         s->status &= ~val;
-        /* XXX: the chip spec is not coherent, so we add a hidden
-           register to distinguish between IOC and SPD */
-        if (val & UHCI_STS_USBINT)
+        /*
+         * XXX: the chip spec is not coherent, so we add a hidden
+         * register to distinguish between IOC and SPD
+         */
+        if (val & UHCI_STS_USBINT) {
             s->status2 = 0;
+        }
         uhci_update_irq(s);
         break;
     case 0x04:
@@ -436,8 +440,9 @@ static void uhci_port_write(void *opaque, hwaddr addr,
         uhci_update_irq(s);
         break;
     case 0x06:
-        if (s->status & UHCI_STS_HCHALTED)
+        if (s->status & UHCI_STS_HCHALTED) {
             s->frnum = val & 0x7ff;
+        }
         break;
     case 0x08:
         s->fl_base_addr &= 0xffff0000;
@@ -464,8 +469,8 @@ static void uhci_port_write(void *opaque, hwaddr addr,
             dev = port->port.dev;
             if (dev && dev->attached) {
                 /* port reset */
-                if ( (val & UHCI_PORT_RESET) &&
-                     !(port->ctrl & UHCI_PORT_RESET) ) {
+                if ((val & UHCI_PORT_RESET) &&
+                     !(port->ctrl & UHCI_PORT_RESET)) {
                     usb_device_reset(dev);
                 }
             }
@@ -487,7 +492,7 @@ static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
     UHCIState *s = opaque;
     uint32_t val;
 
-    switch(addr) {
+    switch (addr) {
     case 0x00:
         val = s->cmd;
         break;
@@ -533,12 +538,13 @@ static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 /* signal resume if controller suspended */
-static void uhci_resume (void *opaque)
+static void uhci_resume(void *opaque)
 {
     UHCIState *s = (UHCIState *)opaque;
 
-    if (!s)
+    if (!s) {
         return;
+    }
 
     if (s->cmd & UHCI_CMD_EGSM) {
         s->cmd |= UHCI_CMD_FGR;
@@ -674,7 +680,8 @@ static int uhci_handle_td_error(UHCIState *s, UHCI_TD *td, uint32_t td_addr,
     return ret;
 }
 
-static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
+static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async,
+                            uint32_t *int_mask)
 {
     int len = 0, max_len;
     uint8_t pid;
@@ -682,8 +689,9 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
-    if (td->ctrl & TD_CTRL_IOS)
+    if (td->ctrl & TD_CTRL_IOS) {
         td->ctrl &= ~TD_CTRL_ACTIVE;
+    }
 
     if (async->packet.status != USB_RET_SUCCESS) {
         return uhci_handle_td_error(s, td, async->td_addr,
@@ -693,12 +701,15 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     len = async->packet.actual_length;
     td->ctrl = (td->ctrl & ~0x7ff) | ((len - 1) & 0x7ff);
 
-    /* The NAK bit may have been set by a previous frame, so clear it
-       here.  The docs are somewhat unclear, but win2k relies on this
-       behavior.  */
+    /*
+     * The NAK bit may have been set by a previous frame, so clear it
+     * here.  The docs are somewhat unclear, but win2k relies on this
+     * behavior.
+     */
     td->ctrl &= ~(TD_CTRL_ACTIVE | TD_CTRL_NAK);
-    if (td->ctrl & TD_CTRL_IOC)
+    if (td->ctrl & TD_CTRL_IOC) {
         *int_mask |= 0x01;
+    }
 
     if (pid == USB_TOKEN_IN) {
         pci_dma_write(&s->dev, td->buffer, async->buf, len);
@@ -780,9 +791,11 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
     if (async) {
         if (queuing) {
-            /* we are busy filling the queue, we are not prepared
-               to consume completed packages then, just leave them
-               in async state */
+            /*
+             * we are busy filling the queue, we are not prepared
+             * to consume completed packages then, just leave them
+             * in async state
+             */
             return TD_RESULT_ASYNC_CONT;
         }
         if (!async->done) {
@@ -832,7 +845,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     }
     usb_packet_addbuf(&async->packet, async->buf, max_len);
 
-    switch(pid) {
+    switch (pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
         pci_dma_read(&s->dev, td->buffer, async->buf, max_len);
@@ -911,12 +924,15 @@ static void qhdb_reset(QhDb *db)
 static int qhdb_insert(QhDb *db, uint32_t addr)
 {
     int i;
-    for (i = 0; i < db->count; i++)
-        if (db->addr[i] == addr)
+    for (i = 0; i < db->count; i++) {
+        if (db->addr[i] == addr) {
             return 1;
+        }
+    }
 
-    if (db->count >= UHCI_MAX_QUEUES)
+    if (db->count >= UHCI_MAX_QUEUES) {
         return 1;
+    }
 
     db->addr[db->count++] = addr;
     return 0;
@@ -970,8 +986,10 @@ static void uhci_process_frame(UHCIState *s)
 
     for (cnt = FRAME_MAX_LOOPS; is_valid(link) && cnt; cnt--) {
         if (!s->completions_only && s->frame_bytes >= s->frame_bandwidth) {
-            /* We've reached the usb 1.1 bandwidth, which is
-               1280 bytes/frame, stop processing */
+            /*
+             * We've reached the usb 1.1 bandwidth, which is
+             * 1280 bytes/frame, stop processing
+             */
             trace_usb_uhci_frame_stop_bandwidth();
             break;
         }
@@ -1120,8 +1138,10 @@ static void uhci_frame_timer(void *opaque)
         uhci_async_validate_begin(s);
         uhci_process_frame(s);
         uhci_async_validate_end(s);
-        /* The spec says frnum is the frame currently being processed, and
-         * the guest must look at frnum - 1 on interrupt, so inc frnum now */
+        /*
+         * The spec says frnum is the frame currently being processed, and
+         * the guest must look at frnum - 1 on interrupt, so inc frnum now
+         */
         s->frnum = (s->frnum + 1) & 0x7ff;
         s->expire_time += frame_t;
     }
@@ -1174,7 +1194,7 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
 
     if (s->masterbus) {
         USBPort *ports[UHCI_PORTS];
-        for(i = 0; i < UHCI_PORTS; i++) {
+        for (i = 0; i < UHCI_PORTS; i++) {
             ports[i] = &s->ports[i].port;
         }
         usb_register_companion(s->masterbus, ports, UHCI_PORTS,
@@ -1200,8 +1220,10 @@ void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io(&s->io_bar, OBJECT(s), &uhci_ioport_ops, s,
                           "uhci", 0x20);
 
-    /* Use region 4 for consistency with real hardware.  BSD guests seem
-       to rely on this.  */
+    /*
+     * Use region 4 for consistency with real hardware.  BSD guests seem
+     * to rely on this.
+     */
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 }
 
