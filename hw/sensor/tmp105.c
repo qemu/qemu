@@ -29,16 +29,17 @@
 
 static void tmp105_interrupt_update(TMP105State *s)
 {
-    qemu_set_irq(s->pin, s->alarm ^ ((~s->config >> 2) & 1));	/* POL */
+    qemu_set_irq(s->pin, s->alarm ^ ((~s->config >> 2) & 1));   /* POL */
 }
 
 static void tmp105_alarm_update(TMP105State *s)
 {
-    if ((s->config >> 0) & 1) {					/* SD */
-        if ((s->config >> 7) & 1)				/* OS */
-            s->config &= ~(1 << 7);				/* OS */
-        else
+    if ((s->config >> 0) & 1) {                                 /* SD */
+        if ((s->config >> 7) & 1) {                             /* OS */
+            s->config &= ~(1 << 7);                             /* OS */
+        } else {
             return;
+        }
     }
 
     if (s->config >> 1 & 1) {
@@ -89,7 +90,8 @@ static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
     visit_type_int(v, name, &value, errp);
 }
 
-/* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
+/*
+ * Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
  * fixed point, so units are 1/256 centigrades.  A simple ratio will do.
  */
 static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
@@ -118,30 +120,30 @@ static void tmp105_read(TMP105State *s)
 {
     s->len = 0;
 
-    if ((s->config >> 1) & 1) {					/* TM */
+    if ((s->config >> 1) & 1) {                                 /* TM */
         s->alarm = 0;
         tmp105_interrupt_update(s);
     }
 
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
-        s->buf[s->len ++] = (((uint16_t) s->temperature) >> 8);
-        s->buf[s->len ++] = (((uint16_t) s->temperature) >> 0) &
-                (0xf0 << ((~s->config >> 5) & 3));		/* R */
+        s->buf[s->len++] = (((uint16_t) s->temperature) >> 8);
+        s->buf[s->len++] = (((uint16_t) s->temperature) >> 0) &
+                (0xf0 << ((~s->config >> 5) & 3));              /* R */
         break;
 
     case TMP105_REG_CONFIG:
-        s->buf[s->len ++] = s->config;
+        s->buf[s->len++] = s->config;
         break;
 
     case TMP105_REG_T_LOW:
-        s->buf[s->len ++] = ((uint16_t) s->limit[0]) >> 8;
-        s->buf[s->len ++] = ((uint16_t) s->limit[0]) >> 0;
+        s->buf[s->len++] = ((uint16_t) s->limit[0]) >> 8;
+        s->buf[s->len++] = ((uint16_t) s->limit[0]) >> 0;
         break;
 
     case TMP105_REG_T_HIGH:
-        s->buf[s->len ++] = ((uint16_t) s->limit[1]) >> 8;
-        s->buf[s->len ++] = ((uint16_t) s->limit[1]) >> 0;
+        s->buf[s->len++] = ((uint16_t) s->limit[1]) >> 8;
+        s->buf[s->len++] = ((uint16_t) s->limit[1]) >> 0;
         break;
     }
 }
@@ -153,18 +155,20 @@ static void tmp105_write(TMP105State *s)
         break;
 
     case TMP105_REG_CONFIG:
-        if (s->buf[0] & ~s->config & (1 << 0))			/* SD */
+        if (s->buf[0] & ~s->config & (1 << 0)) {                /* SD */
             printf("%s: TMP105 shutdown\n", __func__);
+        }
         s->config = s->buf[0];
-        s->faults = tmp105_faultq[(s->config >> 3) & 3];	/* F */
+        s->faults = tmp105_faultq[(s->config >> 3) & 3];        /* F */
         tmp105_alarm_update(s);
         break;
 
     case TMP105_REG_T_LOW:
     case TMP105_REG_T_HIGH:
-        if (s->len >= 3)
+        if (s->len >= 3) {
             s->limit[s->pointer & 1] = (int16_t)
                     ((((uint16_t) s->buf[0]) << 8) | s->buf[1]);
+        }
         tmp105_alarm_update(s);
         break;
     }
@@ -175,7 +179,7 @@ static uint8_t tmp105_rx(I2CSlave *i2c)
     TMP105State *s = TMP105(i2c);
 
     if (s->len < 2) {
-        return s->buf[s->len ++];
+        return s->buf[s->len++];
     } else {
         return 0xff;
     }
@@ -215,7 +219,7 @@ static int tmp105_post_load(void *opaque, int version_id)
 {
     TMP105State *s = opaque;
 
-    s->faults = tmp105_faultq[(s->config >> 3) & 3];		/* F */
+    s->faults = tmp105_faultq[(s->config >> 3) & 3];            /* F */
 
     tmp105_interrupt_update(s);
     return 0;
