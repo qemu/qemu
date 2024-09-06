@@ -22,7 +22,7 @@ static void test_fifo8_pop_bufptr_wrap(void)
 {
     Fifo8 fifo;
     uint8_t data_in1[] = { 0x1, 0x2, 0x3, 0x4 };
-    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x1, 0x2 };
+    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x9, 0xa };
     const uint8_t *buf;
     uint32_t count;
 
@@ -65,7 +65,7 @@ static void test_fifo8_peek_bufptr_wrap(void)
 {
     Fifo8 fifo;
     uint8_t data_in1[] = { 0x1, 0x2, 0x3, 0x4 };
-    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x1, 0x2 };
+    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x9, 0xa };
     const uint8_t *buf;
     uint32_t count;
 
@@ -112,7 +112,7 @@ static void test_fifo8_pop_buf_wrap(void)
 {
     Fifo8 fifo;
     uint8_t data_in1[] = { 0x1, 0x2, 0x3, 0x4 };
-    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x1, 0x2, 0x3, 0x4 };
+    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc };
     uint8_t data_out[4];
     int count;
 
@@ -126,8 +126,8 @@ static void test_fifo8_pop_buf_wrap(void)
     g_assert(count == 4);
     count = fifo8_pop_buf(&fifo, data_out, 4);
     g_assert(count == 4);
-    g_assert(data_out[0] == 0x1 && data_out[1] == 0x2 &&
-             data_out[2] == 0x3 && data_out[3] == 0x4);
+    g_assert(data_out[0] == 0x9 && data_out[1] == 0xa &&
+             data_out[2] == 0xb && data_out[3] == 0xc);
 
     g_assert(fifo8_num_used(&fifo) == 0);
     fifo8_destroy(&fifo);
@@ -157,7 +157,7 @@ static void test_fifo8_peek_buf_wrap(void)
 {
     Fifo8 fifo;
     uint8_t data_in1[] = { 0x1, 0x2, 0x3, 0x4 };
-    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x1, 0x2, 0x3, 0x4 };
+    uint8_t data_in2[] = { 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc };
     uint8_t data_out[4];
     int count;
 
