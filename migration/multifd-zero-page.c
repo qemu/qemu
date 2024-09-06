@@ -14,6 +14,7 @@
 #include "qemu/cutils.h"
 #include "exec/ramblock.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "multifd.h"
 #include "options.h"
 #include "ram.h"
@@ -46,14 +47,14 @@ static void swap_page_offset(ram_addr_t *pages_offset, int a, int b)
  */
 void multifd_send_zero_page_detect(MultiFDSendParams *p)
 {
-    MultiFDPages_t *pages = p->pages;
+    MultiFDPages_t *pages = &p->data->u.ram;
     RAMBlock *rb = pages->block;
     int i = 0;
     int j = pages->num - 1;
 
     if (!multifd_zero_page_enabled()) {
         pages->normal_num = pages->num;
-        return;
+        goto out;
     }
 
     /*
@@ -63,7 +64,7 @@ void multifd_send_zero_page_detect(MultiFDSendParams *p)
     while (i <= j) {
         uint64_t offset = pages->offset[i];
 
-        if (!buffer_is_zero(rb->host + offset, p->page_size)) {
+        if (!buffer_is_zero(rb->host + offset, multifd_ram_page_size())) {
             i++;
             continue;
         }
@@ -74,6 +75,10 @@ void multifd_send_zero_page_detect(MultiFDSendParams *p)
     }
 
     pages->normal_num = i;
+
+out:
+    stat64_add(&mig_stats.normal_pages, pages->normal_num);
+    stat64_add(&mig_stats.zero_pages, pages->num - pages->normal_num);
 }
 
 void multifd_recv_zero_page_process(MultiFDRecvParams *p)
@@ -81,7 +86,7 @@ void multifd_recv_zero_page_process(MultiFDRecvParams *p)
     for (int i = 0; i < p->zero_num; i++) {
         void *page = p->host + p->zero[i];
         if (ramblock_recv_bitmap_test_byte_offset(p->block, p->zero[i])) {
-            memset(page, 0, p->page_size);
+            memset(page, 0, multifd_ram_page_size());
         } else {
             ramblock_recv_bitmap_set_offset(p->block, p->zero[i]);
         }

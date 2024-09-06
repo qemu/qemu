@@ -514,7 +514,12 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
         kill(s->qemu_pid, SIGSTOP);
     }
 #endif
-    return s;
+
+    /* ask endianness of the target */
+
+    s->big_endian = qtest_query_target_endianness(s);
+
+   return s;
 }
 
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
@@ -522,20 +527,10 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return qtest_init_internal(qtest_qemu_binary(NULL), extra_args);
 }
 
-QTestState *qtest_init_with_env_no_handshake(const char *var,
-                                             const char *extra_args)
-{
-    return qtest_init_internal(qtest_qemu_binary(var), extra_args);
-}
-
 QTestState *qtest_init_with_env(const char *var, const char *extra_args)
 {
     QTestState *s = qtest_init_internal(qtest_qemu_binary(var), extra_args);
     QDict *greeting;
-
-    /* ask endianness of the target */
-
-    s->big_endian = qtest_query_target_endianness(s);
 
     /* Read the QMP greeting and then do the handshake */
     greeting = qtest_qmp_receive(s);
