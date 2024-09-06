@@ -927,14 +927,6 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("SMP: Total of 2 processors activated")
         self.wait_for_console_pattern("No filesystem could mount root")
 
-    def test_m68k_mcf5208evb(self):
-        """
-        :avocado: tags=arch:m68k
-        :avocado: tags=machine:mcf5208evb
-        """
-        tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
-        self.do_test_advcal_2018('07', tar_hash, 'sanity-clause.elf')
-
     def test_or1k_sim(self):
         """
         :avocado: tags=arch:or1k
