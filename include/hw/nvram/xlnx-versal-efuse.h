@@ -44,6 +44,7 @@ struct XlnxVersalEFuseCtrl {
     void *extra_pg0_lock_spec;      /* Opaque property */
     uint32_t extra_pg0_lock_n16;
 
+    RegisterInfoArray *reg_array;
     uint32_t regs[XLNX_VERSAL_EFUSE_CTRL_R_MAX];
     RegisterInfo regs_info[XLNX_VERSAL_EFUSE_CTRL_R_MAX];
 };

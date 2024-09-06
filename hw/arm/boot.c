@@ -799,14 +799,18 @@ static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
     } elf_header;
     int data_swab = 0;
     bool big_endian;
-    ssize_t ret = -1;
+    ssize_t ret;
     Error *err = NULL;
 
 
     load_elf_hdr(info->kernel_filename, &elf_header, &elf_is64, &err);
     if (err) {
+        /*
+         * If the file is not an ELF file we silently return.
+         * The caller will fall back to try other formats.
+         */
         error_free(err);
-        return ret;
+        return -1;
     }
 
     if (elf_is64) {
@@ -839,6 +843,8 @@ static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
                       1, data_swab, as);
     if (ret <= 0) {
         /* The header loaded but the image didn't */
+        error_report("Couldn't load elf '%s': %s",
+                     info->kernel_filename, load_elf_strerror(ret));
         exit(1);
     }
 

@@ -736,6 +736,22 @@ static void gen_gvec_op4_ool(DisasContext *s, bool is_q, int rd, int rn,
 }
 
 /*
+ * Expand a 4-operand operation using an out-of-line helper that takes
+ * a pointer to the CPU env.
+ */
+static void gen_gvec_op4_env(DisasContext *s, bool is_q, int rd, int rn,
+                             int rm, int ra, int data,
+                             gen_helper_gvec_4_ptr *fn)
+{
+    tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       vec_full_reg_offset(s, ra),
+                       tcg_env,
+                       is_q ? 16 : 8, vec_full_reg_size(s), data, fn);
+}
+
+/*
  * Expand a 4-operand + fpstatus pointer + simd data value operation using
  * an out-of-line helper.
  */
@@ -5608,11 +5624,20 @@ static bool do_dot_vector(DisasContext *s, arg_qrrr_e *a,
     return true;
 }
 
+static bool do_dot_vector_env(DisasContext *s, arg_qrrr_e *a,
+                              gen_helper_gvec_4_ptr *fn)
+{
+    if (fp_access_check(s)) {
+        gen_gvec_op4_env(s, a->q, a->rd, a->rn, a->rm, a->rd, 0, fn);
+    }
+    return true;
+}
+
 TRANS_FEAT(SDOT_v, aa64_dp, do_dot_vector, a, gen_helper_gvec_sdot_b)
 TRANS_FEAT(UDOT_v, aa64_dp, do_dot_vector, a, gen_helper_gvec_udot_b)
 TRANS_FEAT(USDOT_v, aa64_i8mm, do_dot_vector, a, gen_helper_gvec_usdot_b)
-TRANS_FEAT(BFDOT_v, aa64_bf16, do_dot_vector, a, gen_helper_gvec_bfdot)
-TRANS_FEAT(BFMMLA, aa64_bf16, do_dot_vector, a, gen_helper_gvec_bfmmla)
+TRANS_FEAT(BFDOT_v, aa64_bf16, do_dot_vector_env, a, gen_helper_gvec_bfdot)
+TRANS_FEAT(BFMMLA, aa64_bf16, do_dot_vector_env, a, gen_helper_gvec_bfmmla)
 TRANS_FEAT(SMMLA, aa64_i8mm, do_dot_vector, a, gen_helper_gvec_smmla_b)
 TRANS_FEAT(UMMLA, aa64_i8mm, do_dot_vector, a, gen_helper_gvec_ummla_b)
 TRANS_FEAT(USMMLA, aa64_i8mm, do_dot_vector, a, gen_helper_gvec_usmmla_b)
@@ -6385,13 +6410,22 @@ static bool do_dot_vector_idx(DisasContext *s, arg_qrrx_e *a,
     return true;
 }
 
+static bool do_dot_vector_idx_env(DisasContext *s, arg_qrrx_e *a,
+                                  gen_helper_gvec_4_ptr *fn)
+{
+    if (fp_access_check(s)) {
+        gen_gvec_op4_env(s, a->q, a->rd, a->rn, a->rm, a->rd, a->idx, fn);
+    }
+    return true;
+}
+
 TRANS_FEAT(SDOT_vi, aa64_dp, do_dot_vector_idx, a, gen_helper_gvec_sdot_idx_b)
 TRANS_FEAT(UDOT_vi, aa64_dp, do_dot_vector_idx, a, gen_helper_gvec_udot_idx_b)
 TRANS_FEAT(SUDOT_vi, aa64_i8mm, do_dot_vector_idx, a,
            gen_helper_gvec_sudot_idx_b)
 TRANS_FEAT(USDOT_vi, aa64_i8mm, do_dot_vector_idx, a,
            gen_helper_gvec_usdot_idx_b)
-TRANS_FEAT(BFDOT_vi, aa64_bf16, do_dot_vector_idx, a,
+TRANS_FEAT(BFDOT_vi, aa64_bf16, do_dot_vector_idx_env, a,
            gen_helper_gvec_bfdot_idx)
 
 static bool trans_BFMLAL_vi(DisasContext *s, arg_qrrx_e *a)

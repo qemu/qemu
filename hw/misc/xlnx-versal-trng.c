@@ -608,9 +608,8 @@ static void trng_init(Object *obj)
 {
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    RegisterInfoArray *reg_array;
 
-    reg_array =
+    s->reg_array =
         register_init_block32(DEVICE(obj), trng_regs_info,
                               ARRAY_SIZE(trng_regs_info),
                               s->regs_info, s->regs,
@@ -618,16 +617,17 @@ static void trng_init(Object *obj)
                               XLNX_VERSAL_TRNG_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_mmio(sbd, &s->reg_array->mem);
     sysbus_init_irq(sbd, &s->irq);
 
     s->prng = g_rand_new();
 }
 
-static void trng_unrealize(DeviceState *dev)
+static void trng_finalize(Object *obj)
 {
-    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(dev);
+    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
 
+    register_finalize_block(s->reg_array);
     g_rand_free(s->prng);
     s->prng = NULL;
 }
@@ -689,7 +689,6 @@ static void trng_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_trng;
-    dc->unrealize = trng_unrealize;
     rc->phases.hold = trng_reset_hold;
 
     /* Clone uint64 property with set allowed after realized */
@@ -706,6 +705,7 @@ static const TypeInfo trng_info = {
     .instance_size = sizeof(XlnxVersalTRng),
     .class_init    = trng_class_init,
     .instance_init = trng_init,
+    .instance_finalize = trng_finalize,
 };
 
 static void trng_register_types(void)

@@ -164,23 +164,20 @@ static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
 
 static void sbsa_fdt_add_gic_node(SBSAMachineState *sms)
 {
-    char *nodename;
+    const char *intc_nodename = "/intc";
+    const char *its_nodename = "/intc/its";
 
-    nodename = g_strdup_printf("/intc");
-    qemu_fdt_add_subnode(sms->fdt, nodename);
-    qemu_fdt_setprop_sized_cells(sms->fdt, nodename, "reg",
+    qemu_fdt_add_subnode(sms->fdt, intc_nodename);
+    qemu_fdt_setprop_sized_cells(sms->fdt, intc_nodename, "reg",
                                  2, sbsa_ref_memmap[SBSA_GIC_DIST].base,
                                  2, sbsa_ref_memmap[SBSA_GIC_DIST].size,
                                  2, sbsa_ref_memmap[SBSA_GIC_REDIST].base,
                                  2, sbsa_ref_memmap[SBSA_GIC_REDIST].size);
 
-    nodename = g_strdup_printf("/intc/its");
-    qemu_fdt_add_subnode(sms->fdt, nodename);
-    qemu_fdt_setprop_sized_cells(sms->fdt, nodename, "reg",
+    qemu_fdt_add_subnode(sms->fdt, its_nodename);
+    qemu_fdt_setprop_sized_cells(sms->fdt, its_nodename, "reg",
                                  2, sbsa_ref_memmap[SBSA_GIC_ITS].base,
                                  2, sbsa_ref_memmap[SBSA_GIC_ITS].size);
-
-    g_free(nodename);
 }
 
 /*
@@ -621,6 +618,7 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus)
 
     dev = qdev_new(TYPE_ARM_SMMUV3);
 
+    object_property_set_str(OBJECT(dev), "stage", "nested", &error_abort);
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

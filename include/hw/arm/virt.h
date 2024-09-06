@@ -134,6 +134,7 @@ struct VirtMachineClass {
     bool no_cpu_topology;
     bool no_tcg_lpa2;
     bool no_ns_el2_virt_timer_irq;
+    bool no_nested_smmu;
 };
 
 struct VirtMachineState {

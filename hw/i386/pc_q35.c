@@ -356,10 +356,20 @@ static void pc_q35_machine_options(MachineClass *m)
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }
 
-static void pc_q35_machine_9_1_options(MachineClass *m)
+static void pc_q35_machine_9_2_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(9, 2);
+
+static void pc_q35_machine_9_1_options(MachineClass *m)
+{
+    pc_q35_machine_9_2_options(m);
+    m->alias = NULL;
+    compat_props_add(m->compat_props, hw_compat_9_1, hw_compat_9_1_len);
+    compat_props_add(m->compat_props, pc_compat_9_1, pc_compat_9_1_len);
 }
 
 DEFINE_Q35_MACHINE(9, 1);
@@ -368,7 +378,6 @@ static void pc_q35_machine_9_0_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_machine_9_1_options(m);
-    m->alias = NULL;
     m->smbios_memory_device_size = 16 * GiB;
     compat_props_add(m->compat_props, hw_compat_9_0, hw_compat_9_0_len);
     compat_props_add(m->compat_props, pc_compat_9_0, pc_compat_9_0_len);
