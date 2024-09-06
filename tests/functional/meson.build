@@ -57,7 +57,8 @@ tests_loongarch64_system_thorough = [
 ]
 
 tests_m68k_system_thorough = [
-  'm68k_nextcube'
+  'm68k_nextcube',
+  'm68k_q800',
 ]
 
 tests_microblaze_system_thorough = [
