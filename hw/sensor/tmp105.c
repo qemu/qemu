@@ -171,7 +171,7 @@ static void tmp105_write(TMP105State *s)
     case TMP105_REG_T_HIGH:
         if (s->len >= 3) {
             s->limit[s->pointer & 1] = (int16_t)
-                    ((((uint16_t) s->buf[0]) << 8) | s->buf[1]);
+                    ((((uint16_t) s->buf[0]) << 8) | (s->buf[1] & 0xf0));
         }
         tmp105_alarm_update(s, false);
         break;
