@@ -133,6 +133,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_I32 0x400
 #define TCG_CT_CONST_WSZ 0x800
 #define TCG_CT_CONST_TST 0x1000
+#define TCG_CT_CONST_ZERO 0x2000
 
 /* Registers used with L constraint, which are the first argument
    registers on x86_64, and two random call clobbered registers on
@@ -224,6 +225,9 @@ static bool tcg_target_const_match(int64_t val, int ct,
         }
     }
     if ((ct & TCG_CT_CONST_WSZ) && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     }
     return 0;
@@ -3119,13 +3123,27 @@ static void tcg_out_cmpsel_vec(TCGContext *s, TCGType type, unsigned vece,
                                TCGReg v0, TCGReg c1, TCGReg c2,
                                TCGReg v3, TCGReg v4, TCGCond cond)
 {
-    if (tcg_out_cmp_vec_noinv(s, type, vece, TCG_TMP_VEC, c1, c2, cond)) {
-        TCGReg swap = v3;
-        v3 = v4;
-        v4 = swap;
+    bool inv = tcg_out_cmp_vec_noinv(s, type, vece, TCG_TMP_VEC, c1, c2, cond);
+
+    /*
+     * Since XMM0 is 16, the only way we get 0 into V3
+     * is via the constant zero constraint.
+     */
+    if (!v3) {
+        if (inv) {
+            tcg_out_vex_modrm_type(s, OPC_PAND, v0, TCG_TMP_VEC, v4, type);
+        } else {
+            tcg_out_vex_modrm_type(s, OPC_PANDN, v0, TCG_TMP_VEC, v4, type);
+        }
+    } else {
+        if (inv) {
+            TCGReg swap = v3;
+            v3 = v4;
+            v4 = swap;
+        }
+        tcg_out_vex_modrm_type(s, OPC_VPBLENDVB, v0, v4, v3, type);
+        tcg_out8(s, (TCG_TMP_VEC - TCG_REG_XMM0) << 4);
     }
-    tcg_out_vex_modrm_type(s, OPC_VPBLENDVB, v0, v4, v3, type);
-    tcg_out8(s, (TCG_TMP_VEC - TCG_REG_XMM0) << 4);
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
@@ -3716,7 +3734,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_bitsel_vec:
         return C_O1_I3(x, x, x, x);
     case INDEX_op_cmpsel_vec:
-        return C_O1_I4(x, x, x, x, x);
+        return C_O1_I4(x, x, x, xO, x);
 
     default:
         g_assert_not_reached();
