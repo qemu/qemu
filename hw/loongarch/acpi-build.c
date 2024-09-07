@@ -31,6 +31,7 @@
 
 #include "hw/acpi/generic_event_device.h"
 #include "hw/pci-host/gpex.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/tpm.h"
 #include "hw/platform-bus.h"
 #include "hw/acpi/aml-build.h"
@@ -252,23 +253,27 @@ struct AcpiBuildState {
     MemoryRegion *linker_mr;
 } AcpiBuildState;
 
-static void build_uart_device_aml(Aml *table)
+static void build_uart_device_aml(Aml *table, int index)
 {
     Aml *dev;
     Aml *crs;
     Aml *pkg0, *pkg1, *pkg2;
-    uint32_t uart_irq = VIRT_UART_IRQ;
+    Aml *scope;
+    uint32_t uart_irq;
+    uint64_t base;
 
-    Aml *scope = aml_scope("_SB");
-    dev = aml_device("COMA");
+    uart_irq = VIRT_UART_IRQ + index;
+    base = VIRT_UART_BASE + index * VIRT_UART_SIZE;
+    scope = aml_scope("_SB");
+    dev = aml_device("COM%d", index);
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0501")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(index)));
     aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
     crs = aml_resource_template();
     aml_append(crs,
         aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                          AML_NON_CACHEABLE, AML_READ_WRITE,
-                         0, VIRT_UART_BASE, VIRT_UART_BASE + VIRT_UART_SIZE - 1,
+                         0, base, base + VIRT_UART_SIZE - 1,
                          0, VIRT_UART_SIZE));
     aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
                                   AML_SHARED, &uart_irq, 1));
@@ -401,6 +406,7 @@ static void acpi_dsdt_add_tpm(Aml *scope, LoongArchVirtMachineState *vms)
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
+    int i;
     Aml *dsdt, *scope, *pkg;
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(machine);
     AcpiTable table = { .sig = "DSDT", .rev = 1, .oem_id = lvms->oem_id,
@@ -408,7 +414,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     acpi_table_begin(&table, table_data);
     dsdt = init_aml_allocator();
-    build_uart_device_aml(dsdt);
+    for (i = 0; i < VIRT_UART_COUNT; i++)
+        build_uart_device_aml(dsdt, i);
     build_pci_device_aml(dsdt, lvms);
     build_la_ged_aml(dsdt, machine);
     build_flash_aml(dsdt, lvms);
