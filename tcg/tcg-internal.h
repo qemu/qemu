@@ -102,5 +102,7 @@ TCGOp *tcg_gen_op6(TCGOpcode, TCGArg, TCGArg, TCGArg, TCGArg, TCGArg, TCGArg);
 void vec_gen_2(TCGOpcode, TCGType, unsigned, TCGArg, TCGArg);
 void vec_gen_3(TCGOpcode, TCGType, unsigned, TCGArg, TCGArg, TCGArg);
 void vec_gen_4(TCGOpcode, TCGType, unsigned, TCGArg, TCGArg, TCGArg, TCGArg);
+void vec_gen_6(TCGOpcode opc, TCGType type, unsigned vece, TCGArg r,
+               TCGArg a, TCGArg b, TCGArg c, TCGArg d, TCGArg e);
 
 #endif /* TCG_INTERNAL_H */
