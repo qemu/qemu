@@ -242,6 +242,44 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     acpi_table_end(linker, &table);
 }
 
+/*
+ * Serial Port Console Redirection Table (SPCR)
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/serports/serial-port-console-redirection-table
+ */
+static void
+spcr_setup(GArray *table_data, BIOSLinker *linker, MachineState *machine)
+{
+    LoongArchVirtMachineState *lvms;
+    AcpiSpcrData serial = {
+        .interface_type = 0,       /* 16550 compatible */
+        .base_addr.id = AML_AS_SYSTEM_MEMORY,
+        .base_addr.width = 32,
+        .base_addr.offset = 0,
+        .base_addr.size = 1,
+        .base_addr.addr = VIRT_UART_BASE,
+        .interrupt_type = 0,       /* Interrupt not supported */
+        .pc_interrupt = 0,
+        .interrupt = VIRT_UART_IRQ,
+        .baud_rate = 7,            /* 115200 */
+        .parity = 0,
+        .stop_bits = 1,
+        .flow_control = 0,
+        .terminal_type = 3,        /* ANSI */
+        .language = 0,             /* Language */
+        .pci_device_id = 0xffff,   /* not a PCI device*/
+        .pci_vendor_id = 0xffff,   /* not a PCI device*/
+        .pci_bus = 0,
+        .pci_device = 0,
+        .pci_function = 0,
+        .pci_flags = 0,
+        .pci_segment = 0,
+    };
+
+    lvms = LOONGARCH_VIRT_MACHINE(machine);
+    build_spcr(table_data, linker, &serial, 2, lvms->oem_id,
+               lvms->oem_table_id);
+}
+
 typedef
 struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
@@ -484,6 +522,8 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     acpi_add_table(table_offsets, tables_blob);
     build_srat(tables_blob, tables->linker, machine);
+    acpi_add_table(table_offsets, tables_blob);
+    spcr_setup(tables_blob, tables->linker, machine);
 
     if (machine->numa_state->num_nodes) {
         if (machine->numa_state->have_numa_distance) {
