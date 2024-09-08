@@ -1695,7 +1695,13 @@ static void modify_syscfg(CPUHexagonState *env, uint32_t val)
 
 static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
 {
-    g_assert_not_reached();
+    int offset = (vid ==  HEX_SREG_VID) ? L2VIC_VID_0 : L2VIC_VID_1;
+    CPUState *cs = env_cpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    const hwaddr pend_mem = cpu->l2vic_base_addr + offset;
+    uint32_t irq;
+    cpu_physical_memory_read(pend_mem, &irq, sizeof(irq));
+    return irq;
 }
 
 static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
