@@ -462,6 +462,14 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_VPSRLVD     (0x45 | P_EXT38 | P_DATA16)
 #define OPC_VPSRLVQ     (0x45 | P_EXT38 | P_DATA16 | P_VEXW)
 #define OPC_VPTERNLOGQ  (0x25 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTMB    (0x26 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPTESTMW    (0x26 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTMD    (0x27 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPTESTMQ    (0x27 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTNMB   (0x26 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPTESTNMW   (0x26 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
+#define OPC_VPTESTNMD   (0x27 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPTESTNMQ   (0x27 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
 #define OPC_VZEROUPPER  (0x77 | P_EXT)
 #define OPC_XCHG_ax_r32	(0x90)
 #define OPC_XCHG_EvGv   (0x87)
@@ -3145,6 +3153,13 @@ static void tcg_out_cmp_vec_k1(TCGContext *s, TCGType type, unsigned vece,
         { OPC_VPCMPB, OPC_VPCMPW, OPC_VPCMPD, OPC_VPCMPQ },
         { OPC_VPCMPUB, OPC_VPCMPUW, OPC_VPCMPUD, OPC_VPCMPUQ }
     };
+    static const int testm_insn[4] = {
+        OPC_VPTESTMB, OPC_VPTESTMW, OPC_VPTESTMD, OPC_VPTESTMQ
+    };
+    static const int testnm_insn[4] = {
+        OPC_VPTESTNMB, OPC_VPTESTNMW, OPC_VPTESTNMD, OPC_VPTESTNMQ
+    };
+
     static const int cond_ext[16] = {
         [TCG_COND_EQ] = 0,
         [TCG_COND_NE] = 4,
@@ -3160,9 +3175,19 @@ static void tcg_out_cmp_vec_k1(TCGContext *s, TCGType type, unsigned vece,
         [TCG_COND_ALWAYS] = 7,
     };
 
-    tcg_out_vex_modrm_type(s, cmpm_insn[is_unsigned_cond(cond)][vece],
-                           /* k1 */ 1, v1, v2, type);
-    tcg_out8(s, cond_ext[cond]);
+    switch (cond) {
+    case TCG_COND_TSTNE:
+        tcg_out_vex_modrm_type(s, testm_insn[vece], /* k1 */ 1, v1, v2, type);
+        break;
+    case TCG_COND_TSTEQ:
+        tcg_out_vex_modrm_type(s, testnm_insn[vece], /* k1 */ 1, v1, v2, type);
+        break;
+    default:
+        tcg_out_vex_modrm_type(s, cmpm_insn[is_unsigned_cond(cond)][vece],
+                               /* k1 */ 1, v1, v2, type);
+        tcg_out8(s, cond_ext[cond]);
+        break;
+    }
 }
 
 static void tcg_out_k1_to_vec(TCGContext *s, TCGType type,
