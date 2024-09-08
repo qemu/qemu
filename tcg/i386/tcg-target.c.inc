@@ -674,7 +674,7 @@ static void tcg_out_vex_opc(TCGContext *s, int opc, int r, int v,
 }
 
 static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
-                             int rm, int index)
+                             int rm, int index, int aaa, bool z)
 {
     /* The entire 4-byte evex prefix; with R' and V' set. */
     uint32_t p = 0x08041062;
@@ -711,7 +711,9 @@ static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
     p = deposit32(p, 16, 2, pp);
     p = deposit32(p, 19, 4, ~v);
     p = deposit32(p, 23, 1, (opc & P_VEXW) != 0);
+    p = deposit32(p, 24, 3, aaa);
     p = deposit32(p, 29, 2, (opc & P_VEXL) != 0);
+    p = deposit32(p, 31, 1, z);
 
     tcg_out32(s, p);
     tcg_out8(s, opc);
@@ -720,7 +722,7 @@ static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
 static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
 {
     if (opc & P_EVEX) {
-        tcg_out_evex_opc(s, opc, r, v, rm, 0);
+        tcg_out_evex_opc(s, opc, r, v, rm, 0, 0, false);
     } else {
         tcg_out_vex_opc(s, opc, r, v, rm, 0);
     }
