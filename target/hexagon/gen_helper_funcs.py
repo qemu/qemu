@@ -69,7 +69,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
     if hex_common.need_slot(tag):
         if "A_LOAD" in hex_common.attribdict[tag]:
             f.write(hex_common.code_fmt(f"""\
-                bool pkt_has_store_s1 = slotval & 0x1;
+                bool pkt_has_scalar_store_s1 = slotval & 0x1;
             """))
         f.write(hex_common.code_fmt(f"""\
             uint32_t slot = slotval >> 1;
