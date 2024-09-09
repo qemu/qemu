@@ -1236,6 +1236,15 @@ float64 HELPER(dfmpyhh)(CPUHexagonState *env, float64 RxxV,
     return RxxV;
 }
 
+#ifndef CONFIG_USER_ONLY
+void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    BQL_LOCK_GUARD();
+    hexagon_modify_ssr(env, new, old);
+}
+#endif
+
+
 /* Histogram instructions */
 
 void HELPER(vhist)(CPUHexagonState *env)
@@ -1573,6 +1582,11 @@ static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
     }
 }
 
+void HELPER(resched)(CPUHexagonState *env)
+{
+    resched(env);
+}
+
 void HELPER(wait)(CPUHexagonState *env, target_ulong PC)
 {
     BQL_LOCK_GUARD();
@@ -1850,6 +1864,12 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
 void HELPER(nmi)(CPUHexagonState *env, uint32_t thread_mask)
 {
     g_assert_not_reached();
+}
+
+void HELPER(pending_interrupt)(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    hex_interrupt_update(env);
 }
 #endif
 
