@@ -183,7 +183,7 @@ static void gen_end_tb(DisasContext *ctx)
 
     gen_exec_counters(ctx);
 
-    if (need_next_PC(ctx)) {
+    if (ctx->need_next_pc) {
         tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
     }
     if (ctx->branch_cond != TCG_COND_NEVER) {
@@ -373,17 +373,23 @@ static bool pkt_ends_tb(Packet *pkt)
 static bool need_next_PC(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
-
-    /* Check for conditional control flow or HW loop end */
-    for (int i = 0; i < pkt->num_insns; i++) {
-        uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) {
-            return true;
+    if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
+        for (int i = 0; i < pkt->num_insns; i++) {
+            uint16_t opcode = pkt->insn[i].opcode;
+            if ((GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) ||
+                GET_ATTRIB(opcode, A_HWLOOP0_END) ||
+                GET_ATTRIB(opcode, A_HWLOOP1_END)) {
+                return true;
+            }
         }
-        if (GET_ATTRIB(opcode, A_HWLOOP0_END) ||
-            GET_ATTRIB(opcode, A_HWLOOP1_END)) {
-            return true;
-        }
+    }
+    /*
+     * We end the TB on some instructions that do not change the flow (for
+     * other reasons). In these cases, we must set pc too, as the insn won't
+     * do it themselves.
+     */
+    if (ctx->pkt_ends_tb && !check_for_attrib(pkt, A_COF)) {
+        return true;
     }
     return false;
 }
@@ -601,15 +607,16 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
     ctx->branch_taken = NULL;
-    ctx->pkt_ends_tb = pkt_ends_tb(pkt);
     if (pkt->pkt_has_cof) {
         ctx->branch_taken = tcg_temp_new();
-        if (pkt->pkt_has_multi_cof) {
-            tcg_gen_movi_tl(ctx->branch_taken, 0);
-        }
-        if (need_next_PC(ctx)) {
-            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
-        }
+    }
+    if (pkt->pkt_has_multi_cof) {
+        tcg_gen_movi_tl(ctx->branch_taken, 0);
+    }
+    ctx->pkt_ends_tb = pkt_ends_tb(pkt);
+    ctx->need_next_pc = need_next_PC(ctx);
+    if (ctx->need_next_pc) {
+        tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -1163,6 +1170,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
+    ctx->need_next_pc = false;
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)

@@ -85,6 +85,7 @@ typedef struct DisasContext {
     TCGv dczero_addr;
     bool pcycle_enabled;
     bool pkt_ends_tb;
+    bool need_next_pc;
     uint32_t num_cycles;
 } DisasContext;
 
