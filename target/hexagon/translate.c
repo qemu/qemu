@@ -422,6 +422,16 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+static void mark_implicit_sreg_write(DisasContext *ctx, int attrib, int snum)
+{
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
+        ctx_log_sreg_write(ctx, snum);
+    }
+}
+#endif
+
 static void mark_implicit_reg_writes(DisasContext *ctx)
 {
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
@@ -433,6 +443,12 @@ static void mark_implicit_reg_writes(DisasContext *ctx)
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
     mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
+
+#ifndef CONFIG_USER_ONLY
+    mark_implicit_sreg_write(ctx, A_IMPLICIT_WRITES_SGP0, HEX_SREG_SGP0);
+    mark_implicit_sreg_write(ctx, A_IMPLICIT_WRITES_SGP1, HEX_SREG_SGP1);
+    mark_implicit_sreg_write(ctx, A_IMPLICIT_WRITES_SSR, HEX_SREG_SSR);
+#endif
 }
 
 static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
