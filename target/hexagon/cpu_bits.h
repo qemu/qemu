@@ -41,6 +41,13 @@ enum hex_cause {
     HEX_CAUSE_PRIV_USER_NO_SINSN = 0x01b,
 };
 
+enum data_cache_state {
+    HEX_DC_STATE_INVALID   = 0x0,
+    HEX_DC_STATE_VALID     = 0x1,
+    HEX_DC_STATE_RESERVED  = 0x2,
+    HEX_DC_STATE_UNUSED_WT = 0x3,
+};
+
 #define PACKET_WORDS_MAX         4
 
 static inline uint32_t parse_bits(uint32_t encoding)
