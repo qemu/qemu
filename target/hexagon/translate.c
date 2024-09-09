@@ -278,8 +278,7 @@ static bool need_slot_cancelled(Packet *pkt)
     /* We only need slot_cancelled for conditional store instructions */
     for (int i = 0; i < pkt->num_insns; i++) {
         uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_CONDEXEC) &&
-            GET_ATTRIB(opcode, A_SCALAR_STORE)) {
+        if (GET_ATTRIB(opcode, A_CONDEXEC)) {
             return true;
         }
     }
