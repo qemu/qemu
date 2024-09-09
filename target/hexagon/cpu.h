@@ -143,9 +143,9 @@ typedef struct CPUArchState {
     hex_lock_state_t k0_lock_state;
     target_ulong tlb_lock_count;
     target_ulong k0_lock_count;
-    target_ulong next_PC;
     CPUHexagonTLBContext *hex_tlb;
 #endif
+    target_ulong next_PC;
     target_ulong new_value_usr;
 
     MemLog mem_log_stores[STORES_MAX];
