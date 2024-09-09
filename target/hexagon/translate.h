@@ -85,6 +85,7 @@ typedef struct DisasContext {
     TCGv dczero_addr;
     bool pcycle_enabled;
     bool pkt_ends_tb;
+    bool need_next_pc;
     uint32_t num_cycles;
 } DisasContext;
 
@@ -306,6 +307,7 @@ static inline void ctx_log_qreg_read(DisasContext *ctx,
 }
 
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
+extern TCGv hex_next_PC;
 extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_new_value_usr;

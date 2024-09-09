@@ -49,6 +49,7 @@ static const AnalyzeInsn opcode_analyze[XX_LAST_OPCODE] = {
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
+TCGv hex_next_PC;
 TCGv hex_new_value_usr;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
@@ -61,12 +62,14 @@ TCGv_i64 hex_cycle_count;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+static bool need_next_PC(DisasContext *ctx);
 
 #ifndef CONFIG_USER_ONLY
 TCGv hex_greg[NUM_GREGS];
 TCGv hex_t_sreg[NUM_SREGS];
 TCGv_ptr hex_g_sreg_ptr;
 TCGv hex_g_sreg[NUM_SREGS];
+TCGv hex_cause_code;
 #endif
 
 static const char * const hexagon_prednames[] = {
@@ -184,6 +187,9 @@ static void gen_end_tb(DisasContext *ctx)
 
     gen_exec_counters(ctx);
 
+    if (ctx->need_next_pc) {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    }
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
@@ -371,17 +377,23 @@ static bool pkt_ends_tb(Packet *pkt)
 static bool need_next_PC(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
-
-    /* Check for conditional control flow or HW loop end */
-    for (int i = 0; i < pkt->num_insns; i++) {
-        uint16_t opcode = pkt->insn[i].opcode;
-        if (GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) {
-            return true;
+    if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
+        for (int i = 0; i < pkt->num_insns; i++) {
+            uint16_t opcode = pkt->insn[i].opcode;
+            if ((GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) ||
+                GET_ATTRIB(opcode, A_HWLOOP0_END) ||
+                GET_ATTRIB(opcode, A_HWLOOP1_END)) {
+                return true;
+            }
         }
-        if (GET_ATTRIB(opcode, A_HWLOOP0_END) ||
-            GET_ATTRIB(opcode, A_HWLOOP1_END)) {
-            return true;
-        }
+    }
+    /*
+     * We end the TB on some instructions that do not change the flow (for
+     * other reasons). In these cases, we must set pc too, as the insn won't
+     * do it themselves.
+     */
+    if (ctx->pkt_ends_tb && !check_for_attrib(pkt, A_COF)) {
+        return true;
     }
     return false;
 }
@@ -523,7 +535,14 @@ static void analyze_packet(DisasContext *ctx)
 static void gen_start_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
+#ifndef CONFIG_USER_ONLY
+    target_ulong next_PC = (check_for_opcode(pkt, Y2_k0lock) ||
+                            check_for_opcode(pkt, Y2_tlblock)) ?
+                               ctx->base.pc_next :
+                               ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
+#else
     target_ulong next_PC = ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
+#endif
     int i;
 
     /* Clear out the disassembly context */
@@ -531,6 +550,10 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+#ifndef CONFIG_USER_ONLY
+    ctx->greg_log_idx = 0;
+    ctx->sreg_log_idx = 0;
+#endif
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -563,21 +586,41 @@ static void gen_start_packet(DisasContext *ctx)
      * gen phase, so clear it again.
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < NUM_SREGS; i++) {
+        ctx->t_sreg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->sreg_log_idx; i++) {
+        int reg_num = ctx->sreg_log[i];
+        if (reg_num < HEX_SREG_GLB_START) {
+            ctx->t_sreg_new_value[reg_num] = tcg_temp_new();
+            tcg_gen_mov_tl(ctx->t_sreg_new_value[reg_num], hex_t_sreg[reg_num]);
+        }
+    }
+    for (i = 0; i < NUM_GREGS; i++) {
+        ctx->greg_new_value[i] = NULL;
+    }
+    for (i = 0; i < ctx->greg_log_idx; i++) {
+        int reg_num = ctx->greg_log[i];
+        ctx->greg_new_value[reg_num] = tcg_temp_new();
+    }
+#endif
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
     ctx->branch_taken = NULL;
-    ctx->pkt_ends_tb = pkt_ends_tb(pkt);
     if (pkt->pkt_has_cof) {
         ctx->branch_taken = tcg_temp_new();
-        if (pkt->pkt_has_multi_cof) {
-            tcg_gen_movi_tl(ctx->branch_taken, 0);
-        }
-        if (need_next_PC(ctx)) {
-            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
-        }
+    }
+    if (pkt->pkt_has_multi_cof) {
+        tcg_gen_movi_tl(ctx->branch_taken, 0);
+    }
+    ctx->pkt_ends_tb = pkt_ends_tb(pkt);
+    ctx->need_next_pc = need_next_PC(ctx);
+    if (ctx->need_next_pc) {
+        tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -712,6 +755,59 @@ static void gen_reg_writes(DisasContext *ctx)
         }
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void gen_greg_writes(DisasContext *ctx)
+{
+    int i;
+
+    for (i = 0; i < ctx->greg_log_idx; i++) {
+        int reg_num = ctx->greg_log[i];
+
+        tcg_gen_mov_tl(hex_greg[reg_num], ctx->greg_new_value[reg_num]);
+    }
+}
+
+
+static void gen_sreg_writes(DisasContext *ctx)
+{
+    int i;
+
+    TCGv old_reg = tcg_temp_new();
+    for (i = 0; i < ctx->sreg_log_idx; i++) {
+        int reg_num = ctx->sreg_log[i];
+
+        if (reg_num == HEX_SREG_SSR) {
+            tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
+            tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
+            gen_helper_modify_ssr(tcg_env, ctx->t_sreg_new_value[reg_num],
+                                  old_reg);
+            /* This can change processor state, so end the TB */
+            ctx->base.is_jmp = DISAS_NORETURN;
+        } else if ((reg_num == HEX_SREG_STID) ||
+                   (reg_num == HEX_SREG_IMASK) ||
+                   (reg_num == HEX_SREG_IPENDAD)) {
+            if (reg_num < HEX_SREG_GLB_START) {
+                tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
+                tcg_gen_mov_tl(hex_t_sreg[reg_num],
+                               ctx->t_sreg_new_value[reg_num]);
+            }
+            /* This can change the interrupt state, so end the TB */
+            gen_helper_pending_interrupt(tcg_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        } else if ((reg_num == HEX_SREG_BESTWAIT) ||
+                   (reg_num == HEX_SREG_SCHEDCFG)) {
+            /* This can trigger resched interrupt, so end the TB */
+            gen_helper_resched(tcg_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        }
+
+        if (reg_num < HEX_SREG_GLB_START) {
+            tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
+        }
+    }
+}
+#endif
 
 static void gen_pred_writes(DisasContext *ctx)
 {
@@ -1012,6 +1108,10 @@ static void gen_commit_packet(DisasContext *ctx)
     process_store_log(ctx);
 
     gen_reg_writes(ctx);
+#if !defined(CONFIG_USER_ONLY)
+    gen_greg_writes(ctx);
+    gen_sreg_writes(ctx);
+#endif
     gen_pred_writes(ctx);
     if (pkt->pkt_has_hvx) {
         gen_commit_hvx(ctx);
@@ -1073,6 +1173,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
+    ctx->need_next_pc = false;
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1201,6 +1302,13 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
             offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
+#ifndef CONFIG_USER_ONLY
+    hex_cause_code = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, cause_code), "cause_code");
+#endif
+    hex_next_PC = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, next_PC), "next_PC");
+
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,
