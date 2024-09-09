@@ -637,7 +637,7 @@ tinycode for the Hexagon ``add`` instruction
 ::
 
    ---- 00021094
-   mov_i32 pkt_has_store_s1,$0x0
+   mov_i32 pkt_has_scalar_store_s1,$0x0
    add_i32 tmp0,r2,r2
    mov_i32 loc2,tmp0
    mov_i32 new_r1,loc2
