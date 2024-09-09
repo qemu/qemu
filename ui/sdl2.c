@@ -418,6 +418,7 @@ static void handle_keydown(SDL_Event *ev)
                         SDL_ShowWindow(sdl2_console[win].real_window);
                     }
                 }
+                sdl2_release_modifiers(scon);
                 gui_keysym = 1;
             }
             break;
