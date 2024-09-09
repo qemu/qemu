@@ -286,6 +286,90 @@ static bool need_slot_cancelled(Packet *pkt)
     return false;
 }
 
+#ifndef CONFIG_USER_ONLY
+static bool sreg_write_to_global(int reg_num)
+{
+    return reg_num == HEX_SREG_SSR ||
+           reg_num == HEX_SREG_STID ||
+           reg_num == HEX_SREG_IMASK ||
+           reg_num == HEX_SREG_IPENDAD ||
+           reg_num == HEX_SREG_BESTWAIT ||
+           reg_num == HEX_SREG_SCHEDCFG;
+}
+
+static bool has_sreg_write_to_global(Packet const *pkt)
+{
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn const *insn = &pkt->insn[i];
+        uint16_t opcode = insn->opcode;
+        if (opcode == Y2_tfrsrcr) {
+            /* Write to a single sreg */
+            int reg_num = insn->regno[0];
+            if (sreg_write_to_global(reg_num)) {
+                return true;
+            }
+        } else if (opcode == Y4_tfrspcp) {
+            /* Write to a sreg pair */
+            int reg_num = insn->regno[0];
+            if (sreg_write_to_global(reg_num)) {
+                return true;
+            }
+            if (sreg_write_to_global(reg_num + 1)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+#endif
+
+static bool pkt_ends_tb(Packet *pkt)
+{
+    if (pkt->pkt_has_cof) {
+        return true;
+    }
+#ifndef CONFIG_USER_ONLY
+    /* System mode instructions that end TLB */
+    if (check_for_opcode(pkt, Y2_swi) ||
+        check_for_opcode(pkt, Y2_cswi) ||
+        check_for_opcode(pkt, Y2_ciad) ||
+        check_for_opcode(pkt, Y4_siad) ||
+        check_for_opcode(pkt, Y2_wait) ||
+        check_for_opcode(pkt, Y2_resume) ||
+        check_for_opcode(pkt, Y2_iassignw) ||
+        check_for_opcode(pkt, Y2_setimask) ||
+        check_for_opcode(pkt, Y4_nmi) ||
+        check_for_opcode(pkt, Y2_setprio) ||
+        check_for_opcode(pkt, Y2_start) ||
+        check_for_opcode(pkt, Y2_stop) ||
+        check_for_opcode(pkt, Y2_k0lock) ||
+        check_for_opcode(pkt, Y2_k0unlock) ||
+        check_for_opcode(pkt, Y2_tlblock) ||
+        check_for_opcode(pkt, Y2_tlbunlock) ||
+        check_for_opcode(pkt, Y2_break) ||
+        check_for_opcode(pkt, Y2_isync) ||
+        check_for_opcode(pkt, Y2_syncht) ||
+        check_for_opcode(pkt, Y2_tlbp) ||
+        check_for_opcode(pkt, Y2_tlbw) ||
+        check_for_opcode(pkt, Y5_ctlbw) ||
+        check_for_opcode(pkt, Y5_tlbasidi)) {
+        return true;
+    }
+
+    /*
+     * Check for sreg writes that would end the TB
+     */
+    if (check_for_attrib(pkt, A_IMPLICIT_WRITES_SSR)) {
+        return true;
+    }
+    if (has_sreg_write_to_global(pkt)) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+
 static bool need_next_PC(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -517,6 +601,7 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
     ctx->branch_taken = NULL;
+    ctx->pkt_ends_tb = pkt_ends_tb(pkt);
     if (pkt->pkt_has_cof) {
         ctx->branch_taken = tcg_temp_new();
         if (pkt->pkt_has_multi_cof) {
@@ -1029,7 +1114,7 @@ static void gen_commit_packet(DisasContext *ctx)
         pkt->vhist_insn->generate(ctx);
     }
 
-    if (pkt->pkt_has_cof) {
+    if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
         gen_end_tb(ctx);
     }
 }
