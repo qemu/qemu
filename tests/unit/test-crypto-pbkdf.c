@@ -25,8 +25,7 @@
 #include <sys/resource.h>
 #endif
 
-#if ((defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT)) && \
-     (defined(_WIN32) || defined(RUSAGE_THREAD)))
+#if defined(_WIN32) || defined(RUSAGE_THREAD) || defined(CONFIG_DARWNI)
 #include "crypto/pbkdf.h"
 
 typedef struct QCryptoPbkdfTestData QCryptoPbkdfTestData;
@@ -394,7 +393,7 @@ static void test_pbkdf(const void *opaque)
 }
 
 
-static void test_pbkdf_timing(void)
+static void test_pbkdf_timing_sha256(void)
 {
     uint8_t key[32];
     uint8_t salt[32];
@@ -422,14 +421,18 @@ int main(int argc, char **argv)
     g_assert(qcrypto_init(NULL) == 0);
 
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
+        if (!qcrypto_pbkdf2_supports(test_data[i].hash)) {
+            continue;
+        }
+
         if (!test_data[i].slow ||
             g_test_slow()) {
             g_test_add_data_func(test_data[i].path, &test_data[i], test_pbkdf);
         }
     }
 
-    if (g_test_slow()) {
-        g_test_add_func("/crypt0/pbkdf/timing", test_pbkdf_timing);
+    if (g_test_slow() && qcrypto_pbkdf2_supports(QCRYPTO_HASH_ALG_SHA256)) {
+        g_test_add_func("/crypt0/pbkdf/timing/sha256", test_pbkdf_timing_sha256);
     }
 
     return g_test_run();

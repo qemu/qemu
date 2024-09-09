@@ -525,8 +525,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             case QCRYPTO_CIPHER_MODE_CTR:
                 drv = &qcrypto_nettle_des_driver_ctr;
                 break;
-            default:
+            case QCRYPTO_CIPHER_MODE_XTS:
                 goto bad_cipher_mode;
+            default:
+                g_assert_not_reached();
             }
 
             ctx = g_new0(QCryptoNettleDES, 1);
@@ -551,8 +553,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             case QCRYPTO_CIPHER_MODE_CTR:
                 drv = &qcrypto_nettle_des3_driver_ctr;
                 break;
-            default:
+            case QCRYPTO_CIPHER_MODE_XTS:
                 goto bad_cipher_mode;
+            default:
+                g_assert_not_reached();
             }
 
             ctx = g_new0(QCryptoNettleDES3, 1);
@@ -663,8 +667,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             case QCRYPTO_CIPHER_MODE_CTR:
                 drv = &qcrypto_nettle_cast128_driver_ctr;
                 break;
-            default:
+            case QCRYPTO_CIPHER_MODE_XTS:
                 goto bad_cipher_mode;
+            default:
+                g_assert_not_reached();
             }
 
             ctx = g_new0(QCryptoNettleCAST128, 1);
@@ -734,16 +740,23 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 #ifdef CONFIG_CRYPTO_SM4
     case QCRYPTO_CIPHER_ALG_SM4:
         {
-            QCryptoNettleSm4 *ctx = g_new0(QCryptoNettleSm4, 1);
+            QCryptoNettleSm4 *ctx;
+            const QCryptoCipherDriver *drv;
 
             switch (mode) {
             case QCRYPTO_CIPHER_MODE_ECB:
-                ctx->base.driver = &qcrypto_nettle_sm4_driver_ecb;
+                drv = &qcrypto_nettle_sm4_driver_ecb;
                 break;
-            default:
+            case QCRYPTO_CIPHER_MODE_CBC:
+            case QCRYPTO_CIPHER_MODE_CTR:
+            case QCRYPTO_CIPHER_MODE_XTS:
                 goto bad_cipher_mode;
+            default:
+                g_assert_not_reached();
             }
 
+            ctx = g_new0(QCryptoNettleSm4, 1);
+            ctx->base.driver = drv;
             sm4_set_encrypt_key(&ctx->key[0], key);
             sm4_set_decrypt_key(&ctx->key[1], key);
 

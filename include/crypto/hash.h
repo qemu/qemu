@@ -23,6 +23,14 @@
 
 #include "qapi/qapi-types-crypto.h"
 
+#define QCRYPTO_HASH_DIGEST_LEN_MD5       16
+#define QCRYPTO_HASH_DIGEST_LEN_SHA1      20
+#define QCRYPTO_HASH_DIGEST_LEN_SHA224    28
+#define QCRYPTO_HASH_DIGEST_LEN_SHA256    32
+#define QCRYPTO_HASH_DIGEST_LEN_SHA384    48
+#define QCRYPTO_HASH_DIGEST_LEN_SHA512    64
+#define QCRYPTO_HASH_DIGEST_LEN_RIPEMD160 20
+
 /* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
 
 /**
