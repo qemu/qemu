@@ -42,6 +42,7 @@ struct sdl2_console {
     int updates;
     int idle_counter;
     int ignore_hotkeys;
+    bool gui_keysym;
     SDL_GLContext winctx;
     QKbdState *kbd;
 #ifdef CONFIG_OPENGL

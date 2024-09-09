@@ -388,11 +388,12 @@ static void handle_keydown(SDL_Event *ev)
     int win;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
     int gui_key_modifier_pressed = get_mod_state();
-    int gui_keysym = 0;
 
     if (!scon) {
         return;
     }
+
+    scon->gui_keysym = false;
 
     if (!scon->ignore_hotkeys && gui_key_modifier_pressed && !ev->key.repeat) {
         switch (ev->key.keysym.scancode) {
@@ -419,15 +420,15 @@ static void handle_keydown(SDL_Event *ev)
                     }
                 }
                 sdl2_release_modifiers(scon);
-                gui_keysym = 1;
+                scon->gui_keysym = true;
             }
             break;
         case SDL_SCANCODE_F:
             toggle_full_screen(scon);
-            gui_keysym = 1;
+            scon->gui_keysym = true;
             break;
         case SDL_SCANCODE_G:
-            gui_keysym = 1;
+            scon->gui_keysym = true;
             if (!gui_grab) {
                 sdl_grab_start(scon);
             } else if (!gui_fullscreen) {
@@ -440,7 +441,7 @@ static void handle_keydown(SDL_Event *ev)
                 /* re-create scon->texture */
                 sdl2_2d_switch(&scon->dcl, scon->surface);
             }
-            gui_keysym = 1;
+            scon->gui_keysym = true;
             break;
 #if 0
         case SDL_SCANCODE_KP_PLUS:
@@ -459,14 +460,14 @@ static void handle_keydown(SDL_Event *ev)
                         __func__, width, height);
                 sdl_scale(scon, width, height);
                 sdl2_redraw(scon);
-                gui_keysym = 1;
+                scon->gui_keysym = true;
             }
 #endif
         default:
             break;
         }
     }
-    if (!gui_keysym) {
+    if (!scon->gui_keysym) {
         sdl2_process_key(scon, &ev->key);
     }
 }
@@ -492,7 +493,7 @@ static void handle_textinput(SDL_Event *ev)
         return;
     }
 
-    if (QEMU_IS_TEXT_CONSOLE(con)) {
+    if (!scon->gui_keysym && QEMU_IS_TEXT_CONSOLE(con)) {
         qemu_text_console_put_string(QEMU_TEXT_CONSOLE(con), ev->text.text, strlen(ev->text.text));
     }
 }
