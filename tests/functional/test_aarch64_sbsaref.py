@@ -110,16 +110,17 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     # This tests the whole boot chain from EFI to Userspace
     # We only boot a whole OS for the current top level CPU and GIC
     # Other test profiles should use more minimal boots
-    def boot_alpine_linux(self, cpu):
+    def boot_alpine_linux(self, cpu=None):
         self.fetch_firmware()
 
         iso_path = self.ASSET_ALPINE_ISO.fetch()
 
         self.vm.set_console()
         self.vm.add_args(
-            "-cpu", cpu,
             "-drive", f"file={iso_path},media=cdrom,format=raw",
         )
+        if cpu:
+            self.vm.add_args("-cpu", cpu)
 
         self.vm.launch()
         wait_for_console_pattern(self, "Welcome to Alpine Linux 3.17")
@@ -127,8 +128,8 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     def test_sbsaref_alpine_linux_cortex_a57(self):
         self.boot_alpine_linux("cortex-a57")
 
-    def test_sbsaref_alpine_linux_neoverse_n1(self):
-        self.boot_alpine_linux("neoverse-n1")
+    def test_sbsaref_alpine_linux_default_cpu(self):
+        self.boot_alpine_linux()
 
     def test_sbsaref_alpine_linux_max_pauth_off(self):
         self.boot_alpine_linux("max,pauth=off")
@@ -148,16 +149,17 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     # This tests the whole boot chain from EFI to Userspace
     # We only boot a whole OS for the current top level CPU and GIC
     # Other test profiles should use more minimal boots
-    def boot_openbsd73(self, cpu):
+    def boot_openbsd73(self, cpu=None):
         self.fetch_firmware()
 
         img_path = self.ASSET_OPENBSD_ISO.fetch()
 
         self.vm.set_console()
         self.vm.add_args(
-            "-cpu", cpu,
             "-drive", f"file={img_path},format=raw,snapshot=on",
         )
+        if cpu:
+            self.vm.add_args("-cpu", cpu)
 
         self.vm.launch()
         wait_for_console_pattern(self,
@@ -167,8 +169,8 @@ class Aarch64SbsarefMachine(QemuSystemTest):
     def test_sbsaref_openbsd73_cortex_a57(self):
         self.boot_openbsd73("cortex-a57")
 
-    def test_sbsaref_openbsd73_neoverse_n1(self):
-        self.boot_openbsd73("neoverse-n1")
+    def test_sbsaref_openbsd73_default_cpu(self):
+        self.boot_openbsd73()
 
     def test_sbsaref_openbsd73_max_pauth_off(self):
         self.boot_openbsd73("max,pauth=off")
