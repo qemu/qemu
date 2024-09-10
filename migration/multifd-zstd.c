@@ -123,9 +123,9 @@ static int multifd_zstd_send_prepare(MultiFDSendParams *p, Error **errp)
          */
         do {
             ret = ZSTD_compressStream2(z->zcs, &z->out, &z->in, flush);
-        } while (ret > 0 && (z->in.size - z->in.pos > 0)
-                         && (z->out.size - z->out.pos > 0));
-        if (ret > 0 && (z->in.size - z->in.pos > 0)) {
+        } while (ret > 0 && (z->in.size > z->in.pos)
+                         && (z->out.size > z->out.pos));
+        if (ret > 0 && (z->in.size > z->in.pos)) {
             error_setg(errp, "multifd %u: compressStream buffer too small",
                        p->id);
             return -1;
@@ -243,7 +243,7 @@ static int multifd_zstd_recv(MultiFDRecvParams *p, Error **errp)
          */
         do {
             ret = ZSTD_decompressStream(z->zds, &z->out, &z->in);
-        } while (ret > 0 && (z->in.size - z->in.pos > 0)
+        } while (ret > 0 && (z->in.size > z->in.pos)
                          && (z->out.pos < page_size));
         if (ret > 0 && (z->out.pos < page_size)) {
             error_setg(errp, "multifd %u: decompressStream buffer too small",
