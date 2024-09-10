@@ -50,6 +50,7 @@ typedef struct RAMList {
     /* RCU-enabled, writes protected by the ramlist lock. */
     QLIST_HEAD(, RAMBlock) blocks;
     DirtyMemoryBlocks *dirty_memory[DIRTY_MEMORY_NUM];
+    unsigned int num_dirty_blocks;
     uint32_t version;
     QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;
 } RAMList;
