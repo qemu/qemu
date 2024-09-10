@@ -43,15 +43,21 @@ class Asset:
         if self.hash is None:
             return True
         if len(self.hash) == 64:
-            sum_prog = 'sha256sum'
+            hl = hashlib.sha256()
         elif len(self.hash) == 128:
-            sum_prog = 'sha512sum'
+            hl = hashlib.sha512()
         else:
             raise Exception("unknown hash type")
 
-        checksum = subprocess.check_output(
-            [sum_prog, str(cache_file)]).split()[0]
-        return self.hash == checksum.decode("utf-8")
+        # Calculate the hash of the file:
+        with open(cache_file, 'rb') as file:
+            while True:
+                chunk = file.read(1 << 20)
+                if not chunk:
+                    break
+                hl.update(chunk)
+
+        return  hl.hexdigest()
 
     def valid(self):
         return self.cache_file.exists() and self._check(self.cache_file)
