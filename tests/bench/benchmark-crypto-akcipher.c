@@ -16,7 +16,7 @@
 #include "crypto/akcipher.h"
 #include "standard-headers/linux/virtio_crypto.h"
 
-#include "test_akcipher_keys.inc"
+#include "test_akcipher_keys.c.inc"
 
 static QCryptoAkCipher *create_rsa_akcipher(const uint8_t *priv_key,
                                             size_t keylen,
