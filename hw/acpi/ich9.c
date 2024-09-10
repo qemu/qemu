@@ -35,6 +35,7 @@
 #include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9_tco.h"
+#include "hw/acpi/ich9_timer.h"
 
 #include "hw/southbridge/ich9.h"
 #include "hw/mem/pc-dimm.h"
@@ -108,6 +109,18 @@ static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
         }
         pm->smi_en &= ~pm->smi_en_wmask;
         pm->smi_en |= (val & pm->smi_en_wmask);
+        if (pm->swsmi_timer_enabled) {
+            ich9_pm_update_swsmi_timer(pm, pm->smi_en &
+                                               ICH9_PMIO_SMI_EN_SWSMI_EN);
+        }
+        if (pm->periodic_timer_enabled) {
+            ich9_pm_update_periodic_timer(pm, pm->smi_en &
+                                                  ICH9_PMIO_SMI_EN_PERIODIC_EN);
+        }
+        break;
+    case 4:
+        pm->smi_sts &= ~pm->smi_sts_wmask;
+        pm->smi_sts |= (val & pm->smi_sts_wmask);
         break;
     }
 }
@@ -286,6 +299,8 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
 
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
 {
+    pm->smi_sts_wmask = 0;
+
     memory_region_init(&pm->io, OBJECT(lpc_pci), "ich9-pm", ICH9_PMIO_SIZE);
     memory_region_set_enabled(&pm->io, false);
     memory_region_add_subregion(pci_address_space_io(lpc_pci),
@@ -304,6 +319,14 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
     memory_region_init_io(&pm->io_smi, OBJECT(lpc_pci), &ich9_smi_ops, pm,
                           "acpi-smi", 8);
     memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
+
+    if (pm->swsmi_timer_enabled) {
+        ich9_pm_swsmi_timer_init(pm);
+    }
+
+    if (pm->periodic_timer_enabled) {
+        ich9_pm_periodic_timer_init(pm);
+    }
 
     if (pm->enable_tco) {
         acpi_pm_tco_init(&pm->tco_regs, &pm->io);
