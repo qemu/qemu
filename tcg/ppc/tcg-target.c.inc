@@ -3573,6 +3573,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_rotli_vec:
         return vece <= MO_32 || have_isa_2_07 ? -1 : 0;
     case INDEX_op_cmp_vec:
+    case INDEX_op_cmpsel_vec:
         return vece <= MO_32 || have_isa_2_07 ? 1 : 0;
     case INDEX_op_neg_vec:
         return vece >= MO_32 && have_isa_3_00;
@@ -3719,6 +3720,33 @@ static void tcg_out_not_vec(TCGContext *s, TCGReg a0, TCGReg a1)
     tcg_out32(s, VNOR | VRT(a0) | VRA(a1) | VRB(a1));
 }
 
+static void tcg_out_or_vec(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, VOR | VRT(a0) | VRA(a1) | VRB(a2));
+}
+
+static void tcg_out_and_vec(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, VAND | VRT(a0) | VRA(a1) | VRB(a2));
+}
+
+static void tcg_out_andc_vec(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, VANDC | VRT(a0) | VRA(a1) | VRB(a2));
+}
+
+static void tcg_out_bitsel_vec(TCGContext *s, TCGReg d,
+                               TCGReg c, TCGReg t, TCGReg f)
+{
+    if (TCG_TARGET_HAS_bitsel_vec) {
+        tcg_out32(s, XXSEL | VRT(d) | VRC(c) | VRB(t) | VRA(f));
+    } else {
+        tcg_out_and_vec(s, TCG_VEC_TMP2, t, c);
+        tcg_out_andc_vec(s, d, f, c);
+        tcg_out_or_vec(s, d, d, TCG_VEC_TMP2);
+    }
+}
+
 static bool tcg_out_cmp_vec_noinv(TCGContext *s, unsigned vece, TCGReg a0,
                                   TCGReg a1, TCGReg a2, TCGCond cond)
 {
@@ -3796,6 +3824,18 @@ static void tcg_out_cmp_vec(TCGContext *s, unsigned vece, TCGReg a0,
     if (tcg_out_cmp_vec_noinv(s, vece, a0, a1, a2, cond)) {
         tcg_out_not_vec(s, a0, a0);
     }
+}
+
+static void tcg_out_cmpsel_vec(TCGContext *s, unsigned vece, TCGReg a0,
+                               TCGReg c1, TCGReg c2, TCGReg v3, TCGReg v4,
+                               TCGCond cond)
+{
+    if (tcg_out_cmp_vec_noinv(s, vece, TCG_VEC_TMP1, c1, c2, cond)) {
+        TCGReg swap = v3;
+        v3 = v4;
+        v4 = swap;
+    }
+    tcg_out_bitsel_vec(s, a0, TCG_VEC_TMP1, v3, v4);
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
@@ -3889,17 +3929,17 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = sarv_op[vece];
         break;
     case INDEX_op_and_vec:
-        insn = VAND;
-        break;
+        tcg_out_and_vec(s, a0, a1, a2);
+        return;
     case INDEX_op_or_vec:
-        insn = VOR;
-        break;
+        tcg_out_or_vec(s, a0, a1, a2);
+        return;
     case INDEX_op_xor_vec:
         insn = VXOR;
         break;
     case INDEX_op_andc_vec:
-        insn = VANDC;
-        break;
+        tcg_out_andc_vec(s, a0, a1, a2);
+        return;
     case INDEX_op_not_vec:
         tcg_out_not_vec(s, a0, a1);
         return;
@@ -3919,9 +3959,11 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_cmp_vec:
         tcg_out_cmp_vec(s, vece, a0, a1, a2, args[3]);
         return;
-
+    case INDEX_op_cmpsel_vec:
+        tcg_out_cmpsel_vec(s, vece, a0, a1, a2, args[3], args[4], args[5]);
+        return;
     case INDEX_op_bitsel_vec:
-        tcg_out32(s, XXSEL | VRT(a0) | VRC(a1) | VRB(a2) | VRA(args[3]));
+        tcg_out_bitsel_vec(s, a0, a1, a2, args[3]);
         return;
 
     case INDEX_op_dup2_vec:
@@ -4287,6 +4329,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_bitsel_vec:
     case INDEX_op_ppc_msum_vec:
         return C_O1_I3(v, v, v, v);
+    case INDEX_op_cmpsel_vec:
+        return C_O1_I4(v, v, v, v, v);
 
     default:
         g_assert_not_reached();
