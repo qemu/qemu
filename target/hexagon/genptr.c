@@ -635,14 +635,15 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
         tcg_gen_brcondi_tl(cond, pred, 0, pred_false);
     }
 
+    TCGv PC_wr = ctx->need_next_pc ? hex_next_PC : hex_gpr[HEX_REG_PC];
     if (ctx->pkt->pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
-        tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
+        tcg_gen_movcond_tl(TCG_COND_NE, PC_wr,
                            ctx->branch_taken, tcg_constant_tl(0),
-                           hex_gpr[HEX_REG_PC], addr);
+                           PC_wr, addr);
         tcg_gen_movi_tl(ctx->branch_taken, 1);
     } else {
-        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
+        tcg_gen_mov_tl(PC_wr, addr);
     }
 
     if (cond != TCG_COND_ALWAYS) {
