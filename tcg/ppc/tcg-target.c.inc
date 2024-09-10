@@ -3567,12 +3567,13 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
         return vece <= MO_32;
-    case INDEX_op_cmp_vec:
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
     case INDEX_op_rotli_vec:
         return vece <= MO_32 || have_isa_2_07 ? -1 : 0;
+    case INDEX_op_cmp_vec:
+        return vece <= MO_32 || have_isa_2_07 ? 1 : 0;
     case INDEX_op_neg_vec:
         return vece >= MO_32 && have_isa_3_00;
     case INDEX_op_mul_vec:
@@ -3713,6 +3714,90 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
     return true;
 }
 
+static void tcg_out_not_vec(TCGContext *s, TCGReg a0, TCGReg a1)
+{
+    tcg_out32(s, VNOR | VRT(a0) | VRA(a1) | VRB(a1));
+}
+
+static bool tcg_out_cmp_vec_noinv(TCGContext *s, unsigned vece, TCGReg a0,
+                                  TCGReg a1, TCGReg a2, TCGCond cond)
+{
+    static const uint32_t
+        eq_op[4]  = { VCMPEQUB, VCMPEQUH, VCMPEQUW, VCMPEQUD },
+        ne_op[4]  = { VCMPNEB, VCMPNEH, VCMPNEW, 0 },
+        gts_op[4] = { VCMPGTSB, VCMPGTSH, VCMPGTSW, VCMPGTSD },
+        gtu_op[4] = { VCMPGTUB, VCMPGTUH, VCMPGTUW, VCMPGTUD };
+    uint32_t insn;
+
+    bool need_swap = false, need_inv = false;
+
+    tcg_debug_assert(vece <= MO_32 || have_isa_2_07);
+
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_GT:
+    case TCG_COND_GTU:
+        break;
+    case TCG_COND_NE:
+        if (have_isa_3_00 && vece <= MO_32) {
+            break;
+        }
+        /* fall through */
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+        need_inv = true;
+        break;
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        need_swap = true;
+        break;
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+        need_swap = need_inv = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (need_inv) {
+        cond = tcg_invert_cond(cond);
+    }
+    if (need_swap) {
+        TCGReg swap = a1;
+        a1 = a2;
+        a2 = swap;
+        cond = tcg_swap_cond(cond);
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        insn = eq_op[vece];
+        break;
+    case TCG_COND_NE:
+        insn = ne_op[vece];
+        break;
+    case TCG_COND_GT:
+        insn = gts_op[vece];
+        break;
+    case TCG_COND_GTU:
+        insn = gtu_op[vece];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_out32(s, insn | VRT(a0) | VRA(a1) | VRB(a2));
+
+    return need_inv;
+}
+
+static void tcg_out_cmp_vec(TCGContext *s, unsigned vece, TCGReg a0,
+                            TCGReg a1, TCGReg a2, TCGCond cond)
+{
+    if (tcg_out_cmp_vec_noinv(s, vece, a0, a1, a2, cond)) {
+        tcg_out_not_vec(s, a0, a0);
+    }
+}
+
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
                            const TCGArg args[TCG_MAX_OP_ARGS],
@@ -3723,10 +3808,6 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         sub_op[4] = { VSUBUBM, VSUBUHM, VSUBUWM, VSUBUDM },
         mul_op[4] = { 0, 0, VMULUWM, VMULLD },
         neg_op[4] = { 0, 0, VNEGW, VNEGD },
-        eq_op[4]  = { VCMPEQUB, VCMPEQUH, VCMPEQUW, VCMPEQUD },
-        ne_op[4]  = { VCMPNEB, VCMPNEH, VCMPNEW, 0 },
-        gts_op[4] = { VCMPGTSB, VCMPGTSH, VCMPGTSW, VCMPGTSD },
-        gtu_op[4] = { VCMPGTUB, VCMPGTUH, VCMPGTUW, VCMPGTUD },
         ssadd_op[4] = { VADDSBS, VADDSHS, VADDSWS, 0 },
         usadd_op[4] = { VADDUBS, VADDUHS, VADDUWS, 0 },
         sssub_op[4] = { VSUBSBS, VSUBSHS, VSUBSWS, 0 },
@@ -3820,9 +3901,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = VANDC;
         break;
     case INDEX_op_not_vec:
-        insn = VNOR;
-        a2 = a1;
-        break;
+        tcg_out_not_vec(s, a0, a1);
+        return;
     case INDEX_op_orc_vec:
         insn = VORC;
         break;
@@ -3837,23 +3917,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_cmp_vec:
-        switch (args[3]) {
-        case TCG_COND_EQ:
-            insn = eq_op[vece];
-            break;
-        case TCG_COND_NE:
-            insn = ne_op[vece];
-            break;
-        case TCG_COND_GT:
-            insn = gts_op[vece];
-            break;
-        case TCG_COND_GTU:
-            insn = gtu_op[vece];
-            break;
-        default:
-            g_assert_not_reached();
-        }
-        break;
+        tcg_out_cmp_vec(s, vece, a0, a1, a2, args[3]);
+        return;
 
     case INDEX_op_bitsel_vec:
         tcg_out32(s, XXSEL | VRT(a0) | VRC(a1) | VRB(a2) | VRA(args[3]));
@@ -3919,56 +3984,6 @@ static void expand_vec_shi(TCGType type, unsigned vece, TCGv_vec v0,
     t1 = tcg_constant_vec(type, MO_8, imm);
     vec_gen_3(opci, type, vece, tcgv_vec_arg(v0),
               tcgv_vec_arg(v1), tcgv_vec_arg(t1));
-}
-
-static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
-                           TCGv_vec v1, TCGv_vec v2, TCGCond cond)
-{
-    bool need_swap = false, need_inv = false;
-
-    tcg_debug_assert(vece <= MO_32 || have_isa_2_07);
-
-    switch (cond) {
-    case TCG_COND_EQ:
-    case TCG_COND_GT:
-    case TCG_COND_GTU:
-        break;
-    case TCG_COND_NE:
-        if (have_isa_3_00 && vece <= MO_32) {
-            break;
-        }
-        /* fall through */
-    case TCG_COND_LE:
-    case TCG_COND_LEU:
-        need_inv = true;
-        break;
-    case TCG_COND_LT:
-    case TCG_COND_LTU:
-        need_swap = true;
-        break;
-    case TCG_COND_GE:
-    case TCG_COND_GEU:
-        need_swap = need_inv = true;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    if (need_inv) {
-        cond = tcg_invert_cond(cond);
-    }
-    if (need_swap) {
-        TCGv_vec t1;
-        t1 = v1, v1 = v2, v2 = t1;
-        cond = tcg_swap_cond(cond);
-    }
-
-    vec_gen_4(INDEX_op_cmp_vec, type, vece, tcgv_vec_arg(v0),
-              tcgv_vec_arg(v1), tcgv_vec_arg(v2), cond);
-
-    if (need_inv) {
-        tcg_gen_not_vec(vece, v0, v0);
-    }
 }
 
 static void expand_vec_mul(TCGType type, unsigned vece, TCGv_vec v0,
@@ -4044,10 +4059,6 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         break;
     case INDEX_op_rotli_vec:
         expand_vec_shi(type, vece, v0, v1, a2, INDEX_op_rotlv_vec);
-        break;
-    case INDEX_op_cmp_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_cmp(type, vece, v0, v1, v2, va_arg(va, TCGArg));
         break;
     case INDEX_op_mul_vec:
         v2 = temp_tcgv_vec(arg_temp(a2));
