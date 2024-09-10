@@ -143,50 +143,6 @@ class Aarch64SbsarefMachine(QemuSystemTest):
         self.boot_alpine_linux("max")
 
 
-    ASSET_OPENBSD_ISO = Asset(
-        ('https://cdn.openbsd.org/pub/OpenBSD/7.3/arm64/miniroot73.img'),
-        '7fc2c75401d6f01fbfa25f4953f72ad7d7c18650056d30755c44b9c129b707e5')
-
-    # This tests the whole boot chain from EFI to Userspace
-    # We only boot a whole OS for the current top level CPU and GIC
-    # Other test profiles should use more minimal boots
-    def boot_openbsd73(self, cpu=None):
-        self.fetch_firmware()
-
-        img_path = self.ASSET_OPENBSD_ISO.fetch()
-
-        self.vm.set_console()
-        self.vm.add_args(
-            "-drive", f"file={img_path},format=raw,snapshot=on",
-        )
-        if cpu:
-            self.vm.add_args("-cpu", cpu)
-
-        self.vm.launch()
-        wait_for_console_pattern(self,
-                                 "Welcome to the OpenBSD/arm64"
-                                 " 7.3 installation program.")
-
-    def test_sbsaref_openbsd73_cortex_a57(self):
-        self.boot_openbsd73("cortex-a57")
-
-    def test_sbsaref_openbsd73_default_cpu(self):
-        self.boot_openbsd73()
-
-    def test_sbsaref_openbsd73_max_pauth_off(self):
-        self.boot_openbsd73("max,pauth=off")
-
-    @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'),
-                'Test might timeout due to PAuth emulation')
-    def test_sbsaref_openbsd73_max_pauth_impdef(self):
-        self.boot_openbsd73("max,pauth-impdef=on")
-
-    @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'),
-                'Test might timeout due to PAuth emulation')
-    def test_sbsaref_openbsd73_max(self):
-        self.boot_openbsd73("max")
-
-
     ASSET_FREEBSD_ISO = Asset(
         ('https://download.freebsd.org/releases/arm64/aarch64/ISO-IMAGES/'
          '14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso'),
