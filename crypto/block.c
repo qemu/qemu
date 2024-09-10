@@ -26,8 +26,8 @@
 #include "block-luks.h"
 
 static const QCryptoBlockDriver *qcrypto_block_drivers[] = {
-    [Q_CRYPTO_BLOCK_FORMAT_QCOW] = &qcrypto_block_driver_qcow,
-    [Q_CRYPTO_BLOCK_FORMAT_LUKS] = &qcrypto_block_driver_luks,
+    [QCRYPTO_BLOCK_FORMAT_QCOW] = &qcrypto_block_driver_qcow,
+    [QCRYPTO_BLOCK_FORMAT_LUKS] = &qcrypto_block_driver_luks,
 };
 
 
@@ -267,7 +267,7 @@ static void qcrypto_block_push_cipher(QCryptoBlock *block,
 
 
 int qcrypto_block_init_cipher(QCryptoBlock *block,
-                              QCryptoCipherAlgorithm alg,
+                              QCryptoCipherAlgo alg,
                               QCryptoCipherMode mode,
                               const uint8_t *key, size_t nkey,
                               Error **errp)
@@ -332,7 +332,7 @@ QCryptoIVGen *qcrypto_block_get_ivgen(QCryptoBlock *block)
 }
 
 
-QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block)
+QCryptoHashAlgo qcrypto_block_get_kdf_hash(QCryptoBlock *block)
 {
     return block->kdfhash;
 }

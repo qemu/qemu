@@ -133,7 +133,7 @@ typedef struct CPUArchState {
     int32_t book_id;
     int32_t drawer_id;
     bool dedicated;
-    CpuS390Entitlement entitlement; /* Used only for vertical polarization */
+    S390CpuEntitlement entitlement; /* Used only for vertical polarization */
     uint64_t cpuid;
 #endif
 

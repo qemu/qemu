@@ -40,7 +40,7 @@ static void qcrypto_afsplit_xor(size_t blocklen,
 }
 
 
-static int qcrypto_afsplit_hash(QCryptoHashAlgorithm hash,
+static int qcrypto_afsplit_hash(QCryptoHashAlgo hash,
                                 size_t blocklen,
                                 uint8_t *block,
                                 Error **errp)
@@ -85,7 +85,7 @@ static int qcrypto_afsplit_hash(QCryptoHashAlgorithm hash,
 }
 
 
-int qcrypto_afsplit_encode(QCryptoHashAlgorithm hash,
+int qcrypto_afsplit_encode(QCryptoHashAlgo hash,
                            size_t blocklen,
                            uint32_t stripes,
                            const uint8_t *in,
@@ -117,7 +117,7 @@ int qcrypto_afsplit_encode(QCryptoHashAlgorithm hash,
 }
 
 
-int qcrypto_afsplit_decode(QCryptoHashAlgorithm hash,
+int qcrypto_afsplit_decode(QCryptoHashAlgo hash,
                            size_t blocklen,
                            uint32_t stripes,
                            const uint8_t *in,

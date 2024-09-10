@@ -1,7 +1,6 @@
 module ./builtin
 object q_empty
 enum QType
-    prefix QTYPE
     member none
     member qnull
     member qnum

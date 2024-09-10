@@ -37,7 +37,7 @@ typedef struct S390TopologyEntry {
 
 typedef struct S390Topology {
     uint8_t *cores_per_socket;
-    CpuS390Polarization polarization;
+    S390CpuPolarization polarization;
 } S390Topology;
 
 typedef QTAILQ_HEAD(, S390TopologyEntry) S390TopologyList;

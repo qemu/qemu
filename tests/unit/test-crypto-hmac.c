@@ -27,43 +27,43 @@
 
 typedef struct QCryptoHmacTestData QCryptoHmacTestData;
 struct QCryptoHmacTestData {
-    QCryptoHashAlgorithm alg;
+    QCryptoHashAlgo alg;
     const char *hex_digest;
 };
 
 static QCryptoHmacTestData test_data[] = {
     {
-        .alg = QCRYPTO_HASH_ALG_MD5,
+        .alg = QCRYPTO_HASH_ALGO_MD5,
         .hex_digest =
             "ede9cb83679ba82d88fbeae865b3f8fc",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_SHA1,
+        .alg = QCRYPTO_HASH_ALGO_SHA1,
         .hex_digest =
             "c7b5a631e3aac975c4ededfcd346e469"
             "dbc5f2d1",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_SHA224,
+        .alg = QCRYPTO_HASH_ALGO_SHA224,
         .hex_digest =
             "5f768179dbb29ca722875d0f461a2e2f"
             "597d0210340a84df1a8e9c63",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_SHA256,
+        .alg = QCRYPTO_HASH_ALGO_SHA256,
         .hex_digest =
             "3798f363c57afa6edaffe39016ca7bad"
             "efd1e670afb0e3987194307dec3197db",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_SHA384,
+        .alg = QCRYPTO_HASH_ALGO_SHA384,
         .hex_digest =
             "d218680a6032d33dccd9882d6a6a7164"
             "64f26623be257a9b2919b185294f4a49"
             "9e54b190bfd6bc5cedd2cd05c7e65e82",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_SHA512,
+        .alg = QCRYPTO_HASH_ALGO_SHA512,
         .hex_digest =
             "835a4f5b3750b4c1fccfa88da2f746a4"
             "900160c9f18964309bb736c13b59491b"
@@ -71,7 +71,7 @@ static QCryptoHmacTestData test_data[] = {
             "94c4ba26862b2dadb59b7ede1d08d53e",
     },
     {
-        .alg = QCRYPTO_HASH_ALG_RIPEMD160,
+        .alg = QCRYPTO_HASH_ALGO_RIPEMD160,
         .hex_digest =
             "94964ed4c1155b62b668c241d67279e5"
             "8a711676",

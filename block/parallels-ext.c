@@ -206,7 +206,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
         goto fail;
     }
 
-    ret = qcrypto_hash_bytes(QCRYPTO_HASH_ALG_MD5, (char *)pos, remaining,
+    ret = qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_MD5, (char *)pos, remaining,
                              &hash, &hash_len, errp);
     if (ret < 0) {
         goto fail;

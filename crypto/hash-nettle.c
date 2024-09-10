@@ -50,43 +50,43 @@ struct qcrypto_hash_alg {
     qcrypto_nettle_result result;
     size_t len;
 } qcrypto_hash_alg_map[] = {
-    [QCRYPTO_HASH_ALG_MD5] = {
+    [QCRYPTO_HASH_ALGO_MD5] = {
         .init = (qcrypto_nettle_init)md5_init,
         .write = (qcrypto_nettle_write)md5_update,
         .result = (qcrypto_nettle_result)md5_digest,
         .len = MD5_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA1] = {
+    [QCRYPTO_HASH_ALGO_SHA1] = {
         .init = (qcrypto_nettle_init)sha1_init,
         .write = (qcrypto_nettle_write)sha1_update,
         .result = (qcrypto_nettle_result)sha1_digest,
         .len = SHA1_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA224] = {
+    [QCRYPTO_HASH_ALGO_SHA224] = {
         .init = (qcrypto_nettle_init)sha224_init,
         .write = (qcrypto_nettle_write)sha224_update,
         .result = (qcrypto_nettle_result)sha224_digest,
         .len = SHA224_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA256] = {
+    [QCRYPTO_HASH_ALGO_SHA256] = {
         .init = (qcrypto_nettle_init)sha256_init,
         .write = (qcrypto_nettle_write)sha256_update,
         .result = (qcrypto_nettle_result)sha256_digest,
         .len = SHA256_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA384] = {
+    [QCRYPTO_HASH_ALGO_SHA384] = {
         .init = (qcrypto_nettle_init)sha384_init,
         .write = (qcrypto_nettle_write)sha384_update,
         .result = (qcrypto_nettle_result)sha384_digest,
         .len = SHA384_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA512] = {
+    [QCRYPTO_HASH_ALGO_SHA512] = {
         .init = (qcrypto_nettle_init)sha512_init,
         .write = (qcrypto_nettle_write)sha512_update,
         .result = (qcrypto_nettle_result)sha512_digest,
         .len = SHA512_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_RIPEMD160] = {
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = {
         .init = (qcrypto_nettle_init)ripemd160_init,
         .write = (qcrypto_nettle_write)ripemd160_update,
         .result = (qcrypto_nettle_result)ripemd160_digest,
@@ -94,7 +94,7 @@ struct qcrypto_hash_alg {
     },
 };
 
-gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
+gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
         qcrypto_hash_alg_map[alg].init != NULL) {
@@ -105,7 +105,7 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 
 
 static int
-qcrypto_nettle_hash_bytesv(QCryptoHashAlgorithm alg,
+qcrypto_nettle_hash_bytesv(QCryptoHashAlgo alg,
                            const struct iovec *iov,
                            size_t niov,
                            uint8_t **result,

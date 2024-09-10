@@ -393,7 +393,7 @@ static int quorum_compute_hash(QuorumAIOCB *acb, int i, QuorumVoteValue *hash)
     /* XXX - would be nice if we could pass in the Error **
      * and propagate that back, but this quorum code is
      * restricted to just errno values currently */
-    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256,
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALGO_SHA256,
                             qiov->iov, qiov->niov,
                             &data, &len,
                             NULL) < 0) {
@@ -1308,7 +1308,7 @@ static BlockDriver bdrv_quorum = {
 
 static void bdrv_quorum_init(void)
 {
-    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALGO_SHA256)) {
         /* SHA256 hash support is required for quorum device */
         return;
     }

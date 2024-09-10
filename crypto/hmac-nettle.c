@@ -46,44 +46,44 @@ struct qcrypto_nettle_hmac_alg {
     qcrypto_nettle_hmac_update update;
     qcrypto_nettle_hmac_digest digest;
     size_t len;
-} qcrypto_hmac_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = {
+} qcrypto_hmac_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_md5_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_md5_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_md5_digest,
         .len = MD5_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA1] = {
+    [QCRYPTO_HASH_ALGO_SHA1] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_sha1_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_sha1_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_sha1_digest,
         .len = SHA1_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA224] = {
+    [QCRYPTO_HASH_ALGO_SHA224] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_sha224_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_sha224_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_sha224_digest,
         .len = SHA224_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA256] = {
+    [QCRYPTO_HASH_ALGO_SHA256] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_sha256_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_sha256_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_sha256_digest,
         .len = SHA256_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA384] = {
+    [QCRYPTO_HASH_ALGO_SHA384] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_sha384_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_sha384_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_sha384_digest,
         .len = SHA384_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_SHA512] = {
+    [QCRYPTO_HASH_ALGO_SHA512] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_sha512_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_sha512_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_sha512_digest,
         .len = SHA512_DIGEST_SIZE,
     },
-    [QCRYPTO_HASH_ALG_RIPEMD160] = {
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = {
         .setkey = (qcrypto_nettle_hmac_setkey)hmac_ripemd160_set_key,
         .update = (qcrypto_nettle_hmac_update)hmac_ripemd160_update,
         .digest = (qcrypto_nettle_hmac_digest)hmac_ripemd160_digest,
@@ -91,7 +91,7 @@ struct qcrypto_nettle_hmac_alg {
     },
 };
 
-bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
+bool qcrypto_hmac_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hmac_alg_map) &&
         qcrypto_hmac_alg_map[alg].setkey != NULL) {
@@ -101,7 +101,7 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
     return false;
 }
 
-void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+void *qcrypto_hmac_ctx_new(QCryptoHashAlgo alg,
                            const uint8_t *key, size_t nkey,
                            Error **errp)
 {
@@ -109,7 +109,7 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
     if (!qcrypto_hmac_supports(alg)) {
         error_setg(errp, "Unsupported hmac algorithm %s",
-                   QCryptoHashAlgorithm_str(alg));
+                   QCryptoHashAlgo_str(alg));
         return NULL;
     }
 

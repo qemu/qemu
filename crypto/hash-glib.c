@@ -24,17 +24,17 @@
 #include "hashpriv.h"
 
 
-static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = G_CHECKSUM_MD5,
-    [QCRYPTO_HASH_ALG_SHA1] = G_CHECKSUM_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224] = -1,
-    [QCRYPTO_HASH_ALG_SHA256] = G_CHECKSUM_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384] = G_CHECKSUM_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512] = G_CHECKSUM_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = -1,
+static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5] = G_CHECKSUM_MD5,
+    [QCRYPTO_HASH_ALGO_SHA1] = G_CHECKSUM_SHA1,
+    [QCRYPTO_HASH_ALGO_SHA224] = -1,
+    [QCRYPTO_HASH_ALGO_SHA256] = G_CHECKSUM_SHA256,
+    [QCRYPTO_HASH_ALGO_SHA384] = G_CHECKSUM_SHA384,
+    [QCRYPTO_HASH_ALGO_SHA512] = G_CHECKSUM_SHA512,
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = -1,
 };
 
-gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
+gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
         qcrypto_hash_alg_map[alg] != -1) {
@@ -45,7 +45,7 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
 
 
 static int
-qcrypto_glib_hash_bytesv(QCryptoHashAlgorithm alg,
+qcrypto_glib_hash_bytesv(QCryptoHashAlgo alg,
                          const struct iovec *iov,
                          size_t niov,
                          uint8_t **result,

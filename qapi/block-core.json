@@ -3746,7 +3746,7 @@
 #
 # Since: 4.1
 ##
-{ 'enum': 'BlkdebugIOType', 'prefix': 'BLKDEBUG_IO_TYPE',
+{ 'enum': 'BlkdebugIOType',
   'data': [ 'read', 'write', 'write-zeroes', 'discard', 'flush',
             'block-status' ] }
 
@@ -4163,7 +4163,7 @@
 ##
 { 'struct': 'RbdEncryptionCreateOptionsLUKSBase',
   'base': 'RbdEncryptionOptionsLUKSBase',
-  'data': { '*cipher-alg': 'QCryptoCipherAlgorithm' } }
+  'data': { '*cipher-alg': 'QCryptoCipherAlgo' } }
 
 ##
 # @RbdEncryptionOptionsLUKS:

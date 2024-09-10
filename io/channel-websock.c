@@ -351,7 +351,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
               QIO_CHANNEL_WEBSOCK_GUID_LEN + 1);
 
     /* hash and encode it */
-    if (qcrypto_hash_base64(QCRYPTO_HASH_ALG_SHA1,
+    if (qcrypto_hash_base64(QCRYPTO_HASH_ALGO_SHA1,
                             combined_key,
                             QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN +
                             QIO_CHANNEL_WEBSOCK_GUID_LEN,

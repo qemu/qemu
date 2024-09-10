@@ -573,6 +573,7 @@
 # Since: 5.0
 ##
 { 'enum': 'MultiFDCompression',
+  'prefix': 'MULTIFD_COMPRESSION',
   'data': [ 'none', 'zlib',
             { 'name': 'zstd', 'if': 'CONFIG_ZSTD' },
             { 'name': 'qatzip', 'if': 'CONFIG_QATZIP'},

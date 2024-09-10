@@ -27,7 +27,7 @@
 #define QEMU_GNUTLS_XTS
 #endif
 
-bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
+bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode)
 {
 
@@ -35,11 +35,11 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
         switch (alg) {
-        case QCRYPTO_CIPHER_ALG_AES_128:
-        case QCRYPTO_CIPHER_ALG_AES_192:
-        case QCRYPTO_CIPHER_ALG_AES_256:
-        case QCRYPTO_CIPHER_ALG_DES:
-        case QCRYPTO_CIPHER_ALG_3DES:
+        case QCRYPTO_CIPHER_ALGO_AES_128:
+        case QCRYPTO_CIPHER_ALGO_AES_192:
+        case QCRYPTO_CIPHER_ALGO_AES_256:
+        case QCRYPTO_CIPHER_ALGO_DES:
+        case QCRYPTO_CIPHER_ALGO_3DES:
             return true;
         default:
             return false;
@@ -47,8 +47,8 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
 #ifdef QEMU_GNUTLS_XTS
     case QCRYPTO_CIPHER_MODE_XTS:
         switch (alg) {
-        case QCRYPTO_CIPHER_ALG_AES_128:
-        case QCRYPTO_CIPHER_ALG_AES_256:
+        case QCRYPTO_CIPHER_ALGO_AES_128:
+        case QCRYPTO_CIPHER_ALGO_AES_256:
             return true;
         default:
             return false;
@@ -229,7 +229,7 @@ static struct QCryptoCipherDriver gnutls_driver = {
     .cipher_free = qcrypto_gnutls_cipher_free,
 };
 
-static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
                                              QCryptoCipherMode mode,
                                              const uint8_t *key,
                                              size_t nkey,
@@ -244,10 +244,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 #ifdef QEMU_GNUTLS_XTS
     case QCRYPTO_CIPHER_MODE_XTS:
         switch (alg) {
-        case QCRYPTO_CIPHER_ALG_AES_128:
+        case QCRYPTO_CIPHER_ALGO_AES_128:
             galg = GNUTLS_CIPHER_AES_128_XTS;
             break;
-        case QCRYPTO_CIPHER_ALG_AES_256:
+        case QCRYPTO_CIPHER_ALGO_AES_256:
             galg = GNUTLS_CIPHER_AES_256_XTS;
             break;
         default:
@@ -259,19 +259,19 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
         switch (alg) {
-        case QCRYPTO_CIPHER_ALG_AES_128:
+        case QCRYPTO_CIPHER_ALGO_AES_128:
             galg = GNUTLS_CIPHER_AES_128_CBC;
             break;
-        case QCRYPTO_CIPHER_ALG_AES_192:
+        case QCRYPTO_CIPHER_ALGO_AES_192:
             galg = GNUTLS_CIPHER_AES_192_CBC;
             break;
-        case QCRYPTO_CIPHER_ALG_AES_256:
+        case QCRYPTO_CIPHER_ALGO_AES_256:
             galg = GNUTLS_CIPHER_AES_256_CBC;
             break;
-        case QCRYPTO_CIPHER_ALG_DES:
+        case QCRYPTO_CIPHER_ALGO_DES:
             galg = GNUTLS_CIPHER_DES_CBC;
             break;
-        case QCRYPTO_CIPHER_ALG_3DES:
+        case QCRYPTO_CIPHER_ALGO_3DES:
             galg = GNUTLS_CIPHER_3DES_CBC;
             break;
         default:
@@ -284,7 +284,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
 
     if (galg == GNUTLS_CIPHER_UNKNOWN) {
         error_setg(errp, "Unsupported cipher algorithm %s with %s mode",
-                   QCryptoCipherAlgorithm_str(alg),
+                   QCryptoCipherAlgo_str(alg),
                    QCryptoCipherMode_str(mode));
         return NULL;
     }
@@ -310,8 +310,8 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         }
     }
 
-    if (alg == QCRYPTO_CIPHER_ALG_DES ||
-        alg == QCRYPTO_CIPHER_ALG_3DES)
+    if (alg == QCRYPTO_CIPHER_ALGO_DES ||
+        alg == QCRYPTO_CIPHER_ALGO_3DES)
         ctx->blocksize = 8;
     else
         ctx->blocksize = 16;

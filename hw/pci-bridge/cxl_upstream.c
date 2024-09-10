@@ -234,7 +234,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
                 .type = CDAT_TYPE_SSLBIS,
                 .length = sslbis_size,
             },
-            .data_type = HMATLB_DATA_TYPE_ACCESS_LATENCY,
+            .data_type = HMAT_LB_DATA_TYPE_ACCESS_LATENCY,
             .entry_base_unit = 10000,
         },
     };
@@ -254,7 +254,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
                 .type = CDAT_TYPE_SSLBIS,
                 .length = sslbis_size,
             },
-            .data_type = HMATLB_DATA_TYPE_ACCESS_BANDWIDTH,
+            .data_type = HMAT_LB_DATA_TYPE_ACCESS_BANDWIDTH,
             .entry_base_unit = 1024,
         },
     };

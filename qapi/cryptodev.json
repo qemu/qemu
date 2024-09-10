@@ -9,7 +9,7 @@
 ##
 
 ##
-# @QCryptodevBackendAlgType:
+# @QCryptodevBackendAlgoType:
 #
 # The supported algorithm types of a crypto device.
 #
@@ -19,8 +19,7 @@
 #
 # Since: 8.0
 ##
-{ 'enum': 'QCryptodevBackendAlgType',
-  'prefix': 'QCRYPTODEV_BACKEND_ALG',
+{ 'enum': 'QCryptodevBackendAlgoType',
   'data': ['sym', 'asym']}
 
 ##
@@ -31,7 +30,6 @@
 # Since: 8.0
 ##
 { 'enum': 'QCryptodevBackendServiceType',
-  'prefix': 'QCRYPTODEV_BACKEND_SERVICE',
   'data': ['cipher', 'hash', 'mac', 'aead', 'akcipher']}
 
 ##
@@ -48,7 +46,6 @@
 # Since: 8.0
 ##
 { 'enum': 'QCryptodevBackendType',
-  'prefix': 'QCRYPTODEV_BACKEND_TYPE',
   'data': ['builtin', 'vhost-user', 'lkcf']}
 
 ##

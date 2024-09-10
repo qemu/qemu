@@ -68,38 +68,38 @@ struct QCryptoBlockLUKSCipherNameMap {
 
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_aes[] = {
-    { 16, QCRYPTO_CIPHER_ALG_AES_128 },
-    { 24, QCRYPTO_CIPHER_ALG_AES_192 },
-    { 32, QCRYPTO_CIPHER_ALG_AES_256 },
+    { 16, QCRYPTO_CIPHER_ALGO_AES_128 },
+    { 24, QCRYPTO_CIPHER_ALGO_AES_192 },
+    { 32, QCRYPTO_CIPHER_ALGO_AES_256 },
     { 0, 0 },
 };
 
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_cast5[] = {
-    { 16, QCRYPTO_CIPHER_ALG_CAST5_128 },
+    { 16, QCRYPTO_CIPHER_ALGO_CAST5_128 },
     { 0, 0 },
 };
 
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_serpent[] = {
-    { 16, QCRYPTO_CIPHER_ALG_SERPENT_128 },
-    { 24, QCRYPTO_CIPHER_ALG_SERPENT_192 },
-    { 32, QCRYPTO_CIPHER_ALG_SERPENT_256 },
+    { 16, QCRYPTO_CIPHER_ALGO_SERPENT_128 },
+    { 24, QCRYPTO_CIPHER_ALGO_SERPENT_192 },
+    { 32, QCRYPTO_CIPHER_ALGO_SERPENT_256 },
     { 0, 0 },
 };
 
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_twofish[] = {
-    { 16, QCRYPTO_CIPHER_ALG_TWOFISH_128 },
-    { 24, QCRYPTO_CIPHER_ALG_TWOFISH_192 },
-    { 32, QCRYPTO_CIPHER_ALG_TWOFISH_256 },
+    { 16, QCRYPTO_CIPHER_ALGO_TWOFISH_128 },
+    { 24, QCRYPTO_CIPHER_ALGO_TWOFISH_192 },
+    { 32, QCRYPTO_CIPHER_ALGO_TWOFISH_256 },
     { 0, 0 },
 };
 
 #ifdef CONFIG_CRYPTO_SM4
 static const QCryptoBlockLUKSCipherSizeMap
 qcrypto_block_luks_cipher_size_map_sm4[] = {
-    { 16, QCRYPTO_CIPHER_ALG_SM4},
+    { 16, QCRYPTO_CIPHER_ALGO_SM4},
     { 0, 0 },
 };
 #endif
@@ -123,25 +123,25 @@ struct QCryptoBlockLUKS {
     QCryptoBlockLUKSHeader header;
 
     /* Main encryption algorithm used for encryption*/
-    QCryptoCipherAlgorithm cipher_alg;
+    QCryptoCipherAlgo cipher_alg;
 
     /* Mode of encryption for the selected encryption algorithm */
     QCryptoCipherMode cipher_mode;
 
     /* Initialization vector generation algorithm */
-    QCryptoIVGenAlgorithm ivgen_alg;
+    QCryptoIVGenAlgo ivgen_alg;
 
     /* Hash algorithm used for IV generation*/
-    QCryptoHashAlgorithm ivgen_hash_alg;
+    QCryptoHashAlgo ivgen_hash_alg;
 
     /*
      * Encryption algorithm used for IV generation.
      * Usually the same as main encryption algorithm
      */
-    QCryptoCipherAlgorithm ivgen_cipher_alg;
+    QCryptoCipherAlgo ivgen_cipher_alg;
 
     /* Hash algorithm used in pbkdf2 function */
-    QCryptoHashAlgorithm hash_alg;
+    QCryptoHashAlgo hash_alg;
 
     /* Name of the secret that was used to open the image */
     char *secret;
@@ -179,7 +179,7 @@ static int qcrypto_block_luks_cipher_name_lookup(const char *name,
 }
 
 static const char *
-qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgorithm alg,
+qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgo alg,
                                      Error **errp)
 {
     const QCryptoBlockLUKSCipherNameMap *map =
@@ -195,7 +195,7 @@ qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgorithm alg,
     }
 
     error_setg(errp, "Algorithm '%s' not supported",
-               QCryptoCipherAlgorithm_str(alg));
+               QCryptoCipherAlgo_str(alg));
     return NULL;
 }
 
@@ -223,13 +223,13 @@ static int qcrypto_block_luks_name_lookup(const char *name,
 
 #define qcrypto_block_luks_hash_name_lookup(name, errp)                 \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   &QCryptoHashAlgorithm_lookup,        \
+                                   &QCryptoHashAlgo_lookup,        \
                                    "Hash algorithm",                    \
                                    errp)
 
 #define qcrypto_block_luks_ivgen_name_lookup(name, errp)                \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   &QCryptoIVGenAlgorithm_lookup,       \
+                                   &QCryptoIVGenAlgo_lookup,       \
                                    "IV generator",                      \
                                    errp)
 
@@ -262,9 +262,9 @@ qcrypto_block_luks_has_format(const uint8_t *buf,
  * the cipher since that gets a key length matching the digest
  * size, not AES 128 with truncated digest as might be imagined
  */
-static QCryptoCipherAlgorithm
-qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
-                                QCryptoHashAlgorithm hash,
+static QCryptoCipherAlgo
+qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgo cipher,
+                                QCryptoHashAlgo hash,
                                 Error **errp)
 {
     size_t digestlen = qcrypto_hash_digest_len(hash);
@@ -274,54 +274,54 @@ qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
     }
 
     switch (cipher) {
-    case QCRYPTO_CIPHER_ALG_AES_128:
-    case QCRYPTO_CIPHER_ALG_AES_192:
-    case QCRYPTO_CIPHER_ALG_AES_256:
+    case QCRYPTO_CIPHER_ALGO_AES_128:
+    case QCRYPTO_CIPHER_ALGO_AES_192:
+    case QCRYPTO_CIPHER_ALGO_AES_256:
         if (digestlen == qcrypto_cipher_get_key_len(
-                QCRYPTO_CIPHER_ALG_AES_128)) {
-            return QCRYPTO_CIPHER_ALG_AES_128;
+                QCRYPTO_CIPHER_ALGO_AES_128)) {
+            return QCRYPTO_CIPHER_ALGO_AES_128;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_AES_192)) {
-            return QCRYPTO_CIPHER_ALG_AES_192;
+                       QCRYPTO_CIPHER_ALGO_AES_192)) {
+            return QCRYPTO_CIPHER_ALGO_AES_192;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_AES_256)) {
-            return QCRYPTO_CIPHER_ALG_AES_256;
+                       QCRYPTO_CIPHER_ALGO_AES_256)) {
+            return QCRYPTO_CIPHER_ALGO_AES_256;
         } else {
             error_setg(errp, "No AES cipher with key size %zu available",
                        digestlen);
             return 0;
         }
         break;
-    case QCRYPTO_CIPHER_ALG_SERPENT_128:
-    case QCRYPTO_CIPHER_ALG_SERPENT_192:
-    case QCRYPTO_CIPHER_ALG_SERPENT_256:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_128:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_192:
+    case QCRYPTO_CIPHER_ALGO_SERPENT_256:
         if (digestlen == qcrypto_cipher_get_key_len(
-                QCRYPTO_CIPHER_ALG_SERPENT_128)) {
-            return QCRYPTO_CIPHER_ALG_SERPENT_128;
+                QCRYPTO_CIPHER_ALGO_SERPENT_128)) {
+            return QCRYPTO_CIPHER_ALGO_SERPENT_128;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_SERPENT_192)) {
-            return QCRYPTO_CIPHER_ALG_SERPENT_192;
+                       QCRYPTO_CIPHER_ALGO_SERPENT_192)) {
+            return QCRYPTO_CIPHER_ALGO_SERPENT_192;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_SERPENT_256)) {
-            return QCRYPTO_CIPHER_ALG_SERPENT_256;
+                       QCRYPTO_CIPHER_ALGO_SERPENT_256)) {
+            return QCRYPTO_CIPHER_ALGO_SERPENT_256;
         } else {
             error_setg(errp, "No Serpent cipher with key size %zu available",
                        digestlen);
             return 0;
         }
         break;
-    case QCRYPTO_CIPHER_ALG_TWOFISH_128:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_192:
-    case QCRYPTO_CIPHER_ALG_TWOFISH_256:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_128:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_192:
+    case QCRYPTO_CIPHER_ALGO_TWOFISH_256:
         if (digestlen == qcrypto_cipher_get_key_len(
-                QCRYPTO_CIPHER_ALG_TWOFISH_128)) {
-            return QCRYPTO_CIPHER_ALG_TWOFISH_128;
+                QCRYPTO_CIPHER_ALGO_TWOFISH_128)) {
+            return QCRYPTO_CIPHER_ALGO_TWOFISH_128;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_TWOFISH_192)) {
-            return QCRYPTO_CIPHER_ALG_TWOFISH_192;
+                       QCRYPTO_CIPHER_ALGO_TWOFISH_192)) {
+            return QCRYPTO_CIPHER_ALGO_TWOFISH_192;
         } else if (digestlen == qcrypto_cipher_get_key_len(
-                       QCRYPTO_CIPHER_ALG_TWOFISH_256)) {
-            return QCRYPTO_CIPHER_ALG_TWOFISH_256;
+                       QCRYPTO_CIPHER_ALGO_TWOFISH_256)) {
+            return QCRYPTO_CIPHER_ALGO_TWOFISH_256;
         } else {
             error_setg(errp, "No Twofish cipher with key size %zu available",
                        digestlen);
@@ -330,7 +330,7 @@ qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
         break;
     default:
         error_setg(errp, "Cipher %s not supported with essiv",
-                   QCryptoCipherAlgorithm_str(cipher));
+                   QCryptoCipherAlgo_str(cipher));
         return 0;
     }
 }
@@ -660,7 +660,7 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
         return -1;
     }
 
-    if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks->ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         if (!ivhash_name) {
             error_setg(errp, "Missing IV generator hash specification");
             return -1;
@@ -1322,20 +1322,20 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         luks_opts.iter_time = QCRYPTO_BLOCK_LUKS_DEFAULT_ITER_TIME_MS;
     }
     if (!luks_opts.has_cipher_alg) {
-        luks_opts.cipher_alg = QCRYPTO_CIPHER_ALG_AES_256;
+        luks_opts.cipher_alg = QCRYPTO_CIPHER_ALGO_AES_256;
     }
     if (!luks_opts.has_cipher_mode) {
         luks_opts.cipher_mode = QCRYPTO_CIPHER_MODE_XTS;
     }
     if (!luks_opts.has_ivgen_alg) {
-        luks_opts.ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64;
+        luks_opts.ivgen_alg = QCRYPTO_IV_GEN_ALGO_PLAIN64;
     }
     if (!luks_opts.has_hash_alg) {
-        luks_opts.hash_alg = QCRYPTO_HASH_ALG_SHA256;
+        luks_opts.hash_alg = QCRYPTO_HASH_ALGO_SHA256;
     }
-    if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks_opts.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         if (!luks_opts.has_ivgen_hash_alg) {
-            luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALG_SHA256;
+            luks_opts.ivgen_hash_alg = QCRYPTO_HASH_ALGO_SHA256;
             luks_opts.has_ivgen_hash_alg = true;
         }
     }
@@ -1384,15 +1384,15 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     }
 
     cipher_mode = QCryptoCipherMode_str(luks_opts.cipher_mode);
-    ivgen_alg = QCryptoIVGenAlgorithm_str(luks_opts.ivgen_alg);
+    ivgen_alg = QCryptoIVGenAlgo_str(luks_opts.ivgen_alg);
     if (luks_opts.has_ivgen_hash_alg) {
-        ivgen_hash_alg = QCryptoHashAlgorithm_str(luks_opts.ivgen_hash_alg);
+        ivgen_hash_alg = QCryptoHashAlgo_str(luks_opts.ivgen_hash_alg);
         cipher_mode_spec = g_strdup_printf("%s-%s:%s", cipher_mode, ivgen_alg,
                                            ivgen_hash_alg);
     } else {
         cipher_mode_spec = g_strdup_printf("%s-%s", cipher_mode, ivgen_alg);
     }
-    hash_alg = QCryptoHashAlgorithm_str(luks_opts.hash_alg);
+    hash_alg = QCryptoHashAlgo_str(luks_opts.hash_alg);
 
 
     if (strlen(cipher_alg) >= QCRYPTO_BLOCK_LUKS_CIPHER_NAME_LEN) {
@@ -1411,7 +1411,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
-    if (luks_opts.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (luks_opts.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         luks->ivgen_cipher_alg =
                 qcrypto_block_luks_essiv_cipher(luks_opts.cipher_alg,
                                                 luks_opts.ivgen_hash_alg,
@@ -1861,11 +1861,11 @@ qcrypto_block_luks_amend_options(QCryptoBlock *block,
     QCryptoBlockAmendOptionsLUKS *opts_luks = &options->u.luks;
 
     switch (opts_luks->state) {
-    case Q_CRYPTO_BLOCKLUKS_KEYSLOT_STATE_ACTIVE:
+    case QCRYPTO_BLOCK_LUKS_KEYSLOT_STATE_ACTIVE:
         return qcrypto_block_luks_amend_add_keyslot(block, readfunc,
                                                     writefunc, opaque,
                                                     opts_luks, force, errp);
-    case Q_CRYPTO_BLOCKLUKS_KEYSLOT_STATE_INACTIVE:
+    case QCRYPTO_BLOCK_LUKS_KEYSLOT_STATE_INACTIVE:
         return qcrypto_block_luks_amend_erase_keyslots(block, readfunc,
                                                        writefunc, opaque,
                                                        opts_luks, force, errp);
@@ -1886,7 +1886,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
     info->u.luks.cipher_alg = luks->cipher_alg;
     info->u.luks.cipher_mode = luks->cipher_mode;
     info->u.luks.ivgen_alg = luks->ivgen_alg;
-    if (info->u.luks.ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+    if (info->u.luks.ivgen_alg == QCRYPTO_IV_GEN_ALGO_ESSIV) {
         info->u.luks.has_ivgen_hash_alg = true;
         info->u.luks.ivgen_hash_alg = luks->ivgen_hash_alg;
     }

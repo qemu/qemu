@@ -14,7 +14,7 @@
 #include "crypto/hash.h"
 
 int qcrypto_get_x509_cert_fingerprint(uint8_t *cert, size_t size,
-                                      QCryptoHashAlgorithm hash,
+                                      QCryptoHashAlgo hash,
                                       uint8_t *result,
                                       size_t *resultlen,
                                       Error **errp);

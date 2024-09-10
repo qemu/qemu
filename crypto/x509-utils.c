@@ -15,18 +15,18 @@
 #include <gnutls/crypto.h>
 #include <gnutls/x509.h>
 
-static const int qcrypto_to_gnutls_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = GNUTLS_DIG_MD5,
-    [QCRYPTO_HASH_ALG_SHA1] = GNUTLS_DIG_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224] = GNUTLS_DIG_SHA224,
-    [QCRYPTO_HASH_ALG_SHA256] = GNUTLS_DIG_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384] = GNUTLS_DIG_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512] = GNUTLS_DIG_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = GNUTLS_DIG_RMD160,
+static const int qcrypto_to_gnutls_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5] = GNUTLS_DIG_MD5,
+    [QCRYPTO_HASH_ALGO_SHA1] = GNUTLS_DIG_SHA1,
+    [QCRYPTO_HASH_ALGO_SHA224] = GNUTLS_DIG_SHA224,
+    [QCRYPTO_HASH_ALGO_SHA256] = GNUTLS_DIG_SHA256,
+    [QCRYPTO_HASH_ALGO_SHA384] = GNUTLS_DIG_SHA384,
+    [QCRYPTO_HASH_ALGO_SHA512] = GNUTLS_DIG_SHA512,
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = GNUTLS_DIG_RMD160,
 };
 
 int qcrypto_get_x509_cert_fingerprint(uint8_t *cert, size_t size,
-                                      QCryptoHashAlgorithm alg,
+                                      QCryptoHashAlgo alg,
                                       uint8_t *result,
                                       size_t *resultlen,
                                       Error **errp)

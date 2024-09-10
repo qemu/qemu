@@ -31,7 +31,7 @@
 typedef struct QCryptoPbkdfTestData QCryptoPbkdfTestData;
 struct QCryptoPbkdfTestData {
     const char *path;
-    QCryptoHashAlgorithm hash;
+    QCryptoHashAlgo hash;
     unsigned int iterations;
     const char *key;
     size_t nkey;
@@ -52,7 +52,7 @@ static QCryptoPbkdfTestData test_data[] = {
     /* RFC 3962 test data */
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter1",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 1,
         .key = "password",
         .nkey = 8,
@@ -66,7 +66,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter2",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 2,
         .key = "password",
         .nkey = 8,
@@ -80,7 +80,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter1200a",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 1200,
         .key = "password",
         .nkey = 8,
@@ -94,7 +94,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter5",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 5,
         .key = "password",
         .nkey = 8,
@@ -108,7 +108,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter1200b",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -123,7 +123,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter1200c",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -138,7 +138,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc3962/sha1/iter50",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 50,
         .key = "\360\235\204\236", /* g-clef ("\xf09d849e) */
         .nkey = 4,
@@ -154,7 +154,7 @@ static QCryptoPbkdfTestData test_data[] = {
     /* RFC-6070 test data */
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter1",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 1,
         .key = "password",
         .nkey = 8,
@@ -166,7 +166,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter2",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 2,
         .key = "password",
         .nkey = 8,
@@ -178,7 +178,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter4096",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 4096,
         .key = "password",
         .nkey = 8,
@@ -190,7 +190,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter16777216",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 16777216,
         .key = "password",
         .nkey = 8,
@@ -203,7 +203,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter4096a",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 4096,
         .key = "passwordPASSWORDpassword",
         .nkey = 24,
@@ -216,7 +216,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/rfc6070/sha1/iter4096b",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 4096,
         .key = "pass\0word",
         .nkey = 9,
@@ -231,7 +231,7 @@ static QCryptoPbkdfTestData test_data[] = {
     {
         /* empty password test. */
         .path = "/crypto/pbkdf/nonrfc/sha1/iter2",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .iterations = 2,
         .key = "",
         .nkey = 0,
@@ -244,7 +244,7 @@ static QCryptoPbkdfTestData test_data[] = {
     {
         /* Password exceeds block size test */
         .path = "/crypto/pbkdf/nonrfc/sha256/iter1200",
-        .hash = QCRYPTO_HASH_ALG_SHA256,
+        .hash = QCRYPTO_HASH_ALGO_SHA256,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -259,7 +259,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/nonrfc/sha512/iter1200",
-        .hash = QCRYPTO_HASH_ALG_SHA512,
+        .hash = QCRYPTO_HASH_ALGO_SHA512,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -276,7 +276,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/nonrfc/sha224/iter1200",
-        .hash = QCRYPTO_HASH_ALG_SHA224,
+        .hash = QCRYPTO_HASH_ALGO_SHA224,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -293,7 +293,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/nonrfc/sha384/iter1200",
-        .hash = QCRYPTO_HASH_ALG_SHA384,
+        .hash = QCRYPTO_HASH_ALGO_SHA384,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -310,7 +310,7 @@ static QCryptoPbkdfTestData test_data[] = {
     },
     {
         .path = "/crypto/pbkdf/nonrfc/ripemd160/iter1200",
-        .hash = QCRYPTO_HASH_ALG_RIPEMD160,
+        .hash = QCRYPTO_HASH_ALGO_RIPEMD160,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -328,7 +328,7 @@ static QCryptoPbkdfTestData test_data[] = {
 #if 0
     {
         .path = "/crypto/pbkdf/nonrfc/whirlpool/iter1200",
-        .hash = QCRYPTO_HASH_ALG_WHIRLPOOL,
+        .hash = QCRYPTO_HASH_ALGO_WHIRLPOOL,
         .iterations = 1200,
         .key = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -402,7 +402,7 @@ static void test_pbkdf_timing_sha256(void)
     memset(key, 0x5d, sizeof(key));
     memset(salt, 0x7c, sizeof(salt));
 
-    iters = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALG_SHA256,
+    iters = qcrypto_pbkdf2_count_iters(QCRYPTO_HASH_ALGO_SHA256,
                                        key, sizeof(key),
                                        salt, sizeof(salt),
                                        32,
@@ -431,7 +431,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if (g_test_slow() && qcrypto_pbkdf2_supports(QCRYPTO_HASH_ALG_SHA256)) {
+    if (g_test_slow() && qcrypto_pbkdf2_supports(QCRYPTO_HASH_ALGO_SHA256)) {
         g_test_add_func("/crypt0/pbkdf/timing/sha256", test_pbkdf_timing_sha256);
     }
 

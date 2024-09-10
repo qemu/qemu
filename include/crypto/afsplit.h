@@ -46,7 +46,7 @@
  *
  * splitkey = g_new0(uint8_t, nkey * stripes);
  *
- * if (qcrypto_afsplit_encode(QCRYPTO_HASH_ALG_SHA256,
+ * if (qcrypto_afsplit_encode(QCRYPTO_HASH_ALGO_SHA256,
  *                            nkey, stripes,
  *                            masterkey, splitkey, errp) < 0) {
  *     g_free(splitkey);
@@ -71,7 +71,7 @@
  *
  * masterkey = g_new0(uint8_t, nkey);
  *
- * if (qcrypto_afsplit_decode(QCRYPTO_HASH_ALG_SHA256,
+ * if (qcrypto_afsplit_decode(QCRYPTO_HASH_ALGO_SHA256,
  *                            nkey, stripes,
  *                            splitkey, masterkey, errp) < 0) {
  *     g_free(splitkey);
@@ -102,7 +102,7 @@
  *
  * Returns: 0 on success, -1 on error;
  */
-int qcrypto_afsplit_encode(QCryptoHashAlgorithm hash,
+int qcrypto_afsplit_encode(QCryptoHashAlgo hash,
                            size_t blocklen,
                            uint32_t stripes,
                            const uint8_t *in,
@@ -124,7 +124,7 @@ int qcrypto_afsplit_encode(QCryptoHashAlgorithm hash,
  *
  * Returns: 0 on success, -1 on error;
  */
-int qcrypto_afsplit_decode(QCryptoHashAlgorithm hash,
+int qcrypto_afsplit_decode(QCryptoHashAlgo hash,
                            size_t blocklen,
                            uint32_t stripes,
                            const uint8_t *in,

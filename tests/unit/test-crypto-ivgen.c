@@ -26,9 +26,9 @@
 struct QCryptoIVGenTestData {
     const char *path;
     uint64_t sector;
-    QCryptoIVGenAlgorithm ivalg;
-    QCryptoHashAlgorithm hashalg;
-    QCryptoCipherAlgorithm cipheralg;
+    QCryptoIVGenAlgo ivalg;
+    QCryptoHashAlgo hashalg;
+    QCryptoCipherAlgo cipheralg;
     const uint8_t *key;
     size_t nkey;
     const uint8_t *iv;
@@ -38,7 +38,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain/1",
         .sector = 0x1,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN,
         .iv = (const uint8_t *)"\x01\x00\x00\x00\x00\x00\x00\x00"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -47,7 +47,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain/1f2e3d4c",
         .sector = 0x1f2e3d4cULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN,
         .iv = (const uint8_t *)"\x4c\x3d\x2e\x1f\x00\x00\x00\x00"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -56,7 +56,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain/1f2e3d4c5b6a7988",
         .sector = 0x1f2e3d4c5b6a7988ULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN,
         .iv = (const uint8_t *)"\x88\x79\x6a\x5b\x00\x00\x00\x00"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -65,7 +65,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain64/1",
         .sector = 0x1,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
         .iv = (const uint8_t *)"\x01\x00\x00\x00\x00\x00\x00\x00"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -74,7 +74,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain64/1f2e3d4c",
         .sector = 0x1f2e3d4cULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
         .iv = (const uint8_t *)"\x4c\x3d\x2e\x1f\x00\x00\x00\x00"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -83,7 +83,7 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/plain64/1f2e3d4c5b6a7988",
         .sector = 0x1f2e3d4c5b6a7988ULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_PLAIN64,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_PLAIN64,
         .iv = (const uint8_t *)"\x88\x79\x6a\x5b\x4c\x3d\x2e\x1f"
                                "\x00\x00\x00\x00\x00\x00\x00\x00",
         .niv = 16,
@@ -92,9 +92,9 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/essiv/1",
         .sector = 0x1,
-        .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
-        .hashalg = QCRYPTO_HASH_ALG_SHA256,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_ESSIV,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
         .nkey = 16,
@@ -106,9 +106,9 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/essiv/1f2e3d4c",
         .sector = 0x1f2e3d4cULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
-        .hashalg = QCRYPTO_HASH_ALG_SHA256,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_ESSIV,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
         .nkey = 16,
@@ -120,9 +120,9 @@ struct QCryptoIVGenTestData {
     {
         "/crypto/ivgen/essiv/1f2e3d4c5b6a7988",
         .sector = 0x1f2e3d4c5b6a7988ULL,
-        .ivalg = QCRYPTO_IVGEN_ALG_ESSIV,
-        .cipheralg = QCRYPTO_CIPHER_ALG_AES_128,
-        .hashalg = QCRYPTO_HASH_ALG_SHA256,
+        .ivalg = QCRYPTO_IV_GEN_ALGO_ESSIV,
+        .cipheralg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .hashalg = QCRYPTO_HASH_ALGO_SHA256,
         .key = (const uint8_t *)"\x00\x01\x02\x03\x04\x05\x06\x07"
                                 "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
         .nkey = 16,
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     size_t i;
     g_test_init(&argc, &argv, NULL);
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        if (test_data[i].ivalg == QCRYPTO_IVGEN_ALG_ESSIV &&
+        if (test_data[i].ivalg == QCRYPTO_IV_GEN_ALGO_ESSIV &&
             !qcrypto_hash_supports(test_data[i].hashalg)) {
             continue;
         }

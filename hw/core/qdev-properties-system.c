@@ -1188,12 +1188,12 @@ const PropertyInfo qdev_prop_uuid = {
 
 /* --- s390 cpu entitlement policy --- */
 
-QEMU_BUILD_BUG_ON(sizeof(CpuS390Entitlement) != sizeof(int));
+QEMU_BUILD_BUG_ON(sizeof(S390CpuEntitlement) != sizeof(int));
 
 const PropertyInfo qdev_prop_cpus390entitlement = {
-    .name  = "CpuS390Entitlement",
+    .name  = "S390CpuEntitlement",
     .description = "low/medium (default)/high",
-    .enum_table  = &CpuS390Entitlement_lookup,
+    .enum_table  = &S390CpuEntitlement_lookup,
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_enum,
     .set_default_value = qdev_propinfo_set_default_value_enum,

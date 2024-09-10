@@ -26,7 +26,7 @@
 typedef struct QCryptoAFSplitTestData QCryptoAFSplitTestData;
 struct QCryptoAFSplitTestData {
     const char *path;
-    QCryptoHashAlgorithm hash;
+    QCryptoHashAlgo hash;
     uint32_t stripes;
     size_t blocklen;
     const uint8_t *key;
@@ -36,7 +36,7 @@ struct QCryptoAFSplitTestData {
 static QCryptoAFSplitTestData test_data[] = {
     {
         .path = "/crypto/afsplit/sha256/5",
-        .hash = QCRYPTO_HASH_ALG_SHA256,
+        .hash = QCRYPTO_HASH_ALGO_SHA256,
         .stripes = 5,
         .blocklen = 32,
         .key = (const uint8_t *)
@@ -68,7 +68,7 @@ static QCryptoAFSplitTestData test_data[] = {
     },
     {
         .path = "/crypto/afsplit/sha256/5000",
-        .hash = QCRYPTO_HASH_ALG_SHA256,
+        .hash = QCRYPTO_HASH_ALGO_SHA256,
         .stripes = 5000,
         .blocklen = 16,
         .key = (const uint8_t *)
@@ -77,7 +77,7 @@ static QCryptoAFSplitTestData test_data[] = {
     },
     {
         .path = "/crypto/afsplit/sha1/1000",
-        .hash = QCRYPTO_HASH_ALG_SHA1,
+        .hash = QCRYPTO_HASH_ALGO_SHA1,
         .stripes = 1000,
         .blocklen = 32,
         .key = (const uint8_t *)
@@ -88,7 +88,7 @@ static QCryptoAFSplitTestData test_data[] = {
     },
     {
         .path = "/crypto/afsplit/sha256/big",
-        .hash = QCRYPTO_HASH_ALG_SHA256,
+        .hash = QCRYPTO_HASH_ALGO_SHA256,
         .stripes = 1000,
         .blocklen = 64,
         .key = (const uint8_t *)

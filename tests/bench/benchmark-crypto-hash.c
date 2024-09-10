@@ -17,7 +17,7 @@
 
 typedef struct QCryptoHashOpts {
     size_t chunk_size;
-    QCryptoHashAlgorithm alg;
+    QCryptoHashAlgo alg;
 } QCryptoHashOpts;
 
 static void test_hash_speed(const void *opaque)
@@ -49,7 +49,7 @@ static void test_hash_speed(const void *opaque)
     g_test_timer_elapsed();
 
     g_test_message("hash(%s): chunk %zu bytes %.2f MB/sec",
-                   QCryptoHashAlgorithm_str(opts->alg),
+                   QCryptoHashAlgo_str(opts->alg),
                    opts->chunk_size, total / g_test_timer_last());
 
     g_free(out);
@@ -65,14 +65,14 @@ int main(int argc, char **argv)
 
 #define TEST_ONE(a, c)                                          \
     QCryptoHashOpts opts ## a ## c = {                          \
-        .alg = QCRYPTO_HASH_ALG_ ## a, .chunk_size = c,         \
+        .alg = QCRYPTO_HASH_ALGO_ ## a, .chunk_size = c,         \
     };                                                          \
     memset(name, 0 , sizeof(name));                             \
     snprintf(name, sizeof(name),                                \
              "/crypto/benchmark/hash/%s/bufsize-%d",            \
-             QCryptoHashAlgorithm_str(QCRYPTO_HASH_ALG_ ## a),  \
+             QCryptoHashAlgo_str(QCRYPTO_HASH_ALGO_ ## a),  \
              c);                                                \
-    if (qcrypto_hash_supports(QCRYPTO_HASH_ALG_ ## a))          \
+    if (qcrypto_hash_supports(QCRYPTO_HASH_ALGO_ ## a))          \
         g_test_add_data_func(name,                              \
                              &opts ## a ## c,                   \
                              test_hash_speed);

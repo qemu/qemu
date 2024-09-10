@@ -18,7 +18,7 @@
 typedef struct QCryptoHashDriver QCryptoHashDriver;
 
 struct QCryptoHashDriver {
-    int (*hash_bytesv)(QCryptoHashAlgorithm alg,
+    int (*hash_bytesv)(QCryptoHashAlgo alg,
                        const struct iovec *iov,
                        size_t niov,
                        uint8_t **result,

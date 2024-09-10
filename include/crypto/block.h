@@ -287,7 +287,7 @@ QCryptoIVGen *qcrypto_block_get_ivgen(QCryptoBlock *block);
  *
  * Returns: the hash algorithm
  */
-QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block);
+QCryptoHashAlgo qcrypto_block_get_kdf_hash(QCryptoBlock *block);
 
 /**
  * qcrypto_block_get_payload_offset:

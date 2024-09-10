@@ -949,7 +949,7 @@ char *hbitmap_sha256(const HBitmap *bitmap, Error **errp)
     size_t size = bitmap->sizes[HBITMAP_LEVELS - 1] * sizeof(unsigned long);
     char *data = (char *)bitmap->levels[HBITMAP_LEVELS - 1];
     char *hash = NULL;
-    qcrypto_hash_digest(QCRYPTO_HASH_ALG_SHA256, data, size, &hash, errp);
+    qcrypto_hash_digest(QCRYPTO_HASH_ALGO_SHA256, data, size, &hash, errp);
 
     return hash;
 }
