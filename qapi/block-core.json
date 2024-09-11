@@ -1858,7 +1858,6 @@
 #
 # Errors:
 #     - If @device does not exist, DeviceNotFound
-#     - Any other error returns a GenericError.
 #
 # Since: 1.3
 #
