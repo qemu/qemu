@@ -78,9 +78,7 @@
         'X86CPURegister32',
         'XDbgBlockGraph',
         'YankInstanceType',
-        'blockdev-reopen',
-        'query-rocker',
-        'query-rocker-ports' ],
+        'blockdev-reopen' ],
     # Externally visible types whose member names may use uppercase
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status
