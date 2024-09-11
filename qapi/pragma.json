@@ -46,7 +46,6 @@
         'BlockdevSnapshotSyncWrapper',
         'BlockdevSnapshotWrapper',
         'BlockdevVmdkAdapterType',
-        'ChardevBackendKind',
         'CxlCorErrorType',
         'DisplayProtocol',
         'DriveBackupWrapper',
