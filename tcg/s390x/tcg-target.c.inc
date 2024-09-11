@@ -36,6 +36,7 @@
 #define TCG_CT_CONST_INV        (1 << 13)
 #define TCG_CT_CONST_INVRISBG   (1 << 14)
 #define TCG_CT_CONST_CMP        (1 << 15)
+#define TCG_CT_CONST_M1         (1 << 16)
 
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 16)
 #define ALL_VECTOR_REGS      MAKE_64BIT_MASK(32, 32)
@@ -605,6 +606,9 @@ static bool tcg_target_const_match(int64_t val, int ct,
         return true;
     }
     if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_M1) && val == -1) {
         return true;
     }
 
@@ -2904,15 +2908,30 @@ static void tcg_out_cmp_vec(TCGContext *s, unsigned vece, TCGReg a0,
 }
 
 static void tcg_out_cmpsel_vec(TCGContext *s, unsigned vece, TCGReg a0,
-                               TCGReg c1, TCGReg c2,
-                               TCGReg v3, TCGReg v4, TCGCond cond)
+                               TCGReg c1, TCGReg c2, TCGArg v3,
+                               int const_v3, TCGReg v4, TCGCond cond)
 {
-    if (tcg_out_cmp_vec_noinv(s, vece, TCG_VEC_TMP0, c1, c2, cond)) {
-        TCGReg swap = v3;
-        v3 = v4;
-        v4 = swap;
+    bool inv = tcg_out_cmp_vec_noinv(s, vece, TCG_VEC_TMP0, c1, c2, cond);
+
+    if (!const_v3) {
+        if (inv) {
+            tcg_out_insn(s, VRRe, VSEL, a0, v4, v3, TCG_VEC_TMP0);
+        } else {
+            tcg_out_insn(s, VRRe, VSEL, a0, v3, v4, TCG_VEC_TMP0);
+        }
+    } else if (v3) {
+        if (inv) {
+            tcg_out_insn(s, VRRc, VOC, a0, v4, TCG_VEC_TMP0, 0);
+        } else {
+            tcg_out_insn(s, VRRc, VO, a0, v4, TCG_VEC_TMP0, 0);
+        }
+    } else {
+        if (inv) {
+            tcg_out_insn(s, VRRc, VN, a0, v4, TCG_VEC_TMP0, 0);
+        } else {
+            tcg_out_insn(s, VRRc, VNC, a0, v4, TCG_VEC_TMP0, 0);
+        }
     }
-    tcg_out_insn(s, VRRe, VSEL, a0, v3, v4, TCG_VEC_TMP0);
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
@@ -3036,7 +3055,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_cmp_vec(s, vece, a0, a1, a2, args[3]);
         break;
     case INDEX_op_cmpsel_vec:
-        tcg_out_cmpsel_vec(s, vece, a0, a1, a2, args[3], args[4], args[5]);
+        tcg_out_cmpsel_vec(s, vece, a0, a1, a2, args[3], const_args[3],
+                           args[4], args[5]);
         break;
 
     case INDEX_op_s390_vuph_vec:
@@ -3388,7 +3408,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_bitsel_vec:
         return C_O1_I3(v, v, v, v);
     case INDEX_op_cmpsel_vec:
-        return C_O1_I4(v, v, v, v, v);
+        return (TCG_TARGET_HAS_orc_vec
+                ? C_O1_I4(v, v, v, vZM, v)
+                : C_O1_I4(v, v, v, vZ, v));
 
     default:
         g_assert_not_reached();
