@@ -326,6 +326,9 @@
 # @crc-threshold: Component specific and applicable to 68 byte Flit
 #     mode only.
 #
+# @retry-threshold: Retry threshold hit in the Local Retry State
+#     Machine, 68B Flits only.
+#
 # @cache-poison-received: Received poison from a peer on CXL.cache.
 #
 # @mem-poison-received: Received poison from a peer on CXL.mem
