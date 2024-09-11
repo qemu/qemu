@@ -1328,7 +1328,7 @@ probe_target_compiler() {
         container_cross_prefix=microblaze-linux-musl-
         ;;
       mips64el)
-        container_image=debian-mips64el-cross
+        container_image=debian-all-test-cross
         container_cross_prefix=mips64el-linux-gnuabi64-
         ;;
       tricore)
@@ -1677,6 +1677,11 @@ for target in $target_list; do
 
       if test "${gdb_arches#*aarch64}" != "$gdb_arches" && version_ge $gdb_version 15.1; then
           echo "GDB_HAS_MTE=y" >> $config_target_mak
+      fi
+
+      if test "${gdb_arches#*aarch64}" != "$gdb_arches" && version_ge $gdb_version 16.0; then
+          # GDB has to support MTE in baremetal to allow debugging MTE in QEMU system mode
+          echo "GDB_SUPPORTS_MTE_IN_BAREMETAL=y" >> $config_target_mak
       fi
 
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> Makefile.prereqs
