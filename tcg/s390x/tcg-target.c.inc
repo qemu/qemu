@@ -46,6 +46,7 @@
 
 /* A scratch register that may be be used throughout the backend.  */
 #define TCG_TMP0        TCG_REG_R1
+#define TCG_VEC_TMP0    TCG_REG_V31
 
 #define TCG_GUEST_BASE_REG TCG_REG_R13
 
@@ -2902,6 +2903,18 @@ static void tcg_out_cmp_vec(TCGContext *s, unsigned vece, TCGReg a0,
     }
 }
 
+static void tcg_out_cmpsel_vec(TCGContext *s, unsigned vece, TCGReg a0,
+                               TCGReg c1, TCGReg c2,
+                               TCGReg v3, TCGReg v4, TCGCond cond)
+{
+    if (tcg_out_cmp_vec_noinv(s, vece, TCG_VEC_TMP0, c1, c2, cond)) {
+        TCGReg swap = v3;
+        v3 = v4;
+        v4 = swap;
+    }
+    tcg_out_insn(s, VRRe, VSEL, a0, v3, v4, TCG_VEC_TMP0);
+}
+
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
                            const TCGArg args[TCG_MAX_OP_ARGS],
@@ -3022,6 +3035,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_cmp_vec:
         tcg_out_cmp_vec(s, vece, a0, a1, a2, args[3]);
         break;
+    case INDEX_op_cmpsel_vec:
+        tcg_out_cmpsel_vec(s, vece, a0, a1, a2, args[3], args[4], args[5]);
+        break;
 
     case INDEX_op_s390_vuph_vec:
         tcg_out_insn(s, VRRa, VUPH, a0, a1, vece);
@@ -3074,8 +3090,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_umin_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_cmp_vec:
-        return 1;
     case INDEX_op_cmpsel_vec:
+        return 1;
     case INDEX_op_rotrv_vec:
         return -1;
     case INDEX_op_mul_vec:
@@ -3086,17 +3102,6 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     default:
         return 0;
     }
-}
-
-static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGv_vec v0,
-                              TCGv_vec c1, TCGv_vec c2,
-                              TCGv_vec v3, TCGv_vec v4, TCGCond cond)
-{
-    TCGv_vec t = tcg_temp_new_vec(type);
-
-    tcg_gen_cmp_vec(cond, vece, t, c1, c2);
-    tcg_gen_bitsel_vec(vece, v0, t, v3, v4);
-    tcg_temp_free_vec(t);
 }
 
 static void expand_vec_sat(TCGType type, unsigned vece, TCGv_vec v0,
@@ -3140,7 +3145,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
                        TCGArg a0, ...)
 {
     va_list va;
-    TCGv_vec v0, v1, v2, v3, v4, t0;
+    TCGv_vec v0, v1, v2, t0;
 
     va_start(va, a0);
     v0 = temp_tcgv_vec(arg_temp(a0));
@@ -3148,12 +3153,6 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     v2 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
 
     switch (opc) {
-    case INDEX_op_cmpsel_vec:
-        v3 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
-        v4 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
-        expand_vec_cmpsel(type, vece, v0, v1, v2, v3, v4, va_arg(va, TCGArg));
-        break;
-
     case INDEX_op_rotrv_vec:
         t0 = tcg_temp_new_vec(type);
         tcg_gen_neg_vec(vece, t0, v2);
@@ -3388,6 +3387,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(v, v, r);
     case INDEX_op_bitsel_vec:
         return C_O1_I3(v, v, v, v);
+    case INDEX_op_cmpsel_vec:
+        return C_O1_I4(v, v, v, v, v);
 
     default:
         g_assert_not_reached();
@@ -3512,6 +3513,7 @@ static void tcg_target_init(TCGContext *s)
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_TMP0);
+    tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP0);
     /* XXX many insns can't be used with R0, so we better avoid it for now */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
