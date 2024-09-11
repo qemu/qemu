@@ -674,6 +674,13 @@ void start_auth_sasl(VncState *vs)
     }
     trace_vnc_auth_sasl_mech_list(vs, mechlist);
 
+    if (g_str_equal(mechlist, "")) {
+        trace_vnc_auth_fail(vs, vs->auth, "no available SASL mechanisms", "");
+        sasl_dispose(&vs->sasl.conn);
+        vs->sasl.conn = NULL;
+        goto authabort;
+    }
+
     vs->sasl.mechlist = g_strdup(mechlist);
     mechlistlen = strlen(mechlist);
     vnc_write_u32(vs, mechlistlen);
