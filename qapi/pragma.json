@@ -52,7 +52,6 @@
         'DummyBlockCoreForceArrays',
         'DummyForceArrays',
         'DummyVirtioForceArrays',
-        'GrabToggleKeys',
         'HotKeyMod',
         'ImageInfoSpecificKind',
         'InputAxis',
