@@ -2304,7 +2304,7 @@
 #
 # Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
-#     - If @name is already taken, GenericError with an explanation
+#     - If @name is already taken, GenericError
 #
 # Since: 2.4
 #
@@ -2327,7 +2327,7 @@
 #
 # Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
-#     - If @name is not found, GenericError with an explanation
+#     - If @name is not found, GenericError
 #     - if @name is frozen by an operation, GenericError
 #
 # Since: 2.4
@@ -2351,7 +2351,7 @@
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
-#     - If @name is not found, GenericError with an explanation
+#     - If @name is not found, GenericError
 #
 # Since: 2.4
 #
@@ -2372,7 +2372,7 @@
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
-#     - If @name is not found, GenericError with an explanation
+#     - If @name is not found, GenericError
 #
 # Since: 4.0
 #
@@ -2393,7 +2393,7 @@
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
-#     - If @name is not found, GenericError with an explanation
+#     - If @name is not found, GenericError
 #
 # Since: 4.0
 #
@@ -2467,7 +2467,6 @@
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
 #     - If @name is not found or if hashing has failed, GenericError
-#       with an explanation
 #
 # Since: 2.10
 ##
