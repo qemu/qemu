@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+ * SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
  *
  * Bootinfo tags from linux bootinfo.h and bootinfo-mac.h:
  * This is an easily parsable and extendable structure containing all
