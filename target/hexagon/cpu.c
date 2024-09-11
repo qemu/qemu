@@ -84,6 +84,35 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
   "c24", "c25", "c26", "c27", "c28",  "c29", "c30", "c31",
 };
 
+#ifndef CONFIG_USER_ONLY
+const char * const hexagon_sregnames[] = {
+    "sgp0",       "sgp1",       "stid",       "elr",        "badva0",
+    "badva1",     "ssr",        "ccr",        "htid",       "badva",
+    "imask",      "gevb",       "vwctrl",     "s13",        "s14",
+    "s15",        "evb",        "modectl",    "syscfg",     "segment",
+    "ipendad",    "vid",        "vid1",       "bestwait",   "s24",
+    "schedcfg",   "s26",        "cfgbase",    "diag",       "rev",
+    "pcyclelo",   "pcyclehi",   "isdbst",     "isdbcfg0",   "isdbcfg1",
+    "livelock",   "brkptpc0",   "brkptcfg0",  "brkptpc1",   "brkptcfg1",
+    "isdbmbxin",  "isdbmbxout", "isdben",     "isdbgpr",    "pmucnt4",
+    "pmucnt5",    "pmucnt6",    "pmucnt7",    "pmucnt0",    "pmucnt1",
+    "pmucnt2",    "pmucnt3",    "pmuevtcfg",  "pmustid0",   "pmuevtcfg1",
+    "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "rgdr2",
+    "rgdr",       "turkey",     "duck",       "chicken",
+};
+
+G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
+
+const char * const hexagon_gregnames[] = {
+    "gelr",       "gsr",       "gosp",      "gbadva",    "gcommit1t",
+    "gcommit2t",  "gcommit3t", "gcommit4t", "gcommit5t", "gcommit6t",
+    "gpcycle1t",  "gpcycle2t", "gpcycle3t", "gpcycle4t", "gpcycle5t",
+    "gpcycle6t",  "gpmucnt4",  "gpmucnt5",  "gpmucnt6",  "gpmucnt7",
+    "gcommit7t",  "gcommit8t", "gpcycle7t", "gpcycle8t", "gpcyclelo",
+    "gpcyclehi",  "gpmucnt0",  "gpmucnt1",  "gpmucnt2",  "gpmucnt3",
+    "g30",        "g31",
+};
+#endif
 /*
  * One of the main debugging techniques is to use "-d cpu" and compare against
  * LLDB output when single stepping.  However, the target and qemu put the
