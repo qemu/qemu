@@ -33,6 +33,8 @@
 #     - 'io' if the region is a PIO region
 #     - 'memory' if the region is a MMIO region
 #
+# @address: memory address
+#
 # @size: memory size
 #
 # @prefetch: if @type is 'memory', true if the memory is prefetchable

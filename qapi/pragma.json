@@ -62,7 +62,6 @@
         'MemoryDeviceInfoKind',
         'NetClientDriver',
         'ObjectType',
-        'PciMemoryRegion',
         'QCryptodevBackendServiceType',
         'QKeyCode',
         'RbdAuthMode',
