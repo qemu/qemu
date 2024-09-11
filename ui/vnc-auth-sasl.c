@@ -524,13 +524,13 @@ static int protocol_client_auth_sasl_mechname_len(VncState *vs, uint8_t *data, s
     return 0;
 }
 
-static char *
+static int
 vnc_socket_ip_addr_string(QIOChannelSocket *ioc,
                           bool local,
+                          char **addrstr,
                           Error **errp)
 {
     SocketAddress *addr;
-    char *ret;
 
     if (local) {
         addr = qio_channel_socket_get_local_address(ioc, errp);
@@ -538,17 +538,17 @@ vnc_socket_ip_addr_string(QIOChannelSocket *ioc,
         addr = qio_channel_socket_get_remote_address(ioc, errp);
     }
     if (!addr) {
-        return NULL;
+        return -1;
     }
 
     if (addr->type != SOCKET_ADDRESS_TYPE_INET) {
-        error_setg(errp, "Not an inet socket type");
+        *addrstr = NULL;
         qapi_free_SocketAddress(addr);
-        return NULL;
+        return 0;
     }
-    ret = g_strdup_printf("%s;%s", addr->u.inet.host, addr->u.inet.port);
+    *addrstr = g_strdup_printf("%s;%s", addr->u.inet.host, addr->u.inet.port);
     qapi_free_SocketAddress(addr);
-    return ret;
+    return 0;
 }
 
 void start_auth_sasl(VncState *vs)
@@ -561,15 +561,15 @@ void start_auth_sasl(VncState *vs)
     int mechlistlen;
 
     /* Get local & remote client addresses in form  IPADDR;PORT */
-    localAddr = vnc_socket_ip_addr_string(vs->sioc, true, &local_err);
-    if (!localAddr) {
+    if (vnc_socket_ip_addr_string(vs->sioc, true,
+                                  &localAddr, &local_err) < 0) {
         trace_vnc_auth_fail(vs, vs->auth, "Cannot format local IP",
                             error_get_pretty(local_err));
         goto authabort;
     }
 
-    remoteAddr = vnc_socket_ip_addr_string(vs->sioc, false, &local_err);
-    if (!remoteAddr) {
+    if (vnc_socket_ip_addr_string(vs->sioc, false,
+                                  &remoteAddr, &local_err) < 0) {
         trace_vnc_auth_fail(vs, vs->auth, "Cannot format remote IP",
                             error_get_pretty(local_err));
         g_free(localAddr);
