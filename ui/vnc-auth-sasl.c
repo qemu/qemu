@@ -628,7 +628,7 @@ void start_auth_sasl(VncState *vs)
             goto authabort;
         }
     } else {
-        vs->sasl.wantSSF = 1;
+        vs->sasl.wantSSF = !vnc_socket_is_unix(vs->sioc);
     }
 
     memset (&secprops, 0, sizeof secprops);
