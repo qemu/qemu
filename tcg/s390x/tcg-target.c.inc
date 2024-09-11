@@ -2841,6 +2841,67 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
     tcg_out_insn(s, VRX, VLREP, dst, TCG_TMP0, TCG_REG_NONE, 0, MO_64);
 }
 
+static bool tcg_out_cmp_vec_noinv(TCGContext *s, unsigned vece, TCGReg a0,
+                                  TCGReg a1, TCGReg a2, TCGCond cond)
+{
+    bool need_swap = false, need_inv = false;
+
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_GT:
+    case TCG_COND_GTU:
+        break;
+    case TCG_COND_NE:
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+        need_inv = true;
+        break;
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        need_swap = true;
+        break;
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+        need_swap = need_inv = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (need_inv) {
+        cond = tcg_invert_cond(cond);
+    }
+    if (need_swap) {
+        TCGReg swap = a1;
+        a1 = a2;
+        a2 = swap;
+        cond = tcg_swap_cond(cond);
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        tcg_out_insn(s, VRRc, VCEQ, a0, a1, a2, vece);
+        break;
+    case TCG_COND_GT:
+        tcg_out_insn(s, VRRc, VCH, a0, a1, a2, vece);
+        break;
+    case TCG_COND_GTU:
+        tcg_out_insn(s, VRRc, VCHL, a0, a1, a2, vece);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return need_inv;
+}
+
+static void tcg_out_cmp_vec(TCGContext *s, unsigned vece, TCGReg a0,
+                            TCGReg a1, TCGReg a2, TCGCond cond)
+{
+    if (tcg_out_cmp_vec_noinv(s, vece, a0, a1, a2, cond)) {
+        tcg_out_insn(s, VRRc, VNO, a0, a0, a0, 0);
+    }
+}
+
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
                            const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2959,19 +3020,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_cmp_vec:
-        switch ((TCGCond)args[3]) {
-        case TCG_COND_EQ:
-            tcg_out_insn(s, VRRc, VCEQ, a0, a1, a2, vece);
-            break;
-        case TCG_COND_GT:
-            tcg_out_insn(s, VRRc, VCH, a0, a1, a2, vece);
-            break;
-        case TCG_COND_GTU:
-            tcg_out_insn(s, VRRc, VCHL, a0, a1, a2, vece);
-            break;
-        default:
-            g_assert_not_reached();
-        }
+        tcg_out_cmp_vec(s, vece, a0, a1, a2, args[3]);
         break;
 
     case INDEX_op_s390_vuph_vec:
@@ -3024,8 +3073,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_umax_vec:
     case INDEX_op_umin_vec:
     case INDEX_op_xor_vec:
-        return 1;
     case INDEX_op_cmp_vec:
+        return 1;
     case INDEX_op_cmpsel_vec:
     case INDEX_op_rotrv_vec:
         return -1;
@@ -3039,68 +3088,14 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     }
 }
 
-static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
-                                 TCGv_vec v1, TCGv_vec v2, TCGCond cond)
-{
-    bool need_swap = false, need_inv = false;
-
-    switch (cond) {
-    case TCG_COND_EQ:
-    case TCG_COND_GT:
-    case TCG_COND_GTU:
-        break;
-    case TCG_COND_NE:
-    case TCG_COND_LE:
-    case TCG_COND_LEU:
-        need_inv = true;
-        break;
-    case TCG_COND_LT:
-    case TCG_COND_LTU:
-        need_swap = true;
-        break;
-    case TCG_COND_GE:
-    case TCG_COND_GEU:
-        need_swap = need_inv = true;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    if (need_inv) {
-        cond = tcg_invert_cond(cond);
-    }
-    if (need_swap) {
-        TCGv_vec t1;
-        t1 = v1, v1 = v2, v2 = t1;
-        cond = tcg_swap_cond(cond);
-    }
-
-    vec_gen_4(INDEX_op_cmp_vec, type, vece, tcgv_vec_arg(v0),
-              tcgv_vec_arg(v1), tcgv_vec_arg(v2), cond);
-
-    return need_inv;
-}
-
-static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
-                           TCGv_vec v1, TCGv_vec v2, TCGCond cond)
-{
-    if (expand_vec_cmp_noinv(type, vece, v0, v1, v2, cond)) {
-        tcg_gen_not_vec(vece, v0, v0);
-    }
-}
-
 static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGv_vec v0,
                               TCGv_vec c1, TCGv_vec c2,
                               TCGv_vec v3, TCGv_vec v4, TCGCond cond)
 {
     TCGv_vec t = tcg_temp_new_vec(type);
 
-    if (expand_vec_cmp_noinv(type, vece, t, c1, c2, cond)) {
-        /* Invert the sense of the compare by swapping arguments.  */
-        tcg_gen_bitsel_vec(vece, v0, t, v4, v3);
-    } else {
-        tcg_gen_bitsel_vec(vece, v0, t, v3, v4);
-    }
+    tcg_gen_cmp_vec(cond, vece, t, c1, c2);
+    tcg_gen_bitsel_vec(vece, v0, t, v3, v4);
     tcg_temp_free_vec(t);
 }
 
@@ -3153,10 +3148,6 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     v2 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
 
     switch (opc) {
-    case INDEX_op_cmp_vec:
-        expand_vec_cmp(type, vece, v0, v1, v2, va_arg(va, TCGArg));
-        break;
-
     case INDEX_op_cmpsel_vec:
         v3 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
         v4 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
