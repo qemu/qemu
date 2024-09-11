@@ -12,13 +12,32 @@
 import os
 import subprocess
 
-from qemu_test import QemuSystemTest
+from qemu_test import LinuxKernelTest, Asset
 from qemu_test import wait_for_console_pattern
 from unittest import skipUnless
 
-class MipsFuloong2e(QemuSystemTest):
+class MipsFuloong2e(LinuxKernelTest):
 
     timeout = 60
+
+    ASSET_KERNEL = Asset(
+        ('http://archive.debian.org/debian/pool/main/l/linux/'
+         'linux-image-3.16.0-6-loongson-2e_3.16.56-1+deb8u1_mipsel.deb'),
+        '2a70f15b397f4ced632b0c15cb22660394190644146d804d60a4796eefbe1f50')
+
+    def test_linux_kernel_3_16(self):
+        deb_path = self.ASSET_KERNEL.fetch()
+        kernel_path = self.extract_from_deb(deb_path,
+                                            '/boot/vmlinux-3.16.0-6-loongson-2e')
+
+        self.set_machine('fuloong2e')
+        self.vm.set_console()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        self.vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line)
+        self.vm.launch()
+        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        self.wait_for_console_pattern(console_pattern)
 
     @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     @skipUnless(os.getenv('RESCUE_YL_PATH'), 'RESCUE_YL_PATH not available')
@@ -42,4 +61,4 @@ class MipsFuloong2e(QemuSystemTest):
 
 
 if __name__ == '__main__':
-    QemuSystemTest.main()
+    LinuxKernelTest.main()

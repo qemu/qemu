@@ -91,8 +91,10 @@ option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
 option('safe_stack', type: 'boolean', value: false,
        description: 'SafeStack Stack Smash Protection (requires clang/llvm and coroutine backend ucontext)')
-option('sanitizers', type: 'boolean', value: false,
-       description: 'enable default sanitizers')
+option('asan', type: 'boolean', value: false,
+       description: 'enable address sanitizer')
+option('ubsan', type: 'boolean', value: false,
+       description: 'enable undefined behaviour sanitizer')
 option('tsan', type: 'boolean', value: false,
        description: 'enable thread sanitizer')
 option('stack_protector', type: 'feature', value: 'auto',

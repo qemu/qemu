@@ -201,14 +201,14 @@ try:
     #
     # Cirrus packages lists for GitLab
     #
-    generate_cirrus("freebsd-13")
+    generate_cirrus("freebsd-14")
     generate_cirrus("macos-13")
     generate_cirrus("macos-14")
 
     #
     # VM packages lists
     #
-    generate_pkglist("freebsd", "freebsd-13")
+    generate_pkglist("freebsd", "freebsd-14")
 
     #
     # Ansible package lists

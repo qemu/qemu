@@ -35,13 +35,21 @@ tests_generic_bsduser = [
 ]
 
 tests_aarch64_system_thorough = [
+  'aarch64_raspi3',
+  'aarch64_raspi4',
   'aarch64_sbsaref',
   'aarch64_virt',
+  'multiprocess',
+]
+
+tests_alpha_system_thorough = [
+  'alpha_clipper',
 ]
 
 tests_arm_system_thorough = [
   'arm_canona1100',
   'arm_integratorcp',
+  'arm_raspi2',
 ]
 
 tests_arm_linuxuser_thorough = [
@@ -57,7 +65,9 @@ tests_loongarch64_system_thorough = [
 ]
 
 tests_m68k_system_thorough = [
-  'm68k_nextcube'
+  'm68k_mcf5208evb',
+  'm68k_nextcube',
+  'm68k_q800',
 ]
 
 tests_microblaze_system_thorough = [
@@ -68,12 +78,25 @@ tests_microblazeel_system_thorough = [
   'microblazeel_s3adsp1800'
 ]
 
+tests_mips_system_thorough = [
+  'mips_malta',
+]
+
+tests_mipsel_system_thorough = [
+  'mipsel_malta',
+]
+
 tests_mips64el_system_quick = [
   'mips64el_fuloong2e',
 ]
 
 tests_mips64el_system_thorough = [
   'mips64el_loongson3v',
+  'mips64el_malta',
+]
+
+tests_or1k_system_quick = [
+  'or1k_sim',
 ]
 
 tests_ppc_system_quick = [
@@ -119,6 +142,7 @@ tests_x86_64_system_quick = [
 tests_x86_64_system_thorough = [
   'acpi_bits',
   'linux_initrd',
+  'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
 ]

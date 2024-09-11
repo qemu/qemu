@@ -187,7 +187,7 @@ def get_qemu_img(test):
     qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
     if os.path.exists(qemu_img):
         return qemu_img
-    if has_cmd('qemu-img'):
+    (has_system_qemu_img, errmsg) = has_cmd('qemu-img')
+    if has_system_qemu_img:
         return 'qemu-img'
-    test.skipTest('Could not find "qemu-img", which is required to '
-                  'create temporary images')
+    test.skipTest(errmsg)

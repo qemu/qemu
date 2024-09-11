@@ -11,7 +11,8 @@ import logging
 from . import has_cmd, run_cmd
 
 def tesseract_available(expected_version):
-    if not has_cmd('tesseract'):
+    (has_tesseract, _) = has_cmd('tesseract')
+    if not has_tesseract:
         return False
     (stdout, stderr, ret) = run_cmd([ 'tesseract', '--version'])
     if ret:

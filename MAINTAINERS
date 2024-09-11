@@ -911,6 +911,9 @@ F: hw/*/bcm283*
 F: include/hw/arm/rasp*
 F: include/hw/*/bcm283*
 F: docs/system/arm/raspi.rst
+F: tests/functional/test_arm_raspi2.py
+F: tests/functional/test_aarch64_raspi3.py
+F: tests/functional/test_aarch64_raspi4.py
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1310,6 +1313,7 @@ F: include/hw/m68k/q800-glue.h
 F: include/hw/misc/djmemc.h
 F: include/hw/misc/iosb.h
 F: include/hw/audio/asc.h
+F: tests/functional/test_m68k_q800.py
 
 virt
 M: Laurent Vivier <laurent@vivier.eu>
@@ -1369,7 +1373,9 @@ F: hw/mips/malta.c
 F: hw/pci-host/gt64120.c
 F: include/hw/southbridge/piix.h
 F: tests/avocado/linux_ssh_mips_malta.py
-F: tests/avocado/machine_mips_malta.py
+F: tests/functional/test_mips_malta.py
+F: tests/functional/test_mipsel_malta.py
+F: tests/functional/test_mips64el_malta.py
 
 Mipssim
 R: Aleksandar Rikalo <arikalo@gmail.com>
@@ -3188,7 +3194,6 @@ F: qapi/cryptodev.json
 Python library
 M: John Snow <jsnow@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
-R: Beraldo Leal <bleal@redhat.com>
 S: Maintained
 F: python/
 T: git https://gitlab.com/jsnow/qemu.git python
@@ -4135,7 +4140,6 @@ M: Alex Bennée <alex.bennee@linaro.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 M: Thomas Huth <thuth@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
-R: Beraldo Leal <bleal@redhat.com>
 S: Maintained
 F: .github/workflows/lockdown.yml
 F: .gitlab-ci.yml
@@ -4181,7 +4185,6 @@ W: https://trello.com/b/6Qi1pxVn/avocado-qemu
 R: Cleber Rosa <crosa@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
-R: Beraldo Leal <bleal@redhat.com>
 S: Odd Fixes
 F: tests/avocado/
 
@@ -4215,7 +4218,6 @@ Meson
 M: Paolo Bonzini <pbonzini@redhat.com>
 R: Marc-André Lureau <marcandre.lureau@redhat.com>
 R: Daniel P. Berrange <berrange@redhat.com>
-R: Thomas Huth <thuth@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: meson.build

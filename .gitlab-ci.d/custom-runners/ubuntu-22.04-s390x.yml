@@ -80,7 +80,7 @@ ubuntu-22.04-s390x-clang:
  script:
  - mkdir build
  - cd build
- - ../configure --cc=clang --cxx=clang++ --enable-sanitizers
+ - ../configure --cc=clang --cxx=clang++ --enable-ubsan
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check
