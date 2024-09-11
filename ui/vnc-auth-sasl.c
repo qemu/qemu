@@ -551,6 +551,13 @@ vnc_socket_ip_addr_string(QIOChannelSocket *ioc,
     return 0;
 }
 
+static bool
+vnc_socket_is_unix(QIOChannelSocket *ioc)
+{
+    SocketAddress *addr = qio_channel_socket_get_local_address(ioc, NULL);
+    return addr && addr->type == SOCKET_ADDRESS_TYPE_UNIX;
+}
+
 void start_auth_sasl(VncState *vs)
 {
     const char *mechlist = NULL;
@@ -627,10 +634,11 @@ void start_auth_sasl(VncState *vs)
     memset (&secprops, 0, sizeof secprops);
     /* Inform SASL that we've got an external SSF layer from TLS.
      *
-     * Disable SSF, if using TLS+x509+SASL only. TLS without x509
-     * is not sufficiently strong
+     * Disable SSF, if using TLS+x509+SASL only, or UNIX sockets.
+     * TLS without x509 is not sufficiently strong, nor is plain
+     * TCP
      */
-    if (vs->vd->is_unix ||
+    if (vnc_socket_is_unix(vs->sioc) ||
         (vs->auth == VNC_AUTH_VENCRYPT &&
          vs->subauth == VNC_AUTH_VENCRYPT_X509SASL)) {
         /* If we've got TLS or UNIX domain sock, we don't care about SSF */
