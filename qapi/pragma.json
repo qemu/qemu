@@ -64,7 +64,6 @@
         'NetClientDriver',
         'ObjectType',
         'PciMemoryRegion',
-        'QCryptoAkCipherKeyType',
         'QCryptodevBackendServiceType',
         'QKeyCode',
         'RbdAuthMode',
