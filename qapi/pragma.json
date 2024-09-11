@@ -58,7 +58,6 @@
         'InputButton',
         'IscsiHeaderDigest',
         'IscsiTransport',
-        'JSONType',
         'KeyValueKind',
         'MemoryDeviceInfoKind',
         'NetClientDriver',

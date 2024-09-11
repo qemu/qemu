@@ -127,6 +127,22 @@
 # section 1, plus 'int' (split off 'number'), plus the obvious top
 # type 'value'.
 #
+# @string: JSON string
+#
+# @number: JSON number
+#
+# @int: JSON number that is an integer
+#
+# @boolean: literal ``false`` or ``true``
+#
+# @null: literal ``null``
+#
+# @object: JSON object
+#
+# @array: JSON array
+#
+# @value: any JSON value
+#
 # Since: 2.5
 ##
 { 'enum': 'JSONType',
