@@ -61,7 +61,6 @@
         'MemoryDeviceInfoKind',
         'NetClientDriver',
         'ObjectType',
-        'QCryptodevBackendServiceType',
         'QKeyCode',
         'RbdAuthMode',
         'RbdImageEncryptionFormat',

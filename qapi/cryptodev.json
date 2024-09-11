@@ -27,6 +27,16 @@
 #
 # The supported service types of a crypto device.
 #
+# @cipher: Symmetric Key Cipher service
+#
+# @hash: Hash service
+#
+# @mac: Message Authentication Codes service
+#
+# @aead: Authenticated Encryption with Associated Data service
+#
+# @akcipher: Asymmetric Key Cipher service
+#
 # Since: 8.0
 ##
 { 'enum': 'QCryptodevBackendServiceType',
