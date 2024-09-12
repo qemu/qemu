@@ -6982,6 +6982,9 @@ TRANS(URSRA_v, do_vec_shift_imm, a, gen_gvec_ursra)
 TRANS(SRI_v, do_vec_shift_imm, a, gen_gvec_sri)
 TRANS(SHL_v, do_vec_shift_imm, a, tcg_gen_gvec_shli)
 TRANS(SLI_v, do_vec_shift_imm, a, gen_gvec_sli);
+TRANS(SQSHL_vi, do_vec_shift_imm, a, gen_neon_sqshli)
+TRANS(UQSHL_vi, do_vec_shift_imm, a, gen_neon_uqshli)
+TRANS(SQSHLU_vi, do_vec_shift_imm, a, gen_neon_sqshlui)
 
 static bool do_vec_shift_imm_wide(DisasContext *s, arg_qrri_e *a, bool is_u)
 {
@@ -7208,6 +7211,92 @@ TRANS(SRI_s, do_scalar_shift_imm, a, gen_sri_d, true, 0)
 
 TRANS(SHL_s, do_scalar_shift_imm, a, tcg_gen_shli_i64, false, 0)
 TRANS(SLI_s, do_scalar_shift_imm, a, gen_sli_d, true, 0)
+
+static void trunc_i64_env_imm(TCGv_i64 d, TCGv_i64 s, int64_t i,
+                              NeonGenTwoOpEnvFn *fn)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(t, s);
+    fn(t, tcg_env, t, tcg_constant_i32(i));
+    tcg_gen_extu_i32_i64(d, t);
+}
+
+static void gen_sqshli_b(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_s8);
+}
+
+static void gen_sqshli_h(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_s16);
+}
+
+static void gen_sqshli_s(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_s32);
+}
+
+static void gen_sqshli_d(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    gen_helper_neon_qshl_s64(d, tcg_env, s, tcg_constant_i64(i));
+}
+
+static void gen_uqshli_b(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_u8);
+}
+
+static void gen_uqshli_h(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_u16);
+}
+
+static void gen_uqshli_s(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshl_u32);
+}
+
+static void gen_uqshli_d(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    gen_helper_neon_qshl_u64(d, tcg_env, s, tcg_constant_i64(i));
+}
+
+static void gen_sqshlui_b(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshlu_s8);
+}
+
+static void gen_sqshlui_h(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshlu_s16);
+}
+
+static void gen_sqshlui_s(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    trunc_i64_env_imm(d, s, i, gen_helper_neon_qshlu_s32);
+}
+
+static void gen_sqshlui_d(TCGv_i64 d, TCGv_i64 s, int64_t i)
+{
+    gen_helper_neon_qshlu_s64(d, tcg_env, s, tcg_constant_i64(i));
+}
+
+static WideShiftImmFn * const f_scalar_sqshli[] = {
+    gen_sqshli_b, gen_sqshli_h, gen_sqshli_s, gen_sqshli_d
+};
+
+static WideShiftImmFn * const f_scalar_uqshli[] = {
+    gen_uqshli_b, gen_uqshli_h, gen_uqshli_s, gen_uqshli_d
+};
+
+static WideShiftImmFn * const f_scalar_sqshlui[] = {
+    gen_sqshlui_b, gen_sqshlui_h, gen_sqshlui_s, gen_sqshlui_d
+};
+
+/* Note that the helpers sign-extend their inputs, so don't do it here. */
+TRANS(SQSHL_si, do_scalar_shift_imm, a, f_scalar_sqshli[a->esz], false, 0)
+TRANS(UQSHL_si, do_scalar_shift_imm, a, f_scalar_uqshli[a->esz], false, 0)
+TRANS(SQSHLU_si, do_scalar_shift_imm, a, f_scalar_sqshlui[a->esz], false, 0)
 
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
  * Note that it is the caller's responsibility to ensure that the
@@ -9501,116 +9590,6 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
     clear_vec_high(s, is_q, rd);
 }
 
-/* SQSHLU, UQSHL, SQSHL: saturating left shifts */
-static void handle_simd_qshl(DisasContext *s, bool scalar, bool is_q,
-                             bool src_unsigned, bool dst_unsigned,
-                             int immh, int immb, int rn, int rd)
-{
-    int immhb = immh << 3 | immb;
-    int size = 32 - clz32(immh) - 1;
-    int shift = immhb - (8 << size);
-    int pass;
-
-    assert(immh != 0);
-    assert(!(scalar && is_q));
-
-    if (!scalar) {
-        if (!is_q && extract32(immh, 3, 1)) {
-            unallocated_encoding(s);
-            return;
-        }
-
-        /* Since we use the variable-shift helpers we must
-         * replicate the shift count into each element of
-         * the tcg_shift value.
-         */
-        switch (size) {
-        case 0:
-            shift |= shift << 8;
-            /* fall through */
-        case 1:
-            shift |= shift << 16;
-            break;
-        case 2:
-        case 3:
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    if (size == 3) {
-        TCGv_i64 tcg_shift = tcg_constant_i64(shift);
-        static NeonGenTwo64OpEnvFn * const fns[2][2] = {
-            { gen_helper_neon_qshl_s64, gen_helper_neon_qshlu_s64 },
-            { NULL, gen_helper_neon_qshl_u64 },
-        };
-        NeonGenTwo64OpEnvFn *genfn = fns[src_unsigned][dst_unsigned];
-        int maxpass = is_q ? 2 : 1;
-
-        for (pass = 0; pass < maxpass; pass++) {
-            TCGv_i64 tcg_op = tcg_temp_new_i64();
-
-            read_vec_element(s, tcg_op, rn, pass, MO_64);
-            genfn(tcg_op, tcg_env, tcg_op, tcg_shift);
-            write_vec_element(s, tcg_op, rd, pass, MO_64);
-        }
-        clear_vec_high(s, is_q, rd);
-    } else {
-        TCGv_i32 tcg_shift = tcg_constant_i32(shift);
-        static NeonGenTwoOpEnvFn * const fns[2][2][3] = {
-            {
-                { gen_helper_neon_qshl_s8,
-                  gen_helper_neon_qshl_s16,
-                  gen_helper_neon_qshl_s32 },
-                { gen_helper_neon_qshlu_s8,
-                  gen_helper_neon_qshlu_s16,
-                  gen_helper_neon_qshlu_s32 }
-            }, {
-                { NULL, NULL, NULL },
-                { gen_helper_neon_qshl_u8,
-                  gen_helper_neon_qshl_u16,
-                  gen_helper_neon_qshl_u32 }
-            }
-        };
-        NeonGenTwoOpEnvFn *genfn = fns[src_unsigned][dst_unsigned][size];
-        MemOp memop = scalar ? size : MO_32;
-        int maxpass = scalar ? 1 : is_q ? 4 : 2;
-
-        for (pass = 0; pass < maxpass; pass++) {
-            TCGv_i32 tcg_op = tcg_temp_new_i32();
-
-            read_vec_element_i32(s, tcg_op, rn, pass, memop);
-            genfn(tcg_op, tcg_env, tcg_op, tcg_shift);
-            if (scalar) {
-                switch (size) {
-                case 0:
-                    tcg_gen_ext8u_i32(tcg_op, tcg_op);
-                    break;
-                case 1:
-                    tcg_gen_ext16u_i32(tcg_op, tcg_op);
-                    break;
-                case 2:
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
-                write_fp_sreg(s, rd, tcg_op);
-            } else {
-                write_vec_element_i32(s, tcg_op, rd, pass, MO_32);
-            }
-        }
-
-        if (!scalar) {
-            clear_vec_high(s, is_q, rd);
-        }
-    }
-}
-
 /* Common vector code for handling integer to FP conversion */
 static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
                                    int elements, int is_signed,
@@ -9890,16 +9869,6 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         handle_vec_simd_sqshrn(s, true, false, is_u, is_u,
                                immh, immb, opcode, rn, rd);
         break;
-    case 0xc: /* SQSHLU */
-        if (!is_u) {
-            unallocated_encoding(s);
-            return;
-        }
-        handle_simd_qshl(s, true, false, false, true, immh, immb, rn, rd);
-        break;
-    case 0xe: /* SQSHL, UQSHL */
-        handle_simd_qshl(s, true, false, is_u, is_u, immh, immb, rn, rd);
-        break;
     case 0x1f: /* FCVTZS, FCVTZU */
         handle_simd_shift_fpint_conv(s, true, false, is_u, immh, immb, rn, rd);
         break;
@@ -9910,6 +9879,8 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     case 0x06: /* SRSRA / URSRA */
     case 0x08: /* SRI */
     case 0x0a: /* SHL / SLI */
+    case 0x0c: /* SQSHLU */
+    case 0x0e: /* SQSHL, UQSHL */
         unallocated_encoding(s);
         break;
     }
@@ -10561,16 +10532,6 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_shift_intfp_conv(s, false, is_q, is_u, immh, immb,
                                      opcode, rn, rd);
         break;
-    case 0xc: /* SQSHLU */
-        if (!is_u) {
-            unallocated_encoding(s);
-            return;
-        }
-        handle_simd_qshl(s, false, is_q, false, true, immh, immb, rn, rd);
-        break;
-    case 0xe: /* SQSHL, UQSHL */
-        handle_simd_qshl(s, false, is_q, is_u, is_u, immh, immb, rn, rd);
-        break;
     case 0x1f: /* FCVTZS/ FCVTZU */
         handle_simd_shift_fpint_conv(s, false, is_q, is_u, immh, immb, rn, rd);
         return;
@@ -10581,6 +10542,8 @@ static void disas_simd_shift_imm(DisasContext *s, uint32_t insn)
     case 0x06: /* SRSRA / URSRA (accum + rounding) */
     case 0x08: /* SRI */
     case 0x0a: /* SHL / SLI */
+    case 0x0c: /* SQSHLU */
+    case 0x0e: /* SQSHL, UQSHL */
     case 0x14: /* SSHLL / USHLL */
         unallocated_encoding(s);
         return;
