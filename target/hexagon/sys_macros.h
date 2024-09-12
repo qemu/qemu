@@ -143,11 +143,11 @@
 #define fDCINVIDX(REG)
 #define fDCINVA(REG) do { REG = REG; } while (0) /* Nothing to do in qemu */
 
-#define fSET_TLB_LOCK()       g_assert_not_reached()
-#define fCLEAR_TLB_LOCK()     g_assert_not_reached()
+#define fSET_TLB_LOCK()       hex_tlb_lock(env);
+#define fCLEAR_TLB_LOCK()     hex_tlb_unlock(env);
 
-#define fSET_K0_LOCK()        g_assert_not_reached()
-#define fCLEAR_K0_LOCK()      g_assert_not_reached()
+#define fSET_K0_LOCK()        hex_k0_lock(env);
+#define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
 
 #define fTLB_IDXMASK(INDEX) \
     ((INDEX) & (fPOW2_ROUNDUP(fCAST4u(env_archcpu(env)->num_tlbs)) - 1))
