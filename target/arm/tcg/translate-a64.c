@@ -7019,6 +7019,78 @@ static bool do_vec_shift_imm_wide(DisasContext *s, arg_qrri_e *a, bool is_u)
 TRANS(SSHLL_v, do_vec_shift_imm_wide, a, false)
 TRANS(USHLL_v, do_vec_shift_imm_wide, a, true)
 
+static void gen_sshr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 64);
+    tcg_gen_sari_i64(dst, src, MIN(shift, 63));
+}
+
+static void gen_ushr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 64);
+    if (shift == 64) {
+        tcg_gen_movi_i64(dst, 0);
+    } else {
+        tcg_gen_shri_i64(dst, src, shift);
+    }
+}
+
+static void gen_srshr_bhs(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 32);
+    if (shift) {
+        TCGv_i64 rnd = tcg_constant_i64(1ull << (shift - 1));
+        tcg_gen_add_i64(dst, src, rnd);
+        tcg_gen_sari_i64(dst, dst, shift);
+    } else {
+        tcg_gen_mov_i64(dst, src);
+    }
+}
+
+static void gen_urshr_bhs(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 32);
+    if (shift) {
+        TCGv_i64 rnd = tcg_constant_i64(1ull << (shift - 1));
+        tcg_gen_add_i64(dst, src, rnd);
+        tcg_gen_shri_i64(dst, dst, shift);
+    } else {
+        tcg_gen_mov_i64(dst, src);
+    }
+}
+
+static void gen_srshr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 64);
+    if (shift == 0) {
+        tcg_gen_mov_i64(dst, src);
+    } else if (shift == 64) {
+        /* Extension of sign bit (0,-1) plus sign bit (0,1) is zero. */
+        tcg_gen_movi_i64(dst, 0);
+    } else {
+        TCGv_i64 rnd = tcg_temp_new_i64();
+        tcg_gen_extract_i64(rnd, src, shift - 1, 1);
+        tcg_gen_sari_i64(dst, src, shift);
+        tcg_gen_add_i64(dst, dst, rnd);
+    }
+}
+
+static void gen_urshr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    assert(shift >= 0 && shift <= 64);
+    if (shift == 0) {
+        tcg_gen_mov_i64(dst, src);
+    } else if (shift == 64) {
+        /* Rounding will propagate bit 63 into bit 64. */
+        tcg_gen_shri_i64(dst, src, 63);
+    } else {
+        TCGv_i64 rnd = tcg_temp_new_i64();
+        tcg_gen_extract_i64(rnd, src, shift - 1, 1);
+        tcg_gen_shri_i64(dst, src, shift);
+        tcg_gen_add_i64(dst, dst, rnd);
+    }
+}
+
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
  * Note that it is the caller's responsibility to ensure that the
  * shift amount is in range (ie 0..31 or 0..63) and provide the ARM
@@ -9208,69 +9280,23 @@ static void handle_shri_with_rndacc(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
                                     bool round, bool accumulate,
                                     bool is_u, int size, int shift)
 {
-    bool extended_result = false;
-    int ext_lshift = 0;
-    TCGv_i64 tcg_src_hi;
-
-    if (round && size == 3) {
-        extended_result = true;
-        ext_lshift = 64 - shift;
-        tcg_src_hi = tcg_temp_new_i64();
-    } else if (shift == 64) {
-        if (!accumulate && is_u) {
-            /* result is zero */
-            tcg_gen_movi_i64(tcg_res, 0);
-            return;
-        }
-    }
-
-    /* Deal with the rounding step */
-    if (round) {
-        TCGv_i64 tcg_rnd = tcg_constant_i64(1ull << (shift - 1));
-        if (extended_result) {
-            TCGv_i64 tcg_zero = tcg_constant_i64(0);
-            if (!is_u) {
-                /* take care of sign extending tcg_res */
-                tcg_gen_sari_i64(tcg_src_hi, tcg_src, 63);
-                tcg_gen_add2_i64(tcg_src, tcg_src_hi,
-                                 tcg_src, tcg_src_hi,
-                                 tcg_rnd, tcg_zero);
-            } else {
-                tcg_gen_add2_i64(tcg_src, tcg_src_hi,
-                                 tcg_src, tcg_zero,
-                                 tcg_rnd, tcg_zero);
-            }
+    if (!round) {
+        if (is_u) {
+            gen_ushr_d(tcg_src, tcg_src, shift);
         } else {
-            tcg_gen_add_i64(tcg_src, tcg_src, tcg_rnd);
+            gen_sshr_d(tcg_src, tcg_src, shift);
         }
-    }
-
-    /* Now do the shift right */
-    if (round && extended_result) {
-        /* extended case, >64 bit precision required */
-        if (ext_lshift == 0) {
-            /* special case, only high bits matter */
-            tcg_gen_mov_i64(tcg_src, tcg_src_hi);
+    } else if (size == MO_64) {
+        if (is_u) {
+            gen_urshr_d(tcg_src, tcg_src, shift);
         } else {
-            tcg_gen_shri_i64(tcg_src, tcg_src, shift);
-            tcg_gen_shli_i64(tcg_src_hi, tcg_src_hi, ext_lshift);
-            tcg_gen_or_i64(tcg_src, tcg_src, tcg_src_hi);
+            gen_srshr_d(tcg_src, tcg_src, shift);
         }
     } else {
         if (is_u) {
-            if (shift == 64) {
-                /* essentially shifting in 64 zeros */
-                tcg_gen_movi_i64(tcg_src, 0);
-            } else {
-                tcg_gen_shri_i64(tcg_src, tcg_src, shift);
-            }
+            gen_urshr_bhs(tcg_src, tcg_src, shift);
         } else {
-            if (shift == 64) {
-                /* effectively extending the sign-bit */
-                tcg_gen_sari_i64(tcg_src, tcg_src, 63);
-            } else {
-                tcg_gen_sari_i64(tcg_src, tcg_src, shift);
-            }
+            gen_srshr_bhs(tcg_src, tcg_src, shift);
         }
     }
 
