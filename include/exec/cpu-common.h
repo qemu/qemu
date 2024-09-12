@@ -239,6 +239,17 @@ static inline ArchCPU *env_archcpu(CPUArchState *env)
 }
 
 /**
+ * env_cpu_const(env)
+ * @env: The architecture environment
+ *
+ * Return the CPUState associated with the environment.
+ */
+static inline const CPUState *env_cpu_const(const CPUArchState *env)
+{
+    return (void *)env - sizeof(CPUState);
+}
+
+/**
  * env_cpu(env)
  * @env: The architecture environment
  *
@@ -246,7 +257,7 @@ static inline ArchCPU *env_archcpu(CPUArchState *env)
  */
 static inline CPUState *env_cpu(CPUArchState *env)
 {
-    return (void *)env - sizeof(CPUState);
+    return (CPUState *)env_cpu_const(env);
 }
 
 #ifndef CONFIG_USER_ONLY
