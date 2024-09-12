@@ -1328,6 +1328,12 @@ SQRSHRUN_v      0.10 11110 .... ... 10001 1 ..... .....     @q_shri_s
 
 # Advanced SIMD scalar shift by immediate
 
+@shri_b         .... ..... 0001 ... ..... . rn:5 rd:5   \
+                &rri_e esz=0 imm=%neon_rshift_i3
+@shri_h         .... ..... 001 .... ..... . rn:5 rd:5   \
+                &rri_e esz=1 imm=%neon_rshift_i4
+@shri_s         .... ..... 01 ..... ..... . rn:5 rd:5   \
+                &rri_e esz=2 imm=%neon_rshift_i5
 @shri_d         .... ..... 1 ...... ..... . rn:5 rd:5   \
                 &rri_e esz=3 imm=%neon_rshift_i6
 
@@ -1363,3 +1369,27 @@ SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_b
 SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_h
 SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_s
 SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_d
+
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_b
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_h
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_s
+
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_b
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_h
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_s
+
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_b
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_h
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_s
+
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_b
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_h
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_s
+
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_b
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_h
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_s
+
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_b
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_h
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_s
