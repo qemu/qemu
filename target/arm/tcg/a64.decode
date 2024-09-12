@@ -30,6 +30,7 @@
 &rri_sf         rd rn imm sf
 &i              imm
 &rr_e           rd rn esz
+&rri_e          rd rn imm esz
 &rrr_e          rd rn rm esz
 &rrx_e          rd rn rm idx esz
 &rrrr_e         rd rn rm ra esz
@@ -1285,3 +1286,18 @@ SHRN_v          0.00 11110 .... ... 10000 1 ..... .....     @q_shri_s
 RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_b
 RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_h
 RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_s
+
+# Advanced SIMD scalar shift by immediate
+
+@shri_d         .... ..... 1 ...... ..... . rn:5 rd:5   \
+                &rri_e esz=3 imm=%neon_rshift_i6
+
+SSHR_s          0101 11110 .... ... 00000 1 ..... .....     @shri_d
+USHR_s          0111 11110 .... ... 00000 1 ..... .....     @shri_d
+SSRA_s          0101 11110 .... ... 00010 1 ..... .....     @shri_d
+USRA_s          0111 11110 .... ... 00010 1 ..... .....     @shri_d
+SRSHR_s         0101 11110 .... ... 00100 1 ..... .....     @shri_d
+URSHR_s         0111 11110 .... ... 00100 1 ..... .....     @shri_d
+SRSRA_s         0101 11110 .... ... 00110 1 ..... .....     @shri_d
+URSRA_s         0111 11110 .... ... 00110 1 ..... .....     @shri_d
+SRI_s           0111 11110 .... ... 01000 1 ..... .....     @shri_d

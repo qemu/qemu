@@ -7035,6 +7035,18 @@ static void gen_ushr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
     }
 }
 
+static void gen_ssra_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    gen_sshr_d(src, src, shift);
+    tcg_gen_add_i64(dst, dst, src);
+}
+
+static void gen_usra_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    gen_ushr_d(src, src, shift);
+    tcg_gen_add_i64(dst, dst, src);
+}
+
 static void gen_srshr_bhs(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
 {
     assert(shift >= 0 && shift <= 32);
@@ -7091,6 +7103,27 @@ static void gen_urshr_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
     }
 }
 
+static void gen_srsra_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    gen_srshr_d(src, src, shift);
+    tcg_gen_add_i64(dst, dst, src);
+}
+
+static void gen_ursra_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    gen_urshr_d(src, src, shift);
+    tcg_gen_add_i64(dst, dst, src);
+}
+
+static void gen_sri_d(TCGv_i64 dst, TCGv_i64 src, int64_t shift)
+{
+    /* If shift is 64, dst is unchanged. */
+    if (shift != 64) {
+        tcg_gen_shri_i64(src, src, shift);
+        tcg_gen_deposit_i64(dst, dst, src, 0, 64 - shift);
+    }
+}
+
 static bool do_vec_shift_imm_narrow(DisasContext *s, arg_qrri_e *a,
                                     WideShiftImmFn * const fns[3], MemOp sign)
 {
@@ -7135,6 +7168,38 @@ static WideShiftImmFn * const rshrn_fns[] = {
     gen_urshr_d,
 };
 TRANS(RSHRN_v, do_vec_shift_imm_narrow, a, rshrn_fns, 0)
+
+/*
+ * Advanced SIMD Scalar Shift by Immediate
+ */
+
+static bool do_scalar_shift_imm(DisasContext *s, arg_rri_e *a,
+                                WideShiftImmFn *fn, bool accumulate,
+                                MemOp sign)
+{
+    if (fp_access_check(s)) {
+        TCGv_i64 rd = tcg_temp_new_i64();
+        TCGv_i64 rn = tcg_temp_new_i64();
+
+        read_vec_element(s, rn, a->rn, 0, a->esz | sign);
+        if (accumulate) {
+            read_vec_element(s, rd, a->rd, 0, a->esz | sign);
+        }
+        fn(rd, rn, a->imm);
+        write_fp_dreg(s, a->rd, rd);
+    }
+    return true;
+}
+
+TRANS(SSHR_s, do_scalar_shift_imm, a, gen_sshr_d, false, 0)
+TRANS(USHR_s, do_scalar_shift_imm, a, gen_ushr_d, false, 0)
+TRANS(SSRA_s, do_scalar_shift_imm, a, gen_ssra_d, true, 0)
+TRANS(USRA_s, do_scalar_shift_imm, a, gen_usra_d, true, 0)
+TRANS(SRSHR_s, do_scalar_shift_imm, a, gen_srshr_d, false, 0)
+TRANS(URSHR_s, do_scalar_shift_imm, a, gen_urshr_d, false, 0)
+TRANS(SRSRA_s, do_scalar_shift_imm, a, gen_srsra_d, true, 0)
+TRANS(URSRA_s, do_scalar_shift_imm, a, gen_ursra_d, true, 0)
+TRANS(SRI_s, do_scalar_shift_imm, a, gen_sri_d, true, 0)
 
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
  * Note that it is the caller's responsibility to ensure that the
@@ -9352,64 +9417,6 @@ static void handle_shri_with_rndacc(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
     }
 }
 
-/* SSHR[RA]/USHR[RA] - Scalar shift right (optional rounding/accumulate) */
-static void handle_scalar_simd_shri(DisasContext *s,
-                                    bool is_u, int immh, int immb,
-                                    int opcode, int rn, int rd)
-{
-    const int size = 3;
-    int immhb = immh << 3 | immb;
-    int shift = 2 * (8 << size) - immhb;
-    bool accumulate = false;
-    bool round = false;
-    bool insert = false;
-    TCGv_i64 tcg_rn;
-    TCGv_i64 tcg_rd;
-
-    if (!extract32(immh, 3, 1)) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    switch (opcode) {
-    case 0x02: /* SSRA / USRA (accumulate) */
-        accumulate = true;
-        break;
-    case 0x04: /* SRSHR / URSHR (rounding) */
-        round = true;
-        break;
-    case 0x06: /* SRSRA / URSRA (accum + rounding) */
-        accumulate = round = true;
-        break;
-    case 0x08: /* SRI */
-        insert = true;
-        break;
-    }
-
-    tcg_rn = read_fp_dreg(s, rn);
-    tcg_rd = (accumulate || insert) ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
-
-    if (insert) {
-        /* shift count same as element size is valid but does nothing;
-         * special case to avoid potential shift by 64.
-         */
-        int esize = 8 << size;
-        if (shift != esize) {
-            tcg_gen_shri_i64(tcg_rn, tcg_rn, shift);
-            tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_rn, 0, esize - shift);
-        }
-    } else {
-        handle_shri_with_rndacc(tcg_rd, tcg_rn, round,
-                                accumulate, is_u, size, shift);
-    }
-
-    write_fp_dreg(s, rd, tcg_rd);
-}
-
 /* SHL/SLI - Scalar shift left */
 static void handle_scalar_simd_shli(DisasContext *s, bool insert,
                                     int immh, int immb, int opcode,
@@ -9893,18 +9900,6 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
     }
 
     switch (opcode) {
-    case 0x08: /* SRI */
-        if (!is_u) {
-            unallocated_encoding(s);
-            return;
-        }
-        /* fall through */
-    case 0x00: /* SSHR / USHR */
-    case 0x02: /* SSRA / USRA */
-    case 0x04: /* SRSHR / URSHR */
-    case 0x06: /* SRSRA / URSRA */
-        handle_scalar_simd_shri(s, is_u, immh, immb, opcode, rn, rd);
-        break;
     case 0x0a: /* SHL / SLI */
         handle_scalar_simd_shli(s, is_u, immh, immb, opcode, rn, rd);
         break;
@@ -9940,6 +9935,11 @@ static void disas_simd_scalar_shift_imm(DisasContext *s, uint32_t insn)
         handle_simd_shift_fpint_conv(s, true, false, is_u, immh, immb, rn, rd);
         break;
     default:
+    case 0x00: /* SSHR / USHR */
+    case 0x02: /* SSRA / USRA */
+    case 0x04: /* SRSHR / URSHR */
+    case 0x06: /* SRSRA / URSRA */
+    case 0x08: /* SRI */
         unallocated_encoding(s);
         break;
     }
