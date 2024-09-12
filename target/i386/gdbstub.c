@@ -96,6 +96,19 @@ static int gdb_write_reg_cs64(uint32_t hflags, uint8_t *buf, target_ulong *val)
     return 4;
 }
 
+static int gdb_get_reg(CPUX86State *env, GByteArray *mem_buf, target_ulong val)
+{
+    if (TARGET_LONG_BITS == 64) {
+        if (env->hflags & HF_CS64_MASK) {
+            return gdb_get_reg64(mem_buf, val);
+        } else {
+            return gdb_get_reg64(mem_buf, val & 0xffffffffUL);
+        }
+    } else {
+        return gdb_get_reg32(mem_buf, val);
+    }
+}
+
 int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -137,15 +150,7 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     } else {
         switch (n) {
         case IDX_IP_REG:
-            if (TARGET_LONG_BITS == 64) {
-                if (env->hflags & HF_CS64_MASK) {
-                    return gdb_get_reg64(mem_buf, env->eip);
-                } else {
-                    return gdb_get_reg64(mem_buf, env->eip & 0xffffffffUL);
-                }
-            } else {
-                return gdb_get_reg32(mem_buf, env->eip);
-            }
+            return gdb_get_reg(env, mem_buf, env->eip);
         case IDX_FLAGS_REG:
             return gdb_get_reg32(mem_buf, env->eflags);
 
@@ -248,6 +253,21 @@ static int x86_cpu_gdb_load_seg(X86CPU *cpu, X86Seg sreg, uint8_t *mem_buf)
     return 4;
 }
 
+static int gdb_write_reg(CPUX86State *env, uint8_t *mem_buf, target_ulong *val)
+{
+    if (TARGET_LONG_BITS == 64) {
+        if (env->hflags & HF_CS64_MASK) {
+            *val = ldq_p(mem_buf);
+        } else {
+            *val = ldq_p(mem_buf) & 0xffffffffUL;
+        }
+        return 8;
+    } else {
+        *val = (uint32_t)ldl_p(mem_buf);
+        return 4;
+    }
+}
+
 int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -288,18 +308,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case IDX_IP_REG:
-            if (TARGET_LONG_BITS == 64) {
-                if (env->hflags & HF_CS64_MASK) {
-                    env->eip = ldq_p(mem_buf);
-                } else {
-                    env->eip = ldq_p(mem_buf) & 0xffffffffUL;
-                }
-                return 8;
-            } else {
-                env->eip &= ~0xffffffffUL;
-                env->eip |= (uint32_t)ldl_p(mem_buf);
-                return 4;
-            }
+            return gdb_write_reg(env, mem_buf, &env->eip);
         case IDX_FLAGS_REG:
             env->eflags = ldl_p(mem_buf);
             return 4;
