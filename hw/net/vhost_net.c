@@ -162,6 +162,135 @@ void vhost_net_save_acked_features(NetClientState *nc)
 #endif
 }
 
+static void vhost_net_disable_notifiers_nvhosts(VirtIODevice *dev,
+                NetClientState *ncs, int data_queue_pairs, int nvhosts)
+{
+    VirtIONet *n = VIRTIO_NET(dev);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
+    struct vhost_net *net;
+    struct vhost_dev *hdev;
+    int r, i, j;
+    NetClientState *peer;
+
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
+    for (i = 0; i < nvhosts; i++) {
+        if (i < data_queue_pairs) {
+            peer = qemu_get_peer(ncs, i);
+        } else {
+            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+        }
+
+        net = get_vhost_net(peer);
+        hdev = &net->dev;
+        for (j = 0; j < hdev->nvqs; j++) {
+            r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus),
+                                             hdev->vq_index + j,
+                                             false);
+            if (r < 0) {
+                error_report("vhost %d VQ %d notifier cleanup failed: %d",
+                              i, j, -r);
+            }
+            assert(r >= 0);
+        }
+    }
+    /*
+     * The transaction expects the ioeventfds to be open when it
+     * commits. Do it now, before the cleanup loop.
+     */
+    memory_region_transaction_commit();
+
+    for (i = 0; i < nvhosts; i++) {
+        if (i < data_queue_pairs) {
+            peer = qemu_get_peer(ncs, i);
+        } else {
+            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+        }
+
+        net = get_vhost_net(peer);
+        hdev = &net->dev;
+        for (j = 0; j < hdev->nvqs; j++) {
+            virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus),
+                                             hdev->vq_index + j);
+        }
+        virtio_device_release_ioeventfd(dev);
+    }
+}
+
+static int vhost_net_enable_notifiers(VirtIODevice *dev,
+                NetClientState *ncs, int data_queue_pairs, int cvq)
+{
+    VirtIONet *n = VIRTIO_NET(dev);
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
+    int nvhosts = data_queue_pairs + cvq;
+    struct vhost_net *net;
+    struct vhost_dev *hdev;
+    int r, i, j;
+    NetClientState *peer;
+
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
+    for (i = 0; i < nvhosts; i++) {
+        if (i < data_queue_pairs) {
+            peer = qemu_get_peer(ncs, i);
+        } else {
+            peer = qemu_get_peer(ncs, n->max_queue_pairs);
+        }
+
+        net = get_vhost_net(peer);
+        hdev = &net->dev;
+        /*
+         * We will pass the notifiers to the kernel, make sure that QEMU
+         * doesn't interfere.
+         */
+        r = virtio_device_grab_ioeventfd(dev);
+        if (r < 0) {
+            error_report("binding does not support host notifiers");
+            memory_region_transaction_commit();
+            goto fail_nvhosts;
+        }
+
+        for (j = 0; j < hdev->nvqs; j++) {
+            r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus),
+                                             hdev->vq_index + j,
+                                             true);
+            if (r < 0) {
+                error_report("vhost %d VQ %d notifier binding failed: %d",
+                              i, j, -r);
+                memory_region_transaction_commit();
+                vhost_dev_disable_notifiers_nvqs(hdev, dev, j);
+                goto fail_nvhosts;
+            }
+        }
+    }
+
+    memory_region_transaction_commit();
+
+    return 0;
+fail_nvhosts:
+    vhost_net_disable_notifiers_nvhosts(dev, ncs, data_queue_pairs, i);
+    return r;
+}
+
+/*
+ * Stop processing guest IO notifications in qemu.
+ * Start processing them in vhost in kernel.
+ */
+static void vhost_net_disable_notifiers(VirtIODevice *dev,
+                NetClientState *ncs, int data_queue_pairs, int cvq)
+{
+    vhost_net_disable_notifiers_nvhosts(dev, ncs, data_queue_pairs,
+                                        data_queue_pairs + cvq);
+}
+
 static int vhost_net_get_fd(NetClientState *backend)
 {
     switch (backend->info->type) {
@@ -272,11 +401,6 @@ static int vhost_net_start_one(struct vhost_net *net,
         }
     }
 
-    r = vhost_dev_enable_notifiers(&net->dev, dev);
-    if (r < 0) {
-        goto fail_notifiers;
-    }
-
     r = vhost_dev_start(&net->dev, dev, false);
     if (r < 0) {
         goto fail_start;
@@ -328,8 +452,6 @@ fail:
     }
     vhost_dev_stop(&net->dev, dev, false);
 fail_start:
-    vhost_dev_disable_notifiers(&net->dev, dev);
-fail_notifiers:
     return r;
 }
 
@@ -351,7 +473,6 @@ static void vhost_net_stop_one(struct vhost_net *net,
     if (net->nc->info->stop) {
         net->nc->info->stop(net->nc);
     }
-    vhost_dev_disable_notifiers(&net->dev, dev);
 }
 
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
@@ -396,10 +517,16 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
      }
 
+    r = vhost_net_enable_notifiers(dev, ncs, data_queue_pairs, cvq);
+    if (r < 0) {
+        error_report("Error enabling host notifiers: %d", -r);
+        goto err;
+    }
+
     r = k->set_guest_notifiers(qbus->parent, total_notifiers, true);
     if (r < 0) {
         error_report("Error binding guest notifier: %d", -r);
-        goto err;
+        goto err_host_notifiers;
     }
 
     for (i = 0; i < nvhosts; i++) {
@@ -414,19 +541,19 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
             r = vhost_set_vring_enable(peer, peer->vring_enable);
 
             if (r < 0) {
-                goto err_start;
+                goto err_guest_notifiers;
             }
         }
 
         r = vhost_net_start_one(get_vhost_net(peer), dev);
         if (r < 0) {
-            goto err_start;
+            goto err_guest_notifiers;
         }
     }
 
     return 0;
 
-err_start:
+err_guest_notifiers:
     while (--i >= 0) {
         peer = qemu_get_peer(ncs, i < data_queue_pairs ?
                                   i : n->max_queue_pairs);
@@ -437,6 +564,8 @@ err_start:
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
         fflush(stderr);
     }
+err_host_notifiers:
+    vhost_net_disable_notifiers(dev, ncs, data_queue_pairs, cvq);
 err:
     return r;
 }
@@ -468,6 +597,8 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         fflush(stderr);
     }
     assert(r >= 0);
+
+    vhost_net_disable_notifiers(dev, ncs, data_queue_pairs, cvq);
 }
 
 void vhost_net_cleanup(struct vhost_net *net)

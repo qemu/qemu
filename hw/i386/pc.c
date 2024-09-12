@@ -79,7 +79,10 @@
     { "qemu64-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },\
     { "athlon-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },
 
-GlobalProperty pc_compat_9_1[] = {};
+GlobalProperty pc_compat_9_1[] = {
+    { "ICH9-LPC", "x-smi-swsmi-timer", "off" },
+    { "ICH9-LPC", "x-smi-periodic-timer", "off" },
+};
 const size_t pc_compat_9_1_len = G_N_ELEMENTS(pc_compat_9_1);
 
 GlobalProperty pc_compat_9_0[] = {

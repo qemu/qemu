@@ -26,22 +26,21 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
-OBJECT_DECLARE_SIMPLE_TYPE(IRQState, IRQ)
-
-struct IRQState {
-    Object parent_obj;
-
-    qemu_irq_handler handler;
-    void *opaque;
-    int n;
-};
-
 void qemu_set_irq(qemu_irq irq, int level)
 {
     if (!irq)
         return;
 
     irq->handler(irq->opaque, irq->n, level);
+}
+
+void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
+                   int n)
+{
+    object_initialize(irq, sizeof(*irq), TYPE_IRQ);
+    irq->handler = handler;
+    irq->opaque = opaque;
+    irq->n = n;
 }
 
 qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
@@ -69,10 +68,8 @@ qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
 {
     IRQState *irq;
 
-    irq = IRQ(object_new(TYPE_IRQ));
-    irq->handler = handler;
-    irq->opaque = opaque;
-    irq->n = n;
+    irq = g_new(IRQState, 1);
+    qemu_init_irq(irq, handler, opaque, n);
 
     return irq;
 }

@@ -1682,9 +1682,9 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     memset(hdev, 0, sizeof(struct vhost_dev));
 }
 
-static void vhost_dev_disable_notifiers_nvqs(struct vhost_dev *hdev,
-                                             VirtIODevice *vdev,
-                                             unsigned int nvqs)
+void vhost_dev_disable_notifiers_nvqs(struct vhost_dev *hdev,
+                                      VirtIODevice *vdev,
+                                      unsigned int nvqs)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     int i, r;

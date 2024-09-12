@@ -46,6 +46,7 @@ typedef struct ICH9LPCPMRegs {
     uint32_t smi_en;
     uint32_t smi_en_wmask;
     uint32_t smi_sts;
+    uint32_t smi_sts_wmask;
 
     qemu_irq irq;      /* SCI */
 
@@ -68,6 +69,11 @@ typedef struct ICH9LPCPMRegs {
     bool smm_compat;
     bool enable_tco;
     TCOIORegs tco_regs;
+
+    bool swsmi_timer_enabled;
+    bool periodic_timer_enabled;
+    QEMUTimer *swsmi_timer;
+    QEMUTimer *periodic_timer;
 } ICH9LPCPMRegs;
 
 #define ACPI_PM_PROP_TCO_ENABLED "enable_tco"

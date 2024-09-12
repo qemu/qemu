@@ -1247,9 +1247,21 @@ static bool virtio_crypto_guest_notifier_pending(VirtIODevice *vdev, int idx)
 static struct vhost_dev *virtio_crypto_get_vhost(VirtIODevice *vdev)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
-    CryptoDevBackend *b = vcrypto->cryptodev;
-    CryptoDevBackendClient *cc = b->conf.peers.ccs[0];
-    CryptoDevBackendVhost *vhost_crypto = cryptodev_get_vhost(cc, b, 0);
+    CryptoDevBackend *b;
+    CryptoDevBackendClient *cc;
+    CryptoDevBackendVhost *vhost_crypto;
+
+    b = vcrypto->cryptodev;
+    if (!b) {
+        return NULL;
+    }
+
+    cc = b->conf.peers.ccs[0];
+    vhost_crypto = cryptodev_get_vhost(cc, b, 0);
+    if (!vhost_crypto) {
+        return NULL;
+    }
+
     return &vhost_crypto->dev;
 }
 
