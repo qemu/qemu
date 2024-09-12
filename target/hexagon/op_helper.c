@@ -68,15 +68,13 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
                                             uintptr_t pc)
 {
-    CPUState *cs = env_cpu(env);
-    qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
-    cs->exception_index = exception;
-    cpu_loop_exit_restore(cs, pc);
+    do_raise_exception(env, exception, pc, 0);
 }
 
-G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
+G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
+                                        target_ulong PC)
 {
-    hexagon_raise_exception_err(env, excp, 0);
+    hexagon_raise_exception_err(env, excp, PC);
 }
 
 void log_store32(CPUHexagonState *env, target_ulong addr,

@@ -1370,13 +1370,6 @@
 #define fGEN_TCG_S2_storew_rl_st_vi(SHORTCODE)          SHORTCODE
 #define fGEN_TCG_S4_stored_rl_st_vi(SHORTCODE)          SHORTCODE
 
-#define fGEN_TCG_J2_trap0(SHORTCODE) \
-    do { \
-        uiV = uiV; \
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt->pc); \
-        TCGv excp = tcg_constant_tl(HEX_EVENT_TRAP0); \
-        gen_helper_raise_exception(tcg_env, excp); \
-    } while (0)
 #endif
 
 #define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)

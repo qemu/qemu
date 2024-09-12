@@ -124,16 +124,17 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
-static void gen_exception_raw(int excp)
+static void gen_exception(int excp, target_ulong PC)
 {
-    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
+    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp),
+                               tcg_constant_tl(PC));
 }
 
 #ifndef CONFIG_USER_ONLY
 static inline void gen_precise_exception(int excp, target_ulong PC)
 {
     tcg_gen_movi_tl(hex_cause_code, excp);
-    g_assert_not_reached();
+    gen_exception(HEX_EVENT_PRECISE, PC);
 }
 #endif
 
@@ -217,9 +218,11 @@ static void gen_end_tb(DisasContext *ctx)
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
 {
-    gen_exec_counters(ctx);
-    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
-    gen_exception_raw(excp);
+#ifdef CONFIG_USER_ONLY
+    gen_exception(excp, ctx->pkt->pc);
+#else
+    gen_precise_exception(excp, ctx->pkt->pc);
+#endif
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
