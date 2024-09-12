@@ -4694,6 +4694,74 @@ static bool trans_TBL_TBX(DisasContext *s, arg_TBL_TBX *a)
     return true;
 }
 
+typedef int simd_permute_idx_fn(int i, int part, int elements);
+
+static bool do_simd_permute(DisasContext *s, arg_qrrr_e *a,
+                            simd_permute_idx_fn *fn, int part)
+{
+    MemOp esz = a->esz;
+    int datasize = a->q ? 16 : 8;
+    int elements = datasize >> esz;
+    TCGv_i64 tcg_res[2], tcg_ele;
+
+    if (esz == MO_64 && !a->q) {
+        return false;
+    }
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    tcg_res[0] = tcg_temp_new_i64();
+    tcg_res[1] = a->q ? tcg_temp_new_i64() : NULL;
+    tcg_ele = tcg_temp_new_i64();
+
+    for (int i = 0; i < elements; i++) {
+        int o, w, idx;
+
+        idx = fn(i, part, elements);
+        read_vec_element(s, tcg_ele, (idx & elements ? a->rm : a->rn),
+                         idx & (elements - 1), esz);
+
+        w = (i << (esz + 3)) / 64;
+        o = (i << (esz + 3)) % 64;
+        if (o == 0) {
+            tcg_gen_mov_i64(tcg_res[w], tcg_ele);
+        } else {
+            tcg_gen_deposit_i64(tcg_res[w], tcg_res[w], tcg_ele, o, 8 << esz);
+        }
+    }
+
+    for (int i = a->q; i >= 0; --i) {
+        write_vec_element(s, tcg_res[i], a->rd, i, MO_64);
+    }
+    clear_vec_high(s, a->q, a->rd);
+    return true;
+}
+
+static int permute_load_uzp(int i, int part, int elements)
+{
+    return 2 * i + part;
+}
+
+TRANS(UZP1, do_simd_permute, a, permute_load_uzp, 0)
+TRANS(UZP2, do_simd_permute, a, permute_load_uzp, 1)
+
+static int permute_load_trn(int i, int part, int elements)
+{
+    return (i & 1) * elements + (i & ~1) + part;
+}
+
+TRANS(TRN1, do_simd_permute, a, permute_load_trn, 0)
+TRANS(TRN2, do_simd_permute, a, permute_load_trn, 1)
+
+static int permute_load_zip(int i, int part, int elements)
+{
+    return (i & 1) * elements + ((part * elements + i) >> 1);
+}
+
+TRANS(ZIP1, do_simd_permute, a, permute_load_zip, 0)
+TRANS(ZIP2, do_simd_permute, a, permute_load_zip, 1)
+
 /*
  * Cryptographic AES, SHA, SHA512
  */
@@ -8952,95 +9020,6 @@ static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
     }
 }
 
-/* ZIP/UZP/TRN
- *   31  30 29         24 23  22  21 20   16 15 14 12 11 10 9    5 4    0
- * +---+---+-------------+------+---+------+---+------------------+------+
- * | 0 | Q | 0 0 1 1 1 0 | size | 0 |  Rm  | 0 | opc | 1 0 |  Rn  |  Rd  |
- * +---+---+-------------+------+---+------+---+------------------+------+
- */
-static void disas_simd_zip_trn(DisasContext *s, uint32_t insn)
-{
-    int rd = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    int rm = extract32(insn, 16, 5);
-    int size = extract32(insn, 22, 2);
-    /* opc field bits [1:0] indicate ZIP/UZP/TRN;
-     * bit 2 indicates 1 vs 2 variant of the insn.
-     */
-    int opcode = extract32(insn, 12, 2);
-    bool part = extract32(insn, 14, 1);
-    bool is_q = extract32(insn, 30, 1);
-    int esize = 8 << size;
-    int i;
-    int datasize = is_q ? 128 : 64;
-    int elements = datasize / esize;
-    TCGv_i64 tcg_res[2], tcg_ele;
-
-    if (opcode == 0 || (size == 3 && !is_q)) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    tcg_res[0] = tcg_temp_new_i64();
-    tcg_res[1] = is_q ? tcg_temp_new_i64() : NULL;
-    tcg_ele = tcg_temp_new_i64();
-
-    for (i = 0; i < elements; i++) {
-        int o, w;
-
-        switch (opcode) {
-        case 1: /* UZP1/2 */
-        {
-            int midpoint = elements / 2;
-            if (i < midpoint) {
-                read_vec_element(s, tcg_ele, rn, 2 * i + part, size);
-            } else {
-                read_vec_element(s, tcg_ele, rm,
-                                 2 * (i - midpoint) + part, size);
-            }
-            break;
-        }
-        case 2: /* TRN1/2 */
-            if (i & 1) {
-                read_vec_element(s, tcg_ele, rm, (i & ~1) + part, size);
-            } else {
-                read_vec_element(s, tcg_ele, rn, (i & ~1) + part, size);
-            }
-            break;
-        case 3: /* ZIP1/2 */
-        {
-            int base = part * elements / 2;
-            if (i & 1) {
-                read_vec_element(s, tcg_ele, rm, base + (i >> 1), size);
-            } else {
-                read_vec_element(s, tcg_ele, rn, base + (i >> 1), size);
-            }
-            break;
-        }
-        default:
-            g_assert_not_reached();
-        }
-
-        w = (i * esize) / 64;
-        o = (i * esize) % 64;
-        if (o == 0) {
-            tcg_gen_mov_i64(tcg_res[w], tcg_ele);
-        } else {
-            tcg_gen_shli_i64(tcg_ele, tcg_ele, o);
-            tcg_gen_or_i64(tcg_res[w], tcg_res[w], tcg_ele);
-        }
-    }
-
-    for (i = 0; i <= is_q; ++i) {
-        write_vec_element(s, tcg_res[i], rd, i, MO_64);
-    }
-    clear_vec_high(s, is_q, rd);
-}
-
 /*
  * do_reduction_op helper
  *
@@ -11816,7 +11795,6 @@ static const AArch64DecodeTable data_proc_simd[] = {
     /* simd_mod_imm decode is a subset of simd_shift_imm, so must precede it */
     { 0x0f000400, 0x9ff80400, disas_simd_mod_imm },
     { 0x0f000400, 0x9f800400, disas_simd_shift_imm },
-    { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
     { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
     { 0x0e780800, 0x8f7e0c00, disas_simd_two_reg_misc_fp16 },
