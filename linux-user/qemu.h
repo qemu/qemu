@@ -114,6 +114,10 @@ struct TaskState {
     uint32_t v86flags;
     uint32_t v86mask;
 #endif
+#if defined(TARGET_I386)
+    /* Last syscall number. */
+    target_ulong orig_ax;
+#endif
     abi_ulong child_tidptr;
 #ifdef TARGET_M68K
     abi_ulong tp_value;
