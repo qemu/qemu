@@ -9439,11 +9439,9 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
     int elements = is_scalar ? 1 : (64 / esize);
     bool round = extract32(opcode, 0, 1);
     MemOp ldop = (size + 1) | (is_u_shift ? 0 : MO_SIGN);
-    TCGv_i64 tcg_rn, tcg_rd;
-    TCGv_i32 tcg_rd_narrowed;
-    TCGv_i64 tcg_final;
+    TCGv_i64 tcg_rn, tcg_rd, tcg_final;
 
-    static NeonGenNarrowEnvFn * const signed_narrow_fns[4][2] = {
+    static NeonGenOne64OpEnvFn * const signed_narrow_fns[4][2] = {
         { gen_helper_neon_narrow_sat_s8,
           gen_helper_neon_unarrow_sat8 },
         { gen_helper_neon_narrow_sat_s16,
@@ -9452,13 +9450,13 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
           gen_helper_neon_unarrow_sat32 },
         { NULL, NULL },
     };
-    static NeonGenNarrowEnvFn * const unsigned_narrow_fns[4] = {
+    static NeonGenOne64OpEnvFn * const unsigned_narrow_fns[4] = {
         gen_helper_neon_narrow_sat_u8,
         gen_helper_neon_narrow_sat_u16,
         gen_helper_neon_narrow_sat_u32,
         NULL
     };
-    NeonGenNarrowEnvFn *narrowfn;
+    NeonGenOne64OpEnvFn *narrowfn;
 
     int i;
 
@@ -9481,15 +9479,13 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
 
     tcg_rn = tcg_temp_new_i64();
     tcg_rd = tcg_temp_new_i64();
-    tcg_rd_narrowed = tcg_temp_new_i32();
     tcg_final = tcg_temp_new_i64();
 
     for (i = 0; i < elements; i++) {
         read_vec_element(s, tcg_rn, rn, i, ldop);
         handle_shri_with_rndacc(tcg_rd, tcg_rn, round,
                                 false, is_u_shift, size+1, shift);
-        narrowfn(tcg_rd_narrowed, tcg_env, tcg_rd);
-        tcg_gen_extu_i32_i64(tcg_rd, tcg_rd_narrowed);
+        narrowfn(tcg_rd, tcg_env, tcg_rd);
         if (i == 0) {
             tcg_gen_extract_i64(tcg_final, tcg_rd, 0, esize);
         } else {
@@ -10228,35 +10224,35 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
      * in the source becomes a size element in the destination).
      */
     int pass;
-    TCGv_i32 tcg_res[2];
+    TCGv_i64 tcg_res[2];
     int destelt = is_q ? 2 : 0;
     int passes = scalar ? 1 : 2;
 
     if (scalar) {
-        tcg_res[1] = tcg_constant_i32(0);
+        tcg_res[1] = tcg_constant_i64(0);
     }
 
     for (pass = 0; pass < passes; pass++) {
         TCGv_i64 tcg_op = tcg_temp_new_i64();
-        NeonGenNarrowFn *genfn = NULL;
-        NeonGenNarrowEnvFn *genenvfn = NULL;
+        NeonGenOne64OpFn *genfn = NULL;
+        NeonGenOne64OpEnvFn *genenvfn = NULL;
 
         if (scalar) {
             read_vec_element(s, tcg_op, rn, pass, size + 1);
         } else {
             read_vec_element(s, tcg_op, rn, pass, MO_64);
         }
-        tcg_res[pass] = tcg_temp_new_i32();
+        tcg_res[pass] = tcg_temp_new_i64();
 
         switch (opcode) {
         case 0x12: /* XTN, SQXTUN */
         {
-            static NeonGenNarrowFn * const xtnfns[3] = {
+            static NeonGenOne64OpFn * const xtnfns[3] = {
                 gen_helper_neon_narrow_u8,
                 gen_helper_neon_narrow_u16,
-                tcg_gen_extrl_i64_i32,
+                tcg_gen_ext32u_i64,
             };
-            static NeonGenNarrowEnvFn * const sqxtunfns[3] = {
+            static NeonGenOne64OpEnvFn * const sqxtunfns[3] = {
                 gen_helper_neon_unarrow_sat8,
                 gen_helper_neon_unarrow_sat16,
                 gen_helper_neon_unarrow_sat32,
@@ -10270,7 +10266,7 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
         }
         case 0x14: /* SQXTN, UQXTN */
         {
-            static NeonGenNarrowEnvFn * const fns[3][2] = {
+            static NeonGenOne64OpEnvFn * const fns[3][2] = {
                 { gen_helper_neon_narrow_sat_s8,
                   gen_helper_neon_narrow_sat_u8 },
                 { gen_helper_neon_narrow_sat_s16,
@@ -10284,7 +10280,9 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
         case 0x16: /* FCVTN, FCVTN2 */
             /* 32 bit to 16 bit or 64 bit to 32 bit float conversion */
             if (size == 2) {
-                gen_helper_vfp_fcvtsd(tcg_res[pass], tcg_op, tcg_env);
+                TCGv_i32 tmp = tcg_temp_new_i32();
+                gen_helper_vfp_fcvtsd(tmp, tcg_op, tcg_env);
+                tcg_gen_extu_i32_i64(tcg_res[pass], tmp);
             } else {
                 TCGv_i32 tcg_lo = tcg_temp_new_i32();
                 TCGv_i32 tcg_hi = tcg_temp_new_i32();
@@ -10294,21 +10292,29 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
                 tcg_gen_extr_i64_i32(tcg_lo, tcg_hi, tcg_op);
                 gen_helper_vfp_fcvt_f32_to_f16(tcg_lo, tcg_lo, fpst, ahp);
                 gen_helper_vfp_fcvt_f32_to_f16(tcg_hi, tcg_hi, fpst, ahp);
-                tcg_gen_deposit_i32(tcg_res[pass], tcg_lo, tcg_hi, 16, 16);
+                tcg_gen_deposit_i32(tcg_lo, tcg_lo, tcg_hi, 16, 16);
+                tcg_gen_extu_i32_i64(tcg_res[pass], tcg_lo);
             }
             break;
         case 0x36: /* BFCVTN, BFCVTN2 */
             {
                 TCGv_ptr fpst = fpstatus_ptr(FPST_FPCR);
-                gen_helper_bfcvt_pair(tcg_res[pass], tcg_op, fpst);
+                TCGv_i32 tmp = tcg_temp_new_i32();
+                gen_helper_bfcvt_pair(tmp, tcg_op, fpst);
+                tcg_gen_extu_i32_i64(tcg_res[pass], tmp);
             }
             break;
         case 0x56:  /* FCVTXN, FCVTXN2 */
-            /* 64 bit to 32 bit float conversion
-             * with von Neumann rounding (round to odd)
-             */
-            assert(size == 2);
-            gen_helper_fcvtx_f64_to_f32(tcg_res[pass], tcg_op, tcg_env);
+            {
+                /*
+                 * 64 bit to 32 bit float conversion
+                 * with von Neumann rounding (round to odd)
+                 */
+                TCGv_i32 tmp = tcg_temp_new_i32();
+                assert(size == 2);
+                gen_helper_fcvtx_f64_to_f32(tmp, tcg_op, tcg_env);
+                tcg_gen_extu_i32_i64(tcg_res[pass], tmp);
+            }
             break;
         default:
             g_assert_not_reached();
@@ -10322,7 +10328,7 @@ static void handle_2misc_narrow(DisasContext *s, bool scalar,
     }
 
     for (pass = 0; pass < 2; pass++) {
-        write_vec_element_i32(s, tcg_res[pass], rd, destelt + pass, MO_32);
+        write_vec_element(s, tcg_res[pass], rd, destelt + pass, MO_32);
     }
     clear_vec_high(s, is_q, rd);
 }

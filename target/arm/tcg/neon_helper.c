@@ -598,13 +598,15 @@ NEON_VOP_ENV(qrdmulh_s32, neon_s32, 1)
 #undef NEON_FN
 #undef NEON_QDMULH32
 
-uint32_t HELPER(neon_narrow_u8)(uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_u8)(uint64_t x)
 {
     return (x & 0xffu) | ((x >> 8) & 0xff00u) | ((x >> 16) & 0xff0000u)
            | ((x >> 24) & 0xff000000u);
 }
 
-uint32_t HELPER(neon_narrow_u16)(uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_u16)(uint64_t x)
 {
     return (x & 0xffffu) | ((x >> 16) & 0xffff0000u);
 }
@@ -635,7 +637,8 @@ uint32_t HELPER(neon_narrow_round_high_u16)(uint64_t x)
     return ((x >> 16) & 0xffff) | ((x >> 32) & 0xffff0000);
 }
 
-uint32_t HELPER(neon_unarrow_sat8)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_unarrow_sat8)(CPUARMState *env, uint64_t x)
 {
     uint16_t s;
     uint8_t d;
@@ -662,7 +665,8 @@ uint32_t HELPER(neon_unarrow_sat8)(CPUARMState *env, uint64_t x)
     return res;
 }
 
-uint32_t HELPER(neon_narrow_sat_u8)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_u8)(CPUARMState *env, uint64_t x)
 {
     uint16_t s;
     uint8_t d;
@@ -685,7 +689,8 @@ uint32_t HELPER(neon_narrow_sat_u8)(CPUARMState *env, uint64_t x)
     return res;
 }
 
-uint32_t HELPER(neon_narrow_sat_s8)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_s8)(CPUARMState *env, uint64_t x)
 {
     int16_t s;
     uint8_t d;
@@ -708,7 +713,8 @@ uint32_t HELPER(neon_narrow_sat_s8)(CPUARMState *env, uint64_t x)
     return res;
 }
 
-uint32_t HELPER(neon_unarrow_sat16)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_unarrow_sat16)(CPUARMState *env, uint64_t x)
 {
     uint32_t high;
     uint32_t low;
@@ -728,10 +734,11 @@ uint32_t HELPER(neon_unarrow_sat16)(CPUARMState *env, uint64_t x)
         high = 0xffff;
         SET_QC();
     }
-    return low | (high << 16);
+    return deposit32(low, 16, 16, high);
 }
 
-uint32_t HELPER(neon_narrow_sat_u16)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_u16)(CPUARMState *env, uint64_t x)
 {
     uint32_t high;
     uint32_t low;
@@ -745,10 +752,11 @@ uint32_t HELPER(neon_narrow_sat_u16)(CPUARMState *env, uint64_t x)
         high = 0xffff;
         SET_QC();
     }
-    return low | (high << 16);
+    return deposit32(low, 16, 16, high);
 }
 
-uint32_t HELPER(neon_narrow_sat_s16)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_s16)(CPUARMState *env, uint64_t x)
 {
     int32_t low;
     int32_t high;
@@ -762,10 +770,11 @@ uint32_t HELPER(neon_narrow_sat_s16)(CPUARMState *env, uint64_t x)
         high = (high >> 31) ^ 0x7fff;
         SET_QC();
     }
-    return (uint16_t)low | (high << 16);
+    return deposit32(low, 16, 16, high);
 }
 
-uint32_t HELPER(neon_unarrow_sat32)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_unarrow_sat32)(CPUARMState *env, uint64_t x)
 {
     if (x & 0x8000000000000000ull) {
         SET_QC();
@@ -778,7 +787,8 @@ uint32_t HELPER(neon_unarrow_sat32)(CPUARMState *env, uint64_t x)
     return x;
 }
 
-uint32_t HELPER(neon_narrow_sat_u32)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_u32)(CPUARMState *env, uint64_t x)
 {
     if (x > 0xffffffffu) {
         SET_QC();
@@ -787,13 +797,14 @@ uint32_t HELPER(neon_narrow_sat_u32)(CPUARMState *env, uint64_t x)
     return x;
 }
 
-uint32_t HELPER(neon_narrow_sat_s32)(CPUARMState *env, uint64_t x)
+/* Only the low 32-bits of output are significant. */
+uint64_t HELPER(neon_narrow_sat_s32)(CPUARMState *env, uint64_t x)
 {
     if ((int64_t)x != (int32_t)x) {
         SET_QC();
-        return ((int64_t)x >> 63) ^ 0x7fffffff;
+        return (uint32_t)((int64_t)x >> 63) ^ 0x7fffffff;
     }
-    return x;
+    return (uint32_t)x;
 }
 
 uint64_t HELPER(neon_widen_u8)(uint32_t x)

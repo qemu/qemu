@@ -1107,11 +1107,10 @@ DO_2SH(VQSHL_S, gen_neon_sqshli)
 
 static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
                                 NeonGenTwo64OpFn *shiftfn,
-                                NeonGenNarrowEnvFn *narrowfn)
+                                NeonGenOne64OpEnvFn *narrowfn)
 {
     /* 2-reg-and-shift narrowing-shift operations, size == 3 case */
-    TCGv_i64 constimm, rm1, rm2;
-    TCGv_i32 rd;
+    TCGv_i64 constimm, rm1, rm2, rd;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -1138,7 +1137,7 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
     constimm = tcg_constant_i64(-a->shift);
     rm1 = tcg_temp_new_i64();
     rm2 = tcg_temp_new_i64();
-    rd = tcg_temp_new_i32();
+    rd = tcg_temp_new_i64();
 
     /* Load both inputs first to avoid potential overwrite if rm == rd */
     read_neon_element64(rm1, a->vm, 0, MO_64);
@@ -1146,18 +1145,18 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
 
     shiftfn(rm1, rm1, constimm);
     narrowfn(rd, tcg_env, rm1);
-    write_neon_element32(rd, a->vd, 0, MO_32);
+    write_neon_element64(rd, a->vd, 0, MO_32);
 
     shiftfn(rm2, rm2, constimm);
     narrowfn(rd, tcg_env, rm2);
-    write_neon_element32(rd, a->vd, 1, MO_32);
+    write_neon_element64(rd, a->vd, 1, MO_32);
 
     return true;
 }
 
 static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
                                 NeonGenTwoOpFn *shiftfn,
-                                NeonGenNarrowEnvFn *narrowfn)
+                                NeonGenOne64OpEnvFn *narrowfn)
 {
     /* 2-reg-and-shift narrowing-shift operations, size < 3 case */
     TCGv_i32 constimm, rm1, rm2, rm3, rm4;
@@ -1212,16 +1211,16 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
 
     tcg_gen_concat_i32_i64(rtmp, rm1, rm2);
 
-    narrowfn(rm1, tcg_env, rtmp);
-    write_neon_element32(rm1, a->vd, 0, MO_32);
+    narrowfn(rtmp, tcg_env, rtmp);
+    write_neon_element64(rtmp, a->vd, 0, MO_32);
 
     shiftfn(rm3, rm3, constimm);
     shiftfn(rm4, rm4, constimm);
 
     tcg_gen_concat_i32_i64(rtmp, rm3, rm4);
 
-    narrowfn(rm3, tcg_env, rtmp);
-    write_neon_element32(rm3, a->vd, 1, MO_32);
+    narrowfn(rtmp, tcg_env, rtmp);
+    write_neon_element64(rtmp, a->vd, 1, MO_32);
     return true;
 }
 
@@ -1236,17 +1235,17 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
         return do_2shift_narrow_32(s, a, FUNC, NARROWFUNC);             \
     }
 
-static void gen_neon_narrow_u32(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u32(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
-    tcg_gen_extrl_i64_i32(dest, src);
+    tcg_gen_ext32u_i64(dest, src);
 }
 
-static void gen_neon_narrow_u16(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u16(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
     gen_helper_neon_narrow_u16(dest, src);
 }
 
-static void gen_neon_narrow_u8(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u8(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
     gen_helper_neon_narrow_u8(dest, src);
 }
@@ -2837,10 +2836,9 @@ static bool trans_VZIP(DisasContext *s, arg_2misc *a)
 }
 
 static bool do_vmovn(DisasContext *s, arg_2misc *a,
-                     NeonGenNarrowEnvFn *narrowfn)
+                     NeonGenOne64OpEnvFn *narrowfn)
 {
-    TCGv_i64 rm;
-    TCGv_i32 rd0, rd1;
+    TCGv_i64 rm, rd0, rd1;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -2865,22 +2863,22 @@ static bool do_vmovn(DisasContext *s, arg_2misc *a,
     }
 
     rm = tcg_temp_new_i64();
-    rd0 = tcg_temp_new_i32();
-    rd1 = tcg_temp_new_i32();
+    rd0 = tcg_temp_new_i64();
+    rd1 = tcg_temp_new_i64();
 
     read_neon_element64(rm, a->vm, 0, MO_64);
     narrowfn(rd0, tcg_env, rm);
     read_neon_element64(rm, a->vm, 1, MO_64);
     narrowfn(rd1, tcg_env, rm);
-    write_neon_element32(rd0, a->vd, 0, MO_32);
-    write_neon_element32(rd1, a->vd, 1, MO_32);
+    write_neon_element64(rd0, a->vd, 0, MO_32);
+    write_neon_element64(rd1, a->vd, 1, MO_32);
     return true;
 }
 
 #define DO_VMOVN(INSN, FUNC)                                    \
     static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
     {                                                           \
-        static NeonGenNarrowEnvFn * const narrowfn[] = {        \
+        static NeonGenOne64OpEnvFn * const narrowfn[] = {       \
             FUNC##8,                                            \
             FUNC##16,                                           \
             FUNC##32,                                           \
