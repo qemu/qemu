@@ -6583,6 +6583,54 @@ static bool trans_FCSEL(DisasContext *s, arg_FCSEL *a)
 }
 
 /*
+ * Advanced SIMD Extract
+ */
+
+static bool trans_EXT_d(DisasContext *s, arg_EXT_d *a)
+{
+    if (fp_access_check(s)) {
+        TCGv_i64 lo = read_fp_dreg(s, a->rn);
+        if (a->imm != 0) {
+            TCGv_i64 hi = read_fp_dreg(s, a->rm);
+            tcg_gen_extract2_i64(lo, lo, hi, a->imm * 8);
+        }
+        write_fp_dreg(s, a->rd, lo);
+    }
+    return true;
+}
+
+static bool trans_EXT_q(DisasContext *s, arg_EXT_q *a)
+{
+    TCGv_i64 lo, hi;
+    int pos = (a->imm & 7) * 8;
+    int elt = a->imm >> 3;
+
+    if (!fp_access_check(s)) {
+        return true;
+    }
+
+    lo = tcg_temp_new_i64();
+    hi = tcg_temp_new_i64();
+
+    read_vec_element(s, lo, a->rn, elt, MO_64);
+    elt++;
+    read_vec_element(s, hi, elt & 2 ? a->rm : a->rn, elt & 1, MO_64);
+    elt++;
+
+    if (pos != 0) {
+        TCGv_i64 hh = tcg_temp_new_i64();
+        tcg_gen_extract2_i64(lo, lo, hi, pos);
+        read_vec_element(s, hh, a->rm, elt & 1, MO_64);
+        tcg_gen_extract2_i64(hi, hi, hh, pos);
+    }
+
+    write_vec_element(s, lo, a->rd, 0, MO_64);
+    write_vec_element(s, hi, a->rd, 1, MO_64);
+    clear_vec_high(s, true, a->rd);
+    return true;
+}
+
+/*
  * Floating-point data-processing (3 source)
  */
 
@@ -8888,78 +8936,6 @@ static void disas_data_proc_fp(DisasContext *s, uint32_t insn)
             break;
         }
     }
-}
-
-/* EXT
- *   31  30 29         24 23 22  21 20  16 15  14  11 10  9    5 4    0
- * +---+---+-------------+-----+---+------+---+------+---+------+------+
- * | 0 | Q | 1 0 1 1 1 0 | op2 | 0 |  Rm  | 0 | imm4 | 0 |  Rn  |  Rd  |
- * +---+---+-------------+-----+---+------+---+------+---+------+------+
- */
-static void disas_simd_ext(DisasContext *s, uint32_t insn)
-{
-    int is_q = extract32(insn, 30, 1);
-    int op2 = extract32(insn, 22, 2);
-    int imm4 = extract32(insn, 11, 4);
-    int rm = extract32(insn, 16, 5);
-    int rn = extract32(insn, 5, 5);
-    int rd = extract32(insn, 0, 5);
-    int pos = imm4 << 3;
-    TCGv_i64 tcg_resl, tcg_resh;
-
-    if (op2 != 0 || (!is_q && extract32(imm4, 3, 1))) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    if (!fp_access_check(s)) {
-        return;
-    }
-
-    tcg_resh = tcg_temp_new_i64();
-    tcg_resl = tcg_temp_new_i64();
-
-    /* Vd gets bits starting at pos bits into Vm:Vn. This is
-     * either extracting 128 bits from a 128:128 concatenation, or
-     * extracting 64 bits from a 64:64 concatenation.
-     */
-    if (!is_q) {
-        read_vec_element(s, tcg_resl, rn, 0, MO_64);
-        if (pos != 0) {
-            read_vec_element(s, tcg_resh, rm, 0, MO_64);
-            tcg_gen_extract2_i64(tcg_resl, tcg_resl, tcg_resh, pos);
-        }
-    } else {
-        TCGv_i64 tcg_hh;
-        typedef struct {
-            int reg;
-            int elt;
-        } EltPosns;
-        EltPosns eltposns[] = { {rn, 0}, {rn, 1}, {rm, 0}, {rm, 1} };
-        EltPosns *elt = eltposns;
-
-        if (pos >= 64) {
-            elt++;
-            pos -= 64;
-        }
-
-        read_vec_element(s, tcg_resl, elt->reg, elt->elt, MO_64);
-        elt++;
-        read_vec_element(s, tcg_resh, elt->reg, elt->elt, MO_64);
-        elt++;
-        if (pos != 0) {
-            tcg_gen_extract2_i64(tcg_resl, tcg_resl, tcg_resh, pos);
-            tcg_hh = tcg_temp_new_i64();
-            read_vec_element(s, tcg_hh, elt->reg, elt->elt, MO_64);
-            tcg_gen_extract2_i64(tcg_resh, tcg_resh, tcg_hh, pos);
-        }
-    }
-
-    write_vec_element(s, tcg_resl, rd, 0, MO_64);
-    if (is_q) {
-        write_vec_element(s, tcg_resh, rd, 1, MO_64);
-    }
-    clear_vec_high(s, is_q, rd);
 }
 
 /* TBL/TBX
@@ -11860,7 +11836,6 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x0f000400, 0x9f800400, disas_simd_shift_imm },
     { 0x0e000000, 0xbf208c00, disas_simd_tb },
     { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
-    { 0x2e000000, 0xbf208400, disas_simd_ext },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
     { 0x5f000400, 0xdf800400, disas_simd_scalar_shift_imm },
     { 0x0e780800, 0x8f7e0c00, disas_simd_two_reg_misc_fp16 },
