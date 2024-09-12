@@ -1242,6 +1242,111 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     BQL_LOCK_GUARD();
     hexagon_modify_ssr(env, new, old);
 }
+
+static void hex_k0_lock(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
+
+    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
+        if (env->k0_lock_state == HEX_LOCK_QUEUED) {
+            env->next_PC += 4;
+            env->k0_lock_count++;
+            env->k0_lock_state = HEX_LOCK_OWNER;
+            SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
+            return;
+        }
+        if (env->k0_lock_state == HEX_LOCK_OWNER) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Double k0lock at PC: 0x%x, thread may hang\n",
+                          env->next_PC);
+            env->next_PC += 4;
+            CPUState *cs = env_cpu(env);
+            cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+            return;
+        }
+        env->k0_lock_state = HEX_LOCK_WAITING;
+        CPUState *cs = env_cpu(env);
+        cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+    } else {
+        env->next_PC += 4;
+        env->k0_lock_count++;
+        env->k0_lock_state = HEX_LOCK_OWNER;
+        SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
+    }
+
+}
+
+static void hex_k0_unlock(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
+
+    /* Nothing to do if the k0 isn't locked by this thread */
+    uint32_t syscfg = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SYSCFG);
+    if ((GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg) == 0) ||
+        (env->k0_lock_state != HEX_LOCK_OWNER)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "thread %d attempted to unlock k0 without having the "
+                      "lock, k0_lock state = %d, syscfg:k0 = %d\n",
+                      env->threadId, env->k0_lock_state,
+                      GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg));
+        g_assert(env->k0_lock_state != HEX_LOCK_WAITING);
+        return;
+    }
+
+    env->k0_lock_count--;
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 0);
+
+    /* Look for a thread to unlock */
+    unsigned int this_threadId = env->threadId;
+    CPUHexagonState *unlock_thread = NULL;
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *thread = &cpu->env;
+
+        /*
+         * The hardware implements round-robin fairness, so we look for threads
+         * starting at env->threadId + 1 and incrementing modulo the number of
+         * threads.
+         *
+         * To implement this, we check if thread is a earlier in the modulo
+         * sequence than unlock_thread.
+         *     if unlock thread is higher than this thread
+         *         thread must be between this thread and unlock_thread
+         *     else
+         *         thread higher than this thread is ahead of unlock_thread
+         *         thread must be lower then unlock thread
+         */
+        if (thread->k0_lock_state == HEX_LOCK_WAITING) {
+            if (!unlock_thread) {
+                unlock_thread = thread;
+            } else if (unlock_thread->threadId > this_threadId) {
+                if (this_threadId < thread->threadId &&
+                    thread->threadId < unlock_thread->threadId) {
+                    unlock_thread = thread;
+                }
+            } else {
+                if (thread->threadId > this_threadId) {
+                    unlock_thread = thread;
+                }
+                if (thread->threadId < unlock_thread->threadId) {
+                    unlock_thread = thread;
+                }
+            }
+        }
+    }
+    if (unlock_thread) {
+        cs = env_cpu(unlock_thread);
+        unlock_thread->k0_lock_state = HEX_LOCK_QUEUED;
+        SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
+        cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
+    }
+
+}
 #endif
 
 
