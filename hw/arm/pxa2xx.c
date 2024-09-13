@@ -2051,7 +2051,7 @@ static void pxa2xx_fir_class_init(ObjectClass *klass, void *data)
     dc->realize = pxa2xx_fir_realize;
     dc->vmsd = &pxa2xx_fir_vmsd;
     device_class_set_props(dc, pxa2xx_fir_properties);
-    dc->reset = pxa2xx_fir_reset;
+    device_class_set_legacy_reset(dc, pxa2xx_fir_reset);
 }
 
 static const TypeInfo pxa2xx_fir_info = {
@@ -2369,7 +2369,7 @@ static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pxa2xx_ssp_reset;
+    device_class_set_legacy_reset(dc, pxa2xx_ssp_reset);
     dc->vmsd = &vmstate_pxa2xx_ssp;
 }
 

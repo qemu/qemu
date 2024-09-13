@@ -824,7 +824,7 @@ static void iotkit_secctl_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &iotkit_secctl_vmstate;
-    dc->reset = iotkit_secctl_reset;
+    device_class_set_legacy_reset(dc, iotkit_secctl_reset);
     dc->realize = iotkit_secctl_realize;
     device_class_set_props(dc, iotkit_secctl_props);
 }

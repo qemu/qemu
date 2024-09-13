@@ -1260,7 +1260,7 @@ static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = fw_cfg_reset;
+    device_class_set_legacy_reset(dc, fw_cfg_reset);
     dc->vmsd = &vmstate_fw_cfg;
 
     device_class_set_props(dc, fw_cfg_properties);

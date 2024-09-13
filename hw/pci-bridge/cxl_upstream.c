@@ -380,7 +380,7 @@ static void cxl_upstream_class_init(ObjectClass *oc, void *data)
     k->revision = 0;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "CXL Switch Upstream Port";
-    dc->reset = cxl_usp_reset;
+    device_class_set_legacy_reset(dc, cxl_usp_reset);
     device_class_set_props(dc, cxl_upstream_props);
 }
 

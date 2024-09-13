@@ -257,7 +257,7 @@ static void ctucan_pci_class_init(ObjectClass *klass, void *data)
     dc->desc = "CTU CAN PCI";
     dc->vmsd = &vmstate_ctucan_pci;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->reset = ctucan_pci_reset;
+    device_class_set_legacy_reset(dc, ctucan_pci_reset);
 }
 
 static const TypeInfo ctucan_pci_info = {

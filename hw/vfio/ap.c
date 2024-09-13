@@ -256,7 +256,7 @@ static void vfio_ap_class_init(ObjectClass *klass, void *data)
     dc->realize = vfio_ap_realize;
     dc->unrealize = vfio_ap_unrealize;
     dc->hotpluggable = true;
-    dc->reset = vfio_ap_reset;
+    device_class_set_legacy_reset(dc, vfio_ap_reset);
     dc->bus_type = TYPE_AP_BUS;
 }
 

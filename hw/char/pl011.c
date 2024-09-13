@@ -629,7 +629,7 @@ static void pl011_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = pl011_realize;
-    dc->reset = pl011_reset;
+    device_class_set_legacy_reset(dc, pl011_reset);
     dc->vmsd = &vmstate_pl011;
     device_class_set_props(dc, pl011_properties);
 }

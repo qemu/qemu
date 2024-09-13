@@ -97,7 +97,7 @@ static void fsi_scratchpad_class_init(ObjectClass *klass, void *data)
 
     dc->bus_type = TYPE_FSI_LBUS;
     dc->realize = fsi_scratchpad_realize;
-    dc->reset = fsi_scratchpad_reset;
+    device_class_set_legacy_reset(dc, fsi_scratchpad_reset);
 }
 
 static const TypeInfo fsi_scratchpad_info = {

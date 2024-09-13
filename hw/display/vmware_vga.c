@@ -1352,7 +1352,7 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     k->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     k->subsystem_id = SVGA_PCI_DEVICE_ID;
-    dc->reset = vmsvga_reset;
+    device_class_set_legacy_reset(dc, vmsvga_reset);
     dc->vmsd = &vmstate_vmware_vga;
     device_class_set_props(dc, vga_vmware_properties);
     dc->hotpluggable = false;

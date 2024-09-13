@@ -489,7 +489,7 @@ static void allwinner_r40_dramc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_r40_dramc_reset;
+    device_class_set_legacy_reset(dc, allwinner_r40_dramc_reset);
     dc->vmsd = &allwinner_r40_dramc_vmstate;
     dc->realize = allwinner_r40_dramc_realize;
     device_class_set_props(dc, allwinner_r40_dramc_properties);

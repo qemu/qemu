@@ -314,7 +314,7 @@ static void exynos4210_i2c_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_i2c_vmstate;
-    dc->reset = exynos4210_i2c_reset;
+    device_class_set_legacy_reset(dc, exynos4210_i2c_reset);
 }
 
 static const TypeInfo exynos4210_i2c_type_info = {

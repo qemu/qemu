@@ -600,7 +600,7 @@ static void avr_timer16_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = avr_timer16_reset;
+    device_class_set_legacy_reset(dc, avr_timer16_reset);
     dc->realize = avr_timer16_realize;
     device_class_set_props(dc, avr_timer16_properties);
 }

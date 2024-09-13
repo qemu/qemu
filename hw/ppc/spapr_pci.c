@@ -2248,7 +2248,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->realize = spapr_phb_realize;
     dc->unrealize = spapr_phb_unrealize;
     device_class_set_props(dc, spapr_phb_properties);
-    dc->reset = spapr_phb_reset;
+    device_class_set_legacy_reset(dc, spapr_phb_reset);
     dc->vmsd = &vmstate_spapr_pci;
     /* Supported by TYPE_SPAPR_MACHINE */
     dc->user_creatable = true;

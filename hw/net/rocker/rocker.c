@@ -1494,7 +1494,7 @@ static void rocker_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_OTHER;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Rocker Switch";
-    dc->reset = rocker_reset;
+    device_class_set_legacy_reset(dc, rocker_reset);
     device_class_set_props(dc, rocker_properties);
     dc->vmsd = &rocker_vmsd;
 }

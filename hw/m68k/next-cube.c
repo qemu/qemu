@@ -959,7 +959,7 @@ static void next_pc_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NeXT Peripheral Controller";
     dc->realize = next_pc_realize;
-    dc->reset = next_pc_reset;
+    device_class_set_legacy_reset(dc, next_pc_reset);
     device_class_set_props(dc, next_pc_properties);
     dc->vmsd = &next_pc_vmstate;
 }

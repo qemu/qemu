@@ -1058,7 +1058,7 @@ F: include/hw/display/dpcd.h
 F: docs/system/arm/xlnx-versal-virt.rst
 
 Xilinx Versal OSPI
-M: Francisco Iglesias <francisco.iglesias@xilinx.com>
+M: Francisco Iglesias <francisco.iglesias@amd.com>
 S: Maintained
 F: hw/ssi/xlnx-versal-ospi.c
 F: include/hw/ssi/xlnx-versal-ospi.h
@@ -1951,7 +1951,6 @@ F: tests/qtest/intel-hda-test.c
 F: tests/qtest/fuzz-sb16-test.c
 
 Xilinx CAN
-M: Vikram Garhwal <vikram.garhwal@amd.com>
 M: Francisco Iglesias <francisco.iglesias@amd.com>
 S: Maintained
 F: hw/net/can/xlnx-*
@@ -2708,7 +2707,7 @@ F: include/hw/rx/
 
 CAN bus subsystem and hardware
 M: Pavel Pisa <pisa@cmp.felk.cvut.cz>
-M: Vikram Garhwal <fnu.vikram@xilinx.com>
+M: Francisco Iglesias <francisco.iglesias@amd.com>
 S: Maintained
 W: https://canbus.pages.fel.cvut.cz/
 F: net/can/*

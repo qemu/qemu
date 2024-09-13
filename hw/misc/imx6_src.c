@@ -291,7 +291,7 @@ static void imx6_src_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = imx6_src_realize;
-    dc->reset = imx6_src_reset;
+    device_class_set_legacy_reset(dc, imx6_src_reset);
     dc->vmsd = &vmstate_imx6_src;
     dc->desc = "i.MX6 System Reset Controller";
 }

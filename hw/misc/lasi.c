@@ -267,7 +267,7 @@ static void lasi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lasi_reset;
+    device_class_set_legacy_reset(dc, lasi_reset);
     dc->vmsd = &vmstate_lasi;
 }
 

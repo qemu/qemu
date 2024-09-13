@@ -299,7 +299,7 @@ static void sifive_e_aon_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->reset = sifive_e_aon_reset;
+    device_class_set_legacy_reset(dc, sifive_e_aon_reset);
     device_class_set_props(dc, sifive_e_aon_properties);
 }
 

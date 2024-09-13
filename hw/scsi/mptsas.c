@@ -1431,7 +1431,7 @@ static void mptsas1068_class_init(ObjectClass *oc, void *data)
     pc->subsystem_id = 0x8000;
     pc->class_id = PCI_CLASS_STORAGE_SCSI;
     device_class_set_props(dc, mptsas_properties);
-    dc->reset = mptsas_reset;
+    device_class_set_legacy_reset(dc, mptsas_reset);
     dc->vmsd = &vmstate_mptsas;
     dc->desc = "LSI SAS 1068";
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);

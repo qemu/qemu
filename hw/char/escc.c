@@ -1062,7 +1062,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = escc_reset;
+    device_class_set_legacy_reset(dc, escc_reset);
     dc->realize = escc_realize;
     dc->vmsd = &vmstate_escc;
     device_class_set_props(dc, escc_properties);

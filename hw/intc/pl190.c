@@ -277,7 +277,7 @@ static void pl190_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pl190_reset;
+    device_class_set_legacy_reset(dc, pl190_reset);
     dc->vmsd = &vmstate_pl190;
 }
 

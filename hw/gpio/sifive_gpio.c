@@ -378,7 +378,7 @@ static void sifive_gpio_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, sifive_gpio_properties);
     dc->vmsd = &vmstate_sifive_gpio;
     dc->realize = sifive_gpio_realize;
-    dc->reset = sifive_gpio_reset;
+    device_class_set_legacy_reset(dc, sifive_gpio_reset);
     dc->desc = "SiFive GPIO";
 }
 

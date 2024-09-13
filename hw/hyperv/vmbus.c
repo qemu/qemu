@@ -2362,7 +2362,7 @@ static void vmbus_dev_class_init(ObjectClass *klass, void *data)
     kdev->bus_type = TYPE_VMBUS;
     kdev->realize = vmbus_dev_realize;
     kdev->unrealize = vmbus_dev_unrealize;
-    kdev->reset = vmbus_dev_reset;
+    device_class_set_legacy_reset(kdev, vmbus_dev_reset);
 }
 
 static void vmbus_dev_instance_init(Object *obj)

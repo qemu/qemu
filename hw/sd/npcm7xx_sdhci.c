@@ -155,7 +155,7 @@ static void npcm7xx_sdhci_class_init(ObjectClass *classp, void *data)
 
     dc->desc = "NPCM7xx SD/eMMC Host Controller";
     dc->realize = npcm7xx_sdhci_realize;
-    dc->reset = npcm7xx_sdhci_reset;
+    device_class_set_legacy_reset(dc, npcm7xx_sdhci_reset);
     dc->vmsd = &vmstate_npcm7xx_sdhci;
 }
 

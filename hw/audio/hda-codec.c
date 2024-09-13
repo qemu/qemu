@@ -910,7 +910,7 @@ static void hda_audio_base_class_init(ObjectClass *klass, void *data)
     k->command = hda_audio_command;
     k->stream = hda_audio_stream;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->reset = hda_audio_reset;
+    device_class_set_legacy_reset(dc, hda_audio_reset);
     dc->vmsd = &vmstate_hda_audio;
     device_class_set_props(dc, hda_audio_properties);
 }

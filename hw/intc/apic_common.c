@@ -471,7 +471,7 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = apic_reset_common;
+    device_class_set_legacy_reset(dc, apic_reset_common);
     device_class_set_props(dc, apic_properties_common);
     dc->realize = apic_common_realize;
     dc->unrealize = apic_common_unrealize;

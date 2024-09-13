@@ -384,7 +384,7 @@ static void a9_gtimer_class_init(ObjectClass *klass, void *data)
 
     dc->realize = a9_gtimer_realize;
     dc->vmsd = &vmstate_a9_gtimer;
-    dc->reset = a9_gtimer_reset;
+    device_class_set_legacy_reset(dc, a9_gtimer_reset);
     device_class_set_props(dc, a9_gtimer_properties);
 }
 

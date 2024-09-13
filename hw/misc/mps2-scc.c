@@ -481,7 +481,7 @@ static void mps2_scc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = mps2_scc_realize;
     dc->vmsd = &mps2_scc_vmstate;
-    dc->reset = mps2_scc_reset;
+    device_class_set_legacy_reset(dc, mps2_scc_reset);
     device_class_set_props(dc, mps2_scc_properties);
 }
 

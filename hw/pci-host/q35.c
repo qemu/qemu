@@ -686,7 +686,7 @@ static void mch_class_init(ObjectClass *klass, void *data)
 
     k->realize = mch_realize;
     k->config_write = mch_write_config;
-    dc->reset = mch_reset;
+    device_class_set_legacy_reset(dc, mch_reset);
     device_class_set_props(dc, mch_props);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Host bridge";

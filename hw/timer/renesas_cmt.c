@@ -263,7 +263,7 @@ static void rcmt_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_rcmt;
-    dc->reset = rcmt_reset;
+    device_class_set_legacy_reset(dc, rcmt_reset);
     device_class_set_props(dc, rcmt_properties);
 }
 

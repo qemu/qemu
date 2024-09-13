@@ -1065,7 +1065,7 @@ static void aspeed_i2c_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &aspeed_i2c_vmstate;
-    dc->reset = aspeed_i2c_reset;
+    device_class_set_legacy_reset(dc, aspeed_i2c_reset);
     device_class_set_props(dc, aspeed_i2c_properties);
     dc->realize = aspeed_i2c_realize;
     dc->desc = "Aspeed I2C Controller";
@@ -1249,7 +1249,7 @@ static void aspeed_i2c_bus_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "Aspeed I2C Bus";
     dc->realize = aspeed_i2c_bus_realize;
-    dc->reset = aspeed_i2c_bus_reset;
+    device_class_set_legacy_reset(dc, aspeed_i2c_bus_reset);
     device_class_set_props(dc, aspeed_i2c_bus_properties);
 }
 

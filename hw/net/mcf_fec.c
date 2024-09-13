@@ -673,7 +673,7 @@ static void mcf_fec_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->realize = mcf_fec_realize;
     dc->desc = "MCF Fast Ethernet Controller network device";
-    dc->reset = mcf_fec_reset;
+    device_class_set_legacy_reset(dc, mcf_fec_reset);
     device_class_set_props(dc, mcf_fec_properties);
 }
 

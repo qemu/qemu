@@ -444,7 +444,7 @@ static void sifive_plic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = sifive_plic_reset;
+    device_class_set_legacy_reset(dc, sifive_plic_reset);
     device_class_set_props(dc, sifive_plic_properties);
     dc->realize = sifive_plic_realize;
     dc->vmsd = &vmstate_sifive_plic;

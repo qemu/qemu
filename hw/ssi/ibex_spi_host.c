@@ -628,7 +628,7 @@ static void ibex_spi_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = ibex_spi_host_realize;
-    dc->reset = ibex_spi_host_reset;
+    device_class_set_legacy_reset(dc, ibex_spi_host_reset);
     dc->vmsd = &vmstate_ibex;
     device_class_set_props(dc, ibex_spi_properties);
 }

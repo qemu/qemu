@@ -678,12 +678,10 @@ REG32(RB_DW15_REGISTER_1, 0x4144)
     FIELD(RB_DW15_REGISTER_1, DATA_BYTES62, 8, 8)
     FIELD(RB_DW15_REGISTER_1, DATA_BYTES63, 0, 8)
 
-static uint8_t canfd_dlc_array[8] = {8, 12, 16, 20, 24, 32, 48, 64};
-
 static void canfd_update_irq(XlnxVersalCANFDState *s)
 {
-    unsigned int irq = s->regs[R_INTERRUPT_STATUS_REGISTER] &
-                        s->regs[R_INTERRUPT_ENABLE_REGISTER];
+    const bool irq = (s->regs[R_INTERRUPT_STATUS_REGISTER] &
+                      s->regs[R_INTERRUPT_ENABLE_REGISTER]) != 0;
     g_autofree char *path = object_get_canonical_path(OBJECT(s));
 
     /* RX watermark interrupts. */
@@ -869,6 +867,10 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     uint32_t val = 0;
     uint32_t dlc_reg_val = 0;
     uint32_t dlc_value = 0;
+    uint32_t id_reg_val = 0;
+    bool is_rtr = false;
+
+    frame->flags = 0;
 
     /* Check that reg_num should be within TX register space. */
     assert(reg_num <= R_TB_ID_REGISTER + (NUM_REGS_PER_MSG_SPACE *
@@ -877,56 +879,37 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     dlc_reg_val = s->regs[reg_num + 1];
     dlc_value = FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, DLC);
 
-    frame->can_id = s->regs[reg_num];
-
-    if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, FDF)) {
-        /*
-         * CANFD frame.
-         * Converting dlc(0 to 15) 4 Byte data to plain length(i.e. 0 to 64)
-         * 1 Byte data. This is done to make it work with SocketCAN.
-         * On actual CANFD frame, this value can't be more than 0xF.
-         * Conversion table for DLC to plain length:
-         *
-         *  DLC                        Plain Length
-         *  0 - 8                      0 - 8
-         *  9                          9 - 12
-         *  10                         13 - 16
-         *  11                         17 - 20
-         *  12                         21 - 24
-         *  13                         25 - 32
-         *  14                         33 - 48
-         *  15                         49 - 64
-         */
-
-        frame->flags = QEMU_CAN_FRMF_TYPE_FD;
-
-        if (dlc_value < 8) {
-            frame->can_dlc = dlc_value;
-        } else {
-            assert((dlc_value - 8) < ARRAY_SIZE(canfd_dlc_array));
-            frame->can_dlc = canfd_dlc_array[dlc_value - 8];
+    id_reg_val = s->regs[reg_num];
+    if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, IDE)) {
+        frame->can_id = (FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID) << 18) |
+                        (FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID_EXT)) |
+                        QEMU_CAN_EFF_FLAG;
+        if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, RTR_RRS)) {
+            is_rtr = true;
         }
     } else {
-        /*
-         * FD Format bit not set that means it is a CAN Frame.
-         * Conversion table for classic CAN:
-         *
-         *  DLC                        Plain Length
-         *  0 - 7                      0 - 7
-         *  8 - 15                     8
-         */
-
-        if (dlc_value > 8) {
-            frame->can_dlc = 8;
-            qemu_log_mask(LOG_GUEST_ERROR, "Maximum DLC value for Classic CAN"
-                          " frame is 8. Only 8 byte data will be sent.\n");
-        } else {
-            frame->can_dlc = dlc_value;
+        frame->can_id = FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID);
+        if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, SRR_RTR_RRS)) {
+            is_rtr = true;
         }
     }
 
+    if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, FDF)) {
+        frame->flags |= QEMU_CAN_FRMF_TYPE_FD;
+
+        if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, BRS)) {
+            frame->flags |= QEMU_CAN_FRMF_BRS;
+        }
+    } else {
+        if (is_rtr) {
+            frame->can_id |= QEMU_CAN_RTR_FLAG;
+        }
+    }
+
+    frame->can_dlc = can_dlc2len(dlc_value);
+
     for (j = 0; j < frame->can_dlc; j++) {
-        val = 8 * i;
+        val = 8 * (3 - i);
 
         frame->data[j] = extract32(s->regs[reg_num + 2 + (j / 4)], val, 8);
         i++;
@@ -948,6 +931,33 @@ static void process_cancellation_requests(XlnxVersalCANFDState *s)
     canfd_update_irq(s);
 }
 
+static uint32_t frame_to_reg_id(const qemu_can_frame *frame)
+{
+    uint32_t id_reg_val = 0;
+    const bool is_canfd_frame = frame->flags & QEMU_CAN_FRMF_TYPE_FD;
+    const bool is_rtr = !is_canfd_frame && (frame->can_id & QEMU_CAN_RTR_FLAG);
+
+    if (frame->can_id & QEMU_CAN_EFF_FLAG) {
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID,
+                                 (frame->can_id & QEMU_CAN_EFF_MASK) >> 18);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID_EXT,
+                                 frame->can_id & QEMU_CAN_EFF_MASK);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, IDE, 1);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, SRR_RTR_RRS, 1);
+        if (is_rtr) {
+            id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, RTR_RRS, 1);
+        }
+    } else {
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID,
+                                 frame->can_id & QEMU_CAN_SFF_MASK);
+        if (is_rtr) {
+            id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, SRR_RTR_RRS, 1);
+        }
+    }
+
+    return id_reg_val;
+}
+
 static void store_rx_sequential(XlnxVersalCANFDState *s,
                                 const qemu_can_frame *frame,
                                 uint32_t fill_level, uint32_t read_index,
@@ -955,7 +965,6 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
                                 bool rx_fifo_id, uint8_t filter_index)
 {
     int i;
-    bool is_canfd_frame;
     uint8_t dlc = frame->can_dlc;
     uint8_t rx_reg_num = 0;
     uint32_t dlc_reg_val = 0;
@@ -999,30 +1008,21 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
                                                     NUM_REGS_PER_MSG_SPACE));
         }
 
-        s->regs[store_location] = frame->can_id;
+        s->regs[store_location] = frame_to_reg_id(frame);
 
-        dlc = frame->can_dlc;
+        dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, can_len2dlc(dlc));
 
-        if (frame->flags == QEMU_CAN_FRMF_TYPE_FD) {
-            is_canfd_frame = true;
+        if (frame->flags & QEMU_CAN_FRMF_TYPE_FD) {
+            dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, FDF, 1);
 
-            /* Store dlc value in Xilinx specific format. */
-            for (i = 0; i < ARRAY_SIZE(canfd_dlc_array); i++) {
-                if (canfd_dlc_array[i] == frame->can_dlc) {
-                    dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, 8 + i);
-                }
+            if (frame->flags & QEMU_CAN_FRMF_BRS) {
+                dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, BRS, 1);
             }
-        } else {
-            is_canfd_frame = false;
-
-            if (frame->can_dlc > 8) {
-                dlc = 8;
+            if (frame->flags & QEMU_CAN_FRMF_ESI) {
+                dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, ESI, 1);
             }
-
-            dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, dlc);
         }
 
-        dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, FDF, is_canfd_frame);
         dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, TIMESTAMP, rx_timestamp);
         dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, MATCHED_FILTER_INDEX,
                                   filter_index);
@@ -1034,19 +1034,19 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
             case 0:
                 rx_reg_num = i / 4;
 
-                data_reg_val = FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES3,
+                data_reg_val = FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES0,
                                           frame->data[i]);
                 break;
             case 1:
-                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES2,
-                                           frame->data[i]);
-                break;
-            case 2:
                 data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES1,
                                            frame->data[i]);
                 break;
+            case 2:
+                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES2,
+                                           frame->data[i]);
+                break;
             case 3:
-                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES0,
+                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES3,
                                            frame->data[i]);
                 /*
                  * Last Bytes data which means we have all 4 bytes ready to
@@ -1090,11 +1090,12 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
     if (s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER]) {
         uint32_t acceptance_filter_status =
                                 s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER];
+        const uint32_t reg_id = frame_to_reg_id(frame);
 
         for (i = 0; i < 32; i++) {
             if (acceptance_filter_status & 0x1) {
                 uint32_t msg_id_masked = s->regs[R_AFMR_REGISTER + 2 * i] &
-                                         frame->can_id;
+                                         reg_id;
                 uint32_t afir_id_masked = s->regs[R_AFIR_REGISTER + 2 * i] &
                                           s->regs[R_AFMR_REGISTER + 2 * i];
                 uint16_t std_msg_id_masked = FIELD_EX32(msg_id_masked,
@@ -1143,18 +1144,8 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
             read_index = ARRAY_FIELD_EX32(s->regs, RX_FIFO_STATUS_REGISTER, RI);
             store_index = read_index + fill_level;
 
-            if (read_index == s->cfg.rx0_fifo - 1) {
-                /*
-                 * When ri is s->cfg.rx0_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, RX_FIFO_STATUS_REGISTER, RI,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.rx0_fifo - 1) {
-                store_index -= s->cfg.rx0_fifo - 1;
+                store_index -= s->cfg.rx0_fifo;
             }
 
             store_location = R_RB_ID_REGISTER +
@@ -1171,18 +1162,8 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
                                           RI_1);
             store_index = read_index + fill_level;
 
-            if (read_index == s->cfg.rx1_fifo - 1) {
-                /*
-                 * When ri is s->cfg.rx1_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, RX_FIFO_STATUS_REGISTER, RI_1,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.rx1_fifo - 1) {
-                store_index -= s->cfg.rx1_fifo - 1;
+                store_index -= s->cfg.rx1_fifo;
             }
 
             store_location = R_RB_ID_REGISTER_1 +
@@ -1264,18 +1245,8 @@ static void tx_fifo_stamp(XlnxVersalCANFDState *s, uint32_t tb0_regid)
                           " Discarding the message\n");
             ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, TXEOFLW, 1);
         } else {
-            if (read_index == s->cfg.tx_fifo - 1) {
-                /*
-                 * When ri is s->cfg.tx_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, TX_EVENT_FIFO_STATUS_REGISTER, TXE_RI,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.tx_fifo - 1) {
-                store_index -= s->cfg.tx_fifo - 1;
+                store_index -= s->cfg.tx_fifo;
             }
 
             assert(store_index < s->cfg.tx_fifo);
@@ -2088,7 +2059,7 @@ static void canfd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = canfd_reset;
+    device_class_set_legacy_reset(dc, canfd_reset);
     dc->realize = canfd_realize;
     device_class_set_props(dc, canfd_core_properties);
     dc->vmsd = &vmstate_canfd;

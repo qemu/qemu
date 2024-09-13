@@ -1448,7 +1448,7 @@ static void xilinx_spips_class_init(ObjectClass *klass, void *data)
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_spips_realize;
-    dc->reset = xilinx_spips_reset;
+    device_class_set_legacy_reset(dc, xilinx_spips_reset);
     device_class_set_props(dc, xilinx_spips_properties);
     dc->vmsd = &vmstate_xilinx_spips;
 
@@ -1464,7 +1464,7 @@ static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, void * data)
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xlnx_zynqmp_qspips_realize;
-    dc->reset = xlnx_zynqmp_qspips_reset;
+    device_class_set_legacy_reset(dc, xlnx_zynqmp_qspips_reset);
     dc->vmsd = &vmstate_xlnx_zynqmp_qspips;
     device_class_set_props(dc, xilinx_zynqmp_qspips_properties);
     xsc->reg_ops = &xlnx_zynqmp_qspips_ops;

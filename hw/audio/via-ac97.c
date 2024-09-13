@@ -478,7 +478,7 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, via_ac97_properties);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "VIA AC97";
-    dc->reset = via_ac97_reset;
+    device_class_set_legacy_reset(dc, via_ac97_reset);
     /* Reason: Part of a south bridge chip */
     dc->user_creatable = false;
 }

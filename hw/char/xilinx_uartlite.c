@@ -234,7 +234,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xilinx_uartlite_reset;
+    device_class_set_legacy_reset(dc, xilinx_uartlite_reset);
     dc->realize = xilinx_uartlite_realize;
     device_class_set_props(dc, xilinx_uartlite_properties);
 }

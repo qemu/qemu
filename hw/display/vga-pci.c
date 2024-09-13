@@ -403,7 +403,7 @@ static void secondary_class_init(ObjectClass *klass, void *data)
     k->exit = pci_secondary_vga_exit;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
     device_class_set_props(dc, secondary_pci_properties);
-    dc->reset = pci_secondary_vga_reset;
+    device_class_set_legacy_reset(dc, pci_secondary_vga_reset);
 }
 
 static const TypeInfo vga_info = {

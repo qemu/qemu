@@ -1289,7 +1289,7 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, gt64120_properties);
     dc->realize = gt64120_realize;
-    dc->reset = gt64120_reset;
+    device_class_set_legacy_reset(dc, gt64120_reset);
     dc->vmsd = &vmstate_gt64120;
 }
 

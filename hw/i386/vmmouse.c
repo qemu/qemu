@@ -327,7 +327,7 @@ static void vmmouse_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = vmmouse_realizefn;
-    dc->reset = vmmouse_reset;
+    device_class_set_legacy_reset(dc, vmmouse_reset);
     dc->vmsd = &vmstate_vmmouse;
     device_class_set_props(dc, vmmouse_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

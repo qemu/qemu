@@ -614,7 +614,7 @@ static void mcf5206_mbar_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "MCF5206 system integration module";
     dc->realize = mcf5206_mbar_realize;
-    dc->reset = m5206_mbar_reset;
+    device_class_set_legacy_reset(dc, m5206_mbar_reset);
 }
 
 static const TypeInfo mcf5206_mbar_info = {

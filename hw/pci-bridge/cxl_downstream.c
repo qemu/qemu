@@ -236,7 +236,7 @@ static void cxl_dsp_class_init(ObjectClass *oc, void *data)
     k->revision = 0;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "CXL Switch Downstream Port";
-    dc->reset = cxl_dsp_reset;
+    device_class_set_legacy_reset(dc, cxl_dsp_reset);
 }
 
 static const TypeInfo cxl_dsp_info = {

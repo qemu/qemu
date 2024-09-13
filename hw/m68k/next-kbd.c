@@ -271,7 +271,7 @@ static void nextkbd_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->vmsd = &nextkbd_vmstate;
     dc->realize = nextkbd_realize;
-    dc->reset = nextkbd_reset;
+    device_class_set_legacy_reset(dc, nextkbd_reset);
 }
 
 static const TypeInfo nextkbd_info = {

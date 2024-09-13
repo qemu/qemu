@@ -102,7 +102,7 @@ static void port92_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = port92_realizefn;
-    dc->reset = port92_reset;
+    device_class_set_legacy_reset(dc, port92_reset);
     dc->vmsd = &vmstate_port92_isa;
     /*
      * Reason: unlike ordinary ISA devices, this one needs additional

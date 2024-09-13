@@ -799,7 +799,7 @@ static void smc91c111_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = smc91c111_realize;
-    dc->reset = smc91c111_reset;
+    device_class_set_legacy_reset(dc, smc91c111_reset);
     dc->vmsd = &vmstate_smc91c111;
     device_class_set_props(dc, smc91c111_properties);
 }

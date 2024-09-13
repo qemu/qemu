@@ -325,7 +325,7 @@ static void stm32f2xx_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = stm32f2xx_timer_reset;
+    device_class_set_legacy_reset(dc, stm32f2xx_timer_reset);
     device_class_set_props(dc, stm32f2xx_timer_properties);
     dc->vmsd = &vmstate_stm32f2xx_timer;
     dc->realize = stm32f2xx_timer_realize;

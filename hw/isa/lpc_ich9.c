@@ -885,7 +885,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *amldevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->reset = ich9_lpc_reset;
+    device_class_set_legacy_reset(dc, ich9_lpc_reset);
     k->realize = ich9_lpc_realize;
     dc->vmsd = &vmstate_ich9_lpc;
     device_class_set_props(dc, ich9_lpc_properties);

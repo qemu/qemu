@@ -926,7 +926,7 @@ static void npcm_gmac_class_init(ObjectClass *klass, void *data)
     dc->desc = "NPCM GMAC Controller";
     dc->realize = npcm_gmac_realize;
     dc->unrealize = npcm_gmac_unrealize;
-    dc->reset = npcm_gmac_reset;
+    device_class_set_legacy_reset(dc, npcm_gmac_reset);
     dc->vmsd = &vmstate_npcm_gmac;
     device_class_set_props(dc, npcm_gmac_properties);
 }

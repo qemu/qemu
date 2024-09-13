@@ -235,11 +235,11 @@ static inline int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_t
 
 /* internal API */
 
-int kvm_ioctl(KVMState *s, int type, ...);
+int kvm_ioctl(KVMState *s, unsigned long type, ...);
 
-int kvm_vm_ioctl(KVMState *s, int type, ...);
+int kvm_vm_ioctl(KVMState *s, unsigned long type, ...);
 
-int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
+int kvm_vcpu_ioctl(CPUState *cpu, unsigned long type, ...);
 
 /**
  * kvm_device_ioctl - call an ioctl on a kvm device
@@ -248,7 +248,7 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
  *
  * Returns: -errno on error, nonnegative on success
  */
-int kvm_device_ioctl(int fd, int type, ...);
+int kvm_device_ioctl(int fd, unsigned long type, ...);
 
 /**
  * kvm_vm_check_attr - check for existence of a specific vm attribute

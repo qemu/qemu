@@ -859,7 +859,7 @@ static void npcm7xx_emc_class_init(ObjectClass *klass, void *data)
     dc->desc = "NPCM7xx EMC Controller";
     dc->realize = npcm7xx_emc_realize;
     dc->unrealize = npcm7xx_emc_unrealize;
-    dc->reset = npcm7xx_emc_reset;
+    device_class_set_legacy_reset(dc, npcm7xx_emc_reset);
     dc->vmsd = &vmstate_npcm7xx_emc;
     device_class_set_props(dc, npcm7xx_emc_properties);
 }

@@ -334,7 +334,7 @@ static void aspeed_i3c_device_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "Aspeed I3C Device";
     dc->realize = aspeed_i3c_device_realize;
-    dc->reset = aspeed_i3c_device_reset;
+    device_class_set_legacy_reset(dc, aspeed_i3c_device_reset);
     device_class_set_props(dc, aspeed_i3c_device_properties);
 }
 
@@ -362,7 +362,7 @@ static void aspeed_i3c_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_i3c_realize;
-    dc->reset = aspeed_i3c_reset;
+    device_class_set_legacy_reset(dc, aspeed_i3c_reset);
     dc->desc = "Aspeed I3C Controller";
     dc->vmsd = &vmstate_aspeed_i3c;
 }

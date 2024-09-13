@@ -599,7 +599,7 @@ static void tz_mpc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = tz_mpc_realize;
     dc->vmsd = &tz_mpc_vmstate;
-    dc->reset = tz_mpc_reset;
+    device_class_set_legacy_reset(dc, tz_mpc_reset);
     device_class_set_props(dc, tz_mpc_properties);
 }
 

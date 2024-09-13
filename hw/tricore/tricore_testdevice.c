@@ -67,7 +67,7 @@ static void tricore_testdevice_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, tricore_testdevice_properties);
-    dc->reset = tricore_testdevice_reset;
+    device_class_set_legacy_reset(dc, tricore_testdevice_reset);
 }
 
 static const TypeInfo tricore_testdevice_info = {

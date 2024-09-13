@@ -383,7 +383,7 @@ static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = applesmc_isa_realize;
     dc->unrealize = applesmc_unrealize;
-    dc->reset = qdev_applesmc_isa_reset;
+    device_class_set_legacy_reset(dc, qdev_applesmc_isa_reset);
     device_class_set_props(dc, applesmc_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     adevc->build_dev_aml = build_applesmc_aml;

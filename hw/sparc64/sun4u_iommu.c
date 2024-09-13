@@ -309,7 +309,7 @@ static void iommu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = iommu_reset;
+    device_class_set_legacy_reset(dc, iommu_reset);
 }
 
 static const TypeInfo iommu_info = {

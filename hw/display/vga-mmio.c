@@ -122,7 +122,7 @@ static void vga_mmio_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = vga_mmio_realizefn;
-    dc->reset = vga_mmio_reset;
+    device_class_set_legacy_reset(dc, vga_mmio_reset);
     dc->vmsd = &vmstate_vga_common;
     device_class_set_props(dc, vga_mmio_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);

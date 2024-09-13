@@ -607,7 +607,7 @@ static void designware_pcie_root_class_init(ObjectClass *klass, void *data)
     k->config_read = designware_pcie_root_config_read;
     k->config_write = designware_pcie_root_config_write;
 
-    dc->reset = pci_bridge_reset;
+    device_class_set_legacy_reset(dc, pci_bridge_reset);
     /*
      * PCI-facing part of the host bridge, not usable without the
      * host-facing part, which can't be device_add'ed, yet.

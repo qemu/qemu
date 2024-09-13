@@ -232,7 +232,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->device_id = info->device_id;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     k->revision = 0x40;
-    dc->reset = via_pm_reset;
+    device_class_set_legacy_reset(dc, via_pm_reset);
     /* Reason: part of VIA south bridge, does not exist stand alone */
     dc->user_creatable = false;
     dc->vmsd = &vmstate_acpi;
@@ -461,7 +461,7 @@ static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
-    dc->reset = vt82c686b_superio_reset;
+    device_class_set_legacy_reset(dc, vt82c686b_superio_reset);
     sc->serial.count = 2;
     sc->parallel.count = 1;
     sc->ide.count = 0; /* emulated by via-ide */
@@ -570,7 +570,7 @@ static void vt8231_superio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
-    dc->reset = vt8231_superio_reset;
+    device_class_set_legacy_reset(dc, vt8231_superio_reset);
     sc->serial.count = 1;
     sc->parallel.count = 1;
     sc->ide.count = 0; /* emulated by via-ide */
@@ -844,7 +844,7 @@ static void vt82c686b_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_82C686B_ISA;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x40;
-    dc->reset = vt82c686b_isa_reset;
+    device_class_set_legacy_reset(dc, vt82c686b_isa_reset);
     dc->desc = "ISA bridge";
     dc->vmsd = &vmstate_via;
     /* Reason: part of VIA VT82C686 southbridge, needs to be wired up */
@@ -909,7 +909,7 @@ static void vt8231_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_8231_ISA;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x10;
-    dc->reset = vt8231_isa_reset;
+    device_class_set_legacy_reset(dc, vt8231_isa_reset);
     dc->desc = "ISA bridge";
     dc->vmsd = &vmstate_via;
     /* Reason: part of VIA VT8231 southbridge, needs to be wired up */

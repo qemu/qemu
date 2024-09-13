@@ -707,7 +707,7 @@ static void rc4030_class_init(ObjectClass *klass, void *class_data)
 
     dc->realize = rc4030_realize;
     dc->unrealize = rc4030_unrealize;
-    dc->reset = rc4030_reset;
+    device_class_set_legacy_reset(dc, rc4030_reset);
     dc->vmsd = &vmstate_rc4030;
 }
 

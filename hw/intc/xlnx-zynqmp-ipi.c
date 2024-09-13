@@ -359,7 +359,7 @@ static void xlnx_zynqmp_ipi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xlnx_zynqmp_ipi_reset;
+    device_class_set_legacy_reset(dc, xlnx_zynqmp_ipi_reset);
     dc->realize = xlnx_zynqmp_ipi_realize;
     dc->vmsd = &vmstate_zynqmp_pmu_ipi;
 }

@@ -147,7 +147,7 @@ static void macio_nvram_class_init(ObjectClass *oc, void *data)
 
     dc->realize = macio_nvram_realizefn;
     dc->unrealize = macio_nvram_unrealizefn;
-    dc->reset = macio_nvram_reset;
+    device_class_set_legacy_reset(dc, macio_nvram_reset);
     dc->vmsd = &vmstate_macio_nvram;
     device_class_set_props(dc, macio_nvram_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

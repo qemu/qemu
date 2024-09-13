@@ -294,7 +294,7 @@ static void imx2_wdt_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, imx2_wdt_properties);
     dc->realize = imx2_wdt_realize;
-    dc->reset = imx2_wdt_reset;
+    device_class_set_legacy_reset(dc, imx2_wdt_reset);
     dc->vmsd = &vmstate_imx2_wdt;
     dc->desc = "i.MX2 watchdog timer";
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);

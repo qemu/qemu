@@ -1678,7 +1678,7 @@ static void pl330_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pl330_realize;
-    dc->reset = pl330_reset;
+    device_class_set_legacy_reset(dc, pl330_reset);
     device_class_set_props(dc, pl330_properties);
     dc->vmsd = &vmstate_pl330;
 }

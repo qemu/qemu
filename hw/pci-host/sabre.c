@@ -504,7 +504,7 @@ static void sabre_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = sabre_realize;
-    dc->reset = sabre_reset;
+    device_class_set_legacy_reset(dc, sabre_reset);
     device_class_set_props(dc, sabre_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";

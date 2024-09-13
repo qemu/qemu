@@ -846,7 +846,7 @@ static void onenand_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = onenand_realize;
-    dc->reset = onenand_system_reset;
+    device_class_set_legacy_reset(dc, onenand_system_reset);
     device_class_set_props(dc, onenand_properties);
 }
 

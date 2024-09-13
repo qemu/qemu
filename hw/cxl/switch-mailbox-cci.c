@@ -89,7 +89,7 @@ static void cswmbcci_class_init(ObjectClass *oc, void *data)
     pc->device_id = 0xa123;
     pc->revision = 0;
     dc->desc = "CXL Switch Mailbox CCI";
-    dc->reset = cswmbcci_reset;
+    device_class_set_legacy_reset(dc, cswmbcci_reset);
     device_class_set_props(dc, cxl_switch_cci_props);
 }
 

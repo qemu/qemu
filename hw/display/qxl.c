@@ -2486,7 +2486,7 @@ static void qxl_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->reset = qxl_reset_handler;
+    device_class_set_legacy_reset(dc, qxl_reset_handler);
     dc->vmsd = &qxl_vmstate;
     device_class_set_props(dc, qxl_properties);
 }

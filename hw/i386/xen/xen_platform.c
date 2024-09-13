@@ -595,7 +595,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
     k->revision = 1;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "XEN platform pci device";
-    dc->reset = platform_reset;
+    device_class_set_legacy_reset(dc, platform_reset);
     dc->vmsd = &vmstate_xen_platform;
 }
 

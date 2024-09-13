@@ -281,7 +281,6 @@ struct ArchCPU {
 /**
  * HPPACPUClass:
  * @parent_realize: The parent class' realize handler.
- * @parent_reset: The parent class' reset handler.
  *
  * An HPPA CPU model.
  */
@@ -289,7 +288,6 @@ struct HPPACPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
 };
 
 #include "exec/cpu-all.h"

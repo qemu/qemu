@@ -82,7 +82,7 @@ static void fsi_slave_class_init(ObjectClass *klass, void *data)
 
     dc->bus_type = TYPE_FSI_BUS;
     dc->desc = "FSI Slave";
-    dc->reset = fsi_slave_reset;
+    device_class_set_legacy_reset(dc, fsi_slave_reset);
 }
 
 static const TypeInfo fsi_slave_info = {

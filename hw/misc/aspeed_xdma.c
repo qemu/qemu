@@ -222,7 +222,7 @@ static void aspeed_xdma_class_init(ObjectClass *classp, void *data)
     DeviceClass *dc = DEVICE_CLASS(classp);
 
     dc->realize = aspeed_xdma_realize;
-    dc->reset = aspeed_xdma_reset;
+    device_class_set_legacy_reset(dc, aspeed_xdma_reset);
     dc->vmsd = &aspeed_xdma_vmstate;
 }
 

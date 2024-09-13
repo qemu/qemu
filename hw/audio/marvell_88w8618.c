@@ -292,7 +292,7 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = mv88w8618_audio_realize;
-    dc->reset = mv88w8618_audio_reset;
+    device_class_set_legacy_reset(dc, mv88w8618_audio_reset);
     dc->vmsd = &mv88w8618_audio_vmsd;
     dc->user_creatable = false;
 }

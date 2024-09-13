@@ -274,7 +274,7 @@ static void kvm_openpic_class_init(ObjectClass *oc, void *data)
 
     dc->realize = kvm_openpic_realize;
     device_class_set_props(dc, kvm_openpic_properties);
-    dc->reset = kvm_openpic_reset;
+    device_class_set_legacy_reset(dc, kvm_openpic_reset);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

@@ -269,7 +269,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_AMD_LANCE;
     k->revision = 0x10;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    dc->reset = pci_reset;
+    device_class_set_legacy_reset(dc, pci_reset);
     dc->vmsd = &vmstate_pci_pcnet;
     device_class_set_props(dc, pcnet_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);

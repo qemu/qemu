@@ -493,7 +493,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
      * migration, otherwise first 24 gsi routes will be invalid.
      */
     k->post_load = ioapic_update_kvm_routes;
-    dc->reset = ioapic_reset_common;
+    device_class_set_legacy_reset(dc, ioapic_reset_common);
     device_class_set_props(dc, ioapic_properties);
 }
 

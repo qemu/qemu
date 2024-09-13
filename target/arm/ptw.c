@@ -96,6 +96,21 @@ static const uint8_t pamax_map[] = {
     [6] = 52,
 };
 
+uint8_t round_down_to_parange_index(uint8_t bit_size)
+{
+    for (int i = ARRAY_SIZE(pamax_map) - 1; i >= 0; i--) {
+        if (pamax_map[i] <= bit_size) {
+            return i;
+        }
+    }
+    g_assert_not_reached();
+}
+
+uint8_t round_down_to_parange_bit_size(uint8_t bit_size)
+{
+    return pamax_map[round_down_to_parange_index(bit_size)];
+}
+
 /*
  * The cpu-specific constant value of PAMax; also used by hw/arm/virt.
  * Note that machvirt_init calls this on a CPU that is inited but not realized!

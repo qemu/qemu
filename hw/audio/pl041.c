@@ -639,7 +639,7 @@ static void pl041_device_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pl041_realize;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->reset = pl041_device_reset;
+    device_class_set_legacy_reset(dc, pl041_device_reset);
     dc->vmsd = &vmstate_pl041;
     device_class_set_props(dc, pl041_device_properties);
 }

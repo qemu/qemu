@@ -1247,7 +1247,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
 
     k->class_id  = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_uhci;
-    dc->reset = uhci_reset;
+    device_class_set_legacy_reset(dc, uhci_reset);
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 

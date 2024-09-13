@@ -286,7 +286,7 @@ static void zynq_xadc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_zynq_xadc;
-    dc->reset = zynq_xadc_reset;
+    device_class_set_legacy_reset(dc, zynq_xadc_reset);
 }
 
 static const TypeInfo zynq_xadc_info = {

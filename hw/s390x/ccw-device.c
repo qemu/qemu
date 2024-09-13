@@ -44,9 +44,9 @@ static Property ccw_device_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ccw_device_reset(DeviceState *d)
+static void ccw_device_reset_hold(Object *obj, ResetType type)
 {
-    CcwDevice *ccw_dev = CCW_DEVICE(d);
+    CcwDevice *ccw_dev = CCW_DEVICE(obj);
 
     css_reset_sch(ccw_dev->sch);
 }
@@ -55,11 +55,12 @@ static void ccw_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCWDeviceClass *k = CCW_DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     k->realize = ccw_device_realize;
     k->refill_ids = ccw_device_refill_ids;
     device_class_set_props(dc, ccw_device_properties);
-    dc->reset = ccw_device_reset;
+    rc->phases.hold = ccw_device_reset_hold;
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
 }
 

@@ -339,7 +339,7 @@ static void mpc_i2c_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd  = &mpc_i2c_vmstate ;
-    dc->reset = mpc_i2c_reset;
+    device_class_set_legacy_reset(dc, mpc_i2c_reset);
     dc->realize = mpc_i2c_realize;
     dc->desc = "MPC I2C Controller";
 }

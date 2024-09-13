@@ -1323,7 +1323,7 @@ static void s390_pcihost_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
-    dc->reset = s390_pcihost_reset;
+    device_class_set_legacy_reset(dc, s390_pcihost_reset);
     dc->realize = s390_pcihost_realize;
     dc->unrealize = s390_pcihost_unrealize;
     hc->pre_plug = s390_pcihost_pre_plug;
@@ -1506,7 +1506,7 @@ static void s390_pci_device_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "zpci device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->reset = s390_pci_device_reset;
+    device_class_set_legacy_reset(dc, s390_pci_device_reset);
     dc->bus_type = TYPE_S390_PCI_BUS;
     dc->realize = s390_pci_device_realize;
     device_class_set_props(dc, s390_pci_device_properties);

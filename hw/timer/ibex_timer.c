@@ -291,7 +291,7 @@ static void ibex_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ibex_timer_reset;
+    device_class_set_legacy_reset(dc, ibex_timer_reset);
     dc->vmsd = &vmstate_ibex_timer;
     dc->realize = ibex_timer_realize;
     device_class_set_props(dc, ibex_timer_properties);

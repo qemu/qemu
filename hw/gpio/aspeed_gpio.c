@@ -1116,7 +1116,7 @@ static void aspeed_gpio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_gpio_realize;
-    dc->reset = aspeed_gpio_reset;
+    device_class_set_legacy_reset(dc, aspeed_gpio_reset);
     dc->desc = "Aspeed GPIO Controller";
     dc->vmsd = &vmstate_aspeed_gpio;
 }

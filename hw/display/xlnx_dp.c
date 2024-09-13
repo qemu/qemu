@@ -1398,7 +1398,7 @@ static void xlnx_dp_class_init(ObjectClass *oc, void *data)
 
     dc->realize = xlnx_dp_realize;
     dc->vmsd = &vmstate_dp;
-    dc->reset = xlnx_dp_reset;
+    device_class_set_legacy_reset(dc, xlnx_dp_reset);
     device_class_set_props(dc, xlnx_dp_device_properties);
 }
 

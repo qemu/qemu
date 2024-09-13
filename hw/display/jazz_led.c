@@ -300,7 +300,7 @@ static void jazz_led_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "Jazz LED display",
     dc->vmsd = &vmstate_jazz_led;
-    dc->reset = jazz_led_reset;
+    device_class_set_legacy_reset(dc, jazz_led_reset);
     dc->realize = jazz_led_realize;
 }
 

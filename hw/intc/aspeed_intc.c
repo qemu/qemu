@@ -322,7 +322,7 @@ static void aspeed_intc_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "ASPEED INTC Controller";
     dc->realize = aspeed_intc_realize;
-    dc->reset = aspeed_intc_reset;
+    device_class_set_legacy_reset(dc, aspeed_intc_reset);
     dc->vmsd = NULL;
 }
 

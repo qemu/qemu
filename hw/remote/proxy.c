@@ -206,7 +206,7 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
     k->config_read = pci_proxy_read_config;
     k->config_write = pci_proxy_write_config;
 
-    dc->reset = proxy_device_reset;
+    device_class_set_legacy_reset(dc, proxy_device_reset);
 
     device_class_set_props(dc, proxy_properties);
 }

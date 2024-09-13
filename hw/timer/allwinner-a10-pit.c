@@ -293,7 +293,7 @@ static void a10_pit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = a10_pit_reset;
+    device_class_set_legacy_reset(dc, a10_pit_reset);
     device_class_set_props(dc, a10_pit_properties);
     dc->desc = "allwinner a10 timer";
     dc->vmsd = &vmstate_a10_pit;

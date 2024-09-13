@@ -2819,7 +2819,7 @@ static void sdmmc_common_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, sdmmc_common_properties);
     dc->vmsd = &sd_vmstate;
-    dc->reset = sd_reset;
+    device_class_set_legacy_reset(dc, sd_reset);
     dc->bus_type = TYPE_SD_BUS;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 

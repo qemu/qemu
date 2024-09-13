@@ -1520,7 +1520,7 @@ void sdhci_common_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
-    dc->reset = sdhci_poweron_reset;
+    device_class_set_legacy_reset(dc, sdhci_poweron_reset);
 }
 
 /* --- qdev SysBus --- */
