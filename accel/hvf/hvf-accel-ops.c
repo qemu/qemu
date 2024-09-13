@@ -61,10 +61,6 @@
 
 HVFState *hvf_state;
 
-#ifdef __aarch64__
-#define HV_VM_DEFAULT NULL
-#endif
-
 /* Memory slots */
 
 hvf_slot *hvf_find_overlap_slot(uint64_t start, uint64_t size)
@@ -324,7 +320,7 @@ static int hvf_accel_init(MachineState *ms)
     hv_return_t ret;
     HVFState *s;
 
-    ret = hv_vm_create(HV_VM_DEFAULT);
+    ret = hvf_arch_vm_create(ms, 0);
     assert_hvf_ok(ret);
 
     s = g_new0(HVFState, 1);
