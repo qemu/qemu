@@ -1144,18 +1144,8 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
             read_index = ARRAY_FIELD_EX32(s->regs, RX_FIFO_STATUS_REGISTER, RI);
             store_index = read_index + fill_level;
 
-            if (read_index == s->cfg.rx0_fifo - 1) {
-                /*
-                 * When ri is s->cfg.rx0_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, RX_FIFO_STATUS_REGISTER, RI,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.rx0_fifo - 1) {
-                store_index -= s->cfg.rx0_fifo - 1;
+                store_index -= s->cfg.rx0_fifo;
             }
 
             store_location = R_RB_ID_REGISTER +
@@ -1172,18 +1162,8 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
                                           RI_1);
             store_index = read_index + fill_level;
 
-            if (read_index == s->cfg.rx1_fifo - 1) {
-                /*
-                 * When ri is s->cfg.rx1_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, RX_FIFO_STATUS_REGISTER, RI_1,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.rx1_fifo - 1) {
-                store_index -= s->cfg.rx1_fifo - 1;
+                store_index -= s->cfg.rx1_fifo;
             }
 
             store_location = R_RB_ID_REGISTER_1 +
@@ -1265,18 +1245,8 @@ static void tx_fifo_stamp(XlnxVersalCANFDState *s, uint32_t tb0_regid)
                           " Discarding the message\n");
             ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, TXEOFLW, 1);
         } else {
-            if (read_index == s->cfg.tx_fifo - 1) {
-                /*
-                 * When ri is s->cfg.tx_fifo - 1 i.e. max, it goes cyclic that
-                 * means we reset the ri to 0x0.
-                 */
-                read_index = 0;
-                ARRAY_FIELD_DP32(s->regs, TX_EVENT_FIFO_STATUS_REGISTER, TXE_RI,
-                                 read_index);
-            }
-
             if (store_index > s->cfg.tx_fifo - 1) {
-                store_index -= s->cfg.tx_fifo - 1;
+                store_index -= s->cfg.tx_fifo;
             }
 
             assert(store_index < s->cfg.tx_fifo);
