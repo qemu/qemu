@@ -951,7 +951,7 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     }
 
     for (j = 0; j < frame->can_dlc; j++) {
-        val = 8 * i;
+        val = 8 * (3 - i);
 
         frame->data[j] = extract32(s->regs[reg_num + 2 + (j / 4)], val, 8);
         i++;
@@ -1093,19 +1093,19 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
             case 0:
                 rx_reg_num = i / 4;
 
-                data_reg_val = FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES3,
+                data_reg_val = FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES0,
                                           frame->data[i]);
                 break;
             case 1:
-                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES2,
-                                           frame->data[i]);
-                break;
-            case 2:
                 data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES1,
                                            frame->data[i]);
                 break;
+            case 2:
+                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES2,
+                                           frame->data[i]);
+                break;
             case 3:
-                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES0,
+                data_reg_val |= FIELD_DP32(0, RB_DW0_REGISTER, DATA_BYTES3,
                                            frame->data[i]);
                 /*
                  * Last Bytes data which means we have all 4 bytes ready to
