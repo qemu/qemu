@@ -473,7 +473,7 @@ static void rtmr_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_rtmr;
-    dc->reset = rtmr_reset;
+    device_class_set_legacy_reset(dc, rtmr_reset);
     device_class_set_props(dc, rtmr_properties);
 }
 

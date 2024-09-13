@@ -148,7 +148,7 @@ static void allwinner_sid_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_sid_reset;
+    device_class_set_legacy_reset(dc, allwinner_sid_reset);
     dc->vmsd = &allwinner_sid_vmstate;
     device_class_set_props(dc, allwinner_sid_properties);
 }

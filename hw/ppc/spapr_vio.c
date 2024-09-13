@@ -635,7 +635,7 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = spapr_vio_busdev_realize;
-    k->reset = spapr_vio_busdev_reset;
+    device_class_set_legacy_reset(k, spapr_vio_busdev_reset);
     k->bus_type = TYPE_SPAPR_VIO_BUS;
 }
 

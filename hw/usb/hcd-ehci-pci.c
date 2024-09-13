@@ -162,7 +162,7 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     k->config_write = usb_ehci_pci_write_config;
     dc->vmsd = &vmstate_ehci_pci;
     device_class_set_props(dc, ehci_pci_properties);
-    dc->reset = usb_ehci_pci_reset;
+    device_class_set_legacy_reset(dc, usb_ehci_pci_reset);
 }
 
 static const TypeInfo ehci_pci_type_info = {

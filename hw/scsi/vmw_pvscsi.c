@@ -1333,7 +1333,7 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x1000;
     device_class_set_parent_realize(dc, pvscsi_realize,
                                     &pvs_k->parent_dc_realize);
-    dc->reset = pvscsi_reset;
+    device_class_set_legacy_reset(dc, pvscsi_reset);
     dc->vmsd = &vmstate_pvscsi;
     device_class_set_props(dc, pvscsi_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);

@@ -191,7 +191,7 @@ static void goldfish_pic_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
-    dc->reset = goldfish_pic_reset;
+    device_class_set_legacy_reset(dc, goldfish_pic_reset);
     dc->realize = goldfish_pic_realize;
     dc->vmsd = &vmstate_goldfish_pic;
     ic->get_statistics = goldfish_pic_get_statistics;

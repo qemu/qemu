@@ -165,7 +165,7 @@ static void digic_timer_class_init(ObjectClass *klass, void *class_data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = digic_timer_reset;
+    device_class_set_legacy_reset(dc, digic_timer_reset);
     dc->vmsd = &vmstate_digic_timer;
 }
 

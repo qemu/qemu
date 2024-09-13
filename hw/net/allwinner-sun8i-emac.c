@@ -881,7 +881,7 @@ static void allwinner_sun8i_emac_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = allwinner_sun8i_emac_realize;
-    dc->reset = allwinner_sun8i_emac_reset;
+    device_class_set_legacy_reset(dc, allwinner_sun8i_emac_reset);
     dc->vmsd = &vmstate_aw_emac;
     device_class_set_props(dc, allwinner_sun8i_emac_properties);
 }

@@ -191,7 +191,7 @@ static void ppce500_spin_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = spin_reset;
+    device_class_set_legacy_reset(dc, spin_reset);
 }
 
 static const TypeInfo ppce500_spin_info = {

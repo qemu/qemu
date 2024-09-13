@@ -162,7 +162,7 @@ static void aspeed_rtc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = aspeed_rtc_realize;
     dc->vmsd = &vmstate_aspeed_rtc;
-    dc->reset = aspeed_rtc_reset;
+    device_class_set_legacy_reset(dc, aspeed_rtc_reset);
 }
 
 static const TypeInfo aspeed_rtc_info = {

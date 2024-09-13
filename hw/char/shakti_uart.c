@@ -165,7 +165,7 @@ static Property shakti_uart_properties[] = {
 static void shakti_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->reset = shakti_uart_reset;
+    device_class_set_legacy_reset(dc, shakti_uart_reset);
     dc->realize = shakti_uart_realize;
     device_class_set_props(dc, shakti_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

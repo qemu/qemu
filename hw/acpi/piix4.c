@@ -633,7 +633,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB_3;
     k->revision = 0x03;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
-    dc->reset = piix4_pm_reset;
+    device_class_set_legacy_reset(dc, piix4_pm_reset);
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
     device_class_set_props(dc, piix4_pm_properties);

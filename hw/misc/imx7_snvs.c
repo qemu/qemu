@@ -147,7 +147,7 @@ static void imx7_snvs_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = imx7_snvs_reset;
+    device_class_set_legacy_reset(dc, imx7_snvs_reset);
     dc->vmsd = &vmstate_imx7_snvs;
     dc->desc  = "i.MX7 Secure Non-Volatile Storage Module";
 }

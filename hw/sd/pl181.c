@@ -514,7 +514,7 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
 
     k->vmsd = &vmstate_pl181;
-    k->reset = pl181_reset;
+    device_class_set_legacy_reset(k, pl181_reset);
     /* Reason: output IRQs should be wired up */
     k->user_creatable = false;
 }

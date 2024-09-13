@@ -747,7 +747,7 @@ static void imx6_ccm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
 
-    dc->reset = imx6_ccm_reset;
+    device_class_set_legacy_reset(dc, imx6_ccm_reset);
     dc->vmsd = &vmstate_imx6_ccm;
     dc->desc = "i.MX6 Clock Control Module";
 

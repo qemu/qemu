@@ -1284,7 +1284,7 @@ static void aspeed_smc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_smc_realize;
-    dc->reset = aspeed_smc_reset;
+    device_class_set_legacy_reset(dc, aspeed_smc_reset);
     device_class_set_props(dc, aspeed_smc_properties);
     dc->vmsd = &vmstate_aspeed_smc;
 }

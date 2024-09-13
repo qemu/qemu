@@ -425,7 +425,7 @@ static void etsec_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = etsec_realize;
-    dc->reset = etsec_reset;
+    device_class_set_legacy_reset(dc, etsec_reset);
     device_class_set_props(dc, etsec_properties);
     /* Supported by ppce500 machine */
     dc->user_creatable = true;

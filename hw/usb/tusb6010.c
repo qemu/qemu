@@ -832,7 +832,7 @@ static void tusb6010_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = tusb6010_realize;
-    dc->reset = tusb6010_reset;
+    device_class_set_legacy_reset(dc, tusb6010_reset);
 }
 
 static const TypeInfo tusb6010_info = {

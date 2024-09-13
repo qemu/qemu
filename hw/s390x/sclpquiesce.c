@@ -117,7 +117,7 @@ static void quiesce_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCLPEventClass *k = SCLP_EVENT_CLASS(klass);
 
-    dc->reset = quiesce_reset;
+    device_class_set_legacy_reset(dc, quiesce_reset);
     dc->vmsd = &vmstate_sclpquiesce;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     /*

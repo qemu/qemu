@@ -672,7 +672,7 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = spapr_tce_table_realize;
-    dc->reset = spapr_tce_reset;
+    device_class_set_legacy_reset(dc, spapr_tce_reset);
     dc->unrealize = spapr_tce_table_unrealize;
     /* Reason: This is just an internal device for handling the hypercalls */
     dc->user_creatable = false;

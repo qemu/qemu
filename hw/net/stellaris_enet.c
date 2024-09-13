@@ -507,7 +507,7 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = stellaris_enet_realize;
-    dc->reset = stellaris_enet_reset;
+    device_class_set_legacy_reset(dc, stellaris_enet_reset);
     device_class_set_props(dc, stellaris_enet_properties);
     dc->vmsd = &vmstate_stellaris_enet;
 }

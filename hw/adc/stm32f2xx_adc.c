@@ -288,7 +288,7 @@ static void stm32f2xx_adc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = stm32f2xx_adc_reset;
+    device_class_set_legacy_reset(dc, stm32f2xx_adc_reset);
     dc->vmsd = &vmstate_stm32f2xx_adc;
 }
 

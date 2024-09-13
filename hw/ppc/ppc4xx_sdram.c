@@ -437,7 +437,7 @@ static void ppc4xx_sdram_ddr_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ppc4xx_sdram_ddr_realize;
-    dc->reset = ppc4xx_sdram_ddr_reset;
+    device_class_set_legacy_reset(dc, ppc4xx_sdram_ddr_reset);
     /* Reason: only works as function of a ppc4xx SoC */
     dc->user_creatable = false;
     device_class_set_props(dc, ppc4xx_sdram_ddr_props);
@@ -722,7 +722,7 @@ static void ppc4xx_sdram_ddr2_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ppc4xx_sdram_ddr2_realize;
-    dc->reset = ppc4xx_sdram_ddr2_reset;
+    device_class_set_legacy_reset(dc, ppc4xx_sdram_ddr2_reset);
     /* Reason: only works as function of a ppc4xx SoC */
     dc->user_creatable = false;
     device_class_set_props(dc, ppc4xx_sdram_ddr2_props);

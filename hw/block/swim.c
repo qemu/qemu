@@ -556,7 +556,7 @@ static void sysbus_swim_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = sysbus_swim_realize;
-    dc->reset = sysbus_swim_reset;
+    device_class_set_legacy_reset(dc, sysbus_swim_reset);
     dc->vmsd = &vmstate_sysbus_swim;
 }
 

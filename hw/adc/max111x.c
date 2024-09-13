@@ -183,7 +183,7 @@ static void max111x_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->transfer = max111x_transfer;
-    dc->reset = max111x_reset;
+    device_class_set_legacy_reset(dc, max111x_reset);
     dc->vmsd = &vmstate_max111x;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }

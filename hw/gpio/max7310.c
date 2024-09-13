@@ -198,7 +198,7 @@ static void max7310_class_init(ObjectClass *klass, void *data)
     k->event = max7310_event;
     k->recv = max7310_rx;
     k->send = max7310_tx;
-    dc->reset = max7310_reset;
+    device_class_set_legacy_reset(dc, max7310_reset);
     dc->vmsd = &vmstate_max7310;
 }
 

@@ -509,7 +509,7 @@ static void pci_vpb_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pci_vpb_realize;
-    dc->reset = pci_vpb_reset;
+    device_class_set_legacy_reset(dc, pci_vpb_reset);
     dc->vmsd = &pci_vpb_vmstate;
     device_class_set_props(dc, pci_vpb_properties);
 }

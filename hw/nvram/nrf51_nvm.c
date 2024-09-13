@@ -378,7 +378,7 @@ static void nrf51_nvm_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, nrf51_nvm_properties);
     dc->vmsd = &vmstate_nvm;
     dc->realize = nrf51_nvm_realize;
-    dc->reset = nrf51_nvm_reset;
+    device_class_set_legacy_reset(dc, nrf51_nvm_reset);
 }
 
 static const TypeInfo nrf51_nvm_info = {

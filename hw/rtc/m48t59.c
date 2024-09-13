@@ -629,7 +629,7 @@ static void m48txx_sysbus_class_init(ObjectClass *klass, void *data)
     NvramClass *nc = NVRAM_CLASS(klass);
 
     dc->realize = m48t59_realize;
-    dc->reset = m48t59_reset_sysbus;
+    device_class_set_legacy_reset(dc, m48t59_reset_sysbus);
     device_class_set_props(dc, m48t59_sysbus_properties);
     dc->vmsd = &vmstate_m48t59;
     nc->read = m48txx_sysbus_read;

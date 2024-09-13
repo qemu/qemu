@@ -180,7 +180,7 @@ static void armsse_mhu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = armsse_mhu_reset;
+    device_class_set_legacy_reset(dc, armsse_mhu_reset);
     dc->vmsd = &armsse_mhu_vmstate;
 }
 

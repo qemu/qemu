@@ -129,7 +129,7 @@ static void virt_ctrl_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->reset = virt_ctrl_reset;
+    device_class_set_legacy_reset(dc, virt_ctrl_reset);
     dc->realize = virt_ctrl_realize;
     dc->vmsd = &vmstate_virt_ctrl;
 }

@@ -258,7 +258,7 @@ static void adb_mouse_class_init(ObjectClass *oc, void *data)
 
     adc->devreq = adb_mouse_request;
     adc->devhasdata = adb_mouse_has_data;
-    dc->reset = adb_mouse_reset;
+    device_class_set_legacy_reset(dc, adb_mouse_reset);
     dc->vmsd = &vmstate_adb_mouse;
 }
 

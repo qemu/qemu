@@ -3621,7 +3621,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
 
     dc->realize = usb_xhci_realize;
     dc->unrealize = usb_xhci_unrealize;
-    dc->reset   = xhci_reset;
+    device_class_set_legacy_reset(dc, xhci_reset);
     device_class_set_props(dc, xhci_properties);
     dc->user_creatable = false;
 }

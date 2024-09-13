@@ -702,7 +702,7 @@ static void cs4231a_class_initfn (ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS (klass);
 
     dc->realize = cs4231a_realizefn;
-    dc->reset = cs4231a_reset;
+    device_class_set_legacy_reset(dc, cs4231a_reset);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;

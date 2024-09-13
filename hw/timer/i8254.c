@@ -360,7 +360,7 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
     k->set_channel_gate = pit_set_channel_gate;
     k->get_channel_info = pit_get_channel_info_common;
     k->post_load = pit_post_load;
-    dc->reset = pit_reset;
+    device_class_set_legacy_reset(dc, pit_reset);
 }
 
 static const TypeInfo pit_info = {

@@ -378,7 +378,7 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
 
     dc->realize = spapr_cpu_core_realize;
     dc->unrealize = spapr_cpu_core_unrealize;
-    dc->reset = spapr_cpu_core_reset;
+    device_class_set_legacy_reset(dc, spapr_cpu_core_reset);
     device_class_set_props(dc, spapr_cpu_core_properties);
     scc->cpu_type = data;
 }

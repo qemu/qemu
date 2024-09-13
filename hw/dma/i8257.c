@@ -599,7 +599,7 @@ static void i8257_class_init(ObjectClass *klass, void *data)
     IsaDmaClass *idc = ISADMA_CLASS(klass);
 
     dc->realize = i8257_realize;
-    dc->reset = i8257_reset;
+    device_class_set_legacy_reset(dc, i8257_reset);
     dc->vmsd = &vmstate_i8257;
     device_class_set_props(dc, i8257_properties);
 

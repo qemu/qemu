@@ -1628,7 +1628,7 @@ static void amdvi_sysbus_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *dc_class = X86_IOMMU_DEVICE_CLASS(klass);
 
-    dc->reset = amdvi_sysbus_reset;
+    device_class_set_legacy_reset(dc, amdvi_sysbus_reset);
     dc->vmsd = &vmstate_amdvi_sysbus;
     dc->hotpluggable = false;
     dc_class->realize = amdvi_sysbus_realize;

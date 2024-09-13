@@ -547,7 +547,7 @@ static void mips_itu_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, mips_itu_properties);
     dc->realize = mips_itu_realize;
-    dc->reset = mips_itu_reset;
+    device_class_set_legacy_reset(dc, mips_itu_reset);
 }
 
 static const TypeInfo mips_itu_info = {

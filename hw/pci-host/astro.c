@@ -489,7 +489,7 @@ static void elroy_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = elroy_reset;
+    device_class_set_legacy_reset(dc, elroy_reset);
     device_class_set_props(dc, elroy_pcihost_properties);
     dc->vmsd = &vmstate_elroy;
     dc->user_creatable = false;
@@ -865,7 +865,7 @@ static void astro_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = astro_reset;
+    device_class_set_legacy_reset(dc, astro_reset);
     dc->vmsd = &vmstate_astro;
     dc->realize = astro_realize;
     /*

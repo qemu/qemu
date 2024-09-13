@@ -770,7 +770,7 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
 
     dc->realize = s390_ipl_realize;
     device_class_set_props(dc, s390_ipl_properties);
-    dc->reset = s390_ipl_reset;
+    device_class_set_legacy_reset(dc, s390_ipl_reset);
     dc->vmsd = &vmstate_ipl;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     /* Reason: Loads the ROMs and thus can only be used one time - internally */

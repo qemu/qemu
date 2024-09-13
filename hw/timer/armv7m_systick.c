@@ -290,7 +290,7 @@ static void systick_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_systick;
-    dc->reset = systick_reset;
+    device_class_set_legacy_reset(dc, systick_reset);
     dc->realize = systick_realize;
 }
 

@@ -300,7 +300,7 @@ static void avr_usart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = avr_usart_reset;
+    device_class_set_legacy_reset(dc, avr_usart_reset);
     device_class_set_props(dc, avr_usart_properties);
     dc->realize = avr_usart_realize;
 }

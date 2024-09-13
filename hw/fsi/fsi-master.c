@@ -151,7 +151,7 @@ static void fsi_master_class_init(ObjectClass *klass, void *data)
     dc->bus_type = TYPE_OP_BUS;
     dc->desc = "FSI Master";
     dc->realize = fsi_master_realize;
-    dc->reset = fsi_master_reset;
+    device_class_set_legacy_reset(dc, fsi_master_reset);
 }
 
 static const TypeInfo fsi_master_info = {

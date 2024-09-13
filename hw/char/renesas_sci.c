@@ -331,7 +331,7 @@ static void rsci_class_init(ObjectClass *klass, void *data)
 
     dc->realize = rsci_realize;
     dc->vmsd = &vmstate_rsci;
-    dc->reset = rsci_reset;
+    device_class_set_legacy_reset(dc, rsci_reset);
     device_class_set_props(dc, rsci_properties);
 }
 

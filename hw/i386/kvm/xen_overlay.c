@@ -155,7 +155,7 @@ static void xen_overlay_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xen_overlay_reset;
+    device_class_set_legacy_reset(dc, xen_overlay_reset);
     dc->realize = xen_overlay_realize;
     dc->vmsd = &xen_overlay_vmstate;
 }

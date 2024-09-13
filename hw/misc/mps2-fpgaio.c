@@ -335,7 +335,7 @@ static void mps2_fpgaio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &mps2_fpgaio_vmstate;
     dc->realize = mps2_fpgaio_realize;
-    dc->reset = mps2_fpgaio_reset;
+    device_class_set_legacy_reset(dc, mps2_fpgaio_reset);
     device_class_set_props(dc, mps2_fpgaio_properties);
 }
 

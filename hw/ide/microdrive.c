@@ -622,7 +622,7 @@ static void microdrive_class_init(ObjectClass *oc, void *data)
     pcc->io_write = md_common_write;
 
     dc->realize = microdrive_realize;
-    dc->reset = md_reset;
+    device_class_set_legacy_reset(dc, md_reset);
     dc->vmsd = &vmstate_microdrive;
 }
 

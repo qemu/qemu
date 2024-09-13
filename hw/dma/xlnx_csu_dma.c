@@ -719,7 +719,7 @@ static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
     XlnxCSUDMAClass *xcdc = XLNX_CSU_DMA_CLASS(klass);
 
-    dc->reset = xlnx_csu_dma_reset;
+    device_class_set_legacy_reset(dc, xlnx_csu_dma_reset);
     dc->realize = xlnx_csu_dma_realize;
     dc->vmsd = &vmstate_xlnx_csu_dma;
     device_class_set_props(dc, xlnx_csu_dma_properties);

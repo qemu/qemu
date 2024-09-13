@@ -502,7 +502,7 @@ static void cfu_apb_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cfu_apb_reset;
+    device_class_set_legacy_reset(dc, cfu_apb_reset);
     dc->vmsd = &vmstate_cfu_apb;
     device_class_set_props(dc, cfu_props);
 }

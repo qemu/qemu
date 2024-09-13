@@ -235,7 +235,7 @@ static void mips_gcr_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, mips_gcr_properties);
     dc->vmsd = &vmstate_mips_gcr;
-    dc->reset = mips_gcr_reset;
+    device_class_set_legacy_reset(dc, mips_gcr_reset);
     dc->realize = mips_gcr_realize;
 }
 

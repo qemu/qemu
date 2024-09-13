@@ -299,7 +299,7 @@ static void kvaser_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = 0x00ff00;
     dc->desc = "Kvaser PCICANx";
     dc->vmsd = &vmstate_kvaser_pci;
-    dc->reset = kvaser_pci_reset;
+    device_class_set_legacy_reset(dc, kvaser_pci_reset);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

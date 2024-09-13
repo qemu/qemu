@@ -756,7 +756,7 @@ static void i8042_mmio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = i8042_mmio_realize;
-    dc->reset = i8042_mmio_reset;
+    device_class_set_legacy_reset(dc, i8042_mmio_reset);
     dc->vmsd = &vmstate_kbd_mmio;
     device_class_set_props(dc, i8042_mmio_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
@@ -947,7 +947,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     device_class_set_props(dc, i8042_properties);
-    dc->reset = i8042_reset;
+    device_class_set_legacy_reset(dc, i8042_reset);
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
     adevc->build_dev_aml = i8042_build_aml;

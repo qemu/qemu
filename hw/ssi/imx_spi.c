@@ -481,7 +481,7 @@ static void imx_spi_class_init(ObjectClass *klass, void *data)
 
     dc->realize = imx_spi_realize;
     dc->vmsd = &vmstate_imx_spi;
-    dc->reset = imx_spi_reset;
+    device_class_set_legacy_reset(dc, imx_spi_reset);
     dc->desc = "i.MX SPI Controller";
 }
 

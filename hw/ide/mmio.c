@@ -151,7 +151,7 @@ static void mmio_ide_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = mmio_ide_realizefn;
-    dc->reset = mmio_ide_reset;
+    device_class_set_legacy_reset(dc, mmio_ide_reset);
     device_class_set_props(dc, mmio_ide_properties);
     dc->vmsd = &vmstate_ide_mmio;
 }

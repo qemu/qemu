@@ -389,7 +389,7 @@ static void cmsdk_apb_uart_class_init(ObjectClass *klass, void *data)
 
     dc->realize = cmsdk_apb_uart_realize;
     dc->vmsd = &cmsdk_apb_uart_vmstate;
-    dc->reset = cmsdk_apb_uart_reset;
+    device_class_set_legacy_reset(dc, cmsdk_apb_uart_reset);
     device_class_set_props(dc, cmsdk_apb_uart_properties);
 }
 

@@ -94,7 +94,7 @@ static void avr_mask_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = avr_mask_reset;
+    device_class_set_legacy_reset(dc, avr_mask_reset);
 }
 
 static const TypeInfo avr_mask_info = {

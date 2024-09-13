@@ -244,7 +244,7 @@ static void pcm3680i_pci_class_init(ObjectClass *klass, void *data)
     dc->desc = "Pcm3680i PCICANx";
     dc->vmsd = &vmstate_pcm3680i_pci;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->reset = pcm3680i_pci_reset;
+    device_class_set_legacy_reset(dc, pcm3680i_pci_reset);
 }
 
 static const TypeInfo pcm3680i_pci_info = {

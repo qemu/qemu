@@ -254,7 +254,7 @@ void at24c_eeprom_class_init(ObjectClass *klass, void *data)
     k->send = &at24c_eeprom_send;
 
     device_class_set_props(dc, at24c_eeprom_props);
-    dc->reset = at24c_eeprom_reset;
+    device_class_set_legacy_reset(dc, at24c_eeprom_reset);
 }
 
 static

@@ -457,7 +457,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = nand_realize;
-    dc->reset = nand_reset;
+    device_class_set_legacy_reset(dc, nand_reset);
     dc->vmsd = &vmstate_nand;
     device_class_set_props(dc, nand_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);

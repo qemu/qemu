@@ -98,7 +98,7 @@ static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
     k->realize = i82801b11_bridge_realize;
     k->config_write = pci_bridge_write_config;
     dc->vmsd = &i82801b11_bridge_dev_vmstate;
-    dc->reset = pci_bridge_reset;
+    device_class_set_legacy_reset(dc, pci_bridge_reset);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 

@@ -432,7 +432,7 @@ static void imx_epit_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc  = DEVICE_CLASS(klass);
 
     dc->realize = imx_epit_realize;
-    dc->reset = imx_epit_dev_reset;
+    device_class_set_legacy_reset(dc, imx_epit_dev_reset);
     dc->vmsd = &vmstate_imx_timer_epit;
     dc->desc = "i.MX periodic timer";
 }

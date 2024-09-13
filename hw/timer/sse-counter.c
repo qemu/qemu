@@ -454,7 +454,7 @@ static void sse_counter_class_init(ObjectClass *klass, void *data)
 
     dc->realize = sse_counter_realize;
     dc->vmsd = &sse_counter_vmstate;
-    dc->reset = sse_counter_reset;
+    device_class_set_legacy_reset(dc, sse_counter_reset);
 }
 
 static const TypeInfo sse_counter_info = {

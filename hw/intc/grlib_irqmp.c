@@ -386,7 +386,7 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = grlib_irqmp_realize;
-    dc->reset = grlib_irqmp_reset;
+    device_class_set_legacy_reset(dc, grlib_irqmp_reset);
     device_class_set_props(dc, grlib_irqmp_properties);
 }
 

@@ -242,7 +242,7 @@ static void ppc4xx_mal_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ppc4xx_mal_realize;
-    dc->reset = ppc4xx_mal_reset;
+    device_class_set_legacy_reset(dc, ppc4xx_mal_reset);
     /* Reason: only works as function of a ppc4xx SoC */
     dc->user_creatable = false;
     device_class_set_props(dc, ppc4xx_mal_properties);
@@ -332,7 +332,7 @@ static void ppc405_plb_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ppc405_plb_realize;
-    dc->reset = ppc405_plb_reset;
+    device_class_set_legacy_reset(dc, ppc405_plb_reset);
     /* Reason: only works as function of a ppc4xx SoC */
     dc->user_creatable = false;
 }
@@ -518,7 +518,7 @@ static void ppc405_ebc_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ppc405_ebc_realize;
-    dc->reset = ppc405_ebc_reset;
+    device_class_set_legacy_reset(dc, ppc405_ebc_reset);
     /* Reason: only works as function of a ppc4xx SoC */
     dc->user_creatable = false;
 }

@@ -120,7 +120,7 @@ static void allwinner_h3_sysctrl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_h3_sysctrl_reset;
+    device_class_set_legacy_reset(dc, allwinner_h3_sysctrl_reset);
     dc->vmsd = &allwinner_h3_sysctrl_vmstate;
 }
 

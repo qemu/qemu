@@ -262,7 +262,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     device_class_set_props(dc, console_properties);
-    dc->reset = console_reset;
+    device_class_set_legacy_reset(dc, console_reset);
     dc->vmsd = &vmstate_sclpconsole;
     ec->init = console_init;
     ec->get_send_mask = send_mask;

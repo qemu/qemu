@@ -457,7 +457,7 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
     device_class_set_props(dc, qemu_s390_flic_properties);
-    dc->reset = qemu_s390_flic_reset;
+    device_class_set_legacy_reset(dc, qemu_s390_flic_reset);
     dc->vmsd = &qemu_s390_flic_vmstate;
     fsc->register_io_adapter = qemu_s390_register_io_adapter;
     fsc->io_adapter_map = qemu_s390_io_adapter_map;

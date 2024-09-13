@@ -262,7 +262,7 @@ static void goldfish_tty_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     device_class_set_props(dc, goldfish_tty_properties);
-    dc->reset = goldfish_tty_reset;
+    device_class_set_legacy_reset(dc, goldfish_tty_reset);
     dc->realize = goldfish_tty_realize;
     dc->unrealize = goldfish_tty_unrealize;
     dc->vmsd = &vmstate_goldfish_tty;

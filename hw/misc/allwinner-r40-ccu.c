@@ -189,7 +189,7 @@ static void allwinner_r40_ccu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_r40_ccu_reset;
+    device_class_set_legacy_reset(dc, allwinner_r40_ccu_reset);
     dc->vmsd = &allwinner_r40_ccu_vmstate;
 }
 

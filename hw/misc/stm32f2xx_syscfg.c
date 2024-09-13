@@ -142,7 +142,7 @@ static void stm32f2xx_syscfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = stm32f2xx_syscfg_reset;
+    device_class_set_legacy_reset(dc, stm32f2xx_syscfg_reset);
 }
 
 static const TypeInfo stm32f2xx_syscfg_info = {

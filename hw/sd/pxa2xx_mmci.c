@@ -564,7 +564,7 @@ static void pxa2xx_mmci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pxa2xx_mmci;
-    dc->reset = pxa2xx_mmci_reset;
+    device_class_set_legacy_reset(dc, pxa2xx_mmci_reset);
 }
 
 static void pxa2xx_mmci_bus_class_init(ObjectClass *klass, void *data)

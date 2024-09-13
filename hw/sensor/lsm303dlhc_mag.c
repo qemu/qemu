@@ -535,7 +535,7 @@ static void lsm303dlhc_mag_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    dc->reset = lsm303dlhc_mag_reset;
+    device_class_set_legacy_reset(dc, lsm303dlhc_mag_reset);
     dc->vmsd = &vmstate_lsm303dlhc_mag;
     k->event = lsm303dlhc_mag_event;
     k->recv = lsm303dlhc_mag_recv;

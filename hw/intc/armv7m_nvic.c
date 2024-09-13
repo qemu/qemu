@@ -2737,7 +2737,7 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd  = &vmstate_nvic;
     device_class_set_props(dc, props_nvic);
-    dc->reset = armv7m_nvic_reset;
+    device_class_set_legacy_reset(dc, armv7m_nvic_reset);
     dc->realize = armv7m_nvic_realize;
 }
 

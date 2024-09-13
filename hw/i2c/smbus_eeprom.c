@@ -143,7 +143,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     dc->realize = smbus_eeprom_realize;
-    dc->reset = smbus_eeprom_reset;
+    device_class_set_legacy_reset(dc, smbus_eeprom_reset);
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     dc->vmsd = &vmstate_smbus_eeprom;

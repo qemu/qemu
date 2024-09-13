@@ -298,7 +298,7 @@ static void goldfish_rtc_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, goldfish_rtc_properties);
     dc->realize = goldfish_rtc_realize;
-    dc->reset = goldfish_rtc_reset;
+    device_class_set_legacy_reset(dc, goldfish_rtc_reset);
     dc->vmsd = &goldfish_rtc_vmstate;
 }
 

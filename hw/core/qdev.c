@@ -831,7 +831,7 @@ static void device_class_init(ObjectClass *class, void *data)
      *   will be registered as the parent reset method and effectively call
      *   parent reset phases.
      */
-    dc->reset = device_phases_reset;
+    device_class_set_legacy_reset(dc, device_phases_reset);
     rc->get_transitional_function = device_get_transitional_reset;
 
     object_class_property_add_bool(class, "realized",

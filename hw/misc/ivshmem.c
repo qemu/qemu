@@ -991,7 +991,7 @@ static void ivshmem_common_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_IVSHMEM;
     k->class_id = PCI_CLASS_MEMORY_RAM;
     k->revision = 1;
-    dc->reset = ivshmem_reset;
+    device_class_set_legacy_reset(dc, ivshmem_reset);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "Inter-VM shared memory";
 }

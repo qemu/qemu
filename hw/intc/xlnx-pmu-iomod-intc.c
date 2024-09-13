@@ -536,7 +536,7 @@ static void xlnx_pmu_io_intc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xlnx_pmu_io_intc_reset;
+    device_class_set_legacy_reset(dc, xlnx_pmu_io_intc_reset);
     dc->realize = xlnx_pmu_io_intc_realize;
     dc->vmsd = &vmstate_xlnx_pmu_io_intc;
     device_class_set_props(dc, xlnx_pmu_io_intc_properties);

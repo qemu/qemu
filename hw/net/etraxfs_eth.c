@@ -638,7 +638,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = etraxfs_eth_realize;
-    dc->reset = etraxfs_eth_reset;
+    device_class_set_legacy_reset(dc, etraxfs_eth_reset);
     device_class_set_props(dc, etraxfs_eth_properties);
     /* Reason: dma_out, dma_in are not user settable */
     dc->user_creatable = false;

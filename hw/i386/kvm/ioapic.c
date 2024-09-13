@@ -146,7 +146,7 @@ static void kvm_ioapic_class_init(ObjectClass *klass, void *data)
     k->realize   = kvm_ioapic_realize;
     k->pre_save  = kvm_ioapic_get;
     k->post_load = kvm_ioapic_put;
-    dc->reset    = kvm_ioapic_reset;
+    device_class_set_legacy_reset(dc, kvm_ioapic_reset);
     device_class_set_props(dc, kvm_ioapic_properties);
 }
 

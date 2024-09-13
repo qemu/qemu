@@ -152,7 +152,7 @@ static void pcie_pci_bridge_class_init(ObjectClass *klass, void *data)
     k->config_write = pcie_pci_bridge_write_config;
     dc->vmsd = &pcie_pci_bridge_dev_vmstate;
     device_class_set_props(dc, pcie_pci_bridge_dev_properties);
-    dc->reset = &pcie_pci_bridge_reset;
+    device_class_set_legacy_reset(dc, pcie_pci_bridge_reset);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     hc->plug = pci_bridge_dev_plug_cb;
     hc->unplug = pci_bridge_dev_unplug_cb;

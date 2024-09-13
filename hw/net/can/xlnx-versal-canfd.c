@@ -2088,7 +2088,7 @@ static void canfd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = canfd_reset;
+    device_class_set_legacy_reset(dc, canfd_reset);
     dc->realize = canfd_realize;
     device_class_set_props(dc, canfd_core_properties);
     dc->vmsd = &vmstate_canfd;

@@ -254,7 +254,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_PCI;
     dc->desc = "Standard PCI Bridge";
-    dc->reset = qdev_pci_bridge_dev_reset;
+    device_class_set_legacy_reset(dc, qdev_pci_bridge_dev_reset);
     device_class_set_props(dc, pci_bridge_dev_properties);
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

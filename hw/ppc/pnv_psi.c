@@ -897,7 +897,7 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
 
     dc->desc    = "PowerNV PSI Controller POWER9";
     dc->realize = pnv_psi_power9_realize;
-    dc->reset   = pnv_psi_power9_reset;
+    device_class_set_legacy_reset(dc, pnv_psi_power9_reset);
 
     ppc->xscom_pcba = PNV9_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
@@ -949,7 +949,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PowerNV PSI Controller";
     device_class_set_props(dc, pnv_psi_properties);
-    dc->reset = pnv_psi_reset;
+    device_class_set_legacy_reset(dc, pnv_psi_reset);
     dc->user_creatable = false;
 }
 

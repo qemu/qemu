@@ -425,7 +425,7 @@ static void pci_piix_class_init(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     k->config_write = piix_write_config;
-    dc->reset       = piix_reset;
+    device_class_set_legacy_reset(dc, piix_reset);
     dc->desc        = "ISA bridge";
     dc->hotpluggable   = false;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;

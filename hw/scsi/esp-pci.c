@@ -440,7 +440,7 @@ static void esp_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "AMD Am53c974 PCscsi-PCI SCSI adapter";
-    dc->reset = esp_pci_hard_reset;
+    device_class_set_legacy_reset(dc, esp_pci_hard_reset);
     dc->vmsd = &vmstate_esp_pci_scsi;
 }
 

@@ -263,7 +263,7 @@ static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = xilinx_ethlite_realize;
-    dc->reset = xilinx_ethlite_reset;
+    device_class_set_legacy_reset(dc, xilinx_ethlite_reset);
     device_class_set_props(dc, xilinx_ethlite_properties);
 }
 

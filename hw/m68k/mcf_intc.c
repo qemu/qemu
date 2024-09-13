@@ -189,7 +189,7 @@ static void mcf_intc_class_init(ObjectClass *oc, void *data)
 
     device_class_set_props(dc, mcf_intc_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->reset = mcf_intc_reset;
+    device_class_set_legacy_reset(dc, mcf_intc_reset);
 }
 
 static const TypeInfo mcf_intc_gate_info = {
