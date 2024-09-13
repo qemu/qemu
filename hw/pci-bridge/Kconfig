@@ -1,3 +1,8 @@
+config PCI_BRIDGE
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
 config PCIE_PORT
     bool
     default y if PCI_DEVICES
