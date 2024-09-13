@@ -938,22 +938,6 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 void device_class_set_props(DeviceClass *dc, Property *props);
 
 /**
- * device_class_set_parent_reset() - legacy set device reset handlers
- * @dc: device class
- * @dev_reset: function pointer to reset handler
- * @parent_reset: function pointer to parents reset handler
- *
- * Modern code should use the ResettableClass interface to
- * implement a multi-phase reset instead.
- *
- * TODO: remove the function when DeviceClass's reset method
- * is not used anymore.
- */
-void device_class_set_parent_reset(DeviceClass *dc,
-                                   DeviceReset dev_reset,
-                                   DeviceReset *parent_reset);
-
-/**
  * device_class_set_parent_realize() - set up for chaining realize fns
  * @dc: The device class
  * @dev_realize: the device realize function
