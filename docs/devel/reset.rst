@@ -44,6 +44,16 @@ The Resettable interface handles reset types with an enum ``ResetType``:
   value on each cold reset, such as RNG seed information, and which they
   must not reinitialize on a snapshot-load reset.
 
+``RESET_TYPE_S390_CPU_NORMAL``
+  This is only used for S390 CPU objects; it clears interrupts, stops
+  processing, and clears the TLB, but does not touch register contents.
+
+``RESET_TYPE_S390_CPU_INITIAL``
+  This is only used for S390 CPU objects; it does everything
+  ``RESET_TYPE_S390_CPU_NORMAL`` does and also clears the PSW, prefix,
+  FPC, timer and control registers. It does not touch gprs, fprs or acrs.
+
+
 Devices which implement reset methods must treat any unknown ``ResetType``
 as equivalent to ``RESET_TYPE_COLD``; this will reduce the amount of
 existing code we need to change if we add more types in future.
