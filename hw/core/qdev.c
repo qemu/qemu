@@ -776,8 +776,8 @@ static void device_transitional_reset(Object *obj)
      * devices) or a device's specific method for not-yet transitioned devices.
      * In both case, it does not reset children.
      */
-    if (dc->reset) {
-        dc->reset(DEVICE(obj));
+    if (dc->legacy_reset) {
+        dc->legacy_reset(DEVICE(obj));
     }
 }
 
@@ -788,7 +788,7 @@ static void device_transitional_reset(Object *obj)
 static ResettableTrFunction device_get_transitional_reset(Object *obj)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(obj);
-    if (dc->reset != device_phases_reset) {
+    if (dc->legacy_reset != device_phases_reset) {
         /*
          * dc->reset has been overridden by a subclass,
          * the device is not ready for multi phase yet.
@@ -846,7 +846,7 @@ static void device_class_init(ObjectClass *class, void *data)
 
 void device_class_set_legacy_reset(DeviceClass *dc, DeviceReset dev_reset)
 {
-    dc->reset = dev_reset;
+    dc->legacy_reset = dev_reset;
 }
 
 void device_class_set_parent_realize(DeviceClass *dc,

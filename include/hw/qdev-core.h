@@ -152,14 +152,14 @@ struct DeviceClass {
 
     /* callbacks */
     /**
-     * @reset: deprecated device reset method pointer
+     * @legacy_reset: deprecated device reset method pointer
      *
      * Modern code should use the ResettableClass interface to
      * implement a multi-phase reset.
      *
      * TODO: remove once every reset callback is unused
      */
-    DeviceReset reset;
+    DeviceReset legacy_reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
 
