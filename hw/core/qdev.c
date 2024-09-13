@@ -747,38 +747,16 @@ device_vmstate_if_get_id(VMStateIf *obj)
     return qdev_get_dev_path(dev);
 }
 
-/**
- * device_phases_reset:
- * Transition reset method for devices to allow moving
- * smoothly from legacy reset method to multi-phases
- */
-static void device_phases_reset(DeviceState *dev)
-{
-    ResettableClass *rc = RESETTABLE_GET_CLASS(dev);
-
-    if (rc->phases.enter) {
-        rc->phases.enter(OBJECT(dev), RESET_TYPE_COLD);
-    }
-    if (rc->phases.hold) {
-        rc->phases.hold(OBJECT(dev), RESET_TYPE_COLD);
-    }
-    if (rc->phases.exit) {
-        rc->phases.exit(OBJECT(dev), RESET_TYPE_COLD);
-    }
-}
-
 static void device_transitional_reset(Object *obj)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(obj);
 
     /*
-     * This will call either @device_phases_reset (for multi-phases transitioned
-     * devices) or a device's specific method for not-yet transitioned devices.
-     * In both case, it does not reset children.
+     * Device still using DeviceClass legacy_reset method. This doesn't
+     * reset children. device_get_transitional_reset() checked that
+     * this isn't NULL.
      */
-    if (dc->legacy_reset) {
-        dc->legacy_reset(DEVICE(obj));
-    }
+    dc->legacy_reset(DEVICE(obj));
 }
 
 /**
@@ -788,7 +766,7 @@ static void device_transitional_reset(Object *obj)
 static ResettableTrFunction device_get_transitional_reset(Object *obj)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(obj);
-    if (dc->legacy_reset != device_phases_reset) {
+    if (dc->legacy_reset) {
         /*
          * dc->reset has been overridden by a subclass,
          * the device is not ready for multi phase yet.
@@ -819,19 +797,14 @@ static void device_class_init(ObjectClass *class, void *data)
     rc->child_foreach = device_reset_child_foreach;
 
     /*
-     * @device_phases_reset is put as the default reset method below, allowing
-     * to do the multi-phase transition from base classes to leaf classes. It
-     * allows a legacy-reset Device class to extend a multi-phases-reset
-     * Device class for the following reason:
-     * + If a base class B has been moved to multi-phase, then it does not
-     *   override this default reset method and may have defined phase methods.
-     * + A child class C (extending class B) which uses
-     *   device_class_set_parent_reset() (or similar means) to override the
-     *   reset method will still work as expected. @device_phases_reset function
-     *   will be registered as the parent reset method and effectively call
-     *   parent reset phases.
+     * A NULL legacy_reset implies a three-phase reset device. Devices can
+     * only be reset using three-phase aware mechanisms, but we still support
+     * for transitional purposes leaf classes which set the old legacy_reset
+     * method via device_class_set_legacy_reset(). If they do so, then
+     * device_get_transitional_reset() will notice and arrange for the
+     * DeviceClass::legacy_reset() method to be called during the hold phase.
      */
-    device_class_set_legacy_reset(dc, device_phases_reset);
+    dc->legacy_reset = NULL;
     rc->get_transitional_function = device_get_transitional_reset;
 
     object_class_property_add_bool(class, "realized",
