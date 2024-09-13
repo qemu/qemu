@@ -678,8 +678,6 @@ REG32(RB_DW15_REGISTER_1, 0x4144)
     FIELD(RB_DW15_REGISTER_1, DATA_BYTES62, 8, 8)
     FIELD(RB_DW15_REGISTER_1, DATA_BYTES63, 0, 8)
 
-static uint8_t canfd_dlc_array[8] = {8, 12, 16, 20, 24, 32, 48, 64};
-
 static void canfd_update_irq(XlnxVersalCANFDState *s)
 {
     const bool irq = (s->regs[R_INTERRUPT_STATUS_REGISTER] &
@@ -897,58 +895,18 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     }
 
     if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, FDF)) {
-        /*
-         * CANFD frame.
-         * Converting dlc(0 to 15) 4 Byte data to plain length(i.e. 0 to 64)
-         * 1 Byte data. This is done to make it work with SocketCAN.
-         * On actual CANFD frame, this value can't be more than 0xF.
-         * Conversion table for DLC to plain length:
-         *
-         *  DLC                        Plain Length
-         *  0 - 8                      0 - 8
-         *  9                          9 - 12
-         *  10                         13 - 16
-         *  11                         17 - 20
-         *  12                         21 - 24
-         *  13                         25 - 32
-         *  14                         33 - 48
-         *  15                         49 - 64
-         */
-
         frame->flags |= QEMU_CAN_FRMF_TYPE_FD;
-
-        if (dlc_value < 8) {
-            frame->can_dlc = dlc_value;
-        } else {
-            assert((dlc_value - 8) < ARRAY_SIZE(canfd_dlc_array));
-            frame->can_dlc = canfd_dlc_array[dlc_value - 8];
-        }
 
         if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, BRS)) {
             frame->flags |= QEMU_CAN_FRMF_BRS;
         }
     } else {
-        /*
-         * FD Format bit not set that means it is a CAN Frame.
-         * Conversion table for classic CAN:
-         *
-         *  DLC                        Plain Length
-         *  0 - 7                      0 - 7
-         *  8 - 15                     8
-         */
-
-        if (dlc_value > 8) {
-            frame->can_dlc = 8;
-            qemu_log_mask(LOG_GUEST_ERROR, "Maximum DLC value for Classic CAN"
-                          " frame is 8. Only 8 byte data will be sent.\n");
-        } else {
-            frame->can_dlc = dlc_value;
-        }
-
         if (is_rtr) {
             frame->can_id |= QEMU_CAN_RTR_FLAG;
         }
     }
+
+    frame->can_dlc = can_dlc2len(dlc_value);
 
     for (j = 0; j < frame->can_dlc; j++) {
         val = 8 * (3 - i);
@@ -1007,7 +965,6 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
                                 bool rx_fifo_id, uint8_t filter_index)
 {
     int i;
-    bool is_canfd_frame;
     uint8_t dlc = frame->can_dlc;
     uint8_t rx_reg_num = 0;
     uint32_t dlc_reg_val = 0;
@@ -1053,17 +1010,10 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
 
         s->regs[store_location] = frame_to_reg_id(frame);
 
-        dlc = frame->can_dlc;
+        dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, can_len2dlc(dlc));
 
         if (frame->flags & QEMU_CAN_FRMF_TYPE_FD) {
-            is_canfd_frame = true;
-
-            /* Store dlc value in Xilinx specific format. */
-            for (i = 0; i < ARRAY_SIZE(canfd_dlc_array); i++) {
-                if (canfd_dlc_array[i] == frame->can_dlc) {
-                    dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, 8 + i);
-                }
-            }
+            dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, FDF, 1);
 
             if (frame->flags & QEMU_CAN_FRMF_BRS) {
                 dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, BRS, 1);
@@ -1071,17 +1021,8 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
             if (frame->flags & QEMU_CAN_FRMF_ESI) {
                 dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, ESI, 1);
             }
-        } else {
-            is_canfd_frame = false;
-
-            if (frame->can_dlc > 8) {
-                dlc = 8;
-            }
-
-            dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, dlc);
         }
 
-        dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, FDF, is_canfd_frame);
         dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, TIMESTAMP, rx_timestamp);
         dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, MATCHED_FILTER_INDEX,
                                   filter_index);
