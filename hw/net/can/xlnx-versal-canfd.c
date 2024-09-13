@@ -872,6 +872,8 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     uint32_t id_reg_val = 0;
     bool is_rtr = false;
 
+    frame->flags = 0;
+
     /* Check that reg_num should be within TX register space. */
     assert(reg_num <= R_TB_ID_REGISTER + (NUM_REGS_PER_MSG_SPACE *
                                           s->cfg.tx_fifo));
@@ -913,13 +915,17 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
          *  15                         49 - 64
          */
 
-        frame->flags = QEMU_CAN_FRMF_TYPE_FD;
+        frame->flags |= QEMU_CAN_FRMF_TYPE_FD;
 
         if (dlc_value < 8) {
             frame->can_dlc = dlc_value;
         } else {
             assert((dlc_value - 8) < ARRAY_SIZE(canfd_dlc_array));
             frame->can_dlc = canfd_dlc_array[dlc_value - 8];
+        }
+
+        if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, BRS)) {
+            frame->flags |= QEMU_CAN_FRMF_BRS;
         }
     } else {
         /*
@@ -1057,6 +1063,13 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
                 if (canfd_dlc_array[i] == frame->can_dlc) {
                     dlc_reg_val = FIELD_DP32(0, RB_DLC_REGISTER, DLC, 8 + i);
                 }
+            }
+
+            if (frame->flags & QEMU_CAN_FRMF_BRS) {
+                dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, BRS, 1);
+            }
+            if (frame->flags & QEMU_CAN_FRMF_ESI) {
+                dlc_reg_val |= FIELD_DP32(0, RB_DLC_REGISTER, ESI, 1);
             }
         } else {
             is_canfd_frame = false;
