@@ -22,6 +22,7 @@
 #include <mach/mach_time.h>
 
 #include "exec/address-spaces.h"
+#include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"
 #include "sysemu/cpus.h"
@@ -296,6 +297,8 @@ void hvf_arm_init_debug(void)
 #define TMR_CTL_ISTATUS (1 << 2)
 
 static void hvf_wfi(CPUState *cpu);
+
+static uint32_t chosen_ipa_bit_size;
 
 typedef struct HVFVTimer {
     /* Vtimer value during migration and paused state */
@@ -839,6 +842,16 @@ static uint64_t hvf_get_reg(CPUState *cpu, int rt)
     return val;
 }
 
+static void clamp_id_aa64mmfr0_parange_to_ipa_size(uint64_t *id_aa64mmfr0)
+{
+    uint32_t ipa_size = chosen_ipa_bit_size ?
+            chosen_ipa_bit_size : hvf_arm_get_max_ipa_bit_size();
+
+    /* Clamp down the PARange to the IPA size the kernel supports. */
+    uint8_t index = round_down_to_parange_index(ipa_size);
+    *id_aa64mmfr0 = (*id_aa64mmfr0 & ~R_ID_AA64MMFR0_PARANGE_MASK) | index;
+}
+
 static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     ARMISARegisters host_isar = {};
@@ -882,6 +895,8 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     r |= hv_vcpu_get_sys_reg(fd, HV_SYS_REG_MIDR_EL1, &ahcf->midr);
     r |= hv_vcpu_destroy(fd);
 
+    clamp_id_aa64mmfr0_parange_to_ipa_size(&host_isar.id_aa64mmfr0);
+
     ahcf->isar = host_isar;
 
     /*
@@ -902,6 +917,30 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     }
 
     return r == HV_SUCCESS;
+}
+
+uint32_t hvf_arm_get_default_ipa_bit_size(void)
+{
+    uint32_t default_ipa_size;
+    hv_return_t ret = hv_vm_config_get_default_ipa_size(&default_ipa_size);
+    assert_hvf_ok(ret);
+
+    return default_ipa_size;
+}
+
+uint32_t hvf_arm_get_max_ipa_bit_size(void)
+{
+    uint32_t max_ipa_size;
+    hv_return_t ret = hv_vm_config_get_max_ipa_size(&max_ipa_size);
+    assert_hvf_ok(ret);
+
+    /*
+     * We clamp any IPA size we want to back the VM with to a valid PARange
+     * value so the guest doesn't try and map memory outside of the valid range.
+     * This logic just clamps the passed in IPA bit size to the first valid
+     * PARange value <= to it.
+     */
+    return round_down_to_parange_bit_size(max_ipa_size);
 }
 
 void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu)
@@ -931,8 +970,18 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
 
 hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
 {
+    hv_return_t ret;
     hv_vm_config_t config = hv_vm_config_create();
-    hv_return_t ret = hv_vm_create(config);
+
+    ret = hv_vm_config_set_ipa_size(config, pa_range);
+    if (ret != HV_SUCCESS) {
+        goto cleanup;
+    }
+    chosen_ipa_bit_size = pa_range;
+
+    ret = hv_vm_create(config);
+
+cleanup:
     os_release(config);
 
     return ret;
@@ -1002,6 +1051,11 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     /* We're limited to underlying hardware caps, override internal versions */
     ret = hv_vcpu_get_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64MMFR0_EL1,
                               &arm_cpu->isar.id_aa64mmfr0);
+    assert_hvf_ok(ret);
+
+    clamp_id_aa64mmfr0_parange_to_ipa_size(&arm_cpu->isar.id_aa64mmfr0);
+    ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_ID_AA64MMFR0_EL1,
+                              arm_cpu->isar.id_aa64mmfr0);
     assert_hvf_ok(ret);
 
     return 0;
