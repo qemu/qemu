@@ -109,4 +109,4 @@ config VHOST_USER_SND
 config VHOST_USER_SCMI
     bool
     default y
-    depends on VIRTIO && VHOST_USER
+    depends on VIRTIO && VHOST_USER && ARM
