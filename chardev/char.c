@@ -889,6 +889,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "reconnect",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "reconnect-ms",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "telnet",
             .type = QEMU_OPT_BOOL,
         },{

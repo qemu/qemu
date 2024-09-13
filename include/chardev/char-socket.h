@@ -74,7 +74,7 @@ struct SocketChardev {
     bool is_websock;
 
     GSource *reconnect_timer;
-    int64_t reconnect_time;
+    int64_t reconnect_time_ms;
     bool connect_err_reported;
 
     QIOTask *connect_task;
