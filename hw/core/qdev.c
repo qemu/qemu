@@ -747,35 +747,6 @@ device_vmstate_if_get_id(VMStateIf *obj)
     return qdev_get_dev_path(dev);
 }
 
-static void device_transitional_reset(Object *obj)
-{
-    DeviceClass *dc = DEVICE_GET_CLASS(obj);
-
-    /*
-     * Device still using DeviceClass legacy_reset method. This doesn't
-     * reset children. device_get_transitional_reset() checked that
-     * this isn't NULL.
-     */
-    dc->legacy_reset(DEVICE(obj));
-}
-
-/**
- * device_get_transitional_reset:
- * check if the device's class is ready for multi-phase
- */
-static ResettableTrFunction device_get_transitional_reset(Object *obj)
-{
-    DeviceClass *dc = DEVICE_GET_CLASS(obj);
-    if (dc->legacy_reset) {
-        /*
-         * dc->reset has been overridden by a subclass,
-         * the device is not ready for multi phase yet.
-         */
-        return device_transitional_reset;
-    }
-    return NULL;
-}
-
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
@@ -800,12 +771,9 @@ static void device_class_init(ObjectClass *class, void *data)
      * A NULL legacy_reset implies a three-phase reset device. Devices can
      * only be reset using three-phase aware mechanisms, but we still support
      * for transitional purposes leaf classes which set the old legacy_reset
-     * method via device_class_set_legacy_reset(). If they do so, then
-     * device_get_transitional_reset() will notice and arrange for the
-     * DeviceClass::legacy_reset() method to be called during the hold phase.
+     * method via device_class_set_legacy_reset().
      */
     dc->legacy_reset = NULL;
-    rc->get_transitional_function = device_get_transitional_reset;
 
     object_class_property_add_bool(class, "realized",
                                    device_get_realized, device_set_realized);
@@ -817,8 +785,29 @@ static void device_class_init(ObjectClass *class, void *data)
                                    offsetof(DeviceState, parent_bus), NULL, 0);
 }
 
+static void do_legacy_reset(Object *obj, ResetType type)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+
+    dc->legacy_reset(DEVICE(obj));
+}
+
 void device_class_set_legacy_reset(DeviceClass *dc, DeviceReset dev_reset)
 {
+    /*
+     * A legacy DeviceClass::reset has identical semantics to the
+     * three-phase "hold" method, with no "enter" or "exit"
+     * behaviour. Classes that use this legacy function must be leaf
+     * classes that do not chain up to their parent class reset.
+     * There is no mechanism for resetting a device that does not
+     * use the three-phase APIs, so the only place which calls
+     * the legacy_reset hook is do_legacy_reset().
+     */
+    ResettableClass *rc = RESETTABLE_CLASS(dc);
+
+    rc->phases.enter = NULL;
+    rc->phases.hold = do_legacy_reset;
+    rc->phases.exit = NULL;
     dc->legacy_reset = dev_reset;
 }
 
