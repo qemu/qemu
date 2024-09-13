@@ -1058,7 +1058,7 @@ F: include/hw/display/dpcd.h
 F: docs/system/arm/xlnx-versal-virt.rst
 
 Xilinx Versal OSPI
-M: Francisco Iglesias <francisco.iglesias@xilinx.com>
+M: Francisco Iglesias <francisco.iglesias@amd.com>
 S: Maintained
 F: hw/ssi/xlnx-versal-ospi.c
 F: include/hw/ssi/xlnx-versal-ospi.h
