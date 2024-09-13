@@ -682,8 +682,8 @@ static uint8_t canfd_dlc_array[8] = {8, 12, 16, 20, 24, 32, 48, 64};
 
 static void canfd_update_irq(XlnxVersalCANFDState *s)
 {
-    unsigned int irq = s->regs[R_INTERRUPT_STATUS_REGISTER] &
-                        s->regs[R_INTERRUPT_ENABLE_REGISTER];
+    const bool irq = (s->regs[R_INTERRUPT_STATUS_REGISTER] &
+                      s->regs[R_INTERRUPT_ENABLE_REGISTER]) != 0;
     g_autofree char *path = object_get_canonical_path(OBJECT(s));
 
     /* RX watermark interrupts. */
