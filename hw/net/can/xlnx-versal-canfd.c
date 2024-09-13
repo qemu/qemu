@@ -869,6 +869,8 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     uint32_t val = 0;
     uint32_t dlc_reg_val = 0;
     uint32_t dlc_value = 0;
+    uint32_t id_reg_val = 0;
+    bool is_rtr = false;
 
     /* Check that reg_num should be within TX register space. */
     assert(reg_num <= R_TB_ID_REGISTER + (NUM_REGS_PER_MSG_SPACE *
@@ -877,7 +879,20 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
     dlc_reg_val = s->regs[reg_num + 1];
     dlc_value = FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, DLC);
 
-    frame->can_id = s->regs[reg_num];
+    id_reg_val = s->regs[reg_num];
+    if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, IDE)) {
+        frame->can_id = (FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID) << 18) |
+                        (FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID_EXT)) |
+                        QEMU_CAN_EFF_FLAG;
+        if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, RTR_RRS)) {
+            is_rtr = true;
+        }
+    } else {
+        frame->can_id = FIELD_EX32(id_reg_val, TB_ID_REGISTER, ID);
+        if (FIELD_EX32(id_reg_val, TB_ID_REGISTER, SRR_RTR_RRS)) {
+            is_rtr = true;
+        }
+    }
 
     if (FIELD_EX32(dlc_reg_val, TB0_DLC_REGISTER, FDF)) {
         /*
@@ -923,6 +938,10 @@ static void regs2frame(XlnxVersalCANFDState *s, qemu_can_frame *frame,
         } else {
             frame->can_dlc = dlc_value;
         }
+
+        if (is_rtr) {
+            frame->can_id |= QEMU_CAN_RTR_FLAG;
+        }
     }
 
     for (j = 0; j < frame->can_dlc; j++) {
@@ -946,6 +965,33 @@ static void process_cancellation_requests(XlnxVersalCANFDState *s)
     s->regs[R_TX_BUFFER_CANCEL_REQUEST_REGISTER] &= ~clear_mask;
 
     canfd_update_irq(s);
+}
+
+static uint32_t frame_to_reg_id(const qemu_can_frame *frame)
+{
+    uint32_t id_reg_val = 0;
+    const bool is_canfd_frame = frame->flags & QEMU_CAN_FRMF_TYPE_FD;
+    const bool is_rtr = !is_canfd_frame && (frame->can_id & QEMU_CAN_RTR_FLAG);
+
+    if (frame->can_id & QEMU_CAN_EFF_FLAG) {
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID,
+                                 (frame->can_id & QEMU_CAN_EFF_MASK) >> 18);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID_EXT,
+                                 frame->can_id & QEMU_CAN_EFF_MASK);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, IDE, 1);
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, SRR_RTR_RRS, 1);
+        if (is_rtr) {
+            id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, RTR_RRS, 1);
+        }
+    } else {
+        id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, ID,
+                                 frame->can_id & QEMU_CAN_SFF_MASK);
+        if (is_rtr) {
+            id_reg_val |= FIELD_DP32(0, RB_ID_REGISTER, SRR_RTR_RRS, 1);
+        }
+    }
+
+    return id_reg_val;
 }
 
 static void store_rx_sequential(XlnxVersalCANFDState *s,
@@ -999,7 +1045,7 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
                                                     NUM_REGS_PER_MSG_SPACE));
         }
 
-        s->regs[store_location] = frame->can_id;
+        s->regs[store_location] = frame_to_reg_id(frame);
 
         dlc = frame->can_dlc;
 
@@ -1090,11 +1136,12 @@ static void update_rx_sequential(XlnxVersalCANFDState *s,
     if (s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER]) {
         uint32_t acceptance_filter_status =
                                 s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER];
+        const uint32_t reg_id = frame_to_reg_id(frame);
 
         for (i = 0; i < 32; i++) {
             if (acceptance_filter_status & 0x1) {
                 uint32_t msg_id_masked = s->regs[R_AFMR_REGISTER + 2 * i] &
-                                         frame->can_id;
+                                         reg_id;
                 uint32_t afir_id_masked = s->regs[R_AFIR_REGISTER + 2 * i] &
                                           s->regs[R_AFMR_REGISTER + 2 * i];
                 uint16_t std_msg_id_masked = FIELD_EX32(msg_id_masked,
