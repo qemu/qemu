@@ -171,7 +171,9 @@ typedef struct Xive2Nvp {
 #define NVP2_W5_VP_END_BLOCK       PPC_BITMASK32(4, 7)
 #define NVP2_W5_VP_END_INDEX       PPC_BITMASK32(8, 31)
         uint32_t       w6;
+#define NVP2_W6_REPORTING_LINE     PPC_BITMASK32(4, 31)
         uint32_t       w7;
+#define NVP2_W7_REPORTING_LINE     PPC_BITMASK32(0, 23)
 } Xive2Nvp;
 
 #define xive2_nvp_is_valid(nvp)    (be32_to_cpu((nvp)->w0) & NVP2_W0_VALID)

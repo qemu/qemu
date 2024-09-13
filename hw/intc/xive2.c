@@ -26,6 +26,23 @@ uint32_t xive2_router_get_config(Xive2Router *xrtr)
     return xrc->get_config(xrtr);
 }
 
+static int xive2_router_get_block_id(Xive2Router *xrtr)
+{
+   Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->get_block_id(xrtr);
+}
+
+static uint64_t xive2_nvp_reporting_addr(Xive2Nvp *nvp)
+{
+    uint64_t cache_addr;
+
+    cache_addr = xive_get_field32(NVP2_W6_REPORTING_LINE, nvp->w6) << 24 |
+        xive_get_field32(NVP2_W7_REPORTING_LINE, nvp->w7);
+    cache_addr <<= 8; /* aligned on a cache line pair */
+    return cache_addr;
+}
+
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
 {
     if (!xive2_eas_is_valid(eas)) {
@@ -270,6 +287,27 @@ static void xive2_os_cam_decode(uint32_t cam, uint8_t *nvp_blk,
     *ho = !!(cam & TM2_QW1W2_HO);
 }
 
+
+/*
+ * Encode the HW CAM line with 7bit or 8bit thread id. The thread id
+ * width and block id width is configurable at the IC level.
+ *
+ *    chipid << 24 | 0000 0000 0000 0000 1 threadid (7Bit)
+ *    chipid << 24 | 0000 0000 0000 0001 threadid   (8Bit)
+ */
+static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
+    uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint8_t blk = xive2_router_get_block_id(xrtr);
+    uint8_t tid_shift =
+        xive2_router_get_config(xrtr) & XIVE2_THREADID_8BITS ? 8 : 7;
+    uint8_t tid_mask = (1 << tid_shift) - 1;
+
+    return xive2_nvp_cam_line(blk, 1 << tid_shift | (pir & tid_mask));
+}
+
 uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                               hwaddr offset, unsigned size)
 {
@@ -299,6 +337,101 @@ uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     xive_tctx_reset_os_signal(tctx);
     return qw1w2;
+}
+
+#define REPORT_LINE_GEN1_SIZE       16
+
+static void xive2_tm_report_line_gen1(XiveTCTX *tctx, uint8_t *data,
+                                      uint8_t size)
+{
+    uint8_t *regs = tctx->regs;
+
+    g_assert(size == REPORT_LINE_GEN1_SIZE);
+    memset(data, 0, size);
+    /*
+     * See xive architecture for description of what is saved. It is
+     * hand-picked information to fit in 16 bytes.
+     */
+    data[0x0] = regs[TM_QW3_HV_PHYS + TM_NSR];
+    data[0x1] = regs[TM_QW3_HV_PHYS + TM_CPPR];
+    data[0x2] = regs[TM_QW3_HV_PHYS + TM_IPB];
+    data[0x3] = regs[TM_QW2_HV_POOL + TM_IPB];
+    data[0x4] = regs[TM_QW1_OS + TM_ACK_CNT];
+    data[0x5] = regs[TM_QW3_HV_PHYS + TM_LGS];
+    data[0x6] = 0xFF;
+    data[0x7] = regs[TM_QW3_HV_PHYS + TM_WORD2] & 0x80;
+    data[0x7] |= (regs[TM_QW2_HV_POOL + TM_WORD2] & 0x80) >> 1;
+    data[0x7] |= (regs[TM_QW1_OS + TM_WORD2] & 0x80) >> 2;
+    data[0x7] |= (regs[TM_QW3_HV_PHYS + TM_WORD2] & 0x3);
+    data[0x8] = regs[TM_QW1_OS + TM_NSR];
+    data[0x9] = regs[TM_QW1_OS + TM_CPPR];
+    data[0xA] = regs[TM_QW1_OS + TM_IPB];
+    data[0xB] = regs[TM_QW1_OS + TM_LGS];
+    if (regs[TM_QW0_USER + TM_WORD2] & 0x80) {
+        /*
+         * Logical server extension, except VU bit replaced by EB bit
+         * from NSR
+         */
+        data[0xC] = regs[TM_QW0_USER + TM_WORD2];
+        data[0xC] &= ~0x80;
+        data[0xC] |= regs[TM_QW0_USER + TM_NSR] & 0x80;
+        data[0xD] = regs[TM_QW0_USER + TM_WORD2 + 1];
+        data[0xE] = regs[TM_QW0_USER + TM_WORD2 + 2];
+        data[0xF] = regs[TM_QW0_USER + TM_WORD2 + 3];
+    }
+}
+
+void xive2_tm_pull_os_ctx_ol(XivePresenter *xptr, XiveTCTX *tctx,
+                             hwaddr offset, uint64_t value, unsigned size)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t hw_cam, nvp_idx, xive2_cfg, reserved;
+    uint8_t nvp_blk;
+    Xive2Nvp nvp;
+    uint64_t phys_addr;
+    MemTxResult result;
+
+    hw_cam = xive2_tctx_hw_cam_line(xptr, tctx);
+    nvp_blk = xive2_nvp_blk(hw_cam);
+    nvp_idx = xive2_nvp_idx(hw_cam);
+
+    if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (!xive2_nvp_is_valid(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    xive2_cfg = xive2_router_get_config(xrtr);
+
+    phys_addr = xive2_nvp_reporting_addr(&nvp) + 0x80; /* odd line */
+    if (xive2_cfg & XIVE2_GEN1_TIMA_OS) {
+        uint8_t pull_ctxt[REPORT_LINE_GEN1_SIZE];
+
+        xive2_tm_report_line_gen1(tctx, pull_ctxt, REPORT_LINE_GEN1_SIZE);
+        result = dma_memory_write(&address_space_memory, phys_addr,
+                                  pull_ctxt, REPORT_LINE_GEN1_SIZE,
+                                  MEMTXATTRS_UNSPECIFIED);
+        assert(result == MEMTX_OK);
+    } else {
+        result = dma_memory_write(&address_space_memory, phys_addr,
+                                  &tctx->regs, sizeof(tctx->regs),
+                                  MEMTXATTRS_UNSPECIFIED);
+        assert(result == MEMTX_OK);
+        reserved = 0xFFFFFFFF;
+        result = dma_memory_write(&address_space_memory, phys_addr + 12,
+                                  &reserved, sizeof(reserved),
+                                  MEMTXATTRS_UNSPECIFIED);
+        assert(result == MEMTX_OK);
+    }
+
+    /* the rest is similar to pull OS context to registers */
+    xive2_tm_pull_os_ctx(xptr, tctx, offset, size);
 }
 
 static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
@@ -469,33 +602,6 @@ int xive2_router_write_nvp(Xive2Router *xrtr, uint8_t nvp_blk, uint32_t nvp_idx,
    Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
 
    return xrc->write_nvp(xrtr, nvp_blk, nvp_idx, nvp, word_number);
-}
-
-static int xive2_router_get_block_id(Xive2Router *xrtr)
-{
-   Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
-
-   return xrc->get_block_id(xrtr);
-}
-
-/*
- * Encode the HW CAM line with 7bit or 8bit thread id. The thread id
- * width and block id width is configurable at the IC level.
- *
- *    chipid << 24 | 0000 0000 0000 0000 1 threadid (7Bit)
- *    chipid << 24 | 0000 0000 0000 0001 threadid   (8Bit)
- */
-static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
-{
-    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
-    CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
-    uint32_t pir = env->spr_cb[SPR_PIR].default_value;
-    uint8_t blk = xive2_router_get_block_id(xrtr);
-    uint8_t tid_shift =
-        xive2_router_get_config(xrtr) & XIVE2_THREADID_8BITS ? 8 : 7;
-    uint8_t tid_mask = (1 << tid_shift) - 1;
-
-    return xive2_nvp_cam_line(blk, 1 << tid_shift | (pir & tid_mask));
 }
 
 /*
