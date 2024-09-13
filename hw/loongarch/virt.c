@@ -48,6 +48,7 @@
 #include "hw/block/flash.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "qemu/error-report.h"
+#include "qemu/guest-random.h"
 
 static bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
 {
@@ -280,10 +281,10 @@ static void fdt_add_rtc_node(LoongArchVirtMachineState *lvms,
 }
 
 static void fdt_add_uart_node(LoongArchVirtMachineState *lvms,
-                              uint32_t *pch_pic_phandle)
+                              uint32_t *pch_pic_phandle, hwaddr base,
+                              int irq, bool chosen)
 {
     char *nodename;
-    hwaddr base = VIRT_UART_BASE;
     hwaddr size = VIRT_UART_SIZE;
     MachineState *ms = MACHINE(lvms);
 
@@ -292,9 +293,9 @@ static void fdt_add_uart_node(LoongArchVirtMachineState *lvms,
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "ns16550a");
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0x0, base, 0x0, size);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clock-frequency", 100000000);
-    qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
-    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
-                           VIRT_UART_IRQ - VIRT_GSI_BASE, 0x4);
+    if (chosen)
+        qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0x4);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           *pch_pic_phandle);
     g_free(nodename);
@@ -303,6 +304,7 @@ static void fdt_add_uart_node(LoongArchVirtMachineState *lvms,
 static void create_fdt(LoongArchVirtMachineState *lvms)
 {
     MachineState *ms = MACHINE(lvms);
+    uint8_t rng_seed[32];
 
     ms->fdt = create_device_tree(&lvms->fdt_size);
     if (!ms->fdt) {
@@ -316,6 +318,10 @@ static void create_fdt(LoongArchVirtMachineState *lvms)
     qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
+
+    /* Pass seed to RNG */
+    qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+    qemu_fdt_setprop(ms->fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 }
 
 static void fdt_add_cpu_nodes(const LoongArchVirtMachineState *lvms)
@@ -706,11 +712,18 @@ static void virt_devices_init(DeviceState *pch_pic,
     /* Add pcie node */
     fdt_add_pcie_node(lvms, pch_pic_phandle, pch_msi_phandle);
 
-    serial_mm_init(get_system_memory(), VIRT_UART_BASE, 0,
-                   qdev_get_gpio_in(pch_pic,
-                                    VIRT_UART_IRQ - VIRT_GSI_BASE),
-                   115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
-    fdt_add_uart_node(lvms, pch_pic_phandle);
+    /*
+     * Create uart fdt node in reverse order so that they appear
+     * in the finished device tree lowest address first
+     */
+    for (i = VIRT_UART_COUNT; i --> 0;) {
+        hwaddr base = VIRT_UART_BASE + i * VIRT_UART_SIZE;
+        int irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
+        serial_mm_init(get_system_memory(), base, 0,
+                       qdev_get_gpio_in(pch_pic, irq),
+                       115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
+        fdt_add_uart_node(lvms, pch_pic_phandle, base, irq, i == 0);
+    }
 
     /* Network init */
     pci_init_nic_devices(pci_bus, mc->default_nic);
