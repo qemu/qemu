@@ -844,6 +844,11 @@ static void device_class_init(ObjectClass *class, void *data)
                                    offsetof(DeviceState, parent_bus), NULL, 0);
 }
 
+void device_class_set_legacy_reset(DeviceClass *dc, DeviceReset dev_reset)
+{
+    dc->reset = dev_reset;
+}
+
 void device_class_set_parent_realize(DeviceClass *dc,
                                      DeviceRealize dev_realize,
                                      DeviceRealize *parent_realize)

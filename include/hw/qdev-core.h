@@ -953,6 +953,19 @@ void device_class_set_parent_realize(DeviceClass *dc,
                                      DeviceRealize dev_realize,
                                      DeviceRealize *parent_realize);
 
+/**
+ * device_class_set_legacy_reset(): set the DeviceClass::reset method
+ * @dc: The device class
+ * @dev_reset: the reset function
+ *
+ * This function sets the DeviceClass::reset method. This is widely
+ * used in existing code, but new code should prefer to use the
+ * Resettable API as documented in docs/devel/reset.rst.
+ * In addition, devices which need to chain to their parent class's
+ * reset methods or which need to be subclassed must use Resettable.
+ */
+void device_class_set_legacy_reset(DeviceClass *dc,
+                                   DeviceReset dev_reset);
 
 /**
  * device_class_set_parent_unrealize() - set up for chaining unrealize fns
