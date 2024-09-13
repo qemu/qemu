@@ -1003,7 +1003,7 @@ static void store_rx_sequential(XlnxVersalCANFDState *s,
 
         dlc = frame->can_dlc;
 
-        if (frame->flags == QEMU_CAN_FRMF_TYPE_FD) {
+        if (frame->flags & QEMU_CAN_FRMF_TYPE_FD) {
             is_canfd_frame = true;
 
             /* Store dlc value in Xilinx specific format. */
