@@ -90,14 +90,6 @@ typedef enum ResetType {
  * @get_state: Mandatory method which must return a pointer to a
  * ResettableState.
  *
- * @get_transitional_function: transitional method to handle Resettable objects
- * not yet fully moved to this interface. It will be removed as soon as it is
- * not needed anymore. This method is optional and may return a pointer to a
- * function to be used instead of the phases. If the method exists and returns
- * a non-NULL function pointer then that function is executed as a replacement
- * of the 'hold' phase method taking the object as argument. The two other phase
- * methods are not executed.
- *
  * @child_foreach: Executes a given callback on every Resettable child. Child
  * in this context means a child in the qbus tree, so the children of a qbus
  * are the devices on it, and the children of a device are all the buses it
@@ -109,8 +101,6 @@ typedef void (*ResettableEnterPhase)(Object *obj, ResetType type);
 typedef void (*ResettableHoldPhase)(Object *obj, ResetType type);
 typedef void (*ResettableExitPhase)(Object *obj, ResetType type);
 typedef ResettableState * (*ResettableGetState)(Object *obj);
-typedef void (*ResettableTrFunction)(Object *obj);
-typedef ResettableTrFunction (*ResettableGetTrFunction)(Object *obj);
 typedef void (*ResettableChildCallback)(Object *, void *opaque,
                                         ResetType type);
 typedef void (*ResettableChildForeach)(Object *obj,
@@ -129,9 +119,6 @@ struct ResettableClass {
 
     /* State access method */
     ResettableGetState get_state;
-
-    /* Transitional method for legacy reset compatibility */
-    ResettableGetTrFunction get_transitional_function;
 
     /* Hierarchy handling method */
     ResettableChildForeach child_foreach;
