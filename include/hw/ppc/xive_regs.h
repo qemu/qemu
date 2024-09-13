@@ -79,6 +79,7 @@
 #define TM_INC                  0x5  /*  -   +   -   +  */
 #define TM_AGE                  0x6  /*  -   +   -   +  */
 #define TM_PIPR                 0x7  /*  -   +   -   +  */
+#define TM_OGEN                 0xF  /*  -   +   -   -  */ /* P10 only */
 
 #define TM_WORD0                0x0
 #define TM_WORD1                0x4
