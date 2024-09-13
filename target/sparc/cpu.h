@@ -184,6 +184,8 @@ enum {
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)
 #define FSR_FTT_INVAL_FPR (6ULL << 14)
 
+#define FSR_QNE    (1ULL << 13)
+
 #define FSR_FCC0_SHIFT    10
 #define FSR_FCC1_SHIFT    32
 #define FSR_FCC2_SHIFT    34
@@ -437,6 +439,26 @@ struct CPUArchState {
     uint32_t fsr;                    /* rm, tem, aexc */
     uint32_t fsr_cexc_ftt;           /* cexc, ftt */
     uint32_t fcc[TARGET_FCCREGS];    /* fcc* */
+
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    /*
+     * Single-element FPU fault queue, with address and insn,
+     * packaged into the double-word with which it is stored.
+     */
+    uint32_t fsr_qne;                /* qne */
+    union {
+        uint64_t d;
+        struct {
+#if HOST_BIG_ENDIAN
+            uint32_t addr;
+            uint32_t insn;
+#else
+            uint32_t insn;
+            uint32_t addr;
+#endif
+        } s;
+    } fq;
+#endif
 
     CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
@@ -722,6 +744,7 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #define TB_FLAG_AM_ENABLED   (1 << 5)
 #define TB_FLAG_SUPER        (1 << 6)
 #define TB_FLAG_HYPER        (1 << 7)
+#define TB_FLAG_FSR_QNE      (1 << 8)
 #define TB_FLAG_ASI_SHIFT    24
 
 static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, vaddr *pc,
@@ -753,7 +776,12 @@ static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, vaddr *pc,
     if (env->psref) {
         flags |= TB_FLAG_FPU_ENABLED;
     }
-#endif
+#ifndef CONFIG_USER_ONLY
+    if (env->fsr_qne) {
+        flags |= TB_FLAG_FSR_QNE;
+    }
+#endif /* !CONFIG_USER_ONLY */
+#endif /* TARGET_SPARC64 */
     *pflags = flags;
 }
 

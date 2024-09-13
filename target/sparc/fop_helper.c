@@ -545,6 +545,8 @@ target_ulong cpu_get_fsr(CPUSPARCState *env)
     fsr |= (uint64_t)env->fcc[1] << FSR_FCC1_SHIFT;
     fsr |= (uint64_t)env->fcc[2] << FSR_FCC2_SHIFT;
     fsr |= (uint64_t)env->fcc[3] << FSR_FCC3_SHIFT;
+#elif !defined(CONFIG_USER_ONLY)
+    fsr |= env->fsr_qne;
 #endif
 
     /* VER is kept completely separate until re-assembly. */
@@ -591,6 +593,8 @@ void cpu_put_fsr(CPUSPARCState *env, target_ulong fsr)
     env->fcc[1] = extract64(fsr, FSR_FCC1_SHIFT, 2);
     env->fcc[2] = extract64(fsr, FSR_FCC2_SHIFT, 2);
     env->fcc[3] = extract64(fsr, FSR_FCC3_SHIFT, 2);
+#elif !defined(CONFIG_USER_ONLY)
+    env->fsr_qne = fsr & FSR_QNE;
 #endif
 
     set_fsr_nonsplit(env, fsr);
