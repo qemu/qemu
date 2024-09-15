@@ -271,7 +271,7 @@ static uint32_t *update_display_of_row(DM163State *s, uint32_t *dest,
                                        unsigned row)
 {
     for (unsigned _ = 0; _ < LED_SQUARE_SIZE; _++) {
-        for (int x = 0; x < RGB_MATRIX_NUM_COLS * LED_SQUARE_SIZE; x++) {
+        for (int x = RGB_MATRIX_NUM_COLS * LED_SQUARE_SIZE - 1; x >= 0; x--) {
             /* UI layer guarantees that there's 32 bits per pixel (Mar 2024) */
             *dest++ = s->buffer[s->buffer_idx_of_row[row]][x / LED_SQUARE_SIZE];
         }
