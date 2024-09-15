@@ -1647,21 +1647,6 @@ static uint32_t get_elf_hwcap(void)
 
 #endif
 
-#ifdef TARGET_CRIS
-
-#define ELF_CLASS ELFCLASS32
-#define ELF_ARCH  EM_CRIS
-
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    regs->erp = infop->entry;
-}
-
-#define ELF_EXEC_PAGESIZE        8192
-
-#endif
-
 #ifdef TARGET_M68K
 
 #define ELF_CLASS       ELFCLASS32

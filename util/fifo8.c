@@ -71,18 +71,27 @@ uint8_t fifo8_pop(Fifo8 *fifo)
     return ret;
 }
 
-static const uint8_t *fifo8_peekpop_buf(Fifo8 *fifo, uint32_t max,
-                                        uint32_t *numptr, bool do_pop)
+uint8_t fifo8_peek(Fifo8 *fifo)
+{
+    assert(fifo->num > 0);
+    return fifo->data[fifo->head];
+}
+
+static const uint8_t *fifo8_peekpop_bufptr(Fifo8 *fifo, uint32_t max,
+                                           uint32_t skip, uint32_t *numptr,
+                                           bool do_pop)
 {
     uint8_t *ret;
-    uint32_t num;
+    uint32_t num, head;
 
     assert(max > 0 && max <= fifo->num);
-    num = MIN(fifo->capacity - fifo->head, max);
-    ret = &fifo->data[fifo->head];
+    assert(skip <= fifo->num);
+    head = (fifo->head + skip) % fifo->capacity;
+    num = MIN(fifo->capacity - head, max);
+    ret = &fifo->data[head];
 
     if (do_pop) {
-        fifo->head += num;
+        fifo->head = head + num;
         fifo->head %= fifo->capacity;
         fifo->num -= num;
     }
@@ -94,15 +103,16 @@ static const uint8_t *fifo8_peekpop_buf(Fifo8 *fifo, uint32_t max,
 
 const uint8_t *fifo8_peek_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_buf(fifo, max, numptr, false);
+    return fifo8_peekpop_bufptr(fifo, max, 0, numptr, false);
 }
 
 const uint8_t *fifo8_pop_bufptr(Fifo8 *fifo, uint32_t max, uint32_t *numptr)
 {
-    return fifo8_peekpop_buf(fifo, max, numptr, true);
+    return fifo8_peekpop_bufptr(fifo, max, 0, numptr, true);
 }
 
-uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
+static uint32_t fifo8_peekpop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen,
+                                  bool do_pop)
 {
     const uint8_t *buf;
     uint32_t n1, n2 = 0;
@@ -113,7 +123,7 @@ uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
     }
 
     len = destlen;
-    buf = fifo8_pop_bufptr(fifo, len, &n1);
+    buf = fifo8_peekpop_bufptr(fifo, len, 0, &n1, do_pop);
     if (dest) {
         memcpy(dest, buf, n1);
     }
@@ -122,13 +132,23 @@ uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
     len -= n1;
     len = MIN(len, fifo8_num_used(fifo));
     if (len) {
-        buf = fifo8_pop_bufptr(fifo, len, &n2);
+        buf = fifo8_peekpop_bufptr(fifo, len, do_pop ? 0 : n1, &n2, do_pop);
         if (dest) {
             memcpy(&dest[n1], buf, n2);
         }
     }
 
     return n1 + n2;
+}
+
+uint32_t fifo8_pop_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
+{
+    return fifo8_peekpop_buf(fifo, dest, destlen, true);
+}
+
+uint32_t fifo8_peek_buf(Fifo8 *fifo, uint8_t *dest, uint32_t destlen)
+{
+    return fifo8_peekpop_buf(fifo, dest, destlen, false);
 }
 
 void fifo8_drop(Fifo8 *fifo, uint32_t len)

@@ -3487,12 +3487,6 @@ cred-internals.h: 559
 CREDITS: 603
 crime.c: 2833
 crime.h: 5271
-cris: 4096
-cris_defs_asm.h: 3805
-crisksyms.c: 472
-cris_supp_reg.h: 198
-crisv10.c: 129158
-crisv10.h: 4289
 crm_regs.h: 1700
 cr_pll.c: 4842
 crt0_ram.S: 2152

@@ -21,13 +21,6 @@
 #define ABI_LLONG_ALIGNMENT 2
 #endif
 
-#ifdef TARGET_CRIS
-#define ABI_SHORT_ALIGNMENT 1
-#define ABI_INT_ALIGNMENT 1
-#define ABI_LONG_ALIGNMENT 1
-#define ABI_LLONG_ALIGNMENT 1
-#endif
-
 #if (defined(TARGET_I386) && !defined(TARGET_X86_64)) \
     || defined(TARGET_SH4) \
     || defined(TARGET_OPENRISC) \

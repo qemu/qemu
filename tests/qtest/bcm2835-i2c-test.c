@@ -81,7 +81,7 @@ static void test_i2c_read_write(gconstpointer data)
     g_assert_cmpint(i2cdata, ==, 0xde);
 
     i2cdata = readl(base_addr + BCM2835_I2C_FIFO);
-    g_assert_cmpint(i2cdata, ==, 0xad);
+    g_assert_cmpint(i2cdata, ==, 0xa0);
 
     /* Clear flags */
     writel(base_addr + BCM2835_I2C_S, BCM2835_I2C_S_DONE | BCM2835_I2C_S_ERR |

@@ -206,14 +206,6 @@ in the QEMU object model anymore. ``Sun-UltraSparc-IIIi+`` and
 but for consistency these will get removed in a future release, too.
 Use ``Sun-UltraSparc-IIIi-plus`` and ``Sun-UltraSparc-IV-plus`` instead.
 
-CRIS CPU architecture (since 9.0)
-'''''''''''''''''''''''''''''''''
-
-The CRIS architecture was pulled from Linux in 4.17 and the compiler
-is no longer packaged in any distro making it harder to run the
-``check-tcg`` tests. Unless we can improve the testing situation there
-is a chance the code will bitrot without anyone noticing.
-
 System emulator machines
 ------------------------
 
@@ -231,12 +223,6 @@ the device tree blob, not just the ``kaslr-seed`` node.
 These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
-
-``shix`` (since 9.0)
-''''''''''''''''''''
-
-The machine is no longer in existence and has been long unmaintained
-in QEMU. This also holds for the TC51828 16MiB flash that it uses.
 
 ``pseries-2.1`` up to ``pseries-2.12`` (since 9.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -346,19 +332,6 @@ Nowadays it would make sense to reimplement the ``proxy`` backend by using
 QEMU's ``vhost`` feature, which would eliminate the high latency costs under
 which the 9p ``proxy`` backend currently suffers. However as of to date nobody
 has indicated plans for such kind of reimplementation unfortunately.
-
-RISC-V 'any' CPU type ``-cpu any`` (since 8.2)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The 'any' CPU type was introduced back in 2018 and has been around since the
-initial RISC-V QEMU port. Its usage has always been unclear: users don't know
-what to expect from a CPU called 'any', and in fact the CPU does not do anything
-special that isn't already done by the default CPUs rv32/rv64.
-
-After the introduction of the 'max' CPU type, RISC-V now has a good coverage
-of generic CPUs: rv32 and rv64 as default CPUs and 'max' as a feature complete
-CPU for both 32 and 64 bit builds. Users are then discouraged to use the 'any'
-CPU type starting in 8.2.
 
 RISC-V CPU properties which start with capital 'Z' (since 8.2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

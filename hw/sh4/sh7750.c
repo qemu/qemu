@@ -38,8 +38,6 @@
 #include "exec/exec-all.h"
 #include "trace.h"
 
-#define NB_DEVICES 4
-
 typedef struct SH7750State {
     MemoryRegion iomem;
     MemoryRegion iomem_1f0;
@@ -75,7 +73,6 @@ typedef struct SH7750State {
     uint16_t periph_portdira; /* Direction seen from the peripherals */
     uint16_t periph_pdtrb;    /* Imposed by the peripherals */
     uint16_t periph_portdirb; /* Direction seen from the peripherals */
-    sh7750_io_device *devices[NB_DEVICES]; /* External peripherals */
 
     /* Cache */
     uint32_t ccr;
@@ -91,19 +88,6 @@ static inline int has_bcr3_and_bcr4(SH7750State *s)
 /*
  * I/O ports
  */
-
-int sh7750_register_io_device(SH7750State *s, sh7750_io_device *device)
-{
-    int i;
-
-    for (i = 0; i < NB_DEVICES; i++) {
-        if (s->devices[i] == NULL) {
-            s->devices[i] = device;
-            return 0;
-        }
-    }
-    return -1;
-}
 
 static uint16_t portdir(uint32_t v)
 {
@@ -142,63 +126,26 @@ static uint16_t portb_lines(SH7750State *s)
         (~(s->portdirb | s->periph_portdirb) & s->portpullupb); /* Pullups */
 }
 
-static void gen_port_interrupts(SH7750State *s)
-{
-    /* XXXXX interrupts not generated */
-}
-
 static void porta_changed(SH7750State *s, uint16_t prev)
 {
-    uint16_t currenta, changes;
-    int i, r = 0;
+    uint16_t currenta;
 
     currenta = porta_lines(s);
     if (currenta == prev) {
         return;
     }
     trace_sh7750_porta(prev, currenta, s->pdtra, s->pctra);
-    changes = currenta ^ prev;
-
-    for (i = 0; i < NB_DEVICES; i++) {
-        if (s->devices[i] && (s->devices[i]->portamask_trigger & changes)) {
-            r |= s->devices[i]->port_change_cb(currenta, portb_lines(s),
-                                               &s->periph_pdtra,
-                                               &s->periph_portdira,
-                                               &s->periph_pdtrb,
-                                               &s->periph_portdirb);
-        }
-    }
-
-    if (r) {
-        gen_port_interrupts(s);
-    }
 }
 
 static void portb_changed(SH7750State *s, uint16_t prev)
 {
-    uint16_t currentb, changes;
-    int i, r = 0;
+    uint16_t currentb;
 
     currentb = portb_lines(s);
     if (currentb == prev) {
         return;
     }
     trace_sh7750_portb(prev, currentb, s->pdtrb, s->pctrb);
-    changes = currentb ^ prev;
-
-    for (i = 0; i < NB_DEVICES; i++) {
-        if (s->devices[i] && (s->devices[i]->portbmask_trigger & changes)) {
-            r |= s->devices[i]->port_change_cb(portb_lines(s), currentb,
-                                               &s->periph_pdtra,
-                                               &s->periph_portdira,
-                                               &s->periph_pdtrb,
-                                               &s->periph_portdirb);
-        }
-    }
-
-    if (r) {
-        gen_port_interrupts(s);
-    }
 }
 
 /*

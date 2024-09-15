@@ -10484,7 +10484,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_mmap:
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
     (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
-    defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_MICROBLAZE) \
+    defined(TARGET_M68K) || defined(TARGET_MICROBLAZE) \
     || defined(TARGET_S390X)
         {
             abi_ulong *v;
@@ -12638,14 +12638,6 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_MIPS)
       cpu_env->active_tc.CP0_UserLocal = arg1;
       return 0;
-#elif defined(TARGET_CRIS)
-      if (arg1 & 0xff)
-          ret = -TARGET_EINVAL;
-      else {
-          cpu_env->pregs[PR_PID] = arg1;
-          ret = 0;
-      }
-      return ret;
 #elif defined(TARGET_I386) && defined(TARGET_ABI32)
       return do_set_thread_area(cpu_env, arg1);
 #elif defined(TARGET_M68K)

@@ -28,7 +28,6 @@ mappings = {
     "armv7": "arm",
     "armv8-a" : ["aarch64", "aarch64_be"],
     "avr" : "avr",
-    "cris" : "cris",
     # no hexagon in upstream gdb
     "hppa1.0" : "hppa",
     "i386" : "i386",

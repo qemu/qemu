@@ -13,13 +13,6 @@ config R2D
     select SH7750
     select SH_PCI
 
-config SHIX
-    bool
-    default y
-    depends on SH4
-    select SH7750
-    select TC58128
-
 config SH7750
     bool
     select SH_INTC

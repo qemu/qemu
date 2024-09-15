@@ -47,10 +47,10 @@ const struct scmp_arg_cmp sched_setscheduler_arg[] = {
 };
 
 /*
- * See 'NOTES' in 'man 2 clone' - s390 & cross have 'flags' in
+ * See 'NOTES' in 'man 2 clone' - s390 has 'flags' in
  *  different position to other architectures
  */
-#if defined(HOST_S390X) || defined(HOST_S390) || defined(HOST_CRIS)
+#if defined(HOST_S390X) || defined(HOST_S390)
 #define CLONE_FLAGS_ARG 1
 #else
 #define CLONE_FLAGS_ARG 0
