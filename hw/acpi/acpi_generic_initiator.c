@@ -74,40 +74,11 @@ static void acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
         acpi_generic_initiator_set_node, NULL, NULL);
 }
 
-/*
- * ACPI 6.3:
- * Table 5-78 Generic Initiator Affinity Structure
- */
-static void
-build_srat_generic_pci_initiator_affinity(GArray *table_data, int node,
-                                          PCIDeviceHandle *handle)
-{
-    uint8_t index;
-
-    build_append_int_noprefix(table_data, 5, 1);  /* Type */
-    build_append_int_noprefix(table_data, 32, 1); /* Length */
-    build_append_int_noprefix(table_data, 0, 1);  /* Reserved */
-    build_append_int_noprefix(table_data, 1, 1);  /* Device Handle Type: PCI */
-    build_append_int_noprefix(table_data, node, 4);  /* Proximity Domain */
-
-    /* Device Handle - PCI */
-    build_append_int_noprefix(table_data, handle->segment, 2);
-    build_append_int_noprefix(table_data, PCI_BUS_NUM(handle->bdf), 1);
-    build_append_int_noprefix(table_data, PCI_BDF_TO_DEVFN(handle->bdf), 1);
-    for (index = 0; index < 12; index++) {
-        build_append_int_noprefix(table_data, 0, 1);
-    }
-
-    build_append_int_noprefix(table_data, GEN_AFFINITY_ENABLED, 4); /* Flags */
-    build_append_int_noprefix(table_data, 0, 4);     /* Reserved */
-}
-
 static int build_all_acpi_generic_initiators(Object *obj, void *opaque)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     AcpiGenericInitiator *gi;
     GArray *table_data = opaque;
-    PCIDeviceHandle dev_handle;
     PCIDevice *pci_dev;
     Object *o;
 
@@ -130,13 +101,9 @@ static int build_all_acpi_generic_initiators(Object *obj, void *opaque)
     }
 
     pci_dev = PCI_DEVICE(o);
-
-    dev_handle.segment = 0;
-    dev_handle.bdf = PCI_BUILD_BDF(pci_bus_num(pci_get_bus(pci_dev)),
-                                   pci_dev->devfn);
-
-    build_srat_generic_pci_initiator_affinity(table_data,
-                                              gi->node, &dev_handle);
+    build_srat_pci_generic_initiator(table_data, gi->node, 0,
+                                     pci_bus_num(pci_get_bus(pci_dev)),
+                                     pci_dev->devfn);
 
     return 0;
 }
