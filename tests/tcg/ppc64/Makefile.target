@@ -55,4 +55,9 @@ PPC64_TESTS += signal_save_restore_xer
 PPC64_TESTS += xxspltw
 PPC64_TESTS += test-aes
 
+# ppc64 ABI uses function descriptors, and thus, QEMU can't find symbol for a
+# given instruction. Thus, we don't check output of mem-access plugin.
+run-plugin-test-plugin-mem-access-with-libmem.so: \
+ CHECK_PLUGIN_OUTPUT_COMMAND=
+
 TESTS += $(PPC64_TESTS)
