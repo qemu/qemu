@@ -137,8 +137,12 @@ static void acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "pci-dev", NULL,
         acpi_generic_initiator_set_pci_device);
+    object_class_property_set_description(oc, "pci-dev",
+        "PCI device to associate with the node");
     object_class_property_add(oc, "node", "int", NULL,
         acpi_generic_initiator_set_node, NULL, NULL);
+    object_class_property_set_description(oc, "node",
+        "NUMA node associated with the PCI device");
 }
 
 static int build_acpi_generic_initiator(Object *obj, void *opaque)
