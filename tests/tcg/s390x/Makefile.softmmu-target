@@ -47,3 +47,8 @@ $(MULTIARCH_TESTS): $(S390X_MULTIARCH_RUNTIME_OBJS)
 $(MULTIARCH_TESTS): LDFLAGS += $(S390X_MULTIARCH_RUNTIME_OBJS)
 $(MULTIARCH_TESTS): CFLAGS += $(MINILIB_INC)
 memory: CFLAGS += -DCHECK_UNALIGNED=0
+
+# s390x clears the BSS section so we need to account for that
+run-plugin-memory-with-libmem.so: 		\
+	CHECK_PLUGIN_OUTPUT_COMMAND=$(MULTIARCH_SYSTEM_SRC)/validate-memory-counts.py \
+		--bss-cleared $@.out
