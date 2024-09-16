@@ -263,8 +263,14 @@ static int protocol_client_auth_sasl_step(VncState *vs, uint8_t *data, size_t le
     /* NB, distinction of NULL vs "" is *critical* in SASL */
     if (datalen) {
         clientdata = (char*)data;
-        clientdata[datalen-1] = '\0'; /* Wire includes '\0', but make sure */
-        datalen--; /* Don't count NULL byte when passing to _start() */
+        if (clientdata[datalen - 1] != '\0') {
+            trace_vnc_auth_fail(vs, vs->auth, "Malformed SASL client data",
+                                "Missing SASL NUL padding byte");
+            sasl_dispose(&vs->sasl.conn);
+            vs->sasl.conn = NULL;
+            goto authabort;
+        }
+        datalen--; /* Discard the extra NUL padding byte */
     }
 
     err = sasl_server_step(vs->sasl.conn,
@@ -385,8 +391,14 @@ static int protocol_client_auth_sasl_start(VncState *vs, uint8_t *data, size_t l
     /* NB, distinction of NULL vs "" is *critical* in SASL */
     if (datalen) {
         clientdata = (char*)data;
-        clientdata[datalen-1] = '\0'; /* Should be on wire, but make sure */
-        datalen--; /* Don't count NULL byte when passing to _start() */
+        if (clientdata[datalen - 1] != '\0') {
+            trace_vnc_auth_fail(vs, vs->auth,  "Malformed SASL client data",
+                                "Missing SASL NUL padding byte");
+            sasl_dispose(&vs->sasl.conn);
+            vs->sasl.conn = NULL;
+            goto authabort;
+        }
+        datalen--; /* Discard the extra NUL padding byte */
     }
 
     err = sasl_server_start(vs->sasl.conn,
