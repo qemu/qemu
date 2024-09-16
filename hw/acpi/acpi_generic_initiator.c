@@ -92,7 +92,8 @@ build_srat_generic_pci_initiator_affinity(GArray *table_data, int node,
 
     /* Device Handle - PCI */
     build_append_int_noprefix(table_data, handle->segment, 2);
-    build_append_int_noprefix(table_data, handle->bdf, 2);
+    build_append_int_noprefix(table_data, PCI_BUS_NUM(handle->bdf), 1);
+    build_append_int_noprefix(table_data, PCI_BDF_TO_DEVFN(handle->bdf), 1);
     for (index = 0; index < 12; index++) {
         build_append_int_noprefix(table_data, 0, 1);
     }
