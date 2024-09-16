@@ -1475,6 +1475,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         QLIST_FOREACH(bus, &bus->child, sibling) {
             uint8_t bus_num = pci_bus_num(bus);
             uint8_t numa_node = pci_bus_numa_node(bus);
+            uint32_t uid;
 
             /* look only for expander root buses */
             if (!pci_bus_is_root(bus)) {
@@ -1485,6 +1486,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                 root_bus_limit = bus_num - 1;
             }
 
+            uid = object_property_get_uint(OBJECT(bus), "acpi_uid",
+                                           &error_fatal);
             scope = aml_scope("\\_SB");
 
             if (pci_bus_is_cxl(bus)) {
@@ -1492,7 +1495,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             } else {
                 dev = aml_device("PC%.02X", bus_num);
             }
-            aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
+            aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
             if (pci_bus_is_cxl(bus)) {
                 struct Aml *aml_pkg = aml_package(2);
