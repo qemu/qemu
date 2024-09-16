@@ -289,9 +289,10 @@ static int protocol_client_auth_sasl_step(VncState *vs, uint8_t *data, size_t le
         goto authabort;
     }
 
-    if (serveroutlen) {
+    if (serverout) {
         vnc_write_u32(vs, serveroutlen + 1);
-        vnc_write(vs, serverout, serveroutlen + 1);
+        vnc_write(vs, serverout, serveroutlen);
+        vnc_write_u8(vs, '\0');
     } else {
         vnc_write_u32(vs, 0);
     }
@@ -410,9 +411,10 @@ static int protocol_client_auth_sasl_start(VncState *vs, uint8_t *data, size_t l
         goto authabort;
     }
 
-    if (serveroutlen) {
+    if (serverout) {
         vnc_write_u32(vs, serveroutlen + 1);
-        vnc_write(vs, serverout, serveroutlen + 1);
+        vnc_write(vs, serverout, serveroutlen);
+        vnc_write_u8(vs, '\0');
     } else {
         vnc_write_u32(vs, 0);
     }
