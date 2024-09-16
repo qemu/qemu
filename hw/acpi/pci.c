@@ -72,7 +72,7 @@ typedef struct AcpiGenericInitiator {
 
     /* public */
     char *pci_dev;
-    uint16_t node;
+    uint32_t node;
 } AcpiGenericInitiator;
 
 typedef struct AcpiGenericInitiatorClass {

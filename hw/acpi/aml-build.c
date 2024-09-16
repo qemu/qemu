@@ -1972,7 +1972,7 @@ static void build_append_srat_acpi_device_handle(GArray *table_data,
  * 5.2.16.6 Generic Initiator Affinity Structure
  *    With PCI Device Handle.
  */
-void build_srat_pci_generic_initiator(GArray *table_data, int node,
+void build_srat_pci_generic_initiator(GArray *table_data, uint32_t node,
                                       uint16_t segment, uint8_t bus,
                                       uint8_t devfn)
 {
