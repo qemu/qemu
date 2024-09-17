@@ -378,6 +378,11 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     multifd_recv_cleanup();
+    /*
+     * RAM state cleanup needs to happen after multifd cleanup, because
+     * multifd threads can use some of its states (receivedmap).
+     */
+    qemu_loadvm_state_cleanup();
 
     if (mis->to_src_file) {
         /* Tell source that we are done */
