@@ -34,6 +34,7 @@ typedef struct KVMSlot
 typedef struct KVMMemoryListener {
     MemoryListener listener;
     KVMSlot *slots;
+    unsigned int nr_slots_allocated;
     int as_id;
 } KVMMemoryListener;
 
