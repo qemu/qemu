@@ -700,7 +700,7 @@ static int virtio_blk_handle_zone_mgmt(VirtIOBlockReq *req, BlockZoneOp op)
     } else {
         if (bs->bl.zone_size > capacity - offset) {
             /* The zoned device allows the last smaller zone. */
-            len = capacity - bs->bl.zone_size * (bs->bl.nr_zones - 1);
+            len = capacity - bs->bl.zone_size * (bs->bl.nr_zones - 1ull);
         } else {
             len = bs->bl.zone_size;
         }
