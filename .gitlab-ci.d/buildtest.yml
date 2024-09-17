@@ -659,9 +659,6 @@ build-tci:
     - make check-tcg
 
 # Check our reduced build configurations
-# requires libfdt: aarch64, arm, loongarch64, microblaze, microblazeel,
-#   or1k, ppc64, riscv32, riscv64, rx
-# fails qtest without boards: i386, x86_64
 build-without-defaults:
   extends: .native_build_job_template
   needs:
@@ -675,11 +672,7 @@ build-without-defaults:
       --disable-pie
       --disable-qom-cast-debug
       --disable-strip
-    TARGETS: alpha-softmmu avr-softmmu hppa-softmmu m68k-softmmu
-      mips-softmmu mips64-softmmu mipsel-softmmu mips64el-softmmu
-      ppc-softmmu s390x-softmmu sh4-softmmu sh4eb-softmmu sparc-softmmu
-      sparc64-softmmu tricore-softmmu xtensa-softmmu xtensaeb-softmmu
-      hexagon-linux-user i386-linux-user s390x-linux-user
+      --target-list-exclude=aarch64-softmmu,microblaze-softmmu,mips64-softmmu,mipsel-softmmu,ppc64-softmmu,sh4el-softmmu,xtensa-softmmu,x86_64-softmmu
     MAKE_CHECK_ARGS: check
 
 build-libvhost-user:

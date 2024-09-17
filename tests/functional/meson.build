@@ -86,11 +86,8 @@ tests_mipsel_system_thorough = [
   'mipsel_malta',
 ]
 
-tests_mips64el_system_quick = [
-  'mips64el_fuloong2e',
-]
-
 tests_mips64el_system_thorough = [
+  'mips64el_fuloong2e',
   'mips64el_loongson3v',
   'mips64el_malta',
 ]
