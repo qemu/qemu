@@ -175,7 +175,6 @@ int cursor_get_mono_bpl(QEMUCursor *c);
 void cursor_set_mono(QEMUCursor *c,
                      uint32_t foreground, uint32_t background, uint8_t *image,
                      int transparent, uint8_t *mask);
-void cursor_get_mono_image(QEMUCursor *c, int foreground, uint8_t *mask);
 void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask);
 
 typedef void *QEMUGLContext;
