@@ -200,7 +200,6 @@ try:
     # Cirrus packages lists for GitLab
     #
     generate_cirrus("freebsd-14")
-    generate_cirrus("macos-13")
     generate_cirrus("macos-14")
 
     #
