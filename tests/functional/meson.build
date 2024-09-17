@@ -92,7 +92,7 @@ tests_mips64el_system_thorough = [
   'mips64el_malta',
 ]
 
-tests_or1k_system_quick = [
+tests_or1k_system_thorough = [
   'or1k_sim',
 ]
 
