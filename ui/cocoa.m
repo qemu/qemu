@@ -549,6 +549,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     }
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 - (void) updateUIInfoLocked
 {
     /* Must be called with the iothread lock, i.e. via updateUIInfo */
@@ -593,6 +596,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
     dpy_set_ui_info(dcl.con, &info, TRUE);
 }
+
+#pragma clang diagnostic pop
 
 - (void) updateUIInfo
 {
