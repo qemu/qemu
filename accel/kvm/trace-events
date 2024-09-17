@@ -26,3 +26,4 @@ kvm_dirty_ring_reap(uint64_t count, int64_t t) "reaped %"PRIu64" pages (took %"P
 kvm_dirty_ring_reaper_kick(const char *reason) "%s"
 kvm_dirty_ring_flush(int finished) "%d"
 
+kvm_slots_grow(unsigned int old, unsigned int new) "%u -> %u"
