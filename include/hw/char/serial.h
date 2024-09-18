@@ -93,8 +93,6 @@ struct SerialMM {
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
-void serial_set_frequency(SerialState *s, uint32_t frequency);
-
 #define TYPE_SERIAL "serial"
 OBJECT_DECLARE_SIMPLE_TYPE(SerialState, SERIAL)
 
