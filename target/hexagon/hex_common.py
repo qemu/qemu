@@ -266,6 +266,9 @@ def need_slot(tag):
         and "A_CVI_GATHER" not in attribdict[tag]
         and ("A_STORE" in attribdict[tag]
              or "A_LOAD" in attribdict[tag])
+        and tag != "L4_loadw_phys"
+        and tag != "L6_memcpy"
+        and tag != "Y6_dmlink"
     ):
         return 1
     else:
