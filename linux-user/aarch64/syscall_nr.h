@@ -305,9 +305,26 @@
 #define TARGET_NR_process_madvise 440
 #define TARGET_NR_epoll_pwait2 441
 #define TARGET_NR_mount_setattr 442
+#define TARGET_NR_quotactl_fd 443
 #define TARGET_NR_landlock_create_ruleset 444
 #define TARGET_NR_landlock_add_rule 445
 #define TARGET_NR_landlock_restrict_self 446
-#define TARGET_NR_syscalls 447
+#define TARGET_NR_memfd_secret 447
+#define TARGET_NR_process_mrelease 448
+#define TARGET_NR_futex_waitv 449
+#define TARGET_NR_set_mempolicy_home_node 450
+#define TARGET_NR_cachestat 451
+#define TARGET_NR_fchmodat2 452
+#define TARGET_NR_map_shadow_stack 453
+#define TARGET_NR_futex_wake 454
+#define TARGET_NR_futex_wait 455
+#define TARGET_NR_futex_requeue 456
+#define TARGET_NR_statmount 457
+#define TARGET_NR_listmount 458
+#define TARGET_NR_lsm_get_self_attr 459
+#define TARGET_NR_lsm_set_self_attr 460
+#define TARGET_NR_lsm_list_modules 461
+#define TARGET_NR_mseal 462
+#define TARGET_NR_syscalls 463
 
 #endif /* LINUX_USER_AARCH64_SYSCALL_NR_H */
