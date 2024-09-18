@@ -40,6 +40,10 @@
 #define POL_LO_START                    0x40
 #define POL_HI_START                    0x44
 
+#define TYPE_LOONGARCH_PIC_COMMON "loongarch_pic_common"
+OBJECT_DECLARE_TYPE(LoongArchPICCommonState,
+                    LoongArchPICCommonClass, LOONGARCH_PIC_COMMON)
+
 struct LoongArchPICCommonState {
     SysBusDevice parent_obj;
 
@@ -66,5 +70,11 @@ struct LoongArchPICCommonState {
     MemoryRegion iomem32_high;
     MemoryRegion iomem8;
     unsigned int irq_num;
+};
+
+struct LoongArchPICCommonClass {
+    SysBusDeviceClass parent_class;
+
+    DeviceRealize parent_realize;
 };
 #endif  /* HW_LOONGARCH_PIC_COMMON_H */

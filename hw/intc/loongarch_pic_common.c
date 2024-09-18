@@ -4,9 +4,15 @@
  * Copyright (C) 2024 Loongson Technology Corporation Limited
  */
 
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "hw/intc/loongarch_pic_common.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
+
 static void loongarch_pic_common_realize(DeviceState *dev, Error **errp)
 {
-    LoongArchPICCommonState *s = LOONGARCH_PCH_PIC(dev);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(dev);
 
     if (!s->irq_num || s->irq_num  > VIRT_PCH_PIC_IRQ_NUM) {
         error_setg(errp, "Invalid 'pic_irq_num'");
@@ -39,3 +45,27 @@ static const VMStateDescription vmstate_loongarch_pic_common = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static void loongarch_pic_common_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_CLASS(klass);
+
+    device_class_set_parent_realize(dc, loongarch_pic_common_realize,
+                                    &lpcc->parent_realize);
+    device_class_set_props(dc, loongarch_pic_common_properties);
+    dc->vmsd = &vmstate_loongarch_pic_common;
+}
+
+static const TypeInfo loongarch_pic_common_types[] = {
+    {
+        .name               = TYPE_LOONGARCH_PIC_COMMON,
+        .parent             = TYPE_SYS_BUS_DEVICE,
+        .instance_size      = sizeof(LoongArchPICCommonState),
+        .class_size         = sizeof(LoongArchPICCommonClass),
+        .class_init         = loongarch_pic_common_class_init,
+        .abstract           = true,
+    }
+};
+
+DEFINE_TYPES(loongarch_pic_common_types)

@@ -10,9 +10,22 @@
 
 #include "hw/intc/loongarch_pic_common.h"
 
-#define LoongArchPCHPIC LoongArchPICCommonState
-#define TYPE_LOONGARCH_PCH_PIC "loongarch_pch_pic"
-#define PCH_PIC_NAME(name) TYPE_LOONGARCH_PCH_PIC#name
-OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHPIC, LOONGARCH_PCH_PIC)
+#define TYPE_LOONGARCH_PIC  "loongarch_pic"
+#define PCH_PIC_NAME(name)  TYPE_LOONGARCH_PIC#name
+OBJECT_DECLARE_TYPE(LoongarchPICState, LoongarchPICClass, LOONGARCH_PIC)
+
+struct LoongarchPICState {
+    LoongArchPICCommonState parent_obj;
+};
+
+struct LoongarchPICClass {
+    LoongArchPICCommonClass parent_class;
+
+    DeviceRealize parent_realize;
+};
+
+#define TYPE_LOONGARCH_PCH_PIC TYPE_LOONGARCH_PIC
+typedef struct LoongArchPICCommonState LoongArchPCHPIC;
+#define LOONGARCH_PCH_PIC(obj)   ((struct LoongArchPICCommonState *)(obj))
 
 #endif /* HW_LOONGARCH_PCH_PIC_H */
