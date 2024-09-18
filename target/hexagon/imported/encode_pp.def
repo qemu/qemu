@@ -388,6 +388,7 @@ DEF_ENC32(L4_return_fnew_pnt, ICLASS_LD" 011 0 000 sssss PP1010vv ---ddddd")
 
 /** Load Acquire Store Release Encoding **/
 
+DEF_ENC32(L4_loadw_phys,      ICLASS_LD" 001 0 000 sssss PP1ttttt -00ddddd")
 DEF_ENC32(L2_loadw_locked,    ICLASS_LD" 001 0 000 sssss PP000--- 000ddddd")
 DEF_ENC32(L4_loadd_locked,    ICLASS_LD" 001 0 000 sssss PP010--- 000ddddd")
 
