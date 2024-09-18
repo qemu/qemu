@@ -81,6 +81,31 @@
         gen_helper_stop(tcg_env); \
     } while (0)
 
+#define fGEN_TCG_Y2_tfrscrr(SHORTCODE) \
+    tcg_gen_mov_tl(RdV, SsV)
+
+#define fGEN_TCG_Y2_tfrsrcr(SHORTCODE) \
+    tcg_gen_mov_tl(SdV, RsV)
+
+#define fGEN_TCG_Y4_tfrscpp(SHORTCODE) \
+    tcg_gen_mov_i64(RddV, SssV)
+
+#define fGEN_TCG_Y4_tfrspcp(SHORTCODE) \
+    tcg_gen_mov_i64(SddV, RssV)
+
+#define fGEN_TCG_G4_tfrgcrr(SHORTCODE) \
+    tcg_gen_mov_tl(RdV, GsV)
+
+#define fGEN_TCG_G4_tfrgrcr(SHORTCODE) \
+    tcg_gen_mov_tl(GdV, RsV)
+
+#define fGEN_TCG_G4_tfrgcpp(SHORTCODE) \
+    tcg_gen_mov_i64(RddV, GssV)
+
+#define fGEN_TCG_G4_tfrgpcp(SHORTCODE) \
+    tcg_gen_mov_i64(GddV, RssV)
+
+
 /*
  * rte (return from exception)
  *     Clear the EX bit in SSR
