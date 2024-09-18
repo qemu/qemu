@@ -24,8 +24,4 @@ struct LoongarchPICClass {
     DeviceRealize parent_realize;
 };
 
-#define TYPE_LOONGARCH_PCH_PIC TYPE_LOONGARCH_PIC
-typedef struct LoongArchPICCommonState LoongArchPCHPIC;
-#define LOONGARCH_PCH_PIC(obj)   ((struct LoongArchPICCommonState *)(obj))
-
 #endif /* HW_LOONGARCH_PCH_PIC_H */
