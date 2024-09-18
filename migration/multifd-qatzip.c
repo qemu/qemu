@@ -160,7 +160,8 @@ static void qatzip_send_cleanup(MultiFDSendParams *p, Error **errp)
  */
 static int qatzip_send_prepare(MultiFDSendParams *p, Error **errp)
 {
-    MultiFDPages_t *pages = p->pages;
+    uint32_t page_size = multifd_ram_page_size();
+    MultiFDPages_t *pages = &p->data->u.ram;
     QatzipData *q = p->compress_data;
     int ret;
     unsigned int in_len, out_len;
@@ -179,12 +180,12 @@ static int qatzip_send_prepare(MultiFDSendParams *p, Error **errp)
      * implementation.
      */
     for (int i = 0; i < pages->normal_num; i++) {
-        memcpy(q->in_buf + (i * p->page_size),
+        memcpy(q->in_buf + (i * page_size),
                pages->block->host + pages->offset[i],
-               p->page_size);
+               page_size);
     }
 
-    in_len = pages->normal_num * p->page_size;
+    in_len = pages->normal_num * page_size;
     if (in_len > q->in_len) {
         error_setg(errp, "multifd %u: unexpectedly large input", p->id);
         return -1;
@@ -197,7 +198,7 @@ static int qatzip_send_prepare(MultiFDSendParams *p, Error **errp)
                    p->id, ret);
         return -1;
     }
-    if (in_len != pages->normal_num * p->page_size) {
+    if (in_len != pages->normal_num * page_size) {
         error_setg(errp, "multifd %u: QATzip failed to compress all input",
                    p->id);
         return -1;
@@ -329,7 +330,8 @@ static int qatzip_recv(MultiFDRecvParams *p, Error **errp)
     int ret;
     unsigned int in_len, out_len;
     uint32_t in_size = p->next_packet_size;
-    uint32_t expected_size = p->normal_num * p->page_size;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
 
     if (in_size > q->in_len) {
@@ -370,9 +372,7 @@ static int qatzip_recv(MultiFDRecvParams *p, Error **errp)
 
     /* Copy each page to its appropriate location. */
     for (int i = 0; i < p->normal_num; i++) {
-        memcpy(p->host + p->normal[i],
-               q->out_buf + p->page_size * i,
-               p->page_size);
+        memcpy(p->host + p->normal[i], q->out_buf + page_size * i, page_size);
     }
     return 0;
 }
