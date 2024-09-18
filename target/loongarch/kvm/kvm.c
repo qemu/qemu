@@ -750,9 +750,18 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
         attr.attr = KVM_LOONGARCH_VM_FEAT_MIPSBT;
         ret |= kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
         return (ret == 0);
+
+    case LOONGARCH_FEATURE_PMU:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_PMU;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+
     default:
         return false;
     }
+
+    return false;
 }
 
 static int kvm_cpu_check_lbt(CPUState *cs, Error **errp)
@@ -776,6 +785,32 @@ static int kvm_cpu_check_lbt(CPUState *cs, Error **errp)
     return 0;
 }
 
+static int kvm_cpu_check_pmu(CPUState *cs, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    CPULoongArchState *env = cpu_env(cs);
+    bool kvm_supported;
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_PMU);
+    if (cpu->pmu == ON_OFF_AUTO_ON) {
+        if (!kvm_supported) {
+            error_setg(errp, "'pmu' feature not supported by KVM on the host");
+            return -ENOTSUP;
+        }
+    } else if (cpu->pmu != ON_OFF_AUTO_AUTO) {
+        /* disable pmu if ON_OFF_AUTO_OFF is set */
+        kvm_supported = false;
+    }
+
+    if (kvm_supported) {
+        env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMP, 1);
+        env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMNUM, 3);
+        env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, PMBITS, 63);
+        env->cpucfg[6] = FIELD_DP32(env->cpucfg[6], CPUCFG6, UPM, 1);
+    }
+    return 0;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     uint64_t val;
@@ -793,6 +828,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (ret < 0) {
         error_report_err(local_err);
     }
+
+    ret = kvm_cpu_check_pmu(cs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+
     return ret;
 }
 

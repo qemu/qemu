@@ -284,6 +284,7 @@ typedef struct LoongArchTLB LoongArchTLB;
 
 enum loongarch_features {
     LOONGARCH_FEATURE_LBT, /* loongson binary translation extension */
+    LOONGARCH_FEATURE_PMU,
 };
 
 typedef struct  LoongArchBT {
@@ -399,6 +400,7 @@ struct ArchCPU {
     QEMUTimer timer;
     uint32_t  phy_id;
     OnOffAuto lbt;
+    OnOffAuto pmu;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
