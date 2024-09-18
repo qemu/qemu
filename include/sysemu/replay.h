@@ -117,8 +117,6 @@ void replay_async_events(void);
 
 /* Asynchronous events queue */
 
-/*! Disables storing events in the queue */
-void replay_disable_events(void);
 /*! Enables storing events in the queue */
 void replay_enable_events(void);
 /*! Returns true when saving events is enabled */

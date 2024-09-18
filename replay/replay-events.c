@@ -92,15 +92,6 @@ void replay_flush_events(void)
     }
 }
 
-void replay_disable_events(void)
-{
-    if (replay_mode != REPLAY_MODE_NONE) {
-        events_enabled = false;
-        /* Flush events queue before waiting of completion */
-        replay_flush_events();
-    }
-}
-
 /*! Adds specified async event to the queue */
 void replay_add_event(ReplayAsyncEventKind event_kind,
                       void *opaque,
