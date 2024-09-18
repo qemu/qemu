@@ -9,8 +9,11 @@
     when: always
   timeout: 80m
   before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Pre-script setup"
     - JOBS=$(expr $(nproc) + 1)
     - cat /packages.txt
+    - section_end setup
   script:
     - export CCACHE_BASEDIR="$(pwd)"
     - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
@@ -19,22 +22,30 @@
     - mkdir build
     - cd build
     - ccache --zero-stats
+    - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs --enable-fdt=system
         --disable-user $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS
         --target-list-exclude="arm-softmmu
           i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
           mips64-softmmu ppc-softmmu riscv32-softmmu sh4-softmmu
           sparc-softmmu xtensa-softmmu $CROSS_SKIP_TARGETS"
+    - section_end configure
+    - section_start build "Building QEMU"
     - make -j"$JOBS" all check-build
+    - section_end build
+    - section_start test "Running tests"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - section_end test
+    - section_start installer "Building the installer"
     - if grep -q "EXESUF=.exe" config-host.mak;
       then make installer;
       version="$(git describe --match v[0-9]* 2>/dev/null || git rev-parse --short HEAD)";
       mv -v qemu-setup*.exe qemu-setup-${version}.exe;
       fi
+    - section_end installer
     - ccache --show-stats
 
 # Job to cross-build specific accelerators.
@@ -52,6 +63,7 @@
       - ccache/
     key: "$CI_JOB_NAME"
   before_script:
+    - source scripts/ci/gitlab-ci-section
     - JOBS=$(expr $(nproc) + 1)
   script:
     - export CCACHE_BASEDIR="$(pwd)"
@@ -60,13 +72,19 @@
     - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
     - mkdir build
     - cd build
+    - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-tools --enable-${ACCEL:-kvm} $EXTRA_CONFIGURE_OPTS
+    - section_end configure
+    - section_start build "Building QEMU"
     - make -j"$JOBS" all check-build
+    - section_end build
+    - section_start test "Running tests"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - section_end test
 
 .cross_user_build_job:
   extends: .base_job_template
@@ -77,6 +95,7 @@
       - ccache/
     key: "$CI_JOB_NAME"
   before_script:
+    - source scripts/ci/gitlab-ci-section
     - JOBS=$(expr $(nproc) + 1)
   script:
     - export CCACHE_BASEDIR="$(pwd)"
@@ -84,16 +103,22 @@
     - export CCACHE_MAXSIZE="500M"
     - mkdir build
     - cd build
+    - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-system --target-list-exclude="aarch64_be-linux-user
           alpha-linux-user m68k-linux-user microblazeel-linux-user
           or1k-linux-user ppc-linux-user sparc-linux-user
           xtensa-linux-user $CROSS_SKIP_TARGETS"
+    - section_end configure
+    - section_start build "Building QEMU"
     - make -j"$JOBS" all check-build
+    - section_end build
+    - section_start test "Running tests"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - section_end test
 
 # We can still run some tests on some of our cross build jobs. They can add this
 # template to their extends to save the build logs and test results

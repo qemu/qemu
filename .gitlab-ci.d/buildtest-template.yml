@@ -8,8 +8,11 @@
     key: "$CI_JOB_NAME"
     when: always
   before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Pre-script setup"
     - JOBS=$(expr $(nproc) + 1)
     - cat /packages.txt
+    - section_end setup
   script:
     - export CCACHE_BASEDIR="$(pwd)"
     - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
@@ -19,6 +22,7 @@
     - mkdir build
     - cd build
     - ccache --zero-stats
+    - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs --enable-fdt=system
           ${TARGETS:+--target-list="$TARGETS"}
           $CONFIGURE_ARGS ||
@@ -27,11 +31,16 @@
       then
         pyvenv/bin/meson configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
+    - section_end configure
+    - section_start build "Building QEMU"
     - $MAKE -j"$JOBS"
+    - section_end build
+    - section_start test "Running tests"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - section_end test
     - ccache --show-stats
 
 # We jump some hoops in common_test_job_template to avoid
@@ -54,6 +63,8 @@
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
   script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start buildenv "Setting up to run tests"
     - scripts/git-submodule.sh update roms/SLOF
     - meson subprojects download $(cd build/subprojects && echo *)
     - cd build
@@ -63,7 +74,10 @@
     - if [ "x${QEMU_TEST_CACHE_DIR}" != "x" ]; then
         $MAKE precache-functional ;
       fi
+    - section_end buildenv
+    - section_start test "Running tests"
     - $MAKE NINJA=":" $MAKE_CHECK_ARGS
+    - section_end test
 
 .native_test_job_template:
   extends: .common_test_job_template
