@@ -189,8 +189,13 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
         uint32_t irq = (addr - plic->priority_base) >> 2;
-
-        if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
+        if (irq == 0) {
+            /* IRQ 0 source prioority is reserved */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Invalid source priority write 0x%"
+                          HWADDR_PRIx "\n", __func__, addr);
+            return;
+        } else if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
             /*
              * if "num_priorities + 1" is power-of-2, make each register bit of
              * interrupt priority WARL (Write-Any-Read-Legal). Just filter
