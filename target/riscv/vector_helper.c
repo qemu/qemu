@@ -277,7 +277,10 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
     uint32_t esz = 1 << log2_esz;
 
-    VSTART_CHECK_EARLY_EXIT(env);
+    if (env->vstart >= evl) {
+        env->vstart = 0;
+        return;
+    }
 
     /* load bytes from guest memory */
     for (i = env->vstart; i < evl; env->vstart = ++i) {
