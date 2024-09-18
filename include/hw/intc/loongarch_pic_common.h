@@ -76,5 +76,7 @@ struct LoongArchPICCommonClass {
     SysBusDeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    int (*pre_save)(LoongArchPICCommonState *s);
+    int (*post_load)(LoongArchPICCommonState *s, int version_id);
 };
 #endif  /* HW_LOONGARCH_PIC_COMMON_H */

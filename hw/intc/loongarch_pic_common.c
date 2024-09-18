@@ -10,6 +10,30 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
+static int loongarch_pic_pre_save(void *opaque)
+{
+    LoongArchPICCommonState *s = (LoongArchPICCommonState *)opaque;
+    LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_GET_CLASS(s);
+
+    if (lpcc->pre_save) {
+        return lpcc->pre_save(s);
+    }
+
+    return 0;
+}
+
+static int loongarch_pic_post_load(void *opaque, int version_id)
+{
+    LoongArchPICCommonState *s = (LoongArchPICCommonState *)opaque;
+    LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_GET_CLASS(s);
+
+    if (lpcc->post_load) {
+        return lpcc->post_load(s, version_id);
+    }
+
+    return 0;
+}
+
 static void loongarch_pic_common_realize(DeviceState *dev, Error **errp)
 {
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(dev);
@@ -29,6 +53,8 @@ static const VMStateDescription vmstate_loongarch_pic_common = {
     .name = "loongarch_pch_pic",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save  = loongarch_pic_pre_save,
+    .post_load = loongarch_pic_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(int_mask, LoongArchPICCommonState),
         VMSTATE_UINT64(htmsi_en, LoongArchPICCommonState),
