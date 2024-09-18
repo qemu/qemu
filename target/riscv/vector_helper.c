@@ -153,14 +153,16 @@ typedef void vext_ldst_elem_fn_tlb(CPURISCVState *env, abi_ptr addr,
 typedef void vext_ldst_elem_fn_host(void *vd, uint32_t idx, void *host);
 
 #define GEN_VEXT_LD_ELEM(NAME, ETYPE, H, LDSUF)             \
-static void NAME##_tlb(CPURISCVState *env, abi_ptr addr,    \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_tlb(CPURISCVState *env, abi_ptr addr,           \
                 uint32_t idx, void *vd, uintptr_t retaddr)  \
 {                                                           \
     ETYPE *cur = ((ETYPE *)vd + H(idx));                    \
     *cur = cpu_##LDSUF##_data_ra(env, addr, retaddr);       \
 }                                                           \
                                                             \
-static void NAME##_host(void *vd, uint32_t idx, void *host) \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_host(void *vd, uint32_t idx, void *host)        \
 {                                                           \
     ETYPE *cur = ((ETYPE *)vd + H(idx));                    \
     *cur = (ETYPE)LDSUF##_p(host);                          \
@@ -172,14 +174,16 @@ GEN_VEXT_LD_ELEM(lde_w, uint32_t, H4, ldl)
 GEN_VEXT_LD_ELEM(lde_d, uint64_t, H8, ldq)
 
 #define GEN_VEXT_ST_ELEM(NAME, ETYPE, H, STSUF)             \
-static void NAME##_tlb(CPURISCVState *env, abi_ptr addr,    \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_tlb(CPURISCVState *env, abi_ptr addr,           \
                 uint32_t idx, void *vd, uintptr_t retaddr)  \
 {                                                           \
     ETYPE data = *((ETYPE *)vd + H(idx));                   \
     cpu_##STSUF##_data_ra(env, addr, data, retaddr);        \
 }                                                           \
                                                             \
-static void NAME##_host(void *vd, uint32_t idx, void *host) \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_host(void *vd, uint32_t idx, void *host)        \
 {                                                           \
     ETYPE data = *((ETYPE *)vd + H(idx));                   \
     STSUF##_p(host, data);                                  \
@@ -318,7 +322,7 @@ GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d_tlb)
  */
 
 /* unmasked unit-stride load and store operation */
-static void
+static inline QEMU_ALWAYS_INLINE void
 vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
                   uint32_t elems, uint32_t nf, uint32_t max_elems,
                   uint32_t log2_esz, bool is_load, int mmu_index,
@@ -370,7 +374,7 @@ vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
     }
 }
 
-static void
+static inline QEMU_ALWAYS_INLINE void
 vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              vext_ldst_elem_fn_tlb *ldst_tlb,
              vext_ldst_elem_fn_host *ldst_host, uint32_t log2_esz,
@@ -757,7 +761,7 @@ GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d_tlb, lde_d_host)
 /*
  * load and store whole register instructions
  */
-static void
+static inline QEMU_ALWAYS_INLINE void
 vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
                 vext_ldst_elem_fn_tlb *ldst_tlb,
                 vext_ldst_elem_fn_host *ldst_host, uint32_t log2_esz,
