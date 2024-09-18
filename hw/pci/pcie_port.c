@@ -92,16 +92,6 @@ static PCIESlot *pcie_chassis_find_slot_with_chassis(struct PCIEChassis *c,
     return s;
 }
 
-PCIESlot *pcie_chassis_find_slot(uint8_t chassis_number, uint16_t slot)
-{
-    struct PCIEChassis *c;
-    c = pcie_chassis_find(chassis_number);
-    if (!c) {
-        return NULL;
-    }
-    return pcie_chassis_find_slot_with_chassis(c, slot);
-}
-
 int pcie_chassis_add_slot(struct PCIESlot *slot)
 {
     struct PCIEChassis *c;

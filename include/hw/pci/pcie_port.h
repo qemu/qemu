@@ -72,7 +72,6 @@ struct PCIESlot {
 };
 
 void pcie_chassis_create(uint8_t chassis_number);
-PCIESlot *pcie_chassis_find_slot(uint8_t chassis, uint16_t slot);
 int pcie_chassis_add_slot(struct PCIESlot *slot);
 void pcie_chassis_del_slot(PCIESlot *s);
 
