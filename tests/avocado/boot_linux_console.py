@@ -1027,12 +1027,3 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
         self.do_test_advcal_2018('11', tar_hash, 'zImage.elf')
-
-    def test_xtensa_lx60(self):
-        """
-        :avocado: tags=arch:xtensa
-        :avocado: tags=machine:lx60
-        :avocado: tags=cpu:dc233c
-        """
-        tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
-        self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')

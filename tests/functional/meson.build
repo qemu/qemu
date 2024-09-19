@@ -145,6 +145,10 @@ tests_x86_64_system_thorough = [
   'virtio_gpu',
 ]
 
+tests_xtensa_system_thorough = [
+  'xtensa_lx60',
+]
+
 precache_all = []
 foreach speed : ['quick', 'thorough']
   foreach dir : target_dirs
