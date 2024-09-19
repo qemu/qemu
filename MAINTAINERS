@@ -1679,6 +1679,7 @@ F: hw/pci-host/sh_pci.c
 F: hw/timer/sh_timer.c
 F: include/hw/sh4/sh_intc.h
 F: include/hw/timer/tmu012.h
+F: tests/functional/test_sh4_r2d.py
 
 SPARC Machines
 --------------

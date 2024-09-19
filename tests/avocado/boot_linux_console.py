@@ -882,17 +882,6 @@ class BootLinuxConsole(LinuxKernelTest):
         # Wait for user-space
         wait_for_console_pattern(self, 'Starting root file system check')
 
-    def do_test_advcal_2018(self, day, tar_hash, kernel_name, console=0):
-        tar_url = ('https://qemu-advcal.gitlab.io'
-                   '/qac-best-of-multiarch/download/day' + day + '.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
-        archive.extract(file_path, self.workdir)
-        self.vm.set_console(console_index=console)
-        self.vm.add_args('-kernel',
-                         self.workdir + '/day' + day + '/' + kernel_name)
-        self.vm.launch()
-        self.wait_for_console_pattern('QEMU advent calendar')
-
     def test_arm_ast2600_debian(self):
         """
         :avocado: tags=arch:arm
@@ -964,17 +953,3 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=accel:tcg
         """
         self.do_test_ppc64_powernv('P10')
-
-    # This test has a 6-10% failure rate on various hosts that look
-    # like issues with a buggy kernel. As a result we don't want it
-    # gating releases on Gitlab.
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_sh4_r2d(self):
-        """
-        :avocado: tags=arch:sh4
-        :avocado: tags=machine:r2d
-        :avocado: tags=flaky
-        """
-        tar_hash = 'fe06a4fd8ccbf2e27928d64472939d47829d4c7e'
-        self.vm.add_args('-append', 'console=ttySC1')
-        self.do_test_advcal_2018('09', tar_hash, 'zImage', console=1)

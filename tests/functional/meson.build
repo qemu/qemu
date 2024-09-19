@@ -127,6 +127,10 @@ tests_s390x_system_thorough = [
   's390x_topology',
 ]
 
+tests_sh4_system_thorough = [
+  'sh4_r2d',
+]
+
 tests_sparc_system_thorough = [
   'sparc_sun4m',
 ]
