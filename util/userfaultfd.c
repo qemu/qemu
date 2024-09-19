@@ -358,31 +358,3 @@ int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count)
 
     return (int) (res / sizeof(struct uffd_msg));
 }
-
-/**
- * uffd_poll_events: poll UFFD file descriptor for read
- *
- * Returns true if events are available for read, false otherwise
- *
- * @uffd_fd: UFFD file descriptor
- * @tmo: timeout value
- */
-bool uffd_poll_events(int uffd_fd, int tmo)
-{
-    int res;
-    struct pollfd poll_fd = { .fd = uffd_fd, .events = POLLIN, .revents = 0 };
-
-    do {
-        res = poll(&poll_fd, 1, tmo);
-    } while (res < 0 && errno == EINTR);
-
-    if (res == 0) {
-        return false;
-    }
-    if (res < 0) {
-        error_report("uffd_poll_events() failed: errno=%i", errno);
-        return false;
-    }
-
-    return (poll_fd.revents & POLLIN) != 0;
-}
