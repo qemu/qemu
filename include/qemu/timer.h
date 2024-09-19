@@ -191,16 +191,6 @@ bool qemu_clock_use_for_deadline(QEMUClockType type);
 int64_t qemu_clock_deadline_ns_all(QEMUClockType type, int attr_mask);
 
 /**
- * qemu_clock_get_main_loop_timerlist:
- * @type: the clock type
- *
- * Return the default timer list associated with a clock.
- *
- * Returns: the default timer list
- */
-QEMUTimerList *qemu_clock_get_main_loop_timerlist(QEMUClockType type);
-
-/**
  * qemu_clock_nofify:
  * @type: the clock type
  *
@@ -325,17 +315,6 @@ bool timerlist_expired(QEMUTimerList *timer_list);
  * timer expires -1 if none
  */
 int64_t timerlist_deadline_ns(QEMUTimerList *timer_list);
-
-/**
- * timerlist_get_clock:
- * @timer_list: the timer list to operate on
- *
- * Determine the clock type associated with a timer list.
- *
- * Returns: the clock type associated with the
- * timer list.
- */
-QEMUClockType timerlist_get_clock(QEMUTimerList *timer_list);
 
 /**
  * timerlist_run_timers:
