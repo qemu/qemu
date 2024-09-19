@@ -17,6 +17,7 @@
 #include "multifd.h"
 #include "options.h"
 #include "qapi/error.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -201,7 +202,8 @@ void multifd_ram_fill_packet(MultiFDSendParams *p)
     packet->zero_pages = cpu_to_be32(zero_num);
 
     if (pages->block) {
-        strncpy(packet->ramblock, pages->block->idstr, 256);
+        pstrcpy(packet->ramblock, sizeof(packet->ramblock),
+                pages->block->idstr);
     }
 
     for (int i = 0; i < pages->num; i++) {
