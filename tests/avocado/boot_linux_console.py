@@ -965,36 +965,6 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         self.do_test_ppc64_powernv('P10')
 
-    def test_ppc_g3beige(self):
-        """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:g3beige
-        :avocado: tags=accel:tcg
-        """
-        # TODO: g3beige works with kvm_pr but we don't have a
-        # reliable way ATM (e.g. looking at /proc/modules) to detect
-        # whether we're running kvm_hv or kvm_pr. For now let's
-        # disable this test if we don't have TCG support.
-        self.require_accelerator("tcg")
-        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
-        self.vm.add_args('-M', 'graphics=off')
-        self.do_test_advcal_2018('15', tar_hash, 'invaders.elf')
-
-    def test_ppc_mac99(self):
-        """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:mac99
-        :avocado: tags=accel:tcg
-        """
-        # TODO: mac99 works with kvm_pr but we don't have a
-        # reliable way ATM (e.g. looking at /proc/modules) to detect
-        # whether we're running kvm_hv or kvm_pr. For now let's
-        # disable this test if we don't have TCG support.
-        self.require_accelerator("tcg")
-        tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
-        self.vm.add_args('-M', 'graphics=off')
-        self.do_test_advcal_2018('15', tar_hash, 'invaders.elf')
-
     # This test has a 6-10% failure rate on various hosts that look
     # like issues with a buggy kernel. As a result we don't want it
     # gating releases on Gitlab.

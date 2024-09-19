@@ -1474,6 +1474,7 @@ F: include/hw/ppc/mac_dbdma.h
 F: include/hw/pci-host/uninorth.h
 F: include/hw/input/adb*
 F: pc-bios/qemu_vga.ndrv
+F: tests/functional/test_ppc_mac.py
 
 Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1489,6 +1490,7 @@ F: include/hw/intc/heathrow_pic.h
 F: include/hw/input/adb*
 F: include/hw/pci-host/grackle.h
 F: pc-bios/qemu_vga.ndrv
+F: tests/functional/test_ppc_mac.py
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
