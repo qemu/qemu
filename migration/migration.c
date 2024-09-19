@@ -1405,6 +1405,9 @@ void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
 static void migrate_fd_cleanup(MigrationState *s)
 {
     MigrationEventType type;
+    QEMUFile *tmp = NULL;
+
+    trace_migrate_fd_cleanup();
 
     g_free(s->hostname);
     s->hostname = NULL;
@@ -1415,26 +1418,29 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     close_return_path_on_source(s);
 
-    if (s->to_dst_file) {
-        QEMUFile *tmp;
-
-        trace_migrate_fd_cleanup();
+    if (s->migration_thread_running) {
         bql_unlock();
-        if (s->migration_thread_running) {
-            qemu_thread_join(&s->thread);
-            s->migration_thread_running = false;
-        }
+        qemu_thread_join(&s->thread);
+        s->migration_thread_running = false;
         bql_lock();
+    }
 
-        multifd_send_shutdown();
-        qemu_mutex_lock(&s->qemu_file_lock);
+    WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+        /*
+         * Close the file handle without the lock to make sure the critical
+         * section won't block for long.
+         */
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
-        qemu_mutex_unlock(&s->qemu_file_lock);
+    }
+
+    if (tmp) {
         /*
-         * Close the file handle without the lock to make sure the
-         * critical section won't block for long.
+         * We only need to shutdown multifd if tmp!=NULL, because if
+         * tmp==NULL, it means the main channel isn't established, while
+         * multifd is only setup after that (in migration_thread()).
          */
+        multifd_send_shutdown();
         migration_ioc_unregister_yank_from_file(tmp);
         qemu_fclose(tmp);
     }
