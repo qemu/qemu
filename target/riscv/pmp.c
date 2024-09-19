@@ -326,7 +326,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, hwaddr addr,
              */
             pmp_size = -(addr | TARGET_PAGE_MASK);
         } else {
-            pmp_size = sizeof(target_ulong);
+            pmp_size = 2 << riscv_cpu_mxl(env);
         }
     } else {
         pmp_size = size;
