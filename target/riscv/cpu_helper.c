@@ -890,12 +890,14 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
 
     CPUState *cs = env_cpu(env);
     int va_bits = PGSHIFT + levels * ptidxbits + widened;
+    int sxlen = 16 << riscv_cpu_sxl(env);
+    int sxlen_bytes = sxlen / 8;
 
     if (first_stage == true) {
         target_ulong mask, masked_msbs;
 
-        if (TARGET_LONG_BITS > (va_bits - 1)) {
-            mask = (1L << (TARGET_LONG_BITS - (va_bits - 1))) - 1;
+        if (sxlen > (va_bits - 1)) {
+            mask = (1L << (sxlen - (va_bits - 1))) - 1;
         } else {
             mask = 0;
         }
@@ -964,7 +966,7 @@ restart:
 
         int pmp_prot;
         int pmp_ret = get_physical_address_pmp(env, &pmp_prot, pte_addr,
-                                               sizeof(target_ulong),
+                                               sxlen_bytes,
                                                MMU_DATA_LOAD, PRV_S);
         if (pmp_ret != TRANSLATE_SUCCESS) {
             return TRANSLATE_PMP_FAIL;
@@ -1116,7 +1118,7 @@ restart:
          *   it is no longer valid and we must re-walk the page table.
          */
         MemoryRegion *mr;
-        hwaddr l = sizeof(target_ulong), addr1;
+        hwaddr l = sxlen_bytes, addr1;
         mr = address_space_translate(cs->as, pte_addr, &addr1, &l,
                                      false, MEMTXATTRS_UNSPECIFIED);
         if (memory_region_is_ram(mr)) {
@@ -1128,7 +1130,12 @@ restart:
              */
             *pte_pa = pte = updated_pte;
 #else
-            target_ulong old_pte = qatomic_cmpxchg(pte_pa, pte, updated_pte);
+            target_ulong old_pte;
+            if (riscv_cpu_sxl(env) == MXL_RV32) {
+                old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, pte, updated_pte);
+            } else {
+                old_pte = qatomic_cmpxchg(pte_pa, pte, updated_pte);
+            }
             if (old_pte != pte) {
                 goto restart;
             }
