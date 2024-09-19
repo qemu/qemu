@@ -746,18 +746,10 @@ int postcopy_wake_shared(struct PostCopyFD *pcfd,
                          RAMBlock *rb)
 {
     size_t pagesize = qemu_ram_pagesize(rb);
-    struct uffdio_range range;
-    int ret;
     trace_postcopy_wake_shared(client_addr, qemu_ram_get_idstr(rb));
-    range.start = ROUND_DOWN(client_addr, pagesize);
-    range.len = pagesize;
-    ret = ioctl(pcfd->fd, UFFDIO_WAKE, &range);
-    if (ret) {
-        error_report("%s: Failed to wake: %zx in %s (%s)",
-                     __func__, (size_t)client_addr, qemu_ram_get_idstr(rb),
-                     strerror(errno));
-    }
-    return ret;
+    return uffd_wakeup(pcfd->fd,
+                       (void *)(uintptr_t)ROUND_DOWN(client_addr, pagesize),
+                       pagesize);
 }
 
 static int postcopy_request_page(MigrationIncomingState *mis, RAMBlock *rb,
@@ -1275,18 +1267,10 @@ static int qemu_ufd_copy_ioctl(MigrationIncomingState *mis, void *host_addr,
     int ret;
 
     if (from_addr) {
-        struct uffdio_copy copy_struct;
-        copy_struct.dst = (uint64_t)(uintptr_t)host_addr;
-        copy_struct.src = (uint64_t)(uintptr_t)from_addr;
-        copy_struct.len = pagesize;
-        copy_struct.mode = 0;
-        ret = ioctl(userfault_fd, UFFDIO_COPY, &copy_struct);
+        ret = uffd_copy_page(userfault_fd, host_addr, from_addr, pagesize,
+                             false);
     } else {
-        struct uffdio_zeropage zero_struct;
-        zero_struct.range.start = (uint64_t)(uintptr_t)host_addr;
-        zero_struct.range.len = pagesize;
-        zero_struct.mode = 0;
-        ret = ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
+        ret = uffd_zero_page(userfault_fd, host_addr, pagesize, false);
     }
     if (!ret) {
         qemu_mutex_lock(&mis->page_request_mutex);
@@ -1343,18 +1327,16 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
                         RAMBlock *rb)
 {
     size_t pagesize = qemu_ram_pagesize(rb);
+    int e;
 
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
      * which would be slightly cheaper, but we'd have to be careful
      * of the order of updating our page state.
      */
-    if (qemu_ufd_copy_ioctl(mis, host, from, pagesize, rb)) {
-        int e = errno;
-        error_report("%s: %s copy host: %p from: %p (size: %zd)",
-                     __func__, strerror(e), host, from, pagesize);
-
-        return -e;
+    e = qemu_ufd_copy_ioctl(mis, host, from, pagesize, rb);
+    if (e) {
+        return e;
     }
 
     trace_postcopy_place_page(host);
@@ -1376,12 +1358,10 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
      * but it's not available for everything (e.g. hugetlbpages)
      */
     if (qemu_ram_is_uf_zeroable(rb)) {
-        if (qemu_ufd_copy_ioctl(mis, host, NULL, pagesize, rb)) {
-            int e = errno;
-            error_report("%s: %s zero host: %p",
-                         __func__, strerror(e), host);
-
-            return -e;
+        int e;
+        e = qemu_ufd_copy_ioctl(mis, host, NULL, pagesize, rb);
+        if (e) {
+            return e;
         }
         return postcopy_notify_shared_wake(rb,
                                            qemu_ram_block_host_offset(rb,
