@@ -1005,6 +1005,7 @@ S: Maintained
 F: hw/arm/vexpress.c
 F: hw/display/sii9022.c
 F: docs/system/arm/vexpress.rst
+F: tests/functional/test_arm_vexpress.py
 
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>

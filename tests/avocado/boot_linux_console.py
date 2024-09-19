@@ -893,15 +893,6 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('QEMU advent calendar')
 
-    def test_arm_vexpressa9(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:vexpress-a9
-        """
-        tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
-        self.vm.add_args('-dtb', self.workdir + '/day16/vexpress-v2p-ca9.dtb')
-        self.do_test_advcal_2018('16', tar_hash, 'winter.zImage')
-
     def test_arm_ast2600_debian(self):
         """
         :avocado: tags=arch:arm

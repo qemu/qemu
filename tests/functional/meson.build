@@ -50,6 +50,7 @@ tests_arm_system_thorough = [
   'arm_canona1100',
   'arm_integratorcp',
   'arm_raspi2',
+  'arm_vexpress',
 ]
 
 tests_arm_linuxuser_thorough = [
