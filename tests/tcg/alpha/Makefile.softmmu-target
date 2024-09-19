@@ -28,7 +28,7 @@ LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
 %: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
-memory: CFLAGS+=-DCHECK_UNALIGNED=0
+memory: CFLAGS+=-DCHECK_UNALIGNED=0 -mbwx
 
 # Running
 QEMU_OPTS+=-serial chardev:output -kernel

@@ -65,3 +65,9 @@ endif
 
 MULTIARCH_RUNS += run-gdbstub-memory run-gdbstub-interrupt \
 	run-gdbstub-untimely-packet run-gdbstub-registers
+
+# Test plugin memory access instrumentation
+run-plugin-memory-with-libmem.so: 		\
+	PLUGIN_ARGS=$(COMMA)region-summary=true
+run-plugin-memory-with-libmem.so: 		\
+	CHECK_PLUGIN_OUTPUT_COMMAND=$(MULTIARCH_SYSTEM_SRC)/validate-memory-counts.py $@.out
