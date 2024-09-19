@@ -449,11 +449,9 @@ static void riscv_max_cpu_init(Object *obj)
 
     env->priv_ver = PRIV_VERSION_LATEST;
 #ifndef CONFIG_USER_ONLY
-#ifdef TARGET_RISCV32
-    set_satp_mode_max_supported(cpu, VM_1_10_SV32);
-#else
-    set_satp_mode_max_supported(cpu, VM_1_10_SV57);
-#endif
+    set_satp_mode_max_supported(RISCV_CPU(obj),
+        riscv_cpu_mxl(&RISCV_CPU(obj)->env) == MXL_RV32 ?
+        VM_1_10_SV32 : VM_1_10_SV57);
 #endif
 }
 
@@ -2957,6 +2955,10 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_VENDOR_CPU(TYPE_RISCV_CPU_SIFIVE_U34, MXL_RV32,  rv32_sifive_u_cpu_init),
     DEFINE_BARE_CPU(TYPE_RISCV_CPU_RV32I,        MXL_RV32,  rv32i_bare_cpu_init),
     DEFINE_BARE_CPU(TYPE_RISCV_CPU_RV32E,        MXL_RV32,  rv32e_bare_cpu_init),
+#endif
+
+#if (defined(TARGET_RISCV64) && !defined(CONFIG_USER_ONLY))
+    DEFINE_DYNAMIC_CPU(TYPE_RISCV_CPU_MAX32,     MXL_RV32,  riscv_max_cpu_init),
 #endif
 
 #if defined(TARGET_RISCV64)
