@@ -918,17 +918,6 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("SMP: Total of 2 processors activated")
         self.wait_for_console_pattern("No filesystem could mount root")
 
-    def test_ppc64_e500(self):
-        """
-        :avocado: tags=arch:ppc64
-        :avocado: tags=machine:ppce500
-        :avocado: tags=cpu:e5500
-        :avocado: tags=accel:tcg
-        """
-        self.require_accelerator("tcg")
-        tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
-        self.do_test_advcal_2018('19', tar_hash, 'uImage')
-
     def do_test_ppc64_powernv(self, proc):
         self.require_accelerator("tcg")
         images_url = ('https://github.com/open-power/op-build/releases/download/v2.7/')

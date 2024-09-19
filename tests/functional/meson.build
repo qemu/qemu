@@ -111,6 +111,7 @@ tests_ppc_system_thorough = [
 ]
 
 tests_ppc64_system_thorough = [
+  'ppc64_e500',
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',

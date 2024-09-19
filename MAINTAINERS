@@ -1445,6 +1445,7 @@ F: pc-bios/u-boot.e500
 F: hw/intc/openpic_kvm.c
 F: include/hw/ppc/openpic_kvm.h
 F: docs/system/ppc/ppce500.rst
+F: tests/functional/test_ppc64_e500.py
 
 mpc8544ds
 L: qemu-ppc@nongnu.org
