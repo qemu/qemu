@@ -1019,11 +1019,3 @@ class BootLinuxConsole(LinuxKernelTest):
         tar_hash = 'fe06a4fd8ccbf2e27928d64472939d47829d4c7e'
         self.vm.add_args('-append', 'console=ttySC1')
         self.do_test_advcal_2018('09', tar_hash, 'zImage', console=1)
-
-    def test_sparc_ss20(self):
-        """
-        :avocado: tags=arch:sparc
-        :avocado: tags=machine:SS-20
-        """
-        tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
-        self.do_test_advcal_2018('11', tar_hash, 'zImage.elf')
