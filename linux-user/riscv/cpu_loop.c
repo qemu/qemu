@@ -47,7 +47,7 @@ void cpu_loop(CPURISCVState *env)
             break;
         case RISCV_EXCP_U_ECALL:
             env->pc += 4;
-            if (env->gpr[xA7] == TARGET_NR_arch_specific_syscall + 15) {
+            if (env->gpr[xA7] == TARGET_NR_riscv_flush_icache) {
                 /* riscv_flush_icache_syscall is a no-op in QEMU as
                    self-modifying code is automatically detected */
                 ret = 0;

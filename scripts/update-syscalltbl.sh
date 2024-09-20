@@ -10,6 +10,7 @@ arch/mips/kernel/syscalls/syscall_o32.tbl,linux-user/mips/syscall_o32.tbl \
 scripts/syscall.tbl,linux-user/openrisc/syscall.tbl \
 arch/parisc/kernel/syscalls/syscall.tbl,linux-user/hppa/syscall.tbl \
 arch/powerpc/kernel/syscalls/syscall.tbl,linux-user/ppc/syscall.tbl \
+scripts/syscall.tbl,linux-user/riscv/syscall.tbl \
 arch/s390/kernel/syscalls/syscall.tbl,linux-user/s390x/syscall.tbl \
 arch/sh/kernel/syscalls/syscall.tbl,linux-user/sh4/syscall.tbl \
 arch/sparc/kernel/syscalls/syscall.tbl,linux-user/sparc64/syscall.tbl \
