@@ -3,6 +3,7 @@ arch/alpha/kernel/syscalls/syscall.tbl,linux-user/alpha/syscall.tbl \
 arch/arm/tools/syscall.tbl,linux-user/arm/syscall.tbl \
 scripts/syscall.tbl,linux-user/aarch64/syscall_64.tbl \
 scripts/syscall.tbl,linux-user/hexagon/syscall.tbl \
+scripts/syscall.tbl,linux-user/loongarch64/syscall.tbl \
 arch/m68k/kernel/syscalls/syscall.tbl,linux-user/m68k/syscall.tbl \
 arch/microblaze/kernel/syscalls/syscall.tbl,linux-user/microblaze/syscall.tbl \
 arch/mips/kernel/syscalls/syscall_n32.tbl,linux-user/mips64/syscall_n32.tbl \
