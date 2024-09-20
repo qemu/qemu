@@ -372,9 +372,9 @@ static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void loongarch_extioi_finalize(Object *obj)
+static void loongarch_extioi_unrealize(DeviceState *dev)
 {
-    LoongArchExtIOI *s = LOONGARCH_EXTIOI(obj);
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI(dev);
 
     g_free(s->cpu);
 }
@@ -456,6 +456,7 @@ static void loongarch_extioi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = loongarch_extioi_realize;
+    dc->unrealize = loongarch_extioi_unrealize;
     device_class_set_legacy_reset(dc, loongarch_extioi_reset);
     device_class_set_props(dc, extioi_properties);
     dc->vmsd = &vmstate_loongarch_extioi;
@@ -466,7 +467,6 @@ static const TypeInfo loongarch_extioi_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct LoongArchExtIOI),
     .class_init    = loongarch_extioi_class_init,
-    .instance_finalize = loongarch_extioi_finalize,
 };
 
 static void loongarch_extioi_register_types(void)
