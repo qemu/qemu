@@ -62,7 +62,7 @@ typedef struct ExtIOICore {
     qemu_irq parent_irq[LS3A_INTC_IP];
 } ExtIOICore;
 
-struct LoongArchExtIOI {
+struct LoongArchExtIOICommonState {
     SysBusDevice parent_obj;
     uint32_t num_cpu;
     uint32_t features;
