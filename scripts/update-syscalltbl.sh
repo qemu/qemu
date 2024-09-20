@@ -7,6 +7,7 @@ arch/microblaze/kernel/syscalls/syscall.tbl,linux-user/microblaze/syscall.tbl \
 arch/mips/kernel/syscalls/syscall_n32.tbl,linux-user/mips64/syscall_n32.tbl \
 arch/mips/kernel/syscalls/syscall_n64.tbl,linux-user/mips64/syscall_n64.tbl \
 arch/mips/kernel/syscalls/syscall_o32.tbl,linux-user/mips/syscall_o32.tbl \
+scripts/syscall.tbl,linux-user/openrisc/syscall.tbl \
 arch/parisc/kernel/syscalls/syscall.tbl,linux-user/hppa/syscall.tbl \
 arch/powerpc/kernel/syscalls/syscall.tbl,linux-user/ppc/syscall.tbl \
 arch/s390/kernel/syscalls/syscall.tbl,linux-user/s390x/syscall.tbl \
