@@ -1,4 +1,4 @@
-# Default configuration for sh4eb-softmmu
+# Default configuration for sh4-softmmu
 
 # Uncomment the following lines to disable these optional devices:
 #
