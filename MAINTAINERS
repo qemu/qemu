@@ -706,6 +706,14 @@ F: include/hw/timer/armv7m_systick.h
 F: include/hw/misc/armv7m_ras.h
 F: tests/qtest/test-arm-mptimer.c
 
+B-L475E-IOT01A IoT Node
+M: Samuel Tardieu <sam@rfc1149.net>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/b-l475e-iot01a.c
+F: hw/display/dm163.c
+F: tests/qtest/dm163-test.c
+
 Exynos
 M: Igor Mitsyanko <i.mitsyanko@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -991,6 +999,19 @@ F: include/hw/input/gamepad.h
 F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
 
+STM32L4x5 SoC Family
+M: Samuel Tardieu <sam@rfc1149.net>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/stm32l4x5_soc.c
+F: hw/char/stm32l4x5_usart.c
+F: hw/misc/stm32l4x5_exti.c
+F: hw/misc/stm32l4x5_syscfg.c
+F: hw/misc/stm32l4x5_rcc.c
+F: hw/gpio/stm32l4x5_gpio.c
+F: include/hw/*/stm32l4x5_*.h
+F: tests/qtest/stm32l4x5*
+
 STM32VLDISCOVERY
 M: Alexandre Iooss <erdnaxe@crans.org>
 L: qemu-arm@nongnu.org
@@ -1117,26 +1138,6 @@ M: Felipe Balbi <balbi@kernel.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/olimex-stm32-h405.c
-
-STM32L4x5 SoC Family
-M: Arnaud Minier <arnaud.minier@telecom-paris.fr>
-M: Inès Varhol <ines.varhol@telecom-paris.fr>
-L: qemu-arm@nongnu.org
-S: Maintained
-F: hw/arm/stm32l4x5_soc.c
-F: hw/char/stm32l4x5_usart.c
-F: hw/misc/stm32l4x5_exti.c
-F: hw/misc/stm32l4x5_syscfg.c
-F: hw/misc/stm32l4x5_rcc.c
-F: hw/gpio/stm32l4x5_gpio.c
-F: include/hw/*/stm32l4x5_*.h
-
-B-L475E-IOT01A IoT Node
-M: Arnaud Minier <arnaud.minier@telecom-paris.fr>
-M: Inès Varhol <ines.varhol@telecom-paris.fr>
-L: qemu-arm@nongnu.org
-S: Maintained
-F: hw/arm/b-l475e-iot01a.c
 
 SmartFusion2
 M: Subbaraya Sundeep <sundeep.lkml@gmail.com>
