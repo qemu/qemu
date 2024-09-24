@@ -620,7 +620,9 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         } else if (s->snoop_state == SNOOP_STRIPING ||
                    s->snoop_state == SNOOP_NONE) {
             for (i = 0; i < num_effective_busses(s); ++i) {
-                tx_rx[i] = fifo8_pop(&s->tx_fifo);
+                if (!fifo8_is_empty(&s->tx_fifo)) {
+                    tx_rx[i] = fifo8_pop(&s->tx_fifo);
+                }
             }
             stripe8(tx_rx, num_effective_busses(s), false);
         } else if (s->snoop_state >= SNOOP_ADDR) {
