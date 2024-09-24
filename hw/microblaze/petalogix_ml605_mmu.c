@@ -213,7 +213,12 @@ petalogix_ml605_init(MachineState *machine)
 
 static void petalogix_ml605_machine_init(MachineClass *mc)
 {
-    mc->desc = "PetaLogix linux refdesign for xilinx ml605 little endian";
+#if TARGET_BIG_ENDIAN
+    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (big endian)";
+    mc->deprecation_reason = "big endian support is not tested";
+#else
+    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (little endian)";
+#endif
     mc->init = petalogix_ml605_init;
 }
 

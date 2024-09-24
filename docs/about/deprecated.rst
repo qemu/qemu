@@ -271,6 +271,12 @@ BMC and a witherspoon like OpenPOWER system. It was used for bring up
 of the AST2600 SoC in labs.  It can be easily replaced by the
 ``rainier-bmc`` machine which is a real product.
 
+Big-Endian variants of MicroBlaze ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` machines (since 9.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Both ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` were added for little endian
+CPUs. Big endian support is not tested.
+
 Backend options
 ---------------
 
