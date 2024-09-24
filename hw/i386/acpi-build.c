@@ -740,7 +740,8 @@ static Aml *build_prt(bool is_pci0_prt)
     int pin;
 
     method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
-    rt_pkg = aml_varpackage(nroutes);
+    assert(nroutes < 256);
+    rt_pkg = aml_package(nroutes);
 
     for (pin = 0; pin < nroutes; pin++) {
         Aml *pkg = aml_package(4);
