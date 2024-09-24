@@ -71,6 +71,8 @@ petalogix_s3adsp1800_init(MachineState *machine)
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
     object_property_set_str(OBJECT(cpu), "version", "7.10.d", &error_abort);
+    object_property_set_bool(OBJECT(cpu), "little-endian",
+                             !TARGET_BIG_ENDIAN, &error_abort);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
