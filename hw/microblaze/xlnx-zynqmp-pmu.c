@@ -90,7 +90,7 @@ static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&s->cpu), "use-pcmp-instr", true,
                              &error_abort);
     object_property_set_bool(OBJECT(&s->cpu), "use-mmu", false, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "endianness", true,
+    object_property_set_bool(OBJECT(&s->cpu), "little-endian", true,
                              &error_abort);
     object_property_set_str(OBJECT(&s->cpu), "version", "8.40.b",
                             &error_abort);
