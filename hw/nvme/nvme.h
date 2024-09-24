@@ -538,6 +538,10 @@ typedef struct NvmeParams {
     uint32_t  sriov_max_vq_per_vf;
     uint32_t  sriov_max_vi_per_vf;
     bool     msix_exclusive_bar;
+
+    struct {
+        bool mem;
+    } ctratt;
 } NvmeParams;
 
 typedef struct NvmeCtrl {
