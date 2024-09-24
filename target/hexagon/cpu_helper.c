@@ -176,6 +176,8 @@ uint32_t arch_get_system_reg(CPUHexagonState *env, uint32_t reg)
     return reg < HEX_SREG_GLB_START ? env->t_sreg[reg] : env->g_sreg[reg];
 }
 
+#endif
+
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
     uint64_t cycles = 0;
@@ -224,6 +226,8 @@ void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
         env_->t_cycle_count = 0;
     }
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void set_wait_mode(CPUHexagonState *env)
 {

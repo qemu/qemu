@@ -77,10 +77,10 @@ static inline void write_control_registers(void)
     check32(result, 0x00000000);
 
     WRITE_REG_NOCLOBBER(result, "utimerlo", 0xffffffff);
-    check32(result, 0x00000000);
+    check32_ne(result, 0xffffffff);
 
     WRITE_REG_NOCLOBBER(result, "utimerhi", 0xffffffff);
-    check32(result, 0x00000000);
+    check32_ne(result, 0xffffffff);
 
     /*
      * PC is special.  Setting it to these values
@@ -107,7 +107,7 @@ static inline void write_control_register_pairs(void)
     check64(result, 0x0000000000000000);
 
     WRITE_REG_NOCLOBBER(result, "c31:30", 0xffffffffffffffff);
-    check64(result, 0x0000000000000000);
+    check64_ne(result, 0xffffffffffffffff);
 
     WRITE_REG_PAIR_ENCODED(result, "c9:8", (uint64_t) 0x0000000000000000,
                            C9_8_EQ_R1_0);

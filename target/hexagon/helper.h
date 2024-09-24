@@ -108,6 +108,8 @@ DEF_HELPER_2(probe_pkt_scalar_store_s0, void, env, int)
 DEF_HELPER_2(probe_hvx_stores, void, env, int)
 DEF_HELPER_2(probe_pkt_scalar_hvx_stores, void, env, int)
 
+DEF_HELPER_2(creg_read, i32, env, i32)
+DEF_HELPER_2(creg_read_pair, i64, env, i32)
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(swi, void, env, i32)
 DEF_HELPER_2(cswi, void, env, i32)

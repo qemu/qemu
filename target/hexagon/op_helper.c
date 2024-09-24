@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
@@ -1775,6 +1776,43 @@ static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
     cpu_physical_memory_read(high_addr, high, sizeof(*high));
 }
 
+static inline bool ssr_ce_enabled(CPUHexagonState *env)
+{
+    target_ulong ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    return GET_SSR_FIELD(SSR_CE, ssr);
+}
+
+static uint32_t creg_read(CPUHexagonState *env, uint32_t reg)
+{
+    uint32_t low, high;
+    switch (reg) {
+    case HEX_REG_UPCYCLELO:
+        return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_low(env) : 0;
+    case HEX_REG_UPCYCLEHI:
+        return ssr_ce_enabled(env) ? hexagon_get_sys_pcycle_count_high(env) : 0;
+    case HEX_REG_UTIMERLO:
+        hexagon_read_timer(env, &low, &high);
+        return low;
+    case HEX_REG_UTIMERHI:
+        hexagon_read_timer(env, &low, &high);
+        return high;
+    default:
+        return env->gpr[reg];
+    }
+}
+
+uint32_t HELPER(creg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    return creg_read(env, reg);
+}
+
+uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    return  (uint64_t)creg_read(env, reg) |
+           (((uint64_t)creg_read(env, reg + 1)) << 32);
+}
+
+
 static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
                                                  uint32_t reg, uint32_t val)
 
@@ -1936,6 +1974,33 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
     hex_interrupt_update(env);
+}
+#endif
+
+#ifdef CONFIG_USER_ONLY
+uint32_t HELPER(creg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    /* These are handled directly by gen_read_ctrl_reg(). */
+    g_assert(reg != HEX_REG_UPCYCLELO && reg != HEX_REG_UPCYCLEHI);
+
+    if (reg == HEX_REG_UTIMERHI) {
+        return cpu_get_host_ticks() >> 32;
+    } else if (reg == HEX_REG_UTIMERLO) {
+        return extract32(cpu_get_host_ticks(), 0, 32);
+    }
+    return 0;
+}
+
+uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    if (reg == HEX_REG_UPCYCLELO) {
+        /* Pretend SSR[CE] is always set. */
+        return hexagon_get_sys_pcycle_count(env);
+    }
+    if (reg == HEX_REG_UTIMERLO) {
+        return cpu_get_host_ticks();
+    }
+    return 0;
 }
 #endif
 
