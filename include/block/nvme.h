@@ -1077,6 +1077,7 @@ enum NvmeIdCns {
     NVME_ID_CNS_CS_NS                 = 0x05,
     NVME_ID_CNS_CS_CTRL               = 0x06,
     NVME_ID_CNS_CS_NS_ACTIVE_LIST     = 0x07,
+    NVME_ID_CNS_CS_IND_NS             = 0x08,
     NVME_ID_CNS_NS_PRESENT_LIST       = 0x10,
     NVME_ID_CNS_NS_PRESENT            = 0x11,
     NVME_ID_CNS_NS_ATTACHED_CTRL_LIST = 0x12,
@@ -1087,6 +1088,7 @@ enum NvmeIdCns {
     NVME_ID_CNS_CS_NS_PRESENT_LIST    = 0x1a,
     NVME_ID_CNS_CS_NS_PRESENT         = 0x1b,
     NVME_ID_CNS_IO_COMMAND_SET        = 0x1c,
+    NVME_ID_CNS_CS_IND_NS_ALLOCATED   = 0x1f,
 };
 
 typedef struct QEMU_PACKED NvmeIdCtrl {
@@ -1419,6 +1421,20 @@ typedef struct QEMU_PACKED NvmeIdNsNvm {
     uint8_t     rsvd268[3828];
 } NvmeIdNsNvm;
 
+typedef struct QEMU_PACKED NvmeIdNsInd {
+    uint8_t     nsfeat;
+    uint8_t     nmic;
+    uint8_t     rescap;
+    uint8_t     fpi;
+    uint32_t    anagrpid;
+    uint8_t     nsattr;
+    uint8_t     rsvd9;
+    uint16_t    nvmsetid;
+    uint16_t    endgrpid;
+    uint8_t     nstat;
+    uint8_t     rsvd15[4081];
+} NvmeIdNsInd;
+
 typedef struct QEMU_PACKED NvmeIdNsDescr {
     uint8_t nidt;
     uint8_t nidl;
@@ -1439,8 +1455,10 @@ enum NvmeNsIdentifierType {
     NVME_NIDT_CSI               = 0x04,
 };
 
-enum NvmeIdNsNmic {
-    NVME_NMIC_NS_SHARED         = 1 << 0,
+enum NvmeIdNsIndependent {
+    NVME_ID_NS_IND_NMIC_SHRNS   = 1 << 0,
+    NVME_ID_NS_IND_NMIC_DISNS   = 1 << 1,
+    NVME_ID_NS_IND_NSTAT_NRDY   = 1 << 0,
 };
 
 enum NvmeCsi {
@@ -1873,6 +1891,7 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAF) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAFE) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNs) != 4096);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsInd) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsNvm) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsZoned) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeSglDescriptor) != 16);
