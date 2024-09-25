@@ -50,7 +50,7 @@ def main():
     tagimms = hex_common.get_tagimms()
 
     with open(sys.argv[-1], "w") as f:
-        f.write('#include "macros.inc"\n\n')
+        f.write('#include "macros.h.inc"\n\n')
 
         for tag in hex_common.tags:
             ## Skip the priv instructions

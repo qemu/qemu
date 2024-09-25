@@ -17,8 +17,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 #include "qom/object.h"
 
 /* Number of 2k memory pages available.  */

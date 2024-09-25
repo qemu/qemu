@@ -24,8 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 /*
  * FTGMAC100 registers

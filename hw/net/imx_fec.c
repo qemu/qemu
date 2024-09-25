@@ -33,8 +33,7 @@
 #include "net/eth.h"
 #include "trace.h"
 
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 #define IMX_MAX_DESC    1024
 

@@ -35,7 +35,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include <zlib.h>
+#include <zlib.h> /* for adler32 */
 
 #define DEF_SYSTEM_SIZE 0xc10
 

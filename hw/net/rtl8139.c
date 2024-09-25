@@ -48,10 +48,8 @@
  *  2011-Mar-22  Benjamin Poirier:  Implemented VLAN offloading
  */
 
-/* For crc32 */
-
 #include "qemu/osdep.h"
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"

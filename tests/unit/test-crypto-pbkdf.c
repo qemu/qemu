@@ -25,7 +25,7 @@
 #include <sys/resource.h>
 #endif
 
-#if defined(_WIN32) || defined(RUSAGE_THREAD) || defined(CONFIG_DARWNI)
+#if defined(_WIN32) || defined(RUSAGE_THREAD) || defined(CONFIG_DARWIN)
 #include "crypto/pbkdf.h"
 
 typedef struct QCryptoPbkdfTestData QCryptoPbkdfTestData;
