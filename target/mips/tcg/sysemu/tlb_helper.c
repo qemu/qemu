@@ -601,7 +601,7 @@ static bool get_pte(CPUMIPSState *env, uint64_t vaddr, MemOp op,
         return false;
     }
 
-    oi = make_memop_idx(op | MO_TE, ptw_mmu_idx);
+    oi = make_memop_idx(op | mo_endian_env(env), ptw_mmu_idx);
     if (op == MO_64) {
         *pte = cpu_ldq_mmu(env, vaddr, oi, 0);
     } else {
