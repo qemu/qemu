@@ -1,0 +1,32 @@
+# Git reference to start generating patches,
+# such as a commit hash or a tag.
+# Leave commented to guess automatically. A git tag must
+# exists, matching the Version in the spec file.
+MARKER:=v9.1.0
+
+# By default getting sources from CentOS cache. Need to be changed when
+# different side cache is used.
+SOURCES_BASE_URL=https://sources.stream.centos.org/sources/rpms
+
+# Leave commented to get sources from cache. Need to be changed when
+# different tarball location is used.
+# TARURL:=
+
+# Dist suffix (optional).
+# Example: .el9.
+DIST:=.el9
+
+# Koji (RHEL Brew) build target.
+# Example: rhel-9.3.0-candidate.
+BUILD_TARGET_RHEL:=rhel-9.6.0-candidate
+
+# Koji (CentOS Stream) build target.
+# Example: c9s-candidate.
+BUILD_TARGET_CENTOS:=c9s-candidate
+
+# By default we do not support binary changes
+# Uncomment if you wish to support binary changes
+# USE_BINARY:=1
+
+# Optional. Additional files to include as sources.
+# SOURCES_FILELIST:=

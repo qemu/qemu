@@ -1,0 +1,4 @@
+!*
+localversion
+rpmbuild
+*.tar.xz

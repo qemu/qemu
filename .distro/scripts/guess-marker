@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# See if a git tag (or commit) exists that corresponds to the Version in the spec file.
+# The tag must be in the current branch. Non-zero exit if not found.
+# Pass all additional arguments to git, so you can use -C.
+
+SPEC=$1
+shift
+
+VERSION=$(grep "^Version:" $SPEC | sed "s/.*:\s*//")
+
+# Try different variants.
+for VARIANT in "$VERSION" "v$VERSION"; do
+    if git $@ branch --contains "$VARIANT" 2>/dev/null | grep "^*" >/dev/null; then
+        # Return the matching tag and exit.
+        echo $VARIANT
+        exit 0
+    fi
+done
+
+# Not found.
+exit 1

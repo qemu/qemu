@@ -1,0 +1,327 @@
+#!/bin/bash
+#
+# See $desc, below, for program description
+#
+# Copyright (c) 2013 Red Hat, Inc.
+#
+# Author(s):
+#   Jeff Cody <jcody@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; under version 2 of the license
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, see <http://www.gnu.org/licenses/gpl-2.0.html>.
+#
+
+set -C -u -e
+set -o pipefail
+
+desc="
+$0 compares the commits in a specified git range, with the corresponding
+upstream commit.  This assumes that you have both the downstream and
+upstream repositories added as remotes in your git repo.
+
+Example usage:
+$0 -r qemu-kvm-0.12.1.2-2.370.el6..my_feature_branch -u v1.5.0
+
+Ouput key:
+[----]   Indicates the patches upstream and downstream are identical
+[####]   Indicates the number of differences (#### is substituted)
+[down]   Indicates the patch only exists downstream"
+
+def_upstream="v1.7.0"
+def_diffprog=meld
+def_range="HEAD^!"
+def_color='y'
+def_pause='y'
+def_sensitivity=0
+def_summary='n'
+
+upstream=`git config backport-diff.upstream || true`
+diffprog=`git config backport-diff.diffprog || true`
+range=`git config backport-diff.range || true`
+color=`git config backport-diff.color || true`
+pause=`git config backport-diff.pause || true`
+sensitivity=`git config backport-diff.sensitivity || true`
+summary=`git config backport-diff.summary || true`
+
+if [[ -z "$upstream" ]]
+then
+    upstream=$def_upstream
+    git config backport-diff.upstream $upstream || true
+fi
+if [[ -z "$diffprog" ]]
+then
+    diffprog=$def_diffprog
+    git config backport-diff.diffprog $diffprog || true
+fi
+if [[ -z "$range" ]]
+then
+    range=$def_range
+    git config backport-diff.range $range || true
+fi
+if [[ -z "$color" ]]
+then
+    color=$def_color
+    git config backport-diff.color $color || true
+fi
+if [[ -z "$pause" ]]
+then
+    pause=$def_pause
+    git config backport-diff.pause $pause || true
+fi
+if [[ -z "$sensitivity" ]]
+then
+    sensitivity=$def_sensitivity
+    git config backport-diff.sensitivity $sensitivity || true
+fi
+if [[ -z "$summary" ]]
+then
+    summary=$def_summary
+    git config backport-diff.summary $summary || true
+fi
+
+
+usage() {
+    echo ""
+    echo "$0 [OPTIONS]"
+    echo "$desc"
+    echo ""
+    echo "OPTIONS:"
+    echo "      -r git range
+            optional; default is '$range'
+                    "
+    echo "      -u upstream git tag / branch / id
+            optional; default is '$upstream'
+                    "
+    echo "      -n do not use colors
+                    "
+    echo "      -d diff program to use
+            optional; default is '$diffprog'
+                    "
+    echo "      -p do not pause when viewing diffs
+                    "
+    echo "      -s sensitivity level of diff compares
+          0:  only show functional code differences
+          1:  show (0) + contextual differences
+          2+: offer to compare all patches, regardless of any differences
+                    "
+    echo "      -S summary only (no diff viewing)
+                    "
+    echo "      -h help"
+    echo ""
+    echo "You can set each of the default options using git-config:"
+    echo "  git config backport-diff.upstream"
+    echo "  git config backport-diff.diffprog"
+    echo "  git config backport-diff.range"
+    echo "  git config backport-diff.color"
+    echo "  git config backport-diff.pause"
+    echo "  git config backport-diff.summary"
+}
+
+while getopts ":r:u:nd:phs:S" opt
+do
+    case $opt in
+        r) range=$OPTARG
+            ;;
+        u) upstream=$OPTARG
+            ;;
+        n) color='n'
+            ;;
+        d) diffprog=$OPTARG
+            ;;
+        p) pause='n'
+            ;;
+        s) sensitivity=$OPTARG
+           if ! [[ "$sensitivity" =~ ^[0-9]+$ ]]
+           then
+              echo "Invalid argument for -s" >&2
+              usage
+              exit 1
+           fi
+            ;;
+        S) summary='y'
+            ;;
+        h) usage
+           exit
+            ;;
+        \?) echo "Unknown option: -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [[ $color == 'y' ]]
+then
+    bold=$(tput bold)
+    color1=$(tput setaf 1)
+    color2=$(tput setaf 2)
+    color3=$(tput setaf 3)
+    color4=$(tput setaf 4)
+    color5=$(tput setaf 5)
+    color6=$(tput setaf 6)
+    color7=$(tput setaf 7)
+    reset=$(tput sgr0)
+else
+    bold=
+    color1=
+    color2=
+    color3=
+    color4=
+    color5=
+    color6=
+    color7=
+    reset=
+fi
+
+trap cleanup EXIT
+
+cleanup() {
+    echo $reset
+}
+
+total=`git rev-list "$range" |wc -l`
+
+# verify the upstream exists
+upstream_valid='n'
+# branch
+if git show-ref --quiet --verify refs/heads/${upstream}
+then
+    upstream_valid='y'
+# tag
+elif git show-ref --quiet --verify refs/tags/${upstream}
+then
+    upstream_valid='y'
+# remote branch
+elif git show-ref --quiet --verify refs/remotes/${upstream}
+then
+    upstream_valid='y'
+# commit id
+elif git rev-list --max-count=1 --quiet $upstream >/dev/null 2>&1
+then
+    upstream_valid='y'
+fi
+
+numdiff=0
+label=
+subjlist=
+cnt=0
+compare_git()
+{
+    echo "Key:"
+    printf "[----] : patches are identical\n"
+    printf "[${bold}####${reset}] : number of functional differences between upstream/downstream patch\n"
+    printf "[${bold}${color1}down${reset}] : patch is downstream-only\n"
+    printf "The flags [${bold}FC${reset}] indicate (F)unctional and (C)ontextual differences, respectively\n\n"
+    # don't pipe the git job into read, to avoid subshells
+    while read hashsubj
+    do
+        let cnt=$cnt+1;
+        subj=${hashsubj:40}
+        downhash=${hashsubj:0:40}
+        # A little bit hackish, but find the match by looking at upstream
+        # subject lines, and using the last one.  Not all backports contain
+        # the phrase "cherry-pick", so we can't really try and find the
+        # upstream hash from that...
+        uphash=`git log $upstream --pretty=format:"%H" --fixed-strings --grep="${subj}" |tail -n 1`
+        if [[ -n "$uphash" ]]
+        then
+            numdiff=`diff -u <(git diff $uphash^!   |egrep ^[-+])\
+                             <(git diff $downhash^! |egrep ^[-+])\
+                             | egrep '^[-+]' | egrep -v '^[-+]{3}' |wc -l || true`
+            # for contextual diff checking, we will ignore hashes and line number offsets
+            condiff=`diff -u <(git diff $uphash^\!  |sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
+                             <(git diff $downhash^\!|sed -e s/^@@.*@@//g |egrep -v ^index |egrep -v ^diff)\
+                             | egrep '^[-+]' | egrep -v '^[-+]{3}'|wc -l || true`
+            f="-"
+            c="-"
+            if [[ $sensitivity -gt 1 ]]
+            then
+                showdiff=1
+            else
+                showdiff=0
+            fi
+            if [[ $condiff -ne 0 ]]
+            then
+                c=${bold}C${reset}
+                if [[ $sensitivity -gt 0 ]]
+                then
+                    showdiff=1
+                fi
+            fi
+            if [[ $numdiff -ne 0 ]]
+            then
+                f=${bold}F${reset}
+                showdiff=1
+                printf "%03d/${total}:[${bold}%04d${reset}] [${f}${c}] ${bold}${color4}'%s'${reset}\n" $cnt $numdiff "$subj"
+            else
+                printf "%03d/$total:[----] [${f}${c}] '%s'\n" $cnt "$subj"
+            fi
+            if [[ $showdiff -eq 1 ]]
+            then
+                if [[ $diffprog == "meld" ]]
+                then
+                    label="--label=\"Patch #$cnt: $subj\" --label=\" \""
+                fi
+                subjlist[$cnt]=$subj
+                exe[$cnt]="${label} <(git show $uphash^!) <(git show $downhash^!) 2>/dev/null"
+                shortexe[$cnt]="<(git show ${uphash:0:7}^\!) <(git show ${downhash:0:7}^\!)"
+            fi
+        else
+            printf "%03d/$total:[${bold}${color1}down${reset}] ${bold}${color4}'%s'${reset}\n" $cnt "$subj"
+        fi
+    done < <(git log --pretty=tformat:"%H%s" --reverse $range)
+}
+
+show_diff()
+{
+    echo "Do you want to view the diffs using ${bold}${diffprog}${reset}? y/[n]: "
+    read -n 1 view
+    echo ""
+    if [[ "$view" == "y" ]]
+    then
+        for idx in ${!exe[*]}
+        do
+            if [[ $pause == 'y' ]]
+            then
+                echo "Press [Enter] to view diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
+                read
+            else
+                echo "Viewing diff(diff) of ${idx}/${total}: ${bold}${color4}${subjlist[$idx]}${reset}"
+            fi
+            eval ${diffprog} ${exe[$idx]} || true
+        done
+    fi
+}
+
+if [[ $upstream_valid != 'y' ]]
+then
+    echo "Upstream $upstream is not valid (does not exist)!"
+    echo "Do you need to add the remote upstream repo?"
+    exit 2
+fi >&2
+
+compare_git
+
+if [[ $summary != 'y' ]]
+then
+    show_diff
+fi
+
+if [[ ${!shortexe[*]} != '' ]]
+then
+    echo ""
+    echo "To view diffs later, you may run:"
+    for idx in ${!shortexe[*]}
+    do
+        printf "%03d/$total: '${diffprog} ${shortexe[$idx]}'\n" $idx
+    done
+fi

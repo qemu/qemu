@@ -1,0 +1,4 @@
+Accepted changes for:
+- RHEL 9.6
+
+Use RHEL src-git for changes targeting other releases.

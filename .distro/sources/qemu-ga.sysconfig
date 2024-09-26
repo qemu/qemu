@@ -1,0 +1,27 @@
+# This is a systemd environment file, not a shell script.
+# It provides settings for "/lib/systemd/system/qemu-guest-agent.service".
+
+# Guest agent command with comma-separated blocked RPCs to disable,
+# or empty list to enable all.
+#
+# You can get the list of RPC commands using "qemu-ga --block-rpcs='?'".
+# There should be no spaces between commas and commands in the block list.
+# FILTER_RPC_ARGS="--block-rpcs=guest-file-open,guest-file-close,guest-file-read,guest-file-write,guest-file-seek,guest-file-flush,guest-exec,guest-exec-status"
+
+# Guest agent command with comma-separated allowed RPCs to enable,
+# or empty list to disable all.
+#
+# You can get the list of RPC commands using "qemu-ga --allow-rpcs='?'".
+# There should be no spaces between commas and commands in the allow list.
+FILTER_RPC_ARGS="--allow-rpcs=guest-sync-delimited,guest-sync,guest-ping,guest-get-time,guest-set-time,guest-info,guest-shutdown,guest-fsfreeze-status,guest-fsfreeze-freeze,guest-fsfreeze-freeze-list,guest-fsfreeze-thaw,guest-fstrim,guest-suspend-disk,guest-suspend-ram,guest-suspend-hybrid,guest-network-get-interfaces,guest-get-vcpus,guest-set-vcpus,guest-get-disks,guest-get-fsinfo,guest-set-user-password,guest-get-memory-blocks,guest-set-memory-blocks,guest-get-memory-block-info,guest-get-host-name,guest-get-users,guest-get-timezone,guest-get-osinfo,guest-get-devices,guest-ssh-get-authorized-keys,guest-ssh-add-authorized-keys,guest-ssh-remove-authorized-keys,guest-get-diskstats,guest-get-cpustats"
+
+# Fsfreeze hook script specification.
+#
+# FSFREEZE_HOOK_PATHNAME=/dev/null           : disables the feature.
+#
+# FSFREEZE_HOOK_PATHNAME=/path/to/executable : enables the feature with the
+# specified binary or shell script.
+#
+# FSFREEZE_HOOK_PATHNAME=                    : enables the feature with the
+# default value (invoke "qemu-ga --help" to interrogate).
+FSFREEZE_HOOK_PATHNAME=/etc/qemu-ga/fsfreeze-hook

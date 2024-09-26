@@ -1,0 +1,39 @@
+qemu-kvm-tests README
+=====================
+
+The qemu-kvm-tests rpm contains tests that can be used to verify the
+functionality of the installed qemu-kvm package
+
+When installed, the files from this rpm will be arranged in the following
+directory structure
+
+tests-src/
+├── README
+├── scripts
+│   ├── qemu.py
+│   └── qmp
+└── tests
+    ├── acceptance
+    ├── Makefile.include
+    └── qemu-iotests
+
+The tests/ directory within the tests-src/ directory is setup to remain a copy
+of a subset of the tests/ directory from the QEMU source tree
+
+The avocado_qemu tests and qemu-iotests, along with files required for the
+execution of the avocado_qemu tests (scripts/qemu.py and scripts/qmp/) will be
+installed in a new location - /usr/lib64/qemu-kvm/tests-src/
+
+avocado_qemu tests:
+The avocado_qemu tests can be executed by running the following avocado command:
+avocado run -p qemu_bin=/usr/libexec/qemu-kvm /usr/lib64/qemu-kvm/tests/acceptance/
+Avocado needs to be installed separately using either pip or from source as
+Avocado is not being packaged for RHEL.
+
+qemu-iotests:
+symlinks to corresponding binaries need to be created for QEMU_PROG,
+QEMU_IO_PROG, QEMU_IMG_PROG, and QEMU_NBD_PROG before the iotests can be
+executed.
+
+The primary purpose of this package is to make these tests available to be
+executed as gating tests for the qemu-kvm in the RHEL OSCI environment.

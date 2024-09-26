@@ -1,0 +1,19 @@
+[Unit]
+Description=QEMU Guest Agent
+BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+IgnoreOnIsolate=True
+
+[Service]
+UMask=0077
+EnvironmentFile=/etc/sysconfig/qemu-ga
+ExecStart=/usr/bin/qemu-ga \
+  --method=virtio-serial \
+  --path=/dev/virtio-ports/org.qemu.guest_agent.0 \
+  ${FILTER_RPC_ARGS} \
+  -F${FSFREEZE_HOOK_PATHNAME}
+Restart=always
+RestartSec=0
+
+[Install]
+WantedBy=dev-virtio\x2dports-org.qemu.guest_agent.0.device
