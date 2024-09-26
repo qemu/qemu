@@ -20,7 +20,6 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
-#include "exec/tswap.h"
 #include "sysemu/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
