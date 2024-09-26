@@ -4803,19 +4803,19 @@ static void decode_opc_mxu__pool17(DisasContext *ctx)
 
     switch (opcode) {
     case OPC_MXU_LXW:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UL);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UL);
           break;
     case OPC_MXU_LXB:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SB);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_SB);
           break;
     case OPC_MXU_LXH:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SW);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_SW);
           break;
     case OPC_MXU_LXBU:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UB);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UB);
           break;
     case OPC_MXU_LXHU:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UW);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UW);
           break;
     default:
         MIPS_INVAL("decode_opc_mxu");
