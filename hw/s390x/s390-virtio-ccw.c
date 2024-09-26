@@ -440,7 +440,7 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
     s390_pv_prep_reset();
 }
 
-static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
+static void s390_machine_reset(MachineState *machine, ResetType type)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
     enum s390_reset reset_type;
@@ -472,7 +472,7 @@ static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
          * Device reset includes CPU clear resets so this has to be
          * done AFTER the unprotect call above.
          */
-        qemu_devices_reset(reason);
+        qemu_devices_reset(type);
         s390_crypto_reset();
 
         /* configure and start the ipl CPU only */

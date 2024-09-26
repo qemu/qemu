@@ -1529,12 +1529,12 @@ static void aspeed_machine_bletchley_class_init(ObjectClass *oc, void *data)
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
-static void fby35_reset(MachineState *state, ShutdownCause reason)
+static void fby35_reset(MachineState *state, ResetType type)
 {
     AspeedMachineState *bmc = ASPEED_MACHINE(state);
     AspeedGPIOState *gpio = &bmc->soc->gpio;
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     /* Board ID: 7 (Class-1, 4 slots) */
     object_property_set_bool(OBJECT(gpio), "gpioV4", true, &error_fatal);
