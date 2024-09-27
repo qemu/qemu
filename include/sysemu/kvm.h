@@ -359,7 +359,7 @@ int kvm_arch_handle_exit(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_process_async_events(CPUState *cpu);
 
-int kvm_arch_get_registers(CPUState *cpu);
+int kvm_arch_get_registers(CPUState *cpu, Error **errp);
 
 /* state subset only touched by the VCPU itself during runtime */
 #define KVM_PUT_RUNTIME_STATE   1
@@ -368,7 +368,7 @@ int kvm_arch_get_registers(CPUState *cpu);
 /* full state set, modified during initialization or on vmload */
 #define KVM_PUT_FULL_STATE      3
 
-int kvm_arch_put_registers(CPUState *cpu, int level);
+int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp);
 
 int kvm_arch_get_default_type(MachineState *ms);
 
