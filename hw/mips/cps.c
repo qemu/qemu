@@ -77,6 +77,9 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         MIPSCPU *cpu = MIPS_CPU(object_new(s->cpu_type));
         CPUMIPSState *env = &cpu->env;
 
+        object_property_set_bool(OBJECT(cpu), "big-endian", s->cpu_is_bigendian,
+                                 &error_abort);
+
         /* All VPs are halted on reset. Leave powering up to CPC. */
         object_property_set_bool(OBJECT(cpu), "start-powered-off", true,
                                  &error_abort);
@@ -167,6 +170,7 @@ static Property mips_cps_properties[] = {
     DEFINE_PROP_UINT32("num-vp", MIPSCPSState, num_vp, 1),
     DEFINE_PROP_UINT32("num-irq", MIPSCPSState, num_irq, 256),
     DEFINE_PROP_STRING("cpu-type", MIPSCPSState, cpu_type),
+    DEFINE_PROP_BOOL("cpu-big-endian", MIPSCPSState, cpu_is_bigendian, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
