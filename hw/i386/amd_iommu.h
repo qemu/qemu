@@ -356,6 +356,7 @@ struct AMDVIState {
     MemoryRegion mr_mmio;              /* MMIO region                  */
     MemoryRegion mr_sys;
     MemoryRegion mr_nodma;
+    MemoryRegion mr_ir;
     uint8_t mmior[AMDVI_MMIO_SIZE];    /* read/write MMIO              */
     uint8_t w1cmask[AMDVI_MMIO_SIZE];  /* read/write 1 clear mask      */
     uint8_t romask[AMDVI_MMIO_SIZE];   /* MMIO read/only mask          */

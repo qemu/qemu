@@ -1443,7 +1443,7 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
          * |--------------------+-------------------+----------+
          * | amdvi-root         | 00000000-ffffffff |        0 |
          * |  amdvi-iommu_nodma  | 00000000-ffffffff |       0 |
-         * |  amdvi-iommu_ir     | fee00000-feefffff |      64 |
+         * |  amdvi-iommu_ir     | fee00000-feefffff |       1 |
          * |--------------------+-------------------+----------|
          */
         memory_region_init_iommu(&amdvi_dev_as->iommu,
@@ -1454,13 +1454,6 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         memory_region_init(&amdvi_dev_as->root, OBJECT(s),
                            "amdvi_root", UINT64_MAX);
         address_space_init(&amdvi_dev_as->as, &amdvi_dev_as->root, name);
-        memory_region_init_io(&amdvi_dev_as->iommu_ir, OBJECT(s),
-                              &amdvi_ir_ops, s, "amd_iommu_ir",
-                              AMDVI_INT_ADDR_SIZE);
-        memory_region_add_subregion_overlap(&amdvi_dev_as->root,
-                                            AMDVI_INT_ADDR_FIRST,
-                                            &amdvi_dev_as->iommu_ir,
-                                            64);
         memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
                                             MEMORY_REGION(&amdvi_dev_as->iommu),
                                             0);
@@ -1472,6 +1465,13 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
                                             &amdvi_dev_as->iommu_nodma,
                                             0);
+        /* Build the Interrupt Remapping alias to shared memory */
+        memory_region_init_alias(&amdvi_dev_as->iommu_ir, OBJECT(s),
+                                 "amdvi-ir", &s->mr_ir, 0,
+                                 memory_region_size(&s->mr_ir));
+        memory_region_add_subregion_overlap(MEMORY_REGION(&amdvi_dev_as->iommu),
+                                            AMDVI_INT_ADDR_FIRST,
+                                            &amdvi_dev_as->iommu_ir, 1);
 
         if (!x86_iommu->pt_supported) {
             memory_region_set_enabled(&amdvi_dev_as->iommu_nodma, false);
@@ -1632,6 +1632,12 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
                              memory_region_size(get_system_memory()));
     memory_region_add_subregion_overlap(&s->mr_sys, 0,
                                         &s->mr_nodma, 0);
+
+    /* set up the Interrupt Remapping memory region */
+    memory_region_init_io(&s->mr_ir, OBJECT(s), &amdvi_ir_ops,
+                          s, "amdvi-ir", AMDVI_INT_ADDR_SIZE);
+    memory_region_add_subregion_overlap(&s->mr_sys, AMDVI_INT_ADDR_FIRST,
+                                        &s->mr_ir, 1);
 
     pci_setup_iommu(bus, &amdvi_iommu_ops, s);
     amdvi_init(s);
