@@ -415,8 +415,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
             }
         }
         if (entry_point != env->pc) {
-            uint8_t boot[] = {
-#if TARGET_BIG_ENDIAN
+            uint8_t boot_be[] = {
                 0x60, 0x00, 0x08,       /* j    1f */
                 0x00,                   /* .literal_position */
                 0x00, 0x00, 0x00, 0x00, /* .literal entry_pc */
@@ -425,7 +424,8 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 0x10, 0xff, 0xfe,       /* l32r a0, entry_pc */
                 0x12, 0xff, 0xfe,       /* l32r a2, entry_a2 */
                 0x0a, 0x00, 0x00,       /* jx   a0 */
-#else
+            };
+            uint8_t boot_le[] = {
                 0x06, 0x02, 0x00,       /* j    1f */
                 0x00,                   /* .literal_position */
                 0x00, 0x00, 0x00, 0x00, /* .literal entry_pc */
@@ -434,14 +434,16 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 0x01, 0xfe, 0xff,       /* l32r a0, entry_pc */
                 0x21, 0xfe, 0xff,       /* l32r a2, entry_a2 */
                 0xa0, 0x00, 0x00,       /* jx   a0 */
-#endif
             };
+            const size_t boot_sz = TARGET_BIG_ENDIAN ? sizeof(boot_be)
+                                                     : sizeof(boot_le);
+            uint8_t *boot = TARGET_BIG_ENDIAN ? boot_be : boot_le;
             uint32_t entry_pc = tswap32(entry_point);
             uint32_t entry_a2 = tswap32(tagptr);
 
             memcpy(boot + 4, &entry_pc, sizeof(entry_pc));
             memcpy(boot + 8, &entry_a2, sizeof(entry_a2));
-            cpu_physical_memory_write(env->pc, boot, sizeof(boot));
+            cpu_physical_memory_write(env->pc, boot, boot_sz);
         }
     } else {
         if (flash) {
