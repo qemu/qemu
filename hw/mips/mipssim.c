@@ -160,7 +160,8 @@ mips_mipssim_init(MachineState *machine)
 #endif
 
     /* Init CPUs. */
-    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk,
+                                     TARGET_BIG_ENDIAN);
     env = &cpu->env;
 
     reset_info = g_new0(ResetData, 1);
