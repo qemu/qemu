@@ -2324,7 +2324,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* Capability offset */
     build_append_int_noprefix(table_data, s->pci.capab_offset, 2);
     /* IOMMU base address */
-    build_append_int_noprefix(table_data, s->mmio.addr, 8);
+    build_append_int_noprefix(table_data, s->mr_mmio.addr, 8);
     /* PCI Segment Group */
     build_append_int_noprefix(table_data, 0, 2);
     /* IOMMU info */
@@ -2359,7 +2359,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* Capability offset */
     build_append_int_noprefix(table_data, s->pci.capab_offset, 2);
     /* IOMMU base address */
-    build_append_int_noprefix(table_data, s->mmio.addr, 8);
+    build_append_int_noprefix(table_data, s->mr_mmio.addr, 8);
     /* PCI Segment Group */
     build_append_int_noprefix(table_data, 0, 2);
     /* IOMMU info */
