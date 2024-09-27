@@ -1,13 +1,18 @@
 TBL_LIST="\
 arch/alpha/kernel/syscalls/syscall.tbl,linux-user/alpha/syscall.tbl \
 arch/arm/tools/syscall.tbl,linux-user/arm/syscall.tbl \
+scripts/syscall.tbl,linux-user/aarch64/syscall_64.tbl \
+scripts/syscall.tbl,linux-user/hexagon/syscall.tbl \
+scripts/syscall.tbl,linux-user/loongarch64/syscall.tbl \
 arch/m68k/kernel/syscalls/syscall.tbl,linux-user/m68k/syscall.tbl \
 arch/microblaze/kernel/syscalls/syscall.tbl,linux-user/microblaze/syscall.tbl \
 arch/mips/kernel/syscalls/syscall_n32.tbl,linux-user/mips64/syscall_n32.tbl \
 arch/mips/kernel/syscalls/syscall_n64.tbl,linux-user/mips64/syscall_n64.tbl \
 arch/mips/kernel/syscalls/syscall_o32.tbl,linux-user/mips/syscall_o32.tbl \
+scripts/syscall.tbl,linux-user/openrisc/syscall.tbl \
 arch/parisc/kernel/syscalls/syscall.tbl,linux-user/hppa/syscall.tbl \
 arch/powerpc/kernel/syscalls/syscall.tbl,linux-user/ppc/syscall.tbl \
+scripts/syscall.tbl,linux-user/riscv/syscall.tbl \
 arch/s390/kernel/syscalls/syscall.tbl,linux-user/s390x/syscall.tbl \
 arch/sh/kernel/syscalls/syscall.tbl,linux-user/sh4/syscall.tbl \
 arch/sparc/kernel/syscalls/syscall.tbl,linux-user/sparc64/syscall.tbl \

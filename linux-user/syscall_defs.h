@@ -1975,7 +1975,7 @@ struct target_stat64  {
 };
 
 #elif defined(TARGET_OPENRISC) \
-    || defined(TARGET_RISCV) || defined(TARGET_HEXAGON)
+    || defined(TARGET_RISCV) || defined(TARGET_HEXAGON) || defined(TARGET_LOONGARCH)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
@@ -2085,11 +2085,6 @@ struct target_stat64 {
     abi_uint   target_st_ctime_nsec;
     abi_ullong st_ino;
 };
-
-#elif defined(TARGET_LOONGARCH64)
-
-/* LoongArch no newfstatat/fstat syscall. */
-
 #else
 #error unsupported CPU
 #endif

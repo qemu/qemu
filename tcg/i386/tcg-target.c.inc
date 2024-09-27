@@ -133,6 +133,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_I32 0x400
 #define TCG_CT_CONST_WSZ 0x800
 #define TCG_CT_CONST_TST 0x1000
+#define TCG_CT_CONST_ZERO 0x2000
 
 /* Registers used with L constraint, which are the first argument
    registers on x86_64, and two random call clobbered registers on
@@ -224,6 +225,9 @@ static bool tcg_target_const_match(int64_t val, int ct,
         }
     }
     if ((ct & TCG_CT_CONST_WSZ) && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     }
     return 0;
@@ -409,6 +413,18 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_UD2         (0x0b | P_EXT)
 #define OPC_VPBLENDD    (0x02 | P_EXT3A | P_DATA16)
 #define OPC_VPBLENDVB   (0x4c | P_EXT3A | P_DATA16)
+#define OPC_VPBLENDMB   (0x66 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPBLENDMW   (0x66 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPBLENDMD   (0x64 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPBLENDMQ   (0x64 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPCMPB      (0x3f | P_EXT3A | P_DATA16 | P_EVEX)
+#define OPC_VPCMPUB     (0x3e | P_EXT3A | P_DATA16 | P_EVEX)
+#define OPC_VPCMPW      (0x3f | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPCMPUW     (0x3e | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPCMPD      (0x1f | P_EXT3A | P_DATA16 | P_EVEX)
+#define OPC_VPCMPUD     (0x1e | P_EXT3A | P_DATA16 | P_EVEX)
+#define OPC_VPCMPQ      (0x1f | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPCMPUQ     (0x1e | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPINSRB     (0x20 | P_EXT3A | P_DATA16)
 #define OPC_VPINSRW     (0xc4 | P_EXT | P_DATA16)
 #define OPC_VBROADCASTSS (0x18 | P_EXT38 | P_DATA16)
@@ -417,6 +433,10 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_VPBROADCASTW (0x79 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTD (0x58 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTQ (0x59 | P_EXT38 | P_DATA16)
+#define OPC_VPMOVM2B    (0x28 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPMOVM2W    (0x28 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
+#define OPC_VPMOVM2D    (0x38 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPMOVM2Q    (0x38 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
 #define OPC_VPERMQ      (0x00 | P_EXT3A | P_DATA16 | P_VEXW)
 #define OPC_VPERM2I128  (0x46 | P_EXT3A | P_DATA16 | P_VEXL)
 #define OPC_VPROLVD     (0x15 | P_EXT38 | P_DATA16 | P_EVEX)
@@ -442,6 +462,14 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_VPSRLVD     (0x45 | P_EXT38 | P_DATA16)
 #define OPC_VPSRLVQ     (0x45 | P_EXT38 | P_DATA16 | P_VEXW)
 #define OPC_VPTERNLOGQ  (0x25 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTMB    (0x26 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPTESTMW    (0x26 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTMD    (0x27 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPTESTMQ    (0x27 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPTESTNMB   (0x26 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPTESTNMW   (0x26 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
+#define OPC_VPTESTNMD   (0x27 | P_EXT38 | P_SIMDF3 | P_EVEX)
+#define OPC_VPTESTNMQ   (0x27 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
 #define OPC_VZEROUPPER  (0x77 | P_EXT)
 #define OPC_XCHG_ax_r32	(0x90)
 #define OPC_XCHG_EvGv   (0x87)
@@ -658,7 +686,7 @@ static void tcg_out_vex_opc(TCGContext *s, int opc, int r, int v,
 }
 
 static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
-                             int rm, int index)
+                             int rm, int index, int aaa, bool z)
 {
     /* The entire 4-byte evex prefix; with R' and V' set. */
     uint32_t p = 0x08041062;
@@ -695,7 +723,9 @@ static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
     p = deposit32(p, 16, 2, pp);
     p = deposit32(p, 19, 4, ~v);
     p = deposit32(p, 23, 1, (opc & P_VEXW) != 0);
+    p = deposit32(p, 24, 3, aaa);
     p = deposit32(p, 29, 2, (opc & P_VEXL) != 0);
+    p = deposit32(p, 31, 1, z);
 
     tcg_out32(s, p);
     tcg_out8(s, opc);
@@ -704,10 +734,29 @@ static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
 static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
 {
     if (opc & P_EVEX) {
-        tcg_out_evex_opc(s, opc, r, v, rm, 0);
+        tcg_out_evex_opc(s, opc, r, v, rm, 0, 0, false);
     } else {
         tcg_out_vex_opc(s, opc, r, v, rm, 0);
     }
+    tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
+}
+
+static void tcg_out_vex_modrm_type(TCGContext *s, int opc,
+                                   int r, int v, int rm, TCGType type)
+{
+    if (type == TCG_TYPE_V256) {
+        opc |= P_VEXL;
+    }
+    tcg_out_vex_modrm(s, opc, r, v, rm);
+}
+
+static void tcg_out_evex_modrm_type(TCGContext *s, int opc, int r, int v,
+                                    int rm, int aaa, bool z, TCGType type)
+{
+    if (type == TCG_TYPE_V256) {
+        opc |= P_VEXL;
+    }
+    tcg_out_evex_opc(s, opc, r, v, rm, 0, aaa, z);
     tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
 }
 
@@ -904,8 +953,7 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg r, TCGReg a)
 {
     if (have_avx2) {
-        int vex_l = (type == TCG_TYPE_V256 ? P_VEXL : 0);
-        tcg_out_vex_modrm(s, avx2_dup_insn[vece] + vex_l, r, 0, a);
+        tcg_out_vex_modrm_type(s, avx2_dup_insn[vece], r, 0, a, type);
     } else {
         switch (vece) {
         case MO_8:
@@ -3021,6 +3069,214 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #undef OP_32_64
 }
 
+static int const umin_insn[4] = {
+    OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_VPMINUQ
+};
+
+static int const umax_insn[4] = {
+    OPC_PMAXUB, OPC_PMAXUW, OPC_PMAXUD, OPC_VPMAXUQ
+};
+
+static bool tcg_out_cmp_vec_noinv(TCGContext *s, TCGType type, unsigned vece,
+                                  TCGReg v0, TCGReg v1, TCGReg v2, TCGCond cond)
+{
+    static int const cmpeq_insn[4] = {
+        OPC_PCMPEQB, OPC_PCMPEQW, OPC_PCMPEQD, OPC_PCMPEQQ
+    };
+    static int const cmpgt_insn[4] = {
+        OPC_PCMPGTB, OPC_PCMPGTW, OPC_PCMPGTD, OPC_PCMPGTQ
+    };
+
+    enum {
+        NEED_INV  = 1,
+        NEED_SWAP = 2,
+        NEED_UMIN = 4,
+        NEED_UMAX = 8,
+        INVALID   = 16,
+    };
+    static const uint8_t cond_fixup[16] = {
+        [0 ... 15] = INVALID,
+        [TCG_COND_EQ] = 0,
+        [TCG_COND_GT] = 0,
+        [TCG_COND_NE] = NEED_INV,
+        [TCG_COND_LE] = NEED_INV,
+        [TCG_COND_LT] = NEED_SWAP,
+        [TCG_COND_GE] = NEED_SWAP | NEED_INV,
+        [TCG_COND_LEU] = NEED_UMIN,
+        [TCG_COND_GTU] = NEED_UMIN | NEED_INV,
+        [TCG_COND_GEU] = NEED_UMAX,
+        [TCG_COND_LTU] = NEED_UMAX | NEED_INV,
+    };
+    int fixup = cond_fixup[cond];
+
+    assert(!(fixup & INVALID));
+
+    if (fixup & NEED_INV) {
+        cond = tcg_invert_cond(cond);
+    }
+
+    if (fixup & NEED_SWAP) {
+        TCGReg swap = v1;
+        v1 = v2;
+        v2 = swap;
+        cond = tcg_swap_cond(cond);
+    }
+
+    if (fixup & (NEED_UMIN | NEED_UMAX)) {
+        int op = (fixup & NEED_UMIN ? umin_insn[vece] : umax_insn[vece]);
+
+        /* avx2 does not have 64-bit min/max; adjusted during expand. */
+        assert(vece <= MO_32);
+
+        tcg_out_vex_modrm_type(s, op, TCG_TMP_VEC, v1, v2, type);
+        v2 = TCG_TMP_VEC;
+        cond = TCG_COND_EQ;
+    }
+
+    switch (cond) {
+    case TCG_COND_EQ:
+        tcg_out_vex_modrm_type(s, cmpeq_insn[vece], v0, v1, v2, type);
+        break;
+    case TCG_COND_GT:
+        tcg_out_vex_modrm_type(s, cmpgt_insn[vece], v0, v1, v2, type);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return fixup & NEED_INV;
+}
+
+static void tcg_out_cmp_vec_k1(TCGContext *s, TCGType type, unsigned vece,
+                               TCGReg v1, TCGReg v2, TCGCond cond)
+{
+    static const int cmpm_insn[2][4] = {
+        { OPC_VPCMPB, OPC_VPCMPW, OPC_VPCMPD, OPC_VPCMPQ },
+        { OPC_VPCMPUB, OPC_VPCMPUW, OPC_VPCMPUD, OPC_VPCMPUQ }
+    };
+    static const int testm_insn[4] = {
+        OPC_VPTESTMB, OPC_VPTESTMW, OPC_VPTESTMD, OPC_VPTESTMQ
+    };
+    static const int testnm_insn[4] = {
+        OPC_VPTESTNMB, OPC_VPTESTNMW, OPC_VPTESTNMD, OPC_VPTESTNMQ
+    };
+
+    static const int cond_ext[16] = {
+        [TCG_COND_EQ] = 0,
+        [TCG_COND_NE] = 4,
+        [TCG_COND_LT] = 1,
+        [TCG_COND_LTU] = 1,
+        [TCG_COND_LE] = 2,
+        [TCG_COND_LEU] = 2,
+        [TCG_COND_NEVER] = 3,
+        [TCG_COND_GE] = 5,
+        [TCG_COND_GEU] = 5,
+        [TCG_COND_GT] = 6,
+        [TCG_COND_GTU] = 6,
+        [TCG_COND_ALWAYS] = 7,
+    };
+
+    switch (cond) {
+    case TCG_COND_TSTNE:
+        tcg_out_vex_modrm_type(s, testm_insn[vece], /* k1 */ 1, v1, v2, type);
+        break;
+    case TCG_COND_TSTEQ:
+        tcg_out_vex_modrm_type(s, testnm_insn[vece], /* k1 */ 1, v1, v2, type);
+        break;
+    default:
+        tcg_out_vex_modrm_type(s, cmpm_insn[is_unsigned_cond(cond)][vece],
+                               /* k1 */ 1, v1, v2, type);
+        tcg_out8(s, cond_ext[cond]);
+        break;
+    }
+}
+
+static void tcg_out_k1_to_vec(TCGContext *s, TCGType type,
+                              unsigned vece, TCGReg dest)
+{
+    static const int movm_insn[] = {
+        OPC_VPMOVM2B, OPC_VPMOVM2W, OPC_VPMOVM2D, OPC_VPMOVM2Q
+    };
+    tcg_out_vex_modrm_type(s, movm_insn[vece], dest, 0, /* k1 */ 1, type);
+}
+
+static void tcg_out_cmp_vec(TCGContext *s, TCGType type, unsigned vece,
+                            TCGReg v0, TCGReg v1, TCGReg v2, TCGCond cond)
+{
+    /*
+     * With avx512, we have a complete set of comparisons into mask.
+     * Unless there's a single insn expansion for the comparision,
+     * expand via a mask in k1.
+     */
+    if ((vece <= MO_16 ? have_avx512bw : have_avx512dq)
+        && cond != TCG_COND_EQ
+        && cond != TCG_COND_LT
+        && cond != TCG_COND_GT) {
+        tcg_out_cmp_vec_k1(s, type, vece, v1, v2, cond);
+        tcg_out_k1_to_vec(s, type, vece, v0);
+        return;
+    }
+
+    if (tcg_out_cmp_vec_noinv(s, type, vece, v0, v1, v2, cond)) {
+        tcg_out_dupi_vec(s, type, vece, TCG_TMP_VEC, -1);
+        tcg_out_vex_modrm_type(s, OPC_PXOR, v0, v0, TCG_TMP_VEC, type);
+    }
+}
+
+static void tcg_out_cmpsel_vec_k1(TCGContext *s, TCGType type, unsigned vece,
+                                  TCGReg v0, TCGReg c1, TCGReg c2,
+                                  TCGReg v3, TCGReg v4, TCGCond cond)
+{
+    static const int vpblendm_insn[] = {
+        OPC_VPBLENDMB, OPC_VPBLENDMW, OPC_VPBLENDMD, OPC_VPBLENDMQ
+    };
+    bool z = false;
+
+    /* Swap to place constant in V4 to take advantage of zero-masking. */
+    if (!v3) {
+        z = true;
+        v3 = v4;
+        cond = tcg_invert_cond(cond);
+    }
+
+    tcg_out_cmp_vec_k1(s, type, vece, c1, c2, cond);
+    tcg_out_evex_modrm_type(s, vpblendm_insn[vece], v0, v4, v3,
+                            /* k1 */1, z, type);
+}
+
+static void tcg_out_cmpsel_vec(TCGContext *s, TCGType type, unsigned vece,
+                               TCGReg v0, TCGReg c1, TCGReg c2,
+                               TCGReg v3, TCGReg v4, TCGCond cond)
+{
+    bool inv;
+
+    if (vece <= MO_16 ? have_avx512bw : have_avx512vl) {
+        tcg_out_cmpsel_vec_k1(s, type, vece, v0, c1, c2, v3, v4, cond);
+        return;
+    }
+
+    inv = tcg_out_cmp_vec_noinv(s, type, vece, TCG_TMP_VEC, c1, c2, cond);
+
+    /*
+     * Since XMM0 is 16, the only way we get 0 into V3
+     * is via the constant zero constraint.
+     */
+    if (!v3) {
+        if (inv) {
+            tcg_out_vex_modrm_type(s, OPC_PAND, v0, TCG_TMP_VEC, v4, type);
+        } else {
+            tcg_out_vex_modrm_type(s, OPC_PANDN, v0, TCG_TMP_VEC, v4, type);
+        }
+    } else {
+        if (inv) {
+            TCGReg swap = v3;
+            v3 = v4;
+            v4 = swap;
+        }
+        tcg_out_vex_modrm_type(s, OPC_VPBLENDVB, v0, v4, v3, type);
+        tcg_out8(s, (TCG_TMP_VEC - TCG_REG_XMM0) << 4);
+    }
+}
+
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
                            const TCGArg args[TCG_MAX_OP_ARGS],
@@ -3050,12 +3306,6 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static int const shift_imm_insn[4] = {
         OPC_UD2, OPC_PSHIFTW_Ib, OPC_PSHIFTD_Ib, OPC_PSHIFTQ_Ib
     };
-    static int const cmpeq_insn[4] = {
-        OPC_PCMPEQB, OPC_PCMPEQW, OPC_PCMPEQD, OPC_PCMPEQQ
-    };
-    static int const cmpgt_insn[4] = {
-        OPC_PCMPGTB, OPC_PCMPGTW, OPC_PCMPGTD, OPC_PCMPGTQ
-    };
     static int const punpckl_insn[4] = {
         OPC_PUNPCKLBW, OPC_PUNPCKLWD, OPC_PUNPCKLDQ, OPC_PUNPCKLQDQ
     };
@@ -3073,12 +3323,6 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     };
     static int const smax_insn[4] = {
         OPC_PMAXSB, OPC_PMAXSW, OPC_PMAXSD, OPC_VPMAXSQ
-    };
-    static int const umin_insn[4] = {
-        OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_VPMINUQ
-    };
-    static int const umax_insn[4] = {
-        OPC_PMAXUB, OPC_PMAXUW, OPC_PMAXUD, OPC_VPMAXUQ
     };
     static int const rotlv_insn[4] = {
         OPC_UD2, OPC_UD2, OPC_VPROLVD, OPC_VPROLVQ
@@ -3231,29 +3475,21 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_simd;
     gen_simd:
         tcg_debug_assert(insn != OPC_UD2);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
+        tcg_out_vex_modrm_type(s, insn, a0, a1, a2, type);
         break;
 
     case INDEX_op_cmp_vec:
-        sub = args[3];
-        if (sub == TCG_COND_EQ) {
-            insn = cmpeq_insn[vece];
-        } else if (sub == TCG_COND_GT) {
-            insn = cmpgt_insn[vece];
-        } else {
-            g_assert_not_reached();
-        }
-        goto gen_simd;
+        tcg_out_cmp_vec(s, type, vece, a0, a1, a2, args[3]);
+        break;
+
+    case INDEX_op_cmpsel_vec:
+        tcg_out_cmpsel_vec(s, type, vece, a0, a1, a2,
+                           args[3], args[4], args[5]);
+        break;
 
     case INDEX_op_andc_vec:
         insn = OPC_PANDN;
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a2, a1);
+        tcg_out_vex_modrm_type(s, insn, a0, a2, a1, type);
         break;
 
     case INDEX_op_shli_vec:
@@ -3281,10 +3517,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_shift;
     gen_shift:
         tcg_debug_assert(vece != MO_8);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, sub, a0, a1);
+        tcg_out_vex_modrm_type(s, insn, sub, a0, a1, type);
         tcg_out8(s, a2);
         break;
 
@@ -3361,20 +3594,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     gen_simd_imm8:
         tcg_debug_assert(insn != OPC_UD2);
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
+        tcg_out_vex_modrm_type(s, insn, a0, a1, a2, type);
         tcg_out8(s, sub);
-        break;
-
-    case INDEX_op_x86_vpblendvb_vec:
-        insn = OPC_VPBLENDVB;
-        if (type == TCG_TYPE_V256) {
-            insn |= P_VEXL;
-        }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
-        tcg_out8(s, args[3] << 4);
         break;
 
     case INDEX_op_x86_psrldq_vec:
@@ -3642,8 +3863,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I3(x, 0, x, x);
 
     case INDEX_op_bitsel_vec:
-    case INDEX_op_x86_vpblendvb_vec:
         return C_O1_I3(x, x, x, x);
+    case INDEX_op_cmpsel_vec:
+        return C_O1_I4(x, x, x, xO, x);
 
     default:
         g_assert_not_reached();
@@ -3979,145 +4201,59 @@ static void expand_vec_mul(TCGType type, unsigned vece,
     }
 }
 
-static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
-                                 TCGv_vec v1, TCGv_vec v2, TCGCond cond)
+static TCGCond expand_vec_cond(TCGType type, unsigned vece,
+                               TCGArg *a1, TCGArg *a2, TCGCond cond)
 {
-    enum {
-        NEED_INV  = 1,
-        NEED_SWAP = 2,
-        NEED_BIAS = 4,
-        NEED_UMIN = 8,
-        NEED_UMAX = 16,
-    };
-    TCGv_vec t1, t2, t3;
-    uint8_t fixup;
+    /*
+     * Without AVX512, there are no 64-bit unsigned comparisons.
+     * We must bias the inputs so that they become signed.
+     * All other swapping and inversion are handled during code generation.
+     */
+    if (vece == MO_64 && !have_avx512dq && is_unsigned_cond(cond)) {
+        TCGv_vec v1 = temp_tcgv_vec(arg_temp(*a1));
+        TCGv_vec v2 = temp_tcgv_vec(arg_temp(*a2));
+        TCGv_vec t1 = tcg_temp_new_vec(type);
+        TCGv_vec t2 = tcg_temp_new_vec(type);
+        TCGv_vec t3 = tcg_constant_vec(type, vece, 1ull << ((8 << vece) - 1));
 
-    switch (cond) {
-    case TCG_COND_EQ:
-    case TCG_COND_GT:
-        fixup = 0;
-        break;
-    case TCG_COND_NE:
-    case TCG_COND_LE:
-        fixup = NEED_INV;
-        break;
-    case TCG_COND_LT:
-        fixup = NEED_SWAP;
-        break;
-    case TCG_COND_GE:
-        fixup = NEED_SWAP | NEED_INV;
-        break;
-    case TCG_COND_LEU:
-        if (tcg_can_emit_vec_op(INDEX_op_umin_vec, type, vece)) {
-            fixup = NEED_UMIN;
-        } else {
-            fixup = NEED_BIAS | NEED_INV;
-        }
-        break;
-    case TCG_COND_GTU:
-        if (tcg_can_emit_vec_op(INDEX_op_umin_vec, type, vece)) {
-            fixup = NEED_UMIN | NEED_INV;
-        } else {
-            fixup = NEED_BIAS;
-        }
-        break;
-    case TCG_COND_GEU:
-        if (tcg_can_emit_vec_op(INDEX_op_umax_vec, type, vece)) {
-            fixup = NEED_UMAX;
-        } else {
-            fixup = NEED_BIAS | NEED_SWAP | NEED_INV;
-        }
-        break;
-    case TCG_COND_LTU:
-        if (tcg_can_emit_vec_op(INDEX_op_umax_vec, type, vece)) {
-            fixup = NEED_UMAX | NEED_INV;
-        } else {
-            fixup = NEED_BIAS | NEED_SWAP;
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    if (fixup & NEED_INV) {
-        cond = tcg_invert_cond(cond);
-    }
-    if (fixup & NEED_SWAP) {
-        t1 = v1, v1 = v2, v2 = t1;
-        cond = tcg_swap_cond(cond);
-    }
-
-    t1 = t2 = NULL;
-    if (fixup & (NEED_UMIN | NEED_UMAX)) {
-        t1 = tcg_temp_new_vec(type);
-        if (fixup & NEED_UMIN) {
-            tcg_gen_umin_vec(vece, t1, v1, v2);
-        } else {
-            tcg_gen_umax_vec(vece, t1, v1, v2);
-        }
-        v2 = t1;
-        cond = TCG_COND_EQ;
-    } else if (fixup & NEED_BIAS) {
-        t1 = tcg_temp_new_vec(type);
-        t2 = tcg_temp_new_vec(type);
-        t3 = tcg_constant_vec(type, vece, 1ull << ((8 << vece) - 1));
         tcg_gen_sub_vec(vece, t1, v1, t3);
         tcg_gen_sub_vec(vece, t2, v2, t3);
-        v1 = t1;
-        v2 = t2;
+        *a1 = tcgv_vec_arg(t1);
+        *a2 = tcgv_vec_arg(t2);
         cond = tcg_signed_cond(cond);
     }
+    return cond;
+}
 
-    tcg_debug_assert(cond == TCG_COND_EQ || cond == TCG_COND_GT);
+static void expand_vec_cmp(TCGType type, unsigned vece, TCGArg a0,
+                           TCGArg a1, TCGArg a2, TCGCond cond)
+{
+    cond = expand_vec_cond(type, vece, &a1, &a2, cond);
     /* Expand directly; do not recurse.  */
-    vec_gen_4(INDEX_op_cmp_vec, type, vece,
-              tcgv_vec_arg(v0), tcgv_vec_arg(v1), tcgv_vec_arg(v2), cond);
-
-    if (t1) {
-        tcg_temp_free_vec(t1);
-        if (t2) {
-            tcg_temp_free_vec(t2);
-        }
-    }
-    return fixup & NEED_INV;
+    vec_gen_4(INDEX_op_cmp_vec, type, vece, a0, a1, a2, cond);
 }
 
-static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
-                           TCGv_vec v1, TCGv_vec v2, TCGCond cond)
+static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGArg a0,
+                              TCGArg a1, TCGArg a2,
+                              TCGArg a3, TCGArg a4, TCGCond cond)
 {
-    if (expand_vec_cmp_noinv(type, vece, v0, v1, v2, cond)) {
-        tcg_gen_not_vec(vece, v0, v0);
-    }
-}
-
-static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGv_vec v0,
-                              TCGv_vec c1, TCGv_vec c2,
-                              TCGv_vec v3, TCGv_vec v4, TCGCond cond)
-{
-    TCGv_vec t = tcg_temp_new_vec(type);
-
-    if (expand_vec_cmp_noinv(type, vece, t, c1, c2, cond)) {
-        /* Invert the sense of the compare by swapping arguments.  */
-        TCGv_vec x;
-        x = v3, v3 = v4, v4 = x;
-    }
-    vec_gen_4(INDEX_op_x86_vpblendvb_vec, type, vece,
-              tcgv_vec_arg(v0), tcgv_vec_arg(v4),
-              tcgv_vec_arg(v3), tcgv_vec_arg(t));
-    tcg_temp_free_vec(t);
+    cond = expand_vec_cond(type, vece, &a1, &a2, cond);
+    /* Expand directly; do not recurse.  */
+    vec_gen_6(INDEX_op_cmpsel_vec, type, vece, a0, a1, a2, a3, a4, cond);
 }
 
 void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
                        TCGArg a0, ...)
 {
     va_list va;
-    TCGArg a2;
-    TCGv_vec v0, v1, v2, v3, v4;
+    TCGArg a1, a2, a3, a4, a5;
+    TCGv_vec v0, v1, v2;
 
     va_start(va, a0);
-    v0 = temp_tcgv_vec(arg_temp(a0));
-    v1 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
+    a1 = va_arg(va, TCGArg);
     a2 = va_arg(va, TCGArg);
+    v0 = temp_tcgv_vec(arg_temp(a0));
+    v1 = temp_tcgv_vec(arg_temp(a1));
 
     switch (opc) {
     case INDEX_op_shli_vec:
@@ -4153,15 +4289,15 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         break;
 
     case INDEX_op_cmp_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_cmp(type, vece, v0, v1, v2, va_arg(va, TCGArg));
+        a3 = va_arg(va, TCGArg);
+        expand_vec_cmp(type, vece, a0, a1, a2, a3);
         break;
 
     case INDEX_op_cmpsel_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        v3 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
-        v4 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
-        expand_vec_cmpsel(type, vece, v0, v1, v2, v3, v4, va_arg(va, TCGArg));
+        a3 = va_arg(va, TCGArg);
+        a4 = va_arg(va, TCGArg);
+        a5 = va_arg(va, TCGArg);
+        expand_vec_cmpsel(type, vece, a0, a1, a2, a3, a4, a5);
         break;
 
     default:
