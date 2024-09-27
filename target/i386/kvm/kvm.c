@@ -5225,6 +5225,7 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_msr_feature_control(x86_cpu);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to set feature control MSR");
             return ret;
         }
     }
@@ -5232,12 +5233,14 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
     /* must be before kvm_put_nested_state so that EFER.SVME is set */
     ret = has_sregs2 ? kvm_put_sregs2(x86_cpu) : kvm_put_sregs(x86_cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set special registers");
         return ret;
     }
 
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_nested_state(x86_cpu);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to set nested state");
             return ret;
         }
     }
@@ -5255,6 +5258,7 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
     if (xen_mode == XEN_EMULATE && level == KVM_PUT_FULL_STATE) {
         ret = kvm_put_xen_state(cpu);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to set Xen state");
             return ret;
         }
     }
@@ -5262,37 +5266,45 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
 
     ret = kvm_getput_regs(x86_cpu, 1);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set general purpose registers");
         return ret;
     }
     ret = kvm_put_xsave(x86_cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set XSAVE");
         return ret;
     }
     ret = kvm_put_xcrs(x86_cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set XCRs");
         return ret;
     }
     ret = kvm_put_msrs(x86_cpu, level);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set MSRs");
         return ret;
     }
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set vCPU events");
         return ret;
     }
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_mp_state(x86_cpu);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to set MP state");
             return ret;
         }
     }
 
     ret = kvm_put_tscdeadline_msr(x86_cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set TSC deadline MSR");
         return ret;
     }
     ret = kvm_put_debugregs(x86_cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to set debug registers");
         return ret;
     }
     return 0;
@@ -5307,6 +5319,7 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
 
     ret = kvm_get_vcpu_events(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get vCPU events");
         goto out;
     }
     /*
@@ -5315,44 +5328,54 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
      */
     ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get MP state");
         goto out;
     }
     ret = kvm_getput_regs(cpu, 0);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get general purpose registers");
         goto out;
     }
     ret = kvm_get_xsave(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get XSAVE");
         goto out;
     }
     ret = kvm_get_xcrs(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get XCRs");
         goto out;
     }
     ret = has_sregs2 ? kvm_get_sregs2(cpu) : kvm_get_sregs(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get special registers");
         goto out;
     }
     ret = kvm_get_msrs(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get MSRs");
         goto out;
     }
     ret = kvm_get_apic(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get APIC");
         goto out;
     }
     ret = kvm_get_debugregs(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get debug registers");
         goto out;
     }
     ret = kvm_get_nested_state(cpu);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get nested state");
         goto out;
     }
 #ifdef CONFIG_XEN_EMU
     if (xen_mode == XEN_EMULATE) {
         ret = kvm_get_xen_state(cs);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to get Xen state");
             goto out;
         }
     }
