@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/qdev-properties.h"
+#include "kvm/kvm_i386.h"
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -1650,6 +1651,16 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
                           s, "amdvi-ir", AMDVI_INT_ADDR_SIZE);
     memory_region_add_subregion_overlap(&s->mr_sys, AMDVI_INT_ADDR_FIRST,
                                         &s->mr_ir, 1);
+
+    /* AMD IOMMU with x2APIC mode requires xtsup=on */
+    if (x86ms->apic_id_limit > 255 && !s->xtsup) {
+        error_report("AMD IOMMU with x2APIC confguration requires xtsup=on");
+        exit(EXIT_FAILURE);
+    }
+    if (s->xtsup && kvm_irqchip_is_split() && !kvm_enable_x2apic()) {
+        error_report("AMD IOMMU xtsup=on requires support on the KVM side");
+        exit(EXIT_FAILURE);
+    }
 
     pci_setup_iommu(bus, &amdvi_iommu_ops, s);
     amdvi_init(s);
