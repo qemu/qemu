@@ -17,6 +17,18 @@ class LinuxKernelTest(QemuSystemTest):
                                  failure_message='Kernel panic - not syncing',
                                  vm=vm)
 
+    def launch_kernel(self, kernel, initrd=None, dtb=None, console_index=0,
+                      wait_for=None):
+        self.vm.set_console(console_index=console_index)
+        self.vm.add_args('-kernel', kernel)
+        if initrd:
+                self.vm.add_args('-initrd', initrd)
+        if dtb:
+                self.vm.add_args('-dtb', dtb)
+        self.vm.launch()
+        if wait_for:
+                self.wait_for_console_pattern(wait_for)
+
     def extract_from_deb(self, deb_path, path):
         """
         Extracts a file from a deb package into the test workdir

@@ -188,6 +188,7 @@ build-previous-qemu:
     # Override the default flags as we need more to grab the old version
     GIT_FETCH_EXTRA_FLAGS: --prune --quiet
   before_script:
+    - source scripts/ci/gitlab-ci-section
     - export QEMU_PREV_VERSION="$(sed 's/\([0-9.]*\)\.[0-9]*/v\1.0/' VERSION)"
     - git remote add upstream https://gitlab.com/qemu-project/qemu
     - git fetch upstream refs/tags/$QEMU_PREV_VERSION:refs/tags/$QEMU_PREV_VERSION

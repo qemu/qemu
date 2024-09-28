@@ -46,14 +46,12 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 /* kvm-all wants this */
 MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
 {
-    g_assert(false);
-    return (MSIMessage){};
+    g_assert_not_reached();
 }
 
 uint16_t pci_requester_id(PCIDevice *dev)
 {
-    g_assert(false);
-    return 0;
+    g_assert_not_reached();
 }
 
 /* Required by ahci.c */

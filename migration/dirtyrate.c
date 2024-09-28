@@ -228,8 +228,7 @@ static int time_unit_to_power(TimeUnit time_unit)
     case TIME_UNIT_MILLISECOND:
         return -3;
     default:
-        assert(false); /* unreachable */
-        return 0;
+        g_assert_not_reached();
     }
 }
 

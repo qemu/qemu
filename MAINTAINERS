@@ -1005,6 +1005,7 @@ S: Maintained
 F: hw/arm/vexpress.c
 F: hw/display/sii9022.c
 F: docs/system/arm/vexpress.rst
+F: tests/functional/test_arm_vexpress.py
 
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1444,6 +1445,7 @@ F: pc-bios/u-boot.e500
 F: hw/intc/openpic_kvm.c
 F: include/hw/ppc/openpic_kvm.h
 F: docs/system/ppc/ppce500.rst
+F: tests/functional/test_ppc64_e500.py
 
 mpc8544ds
 L: qemu-ppc@nongnu.org
@@ -1472,6 +1474,7 @@ F: include/hw/ppc/mac_dbdma.h
 F: include/hw/pci-host/uninorth.h
 F: include/hw/input/adb*
 F: pc-bios/qemu_vga.ndrv
+F: tests/functional/test_ppc_mac.py
 
 Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1487,6 +1490,7 @@ F: include/hw/intc/heathrow_pic.h
 F: include/hw/input/adb*
 F: include/hw/pci-host/grackle.h
 F: pc-bios/qemu_vga.ndrv
+F: tests/functional/test_ppc_mac.py
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
@@ -1675,6 +1679,7 @@ F: hw/pci-host/sh_pci.c
 F: hw/timer/sh_timer.c
 F: include/hw/sh4/sh_intc.h
 F: include/hw/timer/tmu012.h
+F: tests/functional/test_sh4_r2d.py
 
 SPARC Machines
 --------------
@@ -1692,6 +1697,7 @@ F: include/hw/nvram/sun_nvram.h
 F: include/hw/sparc/sparc32_dma.h
 F: include/hw/sparc/sun4m_iommu.h
 F: pc-bios/openbios-sparc32
+F: tests/functional/test_sparc_sun4m.py
 
 Sun4u
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1914,6 +1920,7 @@ S: Maintained
 F: hw/xtensa/xtfpga.c
 F: hw/net/opencores_eth.c
 F: include/hw/xtensa/mx_pic.h
+F: tests/functional/test_xtensa_lx60.py
 
 Devices
 -------

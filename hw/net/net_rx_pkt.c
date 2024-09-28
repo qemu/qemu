@@ -375,8 +375,7 @@ net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
         _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
         break;
     default:
-        assert(false);
-        break;
+        g_assert_not_reached();
     }
 
     net_toeplitz_key_init(&key_data, key);
