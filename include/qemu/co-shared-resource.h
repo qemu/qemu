@@ -45,13 +45,6 @@ SharedResource *shres_create(uint64_t total);
 void shres_destroy(SharedResource *s);
 
 /*
- * Try to allocate an amount of @n.  Return true on success, and false
- * if there is too little left of the collective resource to fulfill
- * the request.
- */
-bool co_try_get_from_shres(SharedResource *s, uint64_t n);
-
-/*
  * Allocate an amount of @n, and, if necessary, yield until
  * that becomes possible.
  */
