@@ -179,16 +179,17 @@ bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
 
     if (!vfio_cpr_supported(container, cpr_blocker)) {
         return migrate_add_blocker_modes(cpr_blocker, errp,
-                                         MIG_MODE_CPR_TRANSFER, -1) == 0;
+                                         MIG_MODE_CPR_TRANSFER,
+                                         MIG_MODE_CPR_EXEC, -1) == 0;
     }
 
     vfio_cpr_add_kvm_notifier();
 
     vmstate_register(NULL, -1, &vfio_container_vmstate, container);
 
-    migration_add_notifier_mode(&container->cpr.transfer_notifier,
-                                vfio_cpr_fail_notifier,
-                                MIG_MODE_CPR_TRANSFER);
+    migration_add_notifier_modes(&container->cpr.transfer_notifier,
+                                 vfio_cpr_fail_notifier,
+                                 MIG_MODE_CPR_TRANSFER, MIG_MODE_CPR_EXEC, -1);
     return true;
 }
 
