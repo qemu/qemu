@@ -34,6 +34,55 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+static int kvm_get_stealtime(CPUState *cs)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    int err;
+    struct kvm_device_attr attr = {
+        .group = KVM_LOONGARCH_VCPU_PVTIME_CTRL,
+        .attr = KVM_LOONGARCH_VCPU_PVTIME_GPA,
+        .addr = (uint64_t)&env->stealtime.guest_addr,
+    };
+
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    if (err) {
+        return 0;
+    }
+
+    err = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, attr);
+    if (err) {
+        error_report("PVTIME: KVM_GET_DEVICE_ATTR: %s", strerror(errno));
+        return err;
+    }
+
+    return 0;
+}
+
+static int kvm_set_stealtime(CPUState *cs)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    int err;
+    struct kvm_device_attr attr = {
+        .group = KVM_LOONGARCH_VCPU_PVTIME_CTRL,
+        .attr = KVM_LOONGARCH_VCPU_PVTIME_GPA,
+        .addr = (uint64_t)&env->stealtime.guest_addr,
+    };
+
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    if (err) {
+        return 0;
+    }
+
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
+    if (err) {
+        error_report("PVTIME: KVM_SET_DEVICE_ATTR %s with gpa "TARGET_FMT_lx,
+                      strerror(errno), env->stealtime.guest_addr);
+        return err;
+    }
+
+    return 0;
+}
+
 static int kvm_loongarch_get_regs_core(CPUState *cs)
 {
     int ret = 0;
@@ -670,6 +719,11 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
         return ret;
     }
 
+    ret = kvm_get_stealtime(cs);
+    if (ret) {
+        return ret;
+    }
+
     ret = kvm_loongarch_get_mpstate(cs);
     return ret;
 }
@@ -701,6 +755,17 @@ int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
     ret = kvm_loongarch_put_lbt(cs);
     if (ret) {
         return ret;
+    }
+
+    if (level >= KVM_PUT_FULL_STATE) {
+        /*
+         * only KVM_PUT_FULL_STATE is required, kvm kernel will clear
+         * guest_addr for KVM_PUT_RESET_STATE
+         */
+        ret = kvm_set_stealtime(cs);
+        if (ret) {
+            return ret;
+        }
     }
 
     ret = kvm_loongarch_put_mpstate(cs);

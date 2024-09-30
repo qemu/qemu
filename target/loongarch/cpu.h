@@ -364,6 +364,9 @@ typedef struct CPUArchState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+    struct {
+        uint64_t guest_addr;
+    } stealtime;
 
 #ifdef CONFIG_TCG
     float_status fp_status;
