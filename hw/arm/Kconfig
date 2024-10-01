@@ -37,13 +37,6 @@ config ARM_VIRT
     select ACPI_CXL
     select ACPI_HMAT
 
-config CHEETAH
-    bool
-    default y
-    depends on TCG && ARM
-    select OMAP
-    select TSC210X
-
 config CUBIEBOARD
     bool
     default y
@@ -101,14 +94,6 @@ config INTEGRATOR
     select PL181 # display
     select SMC91C111
 
-config MAINSTONE
-    bool
-    default y
-    depends on TCG && ARM
-    select PXA2XX
-    select PFLASH_CFI01
-    select SMC91C111
-
 config MPS3R
     bool
     default y
@@ -157,20 +142,6 @@ config OLIMEX_STM32_H405
     depends on TCG && ARM
     select STM32F405_SOC
 
-config NSERIES
-    bool
-    default y
-    depends on TCG && ARM
-    select OMAP
-    select TMP105   # temperature sensor
-    select BLIZZARD # LCD/TV controller
-    select ONENAND
-    select TSC210X  # touchscreen/sensors/audio
-    select TSC2005  # touchscreen/sensors/keypad
-    select LM832X   # GPIO keyboard chip
-    select TWL92230 # energy-management
-    select TUSB6010
-
 config OMAP
     bool
     select FRAMEBUFFER
@@ -180,56 +151,6 @@ config OMAP
     select PFLASH_CFI01
     select SD
     select SERIAL
-
-config PXA2XX
-    bool
-    select FRAMEBUFFER
-    select I2C
-    select SERIAL
-    select SD
-    select SSI
-    select USB_OHCI_SYSBUS
-    select PCMCIA
-
-config GUMSTIX
-    bool
-    default y
-    depends on TCG && ARM
-    select PFLASH_CFI01
-    select SMC91C111
-    select PXA2XX
-
-config TOSA
-    bool
-    default y
-    depends on TCG && ARM
-    select ZAURUS  # scoop
-    select MICRODRIVE
-    select PXA2XX
-    select LED
-
-config SPITZ
-    bool
-    default y
-    depends on TCG && ARM
-    select ADS7846 # touch-screen controller
-    select MAX111X # A/D converter
-    select WM8750  # audio codec
-    select MAX7310 # GPIO expander
-    select ZAURUS  # scoop
-    select NAND    # memory
-    select ECC     # Error-correcting for NAND
-    select MICRODRIVE
-    select PXA2XX
-
-config Z2
-    bool
-    default y
-    depends on TCG && ARM
-    select PFLASH_CFI01
-    select WM8750
-    select PL011 # UART
-    select PXA2XX
 
 config REALVIEW
     bool
@@ -316,14 +237,15 @@ config STM32VLDISCOVERY
 
 config STRONGARM
     bool
-    select PXA2XX
+    select PXA2XX_TIMER
+    select SSI
 
 config COLLIE
     bool
     default y
     depends on TCG && ARM
     select PFLASH_CFI01
-    select ZAURUS  # scoop
+    select ZAURUS_SCOOP
     select STRONGARM
 
 config SX1
@@ -684,11 +606,6 @@ config MSF2
     select SERIAL
     select SSI
     select UNIMP
-
-config ZAURUS
-    bool
-    select NAND
-    select ECC
 
 config ARMSSE
     bool

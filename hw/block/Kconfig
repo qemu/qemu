@@ -25,9 +25,6 @@ config PFLASH_CFI02
 config ECC
     bool
 
-config ONENAND
-    bool
-
 config VIRTIO_BLK
     bool
     default y

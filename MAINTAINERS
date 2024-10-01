@@ -706,6 +706,14 @@ F: include/hw/timer/armv7m_systick.h
 F: include/hw/misc/armv7m_ras.h
 F: tests/qtest/test-arm-mptimer.c
 
+B-L475E-IOT01A IoT Node
+M: Samuel Tardieu <sam@rfc1149.net>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/b-l475e-iot01a.c
+F: hw/display/dm163.c
+F: tests/qtest/dm163-test.c
+
 Exynos
 M: Igor Mitsyanko <i.mitsyanko@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -741,14 +749,6 @@ L: qemu-riscv@nongnu.org
 S: Maintained
 F: hw/rtc/goldfish_rtc.c
 F: include/hw/rtc/goldfish_rtc.h
-
-Gumstix
-M: Peter Maydell <peter.maydell@linaro.org>
-R: Philippe Mathieu-Daudé <philmd@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/gumstix.c
-F: docs/system/arm/gumstix.rst
 
 i.MX25 PDK
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -870,32 +870,6 @@ F: pc-bios/npcm7xx_bootrom.bin
 F: roms/vbootrom
 F: docs/system/arm/nuvoton.rst
 
-nSeries
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/nseries.c
-F: hw/display/blizzard.c
-F: hw/input/lm832x.c
-F: hw/input/tsc2005.c
-F: hw/misc/cbus.c
-F: hw/rtc/twl92230.c
-F: include/hw/display/blizzard.h
-F: include/hw/input/lm832x.h
-F: include/hw/input/tsc2xxx.h
-F: include/hw/misc/cbus.h
-F: tests/avocado/machine_arm_n8x0.py
-F: docs/system/arm/nseries.rst
-
-Palm
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/palm.c
-F: hw/input/tsc210x.c
-F: include/hw/input/tsc2xxx.h
-F: docs/system/arm/palm.rst
-
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
@@ -920,28 +894,6 @@ F: hw/cpu/realview_mpcore.c
 F: hw/intc/realview_gic.c
 F: include/hw/intc/realview_gic.h
 F: docs/system/arm/realview.rst
-
-PXA2XX
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/mainstone.c
-F: hw/arm/spitz.c
-F: hw/arm/tosa.c
-F: hw/arm/z2.c
-F: hw/*/pxa2xx*
-F: hw/display/tc6393xb.c
-F: hw/gpio/max7310.c
-F: hw/gpio/zaurus.c
-F: hw/input/ads7846.c
-F: hw/misc/mst_fpga.c
-F: hw/adc/max111x.c
-F: include/hw/adc/max111x.h
-F: include/hw/arm/pxa.h
-F: include/hw/arm/sharpsl.h
-F: include/hw/display/tc6393xb.h
-F: docs/system/arm/xscale.rst
-F: docs/system/arm/mainstone.rst
 
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -979,6 +931,8 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/collie.c
 F: hw/arm/strongarm*
+F: hw/gpio/zaurus.c
+F: include/hw/arm/sharpsl.h
 F: docs/system/arm/collie.rst
 
 Stellaris
@@ -990,6 +944,19 @@ F: hw/display/ssd03*
 F: include/hw/input/gamepad.h
 F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
+
+STM32L4x5 SoC Family
+M: Samuel Tardieu <sam@rfc1149.net>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/stm32l4x5_soc.c
+F: hw/char/stm32l4x5_usart.c
+F: hw/misc/stm32l4x5_exti.c
+F: hw/misc/stm32l4x5_syscfg.c
+F: hw/misc/stm32l4x5_rcc.c
+F: hw/gpio/stm32l4x5_gpio.c
+F: include/hw/*/stm32l4x5_*.h
+F: tests/qtest/stm32l4x5*
 
 STM32VLDISCOVERY
 M: Alexandre Iooss <erdnaxe@crans.org>
@@ -1117,26 +1084,6 @@ M: Felipe Balbi <balbi@kernel.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/olimex-stm32-h405.c
-
-STM32L4x5 SoC Family
-M: Arnaud Minier <arnaud.minier@telecom-paris.fr>
-M: Inès Varhol <ines.varhol@telecom-paris.fr>
-L: qemu-arm@nongnu.org
-S: Maintained
-F: hw/arm/stm32l4x5_soc.c
-F: hw/char/stm32l4x5_usart.c
-F: hw/misc/stm32l4x5_exti.c
-F: hw/misc/stm32l4x5_syscfg.c
-F: hw/misc/stm32l4x5_rcc.c
-F: hw/gpio/stm32l4x5_gpio.c
-F: include/hw/*/stm32l4x5_*.h
-
-B-L475E-IOT01A IoT Node
-M: Arnaud Minier <arnaud.minier@telecom-paris.fr>
-M: Inès Varhol <ines.varhol@telecom-paris.fr>
-L: qemu-arm@nongnu.org
-S: Maintained
-F: hw/arm/b-l475e-iot01a.c
 
 SmartFusion2
 M: Subbaraya Sundeep <sundeep.lkml@gmail.com>

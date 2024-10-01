@@ -12,7 +12,6 @@
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
-#include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -55,7 +54,6 @@
 #define OSNR	0x20
 
 #define PXA25X_FREQ	3686400	/* 3.6864 MHz */
-#define PXA27X_FREQ	3250000	/* 3.25 MHz */
 
 static int pxa2xx_timer4_freq[8] = {
     [0] = 0,
@@ -573,28 +571,6 @@ static const TypeInfo pxa25x_timer_dev_info = {
     .class_init    = pxa25x_timer_dev_class_init,
 };
 
-static Property pxa27x_timer_dev_properties[] = {
-    DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA27X_FREQ),
-    DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
-                    PXA2XX_TIMER_HAVE_TM4, true),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void pxa27x_timer_dev_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->desc = "PXA27x timer";
-    device_class_set_props(dc, pxa27x_timer_dev_properties);
-}
-
-static const TypeInfo pxa27x_timer_dev_info = {
-    .name          = "pxa27x-timer",
-    .parent        = TYPE_PXA2XX_TIMER,
-    .instance_size = sizeof(PXA2xxTimerInfo),
-    .class_init    = pxa27x_timer_dev_class_init,
-};
-
 static void pxa2xx_timer_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -616,7 +592,6 @@ static void pxa2xx_timer_register_types(void)
 {
     type_register_static(&pxa2xx_timer_type_info);
     type_register_static(&pxa25x_timer_dev_info);
-    type_register_static(&pxa27x_timer_dev_info);
 }
 
 type_init(pxa2xx_timer_register_types)

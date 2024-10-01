@@ -774,16 +774,9 @@ static uint32_t sd_blk_len(SDState *sd)
  */
 static uint32_t sd_bootpart_offset(SDState *sd)
 {
-    bool partitions_enabled;
     unsigned partition_access;
 
     if (!sd->boot_part_size || !sd_is_emmc(sd)) {
-        return 0;
-    }
-
-    partitions_enabled = sd->ext_csd[EXT_CSD_PART_CONFIG]
-                                   & EXT_CSD_PART_CONFIG_EN_MASK;
-    if (!partitions_enabled) {
         return 0;
     }
 

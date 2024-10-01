@@ -62,9 +62,6 @@ uint32_t nand_getbuswidth(DeviceState *dev);
 #define NAND_MFR_HYNIX      0xad
 #define NAND_MFR_MICRON     0x2c
 
-/* onenand.c */
-void *onenand_raw_otp(DeviceState *onenand_device);
-
 /* ecc.c */
 typedef struct {
     uint8_t cp;     /* Column parity */
