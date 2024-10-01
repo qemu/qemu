@@ -30,6 +30,7 @@
 void nvme_ns_init_format(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdNsNvm *id_ns_nvm = &ns->id_ns_nvm;
     BlockDriverInfo bdi;
     int npdg, ret;
     int64_t nlbas;
@@ -55,6 +56,8 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
+    id_ns_nvm->npdal = npdg;
+    id_ns_nvm->npdgl = npdg;
 }
 
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
@@ -73,7 +76,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     ns->id_ns.dlfeat = 0x1;
 
     /* support DULBE and I/O optimization fields */
-    id_ns->nsfeat |= (0x4 | 0x10);
+    id_ns->nsfeat |= (NVME_ID_NS_NSFEAT_DAE | NVME_ID_NS_NSFEAT_OPTPERF_ALL);
 
     if (ns->params.shared) {
         id_ns->nmic |= NVME_ID_NS_IND_NMIC_SHRNS;

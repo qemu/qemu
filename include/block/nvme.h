@@ -1418,7 +1418,12 @@ typedef struct QEMU_PACKED NvmeIdNsNvm {
     uint8_t     pic;
     uint8_t     rsvd9[3];
     uint32_t    elbaf[NVME_MAX_NLBAF];
-    uint8_t     rsvd268[3828];
+    uint32_t    npdgl;
+    uint32_t    nprg;
+    uint32_t    npra;
+    uint32_t    nors;
+    uint32_t    npdal;
+    uint8_t     rsvd288[3808];
 } NvmeIdNsNvm;
 
 typedef struct QEMU_PACKED NvmeIdNsInd {
@@ -1534,6 +1539,16 @@ enum NvmeIdNsFlbas {
 enum NvmeIdNsMc {
     NVME_ID_NS_MC_EXTENDED = 1 << 0,
     NVME_ID_NS_MC_SEPARATE = 1 << 1,
+};
+
+enum NvmeIdNsNsfeat {
+    NVME_ID_NS_NSFEAT_THINP         = 1 << 0,
+    NVME_ID_NS_NSFEAT_NSABPNS       = 1 << 1,
+    NVME_ID_NS_NSFEAT_DAE           = 1 << 2,
+    NVME_ID_NS_NSFEAT_UIDREUSE      = 1 << 3,
+    NVME_ID_NS_NSFEAT_OPTPERF_ALL   = 3 << 4,
+    NVME_ID_NS_NSFEAT_MAM           = 1 << 6,
+    NVME_ID_NS_NSFEAT_OPTRPERF      = 1 << 7,
 };
 
 #define NVME_ID_NS_DPS_TYPE(dps) (dps & NVME_ID_NS_DPS_TYPE_MASK)
