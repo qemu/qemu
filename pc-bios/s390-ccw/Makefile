@@ -4,6 +4,7 @@ all: build-all
 
 include config-host.mak
 CFLAGS = -O2 -g -I $(SRC_PATH)/../../include/hw/s390x/ipl
+LDFLAGS ?=
 MAKEFLAGS += -rR
 
 GIT_SUBMODULES = roms/SLOF
@@ -46,7 +47,7 @@ EXTRA_CFLAGS += -fwrapv -fno-strict-aliasing -fno-asynchronous-unwind-tables
 EXTRA_CFLAGS += -msoft-float
 EXTRA_CFLAGS += -std=gnu99
 EXTRA_CFLAGS += $(LIBC_INC) $(LIBNET_INC)
-LDFLAGS += -Wl,-pie -nostdlib -z noexecstack -z text
+EXTRA_LDFLAGS += -Wl,-pie -nostdlib -z noexecstack -z text
 
 cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>/dev/null
 cc-option = if $(call cc-test, $1); then \
@@ -111,7 +112,7 @@ libnet.a: $(LIBNETOBJS)
 build-all: s390-ccw.img
 
 s390-ccw.elf: $(OBJECTS) libnet.a libc.a
-	$(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^,Linking)
+	$(call quiet-command,$(CC) $(EXTRA_LDFLAGS) $(LDFLAGS) -o $@ $^,Linking)
 
 s390-ccw.img: s390-ccw.elf
 	$(call quiet-command,$(STRIP) --strip-unneeded $< -o $@,Stripping $< into)
