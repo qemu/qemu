@@ -34,7 +34,6 @@ static const struct SyscallInfo arch_syscall_info[] = {
     { "arm", 4 },
     { "armeb", 4 },
     { "avr", -1 },
-    { "cris", -1 },
     { "hexagon", 64 },
     { "hppa", -1 },
     { "i386", 4 },
