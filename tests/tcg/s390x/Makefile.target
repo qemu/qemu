@@ -48,6 +48,7 @@ TESTS+=lae
 TESTS+=cvd
 TESTS+=cvb
 TESTS+=ts
+TESTS+=ex-smc
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
