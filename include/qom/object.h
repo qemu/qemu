@@ -1569,8 +1569,8 @@ char *object_get_canonical_path(const Object *obj);
 /**
  * object_resolve_path:
  * @path: the path to resolve
- * @ambiguous: returns true if the path resolution failed because of an
- *   ambiguous match
+ * @ambiguous: (out) (optional): location to store whether the lookup failed
+ *   because it was ambiguous, or %NULL. Set to %false on success.
  *
  * There are two types of supported paths--absolute paths and partial paths.
  * 
@@ -1587,7 +1587,7 @@ char *object_get_canonical_path(const Object *obj);
  * only one match is found.  If more than one match is found, a flag is
  * returned to indicate that the match was ambiguous.
  *
- * Returns: The matched object or NULL on path lookup failure.
+ * Returns: The matched object or %NULL on path lookup failure.
  */
 Object *object_resolve_path(const char *path, bool *ambiguous);
 
@@ -1595,10 +1595,10 @@ Object *object_resolve_path(const char *path, bool *ambiguous);
  * object_resolve_path_type:
  * @path: the path to resolve
  * @typename: the type to look for.
- * @ambiguous: returns true if the path resolution failed because of an
- *   ambiguous match
+ * @ambiguous: (out) (optional): location to store whether the lookup failed
+ *   because it was ambiguous, or %NULL. Set to %false on success.
  *
- * This is similar to object_resolve_path.  However, when looking for a
+ * This is similar to object_resolve_path().  However, when looking for a
  * partial path only matches that implement the given type are considered.
  * This restricts the search and avoids spuriously flagging matches as
  * ambiguous.
