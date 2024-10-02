@@ -2201,6 +2201,9 @@ Object *object_resolve_path_type(const char *path, const char *typename,
         }
     } else {
         obj = object_resolve_abs_path(object_get_root(), parts + 1, typename);
+        if (ambiguous) {
+            *ambiguous = false;
+        }
     }
 
     g_strfreev(parts);
