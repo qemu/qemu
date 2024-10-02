@@ -466,6 +466,7 @@ struct kvm_sync_regs {
 /* vendor-specific groups and attributes for system fd */
 #define KVM_X86_GRP_SEV			1
 #  define KVM_X86_SEV_VMSA_FEATURES	0
+#  define KVM_X86_SEV_SNP_INIT_FLAGS	1
 
 struct kvm_vmx_nested_state_data {
 	__u8 vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
@@ -707,6 +708,8 @@ enum sev_cmd_id {
 	KVM_SEV_SNP_LAUNCH_UPDATE,
 	KVM_SEV_SNP_LAUNCH_FINISH,
 
+	KVM_SEV_SNP_LAUNCH_UPDATE_VMPLS,
+
 	KVM_SEV_NR_MAX,
 };
 
@@ -845,6 +848,7 @@ struct kvm_sev_snp_launch_start {
 /* Kept in sync with firmware values for simplicity. */
 #define KVM_SEV_PAGE_TYPE_INVALID		0x0
 #define KVM_SEV_SNP_PAGE_TYPE_NORMAL		0x1
+#define KVM_SEV_SNP_PAGE_TYPE_VMSA		0x2
 #define KVM_SEV_SNP_PAGE_TYPE_ZERO		0x3
 #define KVM_SEV_SNP_PAGE_TYPE_UNMEASURED	0x4
 #define KVM_SEV_SNP_PAGE_TYPE_SECRETS		0x5
@@ -857,8 +861,15 @@ struct kvm_sev_snp_launch_update {
 	__u8 type;
 	__u8 pad0;
 	__u16 flags;
-	__u32 pad1;
+	__u32 vcpu_id;
 	__u64 pad2[4];
+};
+
+struct kvm_sev_snp_launch_update_vmpls {
+	struct kvm_sev_snp_launch_update lu;
+	__u8 vmpl3_perms;
+	__u8 vmpl2_perms;
+	__u8 vmpl1_perms;
 };
 
 #define KVM_SEV_SNP_ID_BLOCK_SIZE	96
