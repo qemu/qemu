@@ -2184,7 +2184,7 @@ static Object *object_resolve_partial_path(Object *parent,
 }
 
 Object *object_resolve_path_type(const char *path, const char *typename,
-                                 bool *ambiguousp)
+                                 bool *ambiguous)
 {
     Object *obj;
     char **parts;
@@ -2193,11 +2193,11 @@ Object *object_resolve_path_type(const char *path, const char *typename,
     assert(parts);
 
     if (parts[0] == NULL || strcmp(parts[0], "") != 0) {
-        bool ambiguous = false;
+        bool ambig = false;
         obj = object_resolve_partial_path(object_get_root(), parts,
-                                          typename, &ambiguous);
-        if (ambiguousp) {
-            *ambiguousp = ambiguous;
+                                          typename, &ambig);
+        if (ambiguous) {
+            *ambiguous = ambig;
         }
     } else {
         obj = object_resolve_abs_path(object_get_root(), parts + 1, typename);
