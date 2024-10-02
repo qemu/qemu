@@ -128,11 +128,11 @@ char *riscv_find_firmware(const char *firmware_filename,
 
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
-                                          hwaddr firmware_load_addr,
+                                          hwaddr *firmware_load_addr,
                                           symbol_fn_t sym_cb)
 {
     char *firmware_filename;
-    target_ulong firmware_end_addr = firmware_load_addr;
+    target_ulong firmware_end_addr = *firmware_load_addr;
 
     firmware_filename = riscv_find_firmware(machine->firmware,
                                             default_machine_firmware);
@@ -148,7 +148,7 @@ target_ulong riscv_find_and_load_firmware(MachineState *machine,
 }
 
 target_ulong riscv_load_firmware(const char *firmware_filename,
-                                 hwaddr firmware_load_addr,
+                                 hwaddr *firmware_load_addr,
                                  symbol_fn_t sym_cb)
 {
     uint64_t firmware_entry, firmware_end;
@@ -159,15 +159,16 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
                          &firmware_entry, NULL, &firmware_end, NULL,
                          0, EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
+        *firmware_load_addr = firmware_entry;
         return firmware_end;
     }
 
     firmware_size = load_image_targphys_as(firmware_filename,
-                                           firmware_load_addr,
+                                           *firmware_load_addr,
                                            current_machine->ram_size, NULL);
 
     if (firmware_size > 0) {
-        return firmware_load_addr + firmware_size;
+        return *firmware_load_addr + firmware_size;
     }
 
     error_report("could not load firmware '%s'", firmware_filename);
