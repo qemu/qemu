@@ -17,7 +17,9 @@ if [ $# -ne 2 ]; then
 fi
 
 # Only include wraps that are invoked with subproject()
-SUBPROJECTS="libvfio-user keycodemapdb berkeley-softfloat-3 berkeley-testfloat-3"
+SUBPROJECTS="libvfio-user keycodemapdb berkeley-softfloat-3
+  berkeley-testfloat-3 proc-macro2-1-rs quote-1-rs
+  syn-2-rs unicode-ident-1-rs"
 
 src="$1"
 version="$2"
