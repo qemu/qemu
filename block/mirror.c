@@ -349,7 +349,7 @@ static void coroutine_fn mirror_co_read(void *opaque)
     MirrorOp *op = opaque;
     MirrorBlockJob *s = op->s;
     int nb_chunks;
-    uint64_t ret;
+    int ret = -1;
     uint64_t max_bytes;
 
     max_bytes = s->granularity * s->max_iov;
@@ -565,7 +565,7 @@ static void coroutine_fn GRAPH_UNLOCKED mirror_iteration(MirrorBlockJob *s)
 
     bitmap_set(s->in_flight_bitmap, offset / s->granularity, nb_chunks);
     while (nb_chunks > 0 && offset < s->bdev_length) {
-        int ret;
+        int ret = -1;
         int64_t io_bytes;
         int64_t io_bytes_acct;
         MirrorMethod mirror_method = MIRROR_METHOD_COPY;
@@ -841,7 +841,7 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
     int64_t offset;
     BlockDriverState *bs;
     BlockDriverState *target_bs = blk_bs(s->target);
-    int ret;
+    int ret = -1;
     int64_t count;
 
     bdrv_graph_co_rdlock();
@@ -931,7 +931,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
-    BlockDeviceIoStatus iostatus;
+    BlockDeviceIoStatus iostatus = BLOCK_DEVICE_IO_STATUS__MAX;
     int64_t length;
     int64_t target_length;
     BlockDriverInfo bdi;

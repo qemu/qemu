@@ -84,9 +84,12 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
             break;
         }
         case 'w': {
-            uint16_t val, *valp;
+            uint16_t val = 0, *valp;
             valp = va_arg(ap, uint16_t *);
             copied = v9fs_unpack(&val, out_sg, out_num, offset, sizeof(val));
+            if (copied <= 0) {
+                break;
+            }
             if (bswap) {
                 *valp = le16_to_cpu(val);
             } else {
@@ -95,9 +98,12 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
             break;
         }
         case 'd': {
-            uint32_t val, *valp;
+            uint32_t val = 0, *valp;
             valp = va_arg(ap, uint32_t *);
             copied = v9fs_unpack(&val, out_sg, out_num, offset, sizeof(val));
+            if (copied <= 0) {
+                break;
+            }
             if (bswap) {
                 *valp = le32_to_cpu(val);
             } else {
@@ -106,9 +112,12 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
             break;
         }
         case 'q': {
-            uint64_t val, *valp;
+            uint64_t val = 0, *valp;
             valp = va_arg(ap, uint64_t *);
             copied = v9fs_unpack(&val, out_sg, out_num, offset, sizeof(val));
+            if (copied <= 0) {
+                break;
+            }
             if (bswap) {
                 *valp = le64_to_cpu(val);
             } else {

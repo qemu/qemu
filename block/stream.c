@@ -155,8 +155,8 @@ static void stream_clean(Job *job)
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockDriverState *unfiltered_bs;
-    int64_t len;
+    BlockDriverState *unfiltered_bs = NULL;
+    int64_t len = -1;
     int64_t offset = 0;
     int error = 0;
     int64_t n = 0; /* bytes */
@@ -177,7 +177,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
     for ( ; offset < len; offset += n) {
         bool copy;
-        int ret;
+        int ret = -1;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.

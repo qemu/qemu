@@ -2226,7 +2226,7 @@ Object *object_resolve_path_at(Object *parent, const char *path)
 
 Object *object_resolve_type_unambiguous(const char *typename, Error **errp)
 {
-    bool ambig;
+    bool ambig = false;
     Object *o = object_resolve_path_type("", typename, &ambig);
 
     if (ambig) {

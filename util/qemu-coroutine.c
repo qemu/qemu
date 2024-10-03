@@ -136,7 +136,7 @@ static Coroutine *coroutine_pool_get_local(void)
 static void coroutine_pool_refill_local(void)
 {
     CoroutinePool *local_pool = get_ptr_local_pool();
-    CoroutinePoolBatch *batch;
+    CoroutinePoolBatch *batch = NULL;
 
     WITH_QEMU_LOCK_GUARD(&global_pool_lock) {
         batch = QSLIST_FIRST(&global_pool);

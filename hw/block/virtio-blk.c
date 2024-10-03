@@ -1060,7 +1060,7 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
     VirtIOBlock *s = opaque;
     uint16_t num_queues = s->conf.num_queues;
     g_autofree VirtIOBlockReq **vq_rq = NULL;
-    VirtIOBlockReq *rq;
+    VirtIOBlockReq *rq = NULL;
 
     if (!running) {
         return;

@@ -584,7 +584,7 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     BlockCopyState *s = t->s;
     bool error_is_read = false;
     BlockCopyMethod method = t->method;
-    int ret;
+    int ret = -1;
 
     WITH_GRAPH_RDLOCK_GUARD() {
         ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,

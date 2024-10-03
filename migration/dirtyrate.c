@@ -149,12 +149,12 @@ int64_t vcpu_calculate_dirtyrate(int64_t calc_time_ms,
                                  unsigned int flag,
                                  bool one_shot)
 {
-    DirtyPageRecord *records;
+    DirtyPageRecord *records = NULL;
     int64_t init_time_ms;
     int64_t duration;
     int64_t dirtyrate;
     int i = 0;
-    unsigned int gen_id;
+    unsigned int gen_id = 0;
 
 retry:
     init_time_ms = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
