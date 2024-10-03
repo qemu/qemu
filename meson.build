@@ -3892,6 +3892,74 @@ common_all = static_library('common',
                             implicit_include_directories: false,
                             dependencies: common_ss.all_dependencies())
 
+if have_rust and have_system
+  rustc_args = run_command(
+    find_program('scripts/rust/rustc_args.py'),
+    '--config-headers', meson.project_build_root() / 'config-host.h',
+    capture : true,
+    check: true).stdout().strip().split()
+  rustc_args += ['-D', 'unsafe_op_in_unsafe_fn']
+  bindgen_args = [
+    '--disable-header-comment',
+    '--raw-line', '// @generated',
+    '--ctypes-prefix', 'core::ffi',
+    '--formatter', 'rustfmt',
+    '--generate-block',
+    '--generate-cstr',
+    '--impl-debug',
+    '--merge-extern-blocks',
+    '--no-doc-comments',
+    '--use-core',
+    '--with-derive-default',
+    '--no-size_t-is-usize',
+    '--no-layout-tests',
+    '--no-prepend-enum-name',
+    '--allowlist-file', meson.project_source_root() + '/include/.*',
+    '--allowlist-file', meson.project_source_root() + '/.*',
+    '--allowlist-file', meson.project_build_root() + '/.*'
+    ]
+  c_enums = [
+    'DeviceCategory',
+    'GpioPolarity',
+    'MachineInitPhase',
+    'MemoryDeviceInfoKind',
+    'MigrationPolicy',
+    'MigrationPriority',
+    'QEMUChrEvent',
+    'QEMUClockType',
+    'device_endian',
+    'module_init_type',
+  ]
+  foreach enum : c_enums
+    bindgen_args += ['--rustified-enum', enum]
+  endforeach
+  c_bitfields = [
+    'ClockEvent',
+    'VMStateFlags',
+  ]
+  foreach enum : c_bitfields
+    bindgen_args += ['--bitfield-enum', enum]
+  endforeach
+
+  # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
+  #
+  # Rust bindings generation with `bindgen` might fail in some cases where the
+  # detected `libclang` does not match the expected `clang` version/target. In
+  # this case you must pass the path to `clang` and `libclang` to your build
+  # command invocation using the environment variables CLANG_PATH and
+  # LIBCLANG_PATH
+  bindings_rs = import('rust').bindgen(
+    input: 'rust/wrapper.h',
+    dependencies: common_ss.all_dependencies(),
+    output: 'bindings.rs',
+    include_directories: include_directories('.', 'include'),
+    bindgen_version: ['>=0.69.4'],
+    args: bindgen_args,
+    )
+  subdir('rust')
+endif
+
+
 feature_to_c = find_program('scripts/feature_to_c.py')
 
 if host_os == 'darwin'
