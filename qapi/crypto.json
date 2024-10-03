@@ -602,6 +602,10 @@
 #
 # The type of asymmetric keys.
 #
+# @public: public key
+#
+# @private: private key
+#
 # Since: 7.1
 ##
 { 'enum': 'QCryptoAkCipherKeyType',
