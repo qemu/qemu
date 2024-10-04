@@ -134,11 +134,6 @@ RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
     return list;
 }
 
-uint32_t rocker_fp_ports(Rocker *r)
-{
-    return r->fp_ports;
-}
-
 static uint32_t rocker_get_pport_by_tx_ring(Rocker *r,
                                             DescRing *ring)
 {

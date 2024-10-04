@@ -209,12 +209,6 @@ void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
     *l4hdr_proto = pkt->l4hdr_info.proto;
 }
 
-size_t net_rx_pkt_get_l3_hdr_offset(struct NetRxPkt *pkt)
-{
-    assert(pkt);
-    return pkt->l3hdr_off;
-}
-
 size_t net_rx_pkt_get_l4_hdr_offset(struct NetRxPkt *pkt)
 {
     assert(pkt);
@@ -424,13 +418,6 @@ struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt)
     assert(pkt);
 
     return pkt->vec;
-}
-
-uint16_t net_rx_pkt_get_iovec_len(struct NetRxPkt *pkt)
-{
-    assert(pkt);
-
-    return pkt->vec_len;
 }
 
 void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,

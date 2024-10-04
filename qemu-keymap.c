@@ -154,9 +154,9 @@ static xkb_mod_mask_t get_mod(struct xkb_keymap *map, const char *name)
 
 int main(int argc, char *argv[])
 {
-    static struct xkb_context *ctx;
-    static struct xkb_keymap *map;
-    static struct xkb_state *state;
+    struct xkb_context *ctx;
+    struct xkb_keymap *map;
+    struct xkb_state *state;
     xkb_mod_index_t mod, mods;
     int rc;
 
@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
 
     ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     map = xkb_keymap_new_from_names(ctx, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    xkb_context_unref(ctx);
     if (!map) {
         /* libxkbcommon prints error */
         exit(1);
@@ -234,6 +235,8 @@ int main(int argc, char *argv[])
 
     state = xkb_state_new(map);
     xkb_keymap_key_for_each(map, walk_map, state);
+    xkb_state_unref(state);
+    xkb_keymap_unref(map);
 
     /* add quirks */
     fprintf(outfile,

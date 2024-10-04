@@ -1378,8 +1378,9 @@ F: hw/pci-host/ppc4xx_pci.c
 F: tests/functional/test_ppc_bamboo.py
 
 e500
+M: Bernhard Beschow <shentey@gmail.com>
 L: qemu-ppc@nongnu.org
-S: Orphan
+S: Odd Fixes
 F: hw/ppc/e500*
 F: hw/ppc/ppce500_spin.c
 F: hw/gpio/mpc8xxx.c
@@ -1395,8 +1396,9 @@ F: docs/system/ppc/ppce500.rst
 F: tests/functional/test_ppc64_e500.py
 
 mpc8544ds
+M: Bernhard Beschow <shentey@gmail.com>
 L: qemu-ppc@nongnu.org
-S: Orphan
+S: Odd Fixes
 F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
 F: tests/functional/test_ppc_mpc8544ds.py
@@ -3685,7 +3687,6 @@ F: configs/targets/*linux-user.mak
 F: scripts/qemu-binfmt-conf.sh
 F: scripts/update-syscalltbl.sh
 F: scripts/update-mips-syscall-args.sh
-F: scripts/gensyscalls.sh
 
 Tiny Code Generator (TCG)
 -------------------------

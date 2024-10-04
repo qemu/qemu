@@ -202,6 +202,9 @@ into the log.
 Saving/restoring the VM state
 -----------------------------
 
+Record/replay relies on VM state save and restore being complete and
+deterministic.
+
 All fields in the device state structure (including virtual timers)
 should be restored by loadvm to the same values they had before savevm.
 
