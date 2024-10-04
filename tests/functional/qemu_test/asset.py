@@ -57,7 +57,7 @@ class Asset:
                     break
                 hl.update(chunk)
 
-        return  hl.hexdigest()
+        return self.hash == hl.hexdigest()
 
     def valid(self):
         return self.cache_file.exists() and self._check(self.cache_file)
