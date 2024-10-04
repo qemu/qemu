@@ -2010,7 +2010,7 @@ static void gen_lxl(DisasContext *ctx, TCGv reg, TCGv addr,
      */
     tcg_gen_qemu_ld_tl(t1, addr, mem_idx, MO_UB);
     tcg_gen_andi_tl(t1, addr, sizem1);
-    if (!cpu_is_bigendian(ctx)) {
+    if (!disas_is_bigendian(ctx)) {
         tcg_gen_xori_tl(t1, t1, sizem1);
     }
     tcg_gen_shli_tl(t1, t1, 3);
@@ -2037,7 +2037,7 @@ static void gen_lxr(DisasContext *ctx, TCGv reg, TCGv addr,
      */
     tcg_gen_qemu_ld_tl(t1, addr, mem_idx, MO_UB);
     tcg_gen_andi_tl(t1, addr, sizem1);
-    if (cpu_is_bigendian(ctx)) {
+    if (disas_is_bigendian(ctx)) {
         tcg_gen_xori_tl(t1, t1, sizem1);
     }
     tcg_gen_shli_tl(t1, t1, 3);
@@ -10856,7 +10856,7 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             tcg_gen_br(l2);
             gen_set_label(l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 4, l2);
-            if (cpu_is_bigendian(ctx)) {
+            if (disas_is_bigendian(ctx)) {
                 gen_load_fpr32(ctx, fp, fs);
                 gen_load_fpr32h(ctx, fph, ft);
                 gen_store_fpr32h(ctx, fp, fd);

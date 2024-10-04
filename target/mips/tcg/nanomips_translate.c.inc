@@ -999,7 +999,7 @@ static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
 
     gen_base_offset_addr(ctx, taddr, base, offset);
     tcg_gen_qemu_ld_i64(tval, taddr, ctx->mem_idx, MO_TEUQ | MO_ALIGN);
-    if (cpu_is_bigendian(ctx)) {
+    if (disas_is_bigendian(ctx)) {
         tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
     } else {
         tcg_gen_extr_i64_tl(tmp1, tmp2, tval);
@@ -1031,7 +1031,7 @@ static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
     gen_load_gpr(tmp1, reg1);
     gen_load_gpr(tmp2, reg2);
 
-    if (cpu_is_bigendian(ctx)) {
+    if (disas_is_bigendian(ctx)) {
         tcg_gen_concat_tl_i64(tval, tmp2, tmp1);
     } else {
         tcg_gen_concat_tl_i64(tval, tmp1, tmp2);
