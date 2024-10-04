@@ -32,7 +32,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "ppc405.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

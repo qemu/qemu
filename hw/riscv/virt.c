@@ -27,7 +27,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "target/riscv/cpu.h"
 #include "hw/core/sysbus-fdt.h"
 #include "target/riscv/pmu.h"

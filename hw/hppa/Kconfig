@@ -9,7 +9,7 @@ config HPPA_B160L
     select ASTRO
     select DINO
     select LASI
-    select SERIAL
+    select SERIAL_MM
     select SERIAL_PCI
     select ISA_BUS
     select I8259

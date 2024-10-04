@@ -112,7 +112,7 @@ class KconfigData:
         def set_value(self, val, clause):
             self.clauses_for_var.append(clause)
             if self.has_value() and self.value != val:
-                print("The following clauses were found for " + self.name)
+                print("The following clauses were found for " + self.name, file=sys.stderr)
                 for i in self.clauses_for_var:
                     print("    " + str(i), file=sys.stderr)
                 raise KconfigDataError('contradiction between clauses when setting %s' % self)

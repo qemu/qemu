@@ -1766,28 +1766,17 @@ DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     " [[,throttling.bps-total-max=bm]|[[,throttling.bps-read-max=rm][,throttling.bps-write-max=wm]]]\n"
     " [[,throttling.iops-total-max=im]|[[,throttling.iops-read-max=irm][,throttling.iops-write-max=iwm]]]\n"
     " [[,throttling.iops-size=is]]\n"
-    "-fsdev proxy,id=id,socket=socket[,writeout=immediate][,readonly=on]\n"
-    "-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=immediate][,readonly=on]\n"
     "-fsdev synth,id=id\n",
     QEMU_ARCH_ALL)
 
 SRST
 ``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly=on][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``
   \ 
-``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly=on]``
-  \
-``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly=on]``
-  \
 ``-fsdev synth,id=id[,readonly=on]``
     Define a new file system device. Valid options are:
 
     ``local``
         Accesses to the filesystem are done by QEMU.
-
-    ``proxy``
-        Accesses to the filesystem are done by virtfs-proxy-helper(1). This
-        option is deprecated (since QEMU 8.1) and will be removed in a future
-        version of QEMU. Use ``local`` instead.
 
     ``synth``
         Synthetic filesystem, only used by QTests.
@@ -1813,8 +1802,6 @@ SRST
         security model is same as passthrough except the sever won't
         report failures if it fails to set file attributes like
         ownership. Security model is mandatory only for local fsdriver.
-        Other fsdrivers (like proxy) don't take security model as a
-        parameter.
 
     ``writeout=writeout``
         This is an optional argument. The only supported value is
@@ -1826,16 +1813,6 @@ SRST
     ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
-
-    ``socket=socket``
-        Enables proxy filesystem driver to use passed socket file for
-        communicating with virtfs-proxy-helper(1).
-
-    ``sock_fd=sock_fd``
-        Enables proxy filesystem driver to use passed socket descriptor
-        for communicating with virtfs-proxy-helper(1). Usually a helper
-        like libvirt will create socketpair and pass one of the fds as
-        sock\_fd.
 
     ``fmode=fmode``
         Specifies the default mode for newly created files on the host.
@@ -1889,18 +1866,12 @@ ERST
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
     "        [,id=id][,writeout=immediate][,readonly=on][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
-    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly=on]\n"
-    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly=on]\n"
     "-virtfs synth,mount_tag=tag[,id=id][,readonly=on]\n",
     QEMU_ARCH_ALL)
 
 SRST
 ``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly=on] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``
   \ 
-``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
-  \ 
-``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
-  \
 ``-virtfs synth,mount_tag=mount_tag``
     Define a new virtual filesystem device and expose it to the guest using
     a virtio-9p-device (a.k.a. 9pfs), which essentially means that a certain
@@ -1916,11 +1887,6 @@ SRST
 
     ``local``
         Accesses to the filesystem are done by QEMU.
-
-    ``proxy``
-        Accesses to the filesystem are done by virtfs-proxy-helper(1).
-        This option is deprecated (since QEMU 8.1) and will be removed in a
-        future version of QEMU. Use ``local`` instead.
 
     ``synth``
         Synthetic filesystem, only used by QTests.
@@ -1946,8 +1912,6 @@ SRST
         security model is same as passthrough except the sever won't
         report failures if it fails to set file attributes like
         ownership. Security model is mandatory only for local fsdriver.
-        Other fsdrivers (like proxy) don't take security model as a
-        parameter.
 
     ``writeout=writeout``
         This is an optional argument. The only supported value is
@@ -1959,16 +1923,6 @@ SRST
     ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
-
-    ``socket=socket``
-        Enables proxy filesystem driver to use passed socket file for
-        communicating with virtfs-proxy-helper(1). Usually a helper like
-        libvirt will create socketpair and pass one of the fds as
-        sock\_fd.
-
-    ``sock_fd``
-        Enables proxy filesystem driver to use passed 'sock\_fd' as the
-        socket descriptor for interfacing with virtfs-proxy-helper(1).
 
     ``fmode=fmode``
         Specifies the default mode for newly created files on the host.

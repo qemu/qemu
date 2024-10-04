@@ -2381,171 +2381,64 @@ uint32_t kvm_dirty_ring_size(void)
     return kvm_state->kvm_dirty_ring_size;
 }
 
-static int kvm_init(MachineState *ms)
+static int do_kvm_create_vm(MachineState *ms, int type)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-    static const char upgrade_note[] =
-        "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
-        "(see http://sourceforge.net/projects/kvm).\n";
-    const struct {
-        const char *name;
-        int num;
-    } num_cpus[] = {
-        { "SMP",          ms->smp.cpus },
-        { "hotpluggable", ms->smp.max_cpus },
-        { /* end of list */ }
-    }, *nc = num_cpus;
-    int soft_vcpus_limit, hard_vcpus_limit;
     KVMState *s;
-    const KVMCapabilityInfo *missing_cap;
     int ret;
-    int type;
-    uint64_t dirty_log_manual_caps;
-
-    qemu_mutex_init(&kml_slots_lock);
 
     s = KVM_STATE(ms->accelerator);
-
-    /*
-     * On systems where the kernel can support different base page
-     * sizes, host page size may be different from TARGET_PAGE_SIZE,
-     * even with KVM.  TARGET_PAGE_SIZE is assumed to be the minimum
-     * page size for the system though.
-     */
-    assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size());
-
-    s->sigmask_len = 8;
-    accel_blocker_init();
-
-#ifdef TARGET_KVM_HAVE_GUEST_DEBUG
-    QTAILQ_INIT(&s->kvm_sw_breakpoints);
-#endif
-    QLIST_INIT(&s->kvm_parked_vcpus);
-    s->fd = qemu_open_old(s->device ?: "/dev/kvm", O_RDWR);
-    if (s->fd == -1) {
-        fprintf(stderr, "Could not access KVM kernel module: %m\n");
-        ret = -errno;
-        goto err;
-    }
-
-    ret = kvm_ioctl(s, KVM_GET_API_VERSION, 0);
-    if (ret < KVM_API_VERSION) {
-        if (ret >= 0) {
-            ret = -EINVAL;
-        }
-        fprintf(stderr, "kvm version too old\n");
-        goto err;
-    }
-
-    if (ret > KVM_API_VERSION) {
-        ret = -EINVAL;
-        fprintf(stderr, "kvm version not supported\n");
-        goto err;
-    }
-
-    kvm_supported_memory_attributes = kvm_check_extension(s, KVM_CAP_MEMORY_ATTRIBUTES);
-    kvm_guest_memfd_supported =
-        kvm_check_extension(s, KVM_CAP_GUEST_MEMFD) &&
-        kvm_check_extension(s, KVM_CAP_USER_MEMORY2) &&
-        (kvm_supported_memory_attributes & KVM_MEMORY_ATTRIBUTE_PRIVATE);
-
-    kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
-    s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
-
-    /* If unspecified, use the default value */
-    if (!s->nr_slots) {
-        s->nr_slots = 32;
-    }
-
-    s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
-    if (s->nr_as <= 1) {
-        s->nr_as = 1;
-    }
-    s->as = g_new0(struct KVMAs, s->nr_as);
-
-    if (object_property_find(OBJECT(current_machine), "kvm-type")) {
-        g_autofree char *kvm_type = object_property_get_str(OBJECT(current_machine),
-                                                            "kvm-type",
-                                                            &error_abort);
-        type = mc->kvm_type(ms, kvm_type);
-    } else if (mc->kvm_type) {
-        type = mc->kvm_type(ms, NULL);
-    } else {
-        type = kvm_arch_get_default_type(ms);
-    }
-
-    if (type < 0) {
-        ret = -EINVAL;
-        goto err;
-    }
 
     do {
         ret = kvm_ioctl(s, KVM_CREATE_VM, type);
     } while (ret == -EINTR);
 
     if (ret < 0) {
-        fprintf(stderr, "ioctl(KVM_CREATE_VM) failed: %d %s\n", -ret,
-                strerror(-ret));
+        error_report("ioctl(KVM_CREATE_VM) failed: %s", strerror(-ret));
 
 #ifdef TARGET_S390X
         if (ret == -EINVAL) {
-            fprintf(stderr,
-                    "Host kernel setup problem detected. Please verify:\n");
-            fprintf(stderr, "- for kernels supporting the switch_amode or"
-                    " user_mode parameters, whether\n");
-            fprintf(stderr,
-                    "  user space is running in primary address space\n");
-            fprintf(stderr,
-                    "- for kernels supporting the vm.allocate_pgste sysctl, "
-                    "whether it is enabled\n");
+            error_printf("Host kernel setup problem detected."
+                         " Please verify:\n");
+            error_printf("- for kernels supporting the"
+                        " switch_amode or user_mode parameters, whether");
+            error_printf(" user space is running in primary address space\n");
+            error_printf("- for kernels supporting the vm.allocate_pgste"
+                         " sysctl, whether it is enabled\n");
         }
 #elif defined(TARGET_PPC)
         if (ret == -EINVAL) {
-            fprintf(stderr,
-                    "PPC KVM module is not loaded. Try modprobe kvm_%s.\n",
-                    (type == 2) ? "pr" : "hv");
+            error_printf("PPC KVM module is not loaded. Try modprobe kvm_%s.\n",
+                         (type == 2) ? "pr" : "hv");
         }
 #endif
-        goto err;
     }
 
-    s->vmfd = ret;
+    return ret;
+}
 
-    /* check the vcpu limits */
-    soft_vcpus_limit = kvm_recommended_vcpus(s);
-    hard_vcpus_limit = kvm_max_vcpus(s);
+static int find_kvm_machine_type(MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    int type;
 
-    while (nc->name) {
-        if (nc->num > soft_vcpus_limit) {
-            warn_report("Number of %s cpus requested (%d) exceeds "
-                        "the recommended cpus supported by KVM (%d)",
-                        nc->name, nc->num, soft_vcpus_limit);
-
-            if (nc->num > hard_vcpus_limit) {
-                fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
-                        "the maximum cpus supported by KVM (%d)\n",
-                        nc->name, nc->num, hard_vcpus_limit);
-                exit(1);
-            }
-        }
-        nc++;
+    if (object_property_find(OBJECT(current_machine), "kvm-type")) {
+        g_autofree char *kvm_type;
+        kvm_type = object_property_get_str(OBJECT(current_machine),
+                                           "kvm-type",
+                                           &error_abort);
+        type = mc->kvm_type(ms, kvm_type);
+    } else if (mc->kvm_type) {
+        type = mc->kvm_type(ms, NULL);
+    } else {
+        type = kvm_arch_get_default_type(ms);
     }
+    return type;
+}
 
-    missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
-    if (!missing_cap) {
-        missing_cap =
-            kvm_check_extension_list(s, kvm_arch_required_capabilities);
-    }
-    if (missing_cap) {
-        ret = -EINVAL;
-        fprintf(stderr, "kvm does not support %s\n%s",
-                missing_cap->name, upgrade_note);
-        goto err;
-    }
-
-    s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
-    s->coalesced_pio = s->coalesced_mmio &&
-                       kvm_check_extension(s, KVM_CAP_COALESCED_PIO);
+static int kvm_setup_dirty_ring(KVMState *s)
+{
+    uint64_t dirty_log_manual_caps;
+    int ret;
 
     /*
      * Enable KVM dirty ring if supported, otherwise fall back to
@@ -2553,7 +2446,7 @@ static int kvm_init(MachineState *ms)
      */
     ret = kvm_dirty_ring_init(s);
     if (ret < 0) {
-        goto err;
+        return ret;
     }
 
     /*
@@ -2586,6 +2479,144 @@ static int kvm_init(MachineState *ms)
                 s->manual_dirty_log_protect = 0;
             }
         }
+    }
+
+    return 0;
+}
+
+static int kvm_init(MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    static const char upgrade_note[] =
+        "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
+        "(see http://sourceforge.net/projects/kvm).\n";
+    const struct {
+        const char *name;
+        int num;
+    } num_cpus[] = {
+        { "SMP",          ms->smp.cpus },
+        { "hotpluggable", ms->smp.max_cpus },
+        { /* end of list */ }
+    }, *nc = num_cpus;
+    int soft_vcpus_limit, hard_vcpus_limit;
+    KVMState *s;
+    const KVMCapabilityInfo *missing_cap;
+    int ret;
+    int type;
+
+    qemu_mutex_init(&kml_slots_lock);
+
+    s = KVM_STATE(ms->accelerator);
+
+    /*
+     * On systems where the kernel can support different base page
+     * sizes, host page size may be different from TARGET_PAGE_SIZE,
+     * even with KVM.  TARGET_PAGE_SIZE is assumed to be the minimum
+     * page size for the system though.
+     */
+    assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size());
+
+    s->sigmask_len = 8;
+    accel_blocker_init();
+
+#ifdef TARGET_KVM_HAVE_GUEST_DEBUG
+    QTAILQ_INIT(&s->kvm_sw_breakpoints);
+#endif
+    QLIST_INIT(&s->kvm_parked_vcpus);
+    s->fd = qemu_open_old(s->device ?: "/dev/kvm", O_RDWR);
+    if (s->fd == -1) {
+        error_report("Could not access KVM kernel module: %m");
+        ret = -errno;
+        goto err;
+    }
+
+    ret = kvm_ioctl(s, KVM_GET_API_VERSION, 0);
+    if (ret < KVM_API_VERSION) {
+        if (ret >= 0) {
+            ret = -EINVAL;
+        }
+        error_report("kvm version too old");
+        goto err;
+    }
+
+    if (ret > KVM_API_VERSION) {
+        ret = -EINVAL;
+        error_report("kvm version not supported");
+        goto err;
+    }
+
+    kvm_supported_memory_attributes = kvm_check_extension(s, KVM_CAP_MEMORY_ATTRIBUTES);
+    kvm_guest_memfd_supported =
+        kvm_check_extension(s, KVM_CAP_GUEST_MEMFD) &&
+        kvm_check_extension(s, KVM_CAP_USER_MEMORY2) &&
+        (kvm_supported_memory_attributes & KVM_MEMORY_ATTRIBUTE_PRIVATE);
+
+    kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
+    s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+
+    /* If unspecified, use the default value */
+    if (!s->nr_slots) {
+        s->nr_slots = 32;
+    }
+
+    s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
+    if (s->nr_as <= 1) {
+        s->nr_as = 1;
+    }
+    s->as = g_new0(struct KVMAs, s->nr_as);
+
+    type = find_kvm_machine_type(ms);
+    if (type < 0) {
+        ret = -EINVAL;
+        goto err;
+    }
+
+    ret = do_kvm_create_vm(ms, type);
+    if (ret < 0) {
+        goto err;
+    }
+
+    s->vmfd = ret;
+
+    /* check the vcpu limits */
+    soft_vcpus_limit = kvm_recommended_vcpus(s);
+    hard_vcpus_limit = kvm_max_vcpus(s);
+
+    while (nc->name) {
+        if (nc->num > soft_vcpus_limit) {
+            warn_report("Number of %s cpus requested (%d) exceeds "
+                        "the recommended cpus supported by KVM (%d)",
+                        nc->name, nc->num, soft_vcpus_limit);
+
+            if (nc->num > hard_vcpus_limit) {
+                error_report("Number of %s cpus requested (%d) exceeds "
+                             "the maximum cpus supported by KVM (%d)",
+                             nc->name, nc->num, hard_vcpus_limit);
+                exit(1);
+            }
+        }
+        nc++;
+    }
+
+    missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
+    if (!missing_cap) {
+        missing_cap =
+            kvm_check_extension_list(s, kvm_arch_required_capabilities);
+    }
+    if (missing_cap) {
+        ret = -EINVAL;
+        error_report("kvm does not support %s", missing_cap->name);
+        error_printf("%s", upgrade_note);
+        goto err;
+    }
+
+    s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
+    s->coalesced_pio = s->coalesced_mmio &&
+                       kvm_check_extension(s, KVM_CAP_COALESCED_PIO);
+
+    ret = kvm_setup_dirty_ring(s);
+    if (ret < 0) {
+        goto err;
     }
 
 #ifdef KVM_CAP_VCPU_EVENTS
@@ -2762,9 +2793,15 @@ void kvm_flush_coalesced_mmio_buffer(void)
 static void do_kvm_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
     if (!cpu->vcpu_dirty && !kvm_state->guest_state_protected) {
-        int ret = kvm_arch_get_registers(cpu);
+        Error *err = NULL;
+        int ret = kvm_arch_get_registers(cpu, &err);
         if (ret) {
-            error_report("Failed to get registers: %s", strerror(-ret));
+            if (err) {
+                error_reportf_err(err, "Failed to synchronize CPU state: ");
+            } else {
+                error_report("Failed to get registers: %s", strerror(-ret));
+            }
+
             cpu_dump_state(cpu, stderr, CPU_DUMP_CODE);
             vm_stop(RUN_STATE_INTERNAL_ERROR);
         }
@@ -2782,9 +2819,15 @@ void kvm_cpu_synchronize_state(CPUState *cpu)
 
 static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {
-    int ret = kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    Error *err = NULL;
+    int ret = kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE, &err);
     if (ret) {
-        error_report("Failed to put registers after reset: %s", strerror(-ret));
+        if (err) {
+            error_reportf_err(err, "Restoring resisters after reset: ");
+        } else {
+            error_report("Failed to put registers after reset: %s",
+                         strerror(-ret));
+        }
         cpu_dump_state(cpu, stderr, CPU_DUMP_CODE);
         vm_stop(RUN_STATE_INTERNAL_ERROR);
     }
@@ -2799,9 +2842,15 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 
 static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 {
-    int ret = kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    Error *err = NULL;
+    int ret = kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE, &err);
     if (ret) {
-        error_report("Failed to put registers after init: %s", strerror(-ret));
+        if (err) {
+            error_reportf_err(err, "Putting registers after init: ");
+        } else {
+            error_report("Failed to put registers after init: %s",
+                         strerror(-ret));
+        }
         exit(1);
     }
 
@@ -2991,10 +3040,15 @@ int kvm_cpu_exec(CPUState *cpu)
         MemTxAttrs attrs;
 
         if (cpu->vcpu_dirty) {
-            ret = kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
+            Error *err = NULL;
+            ret = kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE, &err);
             if (ret) {
-                error_report("Failed to put registers after init: %s",
-                             strerror(-ret));
+                if (err) {
+                    error_reportf_err(err, "Putting registers after init: ");
+                } else {
+                    error_report("Failed to put registers after init: %s",
+                                 strerror(-ret));
+                }
                 ret = -1;
                 break;
             }

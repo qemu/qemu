@@ -3,7 +3,7 @@ config OR1K_SIM
     default y
     depends on OPENRISC
     select DEVICE_TREE
-    select SERIAL
+    select SERIAL_MM
     select OPENCORES_ETH
     select OMPIC
     select SPLIT_IRQ
@@ -19,6 +19,6 @@ config OR1K_VIRT
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
     select GOLDFISH_RTC
-    select SERIAL
+    select SERIAL_MM
     select SIFIVE_TEST
     select VIRTIO_MMIO

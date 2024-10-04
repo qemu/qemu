@@ -14,7 +14,7 @@
 #include "exec/address-spaces.h"
 #include "hw/irq.h"
 #include "hw/boards.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "hw/core/split-irq.h"
 #include "hw/openrisc/boot.h"
 #include "hw/misc/sifive_test.h"

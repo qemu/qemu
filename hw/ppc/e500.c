@@ -24,7 +24,7 @@
 #include "net/net.h"
 #include "qemu/config-file.h"
 #include "hw/block/flash.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "hw/pci/pci.h"
 #include "sysemu/block-backend-io.h"
 #include "sysemu/sysemu.h"

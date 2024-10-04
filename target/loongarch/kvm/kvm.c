@@ -588,7 +588,7 @@ static int kvm_loongarch_put_cpucfg(CPUState *cs)
     return ret;
 }
 
-int kvm_arch_get_registers(CPUState *cs)
+int kvm_arch_get_registers(CPUState *cs, Error **errp)
 {
     int ret;
 
@@ -616,7 +616,7 @@ int kvm_arch_get_registers(CPUState *cs)
     return ret;
 }
 
-int kvm_arch_put_registers(CPUState *cs, int level)
+int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
 {
     int ret;
 

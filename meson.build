@@ -2219,13 +2219,6 @@ have_virtfs = get_option('virtfs') \
     .disable_auto_if(not have_tools and not have_system) \
     .allowed()
 
-have_virtfs_proxy_helper = get_option('virtfs_proxy_helper') \
-    .require(host_os != 'darwin', error_message: 'the virtfs proxy helper is incompatible with macOS') \
-    .require(have_virtfs, error_message: 'the virtfs proxy helper requires that virtfs is enabled') \
-    .disable_auto_if(not have_tools) \
-    .require(libcap_ng.found(), error_message: 'the virtfs proxy helper requires libcap-ng') \
-    .allowed()
-
 qga_fsfreeze = false
 qga_fstrim = false
 if host_os == 'linux'
@@ -4420,7 +4413,6 @@ if have_block
   summary_info += {'Block whitelist (ro)': get_option('block_drv_ro_whitelist')}
   summary_info += {'Use block whitelist in tools': get_option('block_drv_whitelist_in_tools')}
   summary_info += {'VirtFS (9P) support':    have_virtfs}
-  summary_info += {'VirtFS (9P) Proxy Helper support (deprecated)': have_virtfs_proxy_helper}
   summary_info += {'replication support': config_host_data.get('CONFIG_REPLICATION')}
   summary_info += {'bochs support':     get_option('bochs').allowed()}
   summary_info += {'cloop support':     get_option('cloop').allowed()}

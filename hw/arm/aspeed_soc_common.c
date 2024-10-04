@@ -15,7 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 
 
 const char *aspeed_soc_cpu_type(AspeedSoCClass *sc)

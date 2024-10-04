@@ -8,11 +8,3 @@ fsdev_ss.add(when: ['CONFIG_FSDEV_9P'], if_true: files(
 if host_os in ['linux', 'darwin']
   system_ss.add_all(fsdev_ss)
 endif
-
-if have_virtfs_proxy_helper
-  executable('virtfs-proxy-helper',
-             files('virtfs-proxy-helper.c', '9p-marshal.c', '9p-iov-marshal.c'),
-             dependencies: [qemuutil, libattr, libcap_ng],
-             install: true,
-             install_dir: get_option('libexecdir'))
-endif

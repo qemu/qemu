@@ -17,7 +17,7 @@
 #include "sysemu/runstate.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "hw/char/parallel.h"
 #include "hw/intc/i8259.h"
 #include "hw/input/lasips2.h"

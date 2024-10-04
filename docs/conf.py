@@ -275,9 +275,6 @@ man_pages = [
     ('tools/qemu-trace-stap', 'qemu-trace-stap',
      'QEMU SystemTap trace tool',
      [], 1),
-    ('tools/virtfs-proxy-helper', 'virtfs-proxy-helper',
-     'QEMU 9p virtfs proxy filesystem helper',
-     ['M. Mohan Kumar'], 1),
 ]
 man_make_section_directory = False
 
