@@ -168,7 +168,7 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         return 0;
     }
 
-    val = ldn_p(mem_buf, hppa_reg_size(env));
+    val = ldn_be_p(mem_buf, hppa_reg_size(env));
 
     switch (n) {
     case 0:
