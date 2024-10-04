@@ -684,9 +684,9 @@ static void q800_machine_init(MachineState *machine)
 
             ptr = rom_ptr(MACROM_ADDR, bios_size);
             assert(ptr != NULL);
-            stl_phys(cs->as, 0, ldl_p(ptr));    /* reset initial SP */
+            stl_phys(cs->as, 0, ldl_be_p(ptr));    /* reset initial SP */
             stl_phys(cs->as, 4,
-                     MACROM_ADDR + ldl_p(ptr + 4)); /* reset initial PC */
+                     MACROM_ADDR + ldl_be_p(ptr + 4)); /* reset initial PC */
         }
     }
 }
