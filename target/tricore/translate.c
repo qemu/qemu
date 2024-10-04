@@ -2732,8 +2732,7 @@ static inline void gen_insert(TCGv ret, TCGv r1, TCGv r2, TCGv width, TCGv pos)
     TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
 
-    tcg_gen_movi_tl(mask, 1);
-    tcg_gen_shl_tl(mask, mask, width);
+    tcg_gen_shl_tl(mask, tcg_constant_tl(1), width);
     tcg_gen_subi_tl(mask, mask, 1);
     tcg_gen_shl_tl(mask, mask, pos);
 
