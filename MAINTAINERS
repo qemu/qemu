@@ -2625,6 +2625,7 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/*/*xive*
 F: include/hw/*/*xive*
+F: tests/qtest/*xive*
 F: docs/*/*xive*
 
 Renesas peripherals
