@@ -24,3 +24,6 @@ config WDT_SBSA
 config ALLWINNER_WDT
     bool
     select PTIMER
+
+config STM32_IWDG
+    bool

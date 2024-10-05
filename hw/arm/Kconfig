@@ -408,6 +408,24 @@ config STM32L4X5_SOC
     select STM32L4X5_GPIO
     select STM32L4X5_USART
 
+config STM32NUCLEO_L4R5ZI
+    bool
+    default y
+    depends on TCG && ARM
+    select STM32L4R5_SOC
+    imply DM163
+
+config STM32L4R5_SOC
+    bool
+    select ARM_V7M
+    select OR_IRQ
+    select STM32L4X5_EXTI
+    select STM32L4X5_SYSCFG
+    select STM32L4X5_RCC
+    select STM32L4X5_GPIO
+    select STM32L4X5_USART
+    select STM32_IWDG
+
 config XLNX_ZYNQMP_ARM
     bool
     default y if PIXMAN
