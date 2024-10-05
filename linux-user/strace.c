@@ -376,7 +376,7 @@ print_sockaddr(abi_ulong addr, abi_long addrlen, int last)
                  un->sun_path[i]; i++) {
                 qemu_log("%c", un->sun_path[i]);
             }
-            qemu_log("\"}");
+            qemu_log("\"},");
             break;
         }
         case AF_INET: {
@@ -386,7 +386,7 @@ print_sockaddr(abi_ulong addr, abi_long addrlen, int last)
                      ntohs(in->sin_port));
             qemu_log("sin_addr=inet_addr(\"%d.%d.%d.%d\")",
                      c[0], c[1], c[2], c[3]);
-            qemu_log("}");
+            qemu_log("},");
             break;
         }
         case AF_PACKET: {
@@ -417,12 +417,12 @@ print_sockaddr(abi_ulong addr, abi_long addrlen, int last)
             }
             qemu_log(",sll_addr=%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
                      c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
-            qemu_log("}");
+            qemu_log("},");
             break;
         }
         case AF_NETLINK: {
             struct target_sockaddr_nl *nl = (struct target_sockaddr_nl *)sa;
-            qemu_log("{nl_family=AF_NETLINK,nl_pid=%u,nl_groups=%u}",
+            qemu_log("{nl_family=AF_NETLINK,nl_pid=%u,nl_groups=%u},",
                      tswap32(nl->nl_pid), tswap32(nl->nl_groups));
             break;
         }
@@ -432,14 +432,14 @@ print_sockaddr(abi_ulong addr, abi_long addrlen, int last)
                 qemu_log("%02x, ", sa->sa_data[i]);
             }
             qemu_log("%02x}", sa->sa_data[i]);
-            qemu_log("}");
+            qemu_log("},");
             break;
         }
         unlock_user(sa, addr, 0);
     } else {
         print_raw_param("0x"TARGET_ABI_FMT_lx, addr, 0);
     }
-    qemu_log(", "TARGET_ABI_FMT_ld"%s", addrlen, get_comma(last));
+    qemu_log(TARGET_ABI_FMT_ld"%s", addrlen, get_comma(last));
 }
 
 static void
