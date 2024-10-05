@@ -382,7 +382,6 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
     /* RESERVED:    0x40001800, 0x1000 */
     create_unimplemented_device("RTC",       0x40002800, 0x400);
     create_unimplemented_device("WWDG",      0x40002C00, 0x400);
-    //create_unimplemented_device("IWDG",      0x40003000, 0x400);
     /* RESERVED:    0x40001800, 0x400 */
     create_unimplemented_device("SPI2",      0x40003800, 0x400);
     create_unimplemented_device("SPI3",      0x40003C00, 0x400);

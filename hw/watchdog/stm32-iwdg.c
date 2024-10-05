@@ -27,12 +27,9 @@ enum {
 
 static void stm32_iwdg_expired(void *opaque)
 {
-    STM32IWDGState *s = opaque;
-
     qemu_log_mask(CPU_LOG_RESET, "Watchdog timer expired. Performing action...\n");
 
     watchdog_perform_action();
-    timer_del(s->timer);
 }
 
 static uint64_t stm32_iwdg_read(void *opaque, hwaddr offset, unsigned size) 
@@ -199,15 +196,19 @@ static void stm32_iwdg_reset(STM32IWDGState *s)
     s->regs[IWDG_RLR] = 0x00000FFF;
     s->regs[IWDG_PR] = 0x00000000;
     s->regs[IWDG_WINR] = 0x00000FFF;
+
+    /* Reset the timer */
+    if (s->timer) {
+        timer_del(s->timer);
+    }
+
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32_iwdg_expired, s);
 }
 
 static void stm32_iwdg_reset_enter(Object *obj, ResetType type)
 {
     STM32IWDGState *s = STM32_IWDG(obj);
-
-    /* Clear registers */
     stm32_iwdg_reset(s);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32_iwdg_expired, s);
 }
 
 
@@ -218,8 +219,7 @@ static void stm32_iwdg_realize(DeviceState *dev, Error **errp)
 
     // Write access to the registers is locked by default.
     s->register_locked = true;
-
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32_iwdg_expired, s);
+    s->timer = NULL;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stm32_iwdg_ops, s, TYPE_STM32_IWDG, STM32_IWDG_REGS_NUM * 4);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
