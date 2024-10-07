@@ -205,7 +205,7 @@ struct CPUClass {
  * so the layout is not as critical as that of CPUTLBEntry. This is
  * also why we don't want to combine the two structs.
  */
-typedef struct CPUTLBEntryFull {
+struct CPUTLBEntryFull {
     /*
      * @xlat_section contains:
      *  - in the lower TARGET_PAGE_BITS, a physical section number
@@ -261,7 +261,7 @@ typedef struct CPUTLBEntryFull {
             bool guarded;
         } arm;
     } extra;
-} CPUTLBEntryFull;
+};
 
 /*
  * Data elements that are per MMU mode, minus the bits accessed by

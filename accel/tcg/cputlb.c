@@ -1221,22 +1221,35 @@ void tlb_set_page(CPUState *cpu, vaddr addr,
 }
 
 /*
- * Note: tlb_fill() can trigger a resize of the TLB. This means that all of the
- * caller's prior references to the TLB table (e.g. CPUTLBEntry pointers) must
- * be discarded and looked up again (e.g. via tlb_entry()).
+ * Note: tlb_fill_align() can trigger a resize of the TLB.
+ * This means that all of the caller's prior references to the TLB table
+ * (e.g. CPUTLBEntry pointers) must be discarded and looked up again
+ * (e.g. via tlb_entry()).
  */
-static void tlb_fill(CPUState *cpu, vaddr addr, int size,
-                     MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+static bool tlb_fill_align(CPUState *cpu, vaddr addr, MMUAccessType type,
+                           int mmu_idx, MemOp memop, int size,
+                           bool probe, uintptr_t ra)
 {
-    bool ok;
+    const TCGCPUOps *ops = cpu->cc->tcg_ops;
+    CPUTLBEntryFull full;
 
-    /*
-     * This is not a probe, so only valid return is success; failure
-     * should result in exception + longjmp to the cpu loop.
-     */
-    ok = cpu->cc->tcg_ops->tlb_fill(cpu, addr, size,
-                                    access_type, mmu_idx, false, retaddr);
-    assert(ok);
+    if (ops->tlb_fill_align) {
+        if (ops->tlb_fill_align(cpu, &full, addr, type, mmu_idx,
+                                memop, size, probe, ra)) {
+            tlb_set_page_full(cpu, mmu_idx, addr, &full);
+            return true;
+        }
+    } else {
+        /* Legacy behaviour is alignment before paging. */
+        if (addr & ((1u << memop_alignment_bits(memop)) - 1)) {
+            ops->do_unaligned_access(cpu, addr, type, mmu_idx, ra);
+        }
+        if (ops->tlb_fill(cpu, addr, size, type, mmu_idx, probe, ra)) {
+            return true;
+        }
+    }
+    assert(probe);
+    return false;
 }
 
 static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
@@ -1351,22 +1364,22 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
 
     if (!tlb_hit_page(tlb_addr, page_addr)) {
         if (!victim_tlb_hit(cpu, mmu_idx, index, access_type, page_addr)) {
-            if (!cpu->cc->tcg_ops->tlb_fill(cpu, addr, fault_size, access_type,
-                                            mmu_idx, nonfault, retaddr)) {
+            if (!tlb_fill_align(cpu, addr, access_type, mmu_idx,
+                                0, fault_size, nonfault, retaddr)) {
                 /* Non-faulting page table read failed.  */
                 *phost = NULL;
                 *pfull = NULL;
                 return TLB_INVALID_MASK;
             }
 
-            /* TLB resize via tlb_fill may have moved the entry.  */
+            /* TLB resize via tlb_fill_align may have moved the entry.  */
             index = tlb_index(cpu, mmu_idx, addr);
             entry = tlb_entry(cpu, mmu_idx, addr);
 
             /*
              * With PAGE_WRITE_INV, we set TLB_INVALID_MASK immediately,
-             * to force the next access through tlb_fill.  We've just
-             * called tlb_fill, so we know that this entry *is* valid.
+             * to force the next access through tlb_fill_align.  We've just
+             * called tlb_fill_align, so we know that this entry *is* valid.
              */
             flags &= ~TLB_INVALID_MASK;
         }
@@ -1613,7 +1626,7 @@ typedef struct MMULookupLocals {
  *
  * Resolve the translation for the one page at @data.addr, filling in
  * the rest of @data with the results.  If the translation fails,
- * tlb_fill will longjmp out.  Return true if the softmmu tlb for
+ * tlb_fill_align will longjmp out.  Return true if the softmmu tlb for
  * @mmu_idx may have resized.
  */
 static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data,
@@ -1631,7 +1644,8 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data,
     if (!tlb_hit(tlb_addr, addr)) {
         if (!victim_tlb_hit(cpu, mmu_idx, index, access_type,
                             addr & TARGET_PAGE_MASK)) {
-            tlb_fill(cpu, addr, data->size, access_type, mmu_idx, ra);
+            tlb_fill_align(cpu, addr, access_type, mmu_idx,
+                           0, data->size, false, ra);
             maybe_resized = true;
             index = tlb_index(cpu, mmu_idx, addr);
             entry = tlb_entry(cpu, mmu_idx, addr);
@@ -1821,8 +1835,8 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
     if (!tlb_hit(tlb_addr, addr)) {
         if (!victim_tlb_hit(cpu, mmu_idx, index, MMU_DATA_STORE,
                             addr & TARGET_PAGE_MASK)) {
-            tlb_fill(cpu, addr, size,
-                     MMU_DATA_STORE, mmu_idx, retaddr);
+            tlb_fill_align(cpu, addr, MMU_DATA_STORE, mmu_idx,
+                           0, size, false, retaddr);
             index = tlb_index(cpu, mmu_idx, addr);
             tlbe = tlb_entry(cpu, mmu_idx, addr);
         }
@@ -1836,7 +1850,8 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
      * but addr_read will only be -1 if PAGE_READ was unset.
      */
     if (unlikely(tlbe->addr_read == -1)) {
-        tlb_fill(cpu, addr, size, MMU_DATA_LOAD, mmu_idx, retaddr);
+        tlb_fill_align(cpu, addr, MMU_DATA_LOAD, mmu_idx,
+                       0, size, false, retaddr);
         /*
          * Since we don't support reads and writes to different
          * addresses, and we do have the proper page loaded for
