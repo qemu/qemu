@@ -1353,6 +1353,70 @@ sub checkfilename {
 	}
 }
 
+sub checkspdx {
+    my ($file, $expr) = @_;
+
+    # Imported Linux headers probably have SPDX tags, but if they
+    # don't we're not requiring contributors to fix this, as these
+    # files are not expected to be modified locally in QEMU.
+    # Also don't accidentally detect own checking code.
+    if ($file =~ m,include/standard-headers, ||
+	$file =~ m,linux-headers, ||
+	$file =~ m,checkpatch.pl,) {
+	return;
+    }
+
+    my $origexpr = $expr;
+
+    # Flatten sub-expressions
+    $expr =~ s/\(|\)/ /g;
+    $expr =~ s/OR|AND/ /g;
+
+    # Merge WITH exceptions to the license
+    $expr =~ s/\s+WITH\s+/-WITH-/g;
+
+    # Cull more leading/trailing whitespace
+    $expr =~ s/^\s*//g;
+    $expr =~ s/\s*$//g;
+
+    my @bits = split / +/, $expr;
+
+    my $prefer = "GPL-2.0-or-later";
+    my @valid = qw(
+	GPL-2.0-only
+	LGPL-2.1-only
+	LGPL-2.1-or-later
+	BSD-2-Clause
+	BSD-3-Clause
+	MIT
+	);
+
+    my $nonpreferred = 0;
+    my @unknown = ();
+    foreach my $bit (@bits) {
+	if ($bit eq $prefer) {
+	    next;
+	}
+	if (grep /^$bit$/, @valid) {
+	    $nonpreferred = 1;
+	} else {
+	    push @unknown, $bit;
+	}
+    }
+    if (@unknown) {
+	ERROR("Saw unacceptable licenses '" . join(',', @unknown) .
+	      "', valid choices for QEMU are:\n" . join("\n", $prefer, @valid));
+    }
+
+    if ($nonpreferred) {
+	WARN("Saw acceptable license '$origexpr' but note '$prefer' is " .
+	     "preferred for new files unless the code is derived from a " .
+	     "source file with an existing declared license that must be " .
+	     "retained. Please explain the license choice in the commit " .
+	     "message.");
+    }
+}
+
 sub process {
 	my $filename = shift;
 
@@ -1643,6 +1707,11 @@ sub process {
 			$expect_spdx = 0;
 			$expect_spdx_file = undef;
 		    }
+		}
+
+# Check SPDX-License-Identifier references a permitted license
+		if ($rawline =~ m,SPDX-License-Identifier: (.*?)(\*/)?\s*$,) {
+		    &checkspdx($realfile, $1);
 		}
 
 # Check for wrappage within a valid hunk of the file
