@@ -13,7 +13,7 @@ from qemu_test.utils import archive_extract
 class OpenRISC1kSimTest(LinuxKernelTest):
 
     ASSET_DAY20 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day20.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day20.tar.xz',
         'ff9d7dd7c6bdba325bd85ee85c02db61ff653e129558aeffe6aff55bffb6763a')
 
     def test_or1k_sim(self):

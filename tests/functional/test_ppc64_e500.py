@@ -10,7 +10,7 @@ from qemu_test.utils import archive_extract
 class E500Test(LinuxKernelTest):
 
     ASSET_DAY19 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day19.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day19.tar.xz',
         '20b1bb5a8488c664defbb5d283addc91a05335a936c63b3f5ff7eee74b725755')
 
     def test_ppc64_e500(self):

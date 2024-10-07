@@ -377,6 +377,15 @@ Specifying the iSCSI password in plain text on the command line using the
 used instead, to refer to a ``--object secret...`` instance that provides
 a password via a file, or encrypted.
 
+``gluster`` backend (since 9.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+According to https://marc.info/?l=fedora-devel-list&m=171934833215726
+the GlusterFS development effectively ended. Unless the development
+gains momentum again, the QEMU project will remove the gluster backend
+in a future release.
+
+
 Character device options
 ''''''''''''''''''''''''
 

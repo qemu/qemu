@@ -10,7 +10,7 @@ from qemu_test.utils import archive_extract
 class MacTest(LinuxKernelTest):
 
     ASSET_DAY15 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day15.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day15.tar.xz',
         '03e0757c131d2959decf293a3572d3b96c5a53587165bf05ce41b2818a2bccd5')
 
     def do_day15_test(self):

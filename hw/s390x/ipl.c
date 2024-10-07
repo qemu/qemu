@@ -252,8 +252,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
              */
             romptr = rom_ptr(INITRD_PARM_START, 16);
             if (romptr) {
-                stq_p(romptr, initrd_offset);
-                stq_p(romptr + 1, initrd_size);
+                stq_be_p(romptr, initrd_offset);
+                stq_be_p(romptr + 1, initrd_size);
             }
         }
     }

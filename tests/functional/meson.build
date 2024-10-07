@@ -11,15 +11,18 @@ endif
 
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
+  'aarch64_raspi4' : 120,
   'aarch64_sbsaref' : 600,
   'aarch64_virt' : 360,
   'acpi_bits' : 240,
+  'arm_raspi2' : 120,
+  'mips_malta' : 120,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
   'ppc64_hv' : 1000,
-  'ppc64_powernv' : 120,
-  'ppc64_pseries' : 120,
-  's390x_ccw_virtio' : 180,
+  'ppc64_powernv' : 240,
+  'ppc64_pseries' : 240,
+  's390x_ccw_virtio' : 240,
 }
 
 tests_generic_system = [

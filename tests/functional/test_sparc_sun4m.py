@@ -11,7 +11,7 @@ from qemu_test.utils import archive_extract
 class Sun4mTest(LinuxKernelTest):
 
     ASSET_DAY11 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day11.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day11.tar.xz',
         'c776533ba756bf4dd3f1fc4c024fb50ef0d853e05c5f5ddf0900a32d1eaa49e0')
 
     def test_sparc_ss20(self):

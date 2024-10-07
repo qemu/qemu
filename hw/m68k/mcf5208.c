@@ -359,7 +359,7 @@ static void mcf5208evb_init(MachineState *machine)
         /* Initial PC is always at offset 4 in firmware binaries */
         ptr = rom_ptr(0x4, 4);
         assert(ptr != NULL);
-        env->pc = ldl_p(ptr);
+        env->pc = ldl_be_p(ptr);
     }
 
     /* Load kernel.  */

@@ -11,7 +11,7 @@ from qemu_test.utils import archive_extract
 class VExpressTest(LinuxKernelTest):
 
     ASSET_DAY16 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day16.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day16.tar.xz',
         '63311adb2d4c4e7a73214a86d29988add87266a909719c56acfadd026b4110a7')
 
     def test_arm_vexpressa9(self):

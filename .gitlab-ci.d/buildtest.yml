@@ -628,12 +628,15 @@ build-oss-fuzz:
     - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
       ./scripts/oss-fuzz/build.sh
     - export ASAN_OPTIONS="fast_unwind_on_malloc=0"
+    - failures=0
     - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
                       | grep -v slirp); do
         grep "LLVMFuzzerTestOneInput" ${fuzzer} > /dev/null 2>&1 || continue ;
         echo Testing ${fuzzer} ... ;
-        "${fuzzer}" -runs=1 -seed=1 || exit 1 ;
+        "${fuzzer}" -runs=1 -seed=1 || { echo "FAILED:"" ${fuzzer} exit code is $?"; failures=$(($failures+1)); };
       done
+    - echo "Number of failures:"" $failures"
+    - test $failures = 0
 
 build-tci:
   extends: .native_build_job_template

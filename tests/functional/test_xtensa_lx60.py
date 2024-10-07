@@ -11,7 +11,7 @@ from qemu_test.utils import archive_extract
 class XTensaLX60Test(LinuxKernelTest):
 
     ASSET_DAY02 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day02.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day02.tar.xz',
         '68ff07f9b3fd3df36d015eb46299ba44748e94bfbb2d5295fddc1a8d4a9fd324')
 
     def test_xtensa_lx60(self):
