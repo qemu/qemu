@@ -13,7 +13,7 @@ from unittest import skipUnless
 class R2dTest(LinuxKernelTest):
 
     ASSET_DAY09 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day09.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day09.tar.xz',
         'a61b44d2630a739d1380cc4ff4b80981d47ccfd5992f1484ccf48322c35f09ac')
 
     # This test has a 6-10% failure rate on various hosts that look

@@ -13,7 +13,7 @@ from qemu_test.utils import archive_extract
 class Mcf5208EvbTest(LinuxKernelTest):
 
     ASSET_DAY07 = Asset(
-        'https://www.qemu-advent-calendar.org/2018/download/day07.tar.xz',
+        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day07.tar.xz',
         '753c2f3837126b7c6ba92d0b1e0b156e8a2c5131d2d576bb0b9a763fae73c08a')
 
     def test_m68k_mcf5208evb(self):
