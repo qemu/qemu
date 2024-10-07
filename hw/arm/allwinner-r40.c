@@ -231,9 +231,8 @@ bool allwinner_r40_bootrom_setup(AwR40State *s, BlockBackend *blk, int unit)
     struct boot_file_head *head = (struct boot_file_head *)buffer;
 
     if (blk_pread(blk, 8 * KiB, rom_size, buffer, 0) < 0) {
-        error_setg(&error_fatal, "%s: failed to read BlockBackend data",
-                   __func__);
-        return false;
+        error_report("%s: failed to read BlockBackend data", __func__);
+        exit(1);
     }
 
     /* we only check the magic string here. */
