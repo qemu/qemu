@@ -26,6 +26,9 @@ typedef struct DisplaySurface {
 #ifdef WIN32
     HANDLE handle;
     uint32_t handle_offset;
+#else
+    int shmfd;
+    uint32_t shmfd_offset;
 #endif
 } DisplaySurface;
 
@@ -40,6 +43,9 @@ DisplaySurface *qemu_create_placeholder_surface(int w, int h,
 #ifdef WIN32
 void qemu_displaysurface_win32_set_handle(DisplaySurface *surface,
                                           HANDLE h, uint32_t offset);
+#else
+void qemu_displaysurface_set_shmfd(DisplaySurface *surface,
+                                   int shmfd, uint32_t offset);
 #endif
 
 DisplaySurface *qemu_create_displaysurface(int width, int height);
