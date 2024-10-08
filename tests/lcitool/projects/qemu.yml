@@ -43,6 +43,7 @@ packages:
  - libc-static
  - libcacard
  - libcap-ng
+ - libcbor
  - libcurl
  - libdrm
  - libepoxy

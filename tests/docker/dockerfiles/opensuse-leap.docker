@@ -47,6 +47,7 @@ RUN zypper update -y && \
            libbz2-devel \
            libcacard-devel \
            libcap-ng-devel \
+           libcbor-devel \
            libcmocka-devel \
            libcurl-devel \
            libdrm-devel \
