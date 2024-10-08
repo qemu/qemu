@@ -87,6 +87,7 @@ struct _DBusDisplayListener {
 
     guint dbus_filter;
     guint32 display_serial_to_discard;
+    guint32 cursor_serial_to_discard;
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
@@ -100,6 +101,14 @@ static void ddl_discard_display_messages(DBusDisplayListener *ddl)
         g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy)));
 
     g_atomic_int_set(&ddl->display_serial_to_discard, serial);
+}
+
+static void ddl_discard_cursor_messages(DBusDisplayListener *ddl)
+{
+    guint32 serial = g_dbus_connection_get_last_serial(
+        g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy)));
+
+    g_atomic_int_set(&ddl->cursor_serial_to_discard, serial);
 }
 
 #ifdef CONFIG_OPENGL
@@ -502,6 +511,8 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
         return;
     }
 
+    ddl_discard_cursor_messages(ddl);
+
     egl_dmabuf_import_texture(dmabuf);
     texture = qemu_dmabuf_get_texture(dmabuf);
     if (!texture) {
@@ -744,6 +755,8 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
+
+    ddl_discard_cursor_messages(ddl);
 
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
@@ -1022,6 +1035,21 @@ dbus_filter(GDBusConnection *connection,
         };
 
         if (g_strv_contains(display_messages, member)) {
+            trace_dbus_filter(serial, discard_serial);
+            g_object_unref(message);
+            return NULL;
+        }
+    }
+
+    discard_serial = g_atomic_int_get(&ddl->cursor_serial_to_discard);
+    if (serial <= discard_serial) {
+        const gchar *member = g_dbus_message_get_member(message);
+        static const char *const cursor_messages[] = {
+            "CursorDefine",
+            NULL
+        };
+
+        if (g_strv_contains(cursor_messages, member)) {
             trace_dbus_filter(serial, discard_serial);
             g_object_unref(message);
             return NULL;
