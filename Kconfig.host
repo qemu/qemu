@@ -8,6 +8,9 @@ config LINUX
 config LIBCBOR
     bool
 
+config GNUTLS
+    bool
+
 config OPENGL
     bool
 
