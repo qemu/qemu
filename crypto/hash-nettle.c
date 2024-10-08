@@ -1,6 +1,7 @@
 /*
  * QEMU Crypto hash algorithms
  *
+ * Copyright (c) 2024 Seagate Technology LLC and/or its Affiliates
  * Copyright (c) 2016 Red Hat, Inc.
  *
  * This library is free software; you can redistribute it and/or
@@ -155,7 +156,76 @@ qcrypto_nettle_hash_bytesv(QCryptoHashAlgo alg,
     return 0;
 }
 
+static
+QCryptoHash *qcrypto_nettle_hash_new(QCryptoHashAlgo alg, Error **errp)
+{
+    QCryptoHash *hash;
+
+    hash = g_new(QCryptoHash, 1);
+    hash->alg = alg;
+    hash->opaque = g_new(union qcrypto_hash_ctx, 1);
+
+    qcrypto_hash_alg_map[alg].init(hash->opaque);
+    return hash;
+}
+
+static
+void qcrypto_nettle_hash_free(QCryptoHash *hash)
+{
+    union qcrypto_hash_ctx *ctx = hash->opaque;
+
+    g_free(ctx);
+    g_free(hash);
+}
+
+static
+int qcrypto_nettle_hash_update(QCryptoHash *hash,
+                               const struct iovec *iov,
+                               size_t niov,
+                               Error **errp)
+{
+    union qcrypto_hash_ctx *ctx = hash->opaque;
+
+    for (int i = 0; i < niov; i++) {
+        /*
+         * Some versions of nettle have functions
+         * declared with 'int' instead of 'size_t'
+         * so to be safe avoid writing more than
+         * UINT_MAX bytes at a time
+         */
+        size_t len = iov[i].iov_len;
+        uint8_t *base = iov[i].iov_base;
+        while (len) {
+            size_t shortlen = MIN(len, UINT_MAX);
+            qcrypto_hash_alg_map[hash->alg].write(ctx, len, base);
+            len -= shortlen;
+            base += len;
+        }
+    }
+
+    return 0;
+}
+
+static
+int qcrypto_nettle_hash_finalize(QCryptoHash *hash,
+                                 uint8_t **result,
+                                 size_t *result_len,
+                                 Error **errp)
+{
+    union qcrypto_hash_ctx *ctx = hash->opaque;
+
+    *result_len = qcrypto_hash_alg_map[hash->alg].len;
+    *result = g_new(uint8_t, *result_len);
+
+    qcrypto_hash_alg_map[hash->alg].result(ctx, *result_len, *result);
+
+    return 0;
+}
 
 QCryptoHashDriver qcrypto_hash_lib_driver = {
     .hash_bytesv = qcrypto_nettle_hash_bytesv,
+    .hash_new      = qcrypto_nettle_hash_new,
+    .hash_update   = qcrypto_nettle_hash_update,
+    .hash_finalize = qcrypto_nettle_hash_finalize,
+    .hash_free     = qcrypto_nettle_hash_free,
 };
