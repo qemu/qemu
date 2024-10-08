@@ -3,6 +3,7 @@
  *
  * Copyright IBM, Corp. 2007, 2008
  * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (c) 2024 Seagate Technology LLC and/or its Affiliates
  *
  * Author(s):
  *  Anthony Liguori <aliguori@us.ibm.com>
@@ -92,7 +93,8 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
 
 /* helper function for iov_send_recv() */
 static ssize_t
-do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
+do_send_recv(int sockfd, int flags, struct iovec *iov, unsigned iov_cnt,
+             bool do_send)
 {
 #ifdef CONFIG_POSIX
     ssize_t ret;
@@ -102,8 +104,8 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
     msg.msg_iovlen = iov_cnt;
     do {
         ret = do_send
-            ? sendmsg(sockfd, &msg, 0)
-            : recvmsg(sockfd, &msg, 0);
+            ? sendmsg(sockfd, &msg, flags)
+            : recvmsg(sockfd, &msg, flags);
     } while (ret < 0 && errno == EINTR);
     return ret;
 #else
@@ -114,8 +116,8 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
     ssize_t off = 0;
     while (i < iov_cnt) {
         ssize_t r = do_send
-            ? send(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, 0)
-            : recv(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, 0);
+            ? send(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, flags)
+            : recv(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, flags);
         if (r > 0) {
             ret += r;
             off += r;
@@ -144,6 +146,15 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
 ssize_t iov_send_recv(int sockfd, const struct iovec *_iov, unsigned iov_cnt,
                       size_t offset, size_t bytes,
                       bool do_send)
+{
+    return iov_send_recv_with_flags(sockfd, 0, _iov, iov_cnt, offset, bytes,
+                                    do_send);
+}
+
+ssize_t iov_send_recv_with_flags(int sockfd, int sockflags,
+                                 const struct iovec *_iov,
+                                 unsigned iov_cnt, size_t offset,
+                                 size_t bytes, bool do_send)
 {
     ssize_t total = 0;
     ssize_t ret;
@@ -192,11 +203,11 @@ ssize_t iov_send_recv(int sockfd, const struct iovec *_iov, unsigned iov_cnt,
             assert(iov[niov].iov_len > tail);
             orig_len = iov[niov].iov_len;
             iov[niov++].iov_len = tail;
-            ret = do_send_recv(sockfd, iov, niov, do_send);
+            ret = do_send_recv(sockfd, sockflags, iov, niov, do_send);
             /* Undo the changes above before checking for errors */
             iov[niov-1].iov_len = orig_len;
         } else {
-            ret = do_send_recv(sockfd, iov, niov, do_send);
+            ret = do_send_recv(sockfd, sockflags, iov, niov, do_send);
         }
         if (offset) {
             iov[0].iov_base -= offset;
