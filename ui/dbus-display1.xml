@@ -476,6 +476,7 @@
       org.qemu.Display1.Listener on ``/org/qemu/Display1/Listener`` for Windows
       specific shared memory scanouts.
   -->
+  <?if $(env.HOST_OS) == windows?>
   <interface name="org.qemu.Display1.Listener.Win32.Map">
     <!--
         ScanoutMap:
@@ -513,6 +514,7 @@
       <arg type="i" name="height" direction="in"/>
     </method>
   </interface>
+  <?endif?>
 
   <!--
       org.qemu.Display1.Listener.Win32.D3d11:
