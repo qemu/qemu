@@ -1001,6 +1001,7 @@ dbus_filter(GDBusConnection *connection,
     serial = g_dbus_message_get_serial(message);
     if (serial <= ddl->out_serial_to_discard) {
         trace_dbus_filter(serial, ddl->out_serial_to_discard);
+        g_object_unref(message);
         return NULL;
     }
 
