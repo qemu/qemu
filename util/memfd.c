@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/memfd.h"
 #include "qemu/host-utils.h"
 
@@ -149,11 +150,15 @@ err:
 void qemu_memfd_free(void *ptr, size_t size, int fd)
 {
     if (ptr) {
-        munmap(ptr, size);
+        if (munmap(ptr, size) != 0) {
+            error_report("memfd munmap() failed: %s", strerror(errno));
+        }
     }
 
     if (fd != -1) {
-        close(fd);
+        if (close(fd) != 0) {
+            error_report("memfd close() failed: %s", strerror(errno));
+        }
     }
 }
 
