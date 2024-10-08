@@ -1842,6 +1842,7 @@ F: hw/core/eif.c
 F: hw/core/eif.h
 F: hw/i386/nitro_enclave.c
 F: include/hw/i386/nitro_enclave.h
+F: docs/system/i386/nitro-enclave.rst
 
 Machine core
 M: Eduardo Habkost <eduardo@habkost.net>
