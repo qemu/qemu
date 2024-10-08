@@ -336,13 +336,13 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         return true;
     }
 
-    if (!ddl->can_share_map || !ddl->ds->handle) {
+    if (!ddl->can_share_map || !ddl->ds->share_handle) {
         return false;
     }
 
     success = DuplicateHandle(
         GetCurrentProcess(),
-        ddl->ds->handle,
+        ddl->ds->share_handle,
         ddl->peer_process,
         &target_handle,
         FILE_MAP_READ | SECTION_QUERY,
@@ -359,7 +359,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     if (!qemu_dbus_display1_listener_win32_map_call_scanout_map_sync(
             ddl->map_proxy,
             GPOINTER_TO_UINT(target_handle),
-            ddl->ds->handle_offset,
+            ddl->ds->share_handle_offset,
             surface_width(ddl->ds),
             surface_height(ddl->ds),
             surface_stride(ddl->ds),
@@ -453,13 +453,13 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         return true;
     }
 
-    if (!ddl->can_share_map || ddl->ds->shmfd == -1) {
+    if (!ddl->can_share_map || ddl->ds->share_handle == SHAREABLE_NONE) {
         return false;
     }
 
     ddl_discard_display_messages(ddl);
     fd_list = g_unix_fd_list_new();
-    if (g_unix_fd_list_append(fd_list, ddl->ds->shmfd, &err) != 0) {
+    if (g_unix_fd_list_append(fd_list, ddl->ds->share_handle, &err) != 0) {
         g_debug("Failed to setup scanout map fdlist: %s", err->message);
         ddl->can_share_map = false;
         return false;
@@ -468,7 +468,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     if (!qemu_dbus_display1_listener_unix_map_call_scanout_map_sync(
             ddl->map_proxy,
             g_variant_new_handle(0),
-            ddl->ds->shmfd_offset,
+            ddl->ds->share_handle_offset,
             surface_width(ddl->ds),
             surface_height(ddl->ds),
             surface_stride(ddl->ds),

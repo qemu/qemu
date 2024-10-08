@@ -270,19 +270,71 @@ void qemu_pixman_glyph_render(pixman_image_t *glyph,
 }
 #endif /* CONFIG_PIXMAN */
 
-void
-qemu_pixman_shared_image_destroy(pixman_image_t *image, void *data)
+static void *
+qemu_pixman_shareable_alloc(const char *name, size_t size,
+                            qemu_pixman_shareable *handle,
+                            Error **errp)
 {
-    void *ptr = pixman_image_get_data(image);
-
 #ifdef WIN32
-    HANDLE handle = data;
+    return qemu_win32_map_alloc(size, handle, errp);
+#else
+    return qemu_memfd_alloc(name, size, 0, handle, errp);
+#endif
+}
 
+static void
+qemu_pixman_shareable_free(qemu_pixman_shareable handle,
+                           void *ptr, size_t size)
+{
+#ifdef WIN32
     qemu_win32_map_free(ptr, handle, &error_warn);
 #else
-    int shmfd = GPOINTER_TO_INT(data);
+    qemu_memfd_free(ptr, size, handle);
+#endif
+}
+
+static void
+qemu_pixman_shared_image_destroy(pixman_image_t *image, void *data)
+{
+    qemu_pixman_shareable handle = PTR_TO_SHAREABLE(data);
+    void *ptr = pixman_image_get_data(image);
     size_t size = pixman_image_get_height(image) * pixman_image_get_stride(image);
 
-    qemu_memfd_free(ptr, size, shmfd);
-#endif
+    qemu_pixman_shareable_free(handle, ptr, size);
+}
+
+bool
+qemu_pixman_image_new_shareable(pixman_image_t **image,
+                                qemu_pixman_shareable *handle,
+                                const char *name,
+                                pixman_format_code_t format,
+                                int width,
+                                int height,
+                                int rowstride_bytes,
+                                Error **errp)
+{
+    ERRP_GUARD();
+    size_t size = height * rowstride_bytes;
+    void *bits = NULL;
+
+    g_return_val_if_fail(image != NULL, false);
+    g_return_val_if_fail(handle != NULL, false);
+
+    bits = qemu_pixman_shareable_alloc(name, size, handle, errp);
+    if (!bits) {
+        return false;
+    }
+
+    *image = pixman_image_create_bits(format, width, height, bits, rowstride_bytes);
+    if (!*image) {
+        error_setg(errp, "Failed to allocate image");
+        qemu_pixman_shareable_free(*handle, bits, size);
+        return false;
+    }
+
+    pixman_image_set_destroy_function(*image,
+                                      qemu_pixman_shared_image_destroy,
+                                      SHAREABLE_TO_PTR(*handle));
+
+    return true;
 }
