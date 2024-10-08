@@ -41,7 +41,7 @@ struct _DBusDisplayConsole {
     DisplayChangeListener dcl;
 
     DBusDisplay *display;
-    GHashTable *listeners;
+    GPtrArray *listeners;
     QemuDBusDisplay1Console *iface;
 
     QemuDBusDisplay1Keyboard *iface_kbd;
@@ -142,8 +142,7 @@ dbus_display_console_init(DBusDisplayConsole *object)
 {
     DBusDisplayConsole *ddc = DBUS_DISPLAY_CONSOLE(object);
 
-    ddc->listeners = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                            NULL, g_object_unref);
+    ddc->listeners = g_ptr_array_new_with_free_func(g_object_unref);
     ddc->dcl.ops = &dbus_console_dcl_ops;
 }
 
@@ -157,7 +156,7 @@ dbus_display_console_dispose(GObject *object)
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
     g_clear_object(&ddc->iface);
-    g_clear_pointer(&ddc->listeners, g_hash_table_unref);
+    g_clear_pointer(&ddc->listeners, g_ptr_array_unref);
     g_clear_pointer(&ddc->kbd, qkbd_state_free);
 
     G_OBJECT_CLASS(dbus_display_console_parent_class)->dispose(object);
@@ -179,7 +178,7 @@ listener_vanished_cb(DBusDisplayListener *listener)
 
     trace_dbus_listener_vanished(name);
 
-    g_hash_table_remove(ddc->listeners, name);
+    g_ptr_array_remove_fast(ddc->listeners, listener);
     qkbd_state_lift_all_keys(ddc->kbd);
 }
 
@@ -267,16 +266,6 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
     DBusDisplayListener *listener;
     int fd;
 
-    if (sender && g_hash_table_contains(ddc->listeners, sender)) {
-        g_dbus_method_invocation_return_error(
-            invocation,
-            DBUS_DISPLAY_ERROR,
-            DBUS_DISPLAY_ERROR_INVALID,
-            "`%s` is already registered!",
-            sender);
-        return DBUS_METHOD_INVOCATION_HANDLED;
-    }
-
 #ifdef G_OS_WIN32
     if (!dbus_win32_import_socket(invocation, arg_listener, &fd)) {
         return DBUS_METHOD_INVOCATION_HANDLED;
@@ -331,9 +320,7 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    g_hash_table_insert(ddc->listeners,
-                        (gpointer)dbus_display_listener_get_bus_name(listener),
-                        listener);
+    g_ptr_array_add(ddc->listeners, listener);
     g_object_connect(listener_conn,
                      "swapped-signal::closed", listener_vanished_cb, listener,
                      NULL);
