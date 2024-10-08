@@ -91,6 +91,35 @@ bool cpu_get_fcfien(CPURISCVState *env)
     }
 }
 
+bool cpu_get_bcfien(CPURISCVState *env)
+{
+    /* no cfi extension, return false */
+    if (!env_archcpu(env)->cfg.ext_zicfiss) {
+        return false;
+    }
+
+    switch (env->priv) {
+    case PRV_U:
+        /*
+         * If S is not implemented then shadow stack for U can't be turned on
+         * It is checked in `riscv_cpu_validate_set_extensions`, so no need to
+         * check here or assert here
+         */
+        return env->senvcfg & SENVCFG_SSE;
+#ifndef CONFIG_USER_ONLY
+    case PRV_S:
+        if (env->virt_enabled) {
+            return env->henvcfg & HENVCFG_SSE;
+        }
+        return env->menvcfg & MENVCFG_SSE;
+    case PRV_M: /* M-mode shadow stack is always off */
+        return false;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+}
+
 void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
                           uint64_t *cs_base, uint32_t *pflags)
 {
