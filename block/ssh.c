@@ -364,7 +364,7 @@ static unsigned hex2decimal(char ch)
         return 10 + (ch - 'A');
     }
 
-    return -1;
+    return UINT_MAX;
 }
 
 /* Compare the binary fingerprint (hash of host key) with the
@@ -376,13 +376,15 @@ static int compare_fingerprint(const unsigned char *fingerprint, size_t len,
     unsigned c;
 
     while (len > 0) {
+        unsigned c0, c1;
         while (*host_key_check == ':')
             host_key_check++;
-        if (!qemu_isxdigit(host_key_check[0]) ||
-            !qemu_isxdigit(host_key_check[1]))
+        c0 = hex2decimal(host_key_check[0]);
+        c1 = hex2decimal(host_key_check[1]);
+        if (c0 > 0xf || c1 > 0xf) {
             return 1;
-        c = hex2decimal(host_key_check[0]) * 16 +
-            hex2decimal(host_key_check[1]);
+        }
+        c = c0 * 16 + c1;
         if (c - *fingerprint != 0)
             return c - *fingerprint;
         fingerprint++;
