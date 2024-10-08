@@ -389,7 +389,7 @@ static void multifd_qpl_compress_pages_slow_path(MultiFDSendParams *p)
 {
     QplData *qpl = p->compress_data;
     MultiFDPages_t *pages = &p->data->u.ram;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     qpl_job *job = qpl->sw_job;
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *buf;
@@ -420,7 +420,7 @@ static void multifd_qpl_compress_pages(MultiFDSendParams *p)
 {
     QplData *qpl = p->compress_data;
     MultiFDPages_t *pages = &p->data->u.ram;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     QplHwJob *hw_job;
     uint8_t *buf;
     uint8_t *zbuf;
@@ -560,7 +560,7 @@ static int multifd_qpl_decompress_pages_slow_path(MultiFDRecvParams *p,
                                                   Error **errp)
 {
     QplData *qpl = p->compress_data;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     qpl_job *job = qpl->sw_job;
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *addr;
@@ -598,7 +598,7 @@ static int multifd_qpl_decompress_pages_slow_path(MultiFDRecvParams *p,
 static int multifd_qpl_decompress_pages(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *addr;
     uint32_t len;
@@ -677,7 +677,7 @@ static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
     }
     for (int i = 0; i < p->normal_num; i++) {
         qpl->zlen[i] = be32_to_cpu(qpl->zlen[i]);
-        assert(qpl->zlen[i] <= p->page_size);
+        assert(qpl->zlen[i] <= multifd_ram_page_size());
         zbuf_len += qpl->zlen[i];
     }
 
