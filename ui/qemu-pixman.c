@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "ui/console.h"
+#include "qemu/memfd.h"
 #include "standard-headers/drm/drm_fourcc.h"
 #include "trace.h"
 
@@ -269,16 +270,19 @@ void qemu_pixman_glyph_render(pixman_image_t *glyph,
 }
 #endif /* CONFIG_PIXMAN */
 
-#ifdef WIN32
 void
-qemu_pixman_win32_image_destroy(pixman_image_t *image, void *data)
+qemu_pixman_shared_image_destroy(pixman_image_t *image, void *data)
 {
+    void *ptr = pixman_image_get_data(image);
+
+#ifdef WIN32
     HANDLE handle = data;
 
-    qemu_win32_map_free(
-        pixman_image_get_data(image),
-        handle,
-        &error_warn
-    );
-}
+    qemu_win32_map_free(ptr, handle, &error_warn);
+#else
+    int shmfd = GPOINTER_TO_INT(data);
+    size_t size = pixman_image_get_height(image) * pixman_image_get_stride(image);
+
+    qemu_memfd_free(ptr, size, shmfd);
 #endif
+}

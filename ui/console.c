@@ -487,7 +487,7 @@ DisplaySurface *qemu_create_displaysurface(int width, int height)
 #ifdef WIN32
     qemu_displaysurface_win32_set_handle(surface, handle, 0);
     pixman_image_set_destroy_function(surface->image,
-                                      qemu_pixman_win32_image_destroy, handle);
+                                      qemu_pixman_shared_image_destroy, handle);
 #endif
     return surface;
 }

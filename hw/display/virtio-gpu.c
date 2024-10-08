@@ -298,7 +298,7 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
             bits, c2d.height ? res->hostmem / c2d.height : 0);
 #ifdef WIN32
         if (res->image) {
-            pixman_image_set_destroy_function(res->image, qemu_pixman_win32_image_destroy, res->handle);
+            pixman_image_set_destroy_function(res->image, qemu_pixman_shared_image_destroy, res->handle);
         }
 #endif
     }
@@ -1317,7 +1317,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             return -EINVAL;
         }
 #ifdef WIN32
-        pixman_image_set_destroy_function(res->image, qemu_pixman_win32_image_destroy, res->handle);
+        pixman_image_set_destroy_function(res->image, qemu_pixman_shared_image_destroy, res->handle);
 #endif
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
