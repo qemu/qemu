@@ -87,7 +87,7 @@
 /* Command line option for static images. */
 #define BLOCK_OPT_STATIC "static"
 
-#define SECTOR_SIZE 512
+#define SECTOR_SIZE 512ULL
 #define DEFAULT_CLUSTER_SIZE 1048576
 /* Note: can't use 1 * MiB, because it's passed to stringify() */
 
@@ -442,7 +442,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     } else if (header.sector_size != SECTOR_SIZE) {
         error_setg(errp, "unsupported VDI image (sector size %" PRIu32
-                   " is not %u)", header.sector_size, SECTOR_SIZE);
+                   " is not %llu)", header.sector_size, SECTOR_SIZE);
         ret = -ENOTSUP;
         goto fail;
     } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
