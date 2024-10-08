@@ -168,6 +168,8 @@ option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',
        description: 'curses UI')
+option('libcbor', type : 'feature', value : 'auto',
+       description: 'libcbor support')
 option('gnutls', type : 'feature', value : 'auto',
        description: 'GNUTLS cryptography support')
 option('nettle', type : 'feature', value : 'auto',

@@ -5,6 +5,9 @@
 config LINUX
     bool
 
+config LIBCBOR
+    bool
+
 config OPENGL
     bool
 

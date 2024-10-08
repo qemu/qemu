@@ -1716,6 +1716,12 @@ if (have_system or have_tools) and (virgl.found() or opengl.found())
 endif
 have_vhost_user_gpu = have_vhost_user_gpu and virgl.found() and opengl.found() and gbm.found()
 
+libcbor = not_found
+if not get_option('libcbor').auto() or have_system
+  libcbor = dependency('libcbor', version: '>=0.7.0',
+                       required: get_option('libcbor'))
+endif
+
 gnutls = not_found
 gnutls_crypto = not_found
 if get_option('gnutls').enabled() or (get_option('gnutls').auto() and have_system)
@@ -3130,6 +3136,7 @@ host_kconfig = \
   (spice.found() ? ['CONFIG_SPICE=y'] : []) + \
   (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
   (opengl.found() ? ['CONFIG_OPENGL=y'] : []) + \
+  (libcbor.found() ? ['CONFIG_LIBCBOR=y'] : []) + \
   (x11.found() ? ['CONFIG_X11=y'] : []) + \
   (fdt.found() ? ['CONFIG_FDT=y'] : []) + \
   (have_vhost_user ? ['CONFIG_VHOST_USER=y'] : []) + \
@@ -4696,6 +4703,7 @@ summary_info += {'NUMA host support': numa}
 summary_info += {'capstone':          capstone}
 summary_info += {'libpmem support':   libpmem}
 summary_info += {'libdaxctl support': libdaxctl}
+summary_info += {'libcbor support':   libcbor}
 summary_info += {'libudev':           libudev}
 # Dummy dependency, keep .found()
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
