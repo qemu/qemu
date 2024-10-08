@@ -1840,6 +1840,8 @@ M: Dorjoy Chowdhury <dorjoychy111@gmail.com>
 S: Maintained
 F: hw/core/eif.c
 F: hw/core/eif.h
+F: hw/i386/nitro_enclave.c
+F: include/hw/i386/nitro_enclave.h
 
 Machine core
 M: Eduardo Habkost <eduardo@habkost.net>
