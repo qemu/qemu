@@ -53,52 +53,6 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
     return false;
 }
 
-
-static int
-qcrypto_gnutls_hash_bytesv(QCryptoHashAlgo alg,
-                           const struct iovec *iov,
-                           size_t niov,
-                           uint8_t **result,
-                           size_t *resultlen,
-                           Error **errp)
-{
-    int i, ret;
-    gnutls_hash_hd_t hash;
-
-    if (!qcrypto_hash_supports(alg)) {
-        error_setg(errp,
-                   "Unknown hash algorithm %d",
-                   alg);
-        return -1;
-    }
-
-    ret = gnutls_hash_get_len(qcrypto_hash_alg_map[alg]);
-    if (*resultlen == 0) {
-        *resultlen = ret;
-        *result = g_new0(uint8_t, *resultlen);
-    } else if (*resultlen != ret) {
-        error_setg(errp,
-                   "Result buffer size %zu is smaller than hash %d",
-                   *resultlen, ret);
-        return -1;
-    }
-
-    ret = gnutls_hash_init(&hash, qcrypto_hash_alg_map[alg]);
-    if (ret < 0) {
-        error_setg(errp,
-                   "Unable to initialize hash algorithm: %s",
-                   gnutls_strerror(ret));
-        return -1;
-    }
-
-    for (i = 0; i < niov; i++) {
-        gnutls_hash(hash, iov[i].iov_base, iov[i].iov_len);
-    }
-
-    gnutls_hash_deinit(hash, *result);
-    return 0;
-}
-
 static
 QCryptoHash *qcrypto_gnutls_hash_new(QCryptoHashAlgo alg, Error **errp)
 {
@@ -174,7 +128,6 @@ int qcrypto_gnutls_hash_finalize(QCryptoHash *hash,
 }
 
 QCryptoHashDriver qcrypto_hash_lib_driver = {
-    .hash_bytesv = qcrypto_gnutls_hash_bytesv,
     .hash_new      = qcrypto_gnutls_hash_new,
     .hash_update   = qcrypto_gnutls_hash_update,
     .hash_finalize = qcrypto_gnutls_hash_finalize,
