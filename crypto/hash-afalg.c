@@ -244,66 +244,15 @@ qcrypto_afalg_hash_hmac_bytesv(QCryptoAFAlgo *hmac,
                                size_t *resultlen,
                                Error **errp)
 {
-    QCryptoAFAlgo *afalg;
-    struct iovec outv;
     int ret = 0;
-    bool is_hmac = (hmac != NULL) ? true : false;
-    const int expect_len = qcrypto_hash_digest_len(alg);
 
-    if (*resultlen == 0) {
-        *resultlen = expect_len;
-        *result = g_new0(uint8_t, *resultlen);
-    } else if (*resultlen != expect_len) {
-        error_setg(errp,
-                   "Result buffer size %zu is not match hash %d",
-                   *resultlen, expect_len);
-        return -1;
+    ret = qcrypto_afalg_send_to_kernel(hmac, iov, niov, false, errp);
+    if (ret == 0) {
+        ret = qcrypto_afalg_recv_from_kernel(hmac, alg, result,
+                                             resultlen, errp);
     }
 
-    if (is_hmac) {
-        afalg = hmac;
-    } else {
-        afalg = qcrypto_afalg_hash_ctx_new(alg, errp);
-        if (!afalg) {
-            return -1;
-        }
-    }
-
-    /* send data to kernel's crypto core */
-    ret = iov_send_recv(afalg->opfd, iov, niov,
-                        0, iov_size(iov, niov), true);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "Send data to afalg-core failed");
-        goto out;
-    }
-
-    /* hash && get result */
-    outv.iov_base = *result;
-    outv.iov_len = *resultlen;
-    ret = iov_send_recv(afalg->opfd, &outv, 1,
-                        0, iov_size(&outv, 1), false);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "Recv result from afalg-core failed");
-    } else {
-        ret = 0;
-    }
-
-out:
-    if (!is_hmac) {
-        qcrypto_afalg_comm_free(afalg);
-    }
     return ret;
-}
-
-static int
-qcrypto_afalg_hash_bytesv(QCryptoHashAlgo alg,
-                          const struct iovec *iov,
-                          size_t niov, uint8_t **result,
-                          size_t *resultlen,
-                          Error **errp)
-{
-    return qcrypto_afalg_hash_hmac_bytesv(NULL, alg, iov, niov, result,
-                                          resultlen, errp);
 }
 
 static int
@@ -327,7 +276,6 @@ static void qcrypto_afalg_hmac_ctx_free(QCryptoHmac *hmac)
 }
 
 QCryptoHashDriver qcrypto_hash_afalg_driver = {
-    .hash_bytesv = qcrypto_afalg_hash_bytesv,
     .hash_new      = qcrypto_afalg_hash_new,
     .hash_free     = qcrypto_afalg_hash_free,
     .hash_update   = qcrypto_afalg_hash_update,
