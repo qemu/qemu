@@ -28,6 +28,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
+#include "qemu/memfd.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -238,6 +239,20 @@ static uint32_t calc_image_hostmem(pixman_format_code_t pformat,
     return height * stride;
 }
 
+static void
+resource_set_image_destroy(struct virtio_gpu_simple_resource *res)
+{
+    if (!res) {
+        return;
+    }
+#ifdef WIN32
+    void *data = res->handle;
+#else
+    void *data = GINT_TO_POINTER(res->shmfd);
+#endif
+    pixman_image_set_destroy_function(res->image, qemu_pixman_shared_image_destroy, data);
+}
+
 static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
                                           struct virtio_gpu_ctrl_command *cmd)
 {
@@ -287,25 +302,21 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
         void *bits = NULL;
 #ifdef WIN32
         bits = qemu_win32_map_alloc(res->hostmem, &res->handle, &error_warn);
+#else
+        bits = qemu_memfd_alloc("virtio-gpu-res", res->hostmem, 0, &res->shmfd, &error_warn);
+#endif
         if (!bits) {
             goto end;
         }
-#endif
         res->image = pixman_image_create_bits(
             pformat,
             c2d.width,
             c2d.height,
             bits, c2d.height ? res->hostmem / c2d.height : 0);
-#ifdef WIN32
-        if (res->image) {
-            pixman_image_set_destroy_function(res->image, qemu_pixman_shared_image_destroy, res->handle);
-        }
-#endif
+        resource_set_image_destroy(res);
     }
 
-#ifdef WIN32
 end:
-#endif
     if (!res->image) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: resource creation failed %d %d %d\n",
@@ -678,6 +689,8 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
         scanout->ds = qemu_create_displaysurface_pixman(rect);
 #ifdef WIN32
         qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, fb->offset);
+#else
+        qemu_displaysurface_set_shmfd(scanout->ds, res->shmfd, fb->offset);
 #endif
 
         pixman_image_unref(rect);
@@ -1303,11 +1316,13 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         res->hostmem = calc_image_hostmem(pformat, res->width, res->height);
 #ifdef WIN32
         bits = qemu_win32_map_alloc(res->hostmem, &res->handle, &error_warn);
+#else
+        bits = qemu_memfd_alloc("virtio-gpu-res", res->hostmem, 0, &res->shmfd, &error_warn);
+#endif
         if (!bits) {
             g_free(res);
             return -EINVAL;
         }
-#endif
         res->image = pixman_image_create_bits(
             pformat,
             res->width, res->height,
@@ -1316,9 +1331,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             g_free(res);
             return -EINVAL;
         }
-#ifdef WIN32
-        pixman_image_set_destroy_function(res->image, qemu_pixman_shared_image_destroy, res->handle);
-#endif
+        resource_set_image_destroy(res);
 
         res->addrs = g_new(uint64_t, res->iov_cnt);
         res->iov = g_new(struct iovec, res->iov_cnt);
@@ -1453,6 +1466,8 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
             scanout->ds = qemu_create_displaysurface_pixman(res->image);
 #ifdef WIN32
             qemu_displaysurface_win32_set_handle(scanout->ds, res->handle, 0);
+#else
+            qemu_displaysurface_set_shmfd(scanout->ds, res->shmfd, 0);
 #endif
             dpy_gfx_replace_surface(scanout->con, scanout->ds);
         }

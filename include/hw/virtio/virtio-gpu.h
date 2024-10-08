@@ -53,6 +53,8 @@ struct virtio_gpu_simple_resource {
     pixman_image_t *image;
 #ifdef WIN32
     HANDLE handle;
+#else
+    int shmfd;
 #endif
     uint64_t hostmem;
 
