@@ -1089,6 +1089,7 @@ dbus_display_listener_new(const char *bus_name,
     ddl->console = console;
 
     dbus_display_listener_setup_shared_map(ddl);
+    trace_dbus_can_share_map(ddl->can_share_map);
     dbus_display_listener_setup_d3d11(ddl);
 
     con = qemu_console_lookup_by_index(dbus_display_console_get_index(console));
