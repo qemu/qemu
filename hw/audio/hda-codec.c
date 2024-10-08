@@ -748,7 +748,7 @@ static void hda_audio_exit(HDACodecDevice *hda)
             continue;
         }
         if (a->use_timer) {
-            timer_del(st->buft);
+            timer_free(st->buft);
         }
         if (st->output) {
             AUD_close_out(&a->card, st->voice.out);
