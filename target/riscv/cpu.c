@@ -1011,6 +1011,9 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
     env->menvcfg = 0;
 #endif
 
+    /* on reset elp is clear */
+    env->elp = false;
+
     env->xl = riscv_cpu_mxl(env);
     riscv_cpu_update_mask(env);
     cs->exception_index = RISCV_EXCP_NONE;
