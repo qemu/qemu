@@ -21,12 +21,6 @@
 typedef struct QCryptoHashDriver QCryptoHashDriver;
 
 struct QCryptoHashDriver {
-    int (*hash_bytesv)(QCryptoHashAlgo alg,
-                       const struct iovec *iov,
-                       size_t niov,
-                       uint8_t **result,
-                       size_t *resultlen,
-                       Error **errp);
     QCryptoHash *(*hash_new)(QCryptoHashAlgo alg, Error **errp);
     int (*hash_update)(QCryptoHash *hash,
                        const struct iovec *iov,
