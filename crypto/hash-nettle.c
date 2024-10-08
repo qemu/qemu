@@ -104,58 +104,6 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
     return false;
 }
 
-
-static int
-qcrypto_nettle_hash_bytesv(QCryptoHashAlgo alg,
-                           const struct iovec *iov,
-                           size_t niov,
-                           uint8_t **result,
-                           size_t *resultlen,
-                           Error **errp)
-{
-    size_t i;
-    union qcrypto_hash_ctx ctx;
-
-    if (!qcrypto_hash_supports(alg)) {
-        error_setg(errp,
-                   "Unknown hash algorithm %d",
-                   alg);
-        return -1;
-    }
-
-    qcrypto_hash_alg_map[alg].init(&ctx);
-
-    for (i = 0; i < niov; i++) {
-        /* Some versions of nettle have functions
-         * declared with 'int' instead of 'size_t'
-         * so to be safe avoid writing more than
-         * UINT_MAX bytes at a time
-         */
-        size_t len = iov[i].iov_len;
-        uint8_t *base = iov[i].iov_base;
-        while (len) {
-            size_t shortlen = MIN(len, UINT_MAX);
-            qcrypto_hash_alg_map[alg].write(&ctx, len, base);
-            len -= shortlen;
-            base += len;
-        }
-    }
-
-    if (*resultlen == 0) {
-        *resultlen = qcrypto_hash_alg_map[alg].len;
-        *result = g_new0(uint8_t, *resultlen);
-    } else if (*resultlen != qcrypto_hash_alg_map[alg].len) {
-        error_setg(errp,
-                   "Result buffer size %zu is smaller than hash %zu",
-                   *resultlen, qcrypto_hash_alg_map[alg].len);
-        return -1;
-    }
-
-    qcrypto_hash_alg_map[alg].result(&ctx, *resultlen, *result);
-
-    return 0;
-}
-
 static
 QCryptoHash *qcrypto_nettle_hash_new(QCryptoHashAlgo alg, Error **errp)
 {
@@ -223,7 +171,6 @@ int qcrypto_nettle_hash_finalize(QCryptoHash *hash,
 }
 
 QCryptoHashDriver qcrypto_hash_lib_driver = {
-    .hash_bytesv = qcrypto_nettle_hash_bytesv,
     .hash_new      = qcrypto_nettle_hash_new,
     .hash_update   = qcrypto_nettle_hash_update,
     .hash_finalize = qcrypto_nettle_hash_finalize,
