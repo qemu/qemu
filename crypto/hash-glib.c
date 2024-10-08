@@ -44,58 +44,6 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
     return false;
 }
 
-
-static int
-qcrypto_glib_hash_bytesv(QCryptoHashAlgo alg,
-                         const struct iovec *iov,
-                         size_t niov,
-                         uint8_t **result,
-                         size_t *resultlen,
-                         Error **errp)
-{
-    int i, ret;
-    GChecksum *cs;
-
-    if (!qcrypto_hash_supports(alg)) {
-        error_setg(errp,
-                   "Unknown hash algorithm %d",
-                   alg);
-        return -1;
-    }
-
-    cs = g_checksum_new(qcrypto_hash_alg_map[alg]);
-
-    for (i = 0; i < niov; i++) {
-        g_checksum_update(cs, iov[i].iov_base, iov[i].iov_len);
-    }
-
-    ret = g_checksum_type_get_length(qcrypto_hash_alg_map[alg]);
-    if (ret < 0) {
-        error_setg(errp, "%s",
-                   "Unable to get hash length");
-        goto error;
-    }
-    if (*resultlen == 0) {
-        *resultlen = ret;
-        *result = g_new0(uint8_t, *resultlen);
-    } else if (*resultlen != ret) {
-        error_setg(errp,
-                   "Result buffer size %zu is smaller than hash %d",
-                   *resultlen, ret);
-        goto error;
-    }
-
-    g_checksum_get_digest(cs, *result, resultlen);
-
-    g_checksum_free(cs);
-    return 0;
-
- error:
-    g_checksum_free(cs);
-    return -1;
-}
-
-
 static
 QCryptoHash *qcrypto_glib_hash_new(QCryptoHashAlgo alg,
                                    Error **errp)
@@ -159,7 +107,6 @@ int qcrypto_glib_hash_finalize(QCryptoHash *hash,
 }
 
 QCryptoHashDriver qcrypto_hash_lib_driver = {
-    .hash_bytesv = qcrypto_glib_hash_bytesv,
     .hash_new      = qcrypto_glib_hash_new,
     .hash_update   = qcrypto_glib_hash_update,
     .hash_finalize = qcrypto_glib_hash_finalize,
