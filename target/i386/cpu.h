@@ -533,6 +533,8 @@ typedef enum X86Seg {
 
 #define MSR_AMD64_TSC_RATIO_DEFAULT     0x100000000ULL
 
+#define MSR_K7_HWCR                     0xc0010015
+
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
 #define MSR_IA32_XFD                    0x000001c4
@@ -1857,6 +1859,9 @@ typedef struct CPUArchState {
     uint64_t msr_lbr_ctl;
     uint64_t msr_lbr_depth;
     LBREntry lbr_records[ARCH_LBR_NR_ENTRIES];
+
+    /* AMD MSRC001_0015 Hardware Configuration */
+    uint64_t msr_hwcr;
 
     /* exception/interrupt handling */
     int error_code;
