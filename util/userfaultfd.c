@@ -240,7 +240,7 @@ int uffd_change_protection(int uffd_fd, void *addr, uint64_t length,
  * Copy range of source pages to the destination to resolve
  * missing page fault somewhere in the destination range.
  *
- * Returns 0 on success, negative value in case of an error
+ * Returns 0 on success, -errno in case of an error
  *
  * @uffd_fd: UFFD file descriptor
  * @dst_addr: destination base address
@@ -259,10 +259,11 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
     uffd_copy.mode = dont_wake ? UFFDIO_COPY_MODE_DONTWAKE : 0;
 
     if (ioctl(uffd_fd, UFFDIO_COPY, &uffd_copy)) {
+        int e = errno;
         error_report("uffd_copy_page() failed: dst_addr=%p src_addr=%p length=%" PRIu64
                 " mode=%" PRIx64 " errno=%i", dst_addr, src_addr,
-                length, (uint64_t) uffd_copy.mode, errno);
-        return -1;
+                length, (uint64_t) uffd_copy.mode, e);
+        return -e;
     }
 
     return 0;
@@ -273,7 +274,7 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
  *
  * Fill range pages with zeroes to resolve missing page fault within the range.
  *
- * Returns 0 on success, negative value in case of an error
+ * Returns 0 on success, -errno in case of an error
  *
  * @uffd_fd: UFFD file descriptor
  * @addr: base address
@@ -289,10 +290,11 @@ int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake)
     uffd_zeropage.mode = dont_wake ? UFFDIO_ZEROPAGE_MODE_DONTWAKE : 0;
 
     if (ioctl(uffd_fd, UFFDIO_ZEROPAGE, &uffd_zeropage)) {
+        int e = errno;
         error_report("uffd_zero_page() failed: addr=%p length=%" PRIu64
                 " mode=%" PRIx64 " errno=%i", addr, length,
-                (uint64_t) uffd_zeropage.mode, errno);
-        return -1;
+                (uint64_t) uffd_zeropage.mode, e);
+        return -e;
     }
 
     return 0;
@@ -306,7 +308,7 @@ int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake)
  * via UFFD-IO IOCTLs with MODE_DONTWAKE flag set, then after that all waits
  * for the whole memory range are satisfied in a single call to uffd_wakeup().
  *
- * Returns 0 on success, negative value in case of an error
+ * Returns 0 on success, -errno in case of an error
  *
  * @uffd_fd: UFFD file descriptor
  * @addr: base address
@@ -320,9 +322,10 @@ int uffd_wakeup(int uffd_fd, void *addr, uint64_t length)
     uffd_range.len = length;
 
     if (ioctl(uffd_fd, UFFDIO_WAKE, &uffd_range)) {
+        int e = errno;
         error_report("uffd_wakeup() failed: addr=%p length=%" PRIu64 " errno=%i",
-                addr, length, errno);
-        return -1;
+                addr, length, e);
+        return -e;
     }
 
     return 0;
@@ -354,32 +357,4 @@ int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count)
     }
 
     return (int) (res / sizeof(struct uffd_msg));
-}
-
-/**
- * uffd_poll_events: poll UFFD file descriptor for read
- *
- * Returns true if events are available for read, false otherwise
- *
- * @uffd_fd: UFFD file descriptor
- * @tmo: timeout value
- */
-bool uffd_poll_events(int uffd_fd, int tmo)
-{
-    int res;
-    struct pollfd poll_fd = { .fd = uffd_fd, .events = POLLIN, .revents = 0 };
-
-    do {
-        res = poll(&poll_fd, 1, tmo);
-    } while (res < 0 && errno == EINTR);
-
-    if (res == 0) {
-        return false;
-    }
-    if (res < 0) {
-        error_report("uffd_poll_events() failed: errno=%i", errno);
-        return false;
-    }
-
-    return (poll_fd.revents & POLLIN) != 0;
 }

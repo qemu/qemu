@@ -339,13 +339,6 @@ bool migrate_xbzrle(void)
     return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
-bool migrate_zero_blocks(void)
-{
-    MigrationState *s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
-}
-
 bool migrate_zero_copy_send(void)
 {
     MigrationState *s = migrate_get_current();
@@ -456,6 +449,10 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
     ERRP_GUARD();
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (new_caps[MIGRATION_CAPABILITY_ZERO_BLOCKS]) {
+        warn_report("zero-blocks capability is deprecated");
+    }
 
 #ifndef CONFIG_REPLICATION
     if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
@@ -602,26 +599,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         }
     }
 
-    return true;
-}
-
-bool migrate_cap_set(int cap, bool value, Error **errp)
-{
-    MigrationState *s = migrate_get_current();
-    bool new_caps[MIGRATION_CAPABILITY__MAX];
-
-    if (migration_is_running()) {
-        error_setg(errp, "There's a migration process in progress");
-        return false;
-    }
-
-    memcpy(new_caps, s->capabilities, sizeof(new_caps));
-    new_caps[cap] = value;
-
-    if (!migrate_caps_check(s->capabilities, new_caps, errp)) {
-        return false;
-    }
-    s->capabilities[cap] = value;
     return true;
 }
 

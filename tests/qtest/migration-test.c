@@ -3267,6 +3267,16 @@ static void test_multifd_tcp_cancel(void)
     qtest_wait_qemu(to);
     qtest_quit(to);
 
+    /*
+     * Ensure the source QEMU finishes its cancellation process before we
+     * proceed with the setup of the next migration. The test_migrate_start()
+     * function and others might want to interact with the source in a way that
+     * is not possible while the migration is not canceled properly. For
+     * example, setting migration capabilities when the migration is still
+     * running leads to an error.
+     */
+    wait_for_migration_status(from, "cancelled", NULL);
+
     args = (MigrateStart){
         .only_target = true,
     };
@@ -3281,8 +3291,6 @@ static void test_multifd_tcp_cancel(void)
 
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to2, "tcp:127.0.0.1:0", "{}");
-
-    wait_for_migration_status(from, "cancelled", NULL);
 
     migrate_ensure_non_converge(from);
 

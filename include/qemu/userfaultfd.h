@@ -39,7 +39,6 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
 int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake);
 int uffd_wakeup(int uffd_fd, void *addr, uint64_t length);
 int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count);
-bool uffd_poll_events(int uffd_fd, int tmo);
 
 #endif /* CONFIG_LINUX */
 

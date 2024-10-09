@@ -941,6 +941,38 @@ static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
     }
 }
 
+static void
+flat_range_coalesced_io_notify_listener_add_del(FlatRange *fr,
+                                                MemoryRegionSection *mrs,
+                                                MemoryListener *listener,
+                                                AddressSpace *as, bool add)
+{
+    CoalescedMemoryRange *cmr;
+    MemoryRegion *mr = fr->mr;
+    AddrRange tmp;
+
+    QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
+        tmp = addrrange_shift(cmr->addr,
+                              int128_sub(fr->addr.start,
+                                         int128_make64(fr->offset_in_region)));
+
+        if (!addrrange_intersects(tmp, fr->addr)) {
+            return;
+        }
+        tmp = addrrange_intersection(tmp, fr->addr);
+
+        if (add && listener->coalesced_io_add) {
+            listener->coalesced_io_add(listener, mrs,
+                                       int128_get64(tmp.start),
+                                       int128_get64(tmp.size));
+        } else if (!add && listener->coalesced_io_del) {
+            listener->coalesced_io_del(listener, mrs,
+                                       int128_get64(tmp.start),
+                                       int128_get64(tmp.size));
+        }
+    }
+}
+
 static void address_space_update_topology_pass(AddressSpace *as,
                                                const FlatView *old_view,
                                                const FlatView *new_view,
@@ -3015,8 +3047,10 @@ void memory_global_dirty_log_stop(unsigned int flags)
 static void listener_add_address_space(MemoryListener *listener,
                                        AddressSpace *as)
 {
+    unsigned i;
     FlatView *view;
     FlatRange *fr;
+    MemoryRegionIoeventfd *fd;
 
     if (listener->begin) {
         listener->begin(listener);
@@ -3041,10 +3075,34 @@ static void listener_add_address_space(MemoryListener *listener,
         if (listener->region_add) {
             listener->region_add(listener, &section);
         }
+
+        /* send coalesced io add notifications */
+        flat_range_coalesced_io_notify_listener_add_del(fr, &section,
+                                                        listener, as, true);
+
         if (fr->dirty_log_mask && listener->log_start) {
             listener->log_start(listener, &section, 0, fr->dirty_log_mask);
         }
     }
+
+    /*
+     * register all eventfds for this address space for the newly registered
+     * listener.
+     */
+    for (i = 0; i < as->ioeventfd_nb; i++) {
+        fd = &as->ioeventfds[i];
+        MemoryRegionSection section = (MemoryRegionSection) {
+            .fv = view,
+            .offset_within_address_space = int128_get64(fd->addr.start),
+            .size = fd->addr.size,
+        };
+
+        if (listener->eventfd_add) {
+            listener->eventfd_add(listener, &section,
+                                  fd->match_data, fd->data, fd->e);
+        }
+    }
+
     if (listener->commit) {
         listener->commit(listener);
     }
@@ -3054,8 +3112,10 @@ static void listener_add_address_space(MemoryListener *listener,
 static void listener_del_address_space(MemoryListener *listener,
                                        AddressSpace *as)
 {
+    unsigned i;
     FlatView *view;
     FlatRange *fr;
+    MemoryRegionIoeventfd *fd;
 
     if (listener->begin) {
         listener->begin(listener);
@@ -3067,10 +3127,33 @@ static void listener_del_address_space(MemoryListener *listener,
         if (fr->dirty_log_mask && listener->log_stop) {
             listener->log_stop(listener, &section, fr->dirty_log_mask, 0);
         }
+
+        /* send coalesced io del notifications */
+        flat_range_coalesced_io_notify_listener_add_del(fr, &section,
+                                                        listener, as, false);
         if (listener->region_del) {
             listener->region_del(listener, &section);
         }
     }
+
+    /*
+     * de-register all eventfds for this address space for the current
+     * listener.
+     */
+    for (i = 0; i < as->ioeventfd_nb; i++) {
+        fd = &as->ioeventfds[i];
+        MemoryRegionSection section = (MemoryRegionSection) {
+            .fv = view,
+            .offset_within_address_space = int128_get64(fd->addr.start),
+            .size = fd->addr.size,
+        };
+
+        if (listener->eventfd_del) {
+            listener->eventfd_del(listener, &section,
+                                  fd->match_data, fd->data, fd->e);
+        }
+    }
+
     if (listener->commit) {
         listener->commit(listener);
     }
