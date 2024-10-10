@@ -14,7 +14,6 @@
 
 /**
  * check_block_size:
- * @id: The unique ID of the object
  * @name: The name of the property being validated
  * @value: The block size in bytes
  * @errp: A pointer to an area to store an error
@@ -23,13 +22,14 @@
  * 1. At least MIN_BLOCK_SIZE
  * 2. No larger than MAX_BLOCK_SIZE
  * 3. A power of 2
+ *
+ * Returns: true on success, false on failure
  */
-void check_block_size(const char *id, const char *name, int64_t value,
-                      Error **errp)
+bool check_block_size(const char *name, int64_t value, Error **errp)
 {
     if (!value) {
         /* unset */
-        return;
+        return true;
     }
 
     if (value < MIN_BLOCK_SIZE || value > MAX_BLOCK_SIZE
@@ -38,5 +38,7 @@ void check_block_size(const char *id, const char *name, int64_t value,
                    "parameter %s must be a power of 2 between %" PRId64
                    " and %" PRId64,
                    name, MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
+        return false;
     }
+    return true;
 }
