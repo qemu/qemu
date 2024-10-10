@@ -1,0 +1,2 @@
+# devices Kconfig
+source char/Kconfig
