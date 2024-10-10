@@ -1,6 +1,7 @@
 /*
  * QEMU Crypto hash algorithms
  *
+ * Copyright (c) 2024 Seagate Technology LLC and/or its Affiliates
  * Copyright (c) 2015 Red Hat, Inc.
  *
  * This library is free software; you can redistribute it and/or
@@ -32,6 +33,13 @@
 #define QCRYPTO_HASH_DIGEST_LEN_RIPEMD160 20
 
 /* See also "QCryptoHashAlgo" defined in qapi/crypto.json */
+
+typedef struct QCryptoHash QCryptoHash;
+struct QCryptoHash {
+    QCryptoHashAlgo alg;
+    void *opaque;
+    void *driver;
+};
 
 /**
  * qcrypto_hash_supports:
@@ -127,6 +135,117 @@ int qcrypto_hash_digestv(QCryptoHashAlgo alg,
                          size_t niov,
                          char **digest,
                          Error **errp);
+
+/**
+ * qcrypto_hash_updatev:
+ * @hash: hash object from qcrypto_hash_new
+ * @iov: the array of memory regions to hash
+ * @niov: the length of @iov
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Updates the given hash object with all the memory regions
+ * present in @iov.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_hash_updatev(QCryptoHash *hash,
+                         const struct iovec *iov,
+                         size_t niov,
+                         Error **errp);
+/**
+ * qcrypto_hash_update:
+ * @hash: hash object from qcrypto_hash_new
+ * @buf: the memory region to hash
+ * @len: the length of @buf
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Updates the given hash object with the data from
+ * the given buffer.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_hash_update(QCryptoHash *hash,
+                        const char *buf,
+                        size_t len,
+                        Error **errp);
+
+/**
+ * qcrypto_hash_finalize_digest:
+ * @hash: the hash object to finalize
+ * @digest: pointer to hold output hash
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Computes the hash from the given hash object. Hash object
+ * is expected to have its data updated from the qcrypto_hash_update function.
+ * The @digest pointer will be filled with the printable hex digest of the
+ * computed hash, which will be terminated by '\0'. The memory pointer
+ * in @digest must be released with a call to g_free() when
+ * no longer required.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_hash_finalize_digest(QCryptoHash *hash,
+                                 char **digest,
+                                 Error **errp);
+
+/**
+ * qcrypto_hash_finalize_base64:
+ * @hash_ctx: hash object to finalize
+ * @base64: pointer to store the hash result in
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Computes the hash from the given hash object. Hash object
+ * is expected to have it's data updated from the qcrypto_hash_update function.
+ * The @base64 pointer will be filled with the base64 encoding of the computed
+ * hash, which will be terminated by '\0'. The memory pointer in @base64
+ * must be released with a call to g_free() when no longer required.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_hash_finalize_base64(QCryptoHash *hash,
+                                 char **base64,
+                                 Error **errp);
+
+/**
+ * qcrypto_hash_finalize_bytes:
+ * @hash_ctx: hash object to finalize
+ * @result: pointer to store the hash result in
+ * @result_len: Pointer to store the length of the result in
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Computes the hash from the given hash object. Hash object
+ * is expected to have it's data updated from the qcrypto_hash_update function.
+ * The memory pointer in @result must be released with a call to g_free()
+ * when no longer required.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_hash_finalize_bytes(QCryptoHash *hash,
+                                uint8_t **result,
+                                size_t *result_len,
+                                Error **errp);
+
+/**
+ * qcrypto_hash_new:
+ * @alg: the hash algorithm
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Creates a new hashing context for the chosen algorithm for
+ * usage with qcrypto_hash_update.
+ *
+ * Returns: New hash object with the given algorithm, or NULL on error.
+ */
+QCryptoHash *qcrypto_hash_new(QCryptoHashAlgo alg, Error **errp);
+
+/**
+ * qcrypto_hash_free:
+ * @hash: hash object to free
+ *
+ * Frees a hashing context for the chosen algorithm.
+ */
+void qcrypto_hash_free(QCryptoHash *hash);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoHash, qcrypto_hash_free)
 
 /**
  * qcrypto_hash_digest:
