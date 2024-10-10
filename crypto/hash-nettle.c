@@ -135,20 +135,9 @@ int qcrypto_nettle_hash_update(QCryptoHash *hash,
     union qcrypto_hash_ctx *ctx = hash->opaque;
 
     for (int i = 0; i < niov; i++) {
-        /*
-         * Some versions of nettle have functions
-         * declared with 'int' instead of 'size_t'
-         * so to be safe avoid writing more than
-         * UINT_MAX bytes at a time
-         */
-        size_t len = iov[i].iov_len;
-        uint8_t *base = iov[i].iov_base;
-        while (len) {
-            size_t shortlen = MIN(len, UINT_MAX);
-            qcrypto_hash_alg_map[hash->alg].write(ctx, len, base);
-            len -= shortlen;
-            base += len;
-        }
+        qcrypto_hash_alg_map[hash->alg].write(ctx,
+                                              iov[i].iov_len,
+                                              iov[i].iov_base);
     }
 
     return 0;
