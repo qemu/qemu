@@ -2470,11 +2470,9 @@ static void gen_compute_compact_branch_nm(DisasContext *ctx, uint32_t opc,
         } else {
             /* OPC_JIC, OPC_JIALC */
             TCGv tbase = tcg_temp_new();
-            TCGv toffset = tcg_temp_new();
 
             gen_load_gpr(tbase, rt);
-            tcg_gen_movi_tl(toffset, offset);
-            gen_op_addr_add(ctx, btarget, tbase, toffset);
+            gen_op_addr_addi(ctx, btarget, tbase, offset);
         }
         break;
     default:

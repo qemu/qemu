@@ -1456,8 +1456,7 @@ void gen_op_addr_add(DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1)
 #endif
 }
 
-static inline void gen_op_addr_addi(DisasContext *ctx, TCGv ret, TCGv base,
-                                    target_long ofs)
+void gen_op_addr_addi(DisasContext *ctx, TCGv ret, TCGv base, target_long ofs)
 {
     tcg_gen_addi_tl(ret, base, ofs);
 
@@ -11265,10 +11264,9 @@ static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
         } else {
             /* OPC_JIC, OPC_JIALC */
             TCGv tbase = tcg_temp_new();
-            TCGv toffset = tcg_constant_tl(offset);
 
             gen_load_gpr(tbase, rt);
-            gen_op_addr_add(ctx, btarget, tbase, toffset);
+            gen_op_addr_addi(ctx, btarget, tbase, offset);
         }
         break;
     default:

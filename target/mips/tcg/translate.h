@@ -176,6 +176,7 @@ void gen_addiupc(DisasContext *ctx, int rx, int imm,
  * Address Computation and Large Constant Instructions
  */
 void gen_op_addr_add(DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1);
+void gen_op_addr_addi(DisasContext *ctx, TCGv ret, TCGv base, target_long ofs);
 bool gen_lsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 bool gen_dlsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 
