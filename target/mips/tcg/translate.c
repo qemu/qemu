@@ -11428,20 +11428,18 @@ static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
 void gen_addiupc(DisasContext *ctx, int rx, int imm,
                  int is_64_bit, int extended)
 {
-    TCGv t0;
+    target_ulong npc;
 
     if (extended && (ctx->hflags & MIPS_HFLAG_BMASK)) {
         gen_reserved_instruction(ctx);
         return;
     }
 
-    t0 = tcg_temp_new();
-
-    tcg_gen_movi_tl(t0, pc_relative_pc(ctx));
-    tcg_gen_addi_tl(cpu_gpr[rx], t0, imm);
+    npc = pc_relative_pc(ctx) + imm;
     if (!is_64_bit) {
-        tcg_gen_ext32s_tl(cpu_gpr[rx], cpu_gpr[rx]);
+        npc = (int32_t)npc;
     }
+    tcg_gen_movi_tl(cpu_gpr[rx], npc);
 }
 
 static void gen_cache_operation(DisasContext *ctx, uint32_t op, int base,
