@@ -129,7 +129,6 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
     db->max_insns = *max_insns;
-    db->singlestep_enabled = cflags & CF_SINGLE_STEP;
     db->insn_start = NULL;
     db->fake_insn = false;
     db->host_addr[0] = host_pc;
