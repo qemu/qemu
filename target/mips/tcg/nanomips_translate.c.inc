@@ -998,7 +998,7 @@ static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
     TCGv tmp2 = tcg_temp_new();
 
     gen_base_offset_addr(ctx, taddr, base, offset);
-    tcg_gen_qemu_ld_i64(tval, taddr, ctx->mem_idx, MO_TEUQ | MO_ALIGN);
+    tcg_gen_qemu_ld_i64(tval, taddr, ctx->mem_idx, MO_TE | MO_UQ | MO_ALIGN);
     if (disas_is_bigendian(ctx)) {
         tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
     } else {
@@ -1075,7 +1075,7 @@ static void gen_save(DisasContext *ctx, uint8_t rt, uint8_t count,
         gen_base_offset_addr(ctx, va, 29, this_offset);
         gen_load_gpr(t0, this_rt);
         tcg_gen_qemu_st_tl(t0, va, ctx->mem_idx,
-                           (MO_TEUL | ctx->default_tcg_memop_mask));
+                           MO_TE | MO_UL | ctx->default_tcg_memop_mask);
         counter++;
     }
 
@@ -1095,7 +1095,7 @@ static void gen_restore(DisasContext *ctx, uint8_t rt, uint8_t count,
         int this_rt = use_gp ? 28 : (rt & 0x10) | ((rt + counter) & 0x1f);
         int this_offset = u - ((counter + 1) << 2);
         gen_base_offset_addr(ctx, va, 29, this_offset);
-        tcg_gen_qemu_ld_tl(t0, va, ctx->mem_idx, MO_TESL |
+        tcg_gen_qemu_ld_tl(t0, va, ctx->mem_idx, MO_TE | MO_SL |
                         ctx->default_tcg_memop_mask);
         tcg_gen_ext32s_tl(t0, t0);
         gen_store_gpr(t0, this_rt);
@@ -2647,13 +2647,13 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
     case NM_LHX:
     /*case NM_LHXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TESW | ctx->default_tcg_memop_mask);
+                           MO_TE | MO_SW | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_LWX:
     /*case NM_LWXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TESL | ctx->default_tcg_memop_mask);
+                           MO_TE | MO_SL | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_LBUX:
@@ -2663,7 +2663,7 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
     case NM_LHUX:
     /*case NM_LHUXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TEUW | ctx->default_tcg_memop_mask);
+                           MO_TE | MO_UW | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_SBX:
@@ -2676,14 +2676,14 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
         check_nms(ctx);
         gen_load_gpr(t1, rd);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                           MO_TEUW | ctx->default_tcg_memop_mask);
+                           MO_TE | MO_UW | ctx->default_tcg_memop_mask);
         break;
     case NM_SWX:
     /*case NM_SWXS:*/
         check_nms(ctx);
         gen_load_gpr(t1, rd);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                           MO_TEUL | ctx->default_tcg_memop_mask);
+                           MO_TE | MO_UL | ctx->default_tcg_memop_mask);
         break;
     case NM_LWC1X:
     /*case NM_LWC1XS:*/
@@ -3737,7 +3737,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 
                     tcg_gen_movi_tl(t0, addr);
                     tcg_gen_qemu_ld_tl(cpu_gpr[rt], t0, ctx->mem_idx,
-                                       MO_TESL | ctx->default_tcg_memop_mask);
+                                       MO_TE | MO_SL
+                                            | ctx->default_tcg_memop_mask);
                 }
                 break;
             case NM_SWPC48:
@@ -3754,7 +3755,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_load_gpr(t1, rt);
 
                     tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                                       MO_TEUL | ctx->default_tcg_memop_mask);
+                                       MO_TE | MO_UL
+                                            | ctx->default_tcg_memop_mask);
                 }
                 break;
             default:
@@ -4132,14 +4134,14 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 
                         switch (extract32(ctx->opcode, 11, 4)) {
                         case NM_UALH:
-                            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW |
-                                               MO_UNALN);
+                            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
+                                               MO_TE | MO_SW | MO_UNALN);
                             gen_store_gpr(t0, rt);
                             break;
                         case NM_UASH:
                             gen_load_gpr(t1, rt);
-                            tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW |
-                                               MO_UNALN);
+                            tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
+                                               MO_TE | MO_UW | MO_UNALN);
                             break;
                         }
                     }
@@ -4161,7 +4163,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 case NM_P_SC:
                     switch (ctx->opcode & 0x03) {
                     case NM_SC:
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, false);
+                        gen_st_cond(ctx, rt, rs, s, MO_TE | MO_SL, false);
                         break;
                     case NM_SCWP:
                         check_xnp(ctx);
@@ -4274,7 +4276,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_xnp(ctx);
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, true);
+                        gen_st_cond(ctx, rt, rs, s, MO_TE | MO_SL, true);
                         break;
                     case NM_SCWPE:
                         check_xnp(ctx);
@@ -4317,7 +4319,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         switch (extract32(ctx->opcode, 11, 1)) {
                         case NM_LWM:
                             tcg_gen_qemu_ld_tl(t1, va, ctx->mem_idx,
-                                               memop | MO_TESL);
+                                               memop | MO_TE | MO_SL);
                             gen_store_gpr(t1, this_rt);
                             if ((this_rt == rs) &&
                                 (counter != (count - 1))) {
@@ -4328,7 +4330,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                             this_rt = (rt == 0) ? 0 : this_rt;
                             gen_load_gpr(t1, this_rt);
                             tcg_gen_qemu_st_tl(t1, va, ctx->mem_idx,
-                                               memop | MO_TEUL);
+                                               memop | MO_TE | MO_UL);
                             break;
                         }
                         counter++;
