@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "block-helpers.h"
 
 /**
@@ -28,19 +27,16 @@
 void check_block_size(const char *id, const char *name, int64_t value,
                       Error **errp)
 {
-    /* value of 0 means "unset" */
-    if (value && (value < MIN_BLOCK_SIZE || value > MAX_BLOCK_SIZE)) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
-                   id, name, value, MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
+    if (!value) {
+        /* unset */
         return;
     }
 
-    /* We rely on power-of-2 blocksizes for bitmasks */
-    if ((value & (value - 1)) != 0) {
+    if (value < MIN_BLOCK_SIZE || value > MAX_BLOCK_SIZE
+        || (value & (value - 1))) {
         error_setg(errp,
-                   "Property %s.%s doesn't take value '%" PRId64
-                   "', it's not a power of 2",
-                   id, name, value);
-        return;
+                   "parameter %s must be a power of 2 between %" PRId64
+                   " and %" PRId64,
+                   name, MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
     }
 }
