@@ -41,7 +41,6 @@
 #include "hw/pci/msi.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
@@ -1535,9 +1534,7 @@ static void openpic_realize(DeviceState *dev, Error **errp)
     };
 
     if (opp->nb_cpus > MAX_CPU) {
-        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
-                   TYPE_OPENPIC, "nb_cpus", (uint64_t)opp->nb_cpus,
-                   (uint64_t)0, (uint64_t)MAX_CPU);
+        error_setg(errp, "property 'nb_cpus' can be at most %d", MAX_CPU);
         return;
     }
 
