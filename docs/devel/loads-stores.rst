@@ -95,7 +95,7 @@ guest CPU state in case of a guest CPU exception.  This is passed
 to ``cpu_restore_state()``.  Therefore the value should either be 0,
 to indicate that the guest CPU state is already synchronized, or
 the result of ``GETPC()`` from the top level ``HELPER(foo)``
-function, which is a return address into the generated code [#gpc]_.
+function, which is a return address into the generated code\ [#gpc]_.
 
 .. [#gpc] Note that ``GETPC()`` should be used with great care: calling
           it in other functions that are *not* the top level

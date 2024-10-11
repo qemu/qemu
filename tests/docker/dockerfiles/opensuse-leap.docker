@@ -127,7 +127,7 @@ RUN zypper update -y && \
 
 RUN /usr/bin/pip3.11 install \
                      PyYAML \
-                     meson==0.63.2 \
+                     meson==1.5.0 \
                      pillow \
                      sphinx \
                      sphinx-rtd-theme

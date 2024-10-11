@@ -1,0 +1,7 @@
+[wrap-file]
+directory = bilge-impl-0.2.0
+source_url = https://crates.io/api/v1/crates/bilge-impl/0.2.0/download
+source_filename = bilge-impl-0.2.0.tar.gz
+source_hash = feb11e002038ad243af39c2068c8a72bcf147acf05025dcdb916fcc000adb2d8
+#method = cargo
+patch_directory = bilge-impl-0.2-rs

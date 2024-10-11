@@ -54,11 +54,11 @@ Data Register
 -------------
 
 * Read/Write (writes ignored as of QEMU v2.4, but see the DMA interface)
-* Location: platform dependent (IOport [#]_ or MMIO)
+* Location: platform dependent (IOport\ [#placement]_ or MMIO)
 * Width: 8-bit (if IOport), 8/16/32/64-bit (if MMIO)
 * Endianness: string-preserving
 
-.. [#]
+.. [#placement]
     On platforms where the data register is exposed as an IOport, its
     port number will always be one greater than the port number of the
     selector register. In other words, the two ports overlap, and can not

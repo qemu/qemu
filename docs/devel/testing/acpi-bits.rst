@@ -30,15 +30,20 @@ OS modules are generally written using low level languages such as C and
 low level assembly machine language. Writing test routines in a low level
 language makes things more cumbersome. These and other reasons makes using
 bios-bits very attractive for testing bioses. More details on the inspiration
-for developing biosbits and its real life uses can be found in [#a]_ and [#b]_.
+for developing biosbits and its real life uses were presented `at Plumbers
+in 2011 <Plumbers_>`__ and `at Linux.conf.au in 2012 <Linux.conf.au_>`__.
 
-For QEMU, we maintain a fork of bios bits in gitlab along with all the
-dependent submodules `here <https://gitlab.com/qemu-project/biosbits-bits>`__.
-This fork contains numerous fixes, a newer acpica and changes specific to
-running these functional QEMU tests using bits. The author of this document
-is the sole maintainer of the QEMU fork of bios bits repository. For more
-information, please see author's `FOSDEM talk on this bios-bits based test
-framework <https://fosdem.org/2024/schedule/event/fosdem-2024-2262-exercising-qemu-generated-acpi-smbios-tables-using-biosbits-from-within-a-guest-vm-/>`__.
+For QEMU, we maintain a fork of bios bits in `gitlab`_, along with all
+the dependent submodules.  This fork contains numerous fixes, a newer
+acpica and changes specific to running these functional QEMU tests using
+bits. The author of this document is the current maintainer of the QEMU
+fork of bios bits repository. For more information, please see `the
+author's FOSDEM presentation <FOSDEM_>`__ on this bios-bits based test framework.
+
+.. _Plumbers: https://blog.linuxplumbersconf.org/2011/ocw/system/presentations/867/original/bits.pdf
+.. _Linux.conf.au: https://www.youtube.com/watch?v=36QIepyUuhg
+.. _gitlab: https://gitlab.com/qemu-project/biosbits-bits
+.. _FOSDEM: https://fosdem.org/2024/schedule/event/fosdem-2024-2262-exercising-qemu-generated-acpi-smbios-tables-using-biosbits-from-within-a-guest-vm-/
 
 *********************************
 Description of the test framework
@@ -148,8 +153,3 @@ Under ``tests/functional/`` as the root we have:
 
 Author: Ani Sinha <anisinha@redhat.com>
 
-References:
------------
-.. [#a] https://blog.linuxplumbersconf.org/2011/ocw/system/presentations/867/original/bits.pdf
-.. [#b] https://www.youtube.com/watch?v=36QIepyUuhg
-.. [#c] https://fosdem.org/2024/schedule/event/fosdem-2024-2262-exercising-qemu-generated-acpi-smbios-tables-using-biosbits-from-within-a-guest-vm-/

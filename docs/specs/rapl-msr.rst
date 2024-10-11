@@ -9,11 +9,12 @@ The consumption is reported via MSRs (model specific registers) like
 MSR_PKG_ENERGY_STATUS for the CPU package power domain. These MSRs are 64 bits
 registers that represent the accumulated energy consumption in micro Joules.
 
-Thanks to the MSR Filtering patch [#a]_ not all MSRs are handled by KVM. Some
-of them can now be handled by the userspace (QEMU). It uses a mechanism called
-"MSR filtering" where a list of MSRs is given at init time of a VM to KVM so
-that a callback is put in place. The design of this patch uses only this
-mechanism for handling the MSRs between guest/host.
+Thanks to KVM's `MSR filtering <msr-filter-patch_>`__ functionality,
+not all MSRs are handled by KVM. Some of them can now be handled by the
+userspace (QEMU); a list of MSRs is given at VM creation time to KVM, and
+a userspace exit occurs when they are accessed.
+
+.. _msr-filter-patch: https://patchwork.kernel.org/project/kvm/patch/20200916202951.23760-7-graf@amazon.com/
 
 At the moment the following MSRs are involved:
 
@@ -92,9 +93,12 @@ found by the sysconf system call. A typical value of clock ticks per second is
 package has 4 cores, 400 ticks maximum can be scheduled on all the cores
 of the package for a period of 1 second.
 
-The /proc/[pid]/stat [#b]_ is a sysfs file that can give the executed time of a
-process with the [pid] as the process ID. It gives the amount of ticks the
-process has been scheduled in userspace (utime) and kernel space (stime).
+`/proc/[pid]/stat <stat_>`__ is a procfs file that can give the executed
+time of a process with the [pid] as the process ID. It gives the amount
+of ticks the process has been scheduled in userspace (utime) and kernel
+space (stime).
+
+.. _stat: https://man7.org/linux/man-pages/man5/proc.5.html
 
 By reading those metrics for a thread, one can calculate the ratio of time the
 package has spent executing the thread.
@@ -148,8 +152,3 @@ Current Limitations
 - Only the Package Power-Plane (MSR_PKG_ENERGY_STATUS) is reported at the
   moment.
 
-References
-----------
-
-.. [#a] https://patchwork.kernel.org/project/kvm/patch/20200916202951.23760-7-graf@amazon.com/
-.. [#b] https://man7.org/linux/man-pages/man5/proc.5.html

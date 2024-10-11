@@ -89,7 +89,7 @@ mappings:
 pypi_mappings:
   # Request more recent version
   meson:
-    default: meson==0.63.2
+    default: meson==1.5.0
 
   # Drop packages that need devel headers
   python3-numpy:
