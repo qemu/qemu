@@ -99,9 +99,9 @@ members of the QEMU community, you should make arrangements to attend
 a `KeySigningParty <https://wiki.qemu.org/KeySigningParty>`__ (for
 example at KVM Forum) or make alternative arrangements to have your
 key signed by an attendee. Key signing requires meeting another
-community member **in person** [#]_ so please make appropriate
+community member **in person**\ [#2020]_ so please make appropriate
 arrangements.
 
-.. [#] In recent pandemic times we have had to exercise some
+.. [#2020] In recent pandemic times we have had to exercise some
        flexibility here. Maintainers still need to sign their pull
        requests though.

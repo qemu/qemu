@@ -333,7 +333,7 @@ into each emulator:
 
 ``default-configs/targets/*.mak``
   These files mostly define symbols that appear in the ``*-config-target.h``
-  file for each emulator [#cfgtarget]_.  However, the ``TARGET_ARCH``
+  file for each emulator\ [#cfgtarget]_.  However, the ``TARGET_ARCH``
   and ``TARGET_BASE_ARCH`` will also be used to select the ``hw/`` and
   ``target/`` subdirectories that are compiled into each target.
 
