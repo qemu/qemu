@@ -98,6 +98,10 @@ tests_mipsel_system_thorough = [
   'mipsel_tuxrun',
 ]
 
+tests_mips64_system_thorough = [
+  'mips64_tuxrun',
+]
+
 tests_mips64el_system_thorough = [
   'mips64el_fuloong2e',
   'mips64el_loongson3v',
