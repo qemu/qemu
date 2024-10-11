@@ -47,30 +47,6 @@ static inline void vm_putw(CPUX86State *env, uint32_t segptr,
     cpu_stw_data(env, segptr + (reg16 & 0xffff), val);
 }
 
-static inline void vm_putl(CPUX86State *env, uint32_t segptr,
-                           unsigned int reg16, unsigned int val)
-{
-    cpu_stl_data(env, segptr + (reg16 & 0xffff), val);
-}
-
-static inline unsigned int vm_getb(CPUX86State *env,
-                                   uint32_t segptr, unsigned int reg16)
-{
-    return cpu_ldub_data(env, segptr + (reg16 & 0xffff));
-}
-
-static inline unsigned int vm_getw(CPUX86State *env,
-                                   uint32_t segptr, unsigned int reg16)
-{
-    return cpu_lduw_data(env, segptr + (reg16 & 0xffff));
-}
-
-static inline unsigned int vm_getl(CPUX86State *env,
-                                   uint32_t segptr, unsigned int reg16)
-{
-    return cpu_ldl_data(env, segptr + (reg16 & 0xffff));
-}
-
 void save_v86_state(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
@@ -131,19 +107,6 @@ static inline void return_to_32bit(CPUX86State *env, int retval)
     env->regs[R_EAX] = retval;
 }
 
-static inline int set_IF(CPUX86State *env)
-{
-    CPUState *cs = env_cpu(env);
-    TaskState *ts = get_task_state(cs);
-
-    ts->v86flags |= VIF_MASK;
-    if (ts->v86flags & VIP_MASK) {
-        return_to_32bit(env, TARGET_VM86_STI);
-        return 1;
-    }
-    return 0;
-}
-
 static inline void clear_IF(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
@@ -160,34 +123,6 @@ static inline void clear_TF(CPUX86State *env)
 static inline void clear_AC(CPUX86State *env)
 {
     env->eflags &= ~AC_MASK;
-}
-
-static inline int set_vflags_long(unsigned long eflags, CPUX86State *env)
-{
-    CPUState *cs = env_cpu(env);
-    TaskState *ts = get_task_state(cs);
-
-    set_flags(ts->v86flags, eflags, ts->v86mask);
-    set_flags(env->eflags, eflags, SAFE_MASK);
-    if (eflags & IF_MASK)
-        return set_IF(env);
-    else
-        clear_IF(env);
-    return 0;
-}
-
-static inline int set_vflags_short(unsigned short flags, CPUX86State *env)
-{
-    CPUState *cs = env_cpu(env);
-    TaskState *ts = get_task_state(cs);
-
-    set_flags(ts->v86flags, flags, ts->v86mask & 0xffff);
-    set_flags(env->eflags, flags, SAFE_MASK);
-    if (flags & IF_MASK)
-        return set_IF(env);
-    else
-        clear_IF(env);
-    return 0;
 }
 
 static inline unsigned int get_vflags(CPUX86State *env)
