@@ -341,21 +341,3 @@ class TuxRunBaselineTest(QemuSystemTest):
         time.sleep(0.1)
         exec_command_and_wait_for_pattern(self, 'halt',
                                           "reboot: System halted")
-
-    def test_x86_64(self):
-        """
-        :avocado: tags=arch:x86_64
-        :avocado: tags=machine:q35
-        :avocado: tags=cpu:Nehalem
-        :avocado: tags=tuxboot:x86_64
-        :avocado: tags=image:bzImage
-        :avocado: tags=root:sda
-        :avocado: tags=shutdown:nowait
-        """
-        sums = { "bzImage" :
-                 "2bc7480a669ee9b6b82500a236aba0c54233debe98cb968268fa230f52f03461",
-                 "rootfs.ext4.zst" :
-                 "b72ac729769b8f51c6dffb221113c9a063c774dbe1d66af30eb593c4e9999b4b" }
-
-        self.common_tuxrun(csums=sums,
-                           drive="driver=ide-hd,bus=ide.0,unit=0")
