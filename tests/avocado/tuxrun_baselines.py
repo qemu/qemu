@@ -222,38 +222,3 @@ class TuxRunBaselineTest(QemuSystemTest):
                  "rootfs.ext4.zst" :
                  "e6ffd8813c8a335bc15728f2835f90539c84be7f8f5f691a8b01451b47fb4bd7"}
         self.common_tuxrun(csums=sums)
-
-    # Note: some segfaults caused by unaligned userspace access
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_sh4(self):
-        """
-        :avocado: tags=arch:sh4
-        :avocado: tags=machine:r2d
-        :avocado: tags=cpu:sh7785
-        :avocado: tags=tuxboot:sh4
-        :avocado: tags=image:zImage
-        :avocado: tags=root:sda
-        :avocado: tags=console:ttySC1
-        :avocado: tags=flaky
-        """
-        sums = { "rootfs.ext4.zst" :
-                 "3592a7a3d5a641e8b9821449e77bc43c9904a56c30d45da0694349cfd86743fd",
-                 "zImage" :
-                 "29d9b2aba604a0f53a5dc3b5d0f2b8e35d497de1129f8ee5139eb6fdf0db692f" }
-
-        # The test is currently too unstable to do much in userspace
-        # so we skip common_tuxrun and do a minimal boot and shutdown.
-        (kernel, disk, dtb) = self.fetch_tuxrun_assets(csums=sums)
-
-        # the console comes on the second serial port
-        self.prepare_run(kernel, disk,
-                         "driver=ide-hd,bus=ide.0,unit=0",
-                         console_index=1)
-        self.vm.launch()
-
-        self.wait_for_console_pattern("Welcome to TuxTest")
-        time.sleep(0.1)
-        exec_command(self, 'root')
-        time.sleep(0.1)
-        exec_command_and_wait_for_pattern(self, 'halt',
-                                          "reboot: System halted")

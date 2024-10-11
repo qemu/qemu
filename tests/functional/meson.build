@@ -154,7 +154,9 @@ tests_s390x_system_thorough = [
 
 tests_sh4_system_thorough = [
   'sh4_r2d',
+  'sh4_tuxrun',
 ]
+
 
 tests_sparc_system_thorough = [
   'sparc_sun4m',
