@@ -90,6 +90,7 @@ tests_microblazeel_system_thorough = [
 
 tests_mips_system_thorough = [
   'mips_malta',
+  'mips_tuxrun',
 ]
 
 tests_mipsel_system_thorough = [
