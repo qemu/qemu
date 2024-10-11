@@ -2618,12 +2618,6 @@ static int kvm_init(MachineState *ms)
         s->nr_slots_max = KVM_MEMSLOTS_NR_MAX_DEFAULT;
     }
 
-    s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
-    if (s->nr_as <= 1) {
-        s->nr_as = 1;
-    }
-    s->as = g_new0(struct KVMAs, s->nr_as);
-
     type = find_kvm_machine_type(ms);
     if (type < 0) {
         ret = -EINVAL;
@@ -2636,6 +2630,12 @@ static int kvm_init(MachineState *ms)
     }
 
     s->vmfd = ret;
+
+    s->nr_as = kvm_vm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
+    if (s->nr_as <= 1) {
+        s->nr_as = 1;
+    }
+    s->as = g_new0(struct KVMAs, s->nr_as);
 
     /* check the vcpu limits */
     soft_vcpus_limit = kvm_recommended_vcpus(s);
