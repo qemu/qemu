@@ -140,6 +140,7 @@ tests_sparc_system_thorough = [
 
 tests_sparc64_system_thorough = [
   'sparc64_sun4u',
+  'sparc64_tuxrun',
 ]
 
 tests_x86_64_system_quick = [

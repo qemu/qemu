@@ -493,22 +493,6 @@ class TuxRunBaselineTest(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, 'halt',
                                           "reboot: System halted")
 
-    def test_sparc64(self):
-        """
-        :avocado: tags=arch:sparc64
-        :avocado: tags=tuxboot:sparc64
-        :avocado: tags=image:vmlinux
-        :avocado: tags=root:sda
-        :avocado: tags=shutdown:nowait
-        """
-
-        sums = { "rootfs.ext4.zst" :
-                 "ad2f1dc436ab51583543d25d2c210cab478645d47078d30d129a66ab0e281d76",
-                 "vmlinux" :
-                 "e34313e4325ff21deaa3d38a502aa09a373ef62b9bd4d7f8f29388b688225c55" }
-
-        self.common_tuxrun(csums=sums, drive="driver=ide-hd,bus=ide.0,unit=0")
-
     def test_x86_64(self):
         """
         :avocado: tags=arch:x86_64

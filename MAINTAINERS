@@ -1663,6 +1663,7 @@ F: hw/pci-bridge/simba.c
 F: include/hw/pci-bridge/simba.h
 F: pc-bios/openbios-sparc64
 F: tests/functional/test_sparc64_sun4u.py
+F: tests/functional/test_sparc64_tuxrun.py
 
 Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
