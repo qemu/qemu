@@ -323,37 +323,6 @@ class TuxRunBaselineTest(QemuSystemTest):
 
         self.common_tuxrun(csums=sums, drive="virtio-blk-pci")
 
-    def test_riscv64(self):
-        """
-        :avocado: tags=arch:riscv64
-        :avocado: tags=machine:virt
-        :avocado: tags=tuxboot:riscv64
-        """
-        sums = { "Image" :
-                 "cd634badc65e52fb63465ec99e309c0de0369f0841b7d9486f9729e119bac25e",
-                 "fw_jump.elf" :
-                 "6e3373abcab4305fe151b564a4c71110d833c21f2c0a1753b7935459e36aedcf",
-                 "rootfs.ext4.zst" :
-                 "b18e3a3bdf27be03da0b285e84cb71bf09eca071c3a087b42884b6982ed679eb" }
-
-        self.common_tuxrun(csums=sums)
-
-    def test_riscv64_maxcpu(self):
-        """
-        :avocado: tags=arch:riscv64
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:max
-        :avocado: tags=tuxboot:riscv64
-        """
-        sums = { "Image" :
-                 "cd634badc65e52fb63465ec99e309c0de0369f0841b7d9486f9729e119bac25e",
-                 "fw_jump.elf" :
-                 "6e3373abcab4305fe151b564a4c71110d833c21f2c0a1753b7935459e36aedcf",
-                 "rootfs.ext4.zst" :
-                 "b18e3a3bdf27be03da0b285e84cb71bf09eca071c3a087b42884b6982ed679eb" }
-
-        self.common_tuxrun(csums=sums)
-
     # Note: some segfaults caused by unaligned userspace access
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_sh4(self):
