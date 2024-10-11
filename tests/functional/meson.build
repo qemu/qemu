@@ -127,6 +127,10 @@ tests_rx_system_thorough = [
   'rx_gdbsim',
 ]
 
+tests_riscv32_system_thorough = [
+  'riscv32_tuxrun',
+]
+
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',

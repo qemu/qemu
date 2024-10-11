@@ -323,21 +323,6 @@ class TuxRunBaselineTest(QemuSystemTest):
 
         self.common_tuxrun(csums=sums, drive="virtio-blk-pci")
 
-    def test_riscv32(self):
-        """
-        :avocado: tags=arch:riscv32
-        :avocado: tags=machine:virt
-        :avocado: tags=tuxboot:riscv32
-        """
-        sums = { "Image" :
-                 "89599407d7334de629a40e7ad6503c73670359eb5f5ae9d686353a3d6deccbd5",
-                 "fw_jump.elf" :
-                 "f2ef28a0b77826f79d085d3e4aa686f1159b315eff9099a37046b18936676985",
-                 "rootfs.ext4.zst" :
-                 "7168d296d0283238ea73cd5a775b3dd608e55e04c7b92b76ecce31bb13108cba" }
-
-        self.common_tuxrun(csums=sums)
-
     def test_riscv64(self):
         """
         :avocado: tags=arch:riscv64
@@ -350,22 +335,6 @@ class TuxRunBaselineTest(QemuSystemTest):
                  "6e3373abcab4305fe151b564a4c71110d833c21f2c0a1753b7935459e36aedcf",
                  "rootfs.ext4.zst" :
                  "b18e3a3bdf27be03da0b285e84cb71bf09eca071c3a087b42884b6982ed679eb" }
-
-        self.common_tuxrun(csums=sums)
-
-    def test_riscv32_maxcpu(self):
-        """
-        :avocado: tags=arch:riscv32
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:max
-        :avocado: tags=tuxboot:riscv32
-        """
-        sums = { "Image" :
-                 "89599407d7334de629a40e7ad6503c73670359eb5f5ae9d686353a3d6deccbd5",
-                 "fw_jump.elf" :
-                 "f2ef28a0b77826f79d085d3e4aa686f1159b315eff9099a37046b18936676985",
-                 "rootfs.ext4.zst" :
-                 "7168d296d0283238ea73cd5a775b3dd608e55e04c7b92b76ecce31bb13108cba" }
 
         self.common_tuxrun(csums=sums)
 
