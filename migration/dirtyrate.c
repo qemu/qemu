@@ -29,6 +29,7 @@
 #include "sysemu/runstate.h"
 #include "exec/memory.h"
 #include "qemu/xxhash.h"
+#include "migration.h"
 
 /*
  * total_dirty_pages is procted by BQL and is used
@@ -839,8 +840,9 @@ void qmp_calc_dirty_rate(int64_t calc_time,
 
     init_dirtyrate_stat(config);
 
-    qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
-                       (void *)&config, QEMU_THREAD_DETACHED);
+    qemu_thread_create(&thread, MIGRATION_THREAD_DIRTY_RATE,
+                       get_dirtyrate_thread, (void *)&config,
+                       QEMU_THREAD_DETACHED);
 }
 
 

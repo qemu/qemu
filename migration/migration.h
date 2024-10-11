@@ -28,6 +28,20 @@
 #include "sysemu/runstate.h"
 #include "migration/misc.h"
 
+#define  MIGRATION_THREAD_SNAPSHOT          "mig/snapshot"
+#define  MIGRATION_THREAD_DIRTY_RATE        "mig/dirtyrate"
+
+#define  MIGRATION_THREAD_SRC_MAIN          "mig/src/main"
+#define  MIGRATION_THREAD_SRC_MULTIFD       "mig/src/send_%d"
+#define  MIGRATION_THREAD_SRC_RETURN        "mig/src/return"
+#define  MIGRATION_THREAD_SRC_TLS           "mig/src/tls"
+
+#define  MIGRATION_THREAD_DST_COLO          "mig/dst/colo"
+#define  MIGRATION_THREAD_DST_MULTIFD       "mig/src/recv_%d"
+#define  MIGRATION_THREAD_DST_FAULT         "mig/dst/fault"
+#define  MIGRATION_THREAD_DST_LISTEN        "mig/dst/listen"
+#define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
+
 struct PostcopyBlocktimeContext;
 
 #define  MIGRATION_RESUME_ACK_VALUE  (1)
