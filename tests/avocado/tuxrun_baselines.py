@@ -441,23 +441,6 @@ class TuxRunBaselineTest(QemuSystemTest):
 
         self.common_tuxrun(csums=sums)
 
-    def test_s390(self):
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=endian:big
-        :avocado: tags=tuxboot:s390
-        :avocado: tags=image:bzImage
-        :avocado: tags=shutdown:nowait
-        """
-        sums = { "bzImage" :
-                 "0414e98dd1c3dafff8496c9cd9c28a5f8d04553bb5ba37e906a812b48d442ef0",
-                 "rootfs.ext4.zst" :
-                 "88c37c32276677f873a25ab9ec6247895b8e3e6f8259134de2a616080b8ab3fc" }
-
-        self.common_tuxrun(csums=sums,
-                           drive="virtio-blk-ccw",
-                           haltmsg="Requesting system halt")
-
     # Note: some segfaults caused by unaligned userspace access
     @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
     def test_sh4(self):
