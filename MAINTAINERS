@@ -3259,7 +3259,7 @@ F: tests/qtest/qmp-cmd-test.c
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 qtest
-M: Thomas Huth <thuth@redhat.com>
+M: Fabiano Rosas <farosas@suse.de>
 M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
@@ -3277,7 +3277,7 @@ M: Alexander Bulekov <alxndr@bu.edu>
 R: Paolo Bonzini <pbonzini@redhat.com>
 R: Bandan Das <bsd@redhat.com>
 R: Stefan Hajnoczi <stefanha@redhat.com>
-R: Thomas Huth <thuth@redhat.com>
+R: Fabiano Rosas <farosas@suse.de>
 R: Darren Kenny <darren.kenny@oracle.com> 
 R: Qiuhao Li <Qiuhao.Li@outlook.com>
 S: Maintained
