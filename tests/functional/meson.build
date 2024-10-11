@@ -106,6 +106,7 @@ tests_mips64el_system_thorough = [
   'mips64el_fuloong2e',
   'mips64el_loongson3v',
   'mips64el_malta',
+  'mips64el_tuxrun',
 ]
 
 tests_or1k_system_thorough = [
