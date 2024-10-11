@@ -1396,6 +1396,7 @@ F: hw/intc/openpic_kvm.c
 F: include/hw/ppc/openpic_kvm.h
 F: docs/system/ppc/ppce500.rst
 F: tests/functional/test_ppc64_e500.py
+F: tests/functional/test_ppc_tuxrun.py
 
 mpc8544ds
 M: Bernhard Beschow <shentey@gmail.com>
