@@ -95,6 +95,7 @@ tests_mips_system_thorough = [
 
 tests_mipsel_system_thorough = [
   'mipsel_malta',
+  'mipsel_tuxrun',
 ]
 
 tests_mips64el_system_thorough = [
