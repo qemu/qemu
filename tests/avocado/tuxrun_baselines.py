@@ -223,62 +223,6 @@ class TuxRunBaselineTest(QemuSystemTest):
                  "e6ffd8813c8a335bc15728f2835f90539c84be7f8f5f691a8b01451b47fb4bd7"}
         self.common_tuxrun(csums=sums)
 
-    def test_armv5(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=cpu:arm926
-        :avocado: tags=machine:versatilepb
-        :avocado: tags=tuxboot:armv5
-        :avocado: tags=image:zImage
-        :avocado: tags=console:ttyAMA0
-        :avocado: tags=shutdown:nowait
-        """
-        sums = { "rootfs.ext4.zst" :
-                 "17177afa74e7294da0642861f08c88ca3c836764299a54bf6d1ce276cb9712a5",
-                 "versatile-pb.dtb" :
-                 "0bc0c0b0858cefd3c32b385c0d66d97142ded29472a496f4f490e42fc7615b25",
-                 "zImage" :
-                 "c95af2f27647c12265d75e9df44c22ff5228c59855f54aaa70f41ec2842e3a4d" }
-
-        self.common_tuxrun(csums=sums,
-                           drive="virtio-blk-pci",
-                           dt="versatile-pb.dtb")
-
-    def test_armv7(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=cpu:cortex-a15
-        :avocado: tags=machine:virt
-        :avocado: tags=tuxboot:armv7
-        :avocado: tags=image:zImage
-        :avocado: tags=console:ttyAMA0
-        :avocado: tags=shutdown:nowait
-        """
-        sums = { "rootfs.ext4.zst" :
-                 "ab1fbbeaddda1ffdd45c9405a28cd5370c20f23a7cbc809cc90dc9f243a8eb5a",
-                 "zImage" :
-                 "4c7a22e9f15875bec06bd2a29d822496571eb297d4f22694099ffcdb19077572" }
-
-        self.common_tuxrun(csums=sums)
-
-    def test_armv7be(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=cpu:cortex-a15
-        :avocado: tags=endian:big
-        :avocado: tags=machine:virt
-        :avocado: tags=tuxboot:armv7be
-        :avocado: tags=image:zImage
-        :avocado: tags=console:ttyAMA0
-        :avocado: tags=shutdown:nowait
-        """
-        sums = {"rootfs.ext4.zst" :
-                "42ed46dd2d59986206c5b1f6cf35eab58fe3fd20c96b41aaa16b32f3f90a9835",
-                "zImage" :
-                "7facc62082b57af12015b08f7fdbaf2f123ba07a478367853ae12b219afc9f2f" }
-
-        self.common_tuxrun(csums=sums)
-
     def test_i386(self):
         """
         :avocado: tags=arch:i386
