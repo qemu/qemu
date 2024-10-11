@@ -145,13 +145,13 @@ was installed in the ``site-packages`` directory of another interpreter,
 or with the wrong ``pip`` program.
 
 If a package is available for the chosen interpreter, ``configure``
-prepares a small script that invokes it from the venv itself[#distlib]_.
+prepares a small script that invokes it from the venv itself\ [#distlib]_.
 If not, ``configure`` can also optionally install dependencies in the
 virtual environment with ``pip``, either from wheels in ``python/wheels``
 or by downloading the package with PyPI.  Downloading can be disabled with
 ``--disable-download``; and anyway, it only happens when a ``configure``
 option (currently, only ``--enable-docs``) is explicitly enabled but
-the dependencies are not present[#pip]_.
+the dependencies are not present\ [#pip]_.
 
 .. [#distlib] The scripts are created based on the package's metadata,
               specifically the ``console_script`` entry points.  This is the
