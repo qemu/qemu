@@ -1399,7 +1399,7 @@ iconv = not_found
 curses = not_found
 if have_system and get_option('curses').allowed()
   curses_test = '''
-    #if defined(__APPLE__) || defined(__OpenBSD__)
+    #ifdef __APPLE__
     #define _XOPEN_SOURCE_EXTENDED 1
     #endif
     #include <locale.h>
