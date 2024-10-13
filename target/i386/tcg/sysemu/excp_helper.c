@@ -60,7 +60,7 @@ typedef struct PTETranslate {
     hwaddr gaddr;
 } PTETranslate;
 
-static bool ptw_translate(PTETranslate *inout, hwaddr addr, uint64_t ra)
+static bool ptw_translate(PTETranslate *inout, hwaddr addr)
 {
     int flags;
 
@@ -166,7 +166,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
                  * Page table level 5
                  */
                 pte_addr = (in->cr3 & ~0xfff) + (((addr >> 48) & 0x1ff) << 3);
-                if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+                if (!ptw_translate(&pte_trans, pte_addr)) {
                     return false;
                 }
             restart_5:
@@ -190,7 +190,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
              * Page table level 4
              */
             pte_addr = (pte & PG_ADDRESS_MASK) + (((addr >> 39) & 0x1ff) << 3);
-            if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+            if (!ptw_translate(&pte_trans, pte_addr)) {
                 return false;
             }
         restart_4:
@@ -210,7 +210,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
              * Page table level 3
              */
             pte_addr = (pte & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3);
-            if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+            if (!ptw_translate(&pte_trans, pte_addr)) {
                 return false;
             }
         restart_3_lma:
@@ -237,7 +237,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
              * Page table level 3
              */
             pte_addr = (in->cr3 & 0xffffffe0ULL) + ((addr >> 27) & 0x18);
-            if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+            if (!ptw_translate(&pte_trans, pte_addr)) {
                 return false;
             }
             rsvd_mask |= PG_HI_USER_MASK;
@@ -259,7 +259,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
          * Page table level 2
          */
         pte_addr = (pte & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3);
-        if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+        if (!ptw_translate(&pte_trans, pte_addr)) {
             return false;
         }
     restart_2_pae:
@@ -285,7 +285,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
          * Page table level 1
          */
         pte_addr = (pte & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3);
-        if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+        if (!ptw_translate(&pte_trans, pte_addr)) {
             return false;
         }
         pte = ptw_ldq(&pte_trans, ra);
@@ -303,7 +303,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
          * Page table level 2
          */
         pte_addr = (in->cr3 & 0xfffff000ULL) + ((addr >> 20) & 0xffc);
-        if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+        if (!ptw_translate(&pte_trans, pte_addr)) {
             return false;
         }
     restart_2_nopae:
@@ -332,7 +332,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
          * Page table level 1
          */
         pte_addr = (pte & ~0xfffu) + ((addr >> 10) & 0xffc);
-        if (!ptw_translate(&pte_trans, pte_addr, ra)) {
+        if (!ptw_translate(&pte_trans, pte_addr)) {
             return false;
         }
         pte = ptw_ldl(&pte_trans, ra);
