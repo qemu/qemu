@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
+#include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -184,6 +185,21 @@ static void char_mux_test(void)
     char *data;
     FeHandler h1 = { 0, false, 0, false, }, h2 = { 0, false, 0, false, };
     CharBackend chr_be1, chr_be2;
+    Error *error = NULL;
+
+    /* Create mux and chardev to be immediately removed */
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "mux-label",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "ringbuf", &error_abort);
+    qemu_opt_set(opts, "size", "128", &error_abort);
+    qemu_opt_set(opts, "mux", "on", &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
+    g_assert_nonnull(chr);
+    qemu_opts_del(opts);
+
+    /* Remove just created mux and chardev */
+    qmp_chardev_remove("mux-label", &error_abort);
+    qmp_chardev_remove("mux-label-base", &error_abort);
 
     opts = qemu_opts_create(qemu_find_opts("chardev"), "mux-label",
                             1, &error_abort);
@@ -334,7 +350,13 @@ static void char_mux_test(void)
     g_free(data);
 
     qemu_chr_fe_deinit(&chr_be1, false);
-    qemu_chr_fe_deinit(&chr_be2, true);
+
+    qmp_chardev_remove("mux-label", &error);
+    g_assert_cmpstr(error_get_pretty(error), ==, "Chardev 'mux-label' is busy");
+    error_free(error);
+
+    qemu_chr_fe_deinit(&chr_be2, false);
+    qmp_chardev_remove("mux-label", &error_abort);
 }
 
 
