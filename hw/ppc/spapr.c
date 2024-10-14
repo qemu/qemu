@@ -5054,21 +5054,6 @@ static void spapr_machine_2_12_sxxm_class_options(MachineClass *mc)
 
 DEFINE_SPAPR_MACHINE_TAGGED(2, 12, sxxm);
 
-/*
- * pseries-2.11
- */
-
-static void spapr_machine_2_11_class_options(MachineClass *mc)
-{
-    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-
-    spapr_machine_2_12_class_options(mc);
-    smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_ON;
-    compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
-}
-
-DEFINE_SPAPR_MACHINE(2, 11);
-
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
