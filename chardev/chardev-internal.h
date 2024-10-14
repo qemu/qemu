@@ -38,14 +38,14 @@ struct MuxChardev {
     CharBackend *backends[MAX_MUX];
     CharBackend chr;
     int focus;
-    int mux_cnt;
+    unsigned int mux_cnt;
     bool term_got_escape;
     /* Intermediate input buffer catches escape sequences even if the
        currently active device is not accepting any input - but only until it
        is full as well. */
     unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
-    int prod[MAX_MUX];
-    int cons[MAX_MUX];
+    unsigned int prod[MAX_MUX];
+    unsigned int cons[MAX_MUX];
     int timestamps;
 
     /* Protected by the Chardev chr_write_lock.  */
@@ -59,7 +59,7 @@ DECLARE_INSTANCE_CHECKER(MuxChardev, MUX_CHARDEV,
 #define CHARDEV_IS_MUX(chr)                             \
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
 
-void mux_set_focus(Chardev *chr, int focus);
+void mux_set_focus(Chardev *chr, unsigned int focus);
 void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event);
 
 Object *get_chardevs_root(void);

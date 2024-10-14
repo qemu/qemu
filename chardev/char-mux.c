@@ -124,7 +124,8 @@ static void mux_print_help(Chardev *chr)
     }
 }
 
-static void mux_chr_send_event(MuxChardev *d, int mux_nr, QEMUChrEvent event)
+static void mux_chr_send_event(MuxChardev *d, unsigned int mux_nr,
+                               QEMUChrEvent event)
 {
     CharBackend *be = d->backends[mux_nr];
 
@@ -242,7 +243,7 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
 void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
-    int i;
+    unsigned int i;
 
     if (!muxes_opened) {
         return;
@@ -275,7 +276,7 @@ static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)
 static void char_mux_finalize(Object *obj)
 {
     MuxChardev *d = MUX_CHARDEV(obj);
-    int i;
+    unsigned int i;
 
     for (i = 0; i < d->mux_cnt; i++) {
         CharBackend *be = d->backends[i];
@@ -300,11 +301,10 @@ static void mux_chr_update_read_handlers(Chardev *chr)
                                   chr->gcontext, true, false);
 }
 
-void mux_set_focus(Chardev *chr, int focus)
+void mux_set_focus(Chardev *chr, unsigned int focus)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
 
-    assert(focus >= 0);
     assert(focus < d->mux_cnt);
 
     if (d->focus != -1) {

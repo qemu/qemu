@@ -191,7 +191,7 @@ bool qemu_chr_fe_backend_open(CharBackend *be)
 
 bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
 {
-    int tag = 0;
+    unsigned int tag = 0;
 
     if (s) {
         if (CHARDEV_IS_MUX(s)) {
