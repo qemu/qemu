@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest-single.h"
+#include "stm32l4x5.h"
 
 #define SYSCFG_BASE_ADDR 0x40010000
 #define SYSCFG_MEMRMP 0x00
@@ -26,7 +27,9 @@
 #define INVALID_ADDR 0x2C
 
 /* SoC forwards GPIOs to SysCfg */
-#define SYSCFG "/machine/soc"
+#define SOC "/machine/soc"
+#define SYSCFG "/machine/soc/syscfg"
+#define SYSCFG_CLK "/machine/soc/syscfg/clk"
 #define EXTI "/machine/soc/exti"
 
 static void syscfg_writel(unsigned int offset, uint32_t value)
@@ -41,7 +44,7 @@ static uint32_t syscfg_readl(unsigned int offset)
 
 static void syscfg_set_irq(int num, int level)
 {
-   qtest_set_irq_in(global_qtest, SYSCFG, NULL, num, level);
+   qtest_set_irq_in(global_qtest, SOC, NULL, num, level);
 }
 
 static void system_reset(void)
@@ -301,6 +304,17 @@ static void test_irq_gpio_multiplexer(void)
     syscfg_writel(SYSCFG_EXTICR1, 0x00000000);
 }
 
+static void test_clock_enable(void)
+{
+    g_assert_cmpuint(get_clock_period(global_qtest, SYSCFG_CLK), ==, 0);
+
+    /* Enable SYSCFG clock */
+    writel(RCC_APB2ENR, readl(RCC_APB2ENR) | (0x1 << 0));
+
+    g_assert_cmpuint(get_clock_period(global_qtest, SYSCFG_CLK), ==,
+                                       SYSCLK_PERIOD);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -325,6 +339,8 @@ int main(int argc, char **argv)
                    test_irq_pin_multiplexer);
     qtest_add_func("stm32l4x5/syscfg/test_irq_gpio_multiplexer",
                    test_irq_gpio_multiplexer);
+    qtest_add_func("stm32l4x5/syscfg/test_clock_enable",
+                   test_clock_enable);
 
     qtest_start("-machine b-l475e-iot01a");
     ret = g_test_run();

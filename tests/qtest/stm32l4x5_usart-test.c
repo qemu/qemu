@@ -12,6 +12,7 @@
 #include "libqtest.h"
 #include "hw/misc/stm32l4x5_rcc_internals.h"
 #include "hw/registerfields.h"
+#include "stm32l4x5.h"
 
 #define RCC_BASE_ADDR 0x40021000
 /* Use USART 1 ADDR, assume the others work the same */
@@ -331,6 +332,32 @@ static void test_ack(void)
     qtest_quit(qts);
 }
 
+static void check_clock(QTestState *qts, const char *path, uint32_t rcc_reg,
+                        uint32_t reg_offset)
+{
+    g_assert_cmpuint(get_clock_period(qts, path), ==, 0);
+    qtest_writel(qts, rcc_reg, qtest_readl(qts, rcc_reg) | (0x1 << reg_offset));
+    g_assert_cmpuint(get_clock_period(qts, path), ==, SYSCLK_PERIOD);
+}
+
+static void test_clock_enable(void)
+{
+    /*
+     * For each USART device, enable its clock in RCC
+     * and check that its clock frequency is SYSCLK_PERIOD
+     */
+    QTestState *qts = qtest_init("-M b-l475e-iot01a");
+
+    check_clock(qts, "machine/soc/usart[0]/clk", RCC_APB2ENR, 14);
+    check_clock(qts, "machine/soc/usart[1]/clk", RCC_APB1ENR1, 17);
+    check_clock(qts, "machine/soc/usart[2]/clk", RCC_APB1ENR1, 18);
+    check_clock(qts, "machine/soc/uart[0]/clk", RCC_APB1ENR1, 19);
+    check_clock(qts, "machine/soc/uart[1]/clk", RCC_APB1ENR1, 20);
+    check_clock(qts, "machine/soc/lpuart1/clk", RCC_APB1ENR2, 0);
+
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -344,6 +371,7 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/usart/receive_str", test_receive_str);
     qtest_add_func("stm32l4x5/usart/send_str", test_send_str);
     qtest_add_func("stm32l4x5/usart/ack", test_ack);
+    qtest_add_func("stm32l4x5/usart/clock_enable", test_clock_enable);
     ret = g_test_run();
 
     return ret;
