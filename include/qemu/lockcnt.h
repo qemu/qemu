@@ -51,7 +51,7 @@ void qemu_lockcnt_destroy(QemuLockCnt *lockcnt);
  * Because this function can wait on the mutex, it must not be
  * called while the lockcnt's mutex is held by the current thread.
  * For the same reason, qemu_lockcnt_inc can also contribute to
- * AB-BA deadlocks.  This is a sample deadlock scenario:
+ * AB-BA deadlocks.  This is a sample deadlock scenario::
  *
  *            thread 1                      thread 2
  *            -------------------------------------------------------
