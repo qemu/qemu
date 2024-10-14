@@ -48,6 +48,7 @@ struct Stm32l4x5SyscfgState {
     uint32_t swpr2;
 
     qemu_irq gpio_out[GPIO_NUM_PINS];
+    Clock *clk;
 };
 
 #endif
