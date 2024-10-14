@@ -3058,7 +3058,7 @@ F: qapi/run-state.json
 Read, Copy, Update (RCU)
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: docs/devel/lockcnt.txt
+F: docs/devel/lockcnt.rst
 F: docs/devel/rcu.txt
 F: include/qemu/rcu*.h
 F: tests/unit/rcutorture.c
