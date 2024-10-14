@@ -290,10 +290,10 @@ static void char_mux_finalize(Object *obj)
     bit = -1;
     while ((bit = find_next_bit(&d->mux_bitset, MAX_MUX, bit + 1)) < MAX_MUX) {
         CharBackend *be = d->backends[bit];
-        if (be) {
-            be->chr = NULL;
-        }
+        be->chr = NULL;
+        d->backends[bit] = NULL;
     }
+    d->mux_bitset = 0;
     qemu_chr_fe_deinit(&d->chr, false);
 }
 
@@ -328,6 +328,21 @@ bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
     d->mux_bitset |= (1 << bit);
     d->backends[bit] = b;
     *tag = bit;
+
+    return true;
+}
+
+bool mux_chr_detach_frontend(MuxChardev *d, unsigned int tag)
+{
+    unsigned int bit;
+
+    bit = find_next_bit(&d->mux_bitset, MAX_MUX, tag);
+    if (bit != tag) {
+        return false;
+    }
+
+    d->mux_bitset &= ~(1 << bit);
+    d->backends[bit] = NULL;
 
     return true;
 }

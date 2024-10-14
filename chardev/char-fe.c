@@ -225,7 +225,7 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
         }
         if (CHARDEV_IS_MUX(b->chr)) {
             MuxChardev *d = MUX_CHARDEV(b->chr);
-            d->backends[b->tag] = NULL;
+            mux_chr_detach_frontend(d, b->tag);
         }
         if (del) {
             Object *obj = OBJECT(b->chr);
