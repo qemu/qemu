@@ -40,7 +40,6 @@ struct MuxChardev {
     int focus;
     int mux_cnt;
     int term_got_escape;
-    int max_size;
     /* Intermediate input buffer catches escape sequences even if the
        currently active device is not accepting any input - but only until it
        is full as well. */
