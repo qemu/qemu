@@ -15,3 +15,4 @@ testing infrastructure.
    ci
    fuzzing
    blkdebug
+   blkverify
