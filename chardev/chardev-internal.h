@@ -37,8 +37,8 @@ struct MuxChardev {
     Chardev parent;
     CharBackend *backends[MAX_MUX];
     CharBackend chr;
+    unsigned long mux_bitset;
     int focus;
-    unsigned int mux_cnt;
     bool term_got_escape;
     /* Intermediate input buffer catches escape sequences even if the
        currently active device is not accepting any input - but only until it
