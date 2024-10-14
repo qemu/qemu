@@ -60,7 +60,4 @@ struct PCMCIACardClass {
 #define CISTPL_END            0xff  /* Tuple End */
 #define CISTPL_ENDMARK        0xff
 
-/* dscm1xxxx.c */
-PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv);
-
 #endif
