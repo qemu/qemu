@@ -294,9 +294,6 @@ GlobalProperty hw_compat_2_3[] = {
 };
 const size_t hw_compat_2_3_len = G_N_ELEMENTS(hw_compat_2_3);
 
-GlobalProperty hw_compat_2_2[] = {};
-const size_t hw_compat_2_2_len = G_N_ELEMENTS(hw_compat_2_2);
-
 MachineState *current_machine;
 
 static char *machine_get_kernel(Object *obj, Error **errp)
