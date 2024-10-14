@@ -14,3 +14,4 @@ testing infrastructure.
    acpi-bits
    ci
    fuzzing
+   blkdebug

@@ -3967,6 +3967,7 @@ M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkdebug.c
+F: docs/devel/blkdebug.rst
 
 vpc
 M: Kevin Wolf <kwolf@redhat.com>
