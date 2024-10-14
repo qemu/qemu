@@ -1,7 +1,3 @@
-config MAX7310
-    bool
-    depends on I2C
-
 config PL061
     bool
 
