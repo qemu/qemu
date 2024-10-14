@@ -21,3 +21,4 @@ Details about QEMU's various subsystems including how to add features to them.
    writing-monitor-commands
    virtio-backends
    crypto
+   multiple-iothreads
