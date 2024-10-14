@@ -62,17 +62,6 @@ uint32_t nand_getbuswidth(DeviceState *dev);
 #define NAND_MFR_HYNIX      0xad
 #define NAND_MFR_MICRON     0x2c
 
-/* ecc.c */
-typedef struct {
-    uint8_t cp;     /* Column parity */
-    uint16_t lp[2]; /* Line parity */
-    uint16_t count;
-} ECCState;
-
-uint8_t ecc_digest(ECCState *s, uint8_t sample);
-void ecc_reset(ECCState *s);
-extern const VMStateDescription vmstate_ecc_state;
-
 /* m25p80.c */
 
 #define TYPE_M25P80 "m25p80-generic"

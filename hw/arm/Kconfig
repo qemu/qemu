@@ -150,7 +150,6 @@ config OMAP
     bool
     select FRAMEBUFFER
     select I2C
-    select ECC
     select NAND
     select PFLASH_CFI01
     select SD

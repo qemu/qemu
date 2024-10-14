@@ -22,9 +22,6 @@ config PFLASH_CFI01
 config PFLASH_CFI02
     bool
 
-config ECC
-    bool
-
 config VIRTIO_BLK
     bool
     default y
