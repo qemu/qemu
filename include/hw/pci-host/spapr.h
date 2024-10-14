@@ -53,7 +53,6 @@ struct SpaprPhbState {
     uint32_t index;
     uint64_t buid;
     char *dtbusname;
-    bool dr_enabled;
 
     MemoryRegion memspace, iospace;
     hwaddr mem_win_addr, mem_win_size, mem64_win_addr, mem64_win_size;

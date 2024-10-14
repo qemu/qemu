@@ -1237,10 +1237,6 @@ static void add_drcs(SpaprPhbState *phb, PCIBus *bus)
     int i;
     uint8_t chassis;
 
-    if (!phb->dr_enabled) {
-        return;
-    }
-
     chassis = chassis_from_bus(bus);
 
     if (pci_bus_is_root(bus)) {
@@ -1259,10 +1255,6 @@ static void remove_drcs(SpaprPhbState *phb, PCIBus *bus)
 {
     int i;
     uint8_t chassis;
-
-    if (!phb->dr_enabled) {
-        return;
-    }
 
     chassis = chassis_from_bus(bus);
 
@@ -1548,17 +1540,6 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
-    if (!phb->dr_enabled) {
-        /* if this is a hotplug operation initiated by the user
-         * we need to let them know it's not enabled
-         */
-        if (plugged_dev->hotplugged) {
-            error_setg(errp, "Bus '%s' does not support hotplugging",
-                       phb->parent_obj.bus->qbus.name);
-            return;
-        }
-    }
-
     if (IS_PCI_BRIDGE(plugged_dev)) {
         if (!bridge_has_valid_chassis_nr(OBJECT(plugged_dev), errp)) {
             return;
@@ -1590,14 +1571,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
-
-    /*
-     * If DR is disabled we don't need to do anything in the case of
-     * hotplug or coldplug callbacks.
-     */
-    if (!phb->dr_enabled) {
-        return;
-    }
 
     g_assert(drc);
 
@@ -1672,12 +1645,6 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
-
-    if (!phb->dr_enabled) {
-        error_setg(errp, "Bus '%s' does not support hotplugging",
-                   phb->parent_obj.bus->qbus.name);
-        return;
-    }
 
     g_assert(drc);
     g_assert(drc->dev == plugged_dev);
@@ -2089,8 +2056,6 @@ static Property spapr_phb_properties[] = {
                        SPAPR_PCI_MEM64_WIN_SIZE),
     DEFINE_PROP_UINT64("io_win_size", SpaprPhbState, io_win_size,
                        SPAPR_PCI_IO_WIN_SIZE),
-    DEFINE_PROP_BOOL("dynamic-reconfiguration", SpaprPhbState, dr_enabled,
-                     true),
     /* Default DMA window is 0..1GB */
     DEFINE_PROP_UINT64("dma_win_addr", SpaprPhbState, dma_win_addr, 0),
     DEFINE_PROP_UINT64("dma_win_size", SpaprPhbState, dma_win_size, 0x40000000),
