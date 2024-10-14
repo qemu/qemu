@@ -71,7 +71,6 @@ typedef enum DisasJumpType {
  * @is_jmp: What instruction to disassemble next.
  * @num_insns: Number of translated instructions (including current).
  * @max_insns: Maximum number of instructions to be translated in this TB.
- * @singlestep_enabled: "Hardware" single stepping enabled.
  * @plugin_enabled: TCG plugin enabled in this TB.
  * @fake_insn: True if translator_fake_ldb used.
  * @insn_start: The last op emitted by the insn_start hook,
@@ -86,7 +85,6 @@ struct DisasContextBase {
     DisasJumpType is_jmp;
     int num_insns;
     int max_insns;
-    bool singlestep_enabled;
     bool plugin_enabled;
     bool fake_insn;
     struct TCGOp *insn_start;

@@ -8,17 +8,12 @@ from test_gdbstub import main, report
 
 def run_test():
     """Run through the tests one by one"""
-    try:
-        mappings = gdb.execute("info proc mappings", False, True)
-    except gdb.error as exc:
-        exc_str = str(exc)
-        if "Not supported on this target." in exc_str:
-            # Detect failures due to an outstanding issue with how GDB handles
-            # the x86_64 QEMU's target.xml, which does not contain the
-            # definition of orig_rax. Skip the test in this case.
-            print("SKIP: {}".format(exc_str))
-            return
-        raise
+    if gdb.selected_inferior().architecture().name() == "m68k":
+        # m68k GDB supports only GDB_OSABI_SVR4, but GDB_OSABI_LINUX is
+        # required for the info proc support (see set_gdbarch_info_proc()).
+        print("SKIP: m68k GDB does not support GDB_OSABI_LINUX")
+        exit(0)
+    mappings = gdb.execute("info proc mappings", False, True)
     report(isinstance(mappings, str), "Fetched the mappings from the inferior")
     # Broken with host page size > guest page size
     # report("/sha1" in mappings, "Found the test binary name in the mappings")
