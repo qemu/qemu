@@ -39,7 +39,7 @@ struct MuxChardev {
     CharBackend chr;
     int focus;
     int mux_cnt;
-    int term_got_escape;
+    bool term_got_escape;
     /* Intermediate input buffer catches escape sequences even if the
        currently active device is not accepting any input - but only until it
        is full as well. */
@@ -49,7 +49,7 @@ struct MuxChardev {
     int timestamps;
 
     /* Protected by the Chardev chr_write_lock.  */
-    int linestart;
+    bool linestart;
     int64_t timestamps_start;
 };
 typedef struct MuxChardev MuxChardev;

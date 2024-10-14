@@ -73,11 +73,11 @@ static int mux_chr_write(Chardev *chr, const uint8_t *buf, int len)
                  * qemu_chr_fe_write and background I/O callbacks */
                 qemu_chr_fe_write_all(&d->chr,
                                       (uint8_t *)buf1, strlen(buf1));
-                d->linestart = 0;
+                d->linestart = false;
             }
             ret += qemu_chr_fe_write(&d->chr, buf + i, 1);
             if (buf[i] == '\n') {
-                d->linestart = 1;
+                d->linestart = true;
             }
         }
     }
@@ -145,7 +145,7 @@ static void mux_chr_be_event(Chardev *chr, QEMUChrEvent event)
 static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
 {
     if (d->term_got_escape) {
-        d->term_got_escape = 0;
+        d->term_got_escape = false;
         if (ch == term_escape_char) {
             goto send_char;
         }
@@ -175,11 +175,11 @@ static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
         case 't':
             d->timestamps = !d->timestamps;
             d->timestamps_start = -1;
-            d->linestart = 0;
+            d->linestart = false;
             break;
         }
     } else if (ch == term_escape_char) {
-        d->term_got_escape = 1;
+        d->term_got_escape = true;
     } else {
     send_char:
         return 1;
