@@ -171,6 +171,8 @@ static void stm32l4r5_soc_initfn(Object *obj)
                             TYPE_STM32L4X5_LPUART);
 
     object_initialize_child(obj, "iwdg", &s->iwdg, TYPE_STM32_IWDG);
+
+    object_initialize_child(obj, "rng", &s->rng, TYPE_STM32L4R5_RNG);
 }
 
 static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -372,6 +374,13 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     sysbus_mmio_map(busdev, 0, 0x40003000);
 
+    /* RNG */
+    busdev = SYS_BUS_DEVICE(&s->rng);
+    if (!sysbus_realize(busdev, errp)) {
+        return;
+    }
+    sysbus_mmio_map(busdev, 0, 0x50060800);
+
     /* APB1 BUS */
     create_unimplemented_device("TIM2",      0x40000000, 0x400);
     create_unimplemented_device("TIM3",      0x40000400, 0x400);
@@ -441,7 +450,6 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
     create_unimplemented_device("ADC",       0x50040000, 0x400);
     /* RESERVED:    0x50040400, 0x20400 */
-    create_unimplemented_device("RNG",       0x50060800, 0x400);
 
     /* AHB3 BUS */
     create_unimplemented_device("FMC",       0xA0000000, 0x1000);

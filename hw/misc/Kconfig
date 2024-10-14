@@ -100,6 +100,9 @@ config STM32L4X5_SYSCFG
 config STM32L4X5_RCC
     bool
 
+config STM32L4R5_RNG
+    bool
+
 config MIPS_ITU
     bool
 
