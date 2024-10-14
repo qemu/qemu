@@ -330,7 +330,7 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
            0;
 }
 
-static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
+static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
                                    Error **errp)
 {
     PXBDev *pxb = PXB_DEV(dev);
@@ -342,13 +342,13 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
 
     if (ms->numa_state == NULL) {
         error_setg(errp, "NUMA is not supported by this machine-type");
-        return;
+        return false;
     }
 
     if (pxb->numa_node != NUMA_NODE_UNASSIGNED &&
         pxb->numa_node >= ms->numa_state->num_nodes) {
         error_setg(errp, "Illegal numa node %d", pxb->numa_node);
-        return;
+        return false;
     }
 
     if (dev->qdev.id && *dev->qdev.id) {
@@ -394,12 +394,13 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
 
     pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
-    return;
+    return true;
 
 err_register_bus:
     object_unref(OBJECT(bds));
     object_unparent(OBJECT(bus));
     object_unref(OBJECT(ds));
+    return false;
 }
 
 static void pxb_dev_realize(PCIDevice *dev, Error **errp)
@@ -500,7 +501,9 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
-    pxb_dev_realize_common(dev, CXL, errp);
+    if (!pxb_dev_realize_common(dev, CXL, errp)) {
+        return;
+    }
     pxb_cxl_dev_reset(DEVICE(dev));
 }
 
