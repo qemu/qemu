@@ -374,5 +374,5 @@ option('hexagon_idef_parser', type : 'boolean', value : true,
 option('x86_version', type : 'combo', choices : ['0', '1', '2', '3', '4'], value: '1',
        description: 'tweak required x86_64 architecture version beyond compiler default')
 
-option('rust', type: 'feature', value: 'auto',
+option('rust', type: 'feature', value: 'disabled',
        description: 'Rust support')
