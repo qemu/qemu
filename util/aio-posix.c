@@ -17,6 +17,7 @@
 #include "block/block.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
+#include "qemu/lockcnt.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/sockets.h"

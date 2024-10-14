@@ -24,6 +24,7 @@
 #include "sysemu/hw_accel.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/lockcnt.h"
 #include "exec/log.h"
 #include "exec/gdbstub.h"
 #include "sysemu/tcg.h"

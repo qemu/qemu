@@ -7,6 +7,7 @@
  *   Paolo Bonzini <pbonzini@redhat.com>
  */
 #include "qemu/osdep.h"
+#include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "trace.h"

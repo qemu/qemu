@@ -3061,8 +3061,10 @@ S: Maintained
 F: docs/devel/lockcnt.rst
 F: docs/devel/rcu.rst
 F: include/qemu/rcu*.h
+F: include/qemu/lockcnt.h
 F: tests/unit/rcutorture.c
 F: tests/unit/test-rcu-*.c
+F: util/lockcnt.c
 F: util/rcu.c
 
 Human Monitor (HMP)

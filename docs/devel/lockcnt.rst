@@ -175,7 +175,7 @@ three instructions in the critical path, two assignments and a ``smp_wmb()``.
 ``QemuLockCnt`` API
 -------------------
 
-The ``QemuLockCnt`` API is described in ``include/qemu/thread.h``.
+The ``QemuLockCnt`` API is described in ``include/qemu/lockcnt.h``.
 
 
 ``QemuLockCnt`` usage
