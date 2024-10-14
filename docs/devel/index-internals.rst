@@ -8,6 +8,7 @@ Details about QEMU's various subsystems including how to add features to them.
 
    qom
    atomics
+   rcu
    block-coroutine-wrapper
    clocks
    ebpf_rss

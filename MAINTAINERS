@@ -3059,7 +3059,7 @@ Read, Copy, Update (RCU)
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: docs/devel/lockcnt.rst
-F: docs/devel/rcu.txt
+F: docs/devel/rcu.rst
 F: include/qemu/rcu*.h
 F: tests/unit/rcutorture.c
 F: tests/unit/test-rcu-*.c
