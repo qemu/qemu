@@ -27,7 +27,6 @@ source nvme/Kconfig
 source nvram/Kconfig
 source pci-bridge/Kconfig
 source pci-host/Kconfig
-source pcmcia/Kconfig
 source pci/Kconfig
 source remote/Kconfig
 source rtc/Kconfig
