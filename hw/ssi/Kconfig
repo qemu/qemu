@@ -28,3 +28,7 @@ config BCM2835_SPI
 config PNV_SPI
     bool
     select SSI
+
+config ALLWINNER_A10_SPI
+    bool
+    select SSI
