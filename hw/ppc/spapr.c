@@ -132,61 +132,6 @@ static bool spapr_is_thread0_in_vcore(SpaprMachineState *spapr,
     return spapr_get_vcpu_id(cpu) % spapr->vsmt == 0;
 }
 
-static bool pre_2_10_vmstate_dummy_icp_needed(void *opaque)
-{
-    /* Dummy entries correspond to unused ICPState objects in older QEMUs,
-     * and newer QEMUs don't even have them. In both cases, we don't want
-     * to send anything on the wire.
-     */
-    return false;
-}
-
-static const VMStateDescription pre_2_10_vmstate_dummy_icp = {
-    /*
-     * Hack ahead.  We can't have two devices with the same name and
-     * instance id.  So I rename this to pass make check.
-     * Real help from people who knows the hardware is needed.
-     */
-    .name = "icp/server",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = pre_2_10_vmstate_dummy_icp_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UNUSED(4), /* uint32_t xirr */
-        VMSTATE_UNUSED(1), /* uint8_t pending_priority */
-        VMSTATE_UNUSED(1), /* uint8_t mfrr */
-        VMSTATE_END_OF_LIST()
-    },
-};
-
-/*
- * See comment in hw/intc/xics.c:icp_realize()
- *
- * You have to remove vmstate_replace_hack_for_ppc() when you remove
- * the machine types that need the following function.
- */
-static void pre_2_10_vmstate_register_dummy_icp(int i)
-{
-    vmstate_register(NULL, i, &pre_2_10_vmstate_dummy_icp,
-                     (void *)(uintptr_t) i);
-}
-
-/*
- * See comment in hw/intc/xics.c:icp_realize()
- *
- * You have to remove vmstate_replace_hack_for_ppc() when you remove
- * the machine types that need the following function.
- */
-static void pre_2_10_vmstate_unregister_dummy_icp(int i)
-{
-    /*
-     * This used to be:
-     *
-     *    vmstate_unregister(NULL, &pre_2_10_vmstate_dummy_icp,
-     *                      (void *)(uintptr_t) i);
-     */
-}
-
 int spapr_max_server_number(SpaprMachineState *spapr)
 {
     MachineState *ms = MACHINE(spapr);
@@ -2711,7 +2656,6 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *type = spapr_get_cpu_core_type(machine->cpu_type);
     const CPUArchIdList *possible_cpus;
     unsigned int smp_cpus = machine->smp.cpus;
@@ -2738,15 +2682,6 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
             exit(1);
         }
         boot_cores_nr = possible_cpus->len;
-    }
-
-    if (smc->pre_2_10_has_unused_icps) {
-        for (i = 0; i < spapr_max_server_number(spapr); i++) {
-            /* Dummy entries get deregistered when real ICPState objects
-             * are registered during CPU core hotplug.
-             */
-            pre_2_10_vmstate_register_dummy_icp(i);
-        }
     }
 
     for (i = 0; i < possible_cpus->len; i++) {
@@ -3914,20 +3849,8 @@ void spapr_core_release(DeviceState *dev)
 static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
     MachineState *ms = MACHINE(hotplug_dev);
-    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
     CPUCore *cc = CPU_CORE(dev);
     CPUArchId *core_slot = spapr_find_cpu_slot(ms, cc->core_id, NULL);
-
-    if (smc->pre_2_10_has_unused_icps) {
-        SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
-        int i;
-
-        for (i = 0; i < cc->nr_threads; i++) {
-            CPUState *cs = CPU(sc->threads[i]);
-
-            pre_2_10_vmstate_register_dummy_icp(cs->cpu_index);
-        }
-    }
 
     assert(core_slot);
     core_slot->cpu = NULL;
@@ -4009,7 +3932,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     MachineClass *mc = MACHINE_GET_CLASS(spapr);
-    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     SpaprCpuCore *core = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     SpaprDrc *drc;
@@ -4059,12 +3981,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
         }
     }
 
-    if (smc->pre_2_10_has_unused_icps) {
-        for (i = 0; i < cc->nr_threads; i++) {
-            CPUState *cs = CPU(core->threads[i]);
-            pre_2_10_vmstate_unregister_dummy_icp(cs->cpu_index);
-        }
-    }
 }
 
 static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -5164,26 +5080,6 @@ static void spapr_machine_2_10_class_options(MachineClass *mc)
 }
 
 DEFINE_SPAPR_MACHINE(2, 10);
-
-/*
- * pseries-2.9
- */
-
-static void spapr_machine_2_9_class_options(MachineClass *mc)
-{
-    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        { TYPE_POWERPC_CPU, "pre-2.10-migration", "on" },
-    };
-
-    spapr_machine_2_10_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-    smc->pre_2_10_has_unused_icps = true;
-    smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
-}
-
-DEFINE_SPAPR_MACHINE(2, 9);
 
 static void spapr_machine_register_types(void)
 {

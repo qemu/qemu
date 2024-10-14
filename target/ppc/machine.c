@@ -630,7 +630,7 @@ static bool compat_needed(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     assert(!(cpu->compat_pvr && !cpu->vhyp));
-    return !cpu->pre_2_10_migration && cpu->compat_pvr != 0;
+    return cpu->compat_pvr != 0;
 }
 
 static const VMStateDescription vmstate_compat = {
