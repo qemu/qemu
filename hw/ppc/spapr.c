@@ -5069,18 +5069,6 @@ static void spapr_machine_2_11_class_options(MachineClass *mc)
 
 DEFINE_SPAPR_MACHINE(2, 11);
 
-/*
- * pseries-2.10
- */
-
-static void spapr_machine_2_10_class_options(MachineClass *mc)
-{
-    spapr_machine_2_11_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
-}
-
-DEFINE_SPAPR_MACHINE(2, 10);
-
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
