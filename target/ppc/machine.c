@@ -118,15 +118,6 @@ static const VMStateInfo vmstate_info_vsr = {
 #define VMSTATE_VSR_ARRAY(_f, _s, _n)                             \
     VMSTATE_VSR_ARRAY_V(_f, _s, _n, 0)
 
-#if defined(TARGET_PPC64)
-static bool cpu_pre_3_0_migration(void *opaque, int version_id)
-{
-    PowerPCCPU *cpu = opaque;
-
-    return cpu->pre_3_0_migration;
-}
-#endif
-
 static int cpu_pre_save(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -152,12 +143,6 @@ static int cpu_pre_save(void *opaque)
         env->spr[SPR_DBAT4U + 2 * i + 1] = env->DBAT[1][i + 4];
         env->spr[SPR_IBAT4U + 2 * i] = env->IBAT[0][i + 4];
         env->spr[SPR_IBAT4U + 2 * i + 1] = env->IBAT[1][i + 4];
-    }
-
-    if (cpu->pre_3_0_migration) {
-        if (cpu->hash64_opts) {
-            cpu->mig_slb_nr = cpu->hash64_opts->slb_size;
-        }
     }
 
     /* Used to retain migration compatibility for pre 6.0 for 601 machines. */
@@ -503,12 +488,11 @@ static int slb_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_slb = {
     .name = "cpu/slb",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .needed = slb_needed,
     .post_load = slb_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_INT32_TEST(mig_slb_nr, PowerPCCPU, cpu_pre_3_0_migration),
         VMSTATE_SLB_ARRAY(env.slb, PowerPCCPU, MAX_SLB_ENTRIES),
         VMSTATE_END_OF_LIST()
     }

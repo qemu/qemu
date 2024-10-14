@@ -243,14 +243,6 @@ These old machine types are quite neglected nowadays and thus might have
 various pitfalls with regards to live migration. Use a newer machine type
 instead.
 
-``pseries-2.1`` up to ``pseries-2.12`` (since 9.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Older pseries machines before version 3.0 have undergone many changes
-to correct issues, mostly regarding migration compatibility. These are
-no longer maintained and removing them will make the code easier to
-read and maintain. Use versions 3.0 and above as a replacement.
-
 PPC 405 ``ref405ep`` machine (since 9.1)
 ''''''''''''''''''''''''''''''''''''''''
 

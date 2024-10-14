@@ -1455,10 +1455,6 @@ struct ArchCPU {
     /* Those resources are used only during code translation */
     /* opcode handlers */
     opc_handler_t *opcodes[PPC_CPU_OPCODES_LEN];
-
-    /* Fields related to migration compatibility hacks */
-    bool pre_3_0_migration;
-    int32_t mig_slb_nr;
 };
 
 /**
