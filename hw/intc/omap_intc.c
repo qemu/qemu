@@ -392,22 +392,15 @@ static void omap_intc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo omap_intc_info = {
-    .name          = "omap-intc",
-    .parent        = TYPE_OMAP_INTC,
+    .name          = TYPE_OMAP_INTC,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OMAPIntcState),
     .instance_init = omap_intc_init,
     .class_init    = omap_intc_class_init,
 };
 
-static const TypeInfo omap_intc_type_info = {
-    .name          = TYPE_OMAP_INTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(OMAPIntcState),
-    .abstract      = true,
-};
-
 static void omap_intc_register_types(void)
 {
-    type_register_static(&omap_intc_type_info);
     type_register_static(&omap_intc_info);
 }
 
