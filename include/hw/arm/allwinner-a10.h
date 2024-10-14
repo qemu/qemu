@@ -12,6 +12,7 @@
 #include "hw/misc/allwinner-a10-ccm.h"
 #include "hw/misc/allwinner-a10-dramc.h"
 #include "hw/i2c/allwinner-i2c.h"
+#include "hw/ssi/allwinner-a10-spi.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "sysemu/block-backend.h"
 
@@ -40,6 +41,7 @@ struct AwA10State {
     AllwinnerAHCIState sata;
     AwSdHostState mmc0;
     AWI2CState i2c0;
+    AWA10SPIState spi0;
     AwRtcState rtc;
     AwWdtState wdt;
     MemoryRegion sram_a;
