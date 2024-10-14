@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
+#include "glib.h"
 #ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
 #endif
@@ -82,10 +83,13 @@ struct _DBusDisplayListener {
 #ifdef CONFIG_OPENGL
     egl_fb fb;
 #endif
+#else /* !WIN32 */
+    QemuDBusDisplay1ListenerUnixMap *map_proxy;
 #endif
 
     guint dbus_filter;
-    guint32 out_serial_to_discard;
+    guint32 display_serial_to_discard;
+    guint32 cursor_serial_to_discard;
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
@@ -93,16 +97,28 @@ G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
 static void dbus_gfx_update(DisplayChangeListener *dcl,
                             int x, int y, int w, int h);
 
-static void ddl_discard_pending_messages(DBusDisplayListener *ddl)
+static void ddl_discard_display_messages(DBusDisplayListener *ddl)
 {
-    ddl->out_serial_to_discard = g_dbus_connection_get_last_serial(
+    guint32 serial = g_dbus_connection_get_last_serial(
         g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy)));
+
+    g_atomic_int_set(&ddl->display_serial_to_discard, serial);
+}
+
+static void ddl_discard_cursor_messages(DBusDisplayListener *ddl)
+{
+    guint32 serial = g_dbus_connection_get_last_serial(
+        g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy)));
+
+    g_atomic_int_set(&ddl->cursor_serial_to_discard, serial);
 }
 
 #ifdef CONFIG_OPENGL
 static void dbus_scanout_disable(DisplayChangeListener *dcl)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+
+    ddl_discard_display_messages(ddl);
 
     qemu_dbus_display1_listener_call_disable(
         ddl->proxy, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
@@ -290,7 +306,7 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
         return;
     }
 
-    ddl_discard_pending_messages(ddl);
+    ddl_discard_display_messages(ddl);
 
     width = qemu_dmabuf_get_width(dmabuf);
     height = qemu_dmabuf_get_height(dmabuf);
@@ -320,13 +336,13 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         return true;
     }
 
-    if (!ddl->can_share_map || !ddl->ds->handle) {
+    if (!ddl->can_share_map || !ddl->ds->share_handle) {
         return false;
     }
 
     success = DuplicateHandle(
         GetCurrentProcess(),
-        ddl->ds->handle,
+        ddl->ds->share_handle,
         ddl->peer_process,
         &target_handle,
         FILE_MAP_READ | SECTION_QUERY,
@@ -338,12 +354,12 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         return false;
     }
 
-    ddl_discard_pending_messages(ddl);
+    ddl_discard_display_messages(ddl);
 
     if (!qemu_dbus_display1_listener_win32_map_call_scanout_map_sync(
             ddl->map_proxy,
             GPOINTER_TO_UINT(target_handle),
-            ddl->ds->handle_offset,
+            ddl->ds->share_handle_offset,
             surface_width(ddl->ds),
             surface_height(ddl->ds),
             surface_stride(ddl->ds),
@@ -401,7 +417,7 @@ dbus_scanout_share_d3d_texture(
         return false;
     }
 
-    ddl_discard_pending_messages(ddl);
+    ddl_discard_display_messages(ddl);
 
     qemu_dbus_display1_listener_win32_d3d11_call_scanout_texture2d(
         ddl->d3d11_proxy,
@@ -427,6 +443,51 @@ dbus_scanout_share_d3d_texture(
     return true;
 }
 #endif /* CONFIG_OPENGL */
+#else /* !WIN32 */
+static bool dbus_scanout_map(DBusDisplayListener *ddl)
+{
+    g_autoptr(GError) err = NULL;
+    g_autoptr(GUnixFDList) fd_list = NULL;
+
+    if (ddl->ds_share == SHARE_KIND_MAPPED) {
+        return true;
+    }
+
+    if (!ddl->can_share_map || ddl->ds->share_handle == SHAREABLE_NONE) {
+        return false;
+    }
+
+    ddl_discard_display_messages(ddl);
+    fd_list = g_unix_fd_list_new();
+    if (g_unix_fd_list_append(fd_list, ddl->ds->share_handle, &err) != 0) {
+        g_debug("Failed to setup scanout map fdlist: %s", err->message);
+        ddl->can_share_map = false;
+        return false;
+    }
+
+    if (!qemu_dbus_display1_listener_unix_map_call_scanout_map_sync(
+            ddl->map_proxy,
+            g_variant_new_handle(0),
+            ddl->ds->share_handle_offset,
+            surface_width(ddl->ds),
+            surface_height(ddl->ds),
+            surface_stride(ddl->ds),
+            surface_format(ddl->ds),
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT,
+            fd_list,
+            NULL,
+            NULL,
+            &err)) {
+        g_debug("Failed to call ScanoutMap: %s", err->message);
+        ddl->can_share_map = false;
+        return false;
+    }
+
+    ddl->ds_share = SHARE_KIND_MAPPED;
+
+    return true;
+}
 #endif /* WIN32 */
 
 #ifdef CONFIG_OPENGL
@@ -496,6 +557,8 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
             G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
         return;
     }
+
+    ddl_discard_cursor_messages(ddl);
 
     egl_dmabuf_import_texture(dmabuf);
     texture = qemu_dmabuf_get_texture(dmabuf);
@@ -659,7 +722,7 @@ static void ddl_scanout(DBusDisplayListener *ddl)
         surface_stride(ddl->ds) * surface_height(ddl->ds), TRUE,
         (GDestroyNotify)pixman_image_unref, pixman_image_ref(ddl->ds->image));
 
-    ddl_discard_pending_messages(ddl);
+    ddl_discard_display_messages(ddl);
 
     qemu_dbus_display1_listener_call_scanout(
         ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
@@ -677,16 +740,22 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
 
     trace_dbus_update(x, y, w, h);
 
-#ifdef WIN32
     if (dbus_scanout_map(ddl)) {
+#ifdef WIN32
         qemu_dbus_display1_listener_win32_map_call_update_map(
             ddl->map_proxy,
             x, y, w, h,
             G_DBUS_CALL_FLAGS_NONE,
             DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+#else
+        qemu_dbus_display1_listener_unix_map_call_update_map(
+            ddl->map_proxy,
+            x, y, w, h,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+#endif
         return;
     }
-#endif
 
     if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
         return ddl_scanout(ddl);
@@ -739,6 +808,8 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
+
+    ddl_discard_cursor_messages(ddl);
 
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
@@ -861,7 +932,6 @@ dbus_display_listener_get_console(DBusDisplayListener *ddl)
     return ddl->console;
 }
 
-#ifdef WIN32
 static bool
 dbus_display_listener_implements(DBusDisplayListener *ddl, const char *iface)
 {
@@ -876,6 +946,7 @@ dbus_display_listener_implements(DBusDisplayListener *ddl, const char *iface)
     return implements;
 }
 
+#ifdef WIN32
 static bool
 dbus_display_listener_setup_peer_process(DBusDisplayListener *ddl)
 {
@@ -958,10 +1029,11 @@ dbus_display_listener_setup_d3d11(DBusDisplayListener *ddl)
 static void
 dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
 {
-#ifdef WIN32
     g_autoptr(GError) err = NULL;
 
-    if (!dbus_display_listener_implements(ddl, "org.qemu.Display1.Listener.Win32.Map")) {
+#ifdef WIN32
+    if (!dbus_display_listener_implements(
+            ddl, "org.qemu.Display1.Listener.Win32.Map")) {
         return;
     }
 
@@ -982,6 +1054,20 @@ dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
     }
 
     ddl->can_share_map = true;
+#else /* !WIN32 */
+    if (!dbus_display_listener_implements(
+            ddl, "org.qemu.Display1.Listener.Unix.Map")) {
+        return;
+    }
+    ddl->map_proxy = qemu_dbus_display1_listener_unix_map_proxy_new_sync(
+        ddl->conn, G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START, NULL,
+        "/org/qemu/Display1/Listener", NULL, &err);
+    if (!ddl->map_proxy) {
+        g_debug("Failed to setup Unix map proxy: %s", err->message);
+        return;
+    }
+
+    ddl->can_share_map = true;
 #endif
 }
 
@@ -992,16 +1078,50 @@ dbus_filter(GDBusConnection *connection,
             gpointer         user_data)
 {
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(user_data);
-    guint32 serial;
+    guint32 serial, discard_serial;
 
     if (incoming) {
         return message;
     }
 
     serial = g_dbus_message_get_serial(message);
-    if (serial <= ddl->out_serial_to_discard) {
-        trace_dbus_filter(serial, ddl->out_serial_to_discard);
-        return NULL;
+
+    discard_serial = g_atomic_int_get(&ddl->display_serial_to_discard);
+    if (serial <= discard_serial) {
+        const char *member = g_dbus_message_get_member(message);
+        static const char *const display_messages[] = {
+            "Scanout",
+            "Update",
+#ifdef CONFIG_GBM
+            "ScanoutDMABUF",
+            "UpdateDMABUF",
+#endif
+            "ScanoutMap",
+            "UpdateMap",
+            "Disable",
+            NULL,
+        };
+
+        if (g_strv_contains(display_messages, member)) {
+            trace_dbus_filter(serial, discard_serial);
+            g_object_unref(message);
+            return NULL;
+        }
+    }
+
+    discard_serial = g_atomic_int_get(&ddl->cursor_serial_to_discard);
+    if (serial <= discard_serial) {
+        const gchar *member = g_dbus_message_get_member(message);
+        static const char *const cursor_messages[] = {
+            "CursorDefine",
+            NULL
+        };
+
+        if (g_strv_contains(cursor_messages, member)) {
+            trace_dbus_filter(serial, discard_serial);
+            g_object_unref(message);
+            return NULL;
+        }
     }
 
     return message;
@@ -1037,6 +1157,7 @@ dbus_display_listener_new(const char *bus_name,
     ddl->console = console;
 
     dbus_display_listener_setup_shared_map(ddl);
+    trace_dbus_can_share_map(ddl->can_share_map);
     dbus_display_listener_setup_d3d11(ddl);
 
     con = qemu_console_lookup_by_index(dbus_display_console_get_index(console));
