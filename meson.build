@@ -71,7 +71,8 @@ if host_os == 'darwin' and \
   objc = meson.get_compiler('objc')
 endif
 have_rust = false
-if not get_option('rust').disabled() and add_languages('rust', required: get_option('rust'), native: false)
+if not get_option('rust').disabled() and add_languages('rust', required: get_option('rust'), native: false) \
+    and add_languages('rust', required: get_option('rust'), native: true)
   rustc = meson.get_compiler('rust')
   have_rust = true
   if rustc.version().version_compare('<1.80.0')
