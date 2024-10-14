@@ -301,6 +301,23 @@ static void mux_chr_update_read_handlers(Chardev *chr)
                                   chr->gcontext, true, false);
 }
 
+bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
+                             unsigned int *tag, Error **errp)
+{
+    if (d->mux_cnt >= MAX_MUX) {
+        error_setg(errp,
+                   "too many uses of multiplexed chardev '%s'"
+                   " (maximum is " stringify(MAX_MUX) ")",
+                   d->parent.label);
+        return false;
+    }
+
+    d->backends[d->mux_cnt] = b;
+    *tag = d->mux_cnt++;
+
+    return true;
+}
+
 void mux_set_focus(Chardev *chr, unsigned int focus)
 {
     MuxChardev *d = MUX_CHARDEV(chr);

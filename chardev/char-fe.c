@@ -197,16 +197,9 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
         if (CHARDEV_IS_MUX(s)) {
             MuxChardev *d = MUX_CHARDEV(s);
 
-            if (d->mux_cnt >= MAX_MUX) {
-                error_setg(errp,
-                           "too many uses of multiplexed chardev '%s'"
-                           " (maximum is " stringify(MAX_MUX) ")",
-                           s->label);
+            if (!mux_chr_attach_frontend(d, b, &tag, errp)) {
                 return false;
             }
-
-            d->backends[d->mux_cnt] = b;
-            tag = d->mux_cnt++;
         } else if (s->be) {
             error_setg(errp, "chardev '%s' is already in use", s->label);
             return false;
