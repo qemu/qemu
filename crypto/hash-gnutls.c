@@ -115,14 +115,24 @@ int qcrypto_gnutls_hash_finalize(QCryptoHash *hash,
                                  Error **errp)
 {
     gnutls_hash_hd_t *ctx = hash->opaque;
+    int ret;
 
-    *result_len = gnutls_hash_get_len(qcrypto_hash_alg_map[hash->alg]);
-    if (*result_len == 0) {
+    ret = gnutls_hash_get_len(qcrypto_hash_alg_map[hash->alg]);
+    if (ret == 0) {
         error_setg(errp, "Unable to get hash length");
         return -1;
     }
 
-    *result = g_new(uint8_t, *result_len);
+    if (*result_len == 0) {
+        *result_len = ret;
+        *result = g_new(uint8_t, *result_len);
+    } else if (*result_len != ret) {
+        error_setg(errp,
+                   "Result buffer size %zu is smaller than hash %d",
+                   *result_len, ret);
+        return -1;
+    }
+
     gnutls_hash_output(*ctx, *result);
     return 0;
 }
