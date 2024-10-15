@@ -93,6 +93,8 @@ static const int exti_irq[NUM_EXTI_IRQ] = {
 #define EXTI_UART4_IRQ 29
 #define EXTI_LPUART1_IRQ 31
 
+#define NVIC_RNG_IRQ 80
+
 static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
     23, 40, 63, 1,
 };
@@ -380,6 +382,7 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
     sysbus_mmio_map(busdev, 0, 0x50060800);
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->armv7m), NVIC_RNG_IRQ));
 
     /* APB1 BUS */
     create_unimplemented_device("TIM2",      0x40000000, 0x400);

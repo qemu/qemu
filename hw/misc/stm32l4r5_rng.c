@@ -7,6 +7,7 @@
 #include "qemu/timer.h"
 #include "hw/misc/stm32l4r5_rng.h"
 #include "hw/qdev-properties.h"
+#include "hw/irq.h"
 #include "trace.h"
 
 enum {
@@ -18,6 +19,16 @@ enum {
 #define REG_TO_OFFSET(reg) ((reg) * 4)
 #define OFFSET_TO_REG(offset) ((offset) / 4)
 
+
+static void stm32l4r5_rng_wait(STM32L4R5RNGState *s)
+{
+    // TODO: Calculate the correct amount of time to wait based on the clock frequencies.
+    // For now, we just wait for 1 ns.
+    uint64_t reload = 1;
+    // Reset DRDY bit.
+    s->regs[RNG_SR] &= 0xfffffffe;
+    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + reload);
+}
 
 static uint64_t stm32l4r5_rng_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -46,9 +57,7 @@ static uint64_t stm32l4r5_rng_read(void *opaque, hwaddr offset, unsigned size)
 
             if (s->data_read_cnt == 0)
             {
-                // Reset DRDY bit.
-                s->regs[RNG_SR] &= 0xfffffffe;
-                timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1);
+                stm32l4r5_rng_wait(s);
             }
         } 
         else 
@@ -64,12 +73,6 @@ static uint64_t stm32l4r5_rng_read(void *opaque, hwaddr offset, unsigned size)
     }
 
     return value;
-}
-
-static void stm32_iwdg_reload(STM32IWDGState *s)
-{
-    uint64_t reload = 1;
-    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + reload);
 }
 
 static void stm32l4r5_rng_write(void *opaque, hwaddr offset, uint64_t value,
@@ -132,7 +135,8 @@ static void stm32l4r5_data_ready(void* opaque)
     s->data_read_cnt = 4;
 
     // Raise interrupt if the IE flag is set.
-    if (value & 0x8) {
+    if (s->regs[RNG_CR] & 0x8) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: RNG interrupt is not implemented yet.\n", DEVICE(s)->canonical_path);
         qemu_set_irq(s->irq, 1);
     }
 }
@@ -142,12 +146,13 @@ static void stm32l4r5_rng_realize(DeviceState *dev, Error **errp)
 {
     STM32L4R5RNGState *s = STM32L4R5_RNG(dev);
 
+    s->data_read_cnt = 0;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32l4r5_data_ready, s);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stm32l4r5_rng_ops, s,
                           TYPE_STM32L4R5_RNG, STM32L4R5_RNG_REGS_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 }
 
 static void stm32l4r5_rng_class_init(ObjectClass *klass, void *data)

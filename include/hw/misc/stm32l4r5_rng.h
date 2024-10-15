@@ -15,7 +15,7 @@ struct STM32L4R5RNGState {
     SysBusDevice parent_obj;
 
     QEMUTimer *timer;
-    uint8_t data_read_cnt = 0;
+    uint8_t data_read_cnt;
 
     MemoryRegion iomem;
     uint32_t regs[STM32L4R5_RNG_REGS_NUM];
