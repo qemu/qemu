@@ -96,6 +96,8 @@ RUN zypper update -y && \
            python311-pip \
            python311-setuptools \
            rdma-core-devel \
+           rust \
+           rust-bindgen \
            sed \
            snappy-devel \
            sndio-devel \
