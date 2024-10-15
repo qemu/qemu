@@ -20,7 +20,7 @@ struct CharBackend {
     IOReadHandler *chr_read;
     BackendChangeHandler *chr_be_change;
     void *opaque;
-    int tag;
+    unsigned int tag;
     bool fe_is_open;
 };
 
