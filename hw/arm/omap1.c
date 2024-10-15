@@ -2170,29 +2170,27 @@ struct omap_uwire_s {
     uint16_t rxbuf;
     uint16_t control;
     uint16_t setup[5];
-
-    uWireSlave *chip[4];
 };
 
 static void omap_uwire_transfer_start(struct omap_uwire_s *s)
 {
     int chipselect = (s->control >> 10) & 3;		/* INDEX */
-    uWireSlave *slave = s->chip[chipselect];
 
     if ((s->control >> 5) & 0x1f) {			/* NB_BITS_WR */
-        if (s->control & (1 << 12))			/* CS_CMD */
-            if (slave && slave->send)
-                slave->send(slave->opaque,
-                                s->txbuf >> (16 - ((s->control >> 5) & 0x1f)));
+        if (s->control & (1 << 12)) {       /* CS_CMD */
+            qemu_log_mask(LOG_UNIMP, "uWireSlave TX CS:%d data:0x%04x\n",
+                          chipselect,
+                          s->txbuf >> (16 - ((s->control >> 5) & 0x1f)));
+        }
         s->control &= ~(1 << 14);			/* CSRB */
         /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
          * a DRQ.  When is the level IRQ supposed to be reset?  */
     }
 
     if ((s->control >> 0) & 0x1f) {			/* NB_BITS_RD */
-        if (s->control & (1 << 12))			/* CS_CMD */
-            if (slave && slave->receive)
-                s->rxbuf = slave->receive(slave->opaque);
+        if (s->control & (1 << 12)) {       /* CS_CMD */
+            qemu_log_mask(LOG_UNIMP, "uWireSlave RX CS:%d\n", chipselect);
+        }
         s->control |= 1 << 15;				/* RDRB */
         /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
          * a DRQ.  When is the level IRQ supposed to be reset?  */
@@ -2319,17 +2317,6 @@ static struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
     memory_region_add_subregion(system_memory, base, &s->iomem);
 
     return s;
-}
-
-void omap_uwire_attach(struct omap_uwire_s *s,
-                uWireSlave *slave, int chipselect)
-{
-    if (chipselect < 0 || chipselect > 3) {
-        error_report("%s: Bad chipselect %i", __func__, chipselect);
-        exit(-1);
-    }
-
-    s->chip[chipselect] = slave;
 }
 
 /* Pseudonoise Pulse-Width Light Modulator */

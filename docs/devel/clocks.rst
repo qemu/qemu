@@ -358,6 +358,12 @@ humans (for instance in debugging), use ``clock_display_freq()``,
 which returns a prettified string-representation, e.g. "33.3 MHz".
 The caller must free the string with g_free() after use.
 
+It's also possible to retrieve the clock period from a QTest by
+accessing QOM property ``qtest-clock-period`` using a QMP command.
+This property is only present when the device is being run under
+the ``qtest`` accelerator; it is not available when QEMU is
+being run normally.
+
 Calculating expiry deadlines
 ----------------------------
 

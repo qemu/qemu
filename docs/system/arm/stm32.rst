@@ -36,6 +36,7 @@ Supported devices
  * SPI controller
  * System configuration (SYSCFG)
  * Timer controller (TIMER)
+ * Reset and Clock Controller (RCC) (STM32F4 only, reset and enable only)
 
 Missing devices
 ---------------
@@ -53,7 +54,7 @@ Missing devices
  * Power supply configuration (PWR)
  * Random Number Generator (RNG)
  * Real-Time Clock (RTC) controller
- * Reset and Clock Controller (RCC)
+ * Reset and Clock Controller (RCC) (other features than reset and enable)
  * Secure Digital Input/Output (SDIO) interface
  * USB OTG
  * Watchdog controller (IWDG, WWDG)

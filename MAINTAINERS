@@ -1059,6 +1059,8 @@ S: Maintained
 F: hw/arm/stm32f405_soc.c
 F: hw/misc/stm32f4xx_syscfg.c
 F: hw/misc/stm32f4xx_exti.c
+F: hw/misc/stm32_rcc.c
+F: include/hw/misc/stm32_rcc.h
 
 Netduino 2
 M: Alistair Francis <alistair@alistair23.me>
@@ -3056,11 +3058,13 @@ F: qapi/run-state.json
 Read, Copy, Update (RCU)
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: docs/devel/lockcnt.txt
-F: docs/devel/rcu.txt
+F: docs/devel/lockcnt.rst
+F: docs/devel/rcu.rst
 F: include/qemu/rcu*.h
+F: include/qemu/lockcnt.h
 F: tests/unit/rcutorture.c
 F: tests/unit/test-rcu-*.c
+F: util/lockcnt.c
 F: util/rcu.c
 
 Human Monitor (HMP)
@@ -3888,6 +3892,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkverify.c
+F: docs/devel/blkverify.rst
 
 bochs
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -3965,6 +3970,7 @@ M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkdebug.c
+F: docs/devel/blkdebug.rst
 
 vpc
 M: Kevin Wolf <kwolf@redhat.com>

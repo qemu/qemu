@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "block/block.h"
 #include "qemu/main-loop.h"
+#include "qemu/lockcnt.h"
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"

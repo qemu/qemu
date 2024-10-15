@@ -30,6 +30,7 @@
 #include "block/graph-lock.h"
 #include "qemu/main-loop.h"
 #include "qemu/atomic.h"
+#include "qemu/lockcnt.h"
 #include "qemu/rcu_queue.h"
 #include "block/raw-aio.h"
 #include "qemu/coroutine_int.h"

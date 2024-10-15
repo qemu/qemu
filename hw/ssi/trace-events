@@ -53,3 +53,13 @@ pnv_spi_rx_read_N2frame(void) ""
 pnv_spi_shift_rx(uint8_t byte, uint32_t index) "byte = 0x%2.2x into RDR from payload index %d"
 pnv_spi_sequencer_stop_requested(const char* reason) "due to %s"
 pnv_spi_RDR_match(const char* result) "%s"
+
+# allwinner_a10_spi.c
+allwinner_a10_spi_update_irq(uint32_t level) "IRQ level is %d"
+allwinner_a10_spi_flush_txfifo_begin(uint32_t tx, uint32_t rx) "Begin: TX Fifo Size = %d, RX Fifo Size = %d"
+allwinner_a10_spi_flush_txfifo_end(uint32_t tx, uint32_t rx) "End: TX Fifo Size = %d, RX Fifo Size = %d"
+allwinner_a10_spi_burst_length(uint32_t len) "Burst length = %d"
+allwinner_a10_spi_tx(uint8_t byte) "write 0x%02x"
+allwinner_a10_spi_rx(uint8_t byte) "read 0x%02x"
+allwinner_a10_spi_read(const char* regname, uint32_t value) "reg[%s] => 0x%08x"
+allwinner_a10_spi_write(const char* regname, uint32_t value) "reg[%s] <= 0x%08x"

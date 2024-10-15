@@ -30,6 +30,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
 
+#define RCC_ADDR                       0x40023800
 #define SYSCFG_ADD                     0x40013800
 static const uint32_t usart_addr[] = { 0x40011000, 0x40004400, 0x40004800,
                                        0x40004C00, 0x40005000, 0x40011400,
@@ -58,6 +59,8 @@ static void stm32f405_soc_initfn(Object *obj)
     int i;
 
     object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
+
+    object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32_RCC);
 
     object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32F4XX_SYSCFG);
 
@@ -159,6 +162,14 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
         return;
     }
+
+    /* Reset and clock controller */
+    dev = DEVICE(&s->rcc);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rcc), errp)) {
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, RCC_ADDR);
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
@@ -276,7 +287,6 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("GPIOH",       0x40021C00, 0x400);
     create_unimplemented_device("GPIOI",       0x40022000, 0x400);
     create_unimplemented_device("CRC",         0x40023000, 0x400);
-    create_unimplemented_device("RCC",         0x40023800, 0x400);
     create_unimplemented_device("Flash Int",   0x40023C00, 0x400);
     create_unimplemented_device("BKPSRAM",     0x40024000, 0x400);
     create_unimplemented_device("DMA1",        0x40026000, 0x400);

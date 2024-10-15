@@ -43,12 +43,6 @@ config IDE_VIA
     bool
     select IDE_PCI
 
-config MICRODRIVE
-    bool
-    select IDE_BUS
-    select IDE_DEV
-    depends on PCMCIA
-
 config AHCI
     bool
     select IDE_BUS

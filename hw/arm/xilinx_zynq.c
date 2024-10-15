@@ -34,6 +34,7 @@
 #include "hw/net/cadence_gem.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/qdev-clock.h"
+#include "hw/misc/unimp.h"
 #include "sysemu/reset.h"
 #include "qom/object.h"
 #include "exec/tswap.h"
@@ -372,6 +373,75 @@ static void zynq_init(MachineState *machine)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, pic[40 - IRQ_OFFSET]);
     sysbus_mmio_map(busdev, 0, 0xF8007000);
+
+    /*
+     * Refer to the ug585-Zynq-7000-TRM manual B.3 (Module Summary) and
+     * the zynq-7000.dtsi. Add placeholders for unimplemented devices.
+     */
+    create_unimplemented_device("zynq.i2c0", 0xE0004000, 4 * KiB);
+    create_unimplemented_device("zynq.i2c1", 0xE0005000, 4 * KiB);
+    create_unimplemented_device("zynq.can0", 0xE0008000, 4 * KiB);
+    create_unimplemented_device("zynq.can1", 0xE0009000, 4 * KiB);
+    create_unimplemented_device("zynq.gpio", 0xE000A000, 4 * KiB);
+    create_unimplemented_device("zynq.smcc", 0xE000E000, 4 * KiB);
+
+    /* Direct Memory Access Controller, PL330, Non-Secure Mode */
+    create_unimplemented_device("zynq.dma_ns", 0xF8004000, 4 * KiB);
+
+    /* System Watchdog Timer Registers */
+    create_unimplemented_device("zynq.swdt", 0xF8005000, 4 * KiB);
+
+    /* DDR memory controller */
+    create_unimplemented_device("zynq.ddrc", 0xF8006000, 4 * KiB);
+
+    /* AXI_HP Interface (AFI) */
+    create_unimplemented_device("zynq.axi_hp0", 0xF8008000, 0x28);
+    create_unimplemented_device("zynq.axi_hp1", 0xF8009000, 0x28);
+    create_unimplemented_device("zynq.axi_hp2", 0xF800A000, 0x28);
+    create_unimplemented_device("zynq.axi_hp3", 0xF800B000, 0x28);
+
+    create_unimplemented_device("zynq.efuse", 0xF800d000, 0x20);
+
+    /* Embedded Trace Buffer */
+    create_unimplemented_device("zynq.etb", 0xF8801000, 4 * KiB);
+
+    /* Cross Trigger Interface, ETB and TPIU */
+    create_unimplemented_device("zynq.cti_etb_tpiu", 0xF8802000, 4 * KiB);
+
+    /* Trace Port Interface Unit */
+    create_unimplemented_device("zynq.tpiu", 0xF8803000, 4 * KiB);
+
+    /* CoreSight Trace Funnel */
+    create_unimplemented_device("zynq.funnel", 0xF8804000, 4 * KiB);
+
+    /* Instrumentation Trace Macrocell */
+    create_unimplemented_device("zynq.itm", 0xF8805000, 4 * KiB);
+
+    /* Cross Trigger Interface, FTM */
+    create_unimplemented_device("zynq.cti_ftm", 0xF8809000, 4 * KiB);
+
+    /* Fabric Trace Macrocell */
+    create_unimplemented_device("zynq.ftm", 0xF880B000, 4 * KiB);
+
+    /* Cortex A9 Performance Monitoring Unit, CPU */
+    create_unimplemented_device("cortex-a9.pmu0", 0xF8891000, 4 * KiB);
+    create_unimplemented_device("cortex-a9.pmu1", 0xF8893000, 4 * KiB);
+
+    /* Cross Trigger Interface, CPU */
+    create_unimplemented_device("zynq.cpu_cti0", 0xF8898000, 4 * KiB);
+    create_unimplemented_device("zynq.cpu_cti1", 0xF8899000, 4 * KiB);
+
+    /* CoreSight PTM-A9, CPU */
+    create_unimplemented_device("cortex-a9.ptm0", 0xF889c000, 4 * KiB);
+    create_unimplemented_device("cortex-a9.ptm1", 0xF889d000, 4 * KiB);
+
+    /* AMBA NIC301 TrustZone */
+    create_unimplemented_device("zynq.trustZone", 0xF8900000, 0x20);
+
+    /* AMBA Network Interconnect Advanced Quality of Service (QoS-301) */
+    create_unimplemented_device("zynq.qos301_cpu", 0xF8946000, 0x130);
+    create_unimplemented_device("zynq.qos301_dmac", 0xF8947000, 0x130);
+    create_unimplemented_device("zynq.qos301_iou", 0xF8948000, 0x130);
 
     zynq_binfo.ram_size = machine->ram_size;
     zynq_binfo.board_id = 0xd32;

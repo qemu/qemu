@@ -781,7 +781,7 @@ static void icv_activate_irq(GICv3CPUState *cs, int idx, int grp)
     if (nmi) {
         cs->ich_apr[grp][regno] |= ICV_AP1R_EL1_NMI;
     } else {
-        cs->ich_apr[grp][regno] |= (1 << regbit);
+        cs->ich_apr[grp][regno] |= (1U << regbit);
     }
 }
 
@@ -793,7 +793,7 @@ static void icv_activate_vlpi(GICv3CPUState *cs)
     int regno = aprbit / 32;
     int regbit = aprbit % 32;
 
-    cs->ich_apr[cs->hppvlpi.grp][regno] |= (1 << regbit);
+    cs->ich_apr[cs->hppvlpi.grp][regno] |= (1U << regbit);
     gicv3_redist_vlpi_pending(cs, cs->hppvlpi.irq, 0);
 }
 
@@ -1170,7 +1170,7 @@ static void icc_activate_irq(GICv3CPUState *cs, int irq)
     if (nmi) {
         cs->icc_apr[cs->hppi.grp][regno] |= ICC_AP1R_EL1_NMI;
     } else {
-        cs->icc_apr[cs->hppi.grp][regno] |= (1 << regbit);
+        cs->icc_apr[cs->hppi.grp][regno] |= (1U << regbit);
     }
 
     if (irq < GIC_INTERNAL) {

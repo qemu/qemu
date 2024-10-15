@@ -33,6 +33,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/queue.h"
+#include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qom/object.h"
 
