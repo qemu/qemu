@@ -16,10 +16,12 @@ macro_rules! device_class_init {
         ) {
             let mut dc =
                 ::core::ptr::NonNull::new(klass.cast::<$crate::bindings::DeviceClass>()).unwrap();
-            dc.as_mut().realize = $realize_fn;
-            dc.as_mut().vmsd = &$vmsd;
-            $crate::bindings::device_class_set_legacy_reset(dc.as_mut(), $legacy_reset_fn);
-            $crate::bindings::device_class_set_props(dc.as_mut(), $props.as_mut_ptr());
+            unsafe {
+                dc.as_mut().realize = $realize_fn;
+                dc.as_mut().vmsd = &$vmsd;
+                $crate::bindings::device_class_set_legacy_reset(dc.as_mut(), $legacy_reset_fn);
+                $crate::bindings::device_class_set_props(dc.as_mut(), $props.as_mut_ptr());
+            }
         }
     };
 }

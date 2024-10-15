@@ -3336,6 +3336,19 @@ endif
 
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
+if have_rust and have_system
+  rustc_args = run_command(
+    find_program('scripts/rust/rustc_args.py'),
+    '--config-headers', meson.project_build_root() / 'config-host.h',
+    capture : true,
+    check: true).stdout().strip().split()
+
+  # Prohibit code that is forbidden in Rust 2024
+  rustc_args += ['-D', 'unsafe_op_in_unsafe_fn']
+  add_project_arguments(rustc_args, native: false, language: 'rust')
+  add_project_arguments(rustc_args, native: true, language: 'rust')
+endif
+
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.py')
 qapi_gen = find_program('scripts/qapi-gen.py')
@@ -3929,12 +3942,6 @@ common_all = static_library('common',
                             dependencies: common_ss.all_dependencies())
 
 if have_rust and have_system
-  rustc_args = run_command(
-    find_program('scripts/rust/rustc_args.py'),
-    '--config-headers', meson.project_build_root() / 'config-host.h',
-    capture : true,
-    check: true).stdout().strip().split()
-  rustc_args += ['-D', 'unsafe_op_in_unsafe_fn']
   bindgen_args = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
@@ -4107,7 +4114,6 @@ foreach target : target_dirs
                             rlib_rs,
                             dependencies: target_rust.dependencies(),
                             override_options: ['rust_std=2021', 'build.rust_std=2021'],
-                            rust_args: rustc_args,
                             rust_abi: 'c')
       arch_deps += declare_dependency(link_whole: [rlib])
     endif
