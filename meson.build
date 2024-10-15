@@ -3997,6 +3997,7 @@ endif
 
 
 feature_to_c = find_program('scripts/feature_to_c.py')
+rust_root_crate = find_program('scripts/rust/rust_root_crate.sh')
 
 if host_os == 'darwin'
   entitlement = find_program('scripts/entitlement.sh')
@@ -4098,7 +4099,7 @@ foreach target : target_dirs
     if crates.length() > 0
       rlib_rs = custom_target('rust_' + target.underscorify() + '.rs',
                               output: 'rust_' + target.underscorify() + '.rs',
-                              command: [find_program('scripts/rust/rust_root_crate.sh')] + crates,
+                              command: [rust_root_crate, crates],
                               capture: true,
                               build_by_default: true,
                               build_always_stale: true)
