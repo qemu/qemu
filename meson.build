@@ -100,6 +100,23 @@ if have_rust
   endif
 endif
 
+if have_rust
+  bindgen = find_program('bindgen', required: get_option('rust'))
+  if not bindgen.found() or bindgen.version().version_compare('<0.60.0')
+    if get_option('rust').enabled()
+      error('bindgen version ' + bindgen.version() + ' is unsupported. You can install a new version with "cargo install bindgen-cli"')
+    else
+      if bindgen.found()
+        warning('bindgen version ' + bindgen.version() + ' is unsupported, disabling Rust compilation.')
+      else
+        warning('bindgen not found, disabling Rust compilation.')
+      endif
+      message('To use Rust you can install a new version with "cargo install bindgen-cli"')
+      have_rust = false
+    endif
+  endif
+endif
+
 dtrace = not_found
 stap = not_found
 if 'dtrace' in get_option('trace_backends')
@@ -3963,15 +3980,13 @@ common_all = static_library('common',
 if have_rust
   # We would like to use --generate-cstr, but it is only available
   # starting with bindgen 0.66.0.  The oldest supported versions
-  # are in Ubuntu 22.04 (0.59.1) and Debian 12 (0.60.1).
+  # is 0.60.x (Debian 12 has 0.60.1) which introduces --allowlist-file.
   bindgen_args = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
     '--ctypes-prefix', 'std::os::raw',
-    '--formatter', 'rustfmt',
     '--generate-block',
     '--impl-debug',
-    '--merge-extern-blocks',
     '--no-doc-comments',
     '--with-derive-default',
     '--no-layout-tests',
@@ -3980,6 +3995,12 @@ if have_rust
     '--allowlist-file', meson.project_source_root() + '/.*',
     '--allowlist-file', meson.project_build_root() + '/.*'
     ]
+  if bindgen.version().version_compare('<0.61.0')
+    # default in 0.61+
+    bindgen_args += ['--size_t-is-usize']
+  else
+    bindgen_args += ['--merge-extern-blocks']
+  endif
   c_enums = [
     'DeviceCategory',
     'GpioPolarity',
@@ -4015,7 +4036,7 @@ if have_rust
     dependencies: common_ss.all_dependencies(),
     output: 'bindings.rs',
     include_directories: include_directories('.', 'include'),
-    bindgen_version: ['>=0.69.4'],
+    bindgen_version: ['>=0.60.0'],
     args: bindgen_args,
     )
   subdir('rust')
@@ -4481,6 +4502,8 @@ if have_rust
   summary_info += {'Rust target':     config_host['RUST_TARGET_TRIPLE']}
   summary_info += {'rustc':           ' '.join(rustc.cmd_array())}
   summary_info += {'rustc version':   rustc.version()}
+  summary_info += {'bindgen':         bindgen.full_path()}
+  summary_info += {'bindgen version': bindgen.version()}
 endif
 option_cflags = (get_option('debug') ? ['-g'] : [])
 if get_option('optimization') != 'plain'
