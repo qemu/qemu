@@ -123,7 +123,7 @@ static void test_hash_prealloc(void)
     size_t i;
 
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
-        uint8_t *result;
+        uint8_t *result, *origresult;
         size_t resultlen;
         int ret;
         size_t j;
@@ -133,7 +133,7 @@ static void test_hash_prealloc(void)
         }
 
         resultlen = expected_lens[i];
-        result = g_new0(uint8_t, resultlen);
+        origresult = result = g_new0(uint8_t, resultlen);
 
         ret = qcrypto_hash_bytes(i,
                                  INPUT_TEXT,
@@ -142,7 +142,8 @@ static void test_hash_prealloc(void)
                                  &resultlen,
                                  &error_fatal);
         g_assert(ret == 0);
-
+        /* Validate that our pre-allocated pointer was not replaced */
+        g_assert(result == origresult);
         g_assert(resultlen == expected_lens[i]);
         for (j = 0; j < resultlen; j++) {
             g_assert(expected_outputs[i][j * 2] == hex[(result[j] >> 4) & 0xf]);
