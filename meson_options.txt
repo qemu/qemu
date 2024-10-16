@@ -381,6 +381,6 @@ option('libspdm', type: 'feature', value: 'disabled',
   description: 'LibSPDM support')
 option('libspdm-crypto', type: 'combo', value: 'mbedtls',
   choices: ['mbedtls', 'openssl'],
-  description: 'Set LibSPDM crypto algorithm')
+  description: 'set LibSPDM crypto algorithm')
 option('libspdm-toolchain', type: 'string', value: 'GCC',
-  description: 'Toolchain to use for LibSPDM compilation')
+  description: 'toolchain to use for LibSPDM compilation')

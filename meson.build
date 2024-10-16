@@ -291,6 +291,7 @@ libspdm_dep_targets = [
   'memlib',
   'platform_lib',
   'rnglib',
+  'spdm_cert_verify_callback_sample',
   'spdm_common_lib',
   'spdm_crypt_ext_lib',
   'spdm_crypt_lib',
@@ -309,8 +310,10 @@ elif cpu == 'x86_64'
   libspdm_host_arch = 'x64'
 elif cpu == 'x86'
   libspdm_host_arch = 'ia32'
-elif cpu in ['arm', 'aarch64']
+elif cpu == 'arm'
   libspdm_host_arch = 'arm'
+elif cpu == 'aarch64'
+  libspdm_host_arch = 'aarch64'
 else
   libspdm_host_arch = cpu
 endif
