@@ -998,8 +998,9 @@ static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
     TCGv tmp2 = tcg_temp_new();
 
     gen_base_offset_addr(ctx, taddr, base, offset);
-    tcg_gen_qemu_ld_i64(tval, taddr, ctx->mem_idx, MO_TEUQ | MO_ALIGN);
-    if (cpu_is_bigendian(ctx)) {
+    tcg_gen_qemu_ld_i64(tval, taddr, ctx->mem_idx,
+                        mo_endian(ctx) | MO_UQ | MO_ALIGN);
+    if (disas_is_bigendian(ctx)) {
         tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
     } else {
         tcg_gen_extr_i64_tl(tmp1, tmp2, tval);
@@ -1031,7 +1032,7 @@ static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
     gen_load_gpr(tmp1, reg1);
     gen_load_gpr(tmp2, reg2);
 
-    if (cpu_is_bigendian(ctx)) {
+    if (disas_is_bigendian(ctx)) {
         tcg_gen_concat_tl_i64(tval, tmp2, tmp1);
     } else {
         tcg_gen_concat_tl_i64(tval, tmp1, tmp2);
@@ -1052,8 +1053,7 @@ static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
         tcg_gen_movi_tl(cpu_gpr[reg1], 0);
     }
     gen_set_label(lab_done);
-    tcg_gen_movi_tl(lladdr, -1);
-    tcg_gen_st_tl(lladdr, tcg_env, offsetof(CPUMIPSState, lladdr));
+    tcg_gen_st_tl(tcg_constant_tl(-1), tcg_env, offsetof(CPUMIPSState, lladdr));
 }
 
 static void gen_adjust_sp(DisasContext *ctx, int u)
@@ -1075,7 +1075,7 @@ static void gen_save(DisasContext *ctx, uint8_t rt, uint8_t count,
         gen_base_offset_addr(ctx, va, 29, this_offset);
         gen_load_gpr(t0, this_rt);
         tcg_gen_qemu_st_tl(t0, va, ctx->mem_idx,
-                           (MO_TEUL | ctx->default_tcg_memop_mask));
+                          mo_endian(ctx) | MO_UL | ctx->default_tcg_memop_mask);
         counter++;
     }
 
@@ -1095,8 +1095,8 @@ static void gen_restore(DisasContext *ctx, uint8_t rt, uint8_t count,
         int this_rt = use_gp ? 28 : (rt & 0x10) | ((rt + counter) & 0x1f);
         int this_offset = u - ((counter + 1) << 2);
         gen_base_offset_addr(ctx, va, 29, this_offset);
-        tcg_gen_qemu_ld_tl(t0, va, ctx->mem_idx, MO_TESL |
-                        ctx->default_tcg_memop_mask);
+        tcg_gen_qemu_ld_tl(t0, va, ctx->mem_idx,
+                          mo_endian(ctx) | MO_SL | ctx->default_tcg_memop_mask);
         tcg_gen_ext32s_tl(t0, t0);
         gen_store_gpr(t0, this_rt);
         counter++;
@@ -1543,7 +1543,6 @@ static void gen_pool32axf_1_nanomips_insn(DisasContext *ctx, uint32_t opc,
 {
     int16_t imm;
     TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
     TCGv v0_t = tcg_temp_new();
 
     gen_load_gpr(v0_t, v1);
@@ -1570,12 +1569,10 @@ static void gen_pool32axf_1_nanomips_insn(DisasContext *ctx, uint32_t opc,
         check_dsp(ctx);
         switch (extract32(ctx->opcode, 12, 2)) {
         case NM_MTHLIP:
-            tcg_gen_movi_tl(t0, v2 >> 3);
-            gen_helper_mthlip(t0, v0_t, tcg_env);
+            gen_helper_mthlip(tcg_constant_tl(v2 >> 3), v0_t, tcg_env);
             break;
         case NM_SHILOV:
-            tcg_gen_movi_tl(t0, v2 >> 3);
-            gen_helper_shilo(t0, v0_t, tcg_env);
+            gen_helper_shilo(tcg_constant_tl(v2 >> 3), v0_t, tcg_env);
             break;
         default:
             gen_reserved_instruction(ctx);
@@ -1587,39 +1584,34 @@ static void gen_pool32axf_1_nanomips_insn(DisasContext *ctx, uint32_t opc,
         imm = extract32(ctx->opcode, 14, 7);
         switch (extract32(ctx->opcode, 12, 2)) {
         case NM_RDDSP:
-            tcg_gen_movi_tl(t0, imm);
-            gen_helper_rddsp(t0, t0, tcg_env);
+            gen_helper_rddsp(t0, tcg_constant_tl(imm), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_WRDSP:
             gen_load_gpr(t0, ret);
-            tcg_gen_movi_tl(t1, imm);
-            gen_helper_wrdsp(t0, t1, tcg_env);
+            gen_helper_wrdsp(t0, tcg_constant_tl(imm), tcg_env);
             break;
         case NM_EXTP:
-            tcg_gen_movi_tl(t0, v2 >> 3);
-            tcg_gen_movi_tl(t1, v1);
-            gen_helper_extp(t0, t0, t1, tcg_env);
+            gen_helper_extp(t0, tcg_constant_tl(v2 >> 3),
+                            tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_EXTPDP:
-            tcg_gen_movi_tl(t0, v2 >> 3);
-            tcg_gen_movi_tl(t1, v1);
-            gen_helper_extpdp(t0, t0, t1, tcg_env);
+            gen_helper_extpdp(t0, tcg_constant_tl(v2 >> 3),
+                              tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         }
         break;
     case NM_POOL32AXF_1_4:
         check_dsp(ctx);
-        tcg_gen_movi_tl(t0, v2 >> 2);
         switch (extract32(ctx->opcode, 12, 1)) {
         case NM_SHLL_QB:
-            gen_helper_shll_qb(t0, t0, v0_t, tcg_env);
+            gen_helper_shll_qb(t0, tcg_constant_tl(v2 >> 2), v0_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_SHRL_QB:
-            gen_helper_shrl_qb(t0, t0, v0_t);
+            gen_helper_shrl_qb(t0, tcg_constant_tl(v2 >> 2), v0_t);
             gen_store_gpr(t0, ret);
             break;
         }
@@ -1630,23 +1622,25 @@ static void gen_pool32axf_1_nanomips_insn(DisasContext *ctx, uint32_t opc,
         break;
     case NM_POOL32AXF_1_7:
         check_dsp(ctx);
-        tcg_gen_movi_tl(t0, v2 >> 3);
-        tcg_gen_movi_tl(t1, v1);
         switch (extract32(ctx->opcode, 12, 2)) {
         case NM_EXTR_W:
-            gen_helper_extr_w(t0, t0, t1, tcg_env);
+            gen_helper_extr_w(t0, tcg_constant_tl(v2 >> 3),
+                              tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_EXTR_R_W:
-            gen_helper_extr_r_w(t0, t0, t1, tcg_env);
+            gen_helper_extr_r_w(t0, tcg_constant_tl(v2 >> 3),
+                                tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_EXTR_RS_W:
-            gen_helper_extr_rs_w(t0, t0, t1, tcg_env);
+            gen_helper_extr_rs_w(t0, tcg_constant_tl(v2 >> 3),
+                                 tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_EXTR_S_H:
-            gen_helper_extr_s_h(t0, t0, t1, tcg_env);
+            gen_helper_extr_s_h(t0, tcg_constant_tl(v2 >> 3),
+                                tcg_constant_tl(v1), tcg_env);
             gen_store_gpr(t0, ret);
             break;
         }
@@ -1848,8 +1842,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
         case NM_EXTRV_W:
             check_dsp(ctx);
             gen_load_gpr(v1_t, rs);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extr_w(t0, t0, v1_t, tcg_env);
+            gen_helper_extr_w(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         }
@@ -1903,8 +1896,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             break;
         case NM_EXTRV_R_W:
             check_dsp(ctx);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extr_r_w(t0, t0, v1_t, tcg_env);
+            gen_helper_extr_r_w(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         default:
@@ -1923,8 +1915,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             break;
         case NM_EXTPV:
             check_dsp(ctx);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extp(t0, t0, v1_t, tcg_env);
+            gen_helper_extp(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_MSUB:
@@ -1947,8 +1938,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             break;
         case NM_EXTRV_RS_W:
             check_dsp(ctx);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extr_rs_w(t0, t0, v1_t, tcg_env);
+            gen_helper_extr_rs_w(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         }
@@ -1964,8 +1954,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             break;
         case NM_EXTPDPV:
             check_dsp(ctx);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extpdp(t0, t0, v1_t, tcg_env);
+            gen_helper_extpdp(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         case NM_MSUBU:
@@ -1990,8 +1979,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             break;
         case NM_EXTRV_S_H:
             check_dsp(ctx);
-            tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extr_s_h(t0, t0, v1_t, tcg_env);
+            gen_helper_extr_s_h(t0, tcg_constant_tl(rd >> 3), v1_t, tcg_env);
             gen_store_gpr(t0, ret);
             break;
         }
@@ -2149,24 +2137,22 @@ static void gen_pool32axf_7_nanomips_insn(DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case NM_SHRA_R_QB:
         check_dsp_r2(ctx);
-        tcg_gen_movi_tl(t0, rd >> 2);
         switch (extract32(ctx->opcode, 12, 1)) {
         case 0:
             /* NM_SHRA_QB */
-            gen_helper_shra_qb(t0, t0, rs_t);
+            gen_helper_shra_qb(t0, tcg_constant_tl(rd >> 2), rs_t);
             gen_store_gpr(t0, rt);
             break;
         case 1:
             /* NM_SHRA_R_QB */
-            gen_helper_shra_r_qb(t0, t0, rs_t);
+            gen_helper_shra_r_qb(t0, tcg_constant_tl(rd >> 2), rs_t);
             gen_store_gpr(t0, rt);
             break;
         }
         break;
     case NM_SHRL_PH:
         check_dsp_r2(ctx);
-        tcg_gen_movi_tl(t0, rd >> 1);
-        gen_helper_shrl_ph(t0, t0, rs_t);
+        gen_helper_shrl_ph(t0, tcg_constant_tl(rd >> 1), rs_t);
         gen_store_gpr(t0, rt);
         break;
     case NM_REPL_QB:
@@ -2180,8 +2166,7 @@ static void gen_pool32axf_7_nanomips_insn(DisasContext *ctx, uint32_t opc,
                      (uint32_t)imm << 8  |
                      (uint32_t)imm;
             result = (int32_t)result;
-            tcg_gen_movi_tl(t0, result);
-            gen_store_gpr(t0, rt);
+            gen_store_gpr(tcg_constant_tl(result), rt);
         }
         break;
     default:
@@ -2302,10 +2287,9 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
 {
     TCGCond cond = TCG_COND_ALWAYS;
     TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
+    TCGv timm = tcg_constant_tl(imm);
 
     gen_load_gpr(t0, rt);
-    tcg_gen_movi_tl(t1, imm);
     ctx->btarget = addr_add(ctx, ctx->base.pc_next + 4, offset);
 
     /* Load needed operands and calculate btarget */
@@ -2334,7 +2318,7 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
         } else {
             tcg_gen_shri_tl(t0, t0, imm);
             tcg_gen_andi_tl(t0, t0, 1);
-            tcg_gen_movi_tl(t1, 0);
+            timm = tcg_constant_tl(0);
             if (opc == NM_BBEQZC) {
                 cond = TCG_COND_EQ;
             } else {
@@ -2389,7 +2373,7 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
         /* Conditional compact branch */
         TCGLabel *fs = gen_new_label();
 
-        tcg_gen_brcond_tl(tcg_invert_cond(cond), t0, t1, fs);
+        tcg_gen_brcond_tl(tcg_invert_cond(cond), t0, timm, fs);
 
         gen_goto_tb(ctx, 1, ctx->btarget);
         gen_set_label(fs);
@@ -2403,7 +2387,6 @@ static void gen_compute_nanomips_pbalrsc_branch(DisasContext *ctx, int rs,
                                                 int rt)
 {
     TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
 
     /* load rs */
     gen_load_gpr(t0, rs);
@@ -2415,8 +2398,7 @@ static void gen_compute_nanomips_pbalrsc_branch(DisasContext *ctx, int rs,
 
     /* calculate btarget */
     tcg_gen_shli_tl(t0, t0, 1);
-    tcg_gen_movi_tl(t1, ctx->base.pc_next + 4);
-    gen_op_addr_add(ctx, btarget, t1, t0);
+    gen_op_addr_add(ctx, btarget, tcg_constant_tl(ctx->base.pc_next + 4), t0);
 
     /* branch completion */
     clear_branch_hflags(ctx);
@@ -2469,11 +2451,9 @@ static void gen_compute_compact_branch_nm(DisasContext *ctx, uint32_t opc,
         } else {
             /* OPC_JIC, OPC_JIALC */
             TCGv tbase = tcg_temp_new();
-            TCGv toffset = tcg_temp_new();
 
             gen_load_gpr(tbase, rt);
-            tcg_gen_movi_tl(toffset, offset);
-            gen_op_addr_add(ctx, btarget, tbase, toffset);
+            gen_op_addr_addi(ctx, btarget, tbase, offset);
         }
         break;
     default:
@@ -2647,13 +2627,13 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
     case NM_LHX:
     /*case NM_LHXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TESW | ctx->default_tcg_memop_mask);
+                        mo_endian(ctx) | MO_SW | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_LWX:
     /*case NM_LWXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TESL | ctx->default_tcg_memop_mask);
+                        mo_endian(ctx) | MO_SL | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_LBUX:
@@ -2663,7 +2643,7 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
     case NM_LHUX:
     /*case NM_LHUXS:*/
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
-                           MO_TEUW | ctx->default_tcg_memop_mask);
+                        mo_endian(ctx) | MO_UW | ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rd);
         break;
     case NM_SBX:
@@ -2676,14 +2656,14 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
         check_nms(ctx);
         gen_load_gpr(t1, rd);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                           MO_TEUW | ctx->default_tcg_memop_mask);
+                        mo_endian(ctx) | MO_UW | ctx->default_tcg_memop_mask);
         break;
     case NM_SWX:
     /*case NM_SWXS:*/
         check_nms(ctx);
         gen_load_gpr(t1, rd);
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                           MO_TEUL | ctx->default_tcg_memop_mask);
+                        mo_endian(ctx) | MO_UL | ctx->default_tcg_memop_mask);
         break;
     case NM_LWC1X:
     /*case NM_LWC1XS:*/
@@ -3445,13 +3425,10 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
     case NM_SHILO:
         check_dsp(ctx);
         {
-            TCGv tv0 = tcg_temp_new();
-            TCGv tv1 = tcg_temp_new();
             int16_t imm = extract32(ctx->opcode, 16, 7);
 
-            tcg_gen_movi_tl(tv0, rd >> 3);
-            tcg_gen_movi_tl(tv1, imm);
-            gen_helper_shilo(tv0, tv1, tcg_env);
+            gen_helper_shilo(tcg_constant_tl(rd >> 3),
+                             tcg_constant_tl(imm), tcg_env);
         }
         break;
     case NM_MULEQ_S_W_PHL:
@@ -3506,8 +3483,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         break;
     case NM_SHRA_R_W:
         check_dsp(ctx);
-        tcg_gen_movi_tl(t0, rd);
-        gen_helper_shra_r_w(v1_t, t0, v1_t);
+        gen_helper_shra_r_w(v1_t, tcg_constant_tl(rd), v1_t);
         gen_store_gpr(v1_t, rt);
         break;
     case NM_SHRA_R_PH:
@@ -3547,8 +3523,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         break;
     case NM_SHLL_S_W:
         check_dsp(ctx);
-        tcg_gen_movi_tl(t0, rd);
-        gen_helper_shll_s_w(v1_t, t0, v1_t, tcg_env);
+        gen_helper_shll_s_w(v1_t, tcg_constant_tl(rd), v1_t, tcg_env);
         gen_store_gpr(v1_t, rt);
         break;
     case NM_REPL_PH:
@@ -3729,32 +3704,29 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
             case NM_LWPC48:
                 check_nms(ctx);
                 if (rt != 0) {
-                    TCGv t0;
-                    t0 = tcg_temp_new();
-
                     target_long addr = addr_add(ctx, ctx->base.pc_next + 6,
                                                 addr_off);
 
-                    tcg_gen_movi_tl(t0, addr);
-                    tcg_gen_qemu_ld_tl(cpu_gpr[rt], t0, ctx->mem_idx,
-                                       MO_TESL | ctx->default_tcg_memop_mask);
+                    tcg_gen_qemu_ld_tl(cpu_gpr[rt], tcg_constant_tl(addr),
+                                       ctx->mem_idx,
+                                       mo_endian(ctx) | MO_SL
+                                            | ctx->default_tcg_memop_mask);
                 }
                 break;
             case NM_SWPC48:
                 check_nms(ctx);
                 {
-                    TCGv t0, t1;
-                    t0 = tcg_temp_new();
+                    TCGv t1;
                     t1 = tcg_temp_new();
 
                     target_long addr = addr_add(ctx, ctx->base.pc_next + 6,
                                                 addr_off);
 
-                    tcg_gen_movi_tl(t0, addr);
                     gen_load_gpr(t1, rt);
 
-                    tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                                       MO_TEUL | ctx->default_tcg_memop_mask);
+                    tcg_gen_qemu_st_tl(t1, tcg_constant_tl(addr), ctx->mem_idx,
+                                       mo_endian(ctx) | MO_UL
+                                            | ctx->default_tcg_memop_mask);
                 }
                 break;
             default:
@@ -4132,14 +4104,14 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 
                         switch (extract32(ctx->opcode, 11, 4)) {
                         case NM_UALH:
-                            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW |
-                                               MO_UNALN);
+                            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx,
+                                            mo_endian(ctx) | MO_SW | MO_UNALN);
                             gen_store_gpr(t0, rt);
                             break;
                         case NM_UASH:
                             gen_load_gpr(t1, rt);
-                            tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW |
-                                               MO_UNALN);
+                            tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
+                                            mo_endian(ctx) | MO_UW | MO_UNALN);
                             break;
                         }
                     }
@@ -4161,7 +4133,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 case NM_P_SC:
                     switch (ctx->opcode & 0x03) {
                     case NM_SC:
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, false);
+                        gen_st_cond(ctx, rt, rs, s, mo_endian(ctx) | MO_SL,
+                                    false);
                         break;
                     case NM_SCWP:
                         check_xnp(ctx);
@@ -4274,7 +4247,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_xnp(ctx);
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, true);
+                        gen_st_cond(ctx, rt, rs, s, mo_endian(ctx) | MO_SL,
+                                    true);
                         break;
                     case NM_SCWPE:
                         check_xnp(ctx);
@@ -4317,7 +4291,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         switch (extract32(ctx->opcode, 11, 1)) {
                         case NM_LWM:
                             tcg_gen_qemu_ld_tl(t1, va, ctx->mem_idx,
-                                               memop | MO_TESL);
+                                               memop | mo_endian(ctx) | MO_SL);
                             gen_store_gpr(t1, this_rt);
                             if ((this_rt == rs) &&
                                 (counter != (count - 1))) {
@@ -4328,7 +4302,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                             this_rt = (rt == 0) ? 0 : this_rt;
                             gen_load_gpr(t1, this_rt);
                             tcg_gen_qemu_st_tl(t1, va, ctx->mem_idx,
-                                               memop | MO_TEUL);
+                                               memop | mo_endian(ctx) | MO_UL);
                             break;
                         }
                         counter++;

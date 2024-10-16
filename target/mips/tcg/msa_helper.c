@@ -8211,14 +8211,6 @@ void helper_msa_ffint_u_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 /* Element-by-element access macros */
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
 
-#if !defined(CONFIG_USER_ONLY)
-#define MEMOP_IDX(DF)                                                   \
-    MemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,                 \
-                                 mips_env_mmu_index(env));
-#else
-#define MEMOP_IDX(DF)
-#endif
-
 #if TARGET_BIG_ENDIAN
 static inline uint64_t bswap16x4(uint64_t x)
 {

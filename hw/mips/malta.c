@@ -1034,7 +1034,8 @@ static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
     int i;
 
     for (i = 0; i < ms->smp.cpus; i++) {
-        cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk);
+        cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk,
+                                         TARGET_BIG_ENDIAN);
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -1054,6 +1055,8 @@ static void create_cps(MachineState *ms, MaltaState *s,
     object_initialize_child(OBJECT(s), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), "cpu-type", ms->cpu_type,
                             &error_fatal);
+    object_property_set_bool(OBJECT(&s->cps), "cpu-big-endian",
+                             TARGET_BIG_ENDIAN, &error_abort);
     object_property_set_uint(OBJECT(&s->cps), "num-vp", ms->smp.cpus,
                             &error_fatal);
     qdev_connect_clock_in(DEVICE(&s->cps), "clk-in", s->cpuclk);

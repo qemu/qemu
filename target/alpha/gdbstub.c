@@ -59,7 +59,7 @@ int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUAlphaState *env = cpu_env(cs);
-    target_ulong tmp = ldtul_p(mem_buf);
+    target_ulong tmp = ldq_le_p(mem_buf);
     CPU_DoubleU d;
 
     switch (n) {
