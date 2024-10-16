@@ -73,6 +73,8 @@ struct Stm32l4r5SocState {
 
     MemoryRegion sram1;
     MemoryRegion sram2;
+    MemoryRegion sram2_alias;
+    MemoryRegion sram3;
     MemoryRegion flash;
     MemoryRegion flash_alias;
 };

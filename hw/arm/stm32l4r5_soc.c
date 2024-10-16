@@ -45,7 +45,10 @@
 #define SRAM1_BASE_ADDRESS 0x20000000
 #define SRAM1_SIZE (192 * KiB)
 #define SRAM2_BASE_ADDRESS 0x10000000
+#define SRAM2_ALIAS_BASE_ADDRESS 0x20030000
 #define SRAM2_SIZE (64 * KiB)
+#define SRAM3_BASE_ADDRESS 0x20040000
+#define SRAM3_SIZE (384 * KiB)
 
 #define EXTI_ADDR 0x40010400
 #define SYSCFG_ADDR 0x40010000
@@ -208,7 +211,17 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
                                 errp)) {
         return;
     }
+
+    memory_region_init_alias(&s->sram2_alias, OBJECT(dev_soc), "sram2_alias", &s->sram2, 0, SRAM2_SIZE);
+
     memory_region_add_subregion(system_memory, SRAM2_BASE_ADDRESS, &s->sram2);
+    memory_region_add_subregion(system_memory, SRAM2_ALIAS_BASE_ADDRESS, &s->sram2_alias);
+
+    if(!memory_region_init_ram(&s->sram3, OBJECT(dev_soc), "SRAM3", SRAM3_SIZE, errp)) {
+        return;
+    }
+
+    memory_region_add_subregion(system_memory, SRAM3_BASE_ADDRESS, &s->sram3);
 
     object_initialize_child(OBJECT(dev_soc), "armv7m", &s->armv7m, TYPE_ARMV7M);
     armv7m = DEVICE(&s->armv7m);
