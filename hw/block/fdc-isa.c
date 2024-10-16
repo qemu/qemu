@@ -307,7 +307,7 @@ static void isabus_fdc_class_init(ObjectClass *klass, void *data)
     dc->desc = "virtual floppy controller";
     dc->realize = isabus_fdc_realize;
     dc->fw_name = "fdc";
-    dc->reset = fdctrl_external_reset_isa;
+    device_class_set_legacy_reset(dc, fdctrl_external_reset_isa);
     dc->vmsd = &vmstate_isa_fdc;
     adevc->build_dev_aml = build_fdc_aml;
     device_class_set_props(dc, isa_fdc_properties);

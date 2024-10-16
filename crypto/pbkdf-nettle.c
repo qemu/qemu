@@ -25,22 +25,22 @@
 #include "crypto/pbkdf.h"
 
 
-bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
+bool qcrypto_pbkdf2_supports(QCryptoHashAlgo hash)
 {
     switch (hash) {
-    case QCRYPTO_HASH_ALG_SHA1:
-    case QCRYPTO_HASH_ALG_SHA224:
-    case QCRYPTO_HASH_ALG_SHA256:
-    case QCRYPTO_HASH_ALG_SHA384:
-    case QCRYPTO_HASH_ALG_SHA512:
-    case QCRYPTO_HASH_ALG_RIPEMD160:
+    case QCRYPTO_HASH_ALGO_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA224:
+    case QCRYPTO_HASH_ALGO_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA384:
+    case QCRYPTO_HASH_ALGO_SHA512:
+    case QCRYPTO_HASH_ALGO_RIPEMD160:
         return true;
     default:
         return false;
     }
 }
 
-int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
+int qcrypto_pbkdf2(QCryptoHashAlgo hash,
                    const uint8_t *key, size_t nkey,
                    const uint8_t *salt, size_t nsalt,
                    uint64_t iterations,
@@ -65,43 +65,43 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
     }
 
     switch (hash) {
-    case QCRYPTO_HASH_ALG_MD5:
+    case QCRYPTO_HASH_ALGO_MD5:
         hmac_md5_set_key(&ctx.md5, nkey, key);
         PBKDF2(&ctx.md5, hmac_md5_update, hmac_md5_digest,
                MD5_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA1:
         hmac_sha1_set_key(&ctx.sha1, nkey, key);
         PBKDF2(&ctx.sha1, hmac_sha1_update, hmac_sha1_digest,
                SHA1_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA224:
+    case QCRYPTO_HASH_ALGO_SHA224:
         hmac_sha224_set_key(&ctx.sha224, nkey, key);
         PBKDF2(&ctx.sha224, hmac_sha224_update, hmac_sha224_digest,
                SHA224_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA256:
         hmac_sha256_set_key(&ctx.sha256, nkey, key);
         PBKDF2(&ctx.sha256, hmac_sha256_update, hmac_sha256_digest,
                SHA256_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA384:
+    case QCRYPTO_HASH_ALGO_SHA384:
         hmac_sha384_set_key(&ctx.sha384, nkey, key);
         PBKDF2(&ctx.sha384, hmac_sha384_update, hmac_sha384_digest,
                SHA384_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_SHA512:
+    case QCRYPTO_HASH_ALGO_SHA512:
         hmac_sha512_set_key(&ctx.sha512, nkey, key);
         PBKDF2(&ctx.sha512, hmac_sha512_update, hmac_sha512_digest,
                SHA512_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
         break;
 
-    case QCRYPTO_HASH_ALG_RIPEMD160:
+    case QCRYPTO_HASH_ALGO_RIPEMD160:
         hmac_ripemd160_set_key(&ctx.ripemd160, nkey, key);
         PBKDF2(&ctx.ripemd160, hmac_ripemd160_update, hmac_ripemd160_digest,
                RIPEMD160_DIGEST_SIZE, iterations, nsalt, salt, nout, out);
@@ -110,7 +110,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
     default:
         error_setg_errno(errp, ENOSYS,
                          "PBKDF does not support hash algorithm %s",
-                         QCryptoHashAlgorithm_str(hash));
+                         QCryptoHashAlgo_str(hash));
         return -1;
     }
     return 0;

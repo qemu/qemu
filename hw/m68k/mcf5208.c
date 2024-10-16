@@ -4,6 +4,14 @@
  * Copyright (c) 2007 CodeSourcery.
  *
  * This code is licensed under the GPL
+ *
+ * This file models both the MCF5208 SoC, and the
+ * MCF5208EVB evaluation board. For details see
+ *
+ * "MCF5208 Reference Manual"
+ * https://www.nxp.com/docs/en/reference-manual/MCF5208RM.pdf
+ * "M5208EVB-RevB 32-bit Microcontroller User Manual"
+ * https://www.nxp.com/docs/en/reference-manual/M5208EVBUM.pdf
  */
 
 #include "qemu/osdep.h"
@@ -158,7 +166,7 @@ static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
         {
             int n;
             for (n = 0; n < 32; n++) {
-                if (current_machine->ram_size < (2u << n)) {
+                if (current_machine->ram_size < (2ULL << n)) {
                     break;
                 }
             }
@@ -351,7 +359,7 @@ static void mcf5208evb_init(MachineState *machine)
         /* Initial PC is always at offset 4 in firmware binaries */
         ptr = rom_ptr(0x4, 4);
         assert(ptr != NULL);
-        env->pc = ldl_p(ptr);
+        env->pc = ldl_be_p(ptr);
     }
 
     /* Load kernel.  */

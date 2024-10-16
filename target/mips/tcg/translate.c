@@ -15362,7 +15362,8 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
      * hardware does (e.g. if a delay slot instruction faults, the
      * reported PC is the PC of the branch).
      */
-    if (ctx->base.singlestep_enabled && (ctx->hflags & MIPS_HFLAG_BMASK)) {
+    if ((tb_cflags(ctx->base.tb) & CF_SINGLE_STEP) &&
+        (ctx->hflags & MIPS_HFLAG_BMASK)) {
         ctx->base.max_insns = 2;
     }
 
@@ -15445,7 +15446,7 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
      * together with its delay slot.
      */
     if (ctx->base.pc_next - ctx->page_start >= TARGET_PAGE_SIZE
-        && !ctx->base.singlestep_enabled) {
+        && !(tb_cflags(ctx->base.tb) & CF_SINGLE_STEP)) {
         ctx->base.is_jmp = DISAS_TOO_MANY;
     }
 }

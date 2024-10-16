@@ -110,7 +110,7 @@ static void microbit_i2c_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &microbit_i2c_vmstate;
-    dc->reset = microbit_i2c_reset;
+    device_class_set_legacy_reset(dc, microbit_i2c_reset);
     dc->realize = microbit_i2c_realize;
     dc->desc = "Microbit I2C controller";
 }

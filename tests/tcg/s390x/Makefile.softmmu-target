@@ -1,6 +1,7 @@
 S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
 VPATH+=$(S390X_SRC)
-QEMU_OPTS+=-action panic=exit-failure -nographic $(EXTFLAGS) -kernel
+# EXTFLAGS can be passed by the user, e.g. to override the --accel
+QEMU_OPTS+=-action panic=exit-failure -nographic -serial chardev:output $(EXTFLAGS) -kernel
 LINK_SCRIPT=$(S390X_SRC)/softmmu.ld
 CFLAGS+=-ggdb -O0
 LDFLAGS=-nostdlib -static
@@ -46,3 +47,8 @@ $(MULTIARCH_TESTS): $(S390X_MULTIARCH_RUNTIME_OBJS)
 $(MULTIARCH_TESTS): LDFLAGS += $(S390X_MULTIARCH_RUNTIME_OBJS)
 $(MULTIARCH_TESTS): CFLAGS += $(MINILIB_INC)
 memory: CFLAGS += -DCHECK_UNALIGNED=0
+
+# s390x clears the BSS section so we need to account for that
+run-plugin-memory-with-libmem.so: 		\
+	CHECK_PLUGIN_OUTPUT_COMMAND=$(MULTIARCH_SYSTEM_SRC)/validate-memory-counts.py \
+		--bss-cleared $@.out

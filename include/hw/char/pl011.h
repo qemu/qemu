@@ -32,7 +32,6 @@ struct PL011State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    uint32_t readbuff;
     uint32_t flags;
     uint32_t lcr;
     uint32_t rsr;

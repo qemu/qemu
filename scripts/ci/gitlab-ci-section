@@ -1,0 +1,29 @@
+# Copyright (c) 2024 Linaro Ltd
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# gitlab-ci-section: This is a shell script fragment which defines
+# functions section_start and section_end which will emit marker lines
+# that GitLab will interpret as the beginning or end of a "collapsible
+# section" in a CI job log. See
+# https://docs.gitlab.com/ee/ci/yaml/script.html#expand-and-collapse-job-log-sections
+#
+# This is intended to be sourced in the before_script section of
+# a CI config; the section_start and section_end functions will
+# then be available for use in the before_script and script sections.
+
+# Section names are [-_.A-Za-z0-9] and the section_start pairs with
+# a section_end with the same section name.
+# The description can be any printable text without newlines; this is
+# what will appear in the log.
+
+# Usage:
+# section_start section_name "Description of the section"
+section_start () {
+    printf "section_start:%s:%s\r\e[0K%s\n" "$(date +%s)" "$1" "$2"
+}
+
+# Usage:
+# section_end section_name
+section_end () {
+    printf "section_end:%s:%s\r\e[0K\n" "$(date +%s)" "$1"
+}

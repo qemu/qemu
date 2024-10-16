@@ -287,6 +287,7 @@ static void escc_reset_chn(ESCCChannelState *s)
     s->rxint = s->txint = 0;
     s->rxint_under_svc = s->txint_under_svc = 0;
     s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
+    s->sunmouse_dx = s->sunmouse_dy = s->sunmouse_buttons = 0;
     clear_queue(s);
 }
 
@@ -952,52 +953,95 @@ static void handle_kbd_command(ESCCChannelState *s, int val)
     }
 }
 
-static void sunmouse_event(void *opaque,
-                               int dx, int dy, int dz, int buttons_state)
+static void sunmouse_handle_event(DeviceState *dev, QemuConsole *src,
+                                  InputEvent *evt)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = (ESCCChannelState *)dev;
+    InputMoveEvent *move;
+    InputBtnEvent *btn;
+    static const int bmap[INPUT_BUTTON__MAX] = {
+        [INPUT_BUTTON_LEFT]   = 0x4,
+        [INPUT_BUTTON_MIDDLE] = 0x2,
+        [INPUT_BUTTON_RIGHT]  = 0x1,
+    };
+
+    switch (evt->type) {
+    case INPUT_EVENT_KIND_REL:
+        move = evt->u.rel.data;
+        if (move->axis == INPUT_AXIS_X) {
+            s->sunmouse_dx += move->value;
+        } else if (move->axis == INPUT_AXIS_Y) {
+            s->sunmouse_dy -= move->value;
+        }
+        break;
+
+    case INPUT_EVENT_KIND_BTN:
+        btn = evt->u.btn.data;
+        if (bmap[btn->button]) {
+            if (btn->down) {
+                s->sunmouse_buttons |= bmap[btn->button];
+            } else {
+                s->sunmouse_buttons &= ~bmap[btn->button];
+            }
+            /* Indicate we have a supported button event */
+            s->sunmouse_buttons |= 0x80;
+        }
+        break;
+
+    default:
+        /* keep gcc happy */
+        break;
+    }
+}
+
+static void sunmouse_sync(DeviceState *dev)
+{
+    ESCCChannelState *s = (ESCCChannelState *)dev;
     int ch;
 
-    trace_escc_sunmouse_event(dx, dy, buttons_state);
+    if (s->sunmouse_dx == 0 && s->sunmouse_dy == 0 &&
+        (s->sunmouse_buttons & 0x80) == 0) {
+            /* Nothing to do after button event filter */
+            return;
+    }
+
+    /* Clear our button event flag */
+    s->sunmouse_buttons &= ~0x80;
+    trace_escc_sunmouse_event(s->sunmouse_dx, s->sunmouse_dy,
+                              s->sunmouse_buttons);
     ch = 0x80 | 0x7; /* protocol start byte, no buttons pressed */
-
-    if (buttons_state & MOUSE_EVENT_LBUTTON) {
-        ch ^= 0x4;
-    }
-    if (buttons_state & MOUSE_EVENT_MBUTTON) {
-        ch ^= 0x2;
-    }
-    if (buttons_state & MOUSE_EVENT_RBUTTON) {
-        ch ^= 0x1;
-    }
-
+    ch ^= s->sunmouse_buttons;
     put_queue(s, ch);
 
-    ch = dx;
-
+    ch = s->sunmouse_dx;
     if (ch > 127) {
         ch = 127;
     } else if (ch < -127) {
         ch = -127;
     }
-
     put_queue(s, ch & 0xff);
+    s->sunmouse_dx -= ch;
 
-    ch = -dy;
-
+    ch = s->sunmouse_dy;
     if (ch > 127) {
         ch = 127;
     } else if (ch < -127) {
         ch = -127;
     }
-
     put_queue(s, ch & 0xff);
+    s->sunmouse_dy -= ch;
 
     /* MSC protocol specifies two extra motion bytes */
-
     put_queue(s, 0);
     put_queue(s, 0);
 }
+
+static const QemuInputHandler sunmouse_handler = {
+    .name  = "QEMU Sun Mouse",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
+    .event = sunmouse_handle_event,
+    .sync  = sunmouse_sync,
+};
 
 static void escc_init1(Object *obj)
 {
@@ -1036,8 +1080,8 @@ static void escc_realize(DeviceState *dev, Error **errp)
     }
 
     if (s->chn[0].type == escc_mouse) {
-        qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0,
-                                     "QEMU Sun Mouse");
+        s->chn[0].hs = qemu_input_handler_register((DeviceState *)(&s->chn[0]),
+                                                   &sunmouse_handler);
     }
     if (s->chn[1].type == escc_kbd) {
         s->chn[1].hs = qemu_input_handler_register((DeviceState *)(&s->chn[1]),
@@ -1062,7 +1106,7 @@ static void escc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = escc_reset;
+    device_class_set_legacy_reset(dc, escc_reset);
     dc->realize = escc_realize;
     dc->vmsd = &vmstate_escc;
     device_class_set_props(dc, escc_properties);

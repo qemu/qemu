@@ -175,7 +175,7 @@ static void sii9022_class_init(ObjectClass *klass, void *data)
     k->event = sii9022_event;
     k->recv = sii9022_rx;
     k->send = sii9022_tx;
-    dc->reset = sii9022_reset;
+    device_class_set_legacy_reset(dc, sii9022_reset);
     dc->realize = sii9022_realize;
     dc->vmsd = &vmstate_sii9022;
 }

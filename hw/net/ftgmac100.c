@@ -24,8 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 /*
  * FTGMAC100 registers
@@ -1267,7 +1266,7 @@ static void ftgmac100_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_ftgmac100;
-    dc->reset = ftgmac100_reset;
+    device_class_set_legacy_reset(dc, ftgmac100_reset);
     device_class_set_props(dc, ftgmac100_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->realize = ftgmac100_realize;
@@ -1427,7 +1426,7 @@ static void aspeed_mii_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_aspeed_mii;
-    dc->reset = aspeed_mii_reset;
+    device_class_set_legacy_reset(dc, aspeed_mii_reset);
     dc->realize = aspeed_mii_realize;
     dc->desc = "Aspeed MII controller";
     device_class_set_props(dc, aspeed_mii_properties);

@@ -68,15 +68,15 @@
 
 static const struct {
     uint32_t mask;
-    QCryptoHashAlgorithm algo;
+    QCryptoHashAlgo algo;
 } hash_algo_map[] = {
-    { HASH_ALGO_MD5, QCRYPTO_HASH_ALG_MD5 },
-    { HASH_ALGO_SHA1, QCRYPTO_HASH_ALG_SHA1 },
-    { HASH_ALGO_SHA224, QCRYPTO_HASH_ALG_SHA224 },
-    { HASH_ALGO_SHA256, QCRYPTO_HASH_ALG_SHA256 },
-    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA512, QCRYPTO_HASH_ALG_SHA512 },
-    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA384, QCRYPTO_HASH_ALG_SHA384 },
-    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA256, QCRYPTO_HASH_ALG_SHA256 },
+    { HASH_ALGO_MD5, QCRYPTO_HASH_ALGO_MD5 },
+    { HASH_ALGO_SHA1, QCRYPTO_HASH_ALGO_SHA1 },
+    { HASH_ALGO_SHA224, QCRYPTO_HASH_ALGO_SHA224 },
+    { HASH_ALGO_SHA256, QCRYPTO_HASH_ALGO_SHA256 },
+    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA512, QCRYPTO_HASH_ALGO_SHA512 },
+    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA384, QCRYPTO_HASH_ALGO_SHA384 },
+    { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA256, QCRYPTO_HASH_ALGO_SHA256 },
 };
 
 static int hash_algo_lookup(uint32_t reg)
@@ -446,7 +446,7 @@ static void aspeed_hace_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_hace_realize;
-    dc->reset = aspeed_hace_reset;
+    device_class_set_legacy_reset(dc, aspeed_hace_reset);
     device_class_set_props(dc, aspeed_hace_properties);
     dc->vmsd = &vmstate_aspeed_hace;
 }

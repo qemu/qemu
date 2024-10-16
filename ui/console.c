@@ -37,6 +37,7 @@
 #include "trace.h"
 #include "exec/memory.h"
 #include "qom/object.h"
+#include "qemu/memfd.h"
 
 #include "console-priv.h"
 
@@ -452,60 +453,26 @@ qemu_graphic_console_init(Object *obj)
 {
 }
 
-#ifdef WIN32
-void qemu_displaysurface_win32_set_handle(DisplaySurface *surface,
-                                          HANDLE h, uint32_t offset)
+void qemu_displaysurface_set_share_handle(DisplaySurface *surface,
+                                          qemu_pixman_shareable handle,
+                                          uint32_t offset)
 {
-    assert(!surface->handle);
+    assert(surface->share_handle == SHAREABLE_NONE);
 
-    surface->handle = h;
-    surface->handle_offset = offset;
+    surface->share_handle = handle;
+    surface->share_handle_offset = offset;
+
 }
-
-static void
-win32_pixman_image_destroy(pixman_image_t *image, void *data)
-{
-    DisplaySurface *surface = data;
-
-    if (!surface->handle) {
-        return;
-    }
-
-    assert(surface->handle_offset == 0);
-
-    qemu_win32_map_free(
-        pixman_image_get_data(surface->image),
-        surface->handle,
-        &error_warn
-    );
-}
-#endif
 
 DisplaySurface *qemu_create_displaysurface(int width, int height)
 {
-    DisplaySurface *surface;
-    void *bits = NULL;
-#ifdef WIN32
-    HANDLE handle = NULL;
-#endif
-
     trace_displaysurface_create(width, height);
 
-#ifdef WIN32
-    bits = qemu_win32_map_alloc(width * height * 4, &handle, &error_abort);
-#endif
-
-    surface = qemu_create_displaysurface_from(
+    return qemu_create_displaysurface_from(
         width, height,
         PIXMAN_x8r8g8b8,
-        width * 4, bits
+        width * 4, NULL
     );
-    surface->flags = QEMU_ALLOCATED_FLAG;
-
-#ifdef WIN32
-    qemu_displaysurface_win32_set_handle(surface, handle, 0);
-#endif
-    return surface;
 }
 
 DisplaySurface *qemu_create_displaysurface_from(int width, int height,
@@ -515,15 +482,25 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     trace_displaysurface_create_from(surface, width, height, format);
-    surface->image = pixman_image_create_bits(format,
-                                              width, height,
-                                              (void *)data, linesize);
-    assert(surface->image != NULL);
-#ifdef WIN32
-    pixman_image_set_destroy_function(surface->image,
-                                      win32_pixman_image_destroy, surface);
-#endif
+    surface->share_handle = SHAREABLE_NONE;
 
+    if (data) {
+        surface->image = pixman_image_create_bits(format,
+                                                  width, height,
+                                                  (void *)data, linesize);
+    } else {
+        qemu_pixman_image_new_shareable(&surface->image,
+                                        &surface->share_handle,
+                                        "displaysurface",
+                                        format,
+                                        width,
+                                        height,
+                                        linesize,
+                                        &error_abort);
+        surface->flags = QEMU_ALLOCATED_FLAG;
+    }
+
+    assert(surface->image != NULL);
     return surface;
 }
 
@@ -532,6 +509,7 @@ DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image)
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     trace_displaysurface_create_pixman(surface);
+    surface->share_handle = SHAREABLE_NONE;
     surface->image = pixman_image_ref(image);
 
     return surface;

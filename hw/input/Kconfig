@@ -1,13 +1,6 @@
 config ADB
     bool
 
-config ADS7846
-    bool
-
-config LM832X
-    bool
-    depends on I2C
-
 config PCKBD
     bool
     select PS2
@@ -21,9 +14,6 @@ config PS2
     bool
 
 config STELLARIS_GAMEPAD
-    bool
-
-config TSC2005
     bool
 
 config VIRTIO_INPUT
@@ -40,9 +30,6 @@ config VHOST_USER_INPUT
     bool
     default y
     depends on VIRTIO_INPUT && VHOST_USER
-
-config TSC210X
-    bool
 
 config LASIPS2
     select PS2

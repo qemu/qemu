@@ -292,7 +292,7 @@ static void tz_msc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = tz_msc_realize;
     dc->vmsd = &tz_msc_vmstate;
-    dc->reset = tz_msc_reset;
+    device_class_set_legacy_reset(dc, tz_msc_reset);
     device_class_set_props(dc, tz_msc_properties);
 }
 

@@ -338,7 +338,7 @@ static void sifive_spi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, sifive_spi_properties);
-    dc->reset = sifive_spi_reset;
+    device_class_set_legacy_reset(dc, sifive_spi_reset);
     dc->realize = sifive_spi_realize;
 }
 

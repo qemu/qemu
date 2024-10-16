@@ -27,3 +27,9 @@ python-container:
   extends: .container_job_template
   variables:
     NAME: python
+
+amd64-fedora-rust-nightly-container:
+  extends: .container_job_template
+  variables:
+    NAME: fedora-rust-nightly
+  allow_failure: true

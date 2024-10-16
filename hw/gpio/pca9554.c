@@ -305,7 +305,7 @@ static void pca9554_class_init(ObjectClass *klass, void *data)
     k->recv = pca9554_recv;
     k->send = pca9554_send;
     dc->realize = pca9554_realize;
-    dc->reset = pca9554_reset;
+    device_class_set_legacy_reset(dc, pca9554_reset);
     dc->vmsd = &pca9554_vmstate;
     device_class_set_props(dc, pca9554_properties);
 }

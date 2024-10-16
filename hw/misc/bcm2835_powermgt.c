@@ -140,7 +140,7 @@ static void bcm2835_powermgt_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = bcm2835_powermgt_reset;
+    device_class_set_legacy_reset(dc, bcm2835_powermgt_reset);
     dc->vmsd = &vmstate_bcm2835_powermgt;
 }
 

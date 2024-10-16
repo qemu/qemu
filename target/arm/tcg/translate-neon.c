@@ -148,6 +148,37 @@ static bool do_neon_ddda(DisasContext *s, int q, int vd, int vn, int vm,
     return true;
 }
 
+static bool do_neon_ddda_env(DisasContext *s, int q, int vd, int vn, int vm,
+                             int data, gen_helper_gvec_4_ptr *fn_gvec)
+{
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (((vd | vn | vm) & 0x10) && !dc_isar_feature(aa32_simd_r32, s)) {
+        return false;
+    }
+
+    /*
+     * UNDEF accesses to odd registers for each bit of Q.
+     * Q will be 0b111 for all Q-reg instructions, otherwise
+     * when we have mixed Q- and D-reg inputs.
+     */
+    if (((vd & 1) * 4 | (vn & 1) * 2 | (vm & 1)) & q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    int opr_sz = q ? 16 : 8;
+    tcg_gen_gvec_4_ptr(vfp_reg_offset(1, vd),
+                       vfp_reg_offset(1, vn),
+                       vfp_reg_offset(1, vm),
+                       vfp_reg_offset(1, vd),
+                       tcg_env,
+                       opr_sz, opr_sz, data, fn_gvec);
+    return true;
+}
+
 static bool do_neon_ddda_fpst(DisasContext *s, int q, int vd, int vn, int vm,
                               int data, ARMFPStatusFlavour fp_flavour,
                               gen_helper_gvec_4_ptr *fn_gvec_ptr)
@@ -266,8 +297,8 @@ static bool trans_VDOT_b16(DisasContext *s, arg_VDOT_b16 *a)
     if (!dc_isar_feature(aa32_bf16, s)) {
         return false;
     }
-    return do_neon_ddda(s, a->q * 7, a->vd, a->vn, a->vm, 0,
-                        gen_helper_gvec_bfdot);
+    return do_neon_ddda_env(s, a->q * 7, a->vd, a->vn, a->vm, 0,
+                            gen_helper_gvec_bfdot);
 }
 
 static bool trans_VFML(DisasContext *s, arg_VFML *a)
@@ -360,8 +391,8 @@ static bool trans_VDOT_b16_scal(DisasContext *s, arg_VDOT_b16_scal *a)
     if (!dc_isar_feature(aa32_bf16, s)) {
         return false;
     }
-    return do_neon_ddda(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
-                        gen_helper_gvec_bfdot_idx);
+    return do_neon_ddda_env(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
+                            gen_helper_gvec_bfdot_idx);
 }
 
 static bool trans_VFML_scalar(DisasContext *s, arg_VFML_scalar *a)
@@ -1068,144 +1099,18 @@ DO_2SH(VRSHR_S, gen_gvec_srshr)
 DO_2SH(VRSHR_U, gen_gvec_urshr)
 DO_2SH(VRSRA_S, gen_gvec_srsra)
 DO_2SH(VRSRA_U, gen_gvec_ursra)
-
-static bool trans_VSHR_S_2sh(DisasContext *s, arg_2reg_shift *a)
-{
-    /* Signed shift out of range results in all-sign-bits */
-    a->shift = MIN(a->shift, (8 << a->size) - 1);
-    return do_vector_2sh(s, a, tcg_gen_gvec_sari);
-}
-
-static void gen_zero_rd_2sh(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
-                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
-{
-    tcg_gen_gvec_dup_imm(vece, rd_ofs, oprsz, maxsz, 0);
-}
-
-static bool trans_VSHR_U_2sh(DisasContext *s, arg_2reg_shift *a)
-{
-    /* Shift out of range is architecturally valid and results in zero. */
-    if (a->shift >= (8 << a->size)) {
-        return do_vector_2sh(s, a, gen_zero_rd_2sh);
-    } else {
-        return do_vector_2sh(s, a, tcg_gen_gvec_shri);
-    }
-}
-
-static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
-                             NeonGenTwo64OpEnvFn *fn)
-{
-    /*
-     * 2-reg-and-shift operations, size == 3 case, where the
-     * function needs to be passed tcg_env.
-     */
-    TCGv_i64 constimm;
-    int pass;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vm | a->vd) & a->q) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    /*
-     * To avoid excessive duplication of ops we implement shift
-     * by immediate using the variable shift operations.
-     */
-    constimm = tcg_constant_i64(dup_const(a->size, a->shift));
-
-    for (pass = 0; pass < a->q + 1; pass++) {
-        TCGv_i64 tmp = tcg_temp_new_i64();
-
-        read_neon_element64(tmp, a->vm, pass, MO_64);
-        fn(tmp, tcg_env, tmp, constimm);
-        write_neon_element64(tmp, a->vd, pass, MO_64);
-    }
-    return true;
-}
-
-static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
-                             NeonGenTwoOpEnvFn *fn)
-{
-    /*
-     * 2-reg-and-shift operations, size < 3 case, where the
-     * helper needs to be passed tcg_env.
-     */
-    TCGv_i32 constimm, tmp;
-    int pass;
-
-    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
-        return false;
-    }
-
-    /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
-        return false;
-    }
-
-    if ((a->vm | a->vd) & a->q) {
-        return false;
-    }
-
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    /*
-     * To avoid excessive duplication of ops we implement shift
-     * by immediate using the variable shift operations.
-     */
-    constimm = tcg_constant_i32(dup_const(a->size, a->shift));
-    tmp = tcg_temp_new_i32();
-
-    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        read_neon_element32(tmp, a->vm, pass, MO_32);
-        fn(tmp, tcg_env, tmp, constimm);
-        write_neon_element32(tmp, a->vd, pass, MO_32);
-    }
-    return true;
-}
-
-#define DO_2SHIFT_ENV(INSN, FUNC)                                       \
-    static bool trans_##INSN##_64_2sh(DisasContext *s, arg_2reg_shift *a) \
-    {                                                                   \
-        return do_2shift_env_64(s, a, gen_helper_neon_##FUNC##64);      \
-    }                                                                   \
-    static bool trans_##INSN##_2sh(DisasContext *s, arg_2reg_shift *a)  \
-    {                                                                   \
-        static NeonGenTwoOpEnvFn * const fns[] = {                      \
-            gen_helper_neon_##FUNC##8,                                  \
-            gen_helper_neon_##FUNC##16,                                 \
-            gen_helper_neon_##FUNC##32,                                 \
-        };                                                              \
-        assert(a->size < ARRAY_SIZE(fns));                              \
-        return do_2shift_env_32(s, a, fns[a->size]);                    \
-    }
-
-DO_2SHIFT_ENV(VQSHLU, qshlu_s)
-DO_2SHIFT_ENV(VQSHL_U, qshl_u)
-DO_2SHIFT_ENV(VQSHL_S, qshl_s)
+DO_2SH(VSHR_S, gen_gvec_sshr)
+DO_2SH(VSHR_U, gen_gvec_ushr)
+DO_2SH(VQSHLU, gen_neon_sqshlui)
+DO_2SH(VQSHL_U, gen_neon_uqshli)
+DO_2SH(VQSHL_S, gen_neon_sqshli)
 
 static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
                                 NeonGenTwo64OpFn *shiftfn,
-                                NeonGenNarrowEnvFn *narrowfn)
+                                NeonGenOne64OpEnvFn *narrowfn)
 {
     /* 2-reg-and-shift narrowing-shift operations, size == 3 case */
-    TCGv_i64 constimm, rm1, rm2;
-    TCGv_i32 rd;
+    TCGv_i64 constimm, rm1, rm2, rd;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -1232,7 +1137,7 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
     constimm = tcg_constant_i64(-a->shift);
     rm1 = tcg_temp_new_i64();
     rm2 = tcg_temp_new_i64();
-    rd = tcg_temp_new_i32();
+    rd = tcg_temp_new_i64();
 
     /* Load both inputs first to avoid potential overwrite if rm == rd */
     read_neon_element64(rm1, a->vm, 0, MO_64);
@@ -1240,18 +1145,18 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
 
     shiftfn(rm1, rm1, constimm);
     narrowfn(rd, tcg_env, rm1);
-    write_neon_element32(rd, a->vd, 0, MO_32);
+    write_neon_element64(rd, a->vd, 0, MO_32);
 
     shiftfn(rm2, rm2, constimm);
     narrowfn(rd, tcg_env, rm2);
-    write_neon_element32(rd, a->vd, 1, MO_32);
+    write_neon_element64(rd, a->vd, 1, MO_32);
 
     return true;
 }
 
 static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
                                 NeonGenTwoOpFn *shiftfn,
-                                NeonGenNarrowEnvFn *narrowfn)
+                                NeonGenOne64OpEnvFn *narrowfn)
 {
     /* 2-reg-and-shift narrowing-shift operations, size < 3 case */
     TCGv_i32 constimm, rm1, rm2, rm3, rm4;
@@ -1306,16 +1211,16 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
 
     tcg_gen_concat_i32_i64(rtmp, rm1, rm2);
 
-    narrowfn(rm1, tcg_env, rtmp);
-    write_neon_element32(rm1, a->vd, 0, MO_32);
+    narrowfn(rtmp, tcg_env, rtmp);
+    write_neon_element64(rtmp, a->vd, 0, MO_32);
 
     shiftfn(rm3, rm3, constimm);
     shiftfn(rm4, rm4, constimm);
 
     tcg_gen_concat_i32_i64(rtmp, rm3, rm4);
 
-    narrowfn(rm3, tcg_env, rtmp);
-    write_neon_element32(rm3, a->vd, 1, MO_32);
+    narrowfn(rtmp, tcg_env, rtmp);
+    write_neon_element64(rtmp, a->vd, 1, MO_32);
     return true;
 }
 
@@ -1330,17 +1235,17 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
         return do_2shift_narrow_32(s, a, FUNC, NARROWFUNC);             \
     }
 
-static void gen_neon_narrow_u32(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u32(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
-    tcg_gen_extrl_i64_i32(dest, src);
+    tcg_gen_ext32u_i64(dest, src);
 }
 
-static void gen_neon_narrow_u16(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u16(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
     gen_helper_neon_narrow_u16(dest, src);
 }
 
-static void gen_neon_narrow_u8(TCGv_i32 dest, TCGv_ptr env, TCGv_i64 src)
+static void gen_neon_narrow_u8(TCGv_i64 dest, TCGv_ptr env, TCGv_i64 src)
 {
     gen_helper_neon_narrow_u8(dest, src);
 }
@@ -2931,10 +2836,9 @@ static bool trans_VZIP(DisasContext *s, arg_2misc *a)
 }
 
 static bool do_vmovn(DisasContext *s, arg_2misc *a,
-                     NeonGenNarrowEnvFn *narrowfn)
+                     NeonGenOne64OpEnvFn *narrowfn)
 {
-    TCGv_i64 rm;
-    TCGv_i32 rd0, rd1;
+    TCGv_i64 rm, rd0, rd1;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -2959,22 +2863,22 @@ static bool do_vmovn(DisasContext *s, arg_2misc *a,
     }
 
     rm = tcg_temp_new_i64();
-    rd0 = tcg_temp_new_i32();
-    rd1 = tcg_temp_new_i32();
+    rd0 = tcg_temp_new_i64();
+    rd1 = tcg_temp_new_i64();
 
     read_neon_element64(rm, a->vm, 0, MO_64);
     narrowfn(rd0, tcg_env, rm);
     read_neon_element64(rm, a->vm, 1, MO_64);
     narrowfn(rd1, tcg_env, rm);
-    write_neon_element32(rd0, a->vd, 0, MO_32);
-    write_neon_element32(rd1, a->vd, 1, MO_32);
+    write_neon_element64(rd0, a->vd, 0, MO_32);
+    write_neon_element64(rd1, a->vd, 1, MO_32);
     return true;
 }
 
 #define DO_VMOVN(INSN, FUNC)                                    \
     static bool trans_##INSN(DisasContext *s, arg_2misc *a)     \
     {                                                           \
-        static NeonGenNarrowEnvFn * const narrowfn[] = {        \
+        static NeonGenOne64OpEnvFn * const narrowfn[] = {       \
             FUNC##8,                                            \
             FUNC##16,                                           \
             FUNC##32,                                           \
@@ -3699,8 +3603,8 @@ static bool trans_VMMLA_b16(DisasContext *s, arg_VMMLA_b16 *a)
     if (!dc_isar_feature(aa32_bf16, s)) {
         return false;
     }
-    return do_neon_ddda(s, 7, a->vd, a->vn, a->vm, 0,
-                        gen_helper_gvec_bfmmla);
+    return do_neon_ddda_env(s, 7, a->vd, a->vn, a->vm, 0,
+                            gen_helper_gvec_bfmmla);
 }
 
 static bool trans_VFMA_b16(DisasContext *s, arg_VFMA_b16 *a)

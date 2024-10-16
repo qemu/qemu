@@ -442,7 +442,7 @@ static void i8259_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_parent_realize(dc, pic_realize, &k->parent_realize);
-    dc->reset = pic_reset;
+    device_class_set_legacy_reset(dc, pic_reset);
 }
 
 static const TypeInfo i8259_info = {

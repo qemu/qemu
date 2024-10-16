@@ -469,7 +469,7 @@ static void ls7a_rtc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->vmsd = &vmstate_ls7a_rtc;
     dc->realize = ls7a_rtc_realize;
-    dc->reset = ls7a_rtc_reset;
+    device_class_set_legacy_reset(dc, ls7a_rtc_reset);
     dc->desc = "ls7a rtc";
 }
 

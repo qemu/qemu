@@ -1,4 +1,4 @@
-# Default configuration for sh4eb-softmmu
+# Default configuration for sh4-softmmu
 
 # Uncomment the following lines to disable these optional devices:
 #
@@ -7,4 +7,3 @@
 
 # Boards are selected by default, uncomment to keep out of the build.
 # CONFIG_R2D=n
-# CONFIG_SHIX=n

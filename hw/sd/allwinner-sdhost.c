@@ -900,7 +900,7 @@ static void allwinner_sdhost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_sdhost_reset;
+    device_class_set_legacy_reset(dc, allwinner_sdhost_reset);
     dc->vmsd = &vmstate_allwinner_sdhost;
     dc->realize = allwinner_sdhost_realize;
     device_class_set_props(dc, allwinner_sdhost_properties);

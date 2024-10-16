@@ -797,7 +797,7 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     sc->parse_cdb    = scsi_generic_parse_cdb;
     dc->fw_name = "disk";
     dc->desc = "pass through generic scsi device (/dev/sg*)";
-    dc->reset = scsi_generic_reset;
+    device_class_set_legacy_reset(dc, scsi_generic_reset);
     device_class_set_props(dc, scsi_generic_properties);
     dc->vmsd  = &vmstate_scsi_device;
 }

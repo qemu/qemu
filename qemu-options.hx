@@ -68,8 +68,8 @@ SRST
 
     ``vmport=on|off|auto``
         Enables emulation of VMWare IO port, for vmmouse etc. auto says
-        to select the value based on accel. For accel=xen the default is
-        off otherwise the default is on.
+        to select the value based on accel and i8042. For accel=xen or
+        i8042=off the default is off otherwise the default is on.
 
     ``dump-guest-core=on|off``
         Include guest memory in a core dump. The default is on.
@@ -1766,28 +1766,17 @@ DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     " [[,throttling.bps-total-max=bm]|[[,throttling.bps-read-max=rm][,throttling.bps-write-max=wm]]]\n"
     " [[,throttling.iops-total-max=im]|[[,throttling.iops-read-max=irm][,throttling.iops-write-max=iwm]]]\n"
     " [[,throttling.iops-size=is]]\n"
-    "-fsdev proxy,id=id,socket=socket[,writeout=immediate][,readonly=on]\n"
-    "-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=immediate][,readonly=on]\n"
     "-fsdev synth,id=id\n",
     QEMU_ARCH_ALL)
 
 SRST
 ``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly=on][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``
   \ 
-``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly=on]``
-  \
-``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly=on]``
-  \
 ``-fsdev synth,id=id[,readonly=on]``
     Define a new file system device. Valid options are:
 
     ``local``
         Accesses to the filesystem are done by QEMU.
-
-    ``proxy``
-        Accesses to the filesystem are done by virtfs-proxy-helper(1). This
-        option is deprecated (since QEMU 8.1) and will be removed in a future
-        version of QEMU. Use ``local`` instead.
 
     ``synth``
         Synthetic filesystem, only used by QTests.
@@ -1813,8 +1802,6 @@ SRST
         security model is same as passthrough except the sever won't
         report failures if it fails to set file attributes like
         ownership. Security model is mandatory only for local fsdriver.
-        Other fsdrivers (like proxy) don't take security model as a
-        parameter.
 
     ``writeout=writeout``
         This is an optional argument. The only supported value is
@@ -1826,16 +1813,6 @@ SRST
     ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
-
-    ``socket=socket``
-        Enables proxy filesystem driver to use passed socket file for
-        communicating with virtfs-proxy-helper(1).
-
-    ``sock_fd=sock_fd``
-        Enables proxy filesystem driver to use passed socket descriptor
-        for communicating with virtfs-proxy-helper(1). Usually a helper
-        like libvirt will create socketpair and pass one of the fds as
-        sock\_fd.
 
     ``fmode=fmode``
         Specifies the default mode for newly created files on the host.
@@ -1889,18 +1866,12 @@ ERST
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
     "        [,id=id][,writeout=immediate][,readonly=on][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
-    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly=on]\n"
-    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly=on]\n"
     "-virtfs synth,mount_tag=tag[,id=id][,readonly=on]\n",
     QEMU_ARCH_ALL)
 
 SRST
 ``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly=on] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``
   \ 
-``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
-  \ 
-``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
-  \
 ``-virtfs synth,mount_tag=mount_tag``
     Define a new virtual filesystem device and expose it to the guest using
     a virtio-9p-device (a.k.a. 9pfs), which essentially means that a certain
@@ -1916,11 +1887,6 @@ SRST
 
     ``local``
         Accesses to the filesystem are done by QEMU.
-
-    ``proxy``
-        Accesses to the filesystem are done by virtfs-proxy-helper(1).
-        This option is deprecated (since QEMU 8.1) and will be removed in a
-        future version of QEMU. Use ``local`` instead.
 
     ``synth``
         Synthetic filesystem, only used by QTests.
@@ -1946,8 +1912,6 @@ SRST
         security model is same as passthrough except the sever won't
         report failures if it fails to set file attributes like
         ownership. Security model is mandatory only for local fsdriver.
-        Other fsdrivers (like proxy) don't take security model as a
-        parameter.
 
     ``writeout=writeout``
         This is an optional argument. The only supported value is
@@ -1959,16 +1923,6 @@ SRST
     ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
-
-    ``socket=socket``
-        Enables proxy filesystem driver to use passed socket file for
-        communicating with virtfs-proxy-helper(1). Usually a helper like
-        libvirt will create socketpair and pass one of the fds as
-        sock\_fd.
-
-    ``sock_fd``
-        Enables proxy filesystem driver to use passed 'sock\_fd' as the
-        socket descriptor for interfacing with virtfs-proxy-helper(1).
 
     ``fmode=fmode``
         Specifies the default mode for newly created files on the host.
@@ -2377,22 +2331,6 @@ SRST
         pick the first available. (Since 2.9)
 ERST
 
-DEF("portrait", 0, QEMU_OPTION_portrait,
-    "-portrait       rotate graphical output 90 deg left (only PXA LCD)\n",
-    QEMU_ARCH_ALL)
-SRST
-``-portrait``
-    Rotate graphical output 90 deg left (only PXA LCD).
-ERST
-
-DEF("rotate", HAS_ARG, QEMU_OPTION_rotate,
-    "-rotate <deg>   rotate graphical output some deg left (only PXA LCD)\n",
-    QEMU_ARCH_ALL)
-SRST
-``-rotate deg``
-    Rotate graphical output some deg left (only PXA LCD).
-ERST
-
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
     "-vga [std|cirrus|vmware|qxl|xenfb|tcx|cg3|virtio|none]\n"
     "                select video card type\n", QEMU_ARCH_ALL)
@@ -2704,7 +2642,7 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "                specify SMBIOS type 3 fields\n"
     "-smbios type=4[,sock_pfx=str][,manufacturer=str][,version=str][,serial=str]\n"
     "              [,asset=str][,part=str][,max-speed=%d][,current-speed=%d]\n"
-    "              [,processor-family=%d,processor-id=%d]\n"
+    "              [,processor-family=%d][,processor-id=%d]\n"
     "                specify SMBIOS type 4 fields\n"
     "-smbios type=8[,external_reference=str][,internal_reference=str][,connector_type=%d][,port_type=%d]\n"
     "                specify SMBIOS type 8 fields\n"
@@ -3758,7 +3696,7 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev console,id=id[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
     "-chardev serial,id=id,path=path[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
 #else
-    "-chardev pty,id=id[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
+    "-chardev pty,id=id[,path=path][,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
     "-chardev stdio,id=id[,mux=on|off][,signal=on|off][,logfile=PATH][,logappend=on|off]\n"
 #endif
 #ifdef CONFIG_BRLAPI
@@ -3997,11 +3935,21 @@ The available backends are:
 
     ``path`` specifies the name of the serial device to open.
 
-``-chardev pty,id=id``
-    Create a new pseudo-terminal on the host and connect to it. ``pty``
-    does not take any options.
+``-chardev pty,id=id[,path=path]``
+    Create a new pseudo-terminal on the host and connect to it.
 
     ``pty`` is not available on Windows hosts.
+
+    If ``path`` is specified, QEMU will create a symbolic link at
+    that location which points to the new PTY device.
+
+    This avoids having to make QMP or HMP monitor queries to find out
+    what the new PTY device path is.
+
+    Note that while QEMU will remove the symlink when it exits
+    gracefully, it will not do so in case of crashes or on certain
+    startup errors. It is recommended that the user checks and removes
+    the symlink after QEMU terminates to account for this.
 
 ``-chardev stdio,id=id[,signal=on|off]``
     Connect to standard input and standard output of the QEMU process.
@@ -4360,8 +4308,19 @@ SRST
 
             vc:80Cx24C
 
-    ``pty``
-        [Linux only] Pseudo TTY (a new PTY is automatically allocated)
+    ``pty[:path]``
+        [Linux only] Pseudo TTY (a new PTY is automatically allocated).
+
+        If ``path`` is specified, QEMU will create a symbolic link at
+        that location which points to the new PTY device.
+
+        This avoids having to make QMP or HMP monitor queries to find
+        out what the new PTY device path is.
+
+        Note that while QEMU will remove the symlink when it exits
+        gracefully, it will not do so in case of crashes or on certain
+        startup errors. It is recommended that the user checks and
+        removes the symlink after QEMU terminates to account for this.
 
     ``none``
         No device is allocated. Note that for machine types which

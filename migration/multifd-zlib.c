@@ -34,17 +34,7 @@ struct zlib_data {
 
 /* Multifd zlib compression */
 
-/**
- * zlib_send_setup: setup send side
- *
- * Setup each channel with zlib compression.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
+static int multifd_zlib_send_setup(MultiFDSendParams *p, Error **errp)
 {
     struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
@@ -86,15 +76,7 @@ err_free_z:
     return -1;
 }
 
-/**
- * zlib_send_cleanup: cleanup send side
- *
- * Close the channel and return memory.
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
+static void multifd_zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     struct zlib_data *z = p->compress_data;
 
@@ -110,23 +92,13 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
     p->iov = NULL;
 }
 
-/**
- * zlib_send_prepare: prepare date to be able to send
- *
- * Create a compressed buffer with all the pages that we are going to
- * send.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
+static int multifd_zlib_send_prepare(MultiFDSendParams *p, Error **errp)
 {
-    MultiFDPages_t *pages = p->pages;
+    MultiFDPages_t *pages = &p->data->u.ram;
     struct zlib_data *z = p->compress_data;
     z_stream *zs = &z->zs;
     uint32_t out_size = 0;
+    uint32_t page_size = multifd_ram_page_size();
     int ret;
     uint32_t i;
 
@@ -147,8 +119,8 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
          * with compression. zlib does not guarantee that this is safe,
          * therefore copy the page before calling deflate().
          */
-        memcpy(z->buf, p->pages->block->host + pages->offset[i], p->page_size);
-        zs->avail_in = p->page_size;
+        memcpy(z->buf, pages->block->host + pages->offset[i], page_size);
+        zs->avail_in = page_size;
         zs->next_in = z->buf;
 
         zs->avail_out = available;
@@ -188,17 +160,7 @@ out:
     return 0;
 }
 
-/**
- * zlib_recv_setup: setup receive side
- *
- * Create the compressed channel and buffer.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
+static int multifd_zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
@@ -224,14 +186,7 @@ static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-/**
- * zlib_recv_cleanup: setup receive side
- *
- * For no compression this function does nothing.
- *
- * @p: Params for the channel that we are using
- */
-static void zlib_recv_cleanup(MultiFDRecvParams *p)
+static void multifd_zlib_recv_cleanup(MultiFDRecvParams *p)
 {
     struct zlib_data *z = p->compress_data;
 
@@ -242,25 +197,15 @@ static void zlib_recv_cleanup(MultiFDRecvParams *p)
     p->compress_data = NULL;
 }
 
-/**
- * zlib_recv: read the data from the channel into actual pages
- *
- * Read the compressed buffer, and uncompress it into the actual
- * pages.
- *
- * Returns 0 for success or -1 for error
- *
- * @p: Params for the channel that we are using
- * @errp: pointer to an error
- */
-static int zlib_recv(MultiFDRecvParams *p, Error **errp)
+static int multifd_zlib_recv(MultiFDRecvParams *p, Error **errp)
 {
     struct zlib_data *z = p->compress_data;
     z_stream *zs = &z->zs;
     uint32_t in_size = p->next_packet_size;
     /* we measure the change of total_out */
     uint32_t out_size = zs->total_out;
-    uint32_t expected_size = p->normal_num * p->page_size;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     int ret;
     int i;
@@ -296,7 +241,7 @@ static int zlib_recv(MultiFDRecvParams *p, Error **errp)
             flush = Z_SYNC_FLUSH;
         }
 
-        zs->avail_out = p->page_size;
+        zs->avail_out = page_size;
         zs->next_out = p->host + p->normal[i];
 
         /*
@@ -310,8 +255,8 @@ static int zlib_recv(MultiFDRecvParams *p, Error **errp)
         do {
             ret = inflate(zs, flush);
         } while (ret == Z_OK && zs->avail_in
-                             && (zs->total_out - start) < p->page_size);
-        if (ret == Z_OK && (zs->total_out - start) < p->page_size) {
+                             && (zs->total_out - start) < page_size);
+        if (ret == Z_OK && (zs->total_out - start) < page_size) {
             error_setg(errp, "multifd %u: inflate generated too few output",
                        p->id);
             return -1;
@@ -332,13 +277,13 @@ static int zlib_recv(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-static MultiFDMethods multifd_zlib_ops = {
-    .send_setup = zlib_send_setup,
-    .send_cleanup = zlib_send_cleanup,
-    .send_prepare = zlib_send_prepare,
-    .recv_setup = zlib_recv_setup,
-    .recv_cleanup = zlib_recv_cleanup,
-    .recv = zlib_recv
+static const MultiFDMethods multifd_zlib_ops = {
+    .send_setup = multifd_zlib_send_setup,
+    .send_cleanup = multifd_zlib_send_cleanup,
+    .send_prepare = multifd_zlib_send_prepare,
+    .recv_setup = multifd_zlib_recv_setup,
+    .recv_cleanup = multifd_zlib_recv_cleanup,
+    .recv = multifd_zlib_recv
 };
 
 static void multifd_zlib_register(void)

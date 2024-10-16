@@ -429,7 +429,7 @@ static void slavio_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = slavio_timer_reset;
+    device_class_set_legacy_reset(dc, slavio_timer_reset);
     dc->vmsd = &vmstate_slavio_timer;
     device_class_set_props(dc, slavio_timer_properties);
 }

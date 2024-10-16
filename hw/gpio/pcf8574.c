@@ -146,7 +146,7 @@ static void pcf8574_class_init(ObjectClass *klass, void *data)
     k->recv     = pcf8574_rx;
     k->send     = pcf8574_tx;
     dc->realize = pcf8574_realize;
-    dc->reset   = pcf8574_reset;
+    device_class_set_legacy_reset(dc, pcf8574_reset);
     dc->vmsd    = &vmstate_pcf8574;
 }
 

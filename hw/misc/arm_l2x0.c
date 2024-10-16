@@ -184,7 +184,7 @@ static void l2x0_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_l2x0;
     device_class_set_props(dc, l2x0_properties);
-    dc->reset = l2x0_priv_reset;
+    device_class_set_legacy_reset(dc, l2x0_priv_reset);
 }
 
 static const TypeInfo l2x0_info = {

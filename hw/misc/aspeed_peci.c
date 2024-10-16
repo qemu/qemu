@@ -135,7 +135,7 @@ static void aspeed_peci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_peci_realize;
-    dc->reset = aspeed_peci_reset;
+    device_class_set_legacy_reset(dc, aspeed_peci_reset);
     dc->desc = "Aspeed PECI Controller";
 }
 

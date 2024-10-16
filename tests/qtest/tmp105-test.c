@@ -100,9 +100,9 @@ static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmphex(value, ==, 0x14f0);
 
     i2c_set16(i2cdev, TMP105_REG_T_LOW, 0x1234);
-    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_LOW), ==, 0x1234);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_LOW), ==, 0x1230);
     i2c_set16(i2cdev, TMP105_REG_T_HIGH, 0x4231);
-    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_HIGH), ==, 0x4231);
+    g_assert_cmphex(i2c_get16(i2cdev, TMP105_REG_T_HIGH), ==, 0x4230);
 }
 
 static void tmp105_register_nodes(void)

@@ -28,7 +28,7 @@
 #include "hw/mips/mips.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "hw/char/parallel.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
@@ -128,7 +128,7 @@ static void mips_jazz_init_net(IOMMUMemoryRegion *rc4030_dma_mr,
     uint8_t *prom;
     NICInfo *nd;
 
-    nd = qemu_find_nic_info("dp8393x", true, "dp82932");
+    nd = qemu_find_nic_info("dp8393x", true, "dp83932");
     if (!nd) {
         return;
     }

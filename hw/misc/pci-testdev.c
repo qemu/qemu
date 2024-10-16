@@ -337,7 +337,7 @@ static void pci_testdev_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS;
     dc->desc = "PCI Test Device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->reset = qdev_pci_testdev_reset;
+    device_class_set_legacy_reset(dc, qdev_pci_testdev_reset);
     device_class_set_props(dc, pci_testdev_properties);
 }
 

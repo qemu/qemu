@@ -758,7 +758,7 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = hpet_realize;
-    dc->reset = hpet_reset;
+    device_class_set_legacy_reset(dc, hpet_reset);
     dc->vmsd = &vmstate_hpet;
     device_class_set_props(dc, hpet_device_properties);
 }

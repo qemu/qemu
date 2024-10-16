@@ -467,7 +467,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
     SCLPEventFacilityClass *k = EVENT_FACILITY_CLASS(dc);
 
     dc->realize = realize_event_facility;
-    dc->reset = reset_event_facility;
+    device_class_set_legacy_reset(dc, reset_event_facility);
     dc->vmsd = &vmstate_event_facility;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     k->command_handler = command_handler;

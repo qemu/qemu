@@ -1030,7 +1030,7 @@ static void erst_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_ACPI_ERST;
     k->revision = 0x00;
     k->class_id = PCI_CLASS_OTHERS;
-    dc->reset = erst_reset;
+    device_class_set_legacy_reset(dc, erst_reset);
     dc->vmsd = &erst_vmstate;
     dc->user_creatable = true;
     dc->hotpluggable = false;

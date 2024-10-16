@@ -12,9 +12,6 @@ struct envlist {
     size_t el_count;                        /* number of entries */
 };
 
-static int envlist_parse(envlist_t *envlist,
-    const char *env, int (*)(envlist_t *, const char *));
-
 /*
  * Allocates new envlist and returns pointer to it.
  */
@@ -49,72 +46,6 @@ envlist_free(envlist_t *envlist)
         g_free(entry);
     }
     g_free(envlist);
-}
-
-/*
- * Parses comma separated list of set/modify environment
- * variable entries and updates given enlist accordingly.
- *
- * For example:
- *     envlist_parse(el, "HOME=foo,SHELL=/bin/sh");
- *
- * inserts/sets environment variables HOME and SHELL.
- *
- * Returns 0 on success, errno otherwise.
- */
-int
-envlist_parse_set(envlist_t *envlist, const char *env)
-{
-    return (envlist_parse(envlist, env, &envlist_setenv));
-}
-
-/*
- * Parses comma separated list of unset environment variable
- * entries and removes given variables from given envlist.
- *
- * Returns 0 on success, errno otherwise.
- */
-int
-envlist_parse_unset(envlist_t *envlist, const char *env)
-{
-    return (envlist_parse(envlist, env, &envlist_unsetenv));
-}
-
-/*
- * Parses comma separated list of set, modify or unset entries
- * and calls given callback for each entry.
- *
- * Returns 0 in case of success, errno otherwise.
- */
-static int
-envlist_parse(envlist_t *envlist, const char *env,
-    int (*callback)(envlist_t *, const char *))
-{
-    char *tmpenv, *envvar;
-    char *envsave = NULL;
-    int ret = 0;
-    assert(callback != NULL);
-
-    if ((envlist == NULL) || (env == NULL))
-        return (EINVAL);
-
-    tmpenv = g_strdup(env);
-    envsave = tmpenv;
-
-    do {
-        envvar = strchr(tmpenv, ',');
-        if (envvar != NULL) {
-            *envvar = '\0';
-        }
-        if ((*callback)(envlist, tmpenv) != 0) {
-            ret = errno;
-            break;
-        }
-        tmpenv = envvar + 1;
-    } while (envvar != NULL);
-
-    g_free(envsave);
-    return ret;
 }
 
 /*

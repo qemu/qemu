@@ -11,7 +11,6 @@
 #pragma GCC poison TARGET_AARCH64
 #pragma GCC poison TARGET_ALPHA
 #pragma GCC poison TARGET_ARM
-#pragma GCC poison TARGET_CRIS
 #pragma GCC poison TARGET_HEXAGON
 #pragma GCC poison TARGET_HPPA
 #pragma GCC poison TARGET_LOONGARCH64
@@ -64,7 +63,6 @@
 #pragma GCC poison CPU_INTERRUPT_TGT_INT_2
 
 #pragma GCC poison CONFIG_ALPHA_DIS
-#pragma GCC poison CONFIG_CRIS_DIS
 #pragma GCC poison CONFIG_HPPA_DIS
 #pragma GCC poison CONFIG_I386_DIS
 #pragma GCC poison CONFIG_HEXAGON_DIS

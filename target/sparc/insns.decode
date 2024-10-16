@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-2.0+
+# SPDX-License-Identifier: LGPL-2.0-or-later
 #
 # Sparc instruction decode definitions.
 # Copyright (c) 2023 Richard Henderson <rth@twiddle.net>
@@ -644,8 +644,8 @@ STF         11 ..... 100100 ..... . .............          @r_r_ri_na
 STFSR       11 00000 100101 ..... . .............          @n_r_ri
 STXFSR      11 00001 100101 ..... . .............          @n_r_ri
 {
-  STQF      11 ..... 100110 ..... . .............          @q_r_ri_na
-  STDFQ     11 ----- 100110 ----- - -------------
+  STQF      11 ..... 100110 ..... . .............          @q_r_ri_na # v9
+  STDFQ     11 ..... 100110 ..... . .............          @r_r_ri    # v7,v8
 }
 STDF        11 ..... 100111 ..... . .............          @d_r_ri_na
 

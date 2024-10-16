@@ -506,7 +506,7 @@ static void test_io_channel_unix_listen_cleanup(void)
 {
     QIOChannelSocket *ioc;
     struct sockaddr_un un;
-    int sock;
+    int sock, ret = 0;
 
 #define TEST_SOCKET "test-io-channel-socket.sock"
 
@@ -519,7 +519,9 @@ static void test_io_channel_unix_listen_cleanup(void)
     un.sun_family = AF_UNIX;
     snprintf(un.sun_path, sizeof(un.sun_path), "%s", TEST_SOCKET);
     unlink(TEST_SOCKET);
-    bind(sock, (struct sockaddr *)&un, sizeof(un));
+    ret = bind(sock, (struct sockaddr *)&un, sizeof(un));
+    g_assert_cmpint(ret, ==, 0);
+
     ioc->fd = sock;
     ioc->localAddrLen = sizeof(ioc->localAddr);
     getsockname(sock, (struct sockaddr *)&ioc->localAddr,

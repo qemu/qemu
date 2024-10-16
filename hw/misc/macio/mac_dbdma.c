@@ -922,7 +922,7 @@ static void mac_dbdma_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = mac_dbdma_realize;
-    dc->reset = mac_dbdma_reset;
+    device_class_set_legacy_reset(dc, mac_dbdma_reset);
     dc->vmsd = &vmstate_dbdma;
 }
 

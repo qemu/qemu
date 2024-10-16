@@ -33,8 +33,7 @@
 #include "net/eth.h"
 #include "trace.h"
 
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 #define IMX_MAX_DESC    1024
 
@@ -1354,7 +1353,7 @@ static void imx_eth_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd    = &vmstate_imx_eth;
-    dc->reset   = imx_eth_reset;
+    device_class_set_legacy_reset(dc, imx_eth_reset);
     device_class_set_props(dc, imx_eth_properties);
     dc->realize = imx_eth_realize;
     dc->desc    = "i.MX FEC/ENET Ethernet Controller";

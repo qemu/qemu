@@ -147,7 +147,7 @@ static void aspeed_sbc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_sbc_realize;
-    dc->reset = aspeed_sbc_reset;
+    device_class_set_legacy_reset(dc, aspeed_sbc_reset);
     dc->vmsd = &vmstate_aspeed_sbc;
     device_class_set_props(dc, aspeed_sbc_properties);
 }

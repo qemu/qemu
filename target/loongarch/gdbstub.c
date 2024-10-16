@@ -34,26 +34,28 @@ void write_fcc(CPULoongArchState *env, uint64_t val)
 int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPULoongArchState *env = cpu_env(cs);
-    uint64_t val;
-
-    if (0 <= n && n < 32) {
-        val = env->gpr[n];
-    } else if (n == 32) {
-        /* orig_a0 */
-        val = 0;
-    } else if (n == 33) {
-        val = env->pc;
-    } else if (n == 34) {
-        val = env->CSR_BADV;
-    }
 
     if (0 <= n && n <= 34) {
+        uint64_t val;
+
+        if (n < 32) {
+            val = env->gpr[n];
+        } else if (n == 32) {
+            /* orig_a0 */
+            val = 0;
+        } else if (n == 33) {
+            val = env->pc;
+        } else /* if (n == 34) */ {
+            val = env->CSR_BADV;
+        }
+
         if (is_la64(env)) {
             return gdb_get_reg64(mem_buf, val);
         } else {
             return gdb_get_reg32(mem_buf, val);
         }
     }
+
     return 0;
 }
 

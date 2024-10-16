@@ -134,11 +134,6 @@ RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
     return list;
 }
 
-uint32_t rocker_fp_ports(Rocker *r)
-{
-    return r->fp_ports;
-}
-
 static uint32_t rocker_get_pport_by_tx_ring(Rocker *r,
                                             DescRing *ring)
 {
@@ -1494,7 +1489,7 @@ static void rocker_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_OTHER;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Rocker Switch";
-    dc->reset = rocker_reset;
+    device_class_set_legacy_reset(dc, rocker_reset);
     device_class_set_props(dc, rocker_properties);
     dc->vmsd = &rocker_vmsd;
 }

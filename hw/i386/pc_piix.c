@@ -310,11 +310,6 @@ static void pc_init1(MachineState *machine, const char *pci_type)
 
     pc_vga_init(isa_bus, pcmc->pci_enabled ? pcms->pcibus : NULL);
 
-    assert(pcms->vmport != ON_OFF_AUTO__MAX);
-    if (pcms->vmport == ON_OFF_AUTO_AUTO) {
-        pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
-    }
-
     /* init basic PC hardware */
     pc_basic_device_init(pcms, isa_bus, x86ms->gsi, x86ms->rtc,
                          !MACHINE_CLASS(pcmc)->no_floppy, 0x4);
@@ -479,11 +474,22 @@ static void pc_i440fx_machine_options(MachineClass *m)
                                      "Use a different south bridge than PIIX3");
 }
 
-static void pc_i440fx_machine_9_1_options(MachineClass *m)
+static void pc_i440fx_machine_9_2_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = true;
+}
+
+DEFINE_I440FX_MACHINE(9, 2);
+
+static void pc_i440fx_machine_9_1_options(MachineClass *m)
+{
+    pc_i440fx_machine_9_2_options(m);
+    m->alias = NULL;
+    m->is_default = false;
+    compat_props_add(m->compat_props, hw_compat_9_1, hw_compat_9_1_len);
+    compat_props_add(m->compat_props, pc_compat_9_1, pc_compat_9_1_len);
 }
 
 DEFINE_I440FX_MACHINE(9, 1);
@@ -493,8 +499,6 @@ static void pc_i440fx_machine_9_0_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
 
     pc_i440fx_machine_9_1_options(m);
-    m->alias = NULL;
-    m->is_default = false;
     m->smbios_memory_device_size = 16 * GiB;
 
     compat_props_add(m->compat_props, hw_compat_9_0, hw_compat_9_0_len);

@@ -371,7 +371,7 @@ static void bcm2838_gpio_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_bcm2838_gpio;
     dc->realize = &bcm2838_gpio_realize;
-    dc->reset = &bcm2838_gpio_reset;
+    device_class_set_legacy_reset(dc, bcm2838_gpio_reset);
 }
 
 static const TypeInfo bcm2838_gpio_info = {

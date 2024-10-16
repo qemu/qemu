@@ -66,9 +66,6 @@ config BOCHS_DISPLAY
     select VGA
     select EDID
 
-config BLIZZARD
-    bool
-
 config FRAMEBUFFER
     bool
 
@@ -76,7 +73,7 @@ config SM501
     bool
     select I2C
     select DDC
-    select SERIAL
+    select SERIAL_MM
     select USB_OHCI_SYSBUS
 
 config TCX

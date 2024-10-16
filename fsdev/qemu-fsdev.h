@@ -18,5 +18,4 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp);
 FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 extern FileOperations synth_ops;
-extern FileOperations proxy_ops;
 #endif

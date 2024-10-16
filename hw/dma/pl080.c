@@ -421,7 +421,7 @@ static void pl080_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_pl080;
     dc->realize = pl080_realize;
     device_class_set_props(dc, pl080_properties);
-    dc->reset = pl080_reset;
+    device_class_set_legacy_reset(dc, pl080_reset);
 }
 
 static const TypeInfo pl080_info = {

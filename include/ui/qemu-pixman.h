@@ -12,6 +12,8 @@
 #include "pixman-minimal.h"
 #endif
 
+#include "qapi/error.h"
+
 /*
  * pixman image formats are defined to be native endian,
  * that means host byte order on qemu.  So we go define
@@ -96,6 +98,28 @@ void qemu_pixman_glyph_render(pixman_image_t *glyph,
 #endif
 
 void qemu_pixman_image_unref(pixman_image_t *image);
+
+#ifdef WIN32
+typedef HANDLE qemu_pixman_shareable;
+#define SHAREABLE_NONE (NULL)
+#define SHAREABLE_TO_PTR(handle) (handle)
+#define PTR_TO_SHAREABLE(ptr) (ptr)
+#else
+typedef int qemu_pixman_shareable;
+#define SHAREABLE_NONE (-1)
+#define SHAREABLE_TO_PTR(handle) GINT_TO_POINTER(handle)
+#define PTR_TO_SHAREABLE(ptr) GPOINTER_TO_INT(ptr)
+#endif
+
+bool qemu_pixman_image_new_shareable(
+    pixman_image_t **image,
+    qemu_pixman_shareable *handle,
+    const char *name,
+    pixman_format_code_t format,
+    int width,
+    int height,
+    int rowstride_bytes,
+    Error **errp);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(pixman_image_t, qemu_pixman_image_unref)
 

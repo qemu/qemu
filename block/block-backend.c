@@ -854,15 +854,6 @@ BlockBackendPublic *blk_get_public(BlockBackend *blk)
 }
 
 /*
- * Returns a BlockBackend given the associated @public fields.
- */
-BlockBackend *blk_by_public(BlockBackendPublic *public)
-{
-    GLOBAL_STATE_CODE();
-    return container_of(public, BlockBackend, public);
-}
-
-/*
  * Disassociates the currently associated BlockDriverState from @blk.
  */
 void blk_remove_bs(BlockBackend *blk)
@@ -1212,12 +1203,6 @@ BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk)
 {
     GLOBAL_STATE_CODE();
     return blk->iostatus;
-}
-
-void blk_iostatus_disable(BlockBackend *blk)
-{
-    GLOBAL_STATE_CODE();
-    blk->iostatus_enabled = false;
 }
 
 void blk_iostatus_reset(BlockBackend *blk)
@@ -2228,28 +2213,6 @@ void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
     blk->enable_write_cache = wce;
 }
 
-void blk_activate(BlockBackend *blk, Error **errp)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    GLOBAL_STATE_CODE();
-
-    if (!bs) {
-        error_setg(errp, "Device '%s' has no medium", blk->name);
-        return;
-    }
-
-    /*
-     * Migration code can call this function in coroutine context, so leave
-     * coroutine context if necessary.
-     */
-    if (qemu_in_coroutine()) {
-        bdrv_co_activate(bs, errp);
-    } else {
-        GRAPH_RDLOCK_GUARD_MAINLOOP();
-        bdrv_activate(bs, errp);
-    }
-}
-
 bool coroutine_fn blk_co_is_inserted(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
@@ -2378,36 +2341,6 @@ bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
     }
 
     return bdrv_op_is_blocked(bs, op, errp);
-}
-
-void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    GLOBAL_STATE_CODE();
-
-    if (bs) {
-        bdrv_op_unblock(bs, op, reason);
-    }
-}
-
-void blk_op_block_all(BlockBackend *blk, Error *reason)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    GLOBAL_STATE_CODE();
-
-    if (bs) {
-        bdrv_op_block_all(bs, reason);
-    }
-}
-
-void blk_op_unblock_all(BlockBackend *blk, Error *reason)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    GLOBAL_STATE_CODE();
-
-    if (bs) {
-        bdrv_op_unblock_all(bs, reason);
-    }
 }
 
 /**
@@ -2562,12 +2495,6 @@ void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify)
 {
     GLOBAL_STATE_CODE();
     notifier_list_add(&blk->remove_bs_notifiers, notify);
-}
-
-void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
-{
-    GLOBAL_STATE_CODE();
-    notifier_list_add(&blk->insert_bs_notifiers, notify);
 }
 
 BlockAcctStats *blk_get_stats(BlockBackend *blk)

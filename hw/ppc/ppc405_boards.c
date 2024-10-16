@@ -457,7 +457,7 @@ static void ref405ep_fpga_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = ref405ep_fpga_realize;
-    dc->reset = ref405ep_fpga_reset;
+    device_class_set_legacy_reset(dc, ref405ep_fpga_reset);
     /* Reason: only works as part of a ppc405 board */
     dc->user_creatable = false;
 }

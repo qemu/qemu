@@ -93,20 +93,6 @@ static void resettable_child_foreach(ResettableClass *rc, Object *obj,
     }
 }
 
-/**
- * resettable_get_tr_func:
- * helper to fetch transitional reset callback if any.
- */
-static ResettableTrFunction resettable_get_tr_func(ResettableClass *rc,
-                                                   Object *obj)
-{
-    ResettableTrFunction tr_func = NULL;
-    if (rc->get_transitional_function) {
-        tr_func = rc->get_transitional_function(obj);
-    }
-    return tr_func;
-}
-
 static void resettable_phase_enter(Object *obj, void *opaque, ResetType type)
 {
     ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
@@ -146,7 +132,7 @@ static void resettable_phase_enter(Object *obj, void *opaque, ResetType type)
     if (action_needed) {
         trace_resettable_phase_enter_exec(obj, obj_typename, type,
                                           !!rc->phases.enter);
-        if (rc->phases.enter && !resettable_get_tr_func(rc, obj)) {
+        if (rc->phases.enter) {
             rc->phases.enter(obj, type);
         }
         s->hold_phase_pending = true;
@@ -171,12 +157,8 @@ static void resettable_phase_hold(Object *obj, void *opaque, ResetType type)
     /* exec hold phase */
     if (s->hold_phase_pending) {
         s->hold_phase_pending = false;
-        ResettableTrFunction tr_func = resettable_get_tr_func(rc, obj);
         trace_resettable_phase_hold_exec(obj, obj_typename, !!rc->phases.hold);
-        if (tr_func) {
-            trace_resettable_transitional_function(obj, obj_typename);
-            tr_func(obj);
-        } else if (rc->phases.hold) {
+        if (rc->phases.hold) {
             rc->phases.hold(obj, type);
         }
     }
@@ -199,7 +181,7 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type)
     assert(s->count > 0);
     if (--s->count == 0) {
         trace_resettable_phase_exit_exec(obj, obj_typename, !!rc->phases.exit);
-        if (rc->phases.exit && !resettable_get_tr_func(rc, obj)) {
+        if (rc->phases.exit) {
             rc->phases.exit(obj, type);
         }
     }

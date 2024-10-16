@@ -33,6 +33,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/queue.h"
+#include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qom/object.h"
 
@@ -205,7 +206,7 @@ struct CPUClass {
  * so the layout is not as critical as that of CPUTLBEntry. This is
  * also why we don't want to combine the two structs.
  */
-typedef struct CPUTLBEntryFull {
+struct CPUTLBEntryFull {
     /*
      * @xlat_section contains:
      *  - in the lower TARGET_PAGE_BITS, a physical section number
@@ -261,7 +262,7 @@ typedef struct CPUTLBEntryFull {
             bool guarded;
         } arm;
     } extra;
-} CPUTLBEntryFull;
+};
 
 /*
  * Data elements that are per MMU mode, minus the bits accessed by
@@ -350,6 +351,8 @@ typedef union IcountDecr {
  *                         from CPUArchState, via small negative offsets.
  * @can_do_io: True if memory-mapped IO is allowed.
  * @plugin_mem_cbs: active plugin memory callbacks
+ * @plugin_mem_value_low: 64 lower bits of latest accessed mem value.
+ * @plugin_mem_value_high: 64 higher bits of latest accessed mem value.
  */
 typedef struct CPUNegativeOffsetState {
     CPUTLB tlb;
@@ -358,6 +361,8 @@ typedef struct CPUNegativeOffsetState {
      * The callback pointer are accessed via TCG (see gen_empty_mem_helper).
      */
     GArray *plugin_mem_cbs;
+    uint64_t plugin_mem_value_low;
+    uint64_t plugin_mem_value_high;
 #endif
     IcountDecr icount_decr;
     bool can_do_io;

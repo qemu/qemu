@@ -16,7 +16,7 @@
 
 typedef struct QCryptoHmac QCryptoHmac;
 struct QCryptoHmac {
-    QCryptoHashAlgorithm alg;
+    QCryptoHashAlgo alg;
     void *opaque;
     void *driver;
 };
@@ -31,7 +31,7 @@ struct QCryptoHmac {
  * Returns:
  *  true if the algorithm is supported, false otherwise
  */
-bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg);
+bool qcrypto_hmac_supports(QCryptoHashAlgo alg);
 
 /**
  * qcrypto_hmac_new:
@@ -52,7 +52,7 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg);
  * Returns:
  *  a new hmac object, or NULL on error
  */
-QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
+QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgo alg,
                               const uint8_t *key, size_t nkey,
                               Error **errp);
 

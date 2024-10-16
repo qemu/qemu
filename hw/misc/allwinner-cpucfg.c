@@ -262,7 +262,7 @@ static void allwinner_cpucfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = allwinner_cpucfg_reset;
+    device_class_set_legacy_reset(dc, allwinner_cpucfg_reset);
     dc->vmsd = &allwinner_cpucfg_vmstate;
 }
 

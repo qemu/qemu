@@ -20,6 +20,7 @@
 #include "qemu/coroutine-core.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
+#include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
 #include "block/graph-lock.h"

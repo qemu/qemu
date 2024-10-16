@@ -40,7 +40,6 @@ static bool is_connected(uint32_t config, uint32_t level)
         break;
     default:
         g_assert_not_reached();
-        break;
     }
 
     return state;
@@ -310,7 +309,7 @@ static void nrf51_gpio_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_nrf51_gpio;
-    dc->reset = nrf51_gpio_reset;
+    device_class_set_legacy_reset(dc, nrf51_gpio_reset);
     dc->desc = "nRF51 GPIO";
 }
 

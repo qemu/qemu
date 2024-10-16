@@ -27,7 +27,6 @@ source nvme/Kconfig
 source nvram/Kconfig
 source pci-bridge/Kconfig
 source pci-host/Kconfig
-source pcmcia/Kconfig
 source pci/Kconfig
 source remote/Kconfig
 source rtc/Kconfig
@@ -50,7 +49,6 @@ source arm/Kconfig
 source cpu/Kconfig
 source alpha/Kconfig
 source avr/Kconfig
-source cris/Kconfig
 source hppa/Kconfig
 source i386/Kconfig
 source loongarch/Kconfig

@@ -2190,8 +2190,8 @@ static bool do_vfm_sp(DisasContext *s, arg_VFMA_sp *a, bool neg_n, bool neg_d)
 static bool do_vfm_dp(DisasContext *s, arg_VFMA_dp *a, bool neg_n, bool neg_d)
 {
     /*
-     * VFNMA : fd = muladd(-fd,  fn, fm)
-     * VFNMS : fd = muladd(-fd, -fn, fm)
+     * VFNMA : fd = muladd(-fd, -fn, fm)
+     * VFNMS : fd = muladd(-fd,  fn, fm)
      * VFMA  : fd = muladd( fd,  fn, fm)
      * VFMS  : fd = muladd( fd, -fn, fm)
      *
@@ -2262,8 +2262,8 @@ static bool do_vfm_dp(DisasContext *s, arg_VFMA_dp *a, bool neg_n, bool neg_d)
 #define MAKE_VFM_TRANS_FNS(PREC) \
     MAKE_ONE_VFM_TRANS_FN(VFMA, PREC, false, false) \
     MAKE_ONE_VFM_TRANS_FN(VFMS, PREC, true, false) \
-    MAKE_ONE_VFM_TRANS_FN(VFNMA, PREC, false, true) \
-    MAKE_ONE_VFM_TRANS_FN(VFNMS, PREC, true, true)
+    MAKE_ONE_VFM_TRANS_FN(VFNMS, PREC, false, true) \
+    MAKE_ONE_VFM_TRANS_FN(VFNMA, PREC, true, true)
 
 MAKE_VFM_TRANS_FNS(hp)
 MAKE_VFM_TRANS_FNS(sp)

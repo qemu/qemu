@@ -384,7 +384,7 @@ static void xlnx_zynq_devcfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xlnx_zynq_devcfg_reset;
+    device_class_set_legacy_reset(dc, xlnx_zynq_devcfg_reset);
     dc->vmsd = &vmstate_xlnx_zynq_devcfg;
 }
 

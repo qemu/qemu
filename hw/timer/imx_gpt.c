@@ -524,7 +524,7 @@ static void imx_gpt_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = imx_gpt_realize;
-    dc->reset = imx_gpt_reset;
+    device_class_set_legacy_reset(dc, imx_gpt_reset);
     dc->vmsd = &vmstate_imx_timer_gpt;
     dc->desc = "i.MX general timer";
 }

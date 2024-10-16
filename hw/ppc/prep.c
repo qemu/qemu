@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/rtc/m48t59.h"
-#include "hw/char/serial.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "hw/isa/isa.h"

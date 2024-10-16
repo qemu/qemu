@@ -1,6 +1,7 @@
 /*
  * QEMU Crypto hash driver supports
  *
+ * Copyright (c) 2024 Seagate Technology LLC and/or its Affiliates
  * Copyright (c) 2017 HUAWEI TECHNOLOGIES CO., LTD.
  *
  * Authors:
@@ -15,15 +16,21 @@
 #ifndef QCRYPTO_HASHPRIV_H
 #define QCRYPTO_HASHPRIV_H
 
+#include "crypto/hash.h"
+
 typedef struct QCryptoHashDriver QCryptoHashDriver;
 
 struct QCryptoHashDriver {
-    int (*hash_bytesv)(QCryptoHashAlgorithm alg,
+    QCryptoHash *(*hash_new)(QCryptoHashAlgo alg, Error **errp);
+    int (*hash_update)(QCryptoHash *hash,
                        const struct iovec *iov,
                        size_t niov,
-                       uint8_t **result,
-                       size_t *resultlen,
                        Error **errp);
+    int (*hash_finalize)(QCryptoHash *hash,
+                         uint8_t **result,
+                         size_t *resultlen,
+                         Error **errp);
+    void (*hash_free)(QCryptoHash *hash);
 };
 
 extern QCryptoHashDriver qcrypto_hash_lib_driver;

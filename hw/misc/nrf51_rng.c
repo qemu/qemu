@@ -247,7 +247,7 @@ static void nrf51_rng_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, nrf51_rng_properties);
     dc->vmsd = &vmstate_rng;
-    dc->reset = nrf51_rng_reset;
+    device_class_set_legacy_reset(dc, nrf51_rng_reset);
 }
 
 static const TypeInfo nrf51_rng_info = {

@@ -72,5 +72,7 @@ void write_fcc(CPULoongArchState *env, uint64_t val);
 int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n);
 int loongarch_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 void loongarch_cpu_register_gdb_regs_for_features(CPUState *cs);
+int loongarch_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                                   int cpuid, DumpState *s);
 
 #endif

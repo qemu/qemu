@@ -91,17 +91,12 @@ undocumented; you can get a complete list by running
    arm/cubieboard
    arm/emcraft-sf2
    arm/musicpal
-   arm/gumstix
-   arm/mainstone
    arm/kzm
-   arm/nseries
    arm/nrf
    arm/nuvoton
    arm/imx25-pdk
    arm/orangepi
-   arm/palm
    arm/raspi
-   arm/xscale
    arm/collie
    arm/sx1
    arm/stellaris

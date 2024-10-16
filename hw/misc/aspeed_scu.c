@@ -614,7 +614,7 @@ static void aspeed_scu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = aspeed_scu_realize;
-    dc->reset = aspeed_scu_reset;
+    device_class_set_legacy_reset(dc, aspeed_scu_reset);
     dc->desc = "ASPEED System Control Unit";
     dc->vmsd = &vmstate_aspeed_scu;
     device_class_set_props(dc, aspeed_scu_properties);
@@ -831,7 +831,7 @@ static void aspeed_2600_scu_class_init(ObjectClass *klass, void *data)
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
 
     dc->desc = "ASPEED 2600 System Control Unit";
-    dc->reset = aspeed_ast2600_scu_reset;
+    device_class_set_legacy_reset(dc, aspeed_ast2600_scu_reset);
     asc->resets = ast2600_a3_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_2600_scu_get_apb_freq;
@@ -947,7 +947,7 @@ static void aspeed_2700_scu_class_init(ObjectClass *klass, void *data)
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
 
     dc->desc = "ASPEED 2700 System Control Unit";
-    dc->reset = aspeed_ast2700_scu_reset;
+    device_class_set_legacy_reset(dc, aspeed_ast2700_scu_reset);
     asc->resets = ast2700_a0_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_2700_scu_get_apb_freq;
@@ -1061,7 +1061,7 @@ static void aspeed_2700_scuio_class_init(ObjectClass *klass, void *data)
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
 
     dc->desc = "ASPEED 2700 System Control Unit I/O";
-    dc->reset = aspeed_ast2700_scu_reset;
+    device_class_set_legacy_reset(dc, aspeed_ast2700_scu_reset);
     asc->resets = ast2700_a0_resets_io;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_2700_scuio_get_apb_freq;
@@ -1119,7 +1119,7 @@ static void aspeed_1030_scu_class_init(ObjectClass *klass, void *data)
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
 
     dc->desc = "ASPEED 1030 System Control Unit";
-    dc->reset = aspeed_ast1030_scu_reset;
+    device_class_set_legacy_reset(dc, aspeed_ast1030_scu_reset);
     asc->resets = ast1030_a1_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
     asc->get_apb = aspeed_1030_scu_get_apb_freq;

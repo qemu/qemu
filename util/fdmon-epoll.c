@@ -5,6 +5,7 @@
 
 #include "qemu/osdep.h"
 #include <sys/epoll.h>
+#include "qemu/lockcnt.h"
 #include "qemu/rcu_queue.h"
 #include "aio-posix.h"
 

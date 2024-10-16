@@ -278,7 +278,7 @@ static void mipsnet_class_init(ObjectClass *klass, void *data)
     dc->realize = mipsnet_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MIPS Simulator network device";
-    dc->reset = mipsnet_sysbus_reset;
+    device_class_set_legacy_reset(dc, mipsnet_sysbus_reset);
     dc->vmsd = &vmstate_mipsnet;
     device_class_set_props(dc, mipsnet_properties);
 }

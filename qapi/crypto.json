@@ -20,7 +20,6 @@
 # Since: 2.5
 ##
 { 'enum': 'QCryptoTLSCredsEndpoint',
-  'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
   'data': ['client', 'server']}
 
 ##
@@ -36,11 +35,10 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoSecretFormat',
-  'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
 
 ##
-# @QCryptoHashAlgorithm:
+# @QCryptoHashAlgo:
 #
 # The supported algorithms for computing content digests
 #
@@ -60,12 +58,11 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoHashAlgorithm',
-  'prefix': 'QCRYPTO_HASH_ALG',
+{ 'enum': 'QCryptoHashAlgo',
   'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
 
 ##
-# @QCryptoCipherAlgorithm:
+# @QCryptoCipherAlgo:
 #
 # The supported algorithms for content encryption ciphers
 #
@@ -98,8 +95,7 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoCipherAlgorithm',
-  'prefix': 'QCRYPTO_CIPHER_ALG',
+{ 'enum': 'QCryptoCipherAlgo',
   'data': ['aes-128', 'aes-192', 'aes-256',
            'des', '3des',
            'cast5-128',
@@ -123,11 +119,10 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
-  'prefix': 'QCRYPTO_CIPHER_MODE',
   'data': ['ecb', 'cbc', 'xts', 'ctr']}
 
 ##
-# @QCryptoIVGenAlgorithm:
+# @QCryptoIVGenAlgo:
 #
 # The supported algorithms for generating initialization vectors for
 # full disk encryption.  The 'plain' generator should not be used for
@@ -143,8 +138,7 @@
 #
 # Since: 2.6
 ##
-{ 'enum': 'QCryptoIVGenAlgorithm',
-  'prefix': 'QCRYPTO_IVGEN_ALG',
+{ 'enum': 'QCryptoIVGenAlgo',
   'data': ['plain', 'plain64', 'essiv']}
 
 ##
@@ -160,7 +154,6 @@
 # Since: 2.6
 ##
 { 'enum': 'QCryptoBlockFormat',
-#  'prefix': 'QCRYPTO_BLOCK_FORMAT',
   'data': ['qcow', 'luks']}
 
 ##
@@ -230,11 +223,11 @@
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',
   'base': 'QCryptoBlockOptionsLUKS',
-  'data': { '*cipher-alg': 'QCryptoCipherAlgorithm',
+  'data': { '*cipher-alg': 'QCryptoCipherAlgo',
             '*cipher-mode': 'QCryptoCipherMode',
-            '*ivgen-alg': 'QCryptoIVGenAlgorithm',
-            '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
-            '*hash-alg': 'QCryptoHashAlgorithm',
+            '*ivgen-alg': 'QCryptoIVGenAlgo',
+            '*ivgen-hash-alg': 'QCryptoHashAlgo',
+            '*hash-alg': 'QCryptoHashAlgo',
             '*iter-time': 'int' }}
 
 ##
@@ -327,11 +320,11 @@
 # Since: 2.7
 ##
 { 'struct': 'QCryptoBlockInfoLUKS',
-  'data': {'cipher-alg': 'QCryptoCipherAlgorithm',
+  'data': {'cipher-alg': 'QCryptoCipherAlgo',
            'cipher-mode': 'QCryptoCipherMode',
-           'ivgen-alg': 'QCryptoIVGenAlgorithm',
-           '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
-           'hash-alg': 'QCryptoHashAlgorithm',
+           'ivgen-alg': 'QCryptoIVGenAlgo',
+           '*ivgen-hash-alg': 'QCryptoHashAlgo',
+           'hash-alg': 'QCryptoHashAlgo',
            'detached-header': 'bool',
            'payload-offset': 'int',
            'master-key-iters': 'int',
@@ -593,7 +586,7 @@
             '*sanity-check': 'bool',
             '*passwordid': 'str' } }
 ##
-# @QCryptoAkCipherAlgorithm:
+# @QCryptoAkCipherAlgo:
 #
 # The supported algorithms for asymmetric encryption ciphers
 #
@@ -601,8 +594,7 @@
 #
 # Since: 7.1
 ##
-{ 'enum': 'QCryptoAkCipherAlgorithm',
-  'prefix': 'QCRYPTO_AKCIPHER_ALG',
+{ 'enum': 'QCryptoAkCipherAlgo',
   'data': ['rsa']}
 
 ##
@@ -610,14 +602,17 @@
 #
 # The type of asymmetric keys.
 #
+# @public: public key
+#
+# @private: private key
+#
 # Since: 7.1
 ##
 { 'enum': 'QCryptoAkCipherKeyType',
-  'prefix': 'QCRYPTO_AKCIPHER_KEY_TYPE',
   'data': ['public', 'private']}
 
 ##
-# @QCryptoRSAPaddingAlgorithm:
+# @QCryptoRSAPaddingAlgo:
 #
 # The padding algorithm for RSA.
 #
@@ -627,8 +622,7 @@
 #
 # Since: 7.1
 ##
-{ 'enum': 'QCryptoRSAPaddingAlgorithm',
-  'prefix': 'QCRYPTO_RSA_PADDING_ALG',
+{ 'enum': 'QCryptoRSAPaddingAlgo',
   'data': ['raw', 'pkcs1']}
 
 ##
@@ -636,15 +630,15 @@
 #
 # Specific parameters for RSA algorithm.
 #
-# @hash-alg: QCryptoHashAlgorithm
+# @hash-alg: QCryptoHashAlgo
 #
-# @padding-alg: QCryptoRSAPaddingAlgorithm
+# @padding-alg: QCryptoRSAPaddingAlgo
 #
 # Since: 7.1
 ##
 { 'struct': 'QCryptoAkCipherOptionsRSA',
-  'data': { 'hash-alg':'QCryptoHashAlgorithm',
-            'padding-alg': 'QCryptoRSAPaddingAlgorithm'}}
+  'data': { 'hash-alg':'QCryptoHashAlgo',
+            'padding-alg': 'QCryptoRSAPaddingAlgo'}}
 
 ##
 # @QCryptoAkCipherOptions:
@@ -657,6 +651,6 @@
 # Since: 7.1
 ##
 { 'union': 'QCryptoAkCipherOptions',
-  'base': { 'alg': 'QCryptoAkCipherAlgorithm' },
+  'base': { 'alg': 'QCryptoAkCipherAlgo' },
   'discriminator': 'alg',
   'data': { 'rsa': 'QCryptoAkCipherOptionsRSA' }}

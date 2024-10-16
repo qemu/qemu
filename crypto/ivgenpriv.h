@@ -40,9 +40,9 @@ struct QCryptoIVGen {
     QCryptoIVGenDriver *driver;
     void *private;
 
-    QCryptoIVGenAlgorithm algorithm;
-    QCryptoCipherAlgorithm cipher;
-    QCryptoHashAlgorithm hash;
+    QCryptoIVGenAlgo algorithm;
+    QCryptoCipherAlgo cipher;
+    QCryptoHashAlgo hash;
 };
 
 

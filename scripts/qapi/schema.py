@@ -1249,7 +1249,7 @@ class QAPISchema:
             [{'name': n} for n in qtypes], None)
 
         self._def_definition(QAPISchemaEnumType(
-            'QType', None, None, None, None, qtype_values, 'QTYPE'))
+            'QType', None, None, None, None, qtype_values, None))
 
     def _make_features(
         self,

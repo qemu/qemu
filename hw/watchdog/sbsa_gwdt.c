@@ -278,7 +278,7 @@ static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = wdt_sbsa_gwdt_realize;
-    dc->reset = wdt_sbsa_gwdt_reset;
+    device_class_set_legacy_reset(dc, wdt_sbsa_gwdt_reset);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_sbsa_gwdt;

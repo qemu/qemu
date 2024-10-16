@@ -191,7 +191,7 @@ static void aw_a10_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = aw_a10_pic_reset;
+    device_class_set_legacy_reset(dc, aw_a10_pic_reset);
     dc->desc = "allwinner a10 pic";
     dc->vmsd = &vmstate_aw_a10_pic;
  }

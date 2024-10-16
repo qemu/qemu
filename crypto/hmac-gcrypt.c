@@ -18,14 +18,14 @@
 #include "hmacpriv.h"
 #include <gcrypt.h>
 
-static int qcrypto_hmac_alg_map[QCRYPTO_HASH_ALG__MAX] = {
-    [QCRYPTO_HASH_ALG_MD5] = GCRY_MAC_HMAC_MD5,
-    [QCRYPTO_HASH_ALG_SHA1] = GCRY_MAC_HMAC_SHA1,
-    [QCRYPTO_HASH_ALG_SHA224] = GCRY_MAC_HMAC_SHA224,
-    [QCRYPTO_HASH_ALG_SHA256] = GCRY_MAC_HMAC_SHA256,
-    [QCRYPTO_HASH_ALG_SHA384] = GCRY_MAC_HMAC_SHA384,
-    [QCRYPTO_HASH_ALG_SHA512] = GCRY_MAC_HMAC_SHA512,
-    [QCRYPTO_HASH_ALG_RIPEMD160] = GCRY_MAC_HMAC_RMD160,
+static int qcrypto_hmac_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
+    [QCRYPTO_HASH_ALGO_MD5] = GCRY_MAC_HMAC_MD5,
+    [QCRYPTO_HASH_ALGO_SHA1] = GCRY_MAC_HMAC_SHA1,
+    [QCRYPTO_HASH_ALGO_SHA224] = GCRY_MAC_HMAC_SHA224,
+    [QCRYPTO_HASH_ALGO_SHA256] = GCRY_MAC_HMAC_SHA256,
+    [QCRYPTO_HASH_ALGO_SHA384] = GCRY_MAC_HMAC_SHA384,
+    [QCRYPTO_HASH_ALGO_SHA512] = GCRY_MAC_HMAC_SHA512,
+    [QCRYPTO_HASH_ALGO_RIPEMD160] = GCRY_MAC_HMAC_RMD160,
 };
 
 typedef struct QCryptoHmacGcrypt QCryptoHmacGcrypt;
@@ -33,7 +33,7 @@ struct QCryptoHmacGcrypt {
     gcry_mac_hd_t handle;
 };
 
-bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
+bool qcrypto_hmac_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hmac_alg_map) &&
         qcrypto_hmac_alg_map[alg] != GCRY_MAC_NONE) {
@@ -43,7 +43,7 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
     return false;
 }
 
-void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+void *qcrypto_hmac_ctx_new(QCryptoHashAlgo alg,
                            const uint8_t *key, size_t nkey,
                            Error **errp)
 {
@@ -52,7 +52,7 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
     if (!qcrypto_hmac_supports(alg)) {
         error_setg(errp, "Unsupported hmac algorithm %s",
-                   QCryptoHashAlgorithm_str(alg));
+                   QCryptoHashAlgo_str(alg));
         return NULL;
     }
 

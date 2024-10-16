@@ -115,7 +115,7 @@ static void wdt_diag288_class_init(ObjectClass *klass, void *data)
 
     dc->realize = wdt_diag288_realize;
     dc->unrealize = wdt_diag288_unrealize;
-    dc->reset = wdt_diag288_reset;
+    device_class_set_legacy_reset(dc, wdt_diag288_reset);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_diag288;

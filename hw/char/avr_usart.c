@@ -86,7 +86,7 @@ static void update_char_mask(AVRUsartState *usart)
         usart->char_mask = 0b11111111;
         break;
     default:
-        assert(0);
+        g_assert_not_reached();
     }
 }
 
@@ -300,7 +300,7 @@ static void avr_usart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = avr_usart_reset;
+    device_class_set_legacy_reset(dc, avr_usart_reset);
     device_class_set_props(dc, avr_usart_properties);
     dc->realize = avr_usart_realize;
 }

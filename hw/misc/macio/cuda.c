@@ -564,7 +564,7 @@ static void cuda_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = cuda_realize;
-    dc->reset = cuda_reset;
+    device_class_set_legacy_reset(dc, cuda_reset);
     dc->vmsd = &vmstate_cuda;
     device_class_set_props(dc, cuda_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

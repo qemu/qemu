@@ -71,7 +71,7 @@ static void qcrypto_secret_decrypt(QCryptoSecretCommon *secret,
         return;
     }
 
-    aes = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_256,
+    aes = qcrypto_cipher_new(QCRYPTO_CIPHER_ALGO_AES_256,
                              QCRYPTO_CIPHER_MODE_CBC,
                              key, keylen,
                              errp);

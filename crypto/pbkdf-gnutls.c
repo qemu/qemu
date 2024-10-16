@@ -23,37 +23,37 @@
 #include "qapi/error.h"
 #include "crypto/pbkdf.h"
 
-bool qcrypto_pbkdf2_supports(QCryptoHashAlgorithm hash)
+bool qcrypto_pbkdf2_supports(QCryptoHashAlgo hash)
 {
     switch (hash) {
-    case QCRYPTO_HASH_ALG_MD5:
-    case QCRYPTO_HASH_ALG_SHA1:
-    case QCRYPTO_HASH_ALG_SHA224:
-    case QCRYPTO_HASH_ALG_SHA256:
-    case QCRYPTO_HASH_ALG_SHA384:
-    case QCRYPTO_HASH_ALG_SHA512:
-    case QCRYPTO_HASH_ALG_RIPEMD160:
-        return true;
+    case QCRYPTO_HASH_ALGO_MD5:
+    case QCRYPTO_HASH_ALGO_SHA1:
+    case QCRYPTO_HASH_ALGO_SHA224:
+    case QCRYPTO_HASH_ALGO_SHA256:
+    case QCRYPTO_HASH_ALGO_SHA384:
+    case QCRYPTO_HASH_ALGO_SHA512:
+    case QCRYPTO_HASH_ALGO_RIPEMD160:
+        return qcrypto_hash_supports(hash);
     default:
         return false;
     }
 }
 
-int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
+int qcrypto_pbkdf2(QCryptoHashAlgo hash,
                    const uint8_t *key, size_t nkey,
                    const uint8_t *salt, size_t nsalt,
                    uint64_t iterations,
                    uint8_t *out, size_t nout,
                    Error **errp)
 {
-    static const int hash_map[QCRYPTO_HASH_ALG__MAX] = {
-        [QCRYPTO_HASH_ALG_MD5] = GNUTLS_DIG_MD5,
-        [QCRYPTO_HASH_ALG_SHA1] = GNUTLS_DIG_SHA1,
-        [QCRYPTO_HASH_ALG_SHA224] = GNUTLS_DIG_SHA224,
-        [QCRYPTO_HASH_ALG_SHA256] = GNUTLS_DIG_SHA256,
-        [QCRYPTO_HASH_ALG_SHA384] = GNUTLS_DIG_SHA384,
-        [QCRYPTO_HASH_ALG_SHA512] = GNUTLS_DIG_SHA512,
-        [QCRYPTO_HASH_ALG_RIPEMD160] = GNUTLS_DIG_RMD160,
+    static const int hash_map[QCRYPTO_HASH_ALGO__MAX] = {
+        [QCRYPTO_HASH_ALGO_MD5] = GNUTLS_DIG_MD5,
+        [QCRYPTO_HASH_ALGO_SHA1] = GNUTLS_DIG_SHA1,
+        [QCRYPTO_HASH_ALGO_SHA224] = GNUTLS_DIG_SHA224,
+        [QCRYPTO_HASH_ALGO_SHA256] = GNUTLS_DIG_SHA256,
+        [QCRYPTO_HASH_ALGO_SHA384] = GNUTLS_DIG_SHA384,
+        [QCRYPTO_HASH_ALGO_SHA512] = GNUTLS_DIG_SHA512,
+        [QCRYPTO_HASH_ALGO_RIPEMD160] = GNUTLS_DIG_RMD160,
     };
     int ret;
     const gnutls_datum_t gkey = { (unsigned char *)key, nkey };
@@ -70,7 +70,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
         hash_map[hash] == GNUTLS_DIG_UNKNOWN) {
         error_setg_errno(errp, ENOSYS,
                          "PBKDF does not support hash algorithm %s",
-                         QCryptoHashAlgorithm_str(hash));
+                         QCryptoHashAlgo_str(hash));
         return -1;
     }
 

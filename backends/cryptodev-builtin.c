@@ -64,11 +64,11 @@ static void cryptodev_builtin_init_akcipher(CryptoDevBackend *backend)
 {
     QCryptoAkCipherOptions opts;
 
-    opts.alg = QCRYPTO_AKCIPHER_ALG_RSA;
-    opts.u.rsa.padding_alg = QCRYPTO_RSA_PADDING_ALG_RAW;
+    opts.alg = QCRYPTO_AK_CIPHER_ALGO_RSA;
+    opts.u.rsa.padding_alg = QCRYPTO_RSA_PADDING_ALGO_RAW;
     if (qcrypto_akcipher_supports(&opts)) {
         backend->conf.crypto_services |=
-                     (1u << QCRYPTODEV_BACKEND_SERVICE_AKCIPHER);
+                     (1u << QCRYPTODEV_BACKEND_SERVICE_TYPE_AKCIPHER);
         backend->conf.akcipher_algo = 1u << VIRTIO_CRYPTO_AKCIPHER_RSA;
     }
 }
@@ -93,9 +93,9 @@ static void cryptodev_builtin_init(
     backend->conf.peers.ccs[0] = cc;
 
     backend->conf.crypto_services =
-                         1u << QCRYPTODEV_BACKEND_SERVICE_CIPHER |
-                         1u << QCRYPTODEV_BACKEND_SERVICE_HASH |
-                         1u << QCRYPTODEV_BACKEND_SERVICE_MAC;
+                         1u << QCRYPTODEV_BACKEND_SERVICE_TYPE_CIPHER |
+                         1u << QCRYPTODEV_BACKEND_SERVICE_TYPE_HASH |
+                         1u << QCRYPTODEV_BACKEND_SERVICE_TYPE_MAC;
     backend->conf.cipher_algo_l = 1u << VIRTIO_CRYPTO_CIPHER_AES_CBC;
     backend->conf.hash_algo = 1u << VIRTIO_CRYPTO_HASH_SHA1;
     /*
@@ -138,18 +138,18 @@ cryptodev_builtin_get_aes_algo(uint32_t key_len, int mode, Error **errp)
     int algo;
 
     if (key_len == AES_KEYSIZE_128) {
-        algo = QCRYPTO_CIPHER_ALG_AES_128;
+        algo = QCRYPTO_CIPHER_ALGO_AES_128;
     } else if (key_len == AES_KEYSIZE_192) {
-        algo = QCRYPTO_CIPHER_ALG_AES_192;
+        algo = QCRYPTO_CIPHER_ALGO_AES_192;
     } else if (key_len == AES_KEYSIZE_256) { /* equals AES_KEYSIZE_128_XTS */
         if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-            algo = QCRYPTO_CIPHER_ALG_AES_128;
+            algo = QCRYPTO_CIPHER_ALGO_AES_128;
         } else {
-            algo = QCRYPTO_CIPHER_ALG_AES_256;
+            algo = QCRYPTO_CIPHER_ALGO_AES_256;
         }
     } else if (key_len == AES_KEYSIZE_256_XTS) {
         if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-            algo = QCRYPTO_CIPHER_ALG_AES_256;
+            algo = QCRYPTO_CIPHER_ALGO_AES_256;
         } else {
             goto err;
         }
@@ -169,16 +169,16 @@ static int cryptodev_builtin_get_rsa_hash_algo(
 {
     switch (virtio_rsa_hash) {
     case VIRTIO_CRYPTO_RSA_MD5:
-        return QCRYPTO_HASH_ALG_MD5;
+        return QCRYPTO_HASH_ALGO_MD5;
 
     case VIRTIO_CRYPTO_RSA_SHA1:
-        return QCRYPTO_HASH_ALG_SHA1;
+        return QCRYPTO_HASH_ALGO_SHA1;
 
     case VIRTIO_CRYPTO_RSA_SHA256:
-        return QCRYPTO_HASH_ALG_SHA256;
+        return QCRYPTO_HASH_ALGO_SHA256;
 
     case VIRTIO_CRYPTO_RSA_SHA512:
-        return QCRYPTO_HASH_ALG_SHA512;
+        return QCRYPTO_HASH_ALGO_SHA512;
 
     default:
         error_setg(errp, "Unsupported rsa hash algo: %d", virtio_rsa_hash);
@@ -200,12 +200,12 @@ static int cryptodev_builtin_set_rsa_options(
             return -1;
         }
         opt->hash_alg = hash_alg;
-        opt->padding_alg = QCRYPTO_RSA_PADDING_ALG_PKCS1;
+        opt->padding_alg = QCRYPTO_RSA_PADDING_ALGO_PKCS1;
         return 0;
     }
 
     if (virtio_padding_algo == VIRTIO_CRYPTO_RSA_RAW_PADDING) {
-        opt->padding_alg = QCRYPTO_RSA_PADDING_ALG_RAW;
+        opt->padding_alg = QCRYPTO_RSA_PADDING_ALGO_RAW;
         return 0;
     }
 
@@ -271,15 +271,15 @@ static int cryptodev_builtin_create_cipher_session(
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_ECB:
         mode = QCRYPTO_CIPHER_MODE_ECB;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_CBC:
         mode = QCRYPTO_CIPHER_MODE_CBC;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     case VIRTIO_CRYPTO_CIPHER_3DES_CTR:
         mode = QCRYPTO_CIPHER_MODE_CTR;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
+        algo = QCRYPTO_CIPHER_ALGO_3DES;
         break;
     default:
         error_setg(errp, "Unsupported cipher alg :%u",
@@ -318,7 +318,7 @@ static int cryptodev_builtin_create_akcipher_session(
 
     switch (sess_info->algo) {
     case VIRTIO_CRYPTO_AKCIPHER_RSA:
-        opts.alg = QCRYPTO_AKCIPHER_ALG_RSA;
+        opts.alg = QCRYPTO_AK_CIPHER_ALGO_RSA;
         if (cryptodev_builtin_set_rsa_options(sess_info->u.rsa.padding_algo,
             sess_info->u.rsa.hash_algo, &opts.u.rsa, errp) != 0) {
             return -1;
@@ -334,11 +334,11 @@ static int cryptodev_builtin_create_akcipher_session(
 
     switch (sess_info->keytype) {
     case VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PUBLIC:
-        type = QCRYPTO_AKCIPHER_KEY_TYPE_PUBLIC;
+        type = QCRYPTO_AK_CIPHER_KEY_TYPE_PUBLIC;
         break;
 
     case VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PRIVATE:
-        type = QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE;
+        type = QCRYPTO_AK_CIPHER_KEY_TYPE_PRIVATE;
         break;
 
     default:
@@ -549,7 +549,7 @@ static int cryptodev_builtin_operation(
     CryptoDevBackendBuiltinSession *sess;
     CryptoDevBackendSymOpInfo *sym_op_info;
     CryptoDevBackendAsymOpInfo *asym_op_info;
-    QCryptodevBackendAlgType algtype = op_info->algtype;
+    QCryptodevBackendAlgoType algtype = op_info->algtype;
     int status = -VIRTIO_CRYPTO_ERR;
     Error *local_error = NULL;
 
@@ -561,11 +561,11 @@ static int cryptodev_builtin_operation(
     }
 
     sess = builtin->sessions[op_info->session_id];
-    if (algtype == QCRYPTODEV_BACKEND_ALG_SYM) {
+    if (algtype == QCRYPTODEV_BACKEND_ALGO_TYPE_SYM) {
         sym_op_info = op_info->u.sym_op_info;
         status = cryptodev_builtin_sym_operation(sess, sym_op_info,
                                                  &local_error);
-    } else if (algtype == QCRYPTODEV_BACKEND_ALG_ASYM) {
+    } else if (algtype == QCRYPTODEV_BACKEND_ALGO_TYPE_ASYM) {
         asym_op_info = op_info->u.asym_op_info;
         status = cryptodev_builtin_asym_operation(sess, op_info->op_code,
                                                   asym_op_info, &local_error);

@@ -2144,7 +2144,7 @@ static void ct3_class_init(ObjectClass *oc, void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "CXL Memory Device (Type 3)";
-    dc->reset = ct3d_reset;
+    device_class_set_legacy_reset(dc, ct3d_reset);
     device_class_set_props(dc, ct3_props);
 
     cvc->get_lsa_size = get_lsa_size;

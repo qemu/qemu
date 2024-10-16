@@ -130,10 +130,6 @@ Other binaries
 
    The binary format is detected automatically.
 
--  user mode (Cris)
-
-   * ``qemu-cris`` TODO.
-
 -  user mode (i386)
 
    * ``qemu-i386`` TODO.

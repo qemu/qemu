@@ -1981,6 +1981,7 @@ static Property smmuv3_properties[] = {
      * Stages of translation advertised.
      * "1": Stage 1
      * "2": Stage 2
+     * "nested": Both stage 1 and stage 2
      * Defaults to stage 1
      */
     DEFINE_PROP_STRING("stage", SMMUv3State, stage),

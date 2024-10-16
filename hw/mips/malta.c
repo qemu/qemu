@@ -31,7 +31,7 @@
 #include "hw/clock.h"
 #include "hw/southbridge/piix.h"
 #include "hw/isa/superio.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/i2c/smbus_eeprom.h"

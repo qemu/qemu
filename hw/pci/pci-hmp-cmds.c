@@ -83,15 +83,25 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
         monitor_printf(mon, "      BAR%" PRId64 ": ", region->value->bar);
 
         if (!strcmp(region->value->type, "io")) {
-            monitor_printf(mon, "I/O at 0x%04" PRIx64
-                                " [0x%04" PRIx64 "].\n",
-                           addr, addr + size - 1);
+            if (addr != PCI_BAR_UNMAPPED) {
+                monitor_printf(mon, "I/O at 0x%04" PRIx64
+                                    " [0x%04" PRIx64 "]\n",
+                               addr, addr + size - 1);
+            } else {
+                monitor_printf(mon, "I/O (not mapped)\n");
+            }
         } else {
-            monitor_printf(mon, "%d bit%s memory at 0x%08" PRIx64
-                               " [0x%08" PRIx64 "].\n",
-                           region->value->mem_type_64 ? 64 : 32,
-                           region->value->prefetch ? " prefetchable" : "",
-                           addr, addr + size - 1);
+            if (addr != PCI_BAR_UNMAPPED) {
+                monitor_printf(mon, "%d bit%s memory at 0x%08" PRIx64
+                                   " [0x%08" PRIx64 "]\n",
+                               region->value->mem_type_64 ? 64 : 32,
+                               region->value->prefetch ? " prefetchable" : "",
+                               addr, addr + size - 1);
+            } else {
+                monitor_printf(mon, "%d bit%s memory (not mapped)\n",
+                               region->value->mem_type_64 ? 64 : 32,
+                               region->value->prefetch ? " prefetchable" : "");
+            }
         }
     }
 

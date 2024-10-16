@@ -338,7 +338,7 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
-    dc->reset = pc87312_reset;
+    device_class_set_legacy_reset(dc, pc87312_reset);
     dc->vmsd = &vmstate_pc87312;
     device_class_set_parent_realize(dc, pc87312_realize,
                                     &sc->parent_realize);

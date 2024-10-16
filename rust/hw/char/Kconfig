@@ -1,0 +1,3 @@
+config X_PL011_RUST
+    bool
+    default y if HAVE_RUST

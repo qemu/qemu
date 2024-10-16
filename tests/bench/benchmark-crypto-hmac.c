@@ -28,7 +28,7 @@ static void test_hmac_speed(const void *opaque)
     Error *err = NULL;
     int ret;
 
-    if (!qcrypto_hmac_supports(QCRYPTO_HASH_ALG_SHA256)) {
+    if (!qcrypto_hmac_supports(QCRYPTO_HASH_ALGO_SHA256)) {
         return;
     }
 
@@ -40,7 +40,7 @@ static void test_hmac_speed(const void *opaque)
 
     g_test_timer_start();
     do {
-        hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALG_SHA256,
+        hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALGO_SHA256,
                                 (const uint8_t *)KEY, strlen(KEY), &err);
         g_assert(err == NULL);
         g_assert(hmac != NULL);
@@ -56,7 +56,7 @@ static void test_hmac_speed(const void *opaque)
 
     total /= MiB;
     g_test_message("hmac(%s): chunk %zu bytes %.2f MB/sec",
-                   QCryptoHashAlgorithm_str(QCRYPTO_HASH_ALG_SHA256),
+                   QCryptoHashAlgo_str(QCRYPTO_HASH_ALGO_SHA256),
                    chunk_size, total / g_test_timer_last());
 
     g_free(out);

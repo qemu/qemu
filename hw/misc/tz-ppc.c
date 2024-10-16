@@ -332,7 +332,7 @@ static void tz_ppc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = tz_ppc_realize;
     dc->vmsd = &tz_ppc_vmstate;
-    dc->reset = tz_ppc_reset;
+    device_class_set_legacy_reset(dc, tz_ppc_reset);
     device_class_set_props(dc, tz_ppc_properties);
 }
 

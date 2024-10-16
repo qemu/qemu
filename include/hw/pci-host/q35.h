@@ -181,8 +181,6 @@ struct Q35PCIHost {
 #define MCH_PCIE_DEV                           1
 #define MCH_PCIE_FUNC                          0
 
-uint64_t mch_mcfg_base(void);
-
 /*
  * Arbitrary but unique BNF number for IOAPIC device.
  *

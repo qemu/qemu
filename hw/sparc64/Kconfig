@@ -10,6 +10,7 @@ config SUN4U
     select ISA_BUS
     select FDC_ISA
     select SERIAL_ISA
+    select SERIAL_MM
     select PCI_SABRE
     select IDE_CMD646
     select PCKBD

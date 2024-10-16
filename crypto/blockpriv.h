@@ -33,7 +33,7 @@ struct QCryptoBlock {
     void *opaque;
 
     /* Cipher parameters */
-    QCryptoCipherAlgorithm alg;
+    QCryptoCipherAlgo alg;
     QCryptoCipherMode mode;
     uint8_t *key;
     size_t nkey;
@@ -44,7 +44,7 @@ struct QCryptoBlock {
     QCryptoIVGen *ivgen;
     QemuMutex mutex;
 
-    QCryptoHashAlgorithm kdfhash;
+    QCryptoHashAlgo kdfhash;
     size_t niv;
     uint64_t payload_offset; /* In bytes */
     uint64_t sector_size; /* In bytes */
@@ -132,7 +132,7 @@ int qcrypto_block_encrypt_helper(QCryptoBlock *block,
                                  Error **errp);
 
 int qcrypto_block_init_cipher(QCryptoBlock *block,
-                              QCryptoCipherAlgorithm alg,
+                              QCryptoCipherAlgo alg,
                               QCryptoCipherMode mode,
                               const uint8_t *key, size_t nkey,
                               Error **errp);

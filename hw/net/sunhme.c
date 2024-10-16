@@ -948,7 +948,7 @@ static void sunhme_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_SUN_HME;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_hme;
-    dc->reset = sunhme_reset;
+    device_class_set_legacy_reset(dc, sunhme_reset);
     device_class_set_props(dc, sunhme_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }

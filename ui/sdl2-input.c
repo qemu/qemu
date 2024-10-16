@@ -58,3 +58,8 @@ void sdl2_process_key(struct sdl2_console *scon,
         }
     }
 }
+
+void sdl2_release_modifiers(struct sdl2_console *scon)
+{
+    qkbd_state_lift_all_keys(scon->kbd);
+}

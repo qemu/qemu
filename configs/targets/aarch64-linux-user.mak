@@ -4,3 +4,5 @@ TARGET_XML_FILES= gdb-xml/aarch64-core.xml gdb-xml/aarch64-fpu.xml gdb-xml/aarch
 TARGET_HAS_BFLT=y
 CONFIG_SEMIHOSTING=y
 CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+TARGET_SYSTBL_ABI=common,64,renameat,rlimit,memfd_secret
+TARGET_SYSTBL=syscall_64.tbl

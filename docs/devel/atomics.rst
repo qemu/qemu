@@ -204,7 +204,7 @@ They come in six kinds:
   before the second with respect to the other components of the system.
   Therefore, unlike ``smp_rmb()`` or ``qatomic_load_acquire()``,
   ``smp_read_barrier_depends()`` can be just a compiler barrier on
-  weakly-ordered architectures such as Arm or PPC[#]_.
+  weakly-ordered architectures such as Arm or PPC\ [#alpha]_.
 
   Note that the first load really has to have a _data_ dependency and not
   a control dependency.  If the address for the second load is dependent
@@ -212,7 +212,7 @@ They come in six kinds:
   than actually loading the address itself, then it's a _control_
   dependency and a full read barrier or better is required.
 
-.. [#] The DEC Alpha is an exception, because ``smp_read_barrier_depends()``
+.. [#alpha] The DEC Alpha is an exception, because ``smp_read_barrier_depends()``
    needs a processor barrier.  On strongly-ordered architectures such
    as x86 or s390, ``smp_rmb()`` and ``qatomic_load_acquire()`` can
    also be compiler barriers only.
@@ -295,7 +295,7 @@ Acquire/release pairing and the *synchronizes-with* relation
 ------------------------------------------------------------
 
 Atomic operations other than ``qatomic_set()`` and ``qatomic_read()`` have
-either *acquire* or *release* semantics [#rmw]_.  This has two effects:
+either *acquire* or *release* semantics\ [#rmw]_.  This has two effects:
 
 .. [#rmw] Read-modify-write operations can have both---acquire applies to the
           read part, and release to the write.

@@ -12,4 +12,7 @@ test-cmov: EXTRA_CFLAGS=-DTEST_CMOV
 test-cmov: test-cond.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
+# Force generation of byte read/write
+test-plugin-mem-access: CFLAGS+=-mbwx
+
 run-test-cmov: test-cmov

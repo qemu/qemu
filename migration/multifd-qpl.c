@@ -220,21 +220,13 @@ static void multifd_qpl_deinit(QplData *qpl)
     }
 }
 
-/**
- * multifd_qpl_send_setup: set up send side
- *
- * Set up the channel with QPL compression.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
 {
     QplData *qpl;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    qpl = multifd_qpl_init(p->page_count, p->page_size, errp);
+    qpl = multifd_qpl_init(page_count, page_size, errp);
     if (!qpl) {
         return -1;
     }
@@ -245,18 +237,10 @@ static int multifd_qpl_send_setup(MultiFDSendParams *p, Error **errp)
      * additional two IOVs are used to store packet header and compressed data
      * length
      */
-    p->iov = g_new0(struct iovec, p->page_count + 2);
+    p->iov = g_new0(struct iovec, page_count + 2);
     return 0;
 }
 
-/**
- * multifd_qpl_send_cleanup: clean up send side
- *
- * Close the channel and free memory.
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static void multifd_qpl_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     multifd_qpl_deinit(p->compress_data);
@@ -404,13 +388,14 @@ retry:
 static void multifd_qpl_compress_pages_slow_path(MultiFDSendParams *p)
 {
     QplData *qpl = p->compress_data;
-    uint32_t size = p->page_size;
+    MultiFDPages_t *pages = &p->data->u.ram;
+    uint32_t size = multifd_ram_page_size();
     qpl_job *job = qpl->sw_job;
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *buf;
 
-    for (int i = 0; i < p->pages->normal_num; i++) {
-        buf = p->pages->block->host + p->pages->offset[i];
+    for (int i = 0; i < pages->normal_num; i++) {
+        buf = pages->block->host + pages->offset[i];
         multifd_qpl_prepare_comp_job(job, buf, zbuf, size);
         if (qpl_execute_job(job) == QPL_STS_OK) {
             multifd_qpl_fill_packet(i, p, zbuf, job->total_out);
@@ -434,8 +419,8 @@ static void multifd_qpl_compress_pages_slow_path(MultiFDSendParams *p)
 static void multifd_qpl_compress_pages(MultiFDSendParams *p)
 {
     QplData *qpl = p->compress_data;
-    MultiFDPages_t *pages = p->pages;
-    uint32_t size = p->page_size;
+    MultiFDPages_t *pages = &p->data->u.ram;
+    uint32_t size = multifd_ram_page_size();
     QplHwJob *hw_job;
     uint8_t *buf;
     uint8_t *zbuf;
@@ -484,20 +469,10 @@ static void multifd_qpl_compress_pages(MultiFDSendParams *p)
     }
 }
 
-/**
- * multifd_qpl_send_prepare: prepare data to be able to send
- *
- * Create a compressed buffer with all the pages that we are going to
- * send.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;
+    MultiFDPages_t *pages = &p->data->u.ram;
     uint32_t len = 0;
 
     if (!multifd_send_prepare_common(p)) {
@@ -505,7 +480,7 @@ static int multifd_qpl_send_prepare(MultiFDSendParams *p, Error **errp)
     }
 
     /* The first IOV is used to store the compressed page lengths */
-    len = p->pages->normal_num * sizeof(uint32_t);
+    len = pages->normal_num * sizeof(uint32_t);
     multifd_qpl_fill_iov(p, (uint8_t *) qpl->zlen, len);
     if (qpl->hw_avail) {
         multifd_qpl_compress_pages(p);
@@ -519,21 +494,13 @@ out:
     return 0;
 }
 
-/**
- * multifd_qpl_recv_setup: set up receive side
- *
- * Create the compressed channel and buffer.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl;
+    uint32_t page_size = multifd_ram_page_size();
+    uint32_t page_count = multifd_ram_page_count();
 
-    qpl = multifd_qpl_init(p->page_count, p->page_size, errp);
+    qpl = multifd_qpl_init(page_count, page_size, errp);
     if (!qpl) {
         return -1;
     }
@@ -541,13 +508,6 @@ static int multifd_qpl_recv_setup(MultiFDRecvParams *p, Error **errp)
     return 0;
 }
 
-/**
- * multifd_qpl_recv_cleanup: set up receive side
- *
- * Close the channel and free memory.
- *
- * @p: Params for the channel being used
- */
 static void multifd_qpl_recv_cleanup(MultiFDRecvParams *p)
 {
     multifd_qpl_deinit(p->compress_data);
@@ -600,7 +560,7 @@ static int multifd_qpl_decompress_pages_slow_path(MultiFDRecvParams *p,
                                                   Error **errp)
 {
     QplData *qpl = p->compress_data;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     qpl_job *job = qpl->sw_job;
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *addr;
@@ -638,7 +598,7 @@ static int multifd_qpl_decompress_pages_slow_path(MultiFDRecvParams *p,
 static int multifd_qpl_decompress_pages(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;
-    uint32_t size = p->page_size;
+    uint32_t size = multifd_ram_page_size();
     uint8_t *zbuf = qpl->zbuf;
     uint8_t *addr;
     uint32_t len;
@@ -688,17 +648,6 @@ static int multifd_qpl_decompress_pages(MultiFDRecvParams *p, Error **errp)
     }
     return 0;
 }
-/**
- * multifd_qpl_recv: read the data from the channel into actual pages
- *
- * Read the compressed buffer, and uncompress it into the actual
- * pages.
- *
- * Returns 0 on success or -1 on error
- *
- * @p: Params for the channel being used
- * @errp: pointer to an error
- */
 static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
 {
     QplData *qpl = p->compress_data;
@@ -728,7 +677,7 @@ static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
     }
     for (int i = 0; i < p->normal_num; i++) {
         qpl->zlen[i] = be32_to_cpu(qpl->zlen[i]);
-        assert(qpl->zlen[i] <= p->page_size);
+        assert(qpl->zlen[i] <= multifd_ram_page_size());
         zbuf_len += qpl->zlen[i];
     }
 
@@ -745,7 +694,7 @@ static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
     return multifd_qpl_decompress_pages_slow_path(p, errp);
 }
 
-static MultiFDMethods multifd_qpl_ops = {
+static const MultiFDMethods multifd_qpl_ops = {
     .send_setup = multifd_qpl_send_setup,
     .send_cleanup = multifd_qpl_send_cleanup,
     .send_prepare = multifd_qpl_send_prepare,

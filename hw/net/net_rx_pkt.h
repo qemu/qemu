@@ -78,14 +78,6 @@ void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
                                  EthL4HdrProto *l4hdr_proto);
 
 /**
-* fetches L3 header offset
-*
-* @pkt:            packet
-*
-*/
-size_t net_rx_pkt_get_l3_hdr_offset(struct NetRxPkt *pkt);
-
-/**
 * fetches L4 header offset
 *
 * @pkt:            packet
@@ -266,15 +258,6 @@ net_rx_pkt_attach_data(struct NetRxPkt *pkt, const void *data,
  *
  */
 struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt);
-
-/**
-* returns io vector length that holds the attached data
-*
-* @pkt:            packet
-* @ret:            IOVec length
-*
-*/
-uint16_t net_rx_pkt_get_iovec_len(struct NetRxPkt *pkt);
 
 /**
  * prints rx packet data if debug is enabled

@@ -809,6 +809,8 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
         goto out;
     }
 
+    warn_report_once("'gluster' is deprecated");
+
     filename = qemu_opt_get(opts, GLUSTER_OPT_FILENAME);
 
     s->debug = qemu_opt_get_number(opts, GLUSTER_OPT_DEBUG,

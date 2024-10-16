@@ -273,7 +273,19 @@
 #
 # @reconnect: For a client socket, if a socket is disconnected, then
 #     attempt a reconnect after the given number of seconds.  Setting
-#     this to zero disables this function.  (default: 0) (Since: 2.2)
+#     this to zero disables this function.  The use of this member is
+#     deprecated, use @reconnect-ms instead. (default: 0) (Since: 2.2)
+#
+# @reconnect-ms: For a client socket, if a socket is disconnected,
+#     then attempt a reconnect after the given number of milliseconds.
+#     Setting this to zero disables this function.  This member is
+#     mutually exclusive with @reconnect.
+#     (default: 0) (Since: 9.2)
+#
+# Features:
+#
+# @deprecated: Member @reconnect is deprecated.  Use @reconnect-ms
+#     instead.
 #
 # Since: 1.4
 ##
@@ -287,7 +299,8 @@
             '*telnet': 'bool',
             '*tn3270': 'bool',
             '*websocket': 'bool',
-            '*reconnect': 'int' },
+            '*reconnect': { 'type': 'int', 'features': [ 'deprecated' ] },
+            '*reconnect-ms': 'int' },
   'base': 'ChardevCommon' }
 
 ##
@@ -432,39 +445,65 @@
   'if': 'CONFIG_SPICE_PROTOCOL' }
 
 ##
+# @ChardevPty:
+#
+# Configuration info for pty implementation.
+#
+# @path: optional path to create a symbolic link that points to the
+#     allocated PTY
+#
+# Since: 9.2
+##
+{ 'struct': 'ChardevPty',
+  'data': { '*path': 'str' },
+  'base': 'ChardevCommon' }
+
+##
 # @ChardevBackendKind:
 #
-# @pipe: Since 1.5
+# @file: regular files
 #
-# @udp: Since 1.5
+# @serial: serial host device
 #
-# @mux: Since 1.5
+# @parallel: parallel host device
 #
-# @msmouse: Since 1.5
+# @pipe: pipes (since 1.5)
 #
-# @wctablet: Since 2.9
+# @socket: stream socket
 #
-# @braille: Since 1.5
+# @udp: datagram socket (since 1.5)
 #
-# @testdev: Since 2.2
+# @pty: pseudo-terminal
 #
-# @stdio: Since 1.5
+# @null: provides no input, throws away output
 #
-# @console: Since 1.5
+# @mux: (since 1.5)
 #
-# @spicevmc: Since 1.5
+# @msmouse: emulated Microsoft serial mouse (since 1.5)
 #
-# @spiceport: Since 1.5
+# @wctablet: emulated Wacom Penpartner serial tablet (since 2.9)
 #
-# @qemu-vdagent: Since 6.1
+# @braille: Baum Braille device (since 1.5)
 #
-# @dbus: Since 7.0
+# @testdev: device for test-suite control (since 2.2)
 #
-# @vc: v1.5
+# @stdio: standard I/O (since 1.5)
 #
-# @ringbuf: Since 1.6
+# @console: Windows console (since 1.5)
 #
-# @memory: Since 1.5
+# @spicevmc: spice vm channel (since 1.5)
+#
+# @spiceport: Spice port channel (since 1.5)
+#
+# @qemu-vdagent: Spice vdagent (since 6.1)
+#
+# @dbus: D-Bus channel (since 7.0)
+#
+# @vc: virtual console (since 1.5)
+#
+# @ringbuf: memory ring buffer (since 1.6)
+#
+# @memory: synonym for @ringbuf (since 1.5)
 #
 # Features:
 #
@@ -630,6 +669,17 @@
 { 'struct': 'ChardevRingbufWrapper',
   'data': { 'data': 'ChardevRingbuf' } }
 
+
+##
+# @ChardevPtyWrapper:
+#
+# @data: Configuration info for pty chardevs
+#
+# Since: 9.2
+##
+{ 'struct': 'ChardevPtyWrapper',
+  'data': { 'data': 'ChardevPty' } }
+
 ##
 # @ChardevBackend:
 #
@@ -650,7 +700,7 @@
             'pipe': 'ChardevHostdevWrapper',
             'socket': 'ChardevSocketWrapper',
             'udp': 'ChardevUdpWrapper',
-            'pty': 'ChardevCommonWrapper',
+            'pty': 'ChardevPtyWrapper',
             'null': 'ChardevCommonWrapper',
             'mux': 'ChardevMuxWrapper',
             'msmouse': 'ChardevCommonWrapper',

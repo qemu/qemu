@@ -26,6 +26,8 @@
 #
 # Return rocker switch information.
 #
+# @name: switch name
+#
 # Returns: @Rocker information
 #
 # Since: 2.4
@@ -42,7 +44,7 @@
 ##
 # @RockerPortDuplex:
 #
-# An eumeration of port duplex states.
+# An enumeration of port duplex states.
 #
 # @half: half duplex
 #
@@ -55,7 +57,7 @@
 ##
 # @RockerPortAutoneg:
 #
-# An eumeration of port autoneg states.
+# An enumeration of port autoneg states.
 #
 # @off: autoneg is off
 #
@@ -93,6 +95,8 @@
 # @query-rocker-ports:
 #
 # Return rocker switch port information.
+#
+# @name: port name
 #
 # Returns: a list of @RockerPort information
 #

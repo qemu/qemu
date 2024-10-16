@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <zlib.h> /* For crc32 */
+#include <zlib.h> /* for crc32 */
 
 #include "hw/irq.h"
 #include "hw/net/cadence_gem.h"
@@ -1809,7 +1809,7 @@ static void gem_class_init(ObjectClass *klass, void *data)
     dc->realize = gem_realize;
     device_class_set_props(dc, gem_properties);
     dc->vmsd = &vmstate_cadence_gem;
-    dc->reset = gem_reset;
+    device_class_set_legacy_reset(dc, gem_reset);
 }
 
 static const TypeInfo gem_info = {

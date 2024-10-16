@@ -266,7 +266,8 @@ static const FlashPartInfo known_devices[] = {
     { INFO("n25q512ax3",  0x20ba20,  0x1000,  64 << 10, 1024, ER_4K) },
     { INFO("mt25ql512ab", 0x20ba20, 0x1044, 64 << 10, 1024, ER_4K | ER_32K) },
     { INFO_STACKED("mt35xu01g", 0x2c5b1b, 0x104100, 128 << 10, 1024,
-                   ER_4K | ER_32K, 2) },
+                   ER_4K | ER_32K, 2),
+                   .sfdp_read = m25p80_sfdp_mt35xu01g },
     { INFO_STACKED("mt35xu02gbba", 0x2c5b1c, 0x104100, 128 << 10, 2048,
                    ER_4K | ER_32K, 4),
                    .sfdp_read = m25p80_sfdp_mt35xu02g },
@@ -1824,7 +1825,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_m25p80;
     device_class_set_props(dc, m25p80_properties);
-    dc->reset = m25p80_reset;
+    device_class_set_legacy_reset(dc, m25p80_reset);
     mc->pi = data;
 }
 

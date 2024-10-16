@@ -377,7 +377,7 @@ static void iommu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = iommu_reset;
+    device_class_set_legacy_reset(dc, iommu_reset);
     dc->vmsd = &vmstate_iommu;
     device_class_set_props(dc, iommu_properties);
 }

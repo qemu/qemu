@@ -58,6 +58,11 @@ static void *access_ptr(X86Access *ac, vaddr addr, unsigned len)
 
     assert(addr >= ac->vaddr);
 
+    /* No haddr means probe_access wants to force slow path */
+    if (!ac->haddr1) {
+        return NULL;
+    }
+
 #ifdef CONFIG_USER_ONLY
     assert(offset <= ac->size1 - len);
     return ac->haddr1 + offset;
@@ -78,17 +83,11 @@ static void *access_ptr(X86Access *ac, vaddr addr, unsigned len)
 #endif
 }
 
-#ifdef CONFIG_USER_ONLY
-# define test_ptr(p)  true
-#else
-# define test_ptr(p)  likely(p)
-#endif
-
 uint8_t access_ldb(X86Access *ac, vaddr addr)
 {
     void *p = access_ptr(ac, addr, sizeof(uint8_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         return ldub_p(p);
     }
     return cpu_ldub_mmuidx_ra(ac->env, addr, ac->mmu_idx, ac->ra);
@@ -98,7 +97,7 @@ uint16_t access_ldw(X86Access *ac, vaddr addr)
 {
     void *p = access_ptr(ac, addr, sizeof(uint16_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         return lduw_le_p(p);
     }
     return cpu_lduw_le_mmuidx_ra(ac->env, addr, ac->mmu_idx, ac->ra);
@@ -108,7 +107,7 @@ uint32_t access_ldl(X86Access *ac, vaddr addr)
 {
     void *p = access_ptr(ac, addr, sizeof(uint32_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         return ldl_le_p(p);
     }
     return cpu_ldl_le_mmuidx_ra(ac->env, addr, ac->mmu_idx, ac->ra);
@@ -118,7 +117,7 @@ uint64_t access_ldq(X86Access *ac, vaddr addr)
 {
     void *p = access_ptr(ac, addr, sizeof(uint64_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         return ldq_le_p(p);
     }
     return cpu_ldq_le_mmuidx_ra(ac->env, addr, ac->mmu_idx, ac->ra);
@@ -128,7 +127,7 @@ void access_stb(X86Access *ac, vaddr addr, uint8_t val)
 {
     void *p = access_ptr(ac, addr, sizeof(uint8_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         stb_p(p, val);
     } else {
         cpu_stb_mmuidx_ra(ac->env, addr, val, ac->mmu_idx, ac->ra);
@@ -139,7 +138,7 @@ void access_stw(X86Access *ac, vaddr addr, uint16_t val)
 {
     void *p = access_ptr(ac, addr, sizeof(uint16_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         stw_le_p(p, val);
     } else {
         cpu_stw_le_mmuidx_ra(ac->env, addr, val, ac->mmu_idx, ac->ra);
@@ -150,7 +149,7 @@ void access_stl(X86Access *ac, vaddr addr, uint32_t val)
 {
     void *p = access_ptr(ac, addr, sizeof(uint32_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         stl_le_p(p, val);
     } else {
         cpu_stl_le_mmuidx_ra(ac->env, addr, val, ac->mmu_idx, ac->ra);
@@ -161,7 +160,7 @@ void access_stq(X86Access *ac, vaddr addr, uint64_t val)
 {
     void *p = access_ptr(ac, addr, sizeof(uint64_t));
 
-    if (test_ptr(p)) {
+    if (likely(p)) {
         stq_le_p(p, val);
     } else {
         cpu_stq_le_mmuidx_ra(ac->env, addr, val, ac->mmu_idx, ac->ra);

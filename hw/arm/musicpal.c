@@ -18,7 +18,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
@@ -411,7 +411,7 @@ static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = mv88w8618_pic_reset;
+    device_class_set_legacy_reset(dc, mv88w8618_pic_reset);
     dc->vmsd = &mv88w8618_pic_vmsd;
 }
 
@@ -605,7 +605,7 @@ static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = mv88w8618_pit_reset;
+    device_class_set_legacy_reset(dc, mv88w8618_pit_reset);
     dc->vmsd = &mv88w8618_pit_vmsd;
 }
 
@@ -1030,7 +1030,7 @@ static void musicpal_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = musicpal_gpio_reset;
+    device_class_set_legacy_reset(dc, musicpal_gpio_reset);
     dc->vmsd = &musicpal_gpio_vmsd;
 }
 

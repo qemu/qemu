@@ -151,7 +151,7 @@ static void sifive_u_prci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = sifive_u_prci_realize;
-    dc->reset = sifive_u_prci_reset;
+    device_class_set_legacy_reset(dc, sifive_u_prci_reset);
 }
 
 static const TypeInfo sifive_u_prci_info = {

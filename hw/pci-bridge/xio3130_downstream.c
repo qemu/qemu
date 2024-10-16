@@ -167,7 +167,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     k->revision = XIO3130_REVISION;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "TI X3130 Downstream Port of PCI Express Switch";
-    dc->reset = xio3130_downstream_reset;
+    device_class_set_legacy_reset(dc, xio3130_downstream_reset);
     dc->vmsd = &vmstate_xio3130_downstream;
     device_class_set_props(dc, xio3130_downstream_props);
 }

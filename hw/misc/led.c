@@ -114,7 +114,7 @@ static void led_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "LED";
     dc->vmsd = &vmstate_led;
-    dc->reset = led_reset;
+    device_class_set_legacy_reset(dc, led_reset);
     dc->realize = led_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_props(dc, led_properties);

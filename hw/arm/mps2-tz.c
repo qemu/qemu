@@ -1254,7 +1254,7 @@ static void mps2_set_remap(Object *obj, const char *value, Error **errp)
     }
 }
 
-static void mps2_machine_reset(MachineState *machine, ShutdownCause reason)
+static void mps2_machine_reset(MachineState *machine, ResetType type)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
 
@@ -1264,7 +1264,7 @@ static void mps2_machine_reset(MachineState *machine, ShutdownCause reason)
      * reset see the correct mapping.
      */
     remap_memory(mms, mms->remap);
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 }
 
 static void mps2tz_class_init(ObjectClass *oc, void *data)

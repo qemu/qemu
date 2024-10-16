@@ -64,7 +64,7 @@ Note: You need get the latest cross-tools at https://github.com/loongson/build-t
 
 (3) Build BIOS:
 
-    See: https://github.com/tianocore/edk2-platforms/tree/master/Platform/Loongson/LoongArchQemuPkg#readme
+    See: https://github.com/tianocore/edk2/tree/master/OvmfPkg/LoongArchVirt#readme
 
 Note: To build the release version of the bios,  set --buildtarget=RELEASE,
       the bios file path:  Build/LoongArchQemu/RELEASE_GCC5/FV/QEMU_EFI.fd

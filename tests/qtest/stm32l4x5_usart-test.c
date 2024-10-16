@@ -12,6 +12,7 @@
 #include "libqtest.h"
 #include "hw/misc/stm32l4x5_rcc_internals.h"
 #include "hw/registerfields.h"
+#include "stm32l4x5.h"
 
 #define RCC_BASE_ADDR 0x40021000
 /* Use USART 1 ADDR, assume the others work the same */
@@ -36,6 +37,8 @@ REG32(GTPR, 0x10)
 REG32(RTOR, 0x14)
 REG32(RQR, 0x18)
 REG32(ISR, 0x1C)
+    FIELD(ISR, REACK, 22, 1)
+    FIELD(ISR, TEACK, 21, 1)
     FIELD(ISR, TXE, 7, 1)
     FIELD(ISR, RXNE, 5, 1)
     FIELD(ISR, ORE, 3, 1)
@@ -191,7 +194,7 @@ static void init_uart(QTestState *qts)
 
     /* Enable the transmitter, the receiver and the USART. */
     qtest_writel(qts, (USART1_BASE_ADDR + A_CR1),
-        R_CR1_UE_MASK | R_CR1_RE_MASK | R_CR1_TE_MASK);
+        cr1 | R_CR1_UE_MASK | R_CR1_RE_MASK | R_CR1_TE_MASK);
 }
 
 static void test_write_read(void)
@@ -202,6 +205,8 @@ static void test_write_read(void)
     qtest_writel(qts, USART1_BASE_ADDR + A_TDR, 0xFFFFFFFF);
     const uint32_t tdr = qtest_readl(qts, USART1_BASE_ADDR + A_TDR);
     g_assert_cmpuint(tdr, ==, 0x000001FF);
+
+    qtest_quit(qts);
 }
 
 static void test_receive_char(void)
@@ -296,6 +301,63 @@ static void test_send_str(void)
     qtest_quit(qts);
 }
 
+static void test_ack(void)
+{
+    uint32_t cr1;
+    uint32_t isr;
+    QTestState *qts = qtest_init("-M b-l475e-iot01a");
+
+    init_uart(qts);
+
+    cr1 = qtest_readl(qts, (USART1_BASE_ADDR + A_CR1));
+
+    /* Disable the transmitter and receiver. */
+    qtest_writel(qts, (USART1_BASE_ADDR + A_CR1),
+        cr1 & ~(R_CR1_RE_MASK | R_CR1_TE_MASK));
+
+    /* Test ISR ACK for transmitter and receiver disabled */
+    isr = qtest_readl(qts, (USART1_BASE_ADDR + A_ISR));
+    g_assert_false(isr & R_ISR_TEACK_MASK);
+    g_assert_false(isr & R_ISR_REACK_MASK);
+
+    /* Enable the transmitter and receiver. */
+    qtest_writel(qts, (USART1_BASE_ADDR + A_CR1),
+        cr1 | (R_CR1_RE_MASK | R_CR1_TE_MASK));
+
+    /* Test ISR ACK for transmitter and receiver disabled */
+    isr = qtest_readl(qts, (USART1_BASE_ADDR + A_ISR));
+    g_assert_true(isr & R_ISR_TEACK_MASK);
+    g_assert_true(isr & R_ISR_REACK_MASK);
+
+    qtest_quit(qts);
+}
+
+static void check_clock(QTestState *qts, const char *path, uint32_t rcc_reg,
+                        uint32_t reg_offset)
+{
+    g_assert_cmpuint(get_clock_period(qts, path), ==, 0);
+    qtest_writel(qts, rcc_reg, qtest_readl(qts, rcc_reg) | (0x1 << reg_offset));
+    g_assert_cmpuint(get_clock_period(qts, path), ==, SYSCLK_PERIOD);
+}
+
+static void test_clock_enable(void)
+{
+    /*
+     * For each USART device, enable its clock in RCC
+     * and check that its clock frequency is SYSCLK_PERIOD
+     */
+    QTestState *qts = qtest_init("-M b-l475e-iot01a");
+
+    check_clock(qts, "machine/soc/usart[0]/clk", RCC_APB2ENR, 14);
+    check_clock(qts, "machine/soc/usart[1]/clk", RCC_APB1ENR1, 17);
+    check_clock(qts, "machine/soc/usart[2]/clk", RCC_APB1ENR1, 18);
+    check_clock(qts, "machine/soc/uart[0]/clk", RCC_APB1ENR1, 19);
+    check_clock(qts, "machine/soc/uart[1]/clk", RCC_APB1ENR1, 20);
+    check_clock(qts, "machine/soc/lpuart1/clk", RCC_APB1ENR2, 0);
+
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -308,6 +370,8 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/usart/send_char", test_send_char);
     qtest_add_func("stm32l4x5/usart/receive_str", test_receive_str);
     qtest_add_func("stm32l4x5/usart/send_str", test_send_str);
+    qtest_add_func("stm32l4x5/usart/ack", test_ack);
+    qtest_add_func("stm32l4x5/usart/clock_enable", test_clock_enable);
     ret = g_test_run();
 
     return ret;

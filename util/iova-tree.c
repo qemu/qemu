@@ -115,13 +115,6 @@ const DMAMap *iova_tree_find_iova(const IOVATree *tree, const DMAMap *map)
     return args.result;
 }
 
-const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova)
-{
-    const DMAMap map = { .iova = iova, .size = 0 };
-
-    return iova_tree_find(tree, &map);
-}
-
 static inline void iova_tree_insert_internal(GTree *gtree, DMAMap *range)
 {
     /* Key and value are sharing the same range data */
@@ -146,22 +139,6 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map)
     iova_tree_insert_internal(tree->tree, new);
 
     return IOVA_OK;
-}
-
-static gboolean iova_tree_traverse(gpointer key, gpointer value,
-                                gpointer data)
-{
-    iova_tree_iterator iterator = data;
-    DMAMap *map = key;
-
-    g_assert(key == value);
-
-    return iterator(map);
-}
-
-void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator)
-{
-    g_tree_foreach(tree->tree, iova_tree_traverse, iterator);
 }
 
 void iova_tree_remove(IOVATree *tree, DMAMap map)

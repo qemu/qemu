@@ -25,39 +25,39 @@
 #include "cipherpriv.h"
 
 
-static const size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
-    [QCRYPTO_CIPHER_ALG_AES_128] = 16,
-    [QCRYPTO_CIPHER_ALG_AES_192] = 24,
-    [QCRYPTO_CIPHER_ALG_AES_256] = 32,
-    [QCRYPTO_CIPHER_ALG_DES] = 8,
-    [QCRYPTO_CIPHER_ALG_3DES] = 24,
-    [QCRYPTO_CIPHER_ALG_CAST5_128] = 16,
-    [QCRYPTO_CIPHER_ALG_SERPENT_128] = 16,
-    [QCRYPTO_CIPHER_ALG_SERPENT_192] = 24,
-    [QCRYPTO_CIPHER_ALG_SERPENT_256] = 32,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_128] = 16,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_192] = 24,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_256] = 32,
+static const size_t alg_key_len[QCRYPTO_CIPHER_ALGO__MAX] = {
+    [QCRYPTO_CIPHER_ALGO_AES_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_AES_192] = 24,
+    [QCRYPTO_CIPHER_ALGO_AES_256] = 32,
+    [QCRYPTO_CIPHER_ALGO_DES] = 8,
+    [QCRYPTO_CIPHER_ALGO_3DES] = 24,
+    [QCRYPTO_CIPHER_ALGO_CAST5_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_192] = 24,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_256] = 32,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_192] = 24,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_256] = 32,
 #ifdef CONFIG_CRYPTO_SM4
-    [QCRYPTO_CIPHER_ALG_SM4] = 16,
+    [QCRYPTO_CIPHER_ALGO_SM4] = 16,
 #endif
 };
 
-static const size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
-    [QCRYPTO_CIPHER_ALG_AES_128] = 16,
-    [QCRYPTO_CIPHER_ALG_AES_192] = 16,
-    [QCRYPTO_CIPHER_ALG_AES_256] = 16,
-    [QCRYPTO_CIPHER_ALG_DES] = 8,
-    [QCRYPTO_CIPHER_ALG_3DES] = 8,
-    [QCRYPTO_CIPHER_ALG_CAST5_128] = 8,
-    [QCRYPTO_CIPHER_ALG_SERPENT_128] = 16,
-    [QCRYPTO_CIPHER_ALG_SERPENT_192] = 16,
-    [QCRYPTO_CIPHER_ALG_SERPENT_256] = 16,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_128] = 16,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_192] = 16,
-    [QCRYPTO_CIPHER_ALG_TWOFISH_256] = 16,
+static const size_t alg_block_len[QCRYPTO_CIPHER_ALGO__MAX] = {
+    [QCRYPTO_CIPHER_ALGO_AES_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_AES_192] = 16,
+    [QCRYPTO_CIPHER_ALGO_AES_256] = 16,
+    [QCRYPTO_CIPHER_ALGO_DES] = 8,
+    [QCRYPTO_CIPHER_ALGO_3DES] = 8,
+    [QCRYPTO_CIPHER_ALGO_CAST5_128] = 8,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_192] = 16,
+    [QCRYPTO_CIPHER_ALGO_SERPENT_256] = 16,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_128] = 16,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_192] = 16,
+    [QCRYPTO_CIPHER_ALGO_TWOFISH_256] = 16,
 #ifdef CONFIG_CRYPTO_SM4
-    [QCRYPTO_CIPHER_ALG_SM4] = 16,
+    [QCRYPTO_CIPHER_ALGO_SM4] = 16,
 #endif
 };
 
@@ -69,21 +69,21 @@ static const bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
 };
 
 
-size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg)
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgo alg)
 {
     assert(alg < G_N_ELEMENTS(alg_key_len));
     return alg_block_len[alg];
 }
 
 
-size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg)
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgo alg)
 {
     assert(alg < G_N_ELEMENTS(alg_key_len));
     return alg_key_len[alg];
 }
 
 
-size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgo alg,
                                  QCryptoCipherMode mode)
 {
     if (alg >= G_N_ELEMENTS(alg_block_len)) {
@@ -101,20 +101,20 @@ size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
 
 
 static bool
-qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
+qcrypto_cipher_validate_key_length(QCryptoCipherAlgo alg,
                                    QCryptoCipherMode mode,
                                    size_t nkey,
                                    Error **errp)
 {
-    if ((unsigned)alg >= QCRYPTO_CIPHER_ALG__MAX) {
+    if ((unsigned)alg >= QCRYPTO_CIPHER_ALGO__MAX) {
         error_setg(errp, "Cipher algorithm %d out of range",
                    alg);
         return false;
     }
 
     if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-        if (alg == QCRYPTO_CIPHER_ALG_DES ||
-            alg == QCRYPTO_CIPHER_ALG_3DES) {
+        if (alg == QCRYPTO_CIPHER_ALGO_DES ||
+            alg == QCRYPTO_CIPHER_ALGO_3DES) {
             error_setg(errp, "XTS mode not compatible with DES/3DES");
             return false;
         }
@@ -148,7 +148,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
 #include "cipher-builtin.c.inc"
 #endif
 
-QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
+QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgo alg,
                                   QCryptoCipherMode mode,
                                   const uint8_t *key, size_t nkey,
                                   Error **errp)

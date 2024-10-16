@@ -310,6 +310,7 @@ void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
 }
 
 static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+                                                 int64_t min_cluster_size,
                                                  Error **errp)
 {
     int ret;
@@ -318,6 +319,9 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
 
     GLOBAL_STATE_CODE();
     GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    min_cluster_size = MAX(min_cluster_size,
+                           (int64_t)BLOCK_COPY_CLUSTER_SIZE_DEFAULT);
 
     target_does_cow = bdrv_backing_chain_next(target);
 
@@ -329,13 +333,13 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
     ret = bdrv_get_info(target, &bdi);
     if (ret == -ENOTSUP && !target_does_cow) {
         /* Cluster size is not defined */
-        warn_report("The target block device doesn't provide "
-                    "information about the block size and it doesn't have a "
-                    "backing file. The default block size of %u bytes is "
-                    "used. If the actual block size of the target exceeds "
-                    "this default, the backup may be unusable",
-                    BLOCK_COPY_CLUSTER_SIZE_DEFAULT);
-        return BLOCK_COPY_CLUSTER_SIZE_DEFAULT;
+        warn_report("The target block device doesn't provide information about "
+                    "the block size and it doesn't have a backing file. The "
+                    "(default) block size of %" PRIi64 " bytes is used. If the "
+                    "actual block size of the target exceeds this value, the "
+                    "backup may be unusable",
+                    min_cluster_size);
+        return min_cluster_size;
     } else if (ret < 0 && !target_does_cow) {
         error_setg_errno(errp, -ret,
             "Couldn't determine the cluster size of the target image, "
@@ -345,16 +349,17 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
         return ret;
     } else if (ret < 0 && target_does_cow) {
         /* Not fatal; just trudge on ahead. */
-        return BLOCK_COPY_CLUSTER_SIZE_DEFAULT;
+        return min_cluster_size;
     }
 
-    return MAX(BLOCK_COPY_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
+    return MAX(min_cluster_size, bdi.cluster_size);
 }
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      BlockDriverState *copy_bitmap_bs,
                                      const BdrvDirtyBitmap *bitmap,
                                      bool discard_source,
+                                     uint64_t min_cluster_size,
                                      Error **errp)
 {
     ERRP_GUARD();
@@ -365,7 +370,18 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
 
     GLOBAL_STATE_CODE();
 
-    cluster_size = block_copy_calculate_cluster_size(target->bs, errp);
+    if (min_cluster_size > INT64_MAX) {
+        error_setg(errp, "min-cluster-size too large: %" PRIu64 " > %" PRIi64,
+                   min_cluster_size, INT64_MAX);
+        return NULL;
+    } else if (min_cluster_size && !is_power_of_2(min_cluster_size)) {
+        error_setg(errp, "min-cluster-size needs to be a power of 2");
+        return NULL;
+    }
+
+    cluster_size = block_copy_calculate_cluster_size(target->bs,
+                                                     (int64_t)min_cluster_size,
+                                                     errp);
     if (cluster_size < 0) {
         return NULL;
     }
@@ -568,7 +584,7 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     BlockCopyState *s = t->s;
     bool error_is_read = false;
     BlockCopyMethod method = t->method;
-    int ret;
+    int ret = -1;
 
     WITH_GRAPH_RDLOCK_GUARD() {
         ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,

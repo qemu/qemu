@@ -172,8 +172,8 @@ void vec_gen_4(TCGOpcode opc, TCGType type, unsigned vece,
     op->args[3] = c;
 }
 
-static void vec_gen_6(TCGOpcode opc, TCGType type, unsigned vece, TCGArg r,
-                      TCGArg a, TCGArg b, TCGArg c, TCGArg d, TCGArg e)
+void vec_gen_6(TCGOpcode opc, TCGType type, unsigned vece, TCGArg r,
+               TCGArg a, TCGArg b, TCGArg c, TCGArg d, TCGArg e)
 {
     TCGOp *op = tcg_emit_op(opc, 6);
     TCGOP_VECL(op) = type - TCG_TYPE_V64;

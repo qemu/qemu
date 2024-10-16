@@ -37,6 +37,5 @@ void remote_iohub_set_irq(void *opaque, int pirq, int level);
 void process_set_irqfd_msg(PCIDevice *pci_dev, MPQemuMsg *msg);
 
 void remote_iohub_init(RemoteIOHubState *iohub);
-void remote_iohub_finalize(RemoteIOHubState *iohub);
 
 #endif

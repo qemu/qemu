@@ -17,7 +17,7 @@
 #include "sysemu/runstate.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "hw/char/parallel.h"
 #include "hw/intc/i8259.h"
 #include "hw/input/lasips2.h"
@@ -642,12 +642,12 @@ static void machine_HP_C3700_init(MachineState *machine)
     machine_HP_common_init_tail(machine, pci_bus, translate);
 }
 
-static void hppa_machine_reset(MachineState *ms, ShutdownCause reason)
+static void hppa_machine_reset(MachineState *ms, ResetType type)
 {
     unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     /* Start all CPUs at the firmware entry point.
      *  Monarch CPU will initialize firmware, secondary CPUs

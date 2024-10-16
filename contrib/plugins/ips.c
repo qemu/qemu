@@ -152,6 +152,12 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     vcpus = qemu_plugin_scoreboard_new(sizeof(vCPUTime));
     max_insn_per_quantum = max_insn_per_second / NUM_TIME_UPDATE_PER_SEC;
 
+    if (max_insn_per_quantum == 0) {
+        fprintf(stderr, "minimum of %d instructions per second needed\n",
+                NUM_TIME_UPDATE_PER_SEC);
+        return -1;
+    }
+
     time_handle = qemu_plugin_request_time_control();
     g_assert(time_handle);
 

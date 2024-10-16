@@ -598,7 +598,7 @@ static void xlnx_dpdma_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->vmsd = &vmstate_xlnx_dpdma;
-    dc->reset = xlnx_dpdma_reset;
+    device_class_set_legacy_reset(dc, xlnx_dpdma_reset);
 }
 
 static const TypeInfo xlnx_dpdma_info = {

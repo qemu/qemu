@@ -122,10 +122,19 @@ struct KVMState
     bool sync_mmu;
     bool guest_state_protected;
     uint64_t manual_dirty_log_protect;
-    /* The man page (and posix) say ioctl numbers are signed int, but
-     * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
-     * unsigned, and treating them as signed here can break things */
-    unsigned irq_set_ioctl;
+    /*
+     * Older POSIX says that ioctl numbers are signed int, but in
+     * practice they are not. (Newer POSIX doesn't specify ioctl
+     * at all.) Linux, glibc and *BSD all treat ioctl numbers as
+     * unsigned, and real-world ioctl values like KVM_GET_XSAVE have
+     * bit 31 set, which means that passing them via an 'int' will
+     * result in sign-extension when they get converted back to the
+     * 'unsigned long' which the ioctl() prototype uses. Luckily Linux
+     * always treats the argument as an unsigned 32-bit int, so any
+     * possible sign-extension is deliberately ignored, but for
+     * consistency we keep to the same type that glibc is using.
+     */
+    unsigned long irq_set_ioctl;
     unsigned int sigmask_len;
     GHashTable *gsimap;
 #ifdef KVM_CAP_IRQ_ROUTING

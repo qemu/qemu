@@ -170,7 +170,7 @@ static void lasi_82596_class_init(ObjectClass *klass, void *data)
     dc->realize = lasi_82596_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
-    dc->reset = lasi_82596_reset;
+    device_class_set_legacy_reset(dc, lasi_82596_reset);
     dc->vmsd = &vmstate_lasi_82596;
     dc->user_creatable = false;
     device_class_set_props(dc, lasi_82596_properties);

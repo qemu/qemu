@@ -592,23 +592,29 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
  * resulting in a TLB or XTLB Refill exception.
  */
 
-static bool get_pte(CPUMIPSState *env, uint64_t vaddr, int entry_size,
-        uint64_t *pte)
+static bool get_pte(CPUMIPSState *env, uint64_t vaddr, MemOp op,
+                    uint64_t *pte, unsigned ptw_mmu_idx)
 {
-    if ((vaddr & ((entry_size >> 3) - 1)) != 0) {
+    MemOpIdx oi;
+
+    if ((vaddr & (memop_size(op) - 1)) != 0) {
         return false;
     }
-    if (entry_size == 64) {
-        *pte = cpu_ldq_code(env, vaddr);
+
+    oi = make_memop_idx(op | MO_TE, ptw_mmu_idx);
+    if (op == MO_64) {
+        *pte = cpu_ldq_mmu(env, vaddr, oi, 0);
     } else {
-        *pte = cpu_ldl_code(env, vaddr);
+        *pte = cpu_ldl_mmu(env, vaddr, oi, 0);
     }
+
     return true;
 }
 
 static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
-        int entry_size, int ptei)
+                                     MemOp op, int ptei)
 {
+    unsigned entry_size = memop_size(op) << 3;
     uint64_t result = entry;
     uint64_t rixi;
     if (ptei > entry_size) {
@@ -624,14 +630,12 @@ static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
 static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         int directory_index, bool *huge_page, bool *hgpg_directory_hit,
         uint64_t *pw_entrylo0, uint64_t *pw_entrylo1,
-        unsigned directory_shift, unsigned leaf_shift, int ptw_mmu_idx)
+        MemOp directory_mop, MemOp leaf_mop, int ptw_mmu_idx)
 {
     int dph = (env->CP0_PWCtl >> CP0PC_DPH) & 0x1;
     int psn = (env->CP0_PWCtl >> CP0PC_PSN) & 0x3F;
     int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
     int pf_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
-    uint32_t direntry_size = 1 << (directory_shift + 3);
-    uint32_t leafentry_size = 1 << (leaf_shift + 3);
     uint64_t entry;
     uint64_t paddr;
     int prot;
@@ -643,14 +647,14 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         /* wrong base address */
         return 0;
     }
-    if (!get_pte(env, *vaddr, direntry_size, &entry)) {
+    if (!get_pte(env, *vaddr, directory_mop, &entry, ptw_mmu_idx)) {
         return 0;
     }
 
     if ((entry & (1 << psn)) && hugepg) {
         *huge_page = true;
         *hgpg_directory_hit = true;
-        entry = get_tlb_entry_layout(env, entry, leafentry_size, pf_ptew);
+        entry = get_tlb_entry_layout(env, entry, leaf_mop, pf_ptew);
         w = directory_index - 1;
         if (directory_index & 0x1) {
             /* Generate adjacent page from same PTE for odd TLB page */
@@ -658,7 +662,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
             *pw_entrylo0 = entry & ~lsb; /* even page */
             *pw_entrylo1 = entry | lsb; /* odd page */
         } else if (dph) {
-            int oddpagebit = 1 << leaf_shift;
+            int oddpagebit = 1 << leaf_mop;
             uint64_t vaddr2 = *vaddr ^ oddpagebit;
             if (*vaddr & oddpagebit) {
                 *pw_entrylo1 = entry;
@@ -669,10 +673,10 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
                                      ptw_mmu_idx) != TLBRET_MATCH) {
                 return 0;
             }
-            if (!get_pte(env, vaddr2, leafentry_size, &entry)) {
+            if (!get_pte(env, vaddr2, leaf_mop, &entry, ptw_mmu_idx)) {
                 return 0;
             }
-            entry = get_tlb_entry_layout(env, entry, leafentry_size, pf_ptew);
+            entry = get_tlb_entry_layout(env, entry, leaf_mop, pf_ptew);
             if (*vaddr & oddpagebit) {
                 *pw_entrylo0 = entry;
             } else {
@@ -711,7 +715,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
 
     /* Native pointer size */
     /*For the 32-bit architectures, this bit is fixed to 0.*/
-    int native_shift = (((env->CP0_PWSize >> CP0PS_PS) & 1) == 0) ? 2 : 3;
+    MemOp native_op = (((env->CP0_PWSize >> CP0PS_PS) & 1) == 0) ? MO_32 : MO_64;
 
     /* Indices from PWField */
     int pf_gdw = (env->CP0_PWField >> CP0PF_GDW) & 0x3F;
@@ -728,11 +732,10 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
 
     /* Other HTW configs */
     int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
-    unsigned directory_shift, leaf_shift;
+    MemOp directory_mop, leaf_mop;
 
     /* Offsets into tables */
     unsigned goffset, uoffset, moffset, ptoffset0, ptoffset1;
-    uint32_t leafentry_size;
 
     /* Starting address - Page Table Base */
     uint64_t vaddr = env->CP0_PWBase;
@@ -759,23 +762,21 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
     }
 
     /* HTW Shift values (depend on entry size) */
-    directory_shift = (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
-    leaf_shift = (ptew == 1) ? native_shift + 1 : native_shift;
+    directory_mop = (hugepg && (ptew == 1)) ? native_op + 1 : native_op;
+    leaf_mop = (ptew == 1) ? native_op + 1 : native_op;
 
-    goffset = gindex << directory_shift;
-    uoffset = uindex << directory_shift;
-    moffset = mindex << directory_shift;
-    ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
-    ptoffset1 = ptoffset0 | (1 << (leaf_shift));
-
-    leafentry_size = 1 << (leaf_shift + 3);
+    goffset = gindex << directory_mop;
+    uoffset = uindex << directory_mop;
+    moffset = mindex << directory_mop;
+    ptoffset0 = (ptindex >> 1) << (leaf_mop + 1);
+    ptoffset1 = ptoffset0 | (1 << (leaf_mop));
 
     /* Global Directory */
     if (gdw > 0) {
         vaddr |= goffset;
         switch (walk_directory(env, &vaddr, pf_gdw, &huge_page, &hgpg_gdhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift, ptw_mmu_idx))
+                               directory_mop, leaf_mop, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -792,7 +793,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         vaddr |= uoffset;
         switch (walk_directory(env, &vaddr, pf_udw, &huge_page, &hgpg_udhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift, ptw_mmu_idx))
+                               directory_mop, leaf_mop, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -809,7 +810,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
         vaddr |= moffset;
         switch (walk_directory(env, &vaddr, pf_mdw, &huge_page, &hgpg_mdhit,
                                &pw_entrylo0, &pw_entrylo1,
-                               directory_shift, leaf_shift, ptw_mmu_idx))
+                               directory_mop, leaf_mop, ptw_mmu_idx))
         {
         case 0:
             return false;
@@ -827,10 +828,10 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
                              ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
-    if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
+    if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
         return false;
     }
-    dir_entry = get_tlb_entry_layout(env, dir_entry, leafentry_size, pf_ptew);
+    dir_entry = get_tlb_entry_layout(env, dir_entry, leaf_mop, pf_ptew);
     pw_entrylo0 = dir_entry;
 
     /* Leaf Level Page Table - Second half of PTE pair */
@@ -839,10 +840,10 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address,
                              ptw_mmu_idx) != TLBRET_MATCH) {
         return false;
     }
-    if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
+    if (!get_pte(env, vaddr, leaf_mop, &dir_entry, ptw_mmu_idx)) {
         return false;
     }
-    dir_entry = get_tlb_entry_layout(env, dir_entry, leafentry_size, pf_ptew);
+    dir_entry = get_tlb_entry_layout(env, dir_entry, leaf_mop, pf_ptew);
     pw_entrylo1 = dir_entry;
 
 refill:

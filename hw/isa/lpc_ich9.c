@@ -43,6 +43,7 @@
 #include "hw/southbridge/ich9.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
+#include "hw/acpi/ich9_timer.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/runstate.h"
@@ -531,6 +532,15 @@ ich9_lpc_pmcon_update(ICH9LPCState *lpc)
     uint16_t gen_pmcon_1 = pci_get_word(lpc->d.config + ICH9_LPC_GEN_PMCON_1);
     uint16_t wmask;
 
+    if (lpc->pm.swsmi_timer_enabled) {
+        ich9_pm_update_swsmi_timer(
+            &lpc->pm, lpc->pm.smi_en & ICH9_PMIO_SMI_EN_SWSMI_EN);
+    }
+    if (lpc->pm.periodic_timer_enabled) {
+        ich9_pm_update_periodic_timer(
+            &lpc->pm, lpc->pm.smi_en & ICH9_PMIO_SMI_EN_PERIODIC_EN);
+    }
+
     if (gen_pmcon_1 & ICH9_LPC_GEN_PMCON_1_SMI_LOCK) {
         wmask = pci_get_word(lpc->d.wmask + ICH9_LPC_GEN_PMCON_1);
         wmask &= ~ICH9_LPC_GEN_PMCON_1_SMI_LOCK;
@@ -826,6 +836,10 @@ static Property ich9_lpc_properties[] = {
                       ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT, true),
     DEFINE_PROP_BIT64("x-smi-cpu-hotunplug", ICH9LPCState, smi_host_features,
                       ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT, true),
+    DEFINE_PROP_BOOL("x-smi-swsmi-timer", ICH9LPCState,
+                     pm.swsmi_timer_enabled, true),
+    DEFINE_PROP_BOOL("x-smi-periodic-timer", ICH9LPCState,
+                     pm.periodic_timer_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -871,7 +885,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *amldevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->reset = ich9_lpc_reset;
+    device_class_set_legacy_reset(dc, ich9_lpc_reset);
     k->realize = ich9_lpc_realize;
     dc->vmsd = &vmstate_ich9_lpc;
     device_class_set_props(dc, ich9_lpc_properties);

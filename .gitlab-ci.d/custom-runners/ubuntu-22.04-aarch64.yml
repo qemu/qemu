@@ -103,7 +103,7 @@ ubuntu-22.04-aarch64-clang:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-libssh --cc=clang --cxx=clang++ --enable-sanitizers
+ - ../configure --disable-libssh --cc=clang --cxx=clang++ --enable-ubsan
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc --ignore=40`
  - make --output-sync -j`nproc --ignore=40` check

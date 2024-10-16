@@ -259,7 +259,7 @@ static void imx_rngc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = imx_rngc_realize;
-    dc->reset = imx_rngc_reset;
+    device_class_set_legacy_reset(dc, imx_rngc_reset);
     dc->desc = RNGC_NAME,
     dc->vmsd = &vmstate_imx_rngc;
 }

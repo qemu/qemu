@@ -181,8 +181,8 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     bool check_regs_this = rmatches;
     bool check_regs_next = false;
 
-    size_t n = qemu_plugin_tb_n_insns(tb);
-    for (size_t i = 0; i < n; i++) {
+    size_t n_insns = qemu_plugin_tb_n_insns(tb);
+    for (size_t i = 0; i < n_insns; i++) {
         char *insn_disas;
         uint64_t insn_vaddr;
 

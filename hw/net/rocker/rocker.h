@@ -72,7 +72,6 @@ DECLARE_INSTANCE_CHECKER(Rocker, ROCKER,
                          TYPE_ROCKER)
 
 Rocker *rocker_find(const char *name);
-uint32_t rocker_fp_ports(Rocker *r);
 int rocker_event_link_changed(Rocker *r, uint32_t pport, bool link_up);
 int rocker_event_mac_vlan_seen(Rocker *r, uint32_t pport, uint8_t *addr,
                                uint16_t vlan_id);

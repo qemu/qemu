@@ -540,7 +540,7 @@ static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, void *data)
 
     dc->realize = cmsdk_apb_dualtimer_realize;
     dc->vmsd = &cmsdk_apb_dualtimer_vmstate;
-    dc->reset = cmsdk_apb_dualtimer_reset;
+    device_class_set_legacy_reset(dc, cmsdk_apb_dualtimer_reset);
 }
 
 static const TypeInfo cmsdk_apb_dualtimer_info = {

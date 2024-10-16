@@ -1144,11 +1144,6 @@ void qemu_init_exec_dir(const char *argv0)
 #endif
 }
 
-const char *qemu_get_exec_dir(void)
-{
-    return exec_dir;
-}
-
 char *get_relocated_path(const char *dir)
 {
     size_t prefix_len = strlen(CONFIG_PREFIX);

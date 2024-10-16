@@ -68,8 +68,6 @@ QTestState *qtest_init(const char *extra_args);
  */
 QTestState *qtest_init_with_env(const char *var, const char *extra_args);
 
-QTestState *qtest_init_with_env_no_handshake(const char *var,
-                                             const char *extra_args);
 /**
  * qtest_init_without_qmp_handshake:
  * @extra_args: other arguments to pass to QEMU.  CAUTION: these

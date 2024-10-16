@@ -278,7 +278,7 @@ static void sparc32_dma_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = sparc32_dma_device_reset;
+    device_class_set_legacy_reset(dc, sparc32_dma_device_reset);
     dc->vmsd = &vmstate_sparc32_dma_device;
 }
 

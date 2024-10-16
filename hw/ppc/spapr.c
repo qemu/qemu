@@ -1725,7 +1725,7 @@ void spapr_check_mmu_mode(bool guest_radix)
     }
 }
 
-static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
+static void spapr_machine_reset(MachineState *machine, ResetType type)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
@@ -1733,7 +1733,7 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
     void *fdt;
     int rc;
 
-    if (reason != SHUTDOWN_CAUSE_SNAPSHOT_LOAD) {
+    if (type != RESET_TYPE_SNAPSHOT_LOAD) {
         /*
          * Record-replay snapshot load must not consume random, this was
          * already replayed from initial machine reset.
@@ -1762,7 +1762,7 @@ static void spapr_machine_reset(MachineState *machine, ShutdownCause reason)
         spapr_setup_hpt(spapr);
     }
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     spapr_ovec_cleanup(spapr->ov5_cas);
     spapr->ov5_cas = spapr_ovec_new();
@@ -4838,14 +4838,25 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     DEFINE_SPAPR_MACHINE_IMPL(false, major, minor, _, tag)
 
 /*
- * pseries-9.1
+ * pseries-9.2
  */
-static void spapr_machine_9_1_class_options(MachineClass *mc)
+static void spapr_machine_9_2_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE_AS_LATEST(9, 1);
+DEFINE_SPAPR_MACHINE_AS_LATEST(9, 2);
+
+/*
+ * pseries-9.1
+ */
+static void spapr_machine_9_1_class_options(MachineClass *mc)
+{
+    spapr_machine_9_2_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_9_1, hw_compat_9_1_len);
+}
+
+DEFINE_SPAPR_MACHINE(9, 1);
 
 /*
  * pseries-9.0

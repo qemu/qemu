@@ -1245,7 +1245,7 @@ static void pnv_spi_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PowerNV SPI";
     dc->realize = pnv_spi_realize;
-    dc->reset = do_reset;
+    device_class_set_legacy_reset(dc, do_reset);
     device_class_set_props(dc, pnv_spi_properties);
 }
 

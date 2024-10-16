@@ -662,16 +662,6 @@ static void mch_realize(PCIDevice *d, Error **errp)
                                    OBJECT(&mch->smram));
 }
 
-uint64_t mch_mcfg_base(void)
-{
-    bool ambiguous;
-    Object *o = object_resolve_path_type("", TYPE_MCH_PCI_DEVICE, &ambiguous);
-    if (!o) {
-        return 0;
-    }
-    return MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
-}
-
 static Property mch_props[] = {
     DEFINE_PROP_UINT16("extended-tseg-mbytes", MCHPCIState, ext_tseg_mbytes,
                        16),
@@ -686,7 +676,7 @@ static void mch_class_init(ObjectClass *klass, void *data)
 
     k->realize = mch_realize;
     k->config_write = mch_write_config;
-    dc->reset = mch_reset;
+    device_class_set_legacy_reset(dc, mch_reset);
     device_class_set_props(dc, mch_props);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Host bridge";

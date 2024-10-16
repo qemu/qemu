@@ -151,7 +151,7 @@ static void lance_class_init(ObjectClass *klass, void *data)
     dc->realize = lance_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
-    dc->reset = lance_reset;
+    device_class_set_legacy_reset(dc, lance_reset);
     dc->vmsd = &vmstate_lance;
     device_class_set_props(dc, lance_properties);
 }

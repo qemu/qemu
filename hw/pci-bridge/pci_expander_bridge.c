@@ -515,7 +515,7 @@ static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
 
     /* Host bridges aren't hotpluggable. FIXME: spec reference */
     dc->hotpluggable = false;
-    dc->reset = pxb_cxl_dev_reset;
+    device_class_set_legacy_reset(dc, pxb_cxl_dev_reset);
 }
 
 static const TypeInfo pxb_cxl_dev_info = {

@@ -1,13 +1,6 @@
 include:
   - local: '/.gitlab-ci.d/crossbuild-template.yml'
 
-cross-armel-user:
-  extends: .cross_user_build_job
-  needs:
-    job: armel-debian-cross-container
-  variables:
-    IMAGE: debian-armel-cross
-
 cross-armhf-user:
   extends: .cross_user_build_job
   needs:
@@ -69,7 +62,11 @@ cross-i686-tci:
     IMAGE: debian-i686-cross
     ACCEL: tcg-interpreter
     EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user --disable-plugins --disable-kvm
-    MAKE_CHECK_ARGS: check check-tcg
+    # Force tests to run with reduced parallelism, to see whether this
+    # reduces the flakiness of this CI job. The CI
+    # environment by default shows us 8 CPUs and so we
+    # would otherwise be using a parallelism of 9.
+    MAKE_CHECK_ARGS: check check-tcg -j2
 
 cross-mipsel-system:
   extends: .cross_system_build_job
@@ -179,7 +176,7 @@ cross-win64-system:
     EXTRA_CONFIGURE_OPTS: --enable-fdt=internal --disable-plugins
     CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu
                         m68k-softmmu microblazeel-softmmu
-                        or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
+                        or1k-softmmu rx-softmmu sh4-softmmu sparc64-softmmu
                         tricore-softmmu xtensaeb-softmmu
   artifacts:
     when: on_success

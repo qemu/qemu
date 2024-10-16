@@ -626,8 +626,8 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = xilinx_axidma_realize,
-    dc->reset = xilinx_axidma_reset;
+    dc->realize = xilinx_axidma_realize;
+    device_class_set_legacy_reset(dc, xilinx_axidma_reset);
     device_class_set_props(dc, axidma_properties);
 }
 

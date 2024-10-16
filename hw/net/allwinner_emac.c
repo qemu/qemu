@@ -521,7 +521,7 @@ static void aw_emac_class_init(ObjectClass *klass, void *data)
 
     dc->realize = aw_emac_realize;
     device_class_set_props(dc, aw_emac_properties);
-    dc->reset = aw_emac_reset;
+    device_class_set_legacy_reset(dc, aw_emac_reset);
     dc->vmsd = &vmstate_aw_emac;
 }
 

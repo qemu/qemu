@@ -410,7 +410,7 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
  */
 void nbd_co_establish_connection_cancel(NBDClientConnection *conn)
 {
-    Coroutine *wait_co;
+    Coroutine *wait_co = NULL;
 
     WITH_QEMU_LOCK_GUARD(&conn->mutex) {
         wait_co = g_steal_pointer(&conn->wait_co);

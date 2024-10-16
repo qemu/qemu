@@ -29,8 +29,6 @@
 #include "chardev/char-fe.h"
 #include "exec/memory.h"
 #include "qemu/fifo8.h"
-#include "chardev/char.h"
-#include "hw/sysbus.h"
 #include "qom/object.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
@@ -81,38 +79,10 @@ struct SerialState {
 };
 typedef struct SerialState SerialState;
 
-struct SerialMM {
-    SysBusDevice parent;
-
-    SerialState serial;
-
-    uint8_t regshift;
-    uint8_t endianness;
-};
-
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
-void serial_set_frequency(SerialState *s, uint32_t frequency);
-
 #define TYPE_SERIAL "serial"
 OBJECT_DECLARE_SIMPLE_TYPE(SerialState, SERIAL)
-
-#define TYPE_SERIAL_MM "serial-mm"
-OBJECT_DECLARE_SIMPLE_TYPE(SerialMM, SERIAL_MM)
-
-SerialMM *serial_mm_init(MemoryRegion *address_space,
-                         hwaddr base, int regshift,
-                         qemu_irq irq, int baudbase,
-                         Chardev *chr, enum device_endian end);
-
-/* serial-isa.c */
-
-#define MAX_ISA_SERIAL_PORTS 4
-
-#define TYPE_ISA_SERIAL "isa-serial"
-void serial_hds_isa_init(ISABus *bus, int from, int to);
-void isa_serial_set_iobase(ISADevice *serial, hwaddr iobase);
-void isa_serial_set_enabled(ISADevice *serial, bool enabled);
 
 #endif

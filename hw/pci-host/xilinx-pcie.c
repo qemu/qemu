@@ -300,7 +300,7 @@ static void xilinx_pcie_root_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     k->realize = xilinx_pcie_root_realize;
     k->exit = pci_bridge_exitfn;
-    dc->reset = pci_bridge_reset;
+    device_class_set_legacy_reset(dc, pci_bridge_reset);
     k->config_read = xilinx_pcie_root_config_read;
     k->config_write = xilinx_pcie_root_config_write;
     /*

@@ -42,6 +42,7 @@ struct sdl2_console {
     int updates;
     int idle_counter;
     int ignore_hotkeys;
+    bool gui_keysym;
     SDL_GLContext winctx;
     QKbdState *kbd;
 #ifdef CONFIG_OPENGL
@@ -60,6 +61,7 @@ void sdl2_poll_events(struct sdl2_console *scon);
 
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev);
+void sdl2_release_modifiers(struct sdl2_console *scon);
 
 void sdl2_2d_update(DisplayChangeListener *dcl,
                     int x, int y, int w, int h);

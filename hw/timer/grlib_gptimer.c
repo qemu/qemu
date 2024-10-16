@@ -415,7 +415,7 @@ static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = grlib_gptimer_realize;
-    dc->reset = grlib_gptimer_reset;
+    device_class_set_legacy_reset(dc, grlib_gptimer_reset);
     device_class_set_props(dc, grlib_gptimer_properties);
 }
 

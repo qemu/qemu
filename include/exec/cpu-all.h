@@ -166,7 +166,20 @@ typedef int (*walk_memory_regions_fn)(void *, target_ulong,
 int walk_memory_regions(void *, walk_memory_regions_fn);
 
 int page_get_flags(target_ulong address);
+
+/**
+ * page_set_flags:
+ * @start: first byte of range
+ * @last: last byte of range
+ * @flags: flags to set
+ * Context: holding mmap lock
+ *
+ * Modify the flags of a page and invalidate the code if necessary.
+ * The flag PAGE_WRITE_ORG is positioned automatically depending
+ * on PAGE_WRITE.  The mmap_lock should already be held.
+ */
 void page_set_flags(target_ulong start, target_ulong last, int flags);
+
 void page_reset_target_data(target_ulong start, target_ulong last);
 
 /**

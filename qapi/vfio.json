@@ -7,7 +7,7 @@
 ##
 
 ##
-# @VfioMigrationState:
+# @QapiVfioMigrationState:
 #
 # An enumeration of the VFIO device migration states.
 #
@@ -32,10 +32,9 @@
 #
 # Since: 9.1
 ##
-{ 'enum': 'VfioMigrationState',
+{ 'enum': 'QapiVfioMigrationState',
   'data': [ 'stop', 'running', 'stop-copy', 'resuming', 'running-p2p',
-            'pre-copy', 'pre-copy-p2p' ],
-  'prefix': 'QAPI_VFIO_MIGRATION_STATE' }
+            'pre-copy', 'pre-copy-p2p' ] }
 
 ##
 # @VFIO_MIGRATION:
@@ -63,5 +62,5 @@
   'data': {
       'device-id': 'str',
       'qom-path': 'str',
-      'device-state': 'VfioMigrationState'
+      'device-state': 'QapiVfioMigrationState'
   } }

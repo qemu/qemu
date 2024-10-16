@@ -324,7 +324,7 @@ static void imx31_ccm_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc  = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
 
-    dc->reset = imx31_ccm_reset;
+    device_class_set_legacy_reset(dc, imx31_ccm_reset);
     dc->vmsd  = &vmstate_imx31_ccm;
     dc->desc  = "i.MX31 Clock Control Module";
 

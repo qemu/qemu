@@ -39,7 +39,7 @@
 #include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"
 #include "hw/rtc/mc146818rtc.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-isa.h"
 #include "hw/display/ramfb.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/e820_memory_layout.h"
@@ -462,7 +462,7 @@ static void microvm_machine_state_init(MachineState *machine)
     microvm_devices_init(mms);
 }
 
-static void microvm_machine_reset(MachineState *machine, ShutdownCause reason)
+static void microvm_machine_reset(MachineState *machine, ResetType type)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(machine);
     CPUState *cs;
@@ -475,7 +475,7 @@ static void microvm_machine_reset(MachineState *machine, ShutdownCause reason)
         mms->kernel_cmdline_fixed = true;
     }
 
-    qemu_devices_reset(reason);
+    qemu_devices_reset(type);
 
     CPU_FOREACH(cs) {
         cpu = X86_CPU(cs);

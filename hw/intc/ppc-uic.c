@@ -286,7 +286,7 @@ static void ppc_uic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ppc_uic_reset;
+    device_class_set_legacy_reset(dc, ppc_uic_reset);
     dc->realize = ppc_uic_realize;
     dc->vmsd = &ppc_uic_vmstate;
     device_class_set_props(dc, ppc_uic_properties);

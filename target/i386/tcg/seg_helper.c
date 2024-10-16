@@ -378,7 +378,7 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
 
     /* X86Access avoids memory exceptions during the task switch */
     mmu_index = cpu_mmu_index_kernel(env);
-    access_prepare_mmu(&old, env, env->tr.base, old_tss_limit_max,
+    access_prepare_mmu(&old, env, env->tr.base, old_tss_limit_max + 1,
                        MMU_DATA_STORE, mmu_index, retaddr);
 
     if (source == SWITCH_TSS_CALL) {
@@ -386,7 +386,8 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
         probe_access(env, tss_base, 2, MMU_DATA_STORE,
                      mmu_index, retaddr);
     }
-    access_prepare_mmu(&new, env, tss_base, tss_limit,
+    /* While true tss_limit may be larger, we don't access the iopb here. */
+    access_prepare_mmu(&new, env, tss_base, tss_limit_max + 1,
                        MMU_DATA_LOAD, mmu_index, retaddr);
 
     /* save the current state in the old TSS */

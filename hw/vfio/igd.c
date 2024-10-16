@@ -88,19 +88,30 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x2200:
     case 0x5900:
         return 8;
+    /* ElkhartLake */
+    case 0x4500:
+        return 11;
+    /* TigerLake */
+    case 0x9A00:
+        return 12;
     }
 
-    return 8; /* Assume newer is compatible */
+    /*
+     * Unfortunately, Intel changes it's specification quite often. This makes
+     * it impossible to use a suitable default value for unknown devices.
+     */
+    return -1;
 }
 
 typedef struct VFIOIGDQuirk {
     struct VFIOPCIDevice *vdev;
     uint32_t index;
-    uint32_t bdsm;
+    uint64_t bdsm;
 } VFIOIGDQuirk;
 
 #define IGD_GMCH 0x50 /* Graphics Control Register */
 #define IGD_BDSM 0x5c /* Base Data of Stolen Memory */
+#define IGD_BDSM_GEN11 0xc0 /* Base Data of Stolen Memory of gen 11 and later */
 
 
 /*
@@ -309,9 +320,13 @@ static void vfio_igd_quirk_data_write(void *opaque, hwaddr addr,
      */
     if ((igd->index % 4 == 1) && igd->index < vfio_igd_gtt_max(vdev)) {
         if (gen < 8 || (igd->index % 8 == 1)) {
-            uint32_t base;
+            uint64_t base;
 
-            base = pci_get_long(vdev->pdev.config + IGD_BDSM);
+            if (gen < 11) {
+                base = pci_get_long(vdev->pdev.config + IGD_BDSM);
+            } else {
+                base = pci_get_quad(vdev->pdev.config + IGD_BDSM_GEN11);
+            }
             if (!base) {
                 hw_error("vfio-igd: Guest attempted to program IGD GTT before "
                          "BIOS reserved stolen memory.  Unsupported BIOS?");
@@ -365,6 +380,128 @@ static const MemoryRegionOps vfio_igd_index_quirk = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+#define IGD_BDSM_MMIO_OFFSET 0x1080C0
+
+static uint64_t vfio_igd_quirk_bdsm_read(void *opaque,
+                                          hwaddr addr, unsigned size)
+{
+    VFIOPCIDevice *vdev = opaque;
+    uint64_t offset;
+
+    offset = IGD_BDSM_GEN11 + addr;
+
+    switch (size) {
+    case 1:
+        return pci_get_byte(vdev->pdev.config + offset);
+    case 2:
+        return pci_get_word(vdev->pdev.config + offset);
+    case 4:
+        return pci_get_long(vdev->pdev.config + offset);
+    case 8:
+        return pci_get_quad(vdev->pdev.config + offset);
+    default:
+        hw_error("igd: unsupported read size, %u bytes", size);
+        break;
+    }
+
+    return 0;
+}
+
+static void vfio_igd_quirk_bdsm_write(void *opaque, hwaddr addr,
+                                       uint64_t data, unsigned size)
+{
+    VFIOPCIDevice *vdev = opaque;
+    uint64_t offset;
+
+    offset = IGD_BDSM_GEN11 + addr;
+
+    switch (size) {
+    case 1:
+        pci_set_byte(vdev->pdev.config + offset, data);
+        break;
+    case 2:
+        pci_set_word(vdev->pdev.config + offset, data);
+        break;
+    case 4:
+        pci_set_long(vdev->pdev.config + offset, data);
+        break;
+    case 8:
+        pci_set_quad(vdev->pdev.config + offset, data);
+        break;
+    default:
+        hw_error("igd: unsupported read size, %u bytes", size);
+        break;
+    }
+}
+
+static const MemoryRegionOps vfio_igd_bdsm_quirk = {
+    .read = vfio_igd_quirk_bdsm_read,
+    .write = vfio_igd_quirk_bdsm_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOQuirk *quirk;
+    int gen;
+
+    /*
+     * This must be an Intel VGA device at address 00:02.0 for us to even
+     * consider enabling legacy mode. Some driver have dependencies on the PCI
+     * bus address.
+     */
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
+        !vfio_is_vga(vdev) || nr != 0 ||
+        &vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
+                                       0, PCI_DEVFN(0x2, 0))) {
+        return;
+    }
+
+    /*
+     * Only on IGD devices of gen 11 and above, the BDSM register is mirrored
+     * into MMIO space and read from MMIO space by the Windows driver.
+     */
+    gen = igd_gen(vdev);
+    if (gen < 11) {
+        return;
+    }
+
+    quirk = vfio_quirk_alloc(1);
+    quirk->data = vdev;
+
+    memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_igd_bdsm_quirk,
+                          vdev, "vfio-igd-bdsm-quirk", 8);
+    memory_region_add_subregion_overlap(vdev->bars[0].region.mem,
+                                        IGD_BDSM_MMIO_OFFSET, &quirk->mem[0],
+                                        1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+}
+
+static int igd_get_stolen_mb(int gen, uint32_t gmch)
+{
+    int gms;
+
+    if (gen < 8) {
+        gms = (gmch >> 3) & 0x1f;
+    } else {
+        gms = (gmch >> 8) & 0xff;
+    }
+
+    if (gen < 9) {
+        if (gms > 0x10) {
+            error_report("Unsupported IGD GMS value 0x%x", gms);
+            return 0;
+        }
+        return gms * 32;
+    } else {
+        if (gms < 0xf0)
+            return gms * 32;
+        else
+            return gms * 4 + 4;
+    }
+}
+
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 {
     g_autofree struct vfio_region_info *rom = NULL;
@@ -412,7 +549,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * devices maintain compatibility with generation 8.
      */
     gen = igd_gen(vdev);
-    if (gen != 6 && gen != 8) {
+    if (gen == -1) {
         error_report("IGD device %s is unsupported in legacy mode, "
                      "try SandyBridge or newer", vdev->vbasedev.name);
         return;
@@ -515,7 +652,13 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     igd = quirk->data = g_malloc0(sizeof(*igd));
     igd->vdev = vdev;
     igd->index = ~0;
-    igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    if (gen < 11) {
+        igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM, 4);
+    } else {
+        igd->bdsm = vfio_pci_read_config(&vdev->pdev, IGD_BDSM_GEN11, 4);
+        igd->bdsm |=
+            (uint64_t)vfio_pci_read_config(&vdev->pdev, IGD_BDSM_GEN11 + 4, 4) << 32;
+    }
     igd->bdsm &= ~((1 * MiB) - 1); /* 1MB aligned */
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_igd_index_quirk,
@@ -536,23 +679,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         ggms_mb = 1 << ggms_mb;
     }
 
-    /*
-     * Assume we have no GMS memory, but allow it to be overridden by device
-     * option (experimental).  The spec doesn't actually allow zero GMS when
-     * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
-     * so let's not waste VM memory for it.
-     */
-    gmch &= ~((gen < 8 ? 0x1f : 0xff) << (gen < 8 ? 3 : 8));
-
-    if (vdev->igd_gms) {
-        if (vdev->igd_gms <= 0x10) {
-            gms_mb = vdev->igd_gms * 32;
-            gmch |= vdev->igd_gms << (gen < 8 ? 3 : 8);
-        } else {
-            error_report("Unsupported IGD GMS value 0x%x", vdev->igd_gms);
-            vdev->igd_gms = 0;
-        }
-    }
+    gms_mb = igd_get_stolen_mb(gen, gmch);
 
     /*
      * Request reserved memory for stolen memory via fw_cfg.  VM firmware
@@ -573,9 +700,15 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
 
     /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
-    pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
-    pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
-    pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+    if (gen < 11) {
+        pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
+        pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
+        pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+    } else {
+        pci_set_quad(vdev->pdev.config + IGD_BDSM_GEN11, 0);
+        pci_set_quad(vdev->pdev.wmask + IGD_BDSM_GEN11, ~0);
+        pci_set_quad(vdev->emulated_config_bits + IGD_BDSM_GEN11, ~0);
+    }
 
     /*
      * This IOBAR gives us access to GTTADR, which allows us to write to

@@ -50,6 +50,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                glibc-static \
                glusterfs-api-devel \
                gnutls-devel \
+               gtk-vnc2-devel \
                gtk3-devel \
                hostname \
                jemalloc-devel \

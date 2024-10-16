@@ -197,30 +197,6 @@ void cursor_set_mono(QEMUCursor *c,
     }
 }
 
-void cursor_get_mono_image(QEMUCursor *c, int foreground, uint8_t *image)
-{
-    uint32_t *data = c->data;
-    uint8_t bit;
-    int x,y,bpl;
-
-    bpl = cursor_get_mono_bpl(c);
-    memset(image, 0, bpl * c->height);
-    for (y = 0; y < c->height; y++) {
-        bit = 0x80;
-        for (x = 0; x < c->width; x++, data++) {
-            if (((*data & 0xff000000) == 0xff000000) &&
-                ((*data & 0x00ffffff) == foreground)) {
-                image[x/8] |= bit;
-            }
-            bit >>= 1;
-            if (bit == 0) {
-                bit = 0x80;
-            }
-        }
-        image += bpl;
-    }
-}
-
 void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask)
 {
     uint32_t *data = c->data;

@@ -374,7 +374,7 @@ static void cg3_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = cg3_realizefn;
-    dc->reset = cg3_reset;
+    device_class_set_legacy_reset(dc, cg3_reset);
     dc->vmsd = &vmstate_cg3;
     device_class_set_props(dc, cg3_properties);
 }

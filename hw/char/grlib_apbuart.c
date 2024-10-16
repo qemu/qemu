@@ -287,7 +287,7 @@ static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = grlib_apbuart_realize;
-    dc->reset = grlib_apbuart_reset;
+    device_class_set_legacy_reset(dc, grlib_apbuart_reset);
     device_class_set_props(dc, grlib_apbuart_properties);
 }
 

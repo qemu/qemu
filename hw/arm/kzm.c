@@ -22,7 +22,7 @@
 #include "exec/address-spaces.h"
 #include "net/net.h"
 #include "hw/net/lan9118.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "sysemu/qtest.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"

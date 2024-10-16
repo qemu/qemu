@@ -33,19 +33,6 @@ void remote_iohub_init(RemoteIOHubState *iohub)
     }
 }
 
-void remote_iohub_finalize(RemoteIOHubState *iohub)
-{
-    int pirq;
-
-    for (pirq = 0; pirq < REMOTE_IOHUB_NB_PIRQS; pirq++) {
-        qemu_set_fd_handler(event_notifier_get_fd(&iohub->resamplefds[pirq]),
-                            NULL, NULL, NULL);
-        event_notifier_cleanup(&iohub->irqfds[pirq]);
-        event_notifier_cleanup(&iohub->resamplefds[pirq]);
-        qemu_mutex_destroy(&iohub->irq_level_lock[pirq]);
-    }
-}
-
 int remote_iohub_map_irq(PCIDevice *pci_dev, int intx)
 {
     return pci_dev->devfn;

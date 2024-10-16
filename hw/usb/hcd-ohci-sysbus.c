@@ -73,7 +73,7 @@ static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
     dc->desc = "OHCI USB Controller";
     device_class_set_props(dc, ohci_sysbus_properties);
-    dc->reset = ohci_sysbus_reset;
+    device_class_set_legacy_reset(dc, ohci_sysbus_reset);
 }
 
 static const TypeInfo ohci_sysbus_types[] = {

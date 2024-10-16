@@ -538,7 +538,7 @@ static void tpm_tis_i2c_class_init(ObjectClass *klass, void *data)
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
     dc->realize = tpm_tis_i2c_realizefn;
-    dc->reset = tpm_tis_i2c_reset;
+    device_class_set_legacy_reset(dc, tpm_tis_i2c_reset);
     dc->vmsd = &vmstate_tpm_tis_i2c;
     device_class_set_props(dc, tpm_tis_i2c_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

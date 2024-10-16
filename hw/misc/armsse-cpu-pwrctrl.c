@@ -129,7 +129,7 @@ static void pwrctrl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pwrctrl_reset;
+    device_class_set_legacy_reset(dc, pwrctrl_reset);
     dc->vmsd = &pwrctrl_vmstate;
 }
 

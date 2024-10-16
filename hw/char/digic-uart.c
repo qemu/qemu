@@ -182,7 +182,7 @@ static void digic_uart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = digic_uart_realize;
-    dc->reset = digic_uart_reset;
+    device_class_set_legacy_reset(dc, digic_uart_reset);
     dc->vmsd = &vmstate_digic_uart;
     device_class_set_props(dc, digic_uart_properties);
 }

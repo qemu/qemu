@@ -948,7 +948,6 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     uint64_t sum = 0;
     int off_idx = -1;
     int64_t off_pos = -1;
-    int tbl_entry_size;
     IDEBus *bus = &ad->port;
     BusState *qbus = BUS(bus);
 
@@ -976,6 +975,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     /* Get entries in the PRDT, init a qemu sglist accordingly */
     if (prdtl > 0) {
         AHCI_SG *tbl = (AHCI_SG *)prdt;
+        int tbl_entry_size = 0;
+
         sum = 0;
         for (i = 0; i < prdtl; i++) {
             tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
@@ -1878,7 +1879,7 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
     dc->realize = sysbus_ahci_realize;
     dc->vmsd = &vmstate_sysbus_ahci;
     device_class_set_props(dc, sysbus_ahci_properties);
-    dc->reset = sysbus_ahci_reset;
+    device_class_set_legacy_reset(dc, sysbus_ahci_reset);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 

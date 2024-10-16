@@ -99,6 +99,8 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
 #endif
             }
             break;
+        default:
+            g_assert_not_reached();
         }
         break;
     }

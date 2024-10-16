@@ -181,7 +181,7 @@ static void sysbus_fdc_common_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = sysbus_fdc_realize;
-    dc->reset = fdctrl_external_reset_sysbus;
+    device_class_set_legacy_reset(dc, fdctrl_external_reset_sysbus);
     dc->vmsd = &vmstate_sysbus_fdc;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }

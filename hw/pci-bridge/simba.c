@@ -78,7 +78,7 @@ static void simba_pci_bridge_class_init(ObjectClass *klass, void *data)
     k->revision = 0x11;
     k->config_write = pci_bridge_write_config;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->reset = pci_bridge_reset;
+    device_class_set_legacy_reset(dc, pci_bridge_reset);
     dc->vmsd = &vmstate_pci_device;
 }
 

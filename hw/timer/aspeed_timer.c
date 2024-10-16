@@ -682,7 +682,7 @@ static void timer_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_timer_realize;
-    dc->reset = aspeed_timer_reset;
+    device_class_set_legacy_reset(dc, aspeed_timer_reset);
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
     device_class_set_props(dc, aspeed_timer_properties);

@@ -24,7 +24,6 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/char/riscv_htif.h"
-#include "hw/char/serial.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"

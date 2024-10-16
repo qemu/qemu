@@ -456,7 +456,6 @@ vmxnet3_setup_tx_offloads(VMXNET3State *s)
 
     default:
         g_assert_not_reached();
-        return false;
     }
 
     return true;
@@ -2512,7 +2511,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     device_class_set_parent_realize(dc, vmxnet3_realize,
                                     &vc->parent_dc_realize);
     dc->desc = "VMWare Paravirtualized Ethernet v3";
-    dc->reset = vmxnet3_qdev_reset;
+    device_class_set_legacy_reset(dc, vmxnet3_qdev_reset);
     dc->vmsd = &vmstate_vmxnet3;
     device_class_set_props(dc, vmxnet3_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);

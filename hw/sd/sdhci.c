@@ -747,7 +747,7 @@ static void sdhci_do_adma(SDHCIState *s)
     const uint16_t block_size = s->blksize & BLOCK_SIZE_MASK;
     const MemTxAttrs attrs = { .memory = true };
     ADMADescr dscr = {};
-    MemTxResult res;
+    MemTxResult res = MEMTX_ERROR;
     int i;
 
     if (s->trnmod & SDHC_TRNS_BLK_CNT_EN && !s->blkcnt) {
@@ -1520,7 +1520,7 @@ void sdhci_common_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
-    dc->reset = sdhci_poweron_reset;
+    device_class_set_legacy_reset(dc, sdhci_poweron_reset);
 }
 
 /* --- qdev SysBus --- */

@@ -172,7 +172,7 @@ static int vhost_scsi_set_workers(VHostSCSICommon *vsc, bool per_virtqueue)
     struct vhost_dev *dev = &vsc->dev;
     struct vhost_vring_worker vq_worker;
     struct vhost_worker_state worker;
-    int i, ret;
+    int i, ret = 0;
 
     /* Use default worker */
     if (!per_virtqueue || dev->nvqs == VHOST_SCSI_VQ_NUM_FIXED + 1) {

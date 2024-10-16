@@ -16,8 +16,7 @@
 #include "hw/net/mii.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
-/* For crc32 */
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 //#define DEBUG_FEC 1
 
@@ -673,7 +672,7 @@ static void mcf_fec_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->realize = mcf_fec_realize;
     dc->desc = "MCF Fast Ethernet Controller network device";
-    dc->reset = mcf_fec_reset;
+    device_class_set_legacy_reset(dc, mcf_fec_reset);
     device_class_set_props(dc, mcf_fec_properties);
 }
 

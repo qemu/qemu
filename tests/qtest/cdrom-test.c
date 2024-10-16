@@ -135,13 +135,35 @@ static void add_x86_tests(void)
         return;
     }
 
-    qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
-    if (qtest_has_device("virtio-scsi-ccw")) {
-        qtest_add_data_func("cdrom/boot/virtio-scsi",
-                            "-device virtio-scsi -device scsi-cd,drive=cdr "
-                            "-blockdev file,node-name=cdr,filename=",
-                            test_cdboot);
+    if (qtest_has_machine("pc")) {
+        qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
+        if (qtest_has_device("virtio-scsi-ccw")) {
+            qtest_add_data_func("cdrom/boot/virtio-scsi",
+                                "-device virtio-scsi -device scsi-cd,drive=cdr "
+                                "-blockdev file,node-name=cdr,filename=",
+                                test_cdboot);
+        }
+
+        if (qtest_has_device("am53c974")) {
+            qtest_add_data_func("cdrom/boot/am53c974",
+                                "-device am53c974 -device scsi-cd,drive=cd1 "
+                                "-drive if=none,id=cd1,format=raw,file=",
+                                test_cdboot);
+        }
+        if (qtest_has_device("dc390")) {
+            qtest_add_data_func("cdrom/boot/dc390",
+                                "-device dc390 -device scsi-cd,drive=cd1 "
+                                "-blockdev file,node-name=cd1,filename=",
+                                test_cdboot);
+        }
+        if (qtest_has_device("lsi53c895a")) {
+            qtest_add_data_func("cdrom/boot/lsi53c895a",
+                                "-device lsi53c895a -device scsi-cd,drive=cd1 "
+                                "-blockdev file,node-name=cd1,filename=",
+                                test_cdboot);
+        }
     }
+
     /*
      * Unstable CI test under load
      * See https://lists.gnu.org/archive/html/qemu-devel/2019-02/msg05509.html
@@ -150,35 +172,20 @@ static void add_x86_tests(void)
         qtest_add_data_func("cdrom/boot/isapc", "-M isapc "
                             "-drive if=ide,media=cdrom,file=", test_cdboot);
     }
-    if (qtest_has_device("am53c974")) {
-        qtest_add_data_func("cdrom/boot/am53c974",
-                            "-device am53c974 -device scsi-cd,drive=cd1 "
-                            "-drive if=none,id=cd1,format=raw,file=",
-                            test_cdboot);
-    }
-    if (qtest_has_device("dc390")) {
-        qtest_add_data_func("cdrom/boot/dc390",
-                            "-device dc390 -device scsi-cd,drive=cd1 "
-                            "-blockdev file,node-name=cd1,filename=",
-                            test_cdboot);
-    }
-    if (qtest_has_device("lsi53c895a")) {
-        qtest_add_data_func("cdrom/boot/lsi53c895a",
-                            "-device lsi53c895a -device scsi-cd,drive=cd1 "
-                            "-blockdev file,node-name=cd1,filename=",
-                            test_cdboot);
-    }
-    if (qtest_has_device("megasas")) {
-        qtest_add_data_func("cdrom/boot/megasas", "-M q35 "
-                            "-device megasas -device scsi-cd,drive=cd1 "
-                            "-blockdev file,node-name=cd1,filename=",
-                            test_cdboot);
-    }
-    if (qtest_has_device("megasas-gen2")) {
-        qtest_add_data_func("cdrom/boot/megasas-gen2", "-M q35 "
-                            "-device megasas-gen2 -device scsi-cd,drive=cd1 "
-                            "-blockdev file,node-name=cd1,filename=",
-                            test_cdboot);
+
+    if (qtest_has_machine("q35")) {
+        if (qtest_has_device("megasas")) {
+            qtest_add_data_func("cdrom/boot/megasas", "-M q35 "
+                                "-device megasas -device scsi-cd,drive=cd1 "
+                                "-blockdev file,node-name=cd1,filename=",
+                                test_cdboot);
+        }
+        if (qtest_has_device("megasas-gen2")) {
+            qtest_add_data_func("cdrom/boot/megasas-gen2", "-M q35 "
+                                "-device megasas-gen2 -device scsi-cd,drive=cd1 "
+                                "-blockdev file,node-name=cd1,filename=",
+                                test_cdboot);
+        }
     }
 }
 

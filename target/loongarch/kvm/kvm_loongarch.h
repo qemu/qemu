@@ -11,6 +11,6 @@
 #define QEMU_KVM_LOONGARCH_H
 
 int  kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level);
-void kvm_arch_reset_vcpu(CPULoongArchState *env);
+void kvm_arch_reset_vcpu(CPUState *cs);
 
 #endif

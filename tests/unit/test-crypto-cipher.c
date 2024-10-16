@@ -27,7 +27,7 @@
 typedef struct QCryptoCipherTestData QCryptoCipherTestData;
 struct QCryptoCipherTestData {
     const char *path;
-    QCryptoCipherAlgorithm alg;
+    QCryptoCipherAlgo alg;
     QCryptoCipherMode mode;
     const char *key;
     const char *plaintext;
@@ -43,7 +43,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.1.1 ECB-AES128.Encrypt */
         .path = "/crypto/cipher/aes-ecb-128",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "2b7e151628aed2a6abf7158809cf4f3c",
         .plaintext =
@@ -60,7 +60,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.1.3 ECB-AES192.Encrypt */
         .path = "/crypto/cipher/aes-ecb-192",
-        .alg = QCRYPTO_CIPHER_ALG_AES_192,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_192,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b",
         .plaintext  =
@@ -77,7 +77,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.1.5 ECB-AES256.Encrypt */
         .path = "/crypto/cipher/aes-ecb-256",
-        .alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key =
             "603deb1015ca71be2b73aef0857d7781"
@@ -96,7 +96,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.2.1 CBC-AES128.Encrypt */
         .path = "/crypto/cipher/aes-cbc-128",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
         .key = "2b7e151628aed2a6abf7158809cf4f3c",
         .iv = "000102030405060708090a0b0c0d0e0f",
@@ -114,7 +114,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.2.3 CBC-AES128.Encrypt */
         .path = "/crypto/cipher/aes-cbc-192",
-        .alg = QCRYPTO_CIPHER_ALG_AES_192,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_192,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
         .key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b",
         .iv = "000102030405060708090a0b0c0d0e0f",
@@ -132,7 +132,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.2.5 CBC-AES128.Encrypt */
         .path = "/crypto/cipher/aes-cbc-256",
-        .alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
         .key =
             "603deb1015ca71be2b73aef0857d7781"
@@ -156,7 +156,7 @@ static QCryptoCipherTestData test_data[] = {
          * ciphertext in ECB and CBC modes
          */
         .path = "/crypto/cipher/des-ecb-56-one-block",
-        .alg = QCRYPTO_CIPHER_ALG_DES,
+        .alg = QCRYPTO_CIPHER_ALGO_DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "80c4a2e691d5b3f7",
         .plaintext = "70617373776f7264",
@@ -165,7 +165,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* See previous comment */
         .path = "/crypto/cipher/des-cbc-56-one-block",
-        .alg = QCRYPTO_CIPHER_ALG_DES,
+        .alg = QCRYPTO_CIPHER_ALGO_DES,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
         .key = "80c4a2e691d5b3f7",
         .iv = "0000000000000000",
@@ -174,7 +174,7 @@ static QCryptoCipherTestData test_data[] = {
     },
     {
         .path = "/crypto/cipher/des-ecb-56",
-        .alg = QCRYPTO_CIPHER_ALG_DES,
+        .alg = QCRYPTO_CIPHER_ALGO_DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "80c4a2e691d5b3f7",
         .plaintext =
@@ -191,7 +191,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */
         .path = "/crypto/cipher/3des-cbc",
-        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .alg = QCRYPTO_CIPHER_ALGO_3DES,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
         .key =
             "e9c0ff2e760b6424444d995a12d640c0"
@@ -220,7 +220,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */
         .path = "/crypto/cipher/3des-ecb",
-        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .alg = QCRYPTO_CIPHER_ALGO_3DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key =
             "0123456789abcdef5555555555555555"
@@ -233,7 +233,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */
         .path = "/crypto/cipher/3des-ctr",
-        .alg = QCRYPTO_CIPHER_ALG_3DES,
+        .alg = QCRYPTO_CIPHER_ALGO_3DES,
         .mode = QCRYPTO_CIPHER_MODE_CTR,
         .key =
             "9cd6f39cb95a67005a67002dceeb2dce"
@@ -308,7 +308,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* RFC 2144, Appendix B.1 */
         .path = "/crypto/cipher/cast5-128",
-        .alg = QCRYPTO_CIPHER_ALG_CAST5_128,
+        .alg = QCRYPTO_CIPHER_ALGO_CAST5_128,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "0123456712345678234567893456789A",
         .plaintext = "0123456789abcdef",
@@ -317,7 +317,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* libgcrypt serpent.c */
         .path = "/crypto/cipher/serpent-128",
-        .alg = QCRYPTO_CIPHER_ALG_SERPENT_128,
+        .alg = QCRYPTO_CIPHER_ALGO_SERPENT_128,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "00000000000000000000000000000000",
         .plaintext = "d29d576fcea3a3a7ed9099f29273d78e",
@@ -326,7 +326,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* libgcrypt serpent.c */
         .path = "/crypto/cipher/serpent-192",
-        .alg = QCRYPTO_CIPHER_ALG_SERPENT_192,
+        .alg = QCRYPTO_CIPHER_ALGO_SERPENT_192,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "00000000000000000000000000000000"
                "0000000000000000",
@@ -336,7 +336,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* libgcrypt serpent.c */
         .path = "/crypto/cipher/serpent-256a",
-        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .alg = QCRYPTO_CIPHER_ALGO_SERPENT_256,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "00000000000000000000000000000000"
                "00000000000000000000000000000000",
@@ -346,7 +346,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* libgcrypt serpent.c */
         .path = "/crypto/cipher/serpent-256b",
-        .alg = QCRYPTO_CIPHER_ALG_SERPENT_256,
+        .alg = QCRYPTO_CIPHER_ALGO_SERPENT_256,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "00000000000000000000000000000000"
                "00000000000000000000000000000000",
@@ -356,7 +356,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Twofish paper "Known Answer Test" */
         .path = "/crypto/cipher/twofish-128",
-        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_128,
+        .alg = QCRYPTO_CIPHER_ALGO_TWOFISH_128,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "d491db16e7b1c39e86cb086b789f5419",
         .plaintext = "019f9809de1711858faac3a3ba20fbc3",
@@ -365,7 +365,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Twofish paper "Known Answer Test", I=3 */
         .path = "/crypto/cipher/twofish-192",
-        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_192,
+        .alg = QCRYPTO_CIPHER_ALGO_TWOFISH_192,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "88b2b2706b105e36b446bb6d731a1e88"
                "efa71f788965bd44",
@@ -375,7 +375,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* Twofish paper "Known Answer Test", I=4 */
         .path = "/crypto/cipher/twofish-256",
-        .alg = QCRYPTO_CIPHER_ALG_TWOFISH_256,
+        .alg = QCRYPTO_CIPHER_ALGO_TWOFISH_256,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "d43bb7556ea32e46f2a282b7d45b4e0d"
                "57ff739d4dc92c1bd7fc01700cc8216f",
@@ -386,7 +386,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* SM4, GB/T 32907-2016, Appendix A.1 */
         .path = "/crypto/cipher/sm4",
-        .alg = QCRYPTO_CIPHER_ALG_SM4,
+        .alg = QCRYPTO_CIPHER_ALGO_SM4,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
         .key = "0123456789abcdeffedcba9876543210",
         .plaintext  =
@@ -398,7 +398,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* #1 32 byte key, 32 byte PTX */
         .path = "/crypto/cipher/aes-xts-128-1",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_XTS,
         .key =
             "00000000000000000000000000000000"
@@ -415,7 +415,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* #2, 32 byte key, 32 byte PTX */
         .path = "/crypto/cipher/aes-xts-128-2",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_XTS,
         .key =
             "11111111111111111111111111111111"
@@ -432,7 +432,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* #5 from xts.7, 32 byte key, 32 byte PTX */
         .path = "/crypto/cipher/aes-xts-128-3",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_XTS,
         .key =
             "fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0"
@@ -449,7 +449,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* #4, 32 byte key, 512 byte PTX  */
         .path = "/crypto/cipher/aes-xts-128-4",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_XTS,
         .key =
             "27182818284590452353602874713526"
@@ -528,7 +528,7 @@ static QCryptoCipherTestData test_data[] = {
          * which is incompatible with XTS
          */
         .path = "/crypto/cipher/cast5-xts-128",
-        .alg = QCRYPTO_CIPHER_ALG_CAST5_128,
+        .alg = QCRYPTO_CIPHER_ALGO_CAST5_128,
         .mode = QCRYPTO_CIPHER_MODE_XTS,
         .key =
             "27182818284590452353602874713526"
@@ -537,7 +537,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.5.1 CTR-AES128.Encrypt */
         .path = "/crypto/cipher/aes-ctr-128",
-        .alg = QCRYPTO_CIPHER_ALG_AES_128,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
         .mode = QCRYPTO_CIPHER_MODE_CTR,
         .key = "2b7e151628aed2a6abf7158809cf4f3c",
         .iv = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
@@ -555,7 +555,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.5.3 CTR-AES192.Encrypt */
         .path = "/crypto/cipher/aes-ctr-192",
-        .alg = QCRYPTO_CIPHER_ALG_AES_192,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_192,
         .mode = QCRYPTO_CIPHER_MODE_CTR,
         .key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b",
         .iv = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
@@ -573,7 +573,7 @@ static QCryptoCipherTestData test_data[] = {
     {
         /* NIST F.5.5 CTR-AES256.Encrypt */
         .path = "/crypto/cipher/aes-ctr-256",
-        .alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_256,
         .mode = QCRYPTO_CIPHER_MODE_CTR,
         .key = "603deb1015ca71be2b73aef0857d7781"
                "1f352c073b6108d72d9810a30914dff4",
@@ -750,7 +750,7 @@ static void test_cipher_null_iv(void)
     uint8_t ciphertext[32] = { 0 };
 
     cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_AES_256,
+        QCRYPTO_CIPHER_ALGO_AES_256,
         QCRYPTO_CIPHER_MODE_CBC,
         key, sizeof(key),
         &error_abort);
@@ -779,7 +779,7 @@ static void test_cipher_short_plaintext(void)
     int ret;
 
     cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_AES_256,
+        QCRYPTO_CIPHER_ALGO_AES_256,
         QCRYPTO_CIPHER_MODE_CBC,
         key, sizeof(key),
         &error_abort);
@@ -823,7 +823,7 @@ int main(int argc, char **argv)
             g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
         } else {
             g_printerr("# skip unsupported %s:%s\n",
-                       QCryptoCipherAlgorithm_str(test_data[i].alg),
+                       QCryptoCipherAlgo_str(test_data[i].alg),
                        QCryptoCipherMode_str(test_data[i].mode));
         }
     }

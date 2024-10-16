@@ -888,7 +888,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
-    dc->reset = es1370_on_reset;
+    device_class_set_legacy_reset(dc, es1370_on_reset);
     device_class_set_props(dc, es1370_properties);
 }
 

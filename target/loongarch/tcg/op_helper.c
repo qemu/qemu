@@ -14,7 +14,7 @@
 #include "exec/cpu_ldst.h"
 #include "internals.h"
 #include "qemu/crc32c.h"
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 #include "cpu-csr.h"
 
 /* Exceptions helpers */

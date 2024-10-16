@@ -1342,7 +1342,7 @@ static void strongarm_uart_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "StrongARM UART controller";
-    dc->reset = strongarm_uart_reset;
+    device_class_set_legacy_reset(dc, strongarm_uart_reset);
     dc->vmsd = &vmstate_strongarm_uart_regs;
     device_class_set_props(dc, strongarm_uart_properties);
     dc->realize = strongarm_uart_realize;
@@ -1595,7 +1595,7 @@ static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "StrongARM SSP controller";
-    dc->reset = strongarm_ssp_reset;
+    device_class_set_legacy_reset(dc, strongarm_ssp_reset);
     dc->vmsd = &vmstate_strongarm_ssp_regs;
 }
 

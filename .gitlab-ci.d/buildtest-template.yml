@@ -8,8 +8,11 @@
     key: "$CI_JOB_NAME"
     when: always
   before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Pre-script setup"
     - JOBS=$(expr $(nproc) + 1)
     - cat /packages.txt
+    - section_end setup
   script:
     - export CCACHE_BASEDIR="$(pwd)"
     - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
@@ -19,6 +22,7 @@
     - mkdir build
     - cd build
     - ccache --zero-stats
+    - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs --enable-fdt=system
           ${TARGETS:+--target-list="$TARGETS"}
           $CONFIGURE_ARGS ||
@@ -27,11 +31,16 @@
       then
         pyvenv/bin/meson configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
+    - section_end configure
+    - section_start build "Building QEMU"
     - $MAKE -j"$JOBS"
+    - section_end build
+    - section_start test "Running tests"
     - if test -n "$MAKE_CHECK_ARGS";
       then
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - section_end test
     - ccache --show-stats
 
 # We jump some hoops in common_test_job_template to avoid
@@ -54,12 +63,21 @@
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
   script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start buildenv "Setting up to run tests"
     - scripts/git-submodule.sh update roms/SLOF
     - meson subprojects download $(cd build/subprojects && echo *)
     - cd build
     - find . -type f -exec touch {} +
     # Avoid recompiling by hiding ninja with NINJA=":"
+    # We also have to pre-cache the functional tests manually in this case
+    - if [ "x${QEMU_TEST_CACHE_DIR}" != "x" ]; then
+        $MAKE precache-functional ;
+      fi
+    - section_end buildenv
+    - section_start test "Running tests"
     - $MAKE NINJA=":" $MAKE_CHECK_ARGS
+    - section_end test
 
 .native_test_job_template:
   extends: .common_test_job_template
@@ -72,12 +90,13 @@
     reports:
       junit: build/meson-logs/testlog.junit.xml
 
-.avocado_test_job_template:
+.functional_test_job_template:
   extends: .common_test_job_template
   cache:
     key: "${CI_JOB_NAME}-cache"
     paths:
       - ${CI_PROJECT_DIR}/avocado-cache
+      - ${CI_PROJECT_DIR}/functional-cache
     policy: pull-push
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -86,6 +105,7 @@
     paths:
       - build/tests/results/latest/results.xml
       - build/tests/results/latest/test-results
+      - build/tests/functional/*/*/*.log
     reports:
       junit: build/tests/results/latest/results.xml
   before_script:
@@ -96,11 +116,13 @@
     - echo -e '[job.output.testlogs]\nstatuses = ["FAIL", "INTERRUPT"]'
            >> ~/.config/avocado/avocado.conf
     - if [ -d ${CI_PROJECT_DIR}/avocado-cache ]; then
-        du -chs ${CI_PROJECT_DIR}/avocado-cache ;
+        du -chs ${CI_PROJECT_DIR}/*-cache ;
       fi
     - export AVOCADO_ALLOW_UNTRUSTED_CODE=1
+    - export QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
+    - export QEMU_TEST_CACHE_DIR=${CI_PROJECT_DIR}/functional-cache
   after_script:
     - cd build
-    - du -chs ${CI_PROJECT_DIR}/avocado-cache
+    - du -chs ${CI_PROJECT_DIR}/*-cache
   variables:
     QEMU_JOB_AVOCADO: 1

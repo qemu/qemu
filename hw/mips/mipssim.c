@@ -31,7 +31,7 @@
 #include "exec/address-spaces.h"
 #include "hw/clock.h"
 #include "hw/mips/mips.h"
-#include "hw/char/serial.h"
+#include "hw/char/serial-mm.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"

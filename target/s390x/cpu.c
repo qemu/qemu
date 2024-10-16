@@ -32,6 +32,7 @@
 #include "sysemu/hw_accel.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "hw/resettable.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "sysemu/tcg.h"
@@ -162,23 +163,25 @@ static void s390_query_cpu_fast(CPUState *cpu, CpuInfoFast *value)
 #endif
 }
 
-/* S390CPUClass::reset() */
-static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
+/* S390CPUClass Resettable reset_hold phase method */
+static void s390_cpu_reset_hold(Object *obj, ResetType type)
 {
-    S390CPU *cpu = S390_CPU(s);
+    S390CPU *cpu = S390_CPU(obj);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
-    DeviceState *dev = DEVICE(s);
 
-    scc->parent_reset(dev);
+    if (scc->parent_phases.hold) {
+        scc->parent_phases.hold(obj, type);
+    }
     cpu->env.sigp_order = 0;
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 
     switch (type) {
-    case S390_CPU_RESET_CLEAR:
+    default:
+        /* RESET_TYPE_COLD: power on or "clear" reset */
         memset(env, 0, offsetof(CPUS390XState, start_initial_reset_fields));
         /* fall through */
-    case S390_CPU_RESET_INITIAL:
+    case RESET_TYPE_S390_CPU_INITIAL:
         /* initial reset does not clear everything! */
         memset(&env->start_initial_reset_fields, 0,
                offsetof(CPUS390XState, start_normal_reset_fields) -
@@ -203,7 +206,7 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
         set_float_detect_tininess(float_tininess_before_rounding,
                                   &env->fpu_status);
        /* fall through */
-    case S390_CPU_RESET_NORMAL:
+    case RESET_TYPE_S390_CPU_NORMAL:
         env->psw.mask &= ~PSW_MASK_RI;
         memset(&env->start_normal_reset_fields, 0,
                offsetof(CPUS390XState, end_reset_fields) -
@@ -212,20 +215,18 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
         env->pfault_token = -1UL;
         env->bpbc = false;
         break;
-    default:
-        g_assert_not_reached();
     }
 
     /* Reset state inside the kernel that we cannot access yet from QEMU. */
     if (kvm_enabled()) {
         switch (type) {
-        case S390_CPU_RESET_CLEAR:
+        default:
             kvm_s390_reset_vcpu_clear(cpu);
             break;
-        case S390_CPU_RESET_INITIAL:
+        case RESET_TYPE_S390_CPU_INITIAL:
             kvm_s390_reset_vcpu_initial(cpu);
             break;
-        case S390_CPU_RESET_NORMAL:
+        case RESET_TYPE_S390_CPU_NORMAL:
             kvm_s390_reset_vcpu_normal(cpu);
             break;
         }
@@ -315,12 +316,6 @@ static Property s390x_cpu_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static void s390_cpu_reset_full(DeviceState *dev)
-{
-    CPUState *s = CPU(dev);
-    return s390_cpu_reset(s, S390_CPU_RESET_CLEAR);
-}
-
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
 
@@ -383,15 +378,16 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     device_class_set_parent_realize(dc, s390_cpu_realizefn,
                                     &scc->parent_realize);
     device_class_set_props(dc, s390x_cpu_properties);
     dc->user_creatable = true;
 
-    device_class_set_parent_reset(dc, s390_cpu_reset_full, &scc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, s390_cpu_reset_hold, NULL,
+                                       &scc->parent_phases);
 
-    scc->reset = s390_cpu_reset;
     cc->class_by_name = s390_cpu_class_by_name,
     cc->has_work = s390_cpu_has_work;
     cc->mmu_index = s390x_cpu_mmu_index;

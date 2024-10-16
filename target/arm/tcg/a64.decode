@@ -30,10 +30,12 @@
 &rri_sf         rd rn imm sf
 &i              imm
 &rr_e           rd rn esz
+&rri_e          rd rn imm esz
 &rrr_e          rd rn rm esz
 &rrx_e          rd rn rm idx esz
 &rrrr_e         rd rn rm ra esz
 &qrr_e          q rd rn esz
+&qrri_e         q rd rn imm esz
 &qrrr_e         q rd rn rm esz
 &qrrx_e         q rd rn rm idx esz
 &qrrrr_e        q rd rn rm ra esz
@@ -54,10 +56,14 @@
 @rrx_d          ........ .. . rm:5  .... idx:1 . rn:5 rd:5  &rrx_e esz=3
 
 @rr_q1e0        ........ ........ ...... rn:5 rd:5      &qrr_e q=1 esz=0
+@rr_q1e2        ........ ........ ...... rn:5 rd:5      &qrr_e q=1 esz=2
 @r2r_q1e0       ........ ........ ...... rm:5 rd:5      &qrrr_e rn=%rd q=1 esz=0
 @rrr_q1e0       ........ ... rm:5 ...... rn:5 rd:5      &qrrr_e q=1 esz=0
 @rrr_q1e3       ........ ... rm:5 ...... rn:5 rd:5      &qrrr_e q=1 esz=3
 @rrrr_q1e3      ........ ... rm:5 . ra:5 rn:5 rd:5      &qrrrr_e q=1 esz=3
+
+@qrr_h          . q:1 ...... .. ...... ...... rn:5 rd:5  &qrr_e esz=1
+@qrr_e          . q:1 ...... esz:2 ...... ...... rn:5 rd:5  &qrr_e
 
 @qrrr_b         . q:1 ...... ... rm:5 ...... rn:5 rd:5  &qrrr_e esz=0
 @qrrr_h         . q:1 ...... ... rm:5 ...... rn:5 rd:5  &qrrr_e esz=1
@@ -1136,3 +1142,254 @@ FMADD           0001 1111 .. 0 ..... 0 ..... ..... .....    @rrrr_hsd
 FMSUB           0001 1111 .. 0 ..... 1 ..... ..... .....    @rrrr_hsd
 FNMADD          0001 1111 .. 1 ..... 0 ..... ..... .....    @rrrr_hsd
 FNMSUB          0001 1111 .. 1 ..... 1 ..... ..... .....    @rrrr_hsd
+
+# Advanced SIMD Extract
+
+EXT_d           0010 1110 00 0 rm:5 00 imm:3 0 rn:5 rd:5
+EXT_q           0110 1110 00 0 rm:5 0  imm:4 0 rn:5 rd:5
+
+# Advanced SIMD Table Lookup
+
+TBL_TBX         0 q:1 00 1110 000 rm:5 0 len:2 tbx:1 00 rn:5 rd:5
+
+# Advanced SIMD Permute
+
+UZP1            0.00 1110 .. 0 ..... 0 001 10 ..... .....   @qrrr_e
+UZP2            0.00 1110 .. 0 ..... 0 101 10 ..... .....   @qrrr_e
+TRN1            0.00 1110 .. 0 ..... 0 010 10 ..... .....   @qrrr_e
+TRN2            0.00 1110 .. 0 ..... 0 110 10 ..... .....   @qrrr_e
+ZIP1            0.00 1110 .. 0 ..... 0 011 10 ..... .....   @qrrr_e
+ZIP2            0.00 1110 .. 0 ..... 0 111 10 ..... .....   @qrrr_e
+
+# Advanced SIMD Across Lanes
+
+ADDV            0.00 1110 .. 11000 11011 10 ..... .....     @qrr_e
+SADDLV          0.00 1110 .. 11000 00011 10 ..... .....     @qrr_e
+UADDLV          0.10 1110 .. 11000 00011 10 ..... .....     @qrr_e
+SMAXV           0.00 1110 .. 11000 01010 10 ..... .....     @qrr_e
+UMAXV           0.10 1110 .. 11000 01010 10 ..... .....     @qrr_e
+SMINV           0.00 1110 .. 11000 11010 10 ..... .....     @qrr_e
+UMINV           0.10 1110 .. 11000 11010 10 ..... .....     @qrr_e
+
+FMAXNMV_h       0.00 1110 00 11000 01100 10 ..... .....     @qrr_h
+FMAXNMV_s       0110 1110 00 11000 01100 10 ..... .....     @rr_q1e2
+
+FMINNMV_h       0.00 1110 10 11000 01100 10 ..... .....     @qrr_h
+FMINNMV_s       0110 1110 10 11000 01100 10 ..... .....     @rr_q1e2
+
+FMAXV_h         0.00 1110 00 11000 01111 10 ..... .....     @qrr_h
+FMAXV_s         0110 1110 00 11000 01111 10 ..... .....     @rr_q1e2
+
+FMINV_h         0.00 1110 10 11000 01111 10 ..... .....     @qrr_h
+FMINV_s         0110 1110 10 11000 01111 10 ..... .....     @rr_q1e2
+
+# Floating-point Immediate
+
+FMOVI_s         0001 1110 .. 1 imm:8 100 00000 rd:5         esz=%esz_hsd
+
+# Advanced SIMD Modified Immediate / Shift by Immediate
+
+%abcdefgh       16:3 5:5
+
+# Right shifts are encoded as N - shift, where N is the element size in bits.
+%neon_rshift_i6 16:6 !function=rsub_64
+%neon_rshift_i5 16:5 !function=rsub_32
+%neon_rshift_i4 16:4 !function=rsub_16
+%neon_rshift_i3 16:3 !function=rsub_8
+
+@q_shri_b       . q:1 .. ..... 0001 ... ..... . rn:5 rd:5   \
+                &qrri_e esz=0 imm=%neon_rshift_i3
+@q_shri_h       . q:1 .. ..... 001 .... ..... . rn:5 rd:5   \
+                &qrri_e esz=1 imm=%neon_rshift_i4
+@q_shri_s       . q:1 .. ..... 01 ..... ..... . rn:5 rd:5   \
+                &qrri_e esz=2 imm=%neon_rshift_i5
+@q_shri_d       . 1 .. ..... 1 ...... ..... . rn:5 rd:5     \
+                &qrri_e esz=3 imm=%neon_rshift_i6 q=1
+
+@q_shli_b       . q:1 .. ..... 0001 imm:3 ..... . rn:5 rd:5 &qrri_e esz=0
+@q_shli_h       . q:1 .. ..... 001  imm:4 ..... . rn:5 rd:5 &qrri_e esz=1
+@q_shli_s       . q:1 .. ..... 01   imm:5 ..... . rn:5 rd:5 &qrri_e esz=2
+@q_shli_d       . 1   .. ..... 1    imm:6 ..... . rn:5 rd:5 &qrri_e esz=3 q=1
+
+FMOVI_v_h       0 q:1 00 1111 00000 ... 1111 11 ..... rd:5  %abcdefgh
+
+# MOVI, MVNI, ORR, BIC, FMOV are all intermixed via cmode.
+Vimm            0 q:1 op:1 0 1111 00000 ... cmode:4 01 ..... rd:5 %abcdefgh
+
+SSHR_v          0.00 11110 .... ... 00000 1 ..... .....     @q_shri_b
+SSHR_v          0.00 11110 .... ... 00000 1 ..... .....     @q_shri_h
+SSHR_v          0.00 11110 .... ... 00000 1 ..... .....     @q_shri_s
+SSHR_v          0.00 11110 .... ... 00000 1 ..... .....     @q_shri_d
+
+USHR_v          0.10 11110 .... ... 00000 1 ..... .....     @q_shri_b
+USHR_v          0.10 11110 .... ... 00000 1 ..... .....     @q_shri_h
+USHR_v          0.10 11110 .... ... 00000 1 ..... .....     @q_shri_s
+USHR_v          0.10 11110 .... ... 00000 1 ..... .....     @q_shri_d
+
+SSRA_v          0.00 11110 .... ... 00010 1 ..... .....     @q_shri_b
+SSRA_v          0.00 11110 .... ... 00010 1 ..... .....     @q_shri_h
+SSRA_v          0.00 11110 .... ... 00010 1 ..... .....     @q_shri_s
+SSRA_v          0.00 11110 .... ... 00010 1 ..... .....     @q_shri_d
+
+USRA_v          0.10 11110 .... ... 00010 1 ..... .....     @q_shri_b
+USRA_v          0.10 11110 .... ... 00010 1 ..... .....     @q_shri_h
+USRA_v          0.10 11110 .... ... 00010 1 ..... .....     @q_shri_s
+USRA_v          0.10 11110 .... ... 00010 1 ..... .....     @q_shri_d
+
+SRSHR_v         0.00 11110 .... ... 00100 1 ..... .....     @q_shri_b
+SRSHR_v         0.00 11110 .... ... 00100 1 ..... .....     @q_shri_h
+SRSHR_v         0.00 11110 .... ... 00100 1 ..... .....     @q_shri_s
+SRSHR_v         0.00 11110 .... ... 00100 1 ..... .....     @q_shri_d
+
+URSHR_v         0.10 11110 .... ... 00100 1 ..... .....     @q_shri_b
+URSHR_v         0.10 11110 .... ... 00100 1 ..... .....     @q_shri_h
+URSHR_v         0.10 11110 .... ... 00100 1 ..... .....     @q_shri_s
+URSHR_v         0.10 11110 .... ... 00100 1 ..... .....     @q_shri_d
+
+SRSRA_v         0.00 11110 .... ... 00110 1 ..... .....     @q_shri_b
+SRSRA_v         0.00 11110 .... ... 00110 1 ..... .....     @q_shri_h
+SRSRA_v         0.00 11110 .... ... 00110 1 ..... .....     @q_shri_s
+SRSRA_v         0.00 11110 .... ... 00110 1 ..... .....     @q_shri_d
+
+URSRA_v         0.10 11110 .... ... 00110 1 ..... .....     @q_shri_b
+URSRA_v         0.10 11110 .... ... 00110 1 ..... .....     @q_shri_h
+URSRA_v         0.10 11110 .... ... 00110 1 ..... .....     @q_shri_s
+URSRA_v         0.10 11110 .... ... 00110 1 ..... .....     @q_shri_d
+
+SRI_v           0.10 11110 .... ... 01000 1 ..... .....     @q_shri_b
+SRI_v           0.10 11110 .... ... 01000 1 ..... .....     @q_shri_h
+SRI_v           0.10 11110 .... ... 01000 1 ..... .....     @q_shri_s
+SRI_v           0.10 11110 .... ... 01000 1 ..... .....     @q_shri_d
+
+SHL_v           0.00 11110 .... ... 01010 1 ..... .....     @q_shli_b
+SHL_v           0.00 11110 .... ... 01010 1 ..... .....     @q_shli_h
+SHL_v           0.00 11110 .... ... 01010 1 ..... .....     @q_shli_s
+SHL_v           0.00 11110 .... ... 01010 1 ..... .....     @q_shli_d
+
+SLI_v           0.10 11110 .... ... 01010 1 ..... .....     @q_shli_b
+SLI_v           0.10 11110 .... ... 01010 1 ..... .....     @q_shli_h
+SLI_v           0.10 11110 .... ... 01010 1 ..... .....     @q_shli_s
+SLI_v           0.10 11110 .... ... 01010 1 ..... .....     @q_shli_d
+
+SSHLL_v         0.00 11110 .... ... 10100 1 ..... .....     @q_shli_b
+SSHLL_v         0.00 11110 .... ... 10100 1 ..... .....     @q_shli_h
+SSHLL_v         0.00 11110 .... ... 10100 1 ..... .....     @q_shli_s
+
+USHLL_v         0.10 11110 .... ... 10100 1 ..... .....     @q_shli_b
+USHLL_v         0.10 11110 .... ... 10100 1 ..... .....     @q_shli_h
+USHLL_v         0.10 11110 .... ... 10100 1 ..... .....     @q_shli_s
+
+SHRN_v          0.00 11110 .... ... 10000 1 ..... .....     @q_shri_b
+SHRN_v          0.00 11110 .... ... 10000 1 ..... .....     @q_shri_h
+SHRN_v          0.00 11110 .... ... 10000 1 ..... .....     @q_shri_s
+
+RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_b
+RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_h
+RSHRN_v         0.00 11110 .... ... 10001 1 ..... .....     @q_shri_s
+
+SQSHL_vi        0.00 11110 .... ... 01110 1 ..... .....     @q_shli_b
+SQSHL_vi        0.00 11110 .... ... 01110 1 ..... .....     @q_shli_h
+SQSHL_vi        0.00 11110 .... ... 01110 1 ..... .....     @q_shli_s
+SQSHL_vi        0.00 11110 .... ... 01110 1 ..... .....     @q_shli_d
+
+UQSHL_vi        0.10 11110 .... ... 01110 1 ..... .....     @q_shli_b
+UQSHL_vi        0.10 11110 .... ... 01110 1 ..... .....     @q_shli_h
+UQSHL_vi        0.10 11110 .... ... 01110 1 ..... .....     @q_shli_s
+UQSHL_vi        0.10 11110 .... ... 01110 1 ..... .....     @q_shli_d
+
+SQSHLU_vi       0.10 11110 .... ... 01100 1 ..... .....     @q_shli_b
+SQSHLU_vi       0.10 11110 .... ... 01100 1 ..... .....     @q_shli_h
+SQSHLU_vi       0.10 11110 .... ... 01100 1 ..... .....     @q_shli_s
+SQSHLU_vi       0.10 11110 .... ... 01100 1 ..... .....     @q_shli_d
+
+SQSHRN_v        0.00 11110 .... ... 10010 1 ..... .....     @q_shri_b
+SQSHRN_v        0.00 11110 .... ... 10010 1 ..... .....     @q_shri_h
+SQSHRN_v        0.00 11110 .... ... 10010 1 ..... .....     @q_shri_s
+
+UQSHRN_v        0.10 11110 .... ... 10010 1 ..... .....     @q_shri_b
+UQSHRN_v        0.10 11110 .... ... 10010 1 ..... .....     @q_shri_h
+UQSHRN_v        0.10 11110 .... ... 10010 1 ..... .....     @q_shri_s
+
+SQSHRUN_v       0.10 11110 .... ... 10000 1 ..... .....     @q_shri_b
+SQSHRUN_v       0.10 11110 .... ... 10000 1 ..... .....     @q_shri_h
+SQSHRUN_v       0.10 11110 .... ... 10000 1 ..... .....     @q_shri_s
+
+SQRSHRN_v       0.00 11110 .... ... 10011 1 ..... .....     @q_shri_b
+SQRSHRN_v       0.00 11110 .... ... 10011 1 ..... .....     @q_shri_h
+SQRSHRN_v       0.00 11110 .... ... 10011 1 ..... .....     @q_shri_s
+
+UQRSHRN_v       0.10 11110 .... ... 10011 1 ..... .....     @q_shri_b
+UQRSHRN_v       0.10 11110 .... ... 10011 1 ..... .....     @q_shri_h
+UQRSHRN_v       0.10 11110 .... ... 10011 1 ..... .....     @q_shri_s
+
+SQRSHRUN_v      0.10 11110 .... ... 10001 1 ..... .....     @q_shri_b
+SQRSHRUN_v      0.10 11110 .... ... 10001 1 ..... .....     @q_shri_h
+SQRSHRUN_v      0.10 11110 .... ... 10001 1 ..... .....     @q_shri_s
+
+# Advanced SIMD scalar shift by immediate
+
+@shri_b         .... ..... 0001 ... ..... . rn:5 rd:5   \
+                &rri_e esz=0 imm=%neon_rshift_i3
+@shri_h         .... ..... 001 .... ..... . rn:5 rd:5   \
+                &rri_e esz=1 imm=%neon_rshift_i4
+@shri_s         .... ..... 01 ..... ..... . rn:5 rd:5   \
+                &rri_e esz=2 imm=%neon_rshift_i5
+@shri_d         .... ..... 1 ...... ..... . rn:5 rd:5   \
+                &rri_e esz=3 imm=%neon_rshift_i6
+
+@shli_b         .... ..... 0001 imm:3  ..... . rn:5 rd:5    &rri_e esz=0
+@shli_h         .... ..... 001  imm:4  ..... . rn:5 rd:5    &rri_e esz=1
+@shli_s         .... ..... 01   imm:5  ..... . rn:5 rd:5    &rri_e esz=2
+@shli_d         .... ..... 1    imm:6  ..... . rn:5 rd:5    &rri_e esz=3
+
+SSHR_s          0101 11110 .... ... 00000 1 ..... .....     @shri_d
+USHR_s          0111 11110 .... ... 00000 1 ..... .....     @shri_d
+SSRA_s          0101 11110 .... ... 00010 1 ..... .....     @shri_d
+USRA_s          0111 11110 .... ... 00010 1 ..... .....     @shri_d
+SRSHR_s         0101 11110 .... ... 00100 1 ..... .....     @shri_d
+URSHR_s         0111 11110 .... ... 00100 1 ..... .....     @shri_d
+SRSRA_s         0101 11110 .... ... 00110 1 ..... .....     @shri_d
+URSRA_s         0111 11110 .... ... 00110 1 ..... .....     @shri_d
+SRI_s           0111 11110 .... ... 01000 1 ..... .....     @shri_d
+
+SHL_s           0101 11110 .... ... 01010 1 ..... .....     @shli_d
+SLI_s           0111 11110 .... ... 01010 1 ..... .....     @shli_d
+
+SQSHL_si        0101 11110 .... ... 01110 1 ..... .....     @shli_b
+SQSHL_si        0101 11110 .... ... 01110 1 ..... .....     @shli_h
+SQSHL_si        0101 11110 .... ... 01110 1 ..... .....     @shli_s
+SQSHL_si        0101 11110 .... ... 01110 1 ..... .....     @shli_d
+
+UQSHL_si        0111 11110 .... ... 01110 1 ..... .....     @shli_b
+UQSHL_si        0111 11110 .... ... 01110 1 ..... .....     @shli_h
+UQSHL_si        0111 11110 .... ... 01110 1 ..... .....     @shli_s
+UQSHL_si        0111 11110 .... ... 01110 1 ..... .....     @shli_d
+
+SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_b
+SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_h
+SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_s
+SQSHLU_si       0111 11110 .... ... 01100 1 ..... .....     @shli_d
+
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_b
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_h
+SQSHRN_si       0101 11110 .... ... 10010 1 ..... .....     @shri_s
+
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_b
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_h
+UQSHRN_si       0111 11110 .... ... 10010 1 ..... .....     @shri_s
+
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_b
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_h
+SQSHRUN_si      0111 11110 .... ... 10000 1 ..... .....     @shri_s
+
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_b
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_h
+SQRSHRN_si      0101 11110 .... ... 10011 1 ..... .....     @shri_s
+
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_b
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_h
+UQRSHRN_si      0111 11110 .... ... 10011 1 ..... .....     @shri_s
+
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_b
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_h
+SQRSHRUN_si     0111 11110 .... ... 10001 1 ..... .....     @shri_s

@@ -666,7 +666,7 @@ static void usb_dwc3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = usb_dwc3_reset;
+    device_class_set_legacy_reset(dc, usb_dwc3_reset);
     dc->realize = usb_dwc3_realize;
     dc->vmsd = &vmstate_usb_dwc3;
     device_class_set_props(dc, usb_dwc3_properties);

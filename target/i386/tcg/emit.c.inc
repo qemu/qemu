@@ -1304,7 +1304,7 @@ static void gen_BLSI(DisasContext *s, X86DecodedInsn *decode)
     /* input in T1, which is ready for prepare_update2_cc  */
     tcg_gen_neg_tl(s->T0, s->T1);
     tcg_gen_and_tl(s->T0, s->T0, s->T1);
-    prepare_update2_cc(decode, s, CC_OP_BMILGB + ot);
+    prepare_update2_cc(decode, s, CC_OP_BLSIB + ot);
 }
 
 static void gen_BLSMSK(DisasContext *s, X86DecodedInsn *decode)

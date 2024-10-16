@@ -1679,10 +1679,10 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 
     if (machine_type) {
         machine_class = find_machine(machine_type, machines);
-        qdict_del(qdict, "type");
         if (!machine_class) {
-            error_setg(errp, "unsupported machine type: \"%s\"", optarg);
+            error_setg(errp, "unsupported machine type: \"%s\"", machine_type);
         }
+        qdict_del(qdict, "type");
     } else {
         machine_class = find_default_machine(machines);
         if (!machine_class) {
@@ -1971,7 +1971,7 @@ static void qemu_create_early_backends(void)
 
     qemu_console_early_init();
 
-    if (dpy.has_gl && dpy.gl != DISPLAYGL_MODE_OFF && display_opengl == 0) {
+    if (dpy.has_gl && dpy.gl != DISPLAY_GL_MODE_OFF && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by display backend '%s'",
                      DisplayType_str(dpy.type));
@@ -2909,17 +2909,6 @@ void qemu_init(int argc, char **argv)
                 qdict_put_str(machine_opts_dict, "graphics", "off");
                 nographic = true;
                 dpy.type = DISPLAY_TYPE_NONE;
-                break;
-            case QEMU_OPTION_portrait:
-                graphic_rotate = 90;
-                break;
-            case QEMU_OPTION_rotate:
-                graphic_rotate = strtol(optarg, (char **) &optarg, 10);
-                if (graphic_rotate != 0 && graphic_rotate != 90 &&
-                    graphic_rotate != 180 && graphic_rotate != 270) {
-                    error_report("only 90, 180, 270 deg rotation is available");
-                    exit(1);
-                }
                 break;
             case QEMU_OPTION_kernel:
                 qdict_put_str(machine_opts_dict, "kernel", optarg);

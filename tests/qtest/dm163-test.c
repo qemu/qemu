@@ -182,6 +182,8 @@ static void test_dm163_gpio_connection(void)
     g_assert_false(qtest_get_irq(qts, LAT_B));
     g_assert_false(qtest_get_irq(qts, SELBK));
     g_assert_false(qtest_get_irq(qts, RST_B));
+
+    qtest_quit(qts);
 }
 
 int main(int argc, char **argv)

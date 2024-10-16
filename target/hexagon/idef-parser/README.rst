@@ -138,7 +138,7 @@ we obtain the pseudo code
 with macros such as ``fJUMPR`` intact.
 
 The second step is to expand macros into a form suitable for our parser.
-These macros are defined in ``idef-parser/macros.inc`` and the step is
+These macros are defined in ``idef-parser/macros.h.inc`` and the step is
 carried out by the ``prepare`` script which runs the C preprocessor on
 ``idef_parser_input.h.inc`` to produce
 ``idef_parser_input.preprocessed.h.inc``.
@@ -266,7 +266,7 @@ in plain C is defined as
     #define fABS(A) (((A) < 0) ? (-(A)) : (A))
 
 and returns the absolute value of the argument ``A``. This macro is not included
-in ``idef-parser/macros.inc`` and as such is not expanded and kept as a "call"
+in ``idef-parser/macros.h.inc`` and as such is not expanded and kept as a "call"
 ``fABS(...)``. Reason being, that ``fABS`` is easier to match and map to
 ``tcg_gen_abs_<width>``, compared to the full ternary expression above. Loads of
 macros in ``macros.h`` are kept unexpanded to aid in parsing, as seen in the

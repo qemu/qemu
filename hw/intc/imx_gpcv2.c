@@ -106,7 +106,7 @@ static void imx_gpcv2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = imx_gpcv2_reset;
+    device_class_set_legacy_reset(dc, imx_gpcv2_reset);
     dc->vmsd  = &vmstate_imx_gpcv2;
     dc->desc  = "i.MX GPCv2 Module";
 }

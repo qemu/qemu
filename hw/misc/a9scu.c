@@ -134,7 +134,7 @@ static void a9_scu_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, a9_scu_properties);
     dc->vmsd = &vmstate_a9_scu;
-    dc->reset = a9_scu_reset;
+    device_class_set_legacy_reset(dc, a9_scu_reset);
     dc->realize = a9_scu_realize;
 }
 
