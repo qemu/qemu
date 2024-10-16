@@ -69,6 +69,14 @@ struct riscv_iommu_pq_record {
 /* 5.3 IOMMU Capabilities (64bits) */
 #define RISCV_IOMMU_REG_CAP             0x0000
 #define RISCV_IOMMU_CAP_VERSION         GENMASK_ULL(7, 0)
+#define RISCV_IOMMU_CAP_SV32            BIT_ULL(8)
+#define RISCV_IOMMU_CAP_SV39            BIT_ULL(9)
+#define RISCV_IOMMU_CAP_SV48            BIT_ULL(10)
+#define RISCV_IOMMU_CAP_SV57            BIT_ULL(11)
+#define RISCV_IOMMU_CAP_SV32X4          BIT_ULL(16)
+#define RISCV_IOMMU_CAP_SV39X4          BIT_ULL(17)
+#define RISCV_IOMMU_CAP_SV48X4          BIT_ULL(18)
+#define RISCV_IOMMU_CAP_SV57X4          BIT_ULL(19)
 #define RISCV_IOMMU_CAP_MSI_FLAT        BIT_ULL(22)
 #define RISCV_IOMMU_CAP_MSI_MRIF        BIT_ULL(23)
 #define RISCV_IOMMU_CAP_T2GPA           BIT_ULL(26)
@@ -80,7 +88,9 @@ struct riscv_iommu_pq_record {
 
 /* 5.4 Features control register (32bits) */
 #define RISCV_IOMMU_REG_FCTL            0x0008
+#define RISCV_IOMMU_FCTL_BE             BIT(0)
 #define RISCV_IOMMU_FCTL_WSI            BIT(1)
+#define RISCV_IOMMU_FCTL_GXL            BIT(2)
 
 /* 5.5 Device-directory-table pointer (64bits) */
 #define RISCV_IOMMU_REG_DDTP            0x0010
@@ -175,6 +185,10 @@ enum {
 
 /* 5.27 Interrupt cause to vector (64bits) */
 #define RISCV_IOMMU_REG_ICVEC           0x02F8
+#define RISCV_IOMMU_ICVEC_CIV           GENMASK_ULL(3, 0)
+#define RISCV_IOMMU_ICVEC_FIV           GENMASK_ULL(7, 4)
+#define RISCV_IOMMU_ICVEC_PMIV          GENMASK_ULL(11, 8)
+#define RISCV_IOMMU_ICVEC_PIV           GENMASK_ULL(15, 12)
 
 /* 5.28 MSI Configuration table (32 * 64bits) */
 #define RISCV_IOMMU_REG_MSI_CONFIG      0x0300
@@ -203,6 +217,8 @@ struct riscv_iommu_dc {
 #define RISCV_IOMMU_DC_TC_DTF           BIT_ULL(4)
 #define RISCV_IOMMU_DC_TC_PDTV          BIT_ULL(5)
 #define RISCV_IOMMU_DC_TC_PRPR          BIT_ULL(6)
+#define RISCV_IOMMU_DC_TC_GADE          BIT_ULL(7)
+#define RISCV_IOMMU_DC_TC_SADE          BIT_ULL(8)
 #define RISCV_IOMMU_DC_TC_DPE           BIT_ULL(9)
 #define RISCV_IOMMU_DC_TC_SBE           BIT_ULL(10)
 #define RISCV_IOMMU_DC_TC_SXL           BIT_ULL(11)
@@ -309,9 +325,11 @@ enum riscv_iommu_fq_causes {
 
 /* Translation attributes fields */
 #define RISCV_IOMMU_PC_TA_V             BIT_ULL(0)
+#define RISCV_IOMMU_PC_TA_RESERVED      GENMASK_ULL(63, 32)
 
 /* First stage context fields */
 #define RISCV_IOMMU_PC_FSC_PPN          GENMASK_ULL(43, 0)
+#define RISCV_IOMMU_PC_FSC_RESERVED     GENMASK_ULL(59, 44)
 
 enum riscv_iommu_fq_ttypes {
     RISCV_IOMMU_FQ_TTYPE_NONE = 0,
