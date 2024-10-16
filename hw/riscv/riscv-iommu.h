@@ -69,6 +69,9 @@ struct RISCVIOMMUState {
 
     GHashTable *ctx_cache;          /* Device translation Context Cache */
 
+    GHashTable *iot_cache;          /* IO Translated Address Cache */
+    unsigned iot_limit;             /* IO Translation Cache size limit */
+
     /* MMIO Hardware Interface */
     MemoryRegion regs_mr;
     uint8_t *regs_rw;  /* register state (user write) */
