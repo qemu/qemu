@@ -4,12 +4,16 @@
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_blk.h"
 #include "sysemu/iothread.h"
+#include "sysemu/spdm.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-blk-common.h"
 
 extern QemuMutex m_spdm_mutex;
+extern QemuCond m_spdm_cond;
+extern QemuThread m_spdm_thread;
+extern SpdmDev vblk_spdm_dev;
 
 #define VIRTIO_BLK_T_SPDM 28
 #define VIRTIO_BLK_T_SPDM_APP 30

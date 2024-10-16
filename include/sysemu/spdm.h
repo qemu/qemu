@@ -7,6 +7,7 @@
 #define QEMU_SPDM_H
 
 #include "qemu/osdep.h"
+#include "hw/pci/pcie_doe.h"
 #include <glib.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -25,6 +26,16 @@
 #include "spdm_device_secret_lib_internal.h"
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
+
+#define QEMU_SPDM_DEBUG 1 
+#if QEMU_SPDM_DEBUG 
+#define SPDM_DEBUG(fmt, ...) g_print("[QEMU @ %s]: " fmt, __func__, ##__VA_ARGS__)
+#define CHECKPOINT() SPDM_DEBUG("CHECKPOINT\n")
+#else 
+#define SPDM_DEBUG(fmt, ...) {}
+#endif
+
+#define SPDM_TIMEOUT  1000000   // 1 second
 
 #define SPDM_BLK_APP_TAMPER   0x01
 #define SPDM_BLK_APP_MSG      0x02
@@ -93,7 +104,7 @@
  * If chunk is supported, it must be larger than DATA_TRANSFER_SIZE.
  * It matches MaxSPDMmsgSize in SPDM specification. */
 #ifndef LIBSPDM_MAX_SPDM_MSG_SIZE
-#define LIBSPDM_MAX_SPDM_MSG_SIZE 0x1200
+#define LIBSPDM_MAX_SPDM_MSG_SIZE 0x2200
 #endif
 
 #ifndef LIBSPDM_MAX_CSR_SIZE
@@ -103,8 +114,11 @@
 typedef struct SpdmDev SpdmDev;
 
 struct SpdmDev {
-    bool isResponder;
-    bool isRequester;
+    bool is_responder;
+    bool is_requester;
+
+    bool receive_is_ready;
+    bool send_is_ready;
 
     void *spdm_context;
 
@@ -113,10 +127,13 @@ struct SpdmDev {
 
     void *requester_cert_chain_buffer;
 
+    DOECap doe_cap;
+
     /* The developer can choose to use only a buffer or to separate them */
     uint8_t sender_buffer[LIBSPDM_SENDER_BUFFER_SIZE];
     uint8_t receiver_buffer[LIBSPDM_RECEIVER_BUFFER_SIZE];
-    uint8_t sender_receiver_buffer[LIBSPDM_MAX_SENDER_RECEIVER_BUFFER_SIZE];
+    uint8_t *sender_receiver_buffer; /* WARN: it was a buffer with fixed size before */
+    size_t message_size;
     bool sender_buffer_acquired;
     bool receiver_buffer_acquired;
     bool sender_receiver_buffer_acquired;
@@ -183,7 +200,27 @@ struct SpdmDev {
                                                     size_t *request_size,
                                                     void **request,
                                                     uint64_t timeout);
-    
+
+    /**
+     * Notify the session state to a session APP.
+     *
+     * @param  spdm_context                  A pointer to the SPDM context.
+     * @param  session_id                    The session_id of a session.
+     * @param  session_state                 The state of a session.
+    **/
+    void (*spdm_server_session_state_callback)(void *spdm_context,
+                                               uint32_t session_id,
+                                               libspdm_session_state_t session_state);
+
+    /**
+     * Notify the connection state to an SPDM context register.
+     *
+     * @param  spdm_context                  A pointer to the SPDM context.
+     * @param  connection_state              Indicate the SPDM connection state.
+    **/
+    void (*spdm_server_connection_state_callback)(
+        void *spdm_context, libspdm_connection_state_t connection_state);
+
     libspdm_return_t (*spdm_device_acquire_sender_buffer)(void *context, void **msg_buffer_ptr);
     void (*spdm_device_release_sender_buffer)(void *context, const void *msg_buf_ptr);
 

@@ -122,9 +122,9 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
             struct iovec *in_iov = req->qiov.iov; //req->elem.in_sg;
             unsigned in_num = req->qiov.niov; //req->elem.in_num;
 
-            uint8_t cipher_data[LIBSPDM_MAX_SENDER_RECEIVER_BUFFER_SIZE];
+            uint8_t cipher_data[LIBSPDM_MAX_SPDM_MSG_SIZE];
             void *cipher_data_ptr = cipher_data;
-            size_t cipher_size = LIBSPDM_MAX_SENDER_RECEIVER_BUFFER_SIZE;
+            size_t cipher_size = LIBSPDM_MAX_SPDM_MSG_SIZE;
 
             uint8_t *my_response;
             size_t my_response_size;
@@ -872,7 +872,9 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     unsigned out_num = req->elem.out_num;
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+#ifdef CONFIG_LIBSPDM
     SpdmDev *spdm_dev = s->spdm_dev;
+#endif
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
         virtio_error(vdev, "virtio-blk missing headers");
@@ -910,7 +912,9 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     switch (type & ~(VIRTIO_BLK_T_OUT | VIRTIO_BLK_T_BARRIER)) {
     case VIRTIO_BLK_T_IN:
     {
+#ifdef CONFIG_LIBSPDM
 HANDLE_RW_L:
+#endif
         bool is_write = type & VIRTIO_BLK_T_OUT;
         req->sector_num = virtio_ldq_p(vdev, &req->out.sector);
 
@@ -1044,28 +1048,49 @@ HANDLE_RW_L:
         bool is_write = type & VIRTIO_BLK_T_OUT;
         if (is_write) {
             qemu_mutex_lock(&m_spdm_mutex);
+            memset(spdm_dev->sender_receiver_buffer, 0, LIBSPDM_MAX_SENDER_RECEIVER_BUFFER_SIZE);
             for (int i = 0; i < out_num; i++) {
                 memcpy(spdm_dev->sender_receiver_buffer, (&out_iov[i])->iov_base, (&out_iov[i])->iov_len);
             }
+            spdm_dev->receive_is_ready = true;
+            qemu_cond_signal(&m_spdm_cond);
             qemu_mutex_unlock(&m_spdm_mutex);
         } else {
-            memset(in_iov->iov_base, 0, in_iov->iov_len);
             qemu_mutex_lock(&m_spdm_mutex);
-            if (in_iov->iov_len < LIBSPDM_MAX_SENDER_RECEIVER_BUFFER_SIZE) {
+
+            if (!spdm_dev->send_is_ready) {
+                qemu_cond_wait(&m_spdm_cond, &m_spdm_mutex);
+            }
+            spdm_dev->send_is_ready = false;
+            if (in_iov->iov_len < spdm_dev->message_size + sizeof(spdm_dev->message_size) + 1) {
+                SPDM_DEBUG("in_iov->len < LIBSPDM_MAX_SPDM_MSG_SIZE\n");
                 virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
                 virtio_blk_free_request(req);
-                return 0;
+                break;
             }
+
+            in_iov->iov_len = spdm_dev->message_size + sizeof(spdm_dev->message_size) + 1;
+            memset(in_iov->iov_base, 0, in_iov->iov_len);
+            *((uint8_t *)in_iov->iov_base) = MCTP_MESSAGE_TYPE_SPDM;
+            *((uint32_t *) (((uint8_t *)in_iov->iov_base) + 1)) = spdm_dev->message_size;
+            memcpy(in_iov->iov_base + 5,
+                    spdm_dev->sender_receiver_buffer,
+                    spdm_dev->message_size);
+
+            /*
+            SPDM_DEBUG("in_iov->iov_len = %u\n\n", in_iov->iov_len);
+            g_printerr("[QEMU @ %s]: \n", __func__);
+            for (int i = 0; i < in_iov->iov_len; i++) {
+                g_printerr("%02X ", ((uint8_t *)in_iov->iov_base)[i]);
+            }
+            g_printerr("\n");
+            //*/
+            qemu_mutex_unlock(&m_spdm_mutex);
         }
 
-        in_iov->iov_len = sizeof(spdm_dev->sender_receiver_buffer);
-        *((uint8_t *)in_iov->iov_base) = MCTP_MESSAGE_TYPE_SPDM;
-        *((uint32_t *) (((uint8_t *)in_iov->iov_base) + 1)) = sizeof(spdm_dev->sender_receiver_buffer);
-        memcpy(in_iov->iov_base + sizeof(spdm_dev->sender_receiver_buffer) + 1,
-               spdm_dev->sender_receiver_buffer,
-               sizeof(spdm_dev->sender_receiver_buffer));
 
-        qemu_mutex_unlock(&m_spdm_mutex);
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+        virtio_blk_free_request(req);
 
         break;
     }
@@ -1977,71 +2002,6 @@ static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_stopping = false;
 }
 
-struct SpdmDev vblk_spdm_dev = {
-    .use_transport_layer = SOCKET_TRANSPORT_TYPE_MCTP,
-    .use_version = SPDM_MESSAGE_VERSION_12,
-    .use_secured_message_version = SECURED_SPDM_VERSION_11,
-    .use_responder_capability_flags =
-        (0 | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CACHE_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CERT_CAP | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CHAL_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_SIG | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_NO_SIG */
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_FRESH_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_EX_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER_WITH_CONTEXT | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER */
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCAP_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HBEAT_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_UPD_CAP |
-        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP |
-        0),
-    .use_capability_flags = 0,
-    .use_basic_mut_auth = 1,
-    . use_mut_auth = 
-        SPDM_KEY_EXCHANGE_RESPONSE_MUT_AUTH_REQUESTED_WITH_ENCAP_REQUEST,
-    .use_measurement_summary_hash_type =
-        SPDM_CHALLENGE_REQUEST_ALL_MEASUREMENTS_HASH,
-    .use_measurement_operation =
-        SPDM_GET_MEASUREMENTS_REQUEST_MEASUREMENT_OPERATION_TOTAL_NUMBER_OF_MEASUREMENTS,
-    .use_slot_id = 0,
-    .use_slot_count = 3,
-    .use_key_update_action = LIBSPDM_KEY_UPDATE_ACTION_MAX,
-    .support_measurement_spec =
-        SPDM_MEASUREMENT_SPECIFICATION_DMTF,
-    .support_measurement_hash_algo =
-        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_512 |
-        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_384,
-    .support_hash_algo = SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_384 |
-                    SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
-    .support_asym_algo =
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P384 |
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P256,
-    .support_req_asym_algo =
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_3072 |
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_2048 |
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_3072 |
-        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048,
-    .support_dhe_algo =
-        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_384_R1 |
-        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_256_R1 |
-        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_3072 |
-        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_2048,
-    .support_aead_algo =
-        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_AES_256_GCM |
-        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_CHACHA20_POLY1305,
-    .support_key_schedule_algo = SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH,
-    
-    .spdm_device_send_message = vblk_spdm_send_message,
-    .spdm_device_receive_message = vblk_spdm_receive_message,
-    
-    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
-    .spdm_device_acquire_sender_buffer = vblk_spdm_acquire_buffer,
-    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
-    .spdm_device_release_receiver_buffer = vblk_spdm_release_buffer,
-};
-
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -2170,9 +2130,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 #ifdef CONFIG_LIBSPDM
     s->spdm_dev = &vblk_spdm_dev;
     qemu_mutex_init(&m_spdm_mutex);
+    qemu_cond_init(&m_spdm_cond);
     spdm_responder_init(s->spdm_dev);
-    libspdm_register_connection_state_callback_func(
-        s->spdm_dev->spdm_context, vblk_spdm_connection_state_callback);
+    /* 
+    //libspdm_register_connection_state_callback_func(
+    //   s->spdm_dev->spdm_context, vblk_spdm_connection_state_callback);
+    //*/
+    qemu_thread_create(&m_spdm_thread, "spdm_io_virtio_blk", vblk_spdm_io_thread, s, QEMU_THREAD_JOINABLE);
 #endif 
 }
 

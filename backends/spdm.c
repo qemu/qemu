@@ -125,7 +125,7 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
     spdm_version_number_t spdm_version;
 
     /* Check if device is set to be responder */ 
-    if (!spdm_dev->isResponder) {
+    if (!spdm_dev->is_responder) {
         return NULL;
     }
 
@@ -144,8 +144,8 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
         libspdm_register_transport_layer_func(
             spdm_dev->spdm_context,
             LIBSPDM_MAX_SPDM_MSG_SIZE,
-            LIBSPDM_TRANSPORT_HEADER_SIZE,
-            LIBSPDM_TRANSPORT_TAIL_SIZE,
+            LIBSPDM_MCTP_TRANSPORT_HEADER_SIZE,
+            LIBSPDM_MCTP_TRANSPORT_TAIL_SIZE,
             libspdm_transport_mctp_encode_message,
             libspdm_transport_mctp_decode_message);
     } else if (spdm_dev->use_transport_layer == SOCKET_TRANSPORT_TYPE_PCI_DOE) {
@@ -261,16 +261,12 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
     libspdm_set_data(spdm_dev->spdm_context, LIBSPDM_DATA_HEARTBEAT_PERIOD,
                      &parameter, &data8, sizeof(data8));
 
-    if (spdm_dev->use_version != 0) {
-        libspdm_zero_mem(&parameter, sizeof(parameter));
-        parameter.location = LIBSPDM_DATA_LOCATION_LOCAL;
-        spdm_version = spdm_dev->use_version << SPDM_VERSION_NUMBER_SHIFT_BIT;
-        libspdm_set_data(spdm_dev->spdm_context, LIBSPDM_DATA_SPDM_VERSION,
-                         &parameter, &spdm_version, sizeof(spdm_version));
-    }
-
     libspdm_register_get_response_func(spdm_dev->spdm_context,
                                        spdm_dev->spdm_get_response_vendor_defined_request);
+    libspdm_register_session_state_callback_func(
+        spdm_dev->spdm_context, spdm_dev->spdm_server_session_state_callback);
+    libspdm_register_connection_state_callback_func(
+        spdm_dev->spdm_context, spdm_dev->spdm_server_connection_state_callback);
 
     return spdm_dev->spdm_context;
 }

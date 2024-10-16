@@ -210,6 +210,10 @@
 #include "dif.h"
 #include "trace.h"
 
+#ifdef CONFIG_LIBSPDM
+#include "auth.h"
+#endif
+
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4
 #define NVME_SPEC_VER 0x00010400
@@ -8310,19 +8314,27 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
     return 0;
 }
 
+/*
 static bool pcie_doe_spdm_rsp(DOECap *doe_cap)
 {
+    g_printerr ("[QEMU @ %s]: CHECKPOINT\n", __func__);
     void *req = pcie_doe_get_write_mbox_ptr(doe_cap);
-    uint32_t req_len = pcie_doe_get_obj_len(req) * 4;
+    //uint32_t req_len = pcie_doe_get_obj_len(req) * 4;
     void *rsp = doe_cap->read_mbox;
     uint32_t rsp_len = SPDM_SOCKET_MAX_MESSAGE_BUFFER_SIZE;
+    size_t index;
+
+    for (index = 0 ; index < rsp_len ; index++) {
+        pcie_doe_write_config(doe_cap, PCI_EXP_DOE_WR_DATA_MBOX, ((uint32_t *)rsp)[index], 1);
+    }
+    doe_cap->status.ready = 1;
 
     uint32_t recvd = spdm_socket_rsp(doe_cap->spdm_socket,
                              SPDM_SOCKET_TRANSPORT_TYPE_PCI_DOE,
                              req, req_len, rsp, rsp_len);
     doe_cap->read_mbox_len += DIV_ROUND_UP(recvd, 4);
 
-    return recvd != 0;
+    return false;
 }
 
 static DOEProtocol doe_spdm_prot[] = {
@@ -8330,6 +8342,7 @@ static DOEProtocol doe_spdm_prot[] = {
     { PCI_VENDOR_ID_PCI_SIG, PCI_SIG_DOE_SECURED_CMA, pcie_doe_spdm_rsp },
     { }
 };
+//*/
 
 static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
@@ -8414,6 +8427,16 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 
     pcie_cap_deverr_init(pci_dev);
 
+#ifdef CONFIG_LIBSPDM
+    uint16_t doe_offset = n->params.sriov_max_vfs ?
+                            PCI_CONFIG_SPACE_SIZE + PCI_ARI_SIZEOF 
+                            : PCI_CONFIG_SPACE_SIZE;
+    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                  doe_spdm_prot, true, 0);
+    nvme_spdm_dev.doe_cap = pci_dev->doe_spdm;
+
+    spdm_responder_init(&nvme_spdm_dev);
+#else
     /* DOE Initialisation */
     if (pci_dev->spdm_port) {
         uint16_t doe_offset = n->params.sriov_max_vfs ?
@@ -8430,6 +8453,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
             return false;
         }
     }
+#endif
 
     if (n->params.cmb_size_mb) {
         nvme_init_cmb(n, pci_dev);
@@ -8816,11 +8840,21 @@ static void nvme_pci_write_config(PCIDevice *dev, uint32_t address,
 static uint32_t nvme_pci_read_config(PCIDevice *dev, uint32_t address, int len)
 {
     uint32_t val;
+
+#ifdef CONFIG_LIBSPDM
+    if (pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&dev->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
+#endif
+/*
     if (dev->spdm_port && pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE)) {
         if (pcie_doe_read_config(&dev->doe_spdm, address, len, &val)) {
             return val;
         }
     }
+//*/
     return pci_default_read_config(dev, address, len);
 }
 

@@ -191,6 +191,8 @@ uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
     uint32_t command;
     bool result;
 
+    g_printerr("\n\n\n[QEMU @ %s]: CHECKPOINT\n\n\n\n", __func__);
+
     result = send_platform_data(socket, transport_type,
                                 SPDM_SOCKET_COMMAND_NORMAL,
                                 req, req_len);

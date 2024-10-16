@@ -100,9 +100,12 @@ struct DOECap {
     uint32_t *write_mbox;
     uint32_t *read_mbox;
 
+    uint8_t new_package;
+
     /* Mailbox position indicator */
     uint32_t read_mbox_idx;
     uint32_t read_mbox_len;
+    uint32_t write_mbox_hd1;
     uint32_t write_mbox_len;
 
     /* Protocols and its callback response */
