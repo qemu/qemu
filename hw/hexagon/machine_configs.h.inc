@@ -67,3 +67,5 @@ static hexagon_machine_config v66g_1024 = {
     },
 };
 
+#include "machine_cfg_sa8775_cdsp0.h.inc"
+#include "machine_cfg_v68n_1024.h.inc"
