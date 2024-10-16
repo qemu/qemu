@@ -187,7 +187,7 @@ static void stm32l4r5_soc_realize(DeviceState *dev_soc, Error **errp)
     SysBusDevice *busdev;
     uint32_t pin_index;
 
-    if (!memory_region_init_rom(&s->flash, OBJECT(dev_soc), "flash",
+    if (!memory_region_init_ram(&s->flash, OBJECT(dev_soc), "flash",
                                 sc->flash_size, errp)) {
         return;
     }
