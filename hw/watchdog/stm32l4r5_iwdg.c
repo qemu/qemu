@@ -5,7 +5,7 @@
 #include "qemu/units.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "hw/watchdog/stm32-iwdg.h"
+#include "hw/watchdog/stm32l4r5_iwdg.h"
 #include "sysemu/watchdog.h"
 #include "hw/qdev-properties.h"
 
@@ -34,7 +34,7 @@ static void stm32_iwdg_expired(void *opaque)
 
 static uint64_t stm32_iwdg_read(void *opaque, hwaddr offset, unsigned size) 
 {
-    STM32IWDGState *s = opaque;
+    Stm32l4r5IwdgState *s = opaque;
     uint64_t ret = 0;
 
     if (offset >= IWDG_REGMAP_SIZE) {
@@ -78,7 +78,7 @@ static uint64_t stm32_iwdg_read(void *opaque, hwaddr offset, unsigned size)
     return ret; 
 }
 
-static void stm32_iwdg_reload(STM32IWDGState *s)
+static void stm32_iwdg_reload(Stm32l4r5IwdgState *s)
 {
     int shift = s->regs[IWDG_PR] + 2;
     uint64_t reload = muldiv64(s->regs[IWDG_RLR], NANOSECONDS_PER_SECOND, (PCLK_HZ >> shift));
@@ -88,7 +88,7 @@ static void stm32_iwdg_reload(STM32IWDGState *s)
 
 static void stm32_iwdg_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
 {
-    STM32IWDGState *s = opaque;
+    Stm32l4r5IwdgState *s = opaque;
 
     if (offset >= IWDG_REGMAP_SIZE) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset 0x%04x\n",
@@ -207,7 +207,7 @@ static void stm32_iwdg_reset(STM32IWDGState *s)
 
 static void stm32_iwdg_reset_enter(Object *obj, ResetType type)
 {
-    STM32IWDGState *s = STM32_IWDG(obj);
+    Stm32l4r5IwdgState *s = STM32L4R5_IWDG(obj);
     stm32_iwdg_reset(s);
 }
 
@@ -215,7 +215,7 @@ static void stm32_iwdg_reset_enter(Object *obj, ResetType type)
 
 static void stm32_iwdg_realize(DeviceState *dev, Error **errp)
 {
-    STM32IWDGState *s = STM32_IWDG(dev);
+    Stm32l4r5IwdgState *s = STM32L4R5_IWDG(dev);
 
     // Write access to the registers is locked by default.
     s->register_locked = true;
@@ -240,9 +240,9 @@ static void stm32_iwdg_class_init(ObjectClass *klass, void *data)
 static TypeInfo stm32_iwdg_info = {
     .name          = TYPE_STM32_IWDG,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32IWDGState),
+    .instance_size = sizeof(Stm32l4r5IwdgState),
     .class_init    = stm32_iwdg_class_init,
-    .class_size    = sizeof(STM32IWDGClass),
+    .class_size    = sizeof(Stm32l4r5IwdgClass),
 };
 
 static void stm32_iwdg_register(void)

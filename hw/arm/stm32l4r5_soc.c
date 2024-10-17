@@ -37,7 +37,6 @@
 #include "hw/arm/stm32l4r5_soc.h"
 #include "hw/char/stm32l4x5_usart.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
-#include "hw/watchdog/stm32-iwdg.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
 
@@ -175,7 +174,7 @@ static void stm32l4r5_soc_initfn(Object *obj)
     object_initialize_child(obj, "lpuart1", &s->lpuart,
                             TYPE_STM32L4X5_LPUART);
 
-    object_initialize_child(obj, "iwdg", &s->iwdg, TYPE_STM32_IWDG);
+    object_initialize_child(obj, "iwdg", &s->iwdg, TYPE_STM32L4R5_IWDG);
 
     object_initialize_child(obj, "rng", &s->rng, TYPE_STM32L4R5_RNG);
 }

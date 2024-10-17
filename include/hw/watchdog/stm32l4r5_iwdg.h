@@ -4,14 +4,12 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
-/* For now this is based on the stm32l4r5. For others this might need some adaption/needs to be more generic.*/
-
-#define TYPE_STM32_IWDG "stm32-iwdt"
-OBJECT_DECLARE_TYPE(STM32IWDGState, STM32IWDGClass, STM32_IWDG)
+#define TYPE_STM32L4R5_IWDG "stm32l4r5_iwdg"
+OBJECT_DECLARE_TYPE(Stm32l4r5IwdgState, Stm32l4r5IwdgClass, STM32L4R5_IWDG)
 
 #define STM32_IWDG_REGS_NUM        5
 
-struct STM32IWDGState {
+struct Stm32l4r5IwdgState {
     SysBusDevice parent_obj;
     QEMUTimer *timer;
 
@@ -21,7 +19,7 @@ struct STM32IWDGState {
 };
 
 
-struct STM32IWDGClass {
+struct Stm32l4r5IwdgClass {
     SysBusDeviceClass parent_class;
 };
 

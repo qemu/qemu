@@ -40,7 +40,7 @@
 #include "hw/misc/stm32l4x5_rcc.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
 #include "hw/char/stm32l4x5_usart.h"
-#include "hw/watchdog/stm32-iwdg.h"
+#include "hw/watchdog/stm32l4r5_iwdg.h"
 #include "hw/misc/stm32l4r5_rng.h"
 #include "qom/object.h"
 
@@ -68,7 +68,7 @@ struct Stm32l4r5SocState {
     Stm32l4x5UsartBaseState uart[STM_NUM_UARTS];
     Stm32l4x5UsartBaseState lpuart;
     
-    STM32IWDGState iwdg;
+    Stm32l4r5IwdgState iwdg;
     Stm32l4r5RngState rng;
 
     MemoryRegion sram1;

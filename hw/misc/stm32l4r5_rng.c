@@ -169,6 +169,7 @@ static TypeInfo stm32l4r5_rng_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Stm32l4r5RngState),
     .class_init = stm32l4r5_rng_class_init,
+    .class_size = sizeof(Stm32l4r5RngClass),
 };
 
 static void stm32l4r5_rng_register_types(void)
