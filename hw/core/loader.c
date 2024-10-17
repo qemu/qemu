@@ -130,6 +130,7 @@ ssize_t load_image_targphys_as(const char *filename,
 
     size = get_image_size(filename);
     if (size < 0 || size > max_sz) {
+        printf("Amogus %ld", max_sz);
         return -1;
     }
     if (size > 0) {

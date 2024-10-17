@@ -49,15 +49,15 @@ static uint64_t stm32_iwdg_read(void *opaque, hwaddr offset, unsigned size)
                       HWADDR_PRIx "\n", __func__, offset);
     case IWDG_PR:
         // Check if the PVU bit in the IWDG_SR register is set. Otherwise warn that the value could be outdated.
-        if (!(s->regs[IWDG_SR] & 0x1)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure to reset the PVU value in SR before reading.\n", __func__);
+        if (s->regs[IWDG_SR] & 0x1) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure that the PVU value in SR is reset before reading!\n", __func__);
         }
         ret = s->regs[IWDG_PR];
         break;
     case IWDG_RLR:
         // Check if the PVU bit in the IWDG_SR register is set. Otherwise warn that the value could be outdated.
-        if (!(s->regs[IWDG_SR] & 0x1)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure to reset the PVU value in SR before reading.\n", __func__);
+        if (s->regs[IWDG_SR] & 0x1) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure that the PVU value in SR is reset before reading!\n", __func__);
         }
         ret = s->regs[IWDG_RLR];
     case IWDG_SR:
@@ -65,8 +65,8 @@ static uint64_t stm32_iwdg_read(void *opaque, hwaddr offset, unsigned size)
         break;
     case IWDG_WINR:
         // Check if the PVU bit in the IWDG_SR register is set. Otherwise warn that the value could be outdated.
-        if (!(s->regs[IWDG_SR] & 0x1)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure to reset the PVU value in SR before reading.\n", __func__);
+        if (s->regs[IWDG_SR] & 0x1) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: PR register value could be outdated. Make sure that the PVU value in SR is reset before reading!\n", __func__);
         }
         ret = s->regs[IWDG_WINR];
         break;

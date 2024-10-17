@@ -31,6 +31,7 @@
 
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
@@ -130,7 +131,7 @@ static void stm32nucleo_l4r5zi_machine_init(ObjectClass *oc, void *data)
     mc->valid_cpu_types = machine_valid_cpu_types;
 
     /* SRAM pre-allocated as part of the SoC instantiation */
-    mc->default_ram_size = 0;
+    mc->default_ram_size = 2 * MiB;
 }
 
 static const TypeInfo stm32nucleo_l4r5zi_machine_type[] = {
