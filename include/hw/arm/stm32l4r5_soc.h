@@ -69,7 +69,7 @@ struct Stm32l4r5SocState {
     Stm32l4x5UsartBaseState lpuart;
     
     STM32IWDGState iwdg;
-    STM32L4R5RNGState rng;
+    Stm32l4r5RngState rng;
 
     MemoryRegion sram1;
     MemoryRegion sram2;

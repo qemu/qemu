@@ -20,7 +20,7 @@ enum {
 #define OFFSET_TO_REG(offset) ((offset) / 4)
 
 
-static void stm32l4r5_rng_wait(STM32L4R5RNGState *s)
+static void stm32l4r5_rng_wait(Stm32l4r5RngState *s)
 {
     // TODO: Calculate the correct amount of time to wait based on the clock frequencies.
     // For now, we just wait for 1 ns.
@@ -32,7 +32,7 @@ static void stm32l4r5_rng_wait(STM32L4R5RNGState *s)
 
 static uint64_t stm32l4r5_rng_read(void *opaque, hwaddr offset, unsigned size)
 {
-    STM32L4R5RNGState *s = opaque;
+    Stm32l4r5RngState *s = opaque;
     uint64_t value = 0;
 
     if (offset >= STM32L4R5_RNG_REGS_SIZE) {
@@ -78,7 +78,7 @@ static uint64_t stm32l4r5_rng_read(void *opaque, hwaddr offset, unsigned size)
 static void stm32l4r5_rng_write(void *opaque, hwaddr offset, uint64_t value,
                                unsigned size)
 {
-    STM32L4R5RNGState *s = opaque;
+    Stm32l4r5RngState *s = opaque;
 
     switch (offset) {
     case RNG_CR:
@@ -128,7 +128,7 @@ static const MemoryRegionOps stm32l4r5_rng_ops = {
 
 static void stm32l4r5_data_ready(void* opaque)
 {
-    STM32L4R5RNGState *s = opaque;
+    Stm32l4r5RngState *s = opaque;
 
     // Set DRDY bit when the data is ready.
     s->regs[RNG_SR] |= 0x1;
@@ -144,7 +144,7 @@ static void stm32l4r5_data_ready(void* opaque)
 
 static void stm32l4r5_rng_realize(DeviceState *dev, Error **errp)
 {
-    STM32L4R5RNGState *s = STM32L4R5_RNG(dev);
+    Stm32l4r5RngState *s = STM32L4R5_RNG(dev);
 
     s->data_read_cnt = 0;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32l4r5_data_ready, s);
@@ -167,7 +167,7 @@ static void stm32l4r5_rng_class_init(ObjectClass *klass, void *data)
 static TypeInfo stm32l4r5_rng_info = {
     .name = TYPE_STM32L4R5_RNG,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32L4R5RNGState),
+    .instance_size = sizeof(Stm32l4r5RngState),
     .class_init = stm32l4r5_rng_class_init,
 };
 
