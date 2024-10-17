@@ -43,7 +43,7 @@ SpdmDev nvme_spdm_dev = {
         SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_SET_KEY_PAIR_INFO_CAP |
         0),
     .use_capability_flags = 0,
-    .use_basic_mut_auth = 1,
+    .use_basic_mut_auth = 0,
     .use_mut_auth = 
         SPDM_KEY_EXCHANGE_RESPONSE_MUT_AUTH_REQUESTED_WITH_ENCAP_REQUEST,
     .use_measurement_summary_hash_type =
