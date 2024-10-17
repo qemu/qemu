@@ -1443,8 +1443,9 @@ static TCGv gen_bt_mask(DisasContext *s, X86DecodedInsn *decode)
     return mask;
 }
 
-/* Expects truncated bit index in s->T1, 1 << s->T1 in MASK.  */
-static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src, TCGv mask)
+/* Expects truncated bit index in COUNT, 1 << COUNT in MASK.  */
+static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src,
+                         TCGv count, TCGv mask)
 {
     TCGv cf;
 
@@ -1467,15 +1468,34 @@ static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src, TCGv
         decode->cc_src = tcg_temp_new();
         decode->cc_dst = cpu_cc_dst;
         decode->cc_op = CC_OP_SARB + cc_op_size(s->cc_op);
-        tcg_gen_shr_tl(decode->cc_src, src, s->T1);
+        tcg_gen_shr_tl(decode->cc_src, src, count);
     }
 }
 
 static void gen_BT(DisasContext *s, X86DecodedInsn *decode)
 {
-    TCGv mask = gen_bt_mask(s, decode);
+    TCGv count = s->T1;
+    TCGv mask;
 
-    gen_bt_flags(s, decode, s->T0, mask);
+    /*
+     * Try to ensure that the rhs of the TSTNE condition is a constant (and a
+     * power of two), as that is more readily available on most TCG backends.
+     *
+     * For immediate bit number gen_bt_mask()'s output is already a constant;
+     * for register bit number, shift the source right and check bit 0.
+     */
+    if (decode->e.op2 == X86_TYPE_I) {
+        mask = gen_bt_mask(s, decode);
+    } else {
+        MemOp ot = decode->op[1].ot;
+
+        tcg_gen_andi_tl(s->T1, s->T1, (8 << ot) - 1);
+        tcg_gen_shr_tl(s->T0, s->T0, s->T1);
+
+        count = tcg_constant_tl(0);
+        mask = tcg_constant_tl(1);
+    }
+    gen_bt_flags(s, decode, s->T0, count, mask);
 }
 
 static void gen_BTC(DisasContext *s, X86DecodedInsn *decode)
@@ -1491,7 +1511,7 @@ static void gen_BTC(DisasContext *s, X86DecodedInsn *decode)
         tcg_gen_xor_tl(s->T0, s->T0, mask);
     }
 
-    gen_bt_flags(s, decode, old, mask);
+    gen_bt_flags(s, decode, old, s->T1, mask);
 }
 
 static void gen_BTR(DisasContext *s, X86DecodedInsn *decode)
@@ -1509,7 +1529,7 @@ static void gen_BTR(DisasContext *s, X86DecodedInsn *decode)
         tcg_gen_andc_tl(s->T0, s->T0, mask);
     }
 
-    gen_bt_flags(s, decode, old, mask);
+    gen_bt_flags(s, decode, old, s->T1, mask);
 }
 
 static void gen_BTS(DisasContext *s, X86DecodedInsn *decode)
@@ -1525,7 +1545,7 @@ static void gen_BTS(DisasContext *s, X86DecodedInsn *decode)
         tcg_gen_or_tl(s->T0, s->T0, mask);
     }
 
-    gen_bt_flags(s, decode, old, mask);
+    gen_bt_flags(s, decode, old, s->T1, mask);
 }
 
 static void gen_BZHI(DisasContext *s, X86DecodedInsn *decode)
