@@ -97,11 +97,7 @@ static int loongarch_write_elf64_fprpreg(WriteCoreDumpFunction f,
 
     loongarch_note_init(&note, s, "CORE", 5, NT_PRFPREG, sizeof(note.fpu));
     note.fpu.fcsr = cpu_to_dump64(s, env->fcsr0);
-
-    for (i = 0; i < 8; i++) {
-        note.fpu.fcc |= env->cf[i] << (8 * i);
-    }
-    note.fpu.fcc = cpu_to_dump64(s, note.fpu.fcc);
+    note.fpu.fcc = cpu_to_dump64(s, read_fcc(env));
 
     for (i = 0; i < 32; ++i) {
         note.fpu.fpr[i] = cpu_to_dump64(s, env->fpr[i].vreg.UD[0]);
