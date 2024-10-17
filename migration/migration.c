@@ -3295,7 +3295,9 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 static void migration_iteration_finish(MigrationState *s)
 {
     /* If we enabled cpu throttling for auto-converge, turn it off. */
-    cpu_throttle_stop();
+    if (migrate_auto_converge()) {
+        cpu_throttle_stop();
+    }
 
     bql_lock();
     switch (s->state) {
