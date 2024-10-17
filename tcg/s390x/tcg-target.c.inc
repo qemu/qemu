@@ -565,6 +565,20 @@ static bool tcg_target_const_match(int64_t val, int ct,
     }
 
     if (ct & TCG_CT_CONST_CMP) {
+        if (is_tst_cond(cond)) {
+            if (is_const_p16(uval) >= 0) {
+                return true;  /* TMxx */
+            }
+            if (risbg_mask(uval)) {
+                return true;  /* RISBG */
+            }
+            return false;
+        }
+
+        if (type == TCG_TYPE_I32) {
+            return true;
+        }
+
         switch (cond) {
         case TCG_COND_EQ:
         case TCG_COND_NE:
@@ -584,13 +598,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
             break;
         case TCG_COND_TSTNE:
         case TCG_COND_TSTEQ:
-            if (is_const_p16(uval) >= 0) {
-                return true;  /* TMxx */
-            }
-            if (risbg_mask(uval)) {
-                return true;  /* RISBG */
-            }
-            break;
+            /* checked above, fallthru */
         default:
             g_assert_not_reached();
         }
@@ -3231,9 +3239,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i32:
     case INDEX_op_rotr_i64:
+        return C_O1_I2(r, r, ri);
     case INDEX_op_setcond_i32:
     case INDEX_op_negsetcond_i32:
-        return C_O1_I2(r, r, ri);
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i64:
         return C_O1_I2(r, r, rC);
