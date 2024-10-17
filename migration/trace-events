@@ -381,3 +381,4 @@ migration_pagecache_insert(void) "Error allocating page"
 
 # cpu-throttle.c
 cpu_throttle_set(int new_throttle_pct)  "set guest CPU throttled by %d%%"
+cpu_throttle_dirty_sync(void) ""

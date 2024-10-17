@@ -3297,12 +3297,17 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
 static void migration_iteration_finish(MigrationState *s)
 {
-    /* If we enabled cpu throttling for auto-converge, turn it off. */
+    bql_lock();
+
+    /*
+     * If we enabled cpu throttling for auto-converge, turn it off.
+     * Stopping CPU throttle should be serialized by BQL to avoid
+     * racing for the throttle_dirty_sync_timer.
+     */
     if (migrate_auto_converge()) {
         cpu_throttle_stop();
     }
 
-    bql_lock();
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
         runstate_set(RUN_STATE_POSTMIGRATE);
@@ -3518,6 +3523,11 @@ static void *migration_thread(void *opaque)
     if (migrate_colo()) {
         /* Notify migration destination that we enable COLO */
         qemu_savevm_send_colo_enable(s->to_dst_file);
+    }
+
+    if (migrate_auto_converge()) {
+        /* Start RAMBlock dirty bitmap sync timer */
+        cpu_throttle_dirty_sync_timer(true);
     }
 
     bql_lock();
