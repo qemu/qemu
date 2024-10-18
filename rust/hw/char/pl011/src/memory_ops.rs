@@ -22,7 +22,6 @@ pub static PL011_OPS: MemoryRegionOps = MemoryRegionOps {
     },
 };
 
-#[no_mangle]
 unsafe extern "C" fn pl011_read(
     opaque: *mut core::ffi::c_void,
     addr: hwaddr,
@@ -44,7 +43,6 @@ unsafe extern "C" fn pl011_read(
     }
 }
 
-#[no_mangle]
 unsafe extern "C" fn pl011_write(
     opaque: *mut core::ffi::c_void,
     addr: hwaddr,

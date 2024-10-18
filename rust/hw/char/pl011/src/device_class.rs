@@ -46,7 +46,6 @@ qemu_api::device_class_init! {
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-#[no_mangle]
 pub unsafe extern "C" fn pl011_realize(dev: *mut DeviceState, _errp: *mut *mut Error) {
     unsafe {
         assert!(!dev.is_null());
@@ -60,7 +59,6 @@ pub unsafe extern "C" fn pl011_realize(dev: *mut DeviceState, _errp: *mut *mut E
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-#[no_mangle]
 pub unsafe extern "C" fn pl011_reset(dev: *mut DeviceState) {
     unsafe {
         assert!(!dev.is_null());

@@ -9,7 +9,6 @@ use crate::bindings::Property;
 #[macro_export]
 macro_rules! device_class_init {
     ($func:ident, props => $props:ident, realize_fn => $realize_fn:expr, legacy_reset_fn => $legacy_reset_fn:expr, vmsd => $vmsd:ident$(,)*) => {
-        #[no_mangle]
         pub unsafe extern "C" fn $func(
             klass: *mut $crate::bindings::ObjectClass,
             _: *mut ::core::ffi::c_void,
@@ -103,7 +102,6 @@ macro_rules! declare_properties {
             ]
         }
 
-        #[no_mangle]
         pub static mut $ident: $crate::device_class::Properties<PROP_LEN> = $crate::device_class::Properties(::std::sync::OnceLock::new(), _make_properties);
     };
 }

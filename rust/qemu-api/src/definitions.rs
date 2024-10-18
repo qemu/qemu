@@ -53,7 +53,6 @@ macro_rules! module_init {
         #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
         pub static LOAD_MODULE: extern "C" fn() = {
             extern "C" fn __load() {
-                #[no_mangle]
                 unsafe extern "C" fn $func() {
                     $body
                 }
