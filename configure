@@ -2062,7 +2062,8 @@ chmod +x config.status
 rm -r "$TMPDIR1"
 
 if test "$rust" != disabled; then
-  echo '\nINFO: Rust bindings generation with `bindgen` might fail in some cases where'
+  echo
+  echo 'INFO: Rust bindings generation with `bindgen` might fail in some cases where'
   echo 'the detected `libclang` does not match the expected `clang` version/target. In'
   echo 'this case you must pass the path to `clang` and `libclang` to your build'
   echo 'command invocation using the environment variables CLANG_PATH and LIBCLANG_PATH'
