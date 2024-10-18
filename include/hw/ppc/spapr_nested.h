@@ -99,7 +99,8 @@
 #define GSB_VCPU_SPR_HASHKEYR   0x1050
 #define GSB_VCPU_SPR_HASHPKEYR  0x1051
 #define GSB_VCPU_SPR_CTRL       0x1052
-                    /* RESERVED 0x1053 - 0x1FFF */
+#define GSB_VCPU_SPR_DPDES      0x1053
+                    /* RESERVED 0x1054 - 0x1FFF */
 #define GSB_VCPU_SPR_CR         0x2000
 #define GSB_VCPU_SPR_PIDR       0x2001
 #define GSB_VCPU_SPR_DSISR      0x2002
