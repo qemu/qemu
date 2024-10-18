@@ -7,7 +7,6 @@
 packages:
   - bash
   - bc
-  - bindgen
   - bison
   - bsdextrautils
   - bzip2
