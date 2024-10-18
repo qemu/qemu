@@ -695,7 +695,6 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
     sa.env = env;
     sa.ra = 0;
-    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (type == 5) {
         /* task gate */
@@ -705,7 +704,9 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         }
         shift = switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
         if (has_error_code) {
-            /* push the error code */
+            /* push the error code on the destination stack */
+            cpl = env->hflags & HF_CPL_MASK;
+            sa.mmu_index = x86_mmu_index_pl(env, cpl);
             if (env->segs[R_SS].flags & DESC_B_MASK) {
                 sa.sp_mask = 0xffffffff;
             } else {
@@ -750,6 +751,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     if (e2 & DESC_C_MASK) {
         dpl = cpl;
     }
+    sa.mmu_index = x86_mmu_index_pl(env, dpl);
     if (dpl < cpl) {
         /* to inner privilege */
         uint32_t esp;
@@ -1001,7 +1003,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
     sa.env = env;
     sa.ra = 0;
-    sa.mmu_index = cpu_mmu_index_kernel(env);
+    sa.mmu_index = x86_mmu_index_pl(env, dpl);
     sa.sp_mask = -1;
     sa.ss_base = 0;
     if (dpl < cpl || ist != 0) {
@@ -1135,7 +1137,7 @@ static void do_interrupt_real(CPUX86State *env, int intno, int is_int,
     sa.sp = env->regs[R_ESP];
     sa.sp_mask = 0xffff;
     sa.ss_base = env->segs[R_SS].base;
-    sa.mmu_index = cpu_mmu_index_kernel(env);
+    sa.mmu_index = x86_mmu_index_pl(env, 0);
 
     if (is_int) {
         old_eip = next_eip;
@@ -1599,7 +1601,7 @@ void helper_lcall_real(CPUX86State *env, uint32_t new_cs, uint32_t new_eip,
     sa.sp = env->regs[R_ESP];
     sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
     sa.ss_base = env->segs[R_SS].base;
-    sa.mmu_index = cpu_mmu_index_kernel(env);
+    sa.mmu_index = x86_mmu_index_pl(env, 0);
 
     if (shift) {
         pushl(&sa, env->segs[R_CS].selector);
@@ -1639,9 +1641,9 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
     sa.env = env;
     sa.ra = GETPC();
-    sa.mmu_index = cpu_mmu_index_kernel(env);
 
     if (e2 & DESC_S_MASK) {
+        /* "normal" far call, no stack switch possible */
         if (!(e2 & DESC_CS_MASK)) {
             raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, GETPC());
         }
@@ -1665,6 +1667,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             raise_exception_err_ra(env, EXCP0B_NOSEG, new_cs & 0xfffc, GETPC());
         }
 
+        sa.mmu_index = x86_mmu_index_pl(env, cpl);
 #ifdef TARGET_X86_64
         /* XXX: check 16/32 bit cases in long mode */
         if (shift == 2) {
@@ -1792,6 +1795,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 
         if (!(e2 & DESC_C_MASK) && dpl < cpl) {
             /* to inner privilege */
+            sa.mmu_index = x86_mmu_index_pl(env, dpl);
 #ifdef TARGET_X86_64
             if (shift == 2) {
                 ss = dpl;  /* SS = NULL selector with RPL = new CPL */
@@ -1870,6 +1874,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             new_stack = 1;
         } else {
             /* to same privilege */
+            sa.mmu_index = x86_mmu_index_pl(env, cpl);
             sa.sp = env->regs[R_ESP];
             sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
             sa.ss_base = env->segs[R_SS].base;

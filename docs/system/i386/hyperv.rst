@@ -262,14 +262,19 @@ Supplementary features
 ``hv-passthrough``
   In some cases (e.g. during development) it may make sense to use QEMU in
   'pass-through' mode and give Windows guests all enlightenments currently
-  supported by KVM. This pass-through mode is enabled by "hv-passthrough" CPU
-  flag.
+  supported by KVM.
 
   Note: ``hv-passthrough`` flag only enables enlightenments which are known to QEMU
   (have corresponding 'hv-' flag) and copies ``hv-spinlocks`` and ``hv-vendor-id``
   values from KVM to QEMU. ``hv-passthrough`` overrides all other 'hv-' settings on
-  the command line. Also, enabling this flag effectively prevents migration as the
-  list of enabled enlightenments may differ between target and destination hosts.
+  the command line.
+
+  Note: ``hv-passthrough`` does not enable ``hv-syndbg`` which can prevent certain
+  Windows guests from booting when used without proper configuration. If needed,
+  ``hv-syndbg`` can be enabled additionally.
+
+  Note: ``hv-passthrough`` effectively prevents migration as the list of enabled
+  enlightenments may differ between target and destination hosts.
 
 ``hv-enforce-cpuid``
   By default, KVM allows the guest to use all currently supported Hyper-V
@@ -278,6 +283,36 @@ Supplementary features
   feature alters this behavior and only allows the guest to use exposed Hyper-V
   enlightenments.
 
+Recommendations
+---------------
+
+To achieve the best performance of Windows and Hyper-V guests and unless there
+are any specific requirements (e.g. migration to older QEMU/KVM versions,
+emulating specific Hyper-V version, ...), it is recommended to enable all
+currently implemented Hyper-V enlightenments with the following exceptions:
+
+- ``hv-syndbg``, ``hv-passthrough``, ``hv-enforce-cpuid`` should not be enabled
+  in production configurations as these are debugging/development features.
+- ``hv-reset`` can be avoided as modern Hyper-V versions don't expose it.
+- ``hv-evmcs`` can (and should) be enabled on Intel CPUs only. While the feature
+  is only used in nested configurations (Hyper-V, WSL2), enabling it for regular
+  Windows guests should not have any negative effects.
+- ``hv-no-nonarch-coresharing`` must only be enabled if vCPUs are properly pinned
+  so no non-architectural core sharing is possible.
+- ``hv-vendor-id``, ``hv-version-id-build``, ``hv-version-id-major``,
+  ``hv-version-id-minor``, ``hv-version-id-spack``, ``hv-version-id-sbranch``,
+  ``hv-version-id-snumber`` can be left unchanged, guests are not supposed to
+  behave differently when different Hyper-V version is presented to them.
+- ``hv-crash`` must only be enabled if the crash information is consumed via
+  QAPI by higher levels of the virtualization stack. Enabling this feature
+  effectively prevents Windows from creating dumps upon crashes.
+- ``hv-reenlightenment`` can only be used on hardware which supports TSC
+  scaling or when guest migration is not needed.
+- ``hv-spinlocks`` should be set to e.g. 0xfff when host CPUs are overcommited
+  (meaning there are other scheduled tasks or guests) and can be left unchanged
+  from the default value (0xffffffff) otherwise.
+- ``hv-avic``/``hv-apicv`` should not be enabled if the hardware does not
+  support APIC virtualization (Intel APICv, AMD AVIC).
 
 Useful links
 ------------
