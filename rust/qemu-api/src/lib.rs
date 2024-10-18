@@ -30,9 +30,6 @@ unsafe impl Sync for bindings::VMStateDescription {}
 pub mod definitions;
 pub mod device_class;
 
-#[cfg(test)]
-mod tests;
-
 use std::alloc::{GlobalAlloc, Layout};
 
 #[cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)]

@@ -3345,7 +3345,15 @@ if have_rust and have_system
 
   # Prohibit code that is forbidden in Rust 2024
   rustc_args += ['-D', 'unsafe_op_in_unsafe_fn']
-  add_project_arguments(rustc_args, native: false, language: 'rust')
+
+  # Apart from procedural macros, our Rust executables will often link
+  # with C code, so include all the libraries that C code needs.  This
+  # is safe; https://github.com/rust-lang/rust/pull/54675 says that
+  # passing -nodefaultlibs to the linker "was more ideological to
+  # start with than anything".
+  add_project_arguments(rustc_args + ['-C', 'default-linker-libraries'],
+      native: false, language: 'rust')
+
   add_project_arguments(rustc_args, native: true, language: 'rust')
 endif
 
