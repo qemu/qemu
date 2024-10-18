@@ -31,8 +31,11 @@ pub trait Class {
 macro_rules! module_init {
     ($func:expr, $type:expr) => {
         #[used]
-        #[cfg_attr(target_os = "linux", link_section = ".ctors")]
-        #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
+        #[cfg_attr(
+            not(any(target_vendor = "apple", target_os = "windows")),
+            link_section = ".init_array"
+        )]
+        #[cfg_attr(target_vendor = "apple", link_section = "__DATA,__mod_init_func")]
         #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
         pub static LOAD_MODULE: extern "C" fn() = {
             extern "C" fn __load() {
@@ -48,8 +51,11 @@ macro_rules! module_init {
         // NOTE: To have custom identifiers for the ctor func we need to either supply
         // them directly as a macro argument or create them with a proc macro.
         #[used]
-        #[cfg_attr(target_os = "linux", link_section = ".ctors")]
-        #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
+        #[cfg_attr(
+            not(any(target_vendor = "apple", target_os = "windows")),
+            link_section = ".init_array"
+        )]
+        #[cfg_attr(target_vendor = "apple", link_section = "__DATA,__mod_init_func")]
         #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
         pub static LOAD_MODULE: extern "C" fn() = {
             extern "C" fn __load() {

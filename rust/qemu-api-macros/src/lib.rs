@@ -16,8 +16,11 @@ pub fn derive_object(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[allow(non_upper_case_globals)]
         #[used]
-        #[cfg_attr(target_os = "linux", link_section = ".ctors")]
-        #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
+        #[cfg_attr(
+            not(any(target_vendor = "apple", target_os = "windows")),
+            link_section = ".init_array"
+        )]
+        #[cfg_attr(target_vendor = "apple", link_section = "__DATA,__mod_init_func")]
         #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
         pub static #module_static: extern "C" fn() = {
             extern "C" fn __register() {
