@@ -53,6 +53,17 @@ cpu = host_machine.cpu_family()
 
 target_dirs = config_host['TARGET_DIRS'].split()
 
+# type of binaries to build
+have_linux_user = false
+have_bsd_user = false
+have_system = false
+foreach target : target_dirs
+  have_linux_user = have_linux_user or target.endswith('linux-user')
+  have_bsd_user = have_bsd_user or target.endswith('bsd-user')
+  have_system = have_system or target.endswith('-softmmu')
+endforeach
+have_user = have_linux_user or have_bsd_user
+
 ############
 # Programs #
 ############
@@ -71,11 +82,13 @@ if host_os == 'darwin' and \
   all_languages += ['objc']
   objc = meson.get_compiler('objc')
 endif
-have_rust = false
-if not get_option('rust').disabled() and add_languages('rust', required: get_option('rust'), native: false) \
-    and add_languages('rust', required: get_option('rust'), native: true)
+
+have_rust = add_languages('rust', native: false,
+    required: get_option('rust').disable_auto_if(not have_system))
+have_rust = have_rust and add_languages('rust', native: true,
+    required: get_option('rust').disable_auto_if(not have_system))
+if have_rust
   rustc = meson.get_compiler('rust')
-  have_rust = true
   if rustc.version().version_compare('<1.80.0')
     if get_option('rust').enabled()
       error('rustc version ' + rustc.version() + ' is unsupported: Please upgrade to at least 1.80.0')
@@ -185,17 +198,6 @@ have_vhost_net_user = have_vhost_user and get_option('vhost_net').allowed()
 have_vhost_net_vdpa = have_vhost_vdpa and get_option('vhost_net').allowed()
 have_vhost_net_kernel = have_vhost_kernel and get_option('vhost_net').allowed()
 have_vhost_net = have_vhost_net_kernel or have_vhost_net_user or have_vhost_net_vdpa
-
-# type of binaries to build
-have_linux_user = false
-have_bsd_user = false
-have_system = false
-foreach target : target_dirs
-  have_linux_user = have_linux_user or target.endswith('linux-user')
-  have_bsd_user = have_bsd_user or target.endswith('bsd-user')
-  have_system = have_system or target.endswith('-softmmu')
-endforeach
-have_user = have_linux_user or have_bsd_user
 
 have_tools = get_option('tools') \
   .disable_auto_if(not have_system) \
@@ -3336,7 +3338,7 @@ endif
 
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
-if have_rust and have_system
+if have_rust
   rustc_args = run_command(
     find_program('scripts/rust/rustc_args.py'),
     '--config-headers', meson.project_build_root() / 'config-host.h',
@@ -3957,7 +3959,7 @@ common_all = static_library('common',
                             implicit_include_directories: false,
                             dependencies: common_ss.all_dependencies())
 
-if have_rust and have_system
+if have_rust
   bindgen_args = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
@@ -4111,7 +4113,7 @@ foreach target : target_dirs
   arch_srcs += target_specific.sources()
   arch_deps += target_specific.dependencies()
 
-  if have_rust and have_system
+  if have_rust and target_type == 'system'
     target_rust = rust_devices_ss.apply(config_target, strict: false)
     crates = []
     foreach dep : target_rust.dependencies()
@@ -4473,9 +4475,9 @@ else
 endif
 summary_info += {'Rust support':      have_rust}
 if have_rust
-  summary_info += {'rustc version':   rustc.version()}
-  summary_info += {'rustc':           ' '.join(rustc.cmd_array())}
   summary_info += {'Rust target':     config_host['RUST_TARGET_TRIPLE']}
+  summary_info += {'rustc':           ' '.join(rustc.cmd_array())}
+  summary_info += {'rustc version':   rustc.version()}
 endif
 option_cflags = (get_option('debug') ? ['-g'] : [])
 if get_option('optimization') != 'plain'
