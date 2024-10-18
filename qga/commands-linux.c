@@ -15,7 +15,6 @@
 #include "qapi/error.h"
 #include "qga-qapi-commands.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "commands-common.h"
 #include "cutils.h"
 #include <mntent.h>
