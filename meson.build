@@ -117,6 +117,10 @@ if have_rust
   endif
 endif
 
+if have_rust
+  rustfmt = find_program('rustfmt', required: false)
+endif
+
 dtrace = not_found
 stap = not_found
 if 'dtrace' in get_option('trace_backends')
@@ -3995,6 +3999,13 @@ if have_rust
     '--allowlist-file', meson.project_source_root() + '/.*',
     '--allowlist-file', meson.project_build_root() + '/.*'
     ]
+  if not rustfmt.found()
+    if bindgen.version().version_compare('<0.65.0')
+      bindgen_args += ['--no-rustfmt-bindings']
+    else
+      bindgen_args += ['--formatter', 'none']
+    endif
+  endif
   if bindgen.version().version_compare('<0.61.0')
     # default in 0.61+
     bindgen_args += ['--size_t-is-usize']
