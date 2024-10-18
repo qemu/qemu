@@ -29,6 +29,7 @@ unsafe impl Sync for bindings::VMStateDescription {}
 
 pub mod definitions;
 pub mod device_class;
+pub mod zeroable;
 
 use std::alloc::{GlobalAlloc, Layout};
 

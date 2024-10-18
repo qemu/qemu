@@ -31,7 +31,7 @@ macro_rules! define_property {
             offset: ::core::mem::offset_of!($state, $field) as isize,
             set_default: true,
             defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..unsafe { ::core::mem::MaybeUninit::<$crate::bindings::Property>::zeroed().assume_init() }
+            ..$crate::zeroable::Zeroable::ZERO
         }
     };
     ($name:expr, $state:ty, $field:expr, $prop:expr, $type:expr$(,)*) => {
@@ -41,7 +41,7 @@ macro_rules! define_property {
             info: $prop,
             offset: ::core::mem::offset_of!($state, $field) as isize,
             set_default: false,
-            ..unsafe { ::core::mem::MaybeUninit::<$crate::bindings::Property>::zeroed().assume_init() }
+            ..$crate::zeroable::Zeroable::ZERO
         }
     };
 }
@@ -58,7 +58,7 @@ macro_rules! declare_properties {
             len
         }] = [
             $($prop),*,
-            unsafe { ::core::mem::MaybeUninit::<$crate::bindings::Property>::zeroed().assume_init() },
+            $crate::zeroable::Zeroable::ZERO,
         ];
     };
 }
@@ -79,7 +79,7 @@ macro_rules! vm_state_description {
                 $vname.as_ptr()
             },)*
             unmigratable: true,
-            ..unsafe { ::core::mem::MaybeUninit::<$crate::bindings::VMStateDescription>::zeroed().assume_init() }
+            ..$crate::zeroable::Zeroable::ZERO
         };
     }
 }

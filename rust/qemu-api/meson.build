@@ -5,6 +5,7 @@ _qemu_api_rs = static_library(
       'src/lib.rs',
       'src/definitions.rs',
       'src/device_class.rs',
+      'src/zeroable.rs',
     ],
     {'.' : bindings_rs},
   ),
