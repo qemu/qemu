@@ -132,7 +132,7 @@ struct DeviceClass {
      * ensures a compile-time error if someone attempts to assign
      * dc->props directly.
      */
-    Property *props_;
+    const Property *props_;
 
     /**
      * @user_creatable: Can user instantiate with -device / device_add?
@@ -935,7 +935,7 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
  * you attempt to add an existing property defined by a parent class.
  * To modify an inherited property you need to use????
  */
-void device_class_set_props(DeviceClass *dc, Property *props);
+void device_class_set_props(DeviceClass *dc, const Property *props);
 
 /**
  * device_class_set_parent_realize() - set up for chaining realize fns
