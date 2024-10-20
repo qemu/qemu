@@ -45,9 +45,10 @@ int jump_to_IPL_code(uint64_t address)
      */
     if (iplb.pbt == S390_IPL_TYPE_QEMU_SCSI) {
         iplb.devno = qipl.index;
-        if (!set_iplb(&iplb)) {
-            panic("Failed to set IPLB");
-        }
+    }
+
+    if (have_iplb && !set_iplb(&iplb)) {
+        panic("Failed to set IPLB");
     }
 
     /*
