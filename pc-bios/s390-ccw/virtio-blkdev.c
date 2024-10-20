@@ -59,7 +59,7 @@ int virtio_read_many(unsigned long sector, void *load_addr, int sec_num)
     case VIRTIO_ID_SCSI:
         return virtio_scsi_read_many(vdev, sector, load_addr, sec_num);
     }
-    panic("\n! No readable IPL device !\n");
+
     return -1;
 }
 

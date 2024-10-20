@@ -77,6 +77,9 @@ static int is_dev_possibly_bootable(int dev_no, int sch_no)
 
     enable_subchannel(blk_schid);
     cutype = cu_type(blk_schid);
+    if (cutype == CU_TYPE_UNKNOWN) {
+        return -EIO;
+    }
 
     /*
      * Note: we always have to run virtio_is_supported() here to make
@@ -194,10 +197,10 @@ static void boot_setup(void)
     have_iplb = store_iplb(&iplb);
 }
 
-static void find_boot_device(void)
+static bool find_boot_device(void)
 {
     VDev *vdev = virtio_get_device();
-    bool found;
+    bool found = false;
 
     switch (iplb.pbt) {
     case S390_IPL_TYPE_CCW:
@@ -215,10 +218,10 @@ static void find_boot_device(void)
         found = find_subch(iplb.scsi.devno);
         break;
     default:
-        panic("List-directed IPL not supported yet!\n");
+        puts("Unsupported IPLB");
     }
 
-    IPL_assert(found, "Boot device not found\n");
+    return found;
 }
 
 static int virtio_setup(void)
@@ -244,11 +247,13 @@ static int virtio_setup(void)
         ret = virtio_scsi_setup_device(blk_schid);
         break;
     default:
-        panic("\n! No IPL device available !\n");
+        puts("\n! No IPL device available !\n");
+        return -1;
     }
 
-    if (!ret) {
-        IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
+    if (!ret && !virtio_ipl_disk_is_valid()) {
+        puts("No valid IPL device detected");
+        return -ENODEV;
     }
 
     return ret;
@@ -259,16 +264,16 @@ static void ipl_boot_device(void)
     switch (cutype) {
     case CU_TYPE_DASD_3990:
     case CU_TYPE_DASD_2107:
-        dasd_ipl(blk_schid, cutype); /* no return */
+        dasd_ipl(blk_schid, cutype);
         break;
     case CU_TYPE_VIRTIO:
-        if (virtio_setup() == 0) {
-            zipl_load();             /* Only returns in case of errors */
+        if (virtio_setup()) {
+            return;    /* Only returns in case of errors */
         }
+        zipl_load();
         break;
     default:
         printf("Attempting to boot from unexpected device type 0x%X\n", cutype);
-        panic("\nBoot failed.\n");
     }
 }
 
@@ -301,12 +306,11 @@ void main(void)
     sclp_setup();
     css_setup();
     boot_setup();
-    if (have_iplb) {
-        find_boot_device();
+    if (have_iplb && find_boot_device()) {
         ipl_boot_device();
     } else {
         probe_boot_device();
     }
 
-    panic("Failed to load OS from hard disk\n");
+    panic("Failed to IPL. Halting...");
 }

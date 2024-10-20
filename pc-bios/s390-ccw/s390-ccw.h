@@ -78,7 +78,7 @@ void zipl_load(void);
 
 /* jump2ipl.c */
 void write_reset_psw(uint64_t psw);
-void jump_to_IPL_code(uint64_t address);
+int jump_to_IPL_code(uint64_t address);
 void jump_to_low_kernel(void);
 
 /* menu.c */

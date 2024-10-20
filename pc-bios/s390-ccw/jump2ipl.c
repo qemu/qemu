@@ -33,7 +33,7 @@ static void jump_to_IPL_addr(void)
     /* should not return */
 }
 
-void jump_to_IPL_code(uint64_t address)
+int jump_to_IPL_code(uint64_t address)
 {
     /* store the subsystem information _after_ the bootmap was loaded */
     write_subsystem_identification();
@@ -68,7 +68,8 @@ void jump_to_IPL_code(uint64_t address)
     asm volatile("lghi %%r1,1\n\t"
                  "diag %%r1,%%r1,0x308\n\t"
                  : : : "1", "memory");
-    panic("\n! IPL returns !\n");
+    puts("IPL code jump failed");
+    return -1;
 }
 
 void jump_to_low_kernel(void)
