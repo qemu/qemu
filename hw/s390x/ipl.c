@@ -34,6 +34,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
+#include "qemu/ctype.h"
 #include "standard-headers/linux/virtio_ids.h"
 
 #define KERN_IMAGE_START                0x010000UL
@@ -397,12 +398,43 @@ static CcwDevice *s390_get_ccw_device(DeviceState *dev_st, int *devtype)
     return ccw_dev;
 }
 
+void s390_ipl_fmt_loadparm(uint8_t *loadparm, char *str, Error **errp)
+{
+    int i;
+
+    /* Initialize the loadparm with spaces */
+    memset(loadparm, ' ', LOADPARM_LEN);
+    for (i = 0; i < LOADPARM_LEN && str[i]; i++) {
+        uint8_t c = qemu_toupper(str[i]); /* mimic HMC */
+
+        if (qemu_isalnum(c) || c == '.' || c == ' ') {
+            loadparm[i] = c;
+        } else {
+            error_setg(errp, "LOADPARM: invalid character '%c' (ASCII 0x%02x)",
+                       c, c);
+            return;
+        }
+    }
+}
+
+void s390_ipl_convert_loadparm(char *ascii_lp, uint8_t *ebcdic_lp)
+{
+    int i;
+
+    /* Initialize the loadparm with EBCDIC spaces (0x40) */
+    memset(ebcdic_lp, '@', LOADPARM_LEN);
+    for (i = 0; i < LOADPARM_LEN && ascii_lp[i]; i++) {
+        ebcdic_lp[i] = ascii2ebcdic[(uint8_t) ascii_lp[i]];
+    }
+}
+
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
     CcwDevice *ccw_dev = NULL;
     SCSIDevice *sd;
     int devtype;
+    uint8_t *lp;
 
     dev_st = get_boot_device(0);
     if (dev_st) {
@@ -413,6 +445,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
      * Currently allow IPL only from CCW devices.
      */
     if (ccw_dev) {
+        lp = ccw_dev->loadparm;
+
         switch (devtype) {
         case CCW_DEVTYPE_SCSI:
             sd = SCSI_DEVICE(dev_st);
@@ -445,38 +479,18 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             break;
         }
 
-        if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
-            ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
+        /* If the device loadparm is empty use the global machine loadparm */
+        if (memcmp(lp, NO_LOADPARM, 8) == 0) {
+            lp = S390_CCW_MACHINE(qdev_get_machine())->loadparm;
         }
+
+        s390_ipl_convert_loadparm((char *)lp, ipl->iplb.loadparm);
+        ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
 
         return true;
     }
 
     return false;
-}
-
-int s390_ipl_set_loadparm(uint8_t *loadparm)
-{
-    MachineState *machine = MACHINE(qdev_get_machine());
-    char *lp = object_property_get_str(OBJECT(machine), "loadparm", NULL);
-
-    if (lp) {
-        int i;
-
-        /* lp is an uppercase string without leading/embedded spaces */
-        for (i = 0; i < 8 && lp[i]; i++) {
-            loadparm[i] = ascii2ebcdic[(uint8_t) lp[i]];
-        }
-
-        if (i < 8) {
-            memset(loadparm + i, 0x40, 8 - i); /* fill with EBCDIC spaces */
-        }
-
-        g_free(lp);
-        return 0;
-    }
-
-    return -1;
 }
 
 static bool is_virtio_ccw_device_of_type(IplParameterBlock *iplb,
@@ -534,7 +548,7 @@ static void update_machine_ipl_properties(IplParameterBlock *iplb)
         ascii_loadparm[i] = 0;
         object_property_set_str(machine, "loadparm", ascii_loadparm, &err);
     } else {
-        object_property_set_str(machine, "loadparm", "", &err);
+        object_property_set_str(machine, "loadparm", "        ", &err);
     }
     if (err) {
         warn_report_err(err);

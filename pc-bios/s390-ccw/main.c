@@ -183,8 +183,14 @@ static void css_setup(void)
 static void boot_setup(void)
 {
     char lpmsg[] = "LOADPARM=[________]\n";
+    have_iplb = store_iplb(&iplb);
 
-    sclp_get_loadparm_ascii(loadparm_str);
+    if (memcmp(iplb.loadparm, NO_LOADPARM, LOADPARM_LEN) != 0) {
+        ebcdic_to_ascii((char *) iplb.loadparm, loadparm_str, LOADPARM_LEN);
+    } else {
+        sclp_get_loadparm_ascii(loadparm_str);
+    }
+
     memcpy(lpmsg + 10, loadparm_str, 8);
     puts(lpmsg);
 
@@ -193,8 +199,6 @@ static void boot_setup(void)
      * so we don't taint our decision-making process during a reboot.
      */
     memset((char *)S390EP, 0, 6);
-
-    have_iplb = store_iplb(&iplb);
 }
 
 static bool find_boot_device(void)
