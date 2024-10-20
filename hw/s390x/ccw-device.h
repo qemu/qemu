@@ -26,6 +26,8 @@ struct CcwDevice {
     CssDevId dev_id;
     /* The actual busid of the virtual subchannel. */
     CssDevId subch_id;
+    /* If set, use this loadparm value when device is boot target */
+    uint8_t loadparm[8];
 };
 typedef struct CcwDevice CcwDevice;
 

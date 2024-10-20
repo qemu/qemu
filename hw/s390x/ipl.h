@@ -21,7 +21,8 @@
 
 #define DIAG308_FLAGS_LP_VALID 0x80
 
-int s390_ipl_set_loadparm(uint8_t *loadparm);
+void s390_ipl_convert_loadparm(char *ascii_lp, uint8_t *ebcdic_lp);
+void s390_ipl_fmt_loadparm(uint8_t *loadparm, char *str, Error **errp);
 void s390_ipl_update_diag308(IplParameterBlock *iplb);
 int s390_ipl_prepare_pv_header(Error **errp);
 int s390_ipl_pv_unpack(void);

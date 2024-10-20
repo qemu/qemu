@@ -722,28 +722,12 @@ static void machine_set_loadparm(Object *obj, Visitor *v,
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
     char *val;
-    int i;
 
     if (!visit_type_str(v, name, &val, errp)) {
         return;
     }
 
-    for (i = 0; i < sizeof(ms->loadparm) && val[i]; i++) {
-        uint8_t c = qemu_toupper(val[i]); /* mimic HMC */
-
-        if (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '.') ||
-            (c == ' ')) {
-            ms->loadparm[i] = c;
-        } else {
-            error_setg(errp, "LOADPARM: invalid character '%c' (ASCII 0x%02x)",
-                       c, c);
-            return;
-        }
-    }
-
-    for (; i < sizeof(ms->loadparm); i++) {
-        ms->loadparm[i] = ' '; /* pad right with spaces */
-    }
+    s390_ipl_fmt_loadparm(ms->loadparm, val, errp);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)

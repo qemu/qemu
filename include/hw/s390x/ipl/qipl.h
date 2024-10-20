@@ -18,6 +18,7 @@
 
 #define QIPL_ADDRESS  0xcc
 #define LOADPARM_LEN    8
+#define NO_LOADPARM "\0\0\0\0\0\0\0\0"
 
 /*
  * The QEMU IPL Parameters will be stored at absolute address
