@@ -8,7 +8,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "s390-arch.h"
 #include "dasd-ipl.h"
@@ -82,7 +83,7 @@ static int run_dynamic_ccw_program(SubChannelId schid, uint16_t cutype,
     do {
         has_next = dynamic_cp_fixup(cpa, &next_cpa);
 
-        print_int("executing ccw chain at ", cpa);
+        printf("executing ccw chain at 0x%X\n", cpa);
         enable_prefixing();
         rc = do_cio(schid, cutype, cpa, CCW_FMT0);
         disable_prefixing();

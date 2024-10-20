@@ -336,9 +336,7 @@ static inline void print_volser(const void *volser)
 
     ebcdic_to_ascii((char *)volser, ascii, 6);
     ascii[6] = '\0';
-    sclp_print("VOLSER=[");
-    sclp_print(ascii);
-    sclp_print("]\n");
+    printf("VOLSER=[%s]\n", ascii);
 }
 
 static inline bool unused_space(const void *p, size_t size)
