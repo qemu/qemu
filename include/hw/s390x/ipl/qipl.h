@@ -32,7 +32,9 @@ struct QemuIplParameters {
     uint8_t  reserved1[3];
     uint64_t reserved2;
     uint32_t boot_menu_timeout;
-    uint8_t  reserved3[12];
+    uint8_t  reserved3[2];
+    uint16_t chain_len;
+    uint64_t next_iplb;
 } QEMU_PACKED;
 typedef struct QemuIplParameters QemuIplParameters;
 
