@@ -3,7 +3,7 @@ all: build-all
 	@true
 
 include config-host.mak
-CFLAGS = -O2 -g
+CFLAGS = -O2 -g -I $(SRC_PATH)/../../include/hw/s390x/ipl
 MAKEFLAGS += -rR
 
 GIT_SUBMODULES = roms/SLOF
