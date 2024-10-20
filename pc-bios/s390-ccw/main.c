@@ -38,8 +38,13 @@ LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
  */
 void write_subsystem_identification(void)
 {
-    lowcore->subchannel_id = blk_schid.sch_id;
-    lowcore->subchannel_nr = blk_schid.sch_no;
+    if (cutype == CU_TYPE_VIRTIO && virtio_get_device_type() == VIRTIO_ID_NET) {
+        lowcore->subchannel_id = net_schid.sch_id;
+        lowcore->subchannel_nr = net_schid.sch_no;
+    } else {
+        lowcore->subchannel_id = blk_schid.sch_id;
+        lowcore->subchannel_nr = blk_schid.sch_no;
+    }
     lowcore->io_int_parm = 0;
 }
 
@@ -231,7 +236,6 @@ static int virtio_setup(void)
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_NET:
         puts("Network boot device detected");
-        vdev->netboot_start_addr = qipl.netboot_start_addr;
         return 0;
     case VIRTIO_ID_BLOCK:
         ret = virtio_blk_setup_device(blk_schid);

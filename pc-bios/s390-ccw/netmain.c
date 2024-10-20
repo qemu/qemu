@@ -41,7 +41,6 @@
 #define DEFAULT_TFTP_RETRIES 20
 
 extern char _start[];
-void write_iplb_location(void) {}
 
 #define KERNEL_ADDR             ((void *)0L)
 #define KERNEL_MAX_SIZE         ((long)_start)
@@ -50,10 +49,9 @@ void write_iplb_location(void) {}
 /* STSI 3.2.2 offset of first vmdb + offset of uuid inside vmdb */
 #define STSI322_VMDB_UUID_OFFSET ((8 + 12) * 4)
 
-IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
 static char cfgbuf[2048];
 
-static SubChannelId net_schid = { .one = 1 };
+SubChannelId net_schid = { .one = 1 };
 static uint8_t mac[6];
 static uint64_t dest_timer;
 
@@ -438,15 +436,6 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
     return rc;
 }
 
-void write_subsystem_identification(void)
-{
-    SubChannelId *schid = (SubChannelId *) 184;
-    uint32_t *zeroes = (uint32_t *) 188;
-
-    *schid = net_schid;
-    *zeroes = 0;
-}
-
 static bool find_net_dev(Schib *schib, int dev_no)
 {
     int i, r;
@@ -509,7 +498,7 @@ static void virtio_setup(void)
     IPL_assert(found, "No virtio net device found");
 }
 
-void main(void)
+void netmain(void)
 {
     filename_ip_t fn_ip;
     int rc, fnlen;

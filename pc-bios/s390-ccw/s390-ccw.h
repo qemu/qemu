@@ -55,6 +55,9 @@ void write_iplb_location(void);
 unsigned int get_loadparm_index(void);
 void main(void);
 
+/* netmain.c */
+void netmain(void);
+
 /* sclp.c */
 void sclp_print(const char *string);
 void sclp_set_write_mask(uint32_t receive_mask, uint32_t send_mask);

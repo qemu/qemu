@@ -87,9 +87,9 @@ extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 struct QemuIplParameters {
     uint8_t  qipl_flags;
     uint8_t  reserved1[3];
-    uint64_t netboot_start_addr;
+    uint64_t reserved2;
     uint32_t boot_menu_timeout;
-    uint8_t  reserved2[12];
+    uint8_t  reserved3[12];
 } __attribute__ ((packed));
 typedef struct QemuIplParameters QemuIplParameters;
 

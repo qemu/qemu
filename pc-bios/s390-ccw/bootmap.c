@@ -929,7 +929,7 @@ void zipl_load(void)
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
-        jump_to_IPL_code(vdev->netboot_start_addr);
+        netmain();
     }
 
     ipl_scsi();
