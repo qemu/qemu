@@ -8,7 +8,7 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
 #include "s390-ccw.h"
 #include "cio.h"
 #include "virtio.h"

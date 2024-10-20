@@ -6,7 +6,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "s390-arch.h"
 
@@ -57,7 +58,7 @@ void jump_to_IPL_code(uint64_t address)
     debug_print_int("set IPL addr to", address ?: *reset_psw & PSW_MASK_SHORT_ADDR);
 
     /* Ensure the guest output starts fresh */
-    sclp_print("\n");
+    printf("\n");
 
     /*
      * HACK ALERT.

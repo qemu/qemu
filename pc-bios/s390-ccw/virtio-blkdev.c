@@ -8,7 +8,7 @@
  * directory.
  */
 
-#include "libc.h"
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
@@ -76,7 +76,7 @@ unsigned long virtio_load_direct(unsigned long rec_list1, unsigned long rec_list
         return -1;
     }
 
-    sclp_print(".");
+    printf(".");
     status = virtio_read_many(sec, (void *)addr, sec_num);
     if (status) {
         panic("I/O Error");
@@ -230,7 +230,7 @@ int virtio_blk_setup_device(SubChannelId schid)
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
 
-    sclp_print("Using virtio-blk.\n");
+    puts("Using virtio-blk.");
 
     return 0;
 }

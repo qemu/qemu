@@ -8,7 +8,9 @@
  * directory.
  */
 
-#include "libc.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "helper.h"
 #include "s390-arch.h"
 #include "s390-ccw.h"
@@ -50,7 +52,7 @@ void write_iplb_location(void)
 
 unsigned int get_loadparm_index(void)
 {
-    return atoui(loadparm_str);
+    return atoi(loadparm_str);
 }
 
 static int is_dev_possibly_bootable(int dev_no, int sch_no)
@@ -176,7 +178,7 @@ static void boot_setup(void)
 
     sclp_get_loadparm_ascii(loadparm_str);
     memcpy(lpmsg + 10, loadparm_str, 8);
-    sclp_print(lpmsg);
+    puts(lpmsg);
 
     /*
      * Clear out any potential S390EP magic (see jump_to_low_kernel()),
@@ -228,7 +230,7 @@ static int virtio_setup(void)
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_NET:
-        sclp_print("Network boot device detected\n");
+        puts("Network boot device detected");
         vdev->netboot_start_addr = qipl.netboot_start_addr;
         return 0;
     case VIRTIO_ID_BLOCK:
@@ -261,7 +263,7 @@ static void ipl_boot_device(void)
         }
         break;
     default:
-        print_int("Attempting to boot from unexpected device type", cutype);
+        printf("Attempting to boot from unexpected device type 0x%X\n", cutype);
         panic("\nBoot failed.\n");
     }
 }
@@ -287,7 +289,7 @@ static void probe_boot_device(void)
         }
     }
 
-    sclp_print("Could not find a suitable boot device (none specified)\n");
+    puts("Could not find a suitable boot device (none specified)");
 }
 
 void main(void)

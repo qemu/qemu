@@ -293,7 +293,7 @@ static int load_kernel_with_initrd(filename_ip_t *fn_ip,
     printf("Loading pxelinux.cfg entry '%s'\n", entry->label);
 
     if (!entry->kernel) {
-        printf("Kernel entry is missing!\n");
+        puts("Kernel entry is missing!\n");
         return -1;
     }
 
@@ -515,13 +515,13 @@ void main(void)
     int rc, fnlen;
 
     sclp_setup();
-    sclp_print("Network boot starting...\n");
+    puts("Network boot starting...");
 
     virtio_setup();
 
     rc = net_init(&fn_ip);
     if (rc) {
-        panic("Network initialization failed. Halting.\n");
+        panic("Network initialization failed. Halting.");
     }
 
     fnlen = strlen(fn_ip.filename);
@@ -535,9 +535,9 @@ void main(void)
     net_release(&fn_ip);
 
     if (rc > 0) {
-        sclp_print("Network loading done, starting kernel...\n");
+        puts("Network loading done, starting kernel...");
         jump_to_low_kernel();
     }
 
-    panic("Failed to load OS from network\n");
+    panic("Failed to load OS from network.");
 }

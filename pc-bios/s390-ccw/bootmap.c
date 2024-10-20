@@ -8,7 +8,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "s390-arch.h"
 #include "bootmap.h"
@@ -21,7 +22,7 @@
 
 #ifdef DEBUG_FALLBACK
 #define dputs(txt) \
-    do { sclp_print("zipl: " txt); } while (0)
+    do { printf("zipl: " txt); } while (0)
 #else
 #define dputs(fmt, ...) \
     do { } while (0)
@@ -270,7 +271,7 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
         prev_block_nr = cur_block_nr;
     }
 
-    sclp_print("No zipl boot menu data found. Booting default entry.");
+    printf("No zipl boot menu data found. Booting default entry.");
     return 0;
 }
 
@@ -338,22 +339,22 @@ static void ipl_eckd_cdl(void)
     block_number_t bmt_block_nr, s1b_block_nr;
 
     /* we have just read the block #0 and recognized it as "IPL1" */
-    sclp_print("CDL\n");
+    puts("CDL");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(1, ipl2, "Cannot read IPL2 record at block 1");
 
     mbr = &ipl2->mbr;
     if (!magic_match(mbr, ZIPL_MAGIC)) {
-        sclp_print("No zIPL section in IPL2 record.\n");
+        puts("No zIPL section in IPL2 record.");
         return;
     }
     if (!block_size_ok(mbr->blockptr.xeckd.bptr.size)) {
-        sclp_print("Bad block size in zIPL section of IPL2 record.\n");
+        puts("Bad block size in zIPL section of IPL2 record.");
         return;
     }
     if (mbr->dev_type != DEV_TYPE_ECKD) {
-        sclp_print("Non-ECKD device type in zIPL section of IPL2 record.\n");
+        puts("Non-ECKD device type in zIPL section of IPL2 record.");
         return;
     }
 
@@ -366,11 +367,11 @@ static void ipl_eckd_cdl(void)
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(2, vlbl, "Cannot read Volume Label at block 2");
     if (!magic_match(vlbl->key, VOL1_MAGIC)) {
-        sclp_print("Invalid magic of volume label block.\n");
+        puts("Invalid magic of volume label block.");
         return;
     }
     if (!magic_match(vlbl->f.key, VOL1_MAGIC)) {
-        sclp_print("Invalid magic of volser block.\n");
+        puts("Invalid magic of volser block.");
         return;
     }
     print_volser(vlbl->f.volser);
@@ -384,8 +385,8 @@ static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
     LDL_VTOC *vlbl = (void *)sec; /* already read, 3rd block */
     char msg[4] = { '?', '.', '\n', '\0' };
 
-    sclp_print((mode == ECKD_CMS) ? "CMS" : "LDL");
-    sclp_print(" version ");
+    printf((mode == ECKD_CMS) ? "CMS" : "LDL");
+    printf(" version ");
     switch (vlbl->LDL_version) {
     case LDL1_VERSION:
         msg[0] = '1';
@@ -398,7 +399,7 @@ static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
         msg[1] = '?';
         break;
     }
-    sclp_print(msg);
+    printf("%s", msg);
     print_volser(vlbl->volser);
 }
 
@@ -419,7 +420,7 @@ static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
         if (!magic_match(ipl1->bip.magic, ZIPL_MAGIC)) {
             return; /* not applicable layout */
         }
-        sclp_print("unlabeled LDL.\n");
+        puts("unlabeled LDL.");
     }
     verify_boot_info(&ipl1->bip);
 
@@ -466,7 +467,7 @@ static void print_eckd_msg(void)
             *p-- = ' ';
         }
     }
-    sclp_print(msg);
+    printf("%s", msg);
 }
 
 static void ipl_eckd(void)
@@ -488,11 +489,11 @@ static void ipl_eckd(void)
     if (eckd_valid_address((ExtEckdBlockPtr *)&vlbl->f.br, 0)) {
         ldipl_bmt = eckd_find_bmt((ExtEckdBlockPtr *)&vlbl->f.br);
         if (ldipl_bmt) {
-            sclp_print("List-Directed\n");
+            puts("List-Directed");
             /* LD-IPL does not use the S1B bock, just make it NULL */
             run_eckd_boot_script(ldipl_bmt, NULL_BLOCK_NR);
             /* Only return in error, retry as CCW-IPL */
-            sclp_print("Retrying IPL ");
+            printf("Retrying IPL ");
             print_eckd_msg();
         }
         memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -634,7 +635,7 @@ static void ipl_scsi(void)
         return;
     }
 
-    sclp_print("Using SCSI scheme.\n");
+    puts("Using SCSI scheme.");
     debug_print_int("MBR Version", mbr->version_id);
     IPL_check(mbr->version_id == 1,
               "Unknown MBR layout version, assuming version 1");
@@ -743,7 +744,7 @@ static inline uint32_t iso_get_file_size(uint32_t load_rba)
             if (cur_record->file_flags & 0x2) {
                 /* Subdirectory */
                 if (level == ISO9660_MAX_DIR_DEPTH - 1) {
-                    sclp_print("ISO-9660 directory depth limit exceeded\n");
+                    puts("ISO-9660 directory depth limit exceeded");
                 } else {
                     level++;
                     sec_loc[level] = iso_733_to_u32(cur_record->ext_loc);
@@ -778,9 +779,9 @@ static void load_iso_bc_entry(IsoBcSection *load)
     if (real_size) {
         /* Round up blocks to load */
         blks_to_load = (real_size + ISO_SECTOR_SIZE - 1) / ISO_SECTOR_SIZE;
-        sclp_print("ISO boot image size verified\n");
+        puts("ISO boot image size verified");
     } else {
-        sclp_print("ISO boot image size could not be verified\n");
+        puts("ISO boot image size could not be verified");
     }
 
     read_iso_boot_image(bswap32(s.load_rba),
@@ -896,7 +897,7 @@ static void zipl_load_vblk(void)
     }
 
     if (blksize != VIRTIO_DASD_DEFAULT_BLOCK_SIZE) {
-        sclp_print("Using guessed DASD geometry.\n");
+        puts("Using guessed DASD geometry.");
         virtio_assume_eckd();
     }
     ipl_eckd();
@@ -909,7 +910,7 @@ static void zipl_load_vscsi(void)
         ipl_iso_el_torito();
     }
 
-    sclp_print("Using guessed DASD geometry.\n");
+    puts("Using guessed DASD geometry.");
     virtio_assume_eckd();
     ipl_eckd();
 }
@@ -944,5 +945,5 @@ void zipl_load(void)
         panic("\n! Unknown IPL device type !\n");
     }
 
-    sclp_print("zIPL load failed.\n");
+    puts("zIPL load failed.");
 }

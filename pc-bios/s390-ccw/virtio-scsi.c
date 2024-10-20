@@ -9,7 +9,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "scsi.h"
@@ -30,9 +31,9 @@ static inline void vs_assert(bool term, const char **msgs)
     if (!term) {
         int i = 0;
 
-        sclp_print("\n! ");
+        printf("\n! ");
         while (msgs[i]) {
-            sclp_print(msgs[i++]);
+            printf("%s", msgs[i++]);
         }
         panic(" !\n");
     }
@@ -236,11 +237,11 @@ static int virtio_scsi_locate_device(VDev *vdev)
             if (resp.response == VIRTIO_SCSI_S_BAD_TARGET) {
                 continue;
             }
-            print_int("target", target);
+            printf("target 0x%X\n", target);
             virtio_scsi_verify_response(&resp, "SCSI cannot report LUNs");
         }
         if (r->lun_list_len == 0) {
-            print_int("no LUNs for target", target);
+            printf("no LUNs for target 0x%X\n", target);
             continue;
         }
         luns = r->lun_list_len / 8;
@@ -264,7 +265,7 @@ static int virtio_scsi_locate_device(VDev *vdev)
         }
     }
 
-    sclp_print("Warning: Could not locate a usable virtio-scsi device\n");
+    puts("Warning: Could not locate a usable virtio-scsi device");
     return -ENODEV;
 }
 
@@ -379,7 +380,7 @@ static int virtio_scsi_setup(VDev *vdev)
     }
 
     if (virtio_scsi_inquiry_response_is_cdrom(scsi_inquiry_std_response)) {
-        sclp_print("SCSI CD-ROM detected.\n");
+        puts("SCSI CD-ROM detected.");
         vdev->is_cdrom = true;
         vdev->scsi_block_size = VIRTIO_ISO_BLOCK_SIZE;
     }
@@ -443,7 +444,7 @@ int virtio_scsi_setup_device(SubChannelId schid)
     IPL_assert(vdev->config.scsi.cdb_size == VIRTIO_SCSI_CDB_SIZE,
                "Config: CDB size mismatch");
 
-    sclp_print("Using virtio-scsi.\n");
+    puts("Using virtio-scsi.");
 
     return virtio_scsi_setup(vdev);
 }
