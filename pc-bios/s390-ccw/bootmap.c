@@ -62,15 +62,34 @@ static void *s2_prev_blk = _s2;
 static void *s2_cur_blk = _s2 + MAX_SECTOR_SIZE;
 static void *s2_next_blk = _s2 + MAX_SECTOR_SIZE * 2;
 
-static inline void verify_boot_info(BootInfo *bip)
+static inline int verify_boot_info(BootInfo *bip)
 {
-    IPL_assert(magic_match(bip->magic, ZIPL_MAGIC), "No zIPL sig in BootInfo");
-    IPL_assert(bip->version == BOOT_INFO_VERSION, "Wrong zIPL version");
-    IPL_assert(bip->bp_type == BOOT_INFO_BP_TYPE_IPL, "DASD is not for IPL");
-    IPL_assert(bip->dev_type == BOOT_INFO_DEV_TYPE_ECKD, "DASD is not ECKD");
-    IPL_assert(bip->flags == BOOT_INFO_FLAGS_ARCH, "Not for this arch");
-    IPL_assert(block_size_ok(bip->bp.ipl.bm_ptr.eckd.bptr.size),
-               "Bad block size in zIPL section of the 1st record.");
+    if (!magic_match(bip->magic, ZIPL_MAGIC)) {
+        puts("No zIPL sig in BootInfo");
+        return -EINVAL;
+    }
+    if (bip->version != BOOT_INFO_VERSION) {
+        puts("Wrong zIPL version");
+        return -EINVAL;
+    }
+    if (bip->bp_type != BOOT_INFO_BP_TYPE_IPL) {
+        puts("DASD is not for IPL");
+        return -ENODEV;
+    }
+    if (bip->dev_type != BOOT_INFO_DEV_TYPE_ECKD) {
+        puts("DASD is not ECKD");
+        return -ENODEV;
+    }
+    if (bip->flags != BOOT_INFO_FLAGS_ARCH) {
+        puts("Not for this arch");
+        return -EINVAL;
+    }
+    if (!block_size_ok(bip->bp.ipl.bm_ptr.eckd.bptr.size)) {
+        puts("Bad block size in zIPL section of 1st record");
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 static void eckd_format_chs(ExtEckdBlockPtr *ptr,  bool ldipl,
@@ -367,8 +386,8 @@ static int run_eckd_boot_script(block_number_t bmt_block_nr,
         puts("Unknown script entry type");
         return -EINVAL;
     }
-    write_reset_psw(bms->entry[i].address.load_address); /* no return */
-    jump_to_IPL_code(0); /* no return */
+    write_reset_psw(bms->entry[i].address.load_address);
+    jump_to_IPL_code(0);
     return -1;
 }
 
@@ -1067,16 +1086,19 @@ void zipl_load(void)
 
     if (vdev->is_cdrom) {
         ipl_iso_el_torito();
-        panic("\n! Cannot IPL this ISO image !\n");
+        puts("Failed to IPL this ISO image!");
+        return;
     }
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
         netmain();
-        panic("\n! Cannot IPL from this network !\n");
+        puts("Failed to IPL from this network!");
+        return;
     }
 
     if (ipl_scsi()) {
-        panic("\n! Cannot IPL this SCSI device !\n");
+        puts("Failed to IPL from this SCSI device!");
+        return;
     }
 
     switch (virtio_get_device_type()) {
@@ -1087,8 +1109,9 @@ void zipl_load(void)
         zipl_load_vscsi();
         break;
     default:
-        panic("\n! Unknown IPL device type !\n");
+        puts("Unknown IPL device type!");
+        return;
     }
 
-    puts("zIPL load failed.");
+    puts("zIPL load failed!");
 }

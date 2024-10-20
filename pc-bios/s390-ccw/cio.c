@@ -59,7 +59,8 @@ uint16_t cu_type(SubChannelId schid)
     };
 
     if (do_cio(schid, CU_TYPE_UNKNOWN, ptr2u32(&sense_id_ccw), CCW_FMT1)) {
-        panic("Failed to run SenseID CCw\n");
+        puts("Failed to run SenseID CCW");
+        return CU_TYPE_UNKNOWN;
     }
 
     return sense_data.cu_type;
