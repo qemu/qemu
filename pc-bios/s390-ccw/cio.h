@@ -361,6 +361,8 @@ typedef struct CcwSearchIdData {
     uint8_t record;
 } __attribute__((packed)) CcwSearchIdData;
 
+extern SubChannelId net_schid;
+
 int enable_mss_facility(void);
 void enable_subchannel(SubChannelId schid);
 uint16_t cu_type(SubChannelId schid);

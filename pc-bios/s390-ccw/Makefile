@@ -32,19 +32,20 @@ QEMU_DGFLAGS = -MMD -MP -MT $@ -MF $(@D)/$(*F).d
 
 .PHONY : all clean build-all distclean
 
-OBJECTS = start.o main.o bootmap.o jump2ipl.o sclp.o menu.o \
-	  virtio.o virtio-scsi.o virtio-blkdev.o cio.o dasd-ipl.o
+OBJECTS = start.o main.o bootmap.o jump2ipl.o sclp.o menu.o netmain.o \
+	  virtio.o virtio-net.o virtio-scsi.o virtio-blkdev.o cio.o dasd-ipl.o
 
 SLOF_DIR := $(SRC_PATH)/../../roms/SLOF
 
 LIBC_INC := -nostdinc -I$(SLOF_DIR)/lib/libc/include
+LIBNET_INC := -I$(SLOF_DIR)/lib/libnet
 
 EXTRA_CFLAGS += -Wall
 EXTRA_CFLAGS += -ffreestanding -fno-delete-null-pointer-checks -fno-common -fPIE
 EXTRA_CFLAGS += -fwrapv -fno-strict-aliasing -fno-asynchronous-unwind-tables
 EXTRA_CFLAGS += -msoft-float
 EXTRA_CFLAGS += -std=gnu99
-EXTRA_CFLAGS += $(LIBC_INC)
+EXTRA_CFLAGS += $(LIBC_INC) $(LIBNET_INC)
 LDFLAGS += -Wl,-pie -nostdlib -z noexecstack
 
 cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>/dev/null
@@ -62,9 +63,9 @@ config-cc.mak: Makefile
 
 include $(SRC_PATH)/netboot.mak
 
-build-all: s390-ccw.img s390-netboot.img
+build-all: s390-ccw.img
 
-s390-ccw.elf: $(OBJECTS) libc.a
+s390-ccw.elf: $(OBJECTS) libnet.a libc.a
 	$(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^,Linking)
 
 s390-ccw.img: s390-ccw.elf
@@ -72,7 +73,7 @@ s390-ccw.img: s390-ccw.elf
 
 $(OBJECTS): Makefile
 
-ALL_OBJS = $(sort $(OBJECTS) $(NETOBJS) $(LIBCOBJS) $(LIBNETOBJS))
+ALL_OBJS = $(sort $(OBJECTS) $(LIBCOBJS) $(LIBNETOBJS))
 -include $(ALL_OBJS:%.o=%.d)
 
 clean:
