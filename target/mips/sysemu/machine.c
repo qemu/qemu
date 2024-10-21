@@ -242,7 +242,7 @@ const VMStateDescription vmstate_mips_cpu = {
 
         /* CPU metastate */
         VMSTATE_UINT32(env.current_tc, MIPSCPU),
-        VMSTATE_UINT32(env.current_fpu, MIPSCPU),
+        VMSTATE_UNUSED(sizeof(uint32_t)), /* was current_fpu */
         VMSTATE_INT32(env.error_code, MIPSCPU),
         VMSTATE_UINTTL(env.btarget, MIPSCPU),
         VMSTATE_UINTTL(env.bcond, MIPSCPU),
