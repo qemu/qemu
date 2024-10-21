@@ -367,7 +367,6 @@ static int inet_connect_addr(const InetSocketAddress *saddr,
                          addr->ai_family);
         return -1;
     }
-    socket_set_fast_reuse(sock);
 
     /* connect to peer */
     do {
