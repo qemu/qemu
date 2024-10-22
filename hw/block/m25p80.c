@@ -430,6 +430,11 @@ typedef enum {
     RDCR_EQIO = 0x35,
     RSTQIO = 0xf5,
 
+    /*
+     * Winbond: 0x31 - write status register 2
+     */
+    WRSR2 = 0x31,
+
     RNVCR = 0xB5,
     WNVCR = 0xB1,
 
@@ -819,6 +824,15 @@ static void complete_collecting_data(Flash *s)
         }
         if (s->write_enable) {
             s->write_enable = false;
+        }
+        break;
+    case WRSR2:
+        switch (get_man(s)) {
+        case MAN_WINBOND:
+            s->quad_enable = !!(s->data[0] & 0x02);
+            break;
+        default:
+            break;
         }
         break;
     case BRWR:
@@ -1280,7 +1294,31 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         s->pos = 0;
         break;
+    case WRSR2:
+        /*
+         * If WP# is low and status_register_write_disabled is high,
+         * status register writes are disabled.
+         * This is also called "hardware protected mode" (HPM). All other
+         * combinations of the two states are called "software protected mode"
+         * (SPM), and status register writes are permitted.
+         */
+        if ((s->wp_level == 0 && s->status_register_write_disabled)
+            || !s->write_enable) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "M25P80: Status register 2 write is disabled!\n");
+            break;
+        }
 
+        switch (get_man(s)) {
+        case MAN_WINBOND:
+            s->needed_bytes = 1;
+            s->state = STATE_COLLECTING_DATA;
+            s->pos = 0;
+            break;
+        default:
+            break;
+        }
+        break;
     case WRDI:
         s->write_enable = false;
         if (get_man(s) == MAN_SST) {
