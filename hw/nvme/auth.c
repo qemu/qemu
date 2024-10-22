@@ -564,13 +564,6 @@ libspdm_return_t nvme_spdm_send_message(void *context, size_t response_size,
     dev->message_size = response_size;
     dev->sender_receiver_buffer = g_malloc0(response_size);
     memcpy(dev->sender_receiver_buffer, response, response_size);
-    /*
-    g_print("[%s]: message_size - %lu\n", __func__, dev->message_size);
-    SPDM_DEBUG();
-    for (int i = 0; i < dev->message_size; i++)
-        g_printerr("%02X ", ((uint8_t *)response)[i]);
-    g_printerr("\n");
-    //*/ 
 
     return LIBSPDM_STATUS_SUCCESS;
 }
