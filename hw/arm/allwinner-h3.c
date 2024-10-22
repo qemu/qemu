@@ -182,9 +182,8 @@ void allwinner_h3_bootrom_setup(AwH3State *s, BlockBackend *blk)
     g_autofree uint8_t *buffer = g_new0(uint8_t, rom_size);
 
     if (blk_pread(blk, 8 * KiB, rom_size, buffer, 0) < 0) {
-        error_setg(&error_fatal, "%s: failed to read BlockBackend data",
-                   __func__);
-        return;
+        error_report("%s: failed to read BlockBackend data", __func__);
+        exit(1);
     }
 
     rom_add_blob("allwinner-h3.bootrom", buffer, rom_size,

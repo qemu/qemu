@@ -88,7 +88,8 @@ void select_soundhw(const char *name, const char *audiodev)
     struct soundhw *c;
 
     if (selected) {
-        error_setg(&error_fatal, "only one -soundhw option is allowed");
+        error_report("only one -soundhw option is allowed");
+        exit(1);
     }
 
     for (c = soundhw; c->name; ++c) {

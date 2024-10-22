@@ -1841,7 +1841,8 @@ static void object_option_parse(const char *str)
 
         type = qemu_opt_get(opts, "qom-type");
         if (!type) {
-            error_setg(&error_fatal, QERR_MISSING_PARAMETER, "qom-type");
+            error_report(QERR_MISSING_PARAMETER, "qom-type");
+            exit(1);
         }
         if (user_creatable_print_help(type, opts)) {
             exit(0);
