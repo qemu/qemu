@@ -395,7 +395,7 @@ static void vfio_subregion_unmap(VFIORegion *region, int index)
 
 int vfio_region_mmap(VFIORegion *region)
 {
-    int i, prot = 0;
+    int i, ret, prot = 0;
     char *name;
 
     if (!region->mem) {
@@ -411,22 +411,8 @@ int vfio_region_mmap(VFIORegion *region)
                                      region->fd_offset +
                                      region->mmaps[i].offset);
         if (region->mmaps[i].mmap == MAP_FAILED) {
-            int ret = -errno;
-
-            trace_vfio_region_mmap_fault(memory_region_name(region->mem), i,
-                                         region->fd_offset +
-                                         region->mmaps[i].offset,
-                                         region->fd_offset +
-                                         region->mmaps[i].offset +
-                                         region->mmaps[i].size - 1, ret);
-
-            region->mmaps[i].mmap = NULL;
-
-            for (i--; i >= 0; i--) {
-                vfio_subregion_unmap(region, i);
-            }
-
-            return ret;
+            ret = -errno;
+            goto no_mmap;
         }
 
         name = g_strdup_printf("%s mmaps[%d]",
@@ -446,6 +432,20 @@ int vfio_region_mmap(VFIORegion *region)
     }
 
     return 0;
+
+no_mmap:
+    trace_vfio_region_mmap_fault(memory_region_name(region->mem), i,
+                                 region->fd_offset + region->mmaps[i].offset,
+                                 region->fd_offset + region->mmaps[i].offset +
+                                 region->mmaps[i].size - 1, ret);
+
+    region->mmaps[i].mmap = NULL;
+
+    for (i--; i >= 0; i--) {
+        vfio_subregion_unmap(region, i);
+    }
+
+    return ret;
 }
 
 void vfio_region_unmap(VFIORegion *region)
