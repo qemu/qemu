@@ -437,6 +437,7 @@ static void get_ramblock_dirty_info(RAMBlock *block,
                                     struct DirtyRateConfig *config)
 {
     uint64_t sample_pages_per_gigabytes = config->sample_pages_per_gigabytes;
+    gsize len;
 
     /* Right shift 30 bits to calc ramblock size in GB */
     info->sample_pages_count = (qemu_ram_get_used_length(block) *
@@ -445,7 +446,9 @@ static void get_ramblock_dirty_info(RAMBlock *block,
     info->ramblock_pages = qemu_ram_get_used_length(block) >>
                            qemu_target_page_bits();
     info->ramblock_addr = qemu_ram_get_host_addr(block);
-    strcpy(info->idstr, qemu_ram_get_idstr(block));
+    len = g_strlcpy(info->idstr, qemu_ram_get_idstr(block),
+                    sizeof(info->idstr));
+    g_assert(len < sizeof(info->idstr));
 }
 
 static void free_ramblock_dirty_info(struct RamblockDirtyInfo *infos, int count)
