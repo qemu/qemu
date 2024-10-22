@@ -8483,12 +8483,11 @@ static int nvme_add_pm_capability(PCIDevice *pci_dev, uint8_t offset)
     return 0;
 }
 
-/*
+#ifndef CONFIG_LIBSPDM
 static bool pcie_doe_spdm_rsp(DOECap *doe_cap)
 {
-    g_printerr ("[QEMU @ %s]: CHECKPOINT\n", __func__);
     void *req = pcie_doe_get_write_mbox_ptr(doe_cap);
-    //uint32_t req_len = pcie_doe_get_obj_len(req) * 4;
+    uint32_t req_len = pcie_doe_get_obj_len(req) * 4;
     void *rsp = doe_cap->read_mbox;
     uint32_t rsp_len = SPDM_SOCKET_MAX_MESSAGE_BUFFER_SIZE;
     size_t index;
@@ -8511,7 +8510,7 @@ static DOEProtocol doe_spdm_prot[] = {
     { PCI_VENDOR_ID_PCI_SIG, PCI_SIG_DOE_SECURED_CMA, pcie_doe_spdm_rsp },
     { }
 };
-//*/
+#endif
 
 static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
