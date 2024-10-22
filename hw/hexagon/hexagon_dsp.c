@@ -28,9 +28,17 @@
 
 #include "machine_configs.h.inc"
 
+static hwaddr isdb_secure_flag;
+static hwaddr isdb_trusted_flag;
 static void hex_symbol_callback(const char *st_name, int st_info,
                                 uint64_t st_value, uint64_t st_size)
 {
+    if (!g_strcmp0("isdb_secure_flag", st_name)) {
+        isdb_secure_flag = st_value;
+    }
+    if (!g_strcmp0("isdb_trusted_flag", st_name)) {
+        isdb_trusted_flag = st_value;
+    }
 }
 
 /* Board init.  */
@@ -59,6 +67,13 @@ static void hexagon_init_bootstrap(MachineState *machine, HexagonCPU *cpu)
 {
     if (machine->kernel_filename) {
         hexagon_load_kernel(cpu);
+        uint32_t mem = 1;
+        if (isdb_secure_flag) {
+            cpu_physical_memory_write(isdb_secure_flag, &mem, sizeof(mem));
+        }
+        if (isdb_trusted_flag) {
+            cpu_physical_memory_write(isdb_trusted_flag, &mem, sizeof(mem));
+        }
     }
 }
 
