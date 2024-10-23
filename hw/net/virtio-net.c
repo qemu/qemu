@@ -1265,7 +1265,8 @@ static bool virtio_net_attach_ebpf_rss(VirtIONet *n)
     rss_data_to_rss_config(&n->rss_data, &config);
 
     if (!ebpf_rss_set_all(&n->ebpf_rss, &config,
-                          n->rss_data.indirections_table, n->rss_data.key)) {
+                          n->rss_data.indirections_table, n->rss_data.key,
+                          NULL)) {
         return false;
     }
 
@@ -1336,7 +1337,7 @@ static bool virtio_net_load_ebpf_fds(VirtIONet *n)
         }
     }
 
-    ret = ebpf_rss_load_fds(&n->ebpf_rss, fds[0], fds[1], fds[2], fds[3]);
+    ret = ebpf_rss_load_fds(&n->ebpf_rss, fds[0], fds[1], fds[2], fds[3], NULL);
 
 exit:
     if (!ret) {
@@ -1354,7 +1355,7 @@ static bool virtio_net_load_ebpf(VirtIONet *n)
 
     if (virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
         if (!(n->ebpf_rss_fds && virtio_net_load_ebpf_fds(n))) {
-            ret = ebpf_rss_load(&n->ebpf_rss);
+            ret = ebpf_rss_load(&n->ebpf_rss, NULL);
         }
     }
 
