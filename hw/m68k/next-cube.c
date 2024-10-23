@@ -828,7 +828,7 @@ static void nextscsi_write(void *opaque, uint8_t *buf, int size)
     nextdma_write(opaque, buf, size, NEXTDMA_SCSI);
 }
 
-static void next_scsi_init(DeviceState *pcdev, M68kCPU *cpu)
+static void next_scsi_init(DeviceState *pcdev)
 {
     struct NeXTPC *next_pc = NEXT_PC(pcdev);
     DeviceState *dev;
@@ -1050,7 +1050,7 @@ static void next_cube_init(MachineState *machine)
     /* TODO: */
     /* Network */
     /* SCSI */
-    next_scsi_init(pcdev, cpu);
+    next_scsi_init(pcdev);
 
     /* DMA */
     memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
