@@ -74,6 +74,10 @@ static bool ebpf_rss_mmap(struct EBPFRSSContext *ctx, Error **errp)
         goto indirection_fail;
     }
 
+    trace_ebpf_rss_mmap(ctx,
+                        ctx->mmap_configuration,
+                        ctx->mmap_toeplitz_key,
+                        ctx->mmap_indirections_table);
     return true;
 
 indirection_fail:
@@ -131,6 +135,11 @@ bool ebpf_rss_load(struct EBPFRSSContext *ctx, Error **errp)
     ctx->map_toeplitz_key = bpf_map__fd(
             rss_bpf_ctx->maps.tap_rss_map_toeplitz_key);
 
+    trace_ebpf_rss_load(ctx,
+                        ctx->program_fd,
+                        ctx->map_configuration,
+                        ctx->map_indirections_table,
+                        ctx->map_toeplitz_key);
     if (!ebpf_rss_mmap(ctx, errp)) {
         goto error;
     }
@@ -177,6 +186,12 @@ bool ebpf_rss_load_fds(struct EBPFRSSContext *ctx, int program_fd,
     ctx->map_configuration = config_fd;
     ctx->map_toeplitz_key = toeplitz_fd;
     ctx->map_indirections_table = table_fd;
+
+    trace_ebpf_rss_load(ctx,
+                        ctx->program_fd,
+                        ctx->map_configuration,
+                        ctx->map_indirections_table,
+                        ctx->map_toeplitz_key);
 
     if (!ebpf_rss_mmap(ctx, errp)) {
         ctx->program_fd = -1;
@@ -259,6 +274,8 @@ bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
 
     ebpf_rss_set_toepliz_key(ctx, toeplitz_key);
 
+    trace_ebpf_rss_set_data(ctx, config, indirections_table, toeplitz_key);
+
     return true;
 }
 
@@ -267,6 +284,8 @@ void ebpf_rss_unload(struct EBPFRSSContext *ctx)
     if (!ebpf_rss_is_loaded(ctx)) {
         return;
     }
+
+    trace_ebpf_rss_unload(ctx);
 
     ebpf_rss_munmap(ctx);
 
