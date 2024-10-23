@@ -83,10 +83,10 @@ class TuxRunPPC64Test(TuxRunBaselineTest):
 
     ASSET_PPC64_KERNEL = Asset(
         'https://storage.tuxboot.com/20230331/ppc64/vmlinux',
-        '1d953e81a4379e537fc8e41e05a0a59d9b453eef97aa03d47866c6c45b00bdff')
+        'f22a9b9e924174a4c199f4c7e5d91a2339fcfe51c6eafd0907dc3e09b64ab728')
     ASSET_PPC64_ROOTFS = Asset(
         'https://storage.tuxboot.com/20230331/ppc64/rootfs.ext4.zst',
-        'f22a9b9e924174a4c199f4c7e5d91a2339fcfe51c6eafd0907dc3e09b64ab728')
+        '1d953e81a4379e537fc8e41e05a0a59d9b453eef97aa03d47866c6c45b00bdff')
 
     def test_ppc64(self):
         self.ppc64_common_tuxrun(kernel_asset=self.ASSET_PPC64_KERNEL,

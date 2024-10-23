@@ -25,6 +25,7 @@ test_timeouts = {
   'ppc64_hv' : 1000,
   'ppc64_powernv' : 240,
   'ppc64_pseries' : 240,
+  'ppc64_tuxrun' : 240,
   's390x_ccw_virtio' : 240,
 }
 
@@ -138,6 +139,7 @@ tests_ppc64_system_thorough = [
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
+  'ppc64_tuxrun',
 ]
 
 tests_rx_system_thorough = [
@@ -155,6 +157,7 @@ tests_riscv64_system_thorough = [
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',
+  's390x_tuxrun',
 ]
 
 tests_sh4_system_thorough = [
