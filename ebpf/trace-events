@@ -1,4 +1,6 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
 # ebpf-rss.c
-ebpf_error(const char *s1, const char *s2) "error in %s: %s"
+ebpf_rss_load_error(void *ctx) "ctx=%p"
+ebpf_rss_mmap_error(void *ctx, const char *object) "ctx=%p object=%s"
+ebpf_rss_open_error(void *ctx) "ctx=%p"
