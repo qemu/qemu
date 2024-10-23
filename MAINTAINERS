@@ -3744,7 +3744,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/tcg/plugins/
-F: tests/avocado/tcg_plugins.py
+F: tests/functional/test_aarch64_tcg_plugins.py
 F: contrib/plugins/
 
 AArch64 TCG target

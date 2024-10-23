@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # TCG Plugins tests
 #
 # These are a little more involved than the basic tests run by check-tcg.
@@ -13,7 +15,7 @@ import tempfile
 import mmap
 import re
 
-from boot_linux_console import LinuxKernelTest
+from qemu_test import LinuxKernelTest, Asset
 
 
 class PluginKernelBase(LinuxKernelTest):
@@ -53,22 +55,14 @@ class PluginKernelBase(LinuxKernelTest):
 
 class PluginKernelNormal(PluginKernelBase):
 
-    def _grab_aarch64_kernel(self):
-        kernel_url = ('https://storage.tuxboot.com/20230331/arm64/Image')
-        kernel_sha256 = 'ce95a7101a5fecebe0fe630deee6bd97b32ba41bc8754090e9ad8961ea8674c7'
-        kernel_path = self.fetch_asset(kernel_url,
-                                       asset_hash=kernel_sha256,
-                                       algorithm = "sha256")
-        return kernel_path
+    ASSET_KERNEL = Asset(
+        ('https://storage.tuxboot.com/20230331/arm64/Image'),
+        'ce95a7101a5fecebe0fe630deee6bd97b32ba41bc8754090e9ad8961ea8674c7')
 
     def test_aarch64_virt_insn(self):
-        """
-        :avocado: tags=accel:tcg
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:cortex-a53
-        """
-        kernel_path = self._grab_aarch64_kernel()
+        self.set_machine('virt')
+        self.cpu='cortex-a53'
+        kernel_path = self.ASSET_KERNEL.fetch()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
         console_pattern = 'Kernel panic - not syncing: VFS:'
@@ -92,13 +86,9 @@ class PluginKernelNormal(PluginKernelBase):
 
 
     def test_aarch64_virt_insn_icount(self):
-        """
-        :avocado: tags=accel:tcg
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:cortex-a53
-        """
-        kernel_path = self._grab_aarch64_kernel()
+        self.set_machine('virt')
+        self.cpu='cortex-a53'
+        kernel_path = self.ASSET_KERNEL.fetch()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
         console_pattern = 'Kernel panic - not syncing: VFS:'
@@ -120,3 +110,6 @@ class PluginKernelNormal(PluginKernelBase):
             else:
                 count = int(m.group("count"))
                 self.log.info(f"Counted: {count} instructions")
+
+if __name__ == '__main__':
+    LinuxKernelTest.main()
