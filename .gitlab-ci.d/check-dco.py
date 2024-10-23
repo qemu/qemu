@@ -19,10 +19,9 @@ cwd = os.getcwd()
 reponame = os.path.basename(cwd)
 repourl = "https://gitlab.com/%s/%s.git" % (namespace, reponame)
 
+print(f"adding upstream git repo @ {repourl}")
 subprocess.check_call(["git", "remote", "add", "check-dco", repourl])
-subprocess.check_call(["git", "fetch", "check-dco", "stable-7.2"],
-                      stdout=subprocess.DEVNULL,
-                      stderr=subprocess.DEVNULL)
+subprocess.check_call(["git", "fetch", "check-dco", "stable-7.2"])
 
 ancestor = subprocess.check_output(["git", "merge-base",
                                     "check-dco/stable-7.2", "HEAD"],
