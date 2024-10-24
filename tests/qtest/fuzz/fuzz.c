@@ -41,6 +41,7 @@ static FuzzTargetList *fuzz_target_list;
 static FuzzTarget *fuzz_target;
 static QTestState *fuzz_qts;
 
+int (*qemu_main)(void);
 
 
 void flush_events(QTestState *s)
