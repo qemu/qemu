@@ -18,8 +18,6 @@ use crate::{
     RegisterOffset,
 };
 
-static PL011_ID_ARM: [c_uchar; 8] = [0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1];
-
 /// Integer Baud Rate Divider, `UARTIBRD`
 const IBRD_MASK: u32 = 0x3f;
 
@@ -30,6 +28,29 @@ const DATA_BREAK: u32 = 1 << 10;
 
 /// QEMU sourced constant.
 pub const PL011_FIFO_DEPTH: usize = 16_usize;
+
+#[derive(Clone, Copy, Debug)]
+enum DeviceId {
+    #[allow(dead_code)]
+    Arm = 0,
+    Luminary,
+}
+
+impl std::ops::Index<hwaddr> for DeviceId {
+    type Output = c_uchar;
+
+    fn index(&self, idx: hwaddr) -> &Self::Output {
+        match self {
+            Self::Arm => &Self::PL011_ID_ARM[idx as usize],
+            Self::Luminary => &Self::PL011_ID_LUMINARY[idx as usize],
+        }
+    }
+}
+
+impl DeviceId {
+    const PL011_ID_ARM: [c_uchar; 8] = [0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1];
+    const PL011_ID_LUMINARY: [c_uchar; 8] = [0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1];
+}
 
 #[repr(C)]
 #[derive(Debug, qemu_api_macros::Object)]
@@ -75,6 +96,8 @@ pub struct PL011State {
     pub clock: NonNull<Clock>,
     #[doc(alias = "migrate_clk")]
     pub migrate_clock: bool,
+    /// The byte string that identifies the device.
+    device_id: DeviceId,
 }
 
 impl ObjectImpl for PL011State {
@@ -162,7 +185,7 @@ impl PL011State {
 
         std::ops::ControlFlow::Break(match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&v) => {
-                u64::from(PL011_ID_ARM[((offset - 0xfe0) >> 2) as usize])
+                u64::from(self.device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
@@ -618,4 +641,52 @@ pub unsafe extern "C" fn pl011_init(obj: *mut Object) {
         let mut state = NonNull::new_unchecked(obj.cast::<PL011State>());
         state.as_mut().init();
     }
+}
+
+#[repr(C)]
+#[derive(Debug, qemu_api_macros::Object)]
+/// PL011 Luminary device model.
+pub struct PL011Luminary {
+    parent_obj: PL011State,
+}
+
+#[repr(C)]
+pub struct PL011LuminaryClass {
+    _inner: [u8; 0],
+}
+
+/// Initializes a pre-allocated, unitialized instance of `PL011Luminary`.
+///
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer, that has
+/// the same size as [`PL011Luminary`]. We also expect the device is
+/// readable/writeable from one thread at any time.
+pub unsafe extern "C" fn pl011_luminary_init(obj: *mut Object) {
+    unsafe {
+        debug_assert!(!obj.is_null());
+        let mut state = NonNull::new_unchecked(obj.cast::<PL011Luminary>());
+        let state = state.as_mut();
+        state.parent_obj.device_id = DeviceId::Luminary;
+    }
+}
+
+impl qemu_api::definitions::Class for PL011LuminaryClass {
+    const CLASS_INIT: Option<
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+    > = None;
+    const CLASS_BASE_INIT: Option<
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+    > = None;
+}
+
+impl ObjectImpl for PL011Luminary {
+    type Class = PL011LuminaryClass;
+    const TYPE_INFO: qemu_api::bindings::TypeInfo = qemu_api::type_info! { Self };
+    const TYPE_NAME: &'static CStr = crate::TYPE_PL011_LUMINARY;
+    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(crate::TYPE_PL011);
+    const ABSTRACT: bool = false;
+    const INSTANCE_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = Some(pl011_luminary_init);
+    const INSTANCE_POST_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
+    const INSTANCE_FINALIZE: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
 }
