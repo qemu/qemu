@@ -68,7 +68,6 @@ blobs = [
   'kvmvapic.bin',
   'pvh.bin',
   's390-ccw.img',
-  's390-netboot.img',
   'slof.bin',
   'skiboot.lid',
   'palcode-clipper',

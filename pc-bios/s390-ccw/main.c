@@ -8,7 +8,9 @@
  * directory.
  */
 
-#include "libc.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "helper.h"
 #include "s390-arch.h"
 #include "s390-ccw.h"
@@ -21,7 +23,7 @@ static SubChannelId blk_schid = { .one = 1 };
 static char loadparm_str[LOADPARM_LEN + 1];
 QemuIplParameters qipl;
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
-static bool have_iplb;
+bool have_iplb;
 static uint16_t cutype;
 LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
 
@@ -36,8 +38,13 @@ LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
  */
 void write_subsystem_identification(void)
 {
-    lowcore->subchannel_id = blk_schid.sch_id;
-    lowcore->subchannel_nr = blk_schid.sch_no;
+    if (cutype == CU_TYPE_VIRTIO && virtio_get_device_type() == VIRTIO_ID_NET) {
+        lowcore->subchannel_id = net_schid.sch_id;
+        lowcore->subchannel_nr = net_schid.sch_no;
+    } else {
+        lowcore->subchannel_id = blk_schid.sch_id;
+        lowcore->subchannel_nr = blk_schid.sch_no;
+    }
     lowcore->io_int_parm = 0;
 }
 
@@ -48,9 +55,15 @@ void write_iplb_location(void)
     }
 }
 
+static void copy_qipl(void)
+{
+    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
+    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
+}
+
 unsigned int get_loadparm_index(void)
 {
-    return atoui(loadparm_str);
+    return atoi(loadparm_str);
 }
 
 static int is_dev_possibly_bootable(int dev_no, int sch_no)
@@ -70,6 +83,9 @@ static int is_dev_possibly_bootable(int dev_no, int sch_no)
 
     enable_subchannel(blk_schid);
     cutype = cu_type(blk_schid);
+    if (cutype == CU_TYPE_UNKNOWN) {
+        return -EIO;
+    }
 
     /*
      * Note: we always have to run virtio_is_supported() here to make
@@ -142,6 +158,7 @@ static void menu_setup(void)
 
     /* If loadparm was set to any other value, then do not enable menu */
     if (memcmp(loadparm_str, LOADPARM_EMPTY, LOADPARM_LEN) != 0) {
+        menu_set_parms(qipl.qipl_flags & ~BOOT_MENU_FLAG_MASK, 0);
         return;
     }
 
@@ -174,26 +191,34 @@ static void boot_setup(void)
 {
     char lpmsg[] = "LOADPARM=[________]\n";
 
-    sclp_get_loadparm_ascii(loadparm_str);
+    if (memcmp(iplb.loadparm, NO_LOADPARM, LOADPARM_LEN) != 0) {
+        ebcdic_to_ascii((char *) iplb.loadparm, loadparm_str, LOADPARM_LEN);
+    } else {
+        sclp_get_loadparm_ascii(loadparm_str);
+    }
+
+    if (have_iplb) {
+        menu_setup();
+    }
+
     memcpy(lpmsg + 10, loadparm_str, 8);
-    sclp_print(lpmsg);
+    puts(lpmsg);
 
     /*
      * Clear out any potential S390EP magic (see jump_to_low_kernel()),
      * so we don't taint our decision-making process during a reboot.
      */
     memset((char *)S390EP, 0, 6);
-
-    have_iplb = store_iplb(&iplb);
 }
 
-static void find_boot_device(void)
+static bool find_boot_device(void)
 {
     VDev *vdev = virtio_get_device();
-    bool found;
+    bool found = false;
 
     switch (iplb.pbt) {
     case S390_IPL_TYPE_CCW:
+        vdev->scsi_device_selected = false;
         debug_print_int("device no. ", iplb.ccw.devno);
         blk_schid.ssid = iplb.ccw.ssid & 0x3;
         debug_print_int("ssid ", blk_schid.ssid);
@@ -208,28 +233,20 @@ static void find_boot_device(void)
         found = find_subch(iplb.scsi.devno);
         break;
     default:
-        panic("List-directed IPL not supported yet!\n");
+        puts("Unsupported IPLB");
     }
 
-    IPL_assert(found, "Boot device not found\n");
+    return found;
 }
 
 static int virtio_setup(void)
 {
     VDev *vdev = virtio_get_device();
-    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
     int ret;
-
-    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
-
-    if (have_iplb) {
-        menu_setup();
-    }
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_NET:
-        sclp_print("Network boot device detected\n");
-        vdev->netboot_start_addr = qipl.netboot_start_addr;
+        puts("Network boot device detected");
         return 0;
     case VIRTIO_ID_BLOCK:
         ret = virtio_blk_setup_device(blk_schid);
@@ -238,11 +255,13 @@ static int virtio_setup(void)
         ret = virtio_scsi_setup_device(blk_schid);
         break;
     default:
-        panic("\n! No IPL device available !\n");
+        puts("\n! No IPL device available !\n");
+        return -1;
     }
 
-    if (!ret) {
-        IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
+    if (!ret && !virtio_ipl_disk_is_valid()) {
+        puts("No valid IPL device detected");
+        return -ENODEV;
     }
 
     return ret;
@@ -253,16 +272,15 @@ static void ipl_boot_device(void)
     switch (cutype) {
     case CU_TYPE_DASD_3990:
     case CU_TYPE_DASD_2107:
-        dasd_ipl(blk_schid, cutype); /* no return */
+        dasd_ipl(blk_schid, cutype);
         break;
     case CU_TYPE_VIRTIO:
         if (virtio_setup() == 0) {
-            zipl_load();             /* Only returns in case of errors */
+            zipl_load();
         }
         break;
     default:
-        print_int("Attempting to boot from unexpected device type", cutype);
-        panic("\nBoot failed.\n");
+        printf("Attempting to boot from unexpected device type 0x%X\n", cutype);
     }
 }
 
@@ -287,20 +305,27 @@ static void probe_boot_device(void)
         }
     }
 
-    sclp_print("Could not find a suitable boot device (none specified)\n");
+    puts("Could not find a suitable boot device (none specified)");
 }
 
 void main(void)
 {
+    copy_qipl();
     sclp_setup();
     css_setup();
-    boot_setup();
-    if (have_iplb) {
-        find_boot_device();
-        ipl_boot_device();
-    } else {
+    have_iplb = store_iplb(&iplb);
+    if (!have_iplb) {
         probe_boot_device();
     }
 
-    panic("Failed to load OS from hard disk\n");
+    while (have_iplb) {
+        boot_setup();
+        if (have_iplb && find_boot_device()) {
+            ipl_boot_device();
+        }
+        have_iplb = load_next_iplb();
+    }
+
+    panic("No suitable device for IPL. Halting...");
+
 }

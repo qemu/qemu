@@ -3,7 +3,7 @@ VPATH+=$(S390X_SRC)
 # EXTFLAGS can be passed by the user, e.g. to override the --accel
 QEMU_OPTS+=-action panic=exit-failure -nographic -serial chardev:output $(EXTFLAGS) -kernel
 LINK_SCRIPT=$(S390X_SRC)/softmmu.ld
-CFLAGS+=-ggdb -O0
+CFLAGS+=-ggdb -O0 -I$(SRC_PATH)/include/hw/s390x/ipl/
 LDFLAGS=-nostdlib -static
 
 %.o: %.S
