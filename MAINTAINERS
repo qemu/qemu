@@ -1495,7 +1495,6 @@ F: tests/functional/test_ppc64_hv.py
 F: tests/functional/test_ppc64_tuxrun.py
 
 PowerNV (Non-Virtualized)
-M: Cédric Le Goater <clg@kaod.org>
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Frédéric Barrat <fbarrat@linux.ibm.com>
 L: qemu-ppc@nongnu.org
