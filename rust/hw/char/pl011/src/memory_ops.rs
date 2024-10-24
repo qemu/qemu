@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use core::ptr::NonNull;
+use std::os::raw::{c_uint, c_void};
 
 use qemu_api::{bindings::*, zeroable::Zeroable};
 
@@ -22,11 +23,7 @@ pub static PL011_OPS: MemoryRegionOps = MemoryRegionOps {
     },
 };
 
-unsafe extern "C" fn pl011_read(
-    opaque: *mut core::ffi::c_void,
-    addr: hwaddr,
-    size: core::ffi::c_uint,
-) -> u64 {
+unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint) -> u64 {
     assert!(!opaque.is_null());
     let mut state = unsafe { NonNull::new_unchecked(opaque.cast::<PL011State>()) };
     let val = unsafe { state.as_mut().read(addr, size) };
@@ -43,12 +40,7 @@ unsafe extern "C" fn pl011_read(
     }
 }
 
-unsafe extern "C" fn pl011_write(
-    opaque: *mut core::ffi::c_void,
-    addr: hwaddr,
-    data: u64,
-    _size: core::ffi::c_uint,
-) {
+unsafe extern "C" fn pl011_write(opaque: *mut c_void, addr: hwaddr, data: u64, _size: c_uint) {
     unsafe {
         assert!(!opaque.is_null());
         let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());

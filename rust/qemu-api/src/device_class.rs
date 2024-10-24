@@ -7,7 +7,7 @@ macro_rules! device_class_init {
     ($func:ident, props => $props:ident, realize_fn => $realize_fn:expr, legacy_reset_fn => $legacy_reset_fn:expr, vmsd => $vmsd:ident$(,)*) => {
         pub unsafe extern "C" fn $func(
             klass: *mut $crate::bindings::ObjectClass,
-            _: *mut ::core::ffi::c_void,
+            _: *mut ::std::os::raw::c_void,
         ) {
             let mut dc =
                 ::core::ptr::NonNull::new(klass.cast::<$crate::bindings::DeviceClass>()).unwrap();
@@ -26,7 +26,7 @@ macro_rules! define_property {
     ($name:expr, $state:ty, $field:expr, $prop:expr, $type:expr, default = $defval:expr$(,)*) => {
         $crate::bindings::Property {
             // use associated function syntax for type checking
-            name: ::core::ffi::CStr::as_ptr($name),
+            name: ::std::ffi::CStr::as_ptr($name),
             info: $prop,
             offset: ::core::mem::offset_of!($state, $field) as isize,
             set_default: true,
@@ -37,7 +37,7 @@ macro_rules! define_property {
     ($name:expr, $state:ty, $field:expr, $prop:expr, $type:expr$(,)*) => {
         $crate::bindings::Property {
             // use associated function syntax for type checking
-            name: ::core::ffi::CStr::as_ptr($name),
+            name: ::std::ffi::CStr::as_ptr($name),
             info: $prop,
             offset: ::core::mem::offset_of!($state, $field) as isize,
             set_default: false,

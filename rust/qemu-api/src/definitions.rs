@@ -4,7 +4,7 @@
 
 //! Definitions required by QEMU when registering a device.
 
-use ::core::ffi::{c_void, CStr};
+use std::{ffi::CStr, os::raw::c_void};
 
 use crate::bindings::{Object, ObjectClass, TypeInfo};
 

@@ -2,9 +2,10 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::{
-    ffi::{c_int, c_uchar, c_uint, c_void, CStr},
-    ptr::{addr_of, addr_of_mut, NonNull},
+use core::ptr::{addr_of, addr_of_mut, NonNull};
+use std::{
+    ffi::CStr,
+    os::raw::{c_int, c_uchar, c_uint, c_void},
 };
 
 use qemu_api::{
@@ -117,11 +118,10 @@ pub struct PL011Class {
 }
 
 impl qemu_api::definitions::Class for PL011Class {
-    const CLASS_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
-    > = Some(crate::device_class::pl011_class_init);
+    const CLASS_INIT: Option<unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void)> =
+        Some(crate::device_class::pl011_class_init);
     const CLASS_BASE_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
     > = None;
 }
 
@@ -176,11 +176,7 @@ impl PL011State {
         }
     }
 
-    pub fn read(
-        &mut self,
-        offset: hwaddr,
-        _size: core::ffi::c_uint,
-    ) -> std::ops::ControlFlow<u64, u64> {
+    pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
         use RegisterOffset::*;
 
         std::ops::ControlFlow::Break(match RegisterOffset::try_from(offset) {
@@ -562,11 +558,7 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 /// readable/writeable from one thread at any time.
 ///
 /// The buffer and size arguments must also be valid.
-pub unsafe extern "C" fn pl011_receive(
-    opaque: *mut core::ffi::c_void,
-    buf: *const u8,
-    size: core::ffi::c_int,
-) {
+pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
     unsafe {
         debug_assert!(!opaque.is_null());
         let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
@@ -585,7 +577,7 @@ pub unsafe extern "C" fn pl011_receive(
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-pub unsafe extern "C" fn pl011_event(opaque: *mut core::ffi::c_void, event: QEMUChrEvent) {
+pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
     unsafe {
         debug_assert!(!opaque.is_null());
         let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
@@ -656,11 +648,10 @@ pub unsafe extern "C" fn pl011_luminary_init(obj: *mut Object) {
 }
 
 impl qemu_api::definitions::Class for PL011LuminaryClass {
-    const CLASS_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
-    > = None;
+    const CLASS_INIT: Option<unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void)> =
+        None;
     const CLASS_BASE_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
     > = None;
 }
 

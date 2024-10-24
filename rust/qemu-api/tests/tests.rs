@@ -2,7 +2,7 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::ffi::CStr;
+use std::{ffi::CStr, os::raw::c_void};
 
 use qemu_api::{
     bindings::*,
@@ -64,11 +64,10 @@ fn test_device_decl_macros() {
     }
 
     impl Class for DummyClass {
-        const CLASS_INIT: Option<
-            unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
-        > = Some(dummy_class_init);
+        const CLASS_INIT: Option<unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void)> =
+            Some(dummy_class_init);
         const CLASS_BASE_INIT: Option<
-            unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+            unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
         > = None;
     }
 

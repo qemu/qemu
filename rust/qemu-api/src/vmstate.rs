@@ -56,7 +56,7 @@ macro_rules! vmstate_single_test {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), 0)
                 .as_bytes()
-                .as_ptr() as *const ::core::ffi::c_char,
+                .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
             offset: ::core::mem::offset_of!($struct_name, $field_name),
             size: $size,
@@ -133,7 +133,7 @@ macro_rules! vmstate_array {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), 0)
                 .as_bytes()
-                .as_ptr() as *const ::core::ffi::c_char,
+                .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
             offset: ::core::mem::offset_of!($struct_name, $field_name),
             size: $size,
@@ -181,7 +181,7 @@ macro_rules! vmstate_struct_pointer_v {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), 0)
                 .as_bytes()
-                .as_ptr() as *const ::core::ffi::c_char,
+                .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
             offset: ::core::mem::offset_of!($struct_name, $field_name),
             size: ::core::mem::size_of::<*const $type>(),
@@ -206,7 +206,7 @@ macro_rules! vmstate_array_of_pointer {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), 0)
                 .as_bytes()
-                .as_ptr() as *const ::core::ffi::c_char,
+                .as_ptr() as *const ::std::os::raw::c_char,
             version_id: $version_id,
             num: $num as _,
             info: unsafe { $info },
@@ -231,7 +231,7 @@ macro_rules! vmstate_array_of_pointer_to_struct {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), 0)
                 .as_bytes()
-                .as_ptr() as *const ::core::ffi::c_char,
+                .as_ptr() as *const ::std::os::raw::c_char,
             version_id: $version_id,
             num: $num as _,
             vmsd: unsafe { $vmsd },
