@@ -1344,7 +1344,7 @@ static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
     if (insn & (1U << 31)) {
         /* BL Branch with link */
         if (use_qasan && qasan_max_call_stack)
-          gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc_curr));
+          gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc_curr + 4));
         tcg_gen_movi_i64(cpu_reg(s, 30), s->base.pc_next);
     }
 
@@ -2253,7 +2253,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
           if (opc == 2 && rn == 30)
             gen_helper_qasan_shadow_stack_pop(cpu_reg(s, 30));
           else if (opc == 1)
-            gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc_curr));
+            gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc_curr + 4));
         }
         gen_a64_set_pc(s, dst);
         /* BLR also needs to load return address */
