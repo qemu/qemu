@@ -93,6 +93,7 @@ name = "qemu_api"
 version = "0.1.0"
 dependencies = [
  "qemu_api_macros",
+ "version_check",
 ]
 
 [[package]]

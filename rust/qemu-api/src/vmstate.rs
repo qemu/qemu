@@ -58,7 +58,7 @@ macro_rules! vmstate_single_test {
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
-            offset: ::core::mem::offset_of!($struct_name, $field_name),
+            offset: $crate::offset_of!($struct_name, $field_name),
             size: $size,
             start: 0,
             num: 0,
@@ -135,7 +135,7 @@ macro_rules! vmstate_array {
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
-            offset: ::core::mem::offset_of!($struct_name, $field_name),
+            offset: $crate::offset_of!($struct_name, $field_name),
             size: $size,
             start: 0,
             num: $length as _,
@@ -183,7 +183,7 @@ macro_rules! vmstate_struct_pointer_v {
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             err_hint: ::core::ptr::null(),
-            offset: ::core::mem::offset_of!($struct_name, $field_name),
+            offset: $crate::offset_of!($struct_name, $field_name),
             size: ::core::mem::size_of::<*const $type>(),
             start: 0,
             num: 0,
@@ -212,7 +212,7 @@ macro_rules! vmstate_array_of_pointer {
             info: unsafe { $info },
             size: ::core::mem::size_of::<*const $type>(),
             flags: VMStateFlags(VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_ARRAY_OF_POINTER.0),
-            offset: ::core::mem::offset_of!($struct_name, $field_name),
+            offset: $crate::offset_of!($struct_name, $field_name),
             err_hint: ::core::ptr::null(),
             start: 0,
             num_offset: 0,
@@ -241,7 +241,7 @@ macro_rules! vmstate_array_of_pointer_to_struct {
                     | VMStateFlags::VMS_STRUCT.0
                     | VMStateFlags::VMS_ARRAY_OF_POINTER.0,
             ),
-            offset: ::core::mem::offset_of!($struct_name, $field_name),
+            offset: $crate::offset_of!($struct_name, $field_name),
             err_hint: ::core::ptr::null(),
             start: 0,
             num_offset: 0,

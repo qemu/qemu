@@ -21,6 +21,7 @@ fn test_device_decl_macros() {
         ..Zeroable::ZERO
     };
 
+    #[derive(qemu_api_macros::offsets)]
     #[repr(C)]
     #[derive(qemu_api_macros::Object)]
     pub struct DummyState {

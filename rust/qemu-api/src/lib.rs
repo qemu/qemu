@@ -32,6 +32,7 @@ unsafe impl Sync for bindings::VMStateInfo {}
 pub mod c_str;
 pub mod definitions;
 pub mod device_class;
+pub mod offset_of;
 pub mod vmstate;
 pub mod zeroable;
 
@@ -169,3 +170,6 @@ unsafe impl GlobalAlloc for QemuAllocator {
         }
     }
 }
+
+#[cfg(has_offset_of)]
+pub use core::mem::offset_of;
