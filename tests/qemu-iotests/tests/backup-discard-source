@@ -28,20 +28,14 @@ from iotests import qemu_img_create, qemu_img_map, qemu_io
 temp_img = os.path.join(iotests.test_dir, 'temp')
 source_img = os.path.join(iotests.test_dir, 'source')
 target_img = os.path.join(iotests.test_dir, 'target')
-size = '1M'
-
-
-def get_actual_size(vm, node_name):
-    nodes = vm.cmd('query-named-block-nodes', flat=True)
-    node = next(n for n in nodes if n['node-name'] == node_name)
-    return node['image']['actual-size']
+size = 1024 * 1024
 
 
 class TestBackup(iotests.QMPTestCase):
     def setUp(self):
-        qemu_img_create('-f', iotests.imgfmt, source_img, size)
-        qemu_img_create('-f', iotests.imgfmt, temp_img, size)
-        qemu_img_create('-f', iotests.imgfmt, target_img, size)
+        qemu_img_create('-f', iotests.imgfmt, source_img, str(size))
+        qemu_img_create('-f', iotests.imgfmt, temp_img, str(size))
+        qemu_img_create('-f', iotests.imgfmt, target_img, str(size))
         qemu_io('-c', 'write 0 1M', source_img)
 
         self.vm = iotests.VM()
@@ -84,7 +78,12 @@ class TestBackup(iotests.QMPTestCase):
             }
         })
 
-        self.assertLess(get_actual_size(self.vm, 'temp'), 512 * 1024)
+        self.bitmap = {
+            'node': 'temp',
+            'name': 'bitmap0'
+        }
+
+        self.vm.cmd('block-dirty-bitmap-add', self.bitmap)
 
     def tearDown(self):
         # That should fail, because region is discarded
@@ -98,7 +97,7 @@ class TestBackup(iotests.QMPTestCase):
         mapping = qemu_img_map(temp_img)
         self.assertEqual(len(mapping), 1)
         self.assertEqual(mapping[0]['start'], 0)
-        self.assertEqual(mapping[0]['length'], 1024 * 1024)
+        self.assertEqual(mapping[0]['length'], size)
         self.assertEqual(mapping[0]['data'], False)
 
         os.remove(temp_img)
@@ -113,6 +112,13 @@ class TestBackup(iotests.QMPTestCase):
 
         self.vm.event_wait(name='BLOCK_JOB_COMPLETED')
 
+    def get_bitmap_count(self):
+        nodes = self.vm.cmd('query-named-block-nodes', flat=True)
+        temp = next(n for n in nodes if n['node-name'] == 'temp')
+        bitmap = temp['dirty-bitmaps'][0]
+        assert bitmap['name'] == self.bitmap['name']
+        return bitmap['count']
+
     def test_discard_written(self):
         """
         1. Guest writes
@@ -125,7 +131,7 @@ class TestBackup(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', '')
 
         # Check that data is written to temporary image
-        self.assertGreater(get_actual_size(self.vm, 'temp'), 1024 * 1024)
+        self.assertEqual(self.get_bitmap_count(), size)
 
         self.do_backup()
 
@@ -138,13 +144,18 @@ class TestBackup(iotests.QMPTestCase):
         """
         self.do_backup()
 
+        # backup job did discard operation and pollute the bitmap,
+        # we have to clean the bitmap, to check next write
+        self.assertEqual(self.get_bitmap_count(), size)
+        self.vm.cmd('block-dirty-bitmap-clear', self.bitmap)
+
         # Try trigger copy-before-write operation
         result = self.vm.hmp_qemu_io('cbw', 'write 0 1M')
         self.assert_qmp(result, 'return', '')
 
         # Check that data is not written to temporary image, as region
         # is discarded from copy-before-write process
-        self.assertLess(get_actual_size(self.vm, 'temp'), 512 * 1024)
+        self.assertEqual(self.get_bitmap_count(), 0)
 
 
 if __name__ == '__main__':

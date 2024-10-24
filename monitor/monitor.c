@@ -308,6 +308,7 @@ int error_printf_unless_qmp(const char *fmt, ...)
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
     [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
+    [QAPI_EVENT_BLOCK_IO_ERROR]    = { 1000 * SCALE_MS },
     [QAPI_EVENT_WATCHDOG]          = { 1000 * SCALE_MS },
     [QAPI_EVENT_BALLOON_CHANGE]    = { 1000 * SCALE_MS },
     [QAPI_EVENT_QUORUM_REPORT_BAD] = { 1000 * SCALE_MS },
@@ -493,7 +494,8 @@ static unsigned int qapi_event_throttle_hash(const void *key)
         hash += g_str_hash(qdict_get_str(evstate->data, "node-name"));
     }
 
-    if (evstate->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE) {
+    if (evstate->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE ||
+        evstate->event == QAPI_EVENT_BLOCK_IO_ERROR) {
         hash += g_str_hash(qdict_get_str(evstate->data, "qom-path"));
     }
 
@@ -519,7 +521,8 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
                        qdict_get_str(evb->data, "node-name"));
     }
 
-    if (eva->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE) {
+    if (eva->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE ||
+        eva->event == QAPI_EVENT_BLOCK_IO_ERROR) {
         return !strcmp(qdict_get_str(eva->data, "qom-path"),
                        qdict_get_str(evb->data, "qom-path"));
     }
