@@ -3488,7 +3488,6 @@ static void *migration_thread(void *opaque)
 
     rcu_register_thread();
 
-    object_ref(OBJECT(s));
     update_iteration_initial_status(s);
 
     if (!multifd_send_setup()) {
@@ -3626,7 +3625,6 @@ static void *bg_migration_thread(void *opaque)
     int ret;
 
     rcu_register_thread();
-    object_ref(OBJECT(s));
 
     migration_rate_set(RATE_LIMIT_DISABLED);
 
@@ -3837,6 +3835,14 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
             goto fail;
         }
     }
+
+    /*
+     * Take a refcount to make sure the migration object won't get freed by
+     * the main thread already in migration_shutdown().
+     *
+     * The refcount will be released at the end of the thread function.
+     */
+    object_ref(OBJECT(s));
 
     if (migrate_background_snapshot()) {
         qemu_thread_create(&s->thread, MIGRATION_THREAD_SNAPSHOT,
