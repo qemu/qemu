@@ -27,7 +27,9 @@ sub_file="${sub_tdir}/submodule.tar"
 # in their checkout, because the build environment is completely
 # different to the host OS.
 subprojects="keycodemapdb libvfio-user berkeley-softfloat-3
-  berkeley-testfloat-3 proc-macro2-1-rs quote-1-rs
+  berkeley-testfloat-3 arbitrary-int-1-rs bilge-0.2-rs
+  bilge-impl-0.2-rs either-1-rs itertools-0.11-rs proc-macro2-1-rs
+  proc-macro-error-1-rs proc-macro-error-attr-1-rs quote-1-rs
   syn-2-rs unicode-ident-1-rs"
 sub_deinit=""
 

@@ -3540,6 +3540,7 @@ qom_ss = ss.source_set()
 system_ss = ss.source_set()
 specific_fuzz_ss = ss.source_set()
 specific_ss = ss.source_set()
+rust_devices_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
 user_ss = ss.source_set()
@@ -4086,6 +4087,29 @@ foreach target : target_dirs
   target_specific = specific_ss.apply(config_target, strict: false)
   arch_srcs += target_specific.sources()
   arch_deps += target_specific.dependencies()
+
+  if have_rust and have_system
+    target_rust = rust_devices_ss.apply(config_target, strict: false)
+    crates = []
+    foreach dep : target_rust.dependencies()
+      crates += dep.get_variable('crate')
+    endforeach
+    if crates.length() > 0
+      rlib_rs = custom_target('rust_' + target.underscorify() + '.rs',
+                              output: 'rust_' + target.underscorify() + '.rs',
+                              command: [find_program('scripts/rust/rust_root_crate.sh')] + crates,
+                              capture: true,
+                              build_by_default: true,
+                              build_always_stale: true)
+      rlib = static_library('rust_' + target.underscorify(),
+                            rlib_rs,
+                            dependencies: target_rust.dependencies(),
+                            override_options: ['rust_std=2021', 'build.rust_std=2021'],
+                            rust_args: rustc_args,
+                            rust_abi: 'c')
+      arch_deps += declare_dependency(link_whole: [rlib])
+    endif
+  endif
 
   # allow using headers from the dependencies but do not include the sources,
   # because this emulator only needs those in "objects".  For external
