@@ -552,4 +552,8 @@ int migration_rp_wait(MigrationState *s);
 void migration_rp_kick(MigrationState *s);
 
 void migration_bitmap_sync_precopy(bool last_stage);
+
+/* migration/block-dirty-bitmap.c */
+void dirty_bitmap_mig_init(void);
+
 #endif
