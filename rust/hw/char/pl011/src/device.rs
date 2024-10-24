@@ -19,10 +19,10 @@ use crate::{
 };
 
 /// Integer Baud Rate Divider, `UARTIBRD`
-const IBRD_MASK: u32 = 0x3f;
+const IBRD_MASK: u32 = 0xffff;
 
 /// Fractional Baud Rate Divider, `UARTFBRD`
-const FBRD_MASK: u32 = 0xffff;
+const FBRD_MASK: u32 = 0x3f;
 
 const DATA_BREAK: u32 = 1 << 10;
 
