@@ -2750,9 +2750,9 @@ struct target_sched_param {
 
 /* from kernel's include/uapi/linux/openat2.h */
 struct open_how_ver0 {
-    __u64 flags;
-    __u64 mode;
-    __u64 resolve;
+    uint64_t flags;
+    uint64_t mode;
+    uint64_t resolve;
 };
 struct target_open_how_ver0 {
     abi_ullong flags;

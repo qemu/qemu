@@ -4,6 +4,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "host/cpuinfo.h"
 
 #ifdef CONFIG_ASM_HWPROBE_H
@@ -13,6 +14,7 @@
 #endif
 
 unsigned cpuinfo;
+unsigned riscv_lg2_vlenb;
 static volatile sig_atomic_t got_sigill;
 
 static void sigill_handler(int signo, siginfo_t *si, void *data)
@@ -34,7 +36,7 @@ static void sigill_handler(int signo, siginfo_t *si, void *data)
 /* Called both as constructor and (possibly) via other constructors. */
 unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
-    unsigned left = CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZICOND;
+    unsigned left = CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZICOND | CPUINFO_ZVE64X;
     unsigned info = cpuinfo;
 
     if (info) {
@@ -50,6 +52,10 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 #endif
 #if defined(__riscv_arch_test) && defined(__riscv_zicond)
     info |= CPUINFO_ZICOND;
+#endif
+#if defined(__riscv_arch_test) && \
+    (defined(__riscv_vector) || defined(__riscv_zve64x))
+    info |= CPUINFO_ZVE64X;
 #endif
     left &= ~info;
 
@@ -70,9 +76,20 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
             info |= pair.value & RISCV_HWPROBE_EXT_ZICOND ? CPUINFO_ZICOND : 0;
             left &= ~CPUINFO_ZICOND;
 #endif
+            /* For rv64, V is Zve64d, a superset of Zve64x. */
+            info |= pair.value & RISCV_HWPROBE_IMA_V ? CPUINFO_ZVE64X : 0;
+#ifdef RISCV_HWPROBE_EXT_ZVE64X
+            info |= pair.value & RISCV_HWPROBE_EXT_ZVE64X ? CPUINFO_ZVE64X : 0;
+#endif
         }
     }
 #endif /* CONFIG_ASM_HWPROBE_H */
+
+    /*
+     * We only detect support for vectors with hwprobe.  All kernels with
+     * support for vectors in userspace also support the hwprobe syscall.
+     */
+    left &= ~CPUINFO_ZVE64X;
 
     if (left) {
         struct sigaction sa_old, sa_new;
@@ -111,6 +128,21 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
 
         sigaction(SIGILL, &sa_old, NULL);
         assert(left == 0);
+    }
+
+    if (info & CPUINFO_ZVE64X) {
+        /*
+         * We are guaranteed by RVV-1.0 that VLEN is a power of 2.
+         * We are guaranteed by Zve64x that VLEN >= 64, and that
+         * EEW of {8,16,32,64} are supported.
+         */
+        unsigned long vlenb;
+        /* csrr %0, vlenb */
+        asm volatile(".insn i 0x73, 0x2, %0, zero, -990" : "=r"(vlenb));
+        assert(vlenb >= 8);
+        assert(is_power_of_2(vlenb));
+        /* Cache VLEN in a convenient form. */
+        riscv_lg2_vlenb = ctz32(vlenb);
     }
 
     info |= CPUINFO_ALWAYS;

@@ -161,19 +161,20 @@ static const char * const target_signal_name[] = {
 };
 
 static void
+print_signal_1(abi_ulong arg)
+{
+    if (arg < ARRAY_SIZE(target_signal_name)) {
+        qemu_log("%s", target_signal_name[arg]);
+    } else {
+        qemu_log(TARGET_ABI_FMT_lu, arg);
+    }
+}
+
+static void
 print_signal(abi_ulong arg, int last)
 {
-    const char *signal_name = NULL;
-
-    if (arg < ARRAY_SIZE(target_signal_name)) {
-        signal_name = target_signal_name[arg];
-    }
-
-    if (signal_name == NULL) {
-        print_raw_param("%ld", arg, last);
-        return;
-    }
-    qemu_log("%s%s", signal_name, get_comma(last));
+    print_signal_1(arg);
+    qemu_log("%s", get_comma(last));
 }
 
 static void print_si_code(int arg)
@@ -714,6 +715,51 @@ print_ipc(CPUArchState *cpu_env, const struct syscallname *name,
                   TARGET_ABI_FMT_ld
                   ")"),
                  name->name, arg1, arg2, arg3, arg4);
+    }
+}
+#endif
+
+#ifdef TARGET_NR_rt_sigprocmask
+static void print_target_sigset_t_1(target_sigset_t *set, int last)
+{
+    bool first = true;
+    int i, sig = 1;
+
+    qemu_log("[");
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        abi_ulong bits = 0;
+        int j;
+
+        __get_user(bits, &set->sig[i]);
+        for (j = 0; j < sizeof(bits) * 8; j++) {
+            if (bits & ((abi_ulong)1 << j)) {
+                if (first) {
+                    first = false;
+                } else {
+                    qemu_log(" ");
+                }
+                print_signal_1(sig);
+            }
+            sig++;
+        }
+    }
+    qemu_log("]%s", get_comma(last));
+}
+
+static void print_target_sigset_t(abi_ulong addr, abi_ulong size, int last)
+{
+    if (addr && size == sizeof(target_sigset_t)) {
+        target_sigset_t *set;
+
+        set = lock_user(VERIFY_READ, addr, sizeof(target_sigset_t), 1);
+        if (set) {
+            print_target_sigset_t_1(set, last);
+            unlock_user(set, addr, 0);
+        } else {
+            print_pointer(addr, last);
+        }
+    } else {
+        print_pointer(addr, last);
     }
 }
 #endif
@@ -3312,10 +3358,28 @@ print_rt_sigprocmask(CPUArchState *cpu_env, const struct syscallname *name,
     case TARGET_SIG_SETMASK: how = "SIG_SETMASK"; break;
     }
     qemu_log("%s,", how);
-    print_pointer(arg1, 0);
+    print_target_sigset_t(arg1, arg3, 0);
     print_pointer(arg2, 0);
     print_raw_param("%u", arg3, 1);
     print_syscall_epilogue(name);
+}
+
+static void
+print_rt_sigprocmask_ret(CPUArchState *cpu_env, const struct syscallname *name,
+                         abi_long ret, abi_long arg0, abi_long arg1,
+                         abi_long arg2, abi_long arg3, abi_long arg4,
+                         abi_long arg5)
+{
+    if (!print_syscall_err(ret)) {
+        qemu_log(TARGET_ABI_FMT_ld, ret);
+        if (arg2) {
+            qemu_log(" (oldset=");
+            print_target_sigset_t(arg2, arg3, 1);
+            qemu_log(")");
+        }
+    }
+
+    qemu_log("\n");
 }
 #endif
 

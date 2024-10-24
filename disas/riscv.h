@@ -290,7 +290,7 @@ enum {
 #define rv_fmt_fd_vs2                 "O\t3,F"
 #define rv_fmt_vd_vm                  "O\tDm"
 #define rv_fmt_vsetvli                "O\t0,1,v"
-#define rv_fmt_vsetivli               "O\t0,u,v"
+#define rv_fmt_vsetivli               "O\t0,i,v"
 #define rv_fmt_rs1_rs2_zce_ldst       "O\t2,i(1)"
 #define rv_fmt_push_rlist             "O\tx,-i"
 #define rv_fmt_pop_rlist              "O\tx,i"
