@@ -102,9 +102,6 @@ impl qemu_api::definitions::Class for PL011Class {
     > = None;
 }
 
-#[used]
-pub static CLK_NAME: &CStr = c"clk";
-
 impl PL011State {
     /// Initializes a pre-allocated, unitialized instance of `PL011State`.
     ///
@@ -114,7 +111,9 @@ impl PL011State {
     /// `PL011State` type. It must not be called more than once on the same
     /// location/instance. All its fields are expected to hold unitialized
     /// values with the sole exception of `parent_obj`.
-    pub unsafe fn init(&mut self) {
+    unsafe fn init(&mut self) {
+        const CLK_NAME: &CStr = c"clk";
+
         let dev = addr_of_mut!(*self).cast::<DeviceState>();
         // SAFETY:
         //
