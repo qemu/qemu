@@ -20,6 +20,3 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = "2"
-
-# Do not include in any global workspace
-[workspace]

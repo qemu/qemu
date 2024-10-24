@@ -20,8 +20,5 @@ qemu_api_macros = { path = "../qemu-api-macros" }
 default = []
 allocator = []
 
-# Do not include in any global workspace
-[workspace]
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(MESON)', 'cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)'] }
