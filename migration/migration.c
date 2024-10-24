@@ -1633,25 +1633,6 @@ bool migration_in_bg_snapshot(void)
     return migrate_background_snapshot() && migration_is_running();
 }
 
-bool migration_is_idle(void)
-{
-    MigrationState *s = current_migration;
-
-    if (!s) {
-        return true;
-    }
-
-    switch (s->state) {
-    case MIGRATION_STATUS_NONE:
-    case MIGRATION_STATUS_CANCELLED:
-    case MIGRATION_STATUS_COMPLETED:
-    case MIGRATION_STATUS_FAILED:
-        return true;
-    default:
-        return false;
-    }
-}
-
 bool migration_is_active(void)
 {
     MigrationState *s = current_migration;
@@ -1730,7 +1711,7 @@ static bool is_busy(Error **reasonp, Error **errp)
     ERRP_GUARD();
 
     /* Snapshots are similar to migrations, so check RUN_STATE_SAVE_VM too. */
-    if (runstate_check(RUN_STATE_SAVE_VM) || !migration_is_idle()) {
+    if (runstate_check(RUN_STATE_SAVE_VM) || migration_is_running()) {
         error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(migration/snapshot in progress) for: ");

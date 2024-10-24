@@ -679,7 +679,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         return NULL;
     }
 
-    if (!migration_is_idle()) {
+    if (migration_is_running()) {
         error_setg(errp, "device_add not allowed while migrating");
         return NULL;
     }
@@ -928,7 +928,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!migration_is_idle() && !dev->allow_unplug_during_migration) {
+    if (migration_is_running() && !dev->allow_unplug_during_migration) {
         error_setg(errp, "device_del not allowed while migrating");
         return;
     }

@@ -4498,7 +4498,7 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
         return;
     }
 
-    if (!migration_is_idle()) {
+    if (migration_is_running()) {
         /*
          * Precopy code on the source cannot deal with the size of RAM blocks
          * changing at random points in time - especially after sending the

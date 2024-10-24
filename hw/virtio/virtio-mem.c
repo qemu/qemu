@@ -188,7 +188,7 @@ static bool virtio_mem_is_busy(void)
      * after plugging them) until we're running on the destination (as we didn't
      * migrate these blocks when they were unplugged).
      */
-    return migration_in_incoming_postcopy() || !migration_is_idle();
+    return migration_in_incoming_postcopy() || migration_is_running();
 }
 
 typedef int (*virtio_mem_range_cb)(VirtIOMEM *vmem, void *arg,
