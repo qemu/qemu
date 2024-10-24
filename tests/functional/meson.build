@@ -162,6 +162,9 @@ tests_sh4_system_thorough = [
   'sh4_tuxrun',
 ]
 
+tests_sh4eb_system_thorough = [
+  'sh4eb_r2d',
+]
 
 tests_sparc_system_thorough = [
   'sparc_sun4m',
