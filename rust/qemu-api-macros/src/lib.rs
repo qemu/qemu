@@ -32,18 +32,23 @@ fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), CompileError> {
     }
 }
 
-#[proc_macro_derive(Object)]
-pub fn derive_object(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = input.ident;
+fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, CompileError> {
+    is_c_repr(&input, "#[derive(Object)]")?;
 
-    let expanded = quote! {
+    let name = &input.ident;
+    Ok(quote! {
         ::qemu_api::module_init! {
             MODULE_INIT_QOM => unsafe {
                 ::qemu_api::bindings::type_register_static(&<#name as ::qemu_api::qom::ObjectImpl>::TYPE_INFO);
             }
         }
-    };
+    })
+}
+
+#[proc_macro_derive(Object)]
+pub fn derive_object(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let expanded = derive_object_or_error(input).unwrap_or_else(Into::into);
 
     TokenStream::from(expanded)
 }
