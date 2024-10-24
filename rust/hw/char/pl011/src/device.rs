@@ -192,7 +192,6 @@ impl PL011State {
                 0
             }
             Ok(DR) => {
-                // s->flags &= ~PL011_FLAG_RXFF;
                 self.flags.set_receive_fifo_full(false);
                 let c = self.read_fifo[self.read_pos];
                 if self.read_count > 0 {
@@ -200,11 +199,9 @@ impl PL011State {
                     self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
                 }
                 if self.read_count == 0 {
-                    // self.flags |= PL011_FLAG_RXFE;
                     self.flags.set_receive_fifo_empty(true);
                 }
                 if self.read_count + 1 == self.read_trigger {
-                    //self.int_level &= ~ INT_RX;
                     self.int_level &= !registers::INT_RX;
                 }
                 // Update error bits.
@@ -374,13 +371,6 @@ impl PL011State {
          * dealt with here.
          */
 
-        //fr = s->flags & ~(PL011_FLAG_RI | PL011_FLAG_DCD |
-        //                  PL011_FLAG_DSR | PL011_FLAG_CTS);
-        //fr |= (cr & CR_OUT2) ? PL011_FLAG_RI  : 0;
-        //fr |= (cr & CR_OUT1) ? PL011_FLAG_DCD : 0;
-        //fr |= (cr & CR_RTS)  ? PL011_FLAG_CTS : 0;
-        //fr |= (cr & CR_DTR)  ? PL011_FLAG_DSR : 0;
-        //
         self.flags.set_ring_indicator(self.control.out_2());
         self.flags.set_data_carrier_detect(self.control.out_1());
         self.flags.set_clear_to_send(self.control.request_to_send());
@@ -391,10 +381,6 @@ impl PL011State {
         let mut il = self.int_level;
 
         il &= !Interrupt::MS;
-        //il |= (fr & PL011_FLAG_DSR) ? INT_DSR : 0;
-        //il |= (fr & PL011_FLAG_DCD) ? INT_DCD : 0;
-        //il |= (fr & PL011_FLAG_CTS) ? INT_CTS : 0;
-        //il |= (fr & PL011_FLAG_RI)  ? INT_RI  : 0;
 
         if self.flags.data_set_ready() {
             il |= Interrupt::DSR as u32;
@@ -500,10 +486,8 @@ impl PL011State {
         let slot = (self.read_pos + self.read_count) & (depth - 1);
         self.read_fifo[slot] = value;
         self.read_count += 1;
-        // s->flags &= ~PL011_FLAG_RXFE;
         self.flags.set_receive_fifo_empty(false);
         if self.read_count == depth {
-            //s->flags |= PL011_FLAG_RXFF;
             self.flags.set_receive_fifo_full(true);
         }
 
