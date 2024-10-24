@@ -1113,33 +1113,6 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
     migrate_send_rp_message(mis, MIG_RP_MSG_RESUME_ACK, sizeof(buf), &buf);
 }
 
-/*
- * Return true if we're already in the middle of a migration
- * (i.e. any of the active or setup states)
- */
-bool migration_is_setup_or_active(void)
-{
-    MigrationState *s = current_migration;
-
-    switch (s->state) {
-    case MIGRATION_STATUS_ACTIVE:
-    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
-    case MIGRATION_STATUS_POSTCOPY_PAUSED:
-    case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
-    case MIGRATION_STATUS_POSTCOPY_RECOVER:
-    case MIGRATION_STATUS_SETUP:
-    case MIGRATION_STATUS_PRE_SWITCHOVER:
-    case MIGRATION_STATUS_DEVICE:
-    case MIGRATION_STATUS_WAIT_UNPLUG:
-    case MIGRATION_STATUS_COLO:
-        return true;
-
-    default:
-        return false;
-
-    }
-}
-
 bool migration_is_running(void)
 {
     MigrationState *s = current_migration;
@@ -1155,11 +1128,10 @@ bool migration_is_running(void)
     case MIGRATION_STATUS_DEVICE:
     case MIGRATION_STATUS_WAIT_UNPLUG:
     case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_COLO:
         return true;
-
     default:
         return false;
-
     }
 }
 
@@ -1658,8 +1630,7 @@ bool migration_incoming_postcopy_advised(void)
 
 bool migration_in_bg_snapshot(void)
 {
-    return migrate_background_snapshot() &&
-           migration_is_setup_or_active();
+    return migrate_background_snapshot() && migration_is_running();
 }
 
 bool migration_is_idle(void)
@@ -2332,7 +2303,7 @@ static void *source_return_path_thread(void *opaque)
     trace_source_return_path_thread_entry();
     rcu_register_thread();
 
-    while (migration_is_setup_or_active()) {
+    while (migration_is_running()) {
         trace_source_return_path_thread_loop_top();
 
         header_type = qemu_get_be16(rp);
