@@ -150,9 +150,17 @@ int qcrypto_nettle_hash_finalize(QCryptoHash *hash,
                                  Error **errp)
 {
     union qcrypto_hash_ctx *ctx = hash->opaque;
+    int ret = qcrypto_hash_alg_map[hash->alg].len;
 
-    *result_len = qcrypto_hash_alg_map[hash->alg].len;
-    *result = g_new(uint8_t, *result_len);
+    if (*result_len == 0) {
+        *result_len = ret;
+        *result = g_new(uint8_t, *result_len);
+    } else if (*result_len != ret) {
+        error_setg(errp,
+                   "Result buffer size %zu is smaller than hash %d",
+                   *result_len, ret);
+        return -1;
+    }
 
     qcrypto_hash_alg_map[hash->alg].result(ctx, *result_len, *result);
 

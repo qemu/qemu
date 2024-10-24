@@ -103,16 +103,25 @@ int qcrypto_gcrypt_hash_finalize(QCryptoHash *hash,
                                  size_t *result_len,
                                  Error **errp)
 {
+    int ret;
     unsigned char *digest;
     gcry_md_hd_t *ctx = hash->opaque;
 
-    *result_len = gcry_md_get_algo_dlen(qcrypto_hash_alg_map[hash->alg]);
-    if (*result_len == 0) {
+    ret = gcry_md_get_algo_dlen(qcrypto_hash_alg_map[hash->alg]);
+    if (ret == 0) {
         error_setg(errp, "Unable to get hash length");
         return -1;
     }
 
-    *result = g_new(uint8_t, *result_len);
+    if (*result_len == 0) {
+        *result_len = ret;
+        *result = g_new(uint8_t, *result_len);
+    } else if (*result_len != ret) {
+        error_setg(errp,
+                   "Result buffer size %zu is smaller than hash %d",
+                   *result_len, ret);
+        return -1;
+    }
 
     /* Digest is freed by gcry_md_close(), copy it */
     digest = gcry_md_read(*ctx, 0);
