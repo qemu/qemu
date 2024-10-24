@@ -314,7 +314,7 @@ const mips_def_t mips_defs[] =
                     (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_MT,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -543,7 +543,7 @@ const mips_def_t mips_defs[] =
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R6 | ISA_NANOMIPS32 |
-                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 | ASE_MT,
+                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3,
         .mmu_type = MMU_TYPE_R4000,
     },
 #if defined(TARGET_MIPS64)
