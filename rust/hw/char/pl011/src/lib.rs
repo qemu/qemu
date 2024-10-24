@@ -36,6 +36,7 @@
     clippy::cognitive_complexity,
     clippy::missing_safety_doc,
     )]
+#![allow(clippy::result_unit_err)]
 
 extern crate bilge;
 extern crate bilge_impl;

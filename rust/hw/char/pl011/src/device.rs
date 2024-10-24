@@ -20,6 +20,12 @@ use crate::{
 
 static PL011_ID_ARM: [c_uchar; 8] = [0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1];
 
+/// Integer Baud Rate Divider, `UARTIBRD`
+const IBRD_MASK: u32 = 0x3f;
+
+/// Fractional Baud Rate Divider, `UARTFBRD`
+const FBRD_MASK: u32 = 0xffff;
+
 const DATA_BREAK: u32 = 1 << 10;
 
 /// QEMU sourced constant.
@@ -491,6 +497,27 @@ impl PL011State {
             // SAFETY: self.interrupts have been initialized in init().
             unsafe { qemu_set_irq(*irq, i32::from(flags & i != 0)) };
         }
+    }
+
+    pub fn post_load(&mut self, _version_id: u32) -> Result<(), ()> {
+        /* Sanity-check input state */
+        if self.read_pos >= self.read_fifo.len() || self.read_count > self.read_fifo.len() {
+            return Err(());
+        }
+
+        if !self.fifo_enabled() && self.read_count > 0 && self.read_pos > 0 {
+            // Older versions of PL011 didn't ensure that the single
+            // character in the FIFO in FIFO-disabled mode is in
+            // element 0 of the array; convert to follow the current
+            // code's assumptions.
+            self.read_fifo[0] = self.read_fifo[self.read_pos];
+            self.read_pos = 0;
+        }
+
+        self.ibrd &= IBRD_MASK;
+        self.fbrd &= FBRD_MASK;
+
+        Ok(())
     }
 }
 
