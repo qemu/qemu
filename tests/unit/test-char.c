@@ -1545,18 +1545,18 @@ int main(int argc, char **argv)
     static CharSocketClientTestConfig client2 ## name =                 \
         { addr, NULL, true, false, char_socket_event };                 \
     static CharSocketClientTestConfig client3 ## name =                 \
-        { addr, ",reconnect=1", false, false, char_socket_event };      \
+        { addr, ",reconnect-ms=1000", false, false, char_socket_event }; \
     static CharSocketClientTestConfig client4 ## name =                 \
-        { addr, ",reconnect=1", true, false, char_socket_event };       \
+        { addr, ",reconnect-ms=1000", true, false, char_socket_event }; \
     static CharSocketClientTestConfig client5 ## name =                 \
         { addr, NULL, false, true, char_socket_event };                 \
     static CharSocketClientTestConfig client6 ## name =                 \
         { addr, NULL, true, true, char_socket_event };                  \
     static CharSocketClientTestConfig client7 ## name =                 \
-        { addr, ",reconnect=1", true, false,                            \
+        { addr, ",reconnect-ms=1000", true, false,                      \
             char_socket_event_with_error };                             \
     static CharSocketClientTestConfig client8 ## name =                 \
-        { addr, ",reconnect=1", false, false, char_socket_event };      \
+        { addr, ",reconnect-ms=1000", false, false, char_socket_event };\
     g_test_add_data_func("/char/socket/client/mainloop/" # name,        \
                          &client1 ##name, char_socket_client_test);     \
     g_test_add_data_func("/char/socket/client/wait-conn/" # name,       \

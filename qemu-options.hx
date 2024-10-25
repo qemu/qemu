@@ -1102,7 +1102,7 @@ SRST
     external entity that provides the IPMI services.
 
     A connection is made to an external BMC simulator. If you do this,
-    it is strongly recommended that you use the "reconnect=" chardev
+    it is strongly recommended that you use the "reconnect-ms=" chardev
     option to reconnect to the simulator if the connection is lost. Note
     that if this is not used carefully, it can be a security issue, as
     the interface has the ability to send resets, NMIs, and power off
@@ -3318,8 +3318,8 @@ SRST
     ``ipv6=on|off``
         whether to accept IPv6 addresses, default to try both IPv4 and IPv6
 
-    ``reconnect=seconds``
-        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of seconds.
+    ``reconnect-ms=milliseconds``
+        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of milliseconds.
         Setting this to zero disables this function.  (default: 0)
 
     Example (two guests connected using a TCP/IP socket):
@@ -3388,8 +3388,8 @@ SRST
     ``addr.str=file-descriptor``
         file descriptor number to use as a socket
 
-    ``reconnect=seconds``
-        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of seconds.
+    ``reconnect-ms=milliseconds``
+        for a client socket, if a socket is disconnected, then attempt a reconnect after the given number of milliseconds.
         Setting this to zero disables this function.  (default: 0)
 
 ``-netdev dgram,id=str,remote.type=inet,remote.host=maddr,remote.port=port[,local.type=inet,local.host=addr]``
@@ -3679,9 +3679,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev help\n"
     "-chardev null,id=id[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
     "-chardev socket,id=id[,host=host],port=port[,to=to][,ipv4=on|off][,ipv6=on|off][,nodelay=on|off]\n"
-    "         [,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect=seconds][,mux=on|off]\n"
+    "         [,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect-ms=milliseconds][,mux=on|off]\n"
     "         [,logfile=PATH][,logappend=on|off][,tls-creds=ID][,tls-authz=ID] (tcp)\n"
-    "-chardev socket,id=id,path=path[,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect=seconds]\n"
+    "-chardev socket,id=id,path=path[,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect-ms=milliseconds]\n"
     "         [,mux=on|off][,logfile=PATH][,logappend=on|off][,abstract=on|off][,tight=on|off] (unix)\n"
     "-chardev udp,id=id[,host=host],port=port[,localaddr=localaddr]\n"
     "         [,localport=localport][,ipv4=on|off][,ipv6=on|off][,mux=on|off]\n"
@@ -3792,7 +3792,7 @@ The available backends are:
     A void device. This device will not emit any data, and will drop any
     data it receives. The null backend does not take any options.
 
-``-chardev socket,id=id[,TCP options or unix options][,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect=seconds][,tls-creds=id][,tls-authz=id]``
+``-chardev socket,id=id[,TCP options or unix options][,server=on|off][,wait=on|off][,telnet=on|off][,websocket=on|off][,reconnect-ms=milliseconds][,tls-creds=id][,tls-authz=id]``
     Create a two-way stream socket, which can be either a TCP or a unix
     socket. A unix socket will be created if ``path`` is specified.
     Behaviour is undefined if TCP options are specified for a unix
@@ -3809,9 +3809,9 @@ The available backends are:
     ``websocket=on|off`` specifies that the socket uses WebSocket protocol for
     communication.
 
-    ``reconnect`` sets the timeout for reconnecting on non-server
+    ``reconnect-ms`` sets the timeout for reconnecting on non-server
     sockets when the remote end goes away. qemu will delay this many
-    seconds and then attempt to reconnect. Zero disables reconnecting,
+    milliseconds and then attempt to reconnect. Zero disables reconnecting,
     and is the default.
 
     ``tls-creds`` requests enablement of the TLS protocol for
@@ -4427,7 +4427,7 @@ SRST
         The WebSocket protocol is used instead of raw tcp socket. The
         port acts as a WebSocket server. Client mode is not supported.
 
-    ``unix:path[,server=on|off][,wait=on|off][,reconnect=seconds]``
+    ``unix:path[,server=on|off][,wait=on|off][,reconnect-ms=milliseconds]``
         A unix domain socket is used instead of a tcp socket. The option
         works the same as if you had specified ``-serial tcp`` except
         the unix domain socket path is used for connections.
