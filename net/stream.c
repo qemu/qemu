@@ -51,7 +51,7 @@ typedef struct NetStreamState {
     guint ioc_write_tag;
     SocketReadState rs;
     unsigned int send_index;      /* number of bytes sent*/
-    uint32_t reconnect;
+    uint32_t reconnect_ms;
     guint timer_tag;
     SocketAddress *addr;
 } NetStreamState;
@@ -387,10 +387,9 @@ static gboolean net_stream_reconnect(gpointer data)
 
 static void net_stream_arm_reconnect(NetStreamState *s)
 {
-    if (s->reconnect && s->timer_tag == 0) {
+    if (s->reconnect_ms && s->timer_tag == 0) {
         qemu_set_info_str(&s->nc, "connecting");
-        s->timer_tag = g_timeout_add_seconds(s->reconnect,
-                                             net_stream_reconnect, s);
+        s->timer_tag = g_timeout_add(s->reconnect_ms, net_stream_reconnect, s);
     }
 }
 
@@ -398,7 +397,7 @@ static int net_stream_client_init(NetClientState *peer,
                                   const char *model,
                                   const char *name,
                                   SocketAddress *addr,
-                                  uint32_t reconnect,
+                                  uint32_t reconnect_ms,
                                   Error **errp)
 {
     NetStreamState *s;
@@ -412,8 +411,8 @@ static int net_stream_client_init(NetClientState *peer,
     s->ioc = QIO_CHANNEL(sioc);
     s->nc.link_down = true;
 
-    s->reconnect = reconnect;
-    if (reconnect) {
+    s->reconnect_ms = reconnect_ms;
+    if (reconnect_ms) {
         s->addr = QAPI_CLONE(SocketAddress, addr);
     }
     qio_channel_socket_connect_async(sioc, addr,
@@ -432,13 +431,24 @@ int net_init_stream(const Netdev *netdev, const char *name,
     sock = &netdev->u.stream;
 
     if (!sock->has_server || !sock->server) {
+        uint32_t reconnect_ms = 0;
+
+        if (sock->has_reconnect && sock->has_reconnect_ms) {
+            error_setg(errp, "'reconnect' and 'reconnect-ms' are mutually "
+                             "exclusive");
+            return -1;
+        } else if (sock->has_reconnect_ms) {
+            reconnect_ms = sock->reconnect_ms;
+        } else if (sock->has_reconnect) {
+            reconnect_ms = sock->reconnect * 1000u;
+        }
+
         return net_stream_client_init(peer, "stream", name, sock->addr,
-                                      sock->has_reconnect ? sock->reconnect : 0,
-                                      errp);
+                                      reconnect_ms, errp);
     }
-    if (sock->has_reconnect) {
-        error_setg(errp, "'reconnect' option is incompatible with "
-                         "socket in server mode");
+    if (sock->has_reconnect || sock->has_reconnect_ms) {
+        error_setg(errp, "'reconnect' and 'reconnect-ms' options are "
+                         "incompatible with socket in server mode");
         return -1;
     }
     return net_stream_server_init(peer, "stream", name, sock->addr, errp);
