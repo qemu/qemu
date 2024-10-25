@@ -29,7 +29,8 @@ qemu_api::declare_properties! {
         PL011State,
         migrate_clock,
         unsafe { &qdev_prop_bool },
-        bool
+        bool,
+        default = true
     ),
 }
 
