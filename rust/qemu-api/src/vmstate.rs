@@ -15,7 +15,7 @@
 macro_rules! vmstate_unused_buffer {
     ($field_exists_fn:expr, $version_id:expr, $size:expr) => {{
         $crate::bindings::VMStateField {
-            name: c"unused".as_ptr(),
+            name: c_str!("unused").as_ptr(),
             err_hint: ::core::ptr::null(),
             offset: 0,
             size: $size,

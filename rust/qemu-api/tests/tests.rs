@@ -6,7 +6,7 @@ use std::{ffi::CStr, os::raw::c_void};
 
 use qemu_api::{
     bindings::*,
-    declare_properties, define_property,
+    c_str, declare_properties, define_property,
     definitions::{Class, ObjectImpl},
     device_class_init,
     zeroable::Zeroable,
@@ -16,7 +16,7 @@ use qemu_api::{
 fn test_device_decl_macros() {
     // Test that macros can compile.
     pub static VMSTATE: VMStateDescription = VMStateDescription {
-        name: c"name".as_ptr(),
+        name: c_str!("name").as_ptr(),
         unmigratable: true,
         ..Zeroable::ZERO
     };
@@ -36,7 +36,7 @@ fn test_device_decl_macros() {
     declare_properties! {
         DUMMY_PROPERTIES,
             define_property!(
-                c"migrate-clk",
+                c_str!("migrate-clk"),
                 DummyState,
                 migrate_clock,
                 unsafe { &qdev_prop_bool },
@@ -55,7 +55,7 @@ fn test_device_decl_macros() {
     impl ObjectImpl for DummyState {
         type Class = DummyClass;
         const TYPE_INFO: qemu_api::bindings::TypeInfo = qemu_api::type_info! { Self };
-        const TYPE_NAME: &'static CStr = c"dummy";
+        const TYPE_NAME: &'static CStr = c_str!("dummy");
         const PARENT_TYPE_NAME: Option<&'static CStr> = Some(TYPE_DEVICE);
         const ABSTRACT: bool = false;
         const INSTANCE_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = None;

@@ -10,6 +10,7 @@ use std::{
 
 use qemu_api::{
     bindings::{self, *},
+    c_str,
     definitions::ObjectImpl,
 };
 
@@ -135,7 +136,7 @@ impl PL011State {
     /// location/instance. All its fields are expected to hold unitialized
     /// values with the sole exception of `parent_obj`.
     unsafe fn init(&mut self) {
-        const CLK_NAME: &CStr = c"clk";
+        const CLK_NAME: &CStr = c_str!("clk");
 
         let dev = addr_of_mut!(*self).cast::<DeviceState>();
         // SAFETY:
@@ -598,7 +599,7 @@ pub unsafe extern "C" fn pl011_create(
         let dev: *mut DeviceState = qdev_new(PL011State::TYPE_INFO.name);
         let sysbus: *mut SysBusDevice = dev.cast::<SysBusDevice>();
 
-        qdev_prop_set_chr(dev, c"chardev".as_ptr(), chr);
+        qdev_prop_set_chr(dev, c_str!("chardev").as_ptr(), chr);
         sysbus_realize_and_unref(sysbus, addr_of!(error_fatal) as *mut *mut Error);
         sysbus_mmio_map(sysbus, 0, addr);
         sysbus_connect_irq(sysbus, 0, irq);

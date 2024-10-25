@@ -2,14 +2,12 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::{
-    ffi::{c_int, c_void},
-    ptr::NonNull,
-};
+use core::ptr::NonNull;
+use std::os::raw::{c_int, c_void};
 
 use qemu_api::{
-    bindings::*, vmstate_clock, vmstate_fields, vmstate_int32, vmstate_subsections, vmstate_uint32,
-    vmstate_uint32_array, vmstate_unused, zeroable::Zeroable,
+    bindings::*, c_str, vmstate_clock, vmstate_fields, vmstate_int32, vmstate_subsections,
+    vmstate_uint32, vmstate_uint32_array, vmstate_unused, zeroable::Zeroable,
 };
 
 use crate::device::{PL011State, PL011_FIFO_DEPTH};
@@ -24,7 +22,7 @@ extern "C" fn pl011_clock_needed(opaque: *mut c_void) -> bool {
 
 /// Migration subsection for [`PL011State`] clock.
 pub static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
-    name: c"pl011/clock".as_ptr(),
+    name: c_str!("pl011/clock").as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     needed: Some(pl011_clock_needed),
@@ -48,7 +46,7 @@ extern "C" fn pl011_post_load(opaque: *mut c_void, version_id: c_int) -> c_int {
 }
 
 pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
-    name: c"pl011".as_ptr(),
+    name: c_str!("pl011").as_ptr(),
     version_id: 2,
     minimum_version_id: 2,
     post_load: Some(pl011_post_load),
@@ -79,14 +77,14 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
 qemu_api::declare_properties! {
     PL011_PROPERTIES,
     qemu_api::define_property!(
-        c"chardev",
+        c_str!("chardev"),
         PL011State,
         char_backend,
         unsafe { &qdev_prop_chr },
         CharBackend
     ),
     qemu_api::define_property!(
-        c"migrate-clk",
+        c_str!("migrate-clk"),
         PL011State,
         migrate_clock,
         unsafe { &qdev_prop_bool },

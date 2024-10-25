@@ -3,6 +3,7 @@ _qemu_api_rs = static_library(
   structured_sources(
     [
       'src/lib.rs',
+      'src/c_str.rs',
       'src/definitions.rs',
       'src/device_class.rs',
       'src/vmstate.rs',
@@ -17,6 +18,9 @@ _qemu_api_rs = static_library(
     # '--cfg', 'feature="allocator"',
   ],
 )
+
+rust.test('rust-qemu-api-tests', _qemu_api_rs,
+          suite: ['unit', 'rust'])
 
 qemu_api = declare_dependency(
   link_with: _qemu_api_rs,

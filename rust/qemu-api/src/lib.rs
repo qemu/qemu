@@ -29,6 +29,7 @@ unsafe impl Sync for bindings::VMStateDescription {}
 unsafe impl Sync for bindings::VMStateField {}
 unsafe impl Sync for bindings::VMStateInfo {}
 
+pub mod c_str;
 pub mod definitions;
 pub mod device_class;
 pub mod vmstate;
