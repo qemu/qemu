@@ -8,7 +8,7 @@ use qemu_api::{
     bindings::*,
     c_str, declare_properties, define_property,
     definitions::{Class, ObjectImpl},
-    device_class_init,
+    device_class, device_class_init,
     zeroable::Zeroable,
 };
 
@@ -57,7 +57,7 @@ fn test_device_decl_macros() {
         type Class = DummyClass;
         const TYPE_INFO: qemu_api::bindings::TypeInfo = qemu_api::type_info! { Self };
         const TYPE_NAME: &'static CStr = c_str!("dummy");
-        const PARENT_TYPE_NAME: Option<&'static CStr> = Some(TYPE_DEVICE);
+        const PARENT_TYPE_NAME: Option<&'static CStr> = Some(device_class::TYPE_DEVICE);
         const ABSTRACT: bool = false;
         const INSTANCE_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
         const INSTANCE_POST_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = None;

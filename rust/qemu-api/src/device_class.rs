@@ -2,6 +2,10 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+use std::ffi::CStr;
+
+use crate::bindings;
+
 #[macro_export]
 macro_rules! device_class_init {
     ($func:ident, props => $props:ident, realize_fn => $realize_fn:expr, legacy_reset_fn => $legacy_reset_fn:expr, vmsd => $vmsd:ident$(,)*) => {
@@ -62,3 +66,9 @@ macro_rules! declare_properties {
         ];
     };
 }
+
+// workaround until we can use --generate-cstr in bindgen.
+pub const TYPE_DEVICE: &CStr =
+    unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
+pub const TYPE_SYS_BUS_DEVICE: &CStr =
+    unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };

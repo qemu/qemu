@@ -3961,13 +3961,15 @@ common_all = static_library('common',
                             dependencies: common_ss.all_dependencies())
 
 if have_rust
+  # We would like to use --generate-cstr, but it is only available
+  # starting with bindgen 0.66.0.  The oldest supported versions
+  # are in Ubuntu 22.04 (0.59.1) and Debian 12 (0.60.1).
   bindgen_args = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
     '--ctypes-prefix', 'std::os::raw',
     '--formatter', 'rustfmt',
     '--generate-block',
-    '--generate-cstr',
     '--impl-debug',
     '--merge-extern-blocks',
     '--no-doc-comments',

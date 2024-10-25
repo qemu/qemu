@@ -12,6 +12,7 @@ use qemu_api::{
     bindings::{self, *},
     c_str,
     definitions::ObjectImpl,
+    device_class::TYPE_SYS_BUS_DEVICE,
 };
 
 use crate::{
