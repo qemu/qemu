@@ -8,17 +8,18 @@ use qemu_api::{
     bindings::*,
     declare_properties, define_property,
     definitions::{Class, ObjectImpl},
-    device_class_init, vm_state_description,
+    device_class_init,
+    zeroable::Zeroable,
 };
 
 #[test]
 fn test_device_decl_macros() {
     // Test that macros can compile.
-    vm_state_description! {
-        VMSTATE,
-        name: c"name",
+    pub static VMSTATE: VMStateDescription = VMStateDescription {
+        name: c"name".as_ptr(),
         unmigratable: true,
-    }
+        ..Zeroable::ZERO
+    };
 
     #[repr(C)]
     #[derive(qemu_api_macros::Object)]

@@ -62,24 +62,3 @@ macro_rules! declare_properties {
         ];
     };
 }
-
-#[macro_export]
-macro_rules! vm_state_description {
-    ($(#[$outer:meta])*
-     $name:ident,
-     $(name: $vname:expr,)*
-     $(unmigratable: $um_val:expr,)*
-    ) => {
-        #[used]
-        $(#[$outer])*
-        pub static $name: $crate::bindings::VMStateDescription = $crate::bindings::VMStateDescription {
-            $(name: {
-                #[used]
-                static VMSTATE_NAME: &::core::ffi::CStr = $vname;
-                $vname.as_ptr()
-            },)*
-            unmigratable: true,
-            ..$crate::zeroable::Zeroable::ZERO
-        };
-    }
-}
