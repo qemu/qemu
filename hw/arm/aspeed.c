@@ -1642,8 +1642,8 @@ static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
     mc->init = aspeed_minibmc_machine_init;
     amc->i2c_init = ast1030_evb_i2c_init;
     mc->default_ram_size = 0;
-    amc->fmc_model = "sst25vf032b";
-    amc->spi_model = "sst25vf032b";
+    amc->fmc_model = "w25q80bl";
+    amc->spi_model = "w25q256";
     amc->num_cs = 2;
     amc->macs_mask = 0;
     aspeed_machine_class_init_cpus_defaults(mc);
