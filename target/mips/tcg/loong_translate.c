@@ -31,13 +31,6 @@ static bool gen_lext_DIV_G(DisasContext *s, int rd, int rs, int rt,
     TCGv t0, t1;
     TCGLabel *l1, *l2, *l3;
 
-    if (is_double) {
-        if (TARGET_LONG_BITS != 64) {
-            return false;
-        }
-        check_mips_64(s);
-    }
-
     if (rd == 0) {
         /* Treat as NOP. */
         return true;
@@ -61,8 +54,7 @@ static bool gen_lext_DIV_G(DisasContext *s, int rd, int rs, int rt,
     tcg_gen_br(l3);
     gen_set_label(l1);
 
-    tcg_gen_brcondi_tl(TCG_COND_NE, t0, is_double && TARGET_LONG_BITS == 64
-                                        ? LLONG_MIN : INT_MIN, l2);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, is_double ? LLONG_MIN : INT_MIN, l2);
     tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
     tcg_gen_mov_tl(cpu_gpr[rd], t0);
 
@@ -92,13 +84,6 @@ static bool gen_lext_DIVU_G(DisasContext *s, int rd, int rs, int rt,
 {
     TCGv t0, t1;
     TCGLabel *l1, *l2;
-
-    if (is_double) {
-        if (TARGET_LONG_BITS != 64) {
-            return false;
-        }
-        check_mips_64(s);
-    }
 
     if (rd == 0) {
         /* Treat as NOP. */
@@ -147,13 +132,6 @@ static bool gen_lext_MOD_G(DisasContext *s, int rd, int rs, int rt,
     TCGv t0, t1;
     TCGLabel *l1, *l2, *l3;
 
-    if (is_double) {
-        if (TARGET_LONG_BITS != 64) {
-            return false;
-        }
-        check_mips_64(s);
-    }
-
     if (rd == 0) {
         /* Treat as NOP. */
         return true;
@@ -173,8 +151,7 @@ static bool gen_lext_MOD_G(DisasContext *s, int rd, int rs, int rt,
         tcg_gen_ext32u_tl(t1, t1);
     }
     tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
-    tcg_gen_brcondi_tl(TCG_COND_NE, t0, is_double && TARGET_LONG_BITS == 64
-                                        ? LLONG_MIN : INT_MIN, l2);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, is_double ? LLONG_MIN : INT_MIN, l2);
     tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
     gen_set_label(l1);
     tcg_gen_movi_tl(cpu_gpr[rd], 0);
@@ -204,13 +181,6 @@ static bool gen_lext_MODU_G(DisasContext *s, int rd, int rs, int rt,
 {
     TCGv t0, t1;
     TCGLabel *l1, *l2;
-
-    if (is_double) {
-        if (TARGET_LONG_BITS != 64) {
-            return false;
-        }
-        check_mips_64(s);
-    }
 
     if (rd == 0) {
         /* Treat as NOP. */
@@ -256,13 +226,6 @@ static bool gen_lext_MULT_G(DisasContext *s, int rd, int rs, int rt,
                             bool is_double)
 {
     TCGv t0, t1;
-
-    if (is_double) {
-        if (TARGET_LONG_BITS != 64) {
-            return false;
-        }
-        check_mips_64(s);
-    }
 
     if (rd == 0) {
         /* Treat as NOP. */
