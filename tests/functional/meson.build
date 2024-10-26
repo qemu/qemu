@@ -100,6 +100,14 @@ tests_avr_system_thorough = [
   'avr_mega2560',
 ]
 
+test_timeouts += {
+  'hexagon_minivm': 180,
+}
+
+tests_hexagon_system_quick = [
+  'hexagon_minivm',
+]
+
 tests_i386_system_thorough = [
   'i386_tuxrun',
 ]

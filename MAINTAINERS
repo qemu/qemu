@@ -245,6 +245,7 @@ F: docs/system/target-hexagon.rst
 F: docs/devel/hexagon-sys.rst
 F: docs/devel/hexagon-vm.rst
 F: docs/devel/hexagon-l2vic.rst
+F: tests/functional/test_hexagon_minivm.py
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
