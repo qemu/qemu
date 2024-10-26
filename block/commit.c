@@ -150,19 +150,39 @@ static int commit_iteration(CommitBlockJob *s, int64_t offset,
     }
 
     if (ret & BDRV_BLOCK_ALLOCATED) {
-        assert(bytes < SIZE_MAX);
+        if (ret & BDRV_BLOCK_ZERO) {
+            /*
+             * If the top (sub)clusters are smaller than the base
+             * (sub)clusters, this will not unmap unless the underlying device
+             * does some tracking of these requests. Ideally, we would find
+             * the maximal extent of the zero clusters.
+             */
+            ret = blk_co_pwrite_zeroes(s->base, offset, bytes,
+                                       BDRV_REQ_MAY_UNMAP);
+            if (ret < 0) {
+                error_in_source = false;
+                goto fail;
+            }
+        } else {
+            assert(bytes < SIZE_MAX);
 
-        ret = blk_co_pread(s->top, offset, bytes, buf, 0);
-        if (ret < 0) {
-            goto fail;
+            ret = blk_co_pread(s->top, offset, bytes, buf, 0);
+            if (ret < 0) {
+                goto fail;
+            }
+
+            ret = blk_co_pwrite(s->base, offset, bytes, buf, 0);
+            if (ret < 0) {
+                error_in_source = false;
+                goto fail;
+            }
         }
 
-        ret = blk_co_pwrite(s->base, offset, bytes, buf, 0);
-        if (ret < 0) {
-            error_in_source = false;
-            goto fail;
-        }
-
+        /*
+         * Whether zeroes actually end up on disk depends on the details of
+         * the underlying driver. Therefore, this might rate limit more than
+         * is necessary.
+         */
         block_job_ratelimit_processed_bytes(&s->common, bytes);
     }
 
