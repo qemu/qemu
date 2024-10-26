@@ -9024,14 +9024,13 @@ static uint32_t nvme_pci_read_config(PCIDevice *dev, uint32_t address, int len)
             return val;
         }
     }
-#endif
-/*
+#else
     if (dev->spdm_port && pcie_find_capability(dev, PCI_EXT_CAP_ID_DOE)) {
         if (pcie_doe_read_config(&dev->doe_spdm, address, len, &val)) {
             return val;
         }
     }
-//*/
+#endif
     return pci_default_read_config(dev, address, len);
 }
 
