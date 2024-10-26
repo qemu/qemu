@@ -128,6 +128,55 @@ static void commit_clean(Job *job)
     blk_unref(s->top);
 }
 
+static int commit_iteration(CommitBlockJob *s, int64_t offset,
+                            int64_t *n, void *buf)
+{
+    int ret = 0;
+    bool copy;
+    bool error_in_source = true;
+
+    /* Copy if allocated above the base */
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = bdrv_co_common_block_status_above(blk_bs(s->top),
+            s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
+            n, NULL, NULL, NULL);
+    }
+
+    copy = (ret >= 0 && ret & BDRV_BLOCK_ALLOCATED);
+    trace_commit_one_iteration(s, offset, *n, ret);
+    if (copy) {
+        assert(*n < SIZE_MAX);
+
+        ret = blk_co_pread(s->top, offset, *n, buf, 0);
+        if (ret >= 0) {
+            ret = blk_co_pwrite(s->base, offset, *n, buf, 0);
+            if (ret < 0) {
+                error_in_source = false;
+            }
+        }
+    }
+    if (ret < 0) {
+        BlockErrorAction action = block_job_error_action(&s->common,
+                                                         s->on_error,
+                                                         error_in_source,
+                                                         -ret);
+        if (action == BLOCK_ERROR_ACTION_REPORT) {
+            return ret;
+        } else {
+            *n = 0;
+            return 0;
+        }
+    }
+    /* Publish progress */
+    job_progress_update(&s->common.job, *n);
+
+    if (copy) {
+        block_job_ratelimit_processed_bytes(&s->common, *n);
+    }
+
+    return 0;
+}
+
 static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
@@ -158,9 +207,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (offset = 0; offset < len; offset += n) {
-        bool copy;
-        bool error_in_source = true;
-
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
@@ -168,42 +214,11 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         if (job_is_cancelled(&s->common.job)) {
             break;
         }
-        /* Copy if allocated above the base */
-        WITH_GRAPH_RDLOCK_GUARD() {
-            ret = bdrv_co_common_block_status_above(blk_bs(s->top),
-                s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
-                &n, NULL, NULL, NULL);
-        }
 
-        copy = (ret >= 0 && ret & BDRV_BLOCK_ALLOCATED);
-        trace_commit_one_iteration(s, offset, n, ret);
-        if (copy) {
-            assert(n < SIZE_MAX);
+        ret = commit_iteration(s, offset, &n, buf);
 
-            ret = blk_co_pread(s->top, offset, n, buf, 0);
-            if (ret >= 0) {
-                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
-                if (ret < 0) {
-                    error_in_source = false;
-                }
-            }
-        }
         if (ret < 0) {
-            BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error,
-                                       error_in_source, -ret);
-            if (action == BLOCK_ERROR_ACTION_REPORT) {
-                return ret;
-            } else {
-                n = 0;
-                continue;
-            }
-        }
-        /* Publish progress */
-        job_progress_update(&s->common.job, n);
-
-        if (copy) {
-            block_job_ratelimit_processed_bytes(&s->common, n);
+            return ret;
         }
     }
 
