@@ -148,6 +148,14 @@ tests_i386_system_quick = [
   'migration',
 ]
 
+test_timeouts += {
+  'hexagon_minivm': 180,
+}
+
+tests_hexagon_system_quick = [
+  'hexagon_minivm',
+]
+
 tests_i386_system_thorough = [
   'i386_tuxrun',
 ]
