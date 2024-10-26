@@ -129,50 +129,59 @@ static void commit_clean(Job *job)
 }
 
 static int commit_iteration(CommitBlockJob *s, int64_t offset,
-                            int64_t *n, void *buf)
+                            int64_t *requested_bytes, void *buf)
 {
+    BlockErrorAction action;
+    int64_t bytes = *requested_bytes;
     int ret = 0;
-    bool copy;
     bool error_in_source = true;
 
     /* Copy if allocated above the base */
     WITH_GRAPH_RDLOCK_GUARD() {
         ret = bdrv_co_common_block_status_above(blk_bs(s->top),
             s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
-            n, NULL, NULL, NULL);
+            &bytes, NULL, NULL, NULL);
     }
 
-    copy = (ret >= 0 && ret & BDRV_BLOCK_ALLOCATED);
-    trace_commit_one_iteration(s, offset, *n, ret);
-    if (copy) {
-        assert(*n < SIZE_MAX);
+    trace_commit_one_iteration(s, offset, bytes, ret);
 
-        ret = blk_co_pread(s->top, offset, *n, buf, 0);
-        if (ret >= 0) {
-            ret = blk_co_pwrite(s->base, offset, *n, buf, 0);
-            if (ret < 0) {
-                error_in_source = false;
-            }
-        }
-    }
     if (ret < 0) {
-        BlockErrorAction action = block_job_error_action(&s->common,
-                                                         s->on_error,
-                                                         error_in_source,
-                                                         -ret);
-        if (action == BLOCK_ERROR_ACTION_REPORT) {
-            return ret;
-        } else {
-            *n = 0;
-            return 0;
-        }
+        goto fail;
     }
-    /* Publish progress */
-    job_progress_update(&s->common.job, *n);
 
-    if (copy) {
-        block_job_ratelimit_processed_bytes(&s->common, *n);
+    if (ret & BDRV_BLOCK_ALLOCATED) {
+        assert(bytes < SIZE_MAX);
+
+        ret = blk_co_pread(s->top, offset, bytes, buf, 0);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        ret = blk_co_pwrite(s->base, offset, bytes, buf, 0);
+        if (ret < 0) {
+            error_in_source = false;
+            goto fail;
+        }
+
+        block_job_ratelimit_processed_bytes(&s->common, bytes);
     }
+
+    /* Publish progress */
+
+    job_progress_update(&s->common.job, bytes);
+
+    *requested_bytes = bytes;
+
+    return 0;
+
+fail:
+    action = block_job_error_action(&s->common, s->on_error,
+                                    error_in_source, -ret);
+    if (action == BLOCK_ERROR_ACTION_REPORT) {
+        return ret;
+    }
+
+    *requested_bytes = 0;
 
     return 0;
 }
