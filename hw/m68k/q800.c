@@ -262,13 +262,13 @@ static void q800_machine_init(MachineState *machine)
     const char *initrd_filename = machine->initrd_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *bios_name = machine->firmware ?: MACROM_FILENAME;
+    const bool has_defaults = m->parent_obj.has_defaults;
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
     SysBusDevice *sysbus;
-    BusState *adb_bus;
     NubusBus *nubus;
     DriveInfo *dinfo;
     NICInfo *nd;
@@ -354,12 +354,13 @@ static void q800_machine_init(MachineState *machine)
     qdev_connect_gpio_out(DEVICE(&m->via1), 0,
                           qdev_get_gpio_in_named(DEVICE(&m->glue),
                                                  "auxmode", 0));
-
-    adb_bus = qdev_get_child_bus(DEVICE(&m->via1), "adb.0");
-    dev = qdev_new(TYPE_ADB_KEYBOARD);
-    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
-    dev = qdev_new(TYPE_ADB_MOUSE);
-    qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+    if (has_defaults) {
+        BusState *adb_bus = qdev_get_child_bus(DEVICE(&m->via1), "adb.0");
+        dev = qdev_new(TYPE_ADB_KEYBOARD);
+        qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+        dev = qdev_new(TYPE_ADB_MOUSE);
+        qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+    }
 
     /* VIA 2 */
     object_initialize_child(OBJECT(machine), "via2", &m->via2,

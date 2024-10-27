@@ -475,6 +475,16 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     ms->usb_disabled = !value;
 }
 
+static bool machine_get_defaults(Object *obj, __attribute__((unused)) Error **errp) {
+    MachineState *ms = MACHINE(obj);
+    return ms->has_defaults;
+}
+
+static void machine_set_defaults(Object *obj, bool val, __attribute__((unused)) Error **errp) {
+    MachineState *ms = MACHINE(obj);
+    ms->has_defaults = val;
+}
+
 static bool machine_get_graphics(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1082,6 +1092,11 @@ static void machine_class_init(ObjectClass *oc, void *data)
         machine_get_usb, machine_set_usb);
     object_class_property_set_description(oc, "usb",
         "Set on/off to enable/disable usb");
+
+    object_class_property_add_bool(oc, "defaults",
+                                          machine_get_defaults, machine_set_defaults);
+    object_class_property_set_description(oc, "defaults",
+                                          "Set on/off to enable/disable hardware defaults");
 
     object_class_property_add_bool(oc, "graphics",
         machine_get_graphics, machine_set_graphics);
