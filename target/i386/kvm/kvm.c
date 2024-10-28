@@ -5866,11 +5866,39 @@ static int kvm_handle_hc_map_gpa_range(struct kvm_run *run)
     return kvm_convert_memory(gpa, size, attributes & KVM_MAP_GPA_RANGE_ENCRYPTED);
 }
 
+static char *parse_args_to_str(){
+
+}
+
+/*
+ * 1. Boot a new vm with -forked flag, the new vm will waiting for incoming 
+ *    data.
+ * 2. Call modified migration function to begin copy process.
+ * 3. Wait until all of copy process finished.
+ * 4. Return the new pid assigned to the new vm.
+ */
+static int kvm_handle_hc_fork_vm(struct kvm_run *run){
+    /* Get this vm's parameter */
+    int argc;
+    char **argv;
+    char *request;
+    argc = qemu_get_args(&argv);
+    /* Parse the parameter to boot a new VM */
+    
+    /* Send request to forkd */
+    
+    /* Receive boot signal */
+
+    /* Begin transport */
+
+}
+
 static int kvm_handle_hypercall(struct kvm_run *run)
 {
     if (run->hypercall.nr == KVM_HC_MAP_GPA_RANGE)
         return kvm_handle_hc_map_gpa_range(run);
-
+    if (run->hypercall.nr == KVM_HC_FORK_VM)
+        return kvm_handle_hc_fork_vm(run);
     return -EINVAL;
 }
 
