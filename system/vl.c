@@ -194,6 +194,9 @@ static int default_sdcard = 1;
 static int default_vga = 1;
 static int default_net = 1;
 
+int global_argc;
+char **global_argv;
+
 static const struct {
     const char *driver;
     int *flag;
@@ -497,6 +500,32 @@ static QemuOptsList qemu_action_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "watchdog",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_forkable_opts = {
+    .name = "forkable",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_forkable_opts.head),
+    .desc = {
+        {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_forked_opts = {
+    .name = "forked",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_forked_opts.head),
+    .desc = {
+        {
+            .name = "src",
             .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
@@ -2747,6 +2776,53 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
+int qemu_get_args(char ***argv_p)
+{
+    *argv_p = global_argv;
+    return global_argc;
+}
+
+static void qemu_copy_forkable_image(const QDict *machine_opts)
+{
+    const char *kernel_path = qdict_get_try_str(machine_opts, "kernel");
+    QemuOpts opts = qemu_find_opts_singleton("forkable");
+    const char *copy_path = qemu_opt_get(opts, "path");
+    //const char *copy_path = qdict_get_try_str(machine_opts, "imgpath");
+
+    if(copy_path != NULL && kernel_path != NULL){
+        /* Copy vm's image to given path */
+        int ret;
+        char command[100];
+        sprintf(command, "cp %s %s", kernel_path, copy_path);
+        ret = system(command);
+        if(!ret){
+            /* Throw error */
+        }
+    }
+    return;
+}
+
+/* Copy argc and argv to global variable */
+static void qemu_copy_args(int argc, char **argv){
+    global_argc = argc;
+    global_argv = (char **)g_malloc((argc + 1) * sizeof(char *));
+    g_assert(global_argv);
+    for (int i = 0; i < argc; i++) {
+        global_argv[i] = (char *)g_malloc((strlen(argv[i]) + 1) * sizeof(char));
+        if (global_argv[i] == NULL) {
+            fprintf(stderr, "Memory allocation failed for argument %d\n", i);
+            for (int j = 0; j < i; j++) {
+                free(global_argv[j]);
+            }
+            free(global_argv);
+            return -1;
+        }
+        strcpy(global_argv[i], argv[i]);
+    }
+    global_argv[argc] = NULL;
+    return 1;
+}
+
 void qemu_init(int argc, char **argv)
 {
     QemuOpts *opts;
@@ -2757,6 +2833,8 @@ void qemu_init(int argc, char **argv)
     MachineClass *machine_class;
     bool userconfig = true;
     FILE *vmstate_dump_file = NULL;
+
+    qemu_copy_args(argc, argv);
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -2789,6 +2867,8 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_forkable_opts);
+    qemu_add_opts(&qemu_forked_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2841,6 +2921,15 @@ void qemu_init(int argc, char **argv)
                 exit(1);
             }
             switch(popt->index) {
+            case QEMU_OPTION_forkable:
+                if (!qemu_opts_parse_noisily(qemu_find_opts("forkable"), optarg, false)) {
+                     exit(1);
+                }
+                //qdict_put_str(machine_opts_dict, "imgpath", optarg);
+                break;
+            case QEMU_OPTION_forked:
+                //TODO: begin migrate
+                break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_option = optarg;
@@ -3676,6 +3765,8 @@ void qemu_init(int argc, char **argv)
         exit(1);
     }
     trace_init_file();
+
+    qemu_copy_forkable_image(machine_opts_dict);
 
     qemu_init_main_loop(&error_fatal);
     cpu_timers_init();
