@@ -817,8 +817,6 @@ void init_default_spdm_dev(SpdmDev *spdm_dev)
     spdm_dev->spdm_device_release_receiver_buffer = spdm_dev_release_buffer;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-value"
 void *spdm_responder_init(SpdmDev *spdm_dev)
 {
     libspdm_data_parameter_t parameter;
@@ -975,4 +973,3 @@ void *spdm_responder_init(SpdmDev *spdm_dev)
 
     return spdm_dev->spdm_context;
 }
-#pragma GCC diagnostic pop
