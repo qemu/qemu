@@ -41,6 +41,7 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/spdm.h"
 #include "hw/hw.h"
 #include "hw/net/mii.h"
 #include "hw/pci/msi.h"
@@ -400,6 +401,9 @@ static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
 {
     E1000EState *s = E1000E(pci_dev);
 
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        pcie_doe_write_config(&pci_dev->doe_spdm, address, val, len);
+    }
     pci_default_write_config(pci_dev, address, val, len);
 
     if (range_covers_byte(address, len, PCI_COMMAND) &&
@@ -407,6 +411,21 @@ static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
         e1000e_start_recv(&s->core);
     }
 }
+
+#ifdef CONFIG_LIBSPDM
+static uint32_t e1000e_read_config(PCIDevice *pci_dev, uint32_t address, int len)
+{
+    uint32_t val;
+
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&pci_dev->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
+
+    return pci_default_read_config(pci_dev, address, len);
+}
+#endif
 
 static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -417,10 +436,16 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     E1000EState *s = E1000E(pci_dev);
     uint8_t *macaddr;
     int ret;
+#ifdef CONFIG_LIBSPDM
+    SpdmDev *e1000e_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     trace_e1000e_cb_pci_realize();
 
     pci_dev->config_write = e1000e_write_config;
+#ifdef CONFIG_LIBSPDM
+    pci_dev->config_read = e1000e_read_config;
+#endif
 
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
@@ -485,6 +510,16 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
                           e1000e_gen_dsn(macaddr));
 
     e1000e_init_net_peer(s, pci_dev, macaddr);
+
+#ifdef CONFIG_LIBSPDM
+    uint16_t doe_offset = PCI_CONFIG_SPACE_SIZE;
+    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                  doe_spdm_dev_prot, true, 0);
+    init_default_spdm_dev(e1000e_spdm_dev);
+    e1000e_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+
+    spdm_responder_init(e1000e_spdm_dev);
+#endif
 
     /* Initialize core */
     e1000e_core_realize(s);
