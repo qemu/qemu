@@ -178,6 +178,20 @@ SRST
     selection)
 ERST
 
+DEF("forkable", HAS_ARG, QEMU_OPTION_forkable,
+    "-forkable path   mark this vm as a forkable vm\n", QEMU_ARCH_ALL)
+SRST
+``-forkable``
+    Mark this vm as a forkable vm and move image file to given path.
+ERST
+
+DEF("forked", HAS_ARG, QEMU_OPTION_forked,
+    "-forked path   Restore vm from path\n", QEMU_ARCH_ALL)
+SRST
+``-forked``
+    Restore vm from path.
+ERST
+
 DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "-accel [accel=]accelerator[,prop[=value][,...]]\n"
     "                select accelerator (kvm, xen, hvf, nvmm, whpx or tcg; use 'help' for a list)\n"
