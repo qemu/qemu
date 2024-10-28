@@ -16,6 +16,5 @@ system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-block.c'))
 
 specific_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk.c', 'virtio-blk-common.c'))
 specific_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('vhost-user-blk.c', 'virtio-blk-common.c'))
-specific_ss.add(when: 'CONFIG_SPDM', if_true: files('virtio-blk-spdm.c'))
 
 subdir('dataplane')
