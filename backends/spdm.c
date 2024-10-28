@@ -729,6 +729,94 @@ bool pcie_doe_spdm_dev_rsp(DOECap *doe_cap)
     return true;
 }
 
+void init_default_spdm_dev(SpdmDev *spdm_dev)
+{
+    spdm_dev->is_responder = true;
+
+    spdm_dev->sender_receiver_buffer_acquired = false;
+
+    spdm_dev->use_transport_layer = SOCKET_TRANSPORT_TYPE_PCI_DOE;
+    spdm_dev->use_version = SPDM_MESSAGE_VERSION_13;
+    spdm_dev->use_secured_message_version = SECURED_SPDM_VERSION_12 | SECURED_SPDM_VERSION_11;
+    spdm_dev->use_responder_capability_flags =
+        (0 | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CACHE_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CERT_CAP | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CHAL_CAP |
+        /* SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_NO_SIG |    conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_SIG   */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_SIG | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_CAP_NO_SIG */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEL_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MEAS_FRESH_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_EX_CAP |
+        /* SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER |    conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER_WITH_CONTEXT   */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER_WITH_CONTEXT | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP_RESPONDER */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCAP_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HBEAT_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_UPD_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP |
+        /* SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP |    conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CERT_CAP   */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CHUNK_CAP |
+        /* SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ALIAS_CERT_CAP | conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_SET_CERT_CAP | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CSR_CAP | /* conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        /* SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CERT_INSTALL_RESET_CAP | conflict with SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PUB_KEY_ID_CAP */
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MULTI_KEY_CAP_NEG |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_GET_KEY_PAIR_INFO_CAP |
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_SET_KEY_PAIR_INFO_CAP |
+        0);
+    spdm_dev->use_capability_flags = 0;
+    spdm_dev->use_basic_mut_auth = 0;
+    spdm_dev->use_mut_auth = 
+        SPDM_KEY_EXCHANGE_RESPONSE_MUT_AUTH_REQUESTED_WITH_ENCAP_REQUEST;
+    spdm_dev->use_measurement_summary_hash_type =
+        SPDM_CHALLENGE_REQUEST_ALL_MEASUREMENTS_HASH;
+    spdm_dev->use_measurement_operation =
+        SPDM_GET_MEASUREMENTS_REQUEST_MEASUREMENT_OPERATION_TOTAL_NUMBER_OF_MEASUREMENTS;
+    spdm_dev->use_slot_id = 0;
+    spdm_dev->use_slot_count = 3;
+    spdm_dev->use_key_update_action = LIBSPDM_KEY_UPDATE_ACTION_MAX;
+    spdm_dev->support_measurement_spec =
+        SPDM_MEASUREMENT_SPECIFICATION_DMTF;
+    spdm_dev->support_measurement_hash_algo =
+        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_512 |
+        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_384 |
+        SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA_256;
+    spdm_dev->support_hash_algo =
+        SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_384 |
+        SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256;
+    spdm_dev->support_asym_algo =
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048;
+    spdm_dev->support_req_asym_algo =
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_3072 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSAPSS_2048 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_3072 |
+        SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048;
+    spdm_dev->support_dhe_algo =
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_384_R1 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_SECP_256_R1 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_3072 |
+        SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_2048;
+    spdm_dev->support_aead_algo =
+        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_AES_256_GCM |
+        SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_CHACHA20_POLY1305;
+    spdm_dev->support_key_schedule_algo = SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH;
+    spdm_dev->support_other_params_support = 
+        SPDM_ALGORITHMS_OPAQUE_DATA_FORMAT_1 |
+        SPDM_ALGORITHMS_MULTI_KEY_CONN;
+    spdm_dev->support_mel_spec = SPDM_MEL_SPECIFICATION_DMTF;
+
+    spdm_dev->spdm_device_send_message = spdm_dev_send_message;
+    spdm_dev->spdm_device_receive_message = spdm_dev_receive_message;
+    spdm_dev->spdm_server_connection_state_callback = spdm_dev_server_connection_state_callback;
+    spdm_dev->spdm_server_session_state_callback = spdm_dev_server_session_state_callback;
+    spdm_dev->spdm_device_acquire_sender_buffer = spdm_dev_acquire_buffer;
+    spdm_dev->spdm_device_release_sender_buffer = spdm_dev_release_buffer;
+    spdm_dev->spdm_device_acquire_receiver_buffer = spdm_dev_acquire_buffer;
+    spdm_dev->spdm_device_release_receiver_buffer = spdm_dev_release_buffer;
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-value"
 void *spdm_responder_init(SpdmDev *spdm_dev)

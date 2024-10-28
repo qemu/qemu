@@ -243,6 +243,7 @@ struct SpdmDev {
     void (*spdm_device_release_receiver_buffer)(void *context, const void *msg_buf_ptr);
 };
 
+void init_default_spdm_dev(SpdmDev *spdm_dev);
 void *spdm_responder_init(SpdmDev *spdm_dev);
 void *spdm_requester_init(SpdmDev *spdm_dev);
 void dump_data(const uint8_t *buffer, size_t buffer_size);
