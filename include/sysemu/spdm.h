@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pcie_doe.h"
+#include "hw/pci/pci_ids.h"
 #include <glib.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -111,23 +112,37 @@
 #define LIBSPDM_MAX_CSR_SIZE 0xffff
 #endif
 
+extern DOEProtocol doe_spdm_dev_prot[];
+
 typedef struct SpdmDev SpdmDev;
+typedef struct SpdmDevNode SpdmDevNode;
+
+struct SpdmDevNode {
+    SpdmDev *spdm_dev;
+    SpdmDevNode *next;
+};
+
+extern SpdmDevNode *g_spdm_dev_list_entry;
+
+SpdmDevNode *create_spdm_dev_node(SpdmDev *spdm_dev);
+bool record_spdm_dev_in_list(SpdmDev *spdm_dev);
+bool delete_spdm_dev_in_list(SpdmDev *spdm_dev);
 
 struct SpdmDev {
+    void *spdm_context;
+
     bool is_responder;
     bool is_requester;
 
     bool receive_is_ready;
     bool send_is_ready;
 
-    void *spdm_context;
-
     void *scratch_buffer;
     size_t scratch_buffer_size;
 
     void *requester_cert_chain_buffer;
 
-    DOECap doe_cap;
+    DOECap *doe_cap;
 
     /* The developer can choose to use only a buffer or to separate them */
     uint8_t sender_buffer[LIBSPDM_SENDER_BUFFER_SIZE];
@@ -233,4 +248,36 @@ void *spdm_requester_init(SpdmDev *spdm_dev);
 void dump_data(const uint8_t *buffer, size_t buffer_size);
 void dump_hex(const uint8_t *data, size_t size);
 
+SpdmDev *get_spdm_dev_from_context(void *context);
+SpdmDev *get_spdm_dev_from_doe_cap(DOECap *doe_cap);
+
+/*
+ * TODO: change this to typedef functions
+ */
+bool pcie_doe_spdm_dev_rsp(DOECap *doe_cap);
+libspdm_return_t spdm_dev_acquire_buffer(void *context, void **msg_buf_ptr);
+void spdm_dev_release_buffer(void *context, const void *msg_buf_ptr);
+libspdm_return_t spdm_dev_send_message(void *context, size_t response_size,
+                                        const void *response, uint64_t timeout);
+libspdm_return_t spdm_dev_receive_message(void *context, size_t *request_size,
+                                           void **request, uint64_t timeout);
+/**
+ * Notify the session state to a session APP.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  session_id                    The session_id of a session.
+ * @param  session_state                 The state of a session.
+ **/
+void spdm_dev_server_session_state_callback(void *spdm_context,
+                                             uint32_t session_id,
+                                             libspdm_session_state_t session_state);
+
+/**
+ * Notify the connection state to an SPDM context register.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  connection_state              Indicate the SPDM connection state.
+ **/
+void spdm_dev_server_connection_state_callback(
+    void *spdm_context, libspdm_connection_state_t connection_state);
 #endif /* QEMU_SPDM_H */
