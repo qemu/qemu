@@ -207,15 +207,12 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_sriov.h"
 #include "sysemu/spdm-socket.h"
+#include "sysemu/spdm.h"
 #include "migration/vmstate.h"
 
 #include "nvme.h"
 #include "dif.h"
 #include "trace.h"
-
-#ifdef CONFIG_LIBSPDM
-#include "auth.h"
-#endif
 
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4
@@ -8520,6 +8517,9 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     unsigned msix_table_offset = 0, msix_pba_offset = 0;
     unsigned nr_vectors;
     int ret;
+#ifdef CONFIG_LIBSPDM
+    SpdmDev *nvme_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
     pci_config_set_prog_interface(pci_conf, 0x2);
@@ -8600,10 +8600,11 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
                             PCI_CONFIG_SPACE_SIZE + PCI_ARI_SIZEOF 
                             : PCI_CONFIG_SPACE_SIZE;
     pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
-                  doe_spdm_prot, true, 0);
-    nvme_spdm_dev.doe_cap = pci_dev->doe_spdm;
+                  doe_spdm_dev_prot, true, 0);
+    init_default_spdm_dev(nvme_spdm_dev);
+    nvme_spdm_dev->doe_cap = &pci_dev->doe_spdm;
 
-    spdm_responder_init(&nvme_spdm_dev);
+    spdm_responder_init(nvme_spdm_dev);
 #else
     /* DOE Initialisation */
     if (pci_dev->spdm_port) {
