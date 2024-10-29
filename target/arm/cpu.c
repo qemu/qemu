@@ -2755,7 +2755,7 @@ void arm_cpu_register(const ARMCPUInfo *info)
     };
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
-    type_register(&type_info);
+    type_register_static(&type_info);
     g_free((void *)type_info.name);
 }
 
