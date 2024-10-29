@@ -141,7 +141,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
-    obj = object_new(typename);
+    obj = object_new_with_class(klass);
 
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
