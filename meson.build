@@ -2172,8 +2172,14 @@ endif
 # libxdp
 libxdp = not_found
 if not get_option('af_xdp').auto() or have_system
-    libxdp = dependency('libxdp', required: get_option('af_xdp'),
-                        version: '>=1.4.0', method: 'pkg-config')
+    if libbpf.found()
+        libxdp = dependency('libxdp', required: get_option('af_xdp'),
+                            version: '>=1.4.0', method: 'pkg-config')
+    else
+        if get_option('af_xdp').enabled()
+            error('libxdp requested, but libbpf is not available')
+        endif
+    endif
 endif
 
 # libdw

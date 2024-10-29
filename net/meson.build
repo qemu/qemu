@@ -39,7 +39,7 @@ if have_netmap
   system_ss.add(files('netmap.c'))
 endif
 
-system_ss.add(when: libxdp, if_true: files('af-xdp.c'))
+system_ss.add(when: [libxdp, libbpf], if_true: files('af-xdp.c'))
 
 if have_vhost_net_user
   system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-user.c'), if_false: files('vhost-user-stub.c'))

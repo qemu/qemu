@@ -181,7 +181,7 @@ connected to a remote QEMU machine acting as BMC, using these options
 
 .. code-block:: bash
 
-  -chardev socket,id=ipmi0,host=localhost,port=9002,reconnect=10 \
+  -chardev socket,id=ipmi0,host=localhost,port=9002,reconnect-ms=10000 \
   -device ipmi-bmc-extern,id=bmc0,chardev=ipmi0 \
   -device isa-ipmi-bt,bmc=bmc0,irq=10 \
   -nodefaults

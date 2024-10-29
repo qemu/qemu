@@ -394,9 +394,11 @@ virtio_net_announce_notify(void) ""
 virtio_net_announce_timer(int round) "%d"
 virtio_net_handle_announce(int round) "%d"
 virtio_net_post_load_device(void)
-virtio_net_rss_disable(void)
-virtio_net_rss_error(const char *msg, uint32_t value) "%s, value 0x%08x"
-virtio_net_rss_enable(uint32_t p1, uint16_t p2, uint8_t p3) "hashes 0x%x, table of %d, key of %d"
+virtio_net_rss_load(void *nic, size_t nfds, void *fds) "nic=%p nfds=%zu fds=%p"
+virtio_net_rss_attach_ebpf(void *nic, int prog_fd) "nic=%p prog-fd=%d"
+virtio_net_rss_disable(void *nic) "nic=%p"
+virtio_net_rss_error(void *nic, const char *msg, uint32_t value) "nic=%p msg=%s, value 0x%08x"
+virtio_net_rss_enable(void *nic, uint32_t p1, uint16_t p2, uint8_t p3) "nic=%p hashes 0x%x, table of %d, key of %d"
 
 # tulip.c
 tulip_reg_write(uint64_t addr, const char *name, int size, uint64_t val) "addr 0x%02"PRIx64" (%s) size %d value 0x%08"PRIx64

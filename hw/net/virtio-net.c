@@ -1241,6 +1241,7 @@ static bool virtio_net_attach_ebpf_to_backend(NICState *nic, int prog_fd)
         return false;
     }
 
+    trace_virtio_net_rss_attach_ebpf(nic, prog_fd);
     return nc->info->set_steering_ebpf(nc, prog_fd);
 }
 
@@ -1254,7 +1255,7 @@ static void rss_data_to_rss_config(struct VirtioNetRssData *data,
     config->default_queue = data->default_queue;
 }
 
-static bool virtio_net_attach_epbf_rss(VirtIONet *n)
+static bool virtio_net_attach_ebpf_rss(VirtIONet *n)
 {
     struct EBPFRSSConfig config = {};
 
@@ -1265,7 +1266,8 @@ static bool virtio_net_attach_epbf_rss(VirtIONet *n)
     rss_data_to_rss_config(&n->rss_data, &config);
 
     if (!ebpf_rss_set_all(&n->ebpf_rss, &config,
-                          n->rss_data.indirections_table, n->rss_data.key)) {
+                          n->rss_data.indirections_table, n->rss_data.key,
+                          NULL)) {
         return false;
     }
 
@@ -1276,7 +1278,7 @@ static bool virtio_net_attach_epbf_rss(VirtIONet *n)
     return true;
 }
 
-static void virtio_net_detach_epbf_rss(VirtIONet *n)
+static void virtio_net_detach_ebpf_rss(VirtIONet *n)
 {
     virtio_net_attach_ebpf_to_backend(n->nic, -1);
 }
@@ -1286,8 +1288,8 @@ static void virtio_net_commit_rss_config(VirtIONet *n)
     if (n->rss_data.enabled) {
         n->rss_data.enabled_software_rss = n->rss_data.populate_hash;
         if (n->rss_data.populate_hash) {
-            virtio_net_detach_epbf_rss(n);
-        } else if (!virtio_net_attach_epbf_rss(n)) {
+            virtio_net_detach_ebpf_rss(n);
+        } else if (!virtio_net_attach_ebpf_rss(n)) {
             if (get_vhost_net(qemu_get_queue(n->nic)->peer)) {
                 warn_report("Can't load eBPF RSS for vhost");
             } else {
@@ -1296,12 +1298,13 @@ static void virtio_net_commit_rss_config(VirtIONet *n)
             }
         }
 
-        trace_virtio_net_rss_enable(n->rss_data.hash_types,
+        trace_virtio_net_rss_enable(n,
+                                    n->rss_data.hash_types,
                                     n->rss_data.indirections_len,
                                     sizeof(n->rss_data.key));
     } else {
-        virtio_net_detach_epbf_rss(n);
-        trace_virtio_net_rss_disable();
+        virtio_net_detach_ebpf_rss(n);
+        trace_virtio_net_rss_disable(n);
     }
 }
 
@@ -1315,28 +1318,27 @@ static void virtio_net_disable_rss(VirtIONet *n)
     virtio_net_commit_rss_config(n);
 }
 
-static bool virtio_net_load_ebpf_fds(VirtIONet *n)
+static bool virtio_net_load_ebpf_fds(VirtIONet *n, Error **errp)
 {
     int fds[EBPF_RSS_MAX_FDS] = { [0 ... EBPF_RSS_MAX_FDS - 1] = -1};
     int ret = true;
     int i = 0;
 
     if (n->nr_ebpf_rss_fds != EBPF_RSS_MAX_FDS) {
-        warn_report("Expected %d file descriptors but got %d",
-                    EBPF_RSS_MAX_FDS, n->nr_ebpf_rss_fds);
-       return false;
-   }
+        error_setg(errp, "Expected %d file descriptors but got %d",
+                   EBPF_RSS_MAX_FDS, n->nr_ebpf_rss_fds);
+        return false;
+    }
 
     for (i = 0; i < n->nr_ebpf_rss_fds; i++) {
-        fds[i] = monitor_fd_param(monitor_cur(), n->ebpf_rss_fds[i],
-                                  &error_warn);
+        fds[i] = monitor_fd_param(monitor_cur(), n->ebpf_rss_fds[i], errp);
         if (fds[i] < 0) {
             ret = false;
             goto exit;
         }
     }
 
-    ret = ebpf_rss_load_fds(&n->ebpf_rss, fds[0], fds[1], fds[2], fds[3]);
+    ret = ebpf_rss_load_fds(&n->ebpf_rss, fds[0], fds[1], fds[2], fds[3], errp);
 
 exit:
     if (!ret) {
@@ -1348,13 +1350,16 @@ exit:
     return ret;
 }
 
-static bool virtio_net_load_ebpf(VirtIONet *n)
+static bool virtio_net_load_ebpf(VirtIONet *n, Error **errp)
 {
     bool ret = false;
 
     if (virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
-        if (!(n->ebpf_rss_fds && virtio_net_load_ebpf_fds(n))) {
-            ret = ebpf_rss_load(&n->ebpf_rss);
+        trace_virtio_net_rss_load(n, n->nr_ebpf_rss_fds, n->ebpf_rss_fds);
+        if (n->ebpf_rss_fds) {
+            ret = virtio_net_load_ebpf_fds(n, errp);
+        } else {
+            ret = ebpf_rss_load(&n->ebpf_rss, errp);
         }
     }
 
@@ -1401,17 +1406,17 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
     n->rss_data.hash_types = virtio_ldl_p(vdev, &cfg.hash_types);
     n->rss_data.indirections_len =
         virtio_lduw_p(vdev, &cfg.indirection_table_mask);
-    n->rss_data.indirections_len++;
     if (!do_rss) {
-        n->rss_data.indirections_len = 1;
+        n->rss_data.indirections_len = 0;
     }
-    if (!is_power_of_2(n->rss_data.indirections_len)) {
-        err_msg = "Invalid size of indirection table";
+    if (n->rss_data.indirections_len >= VIRTIO_NET_RSS_MAX_TABLE_LEN) {
+        err_msg = "Too large indirection table";
         err_value = n->rss_data.indirections_len;
         goto error;
     }
-    if (n->rss_data.indirections_len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
-        err_msg = "Too large indirection table";
+    n->rss_data.indirections_len++;
+    if (!is_power_of_2(n->rss_data.indirections_len)) {
+        err_msg = "Invalid size of indirection table";
         err_value = n->rss_data.indirections_len;
         goto error;
     }
@@ -1482,7 +1487,7 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
     virtio_net_commit_rss_config(n);
     return queue_pairs;
 error:
-    trace_virtio_net_rss_error(err_msg, err_value);
+    trace_virtio_net_rss_error(n, err_msg, err_value);
     virtio_net_disable_rss(n);
     return 0;
 }
@@ -3760,7 +3765,23 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     net_rx_pkt_init(&n->rx_pkt);
 
     if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
-        virtio_net_load_ebpf(n);
+        Error *err = NULL;
+        if (!virtio_net_load_ebpf(n, &err)) {
+            /*
+             * If user explicitly gave QEMU RSS FDs to use, then
+             * failing to use them must be considered a fatal
+             * error. If no RSS FDs were provided, QEMU is trying
+             * eBPF on a "best effort" basis only, so report a
+             * warning and allow fallback to software RSS.
+             */
+            if (n->ebpf_rss_fds) {
+                error_propagate(errp, err);
+            } else {
+                warn_report("unable to load eBPF RSS: %s",
+                            error_get_pretty(err));
+                error_free(err);
+            }
+        }
     }
 }
 
