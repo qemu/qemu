@@ -97,6 +97,8 @@ undocumented; you can get a complete list by running
    arm/nrf
    arm/nuvoton
    arm/imx25-pdk
+   arm/mcimx6ul-evk
+   arm/mcimx7d-sabre
    arm/orangepi
    arm/raspi
    arm/collie
