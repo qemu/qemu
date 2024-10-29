@@ -4294,6 +4294,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * it will be necessary to reduce the granularity of this
      * critical section.
      */
+    trace_ram_load_start();
     WITH_RCU_READ_LOCK_GUARD() {
         if (postcopy_running) {
             /*
