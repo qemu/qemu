@@ -790,7 +790,7 @@ Object *object_new_with_class(ObjectClass *klass)
 
 Object *object_new(const char *typename)
 {
-    TypeImpl *ti = type_get_by_name_noload(typename);
+    TypeImpl *ti = type_get_or_load_by_name(typename, &error_fatal);
 
     return object_new_with_type(ti);
 }
