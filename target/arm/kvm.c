@@ -42,6 +42,7 @@
 #include "migration/blocker.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
+    KVM_CAP_INFO(DEVICE_CTRL),
     KVM_CAP_LAST_INFO
 };
 
@@ -691,19 +692,11 @@ static void kvm_arm_set_device_addr(KVMDevice *kd)
 {
     struct kvm_device_attr *attr = &kd->kdattr;
     int ret;
+    uint64_t addr = kd->kda.addr;
 
-    /* If the device control API is available and we have a device fd on the
-     * KVMDevice struct, let's use the newer API
-     */
-    if (kd->dev_fd >= 0) {
-        uint64_t addr = kd->kda.addr;
-
-        addr |= kd->kda_addr_ormask;
-        attr->addr = (uintptr_t)&addr;
-        ret = kvm_device_ioctl(kd->dev_fd, KVM_SET_DEVICE_ATTR, attr);
-    } else {
-        ret = kvm_vm_ioctl(kvm_state, KVM_ARM_SET_DEVICE_ADDR, &kd->kda);
-    }
+    addr |= kd->kda_addr_ormask;
+    attr->addr = (uintptr_t)&addr;
+    ret = kvm_device_ioctl(kd->dev_fd, KVM_SET_DEVICE_ATTR, attr);
 
     if (ret < 0) {
         fprintf(stderr, "Failed to set device address: %s\n",
