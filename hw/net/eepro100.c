@@ -2102,7 +2102,7 @@ static void eepro100_register_types(void)
             { },
         };
 
-        type_register(&type_info);
+        type_register_static(&type_info);
     }
 }
 
