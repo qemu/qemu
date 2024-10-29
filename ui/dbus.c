@@ -476,7 +476,7 @@ early_dbus_init(DisplayOptions *opts)
 #endif
     }
 
-    type_register(&dbus_vc_type_info);
+    type_register_static(&dbus_vc_type_info);
 }
 
 static void
