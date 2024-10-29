@@ -144,12 +144,11 @@ static bool hex_dump_mmu_entry(FILE *f, uint64_t entry)
 
 void dump_mmu(CPUHexagonState *env)
 {
-    int i;
-
     HexagonCPU *cpu = env_archcpu(env);
-    for (i = 0; i < cpu->num_tlbs; i++) {
+    for (uint32_t i = 0; i < cpu->num_tlbs; i++) {
         uint64_t entry = env->hex_tlb->entries[i];
         if (GET_TLB_FIELD(entry, PTE_V)) {
+            qemu_printf("[%03" PRIu32 "] ", i);
             qemu_printf("0x%016" PRIx64 ": ", entry);
             uint64_t PA = hex_tlb_phys_addr(entry);
             uint64_t VA = hex_tlb_virt_addr(entry);
