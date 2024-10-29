@@ -161,7 +161,7 @@ static void m48t59_isa_register_types(void)
     for (i = 0; i < ARRAY_SIZE(m48txx_isa_info); i++) {
         isa_type_info.name = m48txx_isa_info[i].bus_name;
         isa_type_info.class_data = &m48txx_isa_info[i];
-        type_register(&isa_type_info);
+        type_register_static(&isa_type_info);
     }
 }
 
