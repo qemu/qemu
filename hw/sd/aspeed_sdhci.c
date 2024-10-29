@@ -24,8 +24,10 @@
 #define  ASPEED_SDHCI_DEBOUNCE_RESET 0x00000005
 #define ASPEED_SDHCI_BUS             0x08
 #define ASPEED_SDHCI_SDIO_140        0x10
+#define ASPEED_SDHCI_SDIO_144        0x14
 #define ASPEED_SDHCI_SDIO_148        0x18
 #define ASPEED_SDHCI_SDIO_240        0x20
+#define ASPEED_SDHCI_SDIO_244        0x24
 #define ASPEED_SDHCI_SDIO_248        0x28
 #define ASPEED_SDHCI_WP_POL          0xec
 #define ASPEED_SDHCI_CARD_DET        0xf0
@@ -35,21 +37,27 @@
 
 static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    uint32_t val = 0;
+    uint64_t val = 0;
     AspeedSDHCIState *sdhci = opaque;
 
     switch (addr) {
     case ASPEED_SDHCI_SDIO_140:
-        val = (uint32_t)sdhci->slots[0].capareg;
+        val = extract64(sdhci->slots[0].capareg, 0, 32);
+        break;
+    case ASPEED_SDHCI_SDIO_144:
+        val = extract64(sdhci->slots[0].capareg, 32, 32);
         break;
     case ASPEED_SDHCI_SDIO_148:
-        val = (uint32_t)sdhci->slots[0].maxcurr;
+        val = extract64(sdhci->slots[0].maxcurr, 0, 32);
         break;
     case ASPEED_SDHCI_SDIO_240:
-        val = (uint32_t)sdhci->slots[1].capareg;
+        val = extract64(sdhci->slots[1].capareg, 0, 32);
+        break;
+    case ASPEED_SDHCI_SDIO_244:
+        val = extract64(sdhci->slots[1].capareg, 32, 32);
         break;
     case ASPEED_SDHCI_SDIO_248:
-        val = (uint32_t)sdhci->slots[1].maxcurr;
+        val = extract64(sdhci->slots[1].maxcurr, 0, 32);
         break;
     default:
         if (addr < ASPEED_SDHCI_REG_SIZE) {
@@ -61,9 +69,9 @@ static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
         }
     }
 
-    trace_aspeed_sdhci_read(addr, size, (uint64_t) val);
+    trace_aspeed_sdhci_read(addr, size, val);
 
-    return (uint64_t)val;
+    return val;
 }
 
 static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
@@ -79,16 +87,26 @@ static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
         sdhci->regs[TO_REG(addr)] = (uint32_t)val & ~ASPEED_SDHCI_INFO_RESET;
         break;
     case ASPEED_SDHCI_SDIO_140:
-        sdhci->slots[0].capareg = (uint64_t)(uint32_t)val;
+        sdhci->slots[0].capareg = deposit64(sdhci->slots[0].capareg, 0, 32, val);
+        break;
+    case ASPEED_SDHCI_SDIO_144:
+        sdhci->slots[0].capareg = deposit64(sdhci->slots[0].capareg, 32, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_148:
-        sdhci->slots[0].maxcurr = (uint64_t)(uint32_t)val;
+        sdhci->slots[0].maxcurr = deposit64(sdhci->slots[0].maxcurr,
+                                            0, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_240:
-        sdhci->slots[1].capareg = (uint64_t)(uint32_t)val;
+        sdhci->slots[1].capareg = deposit64(sdhci->slots[1].capareg,
+                                            0, 32, val);
+        break;
+    case ASPEED_SDHCI_SDIO_244:
+        sdhci->slots[1].capareg = deposit64(sdhci->slots[1].capareg,
+                                            32, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_248:
-        sdhci->slots[1].maxcurr = (uint64_t)(uint32_t)val;
+        sdhci->slots[1].maxcurr = deposit64(sdhci->slots[0].maxcurr,
+                                            0, 32, val);
         break;
     default:
         if (addr < ASPEED_SDHCI_REG_SIZE) {
