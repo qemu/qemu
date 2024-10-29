@@ -1894,7 +1894,7 @@ static void m25p80_register_types(void)
             .class_init = m25p80_class_init,
             .class_data = (void *)&known_devices[i],
         };
-        type_register(&ti);
+        type_register_static(&ti);
     }
 }
 
