@@ -6,7 +6,7 @@
 
 use std::{ffi::CStr, os::raw::c_void};
 
-use crate::bindings::{Object, ObjectClass, TypeInfo};
+use crate::bindings::{self, Object, ObjectClass, TypeInfo};
 
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
@@ -121,6 +121,9 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
         class_data: core::ptr::null_mut(),
         interfaces: core::ptr::null_mut(),
     };
+
+    // methods on ObjectClass
+    const UNPARENT: Option<fn(&Self)> = None;
 }
 
 /// Internal trait used to automatically fill in a class struct.
@@ -134,7 +137,8 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 ///
 /// Each struct will implement this trait with `T` equal to each
 /// superclass.  For example, a device should implement at least
-/// `ClassInitImpl<`[`DeviceClass`](crate::bindings::DeviceClass)`>`.
+/// `ClassInitImpl<`[`DeviceClass`](crate::bindings::DeviceClass)`>` and
+/// `ClassInitImpl<`[`ObjectClass`](crate::bindings::ObjectClass)`>`.
 /// Such implementations are made in one of two ways.
 ///
 /// For most superclasses, `ClassInitImpl` is provided by the `qemu-api`
@@ -147,8 +151,12 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 /// ```ignore
 /// impl<T> ClassInitImpl<DeviceClass> for T
 /// where
-///     T: DeviceImpl,
+///     T: ClassInitImpl<ObjectClass> + DeviceImpl,
 /// ```
+///
+/// The bound on `ClassInitImpl<ObjectClass>` is needed so that,
+/// after initializing the `DeviceClass` part of the class struct,
+/// the parent [`ObjectClass`] is initialized as well.
 ///
 /// The other case is when manual implementation of the trait is needed.
 /// This covers the following cases:
@@ -234,4 +242,34 @@ macro_rules! module_init {
             $type => { unsafe { $body } }
         }
     };
+}
+
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_unparent_fn<T: ObjectImpl>(dev: *mut Object) {
+    unsafe {
+        assert!(!dev.is_null());
+        let state = core::ptr::NonNull::new_unchecked(dev.cast::<T>());
+        T::UNPARENT.unwrap()(state.as_ref());
+    }
+}
+
+impl<T> ClassInitImpl<ObjectClass> for T
+where
+    T: ObjectImpl,
+{
+    fn class_init(oc: &mut ObjectClass) {
+        if <T as ObjectImpl>::UNPARENT.is_some() {
+            oc.unparent = Some(rust_unparent_fn::<T>);
+        }
+    }
+}
+
+unsafe impl ObjectType for Object {
+    type Class = ObjectClass;
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_OBJECT) };
 }

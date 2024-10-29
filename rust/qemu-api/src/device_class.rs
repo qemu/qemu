@@ -5,7 +5,7 @@
 use std::ffi::CStr;
 
 use crate::{
-    bindings::{self, DeviceClass, DeviceState, Error, Property, VMStateDescription},
+    bindings::{self, DeviceClass, DeviceState, Error, ObjectClass, Property, VMStateDescription},
     definitions::ClassInitImpl,
     prelude::*,
 };
@@ -68,7 +68,7 @@ unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
 
 impl<T> ClassInitImpl<DeviceClass> for T
 where
-    T: DeviceImpl,
+    T: ClassInitImpl<ObjectClass> + DeviceImpl,
 {
     fn class_init(dc: &mut DeviceClass) {
         if <T as DeviceImpl>::REALIZE.is_some() {
@@ -88,6 +88,8 @@ where
                 bindings::device_class_set_props_n(dc, prop.as_ptr(), prop.len());
             }
         }
+
+        <T as ClassInitImpl<ObjectClass>>::class_init(&mut dc.parent_class);
     }
 }
 
