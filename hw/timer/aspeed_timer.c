@@ -580,7 +580,7 @@ static void aspeed_2600_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
 
     switch (offset) {
     case 0x34:
-        s->irq_sts &= tv;
+        s->irq_sts &= ~tv;
         break;
     case 0x3C:
         aspeed_timer_set_ctrl(s, s->ctrl & ~tv);
