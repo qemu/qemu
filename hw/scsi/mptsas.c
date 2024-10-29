@@ -1450,7 +1450,7 @@ static const TypeInfo mptsas_info = {
 
 static void mptsas_register_types(void)
 {
-    type_register(&mptsas_info);
+    type_register_static(&mptsas_info);
 }
 
 type_init(mptsas_register_types)
