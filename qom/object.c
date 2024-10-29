@@ -262,14 +262,6 @@ static size_t type_object_get_align(TypeImpl *ti)
     return 0;
 }
 
-size_t object_type_get_instance_size(const char *typename)
-{
-    TypeImpl *type = type_get_by_name(typename);
-
-    g_assert(type != NULL);
-    return type_object_get_size(type);
-}
-
 static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
 {
     assert(target_type);
