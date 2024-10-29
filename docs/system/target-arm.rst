@@ -63,10 +63,6 @@ large amounts of RAM. It also supports 64-bit CPUs.
 Board-specific documentation
 ============================
 
-Unfortunately many of the Arm boards QEMU supports are currently
-undocumented; you can get a complete list by running
-``qemu-system-aarch64 --machine help``.
-
 ..
    This table of contents should be kept sorted alphabetically
    by the title text of each file, which isn't the same ordering
