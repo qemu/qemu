@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "qemu/cutils.h"
 #include "gdbstub/user.h"
 #include "exec/page-protection.h"
 #include "hw/core/tcg-cpu-ops.h"
@@ -513,20 +514,81 @@ static int core_dump_signal(int sig)
     }
 }
 
-static void signal_table_init(void)
+static void signal_table_init(const char *rtsig_map)
 {
     int hsig, tsig, count;
 
+    if (rtsig_map) {
+        /*
+         * Map host RT signals to target RT signals according to the
+         * user-provided specification.
+         */
+        const char *s = rtsig_map;
+
+        while (true) {
+            int i;
+
+            if (qemu_strtoi(s, &s, 10, &tsig) || *s++ != ' ') {
+                fprintf(stderr, "Malformed target signal in QEMU_RTSIG_MAP\n");
+                exit(EXIT_FAILURE);
+            }
+            if (qemu_strtoi(s, &s, 10, &hsig) || *s++ != ' ') {
+                fprintf(stderr, "Malformed host signal in QEMU_RTSIG_MAP\n");
+                exit(EXIT_FAILURE);
+            }
+            if (qemu_strtoi(s, &s, 10, &count) || (*s && *s != ',')) {
+                fprintf(stderr, "Malformed signal count in QEMU_RTSIG_MAP\n");
+                exit(EXIT_FAILURE);
+            }
+
+            for (i = 0; i < count; i++, tsig++, hsig++) {
+                if (tsig < TARGET_SIGRTMIN || tsig > TARGET_NSIG) {
+                    fprintf(stderr, "%d is not a target rt signal\n", tsig);
+                    exit(EXIT_FAILURE);
+                }
+                if (hsig < SIGRTMIN || hsig > SIGRTMAX) {
+                    fprintf(stderr, "%d is not a host rt signal\n", hsig);
+                    exit(EXIT_FAILURE);
+                }
+                if (host_to_target_signal_table[hsig]) {
+                    fprintf(stderr, "%d already maps %d\n",
+                            hsig, host_to_target_signal_table[hsig]);
+                    exit(EXIT_FAILURE);
+                }
+                host_to_target_signal_table[hsig] = tsig;
+            }
+
+            if (*s) {
+                s++;
+            } else {
+                break;
+            }
+        }
+    } else {
+        /*
+         * Default host-to-target RT signal mapping.
+         *
+         * Signals are supported starting from TARGET_SIGRTMIN and going up
+         * until we run out of host realtime signals.  Glibc uses the lower 2
+         * RT signals and (hopefully) nobody uses the upper ones.
+         * This is why SIGRTMIN (34) is generally greater than __SIGRTMIN (32).
+         * To fix this properly we would need to do manual signal delivery
+         * multiplexed over a single host signal.
+         * Attempts for configure "missing" signals via sigaction will be
+         * silently ignored.
+         *
+         * Reserve one signal for internal usage (see below).
+         */
+
+        hsig = SIGRTMIN + 1;
+        for (tsig = TARGET_SIGRTMIN;
+             hsig <= SIGRTMAX && tsig <= TARGET_NSIG;
+             hsig++, tsig++) {
+            host_to_target_signal_table[hsig] = tsig;
+        }
+    }
+
     /*
-     * Signals are supported starting from TARGET_SIGRTMIN and going up
-     * until we run out of host realtime signals.  Glibc uses the lower 2
-     * RT signals and (hopefully) nobody uses the upper ones.
-     * This is why SIGRTMIN (34) is generally greater than __SIGRTMIN (32).
-     * To fix this properly we would need to do manual signal delivery
-     * multiplexed over a single host signal.
-     * Attempts for configure "missing" signals via sigaction will be
-     * silently ignored.
-     *
      * Remap the target SIGABRT, so that we can distinguish host abort
      * from guest abort.  When the guest registers a signal handler or
      * calls raise(SIGABRT), the host will raise SIG_RTn.  If the guest
@@ -536,21 +598,27 @@ static void signal_table_init(void)
      * parent sees the correct mapping from wait status.
      */
 
-    hsig = SIGRTMIN;
     host_to_target_signal_table[SIGABRT] = 0;
-    host_to_target_signal_table[hsig++] = TARGET_SIGABRT;
-
-    for (tsig = TARGET_SIGRTMIN;
-         hsig <= SIGRTMAX && tsig <= TARGET_NSIG;
-         hsig++, tsig++) {
-        host_to_target_signal_table[hsig] = tsig;
+    for (hsig = SIGRTMIN; hsig <= SIGRTMAX; hsig++) {
+        if (!host_to_target_signal_table[hsig]) {
+            host_to_target_signal_table[hsig] = TARGET_SIGABRT;
+            break;
+        }
+    }
+    if (hsig > SIGRTMAX) {
+        fprintf(stderr, "No rt signals left for SIGABRT mapping\n");
+        exit(EXIT_FAILURE);
     }
 
     /* Invert the mapping that has already been assigned. */
     for (hsig = 1; hsig < _NSIG; hsig++) {
         tsig = host_to_target_signal_table[hsig];
         if (tsig) {
-            assert(target_to_host_signal_table[tsig] == 0);
+            if (target_to_host_signal_table[tsig]) {
+                fprintf(stderr, "%d is already mapped to %d\n",
+                        tsig, target_to_host_signal_table[tsig]);
+                exit(EXIT_FAILURE);
+            }
             target_to_host_signal_table[tsig] = hsig;
         }
     }
@@ -573,13 +641,13 @@ static void signal_table_init(void)
     trace_signal_table_init(count);
 }
 
-void signal_init(void)
+void signal_init(const char *rtsig_map)
 {
     TaskState *ts = get_task_state(thread_cpu);
     struct sigaction act, oact;
 
     /* initialize signal conversion tables */
-    signal_table_init();
+    signal_table_init(rtsig_map);
 
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
