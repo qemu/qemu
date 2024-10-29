@@ -1008,7 +1008,7 @@ static void sparc_register_cpudef_type(const struct sparc_def_t *def)
         .class_data = (void *)def,
     };
 
-    type_register(&ti);
+    type_register_static(&ti);
     g_free(typename);
 }
 
