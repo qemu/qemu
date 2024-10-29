@@ -2,12 +2,14 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+//! Bindings to create devices and access device functionality from Rust.
+
 use std::ffi::CStr;
 
 use crate::{
     bindings::{self, DeviceClass, DeviceState, Error, ObjectClass, Property, VMStateDescription},
-    definitions::ClassInitImpl,
     prelude::*,
+    qom::ClassInitImpl,
 };
 
 /// Trait providing the contents of [`DeviceClass`].

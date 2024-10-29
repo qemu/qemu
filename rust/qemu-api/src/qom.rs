@@ -2,7 +2,34 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-//! Definitions required by QEMU when registering a device.
+//! Bindings to access QOM functionality from Rust.
+//!
+//! This module provides automatic creation and registration of `TypeInfo`
+//! for classes that are written in Rust, and mapping between Rust traits
+//! and QOM vtables.
+//!
+//! # Structure of a class
+//!
+//! A leaf class only needs a struct holding instance state. The struct must
+//! implement the [`ObjectType`] trait, as well as any `*Impl` traits that exist
+//! for its superclasses.
+//!
+//! If a class has subclasses, it will also provide a struct for instance data,
+//! with the same characteristics as for concrete classes, but it also needs
+//! additional components to support virtual methods:
+//!
+//! * a struct for class data, for example `DeviceClass`. This corresponds to
+//!   the C "class struct" and holds the vtable that is used by instances of the
+//!   class and its subclasses. It must start with its parent's class struct.
+//!
+//! * a trait for virtual method implementations, for example `DeviceImpl`.
+//!   Child classes implement this trait to provide their own behavior for
+//!   virtual methods. The trait's methods take `&self` to access instance data.
+//!
+//! * an implementation of [`ClassInitImpl`], for example
+//!   `ClassInitImpl<DeviceClass>`. This fills the vtable in the class struct;
+//!   the source for this is the `*Impl` trait; the associated consts and
+//!   functions if needed are wrapped to map C types into Rust types.
 
 use std::{ffi::CStr, os::raw::c_void};
 
@@ -143,10 +170,9 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 ///
 /// For most superclasses, `ClassInitImpl` is provided by the `qemu-api`
 /// crate itself.  The Rust implementation of methods will come from a
-/// trait like [`ObjectImpl`] or
-/// [`DeviceImpl`](crate::device_class::DeviceImpl), and `ClassInitImpl` is
-/// provided by blanket implementations that operate on all implementors of the
-/// `*Impl`* trait.  For example:
+/// trait like [`ObjectImpl`] or [`DeviceImpl`](crate::qdev::DeviceImpl),
+/// and `ClassInitImpl` is provided by blanket implementations that
+/// operate on all implementors of the `*Impl`* trait.  For example:
 ///
 /// ```ignore
 /// impl<T> ClassInitImpl<DeviceClass> for T
@@ -194,7 +220,7 @@ pub trait ClassInitImpl<T> {
     /// can change them to override virtual methods of a parent class.
     ///
     /// The virtual method implementations usually come from another
-    /// trait, for example [`DeviceImpl`](crate::device_class::DeviceImpl)
+    /// trait, for example [`DeviceImpl`](crate::qdev::DeviceImpl)
     /// when `T` is [`DeviceClass`](crate::bindings::DeviceClass).
     ///
     /// On entry, `klass`'s parent class is initialized, while the other fields
@@ -204,44 +230,6 @@ pub trait ClassInitImpl<T> {
     /// to T; this is more easily done once Zeroable does not require a manual
     /// implementation (Rust 1.75.0).
     fn class_init(klass: &mut T);
-}
-
-#[macro_export]
-macro_rules! module_init {
-    ($type:ident => $body:block) => {
-        const _: () = {
-            #[used]
-            #[cfg_attr(
-                not(any(target_vendor = "apple", target_os = "windows")),
-                link_section = ".init_array"
-            )]
-            #[cfg_attr(target_vendor = "apple", link_section = "__DATA,__mod_init_func")]
-            #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
-            pub static LOAD_MODULE: extern "C" fn() = {
-                extern "C" fn init_fn() {
-                    $body
-                }
-
-                extern "C" fn ctor_fn() {
-                    unsafe {
-                        $crate::bindings::register_module_init(
-                            Some(init_fn),
-                            $crate::bindings::module_init_type::$type,
-                        );
-                    }
-                }
-
-                ctor_fn
-            };
-        };
-    };
-
-    // shortcut because it's quite common that $body needs unsafe {}
-    ($type:ident => unsafe $body:block) => {
-        $crate::module_init! {
-            $type => { unsafe { $body } }
-        }
-    };
 }
 
 /// # Safety

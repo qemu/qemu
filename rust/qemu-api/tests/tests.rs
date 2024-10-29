@@ -5,8 +5,8 @@
 use std::ffi::CStr;
 
 use qemu_api::{
-    bindings::*, c_str, declare_properties, define_property, definitions::ObjectImpl,
-    device_class::DeviceImpl, impl_device_class, prelude::*, zeroable::Zeroable,
+    bindings::*, c_str, declare_properties, define_property, prelude::*, qdev::DeviceImpl,
+    qom::ObjectImpl, zeroable::Zeroable,
 };
 
 #[test]

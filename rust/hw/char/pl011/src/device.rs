@@ -11,10 +11,10 @@ use std::{
 use qemu_api::{
     bindings::{self, *},
     c_str,
-    definitions::ObjectImpl,
-    device_class::DeviceImpl,
     irq::InterruptSource,
     prelude::*,
+    qdev::DeviceImpl,
+    qom::ObjectImpl,
 };
 
 use crate::{

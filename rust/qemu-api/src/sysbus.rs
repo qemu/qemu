@@ -9,9 +9,9 @@ pub use bindings::{SysBusDevice, SysBusDeviceClass};
 use crate::{
     bindings::{self, DeviceClass},
     cell::bql_locked,
-    definitions::ClassInitImpl,
     irq::InterruptSource,
     prelude::*,
+    qom::ClassInitImpl,
 };
 
 unsafe impl ObjectType for SysBusDevice {
