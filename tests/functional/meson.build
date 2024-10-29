@@ -18,6 +18,7 @@ test_timeouts = {
   'arm_aspeed' : 600,
   'arm_raspi2' : 120,
   'arm_tuxrun' : 120,
+  'arm_sx1' : 360,
   'mips_malta' : 120,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
@@ -57,6 +58,7 @@ tests_arm_system_thorough = [
   'arm_collie',
   'arm_integratorcp',
   'arm_raspi2',
+  'arm_sx1',
   'arm_vexpress',
   'arm_tuxrun',
 ]
