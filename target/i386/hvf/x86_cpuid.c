@@ -21,28 +21,38 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cpuid.h"
+#include "host/cpuinfo.h"
 #include "cpu.h"
 #include "x86.h"
 #include "vmx.h"
 #include "sysemu/hvf.h"
 #include "hvf-i386.h"
 
-static bool xgetbv(uint32_t cpuid_ecx, uint32_t idx, uint64_t *xcr)
+static bool cached_xcr0;
+static uint64_t supported_xcr0;
+
+static void cache_host_xcr0()
 {
-    uint32_t xcrl, xcrh;
-
-    if (cpuid_ecx & CPUID_EXT_OSXSAVE) {
-        /*
-         * The xgetbv instruction is not available to older versions of
-         * the assembler, so we encode the instruction manually.
-         */
-        asm(".byte 0x0f, 0x01, 0xd0" : "=a" (xcrl), "=d" (xcrh) : "c" (idx));
-
-        *xcr = (((uint64_t)xcrh) << 32) | xcrl;
-        return true;
+    if (cached_xcr0) {
+        return;
     }
 
-    return false;
+    if (cpuinfo & CPUINFO_OSXSAVE) {
+        uint64_t host_xcr0 = xgetbv_low(0);
+
+        /* Only show xcr0 bits corresponding to usable features.  */
+        supported_xcr0 = host_xcr0 & (XSTATE_FP_MASK |
+                                      XSTATE_SSE_MASK | XSTATE_YMM_MASK |
+                                      XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK |
+                                      XSTATE_Hi16_ZMM_MASK);
+        if ((supported_xcr0 & (XSTATE_FP_MASK | XSTATE_SSE_MASK)) !=
+            (XSTATE_FP_MASK | XSTATE_SSE_MASK)) {
+            supported_xcr0 = 0;
+        }
+    }
+
+    cached_xcr0 = true;
 }
 
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
@@ -51,6 +61,7 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
     uint64_t cap;
     uint32_t eax, ebx, ecx, edx;
 
+    cache_host_xcr0();
     host_cpuid(func, idx, &eax, &ebx, &ecx, &edx);
 
     switch (func) {
@@ -66,7 +77,8 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         ecx &= CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSSE3 |
              CPUID_EXT_FMA | CPUID_EXT_CX16 | CPUID_EXT_PCID |
              CPUID_EXT_SSE41 | CPUID_EXT_SSE42 | CPUID_EXT_MOVBE |
-             CPUID_EXT_POPCNT | CPUID_EXT_AES | CPUID_EXT_XSAVE |
+             CPUID_EXT_POPCNT | CPUID_EXT_AES |
+             (supported_xcr0 ? CPUID_EXT_XSAVE : 0) |
              CPUID_EXT_AVX | CPUID_EXT_F16C | CPUID_EXT_RDRAND;
         ecx |= CPUID_EXT_HYPERVISOR;
         break;
@@ -107,16 +119,14 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         eax = 0;
         break;
     case 0xD:
+        if (!supported_xcr0 ||
+            (idx > 1 && !(supported_xcr0 & (1 << idx)))) {
+            eax = ebx = ecx = edx = 0;
+            break;
+        }
+
         if (idx == 0) {
-            uint64_t host_xcr0;
-            if (xgetbv(ecx, 0, &host_xcr0)) {
-                uint64_t supp_xcr0 = host_xcr0 & (XSTATE_FP_MASK |
-                                  XSTATE_SSE_MASK | XSTATE_YMM_MASK |
-                                  XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
-                                  XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK |
-                                  XSTATE_Hi16_ZMM_MASK);
-                eax &= supp_xcr0;
-            }
+            eax = supported_xcr0;
         } else if (idx == 1) {
             hv_vmx_read_capability(HV_VMX_CAP_PROCBASED2, &cap);
             eax &= CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1;
