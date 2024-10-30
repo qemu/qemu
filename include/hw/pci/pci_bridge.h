@@ -72,6 +72,8 @@ struct PCIBridge {
      */
     MemoryRegion address_space_mem;
     MemoryRegion address_space_io;
+    AddressSpace as_mem;
+    AddressSpace as_io;
 
     PCIBridgeWindows windows;
 
