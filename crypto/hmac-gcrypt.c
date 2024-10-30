@@ -26,6 +26,9 @@ static int qcrypto_hmac_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
     [QCRYPTO_HASH_ALGO_SHA384] = GCRY_MAC_HMAC_SHA384,
     [QCRYPTO_HASH_ALGO_SHA512] = GCRY_MAC_HMAC_SHA512,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = GCRY_MAC_HMAC_RMD160,
+#ifdef CONFIG_CRYPTO_SM3
+    [QCRYPTO_HASH_ALGO_SM3] = GCRY_MAC_HMAC_SM3,
+#endif
 };
 
 typedef struct QCryptoHmacGcrypt QCryptoHmacGcrypt;

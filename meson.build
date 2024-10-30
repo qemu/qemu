@@ -1760,6 +1760,7 @@ gcrypt = not_found
 nettle = not_found
 hogweed = not_found
 crypto_sm4 = not_found
+crypto_sm3 = not_found
 xts = 'none'
 
 if get_option('nettle').enabled() and get_option('gcrypt').enabled()
@@ -1795,6 +1796,17 @@ if not gnutls_crypto.found()
       }''', dependencies: gcrypt)
       crypto_sm4 = not_found
     endif
+    crypto_sm3 = gcrypt
+    # SM3 ALG is available in libgcrypt >= 1.9
+    if gcrypt.found() and not cc.links('''
+      #include <gcrypt.h>
+      int main(void) {
+        gcry_md_hd_t handler;
+        gcry_md_open(&handler, GCRY_MD_SM3, 0);
+        return 0;
+      }''', dependencies: gcrypt)
+      crypto_sm3 = not_found
+    endif
   endif
   if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
     nettle = dependency('nettle', version: '>=3.4',
@@ -1814,6 +1826,31 @@ if not gnutls_crypto.found()
         return 0;
       }''', dependencies: nettle)
       crypto_sm4 = not_found
+    endif
+    crypto_sm3 = nettle
+    # SM3 ALG is available in nettle >= 3.8
+    if nettle.found() and not cc.links('''
+      #include <nettle/sm3.h>
+      #include <nettle/hmac.h>
+      int main(void) {
+      struct sm3_ctx ctx;
+      struct hmac_sm3_ctx hmac_ctx;
+      unsigned char data[64] = {0};
+      unsigned char output[32];
+
+      // SM3 hash function test
+      sm3_init(&ctx);
+      sm3_update(&ctx, 64, data);
+      sm3_digest(&ctx, 32, data);
+
+      // HMAC-SM3 test
+      hmac_sm3_set_key(&hmac_ctx, 32, data);
+      hmac_sm3_update(&hmac_ctx, 64, data);
+      hmac_sm3_digest(&hmac_ctx, 32, output);
+
+      return 0;
+      }''', dependencies: nettle)
+      crypto_sm3 = not_found
     endif
   endif
 endif
@@ -2462,6 +2499,7 @@ config_host_data.set('CONFIG_TASN1', tasn1.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
 config_host_data.set('CONFIG_NETTLE', nettle.found())
 config_host_data.set('CONFIG_CRYPTO_SM4', crypto_sm4.found())
+config_host_data.set('CONFIG_CRYPTO_SM3', crypto_sm3.found())
 config_host_data.set('CONFIG_HOGWEED', hogweed.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
@@ -4590,6 +4628,7 @@ if nettle.found()
    summary_info += {'  XTS':             xts != 'private'}
 endif
 summary_info += {'SM4 ALG support':   crypto_sm4}
+summary_info += {'SM3 ALG support':   crypto_sm3}
 summary_info += {'AF_ALG support':    have_afalg}
 summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
