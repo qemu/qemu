@@ -43,7 +43,7 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
         qcrypto_hash_alg_map[alg] != GCRY_MD_NONE) {
-        return true;
+        return gcry_md_test_algo(qcrypto_hash_alg_map[alg]) == 0;
     }
     return false;
 }

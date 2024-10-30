@@ -40,7 +40,7 @@ bool qcrypto_hmac_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hmac_alg_map) &&
         qcrypto_hmac_alg_map[alg] != GCRY_MAC_NONE) {
-        return true;
+        return gcry_mac_test_algo(qcrypto_hmac_alg_map[alg]) == 0;
     }
 
     return false;
