@@ -52,7 +52,7 @@ static
 QCryptoHash *qcrypto_gcrypt_hash_new(QCryptoHashAlgo alg, Error **errp)
 {
     QCryptoHash *hash;
-    int ret;
+    gcry_error_t ret;
 
     hash = g_new(QCryptoHash, 1);
     hash->alg = alg;
@@ -60,7 +60,7 @@ QCryptoHash *qcrypto_gcrypt_hash_new(QCryptoHashAlgo alg, Error **errp)
 
     ret = gcry_md_open((gcry_md_hd_t *) hash->opaque,
                        qcrypto_hash_alg_map[alg], 0);
-    if (ret < 0) {
+    if (ret != 0) {
         error_setg(errp,
                    "Unable to initialize hash algorithm: %s",
                    gcry_strerror(ret));
