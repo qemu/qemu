@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use std::{
-    ffi::CStr,
-    os::raw::c_void,
+    ffi::{c_void, CStr},
     ptr::{addr_of, addr_of_mut},
 };
 
@@ -15,7 +14,7 @@ use qemu_api::{
     declare_properties, define_property,
     prelude::*,
     qdev::{DeviceClass, DeviceImpl, DeviceState, Property},
-    qom::{ClassInitImpl, ObjectImpl, Owned, ParentField},
+    qom::{ClassInitImpl, ObjectImpl, ParentField},
     vmstate::VMStateDescription,
     zeroable::Zeroable,
 };
@@ -132,10 +131,8 @@ fn init_qom() {
 /// Create and immediately drop an instance.
 fn test_object_new() {
     init_qom();
-    unsafe {
-        object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
-        object_unref(object_new(DummyChildState::TYPE_NAME.as_ptr()).cast());
-    }
+    drop(DummyState::new());
+    drop(DummyChildState::new());
 }
 
 #[test]
@@ -143,8 +140,7 @@ fn test_object_new() {
 /// Create, clone and then drop an instance.
 fn test_clone() {
     init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
-    let p = unsafe { Owned::from_raw(p) };
+    let p = DummyState::new();
     assert_eq!(p.clone().typename(), "dummy");
     drop(p);
 }
@@ -153,12 +149,8 @@ fn test_clone() {
 /// Try invoking a method on an object.
 fn test_typename() {
     init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
-    let p_ref: &DummyState = unsafe { &*p };
-    assert_eq!(p_ref.typename(), "dummy");
-    unsafe {
-        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
-    }
+    let p = DummyState::new();
+    assert_eq!(p.typename(), "dummy");
 }
 
 // a note on all "cast" tests: usually, especially for downcasts the desired
@@ -173,24 +165,23 @@ fn test_typename() {
 /// Test casts on shared references.
 fn test_cast() {
     init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+    let p = DummyState::new();
+    let p_ptr: *mut DummyState = p.as_mut_ptr();
+    let p_ref: &mut DummyState = unsafe { &mut *p_ptr };
 
-    let p_ref: &DummyState = unsafe { &*p };
     let obj_ref: &Object = p_ref.upcast();
-    assert_eq!(addr_of!(*obj_ref), p.cast());
+    assert_eq!(addr_of!(*obj_ref), p_ptr.cast());
 
     let sbd_ref: Option<&SysBusDevice> = obj_ref.dynamic_cast();
     assert!(sbd_ref.is_none());
 
     let dev_ref: Option<&DeviceState> = obj_ref.downcast();
-    assert_eq!(addr_of!(*dev_ref.unwrap()), p.cast());
+    assert_eq!(addr_of!(*dev_ref.unwrap()), p_ptr.cast());
 
     // SAFETY: the cast is wrong, but the value is only used for comparison
     unsafe {
         let sbd_ref: &SysBusDevice = obj_ref.unsafe_cast();
-        assert_eq!(addr_of!(*sbd_ref), p.cast());
-
-        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
+        assert_eq!(addr_of!(*sbd_ref), p_ptr.cast());
     }
 }
 

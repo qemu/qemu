@@ -10,11 +10,11 @@ use std::{
 
 use qemu_api::{
     bindings::{
-        error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_new,
-        qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
-        qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq, sysbus_mmio_map,
-        sysbus_realize_and_unref, CharBackend, Chardev, Clock, ClockEvent, MemoryRegion,
-        QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+        error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_prop_set_chr,
+        qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
+        qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq, sysbus_mmio_map, sysbus_realize,
+        CharBackend, Chardev, Clock, ClockEvent, MemoryRegion, QEMUChrEvent,
+        CHR_IOCTL_SERIAL_SET_BREAK,
     },
     c_str, impl_vmstate_forward,
     irq::InterruptSource,
@@ -705,15 +705,18 @@ pub unsafe extern "C" fn pl011_create(
     irq: qemu_irq,
     chr: *mut Chardev,
 ) -> *mut DeviceState {
+    let pl011 = PL011State::new();
     unsafe {
-        let dev: *mut DeviceState = qdev_new(PL011State::TYPE_NAME.as_ptr());
-        let sysbus: *mut SysBusDevice = dev.cast::<SysBusDevice>();
-
+        let dev = pl011.as_mut_ptr::<DeviceState>();
         qdev_prop_set_chr(dev, c_str!("chardev").as_ptr(), chr);
-        sysbus_realize_and_unref(sysbus, addr_of_mut!(error_fatal));
+
+        let sysbus = pl011.as_mut_ptr::<SysBusDevice>();
+        sysbus_realize(sysbus, addr_of_mut!(error_fatal));
         sysbus_mmio_map(sysbus, 0, addr);
         sysbus_connect_irq(sysbus, 0, irq);
-        dev
+
+        // return the pointer, which is kept alive by the QOM tree; drop owned ref
+        pl011.as_mut_ptr()
     }
 }
 

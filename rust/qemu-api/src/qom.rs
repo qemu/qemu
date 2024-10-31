@@ -66,8 +66,8 @@ pub use bindings::{Object, ObjectClass};
 
 use crate::{
     bindings::{
-        self, object_dynamic_cast, object_get_class, object_get_typename, object_ref, object_unref,
-        TypeInfo,
+        self, object_dynamic_cast, object_get_class, object_get_typename, object_new, object_ref,
+        object_unref, TypeInfo,
     },
     cell::bql_locked,
 };
@@ -759,6 +759,24 @@ impl<T: IsA<Object>> fmt::Debug for Owned<T> {
     }
 }
 
+/// Trait for class methods exposed by the Object class.  The methods can be
+/// called on all objects that have the trait `IsA<Object>`.
+///
+/// The trait should only be used through the blanket implementation,
+/// which guarantees safety via `IsA`
+pub trait ObjectClassMethods: IsA<Object> {
+    /// Return a new reference counted instance of this class
+    fn new() -> Owned<Self> {
+        assert!(bql_locked());
+        // SAFETY: the object created by object_new is allocated on
+        // the heap and has a reference count of 1
+        unsafe {
+            let obj = &*object_new(Self::TYPE_NAME.as_ptr());
+            Owned::from_raw(obj.unsafe_cast::<Self>())
+        }
+    }
+}
+
 /// Trait for methods exposed by the Object class.  The methods can be
 /// called on all objects that have the trait `IsA<Object>`.
 ///
@@ -799,4 +817,5 @@ where
     }
 }
 
+impl<T> ObjectClassMethods for T where T: IsA<Object> {}
 impl<R: ObjectDeref> ObjectMethods for R where R::Target: IsA<Object> {}
