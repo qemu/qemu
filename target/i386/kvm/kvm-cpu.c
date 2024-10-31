@@ -143,10 +143,6 @@ static void kvm_cpu_xsave_init(void)
         if (!esa->size) {
             continue;
         }
-        if ((x86_cpu_get_supported_feature_word(NULL, esa->feature) & esa->bits)
-            != esa->bits) {
-            continue;
-        }
         host_cpuid(0xd, i, &eax, &ebx, &ecx, &edx);
         if (eax != 0) {
             assert(esa->size == eax);
