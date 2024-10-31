@@ -2,11 +2,17 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::ptr::addr_of;
+use std::{ffi::CStr, ptr::addr_of};
 
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
-use crate::{bindings, cell::bql_locked, irq::InterruptSource};
+use crate::{bindings, cell::bql_locked, irq::InterruptSource, prelude::*};
+
+unsafe impl ObjectType for SysBusDevice {
+    type Class = SysBusDeviceClass;
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
+}
 
 impl SysBusDevice {
     /// Return `self` cast to a mutable pointer, for use in calls to C code.

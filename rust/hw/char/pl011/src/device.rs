@@ -12,9 +12,10 @@ use qemu_api::{
     bindings::{self, *},
     c_str,
     definitions::ObjectImpl,
-    device_class::{DeviceImpl, TYPE_SYS_BUS_DEVICE},
+    device_class::DeviceImpl,
     impl_device_class,
     irq::InterruptSource,
+    prelude::*,
 };
 
 use crate::{
@@ -106,10 +107,13 @@ pub struct PL011State {
     device_id: DeviceId,
 }
 
-impl ObjectImpl for PL011State {
+unsafe impl ObjectType for PL011State {
     type Class = PL011Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
-    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(TYPE_SYS_BUS_DEVICE);
+}
+
+impl ObjectImpl for PL011State {
+    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(<SysBusDevice as ObjectType>::TYPE_NAME);
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
 }
 
@@ -640,10 +644,13 @@ impl PL011Luminary {
     }
 }
 
-impl ObjectImpl for PL011Luminary {
+unsafe impl ObjectType for PL011Luminary {
     type Class = PL011LuminaryClass;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011_LUMINARY;
-    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(crate::TYPE_PL011);
+}
+
+impl ObjectImpl for PL011Luminary {
+    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(<PL011State as ObjectType>::TYPE_NAME);
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
 }
 

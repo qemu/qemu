@@ -6,3 +6,5 @@ pub use crate::bitops::IntegerExt;
 
 pub use crate::cell::BqlCell;
 pub use crate::cell::BqlRefCell;
+
+pub use crate::definitions::ObjectType;

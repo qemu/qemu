@@ -26,25 +26,40 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
     T::INSTANCE_POST_INIT.unwrap()(unsafe { &mut *obj.cast::<T>() })
 }
 
-/// Trait a type must implement to be registered with QEMU.
+/// Trait exposed by all structs corresponding to QOM objects.
 ///
 /// # Safety
 ///
-/// - the struct must be `#[repr(C)]`
+/// For classes declared in C:
 ///
-/// - `Class` and `TYPE` must match the data in the `TypeInfo` (this is
-///   automatic if the class is defined via `ObjectImpl`).
+/// - `Class` and `TYPE` must match the data in the `TypeInfo`;
+///
+/// - the first field of the struct must be of the instance type corresponding
+///   to the superclass, as declared in the `TypeInfo`
+///
+/// - likewise, the first field of the `Class` struct must be of the class type
+///   corresponding to the superclass
+///
+/// For classes declared in Rust and implementing [`ObjectImpl`]:
+///
+/// - the struct must be `#[repr(C)]`;
 ///
 /// - the first field of the struct must be of the instance struct corresponding
-///   to the superclass declared as `PARENT_TYPE_NAME`
-pub trait ObjectImpl: ClassInitImpl + Sized {
+///   to the superclass, as declared in `ObjectImpl::PARENT_TYPE_NAME`
+///
+/// - likewise, the first field of the `Class` must be of the class struct
+///   corresponding to the superclass
+pub unsafe trait ObjectType: Sized {
     /// The QOM class object corresponding to this struct.  Not used yet.
     type Class;
 
     /// The name of the type, which can be passed to `object_new()` to
     /// generate an instance of this type.
     const TYPE_NAME: &'static CStr;
+}
 
+/// Trait a type must implement to be registered with QEMU.
+pub trait ObjectImpl: ObjectType + ClassInitImpl {
     /// The parent of the type.  This should match the first field of
     /// the struct that implements `ObjectImpl`:
     const PARENT_TYPE_NAME: Option<&'static CStr>;

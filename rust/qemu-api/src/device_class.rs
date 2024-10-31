@@ -6,6 +6,7 @@ use std::{ffi::CStr, os::raw::c_void};
 
 use crate::{
     bindings::{self, DeviceClass, DeviceState, Error, ObjectClass, Property, VMStateDescription},
+    prelude::*,
     zeroable::Zeroable,
 };
 
@@ -146,8 +147,8 @@ macro_rules! declare_properties {
     };
 }
 
-// workaround until we can use --generate-cstr in bindgen.
-pub const TYPE_DEVICE: &CStr =
-    unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
-pub const TYPE_SYS_BUS_DEVICE: &CStr =
-    unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
+unsafe impl ObjectType for bindings::DeviceState {
+    type Class = bindings::DeviceClass;
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
+}

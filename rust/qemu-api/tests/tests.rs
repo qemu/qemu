@@ -5,12 +5,8 @@
 use std::ffi::CStr;
 
 use qemu_api::{
-    bindings::*,
-    c_str, declare_properties, define_property,
-    definitions::ObjectImpl,
-    device_class::{self, DeviceImpl},
-    impl_device_class,
-    zeroable::Zeroable,
+    bindings::*, c_str, declare_properties, define_property, definitions::ObjectImpl,
+    device_class::DeviceImpl, impl_device_class, prelude::*, zeroable::Zeroable,
 };
 
 #[test]
@@ -46,10 +42,15 @@ fn test_device_decl_macros() {
             ),
     }
 
-    impl ObjectImpl for DummyState {
+    unsafe impl ObjectType for DummyState {
         type Class = DummyClass;
         const TYPE_NAME: &'static CStr = c_str!("dummy");
-        const PARENT_TYPE_NAME: Option<&'static CStr> = Some(device_class::TYPE_DEVICE);
+    }
+
+    impl ObjectImpl for DummyState {
+        const PARENT_TYPE_NAME: Option<&'static CStr> =
+            Some(<DeviceState as ObjectType>::TYPE_NAME);
+        const ABSTRACT: bool = false;
     }
 
     impl DeviceImpl for DummyState {
