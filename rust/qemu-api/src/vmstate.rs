@@ -10,6 +10,8 @@
 //! [`vmstate_fields`](crate::vmstate_fields) are meant to be used when
 //! declaring a device model state struct.
 
+pub use crate::bindings::VMStateDescription;
+
 #[doc(alias = "VMSTATE_UNUSED_BUFFER")]
 #[macro_export]
 macro_rules! vmstate_unused_buffer {
@@ -328,7 +330,7 @@ macro_rules! vmstate_fields {
 }
 
 /// A transparent wrapper type for the `subsections` field of
-/// [`VMStateDescription`](crate::bindings::VMStateDescription).
+/// [`VMStateDescription`].
 ///
 /// This is necessary to be able to declare subsection descriptions as statics,
 /// because the only way to implement `Sync` for a foreign type (and `*const`
@@ -342,9 +344,8 @@ pub struct VMStateSubsectionsWrapper(pub &'static [*const crate::bindings::VMSta
 
 unsafe impl Sync for VMStateSubsectionsWrapper {}
 
-/// Helper macro to declare a list of subsections
-/// ([`VMStateDescription`](`crate::bindings::VMStateDescription`)) into a
-/// static and return a pointer to the array of pointers it created.
+/// Helper macro to declare a list of subsections ([`VMStateDescription`])
+/// into a static and return a pointer to the array of pointers it created.
 #[macro_export]
 macro_rules! vmstate_subsections {
     ($($subsection:expr),*$(,)*) => {{

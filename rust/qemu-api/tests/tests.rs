@@ -5,8 +5,13 @@
 use std::ffi::CStr;
 
 use qemu_api::{
-    bindings::*, c_str, declare_properties, define_property, prelude::*, qdev::DeviceImpl,
-    qom::ObjectImpl, zeroable::Zeroable,
+    bindings::*,
+    c_str, declare_properties, define_property,
+    prelude::*,
+    qdev::{DeviceImpl, DeviceState, Property},
+    qom::ObjectImpl,
+    vmstate::VMStateDescription,
+    zeroable::Zeroable,
 };
 
 #[test]

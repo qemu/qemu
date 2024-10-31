@@ -33,7 +33,9 @@
 
 use std::{ffi::CStr, os::raw::c_void};
 
-use crate::bindings::{self, Object, ObjectClass, TypeInfo};
+pub use bindings::{Object, ObjectClass};
+
+use crate::bindings::{self, TypeInfo};
 
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
@@ -164,9 +166,9 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 ///
 /// Each struct will implement this trait with `T` equal to each
 /// superclass.  For example, a device should implement at least
-/// `ClassInitImpl<`[`DeviceClass`](crate::bindings::DeviceClass)`>` and
-/// `ClassInitImpl<`[`ObjectClass`](crate::bindings::ObjectClass)`>`.
-/// Such implementations are made in one of two ways.
+/// `ClassInitImpl<`[`DeviceClass`](crate::qdev::DeviceClass)`>` and
+/// `ClassInitImpl<`[`ObjectClass`]`>`.  Such implementations are made
+/// in one of two ways.
 ///
 /// For most superclasses, `ClassInitImpl` is provided by the `qemu-api`
 /// crate itself.  The Rust implementation of methods will come from a
@@ -221,7 +223,7 @@ pub trait ClassInitImpl<T> {
     ///
     /// The virtual method implementations usually come from another
     /// trait, for example [`DeviceImpl`](crate::qdev::DeviceImpl)
-    /// when `T` is [`DeviceClass`](crate::bindings::DeviceClass).
+    /// when `T` is [`DeviceClass`](crate::qdev::DeviceClass).
     ///
     /// On entry, `klass`'s parent class is initialized, while the other fields
     /// are all zero; it is therefore assumed that all fields in `T` can be

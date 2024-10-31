@@ -6,10 +6,13 @@
 
 use std::ffi::CStr;
 
+pub use bindings::{DeviceClass, DeviceState, Property};
+
 use crate::{
-    bindings::{self, DeviceClass, DeviceState, Error, ObjectClass, Property, VMStateDescription},
+    bindings::{self, Error},
     prelude::*,
-    qom::ClassInitImpl,
+    qom::{ClassInitImpl, ObjectClass},
+    vmstate::VMStateDescription,
 };
 
 /// Trait providing the contents of [`DeviceClass`].

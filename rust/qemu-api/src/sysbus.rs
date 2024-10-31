@@ -7,10 +7,7 @@ use std::{ffi::CStr, ptr::addr_of};
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
 use crate::{
-    bindings::{self, DeviceClass},
-    cell::bql_locked,
-    irq::InterruptSource,
-    prelude::*,
+    bindings, cell::bql_locked, irq::InterruptSource, prelude::*, qdev::DeviceClass,
     qom::ClassInitImpl,
 };
 
