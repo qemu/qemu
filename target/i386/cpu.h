@@ -975,6 +975,8 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_7_1_EDX_AMX_COMPLEX       (1U << 8)
 /* PREFETCHIT0/1 Instructions */
 #define CPUID_7_1_EDX_PREFETCHITI       (1U << 14)
+/* Support for Advanced Vector Extensions 10 */
+#define CPUID_7_1_EDX_AVX10             (1U << 19)
 /* Flexible return and event delivery (FRED) */
 #define CPUID_7_1_EAX_FRED              (1U << 17)
 /* Load into IA32_KERNEL_GS_BASE (LKGS) */
@@ -1954,6 +1956,8 @@ typedef struct CPUArchState {
     uint32_t cpuid_vendor3;
     uint32_t cpuid_version;
     FeatureWordArray features;
+    /* AVX10 version */
+    uint8_t avx10_version;
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];
