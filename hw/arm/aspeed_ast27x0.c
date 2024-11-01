@@ -66,7 +66,7 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_GPIO]      =  0x14C0B000,
 };
 
-#define AST2700_MAX_IRQ 288
+#define AST2700_MAX_IRQ 256
 
 /* Shared Peripheral Interrupt values below are offset by -32 from datasheet */
 static const int aspeed_soc_ast2700_irqmap[] = {
@@ -403,7 +403,7 @@ static bool aspeed_soc_ast2700_gic_realize(DeviceState *dev, Error **errp)
     gicdev = DEVICE(&a->gic);
     qdev_prop_set_uint32(gicdev, "revision", 3);
     qdev_prop_set_uint32(gicdev, "num-cpu", sc->num_cpus);
-    qdev_prop_set_uint32(gicdev, "num-irq", AST2700_MAX_IRQ);
+    qdev_prop_set_uint32(gicdev, "num-irq", AST2700_MAX_IRQ + GIC_INTERNAL);
 
     redist_region_count = qlist_new();
     qlist_append_int(redist_region_count, sc->num_cpus);
@@ -417,8 +417,7 @@ static bool aspeed_soc_ast2700_gic_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < sc->num_cpus; i++) {
         DeviceState *cpudev = DEVICE(&a->cpu[i]);
-        int NUM_IRQS = 256;
-        int intidbase = NUM_IRQS + i * GIC_INTERNAL;
+        int intidbase = AST2700_MAX_IRQ + i * GIC_INTERNAL;
 
         const int timer_irq[] = {
             [GTIMER_PHYS] = ARCH_TIMER_NS_EL1_IRQ,
