@@ -705,6 +705,10 @@ static CXLRetCode cmd_firmware_update_transfer(const struct cxl_cmd *cmd,
     } QEMU_PACKED *fw_transfer = (void *)payload_in;
     size_t offset, length;
 
+    if (len < sizeof(*fw_transfer)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     if (fw_transfer->action == CXL_FW_XFER_ACTION_ABORT) {
         /*
          * At this point there aren't any on-going transfers
