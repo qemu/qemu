@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
+#include "hw/arm/bsa.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "hw/i2c/aspeed_i2c.h"
@@ -416,28 +417,28 @@ static bool aspeed_soc_ast2700_gic_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < sc->num_cpus; i++) {
         DeviceState *cpudev = DEVICE(&a->cpu[i]);
-        int NUM_IRQS = 256, ARCH_GIC_MAINT_IRQ = 9, VIRTUAL_PMU_IRQ = 7;
-        int ppibase = NUM_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
+        int NUM_IRQS = 256;
+        int intidbase = NUM_IRQS + i * GIC_INTERNAL;
 
         const int timer_irq[] = {
-            [GTIMER_PHYS] = 14,
-            [GTIMER_VIRT] = 11,
-            [GTIMER_HYP]  = 10,
-            [GTIMER_SEC]  = 13,
+            [GTIMER_PHYS] = ARCH_TIMER_NS_EL1_IRQ,
+            [GTIMER_VIRT] = ARCH_TIMER_VIRT_IRQ,
+            [GTIMER_HYP]  = ARCH_TIMER_NS_EL2_IRQ,
+            [GTIMER_SEC]  = ARCH_TIMER_S_EL1_IRQ,
         };
         int j;
 
         for (j = 0; j < ARRAY_SIZE(timer_irq); j++) {
             qdev_connect_gpio_out(cpudev, j,
-                    qdev_get_gpio_in(gicdev, ppibase + timer_irq[j]));
+                    qdev_get_gpio_in(gicdev, intidbase + timer_irq[j]));
         }
 
         qemu_irq irq = qdev_get_gpio_in(gicdev,
-                                        ppibase + ARCH_GIC_MAINT_IRQ);
+                                        intidbase + ARCH_GIC_MAINT_IRQ);
         qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
                                     0, irq);
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
-                qdev_get_gpio_in(gicdev, ppibase + VIRTUAL_PMU_IRQ));
+                qdev_get_gpio_in(gicdev, intidbase + VIRTUAL_PMU_IRQ));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(gicbusdev, i + sc->num_cpus,
