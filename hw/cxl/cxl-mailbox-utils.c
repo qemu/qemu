@@ -937,22 +937,26 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
 
     get_log = (void *)payload_in;
 
-    /*
-     * CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h)
-     *   The device shall return Invalid Input if the Offset or Length
-     *   fields attempt to access beyond the size of the log as reported by Get
-     *   Supported Logs.
-     *
-     * The CEL buffer is large enough to fit all commands in the emulation, so
-     * the only possible failure would be if the mailbox itself isn't big
-     * enough.
-     */
     if (get_log->length > cci->payload_max) {
         return CXL_MBOX_INVALID_INPUT;
     }
 
     if (!qemu_uuid_is_equal(&get_log->uuid, &cel_uuid)) {
         return CXL_MBOX_INVALID_LOG;
+    }
+
+    /*
+     * CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h)
+     *   The device shall return Invalid Input if the Offset or Length
+     *   fields attempt to access beyond the size of the log as reported by Get
+     *   Supported Log.
+     *
+     * Only valid for there to be one entry per opcode, but the length + offset
+     * may still be greater than that if the inputs are not valid and so access
+     * beyond the end of cci->cel_log.
+     */
+    if ((uint64_t)get_log->offset + get_log->length >= sizeof(cci->cel_log)) {
+        return CXL_MBOX_INVALID_INPUT;
     }
 
     /* Store off everything to local variables so we can wipe out the payload */
