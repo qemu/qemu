@@ -1238,6 +1238,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     CXLType3Dev *ct3d;
     uint16_t count;
 
+    if (len_in < sizeof(*hdr)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
 
     if (!object_dynamic_cast(OBJECT(cci->d), TYPE_CXL_TYPE3)) {
         return CXL_MBOX_UNSUPPORTED;
