@@ -1292,6 +1292,11 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         ps_set_feature = (void *)payload_in;
         ps_write_attrs = &ps_set_feature->feat_data;
+
+        if ((uint32_t)hdr->offset + bytes_to_copy >
+            sizeof(ct3d->patrol_scrub_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->patrol_scrub_wr_attrs + hdr->offset,
                ps_write_attrs,
                bytes_to_copy);
@@ -1314,6 +1319,11 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         ecs_set_feature = (void *)payload_in;
         ecs_write_attrs = ecs_set_feature->feat_data;
+
+        if ((uint32_t)hdr->offset + bytes_to_copy >
+            sizeof(ct3d->ecs_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->ecs_wr_attrs + hdr->offset,
                ecs_write_attrs,
                bytes_to_copy);
