@@ -266,6 +266,12 @@ static CXLRetCode cmd_events_clear_records(const struct cxl_cmd *cmd,
     CXLClearEventPayload *pl;
 
     pl = (CXLClearEventPayload *)payload_in;
+
+    if (len_in < sizeof(*pl) ||
+        len_in < sizeof(*pl) + sizeof(*pl->handle) * pl->nr_recs) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     *len_out = 0;
     return cxl_event_clear_records(cxlds, pl);
 }
