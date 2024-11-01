@@ -1614,10 +1614,13 @@ class ReproducibleStreamWrapper:
         self.stream.write(arg)
 
 class ReproducibleTestRunner(unittest.TextTestRunner):
-    def __init__(self, stream: Optional[TextIO] = None,
-                 resultclass: Type[unittest.TestResult] =
-                 ReproducibleTestResult,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        stream: Optional[TextIO] = None,
+        resultclass: Type[unittest.TestResult] =
+        ReproducibleTestResult,
+        **kwargs: Any
+    ) -> None:
         rstream = ReproducibleStreamWrapper(stream or sys.stdout)
         super().__init__(stream=rstream,           # type: ignore
                          descriptions=True,
