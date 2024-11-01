@@ -530,6 +530,9 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
     in = (struct cxl_fmapi_get_phys_port_state_req_pl *)payload_in;
     out = (struct cxl_fmapi_get_phys_port_state_resp_pl *)payload_out;
 
+    if (len_in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
     /* Check if what was requested can fit */
     if (sizeof(*out) + sizeof(*out->ports) * in->num_ports > cci->payload_max) {
         return CXL_MBOX_INVALID_INPUT;
