@@ -1503,8 +1503,8 @@ static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
     const size_t hdr_len = offsetof(struct set_lsa_pl, data);
 
     *len_out = 0;
-    if (!len_in) {
-        return CXL_MBOX_SUCCESS;
+    if (len_in < hdr_len) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
     if (set_lsa_payload->offset + len_in > cvc->get_lsa_size(ct3d) + hdr_len) {
