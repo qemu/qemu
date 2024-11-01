@@ -379,6 +379,9 @@ def make_venv(  # pylint: disable=too-many-arguments
         try:
             builder.create(str(env_dir))
         except SystemExit as exc:
+            # pylint 3.3 bug:
+            # pylint: disable=raising-non-exception, raise-missing-from
+
             # Some versions of the venv module raise SystemExit; *nasty*!
             # We want the exception that prompted it. It might be a subprocess
             # error that has output we *really* want to see.
