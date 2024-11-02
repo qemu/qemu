@@ -291,7 +291,7 @@ enum {
 };
 
 /* Bit set if the global variable is live after setting CC_OP to X.  */
-static const uint8_t cc_op_live[CC_OP_NB] = {
+static const uint8_t cc_op_live_[] = {
     [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_EFLAGS] = USES_CC_SRC,
     [CC_OP_MULB ... CC_OP_MULQ] = USES_CC_DST | USES_CC_SRC,
@@ -309,9 +309,23 @@ static const uint8_t cc_op_live[CC_OP_NB] = {
     [CC_OP_ADCX] = USES_CC_DST | USES_CC_SRC,
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
-    [CC_OP_CLR] = 0,
     [CC_OP_POPCNT] = USES_CC_DST,
 };
+
+static uint8_t cc_op_live(CCOp op)
+{
+    uint8_t result;
+    assert(op >= 0 && op < ARRAY_SIZE(cc_op_live_));
+
+    /*
+     * Check that the array is fully populated.  A zero entry would correspond
+     * to a fixed value of EFLAGS, which can be obtained with CC_OP_EFLAGS
+     * as well.
+     */
+    result = cc_op_live_[op];
+    assert(result);
+    return result;
+}
 
 static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
 {
@@ -322,7 +336,7 @@ static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
     }
 
     /* Discard CC computation that will no longer be used.  */
-    dead = cc_op_live[s->cc_op] & ~cc_op_live[op];
+    dead = cc_op_live(s->cc_op) & ~cc_op_live(op);
     if (dead & USES_CC_DST) {
         tcg_gen_discard_tl(cpu_cc_dst);
     }
@@ -803,17 +817,13 @@ static void gen_mov_eflags(DisasContext *s, TCGv reg)
         tcg_gen_mov_tl(reg, cpu_cc_src);
         return;
     }
-    if (s->cc_op == CC_OP_CLR) {
-        tcg_gen_movi_tl(reg, CC_Z | CC_P);
-        return;
-    }
 
     dst = cpu_cc_dst;
     src1 = cpu_cc_src;
     src2 = cpu_cc_src2;
 
     /* Take care to not read values that are not live.  */
-    live = cc_op_live[s->cc_op] & ~USES_CC_SRCT;
+    live = cc_op_live(s->cc_op) & ~USES_CC_SRCT;
     dead = live ^ (USES_CC_DST | USES_CC_SRC | USES_CC_SRC2);
     if (dead) {
         TCGv zero = tcg_constant_tl(0);
@@ -883,21 +893,20 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_SUBB ... CC_OP_SUBQ:
         /* (DATA_TYPE)CC_SRCT < (DATA_TYPE)CC_SRC */
         size = s->cc_op - CC_OP_SUBB;
-        gen_ext_tl(s->cc_srcT, s->cc_srcT, size, false);
-        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+        tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size);
+        tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = s->cc_srcT,
                              .reg2 = cpu_cc_src, .use_reg2 = true };
 
     case CC_OP_ADDB ... CC_OP_ADDQ:
         /* (DATA_TYPE)CC_DST < (DATA_TYPE)CC_SRC */
-        size = s->cc_op - CC_OP_ADDB;
-        gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size, false);
-        gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+        size = cc_op_size(s->cc_op);
+        tcg_gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size);
+        tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = cpu_cc_dst,
                              .reg2 = cpu_cc_src, .use_reg2 = true };
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
 
@@ -908,7 +917,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
 
     case CC_OP_SHLB ... CC_OP_SHLQ:
         /* (CC_SRC >> (DATA_BITS - 1)) & 1 */
-        size = s->cc_op - CC_OP_SHLB;
+        size = cc_op_size(s->cc_op);
         return gen_prepare_sign_nz(cpu_cc_src, size);
 
     case CC_OP_MULB ... CC_OP_MULQ:
@@ -916,11 +925,11 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
                              .reg = cpu_cc_src };
 
     case CC_OP_BMILGB ... CC_OP_BMILGQ:
-        size = s->cc_op - CC_OP_BMILGB;
+        size = cc_op_size(s->cc_op);
         return gen_prepare_val_nz(cpu_cc_src, size, true);
 
     case CC_OP_BLSIB ... CC_OP_BLSIQ:
-        size = s->cc_op - CC_OP_BLSIB;
+        size = cc_op_size(s->cc_op);
         return gen_prepare_val_nz(cpu_cc_src, size, false);
 
     case CC_OP_ADCX:
@@ -969,14 +978,10 @@ static CCPrepare gen_prepare_eflags_s(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = cpu_cc_src,
                              .imm = CC_S };
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
     default:
-        {
-            MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
-            return gen_prepare_sign_nz(cpu_cc_dst, size);
-        }
+        return gen_prepare_sign_nz(cpu_cc_dst, cc_op_size(s->cc_op));
     }
 }
 
@@ -988,7 +993,7 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
                              .no_setcond = true };
-    case CC_OP_CLR:
+    case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
     case CC_OP_MULB ... CC_OP_MULQ:
@@ -1004,20 +1009,24 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
 static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
 {
     switch (s->cc_op) {
-    case CC_OP_DYNAMIC:
-        gen_compute_eflags(s);
-        /* FALLTHRU */
     case CC_OP_EFLAGS:
     case CC_OP_ADCX:
     case CC_OP_ADOX:
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_TSTNE, .reg = cpu_cc_src,
                              .imm = CC_Z };
-    case CC_OP_CLR:
-        return (CCPrepare) { .cond = TCG_COND_ALWAYS };
+    case CC_OP_DYNAMIC:
+        gen_update_cc_op(s);
+        if (!reg) {
+            reg = tcg_temp_new();
+        }
+        gen_helper_cc_compute_nz(reg, cpu_cc_dst, cpu_cc_src, cpu_cc_op);
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = reg, .imm = 0 };
+    case CC_OP_POPCNT:
+        return (CCPrepare) { .cond = TCG_COND_EQ, .reg = cpu_cc_dst };
     default:
         {
-            MemOp size = (s->cc_op - CC_OP_ADDB) & 3;
+            MemOp size = cc_op_size(s->cc_op);
             return gen_prepare_val_nz(cpu_cc_dst, size, true);
         }
     }
@@ -1038,11 +1047,11 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     switch (s->cc_op) {
     case CC_OP_SUBB ... CC_OP_SUBQ:
         /* We optimize relational operators for the cmp/jcc case.  */
-        size = s->cc_op - CC_OP_SUBB;
+        size = cc_op_size(s->cc_op);
         switch (jcc_op) {
         case JCC_BE:
-            gen_ext_tl(s->cc_srcT, s->cc_srcT, size, false);
-            gen_ext_tl(cpu_cc_src, cpu_cc_src, size, false);
+            tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size);
+            tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
             cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = s->cc_srcT,
                                .reg2 = cpu_cc_src, .use_reg2 = true };
             break;
@@ -1052,12 +1061,34 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         case JCC_LE:
             cond = TCG_COND_LE;
         fast_jcc_l:
-            gen_ext_tl(s->cc_srcT, s->cc_srcT, size, true);
-            gen_ext_tl(cpu_cc_src, cpu_cc_src, size, true);
+            tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size | MO_SIGN);
+            tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size | MO_SIGN);
             cc = (CCPrepare) { .cond = cond, .reg = s->cc_srcT,
                                .reg2 = cpu_cc_src, .use_reg2 = true };
             break;
 
+        default:
+            goto slow_jcc;
+        }
+        break;
+
+    case CC_OP_LOGICB ... CC_OP_LOGICQ:
+        /* Mostly used for test+jump */
+        size = s->cc_op - CC_OP_LOGICB;
+        switch (jcc_op) {
+        case JCC_BE:
+            /* CF = 0, becomes jz/je */
+            jcc_op = JCC_Z;
+            goto slow_jcc;
+        case JCC_L:
+            /* OF = 0, becomes js/jns */
+            jcc_op = JCC_S;
+            goto slow_jcc;
+        case JCC_LE:
+            /* SF or ZF, becomes signed <= 0 */
+            tcg_gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size | MO_SIGN);
+            cc = (CCPrepare) { .cond = TCG_COND_LE, .reg = cpu_cc_dst };
+            break;
         default:
             goto slow_jcc;
         }
@@ -1162,6 +1193,10 @@ static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
+    /*
+     * Note that this must be _after_ gen_prepare_cc, because it
+     * can change the cc_op from CC_OP_DYNAMIC to CC_OP_EFLAGS!
+     */
     gen_update_cc_op(s);
     if (cc.use_reg2) {
         tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);

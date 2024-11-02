@@ -164,15 +164,19 @@ property types.
 Host Architectures
 ------------------
 
-BE MIPS (since 7.2)
-'''''''''''''''''''
+Big endian MIPS since 7.2; 32-bit little endian MIPS since 9.2
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 As Debian 10 ("Buster") moved into LTS the big endian 32 bit version of
 MIPS moved out of support making it hard to maintain our
 cross-compilation CI tests of the architecture. As we no longer have
 CI coverage support may bitrot away before the deprecation process
-completes. The little endian variants of MIPS (both 32 and 64 bit) are
-still a supported host architecture.
+completes.
+
+Likewise, the little endian variant of 32 bit MIPS is not supported by
+Debian 13 ("Trixie") and newer.
+
+64 bit little endian MIPS is still a supported host architecture.
 
 System emulation on 32-bit x86 hosts (since 8.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''

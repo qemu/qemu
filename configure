@@ -395,7 +395,11 @@ elif check_define _ARCH_PPC ; then
     cpu="ppc"
   fi
 elif check_define __mips__ ; then
-  cpu="mips"
+  if check_define __mips64 ; then
+    cpu="mips64"
+  else
+    cpu="mips"
+  fi
 elif check_define __s390__ ; then
   if check_define __s390x__ ; then
     cpu="s390x"
@@ -1230,7 +1234,7 @@ EOF
       fi
     fi
 
-    case "$host_arch" in
+    case "$cpu" in
     arm)
       # e.g. arm-unknown-linux-gnueabi, arm-unknown-linux-gnueabihf
       write_c_skeleton
@@ -1278,7 +1282,7 @@ EOF
     test "$rust_arch" = arm && test "$rust_os" != linux && rust_arch=armv7
     ;;
 
-  mips|mips64)
+  mips)
     # preserve ISA version (mipsisa64r6 etc.) and include endianness
     rust_arch=${raw_cpu%el}
     test "$bigendian" = no && rust_arch=${rust_arch}el

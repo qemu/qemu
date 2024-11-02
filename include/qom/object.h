@@ -2033,14 +2033,6 @@ int object_child_foreach_recursive(Object *obj,
 Object *container_get(Object *root, const char *path);
 
 /**
- * object_type_get_instance_size:
- * @typename: Name of the Type whose instance_size is required
- *
- * Returns the instance_size of the given @typename.
- */
-size_t object_type_get_instance_size(const char *typename);
-
-/**
  * object_property_help:
  * @name: the name of the property
  * @type: the type of the property

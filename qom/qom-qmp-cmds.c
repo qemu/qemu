@@ -141,7 +141,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
-    obj = object_new(typename);
+    obj = object_new_with_class(klass);
 
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
@@ -186,7 +186,7 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     ObjectPropertyIterator iter;
     ObjectPropertyInfoList *prop_list = NULL;
 
-    klass = object_class_by_name(typename);
+    klass = module_object_class_by_name(typename);
     if (klass == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Class '%s' not found", typename);

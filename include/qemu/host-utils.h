@@ -313,6 +313,15 @@ static inline int ctpop8(uint8_t val)
     return __builtin_popcount(val);
 }
 
+/*
+ * parity8 - return the parity (1 = odd) of an 8-bit value.
+ * @val: The value to search
+ */
+static inline int parity8(uint8_t val)
+{
+    return __builtin_parity(val);
+}
+
 /**
  * ctpop16 - count the population of one bits in a 16-bit value.
  * @val: The value to search
