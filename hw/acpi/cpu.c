@@ -233,6 +233,17 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
     memory_region_add_subregion(as, base_addr, &state->ctrl_reg);
 }
 
+static bool should_remain_acpi_present(DeviceState *dev)
+{
+    CPUClass *k = CPU_GET_CLASS(dev);
+    /*
+     * A system may contain CPUs that are always present on one die, NUMA node,
+     * or socket, yet may be non-present on another simultaneously. Check from
+     * architecture specific code.
+     */
+    return k->cpu_persistent_status && k->cpu_persistent_status(CPU(dev));
+}
+
 static AcpiCpuStatus *get_cpu_status(CPUHotplugState *cpu_st, DeviceState *dev)
 {
     CPUClass *k = CPU_GET_CLASS(dev);
@@ -289,7 +300,9 @@ void acpi_cpu_unplug_cb(CPUHotplugState *cpu_st,
         return;
     }
 
-    cdev->cpu = NULL;
+    if (!should_remain_acpi_present(dev)) {
+        cdev->cpu = NULL;
+    }
 }
 
 static const VMStateDescription vmstate_cpuhp_sts = {
