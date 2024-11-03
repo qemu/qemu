@@ -29,13 +29,6 @@
 
 /* #define DEBUG_MIIM */
 
-#define MIIM_CONTROL    0
-#define MIIM_STATUS     1
-#define MIIM_PHY_ID_1   2
-#define MIIM_PHY_ID_2   3
-#define MIIM_T2_STATUS  10
-#define MIIM_EXT_STATUS 15
-
 static void miim_read_cycle(eTSEC *etsec)
 {
     uint8_t  phy;
@@ -47,14 +40,14 @@ static void miim_read_cycle(eTSEC *etsec)
     addr = etsec->regs[MIIMADD].value & 0x1F;
 
     switch (addr) {
-    case MIIM_CONTROL:
+    case MII_BMCR:
         value = etsec->phy_control;
         break;
-    case MIIM_STATUS:
+    case MII_BMSR:
         value = etsec->phy_status;
         break;
-    case MIIM_T2_STATUS:
-        value = 0x1800;           /* Local and remote receivers OK */
+    case MII_STAT1000:
+        value = MII_STAT1000_LOK | MII_STAT1000_ROK;
         break;
     default:
         value = 0x0;
@@ -84,8 +77,8 @@ static void miim_write_cycle(eTSEC *etsec)
 #endif
 
     switch (addr) {
-    case MIIM_CONTROL:
-        etsec->phy_control = value & ~(0x8100);
+    case MII_BMCR:
+        etsec->phy_control = value & ~(MII_BMCR_RESET | MII_BMCR_FD);
         break;
     default:
         break;
