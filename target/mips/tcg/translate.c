@@ -13607,9 +13607,7 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_LX_DSP:
-        if (!(ctx->insn_flags & INSN_OCTEON)) {
-            check_dsp(ctx);
-        }
+        check_dsp(ctx);
         op2 = MASK_LX(ctx->opcode);
         switch (op2) {
 #if defined(TARGET_MIPS64)
