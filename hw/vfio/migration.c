@@ -370,6 +370,10 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
          * please refer to the Linux kernel VFIO uAPI.
          */
         if (errno == ENOMSG) {
+            if (!migration->event_precopy_empty_hit) {
+                trace_vfio_save_block_precopy_empty_hit(migration->vbasedev->name);
+                migration->event_precopy_empty_hit = true;
+            }
             return 0;
         }
 
@@ -378,6 +382,9 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
     if (data_size == 0) {
         return 0;
     }
+
+    /* Non-empty read: re-arm the trace event */
+    migration->event_precopy_empty_hit = false;
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
@@ -473,6 +480,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
     }
 
     migration->event_save_iterate_started = false;
+    migration->event_precopy_empty_hit = false;
 
     if (vfio_precopy_supported(vbasedev)) {
         switch (migration->device_state) {
