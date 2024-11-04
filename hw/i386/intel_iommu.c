@@ -2847,6 +2847,7 @@ static void vtd_handle_iqt_write(IntelIOMMUState *s)
     if (s->iq_dw && (val & VTD_IQT_QT_256_RSV_BIT)) {
         error_report_once("%s: RSV bit is set: val=0x%"PRIx64,
                           __func__, val);
+        vtd_handle_inv_queue_error(s);
         return;
     }
     s->iq_tail = VTD_IQT_QT(s->iq_dw, val);
