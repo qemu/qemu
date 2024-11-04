@@ -410,6 +410,9 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI 0xffeULL
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO 0xffff0000ffe0f1f0
 
+/* Masks for Interrupt Entry Invalidate Descriptor */
+#define VTD_INV_DESC_IEC_RSVD           0xffff000007fff1e0ULL
+
 /* Rsvd field masks for spte */
 #define VTD_SPTE_SNP 0x800ULL
 
