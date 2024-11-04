@@ -278,7 +278,7 @@ static void init_boot_rom(struct loongarch_boot_info *info, void *p)
 static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
 {
     void *p, *bp;
-    int64_t kernel_addr = 0;
+    int64_t kernel_addr = VIRT_FLASH0_BASE;
     LoongArchCPU *lacpu;
     CPUState *cs;
 
@@ -286,8 +286,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
         kernel_addr = load_kernel_info(info);
     } else {
         if(!qtest_enabled()) {
-            error_report("Need kernel filename\n");
-            exit(1);
+            warn_report("No kernel provided, booting from flash drive.");
         }
     }
 
