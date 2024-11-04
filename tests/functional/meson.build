@@ -16,6 +16,8 @@ test_timeouts = {
   'aarch64_virt' : 360,
   'acpi_bits' : 240,
   'arm_aspeed' : 600,
+  'arm_bpim2u' : 360,
+  'arm_orangepi' : 540,
   'arm_raspi2' : 120,
   'arm_tuxrun' : 120,
   'arm_sx1' : 360,
@@ -25,6 +27,7 @@ test_timeouts = {
   'ppc64_hv' : 1000,
   'ppc64_powernv' : 240,
   'ppc64_pseries' : 240,
+  'ppc64_tuxrun' : 240,
   's390x_ccw_virtio' : 240,
 }
 
@@ -54,9 +57,11 @@ tests_alpha_system_thorough = [
 
 tests_arm_system_thorough = [
   'arm_aspeed',
+  'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',
   'arm_integratorcp',
+  'arm_orangepi',
   'arm_raspi2',
   'arm_sx1',
   'arm_vexpress',
@@ -138,6 +143,7 @@ tests_ppc64_system_thorough = [
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
+  'ppc64_tuxrun',
 ]
 
 tests_rx_system_thorough = [
@@ -155,6 +161,7 @@ tests_riscv64_system_thorough = [
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',
+  's390x_tuxrun',
 ]
 
 tests_sh4_system_thorough = [
@@ -162,6 +169,9 @@ tests_sh4_system_thorough = [
   'sh4_tuxrun',
 ]
 
+tests_sh4eb_system_thorough = [
+  'sh4eb_r2d',
+]
 
 tests_sparc_system_thorough = [
   'sparc_sun4m',
