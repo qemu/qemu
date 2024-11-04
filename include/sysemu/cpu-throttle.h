@@ -65,4 +65,18 @@ bool cpu_throttle_active(void);
  */
 int cpu_throttle_get_percentage(void);
 
+/**
+ * cpu_throttle_dirty_sync_timer_tick:
+ *
+ * Dirty sync timer hook.
+ */
+void cpu_throttle_dirty_sync_timer_tick(void *opaque);
+
+/**
+ * cpu_throttle_dirty_sync_timer:
+ *
+ * Start or stop the dirty sync timer.
+ */
+void cpu_throttle_dirty_sync_timer(bool enable);
+
 #endif /* SYSEMU_CPU_THROTTLE_H */

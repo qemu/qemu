@@ -263,6 +263,9 @@ void migration_object_init(void)
 
     ram_mig_init();
     dirty_bitmap_mig_init();
+
+    /* Initialize cpu throttle timers */
+    cpu_throttle_init();
 }
 
 typedef struct {
@@ -1110,33 +1113,6 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
     migrate_send_rp_message(mis, MIG_RP_MSG_RESUME_ACK, sizeof(buf), &buf);
 }
 
-/*
- * Return true if we're already in the middle of a migration
- * (i.e. any of the active or setup states)
- */
-bool migration_is_setup_or_active(void)
-{
-    MigrationState *s = current_migration;
-
-    switch (s->state) {
-    case MIGRATION_STATUS_ACTIVE:
-    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
-    case MIGRATION_STATUS_POSTCOPY_PAUSED:
-    case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
-    case MIGRATION_STATUS_POSTCOPY_RECOVER:
-    case MIGRATION_STATUS_SETUP:
-    case MIGRATION_STATUS_PRE_SWITCHOVER:
-    case MIGRATION_STATUS_DEVICE:
-    case MIGRATION_STATUS_WAIT_UNPLUG:
-    case MIGRATION_STATUS_COLO:
-        return true;
-
-    default:
-        return false;
-
-    }
-}
-
 bool migration_is_running(void)
 {
     MigrationState *s = current_migration;
@@ -1152,11 +1128,10 @@ bool migration_is_running(void)
     case MIGRATION_STATUS_DEVICE:
     case MIGRATION_STATUS_WAIT_UNPLUG:
     case MIGRATION_STATUS_CANCELLING:
+    case MIGRATION_STATUS_COLO:
         return true;
-
     default:
         return false;
-
     }
 }
 
@@ -1405,6 +1380,9 @@ void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
 static void migrate_fd_cleanup(MigrationState *s)
 {
     MigrationEventType type;
+    QEMUFile *tmp = NULL;
+
+    trace_migrate_fd_cleanup();
 
     g_free(s->hostname);
     s->hostname = NULL;
@@ -1415,26 +1393,29 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     close_return_path_on_source(s);
 
-    if (s->to_dst_file) {
-        QEMUFile *tmp;
-
-        trace_migrate_fd_cleanup();
+    if (s->migration_thread_running) {
         bql_unlock();
-        if (s->migration_thread_running) {
-            qemu_thread_join(&s->thread);
-            s->migration_thread_running = false;
-        }
+        qemu_thread_join(&s->thread);
+        s->migration_thread_running = false;
         bql_lock();
+    }
 
-        multifd_send_shutdown();
-        qemu_mutex_lock(&s->qemu_file_lock);
+    WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
+        /*
+         * Close the file handle without the lock to make sure the critical
+         * section won't block for long.
+         */
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
-        qemu_mutex_unlock(&s->qemu_file_lock);
+    }
+
+    if (tmp) {
         /*
-         * Close the file handle without the lock to make sure the
-         * critical section won't block for long.
+         * We only need to shutdown multifd if tmp!=NULL, because if
+         * tmp==NULL, it means the main channel isn't established, while
+         * multifd is only setup after that (in migration_thread()).
          */
+        multifd_send_shutdown();
         migration_ioc_unregister_yank_from_file(tmp);
         qemu_fclose(tmp);
     }
@@ -1649,27 +1630,7 @@ bool migration_incoming_postcopy_advised(void)
 
 bool migration_in_bg_snapshot(void)
 {
-    return migrate_background_snapshot() &&
-           migration_is_setup_or_active();
-}
-
-bool migration_is_idle(void)
-{
-    MigrationState *s = current_migration;
-
-    if (!s) {
-        return true;
-    }
-
-    switch (s->state) {
-    case MIGRATION_STATUS_NONE:
-    case MIGRATION_STATUS_CANCELLED:
-    case MIGRATION_STATUS_COMPLETED:
-    case MIGRATION_STATUS_FAILED:
-        return true;
-    default:
-        return false;
-    }
+    return migrate_background_snapshot() && migration_is_running();
 }
 
 bool migration_is_active(void)
@@ -1750,7 +1711,7 @@ static bool is_busy(Error **reasonp, Error **errp)
     ERRP_GUARD();
 
     /* Snapshots are similar to migrations, so check RUN_STATE_SAVE_VM too. */
-    if (runstate_check(RUN_STATE_SAVE_VM) || !migration_is_idle()) {
+    if (runstate_check(RUN_STATE_SAVE_VM) || migration_is_running()) {
         error_propagate_prepend(errp, *reasonp,
                                 "disallowing migration blocker "
                                 "(migration/snapshot in progress) for: ");
@@ -2323,7 +2284,7 @@ static void *source_return_path_thread(void *opaque)
     trace_source_return_path_thread_entry();
     rcu_register_thread();
 
-    while (migration_is_setup_or_active()) {
+    while (migration_is_running()) {
         trace_source_return_path_thread_loop_top();
 
         header_type = qemu_get_be16(rp);
@@ -2478,7 +2439,7 @@ static int open_return_path_on_source(MigrationState *ms)
 
     trace_open_return_path_on_source();
 
-    qemu_thread_create(&ms->rp_state.rp_thread, "mig/src/rp-thr",
+    qemu_thread_create(&ms->rp_state.rp_thread, MIGRATION_THREAD_SRC_RETURN,
                        source_return_path_thread, ms, QEMU_THREAD_JOINABLE);
     ms->rp_state.rp_thread_created = true;
 
@@ -3288,10 +3249,17 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
 static void migration_iteration_finish(MigrationState *s)
 {
-    /* If we enabled cpu throttling for auto-converge, turn it off. */
-    cpu_throttle_stop();
-
     bql_lock();
+
+    /*
+     * If we enabled cpu throttling for auto-converge, turn it off.
+     * Stopping CPU throttle should be serialized by BQL to avoid
+     * racing for the throttle_dirty_sync_timer.
+     */
+    if (migrate_auto_converge()) {
+        cpu_throttle_stop();
+    }
+
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
         runstate_set(RUN_STATE_POSTMIGRATE);
@@ -3467,11 +3435,11 @@ static void *migration_thread(void *opaque)
     Error *local_err = NULL;
     int ret;
 
-    thread = migration_threads_add("live_migration", qemu_get_thread_id());
+    thread = migration_threads_add(MIGRATION_THREAD_SRC_MAIN,
+                                   qemu_get_thread_id());
 
     rcu_register_thread();
 
-    object_ref(OBJECT(s));
     update_iteration_initial_status(s);
 
     if (!multifd_send_setup()) {
@@ -3506,6 +3474,11 @@ static void *migration_thread(void *opaque)
     if (migrate_colo()) {
         /* Notify migration destination that we enable COLO */
         qemu_savevm_send_colo_enable(s->to_dst_file);
+    }
+
+    if (migrate_auto_converge()) {
+        /* Start RAMBlock dirty bitmap sync timer */
+        cpu_throttle_dirty_sync_timer(true);
     }
 
     bql_lock();
@@ -3604,7 +3577,6 @@ static void *bg_migration_thread(void *opaque)
     int ret;
 
     rcu_register_thread();
-    object_ref(OBJECT(s));
 
     migration_rate_set(RATE_LIMIT_DISABLED);
 
@@ -3816,11 +3788,19 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         }
     }
 
+    /*
+     * Take a refcount to make sure the migration object won't get freed by
+     * the main thread already in migration_shutdown().
+     *
+     * The refcount will be released at the end of the thread function.
+     */
+    object_ref(OBJECT(s));
+
     if (migrate_background_snapshot()) {
-        qemu_thread_create(&s->thread, "mig/snapshot",
+        qemu_thread_create(&s->thread, MIGRATION_THREAD_SNAPSHOT,
                 bg_migration_thread, s, QEMU_THREAD_JOINABLE);
     } else {
-        qemu_thread_create(&s->thread, "mig/src/main",
+        qemu_thread_create(&s->thread, MIGRATION_THREAD_SRC_MAIN,
                 migration_thread, s, QEMU_THREAD_JOINABLE);
     }
     s->migration_thread_running = true;

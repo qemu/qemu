@@ -2284,12 +2284,17 @@
 #
 # Returns information of migration threads
 #
+# Features:
+#
+# @deprecated: This command is deprecated with no replacement yet.
+#
 # Returns: @MigrationThreadInfo
 #
 # Since: 7.2
 ##
 { 'command': 'query-migrationthreads',
-  'returns': ['MigrationThreadInfo'] }
+  'returns': ['MigrationThreadInfo'],
+  'features': ['deprecated'] }
 
 ##
 # @snapshot-save:

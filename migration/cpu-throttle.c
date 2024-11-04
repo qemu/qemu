@@ -28,15 +28,22 @@
 #include "qemu/main-loop.h"
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-throttle.h"
+#include "migration.h"
+#include "migration-stats.h"
 #include "trace.h"
 
 /* vcpu throttling controls */
-static QEMUTimer *throttle_timer;
+static QEMUTimer *throttle_timer, *throttle_dirty_sync_timer;
 static unsigned int throttle_percentage;
+static bool throttle_dirty_sync_timer_active;
+static uint64_t throttle_dirty_sync_count_prev;
 
 #define CPU_THROTTLE_PCT_MIN 1
 #define CPU_THROTTLE_PCT_MAX 99
 #define CPU_THROTTLE_TIMESLICE_NS 10000000
+
+/* Making sure RAMBlock dirty bitmap is synchronized every five seconds */
+#define CPU_THROTTLE_DIRTY_SYNC_TIMESLICE_MS 5000
 
 static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
 {
@@ -112,6 +119,7 @@ void cpu_throttle_set(int new_throttle_pct)
 void cpu_throttle_stop(void)
 {
     qatomic_set(&throttle_percentage, 0);
+    cpu_throttle_dirty_sync_timer(false);
 }
 
 bool cpu_throttle_active(void)
@@ -124,8 +132,68 @@ int cpu_throttle_get_percentage(void)
     return qatomic_read(&throttle_percentage);
 }
 
+void cpu_throttle_dirty_sync_timer_tick(void *opaque)
+{
+    uint64_t sync_cnt = stat64_get(&mig_stats.dirty_sync_count);
+
+    /*
+     * The first iteration copies all memory anyhow and has no
+     * effect on guest performance, therefore omit it to avoid
+     * paying extra for the sync penalty.
+     */
+    if (sync_cnt <= 1) {
+        goto end;
+    }
+
+    if (sync_cnt == throttle_dirty_sync_count_prev) {
+        trace_cpu_throttle_dirty_sync();
+        WITH_RCU_READ_LOCK_GUARD() {
+            migration_bitmap_sync_precopy(false);
+        }
+    }
+
+end:
+    throttle_dirty_sync_count_prev = stat64_get(&mig_stats.dirty_sync_count);
+
+    timer_mod(throttle_dirty_sync_timer,
+        qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT) +
+            CPU_THROTTLE_DIRTY_SYNC_TIMESLICE_MS);
+}
+
+static bool cpu_throttle_dirty_sync_active(void)
+{
+    return qatomic_read(&throttle_dirty_sync_timer_active);
+}
+
+void cpu_throttle_dirty_sync_timer(bool enable)
+{
+    assert(throttle_dirty_sync_timer);
+
+    if (enable) {
+        if (!cpu_throttle_dirty_sync_active()) {
+            /*
+             * Always reset the dirty sync count cache, in case migration
+             * was cancelled once.
+             */
+            throttle_dirty_sync_count_prev = 0;
+            timer_mod(throttle_dirty_sync_timer,
+                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT) +
+                    CPU_THROTTLE_DIRTY_SYNC_TIMESLICE_MS);
+            qatomic_set(&throttle_dirty_sync_timer_active, 1);
+        }
+    } else {
+        if (cpu_throttle_dirty_sync_active()) {
+            timer_del(throttle_dirty_sync_timer);
+            qatomic_set(&throttle_dirty_sync_timer_active, 0);
+        }
+    }
+}
+
 void cpu_throttle_init(void)
 {
     throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                   cpu_throttle_timer_tick, NULL);
+    throttle_dirty_sync_timer =
+        timer_new_ms(QEMU_CLOCK_VIRTUAL_RT,
+                     cpu_throttle_dirty_sync_timer_tick, NULL);
 }

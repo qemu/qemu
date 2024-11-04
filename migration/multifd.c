@@ -600,6 +600,7 @@ static void *multifd_send_thread(void *opaque)
          * qatomic_store_release() in multifd_send().
          */
         if (qatomic_load_acquire(&p->pending_job)) {
+            p->flags = 0;
             p->iovs_num = 0;
             assert(!multifd_payload_empty(p->data));
 
@@ -651,7 +652,6 @@ static void *multifd_send_thread(void *opaque)
                 }
                 /* p->next_packet_size will always be zero for a SYNC packet */
                 stat64_add(&mig_stats.multifd_bytes, p->packet_len);
-                p->flags = 0;
             }
 
             qatomic_set(&p->pending_sync, false);
@@ -723,7 +723,7 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
     args->p = p;
 
     p->tls_thread_created = true;
-    qemu_thread_create(&p->tls_thread, "mig/src/tls",
+    qemu_thread_create(&p->tls_thread, MIGRATION_THREAD_SRC_TLS,
                        multifd_tls_handshake_thread, args,
                        QEMU_THREAD_JOINABLE);
     return true;
@@ -841,7 +841,7 @@ bool multifd_send_setup(void)
                           + sizeof(uint64_t) * page_count;
             p->packet = g_malloc0(p->packet_len);
         }
-        p->name = g_strdup_printf("mig/src/send_%d", i);
+        p->name = g_strdup_printf(MIGRATION_THREAD_SRC_MULTIFD, i);
         p->write_flags = 0;
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
@@ -1259,7 +1259,7 @@ int multifd_recv_setup(Error **errp)
                 + sizeof(uint64_t) * page_count;
             p->packet = g_malloc0(p->packet_len);
         }
-        p->name = g_strdup_printf("mig/dst/recv_%d", i);
+        p->name = g_strdup_printf(MIGRATION_THREAD_DST_MULTIFD, i);
         p->normal = g_new0(ram_addr_t, page_count);
         p->zero = g_new0(ram_addr_t, page_count);
     }
