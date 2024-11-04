@@ -32,7 +32,7 @@
 static bool cached_xcr0;
 static uint64_t supported_xcr0;
 
-static void cache_host_xcr0()
+static void cache_host_xcr0(void)
 {
     if (cached_xcr0) {
         return;
