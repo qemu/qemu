@@ -239,7 +239,9 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     init_emu();
     init_decoder();
 
-    hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
+    if (hvf_state->hvf_caps == NULL) {
+        hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
+    }
     env->hvf_mmio_buf = g_new(char, 4096);
 
     if (x86cpu->vmware_cpuid_freq) {
