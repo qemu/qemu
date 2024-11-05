@@ -74,6 +74,6 @@ fn test_device_decl_macros() {
 
     unsafe {
         module_call_init(module_init_type::MODULE_INIT_QOM);
-        object_unref(object_new(DummyState::TYPE_NAME.as_ptr()) as *mut _);
+        object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
     }
 }
