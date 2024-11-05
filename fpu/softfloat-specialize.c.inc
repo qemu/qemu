@@ -404,11 +404,9 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
     || defined(TARGET_RISCV) || defined(TARGET_SH4) \
     || defined(TARGET_TRICORE) || defined(TARGET_ARM) || defined(TARGET_MIPS) \
     || defined(TARGET_LOONGARCH64) || defined(TARGET_HPPA) \
-    || defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_M68K)
+    || defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_M68K) \
+    || defined(TARGET_SPARC)
         g_assert_not_reached();
-#elif defined(TARGET_SPARC)
-        /* Prefer SNaN over QNaN, order B then A. */
-        rule = float_2nan_prop_s_ba;
 #elif defined(TARGET_XTENSA)
         /*
          * Xtensa has two NaN propagation modes.
