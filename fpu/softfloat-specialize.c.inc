@@ -406,7 +406,7 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
     || defined(TARGET_LOONGARCH64) || defined(TARGET_HPPA) \
     || defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_M68K) \
     || defined(TARGET_SPARC) || defined(TARGET_XTENSA) \
-    || defined(TARGET_I386)
+    || defined(TARGET_I386) || defined(TARGET_ALPHA)
         g_assert_not_reached();
 #else
         rule = float_2nan_prop_x87;
