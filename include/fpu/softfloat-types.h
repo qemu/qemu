@@ -178,13 +178,9 @@ typedef enum __attribute__((__packed__)) {
  * If default_nan_mode is enabled then it is valid not to set a
  * NaN propagation rule, because the softfloat code guarantees
  * not to try to pick a NaN to propagate in default NaN mode.
- *
- * For transition, currently the 'none' rule will cause us to
- * fall back to picking the propagation rule based on the existing
- * ifdef ladder. When all targets are converted it will be an error
- * not to set the rule in float_status unless in default_nan_mode,
- * and we will assert if we need to handle an input NaN and no
- * rule was selected.
+ * When not in default-NaN mode, it is an error for the target
+ * not to set the rule in float_status, and we will assert if
+ * we need to handle an input NaN and no rule was selected.
  */
 typedef enum __attribute__((__packed__)) {
     /* No propagation rule specified */

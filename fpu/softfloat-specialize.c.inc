@@ -390,32 +390,15 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 static int pickNaN(FloatClass a_cls, FloatClass b_cls,
                    bool aIsLargerSignificand, float_status *status)
 {
-    Float2NaNPropRule rule = status->float_2nan_prop_rule;
-
     /*
      * We guarantee not to require the target to tell us how to
      * pick a NaN if we're always returning the default NaN.
+     * But if we're not in default-NaN mode then the target must
+     * specify via set_float_2nan_prop_rule().
      */
     assert(!status->default_nan_mode);
 
-    if (rule == float_2nan_prop_none) {
-        /* target didn't set the rule: fall back to old ifdef choices */
-#if defined(TARGET_AVR) || defined(TARGET_HEXAGON) \
-    || defined(TARGET_RISCV) || defined(TARGET_SH4) \
-    || defined(TARGET_TRICORE) || defined(TARGET_ARM) || defined(TARGET_MIPS) \
-    || defined(TARGET_LOONGARCH64) || defined(TARGET_HPPA) \
-    || defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_M68K) \
-    || defined(TARGET_SPARC) || defined(TARGET_XTENSA) \
-    || defined(TARGET_I386) || defined(TARGET_ALPHA) \
-    || defined(TARGET_MICROBLAZE) || defined(TARGET_OPENRISC) \
-    || defined(TARGET_RX)
-        g_assert_not_reached();
-#else
-        rule = float_2nan_prop_x87;
-#endif
-    }
-
-    switch (rule) {
+    switch (status->float_2nan_prop_rule) {
     case float_2nan_prop_s_ab:
         if (is_snan(a_cls)) {
             return 0;
