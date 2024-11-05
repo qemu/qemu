@@ -802,4 +802,10 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, vaddr *pc,
 XtensaCPU *xtensa_cpu_create_with_clock(const char *cpu_type,
                                         Clock *cpu_refclk);
 
+/*
+ * Set the NaN propagation rule for future FPU operations:
+ * use_first is true to pick the first NaN as the result if both
+ * inputs are NaNs, false to pick the second.
+ */
+void xtensa_use_first_nan(CPUXtensaState *env, bool use_first);
 #endif

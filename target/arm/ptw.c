@@ -280,6 +280,8 @@ static bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx,
     case ARMMMUIdx_E20_2_PAN:
     case ARMMMUIdx_E2:
     case ARMMMUIdx_E3:
+    case ARMMMUIdx_E30_0:
+    case ARMMMUIdx_E30_3_PAN:
         break;
 
     case ARMMMUIdx_Phys_S:
@@ -3607,11 +3609,7 @@ bool get_phys_addr(CPUARMState *env, vaddr address,
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
     case ARMMMUIdx_E2:
-        if (arm_aa32_secure_pl1_0(env)) {
-            ss = ARMSS_Secure;
-        } else {
-            ss = arm_security_space_below_el3(env);
-        }
+        ss = arm_security_space_below_el3(env);
         break;
     case ARMMMUIdx_Stage2:
         /*
@@ -3639,6 +3637,8 @@ bool get_phys_addr(CPUARMState *env, vaddr address,
         ss = ARMSS_Secure;
         break;
     case ARMMMUIdx_E3:
+    case ARMMMUIdx_E30_0:
+    case ARMMMUIdx_E30_3_PAN:
         if (arm_feature(env, ARM_FEATURE_AARCH64) &&
             cpu_isar_feature(aa64_rme, env_archcpu(env))) {
             ss = ARMSS_Root;

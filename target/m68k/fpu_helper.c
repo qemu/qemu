@@ -620,6 +620,7 @@ void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
         int sign;
 
         /* Calculate quotient directly using round to nearest mode */
+        set_float_2nan_prop_rule(float_2nan_prop_ab, &fp_status);
         set_float_rounding_mode(float_round_nearest_even, &fp_status);
         set_floatx80_rounding_precision(
             get_floatx80_rounding_precision(&env->fp_status), &fp_status);

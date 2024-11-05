@@ -390,118 +390,80 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 static int pickNaN(FloatClass a_cls, FloatClass b_cls,
                    bool aIsLargerSignificand, float_status *status)
 {
-#if defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_HPPA) || \
-    defined(TARGET_LOONGARCH64) || defined(TARGET_S390X)
-    /* ARM mandated NaN propagation rules (see FPProcessNaNs()), take
-     * the first of:
-     *  1. A if it is signaling
-     *  2. B if it is signaling
-     *  3. A (quiet)
-     *  4. B (quiet)
-     * A signaling NaN is always quietened before returning it.
-     */
-    /* According to MIPS specifications, if one of the two operands is
-     * a sNaN, a new qNaN has to be generated. This is done in
-     * floatXX_silence_nan(). For qNaN inputs the specifications
-     * says: "When possible, this QNaN result is one of the operand QNaN
-     * values." In practice it seems that most implementations choose
-     * the first operand if both operands are qNaN. In short this gives
-     * the following rules:
-     *  1. A if it is signaling
-     *  2. B if it is signaling
-     *  3. A (quiet)
-     *  4. B (quiet)
-     * A signaling NaN is always silenced before returning it.
-     */
-    if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_qnan(a_cls)) {
-        return 0;
-    } else {
-        return 1;
-    }
-#elif defined(TARGET_PPC) || defined(TARGET_M68K)
-    /* PowerPC propagation rules:
-     *  1. A if it sNaN or qNaN
-     *  2. B if it sNaN or qNaN
-     * A signaling NaN is always silenced before returning it.
-     */
-    /* M68000 FAMILY PROGRAMMER'S REFERENCE MANUAL
-     * 3.4 FLOATING-POINT INSTRUCTION DETAILS
-     * If either operand, but not both operands, of an operation is a
-     * nonsignaling NaN, then that NaN is returned as the result. If both
-     * operands are nonsignaling NaNs, then the destination operand
-     * nonsignaling NaN is returned as the result.
-     * If either operand to an operation is a signaling NaN (SNaN), then the
-     * SNaN bit is set in the FPSR EXC byte. If the SNaN exception enable bit
-     * is set in the FPCR ENABLE byte, then the exception is taken and the
-     * destination is not modified. If the SNaN exception enable bit is not
-     * set, setting the SNaN bit in the operand to a one converts the SNaN to
-     * a nonsignaling NaN. The operation then continues as described in the
-     * preceding paragraph for nonsignaling NaNs.
-     */
-    if (is_nan(a_cls)) {
-        return 0;
-    } else {
-        return 1;
-    }
-#elif defined(TARGET_SPARC)
-    /* Prefer SNaN over QNaN, order B then A. */
-    if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_qnan(b_cls)) {
-        return 1;
-    } else {
-        return 0;
-    }
-#elif defined(TARGET_XTENSA)
     /*
-     * Xtensa has two NaN propagation modes.
-     * Which one is active is controlled by float_status::use_first_nan.
+     * We guarantee not to require the target to tell us how to
+     * pick a NaN if we're always returning the default NaN.
+     * But if we're not in default-NaN mode then the target must
+     * specify via set_float_2nan_prop_rule().
      */
-    if (status->use_first_nan) {
+    assert(!status->default_nan_mode);
+
+    switch (status->float_2nan_prop_rule) {
+    case float_2nan_prop_s_ab:
+        if (is_snan(a_cls)) {
+            return 0;
+        } else if (is_snan(b_cls)) {
+            return 1;
+        } else if (is_qnan(a_cls)) {
+            return 0;
+        } else {
+            return 1;
+        }
+        break;
+    case float_2nan_prop_s_ba:
+        if (is_snan(b_cls)) {
+            return 1;
+        } else if (is_snan(a_cls)) {
+            return 0;
+        } else if (is_qnan(b_cls)) {
+            return 1;
+        } else {
+            return 0;
+        }
+        break;
+    case float_2nan_prop_ab:
         if (is_nan(a_cls)) {
             return 0;
         } else {
             return 1;
         }
-    } else {
+        break;
+    case float_2nan_prop_ba:
         if (is_nan(b_cls)) {
             return 1;
         } else {
             return 0;
         }
-    }
-#else
-    /* This implements x87 NaN propagation rules:
-     * SNaN + QNaN => return the QNaN
-     * two SNaNs => return the one with the larger significand, silenced
-     * two QNaNs => return the one with the larger significand
-     * SNaN and a non-NaN => return the SNaN, silenced
-     * QNaN and a non-NaN => return the QNaN
-     *
-     * If we get down to comparing significands and they are the same,
-     * return the NaN with the positive sign bit (if any).
-     */
-    if (is_snan(a_cls)) {
-        if (is_snan(b_cls)) {
-            return aIsLargerSignificand ? 0 : 1;
-        }
-        return is_qnan(b_cls) ? 1 : 0;
-    } else if (is_qnan(a_cls)) {
-        if (is_snan(b_cls) || !is_qnan(b_cls)) {
-            return 0;
+        break;
+    case float_2nan_prop_x87:
+        /*
+         * This implements x87 NaN propagation rules:
+         * SNaN + QNaN => return the QNaN
+         * two SNaNs => return the one with the larger significand, silenced
+         * two QNaNs => return the one with the larger significand
+         * SNaN and a non-NaN => return the SNaN, silenced
+         * QNaN and a non-NaN => return the QNaN
+         *
+         * If we get down to comparing significands and they are the same,
+         * return the NaN with the positive sign bit (if any).
+         */
+        if (is_snan(a_cls)) {
+            if (is_snan(b_cls)) {
+                return aIsLargerSignificand ? 0 : 1;
+            }
+            return is_qnan(b_cls) ? 1 : 0;
+        } else if (is_qnan(a_cls)) {
+            if (is_snan(b_cls) || !is_qnan(b_cls)) {
+                return 0;
+            } else {
+                return aIsLargerSignificand ? 0 : 1;
+            }
         } else {
-            return aIsLargerSignificand ? 0 : 1;
+            return 1;
         }
-    } else {
-        return 1;
+    default:
+        g_assert_not_reached();
     }
-#endif
 }
 
 /*----------------------------------------------------------------------------

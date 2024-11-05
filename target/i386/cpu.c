@@ -7200,6 +7200,10 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
 
     memset(env, 0, offsetof(CPUX86State, end_reset_fields));
 
+    if (tcg_enabled()) {
+        cpu_init_fp_statuses(env);
+    }
+
     env->old_exception = -1;
 
     /* init to reset state */
