@@ -404,25 +404,8 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
     || defined(TARGET_RISCV) || defined(TARGET_SH4) \
     || defined(TARGET_TRICORE) || defined(TARGET_ARM) || defined(TARGET_MIPS) \
     || defined(TARGET_LOONGARCH64) || defined(TARGET_HPPA) \
-    || defined(TARGET_S390X) || defined(TARGET_PPC)
+    || defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_M68K)
         g_assert_not_reached();
-#elif defined(TARGET_M68K)
-        /*
-         * M68000 FAMILY PROGRAMMER'S REFERENCE MANUAL
-         * 3.4 FLOATING-POINT INSTRUCTION DETAILS
-         * If either operand, but not both operands, of an operation is a
-         * nonsignaling NaN, then that NaN is returned as the result. If both
-         * operands are nonsignaling NaNs, then the destination operand
-         * nonsignaling NaN is returned as the result.
-         * If either operand to an operation is a signaling NaN (SNaN), then the
-         * SNaN bit is set in the FPSR EXC byte. If the SNaN exception enable bit
-         * is set in the FPCR ENABLE byte, then the exception is taken and the
-         * destination is not modified. If the SNaN exception enable bit is not
-         * set, setting the SNaN bit in the operand to a one converts the SNaN to
-         * a nonsignaling NaN. The operation then continues as described in the
-         * preceding paragraph for nonsignaling NaNs.
-         */
-        rule = float_2nan_prop_ab;
 #elif defined(TARGET_SPARC)
         /* Prefer SNaN over QNaN, order B then A. */
         rule = float_2nan_prop_s_ba;
