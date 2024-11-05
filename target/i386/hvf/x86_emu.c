@@ -794,9 +794,16 @@ void simulate_wrmsr(CPUX86State *env)
     switch (msr) {
     case MSR_IA32_TSC:
         break;
-    case MSR_IA32_APICBASE:
-        cpu_set_apic_base(cpu->apic_state, data);
+    case MSR_IA32_APICBASE: {
+        int r;
+
+        r = cpu_set_apic_base(cpu->apic_state, data);
+        if (r < 0) {
+            raise_exception(env, EXCP0D_GPF, 0);
+        }
+
         break;
+    }
     case MSR_APIC_START ... MSR_APIC_END: {
         int ret;
         int index = (uint32_t)env->regs[R_ECX] - MSR_APIC_START;
