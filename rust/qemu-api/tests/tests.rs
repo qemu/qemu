@@ -88,6 +88,18 @@ fn test_object_new() {
     }
 }
 
+#[test]
+/// Try invoking a method on an object.
+fn test_typename() {
+    init_qom();
+    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+    let p_ref: &DummyState = unsafe { &*p };
+    assert_eq!(p_ref.typename(), "dummy");
+    unsafe {
+        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
+    }
+}
+
 // a note on all "cast" tests: usually, especially for downcasts the desired
 // class would be placed on the right, for example:
 //

@@ -5,8 +5,8 @@
 //! Bindings to access QOM functionality from Rust.
 //!
 //! The QEMU Object Model (QOM) provides inheritance and dynamic typing for QEMU
-//! devices. This module makes QOM's features available in Rust through two main
-//! mechanisms:
+//! devices. This module makes QOM's features available in Rust through three
+//! main mechanisms:
 //!
 //! * Automatic creation and registration of `TypeInfo` for classes that are
 //!   written in Rust, as well as mapping between Rust traits and QOM vtables.
@@ -14,6 +14,11 @@
 //! * Type-safe casting between parent and child classes, through the [`IsA`]
 //!   trait and methods such as [`upcast`](ObjectCast::upcast) and
 //!   [`downcast`](ObjectCast::downcast).
+//!
+//! * Automatic delegation of parent class methods to child classes. When a
+//!   trait uses [`IsA`] as a bound, its contents become available to all child
+//!   classes through blanket implementations. This works both for class methods
+//!   and for instance methods accessed through references or smart pointers.
 //!
 //! # Structure of a class
 //!
@@ -37,6 +42,16 @@
 //!   `ClassInitImpl<DeviceClass>`. This fills the vtable in the class struct;
 //!   the source for this is the `*Impl` trait; the associated consts and
 //!   functions if needed are wrapped to map C types into Rust types.
+//!
+//! * a trait for instance methods, for example `DeviceMethods`. This trait is
+//!   automatically implemented for any reference or smart pointer to a device
+//!   instance.  It calls into the vtable provides access across all subclasses
+//!   to methods defined for the class.
+//!
+//! * optionally, a trait for class methods, for example `DeviceClassMethods`.
+//!   This provides access to class-wide functionality that doesn't depend on
+//!   instance data. Like instance methods, these are automatically inherited by
+//!   child classes.
 
 use std::{
     ffi::CStr,
@@ -46,7 +61,7 @@ use std::{
 
 pub use bindings::{Object, ObjectClass};
 
-use crate::bindings::{self, object_dynamic_cast, TypeInfo};
+use crate::bindings::{self, object_dynamic_cast, object_get_class, object_get_typename, TypeInfo};
 
 /// Marker trait: `Self` can be statically upcasted to `P` (i.e. `P` is a direct
 /// or indirect parent of `Self`).
@@ -532,3 +547,38 @@ unsafe impl ObjectType for Object {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_OBJECT) };
 }
+
+/// Trait for methods exposed by the Object class.  The methods can be
+/// called on all objects that have the trait `IsA<Object>`.
+///
+/// The trait should only be used through the blanket implementation,
+/// which guarantees safety via `IsA`
+pub trait ObjectMethods: ObjectDeref
+where
+    Self::Target: IsA<Object>,
+{
+    /// Return the name of the type of `self`
+    fn typename(&self) -> std::borrow::Cow<'_, str> {
+        let obj = self.upcast::<Object>();
+        // SAFETY: safety of this is the requirement for implementing IsA
+        // The result of the C API has static lifetime
+        unsafe {
+            let p = object_get_typename(obj.as_mut_ptr());
+            CStr::from_ptr(p).to_string_lossy()
+        }
+    }
+
+    fn get_class(&self) -> &'static <Self::Target as ObjectType>::Class {
+        let obj = self.upcast::<Object>();
+
+        // SAFETY: all objects can call object_get_class; the actual class
+        // type is guaranteed by the implementation of `ObjectType` and
+        // `ObjectImpl`.
+        let klass: &'static <Self::Target as ObjectType>::Class =
+            unsafe { &*object_get_class(obj.as_mut_ptr()).cast() };
+
+        klass
+    }
+}
+
+impl<R: ObjectDeref> ObjectMethods for R where R::Target: IsA<Object> {}
