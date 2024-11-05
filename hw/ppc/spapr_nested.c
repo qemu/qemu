@@ -771,6 +771,7 @@ static void copy_logical_pvr(void *a, void *b, bool set)
 
     if (*pvr_logical_ptr) {
         switch (*pvr_logical_ptr) {
+        case CPU_POWERPC_LOGICAL_3_10_P11:
         case CPU_POWERPC_LOGICAL_3_10:
             pcr = PCR_COMPAT_3_10 | PCR_COMPAT_3_00;
             break;
@@ -982,6 +983,7 @@ struct guest_state_element_type guest_state_element_types[] = {
     GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_FSCR,  fscr),
     GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_PSPB,   pspb),
     GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_CTRL,  ctrl),
+    GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DPDES, dpdes),
     GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_VRSAVE, vrsave),
     GUEST_STATE_ELEMENT_ENV_DW(GSB_VCPU_SPR_DAR,   dar),
     GUEST_STATE_ELEMENT_ENV_W(GSB_VCPU_SPR_DSISR,  dsisr),
@@ -1184,6 +1186,12 @@ static target_ulong h_guest_get_capabilities(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
+    /* P11 capabilities */
+    if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10_P11, 0,
+        spapr->max_compat_pvr)) {
+        env->gpr[4] |= H_GUEST_CAPABILITIES_P11_MODE;
+    }
+
     /* P10 capabilities */
     if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
         spapr->max_compat_pvr)) {
@@ -1226,7 +1234,10 @@ static target_ulong h_guest_set_capabilities(PowerPCCPU *cpu,
         env->gpr[4] = 1;
 
         /* set R5 to the first supported Power Processor Mode */
-        if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
+        if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10_P11, 0,
+                             spapr->max_compat_pvr)) {
+            env->gpr[5] = H_GUEST_CAP_P11_MODE_BMAP;
+        } else if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
                              spapr->max_compat_pvr)) {
             env->gpr[5] = H_GUEST_CAP_P10_MODE_BMAP;
         } else if (ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,

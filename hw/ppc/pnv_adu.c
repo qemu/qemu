@@ -116,6 +116,12 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
             uint32_t lpc_size = lpc_cmd_size(adu);
             uint64_t data = 0;
 
+            if (!is_power_of_2(lpc_size) || lpc_size > sizeof(data)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "ADU: Unsupported LPC access "
+                                               "size:%" PRId32 "\n", lpc_size);
+                break;
+            }
+
             pnv_lpc_opb_read(adu->lpc, lpc_addr, (void *)&data, lpc_size);
 
             /*
@@ -134,6 +140,12 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
             uint32_t lpc_addr = lpc_cmd_addr(adu);
             uint32_t lpc_size = lpc_cmd_size(adu);
             uint64_t data;
+
+            if (!is_power_of_2(lpc_size) || lpc_size > sizeof(data)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "ADU: Unsupported LPC access "
+                                               "size:%" PRId32 "\n", lpc_size);
+                break;
+            }
 
             data = cpu_to_be64(val) >> ((lpc_addr & 7) * 8); /* See above */
             pnv_lpc_opb_write(adu->lpc, lpc_addr, (void *)&data, lpc_size);

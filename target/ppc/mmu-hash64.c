@@ -993,6 +993,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     int exec_prot, pp_prot, amr_prot, prot;
     int need_prot;
     hwaddr raddr;
+    bool vrma = false;
 
     /*
      * Note on LPCR usage: 970 uses HID4, but our special variant of
@@ -1022,6 +1023,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
             }
         } else if (ppc_hash64_use_vrma(env)) {
             /* Emulated VRMA mode */
+            vrma = true;
             slb = &vrma_slbe;
             if (build_vrma_slbe(cpu, slb) != 0) {
                 /* Invalid VRMA setup, machine check */
@@ -1136,7 +1138,12 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     exec_prot = ppc_hash64_pte_noexec_guard(cpu, pte);
     pp_prot = ppc_hash64_pte_prot(mmu_idx, slb, pte);
-    amr_prot = ppc_hash64_amr_prot(cpu, pte);
+    if (vrma) {
+        /* VRMA does not check keys */
+        amr_prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    } else {
+        amr_prot = ppc_hash64_amr_prot(cpu, pte);
+    }
     prot = exec_prot & pp_prot & amr_prot;
 
     need_prot = check_prot_access_type(PAGE_RWX, access_type);
