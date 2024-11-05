@@ -119,8 +119,8 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         eax = 0;
         break;
     case 0xD:
-        if (!supported_xcr0 ||
-            (idx > 1 && !(supported_xcr0 & (1 << idx)))) {
+        if (!supported_xcr0 || idx >= 63 ||
+            (idx > 1 && !(supported_xcr0 & (UINT64_C(1) << idx)))) {
             eax = ebx = ecx = edx = 0;
             break;
         }
