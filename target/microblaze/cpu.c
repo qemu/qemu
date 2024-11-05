@@ -202,6 +202,11 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
     env->pc = cpu->cfg.base_vectors;
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    /*
+     * TODO: this is probably not the correct NaN propagation rule for
+     * this architecture.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
 
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
