@@ -7,9 +7,9 @@ use std::ptr;
 /// behavior.  This trait in principle could be implemented as just:
 ///
 /// ```
-///     const ZERO: Self = unsafe {
-///         ::core::mem::MaybeUninit::<$crate::bindings::Property>::zeroed().assume_init()
-///     },
+/// pub unsafe trait Zeroable: Default {
+///     const ZERO: Self = unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() };
+/// }
 /// ```
 ///
 /// The need for a manual implementation is only because `zeroed()` cannot
