@@ -402,19 +402,10 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
         /* target didn't set the rule: fall back to old ifdef choices */
 #if defined(TARGET_AVR) || defined(TARGET_HEXAGON) \
     || defined(TARGET_RISCV) || defined(TARGET_SH4) \
-    || defined(TARGET_TRICORE)
+    || defined(TARGET_TRICORE) || defined(TARGET_ARM)
         g_assert_not_reached();
-#elif defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_HPPA) || \
+#elif defined(TARGET_MIPS) || defined(TARGET_HPPA) || \
     defined(TARGET_LOONGARCH64) || defined(TARGET_S390X)
-        /*
-         * ARM mandated NaN propagation rules (see FPProcessNaNs()), take
-         * the first of:
-         *  1. A if it is signaling
-         *  2. B if it is signaling
-         *  3. A (quiet)
-         *  4. B (quiet)
-         * A signaling NaN is always quietened before returning it.
-         */
         /*
          * According to MIPS specifications, if one of the two operands is
          * a sNaN, a new qNaN has to be generated. This is done in
