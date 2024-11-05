@@ -466,6 +466,10 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
         EifSectionHeader hdr;
         uint16_t section_type;
 
+        if (eif_header.section_offsets[i] > OFF_MAX) {
+            error_setg(errp, "Invalid EIF image. Section offset out of bounds");
+            goto cleanup;
+        }
         if (fseek(f, eif_header.section_offsets[i], SEEK_SET) != 0) {
             error_setg_errno(errp, errno, "Failed to offset to %" PRIu64 " in EIF file",
                              eif_header.section_offsets[i]);
