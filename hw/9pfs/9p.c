@@ -2587,6 +2587,11 @@ static void coroutine_fn v9fs_readdir(void *opaque)
         retval = -EINVAL;
         goto out_nofid;
     }
+    if (fidp->fid_type != P9_FID_DIR) {
+        warn_report_once("9p: bad client: T_readdir on non-directory stream");
+        retval = -ENOTDIR;
+        goto out;
+    }
     if (!fidp->fs.dir.stream) {
         retval = -EINVAL;
         goto out;
