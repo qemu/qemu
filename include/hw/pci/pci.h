@@ -16,7 +16,7 @@ extern bool pci_available;
 #define PCI_BUS_NUM(x)          (((x) >> 8) & 0xff)
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
-#define PCI_BUILD_BDF(bus, devfn)     ((bus << 8) | (devfn))
+#define PCI_BUILD_BDF(bus, devfn)     (((bus) << 8) | (devfn))
 #define PCI_BDF_TO_DEVFN(x)     ((x) & 0xff)
 #define PCI_BUS_MAX             256
 #define PCI_DEVFN_MAX           256
@@ -214,6 +214,8 @@ enum {
     QEMU_PCIE_ERR_UNC_MASK = (1 << QEMU_PCIE_ERR_UNC_MASK_BITNR),
 #define QEMU_PCIE_ARI_NEXTFN_1_BITNR 12
     QEMU_PCIE_ARI_NEXTFN_1 = (1 << QEMU_PCIE_ARI_NEXTFN_1_BITNR),
+#define QEMU_PCIE_EXT_TAG_BITNR 13
+    QEMU_PCIE_EXT_TAG = (1 << QEMU_PCIE_EXT_TAG_BITNR),
 };
 
 typedef struct PCIINTxRoute {
