@@ -935,6 +935,8 @@ void run_test(void)
 {
     unsigned int i;
 
+    set_float_2nan_prop_rule(float_2nan_prop_s_ab, &qsf);
+
     genCases_setLevel(test_level);
     verCases_maxErrorCount = n_max_errors;
 
