@@ -402,24 +402,10 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
         /* target didn't set the rule: fall back to old ifdef choices */
 #if defined(TARGET_AVR) || defined(TARGET_HEXAGON) \
     || defined(TARGET_RISCV) || defined(TARGET_SH4) \
-    || defined(TARGET_TRICORE) || defined(TARGET_ARM)
+    || defined(TARGET_TRICORE) || defined(TARGET_ARM) || defined(TARGET_MIPS)
         g_assert_not_reached();
-#elif defined(TARGET_MIPS) || defined(TARGET_HPPA) || \
+#elif defined(TARGET_HPPA) || \
     defined(TARGET_LOONGARCH64) || defined(TARGET_S390X)
-        /*
-         * According to MIPS specifications, if one of the two operands is
-         * a sNaN, a new qNaN has to be generated. This is done in
-         * floatXX_silence_nan(). For qNaN inputs the specifications
-         * says: "When possible, this QNaN result is one of the operand QNaN
-         * values." In practice it seems that most implementations choose
-         * the first operand if both operands are qNaN. In short this gives
-         * the following rules:
-         *  1. A if it is signaling
-         *  2. B if it is signaling
-         *  3. A (quiet)
-         *  4. B (quiet)
-         * A signaling NaN is always silenced before returning it.
-         */
         rule = float_2nan_prop_s_ab;
 #elif defined(TARGET_PPC) || defined(TARGET_M68K)
         /*
