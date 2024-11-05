@@ -7326,6 +7326,14 @@ static void ppc_cpu_reset_hold(Object *obj, ResetType type)
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->fp_status);
+    /*
+     * PowerPC propagation rules:
+     *  1. A if it sNaN or qNaN
+     *  2. B if it sNaN or qNaN
+     * A signaling NaN is always silenced before returning it.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_ab, &env->fp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_ab, &env->vec_status);
 
     for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
         ppc_spr_t *spr = &env->spr_cb[i];

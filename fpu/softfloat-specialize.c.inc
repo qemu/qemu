@@ -404,15 +404,9 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
     || defined(TARGET_RISCV) || defined(TARGET_SH4) \
     || defined(TARGET_TRICORE) || defined(TARGET_ARM) || defined(TARGET_MIPS) \
     || defined(TARGET_LOONGARCH64) || defined(TARGET_HPPA) \
-    || defined(TARGET_S390X)
+    || defined(TARGET_S390X) || defined(TARGET_PPC)
         g_assert_not_reached();
-#elif defined(TARGET_PPC) || defined(TARGET_M68K)
-        /*
-         * PowerPC propagation rules:
-         *  1. A if it sNaN or qNaN
-         *  2. B if it sNaN or qNaN
-         * A signaling NaN is always silenced before returning it.
-         */
+#elif defined(TARGET_M68K)
         /*
          * M68000 FAMILY PROGRAMMER'S REFERENCE MANUAL
          * 3.4 FLOATING-POINT INSTRUCTION DETAILS
