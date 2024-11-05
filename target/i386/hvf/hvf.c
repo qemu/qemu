@@ -586,8 +586,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             break;
         }
         case EXIT_REASON_XSETBV: {
-            X86CPU *x86_cpu = X86_CPU(cpu);
-            CPUX86State *env = &x86_cpu->env;
             uint32_t eax = (uint32_t)rreg(cpu->accel->fd, HV_X86_RAX);
             uint32_t ecx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RCX);
             uint32_t edx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RDX);
@@ -644,7 +642,6 @@ int hvf_vcpu_exec(CPUState *cpu)
                 break;
             }
             case 8: {
-                X86CPU *x86_cpu = X86_CPU(cpu);
                 if (exit_qual & 0x10) {
                     RRX(env, reg) = cpu_get_apic_tpr(x86_cpu->apic_state);
                 } else {
