@@ -201,6 +201,8 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
 
     env->pc = cpu->cfg.base_vectors;
 
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
     mb_cpu_write_msr(env, MSR_EE | MSR_IE | MSR_VM | MSR_UM);
@@ -311,14 +313,11 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 static void mb_cpu_initfn(Object *obj)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
-    CPUMBState *env = &cpu->env;
 
     gdb_register_coprocessor(CPU(cpu), mb_cpu_gdb_read_stack_protect,
                              mb_cpu_gdb_write_stack_protect,
                              gdb_find_static_feature("microblaze-stack-protect.xml"),
                              0);
-
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
     /* Inbound IRQ and FIR lines */
