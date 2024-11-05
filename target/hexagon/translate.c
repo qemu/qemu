@@ -50,7 +50,6 @@ TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
 TCGv hex_new_value_usr;
-TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -195,21 +194,6 @@ static void gen_exception_end_tb(DisasContext *ctx, int excp)
 
 }
 
-#define PACKET_BUFFER_LEN              1028
-static void print_pkt(Packet *pkt)
-{
-    GString *buf = g_string_sized_new(PACKET_BUFFER_LEN);
-    snprint_a_pkt_debug(buf, pkt);
-    HEX_DEBUG_LOG("%s", buf->str);
-    g_string_free(buf, true);
-}
-#define HEX_DEBUG_PRINT_PKT(pkt) \
-    do { \
-        if (HEX_DEBUG) { \
-            print_pkt(pkt); \
-        } \
-    } while (0)
-
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
                              uint32_t words[])
 {
@@ -234,14 +218,6 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
         /* We can only cross a page boundary at the beginning of a TB */
         g_assert(ctx->base.num_insns == 1);
     }
-
-    HEX_DEBUG_LOG("decode_packet: pc = 0x%" VADDR_PRIx "\n",
-                  ctx->base.pc_next);
-    HEX_DEBUG_LOG("    words = { ");
-    for (int i = 0; i < nwords; i++) {
-        HEX_DEBUG_LOG("0x%x, ", words[i]);
-    }
-    HEX_DEBUG_LOG("}\n");
 
     return nwords;
 }
@@ -465,11 +441,6 @@ static void gen_start_packet(DisasContext *ctx)
      */
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
 
-    if (HEX_DEBUG) {
-        /* Handy place to set a breakpoint before the packet executes */
-        gen_helper_debug_start_packet(tcg_env);
-    }
-
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
@@ -483,10 +454,6 @@ static void gen_start_packet(DisasContext *ctx)
         if (need_next_PC(ctx)) {
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
         }
-    }
-    if (HEX_DEBUG) {
-        ctx->pred_written = tcg_temp_new();
-        tcg_gen_movi_tl(ctx->pred_written, 0);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -635,15 +602,6 @@ static void gen_pred_writes(DisasContext *ctx)
     }
 }
 
-static void gen_check_store_width(DisasContext *ctx, int slot_num)
-{
-    if (HEX_DEBUG) {
-        TCGv slot = tcg_constant_tl(slot_num);
-        TCGv check = tcg_constant_tl(ctx->store_width[slot_num]);
-        gen_helper_debug_check_store_width(tcg_env, slot, check);
-    }
-}
-
 static bool slot_is_predicated(Packet *pkt, int slot_num)
 {
     for (int i = 0; i < pkt->num_insns; i++) {
@@ -691,25 +649,21 @@ void process_store(DisasContext *ctx, int slot_num)
          */
         switch (ctx->store_width[slot_num]) {
         case 1:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_UB);
             break;
         case 2:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_TEUW);
             break;
         case 4:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
                                ctx->mem_idx, MO_TEUL);
             break;
         case 8:
-            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st_i64(hex_store_val64[slot_num],
                                 hex_store_addr[slot_num],
                                 ctx->mem_idx, MO_TEUQ);
@@ -937,16 +891,6 @@ static void gen_commit_packet(DisasContext *ctx)
         gen_commit_hvx(ctx);
     }
     update_exec_counters(ctx);
-    if (HEX_DEBUG) {
-        TCGv has_st0 =
-            tcg_constant_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
-        TCGv has_st1 =
-            tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
-
-        /* Handy place to set a breakpoint at the end of execution */
-        gen_helper_debug_commit_end(tcg_env, tcg_constant_tl(ctx->pkt->pc),
-                                    ctx->pred_written, has_st0, has_st1);
-    }
 
     if (pkt->vhist_insn != NULL) {
         ctx->pre_commit = false;
@@ -975,7 +919,6 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     ctx->pkt = &pkt;
     if (decode_packet(ctx, nwords, words, &pkt, false) > 0) {
         pkt.pc = ctx->base.pc_next;
-        HEX_DEBUG_PRINT_PKT(&pkt);
         gen_start_packet(ctx);
         for (i = 0; i < pkt.num_insns; i++) {
             ctx->insn = &pkt.insn[i];
@@ -1093,7 +1036,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 }
 
 #define NAME_LEN               64
-static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
 static char store_val32_names[STORES_MAX][NAME_LEN];
@@ -1112,14 +1054,6 @@ void hexagon_translate_init(void)
         hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),
             hexagon_regnames[i]);
-
-        if (HEX_DEBUG) {
-            snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
-                     hexagon_regnames[i]);
-            hex_reg_written[i] = tcg_global_mem_new(tcg_env,
-                offsetof(CPUHexagonState, reg_written[i]),
-                reg_written_names[i]);
-        }
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");

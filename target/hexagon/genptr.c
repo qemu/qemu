@@ -100,10 +100,6 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
 
     gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
     tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-    }
 }
 
 static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
@@ -150,9 +146,6 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
         tcg_gen_mov_tl(pred, base_val);
     } else {
         tcg_gen_and_tl(pred, pred, base_val);
-    }
-    if (HEX_DEBUG) {
-        tcg_gen_ori_tl(ctx->pred_written, ctx->pred_written, 1 << pnum);
     }
     set_bit(pnum, ctx->pregs_written);
 }

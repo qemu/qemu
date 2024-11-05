@@ -73,7 +73,6 @@ typedef struct DisasContext {
     bool has_hvx_overlap;
     TCGv new_value[TOTAL_PER_THREAD_REGS];
     TCGv new_pred_value[NUM_PREGS];
-    TCGv pred_written;
     TCGv branch_taken;
     TCGv dczero_addr;
 } DisasContext;
@@ -271,7 +270,6 @@ extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_new_value_usr;
-extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_store_addr[STORES_MAX];
 extern TCGv hex_store_width[STORES_MAX];
 extern TCGv hex_store_val32[STORES_MAX];
