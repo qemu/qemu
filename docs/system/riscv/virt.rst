@@ -94,6 +94,12 @@ command line:
 
   $ qemu-system-riscv64 -M virt -device riscv-iommu-pci (...)
 
+It also has support for the riscv-iommu-sys platform device:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -M virt,iommu-sys=on (...)
+
 Refer to :ref:`riscv-iommu` for more information on how the RISC-V IOMMU support
 works.
 
@@ -128,6 +134,10 @@ The following machine-specific options are supported:
   The number of per-HART VS-level AIA IMSIC pages to be emulated for a guest
   having AIA IMSIC (i.e. "aia=aplic-imsic" selected). When not specified,
   the default number of per-HART VS-level AIA IMSIC pages is 0.
+
+- iommu-sys=[on|off]
+
+  Enables the riscv-iommu-sys platform device. Defaults to 'off'.
 
 Running Linux kernel
 --------------------
