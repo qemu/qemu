@@ -19,3 +19,71 @@ unknown_lints = "allow"
 
 # Prohibit code that is forbidden in Rust 2024
 unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.rustdoc]
+private_intra_doc_links = "allow"
+
+broken_intra_doc_links = "deny"
+invalid_html_tags = "deny"
+invalid_rust_codeblocks = "deny"
+bare_urls = "deny"
+unescaped_backticks = "deny"
+redundant_explicit_links = "deny"
+
+[workspace.lints.clippy]
+# default-warn lints
+result_unit_err = "allow"
+should_implement_trait = "deny"
+# can be for a reason, e.g. in callbacks
+unused_self = "allow"
+
+# default-allow lints
+as_underscore = "deny"
+assertions_on_result_states = "deny"
+bool_to_int_with_if = "deny"
+borrow_as_ptr = "deny"
+cast_lossless = "deny"
+dbg_macro = "deny"
+debug_assert_with_mut_call = "deny"
+derive_partial_eq_without_eq = "deny"
+doc_markdown = "deny"
+empty_structs_with_brackets = "deny"
+ignored_unit_patterns = "deny"
+implicit_clone = "deny"
+macro_use_imports = "deny"
+missing_const_for_fn = "deny"
+missing_safety_doc = "deny"
+multiple_crate_versions = "deny"
+mut_mut = "deny"
+needless_bitwise_bool = "deny"
+needless_pass_by_ref_mut = "deny"
+no_effect_underscore_binding = "deny"
+option_option = "deny"
+or_fun_call = "deny"
+ptr_as_ptr = "deny"
+pub_underscore_fields = "deny"
+redundant_clone = "deny"
+redundant_closure_for_method_calls = "deny"
+redundant_else = "deny"
+redundant_pub_crate = "deny"
+ref_binding_to_reference = "deny"
+ref_option_ref = "deny"
+return_self_not_must_use = "deny"
+same_name_method = "deny"
+semicolon_inside_block = "deny"
+shadow_unrelated = "deny"
+significant_drop_in_scrutinee = "deny"
+significant_drop_tightening = "deny"
+suspicious_operation_groupings = "deny"
+transmute_ptr_to_ptr = "deny"
+transmute_undefined_repr = "deny"
+type_repetition_in_bounds = "deny"
+used_underscore_binding = "deny"
+
+# nice to have, but cannot be enabled yet
+#wildcard_imports = "deny"   # still have many bindings::* imports
+#ptr_cast_constness = "deny" # needs 1.65.0 for cast_mut()/cast_const()
+
+# these may have false positives
+#option_if_let_else = "deny"
+cognitive_complexity = "deny"

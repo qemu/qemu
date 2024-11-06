@@ -14,28 +14,15 @@
 //! the [`registers`] module for register types.
 
 #![deny(
-    rustdoc::broken_intra_doc_links,
-    rustdoc::redundant_explicit_links,
     clippy::correctness,
     clippy::suspicious,
     clippy::complexity,
     clippy::perf,
     clippy::cargo,
     clippy::nursery,
-    clippy::style,
-    // restriction group
-    clippy::dbg_macro,
-    clippy::as_underscore,
-    clippy::assertions_on_result_states,
-    // pedantic group
-    clippy::doc_markdown,
-    clippy::borrow_as_ptr,
-    clippy::cast_lossless,
-    clippy::option_if_let_else,
-    clippy::missing_const_for_fn,
-    clippy::cognitive_complexity,
-    clippy::missing_safety_doc,
-    )]
+    clippy::style
+)]
+#![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::result_unit_err)]
 
 extern crate bilge;

@@ -7,10 +7,10 @@
     non_snake_case,
     non_upper_case_globals,
     unsafe_op_in_unsafe_fn,
+    clippy::pedantic,
+    clippy::restriction,
+    clippy::style,
     clippy::missing_const_for_fn,
-    clippy::too_many_arguments,
-    clippy::approx_constant,
-    clippy::use_self,
     clippy::useless_transmute,
     clippy::missing_safety_doc
 )]
