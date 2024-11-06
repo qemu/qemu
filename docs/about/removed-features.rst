@@ -355,13 +355,13 @@ The ``-writeconfig`` option was not able to serialize the entire contents
 of the QEMU command line.  It is thus considered a failed experiment
 and removed without a replacement.
 
-``loaded`` property of ``secret`` and ``secret_keyring`` objects (removed in 7.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``loaded`` property of secret and TLS credential objects (removed in 9.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The ``loaded=on`` option in the command line or QMP ``object-add`` either had
 no effect (if ``loaded`` was the last option) or caused options to be
 effectively ignored as if they were not given.  The property is therefore
-useless and should simply be removed.
+useless and has been removed.
 
 ``opened`` property of ``rng-*`` objects (removed in 7.1)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''

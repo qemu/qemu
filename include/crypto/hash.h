@@ -31,6 +31,7 @@
 #define QCRYPTO_HASH_DIGEST_LEN_SHA384    48
 #define QCRYPTO_HASH_DIGEST_LEN_SHA512    64
 #define QCRYPTO_HASH_DIGEST_LEN_RIPEMD160 20
+#define QCRYPTO_HASH_DIGEST_LEN_SM3       32
 
 /* See also "QCryptoHashAlgo" defined in qapi/crypto.json */
 
