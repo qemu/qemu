@@ -15,7 +15,9 @@ _proc_macro2_rs = static_library(
   rust_abi: 'rust',
   rust_args: [
     '--cfg', 'feature="proc-macro"',
-    '--cfg', 'span_locations',
+    '--cfg', 'no_literal_byte_character',
+    '--cfg', 'no_literal_c_string',
+    '--cfg', 'no_source_text',
     '--cfg', 'wrap_proc_macro',
   ],
   dependencies: [

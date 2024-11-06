@@ -128,7 +128,7 @@ build-system-fedora-rust-nightly:
     job: amd64-fedora-rust-nightly-container
   variables:
     IMAGE: fedora-rust-nightly
-    CONFIGURE_ARGS: --disable-docs --enable-rust
+    CONFIGURE_ARGS: --disable-docs --enable-rust --enable-strict-rust-lints
     TARGETS: aarch64-softmmu
     MAKE_CHECK_ARGS: check-build
   allow_failure: true
