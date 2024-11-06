@@ -38,11 +38,21 @@ except ImportError:
 
 class CargoTOML:
     tomldata: Mapping[Any, Any]
+    workspace_data: Mapping[Any, Any]
     check_cfg: Set[str]
 
-    def __init__(self, path: str):
-        with open(path, 'rb') as f:
-            self.tomldata = tomllib.load(f)
+    def __init__(self, path: Optional[str], workspace: Optional[str]):
+        if path is not None:
+            with open(path, 'rb') as f:
+                self.tomldata = tomllib.load(f)
+        else:
+            self.tomldata = {"lints": {"workspace": True}}
+
+        if workspace is not None:
+            with open(workspace, 'rb') as f:
+                self.workspace_data = tomllib.load(f)
+            if "workspace" not in self.workspace_data:
+                self.workspace_data["workspace"] = {}
 
         self.check_cfg = set(self.find_check_cfg())
 
@@ -54,10 +64,12 @@ class CargoTOML:
 
     @property
     def lints(self) -> Mapping[Any, Any]:
-        return self.get_table("lints")
+        return self.get_table("lints", True)
 
-    def get_table(self, key: str) -> Mapping[Any, Any]:
+    def get_table(self, key: str, can_be_workspace: bool = False) -> Mapping[Any, Any]:
         table = self.tomldata.get(key, {})
+        if can_be_workspace and table.get("workspace", False) is True:
+            table = self.workspace_data["workspace"].get(key, {})
 
         return table
 
@@ -136,6 +148,16 @@ def main() -> None:
         action="store",
         dest="cargo_toml",
         help="path to Cargo.toml file",
+        nargs='?',
+    )
+    parser.add_argument(
+        "--workspace",
+        metavar="DIR",
+        action="store",
+        dest="workspace",
+        help="path to root of the workspace",
+        required=False,
+        default=None,
     )
     parser.add_argument(
         "--features",
@@ -168,7 +190,11 @@ def main() -> None:
     logging.debug("args: %s", args)
 
     rustc_version = tuple((int(x) for x in args.rustc_version.split('.')[0:2]))
-    cargo_toml = CargoTOML(args.cargo_toml)
+    if args.workspace:
+        workspace_cargo_toml = Path(args.workspace, "Cargo.toml").resolve()
+        cargo_toml = CargoTOML(args.cargo_toml, str(workspace_cargo_toml))
+    else:
+        cargo_toml = CargoTOML(args.cargo_toml, None)
 
     if args.lints:
         for tok in generate_lint_flags(cargo_toml):
