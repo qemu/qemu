@@ -89,6 +89,7 @@ struct RISCVIOMMUState {
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
          Error **errp);
 void riscv_iommu_set_cap_igs(RISCVIOMMUState *s, riscv_iommu_igs_mode mode);
+void riscv_iommu_reset(RISCVIOMMUState *s);
 
 /* private helpers */
 

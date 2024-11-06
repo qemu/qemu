@@ -31,6 +31,7 @@
 #include "cpu_bits.h"
 #include "riscv-iommu.h"
 #include "riscv-iommu-bits.h"
+#include "trace.h"
 
 /* RISC-V IOMMU PCI Device Emulation */
 #define RISCV_PCI_CLASS_SYSTEM_IOMMU     0x0806
@@ -65,6 +66,12 @@ typedef struct RISCVIOMMUStatePci {
     MemoryRegion     bar0;    /* PCI BAR (including MSI-x config) */
     RISCVIOMMUState  iommu;   /* common IOMMU state */
 } RISCVIOMMUStatePci;
+
+struct RISCVIOMMUPciClass {
+    /*< public >*/
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
 
 /* interrupt delivery callback */
 static void riscv_iommu_pci_notify(RISCVIOMMUState *iommu, unsigned vector)
@@ -167,10 +174,23 @@ static const Property riscv_iommu_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void riscv_iommu_pci_reset_hold(Object *obj, ResetType type)
+{
+    RISCVIOMMUStatePci *pci = RISCV_IOMMU_PCI(obj);
+    RISCVIOMMUState *iommu = &pci->iommu;
+
+    riscv_iommu_reset(iommu);
+
+    trace_riscv_iommu_pci_reset_hold(type);
+}
+
 static void riscv_iommu_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->phases.hold = riscv_iommu_pci_reset_hold;
 
     k->realize = riscv_iommu_pci_realize;
     k->exit = riscv_iommu_pci_exit;

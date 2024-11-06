@@ -54,6 +54,12 @@ struct RISCVIOMMUStateSys {
     uint8_t *msix_pba;
 };
 
+struct RISCVIOMMUSysClass {
+    /*< public >*/
+    DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
+};
+
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
@@ -212,9 +218,23 @@ static Property riscv_iommu_sys_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void riscv_iommu_sys_reset_hold(Object *obj, ResetType type)
+{
+    RISCVIOMMUStateSys *sys = RISCV_IOMMU_SYS(obj);
+    RISCVIOMMUState *iommu = &sys->iommu;
+
+    riscv_iommu_reset(iommu);
+
+    trace_riscv_iommu_sys_reset_hold(type);
+}
+
 static void riscv_iommu_sys_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    rc->phases.hold = riscv_iommu_sys_reset_hold;
+
     dc->realize = riscv_iommu_sys_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     device_class_set_props(dc, riscv_iommu_sys_properties);
