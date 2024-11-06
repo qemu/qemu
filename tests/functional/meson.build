@@ -11,24 +11,26 @@ endif
 
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
-  'aarch64_raspi4' : 120,
+  'aarch64_raspi4' : 480,
   'aarch64_sbsaref' : 600,
-  'aarch64_virt' : 360,
-  'acpi_bits' : 240,
+  'aarch64_virt' : 720,
+  'acpi_bits' : 420,
   'arm_aspeed' : 600,
-  'arm_bpim2u' : 360,
+  'arm_bpim2u' : 500,
+  'arm_collie' : 180,
   'arm_orangepi' : 540,
   'arm_raspi2' : 120,
-  'arm_tuxrun' : 120,
+  'arm_tuxrun' : 240,
   'arm_sx1' : 360,
   'mips_malta' : 120,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
   'ppc64_hv' : 1000,
-  'ppc64_powernv' : 240,
-  'ppc64_pseries' : 240,
-  'ppc64_tuxrun' : 240,
-  's390x_ccw_virtio' : 240,
+  'ppc64_powernv' : 480,
+  'ppc64_pseries' : 480,
+  'ppc64_tuxrun' : 420,
+  'riscv64_tuxrun' : 120,
+  's390x_ccw_virtio' : 420,
 }
 
 tests_generic_system = [
@@ -281,8 +283,8 @@ foreach speed : ['quick', 'thorough']
            env: test_env,
            args: [testpath],
            protocol: 'tap',
-           timeout: test_timeouts.get(test, 60),
-           priority: test_timeouts.get(test, 60),
+           timeout: test_timeouts.get(test, 90),
+           priority: test_timeouts.get(test, 90),
            suite: suites)
     endforeach
   endforeach
