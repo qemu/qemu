@@ -94,10 +94,9 @@ static uint8_t riscv_iommu_get_icvec_vector(uint32_t icvec, uint32_t vec_type)
 
 static void riscv_iommu_notify(RISCVIOMMUState *s, int vec_type)
 {
-    const uint32_t fctl = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_FCTL);
     uint32_t ipsr, icvec, vector;
 
-    if (fctl & RISCV_IOMMU_FCTL_WSI || !s->notify) {
+    if (!s->notify) {
         return;
     }
 
