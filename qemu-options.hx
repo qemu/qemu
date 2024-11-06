@@ -192,6 +192,13 @@ SRST
     Restore vm from path.
 ERST
 
+DEF("forkgroup", HAS_ARG, QEMU_OPTION_forkgroup,
+    "-forkgroup id      Set fork group id\n", QEMU_ARCH_ALL)
+SRST
+``-forkgroup``
+    Set this fork group's id.
+ERST
+
 DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "-accel [accel=]accelerator[,prop[=value][,...]]\n"
     "                select accelerator (kvm, xen, hvf, nvmm, whpx or tcg; use 'help' for a list)\n"

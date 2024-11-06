@@ -525,8 +525,24 @@ static QemuOptsList qemu_forked_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_forked_opts.head),
     .desc = {
         {
-            .name = "src",
+            .name = "path",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_forkgroup_opts = {
+    .name = "forkgroup",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_forkgroup_opts.head),
+    .desc = {
+        {
+            .name = "id",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
@@ -2785,7 +2801,8 @@ int qemu_get_args(char ***argv_p)
 static void qemu_copy_forkable_image(const QDict *machine_opts)
 {
     const char *kernel_path = qdict_get_try_str(machine_opts, "kernel");
-    QemuOpts opts = qemu_find_opts_singleton("forkable");
+    //QemuOptsList *list = qemu_find_opts("forkable");
+    QemuOpts *opts = qemu_find_opts_singleton("forkable");
     const char *copy_path = qemu_opt_get(opts, "path");
     //const char *copy_path = qdict_get_try_str(machine_opts, "imgpath");
 
@@ -2799,11 +2816,10 @@ static void qemu_copy_forkable_image(const QDict *machine_opts)
             /* Throw error */
         }
     }
-    return;
 }
 
 /* Copy argc and argv to global variable */
-static void qemu_copy_args(int argc, char **argv){
+static int qemu_copy_args(int argc, char **argv){
     global_argc = argc;
     global_argv = (char **)g_malloc((argc + 1) * sizeof(char *));
     g_assert(global_argv);
@@ -2869,6 +2885,7 @@ void qemu_init(int argc, char **argv)
     qemu_add_opts(&qemu_action_opts);
     qemu_add_opts(&qemu_forkable_opts);
     qemu_add_opts(&qemu_forked_opts);
+    qemu_add_opts(&qemu_forkgroup_opts);
     qemu_add_run_with_opts();
     module_call_init(MODULE_INIT_OPTS);
 
@@ -2929,6 +2946,9 @@ void qemu_init(int argc, char **argv)
                 break;
             case QEMU_OPTION_forked:
                 //TODO: begin migrate
+                break;
+            case QEMU_OPTION_forkgroup:
+                //TODO: Set group id
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
