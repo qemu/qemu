@@ -3178,7 +3178,8 @@ foreach target : target_dirs
     config_target += {
       'CONFIG_USER_ONLY': 'y',
       'CONFIG_QEMU_INTERP_PREFIX':
-        get_option('interp_prefix').replace('%M', config_target['TARGET_NAME'])
+        get_option('interp_prefix').replace('%M', config_target['TARGET_NAME']),
+      'CONFIG_QEMU_RTSIG_MAP': get_option('rtsig_map'),
     }
   endif
 

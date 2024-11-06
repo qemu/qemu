@@ -72,6 +72,7 @@ meson_options_help() {
   printf "%s\n" '                           "manufacturer" name for qemu-ga registry entries'
   printf "%s\n" '                           [QEMU]'
   printf "%s\n" '  --qemu-ga-version=VALUE  version number for qemu-ga installer'
+  printf "%s\n" '  --rtsig-map=VALUE        default value of QEMU_RTSIG_MAP [NULL]'
   printf "%s\n" '  --smbd=VALUE             Path to smbd for slirp networking'
   printf "%s\n" '  --sysconfdir=VALUE       Sysconf data directory [etc]'
   printf "%s\n" '  --tls-priority=VALUE     Default TLS protocol/cipher priority string'
@@ -460,6 +461,7 @@ _meson_option_parse() {
     --disable-replication) printf "%s" -Dreplication=disabled ;;
     --enable-rng-none) printf "%s" -Drng_none=true ;;
     --disable-rng-none) printf "%s" -Drng_none=false ;;
+    --rtsig-map=*) quote_sh "-Drtsig_map=$2" ;;
     --enable-rust) printf "%s" -Drust=enabled ;;
     --disable-rust) printf "%s" -Drust=disabled ;;
     --enable-rutabaga-gfx) printf "%s" -Drutabaga_gfx=enabled ;;
