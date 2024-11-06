@@ -2130,6 +2130,11 @@ static const MemoryRegionOps riscv_iommu_trap_ops = {
     }
 };
 
+void riscv_iommu_set_cap_igs(RISCVIOMMUState *s, riscv_iommu_igs_mode mode)
+{
+    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_IGS, mode);
+}
+
 static void riscv_iommu_instance_init(Object *obj)
 {
     RISCVIOMMUState *s = RISCV_IOMMU(obj);

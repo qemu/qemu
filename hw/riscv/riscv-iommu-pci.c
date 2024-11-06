@@ -155,6 +155,7 @@ static void riscv_iommu_pci_init(Object *obj)
     qdev_alias_all_properties(DEVICE(iommu), obj);
 
     iommu->icvec_avail_vectors = RISCV_IOMMU_PCI_ICVEC_VECTORS;
+    riscv_iommu_set_cap_igs(iommu, RISCV_IOMMU_CAP_IGS_MSI);
 }
 
 static const Property riscv_iommu_pci_properties[] = {

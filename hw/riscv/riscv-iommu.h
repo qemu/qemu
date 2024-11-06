@@ -21,6 +21,9 @@
 
 #include "qom/object.h"
 #include "hw/riscv/iommu.h"
+#include "hw/riscv/riscv-iommu-bits.h"
+
+typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
 
 struct RISCVIOMMUState {
     /*< private >*/
@@ -85,6 +88,7 @@ struct RISCVIOMMUState {
 
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,
          Error **errp);
+void riscv_iommu_set_cap_igs(RISCVIOMMUState *s, riscv_iommu_igs_mode mode);
 
 /* private helpers */
 
