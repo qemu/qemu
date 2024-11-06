@@ -108,8 +108,8 @@ typedef struct {
 } KVMMSRHandlers;
 
 static void kvm_init_msrs(X86CPU *cpu);
-static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
-                           QEMUWRMSRHandler *wrmsr);
+static int kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
+                          QEMUWRMSRHandler *wrmsr);
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SET_TSS_ADDR),
@@ -3150,17 +3150,21 @@ static int kvm_vm_enable_notify_vmexit(KVMState *s)
 
 static int kvm_vm_enable_userspace_msr(KVMState *s)
 {
-    int ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
-                                KVM_MSR_EXIT_REASON_FILTER);
+    int ret;
+
+    ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
+                            KVM_MSR_EXIT_REASON_FILTER);
     if (ret < 0) {
         error_report("Could not enable user space MSRs: %s",
                      strerror(-ret));
         exit(1);
     }
 
-    if (!kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
-                        kvm_rdmsr_core_thread_count, NULL)) {
-        error_report("Could not install MSR_CORE_THREAD_COUNT handler!");
+    ret = kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
+                         kvm_rdmsr_core_thread_count, NULL);
+    if (ret < 0) {
+        error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
+                     strerror(-ret));
         exit(1);
     }
 
@@ -3169,36 +3173,37 @@ static int kvm_vm_enable_userspace_msr(KVMState *s)
 
 static void kvm_vm_enable_energy_msrs(KVMState *s)
 {
-    bool r;
+    int ret;
+
     if (s->msr_energy.enable == true) {
-        r = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
-                           kvm_rdmsr_rapl_power_unit, NULL);
-        if (!r) {
-            error_report("Could not install MSR_RAPL_POWER_UNIT \
-                                handler");
+        ret = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
+                             kvm_rdmsr_rapl_power_unit, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_RAPL_POWER_UNIT handler: %s",
+                         strerror(-ret));
             exit(1);
         }
 
-        r = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
-                           kvm_rdmsr_pkg_power_limit, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_POWER_LIMIT \
-                                handler");
+        ret = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
+                             kvm_rdmsr_pkg_power_limit, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_POWER_LIMIT handler: %s",
+                         strerror(-ret));
             exit(1);
         }
 
-        r = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
-                           kvm_rdmsr_pkg_power_info, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_POWER_INFO \
-                                handler");
+        ret = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
+                             kvm_rdmsr_pkg_power_info, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_POWER_INFO handler: %s",
+                         strerror(-ret));
             exit(1);
         }
-        r = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
-                           kvm_rdmsr_pkg_energy_status, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_ENERGY_STATUS \
-                                handler");
+        ret = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
+                             kvm_rdmsr_pkg_energy_status, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_ENERGY_STATUS handler: %s",
+                         strerror(-ret));
             exit(1);
         }
     }
@@ -5841,13 +5846,13 @@ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
     }
 }
 
-static bool kvm_install_msr_filters(KVMState *s)
+static int kvm_install_msr_filters(KVMState *s)
 {
     uint64_t zero = 0;
     struct kvm_msr_filter filter = {
         .flags = KVM_MSR_FILTER_DEFAULT_ALLOW,
     };
-    int r, i, j = 0;
+    int i, j = 0;
 
     for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
         KVMMSRHandlers *handler = &msr_handlers[i];
@@ -5871,18 +5876,13 @@ static bool kvm_install_msr_filters(KVMState *s)
         }
     }
 
-    r = kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
-    if (r) {
-        return false;
-    }
-
-    return true;
+    return kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
 }
 
-static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
-                    QEMUWRMSRHandler *wrmsr)
+static int kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
+                          QEMUWRMSRHandler *wrmsr)
 {
-    int i;
+    int i, ret;
 
     for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
         if (!msr_handlers[i].msr) {
@@ -5892,16 +5892,17 @@ static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
                 .wrmsr = wrmsr,
             };
 
-            if (!kvm_install_msr_filters(s)) {
+            ret = kvm_install_msr_filters(s);
+            if (ret) {
                 msr_handlers[i] = (KVMMSRHandlers) { };
-                return false;
+                return ret;
             }
 
-            return true;
+            return 0;
         }
     }
 
-    return false;
+    return -EINVAL;
 }
 
 static int kvm_handle_rdmsr(X86CPU *cpu, struct kvm_run *run)
