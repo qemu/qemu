@@ -31,7 +31,7 @@ static inline void target_thread_init(struct target_pt_regs *regs,
     struct image_info *infop)
 {
     regs->rax = 0;
-    regs->rsp = infop->start_stack;
+    regs->rsp = ((infop->start_stack - 8) & ~0xfUL) + 8;
     regs->rip = infop->entry;
     regs->rdi = infop->start_stack;
 }
