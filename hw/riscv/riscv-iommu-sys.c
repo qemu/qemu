@@ -26,10 +26,14 @@
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "exec/exec-all.h"
+#include "trace.h"
 
 #include "riscv-iommu.h"
 
 #define RISCV_IOMMU_SYSDEV_ICVEC_VECTORS 0x3333
+
+#define RISCV_IOMMU_PCI_MSIX_VECTORS 5
 
 /* RISC-V IOMMU System Platform Device Emulation */
 
@@ -39,8 +43,109 @@ struct RISCVIOMMUStateSys {
     uint32_t         base_irq;
     DeviceState      *irqchip;
     RISCVIOMMUState  iommu;
+
+    /* Wired int support */
     qemu_irq         irqs[RISCV_IOMMU_INTR_COUNT];
+
+    /* Memory Regions for MSIX table and pending bit entries. */
+    MemoryRegion msix_table_mmio;
+    MemoryRegion msix_pba_mmio;
+    uint8_t *msix_table;
+    uint8_t *msix_pba;
 };
+
+static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
+                                     unsigned size)
+{
+    RISCVIOMMUStateSys *s = opaque;
+
+    g_assert(addr + size <= RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE);
+    return pci_get_long(s->msix_table + addr);
+}
+
+static void msix_table_mmio_write(void *opaque, hwaddr addr,
+                                  uint64_t val, unsigned size)
+{
+    RISCVIOMMUStateSys *s = opaque;
+
+    g_assert(addr + size <= RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE);
+    pci_set_long(s->msix_table + addr, val);
+}
+
+static const MemoryRegionOps msix_table_mmio_ops = {
+    .read = msix_table_mmio_read,
+    .write = msix_table_mmio_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .max_access_size = 4,
+    },
+};
+
+static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
+                                   unsigned size)
+{
+    RISCVIOMMUStateSys *s = opaque;
+
+    return pci_get_long(s->msix_pba + addr);
+}
+
+static void msix_pba_mmio_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
+{
+}
+
+static const MemoryRegionOps msix_pba_mmio_ops = {
+    .read = msix_pba_mmio_read,
+    .write = msix_pba_mmio_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .max_access_size = 4,
+    },
+};
+
+static void riscv_iommu_sysdev_init_msi(RISCVIOMMUStateSys *s,
+                                        uint32_t n_vectors)
+{
+    RISCVIOMMUState *iommu = &s->iommu;
+    uint32_t table_size = table_size = n_vectors * PCI_MSIX_ENTRY_SIZE;
+    uint32_t table_offset = RISCV_IOMMU_REG_MSI_CONFIG;
+    uint32_t pba_size = QEMU_ALIGN_UP(n_vectors, 64) / 8;
+    uint32_t pba_offset = RISCV_IOMMU_REG_MSI_CONFIG + 256;
+
+    s->msix_table = g_malloc0(table_size);
+    s->msix_pba = g_malloc0(pba_size);
+
+    memory_region_init_io(&s->msix_table_mmio, OBJECT(s), &msix_table_mmio_ops,
+                          s, "msix-table", table_size);
+    memory_region_add_subregion(&iommu->regs_mr, table_offset,
+                                &s->msix_table_mmio);
+
+    memory_region_init_io(&s->msix_pba_mmio, OBJECT(s), &msix_pba_mmio_ops, s,
+                          "msix-pba", pba_size);
+    memory_region_add_subregion(&iommu->regs_mr, pba_offset,
+                                &s->msix_pba_mmio);
+}
+
+static void riscv_iommu_sysdev_send_MSI(RISCVIOMMUStateSys *s,
+                                        uint32_t vector)
+{
+    uint8_t *table_entry = s->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
+    uint64_t msi_addr = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
+    uint32_t msi_data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
+    MemTxResult result;
+
+    address_space_stl_le(&address_space_memory, msi_addr,
+                         msi_data, MEMTXATTRS_UNSPECIFIED, &result);
+    trace_riscv_iommu_sys_msi_sent(vector, msi_addr, msi_data, result);
+}
 
 static void riscv_iommu_sysdev_notify(RISCVIOMMUState *iommu,
                                       unsigned vector)
@@ -48,12 +153,13 @@ static void riscv_iommu_sysdev_notify(RISCVIOMMUState *iommu,
     RISCVIOMMUStateSys *s = container_of(iommu, RISCVIOMMUStateSys, iommu);
     uint32_t fctl =  riscv_iommu_reg_get32(iommu, RISCV_IOMMU_REG_FCTL);
 
-    /* We do not support MSIs yet */
-    if (!(fctl & RISCV_IOMMU_FCTL_WSI)) {
+    if (fctl & RISCV_IOMMU_FCTL_WSI) {
+        qemu_irq_pulse(s->irqs[vector]);
+        trace_riscv_iommu_sys_irq_sent(vector);
         return;
     }
 
-    qemu_irq_pulse(s->irqs[vector]);
+    riscv_iommu_sysdev_send_MSI(s, vector);
 }
 
 static void riscv_iommu_sys_realize(DeviceState *dev, Error **errp)
@@ -82,6 +188,8 @@ static void riscv_iommu_sys_realize(DeviceState *dev, Error **errp)
         irq = qdev_get_gpio_in(s->irqchip, s->base_irq + i);
         sysbus_connect_irq(sysdev, i, irq);
     }
+
+    riscv_iommu_sysdev_init_msi(s, RISCV_IOMMU_PCI_MSIX_VECTORS);
 }
 
 static void riscv_iommu_sys_init(Object *obj)
@@ -93,7 +201,7 @@ static void riscv_iommu_sys_init(Object *obj)
     qdev_alias_all_properties(DEVICE(iommu), obj);
 
     iommu->icvec_avail_vectors = RISCV_IOMMU_SYSDEV_ICVEC_VECTORS;
-    riscv_iommu_set_cap_igs(iommu, RISCV_IOMMU_CAP_IGS_WSI);
+    riscv_iommu_set_cap_igs(iommu, RISCV_IOMMU_CAP_IGS_BOTH);
 }
 
 static Property riscv_iommu_sys_properties[] = {
