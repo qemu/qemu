@@ -5,7 +5,7 @@
   "make": "/usr/local/bin/gmake",
   "ninja": "/usr/local/bin/ninja",
   "packaging_command": "pkg",
-  "pip3": "/usr/local/bin/pip-3.8",
+  "pip3": "/usr/local/bin/pip",
   "pkgs": [
     "alsa-lib",
     "bash",

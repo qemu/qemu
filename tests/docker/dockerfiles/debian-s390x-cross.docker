@@ -31,10 +31,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       git \
                       hostname \
                       libglib2.0-dev \
-                      libgtk-vnc-2.0-dev \
-                      libpcre2-dev \
-                      libsndio-dev \
-                      libspice-protocol-dev \
                       llvm \
                       locales \
                       make \
@@ -109,6 +105,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libglusterfs-dev:s390x \
                       libgnutls28-dev:s390x \
                       libgtk-3-dev:s390x \
+                      libgtk-vnc-2.0-dev:s390x \
                       libibverbs-dev:s390x \
                       libiscsi-dev:s390x \
                       libjemalloc-dev:s390x \
@@ -120,6 +117,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libnfs-dev:s390x \
                       libnuma-dev:s390x \
                       libpam0g-dev:s390x \
+                      libpcre2-dev:s390x \
                       libpipewire-0.3-dev:s390x \
                       libpixman-1-dev:s390x \
                       libpng-dev:s390x \
@@ -133,6 +131,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libselinux1-dev:s390x \
                       libslirp-dev:s390x \
                       libsnappy-dev:s390x \
+                      libsndio-dev:s390x \
+                      libspice-protocol-dev:s390x \
                       libssh-gcrypt-dev:s390x \
                       libsystemd-dev:s390x \
                       libtasn1-6-dev:s390x \

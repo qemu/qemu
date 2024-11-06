@@ -35,7 +35,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                git \
                glib2-devel \
                glibc-langpack-en \
-               gtk-vnc2-devel \
                hostname \
                llvm \
                make \
@@ -44,7 +43,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                ninja-build \
                nmap-ncat \
                openssh-clients \
-               pcre-static \
                python3 \
                python3-PyYAML \
                python3-numpy \
@@ -58,7 +56,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                sed \
                socat \
                sparse \
-               spice-protocol \
                swtpm \
                tar \
                tesseract \
@@ -89,6 +86,7 @@ RUN nosync dnf install -y \
                mingw64-gettext \
                mingw64-glib2 \
                mingw64-gnutls \
+               mingw64-gtk-vnc2 \
                mingw64-gtk3 \
                mingw64-libepoxy \
                mingw64-libgcrypt \
