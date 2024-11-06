@@ -227,11 +227,14 @@ class AST2x00Machine(LinuxKernelTest):
 
         image_path = self.ASSET_BR2_202302_AST2600_TPM_FLASH.fetch()
 
-        socket_dir = tempfile.TemporaryDirectory(prefix="qemu_")
-        socket = os.path.join(socket_dir.name, 'swtpm-socket')
+        tpmstate_dir = tempfile.TemporaryDirectory(prefix="qemu_")
+        socket = os.path.join(tpmstate_dir.name, 'swtpm-socket')
 
+        # We must put the TPM state dir in /tmp/, not the build dir,
+        # because some distros use AppArmor to lock down swtpm and
+        # restrict the set of locations it can access files in.
         subprocess.run(['swtpm', 'socket', '-d', '--tpm2',
-                        '--tpmstate', f'dir={self.vm.temp_dir}',
+                        '--tpmstate', f'dir={tpmstate_dir.name}',
                         '--ctrl', f'type=unixio,path={socket}'])
 
         self.vm.add_args('-chardev', f'socket,id=chrtpm,path={socket}')
