@@ -2093,12 +2093,12 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
     return head;
 }
 
-static char *hexToIPAddress(const void *hexValue, int is_ipv6)
+static char *hex_to_ip_address(const void *hex_value, int is_ipv6)
 {
     if (is_ipv6) {
         char addr[INET6_ADDRSTRLEN];
         struct in6_addr in6;
-        const char *hexStr = (const char *)hexValue;
+        const char *hex_str = (const char *)hex_value;
         int i;
 
         for (i = 0; i < 16; i++) {
@@ -2110,11 +2110,11 @@ static char *hexToIPAddress(const void *hexValue, int is_ipv6)
 
         return g_strdup(addr);
     } else {
-        unsigned int hexInt = *(unsigned int *)hexValue;
-        unsigned int byte1 = (hexInt >> 24) & 0xFF;
-        unsigned int byte2 = (hexInt >> 16) & 0xFF;
-        unsigned int byte3 = (hexInt >> 8) & 0xFF;
-        unsigned int byte4 = hexInt & 0xFF;
+        unsigned int hex_int = *(unsigned int *)hex_value;
+        unsigned int byte1 = (hex_int >> 24) & 0xFF;
+        unsigned int byte2 = (hex_int >> 16) & 0xFF;
+        unsigned int byte3 = (hex_int >> 8) & 0xFF;
+        unsigned int byte4 = hex_int & 0xFF;
 
         return g_strdup_printf("%u.%u.%u.%u", byte4, byte3, byte2, byte1);
     }
@@ -2123,20 +2123,21 @@ static char *hexToIPAddress(const void *hexValue, int is_ipv6)
 GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
 {
     GuestNetworkRouteList *head = NULL, **tail = &head;
-    const char *routeFiles[] = {"/proc/net/route", "/proc/net/ipv6_route"};
+    const char *route_files[] = {"/proc/net/route", "/proc/net/ipv6_route"};
     FILE *fp;
-    size_t n;
+    size_t n = 0;
     char *line = NULL;
     int firstLine;
     int is_ipv6;
     int i;
+    char iface[IFNAMSIZ];
 
     for (i = 0; i < 2; i++) {
         firstLine = 1;
         is_ipv6 = (i == 1);
-        fp = fopen(routeFiles[i], "r");
+        fp = fopen(route_files[i], "r");
         if (fp == NULL) {
-            error_setg_errno(errp, errno, "open(\"%s\")", routeFiles[i]);
+            error_setg_errno(errp, errno, "open(\"%s\")", route_files[i]);
             free(line);
             continue;
         }
@@ -2146,73 +2147,64 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
                 firstLine = 0;
                 continue;
             }
-            char Iface[IFNAMSIZ];
             g_autoptr(GuestNetworkRoute) route = g_new0(GuestNetworkRoute, 1);
 
             if (is_ipv6) {
-                char Destination[33], Source[33], NextHop[33];
-                int DesPrefixlen, SrcPrefixlen, Metric, RefCnt, Use, Flags;
-
-                /* Parse the line and extract the values */
+                char destination[33], source[33], next_hop[33];
+                int des_prefixlen, src_prefixlen, metric, refcnt, use, flags;
                 if (sscanf(line, "%32s %x %32s %x %32s %x %x %x %x %s",
-                           Destination, &DesPrefixlen, Source,
-                           &SrcPrefixlen, NextHop, &Metric, &RefCnt,
-                           &Use, &Flags, Iface) != 10) {
+                           destination, &des_prefixlen, source,
+                           &src_prefixlen, next_hop, &metric, &refcnt,
+                           &use, &flags, iface) != 10) {
                     continue;
                 }
 
-                route->iface = g_strdup(Iface);
-                route->destination = hexToIPAddress(Destination, 1);
+                route->destination = hex_to_ip_address(destination, 1);
                 if (route->destination == NULL) {
                     continue;
                 }
-                route->metric = Metric;
-                route->source = hexToIPAddress(Source, 1);
-                route->desprefixlen = g_strdup_printf(
-                    "%d", DesPrefixlen
-                );
-                route->srcprefixlen = g_strdup_printf(
-                    "%d", SrcPrefixlen
-                );
-                route->nexthop = hexToIPAddress(NextHop, 1);
+                route->iface = g_strdup(iface);
+                route->source = hex_to_ip_address(source, 1);
+                route->nexthop = hex_to_ip_address(next_hop, 1);
+                route->desprefixlen = g_strdup_printf("%d", des_prefixlen);
+                route->srcprefixlen = g_strdup_printf("%d", src_prefixlen);
+                route->metric = metric;
                 route->has_flags = true;
-                route->flags = Flags;
+                route->flags = flags;
                 route->has_refcnt = true;
-                route->refcnt = RefCnt;
+                route->refcnt = refcnt;
                 route->has_use = true;
-                route->use = Use;
+                route->use = use;
                 route->version = 6;
             } else {
-                unsigned int Destination, Gateway, Mask, Flags;
-                int RefCnt, Use, Metric, MTU, Window, IRTT;
-
-                /* Parse the line and extract the values */
+                unsigned int destination, gateway, mask, flags;
+                int refcnt, use, metric, mtu, window, irtt;
                 if (sscanf(line, "%s %X %X %x %d %d %d %X %d %d %d",
-                           Iface, &Destination, &Gateway, &Flags, &RefCnt,
-                           &Use, &Metric, &Mask, &MTU, &Window, &IRTT) != 11) {
+                           iface, &destination, &gateway, &flags, &refcnt,
+                           &use, &metric, &mask, &mtu, &window, &irtt) != 11) {
                     continue;
                 }
 
-                route->iface = g_strdup(Iface);
-                route->destination = hexToIPAddress(&Destination, 0);
+                route->destination = hex_to_ip_address(&destination, 0);
                 if (route->destination == NULL) {
                     continue;
                 }
-                route->gateway = hexToIPAddress(&Gateway, 0);
-                route->mask = hexToIPAddress(&Mask, 0);
-                route->metric = Metric;
+                route->iface = g_strdup(iface);
+                route->gateway = hex_to_ip_address(&gateway, 0);
+                route->mask = hex_to_ip_address(&mask, 0);
+                route->metric = metric;
                 route->has_flags = true;
-                route->flags = Flags;
+                route->flags = flags;
                 route->has_refcnt = true;
-                route->refcnt = RefCnt;
+                route->refcnt = refcnt;
                 route->has_use = true;
-                route->use = Use;
+                route->use = use;
                 route->has_mtu = true;
-                route->mtu = MTU;
+                route->mtu = mtu;
                 route->has_window = true;
-                route->window = Window;
+                route->window = window;
                 route->has_irtt = true;
-                route->irtt = IRTT;
+                route->irtt = irtt;
                 route->version = 4;
             }
 
