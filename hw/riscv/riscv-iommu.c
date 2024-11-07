@@ -820,7 +820,7 @@ static bool riscv_iommu_validate_process_ctx(RISCVIOMMUState *s,
     }
 
     if (ctx->tc & RISCV_IOMMU_DC_TC_SXL) {
-        if (mode == RISCV_IOMMU_CAP_SV32 &&
+        if (mode == RISCV_IOMMU_DC_FSC_IOSATP_MODE_SV32 &&
             !(s->cap & RISCV_IOMMU_CAP_SV32)) {
                 return false;
         }
@@ -863,7 +863,7 @@ static int riscv_iommu_ctx_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx)
     /* Device Context format: 0: extended (64 bytes) | 1: base (32 bytes) */
     const int dc_fmt = !s->enable_msi;
     const size_t dc_len = sizeof(dc) >> dc_fmt;
-    unsigned depth;
+    int depth;
     uint64_t de;
 
     switch (mode) {
