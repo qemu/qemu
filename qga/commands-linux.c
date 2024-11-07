@@ -2102,7 +2102,9 @@ static char *hexToIPAddress(const void *hexValue, int is_ipv6)
         int i;
 
         for (i = 0; i < 16; i++) {
-            sscanf(&hexStr[i * 2], "%02hhx", &in6.s6_addr[i]);
+            if (sscanf(&hex_str[i * 2], "%02hhx", &in6.s6_addr[i]) != 1) {
+                return NULL;
+            }
         }
         inet_ntop(AF_INET6, &in6, addr, INET6_ADDRSTRLEN);
 
@@ -2144,9 +2146,9 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
                 firstLine = 0;
                 continue;
             }
-            GuestNetworkRoute *route = NULL;
-            GuestNetworkRoute *networkroute;
             char Iface[IFNAMSIZ];
+            g_autoptr(GuestNetworkRoute) route = g_new0(GuestNetworkRoute, 1);
+
             if (is_ipv6) {
                 char Destination[33], Source[33], NextHop[33];
                 int DesPrefixlen, SrcPrefixlen, Metric, RefCnt, Use, Flags;
@@ -2159,26 +2161,27 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
                     continue;
                 }
 
-                route = g_new0(GuestNetworkRoute, 1);
-                networkroute = route;
-                networkroute->iface = g_strdup(Iface);
-                networkroute->destination = hexToIPAddress(Destination, 1);
-                networkroute->metric = Metric;
-                networkroute->source = hexToIPAddress(Source, 1);
-                networkroute->desprefixlen = g_strdup_printf(
+                route->iface = g_strdup(Iface);
+                route->destination = hexToIPAddress(Destination, 1);
+                if (route->destination == NULL) {
+                    continue;
+                }
+                route->metric = Metric;
+                route->source = hexToIPAddress(Source, 1);
+                route->desprefixlen = g_strdup_printf(
                     "%d", DesPrefixlen
                 );
-                networkroute->srcprefixlen = g_strdup_printf(
+                route->srcprefixlen = g_strdup_printf(
                     "%d", SrcPrefixlen
                 );
-                networkroute->nexthop = hexToIPAddress(NextHop, 1);
-                networkroute->has_flags = true;
-                networkroute->flags = Flags;
-                networkroute->has_refcnt = true;
-                networkroute->refcnt = RefCnt;
-                networkroute->has_use = true;
-                networkroute->use = Use;
-                networkroute->version = 6;
+                route->nexthop = hexToIPAddress(NextHop, 1);
+                route->has_flags = true;
+                route->flags = Flags;
+                route->has_refcnt = true;
+                route->refcnt = RefCnt;
+                route->has_use = true;
+                route->use = Use;
+                route->version = 6;
             } else {
                 unsigned int Destination, Gateway, Mask, Flags;
                 int RefCnt, Use, Metric, MTU, Window, IRTT;
@@ -2190,29 +2193,31 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
                     continue;
                 }
 
-                route = g_new0(GuestNetworkRoute, 1);
-                networkroute = route;
-                networkroute->iface = g_strdup(Iface);
-                networkroute->destination = hexToIPAddress(&Destination, 0);
-                networkroute->gateway = hexToIPAddress(&Gateway, 0);
-                networkroute->mask = hexToIPAddress(&Mask, 0);
-                networkroute->metric = Metric;
-                networkroute->has_flags = true;
-                networkroute->flags = Flags;
-                networkroute->has_refcnt = true;
-                networkroute->refcnt = RefCnt;
-                networkroute->has_use = true;
-                networkroute->use = Use;
-                networkroute->has_mtu = true;
-                networkroute->mtu = MTU;
-                networkroute->has_window = true;
-                networkroute->window = Window;
-                networkroute->has_irtt = true;
-                networkroute->irtt = IRTT;
-                networkroute->version = 4;
+                route->iface = g_strdup(Iface);
+                route->destination = hexToIPAddress(&Destination, 0);
+                if (route->destination == NULL) {
+                    continue;
+                }
+                route->gateway = hexToIPAddress(&Gateway, 0);
+                route->mask = hexToIPAddress(&Mask, 0);
+                route->metric = Metric;
+                route->has_flags = true;
+                route->flags = Flags;
+                route->has_refcnt = true;
+                route->refcnt = RefCnt;
+                route->has_use = true;
+                route->use = Use;
+                route->has_mtu = true;
+                route->mtu = MTU;
+                route->has_window = true;
+                route->window = Window;
+                route->has_irtt = true;
+                route->irtt = IRTT;
+                route->version = 4;
             }
 
             QAPI_LIST_APPEND(tail, route);
+            route = NULL;
         }
 
         free(line);
