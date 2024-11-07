@@ -2138,7 +2138,6 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
         fp = fopen(route_files[i], "r");
         if (fp == NULL) {
             error_setg_errno(errp, errno, "open(\"%s\")", route_files[i]);
-            free(line);
             continue;
         }
 
@@ -2212,9 +2211,9 @@ GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
             route = NULL;
         }
 
-        free(line);
         fclose(fp);
     }
 
+    free(line);
     return head;
 }
