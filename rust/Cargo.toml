@@ -11,5 +11,11 @@ unexpected_cfgs = { level = "deny", check-cfg = [
     'cfg(MESON)', 'cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)',
     'cfg(has_offset_of)'] }
 
+# Occasionally, we may need to silence warnings and clippy lints that
+# were only introduced in newer Rust compiler versions.  Do not croak
+# in that case; a CI job with rust_strict_lints == true disables this
+# and ensures that we do not have misspelled allow() attributes.
+unknown_lints = "allow"
+
 # Prohibit code that is forbidden in Rust 2024
 unsafe_op_in_unsafe_fn = "deny"

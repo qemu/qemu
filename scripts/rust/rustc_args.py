@@ -35,6 +35,8 @@ try:
 except ImportError:
     import tomli as tomllib
 
+STRICT_LINTS = {"unknown_lints", "warnings"}
+
 
 class CargoTOML:
     tomldata: Mapping[Any, Any]
@@ -80,7 +82,7 @@ class LintFlag:
     priority: int
 
 
-def generate_lint_flags(cargo_toml: CargoTOML) -> Iterable[str]:
+def generate_lint_flags(cargo_toml: CargoTOML, strict_lints: bool) -> Iterable[str]:
     """Converts Cargo.toml lints to rustc -A/-D/-F/-W flags."""
 
     toml_lints = cargo_toml.lints
@@ -105,8 +107,12 @@ def generate_lint_flags(cargo_toml: CargoTOML) -> Iterable[str]:
             # This may change if QEMU ever invokes clippy-driver or rustdoc by
             # hand.  For now, check the syntax but do not add non-rustc lints to
             # the command line.
-            if k == "rust":
+            if k == "rust" and not (strict_lints and lint in STRICT_LINTS):
                 lint_list.append(LintFlag(flags=[flag, prefix + lint], priority=priority))
+
+    if strict_lints:
+        for lint in STRICT_LINTS:
+            lint_list.append(LintFlag(flags=["-D", lint], priority=1000000))
 
     lint_list.sort(key=lambda x: x.priority)
     for lint in lint_list:
@@ -184,6 +190,13 @@ def main() -> None:
         required=False,
         default="1.0.0",
     )
+    parser.add_argument(
+        "--strict-lints",
+        action="store_true",
+        dest="strict_lints",
+        help="apply stricter checks (for nightly Rust)",
+        default=False,
+    )
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -197,7 +210,7 @@ def main() -> None:
         cargo_toml = CargoTOML(args.cargo_toml, None)
 
     if args.lints:
-        for tok in generate_lint_flags(cargo_toml):
+        for tok in generate_lint_flags(cargo_toml, args.strict_lints):
             print(tok)
 
     if rustc_version >= (1, 80):
