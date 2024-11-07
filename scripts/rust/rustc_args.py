@@ -25,9 +25,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import argparse
+from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Set
+from typing import Any, Iterable, List, Mapping, Optional, Set
 
 try:
     import tomllib
@@ -59,6 +60,45 @@ class CargoTOML:
         table = self.tomldata.get(key, {})
 
         return table
+
+
+@dataclass
+class LintFlag:
+    flags: List[str]
+    priority: int
+
+
+def generate_lint_flags(cargo_toml: CargoTOML) -> Iterable[str]:
+    """Converts Cargo.toml lints to rustc -A/-D/-F/-W flags."""
+
+    toml_lints = cargo_toml.lints
+
+    lint_list = []
+    for k, v in toml_lints.items():
+        prefix = "" if k == "rust" else k + "::"
+        for lint, data in v.items():
+            level = data if isinstance(data, str) else data["level"]
+            priority = 0 if isinstance(data, str) else data.get("priority", 0)
+            if level == "deny":
+                flag = "-D"
+            elif level == "allow":
+                flag = "-A"
+            elif level == "warn":
+                flag = "-W"
+            elif level == "forbid":
+                flag = "-F"
+            else:
+                raise Exception(f"invalid level {level} for {prefix}{lint}")
+
+            # This may change if QEMU ever invokes clippy-driver or rustdoc by
+            # hand.  For now, check the syntax but do not add non-rustc lints to
+            # the command line.
+            if k == "rust":
+                lint_list.append(LintFlag(flags=[flag, prefix + lint], priority=priority))
+
+    lint_list.sort(key=lambda x: x.priority)
+    for lint in lint_list:
+        yield from lint.flags
 
 
 def generate_cfg_flags(header: str, cargo_toml: CargoTOML) -> Iterable[str]:
@@ -97,12 +137,53 @@ def main() -> None:
         dest="cargo_toml",
         help="path to Cargo.toml file",
     )
+    parser.add_argument(
+        "--features",
+        action="store_true",
+        dest="features",
+        help="generate --check-cfg arguments for features",
+        required=False,
+        default=None,
+    )
+    parser.add_argument(
+        "--lints",
+        action="store_true",
+        dest="lints",
+        help="generate arguments from [lints] table",
+        required=False,
+        default=None,
+    )
+    parser.add_argument(
+        "--rustc-version",
+        metavar="VERSION",
+        dest="rustc_version",
+        action="store",
+        help="version of rustc",
+        required=False,
+        default="1.0.0",
+    )
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     logging.debug("args: %s", args)
 
+    rustc_version = tuple((int(x) for x in args.rustc_version.split('.')[0:2]))
     cargo_toml = CargoTOML(args.cargo_toml)
+
+    if args.lints:
+        for tok in generate_lint_flags(cargo_toml):
+            print(tok)
+
+    if rustc_version >= (1, 80):
+        if args.lints:
+            for cfg in sorted(cargo_toml.check_cfg):
+                print("--check-cfg")
+                print(cfg)
+        if args.features:
+            for feature in cargo_toml.get_table("features"):
+                if feature != "default":
+                    print("--check-cfg")
+                    print(f'cfg(feature,values("{feature}"))')
 
     for header in args.config_headers:
         for tok in generate_cfg_flags(header, cargo_toml):

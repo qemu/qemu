@@ -1,6 +1,6 @@
 _qemu_api_cfg = run_command(rustc_args,
-  '--config-headers', config_host_h, files('Cargo.toml'),
-  capture: true, check: true).stdout().strip().split()
+  '--config-headers', config_host_h, '--features', '--lints', files('Cargo.toml'),
+  capture: true, check: true).stdout().strip().splitlines()
 
 # _qemu_api_cfg += ['--cfg', 'feature="allocator"']
 if rustc.version().version_compare('>=1.77.0')

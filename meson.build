@@ -120,7 +120,8 @@ if have_rust
 endif
 
 if have_rust
-  rustc_args = find_program('scripts/rust/rustc_args.py')
+  rustc_args = [find_program('scripts/rust/rustc_args.py'),
+    '--rustc-version', rustc.version()]
   rustfmt = find_program('rustfmt', required: false)
 
   # Prohibit code that is forbidden in Rust 2024
