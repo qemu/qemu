@@ -501,7 +501,7 @@ static int igd_get_stolen_mb(int gen, uint32_t gmch)
         if (gms < 0xf0)
             return gms * 32;
         else
-            return gms * 4 + 4;
+            return (gms - 0xf0) * 4 + 4;
     }
 }
 
