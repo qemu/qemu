@@ -20,6 +20,18 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static int loongarch_extioi_common_pre_save(void *opaque)
+{
+    LoongArchExtIOICommonState *s = (LoongArchExtIOICommonState *)opaque;
+    LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_GET_CLASS(s);
+
+    if (lecc->pre_save) {
+        return lecc->pre_save(s);
+    }
+
+    return 0;
+}
+
 static int loongarch_extioi_common_post_load(void *opaque, int version_id)
 {
     LoongArchExtIOICommonState *s = (LoongArchExtIOICommonState *)opaque;
@@ -46,6 +58,7 @@ static const VMStateDescription vmstate_loongarch_extioi = {
     .name = "loongarch.extioi",
     .version_id = 3,
     .minimum_version_id = 3,
+    .pre_save  = loongarch_extioi_common_pre_save,
     .post_load = loongarch_extioi_common_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(bounce, LoongArchExtIOICommonState,

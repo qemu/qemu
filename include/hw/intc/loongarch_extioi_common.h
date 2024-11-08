@@ -92,6 +92,7 @@ struct LoongArchExtIOICommonClass {
     SysBusDeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    int (*pre_save)(void *s);
     int (*post_load)(void *s, int version_id);
 };
 #endif /* LOONGARCH_EXTIOI_H */
