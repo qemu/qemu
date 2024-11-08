@@ -125,7 +125,7 @@ class AST2x00Machine(LinuxKernelTest):
     def do_test_arm_aspeed_buildroot_start(self, image, cpu_id, pattern='Aspeed EVB'):
         self.require_netdev('user')
         self.vm.set_console()
-        self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
+        self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw,read-only=true',
                          '-net', 'nic', '-net', 'user')
         self.vm.launch()
 

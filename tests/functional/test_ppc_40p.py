@@ -46,7 +46,8 @@ class IbmPrep40pMachine(QemuSystemTest):
 
         self.vm.set_console()
         self.vm.add_args('-bios', bios_path,
-                         '-fda', drive_path)
+                         '-drive',
+                         f"file={drive_path},format=raw,if=floppy,read-only=true")
         self.vm.launch()
         os_banner = 'NetBSD 4.0 (GENERIC) #0: Sun Dec 16 00:49:40 PST 2007'
         wait_for_console_pattern(self, os_banner)

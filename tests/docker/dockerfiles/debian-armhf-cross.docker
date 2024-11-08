@@ -31,10 +31,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       git \
                       hostname \
                       libglib2.0-dev \
-                      libgtk-vnc-2.0-dev \
-                      libpcre2-dev \
-                      libsndio-dev \
-                      libspice-protocol-dev \
                       llvm \
                       locales \
                       make \
@@ -109,6 +105,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libglusterfs-dev:armhf \
                       libgnutls28-dev:armhf \
                       libgtk-3-dev:armhf \
+                      libgtk-vnc-2.0-dev:armhf \
                       libibverbs-dev:armhf \
                       libiscsi-dev:armhf \
                       libjemalloc-dev:armhf \
@@ -120,6 +117,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libnfs-dev:armhf \
                       libnuma-dev:armhf \
                       libpam0g-dev:armhf \
+                      libpcre2-dev:armhf \
                       libpipewire-0.3-dev:armhf \
                       libpixman-1-dev:armhf \
                       libpng-dev:armhf \
@@ -133,6 +131,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libselinux1-dev:armhf \
                       libslirp-dev:armhf \
                       libsnappy-dev:armhf \
+                      libsndio-dev:armhf \
+                      libspice-protocol-dev:armhf \
                       libspice-server-dev:armhf \
                       libssh-gcrypt-dev:armhf \
                       libsystemd-dev:armhf \

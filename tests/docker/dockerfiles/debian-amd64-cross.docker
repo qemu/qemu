@@ -31,10 +31,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       git \
                       hostname \
                       libglib2.0-dev \
-                      libgtk-vnc-2.0-dev \
-                      libpcre2-dev \
-                      libsndio-dev \
-                      libspice-protocol-dev \
                       llvm \
                       locales \
                       make \
@@ -109,6 +105,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libglusterfs-dev:amd64 \
                       libgnutls28-dev:amd64 \
                       libgtk-3-dev:amd64 \
+                      libgtk-vnc-2.0-dev:amd64 \
                       libibverbs-dev:amd64 \
                       libiscsi-dev:amd64 \
                       libjemalloc-dev:amd64 \
@@ -120,6 +117,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libnfs-dev:amd64 \
                       libnuma-dev:amd64 \
                       libpam0g-dev:amd64 \
+                      libpcre2-dev:amd64 \
                       libpipewire-0.3-dev:amd64 \
                       libpixman-1-dev:amd64 \
                       libpmem-dev:amd64 \
@@ -134,6 +132,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libselinux1-dev:amd64 \
                       libslirp-dev:amd64 \
                       libsnappy-dev:amd64 \
+                      libsndio-dev:amd64 \
+                      libspice-protocol-dev:amd64 \
                       libspice-server-dev:amd64 \
                       libssh-gcrypt-dev:amd64 \
                       libsystemd-dev:amd64 \
