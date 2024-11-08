@@ -88,6 +88,9 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x2200:
     case 0x5900:
         return 8;
+    /* CoffeeLake */
+    case 0x3e00:
+        return 9;
     /* ElkhartLake */
     case 0x4500:
         return 11;
