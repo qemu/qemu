@@ -242,6 +242,7 @@ static bool find_boot_device(void)
 static int virtio_setup(void)
 {
     VDev *vdev = virtio_get_device();
+    vdev->is_cdrom = false;
     int ret;
 
     switch (vdev->senseid.cu_model) {
