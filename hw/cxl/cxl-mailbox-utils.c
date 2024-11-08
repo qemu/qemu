@@ -1288,6 +1288,10 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     set_feat_info->data_offset = hdr->offset;
     bytes_to_copy = len_in - sizeof(CXLSetFeatureInHeader);
 
+    if (bytes_to_copy == 0) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     if (qemu_uuid_is_equal(&hdr->uuid, &patrol_scrub_uuid)) {
         if (hdr->version != CXL_MEMDEV_PS_SET_FEATURE_VERSION) {
             return CXL_MBOX_UNSUPPORTED;
