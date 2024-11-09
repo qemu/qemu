@@ -119,6 +119,10 @@ static bool read_eif_header(FILE *f, EifHeader *header, uint32_t *crc,
 
     for (int i = 0; i < MAX_SECTIONS; ++i) {
         header->section_sizes[i] = be64_to_cpu(header->section_sizes[i]);
+        if (header->section_sizes[i] > SSIZE_MAX) {
+            error_setg(errp, "Invalid EIF image. Section size out of bounds");
+            return false;
+        }
     }
 
     header->unused = be32_to_cpu(header->unused);
@@ -278,7 +282,12 @@ static bool get_signature_fingerprint_sha384(FILE *eif, uint64_t size,
     struct cbor_load_result result;
     bool ret = false;
 
-    sig = g_malloc(size);
+    sig = g_try_malloc(size);
+    if (!sig) {
+        error_setg(errp, "Out of memory reading signature section");
+        goto cleanup;
+    }
+
     got = fread(sig, 1, size, eif);
     if ((uint64_t) got != size) {
         error_setg(errp, "Failed to read EIF signature section data");
@@ -320,7 +329,12 @@ static bool get_signature_fingerprint_sha384(FILE *eif, uint64_t size,
         error_setg(errp, "Invalid signature CBOR");
         goto cleanup;
     }
-    cert = g_malloc(len);
+    cert = g_try_malloc(len);
+    if (!cert) {
+        error_setg(errp, "Out of memory reading signature section");
+        goto cleanup;
+    }
+
     for (int i = 0; i < len; ++i) {
         cbor_item_t *tmp = cbor_array_get(pair->value, i);
         if (!tmp) {
@@ -466,6 +480,10 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
         EifSectionHeader hdr;
         uint16_t section_type;
 
+        if (eif_header.section_offsets[i] > OFF_MAX) {
+            error_setg(errp, "Invalid EIF image. Section offset out of bounds");
+            goto cleanup;
+        }
         if (fseek(f, eif_header.section_offsets[i], SEEK_SET) != 0) {
             error_setg_errno(errp, errno, "Failed to offset to %" PRIu64 " in EIF file",
                              eif_header.section_offsets[i]);
@@ -499,7 +517,11 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 goto cleanup;
             }
 
-            ptr = g_malloc(hdr.section_size);
+            ptr = g_try_malloc(hdr.section_size);
+            if (!ptr) {
+                error_setg(errp, "Out of memory reading kernel section");
+                goto cleanup;
+            }
 
             iov_ptr = g_malloc(sizeof(struct iovec));
             iov_ptr->iov_base = ptr;
@@ -524,7 +546,11 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 goto cleanup;
             }
             size = hdr.section_size;
-            *cmdline = g_malloc(size + 1);
+            *cmdline = g_try_malloc(size + 1);
+            if (!*cmdline) {
+                error_setg(errp, "Out of memory reading command line section");
+                goto cleanup;
+            }
             if (!read_eif_cmdline(f, size, *cmdline, &crc, errp)) {
                 goto cleanup;
             }
@@ -563,7 +589,11 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 }
             }
 
-            ptr = g_malloc(hdr.section_size);
+            ptr = g_try_malloc(hdr.section_size);
+            if (!ptr) {
+                error_setg(errp, "Out of memory reading initrd section");
+                goto cleanup;
+            }
 
             iov_ptr = g_malloc(sizeof(struct iovec));
             iov_ptr->iov_base = ptr;
@@ -602,7 +632,11 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
             uint8_t *buf;
             size_t got;
             uint64_t size = hdr.section_size;
-            buf = g_malloc(size);
+            buf = g_try_malloc(size);
+            if (!buf) {
+                error_setg(errp, "Out of memory reading unknown section");
+                goto cleanup;
+            }
             got = fread(buf, 1, size, f);
             if ((uint64_t) got != size) {
                 g_free(buf);
@@ -658,7 +692,11 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
             goto cleanup;
         }
 
-        ptr = g_malloc(machine_initrd_size);
+        ptr = g_try_malloc(machine_initrd_size);
+        if (!ptr) {
+            error_setg(errp, "Out of memory reading initrd file");
+            goto cleanup;
+        }
 
         iov_ptr = g_malloc(sizeof(struct iovec));
         iov_ptr->iov_base = ptr;

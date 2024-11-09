@@ -32,7 +32,7 @@
 static bool cached_xcr0;
 static uint64_t supported_xcr0;
 
-static void cache_host_xcr0()
+static void cache_host_xcr0(void)
 {
     if (cached_xcr0) {
         return;
@@ -77,7 +77,7 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         ecx &= CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSSE3 |
              CPUID_EXT_FMA | CPUID_EXT_CX16 | CPUID_EXT_PCID |
              CPUID_EXT_SSE41 | CPUID_EXT_SSE42 | CPUID_EXT_MOVBE |
-             CPUID_EXT_POPCNT | CPUID_EXT_AES |
+             CPUID_EXT_POPCNT | CPUID_EXT_AES | CPUID_EXT_X2APIC |
              (supported_xcr0 ? CPUID_EXT_XSAVE : 0) |
              CPUID_EXT_AVX | CPUID_EXT_F16C | CPUID_EXT_RDRAND;
         ecx |= CPUID_EXT_HYPERVISOR;
@@ -119,8 +119,8 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         eax = 0;
         break;
     case 0xD:
-        if (!supported_xcr0 ||
-            (idx > 1 && !(supported_xcr0 & (1 << idx)))) {
+        if (!supported_xcr0 || idx >= 63 ||
+            (idx > 1 && !(supported_xcr0 & (UINT64_C(1) << idx)))) {
             eax = ebx = ecx = edx = 0;
             break;
         }
