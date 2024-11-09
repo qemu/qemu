@@ -48,12 +48,12 @@ Running a nitro-enclave VM
 First, run `vhost-device-vsock`__ (or a similar tool that supports vhost-user-vsock).
 The forward-cid option below with value 1 forwards all connections from the enclave
 VM to the host machine and the forward-listen (port numbers separated by '+') is used
-for forwarding connections from the host machine to the enclave VM.
-
-__ https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-vsock#using-the-vsock-backend
+for forwarding connections from the host machine to the enclave VM::
 
   $ vhost-device-vsock \
      --vm guest-cid=4,forward-cid=1,forward-listen=9001+9002,socket=/tmp/vhost4.socket
+
+__ https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-vsock#using-the-vsock-backend
 
 Now run the necessary applications on the host machine so that the nitro-enclave VM
 applications' vsock communication works. For example, the nitro-enclave VM's init
@@ -65,7 +65,7 @@ the applications on the host machine that would typically be running in the pare
 VM for successful communication with the enclave VM.
 
 Then run the nitro-enclave VM using the following command where ``hello.eif`` is
-an EIF file you would use to spawn a real AWS nitro enclave virtual machine:
+an EIF file you would use to spawn a real AWS nitro enclave virtual machine::
 
   $ qemu-system-x86_64 -M nitro-enclave,vsock=c,id=hello-world \
      -kernel hello-world.eif -nographic -m 4G --enable-kvm -cpu host \
