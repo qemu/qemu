@@ -70,8 +70,7 @@ struct XlnxXpsEthLite
 
     uint32_t c_tx_pingpong;
     uint32_t c_rx_pingpong;
-    unsigned int txbuf;
-    unsigned int rxbuf;
+    unsigned int port_index; /* dual port RAM index */
 
     uint32_t regs[R_MAX];
 };
@@ -176,7 +175,7 @@ static const MemoryRegionOps eth_ops = {
 static bool eth_can_rx(NetClientState *nc)
 {
     XlnxXpsEthLite *s = qemu_get_nic_opaque(nc);
-    unsigned int rxbase = s->rxbuf * (0x800 / 4);
+    unsigned int rxbase = s->port_index * (0x800 / 4);
 
     return !(s->regs[rxbase + R_RX_CTRL0] & CTRL_S);
 }
@@ -184,7 +183,7 @@ static bool eth_can_rx(NetClientState *nc)
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     XlnxXpsEthLite *s = qemu_get_nic_opaque(nc);
-    unsigned int rxbase = s->rxbuf * (0x800 / 4);
+    unsigned int rxbase = s->port_index * (0x800 / 4);
 
     /* DA filter.  */
     if (!(buf[0] & 0x80) && memcmp(&s->conf.macaddr.a[0], buf, 6))
@@ -207,7 +206,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* If c_rx_pingpong was set flip buffers.  */
-    s->rxbuf ^= s->c_rx_pingpong;
+    s->port_index ^= s->c_rx_pingpong;
     return size;
 }
 
@@ -215,7 +214,7 @@ static void xilinx_ethlite_reset(DeviceState *dev)
 {
     XlnxXpsEthLite *s = XILINX_ETHLITE(dev);
 
-    s->rxbuf = 0;
+    s->port_index = 0;
 }
 
 static NetClientInfo net_xilinx_ethlite_info = {
