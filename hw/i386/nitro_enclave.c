@@ -117,13 +117,13 @@ static void nitro_enclave_machine_reset(MachineState *machine, ResetType type)
     memset(ne_state->vnsm->pcrs, 0, sizeof(ne_state->vnsm->pcrs));
 
     /* PCR0 */
-    ne_state->vnsm->extend_pcr(ne_state->vnsm, 0, ne_state->image_sha384,
+    ne_state->vnsm->extend_pcr(ne_state->vnsm, 0, ne_state->image_hash,
                                QCRYPTO_HASH_DIGEST_LEN_SHA384);
     /* PCR1 */
-    ne_state->vnsm->extend_pcr(ne_state->vnsm, 1, ne_state->bootstrap_sha384,
+    ne_state->vnsm->extend_pcr(ne_state->vnsm, 1, ne_state->bootstrap_hash,
                                QCRYPTO_HASH_DIGEST_LEN_SHA384);
     /* PCR2 */
-    ne_state->vnsm->extend_pcr(ne_state->vnsm, 2, ne_state->app_sha384,
+    ne_state->vnsm->extend_pcr(ne_state->vnsm, 2, ne_state->app_hash,
                                QCRYPTO_HASH_DIGEST_LEN_SHA384);
     /* PCR3 */
     if (ne_state->parent_role) {
@@ -140,7 +140,7 @@ static void nitro_enclave_machine_reset(MachineState *machine, ResetType type)
     /* PCR8 */
     if (ne_state->signature_found) {
         ne_state->vnsm->extend_pcr(ne_state->vnsm, 8,
-                                   ne_state->fingerprint_sha384,
+                                   ne_state->fingerprint_hash,
                                    QCRYPTO_HASH_DIGEST_LEN_SHA384);
     }
 
@@ -173,8 +173,8 @@ static void x86_load_eif(X86MachineState *x86ms, FWCfgState *fw_cfg,
 
     if (!read_eif_file(machine->kernel_filename, machine->initrd_filename,
                        &eif_kernel, &eif_initrd, &eif_cmdline,
-                       nems->image_sha384, nems->bootstrap_sha384,
-                       nems->app_sha384, nems->fingerprint_sha384,
+                       nems->image_hash, nems->bootstrap_hash,
+                       nems->app_hash, nems->fingerprint_hash,
                        &(nems->signature_found), &err)) {
         error_report_err(err);
         exit(1);

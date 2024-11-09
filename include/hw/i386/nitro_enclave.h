@@ -44,14 +44,14 @@ struct NitroEnclaveMachineState {
     /* Machine state */
     VirtIONSM *vnsm;
 
-    /* kernel + ramdisks + cmdline sha384 hash */
-    uint8_t image_sha384[QCRYPTO_HASH_DIGEST_LEN_SHA384];
-    /* kernel + boot ramdisk + cmdline sha384 hash */
-    uint8_t bootstrap_sha384[QCRYPTO_HASH_DIGEST_LEN_SHA384];
-    /* application ramdisk(s) hash */
-    uint8_t app_sha384[QCRYPTO_HASH_DIGEST_LEN_SHA384];
-    /* certificate fingerprint hash */
-    uint8_t fingerprint_sha384[QCRYPTO_HASH_DIGEST_LEN_SHA384];
+    /* kernel + ramdisks + cmdline SHA384 hash */
+    uint8_t image_hash[QCRYPTO_HASH_DIGEST_LEN_SHA384];
+    /* kernel + boot ramdisk + cmdline SHA384 hash */
+    uint8_t bootstrap_hash[QCRYPTO_HASH_DIGEST_LEN_SHA384];
+    /* application ramdisk(s) SHA384 hash */
+    uint8_t app_hash[QCRYPTO_HASH_DIGEST_LEN_SHA384];
+    /* certificate fingerprint SHA384 hash */
+    uint8_t fingerprint_hash[QCRYPTO_HASH_DIGEST_LEN_SHA384];
     bool signature_found;
 };
 
