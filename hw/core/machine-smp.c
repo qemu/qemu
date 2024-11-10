@@ -317,7 +317,7 @@ bool machine_parse_smp_cache(MachineState *ms,
             !mc->smp_props.cache_supported[props->cache]) {
             error_setg(errp,
                        "%s cache topology not supported by this machine",
-                       CacheLevelAndType_str(node->value->cache));
+                       CacheLevelAndType_str(props->cache));
             return false;
         }
 
