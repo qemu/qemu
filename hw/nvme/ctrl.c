@@ -8904,7 +8904,12 @@ static void nvme_exit(PCIDevice *pci_dev)
         pcie_sriov_pf_exit(pci_dev);
     }
 
-    msix_uninit(pci_dev, &n->bar0, &n->bar0);
+    if (n->params.msix_exclusive_bar && !pci_is_vf(pci_dev)) {
+        msix_uninit_exclusive_bar(pci_dev);
+    } else {
+        msix_uninit(pci_dev, &n->bar0, &n->bar0);
+    }
+
     memory_region_del_subregion(&n->bar0, &n->iomem);
 }
 
