@@ -290,6 +290,7 @@ bool machine_parse_smp_cache(MachineState *ms,
     const SmpCachePropertiesList *node;
     DECLARE_BITMAP(caches_bitmap, CACHE_LEVEL_AND_TYPE__MAX);
 
+    bitmap_zero(caches_bitmap, CACHE_LEVEL_AND_TYPE__MAX);
     for (node = caches; node; node = node->next) {
         /* Prohibit users from repeating settings. */
         if (test_bit(node->value->cache, caches_bitmap)) {
