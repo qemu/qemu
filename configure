@@ -13,7 +13,7 @@ export CCACHE_RECACHE=yes
 # make source path absolute
 source_path=$(cd "$(dirname -- "$0")"; pwd)
 
-if test "$PWD" = "$source_path"
+if test "$PWD" -ef "$source_path"
 then
     echo "Using './build' as the directory for build output"
 
