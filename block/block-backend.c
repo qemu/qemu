@@ -1019,6 +1019,10 @@ DeviceState *blk_get_attached_dev(BlockBackend *blk)
     return blk->dev;
 }
 
+/*
+ * The caller is responsible for releasing the value returned
+ * with g_free() after use.
+ */
 static char *blk_get_attached_dev_id_or_path(BlockBackend *blk, bool want_id)
 {
     DeviceState *dev = blk->dev;
@@ -1033,15 +1037,15 @@ static char *blk_get_attached_dev_id_or_path(BlockBackend *blk, bool want_id)
     return object_get_canonical_path(OBJECT(dev)) ?: g_strdup("");
 }
 
-/*
- * Return the qdev ID, or if no ID is assigned the QOM path, of the block
- * device attached to the BlockBackend.
- */
 char *blk_get_attached_dev_id(BlockBackend *blk)
 {
     return blk_get_attached_dev_id_or_path(blk, true);
 }
 
+/*
+ * The caller is responsible for releasing the value returned
+ * with g_free() after use.
+ */
 static char *blk_get_attached_dev_path(BlockBackend *blk)
 {
     return blk_get_attached_dev_id_or_path(blk, false);
