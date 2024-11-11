@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 1%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 2%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -200,6 +200,58 @@ Patch0027: 0027-arm-ensure-compatibility-of-virt-rhel9.patch
 Patch0028: 0028-arm-create-new-virt-machine-type-for-rhel-9.6.patch
 Patch0029: 0029-x86-create-new-pc-q35-machine-type-for-rhel-9.6.patch
 Patch0030: 0030-hw-arm-virt-Fix-Manufacturer-and-Product-Name-in-emu.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch31: kvm-hw-s390x-ipl-Provide-more-memory-to-the-s390-ccw.img.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch32: kvm-pc-bios-s390-ccw-Use-the-libc-from-SLOF-and-remove-s.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch33: kvm-pc-bios-s390-ccw-Link-the-netboot-code-into-the-main.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch35: kvm-hw-s390x-Remove-the-possibility-to-load-the-s390-net.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch36: kvm-pc-bios-s390-ccw-Merge-netboot.mak-into-the-main-Mak.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch37: kvm-docs-system-s390x-bootdevices-Update-the-documentati.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch38: kvm-pc-bios-s390-ccw-Remove-panics-from-ISO-IPL-path.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch39: kvm-pc-bios-s390-ccw-Remove-panics-from-ECKD-IPL-path.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch40: kvm-pc-bios-s390-ccw-Remove-panics-from-SCSI-IPL-path.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch41: kvm-pc-bios-s390-ccw-Remove-panics-from-DASD-IPL-path.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch42: kvm-pc-bios-s390-ccw-Remove-panics-from-Netboot-IPL-path.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch43: kvm-pc-bios-s390-ccw-Enable-failed-IPL-to-return-after-e.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch44: kvm-include-hw-s390x-Add-include-files-for-common-IPL-st.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch45: kvm-s390x-Add-individual-loadparm-assignment-to-CCW-devi.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch46: kvm-hw-s390x-Build-an-IPLB-for-each-boot-device.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch47: kvm-s390x-Rebuild-IPLB-for-SCSI-device-directly-from-DIA.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch48: kvm-pc-bios-s390x-Enable-multi-device-boot-loop.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch49: kvm-docs-system-Update-documentation-for-s390x-IPL.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch50: kvm-tests-qtest-Add-s390x-boot-order-tests-to-cdrom-test.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch51: kvm-pc-bios-s390-ccw-Clarify-alignment-is-in-bytes.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch52: kvm-pc-bios-s390-ccw-Don-t-generate-TEXTRELs.patch
+# For RHEL-11424 - [IBM 9.6 FEAT] KVM: Full boot order support - qemu part
+Patch53: kvm-pc-bios-s390-ccw-Introduce-EXTRA_LDFLAGS.patch
+# For RHEL-64307 - High threshold value observed in vGPU live migration
+Patch54: kvm-vfio-migration-Report-only-stop-copy-size-in-vfio_st.patch
+# For RHEL-64307 - High threshold value observed in vGPU live migration
+Patch55: kvm-vfio-migration-Change-trace-formats-from-hex-to-deci.patch
+# For RHEL-60914 - Fail migration properly when put cpu register fails
+Patch56: kvm-kvm-Allow-kvm_arch_get-put_registers-to-accept-Error.patch
+# For RHEL-60914 - Fail migration properly when put cpu register fails
+Patch57: kvm-target-i386-kvm-Report-which-action-failed-in-kvm_ar.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1264,6 +1316,41 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Nov 11 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-2
+- kvm-hw-s390x-ipl-Provide-more-memory-to-the-s390-ccw.img.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Use-the-libc-from-SLOF-and-remove-s.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Link-the-netboot-code-into-the-main.patch [RHEL-11424]
+- kvm-redhat-Remove-the-s390-netboot.img-from-the-spec-fil.patch [RHEL-11424]
+- kvm-hw-s390x-Remove-the-possibility-to-load-the-s390-net.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Merge-netboot.mak-into-the-main-Mak.patch [RHEL-11424]
+- kvm-docs-system-s390x-bootdevices-Update-the-documentati.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Remove-panics-from-ISO-IPL-path.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Remove-panics-from-ECKD-IPL-path.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Remove-panics-from-SCSI-IPL-path.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Remove-panics-from-DASD-IPL-path.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Remove-panics-from-Netboot-IPL-path.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Enable-failed-IPL-to-return-after-e.patch [RHEL-11424]
+- kvm-include-hw-s390x-Add-include-files-for-common-IPL-st.patch [RHEL-11424]
+- kvm-s390x-Add-individual-loadparm-assignment-to-CCW-devi.patch [RHEL-11424]
+- kvm-hw-s390x-Build-an-IPLB-for-each-boot-device.patch [RHEL-11424]
+- kvm-s390x-Rebuild-IPLB-for-SCSI-device-directly-from-DIA.patch [RHEL-11424]
+- kvm-pc-bios-s390x-Enable-multi-device-boot-loop.patch [RHEL-11424]
+- kvm-docs-system-Update-documentation-for-s390x-IPL.patch [RHEL-11424]
+- kvm-tests-qtest-Add-s390x-boot-order-tests-to-cdrom-test.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Clarify-alignment-is-in-bytes.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Don-t-generate-TEXTRELs.patch [RHEL-11424]
+- kvm-pc-bios-s390-ccw-Introduce-EXTRA_LDFLAGS.patch [RHEL-11424]
+- kvm-vfio-migration-Report-only-stop-copy-size-in-vfio_st.patch [RHEL-64307]
+- kvm-vfio-migration-Change-trace-formats-from-hex-to-deci.patch [RHEL-64307]
+- kvm-kvm-Allow-kvm_arch_get-put_registers-to-accept-Error.patch [RHEL-60914]
+- kvm-target-i386-kvm-Report-which-action-failed-in-kvm_ar.patch [RHEL-60914]
+- Resolves: RHEL-11424
+  ([IBM 9.6 FEAT] KVM: Full boot order support - qemu part)
+- Resolves: RHEL-64307
+  (High threshold value observed in vGPU live migration)
+- Resolves: RHEL-60914
+  (Fail migration properly when put cpu register fails)
+
 * Thu Sep 26 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-1
 - Rebase to QEMU 9.1 [RHEL-41247]
 - Resolves: RHEL-41247
