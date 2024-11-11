@@ -51,6 +51,8 @@ int virtio_net_init(void *mac_addr)
     void *buf;
     int i;
 
+    rx_last_idx = 0;
+
     vdev->guest_features[0] = VIRTIO_NET_F_MAC_BIT;
     virtio_setup_ccw(vdev);
 
