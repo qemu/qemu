@@ -2,6 +2,7 @@
  * QEMU model of the Xilinx Ethernet Lite MAC.
  *
  * Copyright (c) 2009 Edgar E. Iglesias.
+ * Copyright (c) 2024 Linaro, Ltd
  *
  * DS580: https://docs.amd.com/v/u/en-US/xps_ethernetlite
  * LogiCORE IP XPS Ethernet Lite Media Access Controller
@@ -30,7 +31,6 @@
 #include "qemu/bitops.h"
 #include "qom/object.h"
 #include "qapi/error.h"
-#include "exec/tswap.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -38,18 +38,12 @@
 #include "net/net.h"
 #include "trace.h"
 
-#define R_TX_BUF0     0
 #define BUFSZ_MAX      0x07e4
 #define A_MDIO_BASE    0x07e4
 #define A_TX_BASE0     0x07f4
-#define R_TX_BUF1     (0x0800 / 4)
 #define A_TX_BASE1     0x0ff4
-
-#define R_RX_BUF0     (0x1000 / 4)
 #define A_RX_BASE0     0x17fc
-#define R_RX_BUF1     (0x1800 / 4)
 #define A_RX_BASE1     0x1ffc
-#define R_MAX         (0x2000 / 4)
 
 enum {
     TX_LEN =  0,
@@ -72,6 +66,8 @@ enum {
 typedef struct XlnxXpsEthLitePort {
     MemoryRegion txio;
     MemoryRegion rxio;
+    MemoryRegion txbuf;
+    MemoryRegion rxbuf;
 
     struct {
         uint32_t tx_len;
@@ -100,7 +96,6 @@ struct XlnxXpsEthLite
 
     UnimplementedDeviceState mdio;
     XlnxXpsEthLitePort port[2];
-    uint32_t regs[R_MAX];
 };
 
 static inline void eth_pulse_irq(XlnxXpsEthLite *s)
@@ -118,16 +113,12 @@ static unsigned addr_to_port_index(hwaddr addr)
 
 static void *txbuf_ptr(XlnxXpsEthLite *s, unsigned port_index)
 {
-    unsigned int rxbase = port_index * (0x800 / 4);
-
-    return &s->regs[rxbase + R_TX_BUF0];
+    return memory_region_get_ram_ptr(&s->port[port_index].txbuf);
 }
 
 static void *rxbuf_ptr(XlnxXpsEthLite *s, unsigned port_index)
 {
-    unsigned int rxbase = port_index * (0x800 / 4);
-
-    return &s->regs[rxbase + R_RX_BUF0];
+    return memory_region_get_ram_ptr(&s->port[port_index].rxbuf);
 }
 
 static uint64_t port_tx_read(void *opaque, hwaddr addr, unsigned int size)
@@ -254,53 +245,6 @@ static const MemoryRegionOps eth_portrx_ops = {
         },
 };
 
-static uint64_t
-eth_read(void *opaque, hwaddr addr, unsigned int size)
-{
-    XlnxXpsEthLite *s = opaque;
-    uint32_t r = 0;
-
-    addr >>= 2;
-
-    switch (addr)
-    {
-        default:
-            r = tswap32(s->regs[addr]);
-            break;
-    }
-    return r;
-}
-
-static void
-eth_write(void *opaque, hwaddr addr,
-          uint64_t val64, unsigned int size)
-{
-    XlnxXpsEthLite *s = opaque;
-    uint32_t value = val64;
-
-    addr >>= 2;
-    switch (addr) 
-    {
-        default:
-            s->regs[addr] = tswap32(value);
-            break;
-    }
-}
-
-static const MemoryRegionOps eth_ops = {
-    .read = eth_read,
-    .write = eth_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4
-    }
-};
-
 static bool eth_can_rx(NetClientState *nc)
 {
     XlnxXpsEthLite *s = qemu_get_nic_opaque(nc);
@@ -356,6 +300,9 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
 {
     XlnxXpsEthLite *s = XILINX_ETHLITE(dev);
 
+    memory_region_init(&s->mmio, OBJECT(dev),
+                       "xlnx.xps-ethernetlite", 0x2000);
+
     object_initialize_child(OBJECT(dev), "ethlite.mdio", &s->mdio,
                             TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(DEVICE(&s->mdio), "name", "ethlite.mdio");
@@ -365,6 +312,10 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->mdio), 0));
 
     for (unsigned i = 0; i < 2; i++) {
+        memory_region_init_ram(&s->port[i].txbuf, OBJECT(dev),
+                               i ? "ethlite.tx[1]buf" : "ethlite.tx[0]buf",
+                               BUFSZ_MAX, &error_abort);
+        memory_region_add_subregion(&s->mmio, 0x0800 * i, &s->port[i].txbuf);
         memory_region_init_io(&s->port[i].txio, OBJECT(dev),
                               &eth_porttx_ops, s,
                               i ? "ethlite.tx[1]io" : "ethlite.tx[0]io",
@@ -372,6 +323,11 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
         memory_region_add_subregion(&s->mmio, i ? A_TX_BASE1 : A_TX_BASE0,
                                     &s->port[i].txio);
 
+        memory_region_init_ram(&s->port[i].rxbuf, OBJECT(dev),
+                               i ? "ethlite.rx[1]buf" : "ethlite.rx[0]buf",
+                               BUFSZ_MAX, &error_abort);
+        memory_region_add_subregion(&s->mmio, 0x1000 + 0x0800 * i,
+                                    &s->port[i].rxbuf);
         memory_region_init_io(&s->port[i].rxio, OBJECT(dev),
                               &eth_portrx_ops, s,
                               i ? "ethlite.rx[1]io" : "ethlite.rx[0]io",
@@ -392,9 +348,6 @@ static void xilinx_ethlite_init(Object *obj)
     XlnxXpsEthLite *s = XILINX_ETHLITE(obj);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
-    memory_region_init_io(&s->mmio, obj, &eth_ops, s,
-                          "xlnx.xps-ethernetlite", R_MAX * 4);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
