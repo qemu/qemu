@@ -13,3 +13,8 @@
 #include "decode-nanomips16.c.inc"
 #include "decode-nanomips32.c.inc"
 #include "decode-nanomips48.c.inc"
+
+static bool trans_LSA(DisasContext *ctx, arg_r *a)
+{
+    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
+}

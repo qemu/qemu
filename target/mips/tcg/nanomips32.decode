@@ -6,3 +6,9 @@
 #
 # Reference: nanoMIPS32 Instruction Set Technical Reference Manual
 #            (Document Number: MD01247)
+
+&r                  rs rt rd sa
+
+@lsa                ...... rt:5 rs:5 rd:5 sa:2 --- ... ...  &r
+
+LSA                 001000 ..... ..... ..... .. ... 001 111 @lsa
