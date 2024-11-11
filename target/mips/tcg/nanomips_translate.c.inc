@@ -4482,6 +4482,28 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
     opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
                                  mo_endian(ctx));
     ctx->opcode = opcode;
+    if (extract32(opcode, 12, 1)) {
+        /* Major opcodes with bit 2 set are 16-bit */
+        if (decode_isa_nanomips16(ctx, opcode)) {
+            return 2;
+        }
+    } else {
+        opcode <<= 16;
+        opcode |= translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                      mo_endian(ctx));
+        if (extract32(opcode, 26, 6) == NM_P48I) {
+            opcode <<= 16;
+            opcode |= translator_lduw_end(env, &ctx->base,
+                                          ctx->base.pc_next + 4,
+                                          mo_endian(ctx));
+            if (decode_isa_nanomips48(ctx, opcode)) {
+                return 6;
+            }
+        } else if (decode_isa_nanomips32(ctx, opcode)) {
+            return 4;
+        }
+    }
+
     rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
     rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
     rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
