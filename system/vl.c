@@ -541,7 +541,7 @@ static QemuOptsList qemu_forkgroup_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_forkgroup_opts.head),
     .desc = {
         {
-            .name = "id",
+            .name = "gid",
             .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
@@ -2801,8 +2801,8 @@ int qemu_get_args(char ***argv_p)
 static void qemu_copy_forkable_image(const QDict *machine_opts)
 {
     const char *kernel_path = qdict_get_try_str(machine_opts, "kernel");
-    //QemuOptsList *list = qemu_find_opts("forkable");
-    QemuOpts *opts = qemu_find_opts_singleton("forkable");
+    QemuOptsList *list = qemu_find_opts("forkable");
+    QemuOpts *opts = qemu_opts_find(list, NULL);
     const char *copy_path = qemu_opt_get(opts, "path");
     //const char *copy_path = qdict_get_try_str(machine_opts, "imgpath");
 
@@ -2812,8 +2812,8 @@ static void qemu_copy_forkable_image(const QDict *machine_opts)
         char command[100];
         sprintf(command, "cp %s %s", kernel_path, copy_path);
         ret = system(command);
-        if(!ret){
-            /* Throw error */
+        if(ret == -1){
+            error_report("Copy image failed");
         }
     }
 }
@@ -2945,10 +2945,22 @@ void qemu_init(int argc, char **argv)
                 //qdict_put_str(machine_opts_dict, "imgpath", optarg);
                 break;
             case QEMU_OPTION_forked:
-                //TODO: begin migrate
+                if (!qemu_opts_parse_noisily(qemu_find_opts("forked"), optarg, false)) {
+                     exit(1);
+                }
+                if (!incoming) {
+                    runstate_set(RUN_STATE_INMIGRATE);
+                }
+                const char *migrate_path = qemu_opt_get(qemu_opts_find(qemu_find_opts("forked"), NULL), "path");
+                const char *migrate_filename = qemu_opt_get(qemu_opts_find(qemu_find_opts("forked"), NULL), "filename");
+                char *uri = (char *)malloc(100);
+                sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
+                incoming = uri;
                 break;
             case QEMU_OPTION_forkgroup:
-                //TODO: Set group id
+                if (!qemu_opts_parse_noisily(qemu_find_opts("forkgroup"), optarg, false)) {
+                     exit(1);
+                }
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */

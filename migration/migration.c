@@ -3320,6 +3320,8 @@ static void migration_iteration_finish(MigrationState *s)
         error_report("%s: Unknown ending state %d", __func__, s->state);
         break;
     }
+    if (strcmp(s->hostname, "forkhost"))
+        runstate_set(RUN_STATE_RUNNING);
 
     migration_bh_schedule(migrate_fd_cleanup_bh, s);
     bql_unlock();

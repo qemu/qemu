@@ -57,6 +57,7 @@
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
 #include "qemu/option.h"
+#include "qemu/cutils.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/pc.h"
@@ -5877,16 +5878,15 @@ static int kvm_handle_hc_map_gpa_range(struct kvm_run *run)
 }
 
 /* Parse arguments to single string */
-static char *parse_args_to_str(int argc, char ***argvp)
+static char *parse_args_to_str(int argc, char **argv)
 {
     int total_length = 0;
-    char **argv = *argvp;
 
     for(int i = 0; i < argc; ++i){
         total_length += strlen(argv[i]) + 1;
     }
 
-    char *request = (char*)malloc(total_length);
+    char *request = (char*)g_malloc0(total_length);
     g_assert(request);
     for (int i = 0; i < argc; ++i) {
         if (i > 0) {
@@ -5908,7 +5908,8 @@ static void generate_random_filename(char **namep)
     
     srand((unsigned int)time(NULL));
     random_number = rand() % 9000 + 1000;
-    name = (char *)malloc(20);
+    name = (char *)g_malloc0(20);
+    g_assert(name);
     sprintf(name, "%04d%s", random_number, "tempfile");
     *namep = name;
     return;
@@ -5920,57 +5921,92 @@ static void generate_random_filename(char **namep)
  * -kernel (img_path + img_name)
  * -forked migrate_filename
  */
-static void modify_args(int argc, char ***argvp, char *migrate_filename)
+static void modify_args(int argc, char ***argvp, 
+                char *migrate_path, char *migrate_filename)
 {
-    int kernel_index = 0, forkable_index = 0, forked_index = 0;
+    int kernel_index = 0;
+    int forkable_index = 0;
+    int forked_index = 0;
+    int forkgroup_index = 0;
+    int serial_index = 0;
     char **argv = *argvp;
     void *ret;
 
     /* match arg's index */
     for (int i = 0; i < argc; i++) {
-        if(kernel_index && (strcmp(argv[i], "-kernel") == 0))
+        if(!kernel_index && (strcmp(argv[i], "-kernel") == 0))
             kernel_index = i;
-        if(forkable_index && (strcmp(argv[i], "-forkable") == 0))
+        if(!forkable_index && (strcmp(argv[i], "-forkable") == 0))
             forkable_index = i;
-        if(forked_index && (strcmp(argv[i], "-forked") == 0))
+        if(!forked_index && (strcmp(argv[i], "-forked") == 0))
             forked_index = i;
+        if(!forkgroup_index && (strcmp(argv[i], "-forkgroup") == 0))
+            forkgroup_index = i;
+        if(!serial_index && (strcmp(argv[i], "-serial") == 0))
+            serial_index = i;
     }
     /* change arg's value */
+    if (kernel_index) {
+        char *kernel_argv = argv[kernel_index + 1];
+        char *new_argv = (char *)g_malloc0(100);
+        char *img_name = (char *)g_malloc0(50);
+        g_assert(new_argv);
+        g_assert(img_name);
+        int len = strlen(kernel_argv);
+        for (int i = len; i >= 0; i--) {
+            if (kernel_argv[i] == '/') {
+                int start = ++i;
+                for(; i < len; i++){
+                    img_name[i - start] = kernel_argv[i];
+                }
+                break;
+            }
+        }
+        sprintf(new_argv, "%s/%s", migrate_path, img_name);
+        argv[kernel_index + 1] = new_argv;
+    }
     if (forkable_index) {
-        strncpy(argv[forkable_index], "-forked", 7);
-        //argv[forkable_index] = "-forked";
-        char *forkable_arg = argv[forkable_index + 1];
-        ret = realloc(forkable_arg, 50);
-        g_assert(ret);
-        strcat(forkable_arg, ",filename=");
-        strcat(forkable_arg, migrate_filename);
+        strncpy(argv[forkable_index], "-forked", 8);
+        char *forkable_argv = argv[forkable_index + 1];
+        char *new_argv = (char *)g_malloc0(100);
+        g_assert(new_argv);
+        sprintf(new_argv, "%s%s%s",forkable_argv, ",filename=", migrate_filename);
+        argv[forkable_index + 1] = new_argv;
     }
     if (forked_index) {
         ret = realloc(argv[forked_index + 1], 50);
         g_assert(ret);
-        char *forked_arg = argv[forked_index + 1];
-        int arglen = strlen(forked_arg);
+        char *forked_argv = argv[forked_index + 1];
+        int arglen = strlen(forked_argv);
         /* Replace random number */
         for (int i = 0; i < 4; i++) {
-            forked_arg[arglen - 12 + i] = migrate_filename[i];
+            forked_argv[arglen - 12 + i] = migrate_filename[i];
+        }
+    }
+    /* Port number ++ */
+    if (serial_index) {
+        char *serial_argv = argv[serial_index + 1];
+        const char *prefix = "udp::";
+        char *postfix;
+        if (strstart(serial_argv, prefix, NULL)) {
+            postfix = (char *)g_malloc0(6);
+            g_assert(postfix);
+            int len = strlen(serial_argv);
+            int i;
+            for(i = 5; i < len; i++){
+                postfix[i - 5] = serial_argv[i];
+            }
+            postfix[i] = '\0';
+            int port = g_ascii_strtoll(postfix, NULL, 10);
+            port++;
+            //postfix = g_strdup_printf("%d", port);
+            argv[serial_index + 1] = g_strdup_printf("%s%d", prefix, port);
         }
     }
 }
 
-static int get_group_id()
-{
-    QemuOptsList *list;
-    QemuOpts *opts;
-    Error *err;
-
-    list = qemu_find_opts_err("forkgroup", &err);
-    opts = qemu_opts_find(list, "id");
-    return qemu_opt_get_int(opts, "id");
-}
-
 static void get_migrate_path(char **migrate_pathp)
 {
-    //char* migrate_path;
     QemuOptsList *list;
     QemuOpts *opts;
     Error *err;
@@ -5978,9 +6014,20 @@ static void get_migrate_path(char **migrate_pathp)
     list = qemu_find_opts_err("forkable", &err);
     if (!list)
         list = qemu_find_opts_err("forked", &err);
-    opts = qemu_opts_find(list, "path"); 
+    opts = qemu_opts_find(list, NULL); 
     const char *migrate_path = qemu_opt_get(opts, "path");
     *migrate_pathp = g_strdup(migrate_path);
+}
+
+static void save_gid_to_config(uint group_id)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    Error *err;
+
+    list = qemu_find_opts_err("forkgroup", &err);
+    opts = qemu_opts_find(list, NULL);
+    qemu_opt_set_number(opts, "gid", group_id, &err); 
 }
 
 extern void qmp_migrate(const char *uri, bool has_channels,
@@ -5994,6 +6041,7 @@ extern void qmp_migrate(const char *uri, bool has_channels,
  * 3. Wait until all of copy process finished.
  * 4. Return the new pid assigned to the new vm.
  */
+
 static int kvm_handle_hc_fork_vm(struct kvm_run *run)
 {
     /* Get this vm's parameter */
@@ -6002,8 +6050,8 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     char *request;
     char *migrate_path;
     char *migrate_filename;
-    pid_t child_pid;
-    int group_id;
+    pid_t child_pid = 0;
+    uint64_t group_id = 0;
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;
 
@@ -6012,15 +6060,12 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     get_migrate_path(&migrate_path);
     generate_random_filename(&migrate_filename);
     /* Parse the parameter to boot a new VM */
-    modify_args(argc, &argv, migrate_filename);
-    request = parse_args_to_str(argc, &argv);
-
-    /* Send group id */
-    group_id = get_group_id();
+    modify_args(argc, &argv, migrate_path, migrate_filename);
+    //FILE *mig_file = fopen(g_strdup_printf("%s/%s",migrate_path, migrate_filename), "w");
+    //g_assert(mig_file);
+    request = parse_args_to_str(argc, argv);
     /* Send request to forkd */
-    // connect
     uint16_t serv_port = 9190;
-    int nr;
     const char* serv_ip = "127.0.0.1";
     int serv_sock = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serv_addr;
@@ -6030,38 +6075,49 @@ static int kvm_handle_hc_fork_vm(struct kvm_run *run)
     serv_addr.sin_port = htons(serv_port);
     
     if(connect(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) {
-        error_report("Connect failed\n");
         exit(1);
     }
-    
-    nr = write(serv_sock, request, strlen(request));
-
-    int buffer_size = 1024;
-    char *receive = malloc(buffer_size);
+    int len = strlen(request);
+    g_assert(len > 0);
+    int windex = 0;
+    /* Send request to forkd */
+    while (windex < len) {
+        windex += write(serv_sock, request + windex, len - windex);
+    }
+    #define BUFFER_SIZE 1024
+    char receive[BUFFER_SIZE];
     int rindex = 0;
-    memset(receive, 0, buffer_size);
+    memset(receive, 0, BUFFER_SIZE);
 
     while (1) {
-        int str_len = read(serv_sock, receive+rindex, buffer_size - rindex);
+        int str_len = read(serv_sock, receive+rindex, BUFFER_SIZE - rindex);
         if (str_len == 0) {
             close(serv_sock);
+            break;
         } else {
             rindex += str_len;
-            if (rindex >= buffer_size) {
-                error_report("Receive buffer is full\n");
+            if (rindex >= BUFFER_SIZE) {
                 break;
             }
         }
     }
 
-    nr = write(fileno(stdout), receive, rindex);
-    putchar('\n');
-    /* Receive boot signal and new pid*/
-
+    if (receive[0] >= '0' && receive[0] <= '9') {
+        char* p = strtok(receive, " ");
+        group_id = atoi(p);
+        child_pid = atoi(strtok(NULL, " "));
+    } else {
+        error_report("Receive wrong format gid/pid\n");
+    }
+    save_gid_to_config(group_id);
     /* Begin transport */
-    char *uri = (char *)malloc(100);
+    char *uri = (char *)g_malloc0(100);
+    g_assert(uri);
     sprintf(uri, "file:%s/%s", migrate_path, migrate_filename);
+    MigrationState *s = migrate_get_current();
+    s->hostname = g_strdup("forkhost");
     qmp_migrate(uri, false, NULL, false, false, false, false, &err);
+    pause();
     /* Return child pid */
     return child_pid;
 }
