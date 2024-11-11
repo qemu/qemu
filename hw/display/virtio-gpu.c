@@ -742,8 +742,7 @@ bool virtio_gpu_scanout_blob_to_fb(struct virtio_gpu_framebuffer *fb,
     fb->offset = ss->offsets[0] + ss->r.x * fb->bytes_pp + ss->r.y * fb->stride;
 
     fbend = fb->offset;
-    fbend += fb->stride * (ss->r.height - 1);
-    fbend += fb->bytes_pp * ss->r.width;
+    fbend += (uint64_t) fb->stride * ss->r.height;
 
     if (fbend > blob_size) {
         qemu_log_mask(LOG_GUEST_ERROR,
