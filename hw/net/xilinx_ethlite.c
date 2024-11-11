@@ -42,10 +42,8 @@
 #define BUFSZ_MAX      0x07e4
 #define A_MDIO_BASE    0x07e4
 #define A_TX_BASE0     0x07f4
-#define R_TX_CTRL0    (0x07fc / 4)
 #define R_TX_BUF1     (0x0800 / 4)
 #define A_TX_BASE1     0x0ff4
-#define R_TX_CTRL1    (0x0ffc / 4)
 
 #define R_RX_BUF0     (0x1000 / 4)
 #define A_RX_BASE0     0x17fc
@@ -56,6 +54,7 @@
 enum {
     TX_LEN =  0,
     TX_GIE =  1,
+    TX_CTRL = 2,
     TX_MAX
 };
 
@@ -144,6 +143,9 @@ static uint64_t port_tx_read(void *opaque, hwaddr addr, unsigned int size)
     case TX_GIE:
         r = s->port[port_index].reg.tx_gie;
         break;
+    case TX_CTRL:
+        r = s->port[port_index].reg.tx_ctrl;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -163,6 +165,26 @@ static void port_tx_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case TX_GIE:
         s->port[port_index].reg.tx_gie = value;
+        break;
+    case TX_CTRL:
+        if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
+            qemu_send_packet(qemu_get_queue(s->nic),
+                             txbuf_ptr(s, port_index),
+                             s->port[port_index].reg.tx_len);
+            if (s->port[port_index].reg.tx_ctrl & CTRL_I) {
+                eth_pulse_irq(s);
+            }
+        } else if ((value & (CTRL_P | CTRL_S)) == (CTRL_P | CTRL_S)) {
+            memcpy(&s->conf.macaddr.a[0], txbuf_ptr(s, port_index), 6);
+            if (s->port[port_index].reg.tx_ctrl & CTRL_I) {
+                eth_pulse_irq(s);
+            }
+        }
+        /*
+         * We are fast and get ready pretty much immediately
+         * so we actually never flip the S nor P bits to one.
+         */
+        s->port[port_index].reg.tx_ctrl = value & ~(CTRL_P | CTRL_S);
         break;
     default:
         g_assert_not_reached();
@@ -236,18 +258,12 @@ static uint64_t
 eth_read(void *opaque, hwaddr addr, unsigned int size)
 {
     XlnxXpsEthLite *s = opaque;
-    unsigned port_index = addr_to_port_index(addr);
     uint32_t r = 0;
 
     addr >>= 2;
 
     switch (addr)
     {
-        case R_TX_CTRL1:
-        case R_TX_CTRL0:
-            r = s->port[port_index].reg.tx_ctrl;
-            break;
-
         default:
             r = tswap32(s->regs[addr]);
             break;
@@ -260,33 +276,11 @@ eth_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
     XlnxXpsEthLite *s = opaque;
-    unsigned int port_index = addr_to_port_index(addr);
     uint32_t value = val64;
 
     addr >>= 2;
     switch (addr) 
     {
-        case R_TX_CTRL0:
-        case R_TX_CTRL1:
-            if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
-                qemu_send_packet(qemu_get_queue(s->nic),
-                                 txbuf_ptr(s, port_index),
-                                 s->port[port_index].reg.tx_len);
-                if (s->port[port_index].reg.tx_ctrl & CTRL_I) {
-                    eth_pulse_irq(s);
-                }
-            } else if ((value & (CTRL_P | CTRL_S)) == (CTRL_P | CTRL_S)) {
-                memcpy(&s->conf.macaddr.a[0], txbuf_ptr(s, port_index), 6);
-                if (s->port[port_index].reg.tx_ctrl & CTRL_I) {
-                    eth_pulse_irq(s);
-                }
-            }
-
-            /* We are fast and get ready pretty much immediately so
-               we actually never flip the S nor P bits to one.  */
-            s->port[port_index].reg.tx_ctrl = value & ~(CTRL_P | CTRL_S);
-            break;
-
         default:
             s->regs[addr] = tswap32(value);
             break;
