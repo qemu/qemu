@@ -1355,6 +1355,7 @@ struct CPUArchState {
      * special way (such as routing some resume causes to 0x100, i.e. sreset).
      */
     bool resume_as_sreset;
+    bool quiesced;
 #endif
 
     /* These resources are used only in TCG */
