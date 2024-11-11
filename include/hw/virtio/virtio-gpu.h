@@ -340,7 +340,7 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
  * blob_size: size of scanout blob data
  *
  * This will check we have enough space for the frame taking into
- * account that stride for all but the last line.
+ * account that stride.
  *
  * Returns true on success, otherwise logs guest error and returns false
  */
