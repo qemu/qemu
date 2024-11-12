@@ -25,10 +25,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::result_unit_err)]
 
-extern crate bilge;
-extern crate bilge_impl;
-extern crate qemu_api;
-
 use qemu_api::c_str;
 
 pub mod device;
