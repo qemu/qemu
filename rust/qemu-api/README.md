@@ -5,7 +5,7 @@ This library exports helper Rust types, Rust macros and C FFI bindings for inter
 The C bindings can be generated with `bindgen`, using this build target:
 
 ```console
-$ ninja bindings.rs
+$ ninja bindings.inc.rs
 ```
 
 ## Generate Rust documentation
@@ -13,5 +13,5 @@ $ ninja bindings.rs
 To generate docs for this crate, including private items:
 
 ```sh
-cargo doc --no-deps --document-private-items
+pyvenv/bin/meson devenv -w ../rust cargo doc --no-deps --document-private-items
 ```
