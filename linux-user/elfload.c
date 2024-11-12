@@ -3220,7 +3220,7 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
      * amount of memory to handle that.  Locate the interpreter, if any.
      */
     loaddr = -1, hiaddr = 0;
-    info->alignment = 0;
+    align = 0;
     info->exec_stack = EXSTACK_DEFAULT;
     for (i = 0; i < ehdr->e_phnum; ++i) {
         struct elf_phdr *eppnt = phdr + i;
@@ -3234,7 +3234,7 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
                 hiaddr = a;
             }
             ++info->nsegs;
-            info->alignment |= eppnt->p_align;
+            align |= eppnt->p_align;
         } else if (eppnt->p_type == PT_INTERP && pinterp_name) {
             g_autofree char *interp_name = NULL;
 
@@ -3264,8 +3264,7 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
 
     load_addr = loaddr;
 
-    align = pow2ceil(info->alignment);
-    info->alignment = align;
+    align = pow2ceil(align);
 
     if (pinterp_name != NULL) {
         if (ehdr->e_type == ET_EXEC) {
