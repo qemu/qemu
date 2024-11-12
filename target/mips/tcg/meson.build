@@ -1,6 +1,9 @@
 gen = [
   decodetree.process('mips16e_16.decode', extra_args: ['--decode=decode_ase_mips16e_16', '--insnwidth=16']),
   decodetree.process('mips16e_32.decode', extra_args: ['--decode=decode_ase_mips16e_32']),
+  decodetree.process('micromips16.decode', extra_args: ['--decode=decode_isa_micromips16', '--insnwidth=16']),
+  decodetree.process('micromips32.decode', extra_args: ['--decode=decode_isa_micromips32']),
+  decodetree.process('micromips32_r6.decode', extra_args: ['--decode=decode_isa_micromips32_r6']),
   decodetree.process('rel6.decode', extra_args: ['--decode=decode_isa_rel6']),
   decodetree.process('msa.decode', extra_args: '--decode=decode_ase_msa'),
   decodetree.process('tx79.decode', extra_args: '--static-decode=decode_tx79'),
@@ -18,6 +21,7 @@ mips_ss.add(files(
   'fpu_helper.c',
   'ldst_helper.c',
   'lmmi_helper.c',
+  'micromips_translate.c',
   'mips16e_translate.c',
   'msa_helper.c',
   'msa_translate.c',

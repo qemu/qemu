@@ -3026,6 +3026,23 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    if (is_16bit) {
+        if (decode_isa_micromips16(ctx, opcode)) {
+            return 2;
+        }
+    } else {
+        opcode <<= 16;
+        opcode |= translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                      mo_endian(ctx));
+        if (cpu_supports_isa(env, ISA_MIPS_R6)
+            && decode_isa_micromips32_r6(ctx, opcode)) {
+            return 4;
+        }
+        if (decode_isa_micromips32(ctx, opcode)) {
+            return 4;
+        }
+    }
+
     switch (op) {
     case POOL16A:
         {
