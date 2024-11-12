@@ -191,7 +191,6 @@ enum {
     /* The following can be distinguished by their lower 6 bits. */
     BREAK32 = 0x07,
     INS = 0x0c,
-    LSA = 0x0f,
     ALIGN = 0x1f,
     EXT = 0x2c,
     POOL32AXF = 0x3c,
@@ -1799,10 +1798,6 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         case INS:
             gen_bitops(ctx, OPC_INS, rt, rs, rr, rd);
             return;
-        case LSA:
-            check_insn(ctx, ISA_MIPS_R6);
-            gen_lsa(ctx, rd, rt, rs, extract32(ctx->opcode, 9, 2) + 1);
-            break;
         case ALIGN:
             check_insn(ctx, ISA_MIPS_R6);
             gen_align(ctx, 32, rd, rs, rt, extract32(ctx->opcode, 9, 2));

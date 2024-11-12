@@ -9,3 +9,11 @@
 #            (Document Number: MD00582)
 #            microMIPS64 Instruction Set
 #            (Document Number: MD00594)
+
+&r                  rs rt rd sa
+
+%lsa_sa             9:2  !function=plus_1
+
+@lsa                ...... rt:5  rs:5  rd:5  .. ... ......  &r sa=%lsa_sa
+
+LSA                 000000 ..... ..... ..... .. 000 001111  @lsa
