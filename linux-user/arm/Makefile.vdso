@@ -6,7 +6,7 @@ VPATH += $(SUBDIR)
 all: $(SUBDIR)/vdso-be.so $(SUBDIR)/vdso-le.so
 
 # Adding -use-blx disables unneeded interworking without actually using blx.
-LDFLAGS = -nostdlib -shared -Wl,-use-blx \
+LDFLAGS = -nostdlib -shared -Wl,-use-blx -Wl,-z,max-page-size=4096 \
 	  -Wl,-h,linux-vdso.so.1 -Wl,--build-id=sha1 \
 	  -Wl,--hash-style=both -Wl,-T,$(SUBDIR)/vdso.ld
 
