@@ -47,7 +47,7 @@ pub trait ObjectImpl: ClassInitImpl + Sized {
 /// Each QOM type has one such class struct.
 ///
 /// The Rust implementation of methods will usually come from a trait
-/// like [`ObjectImpl`].
+/// like [`ObjectImpl`] or [`DeviceImpl`](crate::device_class::DeviceImpl).
 pub trait ClassInitImpl {
     /// Function that is called after all parent class initialization
     /// has occurred.  On entry, the virtual method pointers are set to

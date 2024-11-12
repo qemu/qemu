@@ -17,14 +17,14 @@ pub trait DeviceImpl {
     ///
     /// If not `None`, the parent class's `realize` method is overridden
     /// with the function pointed to by `REALIZE`.
-    const REALIZE: Option<unsafe extern "C" fn(*mut DeviceState, *mut *mut Error)> = None;
+    const REALIZE: Option<fn(&mut Self)> = None;
 
     /// If not `None`, the parent class's `reset` method is overridden
     /// with the function pointed to by `RESET`.
     ///
     /// Rust does not yet support the three-phase reset protocol; this is
     /// usually okay for leaf classes.
-    const RESET: Option<unsafe extern "C" fn(dev: *mut DeviceState)> = None;
+    const RESET: Option<fn(&mut Self)> = None;
 
     /// An array providing the properties that the user can set on the
     /// device.  Not a `const` because referencing statics in constants
@@ -43,6 +43,30 @@ pub trait DeviceImpl {
 
 /// # Safety
 ///
+/// This function is only called through the QOM machinery and
+/// the `impl_device_class!` macro.
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp: *mut *mut Error) {
+    assert!(!dev.is_null());
+    let state = dev.cast::<T>();
+    T::REALIZE.unwrap()(unsafe { &mut *state });
+}
+
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
+    assert!(!dev.is_null());
+    let state = dev.cast::<T>();
+    T::RESET.unwrap()(unsafe { &mut *state });
+}
+
+/// # Safety
+///
 /// We expect the FFI user of this function to pass a valid pointer that
 /// can be downcasted to type `DeviceClass`, because `T` implements
 /// `DeviceImpl`.
@@ -53,11 +77,11 @@ pub unsafe extern "C" fn rust_device_class_init<T: DeviceImpl>(
     let mut dc = ::core::ptr::NonNull::new(klass.cast::<DeviceClass>()).unwrap();
     unsafe {
         let dc = dc.as_mut();
-        if let Some(realize_fn) = <T as DeviceImpl>::REALIZE {
-            dc.realize = Some(realize_fn);
+        if <T as DeviceImpl>::REALIZE.is_some() {
+            dc.realize = Some(rust_realize_fn::<T>);
         }
-        if let Some(reset_fn) = <T as DeviceImpl>::RESET {
-            bindings::device_class_set_legacy_reset(dc, Some(reset_fn));
+        if <T as DeviceImpl>::RESET.is_some() {
+            bindings::device_class_set_legacy_reset(dc, Some(rust_reset_fn::<T>));
         }
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
             dc.vmsd = vmsd;
