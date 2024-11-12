@@ -3422,10 +3422,11 @@ if have_rust
   # is safe; https://github.com/rust-lang/rust/pull/54675 says that
   # passing -nodefaultlibs to the linker "was more ideological to
   # start with than anything".
-  add_project_arguments(rustc_args + ['-C', 'default-linker-libraries'],
+  add_project_arguments(rustc_args +
+      ['--cfg', 'MESON', '-C', 'default-linker-libraries'],
       native: false, language: 'rust')
-
-  add_project_arguments(rustc_args, native: true, language: 'rust')
+  add_project_arguments(rustc_args + ['--cfg', 'MESON'],
+      native: true, language: 'rust')
 endif
 
 hxtool = find_program('scripts/hxtool')
