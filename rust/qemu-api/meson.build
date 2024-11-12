@@ -1,4 +1,7 @@
-_qemu_api_cfg = []
+_qemu_api_cfg = run_command(rustc_args,
+  '--config-headers', config_host_h,
+  capture: true, check: true).stdout().strip().split()
+
 # _qemu_api_cfg += ['--cfg', 'feature="allocator"']
 if rustc.version().version_compare('>=1.77.0')
   _qemu_api_cfg += ['--cfg', 'has_offset_of']
