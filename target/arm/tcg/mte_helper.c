@@ -23,7 +23,9 @@
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#ifndef CONFIG_USER_ONLY
 #include "exec/ram_addr.h"
+#endif
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
 #include "hw/core/tcg-cpu-ops.h"
