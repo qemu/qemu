@@ -125,6 +125,38 @@ void file_start_outgoing_migration(MigrationState *s,
     migration_channel_connect(s, ioc, NULL, NULL);
 }
 
+void file_start_outgoing_migration_without_thread(MigrationState *s,
+                                   FileMigrationArgs *file_args, Error **errp)
+{
+    g_autoptr(QIOChannelFile) fioc = NULL;
+    g_autofree char *filename = g_strdup(file_args->filename);
+    uint64_t offset = file_args->offset;
+    QIOChannel *ioc;
+
+    trace_migration_file_outgoing(filename);
+
+    fioc = qio_channel_file_new_path(filename, O_CREAT | O_WRONLY, 0600, errp);
+    if (!fioc) {
+        return;
+    }
+
+    if (ftruncate(fioc->fd, offset)) {
+        error_setg_errno(errp, errno,
+                         "failed to truncate migration file to offset %" PRIx64,
+                         offset);
+        return;
+    }
+
+    outgoing_args.fname = g_strdup(filename);
+
+    ioc = QIO_CHANNEL(fioc);
+    if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {
+        return;
+    }
+    qio_channel_set_name(ioc, "migration-file-outgoing");
+    migration_channel_connect_without_thread(s, ioc, NULL, NULL);
+}
+
 static gboolean file_accept_incoming_migration(QIOChannel *ioc,
                                                GIOCondition condition,
                                                gpointer opaque)

@@ -25,6 +25,11 @@ void migration_channel_connect(MigrationState *s,
                                const char *hostname,
                                Error *error_in);
 
+void migration_channel_connect_without_thread(MigrationState *s,
+                               QIOChannel *ioc,
+                               const char *hostname,
+                               Error *error_in);
+
 int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
                                 const size_t buflen,

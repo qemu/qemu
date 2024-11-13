@@ -472,6 +472,7 @@ void migrate_set_error(MigrationState *s, const Error *error);
 bool migrate_has_error(MigrationState *s);
 
 void migrate_fd_connect(MigrationState *s, Error *error_in);
+void migrate_fd_connect_without_thread(MigrationState *s, Error *error_in);
 
 int migration_call_notifiers(MigrationState *s, MigrationEventType type,
                              Error **errp);

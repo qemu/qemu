@@ -93,6 +93,40 @@ void migration_channel_connect(MigrationState *s,
     error_free(error);
 }
 
+void migration_channel_connect_without_thread(MigrationState *s,
+                               QIOChannel *ioc,
+                               const char *hostname,
+                               Error *error)
+{
+    trace_migration_set_outgoing_channel(
+        ioc, object_get_typename(OBJECT(ioc)), hostname, error);
+
+    if (!error) {
+        if (migrate_channel_requires_tls_upgrade(ioc)) {
+            migration_tls_channel_connect(s, ioc, hostname, &error);
+
+            if (!error) {
+                /* tls_channel_connect will call back to this
+                 * function after the TLS handshake,
+                 * so we mustn't call migrate_fd_connect until then
+                 */
+
+                return;
+            }
+        } else {
+            QEMUFile *f = qemu_file_new_output(ioc);
+
+            migration_ioc_register_yank(ioc);
+
+            qemu_mutex_lock(&s->qemu_file_lock);
+            s->to_dst_file = f;
+            qemu_mutex_unlock(&s->qemu_file_lock);
+        }
+    }
+    migrate_fd_connect_without_thread(s, error);
+    error_free(error);
+}
+
 
 /**
  * @migration_channel_read_peek - Peek at migration channel, without
