@@ -9,6 +9,7 @@
 
 #include "qemu/thread.h"
 #include "exec/cpu-common.h"
+#include "exec/vaddr.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu/interval-tree.h"
 #endif
