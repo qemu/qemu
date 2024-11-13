@@ -43,6 +43,7 @@
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
+#include "exec/translation-block.h"
 #include "exec/translator.h"
 #include "disas/disas.h"
 #include "plugin.h"

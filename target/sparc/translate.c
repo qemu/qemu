@@ -27,6 +27,7 @@
 #include "tcg/tcg-op-gvec.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 #include "exec/log.h"
 #include "fpu/softfloat.h"
 #include "asi.h"
