@@ -623,7 +623,7 @@ static void *multifd_send_thread(void *opaque)
             }
 
             stat64_add(&mig_stats.multifd_bytes,
-                       p->next_packet_size + p->packet_len);
+                       (uint64_t)p->next_packet_size + p->packet_len);
 
             p->next_packet_size = 0;
             multifd_set_payload_type(p->data, MULTIFD_PAYLOAD_NONE);
