@@ -1504,7 +1504,7 @@ void *probe_access(CPUArchState *env, vaddr addr, int size,
     return host;
 }
 
-void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
+void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr,
                         MMUAccessType access_type, int mmu_idx)
 {
     CPUTLBEntryFull *full;

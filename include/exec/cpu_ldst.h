@@ -67,6 +67,7 @@
 #endif
 
 #include "exec/memopidx.h"
+#include "exec/vaddr.h"
 #include "exec/abi_ptr.h"
 #include "exec/mmu-access-type.h"
 #include "qemu/int128.h"
@@ -375,7 +376,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
     return g2h(env_cpu(env), addr);
 }
 #else
-void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
+void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr,
                         MMUAccessType access_type, int mmu_idx);
 #endif
 
