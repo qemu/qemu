@@ -1253,6 +1253,7 @@ struct CPUArchState {
     /* For SMT processors */
     bool has_smt_siblings;
     int core_index;
+    int chip_index;
 
 #if !defined(CONFIG_USER_ONLY)
     /* MMU context, only relevant for full system emulation */
@@ -1412,8 +1413,10 @@ struct CPUArchState {
 
 #define THREAD_SIBLING_FOREACH(cs, cs_sibling)                  \
     CPU_FOREACH(cs_sibling)                                     \
-        if (POWERPC_CPU(cs)->env.core_index ==                  \
-            POWERPC_CPU(cs_sibling)->env.core_index)
+        if ((POWERPC_CPU(cs)->env.chip_index ==                 \
+             POWERPC_CPU(cs_sibling)->env.chip_index) &&        \
+            (POWERPC_CPU(cs)->env.core_index ==                 \
+             POWERPC_CPU(cs_sibling)->env.core_index))
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
 do {                                            \

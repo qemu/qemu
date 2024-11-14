@@ -322,6 +322,8 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
     pir_spr->default_value = pir;
     tir_spr->default_value = tir;
 
+    env->chip_index = pc->chip->chip_id;
+
     if (pc->big_core) {
         /* 2 "small cores" get the same core index for SMT operations */
         env->core_index = core_hwid >> 1;
