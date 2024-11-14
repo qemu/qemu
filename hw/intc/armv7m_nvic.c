@@ -22,7 +22,7 @@
 #include "system/runstate.h"
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-features.h"
-#include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "exec/memop.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

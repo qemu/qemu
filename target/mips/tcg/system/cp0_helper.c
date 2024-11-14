@@ -27,7 +27,7 @@
 #include "internal.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
-#include "exec/exec-all.h"
+#include "exec/cputlb.h"
 
 
 /* SMP helpers.  */

@@ -31,6 +31,7 @@
 #include "exec/tswap.h"
 #include "exec/replay-core.h"
 #include "exec/cpu-common.h"
+#include "exec/cputlb.h"
 #include "exec/exec-all.h"
 #include "exec/tb-flush.h"
 #include "exec/log.h"

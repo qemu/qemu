@@ -18,6 +18,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/qemu-print.h"
+#include "exec/cputlb.h"
 #include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "hw/irq.h"

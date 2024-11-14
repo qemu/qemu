@@ -24,7 +24,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "trace.h"
-#include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "exec/page-protection.h"
 
 static bool pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
