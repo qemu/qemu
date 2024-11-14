@@ -486,9 +486,6 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
 
 #if !defined(CONFIG_USER_ONLY)
 
-void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
-void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length);
-
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen,
