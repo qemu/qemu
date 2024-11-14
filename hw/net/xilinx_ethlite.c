@@ -94,6 +94,7 @@ struct XlnxXpsEthLite
     uint32_t c_rx_pingpong;
     unsigned int port_index; /* dual port RAM index */
 
+    UnimplementedDeviceState rsvd;
     UnimplementedDeviceState mdio;
     XlnxXpsEthLitePort port[2];
 };
@@ -302,6 +303,16 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
 
     memory_region_init(&s->container, OBJECT(dev),
                        "xlnx.xps-ethernetlite", 0x2000);
+
+    object_initialize_child(OBJECT(dev), "ethlite.reserved", &s->rsvd,
+                            TYPE_UNIMPLEMENTED_DEVICE);
+    qdev_prop_set_string(DEVICE(&s->rsvd), "name", "ethlite.reserved");
+    qdev_prop_set_uint64(DEVICE(&s->rsvd), "size",
+                         memory_region_size(&s->container));
+    sysbus_realize(SYS_BUS_DEVICE(&s->rsvd), &error_fatal);
+    memory_region_add_subregion_overlap(&s->container, 0,
+                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->rsvd), 0),
+                           -1);
 
     object_initialize_child(OBJECT(dev), "ethlite.mdio", &s->mdio,
                             TYPE_UNIMPLEMENTED_DEVICE);
