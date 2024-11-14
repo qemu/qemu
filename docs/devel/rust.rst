@@ -179,6 +179,7 @@ module           status
 ``callbacks``    complete
 ``cell``         stable
 ``c_str``        complete
+``errno``        complete
 ``irq``          complete
 ``memory``       stable
 ``module``       complete
