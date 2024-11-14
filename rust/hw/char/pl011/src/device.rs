@@ -573,7 +573,7 @@ impl PL011State {
 }
 
 /// Which bits in the interrupt status matter for each outbound IRQ line ?
-pub const IRQMASK: [u32; 6] = [
+const IRQMASK: [u32; 6] = [
     /* combined IRQ */
     Interrupt::E
         | Interrupt::MS

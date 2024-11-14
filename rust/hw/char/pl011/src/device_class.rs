@@ -19,7 +19,7 @@ extern "C" fn pl011_clock_needed(opaque: *mut c_void) -> bool {
 }
 
 /// Migration subsection for [`PL011State`] clock.
-pub static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
+static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
     name: c_str!("pl011/clock").as_ptr(),
     version_id: 1,
     minimum_version_id: 1,

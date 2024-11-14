@@ -27,9 +27,11 @@
 
 use qemu_api::c_str;
 
-pub mod device;
-pub mod device_class;
-pub mod memory_ops;
+mod device;
+mod device_class;
+mod memory_ops;
+
+pub use device::pl011_create;
 
 pub const TYPE_PL011: &::std::ffi::CStr = c_str!("pl011");
 pub const TYPE_PL011_LUMINARY: &::std::ffi::CStr = c_str!("pl011_luminary");
@@ -42,7 +44,7 @@ pub const TYPE_PL011_LUMINARY: &::std::ffi::CStr = c_str!("pl011_luminary");
 #[allow(non_camel_case_types)]
 #[repr(u64)]
 #[derive(Debug, qemu_api_macros::TryInto)]
-pub enum RegisterOffset {
+enum RegisterOffset {
     /// Data Register
     ///
     /// A write to this register initiates the actual data transmission
@@ -98,7 +100,8 @@ pub enum RegisterOffset {
     //Reserved = 0x04C,
 }
 
-pub mod registers {
+#[allow(dead_code)]
+mod registers {
     //! Device registers exposed as typed structs which are backed by arbitrary
     //! integer bitmaps. [`Data`], [`Control`], [`LineControl`], etc.
     use bilge::prelude::*;
