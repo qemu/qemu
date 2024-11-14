@@ -14,6 +14,12 @@ adb_device_mouse_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x
 adb_device_mouse_request_change_addr(int devaddr) "change addr to 0x%x"
 adb_device_mouse_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
 
+# adb-wacom.c
+adb_device_wacom_flush(void) "flush"
+adb_device_wacom_writereg(int reg, uint64_t buf) "\t<- reg %d buf 0x%04lX"
+adb_device_wacom_readreg(int reg, uint64_t obut) "\t-> reg %d obuf 0x%04lX"
+adb_device_wacom_request_change_addr_and_handler(int devaddr, int handler) "change addr and handler to 0x%x, 0x%x"
+
 # adb.c
 adb_bus_request(uint8_t addr, const char *cmd, int size) "device 0x%x %s cmdsize=%d"
 adb_bus_request_done(uint8_t addr, const char *cmd, int size) "device 0x%x %s replysize=%d"

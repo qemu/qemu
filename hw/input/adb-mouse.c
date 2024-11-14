@@ -202,6 +202,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                  * 0x03: Mouse systems A3 trackball
                  * 0x04: Extended Apple Mouse Protocol
                  * 0x2f: Microspeed mouse
+                 * 0x3A: Wacom tablet
                  * 0x42: Macally
                  * 0x5f: Microspeed mouse
                  * 0x66: Microspeed mouse

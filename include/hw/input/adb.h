@@ -104,5 +104,6 @@ void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
 
 #define TYPE_ADB_KEYBOARD "adb-keyboard"
 #define TYPE_ADB_MOUSE "adb-mouse"
+#define TYPE_ADB_WACOM "adb-wacom"
 
 #endif /* ADB_H */
