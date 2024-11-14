@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "migration/vmstate.h"
-#include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/translation-block.h"
 #include "hw/loader.h"
