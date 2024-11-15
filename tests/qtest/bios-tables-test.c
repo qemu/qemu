@@ -959,7 +959,7 @@ static void test_acpi_piix4_tcg_bridge(void)
     free_test_data(&data);
 
     /* check that reboot/reset doesn't change any ACPI tables  */
-    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
+    qtest_system_reset(data.qts);
     process_acpi_tables(&data);
     free_test_data(&data);
 }
@@ -1216,7 +1216,7 @@ static void test_acpi_q35_multif_bridge(void)
     free_test_data(&data);
 
     /* check that reboot/reset doesn't change any ACPI tables  */
-    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
+    qtest_system_reset(data.qts);
     process_acpi_tables(&data);
     free_test_data(&data);
 }
