@@ -1,11 +1,17 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 
+static bool bql_is_locked = false;
 static uint32_t bql_unlock_blocked;
 
 bool bql_locked(void)
 {
-    return false;
+    return bql_is_locked;
+}
+
+void rust_bql_mock_lock(void)
+{
+    bql_is_locked = true;
 }
 
 void bql_lock_impl(const char *file, int line)

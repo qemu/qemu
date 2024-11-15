@@ -538,6 +538,12 @@ bool qemu_in_main_thread(void)
     return bql_locked();
 }
 
+void rust_bql_mock_lock(void)
+{
+    error_report("This function should be used only from tests");
+    abort();
+}
+
 /*
  * The BQL is taken from so many places that it is worth profiling the
  * callers directly, instead of funneling them all through a single function.

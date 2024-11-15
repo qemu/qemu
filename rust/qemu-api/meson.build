@@ -60,7 +60,7 @@ test('rust-qemu-api-integration',
         dependencies: [qemu_api, qemu_api_macros],
         link_whole: [rust_qemu_api_objs, libqemuutil]),
     args: [
-        '--test',
+        '--test', '--test-threads', '1',
         '--format', 'pretty',
     ],
     protocol: 'rust',

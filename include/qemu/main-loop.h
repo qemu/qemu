@@ -248,6 +248,14 @@ GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
 
 /**
+ * rust_bql_mock_lock:
+ *
+ * Called from Rust doctests to make bql_lock() return true.
+ * Do not touch.
+ */
+void rust_bql_mock_lock(void);
+
+/**
  * bql_locked: Return lock status of the Big QEMU Lock (BQL)
  *
  * The Big QEMU Lock (BQL) is the coarsest lock in QEMU, and as such it
