@@ -20,8 +20,9 @@ qemu_api_macros = { path = "../qemu-api-macros" }
 version_check = "~0.9"
 
 [features]
-default = []
+default = ["debug_cell"]
 allocator = []
+debug_cell = []
 
 [lints]
 workspace = true
