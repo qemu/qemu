@@ -15,15 +15,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
-static void system_reset(QTestState *qtest)
-{
-    QDict *resp;
-
-    resp = qtest_qmp(qtest, "{'execute': 'system_reset'}");
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-}
-
 static void wait_device_deleted_event(QTestState *qtest, const char *id)
 {
     QDict *resp, *data;
@@ -58,7 +49,7 @@ static void process_device_remove(QTestState *qtest, const char *id)
      * handled, removing the device.
      */
     qtest_qmp_device_del_send(qtest, id);
-    system_reset(qtest);
+    qtest_system_reset_nowait(qtest);
     wait_device_deleted_event(qtest, id);
 }
 
