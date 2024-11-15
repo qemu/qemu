@@ -546,10 +546,6 @@ static const Property mips_cpu_properties[] = {
 
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
-/*
- * NB: cannot be const, as some elements are changed for specific
- * mips hardware (see hw/mips/jazz.c).
- */
 static const TCGCPUOps mips_tcg_ops = {
     .initialize = mips_tcg_init,
     .synchronize_from_tb = mips_cpu_synchronize_from_tb,
