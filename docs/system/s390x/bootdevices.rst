@@ -79,7 +79,29 @@ The second way to use this parameter is to use a number in the range from 0
 to 31. The numbers that can be used here correspond to the numbers that are
 shown when using the ``PROMPT`` option, and the s390-ccw bios will then try
 to automatically boot the kernel that is associated with the given number.
-Note that ``0`` can be used to boot the default entry.
+Note that ``0`` can be used to boot the default entry. If the machine
+``loadparm`` is not assigned a value, then the default entry is used.
+
+By default, the machine ``loadparm`` applies to all boot devices. If multiple
+devices are assigned a ``bootindex`` and the ``loadparm`` is to be different
+between them, an independent ``loadparm`` may be assigned on a per-device basis.
+
+An example guest using per-device ``loadparm``::
+
+  qemu-system-s390x -drive if=none,id=dr1,file=primary.qcow2 \
+                   -device virtio-blk,drive=dr1,bootindex=1 \
+                   -drive if=none,id=dr2,file=secondary.qcow2 \
+                   -device virtio-blk,drive=dr2,bootindex=2,loadparm=3
+
+In this case, the primary boot device will attempt to IPL using the default
+entry (because no ``loadparm`` is specified for this device or for the
+machine). If that device fails to boot, the secondary device will attempt to
+IPL using entry number 3.
+
+If a ``loadparm`` is specified on both the machine and a device, the per-device
+value will superseded the machine value.  Per-device ``loadparm`` values are
+only used for devices with an assigned ``bootindex``. The machine ``loadparm``
+is used when attempting to boot without a ``bootindex``.
 
 
 Booting from a network device
