@@ -607,12 +607,8 @@ int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                               uint8_t *buf, int len, bool is_write);
 #endif
 
-
 /* translate.c */
 void sparc_tcg_init(void);
-void sparc_restore_state_to_opc(CPUState *cs,
-                                const TranslationBlock *tb,
-                                const uint64_t *data);
 
 /* fop_helper.c */
 target_ulong cpu_get_fsr(CPUSPARCState *);

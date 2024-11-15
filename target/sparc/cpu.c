@@ -27,6 +27,7 @@
 #include "qapi/visitor.h"
 #include "tcg/tcg.h"
 #include "fpu/softfloat.h"
+#include "target/sparc/translate.h"
 
 //#define DEBUG_FEATURES
 
@@ -749,6 +750,29 @@ void cpu_get_tb_cpu_state(CPUSPARCState *env, vaddr *pc,
 #endif /* !CONFIG_USER_ONLY */
 #endif /* TARGET_SPARC64 */
     *pflags = flags;
+}
+
+static void sparc_restore_state_to_opc(CPUState *cs,
+                                       const TranslationBlock *tb,
+                                       const uint64_t *data)
+{
+    CPUSPARCState *env = cpu_env(cs);
+    target_ulong pc = data[0];
+    target_ulong npc = data[1];
+
+    env->pc = pc;
+    if (npc == DYNAMIC_PC) {
+        /* dynamic NPC: already stored */
+    } else if (npc & JUMP_PC) {
+        /* jump PC: use 'cond' and the jump targets of the translation */
+        if (env->cond) {
+            env->npc = npc & ~3;
+        } else {
+            env->npc = pc + 4;
+        }
+    } else {
+        env->npc = npc;
+    }
 }
 
 static bool sparc_cpu_has_work(CPUState *cs)
