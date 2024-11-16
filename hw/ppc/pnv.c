@@ -1555,7 +1555,21 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* HOMER (must be created before OCC) */
+    object_property_set_link(OBJECT(&chip8->homer), "chip", OBJECT(chip),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&chip8->homer), NULL, errp)) {
+        return;
+    }
+    /* Homer Xscom region */
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_PBA_BASE, &chip8->homer.pba_regs);
+    /* Homer RAM region */
+    memory_region_add_subregion(get_system_memory(), chip8->homer.base,
+                                &chip8->homer.mem);
+
     /* Create the simplified OCC model */
+    object_property_set_link(OBJECT(&chip8->occ), "homer",
+                             OBJECT(&chip8->homer), &error_abort);
     if (!qdev_realize(DEVICE(&chip8->occ), NULL, errp)) {
         return;
     }
@@ -1566,19 +1580,6 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV_OCC_SENSOR_BASE(chip),
                                 &chip8->occ.sram_regs);
-
-    /* HOMER */
-    object_property_set_link(OBJECT(&chip8->homer), "chip", OBJECT(chip),
-                             &error_abort);
-    if (!qdev_realize(DEVICE(&chip8->homer), NULL, errp)) {
-        return;
-    }
-    /* Homer Xscom region */
-    pnv_xscom_add_subregion(chip, PNV_XSCOM_PBA_BASE, &chip8->homer.pba_regs);
-
-    /* Homer mmio region */
-    memory_region_add_subregion(get_system_memory(), PNV_HOMER_BASE(chip),
-                                &chip8->homer.regs);
 
     /* PHB controllers */
     for (i = 0; i < chip8->num_phbs; i++) {
@@ -1863,18 +1864,6 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_CHIPTOD_BASE,
                             &chip9->chiptod.xscom_regs);
 
-    /* Create the simplified OCC model */
-    if (!qdev_realize(DEVICE(&chip9->occ), NULL, errp)) {
-        return;
-    }
-    pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
-    qdev_connect_gpio_out(DEVICE(&chip9->occ), 0, qdev_get_gpio_in(
-                              DEVICE(psi9), PSIHB9_IRQ_OCC));
-
-    /* OCC SRAM model */
-    memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
-                                &chip9->occ.sram_regs);
-
     /* SBE */
     if (!qdev_realize(DEVICE(&chip9->sbe), NULL, errp)) {
         return;
@@ -1886,7 +1875,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(&chip9->sbe), 0, qdev_get_gpio_in(
                               DEVICE(psi9), PSIHB9_IRQ_PSU));
 
-    /* HOMER */
+    /* HOMER (must be created before OCC) */
     object_property_set_link(OBJECT(&chip9->homer), "chip", OBJECT(chip),
                              &error_abort);
     if (!qdev_realize(DEVICE(&chip9->homer), NULL, errp)) {
@@ -1894,10 +1883,23 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
     /* Homer Xscom region */
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PBA_BASE, &chip9->homer.pba_regs);
+    /* Homer RAM region */
+    memory_region_add_subregion(get_system_memory(), chip9->homer.base,
+                                &chip9->homer.mem);
 
-    /* Homer mmio region */
-    memory_region_add_subregion(get_system_memory(), PNV9_HOMER_BASE(chip),
-                                &chip9->homer.regs);
+    /* Create the simplified OCC model */
+    object_property_set_link(OBJECT(&chip9->occ), "homer",
+                             OBJECT(&chip9->homer), &error_abort);
+    if (!qdev_realize(DEVICE(&chip9->occ), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
+    qdev_connect_gpio_out(DEVICE(&chip9->occ), 0, qdev_get_gpio_in(
+                              DEVICE(psi9), PSIHB9_IRQ_OCC));
+
+    /* OCC SRAM model */
+    memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
+                                &chip9->occ.sram_regs);
 
     /* PEC PHBs */
     pnv_chip_power9_pec_realize(chip, &local_err);
@@ -2144,7 +2146,22 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_CHIPTOD_BASE,
                             &chip10->chiptod.xscom_regs);
 
+    /* HOMER (must be created before OCC) */
+    object_property_set_link(OBJECT(&chip10->homer), "chip", OBJECT(chip),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&chip10->homer), NULL, errp)) {
+        return;
+    }
+    /* Homer Xscom region */
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_PBA_BASE,
+                            &chip10->homer.pba_regs);
+    /* Homer RAM region */
+    memory_region_add_subregion(get_system_memory(), chip10->homer.base,
+                                &chip10->homer.mem);
+
     /* Create the simplified OCC model */
+    object_property_set_link(OBJECT(&chip10->occ), "homer",
+                             OBJECT(&chip10->homer), &error_abort);
     if (!qdev_realize(DEVICE(&chip10->occ), NULL, errp)) {
         return;
     }
@@ -2168,20 +2185,6 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
                             &chip10->sbe.xscom_mbox_regs);
     qdev_connect_gpio_out(DEVICE(&chip10->sbe), 0, qdev_get_gpio_in(
                               DEVICE(&chip10->psi), PSIHB9_IRQ_PSU));
-
-    /* HOMER */
-    object_property_set_link(OBJECT(&chip10->homer), "chip", OBJECT(chip),
-                             &error_abort);
-    if (!qdev_realize(DEVICE(&chip10->homer), NULL, errp)) {
-        return;
-    }
-    /* Homer Xscom region */
-    pnv_xscom_add_subregion(chip, PNV10_XSCOM_PBA_BASE,
-                            &chip10->homer.pba_regs);
-
-    /* Homer mmio region */
-    memory_region_add_subregion(get_system_memory(), PNV10_HOMER_BASE(chip),
-                                &chip10->homer.regs);
 
     /* N1 chiplet */
     if (!qdev_realize(DEVICE(&chip10->n1_chiplet), NULL, errp)) {

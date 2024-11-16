@@ -41,7 +41,7 @@ struct PnvHomer {
 
     PnvChip *chip;
     MemoryRegion pba_regs;
-    MemoryRegion regs;
+    MemoryRegion mem;
     hwaddr base;
 };
 
@@ -56,9 +56,6 @@ struct PnvHomerClass {
 
     int pba_size;
     const MemoryRegionOps *pba_ops;
-    const MemoryRegionOps *homer_ops;
-
-    hwaddr core_max_base;
 };
 
 #endif /* PPC_PNV_HOMER_H */
