@@ -1753,6 +1753,7 @@ static void pnv_chip_power9_pec_realize(PnvChip *chip, Error **errp)
     for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip9->pecs[i];
         PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+        uint32_t pec_cplt_base;
         uint32_t pec_nest_base;
         uint32_t pec_pci_base;
 
@@ -1765,9 +1766,12 @@ static void pnv_chip_power9_pec_realize(PnvChip *chip, Error **errp)
             return;
         }
 
+        pec_cplt_base = pecc->xscom_cplt_base(pec);
         pec_nest_base = pecc->xscom_nest_base(pec);
         pec_pci_base = pecc->xscom_pci_base(pec);
 
+        pnv_xscom_add_subregion(chip, pec_cplt_base,
+                 &pec->nest_pervasive.xscom_ctrl_regs_mr);
         pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
     }
@@ -2027,6 +2031,7 @@ static void pnv_chip_power10_phb_realize(PnvChip *chip, Error **errp)
     for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip10->pecs[i];
         PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+        uint32_t pec_cplt_base;
         uint32_t pec_nest_base;
         uint32_t pec_pci_base;
 
@@ -2039,9 +2044,12 @@ static void pnv_chip_power10_phb_realize(PnvChip *chip, Error **errp)
             return;
         }
 
+        pec_cplt_base = pecc->xscom_cplt_base(pec);
         pec_nest_base = pecc->xscom_nest_base(pec);
         pec_pci_base = pecc->xscom_pci_base(pec);
 
+        pnv_xscom_add_subregion(chip, pec_cplt_base,
+                 &pec->nest_pervasive.xscom_ctrl_regs_mr);
         pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
     }
