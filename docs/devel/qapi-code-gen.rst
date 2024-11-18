@@ -1986,7 +1986,7 @@ Example::
     #ifndef EXAMPLE_QAPI_INTROSPECT_H
     #define EXAMPLE_QAPI_INTROSPECT_H
 
-    #include "qapi/qmp/qlit.h"
+    #include "qobject/qlit.h"
 
     extern const QLitObject example_qmp_schema_qlit;
 

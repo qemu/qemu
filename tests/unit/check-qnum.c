@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 
-#include "qapi/qmp/qnum.h"
+#include "qobject/qnum.h"
 
 /*
  * Public Interface test-cases

@@ -15,7 +15,7 @@
 #ifndef QNUM_H
 #define QNUM_H
 
-#include "qapi/qmp/qobject.h"
+#include "qobject/qobject.h"
 
 typedef enum {
     QNUM_I64,

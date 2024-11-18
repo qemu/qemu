@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "hw/i386/x86.h"

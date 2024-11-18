@@ -28,7 +28,7 @@
 #include "block/block.h"
 #include "system/block-backend.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qemu/main-loop.h"
 
 static BlockBackend *open_image(const char *path,

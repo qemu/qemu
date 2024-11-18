@@ -5,8 +5,8 @@
 #include <sys/un.h>
 
 #include "../qtest/libqtest.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 
 typedef struct {
     char *test_dir;

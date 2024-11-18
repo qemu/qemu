@@ -14,7 +14,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/qapi-commands-cryptodev.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 
 void hmp_info_cryptodev(Monitor *mon, const QDict *qdict)

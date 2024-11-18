@@ -11,8 +11,8 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 
 static char *make_cli(const GString *generic_cli, const char *test_cli)
 {

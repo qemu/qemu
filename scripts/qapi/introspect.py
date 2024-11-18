@@ -197,7 +197,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         # generate C
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
         self._genh.add(mcgen('''
-#include "qapi/qmp/qlit.h"
+#include "qobject/qlit.h"
 
 extern const QLitObject %(c_name)s;
 ''',

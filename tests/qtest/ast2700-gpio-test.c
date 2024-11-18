@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/timer.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "libqtest-single.h"
 
 #define AST2700_GPIO_BASE 0x14C0B000

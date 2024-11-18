@@ -18,7 +18,7 @@
 #ifndef LIBQMP_H
 #define LIBQMP_H
 
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 QDict *qmp_fd_receive(int fd);
 #ifndef _WIN32

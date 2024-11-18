@@ -28,8 +28,8 @@
 #include "qemu/filemonitor.h"
 #include "qom/object_interfaces.h"
 #include "qapi/qapi-visit-authz.h"
-#include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qobject.h"
+#include "qobject/qjson.h"
+#include "qobject/qobject.h"
 #include "qapi/qobject-input-visitor.h"
 
 

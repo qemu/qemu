@@ -13,7 +13,7 @@
 #ifndef QSTRING_H
 #define QSTRING_H
 
-#include "qapi/qmp/qobject.h"
+#include "qobject/qobject.h"
 
 struct QString {
     struct QObjectBase_ base;

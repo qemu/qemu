@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp/qbool.h"
+#include "qobject/qbool.h"
 #include "qobject-internal.h"
 
 /**

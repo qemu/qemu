@@ -48,7 +48,7 @@
 #include "net/net.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 #include "hw/qdev-clock.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "qom/object.h"
 
 typedef enum MPS2FPGAType {

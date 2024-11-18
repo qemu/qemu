@@ -33,7 +33,7 @@
 #include "kvm_ppc.h"
 #include "exec/address-spaces.h"
 #include "qom/qom-qobject.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "trace.h"
 #include "qemu/datadir.h"
 #include "system/device_tree.h"

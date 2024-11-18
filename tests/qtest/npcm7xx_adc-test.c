@@ -18,7 +18,7 @@
 #include "qemu/bitops.h"
 #include "qemu/timer.h"
 #include "libqtest.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 #define REF_HZ          (25000000)
 

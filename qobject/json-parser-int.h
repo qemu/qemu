@@ -14,7 +14,7 @@
 #ifndef JSON_PARSER_INT_H
 #define JSON_PARSER_INT_H
 
-#include "qapi/qmp/json-parser.h"
+#include "qobject/json-parser.h"
 
 typedef enum json_token_type {
     JSON_ERROR = 0,             /* must be zero, see json_lexer[] */

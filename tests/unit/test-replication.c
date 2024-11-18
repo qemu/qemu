@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qemu/option.h"
 #include "qemu/main-loop.h"
 #include "block/replication.h"

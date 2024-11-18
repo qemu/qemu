@@ -14,7 +14,7 @@
 #include "system/replay.h"
 #include "replay-internal.h"
 #include "monitor/monitor.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qstring.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
 #include "migration/snapshot.h"

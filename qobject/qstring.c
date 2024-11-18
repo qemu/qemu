@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qstring.h"
 #include "qobject-internal.h"
 
 /**

@@ -2,7 +2,7 @@
 #include "../libqtest.h"
 #include "libqos.h"
 #include "pci.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 /*** Test Setup & Teardown ***/
 

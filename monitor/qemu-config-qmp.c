@@ -2,7 +2,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "hw/boards.h"

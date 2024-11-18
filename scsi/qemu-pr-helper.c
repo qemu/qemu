@@ -47,7 +47,7 @@
 #include "qemu/log.h"
 #include "qemu/systemd.h"
 #include "qapi/util.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qstring.h"
 #include "io/channel-socket.h"
 #include "trace/control.h"
 #include "qemu-version.h"

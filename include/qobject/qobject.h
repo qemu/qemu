@@ -34,7 +34,7 @@
 
 #include "qapi/qapi-builtin-types.h"
 
-/* Not for use outside include/qapi/qmp/ */
+/* Not for use outside include/qobject/ */
 struct QObjectBase_ {
     QType type;
     size_t refcnt;

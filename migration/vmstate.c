@@ -15,7 +15,7 @@
 #include "migration/vmstate.h"
 #include "savevm.h"
 #include "qapi/error.h"
-#include "qapi/qmp/json-writer.h"
+#include "qobject/json-writer.h"
 #include "qemu-file.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"

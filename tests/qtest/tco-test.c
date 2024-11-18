@@ -12,7 +12,7 @@
 #include "libqtest.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "hw/pci/pci_regs.h"
 #include "hw/southbridge/ich9.h"
 #include "hw/acpi/ich9.h"

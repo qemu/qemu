@@ -19,9 +19,9 @@
 #include <sys/wait.h>
 #endif
 #include "qemu/help-texts.h"
-#include "qapi/qmp/json-parser.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qjson.h"
+#include "qobject/json-parser.h"
+#include "qobject/qdict.h"
+#include "qobject/qjson.h"
 #include "guest-agent-core.h"
 #include "qga-qapi-init-commands.h"
 #include "qapi/error.h"

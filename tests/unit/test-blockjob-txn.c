@@ -15,7 +15,7 @@
 #include "qemu/main-loop.h"
 #include "block/blockjob_int.h"
 #include "system/block-backend.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 typedef struct {
     BlockJob common;

@@ -10,7 +10,7 @@
 #include "system/system.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qom/qom-qobject.h"
 #include "io/channel-socket.h"
 #include "qapi/qobject-input-visitor.h"

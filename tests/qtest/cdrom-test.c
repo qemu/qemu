@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "boot-sector.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 static char isoimage[] = "cdrom-boot-iso-XXXXXX";
 

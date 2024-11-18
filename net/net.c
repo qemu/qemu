@@ -36,7 +36,7 @@
 #include "qemu/help_option.h"
 #include "qapi/qapi-commands-net.h"
 #include "qapi/qapi-visit-net.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"

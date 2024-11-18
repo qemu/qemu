@@ -17,9 +17,9 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
-#include "qapi/qmp/qobject.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qobject.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 #include "libqmp.h"
 
 typedef struct QTestState QTestState;

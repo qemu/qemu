@@ -12,8 +12,8 @@
 #include "qemu/option.h"
 #include "qemu/option_int.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qdict.h"
+#include "qobject/qstring.h"
 #include "qemu/config-file.h"
 
 

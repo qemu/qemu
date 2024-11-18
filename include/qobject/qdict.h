@@ -13,7 +13,7 @@
 #ifndef QDICT_H
 #define QDICT_H
 
-#include "qapi/qmp/qobject.h"
+#include "qobject/qobject.h"
 #include "qemu/queue.h"
 
 #define QDICT_BUCKET_MAX 512

@@ -13,7 +13,7 @@
 #include "libqtest-single.h"
 #include "libqos/qgraph.h"
 #include "libqos/i2c.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 #define LSM303DLHC_MAG_TEST_ID        "lsm303dlhc_mag-test"
 #define LSM303DLHC_MAG_REG_CRA        0x00

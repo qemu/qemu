@@ -27,7 +27,7 @@
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-trace.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "trace/control.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"

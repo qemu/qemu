@@ -10,7 +10,7 @@
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-dump.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 {

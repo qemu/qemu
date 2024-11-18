@@ -11,7 +11,7 @@
 #include "monitor/monitor.h"
 #include "qemu/cutils.h"
 #include "hw/core/cpu.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/error.h"
 
 static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)

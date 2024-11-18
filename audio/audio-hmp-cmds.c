@@ -27,7 +27,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 

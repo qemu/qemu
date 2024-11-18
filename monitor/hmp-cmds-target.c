@@ -29,7 +29,7 @@
 #include "monitor/hmp-target.h"
 #include "monitor/monitor-internal.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "system/hw_accel.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */

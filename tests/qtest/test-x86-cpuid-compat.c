@@ -1,8 +1,8 @@
 #include "qemu/osdep.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qnum.h"
-#include "qapi/qmp/qbool.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
+#include "qobject/qnum.h"
+#include "qobject/qbool.h"
 #include "libqtest-single.h"
 
 static char *get_cpu0_qom_path(void)

@@ -14,10 +14,10 @@
 #include "libqtest.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-control.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 #include "qapi/qobject-input-visitor.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qstring.h"
 
 const char common_args[] = "-nodefaults -machine none";
 

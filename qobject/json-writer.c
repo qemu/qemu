@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp/json-writer.h"
+#include "qobject/json-writer.h"
 #include "qemu/unicode.h"
 
 struct JSONWriter {

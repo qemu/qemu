@@ -13,10 +13,10 @@
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-visit-qom.h"
 #include "qapi/qapi-visit-ui.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 #include "qapi/qobject-input-visitor.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qstring.h"
 #include "qemu/units.h"
 
 static QTestState *qtest_init_with_config(const char *cfgdata)

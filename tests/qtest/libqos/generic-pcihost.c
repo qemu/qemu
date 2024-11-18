@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "../libqtest.h"
 #include "generic-pcihost.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "hw/pci/pci_regs.h"
 #include "qemu/host-utils.h"
 
