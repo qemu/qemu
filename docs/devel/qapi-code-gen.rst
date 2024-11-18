@@ -1855,7 +1855,7 @@ Example::
     #ifndef EXAMPLE_QAPI_INIT_COMMANDS_H
     #define EXAMPLE_QAPI_INIT_COMMANDS_H
 
-    #include "qapi/qmp/dispatch.h"
+    #include "qapi/qmp-registry.h"
 
     void example_qmp_init_marshal(QmpCommandList *cmds);
 

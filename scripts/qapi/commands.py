@@ -346,7 +346,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
     def visit_begin(self, schema: QAPISchema) -> None:
         self._add_module('./init', ' * QAPI Commands initialization')
         self._genh.add(mcgen('''
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',

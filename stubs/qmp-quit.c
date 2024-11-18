@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-commands-control.h"
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 
 void qmp_quit(Error **errp)
 {

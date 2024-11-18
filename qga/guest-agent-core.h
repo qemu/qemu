@@ -13,7 +13,7 @@
 #ifndef GUEST_AGENT_CORE_H
 #define GUEST_AGENT_CORE_H
 
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 #include "qga-qapi-types.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096

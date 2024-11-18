@@ -16,7 +16,7 @@
 #include "block/aio.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qapi/qobject-input-visitor.h"
