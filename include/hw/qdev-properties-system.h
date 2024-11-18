@@ -3,6 +3,9 @@
 
 #include "hw/qdev-properties.h"
 
+bool qdev_prop_sanitize_s390x_loadparm(uint8_t *loadparm, const char *str,
+                                       Error **errp);
+
 extern const PropertyInfo qdev_prop_chr;
 extern const PropertyInfo qdev_prop_macaddr;
 extern const PropertyInfo qdev_prop_reserved_region;

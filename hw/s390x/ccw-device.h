@@ -51,4 +51,9 @@ static inline CcwDevice *to_ccw_dev_fast(DeviceState *d)
 
 OBJECT_DECLARE_TYPE(CcwDevice, CCWDeviceClass, CCW_DEVICE)
 
+extern const PropertyInfo ccw_loadparm;
+
+#define DEFINE_PROP_CCW_LOADPARM(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, ccw_loadparm, typeof(uint8_t[8]))
+
 #endif

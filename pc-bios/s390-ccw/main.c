@@ -191,7 +191,7 @@ static void boot_setup(void)
 {
     char lpmsg[] = "LOADPARM=[________]\n";
 
-    if (memcmp(iplb.loadparm, NO_LOADPARM, LOADPARM_LEN) != 0) {
+    if (have_iplb && memcmp(iplb.loadparm, NO_LOADPARM, LOADPARM_LEN) != 0) {
         ebcdic_to_ascii((char *) iplb.loadparm, loadparm_str, LOADPARM_LEN);
     } else {
         sclp_get_loadparm_ascii(loadparm_str);
@@ -242,6 +242,7 @@ static bool find_boot_device(void)
 static int virtio_setup(void)
 {
     VDev *vdev = virtio_get_device();
+    vdev->is_cdrom = false;
     int ret;
 
     switch (vdev->senseid.cu_model) {
@@ -315,6 +316,7 @@ void main(void)
     css_setup();
     have_iplb = store_iplb(&iplb);
     if (!have_iplb) {
+        boot_setup();
         probe_boot_device();
     }
 
