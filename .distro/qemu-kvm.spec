@@ -289,6 +289,8 @@ BuildRequires: librbd-devel
 # We need both because the 'stap' binary is probed for by configure
 BuildRequires: systemtap
 BuildRequires: systemtap-sdt-devel
+# Required as we use dtrace for trace backend
+BuildRequires: /usr/bin/dtrace
 # For VNC PNG support
 BuildRequires: libpng-devel
 # For virtiofs
