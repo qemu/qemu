@@ -697,9 +697,11 @@ void x86_load_linux(X86MachineState *x86ms,
                 strlen(kernel_cmdline) + 1);
             fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
+            setup = g_memdup2(header, sizeof(header));
+
             fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
             fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
-                             header, sizeof(header));
+                             setup, sizeof(header));
 
             /* load initrd */
             if (initrd_filename) {

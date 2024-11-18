@@ -2049,6 +2049,21 @@ static ssize_t virtio_net_do_receive(NetClientState *nc, const uint8_t *buf,
     return virtio_net_receive_rcu(nc, buf, size, false);
 }
 
+/*
+ * Accessors to read and write the IP packet data length field. This
+ * is a potentially unaligned network-byte-order 16 bit unsigned integer
+ * pointed to by unit->ip_len.
+ */
+static uint16_t read_unit_ip_len(VirtioNetRscUnit *unit)
+{
+    return lduw_be_p(unit->ip_plen);
+}
+
+static void write_unit_ip_len(VirtioNetRscUnit *unit, uint16_t l)
+{
+    stw_be_p(unit->ip_plen, l);
+}
+
 static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
                                          const uint8_t *buf,
                                          VirtioNetRscUnit *unit)
@@ -2063,7 +2078,7 @@ static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
     unit->ip_plen = &ip->ip_len;
     unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip) + ip_hdrlen);
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
-    unit->payload = htons(*unit->ip_plen) - ip_hdrlen - unit->tcp_hdrlen;
+    unit->payload = read_unit_ip_len(unit) - ip_hdrlen - unit->tcp_hdrlen;
 }
 
 static void virtio_net_rsc_extract_unit6(VirtioNetRscChain *chain,
@@ -2082,7 +2097,7 @@ static void virtio_net_rsc_extract_unit6(VirtioNetRscChain *chain,
 
     /* There is a difference between payload length in ipv4 and v6,
        ip header is excluded in ipv6 */
-    unit->payload = htons(*unit->ip_plen) - unit->tcp_hdrlen;
+    unit->payload = read_unit_ip_len(unit) - unit->tcp_hdrlen;
 }
 
 static size_t virtio_net_rsc_drain_seg(VirtioNetRscChain *chain,
@@ -2231,7 +2246,7 @@ static int32_t virtio_net_rsc_coalesce_data(VirtioNetRscChain *chain,
     VirtioNetRscUnit *o_unit;
 
     o_unit = &seg->unit;
-    o_ip_len = htons(*o_unit->ip_plen);
+    o_ip_len = read_unit_ip_len(o_unit);
     nseq = htonl(n_unit->tcp->th_seq);
     oseq = htonl(o_unit->tcp->th_seq);
 
@@ -2267,7 +2282,7 @@ coalesce:
         o_unit->payload += n_unit->payload; /* update new data len */
 
         /* update field in ip header */
-        *o_unit->ip_plen = htons(o_ip_len + n_unit->payload);
+        write_unit_ip_len(o_unit, o_ip_len + n_unit->payload);
 
         /* Bring 'PUSH' big, the whql test guide says 'PUSH' can be coalesced
            for windows guest, while this may change the behavior for linux

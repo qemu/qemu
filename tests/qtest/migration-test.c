@@ -113,8 +113,8 @@ static bool ufd_version_check(void)
     }
     uffd_feature_thread_id = api_struct.features & UFFD_FEATURE_THREAD_ID;
 
-    ioctl_mask = 1ULL << _UFFDIO_REGISTER |
-                 1ULL << _UFFDIO_UNREGISTER;
+    ioctl_mask = (1ULL << _UFFDIO_REGISTER |
+                  1ULL << _UFFDIO_UNREGISTER);
     if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
         g_test_message("Skipping test: Missing userfault feature");
         return false;
@@ -423,7 +423,7 @@ static void migrate_set_parameter_str(QTestState *who, const char *parameter,
 }
 
 static long long migrate_get_parameter_bool(QTestState *who,
-                                           const char *parameter)
+                                            const char *parameter)
 {
     QDict *rsp;
     int result;
@@ -436,7 +436,7 @@ static long long migrate_get_parameter_bool(QTestState *who,
 }
 
 static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
-                                        int value)
+                                         int value)
 {
     int result;
 
@@ -445,7 +445,7 @@ static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
 }
 
 static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
-                                      int value)
+                                       int value)
 {
     qtest_qmp_assert_success(who,
                              "{ 'execute': 'migrate-set-parameters',"
@@ -1384,8 +1384,10 @@ static void test_postcopy_preempt_tls_psk(void)
 static void wait_for_postcopy_status(QTestState *one, const char *status)
 {
     wait_for_migration_status(one, status,
-                              (const char * []) { "failed", "active",
-                                                  "completed", NULL });
+                              (const char * []) {
+                                  "failed", "active",
+                                  "completed", NULL
+                              });
 }
 
 static void postcopy_recover_fail(QTestState *from, QTestState *to,
@@ -2575,15 +2577,17 @@ static void test_migrate_fd_finish_hook(QTestState *from,
     /* Test closing fds */
     /* We assume, that QEMU removes named fd from its list,
      * so this should fail */
-    rsp = qtest_qmp(from, "{ 'execute': 'closefd',"
-                          "  'arguments': { 'fdname': 'fd-mig' }}");
+    rsp = qtest_qmp(from,
+                    "{ 'execute': 'closefd',"
+                    "  'arguments': { 'fdname': 'fd-mig' }}");
     g_assert_true(qdict_haskey(rsp, "error"));
     error_desc = qdict_get_str(qdict_get_qdict(rsp, "error"), "desc");
     g_assert_cmpstr(error_desc, ==, "File descriptor named 'fd-mig' not found");
     qobject_unref(rsp);
 
-    rsp = qtest_qmp(to, "{ 'execute': 'closefd',"
-                        "  'arguments': { 'fdname': 'fd-mig' }}");
+    rsp = qtest_qmp(to,
+                    "{ 'execute': 'closefd',"
+                    "  'arguments': { 'fdname': 'fd-mig' }}");
     g_assert_true(qdict_haskey(rsp, "error"));
     error_desc = qdict_get_str(qdict_get_qdict(rsp, "error"), "desc");
     g_assert_cmpstr(error_desc, ==, "File descriptor named 'fd-mig' not found");
@@ -2741,11 +2745,11 @@ static void test_validate_uri_channels_both_set(void)
         },
         .listen_uri = "defer",
         .connect_uri = "tcp:127.0.0.1:0",
-        .connect_channels = "[ { 'channel-type': 'main',"
-                            "    'addr': { 'transport': 'socket',"
-                            "              'type': 'inet',"
-                            "              'host': '127.0.0.1',"
-                            "              'port': '0' } } ]",
+        .connect_channels = ("[ { ""'channel-type': 'main',"
+                             "    'addr': { 'transport': 'socket',"
+                             "              'type': 'inet',"
+                             "              'host': '127.0.0.1',"
+                             "              'port': '0' } } ]"),
     };
 
     do_test_validate_uri_channel(&args);
@@ -2967,7 +2971,7 @@ test_migrate_precopy_tcp_multifd_qatzip_start(QTestState *from,
 #ifdef CONFIG_QPL
 static void *
 test_migrate_precopy_tcp_multifd_qpl_start(QTestState *from,
-                                            QTestState *to)
+                                           QTestState *to)
 {
     return test_migrate_precopy_tcp_multifd_start_common(from, to, "qpl");
 }
@@ -3032,11 +3036,11 @@ static void test_multifd_tcp_channels_none(void)
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
         .live = true,
-        .connect_channels = "[ { 'channel-type': 'main',"
-                            "    'addr': { 'transport': 'socket',"
-                            "              'type': 'inet',"
-                            "              'host': '127.0.0.1',"
-                            "              'port': '0' } } ]",
+        .connect_channels = ("[ { 'channel-type': 'main',"
+                             "    'addr': { 'transport': 'socket',"
+                             "              'type': 'inet',"
+                             "              'host': '127.0.0.1',"
+                             "              'port': '0' } } ]"),
     };
     test_precopy_common(&args);
 }
@@ -3668,7 +3672,8 @@ static void test_migrate_dirty_limit(void)
     throttle_us_per_full = 0;
     while (throttle_us_per_full == 0) {
         throttle_us_per_full =
-        read_migrate_property_int(from, "dirty-limit-throttle-time-per-round");
+            read_migrate_property_int(from,
+                                      "dirty-limit-throttle-time-per-round");
         usleep(100);
         g_assert_false(src_state.stop_seen);
     }
@@ -3680,7 +3685,8 @@ static void test_migrate_dirty_limit(void)
     /* Check if dirty limit throttle switched off, set timeout 1ms */
     do {
         throttle_us_per_full =
-        read_migrate_property_int(from, "dirty-limit-throttle-time-per-round");
+            read_migrate_property_int(from,
+                                      "dirty-limit-throttle-time-per-round");
         usleep(100);
         g_assert_false(src_state.stop_seen);
     } while (throttle_us_per_full != 0 && --max_try_count);
@@ -3709,7 +3715,8 @@ static void test_migrate_dirty_limit(void)
     throttle_us_per_full = 0;
     while (throttle_us_per_full == 0) {
         throttle_us_per_full =
-        read_migrate_property_int(from, "dirty-limit-throttle-time-per-round");
+            read_migrate_property_int(from,
+                                      "dirty-limit-throttle-time-per-round");
         usleep(100);
         g_assert_false(src_state.stop_seen);
     }
@@ -3989,7 +3996,7 @@ int main(int argc, char **argv)
 #endif
 #ifdef CONFIG_QATZIP
     migration_test_add("/migration/multifd/tcp/plain/qatzip",
-                test_multifd_tcp_qatzip);
+                       test_multifd_tcp_qatzip);
 #endif
 #ifdef CONFIG_QPL
     migration_test_add("/migration/multifd/tcp/plain/qpl",

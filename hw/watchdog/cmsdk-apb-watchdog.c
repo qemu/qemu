@@ -12,8 +12,8 @@
 /*
  * This is a model of the "APB watchdog" which is part of the Cortex-M
  * System Design Kit (CMSDK) and documented in the Cortex-M System
- * Design Kit Technical Reference Manual (ARM DDI0479C):
- * https://developer.arm.com/products/system-design/system-design-kits/cortex-m-system-design-kit
+ * Design Kit Technical Reference Manual (ARM DDI0479):
+ * https://developer.arm.com/documentation/ddi0479/
  *
  * We also support the variant of this device found in the TI
  * Stellaris/Luminary boards and documented in:
