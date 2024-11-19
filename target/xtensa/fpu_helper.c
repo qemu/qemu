@@ -57,6 +57,13 @@ static const struct {
     { XTENSA_FP_V, float_flag_invalid, },
 };
 
+void xtensa_use_first_nan(CPUXtensaState *env, bool use_first)
+{
+    set_use_first_nan(use_first, &env->fp_status);
+    set_float_2nan_prop_rule(use_first ? float_2nan_prop_ab : float_2nan_prop_ba,
+                             &env->fp_status);
+}
+
 void HELPER(wur_fpu2k_fcr)(CPUXtensaState *env, uint32_t v)
 {
     static const int rounding_mode[] = {
@@ -171,87 +178,87 @@ float32 HELPER(fpu2k_msub_s)(CPUXtensaState *env,
 
 float64 HELPER(add_d)(CPUXtensaState *env, float64 a, float64 b)
 {
-    set_use_first_nan(true, &env->fp_status);
+    xtensa_use_first_nan(env, true);
     return float64_add(a, b, &env->fp_status);
 }
 
 float32 HELPER(add_s)(CPUXtensaState *env, float32 a, float32 b)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_add(a, b, &env->fp_status);
 }
 
 float64 HELPER(sub_d)(CPUXtensaState *env, float64 a, float64 b)
 {
-    set_use_first_nan(true, &env->fp_status);
+    xtensa_use_first_nan(env, true);
     return float64_sub(a, b, &env->fp_status);
 }
 
 float32 HELPER(sub_s)(CPUXtensaState *env, float32 a, float32 b)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_sub(a, b, &env->fp_status);
 }
 
 float64 HELPER(mul_d)(CPUXtensaState *env, float64 a, float64 b)
 {
-    set_use_first_nan(true, &env->fp_status);
+    xtensa_use_first_nan(env, true);
     return float64_mul(a, b, &env->fp_status);
 }
 
 float32 HELPER(mul_s)(CPUXtensaState *env, float32 a, float32 b)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_mul(a, b, &env->fp_status);
 }
 
 float64 HELPER(madd_d)(CPUXtensaState *env, float64 a, float64 b, float64 c)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float64_muladd(b, c, a, 0, &env->fp_status);
 }
 
 float32 HELPER(madd_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_muladd(b, c, a, 0, &env->fp_status);
 }
 
 float64 HELPER(msub_d)(CPUXtensaState *env, float64 a, float64 b, float64 c)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float64_muladd(b, c, a, float_muladd_negate_product,
                           &env->fp_status);
 }
 
 float32 HELPER(msub_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_muladd(b, c, a, float_muladd_negate_product,
                           &env->fp_status);
 }
 
 float64 HELPER(mkdadj_d)(CPUXtensaState *env, float64 a, float64 b)
 {
-    set_use_first_nan(true, &env->fp_status);
+    xtensa_use_first_nan(env, true);
     return float64_div(b, a, &env->fp_status);
 }
 
 float32 HELPER(mkdadj_s)(CPUXtensaState *env, float32 a, float32 b)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_div(b, a, &env->fp_status);
 }
 
 float64 HELPER(mksadj_d)(CPUXtensaState *env, float64 v)
 {
-    set_use_first_nan(true, &env->fp_status);
+    xtensa_use_first_nan(env, true);
     return float64_sqrt(v, &env->fp_status);
 }
 
 float32 HELPER(mksadj_s)(CPUXtensaState *env, float32 v)
 {
-    set_use_first_nan(env->config->use_first_nan, &env->fp_status);
+    xtensa_use_first_nan(env, env->config->use_first_nan);
     return float32_sqrt(v, &env->fp_status);
 }
 

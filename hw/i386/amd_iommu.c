@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/qdev-properties.h"
+#include "kvm/kvm_i386.h"
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -60,8 +61,9 @@ struct AMDVIAddressSpace {
     uint8_t bus_num;            /* bus number                           */
     uint8_t devfn;              /* device function                      */
     AMDVIState *iommu_state;    /* AMDVI - one per machine              */
-    MemoryRegion root;          /* AMDVI Root memory map region */
+    MemoryRegion root;          /* AMDVI Root memory map region         */
     IOMMUMemoryRegion iommu;    /* Device's address translation region  */
+    MemoryRegion iommu_nodma;   /* Alias of shared nodma memory region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
 };
@@ -430,12 +432,21 @@ static void amdvi_complete_ppr(AMDVIState *s, uint64_t *cmd)
     trace_amdvi_ppr_exec();
 }
 
+static void amdvi_intremap_inval_notify_all(AMDVIState *s, bool global,
+                               uint32_t index, uint32_t mask)
+{
+    x86_iommu_iec_notify_all(X86_IOMMU_DEVICE(s), global, index, mask);
+}
+
 static void amdvi_inval_all(AMDVIState *s, uint64_t *cmd)
 {
     if (extract64(cmd[0], 0, 60) || cmd[1]) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
     }
+
+    /* Notify global invalidation */
+    amdvi_intremap_inval_notify_all(s, true, 0, 0);
 
     amdvi_iotlb_reset(s);
     trace_amdvi_all_inval();
@@ -484,6 +495,9 @@ static void amdvi_inval_inttable(AMDVIState *s, uint64_t *cmd)
                                    s->cmdbuf + s->cmdbuf_head);
         return;
     }
+
+    /* Notify global invalidation */
+    amdvi_intremap_inval_notify_all(s, true, 0, 0);
 
     trace_amdvi_intr_inval();
 }
@@ -1412,6 +1426,7 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     AMDVIState *s = opaque;
     AMDVIAddressSpace **iommu_as, *amdvi_dev_as;
     int bus_num = pci_bus_num(bus);
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
     iommu_as = s->address_spaces[bus_num];
 
@@ -1436,13 +1451,13 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
          * Memory region relationships looks like (Address range shows
          * only lower 32 bits to make it short in length...):
          *
-         * |-----------------+-------------------+----------|
-         * | Name            | Address range     | Priority |
-         * |-----------------+-------------------+----------+
-         * | amdvi_root      | 00000000-ffffffff |        0 |
-         * |  amdvi_iommu    | 00000000-ffffffff |        1 |
-         * |  amdvi_iommu_ir | fee00000-feefffff |       64 |
-         * |-----------------+-------------------+----------|
+         * |--------------------+-------------------+----------|
+         * | Name               | Address range     | Priority |
+         * |--------------------+-------------------+----------+
+         * | amdvi-root         | 00000000-ffffffff |        0 |
+         * |  amdvi-iommu_nodma  | 00000000-ffffffff |       0 |
+         * |  amdvi-iommu_ir     | fee00000-feefffff |       1 |
+         * |--------------------+-------------------+----------|
          */
         memory_region_init_iommu(&amdvi_dev_as->iommu,
                                  sizeof(amdvi_dev_as->iommu),
@@ -1452,16 +1467,34 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         memory_region_init(&amdvi_dev_as->root, OBJECT(s),
                            "amdvi_root", UINT64_MAX);
         address_space_init(&amdvi_dev_as->as, &amdvi_dev_as->root, name);
-        memory_region_init_io(&amdvi_dev_as->iommu_ir, OBJECT(s),
-                              &amdvi_ir_ops, s, "amd_iommu_ir",
-                              AMDVI_INT_ADDR_SIZE);
-        memory_region_add_subregion_overlap(&amdvi_dev_as->root,
-                                            AMDVI_INT_ADDR_FIRST,
-                                            &amdvi_dev_as->iommu_ir,
-                                            64);
         memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
                                             MEMORY_REGION(&amdvi_dev_as->iommu),
-                                            1);
+                                            0);
+
+        /* Build the DMA Disabled alias to shared memory */
+        memory_region_init_alias(&amdvi_dev_as->iommu_nodma, OBJECT(s),
+                                 "amdvi-sys", &s->mr_sys, 0,
+                                 memory_region_size(&s->mr_sys));
+        memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
+                                            &amdvi_dev_as->iommu_nodma,
+                                            0);
+        /* Build the Interrupt Remapping alias to shared memory */
+        memory_region_init_alias(&amdvi_dev_as->iommu_ir, OBJECT(s),
+                                 "amdvi-ir", &s->mr_ir, 0,
+                                 memory_region_size(&s->mr_ir));
+        memory_region_add_subregion_overlap(MEMORY_REGION(&amdvi_dev_as->iommu),
+                                            AMDVI_INT_ADDR_FIRST,
+                                            &amdvi_dev_as->iommu_ir, 1);
+
+        if (!x86_iommu->pt_supported) {
+            memory_region_set_enabled(&amdvi_dev_as->iommu_nodma, false);
+            memory_region_set_enabled(MEMORY_REGION(&amdvi_dev_as->iommu),
+                                      true);
+        } else {
+            memory_region_set_enabled(MEMORY_REGION(&amdvi_dev_as->iommu),
+                                      false);
+            memory_region_set_enabled(&amdvi_dev_as->iommu_nodma, true);
+        }
     }
     return &iommu_as[devfn]->as;
 }
@@ -1598,10 +1631,37 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     x86ms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
 
     /* set up MMIO */
-    memory_region_init_io(&s->mmio, OBJECT(s), &mmio_mem_ops, s, "amdvi-mmio",
-                          AMDVI_MMIO_SIZE);
+    memory_region_init_io(&s->mr_mmio, OBJECT(s), &mmio_mem_ops, s,
+                          "amdvi-mmio", AMDVI_MMIO_SIZE);
     memory_region_add_subregion(get_system_memory(), AMDVI_BASE_ADDR,
-                                &s->mmio);
+                                &s->mr_mmio);
+
+    /* Create the share memory regions by all devices */
+    memory_region_init(&s->mr_sys, OBJECT(s), "amdvi-sys", UINT64_MAX);
+
+    /* set up the DMA disabled memory region */
+    memory_region_init_alias(&s->mr_nodma, OBJECT(s),
+                             "amdvi-nodma", get_system_memory(), 0,
+                             memory_region_size(get_system_memory()));
+    memory_region_add_subregion_overlap(&s->mr_sys, 0,
+                                        &s->mr_nodma, 0);
+
+    /* set up the Interrupt Remapping memory region */
+    memory_region_init_io(&s->mr_ir, OBJECT(s), &amdvi_ir_ops,
+                          s, "amdvi-ir", AMDVI_INT_ADDR_SIZE);
+    memory_region_add_subregion_overlap(&s->mr_sys, AMDVI_INT_ADDR_FIRST,
+                                        &s->mr_ir, 1);
+
+    /* AMD IOMMU with x2APIC mode requires xtsup=on */
+    if (x86ms->apic_id_limit > 255 && !s->xtsup) {
+        error_report("AMD IOMMU with x2APIC confguration requires xtsup=on");
+        exit(EXIT_FAILURE);
+    }
+    if (s->xtsup && kvm_irqchip_is_split() && !kvm_enable_x2apic()) {
+        error_report("AMD IOMMU xtsup=on requires support on the KVM side");
+        exit(EXIT_FAILURE);
+    }
+
     pci_setup_iommu(bus, &amdvi_iommu_ops, s);
     amdvi_init(s);
 }

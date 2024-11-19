@@ -99,7 +99,8 @@ class HypervisorTest(QemuSystemTest):
         self.vm.add_args("-kernel", self.vmlinuz)
         self.vm.add_args("-initrd", self.initramfs)
         self.vm.add_args("-smp", "4", "-m", "2g")
-        self.vm.add_args("-drive", f"file={self.iso_path},format=raw,if=none,id=drive0")
+        self.vm.add_args("-drive", f"file={self.iso_path},format=raw,if=none,"
+                                    "id=drive0,read-only=true")
 
         self.vm.launch()
         wait_for_console_pattern(self, 'Welcome to Alpine Linux 3.18')

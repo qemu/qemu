@@ -36,16 +36,20 @@
     clippy::cognitive_complexity,
     clippy::missing_safety_doc,
     )]
+#![allow(clippy::result_unit_err)]
 
 extern crate bilge;
 extern crate bilge_impl;
 extern crate qemu_api;
 
+use qemu_api::c_str;
+
 pub mod device;
 pub mod device_class;
 pub mod memory_ops;
 
-pub const TYPE_PL011: &::core::ffi::CStr = c"pl011";
+pub const TYPE_PL011: &::std::ffi::CStr = c_str!("pl011");
+pub const TYPE_PL011_LUMINARY: &::std::ffi::CStr = c_str!("pl011_luminary");
 
 /// Offset of each register from the base memory address of the device.
 ///

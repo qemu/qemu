@@ -1,4 +1,5 @@
 project('itertools-0.11-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '0.11.0',
   license: 'MIT OR Apache-2.0',
   default_options: [])

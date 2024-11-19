@@ -41,6 +41,7 @@ static const TestCase test_cases[] = {
     { "ppc64", "pseries-2.7", 0x10080000000ULL,
       .bswap = true, .superio = "i82378" },
     { "sh4", "r2d", 0xfe240000, .superio = "i82378" },
+    { "sh4eb", "r2d", 0xfe240000, .bswap = true, .superio = "i82378" },
     { "sparc64", "sun4u", 0x1fe02000000LL, .bswap = true },
     { "x86_64", "pc", -1 },
     {}

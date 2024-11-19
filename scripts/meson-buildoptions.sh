@@ -47,6 +47,8 @@ meson_options_help() {
   printf "%s\n" '                           getrandom()'
   printf "%s\n" '  --enable-safe-stack      SafeStack Stack Smash Protection (requires'
   printf "%s\n" '                           clang/llvm and coroutine backend ucontext)'
+  printf "%s\n" '  --enable-strict-rust-lints'
+  printf "%s\n" '                           Enable stricter set of Rust warnings'
   printf "%s\n" '  --enable-strip           Strip targets on install'
   printf "%s\n" '  --enable-tcg-interpreter TCG with bytecode interpreter (slow)'
   printf "%s\n" '  --enable-trace-backends=CHOICES'
@@ -72,6 +74,7 @@ meson_options_help() {
   printf "%s\n" '                           "manufacturer" name for qemu-ga registry entries'
   printf "%s\n" '                           [QEMU]'
   printf "%s\n" '  --qemu-ga-version=VALUE  version number for qemu-ga installer'
+  printf "%s\n" '  --rtsig-map=VALUE        default value of QEMU_RTSIG_MAP [NULL]'
   printf "%s\n" '  --smbd=VALUE             Path to smbd for slirp networking'
   printf "%s\n" '  --sysconfdir=VALUE       Sysconf data directory [etc]'
   printf "%s\n" '  --tls-priority=VALUE     Default TLS protocol/cipher priority string'
@@ -133,6 +136,7 @@ meson_options_help() {
   printf "%s\n" '  keyring         Linux keyring support'
   printf "%s\n" '  kvm             KVM acceleration support'
   printf "%s\n" '  l2tpv3          l2tpv3 network backend support'
+  printf "%s\n" '  libcbor         libcbor support'
   printf "%s\n" '  libdaxctl       libdaxctl support'
   printf "%s\n" '  libdw           debuginfo support'
   printf "%s\n" '  libiscsi        libiscsi userspace initiator'
@@ -358,6 +362,8 @@ _meson_option_parse() {
     --disable-kvm) printf "%s" -Dkvm=disabled ;;
     --enable-l2tpv3) printf "%s" -Dl2tpv3=enabled ;;
     --disable-l2tpv3) printf "%s" -Dl2tpv3=disabled ;;
+    --enable-libcbor) printf "%s" -Dlibcbor=enabled ;;
+    --disable-libcbor) printf "%s" -Dlibcbor=disabled ;;
     --enable-libdaxctl) printf "%s" -Dlibdaxctl=enabled ;;
     --disable-libdaxctl) printf "%s" -Dlibdaxctl=disabled ;;
     --libdir=*) quote_sh "-Dlibdir=$2" ;;
@@ -457,6 +463,7 @@ _meson_option_parse() {
     --disable-replication) printf "%s" -Dreplication=disabled ;;
     --enable-rng-none) printf "%s" -Drng_none=true ;;
     --disable-rng-none) printf "%s" -Drng_none=false ;;
+    --rtsig-map=*) quote_sh "-Drtsig_map=$2" ;;
     --enable-rust) printf "%s" -Drust=enabled ;;
     --disable-rust) printf "%s" -Drust=disabled ;;
     --enable-rutabaga-gfx) printf "%s" -Drutabaga_gfx=enabled ;;
@@ -490,6 +497,8 @@ _meson_option_parse() {
     --disable-spice-protocol) printf "%s" -Dspice_protocol=disabled ;;
     --enable-stack-protector) printf "%s" -Dstack_protector=enabled ;;
     --disable-stack-protector) printf "%s" -Dstack_protector=disabled ;;
+    --enable-strict-rust-lints) printf "%s" -Dstrict_rust_lints=true ;;
+    --disable-strict-rust-lints) printf "%s" -Dstrict_rust_lints=false ;;
     --enable-strip) printf "%s" -Dstrip=true ;;
     --disable-strip) printf "%s" -Dstrip=false ;;
     --sysconfdir=*) quote_sh "-Dsysconfdir=$2" ;;

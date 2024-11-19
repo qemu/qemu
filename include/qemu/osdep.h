@@ -297,6 +297,10 @@ void QEMU_ERROR("code path is reachable")
 #error building with G_DISABLE_ASSERT is not supported
 #endif
 
+#ifndef OFF_MAX
+#define OFF_MAX (sizeof (off_t) == 8 ? INT64_MAX : INT32_MAX)
+#endif
+
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
 #endif

@@ -1031,13 +1031,14 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
         s_IRQ = IRQ_get_next(opp, &dst->servicing);
         /* Check queued interrupts. */
         n_IRQ = IRQ_get_next(opp, &dst->raised);
-        src = &opp->src[n_IRQ];
-        if (n_IRQ != -1 &&
-            (s_IRQ == -1 ||
-             IVPR_PRIORITY(src->ivpr) > dst->servicing.priority)) {
-            DPRINTF("Raise OpenPIC INT output cpu %d irq %d",
-                    idx, n_IRQ);
-            qemu_irq_raise(opp->dst[idx].irqs[OPENPIC_OUTPUT_INT]);
+        if (n_IRQ != -1) {
+            src = &opp->src[n_IRQ];
+            if (s_IRQ == -1 ||
+                IVPR_PRIORITY(src->ivpr) > dst->servicing.priority) {
+                DPRINTF("Raise OpenPIC INT output cpu %d irq %d",
+                        idx, n_IRQ);
+                qemu_irq_raise(opp->dst[idx].irqs[OPENPIC_OUTPUT_INT]);
+            }
         }
         break;
     default:

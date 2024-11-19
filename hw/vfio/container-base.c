@@ -103,7 +103,7 @@ static void vfio_container_instance_finalize(Object *obj)
     VFIOContainerBase *bcontainer = VFIO_IOMMU(obj);
     VFIOGuestIOMMU *giommu, *tmp;
 
-    QLIST_REMOVE(bcontainer, next);
+    QLIST_SAFE_REMOVE(bcontainer, next);
 
     QLIST_FOREACH_SAFE(giommu, &bcontainer->giommu_list, giommu_next, tmp) {
         memory_region_unregister_iommu_notifier(

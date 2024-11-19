@@ -237,7 +237,7 @@ void helper_daa(CPUX86State *env)
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xff) | al;
     /* well, speed is not an issue here, so we compute the flags by hand */
     eflags |= (al == 0) << 6; /* zf */
-    eflags |= parity_table[al]; /* pf */
+    eflags |= compute_pf(al);
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
     CC_OP = CC_OP_EFLAGS;
@@ -269,7 +269,7 @@ void helper_das(CPUX86State *env)
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xff) | al;
     /* well, speed is not an issue here, so we compute the flags by hand */
     eflags |= (al == 0) << 6; /* zf */
-    eflags |= parity_table[al]; /* pf */
+    eflags |= compute_pf(al);
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
     CC_OP = CC_OP_EFLAGS;

@@ -148,34 +148,90 @@ static inline void vext_set_elem_mask(void *v0, int index,
 }
 
 /* elements operations for load and store */
-typedef void vext_ldst_elem_fn(CPURISCVState *env, abi_ptr addr,
-                               uint32_t idx, void *vd, uintptr_t retaddr);
+typedef void vext_ldst_elem_fn_tlb(CPURISCVState *env, abi_ptr addr,
+                                   uint32_t idx, void *vd, uintptr_t retaddr);
+typedef void vext_ldst_elem_fn_host(void *vd, uint32_t idx, void *host);
 
-#define GEN_VEXT_LD_ELEM(NAME, ETYPE, H, LDSUF)            \
-static void NAME(CPURISCVState *env, abi_ptr addr,         \
-                 uint32_t idx, void *vd, uintptr_t retaddr)\
-{                                                          \
-    ETYPE *cur = ((ETYPE *)vd + H(idx));                   \
-    *cur = cpu_##LDSUF##_data_ra(env, addr, retaddr);      \
-}                                                          \
-
-GEN_VEXT_LD_ELEM(lde_b, int8_t,  H1, ldsb)
-GEN_VEXT_LD_ELEM(lde_h, int16_t, H2, ldsw)
-GEN_VEXT_LD_ELEM(lde_w, int32_t, H4, ldl)
-GEN_VEXT_LD_ELEM(lde_d, int64_t, H8, ldq)
-
-#define GEN_VEXT_ST_ELEM(NAME, ETYPE, H, STSUF)            \
-static void NAME(CPURISCVState *env, abi_ptr addr,         \
-                 uint32_t idx, void *vd, uintptr_t retaddr)\
-{                                                          \
-    ETYPE data = *((ETYPE *)vd + H(idx));                  \
-    cpu_##STSUF##_data_ra(env, addr, data, retaddr);       \
+#define GEN_VEXT_LD_ELEM(NAME, ETYPE, H, LDSUF)             \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_tlb(CPURISCVState *env, abi_ptr addr,           \
+                uint32_t idx, void *vd, uintptr_t retaddr)  \
+{                                                           \
+    ETYPE *cur = ((ETYPE *)vd + H(idx));                    \
+    *cur = cpu_##LDSUF##_data_ra(env, addr, retaddr);       \
+}                                                           \
+                                                            \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_host(void *vd, uint32_t idx, void *host)        \
+{                                                           \
+    ETYPE *cur = ((ETYPE *)vd + H(idx));                    \
+    *cur = (ETYPE)LDSUF##_p(host);                          \
 }
 
-GEN_VEXT_ST_ELEM(ste_b, int8_t,  H1, stb)
-GEN_VEXT_ST_ELEM(ste_h, int16_t, H2, stw)
-GEN_VEXT_ST_ELEM(ste_w, int32_t, H4, stl)
-GEN_VEXT_ST_ELEM(ste_d, int64_t, H8, stq)
+GEN_VEXT_LD_ELEM(lde_b, uint8_t,  H1, ldub)
+GEN_VEXT_LD_ELEM(lde_h, uint16_t, H2, lduw)
+GEN_VEXT_LD_ELEM(lde_w, uint32_t, H4, ldl)
+GEN_VEXT_LD_ELEM(lde_d, uint64_t, H8, ldq)
+
+#define GEN_VEXT_ST_ELEM(NAME, ETYPE, H, STSUF)             \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_tlb(CPURISCVState *env, abi_ptr addr,           \
+                uint32_t idx, void *vd, uintptr_t retaddr)  \
+{                                                           \
+    ETYPE data = *((ETYPE *)vd + H(idx));                   \
+    cpu_##STSUF##_data_ra(env, addr, data, retaddr);        \
+}                                                           \
+                                                            \
+static inline QEMU_ALWAYS_INLINE                            \
+void NAME##_host(void *vd, uint32_t idx, void *host)        \
+{                                                           \
+    ETYPE data = *((ETYPE *)vd + H(idx));                   \
+    STSUF##_p(host, data);                                  \
+}
+
+GEN_VEXT_ST_ELEM(ste_b, uint8_t,  H1, stb)
+GEN_VEXT_ST_ELEM(ste_h, uint16_t, H2, stw)
+GEN_VEXT_ST_ELEM(ste_w, uint32_t, H4, stl)
+GEN_VEXT_ST_ELEM(ste_d, uint64_t, H8, stq)
+
+static inline QEMU_ALWAYS_INLINE void
+vext_continus_ldst_tlb(CPURISCVState *env, vext_ldst_elem_fn_tlb *ldst_tlb,
+                       void *vd, uint32_t evl, target_ulong addr,
+                       uint32_t reg_start, uintptr_t ra, uint32_t esz,
+                       bool is_load)
+{
+    uint32_t i;
+    for (i = env->vstart; i < evl; env->vstart = ++i, addr += esz) {
+        ldst_tlb(env, adjust_addr(env, addr), i, vd, ra);
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE void
+vext_continus_ldst_host(CPURISCVState *env, vext_ldst_elem_fn_host *ldst_host,
+                        void *vd, uint32_t evl, uint32_t reg_start, void *host,
+                        uint32_t esz, bool is_load)
+{
+#if HOST_BIG_ENDIAN
+    for (; reg_start < evl; reg_start++, host += esz) {
+        ldst_host(vd, reg_start, host);
+    }
+#else
+    if (esz == 1) {
+        uint32_t byte_offset = reg_start * esz;
+        uint32_t size = (evl - reg_start) * esz;
+
+        if (is_load) {
+            memcpy(vd + byte_offset, host, size);
+        } else {
+            memcpy(host, vd + byte_offset, size);
+        }
+    } else {
+        for (; reg_start < evl; reg_start++, host += esz) {
+            ldst_host(vd, reg_start, host);
+        }
+    }
+#endif
+}
 
 static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
                                    uint32_t desc, uint32_t nf,
@@ -198,11 +254,10 @@ static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
  * stride: access vector element from strided memory
  */
 static void
-vext_ldst_stride(void *vd, void *v0, target_ulong base,
-                 target_ulong stride, CPURISCVState *env,
-                 uint32_t desc, uint32_t vm,
-                 vext_ldst_elem_fn *ldst_elem,
-                 uint32_t log2_esz, uintptr_t ra)
+vext_ldst_stride(void *vd, void *v0, target_ulong base, target_ulong stride,
+                 CPURISCVState *env, uint32_t desc, uint32_t vm,
+                 vext_ldst_elem_fn_tlb *ldst_elem, uint32_t log2_esz,
+                 uintptr_t ra)
 {
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
@@ -242,10 +297,10 @@ void HELPER(NAME)(void *vd, void * v0, target_ulong base,               \
                      ctzl(sizeof(ETYPE)), GETPC());                     \
 }
 
-GEN_VEXT_LD_STRIDE(vlse8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_STRIDE(vlse16_v, int16_t, lde_h)
-GEN_VEXT_LD_STRIDE(vlse32_v, int32_t, lde_w)
-GEN_VEXT_LD_STRIDE(vlse64_v, int64_t, lde_d)
+GEN_VEXT_LD_STRIDE(vlse8_v,  int8_t,  lde_b_tlb)
+GEN_VEXT_LD_STRIDE(vlse16_v, int16_t, lde_h_tlb)
+GEN_VEXT_LD_STRIDE(vlse32_v, int32_t, lde_w_tlb)
+GEN_VEXT_LD_STRIDE(vlse64_v, int64_t, lde_d_tlb)
 
 #define GEN_VEXT_ST_STRIDE(NAME, ETYPE, STORE_FN)                       \
 void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
@@ -257,39 +312,124 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
                      ctzl(sizeof(ETYPE)), GETPC());                     \
 }
 
-GEN_VEXT_ST_STRIDE(vsse8_v,  int8_t,  ste_b)
-GEN_VEXT_ST_STRIDE(vsse16_v, int16_t, ste_h)
-GEN_VEXT_ST_STRIDE(vsse32_v, int32_t, ste_w)
-GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d)
+GEN_VEXT_ST_STRIDE(vsse8_v,  int8_t,  ste_b_tlb)
+GEN_VEXT_ST_STRIDE(vsse16_v, int16_t, ste_h_tlb)
+GEN_VEXT_ST_STRIDE(vsse32_v, int32_t, ste_w_tlb)
+GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d_tlb)
 
 /*
  * unit-stride: access elements stored contiguously in memory
  */
 
 /* unmasked unit-stride load and store operation */
-static void
-vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
-             vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uint32_t evl,
-             uintptr_t ra)
+static inline QEMU_ALWAYS_INLINE void
+vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
+                  uint32_t elems, uint32_t nf, uint32_t max_elems,
+                  uint32_t log2_esz, bool is_load, int mmu_index,
+                  vext_ldst_elem_fn_tlb *ldst_tlb,
+                  vext_ldst_elem_fn_host *ldst_host, uintptr_t ra)
 {
-    uint32_t i, k;
+    void *host;
+    int i, k, flags;
+    uint32_t esz = 1 << log2_esz;
+    uint32_t size = (elems * nf) << log2_esz;
+    uint32_t evl = env->vstart + elems;
+    MMUAccessType access_type = is_load ? MMU_DATA_LOAD : MMU_DATA_STORE;
+
+    /* Check page permission/pmp/watchpoint/etc. */
+    flags = probe_access_flags(env, adjust_addr(env, addr), size, access_type,
+                               mmu_index, true, &host, ra);
+
+    if (flags == 0) {
+        if (nf == 1) {
+            vext_continus_ldst_host(env, ldst_host, vd, evl, env->vstart, host,
+                                    esz, is_load);
+        } else {
+            for (i = env->vstart; i < evl; ++i) {
+                k = 0;
+                while (k < nf) {
+                    ldst_host(vd, i + k * max_elems, host);
+                    host += esz;
+                    k++;
+                }
+            }
+        }
+        env->vstart += elems;
+    } else {
+        if (nf == 1) {
+            vext_continus_ldst_tlb(env, ldst_tlb, vd, evl, addr, env->vstart,
+                                   ra, esz, is_load);
+        } else {
+            /* load bytes from guest memory */
+            for (i = env->vstart; i < evl; env->vstart = ++i) {
+                k = 0;
+                while (k < nf) {
+                    ldst_tlb(env, adjust_addr(env, addr), i + k * max_elems,
+                             vd, ra);
+                    addr += esz;
+                    k++;
+                }
+            }
+        }
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE void
+vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
+             vext_ldst_elem_fn_tlb *ldst_tlb,
+             vext_ldst_elem_fn_host *ldst_host, uint32_t log2_esz,
+             uint32_t evl, uintptr_t ra, bool is_load)
+{
+    uint32_t k;
+    target_ulong page_split, elems, addr;
     uint32_t nf = vext_nf(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
     uint32_t esz = 1 << log2_esz;
+    uint32_t msize = nf * esz;
+    int mmu_index = riscv_env_mmu_index(env, false);
 
-    VSTART_CHECK_EARLY_EXIT(env);
-
-    /* load bytes from guest memory */
-    for (i = env->vstart; i < evl; env->vstart = ++i) {
-        k = 0;
-        while (k < nf) {
-            target_ulong addr = base + ((i * nf + k) << log2_esz);
-            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
-            k++;
-        }
+    if (env->vstart >= evl) {
+        env->vstart = 0;
+        return;
     }
-    env->vstart = 0;
 
+    /* Calculate the page range of first page */
+    addr = base + ((env->vstart * nf) << log2_esz);
+    page_split = -(addr | TARGET_PAGE_MASK);
+    /* Get number of elements */
+    elems = page_split / msize;
+    if (unlikely(env->vstart + elems >= evl)) {
+        elems = evl - env->vstart;
+    }
+
+    /* Load/store elements in the first page */
+    if (likely(elems)) {
+        vext_page_ldst_us(env, vd, addr, elems, nf, max_elems, log2_esz,
+                          is_load, mmu_index, ldst_tlb, ldst_host, ra);
+    }
+
+    /* Load/store elements in the second page */
+    if (unlikely(env->vstart < evl)) {
+        /* Cross page element */
+        if (unlikely(page_split % msize)) {
+            for (k = 0; k < nf; k++) {
+                addr = base + ((env->vstart * nf + k) << log2_esz);
+                ldst_tlb(env, adjust_addr(env, addr),
+                        env->vstart + k * max_elems, vd, ra);
+            }
+            env->vstart++;
+        }
+
+        addr = base + ((env->vstart * nf) << log2_esz);
+        /* Get number of elements of second page */
+        elems = evl - env->vstart;
+
+        /* Load/store elements in the second page */
+        vext_page_ldst_us(env, vd, addr, elems, nf, max_elems, log2_esz,
+                          is_load, mmu_index, ldst_tlb, ldst_host, ra);
+    }
+
+    env->vstart = 0;
     vext_set_tail_elems_1s(evl, vd, desc, nf, esz, max_elems);
 }
 
@@ -298,47 +438,47 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
  * stride, stride = NF * sizeof (ETYPE)
  */
 
-#define GEN_VEXT_LD_US(NAME, ETYPE, LOAD_FN)                            \
-void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,         \
-                         CPURISCVState *env, uint32_t desc)             \
-{                                                                       \
-    uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));             \
-    vext_ldst_stride(vd, v0, base, stride, env, desc, false, LOAD_FN,   \
-                     ctzl(sizeof(ETYPE)), GETPC());                     \
-}                                                                       \
-                                                                        \
-void HELPER(NAME)(void *vd, void *v0, target_ulong base,                \
-                  CPURISCVState *env, uint32_t desc)                    \
-{                                                                       \
-    vext_ldst_us(vd, base, env, desc, LOAD_FN,                          \
-                 ctzl(sizeof(ETYPE)), env->vl, GETPC());                \
+#define GEN_VEXT_LD_US(NAME, ETYPE, LOAD_FN_TLB, LOAD_FN_HOST)      \
+void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,     \
+                         CPURISCVState *env, uint32_t desc)         \
+{                                                                   \
+    uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));         \
+    vext_ldst_stride(vd, v0, base, stride, env, desc, false,        \
+                     LOAD_FN_TLB, ctzl(sizeof(ETYPE)), GETPC());    \
+}                                                                   \
+                                                                    \
+void HELPER(NAME)(void *vd, void *v0, target_ulong base,            \
+                  CPURISCVState *env, uint32_t desc)                \
+{                                                                   \
+    vext_ldst_us(vd, base, env, desc, LOAD_FN_TLB, LOAD_FN_HOST,    \
+                 ctzl(sizeof(ETYPE)), env->vl, GETPC(), true);      \
 }
 
-GEN_VEXT_LD_US(vle8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_US(vle16_v, int16_t, lde_h)
-GEN_VEXT_LD_US(vle32_v, int32_t, lde_w)
-GEN_VEXT_LD_US(vle64_v, int64_t, lde_d)
+GEN_VEXT_LD_US(vle8_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LD_US(vle16_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LD_US(vle32_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LD_US(vle64_v, int64_t, lde_d_tlb, lde_d_host)
 
-#define GEN_VEXT_ST_US(NAME, ETYPE, STORE_FN)                            \
+#define GEN_VEXT_ST_US(NAME, ETYPE, STORE_FN_TLB, STORE_FN_HOST)         \
 void HELPER(NAME##_mask)(void *vd, void *v0, target_ulong base,          \
                          CPURISCVState *env, uint32_t desc)              \
 {                                                                        \
     uint32_t stride = vext_nf(desc) << ctzl(sizeof(ETYPE));              \
-    vext_ldst_stride(vd, v0, base, stride, env, desc, false, STORE_FN,   \
-                     ctzl(sizeof(ETYPE)), GETPC());                      \
+    vext_ldst_stride(vd, v0, base, stride, env, desc, false,             \
+                     STORE_FN_TLB, ctzl(sizeof(ETYPE)), GETPC());        \
 }                                                                        \
                                                                          \
 void HELPER(NAME)(void *vd, void *v0, target_ulong base,                 \
                   CPURISCVState *env, uint32_t desc)                     \
 {                                                                        \
-    vext_ldst_us(vd, base, env, desc, STORE_FN,                          \
-                 ctzl(sizeof(ETYPE)), env->vl, GETPC());                 \
+    vext_ldst_us(vd, base, env, desc, STORE_FN_TLB, STORE_FN_HOST,       \
+                 ctzl(sizeof(ETYPE)), env->vl, GETPC(), false);          \
 }
 
-GEN_VEXT_ST_US(vse8_v,  int8_t,  ste_b)
-GEN_VEXT_ST_US(vse16_v, int16_t, ste_h)
-GEN_VEXT_ST_US(vse32_v, int32_t, ste_w)
-GEN_VEXT_ST_US(vse64_v, int64_t, ste_d)
+GEN_VEXT_ST_US(vse8_v,  int8_t,  ste_b_tlb, ste_b_host)
+GEN_VEXT_ST_US(vse16_v, int16_t, ste_h_tlb, ste_h_host)
+GEN_VEXT_ST_US(vse32_v, int32_t, ste_w_tlb, ste_w_host)
+GEN_VEXT_ST_US(vse64_v, int64_t, ste_d_tlb, ste_d_host)
 
 /*
  * unit stride mask load and store, EEW = 1
@@ -348,8 +488,8 @@ void HELPER(vlm_v)(void *vd, void *v0, target_ulong base,
 {
     /* evl = ceil(vl/8) */
     uint8_t evl = (env->vl + 7) >> 3;
-    vext_ldst_us(vd, base, env, desc, lde_b,
-                 0, evl, GETPC());
+    vext_ldst_us(vd, base, env, desc, lde_b_tlb, lde_b_host,
+                 0, evl, GETPC(), true);
 }
 
 void HELPER(vsm_v)(void *vd, void *v0, target_ulong base,
@@ -357,8 +497,8 @@ void HELPER(vsm_v)(void *vd, void *v0, target_ulong base,
 {
     /* evl = ceil(vl/8) */
     uint8_t evl = (env->vl + 7) >> 3;
-    vext_ldst_us(vd, base, env, desc, ste_b,
-                 0, evl, GETPC());
+    vext_ldst_us(vd, base, env, desc, ste_b_tlb, ste_b_host,
+                 0, evl, GETPC(), false);
 }
 
 /*
@@ -383,7 +523,7 @@ static inline void
 vext_ldst_index(void *vd, void *v0, target_ulong base,
                 void *vs2, CPURISCVState *env, uint32_t desc,
                 vext_get_index_addr get_index_addr,
-                vext_ldst_elem_fn *ldst_elem,
+                vext_ldst_elem_fn_tlb *ldst_elem,
                 uint32_t log2_esz, uintptr_t ra)
 {
     uint32_t i, k;
@@ -424,22 +564,22 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,                   \
                     LOAD_FN, ctzl(sizeof(ETYPE)), GETPC());                \
 }
 
-GEN_VEXT_LD_INDEX(vlxei8_8_v,   int8_t,  idx_b, lde_b)
-GEN_VEXT_LD_INDEX(vlxei8_16_v,  int16_t, idx_b, lde_h)
-GEN_VEXT_LD_INDEX(vlxei8_32_v,  int32_t, idx_b, lde_w)
-GEN_VEXT_LD_INDEX(vlxei8_64_v,  int64_t, idx_b, lde_d)
-GEN_VEXT_LD_INDEX(vlxei16_8_v,  int8_t,  idx_h, lde_b)
-GEN_VEXT_LD_INDEX(vlxei16_16_v, int16_t, idx_h, lde_h)
-GEN_VEXT_LD_INDEX(vlxei16_32_v, int32_t, idx_h, lde_w)
-GEN_VEXT_LD_INDEX(vlxei16_64_v, int64_t, idx_h, lde_d)
-GEN_VEXT_LD_INDEX(vlxei32_8_v,  int8_t,  idx_w, lde_b)
-GEN_VEXT_LD_INDEX(vlxei32_16_v, int16_t, idx_w, lde_h)
-GEN_VEXT_LD_INDEX(vlxei32_32_v, int32_t, idx_w, lde_w)
-GEN_VEXT_LD_INDEX(vlxei32_64_v, int64_t, idx_w, lde_d)
-GEN_VEXT_LD_INDEX(vlxei64_8_v,  int8_t,  idx_d, lde_b)
-GEN_VEXT_LD_INDEX(vlxei64_16_v, int16_t, idx_d, lde_h)
-GEN_VEXT_LD_INDEX(vlxei64_32_v, int32_t, idx_d, lde_w)
-GEN_VEXT_LD_INDEX(vlxei64_64_v, int64_t, idx_d, lde_d)
+GEN_VEXT_LD_INDEX(vlxei8_8_v,   int8_t,  idx_b, lde_b_tlb)
+GEN_VEXT_LD_INDEX(vlxei8_16_v,  int16_t, idx_b, lde_h_tlb)
+GEN_VEXT_LD_INDEX(vlxei8_32_v,  int32_t, idx_b, lde_w_tlb)
+GEN_VEXT_LD_INDEX(vlxei8_64_v,  int64_t, idx_b, lde_d_tlb)
+GEN_VEXT_LD_INDEX(vlxei16_8_v,  int8_t,  idx_h, lde_b_tlb)
+GEN_VEXT_LD_INDEX(vlxei16_16_v, int16_t, idx_h, lde_h_tlb)
+GEN_VEXT_LD_INDEX(vlxei16_32_v, int32_t, idx_h, lde_w_tlb)
+GEN_VEXT_LD_INDEX(vlxei16_64_v, int64_t, idx_h, lde_d_tlb)
+GEN_VEXT_LD_INDEX(vlxei32_8_v,  int8_t,  idx_w, lde_b_tlb)
+GEN_VEXT_LD_INDEX(vlxei32_16_v, int16_t, idx_w, lde_h_tlb)
+GEN_VEXT_LD_INDEX(vlxei32_32_v, int32_t, idx_w, lde_w_tlb)
+GEN_VEXT_LD_INDEX(vlxei32_64_v, int64_t, idx_w, lde_d_tlb)
+GEN_VEXT_LD_INDEX(vlxei64_8_v,  int8_t,  idx_d, lde_b_tlb)
+GEN_VEXT_LD_INDEX(vlxei64_16_v, int16_t, idx_d, lde_h_tlb)
+GEN_VEXT_LD_INDEX(vlxei64_32_v, int32_t, idx_d, lde_w_tlb)
+GEN_VEXT_LD_INDEX(vlxei64_64_v, int64_t, idx_d, lde_d_tlb)
 
 #define GEN_VEXT_ST_INDEX(NAME, ETYPE, INDEX_FN, STORE_FN)       \
 void HELPER(NAME)(void *vd, void *v0, target_ulong base,         \
@@ -450,39 +590,39 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong base,         \
                     GETPC());                                    \
 }
 
-GEN_VEXT_ST_INDEX(vsxei8_8_v,   int8_t,  idx_b, ste_b)
-GEN_VEXT_ST_INDEX(vsxei8_16_v,  int16_t, idx_b, ste_h)
-GEN_VEXT_ST_INDEX(vsxei8_32_v,  int32_t, idx_b, ste_w)
-GEN_VEXT_ST_INDEX(vsxei8_64_v,  int64_t, idx_b, ste_d)
-GEN_VEXT_ST_INDEX(vsxei16_8_v,  int8_t,  idx_h, ste_b)
-GEN_VEXT_ST_INDEX(vsxei16_16_v, int16_t, idx_h, ste_h)
-GEN_VEXT_ST_INDEX(vsxei16_32_v, int32_t, idx_h, ste_w)
-GEN_VEXT_ST_INDEX(vsxei16_64_v, int64_t, idx_h, ste_d)
-GEN_VEXT_ST_INDEX(vsxei32_8_v,  int8_t,  idx_w, ste_b)
-GEN_VEXT_ST_INDEX(vsxei32_16_v, int16_t, idx_w, ste_h)
-GEN_VEXT_ST_INDEX(vsxei32_32_v, int32_t, idx_w, ste_w)
-GEN_VEXT_ST_INDEX(vsxei32_64_v, int64_t, idx_w, ste_d)
-GEN_VEXT_ST_INDEX(vsxei64_8_v,  int8_t,  idx_d, ste_b)
-GEN_VEXT_ST_INDEX(vsxei64_16_v, int16_t, idx_d, ste_h)
-GEN_VEXT_ST_INDEX(vsxei64_32_v, int32_t, idx_d, ste_w)
-GEN_VEXT_ST_INDEX(vsxei64_64_v, int64_t, idx_d, ste_d)
+GEN_VEXT_ST_INDEX(vsxei8_8_v,   int8_t,  idx_b, ste_b_tlb)
+GEN_VEXT_ST_INDEX(vsxei8_16_v,  int16_t, idx_b, ste_h_tlb)
+GEN_VEXT_ST_INDEX(vsxei8_32_v,  int32_t, idx_b, ste_w_tlb)
+GEN_VEXT_ST_INDEX(vsxei8_64_v,  int64_t, idx_b, ste_d_tlb)
+GEN_VEXT_ST_INDEX(vsxei16_8_v,  int8_t,  idx_h, ste_b_tlb)
+GEN_VEXT_ST_INDEX(vsxei16_16_v, int16_t, idx_h, ste_h_tlb)
+GEN_VEXT_ST_INDEX(vsxei16_32_v, int32_t, idx_h, ste_w_tlb)
+GEN_VEXT_ST_INDEX(vsxei16_64_v, int64_t, idx_h, ste_d_tlb)
+GEN_VEXT_ST_INDEX(vsxei32_8_v,  int8_t,  idx_w, ste_b_tlb)
+GEN_VEXT_ST_INDEX(vsxei32_16_v, int16_t, idx_w, ste_h_tlb)
+GEN_VEXT_ST_INDEX(vsxei32_32_v, int32_t, idx_w, ste_w_tlb)
+GEN_VEXT_ST_INDEX(vsxei32_64_v, int64_t, idx_w, ste_d_tlb)
+GEN_VEXT_ST_INDEX(vsxei64_8_v,  int8_t,  idx_d, ste_b_tlb)
+GEN_VEXT_ST_INDEX(vsxei64_16_v, int16_t, idx_d, ste_h_tlb)
+GEN_VEXT_ST_INDEX(vsxei64_32_v, int32_t, idx_d, ste_w_tlb)
+GEN_VEXT_ST_INDEX(vsxei64_64_v, int64_t, idx_d, ste_d_tlb)
 
 /*
  * unit-stride fault-only-fisrt load instructions
  */
 static inline void
-vext_ldff(void *vd, void *v0, target_ulong base,
-          CPURISCVState *env, uint32_t desc,
-          vext_ldst_elem_fn *ldst_elem,
-          uint32_t log2_esz, uintptr_t ra)
+vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
+          uint32_t desc, vext_ldst_elem_fn_tlb *ldst_tlb,
+          vext_ldst_elem_fn_host *ldst_host, uint32_t log2_esz, uintptr_t ra)
 {
     uint32_t i, k, vl = 0;
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t max_elems = vext_max_elems(desc, log2_esz);
     uint32_t esz = 1 << log2_esz;
+    uint32_t msize = nf * esz;
     uint32_t vma = vext_vma(desc);
-    target_ulong addr, offset, remain;
+    target_ulong addr, offset, remain, page_split, elems;
     int mmu_index = riscv_env_mmu_index(env, false);
 
     VSTART_CHECK_EARLY_EXIT(env);
@@ -531,19 +671,63 @@ ProbeSuccess:
     if (vl != 0) {
         env->vl = vl;
     }
-    for (i = env->vstart; i < env->vl; i++) {
-        k = 0;
-        while (k < nf) {
-            if (!vm && !vext_elem_mask(v0, i)) {
-                /* set masked-off elements to 1s */
-                vext_set_elems_1s(vd, vma, (i + k * max_elems) * esz,
-                                  (i + k * max_elems + 1) * esz);
-                k++;
-                continue;
+
+    if (env->vstart < env->vl) {
+        if (vm) {
+            /* Calculate the page range of first page */
+            addr = base + ((env->vstart * nf) << log2_esz);
+            page_split = -(addr | TARGET_PAGE_MASK);
+            /* Get number of elements */
+            elems = page_split / msize;
+            if (unlikely(env->vstart + elems >= env->vl)) {
+                elems = env->vl - env->vstart;
             }
-            addr = base + ((i * nf + k) << log2_esz);
-            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
-            k++;
+
+            /* Load/store elements in the first page */
+            if (likely(elems)) {
+                vext_page_ldst_us(env, vd, addr, elems, nf, max_elems,
+                                  log2_esz, true, mmu_index, ldst_tlb,
+                                  ldst_host, ra);
+            }
+
+            /* Load/store elements in the second page */
+            if (unlikely(env->vstart < env->vl)) {
+                /* Cross page element */
+                if (unlikely(page_split % msize)) {
+                    for (k = 0; k < nf; k++) {
+                        addr = base + ((env->vstart * nf + k) << log2_esz);
+                        ldst_tlb(env, adjust_addr(env, addr),
+                                 env->vstart + k * max_elems, vd, ra);
+                    }
+                    env->vstart++;
+                }
+
+                addr = base + ((env->vstart * nf) << log2_esz);
+                /* Get number of elements of second page */
+                elems = env->vl - env->vstart;
+
+                /* Load/store elements in the second page */
+                vext_page_ldst_us(env, vd, addr, elems, nf, max_elems,
+                                  log2_esz, true, mmu_index, ldst_tlb,
+                                  ldst_host, ra);
+            }
+        } else {
+            for (i = env->vstart; i < env->vl; i++) {
+                k = 0;
+                while (k < nf) {
+                    if (!vext_elem_mask(v0, i)) {
+                        /* set masked-off elements to 1s */
+                        vext_set_elems_1s(vd, vma, (i + k * max_elems) * esz,
+                                          (i + k * max_elems + 1) * esz);
+                        k++;
+                        continue;
+                    }
+                    addr = base + ((i * nf + k) << log2_esz);
+                    ldst_tlb(env, adjust_addr(env, addr), i + k * max_elems,
+                             vd, ra);
+                    k++;
+                }
+            }
         }
     }
     env->vstart = 0;
@@ -551,18 +735,18 @@ ProbeSuccess:
     vext_set_tail_elems_1s(env->vl, vd, desc, nf, esz, max_elems);
 }
 
-#define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN)               \
-void HELPER(NAME)(void *vd, void *v0, target_ulong base,  \
-                  CPURISCVState *env, uint32_t desc)      \
-{                                                         \
-    vext_ldff(vd, v0, base, env, desc, LOAD_FN,           \
-              ctzl(sizeof(ETYPE)), GETPC());              \
+#define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN_TLB, LOAD_FN_HOST)   \
+void HELPER(NAME)(void *vd, void *v0, target_ulong base,        \
+                  CPURISCVState *env, uint32_t desc)            \
+{                                                               \
+    vext_ldff(vd, v0, base, env, desc, LOAD_FN_TLB,             \
+              LOAD_FN_HOST, ctzl(sizeof(ETYPE)), GETPC());      \
 }
 
-GEN_VEXT_LDFF(vle8ff_v,  int8_t,  lde_b)
-GEN_VEXT_LDFF(vle16ff_v, int16_t, lde_h)
-GEN_VEXT_LDFF(vle32ff_v, int32_t, lde_w)
-GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d)
+GEN_VEXT_LDFF(vle8ff_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LDFF(vle16ff_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LDFF(vle32ff_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d_tlb, lde_d_host)
 
 #define DO_SWAP(N, M) (M)
 #define DO_AND(N, M)  (N & M)
@@ -577,81 +761,93 @@ GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d)
 /*
  * load and store whole register instructions
  */
-static void
+static inline QEMU_ALWAYS_INLINE void
 vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
-                vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uintptr_t ra)
+                vext_ldst_elem_fn_tlb *ldst_tlb,
+                vext_ldst_elem_fn_host *ldst_host, uint32_t log2_esz,
+                uintptr_t ra, bool is_load)
 {
-    uint32_t i, k, off, pos;
+    target_ulong page_split, elems, addr;
     uint32_t nf = vext_nf(desc);
     uint32_t vlenb = riscv_cpu_cfg(env)->vlenb;
     uint32_t max_elems = vlenb >> log2_esz;
+    uint32_t evl = nf * max_elems;
+    uint32_t esz = 1 << log2_esz;
+    int mmu_index = riscv_env_mmu_index(env, false);
 
-    if (env->vstart >= ((vlenb * nf) >> log2_esz)) {
-        env->vstart = 0;
-        return;
+    /* Calculate the page range of first page */
+    addr = base + (env->vstart << log2_esz);
+    page_split = -(addr | TARGET_PAGE_MASK);
+    /* Get number of elements */
+    elems = page_split / esz;
+    if (unlikely(env->vstart + elems >= evl)) {
+        elems = evl - env->vstart;
     }
 
-    k = env->vstart / max_elems;
-    off = env->vstart % max_elems;
-
-    if (off) {
-        /* load/store rest of elements of current segment pointed by vstart */
-        for (pos = off; pos < max_elems; pos++, env->vstart++) {
-            target_ulong addr = base + ((pos + k * max_elems) << log2_esz);
-            ldst_elem(env, adjust_addr(env, addr), pos + k * max_elems, vd,
-                      ra);
-        }
-        k++;
+    /* Load/store elements in the first page */
+    if (likely(elems)) {
+        vext_page_ldst_us(env, vd, addr, elems, 1, max_elems, log2_esz,
+                          is_load, mmu_index, ldst_tlb, ldst_host, ra);
     }
 
-    /* load/store elements for rest of segments */
-    for (; k < nf; k++) {
-        for (i = 0; i < max_elems; i++, env->vstart++) {
-            target_ulong addr = base + ((i + k * max_elems) << log2_esz);
-            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
+    /* Load/store elements in the second page */
+    if (unlikely(env->vstart < evl)) {
+        /* Cross page element */
+        if (unlikely(page_split % esz)) {
+            addr = base + (env->vstart << log2_esz);
+            ldst_tlb(env, adjust_addr(env, addr), env->vstart, vd, ra);
+            env->vstart++;
         }
+
+        addr = base + (env->vstart << log2_esz);
+        /* Get number of elements of second page */
+        elems = evl - env->vstart;
+
+        /* Load/store elements in the second page */
+        vext_page_ldst_us(env, vd, addr, elems, 1, max_elems, log2_esz,
+                          is_load, mmu_index, ldst_tlb, ldst_host, ra);
     }
 
     env->vstart = 0;
 }
 
-#define GEN_VEXT_LD_WHOLE(NAME, ETYPE, LOAD_FN)      \
-void HELPER(NAME)(void *vd, target_ulong base,       \
-                  CPURISCVState *env, uint32_t desc) \
-{                                                    \
-    vext_ldst_whole(vd, base, env, desc, LOAD_FN,    \
-                    ctzl(sizeof(ETYPE)), GETPC());   \
+#define GEN_VEXT_LD_WHOLE(NAME, ETYPE, LOAD_FN_TLB, LOAD_FN_HOST)   \
+void HELPER(NAME)(void *vd, target_ulong base, CPURISCVState *env,  \
+                  uint32_t desc)                                    \
+{                                                                   \
+    vext_ldst_whole(vd, base, env, desc, LOAD_FN_TLB, LOAD_FN_HOST, \
+                    ctzl(sizeof(ETYPE)), GETPC(), true);            \
 }
 
-GEN_VEXT_LD_WHOLE(vl1re8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_WHOLE(vl1re16_v, int16_t, lde_h)
-GEN_VEXT_LD_WHOLE(vl1re32_v, int32_t, lde_w)
-GEN_VEXT_LD_WHOLE(vl1re64_v, int64_t, lde_d)
-GEN_VEXT_LD_WHOLE(vl2re8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_WHOLE(vl2re16_v, int16_t, lde_h)
-GEN_VEXT_LD_WHOLE(vl2re32_v, int32_t, lde_w)
-GEN_VEXT_LD_WHOLE(vl2re64_v, int64_t, lde_d)
-GEN_VEXT_LD_WHOLE(vl4re8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_WHOLE(vl4re16_v, int16_t, lde_h)
-GEN_VEXT_LD_WHOLE(vl4re32_v, int32_t, lde_w)
-GEN_VEXT_LD_WHOLE(vl4re64_v, int64_t, lde_d)
-GEN_VEXT_LD_WHOLE(vl8re8_v,  int8_t,  lde_b)
-GEN_VEXT_LD_WHOLE(vl8re16_v, int16_t, lde_h)
-GEN_VEXT_LD_WHOLE(vl8re32_v, int32_t, lde_w)
-GEN_VEXT_LD_WHOLE(vl8re64_v, int64_t, lde_d)
+GEN_VEXT_LD_WHOLE(vl1re8_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LD_WHOLE(vl1re16_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LD_WHOLE(vl1re32_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LD_WHOLE(vl1re64_v, int64_t, lde_d_tlb, lde_d_host)
+GEN_VEXT_LD_WHOLE(vl2re8_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LD_WHOLE(vl2re16_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LD_WHOLE(vl2re32_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LD_WHOLE(vl2re64_v, int64_t, lde_d_tlb, lde_d_host)
+GEN_VEXT_LD_WHOLE(vl4re8_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LD_WHOLE(vl4re16_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LD_WHOLE(vl4re32_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LD_WHOLE(vl4re64_v, int64_t, lde_d_tlb, lde_d_host)
+GEN_VEXT_LD_WHOLE(vl8re8_v,  int8_t,  lde_b_tlb, lde_b_host)
+GEN_VEXT_LD_WHOLE(vl8re16_v, int16_t, lde_h_tlb, lde_h_host)
+GEN_VEXT_LD_WHOLE(vl8re32_v, int32_t, lde_w_tlb, lde_w_host)
+GEN_VEXT_LD_WHOLE(vl8re64_v, int64_t, lde_d_tlb, lde_d_host)
 
-#define GEN_VEXT_ST_WHOLE(NAME, ETYPE, STORE_FN)     \
-void HELPER(NAME)(void *vd, target_ulong base,       \
-                  CPURISCVState *env, uint32_t desc) \
-{                                                    \
-    vext_ldst_whole(vd, base, env, desc, STORE_FN,   \
-                    ctzl(sizeof(ETYPE)), GETPC());   \
+#define GEN_VEXT_ST_WHOLE(NAME, ETYPE, STORE_FN_TLB, STORE_FN_HOST)     \
+void HELPER(NAME)(void *vd, target_ulong base, CPURISCVState *env,      \
+                  uint32_t desc)                                        \
+{                                                                       \
+    vext_ldst_whole(vd, base, env, desc, STORE_FN_TLB, STORE_FN_HOST,   \
+                    ctzl(sizeof(ETYPE)), GETPC(), false);               \
 }
 
-GEN_VEXT_ST_WHOLE(vs1r_v, int8_t, ste_b)
-GEN_VEXT_ST_WHOLE(vs2r_v, int8_t, ste_b)
-GEN_VEXT_ST_WHOLE(vs4r_v, int8_t, ste_b)
-GEN_VEXT_ST_WHOLE(vs8r_v, int8_t, ste_b)
+GEN_VEXT_ST_WHOLE(vs1r_v, int8_t, ste_b_tlb, ste_b_host)
+GEN_VEXT_ST_WHOLE(vs2r_v, int8_t, ste_b_tlb, ste_b_host)
+GEN_VEXT_ST_WHOLE(vs4r_v, int8_t, ste_b_tlb, ste_b_host)
+GEN_VEXT_ST_WHOLE(vs8r_v, int8_t, ste_b_tlb, ste_b_host)
 
 /*
  * Vector Integer Arithmetic Instructions
@@ -5132,7 +5328,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     }                                                                     \
     env->vstart = 0;                                                      \
     /* set tail elements to 1s */                                         \
-    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);              \
+    vext_set_elems_1s(vd, vta, num * esz, total_elems * esz);             \
 }
 
 /* Compress into vd elements of vs2 where vs1 is enabled */

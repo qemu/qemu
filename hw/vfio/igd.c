@@ -88,6 +88,9 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x2200:
     case 0x5900:
         return 8;
+    /* CoffeeLake */
+    case 0x3e00:
+        return 9;
     /* ElkhartLake */
     case 0x4500:
         return 11;
@@ -498,7 +501,7 @@ static int igd_get_stolen_mb(int gen, uint32_t gmch)
         if (gms < 0xf0)
             return gms * 32;
         else
-            return gms * 4 + 4;
+            return (gms - 0xf0) * 4 + 4;
     }
 }
 

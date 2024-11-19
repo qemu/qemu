@@ -51,6 +51,7 @@ static Property virtio_ccw_net_properties[] = {
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
+    DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
     DEFINE_PROP_END_OF_LIST(),
 };
 

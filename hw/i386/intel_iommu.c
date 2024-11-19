@@ -2532,15 +2532,51 @@ static bool vtd_get_inv_desc(IntelIOMMUState *s,
     return true;
 }
 
+static bool vtd_inv_desc_reserved_check(IntelIOMMUState *s,
+                                        VTDInvDesc *inv_desc,
+                                        uint64_t mask[4], bool dw,
+                                        const char *func_name,
+                                        const char *desc_type)
+{
+    if (s->iq_dw) {
+        if (inv_desc->val[0] & mask[0] || inv_desc->val[1] & mask[1] ||
+            inv_desc->val[2] & mask[2] || inv_desc->val[3] & mask[3]) {
+            error_report("%s: invalid %s desc val[3]: 0x%"PRIx64
+                         " val[2]: 0x%"PRIx64" val[1]=0x%"PRIx64
+                         " val[0]=0x%"PRIx64" (reserved nonzero)",
+                         func_name, desc_type, inv_desc->val[3],
+                         inv_desc->val[2], inv_desc->val[1],
+                         inv_desc->val[0]);
+            return false;
+        }
+    } else {
+        if (dw) {
+            error_report("%s: 256-bit %s desc in 128-bit invalidation queue",
+                         func_name, desc_type);
+            return false;
+        }
+
+        if (inv_desc->lo & mask[0] || inv_desc->hi & mask[1]) {
+            error_report("%s: invalid %s desc: hi=%"PRIx64", lo=%"PRIx64
+                         " (reserved nonzero)", func_name, desc_type,
+                         inv_desc->hi, inv_desc->lo);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 {
-    if ((inv_desc->hi & VTD_INV_DESC_WAIT_RSVD_HI) ||
-        (inv_desc->lo & VTD_INV_DESC_WAIT_RSVD_LO)) {
-        error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
-                          " (reserved nonzero)", __func__, inv_desc->hi,
-                          inv_desc->lo);
+    uint64_t mask[4] = {VTD_INV_DESC_WAIT_RSVD_LO, VTD_INV_DESC_WAIT_RSVD_HI,
+                        VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
+
+    if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
+                                     __func__, "wait")) {
         return false;
     }
+
     if (inv_desc->lo & VTD_INV_DESC_WAIT_SW) {
         /* Status Write */
         uint32_t status_data = (uint32_t)(inv_desc->lo >>
@@ -2574,13 +2610,14 @@ static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
                                            VTDInvDesc *inv_desc)
 {
     uint16_t sid, fmask;
+    uint64_t mask[4] = {VTD_INV_DESC_CC_RSVD, VTD_INV_DESC_ALL_ONE,
+                        VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
 
-    if ((inv_desc->lo & VTD_INV_DESC_CC_RSVD) || inv_desc->hi) {
-        error_report_once("%s: invalid cc inv desc: hi=%"PRIx64", lo=%"PRIx64
-                          " (reserved nonzero)", __func__, inv_desc->hi,
-                          inv_desc->lo);
+    if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
+                                     __func__, "cc inv")) {
         return false;
     }
+
     switch (inv_desc->lo & VTD_INV_DESC_CC_G) {
     case VTD_INV_DESC_CC_DOMAIN:
         trace_vtd_inv_desc_cc_domain(
@@ -2610,12 +2647,11 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     uint16_t domain_id;
     uint8_t am;
     hwaddr addr;
+    uint64_t mask[4] = {VTD_INV_DESC_IOTLB_RSVD_LO, VTD_INV_DESC_IOTLB_RSVD_HI,
+                        VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
 
-    if ((inv_desc->lo & VTD_INV_DESC_IOTLB_RSVD_LO) ||
-        (inv_desc->hi & VTD_INV_DESC_IOTLB_RSVD_HI)) {
-        error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
-                          ", lo=0x%"PRIx64" (reserved bits unzero)",
-                          __func__, inv_desc->hi, inv_desc->lo);
+    if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
+                                     __func__, "iotlb inv")) {
         return false;
     }
 
@@ -2656,6 +2692,14 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
                                      VTDInvDesc *inv_desc)
 {
+    uint64_t mask[4] = {VTD_INV_DESC_IEC_RSVD, VTD_INV_DESC_ALL_ONE,
+                        VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
+
+    if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
+                                     __func__, "iec inv")) {
+        return false;
+    }
+
     trace_vtd_inv_desc_iec(inv_desc->iec.granularity,
                            inv_desc->iec.index,
                            inv_desc->iec.index_mask);
@@ -2705,18 +2749,18 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     hwaddr addr;
     uint16_t sid;
     bool size;
+    uint64_t mask[4] = {VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO,
+                        VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI,
+                        VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
+
+    if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
+                                     __func__, "dev-iotlb inv")) {
+        return false;
+    }
 
     addr = VTD_INV_DESC_DEVICE_IOTLB_ADDR(inv_desc->hi);
     sid = VTD_INV_DESC_DEVICE_IOTLB_SID(inv_desc->lo);
     size = VTD_INV_DESC_DEVICE_IOTLB_SIZE(inv_desc->hi);
-
-    if ((inv_desc->lo & VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO) ||
-        (inv_desc->hi & VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI)) {
-        error_report_once("%s: invalid dev-iotlb inv desc: hi=%"PRIx64
-                          ", lo=%"PRIx64" (reserved nonzero)", __func__,
-                          inv_desc->hi, inv_desc->lo);
-        return false;
-    }
 
     /*
      * Using sid is OK since the guest should have finished the
@@ -2847,6 +2891,7 @@ static void vtd_handle_iqt_write(IntelIOMMUState *s)
     if (s->iq_dw && (val & VTD_IQT_QT_256_RSV_BIT)) {
         error_report_once("%s: RSV bit is set: val=0x%"PRIx64,
                           __func__, val);
+        vtd_handle_inv_queue_error(s);
         return;
     }
     s->iq_tail = VTD_IQT_QT(s->iq_dw, val);
@@ -3372,6 +3417,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_BOOL("x-pasid-mode", IntelIOMMUState, pasid, false),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
+    DEFINE_PROP_BOOL("stale-tm", IntelIOMMUState, stale_tm, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -4138,15 +4184,15 @@ static void vtd_init(IntelIOMMUState *s)
      */
     vtd_spte_rsvd[0] = ~0ULL;
     vtd_spte_rsvd[1] = VTD_SPTE_PAGE_L1_RSVD_MASK(s->aw_bits,
-                                                  x86_iommu->dt_supported);
+                                        x86_iommu->dt_supported && s->stale_tm);
     vtd_spte_rsvd[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(s->aw_bits);
     vtd_spte_rsvd[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(s->aw_bits);
     vtd_spte_rsvd[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(s->aw_bits);
 
     vtd_spte_rsvd_large[2] = VTD_SPTE_LPAGE_L2_RSVD_MASK(s->aw_bits,
-                                                    x86_iommu->dt_supported);
+                                        x86_iommu->dt_supported && s->stale_tm);
     vtd_spte_rsvd_large[3] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits,
-                                                    x86_iommu->dt_supported);
+                                        x86_iommu->dt_supported && s->stale_tm);
 
     if (s->scalable_mode || s->snoop_control) {
         vtd_spte_rsvd[1] &= ~VTD_SPTE_SNP;

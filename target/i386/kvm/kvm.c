@@ -1923,7 +1923,8 @@ static uint32_t kvm_x86_build_cpuid(CPUX86State *env,
         case 0x7:
         case 0x14:
         case 0x1d:
-        case 0x1e: {
+        case 0x1e:
+        case 0x24: {
             uint32_t times;
 
             c->function = i;

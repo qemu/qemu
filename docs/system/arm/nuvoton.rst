@@ -1,5 +1,5 @@
-Nuvoton iBMC boards (``*-bmc``, ``npcm750-evb``, ``quanta-gsj``)
-================================================================
+Nuvoton iBMC boards (``kudo-bmc``, ``mori-bmc``, ``npcm750-evb``, ``quanta-gbs-bmc``, ``quanta-gsj``)
+=====================================================================================================
 
 The `Nuvoton iBMC`_ chips (NPCM7xx) are a family of ARM-based SoCs that are
 designed to be used as Baseboard Management Controllers (BMCs) in various

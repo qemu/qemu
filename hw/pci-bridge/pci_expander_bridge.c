@@ -38,7 +38,6 @@ DECLARE_INSTANCE_CHECKER(PXBBus, PXB_BUS,
 DECLARE_INSTANCE_CHECKER(PXBBus, PXB_PCIE_BUS,
                          TYPE_PXB_PCIE_BUS)
 
-#define TYPE_PXB_CXL_BUS "pxb-cxl-bus"
 DECLARE_INSTANCE_CHECKER(PXBBus, PXB_CXL_BUS,
                          TYPE_PXB_CXL_BUS)
 
@@ -85,12 +84,25 @@ static uint16_t pxb_bus_numa_node(PCIBus *bus)
     return pxb->numa_node;
 }
 
+static void prop_pxb_uid_get(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    uint32_t uid = pci_bus_num(PCI_BUS(obj));
+
+    visit_type_uint32(v, name, &uid, errp);
+}
+
 static void pxb_bus_class_init(ObjectClass *class, void *data)
 {
     PCIBusClass *pbc = PCI_BUS_CLASS(class);
 
     pbc->bus_num = pxb_bus_num;
     pbc->numa_node = pxb_bus_numa_node;
+
+    object_class_property_add(class, "acpi_uid", "uint32",
+                              prop_pxb_uid_get, NULL, NULL, NULL);
+    object_class_property_set_description(class, "acpi_uid",
+        "ACPI Unique ID used to distinguish this PCI Host Bridge / ACPI00016");
 }
 
 static const TypeInfo pxb_bus_info = {
@@ -318,7 +330,7 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
            0;
 }
 
-static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
+static bool pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
                                    Error **errp)
 {
     PXBDev *pxb = PXB_DEV(dev);
@@ -330,13 +342,13 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
 
     if (ms->numa_state == NULL) {
         error_setg(errp, "NUMA is not supported by this machine-type");
-        return;
+        return false;
     }
 
     if (pxb->numa_node != NUMA_NODE_UNASSIGNED &&
         pxb->numa_node >= ms->numa_state->num_nodes) {
         error_setg(errp, "Illegal numa node %d", pxb->numa_node);
-        return;
+        return false;
     }
 
     if (dev->qdev.id && *dev->qdev.id) {
@@ -382,12 +394,13 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
 
     pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
-    return;
+    return true;
 
 err_register_bus:
     object_unref(OBJECT(bds));
     object_unparent(OBJECT(bus));
     object_unref(OBJECT(ds));
+    return false;
 }
 
 static void pxb_dev_realize(PCIDevice *dev, Error **errp)
@@ -488,7 +501,9 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
-    pxb_dev_realize_common(dev, CXL, errp);
+    if (!pxb_dev_realize_common(dev, CXL, errp)) {
+        return;
+    }
     pxb_cxl_dev_reset(DEVICE(dev));
 }
 

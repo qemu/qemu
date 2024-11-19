@@ -815,7 +815,7 @@ static uint32_t exynos4210_ltick_cnt_get_cnto(struct tick_timer *s)
         /* Both are counting */
         icnto = remain / s->tcntb;
         if (icnto) {
-            tcnto = remain % (icnto * s->tcntb);
+            tcnto = remain % ((uint64_t)icnto * s->tcntb);
         } else {
             tcnto = remain % s->tcntb;
         }

@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+import stat
 import time
 
 from qemu_test import QemuSystemTest
@@ -77,12 +78,17 @@ class TuxRunBaselineTest(QemuSystemTest):
         kernel_image =  kernel_asset.fetch()
         disk_image_zst = rootfs_asset.fetch()
 
+        disk_image = self.workdir + "/rootfs.ext4"
+
         run_cmd([self.zstd, "-f", "-d", disk_image_zst,
-                 "-o", self.workdir + "/rootfs.ext4"])
+                 "-o", disk_image])
+        # zstd copies source archive permissions for the output
+        # file, so must make this writable for QEMU
+        os.chmod(disk_image, stat.S_IRUSR | stat.S_IWUSR)
 
         dtb = dtb_asset.fetch() if dtb_asset is not None else None
 
-        return (kernel_image, self.workdir + "/rootfs.ext4", dtb)
+        return (kernel_image, disk_image, dtb)
 
     def prepare_run(self, kernel, disk, drive, dtb=None, console_index=0):
         """

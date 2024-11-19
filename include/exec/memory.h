@@ -1104,7 +1104,14 @@ struct AddressSpace {
     QTAILQ_HEAD(, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 
-    /* Maximum DMA bounce buffer size used for indirect memory map requests */
+    /*
+     * Maximum DMA bounce buffer size used for indirect memory map requests.
+     * This limits the total size of bounce buffer allocations made for
+     * DMA requests to indirect memory regions within this AddressSpace. DMA
+     * requests that exceed the limit (e.g. due to overly large requested size
+     * or concurrent DMA requests having claimed too much buffer space) will be
+     * rejected and left to the caller to handle.
+     */
     size_t max_bounce_buffer_size;
     /* Total size of bounce buffers currently allocated, atomically accessed */
     size_t bounce_buffer_size;

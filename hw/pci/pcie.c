@@ -86,7 +86,13 @@ pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
      * Specification, Revision 1.1., or subsequent PCI Express Base
      * Specification revisions.
      */
-    pci_set_long(exp_cap + PCI_EXP_DEVCAP, PCI_EXP_DEVCAP_RBER);
+    uint32_t devcap = PCI_EXP_DEVCAP_RBER;
+
+    if (dev->cap_present & QEMU_PCIE_EXT_TAG) {
+        devcap = PCI_EXP_DEVCAP_RBER | PCI_EXP_DEVCAP_EXT_TAG;
+    }
+
+    pci_set_long(exp_cap + PCI_EXP_DEVCAP, devcap);
 
     pci_set_long(exp_cap + PCI_EXP_LNKCAP,
                  (port << PCI_EXP_LNKCAP_PN_SHIFT) |
@@ -105,6 +111,73 @@ pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
     pci_set_word(cmask + PCI_EXP_LNKSTA, 0);
 }
 
+/* Includes setting the target speed default */
+static void pcie_cap_fill_lnk(uint8_t *exp_cap, PCIExpLinkWidth width,
+                              PCIExpLinkSpeed speed)
+{
+    /* Clear and fill LNKCAP from what was configured above */
+    pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP,
+                                 PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
+    pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
+                               QEMU_PCI_EXP_LNKCAP_MLW(width) |
+                               QEMU_PCI_EXP_LNKCAP_MLS(speed));
+
+    if (speed > QEMU_PCI_EXP_LNK_2_5GT) {
+        /*
+         * Target Link Speed defaults to the highest link speed supported by
+         * the component.  2.5GT/s devices are permitted to hardwire to zero.
+         */
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKCTL2,
+                                     PCI_EXP_LNKCTL2_TLS);
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKCTL2,
+                                   QEMU_PCI_EXP_LNKCAP_MLS(speed) &
+                                   PCI_EXP_LNKCTL2_TLS);
+    }
+
+    /*
+     * 2.5 & 5.0GT/s can be fully described by LNKCAP, but 8.0GT/s is
+     * actually a reference to the highest bit supported in this register.
+     * We assume the device supports all link speeds.
+     */
+    if (speed > QEMU_PCI_EXP_LNK_5GT) {
+        pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP2, ~0U);
+        pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                   PCI_EXP_LNKCAP2_SLS_2_5GB |
+                                   PCI_EXP_LNKCAP2_SLS_5_0GB |
+                                   PCI_EXP_LNKCAP2_SLS_8_0GB);
+        if (speed > QEMU_PCI_EXP_LNK_8GT) {
+            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                       PCI_EXP_LNKCAP2_SLS_16_0GB);
+        }
+        if (speed > QEMU_PCI_EXP_LNK_16GT) {
+            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                       PCI_EXP_LNKCAP2_SLS_32_0GB);
+        }
+        if (speed > QEMU_PCI_EXP_LNK_32GT) {
+            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                       PCI_EXP_LNKCAP2_SLS_64_0GB);
+        }
+    }
+}
+
+void pcie_cap_fill_link_ep_usp(PCIDevice *dev, PCIExpLinkWidth width,
+                               PCIExpLinkSpeed speed)
+{
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+
+    /*
+     * For an end point or USP need to set the current status as well
+     * as the capabilities.
+     */
+    pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                 PCI_EXP_LNKSTA_CLS | PCI_EXP_LNKSTA_NLW);
+    pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                               QEMU_PCI_EXP_LNKSTA_NLW(width) |
+                               QEMU_PCI_EXP_LNKSTA_CLS(speed));
+
+    pcie_cap_fill_lnk(exp_cap, width, speed);
+}
+
 static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
 {
     PCIESlot *s = (PCIESlot *)object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT);
@@ -114,13 +187,6 @@ static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
     if (!s) {
         return;
     }
-
-    /* Clear and fill LNKCAP from what was configured above */
-    pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP,
-                                 PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
-    pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
-                               QEMU_PCI_EXP_LNKCAP_MLW(s->width) |
-                               QEMU_PCI_EXP_LNKCAP_MLS(s->speed));
 
     /*
      * Link bandwidth notification is required for all root ports and
@@ -144,42 +210,9 @@ static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
         pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
                                    PCI_EXP_LNKCAP_DLLLARC);
         /* the PCI_EXP_LNKSTA_DLLLA will be set in the hotplug function */
-
-        /*
-         * Target Link Speed defaults to the highest link speed supported by
-         * the component.  2.5GT/s devices are permitted to hardwire to zero.
-         */
-        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKCTL2,
-                                     PCI_EXP_LNKCTL2_TLS);
-        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKCTL2,
-                                   QEMU_PCI_EXP_LNKCAP_MLS(s->speed) &
-                                   PCI_EXP_LNKCTL2_TLS);
     }
 
-    /*
-     * 2.5 & 5.0GT/s can be fully described by LNKCAP, but 8.0GT/s is
-     * actually a reference to the highest bit supported in this register.
-     * We assume the device supports all link speeds.
-     */
-    if (s->speed > QEMU_PCI_EXP_LNK_5GT) {
-        pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP2, ~0U);
-        pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
-                                   PCI_EXP_LNKCAP2_SLS_2_5GB |
-                                   PCI_EXP_LNKCAP2_SLS_5_0GB |
-                                   PCI_EXP_LNKCAP2_SLS_8_0GB);
-        if (s->speed > QEMU_PCI_EXP_LNK_8GT) {
-            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
-                                       PCI_EXP_LNKCAP2_SLS_16_0GB);
-        }
-        if (s->speed > QEMU_PCI_EXP_LNK_16GT) {
-            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
-                                       PCI_EXP_LNKCAP2_SLS_32_0GB);
-        }
-        if (s->speed > QEMU_PCI_EXP_LNK_32GT) {
-            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
-                                       PCI_EXP_LNKCAP2_SLS_64_0GB);
-        }
-    }
+    pcie_cap_fill_lnk(exp_cap, s->width, s->speed);
 }
 
 int pcie_cap_init(PCIDevice *dev, uint8_t offset,

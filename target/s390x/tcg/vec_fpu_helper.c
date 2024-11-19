@@ -621,8 +621,8 @@ static void vfma32(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     int i;
 
     for (i = 0; i < 4; i++) {
-        const float32 a = s390_vec_read_float32(v2, i);
-        const float32 b = s390_vec_read_float32(v3, i);
+        const float32 a = s390_vec_read_float32(v3, i);
+        const float32 b = s390_vec_read_float32(v2, i);
         const float32 c = s390_vec_read_float32(v4, i);
         float32 ret = float32_muladd(a, b, c, flags, &env->fpu_status);
 
@@ -645,8 +645,8 @@ static void vfma64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     int i;
 
     for (i = 0; i < 2; i++) {
-        const float64 a = s390_vec_read_float64(v2, i);
-        const float64 b = s390_vec_read_float64(v3, i);
+        const float64 a = s390_vec_read_float64(v3, i);
+        const float64 b = s390_vec_read_float64(v2, i);
         const float64 c = s390_vec_read_float64(v4, i);
         const float64 ret = float64_muladd(a, b, c, flags, &env->fpu_status);
 
@@ -664,8 +664,8 @@ static void vfma128(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                     const S390Vector *v4, CPUS390XState *env, bool s, int flags,
                     uintptr_t retaddr)
 {
-    const float128 a = s390_vec_read_float128(v2);
-    const float128 b = s390_vec_read_float128(v3);
+    const float128 a = s390_vec_read_float128(v3);
+    const float128 b = s390_vec_read_float128(v2);
     const float128 c = s390_vec_read_float128(v4);
     uint8_t vxc, vec_exc = 0;
     float128 ret;

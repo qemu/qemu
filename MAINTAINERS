@@ -132,6 +132,7 @@ F: configs/targets/mips*
 
 X86 general architecture support
 M: Paolo Bonzini <pbonzini@redhat.com>
+R: Zhao Liu <zhao1.liu@intel.com>
 S: Maintained
 F: configs/devices/i386-softmmu/default.mak
 F: configs/targets/i386-softmmu.mak
@@ -328,6 +329,7 @@ F: hw/intc/riscv*
 F: include/hw/riscv/
 F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
+F: tests/functional/test_riscv*
 F: tests/tcg/riscv64/
 
 RISC-V XThead* extensions
@@ -640,6 +642,7 @@ F: hw/*/allwinner-h3*
 F: include/hw/*/allwinner-h3*
 F: hw/arm/orangepi.c
 F: docs/system/arm/orangepi.rst
+F: tests/functional/test_arm_orangepi.py
 
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -716,6 +719,7 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/*/exynos*
 F: include/hw/*/exynos*
+F: docs/system/arm/exynos.rst
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
@@ -790,6 +794,7 @@ F: hw/arm/fsl-imx6ul.c
 F: hw/misc/imx6ul_ccm.c
 F: include/hw/arm/fsl-imx6ul.h
 F: include/hw/misc/imx6ul_ccm.h
+F: docs/system/arm/mcimx6ul-evk.rst
 
 MCIMX7D SABRE / i.MX7
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -803,6 +808,7 @@ F: include/hw/arm/fsl-imx7.h
 F: include/hw/misc/imx7_*.h
 F: hw/pci-host/designware.c
 F: include/hw/pci-host/designware.h
+F: docs/system/arm/mcimx7d-sabre.rst
 
 MPS2 / MPS3
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -918,7 +924,7 @@ F: hw/misc/sbsa_ec.c
 F: hw/watchdog/sbsa_gwdt.c
 F: include/hw/watchdog/sbsa_gwdt.h
 F: docs/system/arm/sbsa.rst
-F: tests/functional/test_aarch64_sbsaref.py
+F: tests/functional/test_aarch64_sbsaref*.py
 
 Sharp SL-5500 (Collie) PDA
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -929,6 +935,7 @@ F: hw/arm/strongarm*
 F: hw/gpio/zaurus.c
 F: include/hw/arm/sharpsl.h
 F: docs/system/arm/collie.rst
+F: tests/functional/test_arm_collie.py
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1016,6 +1023,7 @@ F: include/hw/ssi/xilinx_spips.h
 F: hw/display/dpcd.c
 F: include/hw/display/dpcd.h
 F: docs/system/arm/xlnx-versal-virt.rst
+F: docs/system/arm/xlnx-zcu102.rst
 
 Xilinx Versal OSPI
 M: Francisco Iglesias <francisco.iglesias@amd.com>
@@ -1122,6 +1130,7 @@ F: include/hw/*/*aspeed*
 F: hw/net/ftgmac100.c
 F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst
+F: docs/system/arm/fby35.rst
 F: tests/*/*aspeed*
 F: tests/*/*ast2700*
 F: hw/arm/fby35.c
@@ -1465,7 +1474,6 @@ F: tests/functional/test_ppc_40p.py
 sPAPR (pseries)
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Daniel Henrique Barboza <danielhb413@gmail.com>
-R: David Gibson <david@gibson.dropbear.id.au>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
@@ -1489,7 +1497,6 @@ F: tests/functional/test_ppc64_hv.py
 F: tests/functional/test_ppc64_tuxrun.py
 
 PowerNV (Non-Virtualized)
-M: Cédric Le Goater <clg@kaod.org>
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Frédéric Barrat <fbarrat@linux.ibm.com>
 L: qemu-ppc@nongnu.org
@@ -1499,8 +1506,10 @@ F: hw/ppc/pnv*
 F: hw/intc/pnv*
 F: hw/intc/xics_pnv.c
 F: hw/pci-host/pnv*
+F: hw/ssi/pnv_spi.c
 F: include/hw/ppc/pnv*
 F: include/hw/pci-host/pnv*
+F: include/hw/ssi/pnv_spi*
 F: pc-bios/skiboot.lid
 F: tests/qtest/pnv*
 F: tests/functional/test_ppc64_powernv.py
@@ -1555,7 +1564,6 @@ F: tests/functional/test_ppc_amiga.py
 
 Virtual Open Firmware (VOF)
 M: Alexey Kardashevskiy <aik@ozlabs.ru>
-R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/spapr_vof*
@@ -1832,6 +1840,16 @@ F: docs/system/i386/microvm.rst
 F: hw/i386/microvm.c
 F: include/hw/i386/microvm.h
 F: pc-bios/bios-microvm.bin
+
+nitro-enclave
+M: Alexander Graf <graf@amazon.com>
+M: Dorjoy Chowdhury <dorjoychy111@gmail.com>
+S: Maintained
+F: hw/core/eif.c
+F: hw/core/eif.h
+F: hw/i386/nitro_enclave.c
+F: include/hw/i386/nitro_enclave.h
+F: docs/system/i386/nitro-enclave.rst
 
 Machine core
 M: Eduardo Habkost <eduardo@habkost.net>
@@ -2292,6 +2310,16 @@ F: include/sysemu/rng*.h
 F: backends/rng*.c
 F: tests/qtest/virtio-rng-test.c
 
+virtio-nsm
+M: Alexander Graf <graf@amazon.com>
+M: Dorjoy Chowdhury <dorjoychy111@gmail.com>
+S: Maintained
+F: hw/virtio/cbor-helpers.c
+F: hw/virtio/virtio-nsm.c
+F: hw/virtio/virtio-nsm-pci.c
+F: include/hw/virtio/cbor-helpers.h
+F: include/hw/virtio/virtio-nsm.h
+
 vhost-user-stubs
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
@@ -2611,12 +2639,12 @@ F: tests/qtest/fw_cfg-test.c
 T: git https://github.com/philmd/qemu.git fw_cfg-next
 
 XIVE
-M: Cédric Le Goater <clg@kaod.org>
 R: Frédéric Barrat <fbarrat@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/*/*xive*
 F: include/hw/*/*xive*
+F: tests/qtest/*xive*
 F: docs/*/*xive*
 
 Renesas peripherals
@@ -2985,6 +3013,7 @@ F: gdb-xml/
 F: tests/tcg/multiarch/gdbstub/*
 F: scripts/feature_to_c.py
 F: scripts/probe-gdb-support.py
+T: git https://gitlab.com/stsquad/qemu gdbstub/next
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -3309,6 +3338,10 @@ F: rust/qemu-api
 F: rust/qemu-api-macros
 F: rust/rustfmt.toml
 
+Rust-related patches CC here
+L: qemu-rust@nongnu.org
+F: rust/
+
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
@@ -3530,7 +3563,7 @@ F: include/migration/failover.h
 F: docs/COLO-FT.txt
 
 COLO Proxy
-M: Zhang Chen <chen.zhang@intel.com>
+M: Zhang Chen <zhangckid@gmail.com>
 M: Li Zhijian <lizhijian@fujitsu.com>
 S: Supported
 F: docs/colo-proxy.txt
@@ -3708,6 +3741,7 @@ F: include/tcg/
 
 TCG Plugins
 M: Alex Bennée <alex.bennee@linaro.org>
+T: git https://gitlab.com/stsquad/qemu plugins/next
 R: Alexandre Iooss <erdnaxe@crans.org>
 R: Mahmoud Mandour <ma.mandourr@gmail.com>
 R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
@@ -3715,7 +3749,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/tcg/plugins/
-F: tests/avocado/tcg_plugins.py
+F: tests/functional/test_aarch64_tcg_plugins.py
 F: contrib/plugins/
 
 AArch64 TCG target
@@ -4081,6 +4115,7 @@ Build and test automation
 -------------------------
 Build and test automation, general continuous integration
 M: Alex Bennée <alex.bennee@linaro.org>
+T: git https://gitlab.com/stsquad/qemu testing/next
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 M: Thomas Huth <thuth@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
@@ -4210,6 +4245,7 @@ F: docs/devel/docs.rst
 
 Rust build system integration
 M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+L: qemu-rust@nongnu.org
 S: Maintained
 F: scripts/rust/
 F: rust/.gitignore

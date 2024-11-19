@@ -217,16 +217,24 @@ void msa_translate_init(void);
 void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
+bool decode_64bit_enabled(DisasContext *ctx);
+
 /* decodetree generated */
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
 bool decode_ase_msa(DisasContext *ctx, uint32_t insn);
 bool decode_ext_txx9(DisasContext *ctx, uint32_t insn);
+bool decode_ext_loongson(DisasContext *ctx, uint32_t insn);
 #if defined(TARGET_MIPS64)
 bool decode_ase_lcsr(DisasContext *ctx, uint32_t insn);
 bool decode_ext_tx79(DisasContext *ctx, uint32_t insn);
 bool decode_ext_octeon(DisasContext *ctx, uint32_t insn);
 #endif
 bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
+
+static inline bool disas_mt_available(DisasContext *ctx)
+{
+    return ctx->CP0_Config3 & (1 << CP0C3_MT);
+}
 
 /*
  * Helpers for implementing sets of trans_* functions.

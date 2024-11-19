@@ -53,7 +53,6 @@ struct SpaprPhbState {
     uint32_t index;
     uint64_t buid;
     char *dtbusname;
-    bool dr_enabled;
 
     MemoryRegion memspace, iospace;
     hwaddr mem_win_addr, mem_win_size, mem64_win_addr, mem64_win_size;
@@ -84,10 +83,6 @@ struct SpaprPhbState {
     bool pcie_ecs; /* Allow access to PCIe extended config space? */
 
     /* Fields for migration compatibility hacks */
-    bool pre_2_8_migration;
-    uint32_t mig_liobn;
-    hwaddr mig_mem_win_addr, mig_mem_win_size;
-    hwaddr mig_io_win_addr, mig_io_win_size;
     bool pre_5_1_assoc;
 };
 

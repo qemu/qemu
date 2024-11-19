@@ -137,6 +137,14 @@ fedora_rustup_nightly_extras = [
     'RUN /usr/local/cargo/bin/rustup run nightly cargo install bindgen-cli\n',
 ]
 
+ubuntu2204_bindgen_extras = [
+    "ENV CARGO_HOME=/usr/local/cargo\n",
+    'ENV PATH=$CARGO_HOME/bin:$PATH\n',
+    "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
+    "  apt install -y --no-install-recommends cargo\n",
+    'RUN cargo install bindgen-cli\n',
+]
+
 def cross_build(prefix, targets):
     conf = "ENV QEMU_CONFIGURE_OPTS --cross-prefix=%s\n" % (prefix)
     targets = "ENV DEF_TARGET_LIST %s\n" % (targets)
@@ -157,7 +165,8 @@ try:
                         trailer="".join(debian12_extras))
     generate_dockerfile("fedora", "fedora-40")
     generate_dockerfile("opensuse-leap", "opensuse-leap-15")
-    generate_dockerfile("ubuntu2204", "ubuntu-2204")
+    generate_dockerfile("ubuntu2204", "ubuntu-2204",
+                        trailer="".join(ubuntu2204_bindgen_extras))
 
     #
     # Non-fatal Rust-enabled build
@@ -229,7 +238,6 @@ try:
     #
     generate_cirrus("freebsd-14")
     generate_cirrus("macos-14")
-    generate_cirrus("macos-15")
 
     #
     # VM packages lists

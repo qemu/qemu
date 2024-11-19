@@ -33,6 +33,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "sysemu/hw_accel.h"
+#include "hw/ppc/ppc.h"
 #include "e500.h"
 #include "qom/object.h"
 
@@ -70,30 +71,12 @@ static void spin_reset(DeviceState *dev)
     }
 }
 
-static void mmubooke_create_initial_mapping(CPUPPCState *env,
-                                     target_ulong va,
-                                     hwaddr pa,
-                                     hwaddr len)
-{
-    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 1);
-    hwaddr size;
-
-    size = (booke206_page_size_to_tlb(len) << MAS1_TSIZE_SHIFT);
-    tlb->mas1 = MAS1_VALID | size;
-    tlb->mas2 = (va & TARGET_PAGE_MASK) | MAS2_M;
-    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
-    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
-#ifdef CONFIG_KVM
-    env->tlb_dirty = true;
-#endif
-}
-
 static void spin_kick(CPUState *cs, run_on_cpu_data data)
 {
     CPUPPCState *env = cpu_env(cs);
     SpinInfo *curspin = data.host_ptr;
-    hwaddr map_size = 64 * MiB;
-    hwaddr map_start;
+    hwaddr map_start, map_size = 64 * MiB;
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 1);
 
     cpu_synchronize_state(cs);
     stl_p(&curspin->pir, env->spr[SPR_BOOKE_PIR]);
@@ -107,7 +90,12 @@ static void spin_kick(CPUState *cs, run_on_cpu_data data)
     env->gpr[9] = 0;
 
     map_start = ldq_p(&curspin->addr) & ~(map_size - 1);
-    mmubooke_create_initial_mapping(env, 0, map_start, map_size);
+    /* create initial mapping */
+    booke206_set_tlb(tlb, 0, map_start, map_size);
+    tlb->mas2 |= MAS2_M;
+#ifdef CONFIG_KVM
+    env->tlb_dirty = true;
+#endif
 
     cs->halted = 0;
     cs->exception_index = -1;

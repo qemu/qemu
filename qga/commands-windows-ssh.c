@@ -377,7 +377,7 @@ error:
 static bool set_file_permissions(PWindowsUserInfo userInfo, Error **errp)
 {
     PACL pACL = NULL;
-    PSID userPSID;
+    PSID userPSID = NULL;
 
     /* Creates the access control structure */
     if (!create_acl(userInfo, &pACL, errp)) {

@@ -59,32 +59,6 @@ static inline int vfp_exceptbits_from_host(int host_bits)
     return target_bits;
 }
 
-/* Convert vfp exception flags to target form.  */
-static inline int vfp_exceptbits_to_host(int target_bits)
-{
-    int host_bits = 0;
-
-    if (target_bits & 1) {
-        host_bits |= float_flag_invalid;
-    }
-    if (target_bits & 2) {
-        host_bits |= float_flag_divbyzero;
-    }
-    if (target_bits & 4) {
-        host_bits |= float_flag_overflow;
-    }
-    if (target_bits & 8) {
-        host_bits |= float_flag_underflow;
-    }
-    if (target_bits & 0x10) {
-        host_bits |= float_flag_inexact;
-    }
-    if (target_bits & 0x80) {
-        host_bits |= float_flag_input_denormal;
-    }
-    return host_bits;
-}
-
 static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
 {
     uint32_t i;
@@ -99,15 +73,14 @@ static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
     return vfp_exceptbits_from_host(i);
 }
 
-static void vfp_set_fpsr_to_host(CPUARMState *env, uint32_t val)
+static void vfp_clear_float_status_exc_flags(CPUARMState *env)
 {
     /*
-     * The exception flags are ORed together when we read fpscr so we
-     * only need to preserve the current state in one of our
-     * float_status values.
+     * Clear out all the exception-flag information in the float_status
+     * values. The caller should have arranged for env->vfp.fpsr to
+     * be the architecturally up-to-date exception flag information first.
      */
-    int i = vfp_exceptbits_to_host(val);
-    set_float_exception_flags(i, &env->vfp.fp_status);
+    set_float_exception_flags(0, &env->vfp.fp_status);
     set_float_exception_flags(0, &env->vfp.fp_status_f16);
     set_float_exception_flags(0, &env->vfp.standard_fp_status);
     set_float_exception_flags(0, &env->vfp.standard_fp_status_f16);
@@ -164,7 +137,7 @@ static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
     return 0;
 }
 
-static void vfp_set_fpsr_to_host(CPUARMState *env, uint32_t val)
+static void vfp_clear_float_status_exc_flags(CPUARMState *env)
 {
 }
 
@@ -216,8 +189,6 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
 {
     ARMCPU *cpu = env_archcpu(env);
 
-    vfp_set_fpsr_to_host(env, val);
-
     if (arm_feature(env, ARM_FEATURE_NEON) ||
         cpu_isar_feature(aa32_mve, cpu)) {
         /*
@@ -231,13 +202,18 @@ void vfp_set_fpsr(CPUARMState *env, uint32_t val)
     }
 
     /*
-     * The only FPSR bits we keep in vfp.fpsr are NZCV:
-     * the exception flags IOC|DZC|OFC|UFC|IXC|IDC are stored in
-     * fp_status, and QC is in vfp.qc[]. Store the NZCV bits there,
-     * and zero any of the other FPSR bits.
+     * NZCV lives only in env->vfp.fpsr. The cumulative exception flags
+     * IOC|DZC|OFC|UFC|IXC|IDC also live in env->vfp.fpsr, with possible
+     * extra pending exception information that hasn't yet been folded in
+     * living in the float_status values (for TCG).
+     * Since this FPSR write gives us the up to date values of the exception
+     * flags, we want to store into vfp.fpsr the NZCV and CEXC bits, zeroing
+     * anything else. We also need to clear out the float_status exception
+     * information so that the next vfp_get_fpsr does not fold in stale data.
      */
-    val &= FPSR_NZCV_MASK;
+    val &= FPSR_NZCV_MASK | FPSR_CEXC_MASK;
     env->vfp.fpsr = val;
+    vfp_clear_float_status_exc_flags(env);
 }
 
 static void vfp_set_fpcr_masked(CPUARMState *env, uint32_t val, uint32_t mask)

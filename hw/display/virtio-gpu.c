@@ -362,7 +362,7 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
-static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
+void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 {
     struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
     struct virtio_gpu_simple_resource *res;
@@ -579,11 +579,11 @@ static void virtio_unref_resource(pixman_image_t *image, void *data)
     pixman_image_unref(data);
 }
 
-static void virtio_gpu_update_scanout(VirtIOGPU *g,
-                                      uint32_t scanout_id,
-                                      struct virtio_gpu_simple_resource *res,
-                                      struct virtio_gpu_framebuffer *fb,
-                                      struct virtio_gpu_rect *r)
+void virtio_gpu_update_scanout(VirtIOGPU *g,
+                               uint32_t scanout_id,
+                               struct virtio_gpu_simple_resource *res,
+                               struct virtio_gpu_framebuffer *fb,
+                               struct virtio_gpu_rect *r)
 {
     struct virtio_gpu_simple_resource *ores;
     struct virtio_gpu_scanout *scanout;
@@ -721,13 +721,47 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
                               &fb, res, &ss.r, &cmd->error);
 }
 
+bool virtio_gpu_scanout_blob_to_fb(struct virtio_gpu_framebuffer *fb,
+                                   struct virtio_gpu_set_scanout_blob *ss,
+                                   uint64_t blob_size)
+{
+    uint64_t fbend;
+
+    fb->format = virtio_gpu_get_pixman_format(ss->format);
+    if (!fb->format) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: host couldn't handle guest format %d\n",
+                      __func__, ss->format);
+        return false;
+    }
+
+    fb->bytes_pp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(fb->format), 8);
+    fb->width = ss->width;
+    fb->height = ss->height;
+    fb->stride = ss->strides[0];
+    fb->offset = ss->offsets[0] + ss->r.x * fb->bytes_pp + ss->r.y * fb->stride;
+
+    fbend = fb->offset;
+    fbend += (uint64_t) fb->stride * ss->r.height;
+
+    if (fbend > blob_size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: fb end out of range\n",
+                      __func__);
+        return false;
+    }
+
+    return true;
+}
+
+
+
 static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
                                         struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_framebuffer fb = { 0 };
     struct virtio_gpu_set_scanout_blob ss;
-    uint64_t fbend;
 
     VIRTIO_GPU_FILL_CMD(ss);
     virtio_gpu_scanout_blob_bswap(&ss);
@@ -753,28 +787,7 @@ static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
         return;
     }
 
-    fb.format = virtio_gpu_get_pixman_format(ss.format);
-    if (!fb.format) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: host couldn't handle guest format %d\n",
-                      __func__, ss.format);
-        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
-        return;
-    }
-
-    fb.bytes_pp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(fb.format), 8);
-    fb.width = ss.width;
-    fb.height = ss.height;
-    fb.stride = ss.strides[0];
-    fb.offset = ss.offsets[0] + ss.r.x * fb.bytes_pp + ss.r.y * fb.stride;
-
-    fbend = fb.offset;
-    fbend += fb.stride * (ss.r.height - 1);
-    fbend += fb.bytes_pp * ss.r.width;
-    if (fbend > res->blob_size) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: fb end out of range\n",
-                      __func__);
+    if (!virtio_gpu_scanout_blob_to_fb(&fb, &ss, res->blob_size)) {
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
         return;
     }
@@ -1034,6 +1047,12 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
         /* process command */
         vgc->process_cmd(g, cmd);
 
+        /* command suspended */
+        if (!cmd->finished && !(cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE)) {
+            trace_virtio_gpu_cmd_suspended(cmd->cmd_hdr.type);
+            break;
+        }
+
         QTAILQ_REMOVE(&g->cmdq, cmd, next);
         if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
             g->stats.requests++;
@@ -1046,7 +1065,7 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
                 if (g->stats.max_inflight < g->inflight) {
                     g->stats.max_inflight = g->inflight;
                 }
-                fprintf(stderr, "inflight: %3d (+)\r", g->inflight);
+                trace_virtio_gpu_inc_inflight_fences(g->inflight);
             }
         } else {
             g_free(cmd);
@@ -1066,7 +1085,7 @@ static void virtio_gpu_process_fenceq(VirtIOGPU *g)
         g_free(cmd);
         g->inflight--;
         if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
-            fprintf(stderr, "inflight: %3d (-)\r", g->inflight);
+            trace_virtio_gpu_dec_inflight_fences(g->inflight);
         }
     }
 }
@@ -1455,15 +1474,35 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 
     if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
         if (!virtio_gpu_rutabaga_enabled(g->parent_obj.conf) &&
+            !virtio_gpu_virgl_enabled(g->parent_obj.conf) &&
             !virtio_gpu_have_udmabuf()) {
             error_setg(errp, "need rutabaga or udmabuf for blob resources");
             return;
         }
 
+#ifdef VIRGL_VERSION_MAJOR
+    #if VIRGL_VERSION_MAJOR < 1
         if (virtio_gpu_virgl_enabled(g->parent_obj.conf)) {
-            error_setg(errp, "blobs and virgl are not compatible (yet)");
+            error_setg(errp, "old virglrenderer, blob resources unsupported");
             return;
         }
+    #endif
+#endif
+    }
+
+    if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
+#ifdef VIRGL_VERSION_MAJOR
+    #if VIRGL_VERSION_MAJOR >= 1
+        if (!virtio_gpu_blob_enabled(g->parent_obj.conf) ||
+            !virtio_gpu_hostmem_enabled(g->parent_obj.conf)) {
+            error_setg(errp, "venus requires enabled blob and hostmem options");
+            return;
+        }
+    #else
+        error_setg(errp, "old virglrenderer, venus unsupported");
+        return;
+    #endif
+#endif
     }
 
     if (!virtio_gpu_base_device_realize(qdev,

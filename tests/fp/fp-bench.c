@@ -488,6 +488,8 @@ static void run_bench(void)
 {
     bench_func_t f;
 
+    set_float_2nan_prop_rule(float_2nan_prop_s_ab, &soft_status);
+
     f = bench_funcs[operation][precision];
     g_assert(f);
     f();
