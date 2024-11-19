@@ -3152,7 +3152,7 @@ static void scsi_property_set_loadparm(Object *obj, const char *value,
         return;
     }
 
-    lp_str = g_malloc0(strlen(value));
+    lp_str = g_malloc0(strlen(value) + 1);
     if (!qdev_prop_sanitize_s390x_loadparm(lp_str, value, errp)) {
         g_free(lp_str);
         return;
