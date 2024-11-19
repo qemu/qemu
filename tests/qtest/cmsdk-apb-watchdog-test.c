@@ -164,6 +164,7 @@ int main(int argc, char **argv)
     int r;
 
     g_test_init(&argc, &argv, NULL);
+    g_test_set_nonfatal_assertions();
 
     if (qtest_has_machine(machine_info[MACHINE_LM3S811EVB].machine)) {
         qtest_add_data_func("/cmsdk-apb-watchdog/watchdog",
