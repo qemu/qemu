@@ -100,6 +100,13 @@ static const CompatInfo compat_table[] = {
         .pcr_level = PCR_COMPAT_3_10,
         .max_vthreads = 8,
     },
+    { /* POWER11, ISA3.10 */
+        .name = "power11",
+        .pvr = CPU_POWERPC_LOGICAL_3_10_P11,
+        .pcr = PCR_COMPAT_3_10,
+        .pcr_level = PCR_COMPAT_3_10,
+        .max_vthreads = 8,
+    },
 };
 
 static const CompatInfo *compat_by_pvr(uint32_t pvr)
@@ -130,6 +137,10 @@ static bool pcc_compat(PowerPCCPUClass *pcc, uint32_t compat_pvr,
     }
     if ((min && (compat < min)) || (max && (compat > max))) {
         /* Outside specified range */
+        return false;
+    }
+    if (compat->pvr > pcc->spapr_logical_pvr) {
+        /* Older CPU cannot support a newer processor's compat mode */
         return false;
     }
     if (!(pcc->pcr_supported & compat->pcr_level)) {

@@ -8,6 +8,7 @@
 import hashlib
 import logging
 import os
+import stat
 import subprocess
 import sys
 import unittest
@@ -143,6 +144,8 @@ class Asset:
             raise Exception("Hash of %s does not match %s" %
                             (self.url, self.hash))
         tmp_cache_file.replace(self.cache_file)
+        # Remove write perms to stop tests accidentally modifying them
+        os.chmod(self.cache_file, stat.S_IRUSR | stat.S_IRGRP)
 
         self.log.info("Cached %s at %s" % (self.url, self.cache_file))
         return str(self.cache_file)

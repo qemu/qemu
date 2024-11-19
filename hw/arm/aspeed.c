@@ -338,10 +338,20 @@ static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
             return;
         }
         card = qdev_new(emmc ? TYPE_EMMC : TYPE_SD_CARD);
-        if (emmc) {
+
+        /*
+         * Force the boot properties of the eMMC device only when the
+         * machine is strapped to boot from eMMC. Without these
+         * settings, the machine would not boot.
+         *
+         * This also allows the machine to use an eMMC device without
+         * boot areas when booting from the flash device (or -kernel)
+         * Ideally, the device and its properties should be defined on
+         * the command line.
+         */
+        if (emmc && boot_emmc) {
             qdev_prop_set_uint64(card, "boot-partition-size", 1 * MiB);
-            qdev_prop_set_uint8(card, "boot-config",
-                                boot_emmc ? 0x1 << 3 : 0x0);
+            qdev_prop_set_uint8(card, "boot-config", 0x1 << 3);
         }
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
@@ -1594,18 +1604,20 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
     connect_serial_hds_to_uarts(bmc);
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
-    aspeed_board_init_flashes(&bmc->soc->fmc,
-                              bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
-                              amc->num_cs,
-                              0);
+    if (defaults_enabled()) {
+        aspeed_board_init_flashes(&bmc->soc->fmc,
+                            bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
+                            amc->num_cs,
+                            0);
 
-    aspeed_board_init_flashes(&bmc->soc->spi[0],
-                              bmc->spi_model ? bmc->spi_model : amc->spi_model,
-                              amc->num_cs, amc->num_cs);
+        aspeed_board_init_flashes(&bmc->soc->spi[0],
+                            bmc->spi_model ? bmc->spi_model : amc->spi_model,
+                            amc->num_cs, amc->num_cs);
 
-    aspeed_board_init_flashes(&bmc->soc->spi[1],
-                              bmc->spi_model ? bmc->spi_model : amc->spi_model,
-                              amc->num_cs, (amc->num_cs * 2));
+        aspeed_board_init_flashes(&bmc->soc->spi[1],
+                            bmc->spi_model ? bmc->spi_model : amc->spi_model,
+                            amc->num_cs, (amc->num_cs * 2));
+    }
 
     if (amc->i2c_init) {
         amc->i2c_init(bmc);
@@ -1642,8 +1654,8 @@ static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
     mc->init = aspeed_minibmc_machine_init;
     amc->i2c_init = ast1030_evb_i2c_init;
     mc->default_ram_size = 0;
-    amc->fmc_model = "sst25vf032b";
-    amc->spi_model = "sst25vf032b";
+    amc->fmc_model = "w25q80bl";
+    amc->spi_model = "w25q256";
     amc->num_cs = 2;
     amc->macs_mask = 0;
     aspeed_machine_class_init_cpus_defaults(mc);

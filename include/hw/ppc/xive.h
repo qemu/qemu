@@ -218,7 +218,7 @@ static inline bool xive_source_esb_has_2page(XiveSource *xsrc)
         xsrc->esb_shift == XIVE_ESB_4K_2PAGE;
 }
 
-static inline size_t xive_source_esb_len(XiveSource *xsrc)
+static inline uint64_t xive_source_esb_len(XiveSource *xsrc)
 {
     return (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
 }
@@ -533,7 +533,7 @@ Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp);
 void xive_tctx_reset(XiveTCTX *tctx);
 void xive_tctx_destroy(XiveTCTX *tctx);
 void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb);
-void xive_tctx_reset_os_signal(XiveTCTX *tctx);
+void xive_tctx_reset_signal(XiveTCTX *tctx, uint8_t ring);
 
 /*
  * KVM XIVE device helpers

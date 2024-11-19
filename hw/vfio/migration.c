@@ -370,6 +370,10 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
          * please refer to the Linux kernel VFIO uAPI.
          */
         if (errno == ENOMSG) {
+            if (!migration->event_precopy_empty_hit) {
+                trace_vfio_save_block_precopy_empty_hit(migration->vbasedev->name);
+                migration->event_precopy_empty_hit = true;
+            }
             return 0;
         }
 
@@ -378,6 +382,9 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
     if (data_size == 0) {
         return 0;
     }
+
+    /* Non-empty read: re-arm the trace event */
+    migration->event_precopy_empty_hit = false;
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
@@ -471,6 +478,9 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
                    vbasedev->name);
         return -ENOMEM;
     }
+
+    migration->event_save_iterate_started = false;
+    migration->event_precopy_empty_hit = false;
 
     if (vfio_precopy_supported(vbasedev)) {
         switch (migration->device_state) {
@@ -576,9 +586,6 @@ static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
 
     if (vfio_device_state_is_precopy(vbasedev)) {
         vfio_query_precopy_size(migration);
-
-        *must_precopy +=
-            migration->precopy_init_size + migration->precopy_dirty_size;
     }
 
     trace_vfio_state_pending_exact(vbasedev->name, *must_precopy, *can_postcopy,
@@ -604,6 +611,11 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
     VFIODevice *vbasedev = opaque;
     VFIOMigration *migration = vbasedev->migration;
     ssize_t data_size;
+
+    if (!migration->event_save_iterate_started) {
+        trace_vfio_save_iterate_start(vbasedev->name);
+        migration->event_save_iterate_started = true;
+    }
 
     data_size = vfio_save_block(f, migration);
     if (data_size < 0) {
@@ -632,6 +644,8 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
     ssize_t data_size;
     int ret;
     Error *local_err = NULL;
+
+    trace_vfio_save_complete_precopy_start(vbasedev->name);
 
     /* We reach here with device state STOP or STOP_COPY only */
     ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_STOP_COPY,

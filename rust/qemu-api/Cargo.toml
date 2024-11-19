@@ -14,13 +14,15 @@ keywords = []
 categories = []
 
 [dependencies]
+qemu_api_macros = { path = "../qemu-api-macros" }
+
+[build-dependencies]
+version_check = "~0.9"
 
 [features]
 default = []
 allocator = []
 
-# Do not include in any global workspace
-[workspace]
-
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(MESON)', 'cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(MESON)', 'cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)',
+                                                 'cfg(has_offset_of)'] }

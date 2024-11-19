@@ -912,7 +912,19 @@ void HELPER(tidcp_el0)(CPUARMState *env, uint32_t syndrome)
 {
     /* See arm_sctlr(), but we also need the sctlr el. */
     ARMMMUIdx mmu_idx = arm_mmu_idx_el(env, 0);
-    int target_el = mmu_idx == ARMMMUIdx_E20_0 ? 2 : 1;
+    int target_el;
+
+    switch (mmu_idx) {
+    case ARMMMUIdx_E20_0:
+        target_el = 2;
+        break;
+    case ARMMMUIdx_E30_0:
+        target_el = 3;
+        break;
+    default:
+        target_el = 1;
+        break;
+    }
 
     /*
      * The bit is not valid unless the target el is aa64, but since the

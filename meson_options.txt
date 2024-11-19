@@ -27,6 +27,8 @@ option('block_drv_ro_whitelist', type : 'string', value : '',
        description: 'set block driver read-only whitelist (by default affects only QEMU, not tools like qemu-img)')
 option('interp_prefix', type : 'string', value : '/usr/gnemul/qemu-%M',
        description: 'where to find shared libraries etc., use %M for cpu name')
+option('rtsig_map', type : 'string', value : 'NULL',
+       description: 'default value of QEMU_RTSIG_MAP')
 option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
@@ -168,6 +170,8 @@ option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',
        description: 'curses UI')
+option('libcbor', type : 'feature', value : 'auto',
+       description: 'libcbor support')
 option('gnutls', type : 'feature', value : 'auto',
        description: 'GNUTLS cryptography support')
 option('nettle', type : 'feature', value : 'auto',
@@ -376,3 +380,5 @@ option('x86_version', type : 'combo', choices : ['0', '1', '2', '3', '4'], value
 
 option('rust', type: 'feature', value: 'disabled',
        description: 'Rust support')
+option('strict_rust_lints', type: 'boolean', value: false,
+       description: 'Enable stricter set of Rust warnings')

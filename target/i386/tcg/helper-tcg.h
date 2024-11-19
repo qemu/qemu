@@ -21,6 +21,7 @@
 #define I386_HELPER_TCG_H
 
 #include "exec/exec-all.h"
+#include "qemu/host-utils.h"
 
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
@@ -87,7 +88,10 @@ G_NORETURN void x86_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 #endif
 
 /* cc_helper.c */
-extern const uint8_t parity_table[256];
+static inline unsigned int compute_pf(uint8_t x)
+{
+    return !parity8(x) * CC_P;
+}
 
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);

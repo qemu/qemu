@@ -286,8 +286,8 @@ every reset child of the given resettable object. All children must be
 resettable too. Additional parameters (a reset type and an opaque pointer) must
 be passed to the callback too.
 
-In ``DeviceClass`` and ``BusClass`` the ``ResettableState`` is located
-``DeviceState`` and ``BusState`` structure. ``child_foreach()`` is implemented
+In ``DeviceClass`` and ``BusClass`` the ``ResettableState`` is located in the
+``DeviceState`` and ``BusState`` structures. ``child_foreach()`` is implemented
 to follow the bus hierarchy; for a bus, it calls the function on every child
 device; for a device, it calls the function on every bus child. When we reset
 the main system bus, we reset the whole machine bus tree.

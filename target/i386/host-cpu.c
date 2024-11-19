@@ -42,7 +42,7 @@ static uint32_t host_cpu_phys_bits(void)
     return host_phys_bits;
 }
 
-static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
+static void host_cpu_adjust_phys_bits(X86CPU *cpu)
 {
     uint32_t host_phys_bits = host_cpu_phys_bits();
     uint32_t phys_bits = cpu->phys_bits;
@@ -66,7 +66,7 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
         }
     }
 
-    return phys_bits;
+    cpu->phys_bits = phys_bits;
 }
 
 bool host_cpu_realizefn(CPUState *cs, Error **errp)
@@ -75,17 +75,7 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp)
     CPUX86State *env = &cpu->env;
 
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        uint32_t phys_bits = host_cpu_adjust_phys_bits(cpu);
-
-        if (phys_bits &&
-            (phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
-             phys_bits < 32)) {
-            error_setg(errp, "phys-bits should be between 32 and %u "
-                       " (but is %u)",
-                       TARGET_PHYS_ADDR_SPACE_BITS, phys_bits);
-            return false;
-        }
-        cpu->phys_bits = phys_bits;
+        host_cpu_adjust_phys_bits(cpu);
     }
     return true;
 }

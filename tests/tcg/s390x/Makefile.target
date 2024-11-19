@@ -74,8 +74,11 @@ $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
 
 ifneq ($(CROSS_CC_HAS_Z14),)
-Z14_TESTS=vfminmax
+Z14_TESTS=fma vfminmax
+fma: float.h
+fma: LDFLAGS+=-lm
 vfminmax: LDFLAGS+=-lm
+vfminmax: float.h
 $(Z14_TESTS): CFLAGS+=-march=z14 -O2
 TESTS+=$(Z14_TESTS)
 endif

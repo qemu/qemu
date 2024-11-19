@@ -35,6 +35,7 @@ packages:
   - libcacard-dev
   - libcap-ng-dev
   - libcapstone-dev
+  - libcbor-dev
   - libcmocka-dev
   - libcurl4-gnutls-dev
   - libdaxctl-dev
@@ -113,6 +114,7 @@ packages:
   - python3-venv
   - python3-yaml
   - rpm2cpio
+  - rustc
   - sed
   - socat
   - sparse

@@ -19,7 +19,4 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = "2"
-
-# Do not include in any global workspace
-[workspace]
+syn = { version = "2", features = ["extra-traits"] }

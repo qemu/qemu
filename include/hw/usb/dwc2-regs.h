@@ -838,7 +838,7 @@
 struct dwc2_dma_desc {
         uint32_t status;
         uint32_t buf;
-} __packed;
+} QEMU_PACKED;
 
 /* Host Mode DMA descriptor status quadlet */
 

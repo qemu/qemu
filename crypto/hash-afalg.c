@@ -142,7 +142,7 @@ QCryptoHash *qcrypto_afalg_hash_new(QCryptoHashAlgo alg, Error **errp)
 static
 void qcrypto_afalg_hash_free(QCryptoHash *hash)
 {
-    QCryptoAFAlg *ctx = hash->opaque;
+    QCryptoAFAlgo *ctx = hash->opaque;
 
     if (ctx) {
         qcrypto_afalg_comm_free(ctx);
@@ -159,7 +159,7 @@ void qcrypto_afalg_hash_free(QCryptoHash *hash)
  * be provided to calculate the final hash.
  */
 static
-int qcrypto_afalg_send_to_kernel(QCryptoAFAlg *afalg,
+int qcrypto_afalg_send_to_kernel(QCryptoAFAlgo *afalg,
                                  const struct iovec *iov,
                                  size_t niov,
                                  bool more_data,
@@ -183,7 +183,7 @@ int qcrypto_afalg_send_to_kernel(QCryptoAFAlg *afalg,
 }
 
 static
-int qcrypto_afalg_recv_from_kernel(QCryptoAFAlg *afalg,
+int qcrypto_afalg_recv_from_kernel(QCryptoAFAlgo *afalg,
                                    QCryptoHashAlgo alg,
                                    uint8_t **result,
                                    size_t *result_len,
@@ -222,7 +222,7 @@ int qcrypto_afalg_hash_update(QCryptoHash *hash,
                               size_t niov,
                               Error **errp)
 {
-    return qcrypto_afalg_send_to_kernel((QCryptoAFAlg *) hash->opaque,
+    return qcrypto_afalg_send_to_kernel((QCryptoAFAlgo *) hash->opaque,
                                         iov, niov, true, errp);
 }
 
@@ -232,7 +232,7 @@ int qcrypto_afalg_hash_finalize(QCryptoHash *hash,
                                  size_t *result_len,
                                  Error **errp)
 {
-    return qcrypto_afalg_recv_from_kernel((QCryptoAFAlg *) hash->opaque,
+    return qcrypto_afalg_recv_from_kernel((QCryptoAFAlgo *) hash->opaque,
                                           hash->alg, result, result_len, errp);
 }
 

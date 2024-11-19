@@ -18,18 +18,11 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "trace.h"
 
 #ifndef DEBUG_IMX_GPT
 #define DEBUG_IMX_GPT 0
 #endif
-
-#define DPRINTF(fmt, args...) \
-    do { \
-        if (DEBUG_IMX_GPT) { \
-            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_GPT, \
-                                             __func__, ##args); \
-        } \
-    } while (0)
 
 static const char *imx_gpt_reg_name(uint32_t reg)
 {
@@ -145,7 +138,7 @@ static void imx_gpt_set_freq(IMXGPTState *s)
     s->freq = imx_ccm_get_clock_frequency(s->ccm,
                                           s->clocks[clksrc]) / (1 + s->pr);
 
-    DPRINTF("Setting clksrc %d to frequency %d\n", clksrc, s->freq);
+    trace_imx_gpt_set_freq(clksrc, s->freq);
 
     if (s->freq) {
         ptimer_set_freq(s->timer, s->freq);
@@ -317,7 +310,7 @@ static uint64_t imx_gpt_read(void *opaque, hwaddr offset, unsigned size)
         break;
     }
 
-    DPRINTF("(%s) = 0x%08x\n", imx_gpt_reg_name(offset >> 2), reg_value);
+    trace_imx_gpt_read(imx_gpt_reg_name(offset >> 2), reg_value);
 
     return reg_value;
 }
@@ -384,8 +377,7 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
     IMXGPTState *s = IMX_GPT(opaque);
     uint32_t oldreg;
 
-    DPRINTF("(%s, value = 0x%08x)\n", imx_gpt_reg_name(offset >> 2),
-            (uint32_t)value);
+    trace_imx_gpt_write(imx_gpt_reg_name(offset >> 2), (uint32_t)value);
 
     switch (offset >> 2) {
     case 0:
@@ -485,7 +477,7 @@ static void imx_gpt_timeout(void *opaque)
 {
     IMXGPTState *s = IMX_GPT(opaque);
 
-    DPRINTF("\n");
+    trace_imx_gpt_timeout();
 
     s->sr |= s->next_int;
     s->next_int = 0;

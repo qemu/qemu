@@ -204,7 +204,7 @@ static void test_stream_unix_reconnect(void)
 
     qts1 = qtest_initf("-nodefaults -M none "
                        "-netdev stream,server=false,id=st0,addr.type=unix,"
-                       "addr.path=%s,reconnect=1", path);
+                       "addr.path=%s,reconnect-ms=1000", path);
 
     wait_stream_connected(qts0, "st0", &addr);
     g_assert_cmpint(addr->type, ==, SOCKET_ADDRESS_TYPE_UNIX);

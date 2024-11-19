@@ -920,7 +920,7 @@ static void wait_for_rings_started(TestServer *s, size_t count)
 
 static inline void test_server_connect(TestServer *server)
 {
-    test_server_create_chr(server, ",reconnect=1");
+    test_server_create_chr(server, ",reconnect-ms=1000");
 }
 
 static gboolean

@@ -32,6 +32,7 @@
 #include "migration/vmstate.h"
 #include "hw/scsi/emulation.h"
 #include "scsi/constants.h"
+#include "sysemu/arch_init.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
@@ -111,6 +112,7 @@ struct SCSIDiskState {
     char *vendor;
     char *product;
     char *device_id;
+    char *loadparm;     /* only for s390x */
     bool tray_open;
     bool tray_locked;
     /*
@@ -3135,6 +3137,43 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
     return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
 }
 
+static char *scsi_property_get_loadparm(Object *obj, Error **errp)
+{
+    return g_strdup(SCSI_DISK_BASE(obj)->loadparm);
+}
+
+static void scsi_property_set_loadparm(Object *obj, const char *value,
+                                       Error **errp)
+{
+    void *lp_str;
+
+    if (object_property_get_int(obj, "bootindex", NULL) < 0) {
+        error_setg(errp, "'loadparm' is only valid for boot devices");
+        return;
+    }
+
+    lp_str = g_malloc0(strlen(value));
+    if (!qdev_prop_sanitize_s390x_loadparm(lp_str, value, errp)) {
+        g_free(lp_str);
+        return;
+    }
+    SCSI_DISK_BASE(obj)->loadparm = lp_str;
+}
+
+static void scsi_property_add_specifics(DeviceClass *dc)
+{
+    ObjectClass *oc = OBJECT_CLASS(dc);
+
+    /* The loadparm property is only supported on s390x */
+    if (arch_type & QEMU_ARCH_S390X) {
+        object_class_property_add_str(oc, "loadparm",
+                                      scsi_property_get_loadparm,
+                                      scsi_property_set_loadparm);
+        object_class_property_set_description(oc, "loadparm",
+                                              "load parameter (s390x only)");
+    }
+}
+
 static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -3218,6 +3257,8 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "virtual SCSI disk";
     device_class_set_props(dc, scsi_hd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
+
+    scsi_property_add_specifics(dc);
 }
 
 static const TypeInfo scsi_hd_info = {
@@ -3258,6 +3299,8 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "virtual SCSI CD-ROM";
     device_class_set_props(dc, scsi_cd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
+
+    scsi_property_add_specifics(dc);
 }
 
 static const TypeInfo scsi_cd_info = {

@@ -3430,7 +3430,6 @@ static void vnc_display_close(VncDisplay *vd)
     if (!vd) {
         return;
     }
-    vd->is_unix = false;
 
     if (vd->listener) {
         qio_net_listener_disconnect(vd->listener);
@@ -3932,8 +3931,6 @@ static int vnc_display_connect(VncDisplay *vd,
         error_setg(errp, "Expected a single address in reverse mode");
         return -1;
     }
-    /* TODO SOCKET_ADDRESS_TYPE_FD when fd has AF_UNIX */
-    vd->is_unix = saddr_list->value->type == SOCKET_ADDRESS_TYPE_UNIX;
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
     if (qio_channel_socket_connect_sync(sioc, saddr_list->value, errp) < 0) {

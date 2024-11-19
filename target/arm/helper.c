@@ -444,6 +444,9 @@ static int alle1_tlbmask(CPUARMState *env)
      * Note that the 'ALL' scope must invalidate both stage 1 and
      * stage 2 translations, whereas most other scopes only invalidate
      * stage 1 translations.
+     *
+     * For AArch32 this is only used for TLBIALLNSNH and VTTBR
+     * writes, so only needs to apply to NS PL1&0, not S PL1&0.
      */
     return (ARMMMUIdxBit_E10_1 |
             ARMMMUIdxBit_E10_1_PAN |
@@ -3701,7 +3704,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
          */
         format64 = arm_s1_regime_using_lpae_format(env, mmu_idx);
 
-        if (arm_feature(env, ARM_FEATURE_EL2) && !arm_aa32_secure_pl1_0(env)) {
+        if (arm_feature(env, ARM_FEATURE_EL2)) {
             if (mmu_idx == ARMMMUIdx_E10_0 ||
                 mmu_idx == ARMMMUIdx_E10_1 ||
                 mmu_idx == ARMMMUIdx_E10_1_PAN) {
@@ -3775,11 +3778,17 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     case 0:
         /* stage 1 current state PL1: ATS1CPR, ATS1CPW, ATS1CPRP, ATS1CPWP */
         switch (el) {
+        case 3:
+            if (ri->crm == 9 && arm_pan_enabled(env)) {
+                mmu_idx = ARMMMUIdx_E30_3_PAN;
+            } else {
+                mmu_idx = ARMMMUIdx_E3;
+            }
+            break;
         case 2:
             g_assert(ss != ARMSS_Secure);  /* ARMv8.4-SecEL2 is 64-bit only */
             /* fall through */
         case 1:
-        case 3:
             if (ri->crm == 9 && arm_pan_enabled(env)) {
                 mmu_idx = ARMMMUIdx_Stage1_E1_PAN;
             } else {
@@ -3794,7 +3803,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         /* stage 1 current state PL0: ATS1CUR, ATS1CUW */
         switch (el) {
         case 3:
-            mmu_idx = ARMMMUIdx_E10_0;
+            mmu_idx = ARMMMUIdx_E30_0;
             break;
         case 2:
             g_assert(ss != ARMSS_Secure);  /* ARMv8.4-SecEL2 is 64-bit only */
@@ -4904,11 +4913,14 @@ static int vae1_tlbmask(CPUARMState *env)
     uint64_t hcr = arm_hcr_el2_eff(env);
     uint16_t mask;
 
+    assert(arm_feature(env, ARM_FEATURE_AARCH64));
+
     if ((hcr & (HCR_E2H | HCR_TGE)) == (HCR_E2H | HCR_TGE)) {
         mask = ARMMMUIdxBit_E20_2 |
                ARMMMUIdxBit_E20_2_PAN |
                ARMMMUIdxBit_E20_0;
     } else {
+        /* This is AArch64 only, so we don't need to touch the EL30_x TLBs */
         mask = ARMMMUIdxBit_E10_1 |
                ARMMMUIdxBit_E10_1_PAN |
                ARMMMUIdxBit_E10_0;
@@ -4946,6 +4958,8 @@ static int vae1_tlbbits(CPUARMState *env, uint64_t addr)
 {
     uint64_t hcr = arm_hcr_el2_eff(env);
     ARMMMUIdx mmu_idx;
+
+    assert(arm_feature(env, ARM_FEATURE_AARCH64));
 
     /* Only the regime of the mmu_idx below is significant. */
     if ((hcr & (HCR_E2H | HCR_TGE)) == (HCR_E2H | HCR_TGE)) {
@@ -6214,6 +6228,11 @@ static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
     /* FEAT_NMI adds TALLINT, VINMI and VFNMI */
     if (cpu_isar_feature(aa64_nmi, cpu)) {
         valid_mask |= HCRX_TALLINT | HCRX_VINMI | HCRX_VFNMI;
+    }
+    /* FEAT_CMOW adds CMOW */
+
+    if (cpu_isar_feature(aa64_cmow, cpu)) {
+        valid_mask |= HCRX_CMOW;
     }
 
     /* Clear RES0 bits.  */
@@ -11860,13 +11879,20 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
 uint64_t arm_sctlr(CPUARMState *env, int el)
 {
-    if (arm_aa32_secure_pl1_0(env)) {
-        /* In Secure PL1&0 SCTLR_S is always controlling */
-        el = 3;
-    } else if (el == 0) {
-        /* Only EL0 needs to be adjusted for EL1&0 or EL2&0. */
+    /* Only EL0 needs to be adjusted for EL1&0 or EL2&0 or EL3&0 */
+    if (el == 0) {
         ARMMMUIdx mmu_idx = arm_mmu_idx_el(env, 0);
-        el = mmu_idx == ARMMMUIdx_E20_0 ? 2 : 1;
+        switch (mmu_idx) {
+        case ARMMMUIdx_E20_0:
+            el = 2;
+            break;
+        case ARMMMUIdx_E30_0:
+            el = 3;
+            break;
+        default:
+            el = 1;
+            break;
+        }
     }
     return env->cp15.sctlr_el[el];
 }
@@ -12524,12 +12550,8 @@ int fp_exception_el(CPUARMState *env, int cur_el)
     return 0;
 }
 
-/*
- * Return the exception level we're running at if this is our mmu_idx.
- * s_pl1_0 should be true if this is the AArch32 Secure PL1&0 translation
- * regime.
- */
-int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx, bool s_pl1_0)
+/* Return the exception level we're running at if this is our mmu_idx */
+int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
 {
     if (mmu_idx & ARM_MMU_IDX_M) {
         return mmu_idx & ARM_MMU_IDX_M_PRIV;
@@ -12538,15 +12560,17 @@ int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx, bool s_pl1_0)
     switch (mmu_idx) {
     case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E20_0:
+    case ARMMMUIdx_E30_0:
         return 0;
     case ARMMMUIdx_E10_1:
     case ARMMMUIdx_E10_1_PAN:
-        return s_pl1_0 ? 3 : 1;
+        return 1;
     case ARMMMUIdx_E2:
     case ARMMMUIdx_E20_2:
     case ARMMMUIdx_E20_2_PAN:
         return 2;
     case ARMMMUIdx_E3:
+    case ARMMMUIdx_E30_3_PAN:
         return 3;
     default:
         g_assert_not_reached();
@@ -12575,19 +12599,13 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
         hcr = arm_hcr_el2_eff(env);
         if ((hcr & (HCR_E2H | HCR_TGE)) == (HCR_E2H | HCR_TGE)) {
             idx = ARMMMUIdx_E20_0;
+        } else if (arm_is_secure_below_el3(env) &&
+                   !arm_el_is_aa64(env, 3)) {
+            idx = ARMMMUIdx_E30_0;
         } else {
             idx = ARMMMUIdx_E10_0;
         }
         break;
-    case 3:
-        /*
-         * AArch64 EL3 has its own translation regime; AArch32 EL3
-         * uses the Secure PL1&0 translation regime.
-         */
-        if (arm_el_is_aa64(env, 3)) {
-            return ARMMMUIdx_E3;
-        }
-        /* fall through */
     case 1:
         if (arm_pan_enabled(env)) {
             idx = ARMMMUIdx_E10_1_PAN;
@@ -12607,6 +12625,11 @@ ARMMMUIdx arm_mmu_idx_el(CPUARMState *env, int el)
             idx = ARMMMUIdx_E2;
         }
         break;
+    case 3:
+        if (!arm_el_is_aa64(env, 3) && arm_pan_enabled(env)) {
+            return ARMMMUIdx_E30_3_PAN;
+        }
+        return ARMMMUIdx_E3;
     default:
         g_assert_not_reached();
     }

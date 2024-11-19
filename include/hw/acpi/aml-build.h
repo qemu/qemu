@@ -486,6 +486,13 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
 void build_srat_memory(GArray *table_data, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
 
+void build_srat_pci_generic_initiator(GArray *table_data, uint32_t node,
+                                      uint16_t segment, uint8_t bus,
+                                      uint8_t devfn);
+
+void build_srat_acpi_generic_port(GArray *table_data, uint32_t node,
+                                  const char *hid, uint32_t uid);
+
 void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 

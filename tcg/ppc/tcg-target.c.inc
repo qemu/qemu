@@ -911,7 +911,9 @@ static void tcg_out_rld(TCGContext *s, int op, TCGReg ra, TCGReg rs,
 static void tcg_out_rlw_rc(TCGContext *s, int op, TCGReg ra, TCGReg rs,
                            int sh, int mb, int me, bool rc)
 {
-    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me) | rc);
+    tcg_debug_assert((mb & 0x1f) == mb);
+    tcg_debug_assert((me & 0x1f) == me);
+    tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh & 0x1f) | MB(mb) | ME(me) | rc);
 }
 
 static void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,

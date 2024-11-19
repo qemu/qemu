@@ -695,33 +695,6 @@ qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
 }
 
 
-#ifdef CONFIG_GNUTLS
-
-
-static bool
-qcrypto_tls_creds_x509_prop_get_loaded(Object *obj,
-                                       Error **errp G_GNUC_UNUSED)
-{
-    QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
-
-    return creds->data != NULL;
-}
-
-
-#else /* ! CONFIG_GNUTLS */
-
-
-static bool
-qcrypto_tls_creds_x509_prop_get_loaded(Object *obj G_GNUC_UNUSED,
-                                       Error **errp G_GNUC_UNUSED)
-{
-    return false;
-}
-
-
-#endif /* ! CONFIG_GNUTLS */
-
-
 static void
 qcrypto_tls_creds_x509_prop_set_sanity(Object *obj,
                                        bool value,
@@ -838,9 +811,6 @@ qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
 
     ucc->complete = qcrypto_tls_creds_x509_complete;
 
-    object_class_property_add_bool(oc, "loaded",
-                                   qcrypto_tls_creds_x509_prop_get_loaded,
-                                   NULL);
     object_class_property_add_bool(oc, "sanity-check",
                                    qcrypto_tls_creds_x509_prop_get_sanity,
                                    qcrypto_tls_creds_x509_prop_set_sanity);

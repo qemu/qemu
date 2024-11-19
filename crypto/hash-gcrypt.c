@@ -34,13 +34,16 @@ static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALGO__MAX] = {
     [QCRYPTO_HASH_ALGO_SHA384] = GCRY_MD_SHA384,
     [QCRYPTO_HASH_ALGO_SHA512] = GCRY_MD_SHA512,
     [QCRYPTO_HASH_ALGO_RIPEMD160] = GCRY_MD_RMD160,
+#ifdef CONFIG_CRYPTO_SM3
+    [QCRYPTO_HASH_ALGO_SM3] = GCRY_MD_SM3,
+#endif
 };
 
 gboolean qcrypto_hash_supports(QCryptoHashAlgo alg)
 {
     if (alg < G_N_ELEMENTS(qcrypto_hash_alg_map) &&
         qcrypto_hash_alg_map[alg] != GCRY_MD_NONE) {
-        return true;
+        return gcry_md_test_algo(qcrypto_hash_alg_map[alg]) == 0;
     }
     return false;
 }
@@ -49,7 +52,7 @@ static
 QCryptoHash *qcrypto_gcrypt_hash_new(QCryptoHashAlgo alg, Error **errp)
 {
     QCryptoHash *hash;
-    int ret;
+    gcry_error_t ret;
 
     hash = g_new(QCryptoHash, 1);
     hash->alg = alg;
@@ -57,7 +60,7 @@ QCryptoHash *qcrypto_gcrypt_hash_new(QCryptoHashAlgo alg, Error **errp)
 
     ret = gcry_md_open((gcry_md_hd_t *) hash->opaque,
                        qcrypto_hash_alg_map[alg], 0);
-    if (ret < 0) {
+    if (ret != 0) {
         error_setg(errp,
                    "Unable to initialize hash algorithm: %s",
                    gcry_strerror(ret));
@@ -103,16 +106,25 @@ int qcrypto_gcrypt_hash_finalize(QCryptoHash *hash,
                                  size_t *result_len,
                                  Error **errp)
 {
+    int ret;
     unsigned char *digest;
     gcry_md_hd_t *ctx = hash->opaque;
 
-    *result_len = gcry_md_get_algo_dlen(qcrypto_hash_alg_map[hash->alg]);
-    if (*result_len == 0) {
+    ret = gcry_md_get_algo_dlen(qcrypto_hash_alg_map[hash->alg]);
+    if (ret == 0) {
         error_setg(errp, "Unable to get hash length");
         return -1;
     }
 
-    *result = g_new(uint8_t, *result_len);
+    if (*result_len == 0) {
+        *result_len = ret;
+        *result = g_new(uint8_t, *result_len);
+    } else if (*result_len != ret) {
+        error_setg(errp,
+                   "Result buffer size %zu is smaller than hash %d",
+                   *result_len, ret);
+        return -1;
+    }
 
     /* Digest is freed by gcry_md_close(), copy it */
     digest = gcry_md_read(*ctx, 0);

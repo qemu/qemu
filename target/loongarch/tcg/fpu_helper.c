@@ -31,6 +31,7 @@ void restore_fp_status(CPULoongArchState *env)
     set_float_rounding_mode(ieee_rm[(env->fcsr0 >> FCSR0_RM) & 0x3],
                             &env->fp_status);
     set_flush_to_zero(0, &env->fp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_s_ab, &env->fp_status);
 }
 
 int ieee_ex_to_loongarch(int xcpt)

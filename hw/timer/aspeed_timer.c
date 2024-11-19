@@ -276,7 +276,8 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
         old_reload = t->reload;
         t->reload = calculate_min_ticks(t, value);
 
-        /* If the reload value was not previously set, or zero, and
+        /*
+         * If the reload value was not previously set, or zero, and
          * the current value is valid, try to start the timer if it is
          * enabled.
          */
@@ -312,7 +313,8 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
     }
 }
 
-/* Control register operations are broken out into helpers that can be
+/*
+ * Control register operations are broken out into helpers that can be
  * explicitly called on aspeed_timer_reset(), but also from
  * aspeed_timer_ctrl_op().
  */
@@ -396,7 +398,8 @@ static void aspeed_timer_set_ctrl(AspeedTimerCtrlState *s, uint32_t reg)
     AspeedTimer *t;
     const uint8_t enable_mask = BIT(op_enable);
 
-    /* Handle a dependency between the 'enable' and remaining three
+    /*
+     * Handle a dependency between the 'enable' and remaining three
      * configuration bits - i.e. if more than one bit in the control set has
      * changed, including the 'enable' bit, then we want either disable the
      * timer and perform configuration, or perform configuration and then
@@ -577,12 +580,11 @@ static void aspeed_2600_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
 
     switch (offset) {
     case 0x34:
-        s->irq_sts &= tv;
+        s->irq_sts &= ~tv;
         break;
     case 0x3C:
         aspeed_timer_set_ctrl(s, s->ctrl & ~tv);
         break;
-
     case 0x38:
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
@@ -623,7 +625,8 @@ static void aspeed_timer_reset(DeviceState *dev)
 
     for (i = 0; i < ASPEED_TIMER_NR_TIMERS; i++) {
         AspeedTimer *t = &s->timers[i];
-        /* Explicitly call helpers to avoid any conditional behaviour through
+        /*
+         * Explicitly call helpers to avoid any conditional behaviour through
          * aspeed_timer_set_ctrl().
          */
         aspeed_timer_ctrl_enable(t, false);

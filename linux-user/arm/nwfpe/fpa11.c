@@ -51,6 +51,24 @@ void resetFPA11(void)
 #ifdef MAINTAIN_FPCR
   fpa11->fpcr = MASK_RESET;
 #endif
+
+  /*
+   * Real FPA11 hardware does not handle NaNs, but always takes an
+   * exception for them to be software-emulated (ARM7500FE datasheet
+   * section 10.4). There is no documented architectural requirement
+   * for NaN propagation rules and it will depend on how the OS
+   * level software emulation opted to do it. We here use prop_s_ab
+   * which matches the later VFP hardware choice and how QEMU's
+   * fpa11 emulation has worked in the past. The real Linux kernel
+   * does something slightly different: arch/arm/nwfpe/softfloat-specialize
+   * propagateFloat64NaN() has the curious behaviour that it prefers
+   * the QNaN over the SNaN, but if both are QNaN it picks A and
+   * if both are SNaN it picks B. In theory we could add this as
+   * a NaN propagation rule, but in practice FPA11 emulation is so
+   * close to totally dead that it's not worth trying to match it at
+   * this late date.
+   */
+  set_float_2nan_prop_rule(float_2nan_prop_s_ab, &fpa11->fp_status);
 }
 
 void SetRoundingMode(const unsigned int opcode)

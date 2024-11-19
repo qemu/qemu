@@ -1,6 +1,7 @@
 project(
   'bilge-0.2-rs',
   'rust',
+  meson_version: '>=1.5.0',
   version : '0.2.0',
   license : 'MIT or Apache-2.0',
 )

@@ -648,7 +648,7 @@ static void vc_putchar(VCChardev *vc, int ch)
     QemuTextConsole *s = vc->console;
     int i;
     int x, y;
-    char response[40];
+    g_autofree char *response = NULL;
 
     switch(vc->state) {
     case TTY_STATE_NORM:
@@ -821,7 +821,7 @@ static void vc_putchar(VCChardev *vc, int ch)
                     break;
                 case 6:
                     /* report cursor position */
-                    sprintf(response, "\033[%d;%dR",
+                    response = g_strdup_printf("\033[%d;%dR",
                            (s->y_base + s->y) % s->total_height + 1,
                             s->x + 1);
                     vc_respond_str(vc, response);

@@ -353,7 +353,8 @@ static void test_read_page_mem(void)
     uint32_t page[FLASH_PAGE_SIZE / 4];
     int i;
 
-    /* Enable 4BYTE mode for controller. This is should be strapped by
+    /*
+     * Enable 4BYTE mode for controller. This is should be strapped by
      * HW for CE0 anyhow.
      */
     spi_ce_ctrl(1 << CRTL_EXTENDED0);
@@ -394,7 +395,8 @@ static void test_write_page_mem(void)
     uint32_t page[FLASH_PAGE_SIZE / 4];
     int i;
 
-    /* Enable 4BYTE mode for controller. This is should be strapped by
+    /*
+     * Enable 4BYTE mode for controller. This is should be strapped by
      * HW for CE0 anyhow.
      */
     spi_ce_ctrl(1 << CRTL_EXTENDED0);

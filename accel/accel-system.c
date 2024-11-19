@@ -73,19 +73,17 @@ void accel_system_init_ops_interfaces(AccelClass *ac)
     g_assert(ac_name != NULL);
 
     ops_name = g_strdup_printf("%s" ACCEL_OPS_SUFFIX, ac_name);
-    ops = ACCEL_OPS_CLASS(module_object_class_by_name(ops_name));
     oc = module_object_class_by_name(ops_name);
     if (!oc) {
         error_report("fatal: could not load module for type '%s'", ops_name);
         exit(1);
     }
     g_free(ops_name);
-    ops = ACCEL_OPS_CLASS(oc);
     /*
      * all accelerators need to define ops, providing at least a mandatory
      * non-NULL create_vcpu_thread operation.
      */
-    g_assert(ops != NULL);
+    ops = ACCEL_OPS_CLASS(oc);
     if (ops->ops_init) {
         ops->ops_init(ops);
     }

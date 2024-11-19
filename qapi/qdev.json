@@ -163,3 +163,27 @@
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @device-sync-config:
+#
+# Synchronize device configuration from host to guest part.  First,
+# copy the configuration from the host part (backend) to the guest
+# part (frontend).  Then notify guest software that device
+# configuration changed.
+#
+# The command may be used to notify the guest about block device
+# capcity change.  Currently only vhost-user-blk device supports
+# this.
+#
+# @id: the device's ID or QOM path
+#
+# Features:
+#
+# @unstable: The command is experimental.
+#
+# Since: 9.1
+##
+{ 'command': 'device-sync-config',
+  'features': [ 'unstable' ],
+  'data': {'id': 'str'} }
