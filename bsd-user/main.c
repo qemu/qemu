@@ -60,6 +60,7 @@ uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
 
 static bool opt_one_insn_per_tb;
+static unsigned long opt_tb_size;
 uintptr_t guest_base;
 bool have_guest_base;
 /*
@@ -169,6 +170,7 @@ static void usage(void)
            "                  (use '-d help' for a list of log items)\n"
            "-D logfile        write logs to 'logfile' (default stderr)\n"
            "-one-insn-per-tb  run with one guest instruction per emulated TB\n"
+           "-tb-size size     TCG translation block cache size\n"
            "-strace           log system calls\n"
            "-trace            [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
            "                  specify tracing options\n"
@@ -387,6 +389,11 @@ int main(int argc, char **argv)
             seed_optarg = optarg;
         } else if (!strcmp(r, "one-insn-per-tb")) {
             opt_one_insn_per_tb = true;
+        } else if (!strcmp(r, "tb-size")) {
+            r = argv[optind++];
+            if (qemu_strtoul(r, NULL, 0, &opt_tb_size)) {
+                usage();
+            }
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
         } else if (!strcmp(r, "trace")) {
@@ -452,6 +459,8 @@ int main(int argc, char **argv)
         accel_init_interfaces(ac);
         object_property_set_bool(OBJECT(accel), "one-insn-per-tb",
                                  opt_one_insn_per_tb, &error_abort);
+        object_property_set_int(OBJECT(accel), "tb-size",
+                                opt_tb_size, &error_abort);
         ac->init_machine(NULL);
     }
 
@@ -601,6 +610,7 @@ int main(int argc, char **argv)
     init_task_state(ts);
     ts->info = info;
     ts->bprm = &bprm;
+    ts->ts_tid = qemu_get_thread_id();
     cpu->opaque = ts;
 
     target_set_brk(info->brk);

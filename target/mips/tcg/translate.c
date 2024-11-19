@@ -327,19 +327,6 @@ enum {
     OPC_MUL      = 0x02 | OPC_SPECIAL2,
     OPC_MSUB     = 0x04 | OPC_SPECIAL2,
     OPC_MSUBU    = 0x05 | OPC_SPECIAL2,
-    /* Loongson 2F */
-    OPC_MULT_G_2F   = 0x10 | OPC_SPECIAL2,
-    OPC_DMULT_G_2F  = 0x11 | OPC_SPECIAL2,
-    OPC_MULTU_G_2F  = 0x12 | OPC_SPECIAL2,
-    OPC_DMULTU_G_2F = 0x13 | OPC_SPECIAL2,
-    OPC_DIV_G_2F    = 0x14 | OPC_SPECIAL2,
-    OPC_DDIV_G_2F   = 0x15 | OPC_SPECIAL2,
-    OPC_DIVU_G_2F   = 0x16 | OPC_SPECIAL2,
-    OPC_DDIVU_G_2F  = 0x17 | OPC_SPECIAL2,
-    OPC_MOD_G_2F    = 0x1c | OPC_SPECIAL2,
-    OPC_DMOD_G_2F   = 0x1d | OPC_SPECIAL2,
-    OPC_MODU_G_2F   = 0x1e | OPC_SPECIAL2,
-    OPC_DMODU_G_2F  = 0x1f | OPC_SPECIAL2,
     /* Misc */
     OPC_CLZ      = 0x20 | OPC_SPECIAL2,
     OPC_CLO      = 0x21 | OPC_SPECIAL2,
@@ -368,20 +355,6 @@ enum {
     OPC_RDHWR    = 0x3B | OPC_SPECIAL3,
     OPC_GINV     = 0x3D | OPC_SPECIAL3,
 
-    /* Loongson 2E */
-    OPC_MULT_G_2E   = 0x18 | OPC_SPECIAL3,
-    OPC_MULTU_G_2E  = 0x19 | OPC_SPECIAL3,
-    OPC_DIV_G_2E    = 0x1A | OPC_SPECIAL3,
-    OPC_DIVU_G_2E   = 0x1B | OPC_SPECIAL3,
-    OPC_DMULT_G_2E  = 0x1C | OPC_SPECIAL3,
-    OPC_DMULTU_G_2E = 0x1D | OPC_SPECIAL3,
-    OPC_DDIV_G_2E   = 0x1E | OPC_SPECIAL3,
-    OPC_DDIVU_G_2E  = 0x1F | OPC_SPECIAL3,
-    OPC_MOD_G_2E    = 0x22 | OPC_SPECIAL3,
-    OPC_MODU_G_2E   = 0x23 | OPC_SPECIAL3,
-    OPC_DMOD_G_2E   = 0x26 | OPC_SPECIAL3,
-    OPC_DMODU_G_2E  = 0x27 | OPC_SPECIAL3,
-
     /* MIPS DSP Load */
     OPC_LX_DSP         = 0x0A | OPC_SPECIAL3,
     /* MIPS DSP Arithmetic */
@@ -389,16 +362,14 @@ enum {
     OPC_ADDU_OB_DSP    = 0x14 | OPC_SPECIAL3,
     OPC_ABSQ_S_PH_DSP  = 0x12 | OPC_SPECIAL3,
     OPC_ABSQ_S_QH_DSP  = 0x16 | OPC_SPECIAL3,
-    /* OPC_ADDUH_QB_DSP is same as OPC_MULT_G_2E.  */
-    /* OPC_ADDUH_QB_DSP   = 0x18 | OPC_SPECIAL3,  */
+    OPC_ADDUH_QB_DSP   = 0x18 | OPC_SPECIAL3,
     OPC_CMPU_EQ_QB_DSP = 0x11 | OPC_SPECIAL3,
     OPC_CMPU_EQ_OB_DSP = 0x15 | OPC_SPECIAL3,
     /* MIPS DSP GPR-Based Shift Sub-class */
     OPC_SHLL_QB_DSP    = 0x13 | OPC_SPECIAL3,
     OPC_SHLL_OB_DSP    = 0x17 | OPC_SPECIAL3,
     /* MIPS DSP Multiply Sub-class insns */
-    /* OPC_MUL_PH_DSP is same as OPC_ADDUH_QB_DSP.  */
-    /* OPC_MUL_PH_DSP     = 0x18 | OPC_SPECIAL3,  */
+    OPC_MUL_PH_DSP     = 0x18 | OPC_SPECIAL3,
     OPC_DPA_W_PH_DSP   = 0x30 | OPC_SPECIAL3,
     OPC_DPAQ_W_QH_DSP  = 0x34 | OPC_SPECIAL3,
     /* DSP Bit/Manipulation Sub-class */
@@ -556,7 +527,6 @@ enum {
     OPC_MULQ_S_PH      = (0x1E << 6) | OPC_ADDU_QB_DSP,
 };
 
-#define OPC_ADDUH_QB_DSP OPC_MULT_G_2E
 #define MASK_ADDUH_QB(op)           (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP Arithmetic Sub-class */
@@ -1645,13 +1615,18 @@ static inline void check_ps(DisasContext *ctx)
     check_cp1_64bitmode(ctx);
 }
 
+bool decode_64bit_enabled(DisasContext *ctx)
+{
+    return ctx->hflags & MIPS_HFLAG_64;
+}
+
 /*
  * This code generates a "reserved instruction" exception if cpu is not
  * 64-bit or 64-bit instructions are not enabled.
  */
 void check_mips_64(DisasContext *ctx)
 {
-    if (unlikely((TARGET_LONG_BITS != 64) || !(ctx->hflags & MIPS_HFLAG_64))) {
+    if (unlikely((TARGET_LONG_BITS != 64) || !decode_64bit_enabled(ctx))) {
         gen_reserved_instruction(ctx);
     }
 }
@@ -3586,184 +3561,6 @@ static void gen_cl(DisasContext *ctx, uint32_t opc,
     }
 }
 
-/* Godson integer instructions */
-static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
-                                 int rd, int rs, int rt)
-{
-    TCGv t0, t1;
-
-    if (rd == 0) {
-        /* Treat as NOP. */
-        return;
-    }
-
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
-    gen_load_gpr(t0, rs);
-    gen_load_gpr(t1, rt);
-
-    switch (opc) {
-    case OPC_MULT_G_2E:
-    case OPC_MULT_G_2F:
-        tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
-        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-        break;
-    case OPC_MULTU_G_2E:
-    case OPC_MULTU_G_2F:
-        tcg_gen_ext32u_tl(t0, t0);
-        tcg_gen_ext32u_tl(t1, t1);
-        tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
-        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-        break;
-    case OPC_DIV_G_2E:
-    case OPC_DIV_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            TCGLabel *l3 = gen_new_label();
-            tcg_gen_ext32s_tl(t0, t0);
-            tcg_gen_ext32s_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l3);
-            gen_set_label(l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, INT_MIN, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1, l2);
-            tcg_gen_mov_tl(cpu_gpr[rd], t0);
-            tcg_gen_br(l3);
-            gen_set_label(l2);
-            tcg_gen_div_tl(cpu_gpr[rd], t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-            gen_set_label(l3);
-        }
-        break;
-    case OPC_DIVU_G_2E:
-    case OPC_DIVU_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_divu_tl(cpu_gpr[rd], t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-            gen_set_label(l2);
-        }
-        break;
-    case OPC_MOD_G_2E:
-    case OPC_MOD_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            TCGLabel *l3 = gen_new_label();
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, INT_MIN, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1, l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l3);
-            gen_set_label(l2);
-            tcg_gen_rem_tl(cpu_gpr[rd], t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-            gen_set_label(l3);
-        }
-        break;
-    case OPC_MODU_G_2E:
-    case OPC_MODU_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_remu_tl(cpu_gpr[rd], t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
-            gen_set_label(l2);
-        }
-        break;
-#if defined(TARGET_MIPS64)
-    case OPC_DMULT_G_2E:
-    case OPC_DMULT_G_2F:
-        tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
-        break;
-    case OPC_DMULTU_G_2E:
-    case OPC_DMULTU_G_2F:
-        tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
-        break;
-    case OPC_DDIV_G_2E:
-    case OPC_DDIV_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            TCGLabel *l3 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l3);
-            gen_set_label(l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, -1LL << 63, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
-            tcg_gen_mov_tl(cpu_gpr[rd], t0);
-            tcg_gen_br(l3);
-            gen_set_label(l2);
-            tcg_gen_div_tl(cpu_gpr[rd], t0, t1);
-            gen_set_label(l3);
-        }
-        break;
-    case OPC_DDIVU_G_2E:
-    case OPC_DDIVU_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_divu_tl(cpu_gpr[rd], t0, t1);
-            gen_set_label(l2);
-        }
-        break;
-    case OPC_DMOD_G_2E:
-    case OPC_DMOD_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            TCGLabel *l3 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, -1LL << 63, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l3);
-            gen_set_label(l2);
-            tcg_gen_rem_tl(cpu_gpr[rd], t0, t1);
-            gen_set_label(l3);
-        }
-        break;
-    case OPC_DMODU_G_2E:
-    case OPC_DMODU_G_2F:
-        {
-            TCGLabel *l1 = gen_new_label();
-            TCGLabel *l2 = gen_new_label();
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-            tcg_gen_movi_tl(cpu_gpr[rd], 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_remu_tl(cpu_gpr[rd], t0, t1);
-            gen_set_label(l2);
-        }
-        break;
-#endif
-    }
-}
-
 /* Loongson multimedia instructions */
 static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 {
@@ -5315,17 +5112,17 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Index";
             break;
         case CP0_REG00__MVPCONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpcontrol(arg, tcg_env);
             register_name = "MVPControl";
             break;
         case CP0_REG00__MVPCONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpconf0(arg, tcg_env);
             register_name = "MVPConf0";
             break;
         case CP0_REG00__MVPCONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpconf1(arg, tcg_env);
             register_name = "MVPConf1";
             break;
@@ -5346,37 +5143,37 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Random";
             break;
         case CP0_REG01__VPECONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEControl));
             register_name = "VPEControl";
             break;
         case CP0_REG01__VPECONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf0));
             register_name = "VPEConf0";
             break;
         case CP0_REG01__VPECONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf1));
             register_name = "VPEConf1";
             break;
         case CP0_REG01__YQMASK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_YQMask));
             register_name = "YQMask";
             break;
         case CP0_REG01__VPESCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPESchedule));
             register_name = "VPESchedule";
             break;
         case CP0_REG01__VPESCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPEScheFBack));
             register_name = "VPEScheFBack";
             break;
         case CP0_REG01__VPEOPT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEOpt));
             register_name = "VPEOpt";
             break;
@@ -5403,37 +5200,37 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "EntryLo0";
             break;
         case CP0_REG02__TCSTATUS:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcstatus(arg, tcg_env);
             register_name = "TCStatus";
             break;
         case CP0_REG02__TCBIND:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcbind(arg, tcg_env);
             register_name = "TCBind";
             break;
         case CP0_REG02__TCRESTART:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcrestart(arg, tcg_env);
             register_name = "TCRestart";
             break;
         case CP0_REG02__TCHALT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tchalt(arg, tcg_env);
             register_name = "TCHalt";
             break;
         case CP0_REG02__TCCONTEXT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tccontext(arg, tcg_env);
             register_name = "TCContext";
             break;
         case CP0_REG02__TCSCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcschedule(arg, tcg_env);
             register_name = "TCSchedule";
             break;
         case CP0_REG02__TCSCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcschefback(arg, tcg_env);
             register_name = "TCScheFBack";
             break;
@@ -6072,17 +5869,17 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Index";
             break;
         case CP0_REG00__MVPCONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_mvpcontrol(tcg_env, arg);
             register_name = "MVPControl";
             break;
         case CP0_REG00__MVPCONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             /* ignored */
             register_name = "MVPConf0";
             break;
         case CP0_REG00__MVPCONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             /* ignored */
             register_name = "MVPConf1";
             break;
@@ -6102,39 +5899,39 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Random";
             break;
         case CP0_REG01__VPECONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpecontrol(tcg_env, arg);
             register_name = "VPEControl";
             break;
         case CP0_REG01__VPECONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeconf0(tcg_env, arg);
             register_name = "VPEConf0";
             break;
         case CP0_REG01__VPECONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeconf1(tcg_env, arg);
             register_name = "VPEConf1";
             break;
         case CP0_REG01__YQMASK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_yqmask(tcg_env, arg);
             register_name = "YQMask";
             break;
         case CP0_REG01__VPESCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_st_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPESchedule));
             register_name = "VPESchedule";
             break;
         case CP0_REG01__VPESCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_st_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPEScheFBack));
             register_name = "VPEScheFBack";
             break;
         case CP0_REG01__VPEOPT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeopt(tcg_env, arg);
             register_name = "VPEOpt";
             break;
@@ -6149,37 +5946,37 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "EntryLo0";
             break;
         case CP0_REG02__TCSTATUS:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcstatus(tcg_env, arg);
             register_name = "TCStatus";
             break;
         case CP0_REG02__TCBIND:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcbind(tcg_env, arg);
             register_name = "TCBind";
             break;
         case CP0_REG02__TCRESTART:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcrestart(tcg_env, arg);
             register_name = "TCRestart";
             break;
         case CP0_REG02__TCHALT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tchalt(tcg_env, arg);
             register_name = "TCHalt";
             break;
         case CP0_REG02__TCCONTEXT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tccontext(tcg_env, arg);
             register_name = "TCContext";
             break;
         case CP0_REG02__TCSCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcschedule(tcg_env, arg);
             register_name = "TCSchedule";
             break;
         case CP0_REG02__TCSCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcschefback(tcg_env, arg);
             register_name = "TCScheFBack";
             break;
@@ -6822,17 +6619,17 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Index";
             break;
         case CP0_REG00__MVPCONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpcontrol(arg, tcg_env);
             register_name = "MVPControl";
             break;
         case CP0_REG00__MVPCONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpconf0(arg, tcg_env);
             register_name = "MVPConf0";
             break;
         case CP0_REG00__MVPCONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_mvpconf1(arg, tcg_env);
             register_name = "MVPConf1";
             break;
@@ -6853,40 +6650,40 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Random";
             break;
         case CP0_REG01__VPECONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEControl));
             register_name = "VPEControl";
             break;
         case CP0_REG01__VPECONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf0));
             register_name = "VPEConf0";
             break;
         case CP0_REG01__VPECONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf1));
             register_name = "VPEConf1";
             break;
         case CP0_REG01__YQMASK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_ld_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_YQMask));
             register_name = "YQMask";
             break;
         case CP0_REG01__VPESCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_ld_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPESchedule));
             register_name = "VPESchedule";
             break;
         case CP0_REG01__VPESCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_ld_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPEScheFBack));
             register_name = "VPEScheFBack";
             break;
         case CP0_REG01__VPEOPT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEOpt));
             register_name = "VPEOpt";
             break;
@@ -6902,37 +6699,37 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "EntryLo0";
             break;
         case CP0_REG02__TCSTATUS:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcstatus(arg, tcg_env);
             register_name = "TCStatus";
             break;
         case CP0_REG02__TCBIND:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mfc0_tcbind(arg, tcg_env);
             register_name = "TCBind";
             break;
         case CP0_REG02__TCRESTART:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_dmfc0_tcrestart(arg, tcg_env);
             register_name = "TCRestart";
             break;
         case CP0_REG02__TCHALT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_dmfc0_tchalt(arg, tcg_env);
             register_name = "TCHalt";
             break;
         case CP0_REG02__TCCONTEXT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_dmfc0_tccontext(arg, tcg_env);
             register_name = "TCContext";
             break;
         case CP0_REG02__TCSCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_dmfc0_tcschedule(arg, tcg_env);
             register_name = "TCSchedule";
             break;
         case CP0_REG02__TCSCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_dmfc0_tcschefback(arg, tcg_env);
             register_name = "TCScheFBack";
             break;
@@ -7539,17 +7336,17 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Index";
             break;
         case CP0_REG00__MVPCONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_mvpcontrol(tcg_env, arg);
             register_name = "MVPControl";
             break;
         case CP0_REG00__MVPCONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             /* ignored */
             register_name = "MVPConf0";
             break;
         case CP0_REG00__MVPCONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             /* ignored */
             register_name = "MVPConf1";
             break;
@@ -7569,39 +7366,39 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "Random";
             break;
         case CP0_REG01__VPECONTROL:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpecontrol(tcg_env, arg);
             register_name = "VPEControl";
             break;
         case CP0_REG01__VPECONF0:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeconf0(tcg_env, arg);
             register_name = "VPEConf0";
             break;
         case CP0_REG01__VPECONF1:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeconf1(tcg_env, arg);
             register_name = "VPEConf1";
             break;
         case CP0_REG01__YQMASK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_yqmask(tcg_env, arg);
             register_name = "YQMask";
             break;
         case CP0_REG01__VPESCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_st_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPESchedule));
             register_name = "VPESchedule";
             break;
         case CP0_REG01__VPESCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             tcg_gen_st_tl(arg, tcg_env,
                           offsetof(CPUMIPSState, CP0_VPEScheFBack));
             register_name = "VPEScheFBack";
             break;
         case CP0_REG01__VPEOPT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_vpeopt(tcg_env, arg);
             register_name = "VPEOpt";
             break;
@@ -7616,37 +7413,37 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             register_name = "EntryLo0";
             break;
         case CP0_REG02__TCSTATUS:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcstatus(tcg_env, arg);
             register_name = "TCStatus";
             break;
         case CP0_REG02__TCBIND:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcbind(tcg_env, arg);
             register_name = "TCBind";
             break;
         case CP0_REG02__TCRESTART:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcrestart(tcg_env, arg);
             register_name = "TCRestart";
             break;
         case CP0_REG02__TCHALT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tchalt(tcg_env, arg);
             register_name = "TCHalt";
             break;
         case CP0_REG02__TCCONTEXT:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tccontext(tcg_env, arg);
             register_name = "TCContext";
             break;
         case CP0_REG02__TCSCHEDULE:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcschedule(tcg_env, arg);
             register_name = "TCSchedule";
             break;
         case CP0_REG02__TCSCHEFBACK:
-            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            CP0_CHECK(disas_mt_available(ctx));
             gen_helper_mtc0_tcschefback(tcg_env, arg);
             register_name = "TCScheFBack";
             break;
@@ -11584,8 +11381,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
     gen_load_gpr(v2_t, v2);
 
     switch (op1) {
-    /* OPC_MULT_G_2E is equal OPC_ADDUH_QB_DSP */
-    case OPC_MULT_G_2E:
+    case OPC_ADDUH_QB_DSP:
         check_dsp_r2(ctx);
         switch (op2) {
         case OPC_ADDUH_QB:
@@ -12268,11 +12064,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
     gen_load_gpr(v2_t, v2);
 
     switch (op1) {
-    /*
-     * OPC_MULT_G_2E, OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
-     * the same mask and op1.
-     */
-    case OPC_MULT_G_2E:
+    case OPC_MUL_PH_DSP:
         check_dsp_r2(ctx);
         switch (op2) {
         case  OPC_MUL_PH:
@@ -13624,15 +13416,6 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MUL:
         gen_arith(ctx, op1, rd, rs, rt);
         break;
-    case OPC_DIV_G_2F:
-    case OPC_DIVU_G_2F:
-    case OPC_MULT_G_2F:
-    case OPC_MULTU_G_2F:
-    case OPC_MOD_G_2F:
-    case OPC_MODU_G_2F:
-        check_insn(ctx, INSN_LOONGSON2F | ASE_LEXT);
-        gen_loongson_integer(ctx, op1, rd, rs, rt);
-        break;
     case OPC_CLO:
     case OPC_CLZ:
         check_insn(ctx, ISA_MIPS_R1);
@@ -13656,15 +13439,6 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         check_insn(ctx, ISA_MIPS_R1);
         check_mips_64(ctx);
         gen_cl(ctx, op1, rd, rs);
-        break;
-    case OPC_DMULT_G_2F:
-    case OPC_DMULTU_G_2F:
-    case OPC_DDIV_G_2F:
-    case OPC_DDIVU_G_2F:
-    case OPC_DMOD_G_2F:
-    case OPC_DMODU_G_2F:
-        check_insn(ctx, INSN_LOONGSON2F | ASE_LEXT);
-        gen_loongson_integer(ctx, op1, rd, rs, rt);
         break;
 #endif
     default:            /* Invalid */
@@ -13798,17 +13572,12 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
 
     op1 = MASK_SPECIAL3(ctx->opcode);
     switch (op1) {
-    case OPC_DIV_G_2E:
-    case OPC_DIVU_G_2E:
-    case OPC_MOD_G_2E:
-    case OPC_MODU_G_2E:
-    case OPC_MULT_G_2E:
-    case OPC_MULTU_G_2E:
+    case OPC_MUL_PH_DSP:
         /*
-         * OPC_MULT_G_2E, OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
+         * OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
          * the same mask and op1.
          */
-        if ((ctx->insn_flags & ASE_DSP_R2) && (op1 == OPC_MULT_G_2E)) {
+        if ((ctx->insn_flags & ASE_DSP_R2) && (op1 == OPC_MUL_PH_DSP)) {
             op2 = MASK_ADDUH_QB(ctx->opcode);
             switch (op2) {
             case OPC_ADDUH_QB:
@@ -13836,8 +13605,6 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 break;
             }
-        } else if (ctx->insn_flags & INSN_LOONGSON2E) {
-            gen_loongson_integer(ctx, op1, rd, rs, rt);
         } else {
             gen_reserved_instruction(ctx);
         }
@@ -14066,15 +13833,6 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
 #if defined(TARGET_MIPS64)
-    case OPC_DDIV_G_2E:
-    case OPC_DDIVU_G_2E:
-    case OPC_DMULT_G_2E:
-    case OPC_DMULTU_G_2E:
-    case OPC_DMOD_G_2E:
-    case OPC_DMODU_G_2E:
-        check_insn(ctx, INSN_LOONGSON2E);
-        gen_loongson_integer(ctx, op1, rd, rs, rt);
-        break;
     case OPC_ABSQ_S_QH_DSP:
         op2 = MASK_ABSQ_S_QH(ctx->opcode);
         switch (op2) {
@@ -14952,7 +14710,9 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             } else {
                 /* OPC_BC1ANY2 */
                 check_cop1x(ctx);
-                check_insn(ctx, ASE_MIPS3D);
+                if (!ase_3d_available(env)) {
+                    return false;
+                }
                 gen_compute_branch1(ctx, MASK_BC1(ctx->opcode),
                                     (rt >> 2) & 0x7, imm << 2);
             }
@@ -14967,7 +14727,9 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             check_cp1_enabled(ctx);
             check_insn_opc_removed(ctx, ISA_MIPS_R6);
             check_cop1x(ctx);
-            check_insn(ctx, ASE_MIPS3D);
+            if (!ase_3d_available(env)) {
+                return false;
+            }
             /* fall through */
         case OPC_BC1:
             check_cp1_enabled(ctx);
@@ -15265,6 +15027,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         return;
     }
     if (cpu_supports_isa(env, INSN_VR54XX) && decode_ext_vr54xx(ctx, ctx->opcode)) {
+        return;
+    }
+    if (TARGET_LONG_BITS == 64 && decode_ext_loongson(ctx, ctx->opcode)) {
         return;
     }
 #if defined(TARGET_MIPS64)

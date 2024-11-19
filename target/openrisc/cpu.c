@@ -105,6 +105,12 @@ static void openrisc_cpu_reset_hold(Object *obj, ResetType type)
 
     set_float_detect_tininess(float_tininess_before_rounding,
                               &cpu->env.fp_status);
+    /*
+     * TODO: this is probably not the correct NaN propagation rule for
+     * this architecture.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &cpu->env.fp_status);
+
 
 #ifndef CONFIG_USER_ONLY
     cpu->env.picmr = 0x00000000;

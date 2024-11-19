@@ -11690,7 +11690,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->tbii = EX_TBFLAG_A64(tb_flags, TBII);
     dc->tbid = EX_TBFLAG_A64(tb_flags, TBID);
     dc->tcma = EX_TBFLAG_A64(tb_flags, TCMA);
-    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx, false);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
 #endif

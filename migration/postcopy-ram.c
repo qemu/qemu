@@ -1230,7 +1230,8 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         return -1;
     }
 
-    postcopy_thread_create(mis, &mis->fault_thread, "mig/dst/fault",
+    postcopy_thread_create(mis, &mis->fault_thread,
+                           MIGRATION_THREAD_DST_FAULT,
                            postcopy_ram_fault_thread, QEMU_THREAD_JOINABLE);
     mis->have_fault_thread = true;
 
@@ -1250,7 +1251,8 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
          * This thread needs to be created after the temp pages because
          * it'll fetch RAM_CHANNEL_POSTCOPY PostcopyTmpPage immediately.
          */
-        postcopy_thread_create(mis, &mis->postcopy_prio_thread, "mig/dst/preempt",
+        postcopy_thread_create(mis, &mis->postcopy_prio_thread,
+                               MIGRATION_THREAD_DST_PREEMPT,
                                postcopy_preempt_thread, QEMU_THREAD_JOINABLE);
         mis->preempt_thread_status = PREEMPT_THREAD_CREATED;
     }

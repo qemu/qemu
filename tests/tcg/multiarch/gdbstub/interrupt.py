@@ -8,7 +8,7 @@ from __future__ import print_function
 #
 
 import gdb
-from test_gdbstub import main, report
+from test_gdbstub import gdb_exit, main, report
 
 
 def check_interrupt(thread):
@@ -49,7 +49,7 @@ def run_test():
     """
     if len(gdb.selected_inferior().threads()) == 1:
         print("SKIP: set to run on a single thread")
-        exit(0)
+        gdb_exit(0)
 
     gdb.execute("set scheduler-locking on")
     for thread in gdb.selected_inferior().threads():

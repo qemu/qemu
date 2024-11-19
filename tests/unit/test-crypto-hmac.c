@@ -76,6 +76,14 @@ static QCryptoHmacTestData test_data[] = {
             "94964ed4c1155b62b668c241d67279e5"
             "8a711676",
     },
+#ifdef CONFIG_CRYPTO_SM3
+    {
+        .alg = QCRYPTO_HASH_ALGO_SM3,
+        .hex_digest =
+            "760e3799332bc913819b930085360ddb"
+    "c05529261313d5b15b75bab4fd7ae91e",
+    },
+#endif
 };
 
 static const char hex[] = "0123456789abcdef";
@@ -126,7 +134,7 @@ static void test_hmac_prealloc(void)
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
         QCryptoHmacTestData *data = &test_data[i];
         QCryptoHmac *hmac = NULL;
-        uint8_t *result = NULL;
+        uint8_t *result = NULL, *origresult = NULL;
         size_t resultlen = 0;
         const char *exp_output = NULL;
         int ret;
@@ -139,7 +147,7 @@ static void test_hmac_prealloc(void)
         exp_output = data->hex_digest;
 
         resultlen = strlen(exp_output) / 2;
-        result = g_new0(uint8_t, resultlen);
+        origresult = result = g_new0(uint8_t, resultlen);
 
         hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
                                 strlen(KEY), &error_fatal);
@@ -149,6 +157,8 @@ static void test_hmac_prealloc(void)
                                  strlen(INPUT_TEXT), &result,
                                  &resultlen, &error_fatal);
         g_assert(ret == 0);
+        /* Validate that our pre-allocated pointer was not replaced */
+        g_assert(result == origresult);
 
         exp_output = data->hex_digest;
         for (j = 0; j < resultlen; j++) {

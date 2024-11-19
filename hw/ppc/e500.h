@@ -41,8 +41,6 @@ struct PPCE500MachineClass {
 
 void ppce500_init(MachineState *machine);
 
-hwaddr booke206_page_size_to_tlb(uint64_t size);
-
 #define TYPE_PPCE500_MACHINE      "ppce500-base-machine"
 OBJECT_DECLARE_TYPE(PPCE500MachineState, PPCE500MachineClass, PPCE500_MACHINE)
 

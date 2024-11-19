@@ -93,6 +93,13 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
     env->fpsw = 0;
     set_flush_to_zero(1, &env->fp_status);
     set_flush_inputs_to_zero(1, &env->fp_status);
+    /*
+     * TODO: this is not the correct NaN propagation rule for this
+     * architecture. The "RX Family User's Manual: Software" table 1.6
+     * defines the propagation rules as "prefer SNaN over QNaN;
+     * then prefer dest over source", which is float_2nan_prop_s_ab.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
 }
 
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)

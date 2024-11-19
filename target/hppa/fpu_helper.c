@@ -49,6 +49,12 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
     d = FIELD_EX32(shadow, FPSR, D);
     set_flush_to_zero(d, &env->fp_status);
     set_flush_inputs_to_zero(d, &env->fp_status);
+
+    /*
+     * TODO: we only need to do this at CPU reset, but currently
+     * HPPA does note implement a CPU reset method at all...
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_s_ab, &env->fp_status);
 }
 
 void cpu_hppa_loaded_fr0(CPUHPPAState *env)

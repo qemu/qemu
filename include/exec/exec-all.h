@@ -368,6 +368,13 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
  * The CPUTLBEntryFull structure returned via @pfull is transient
  * and must be consumed or copied immediately, before any further
  * access or changes to TLB @mmu_idx.
+ *
+ * This function will not fault if @nonfault is set, but will
+ * return TLB_INVALID_MASK if the page is not mapped, or is not
+ * accessible with @access_type.
+ *
+ * This function will return TLB_MMIO in order to force the access
+ * to be handled out-of-line if plugins wish to instrument the access.
  */
 int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       MMUAccessType access_type, int mmu_idx,
@@ -375,22 +382,14 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       CPUTLBEntryFull **pfull, uintptr_t retaddr);
 
 /**
- * probe_access_mmu() - Like probe_access_full except cannot fault and
- * doesn't trigger instrumentation.
+ * probe_access_full_mmu:
+ * Like probe_access_full, except:
  *
- * @env: CPUArchState
- * @vaddr: virtual address to probe
- * @size: size of the probe
- * @access_type: read, write or execute permission
- * @mmu_idx: softmmu index
- * @phost: ptr to return value host address or NULL
- * @pfull: ptr to return value CPUTLBEntryFull structure or NULL
- *
- * The CPUTLBEntryFull structure returned via @pfull is transient
- * and must be consumed or copied immediately, before any further
- * access or changes to TLB @mmu_idx.
- *
- * Returns: TLB flags as per probe_access_flags()
+ * This function is intended to be used for page table accesses by
+ * the target mmu itself.  Since such page walking happens while
+ * handling another potential mmu fault, this function never raises
+ * exceptions (akin to @nonfault true for probe_access_full).
+ * Likewise this function does not trigger plugin instrumentation.
  */
 int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
                           MMUAccessType access_type, int mmu_idx,

@@ -223,7 +223,7 @@ jobs:
           - genisoimage
       env:
         - CONFIG="--disable-containers --audio-drv-list=sdl --disable-user
-            --target-list=arm-softmmu,avr-softmmu,microblaze-softmmu,sh4-softmmu,sparc64-softmmu,xtensaeb-softmmu"
+            --target-list=arm-softmmu,avr-softmmu,microblaze-softmmu,sh4eb-softmmu,sparc64-softmmu,xtensaeb-softmmu"
 
     - name: "[s390x] GCC (user)"
       arch: s390x

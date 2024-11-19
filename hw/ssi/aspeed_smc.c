@@ -417,7 +417,7 @@ static void aspeed_smc_flash_do_select(AspeedSMCFlash *fl, bool unselect)
     AspeedSMCState *s = fl->controller;
 
     trace_aspeed_smc_flash_select(fl->cs, unselect ? "un" : "");
-
+    s->unselect = unselect;
     qemu_set_irq(s->cs_lines[fl->cs], unselect);
 }
 
@@ -677,22 +677,35 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
 static void aspeed_smc_flash_update_ctrl(AspeedSMCFlash *fl, uint32_t value)
 {
     AspeedSMCState *s = fl->controller;
-    bool unselect;
+    bool unselect = false;
+    uint32_t old_mode;
+    uint32_t new_mode;
 
-    /* User mode selects the CS, other modes unselect */
-    unselect = (value & CTRL_CMD_MODE_MASK) != CTRL_USERMODE;
+    old_mode = s->regs[s->r_ctrl0 + fl->cs] & CTRL_CMD_MODE_MASK;
+    new_mode = value & CTRL_CMD_MODE_MASK;
 
-    /* A change of CTRL_CE_STOP_ACTIVE from 0 to 1, unselects the CS */
-    if (!(s->regs[s->r_ctrl0 + fl->cs] & CTRL_CE_STOP_ACTIVE) &&
-        value & CTRL_CE_STOP_ACTIVE) {
-        unselect = true;
+    if (old_mode == CTRL_USERMODE) {
+        if (new_mode != CTRL_USERMODE) {
+            unselect = true;
+        }
+
+        /* A change of CTRL_CE_STOP_ACTIVE from 0 to 1, unselects the CS */
+        if (!(s->regs[s->r_ctrl0 + fl->cs] & CTRL_CE_STOP_ACTIVE) &&
+            value & CTRL_CE_STOP_ACTIVE) {
+            unselect = true;
+        }
+    } else {
+        if (new_mode != CTRL_USERMODE) {
+            unselect = true;
+        }
     }
 
     s->regs[s->r_ctrl0 + fl->cs] = value;
 
-    s->snoop_index = unselect ? SNOOP_OFF : SNOOP_START;
-
-    aspeed_smc_flash_do_select(fl, unselect);
+    if (unselect != s->unselect) {
+        s->snoop_index = unselect ? SNOOP_OFF : SNOOP_START;
+        aspeed_smc_flash_do_select(fl, unselect);
+    }
 }
 
 static void aspeed_smc_reset(DeviceState *d)
@@ -728,6 +741,8 @@ static void aspeed_smc_reset(DeviceState *d)
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
         qemu_set_irq(s->cs_lines[i], true);
     }
+
+    s->unselect = true;
 
     /* setup the default segment register values and regions for all */
     for (i = 0; i < asc->cs_num_max; ++i) {
@@ -1261,12 +1276,13 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_aspeed_smc = {
     .name = "aspeed.smc",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSMCState, ASPEED_SMC_R_MAX),
         VMSTATE_UINT8(snoop_index, AspeedSMCState),
         VMSTATE_UINT8(snoop_dummies, AspeedSMCState),
+        VMSTATE_BOOL_V(unselect, AspeedSMCState, 3),
         VMSTATE_END_OF_LIST()
     }
 };

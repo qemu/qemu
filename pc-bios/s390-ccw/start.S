@@ -112,9 +112,7 @@ io_new_code:
     lctlg   %c6,%c6,0(%r15)
     br      %r14
 
-    .align  8
-bss_start_literal:
-    .quad   __bss_start
+    .balign 8
 disabled_wait_psw:
     .quad   0x0002000180000000,0x0000000000000000
 enabled_wait_psw:
@@ -124,8 +122,13 @@ external_new_mask:
 io_new_mask:
     .quad   0x0000000180000000
 
+.data
+    .balign 8
+bss_start_literal:
+    .quad   __bss_start
+
 .bss
-    .align  8
+    .balign 8
 stack:
     .space  STACK_SIZE
     .size   stack,STACK_SIZE

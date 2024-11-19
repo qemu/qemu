@@ -2484,7 +2484,10 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             mips32_op = OPC_BC1TANY4;
         do_cp1mips3d:
             check_cop1x(ctx);
-            check_insn(ctx, ASE_MIPS3D);
+            if (!ase_3d_available(env)) {
+                gen_reserved_instruction(ctx);
+                break;
+            }
             /* Fall through */
         do_cp1branch:
             if (env->CP0_Config1 & (1 << CP0C1_FP)) {

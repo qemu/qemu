@@ -1,4 +1,10 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
 # ebpf-rss.c
-ebpf_error(const char *s1, const char *s2) "error in %s: %s"
+ebpf_rss_load(void *ctx, int progfd, int cfgfd, int toepfd, int indirfd) "ctx=%p program-fd=%d config-fd=%d toeplitz-fd=%d indirection-fd=%d"
+ebpf_rss_load_error(void *ctx) "ctx=%p"
+ebpf_rss_mmap(void *ctx, void *cfgptr, void *toepptr, void *indirptr) "ctx=%p config-ptr=%p toeplitz-ptr=%p indirection-ptr=%p"
+ebpf_rss_mmap_error(void *ctx, const char *object) "ctx=%p object=%s"
+ebpf_rss_open_error(void *ctx) "ctx=%p"
+ebpf_rss_set_data(void *ctx, void *cfgptr, void *toepptr, void *indirptr) "ctx=%p config-ptr=%p toeplitz-ptr=%p indirection-ptr=%p"
+ebpf_rss_unload(void *ctx) "rss unload ctx=%p"

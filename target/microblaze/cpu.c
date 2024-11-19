@@ -201,6 +201,13 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
 
     env->pc = cpu->cfg.base_vectors;
 
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    /*
+     * TODO: this is probably not the correct NaN propagation rule for
+     * this architecture.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
     mb_cpu_write_msr(env, MSR_EE | MSR_IE | MSR_VM | MSR_UM);
@@ -311,14 +318,11 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 static void mb_cpu_initfn(Object *obj)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
-    CPUMBState *env = &cpu->env;
 
     gdb_register_coprocessor(CPU(cpu), mb_cpu_gdb_read_stack_protect,
                              mb_cpu_gdb_write_stack_protect,
                              gdb_find_static_feature("microblaze-stack-protect.xml"),
                              0);
-
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY
     /* Inbound IRQ and FIR lines */
@@ -328,9 +332,16 @@ static void mb_cpu_initfn(Object *obj)
     qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
     qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
 #endif
+
+    /* Restricted 'endianness' property is equivalent of 'little-endian' */
+    object_property_add_alias(obj, "little-endian", obj, "endianness");
 }
 
 static Property mb_properties[] = {
+    /*
+     * Following properties are used by Xilinx DTS conversion tool
+     * do not rename them.
+     */
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
                      false),
@@ -387,6 +398,9 @@ static Property mb_properties[] = {
     DEFINE_PROP_UINT8("pvr", MicroBlazeCPU, cfg.pvr, C_PVR_FULL),
     DEFINE_PROP_UINT8("pvr-user1", MicroBlazeCPU, cfg.pvr_user1, 0),
     DEFINE_PROP_UINT32("pvr-user2", MicroBlazeCPU, cfg.pvr_user2, 0),
+    /*
+     * End of properties reserved by Xilinx DTS conversion tool.
+     */
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -205,6 +205,7 @@ static void s390_cpu_reset_hold(Object *obj, ResetType type)
         /* tininess for underflow is detected before rounding */
         set_float_detect_tininess(float_tininess_before_rounding,
                                   &env->fpu_status);
+        set_float_2nan_prop_rule(float_2nan_prop_s_ab, &env->fpu_status);
        /* fall through */
     case RESET_TYPE_S390_CPU_NORMAL:
         env->psw.mask &= ~PSW_MASK_RI;

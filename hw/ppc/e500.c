@@ -203,6 +203,8 @@ static void dt_i2c_create(void *fdt, const char *soc, const char *mpic,
     qemu_fdt_setprop_cells(fdt, i2c, "cell-index", 0);
     qemu_fdt_setprop_cells(fdt, i2c, "interrupts", irq0, 0x2);
     qemu_fdt_setprop_phandle(fdt, i2c, "interrupt-parent", mpic);
+    qemu_fdt_setprop_cell(fdt, i2c, "#size-cells", 0);
+    qemu_fdt_setprop_cell(fdt, i2c, "#address-cells", 1);
     qemu_fdt_setprop_string(fdt, "/aliases", alias, i2c);
 
     g_free(i2c);
@@ -721,9 +723,19 @@ static int ppce500_prep_device_tree(PPCE500MachineState *machine,
                                     kernel_base, kernel_size, true);
 }
 
-hwaddr booke206_page_size_to_tlb(uint64_t size)
+static hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
     return 63 - clz64(size / KiB);
+}
+
+void booke206_set_tlb(ppcmas_tlb_t *tlb, target_ulong va, hwaddr pa,
+                      hwaddr len)
+{
+    tlb->mas1 = booke206_page_size_to_tlb(len) << MAS1_TSIZE_SHIFT;
+    tlb->mas1 |= MAS1_VALID;
+    tlb->mas2 = va & TARGET_PAGE_MASK;
+    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
+    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 }
 
 static int booke206_initial_map_tsize(CPUPPCState *env)
@@ -751,25 +763,6 @@ static uint64_t mmubooke_initial_mapsize(CPUPPCState *env)
     return (1ULL << 10 << tsize);
 }
 
-/* Create -kernel TLB entries for BookE. */
-static void mmubooke_create_initial_mapping(CPUPPCState *env)
-{
-    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
-    hwaddr size;
-    int ps;
-
-    ps = booke206_initial_map_tsize(env);
-    size = (ps << MAS1_TSIZE_SHIFT);
-    tlb->mas1 = MAS1_VALID | size;
-    tlb->mas2 = 0;
-    tlb->mas7_3 = 0;
-    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
-
-#ifdef CONFIG_KVM
-    env->tlb_dirty = true;
-#endif
-}
-
 static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -786,6 +779,8 @@ static void ppce500_cpu_reset(void *opaque)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     struct boot_info *bi = env->load_info;
+    uint64_t map_size = mmubooke_initial_mapsize(env);
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
 
     cpu_reset(cs);
 
@@ -796,11 +791,15 @@ static void ppce500_cpu_reset(void *opaque)
     env->gpr[4] = 0;
     env->gpr[5] = 0;
     env->gpr[6] = EPAPR_MAGIC;
-    env->gpr[7] = mmubooke_initial_mapsize(env);
+    env->gpr[7] = map_size;
     env->gpr[8] = 0;
     env->gpr[9] = 0;
     env->nip = bi->entry;
-    mmubooke_create_initial_mapping(env);
+    /* create initial mapping */
+    booke206_set_tlb(tlb, 0, 0, map_size);
+#ifdef CONFIG_KVM
+    env->tlb_dirty = true;
+#endif
 }
 
 static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
@@ -832,7 +831,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
 }
 
 static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
-                                          IrqLines *irqs, Error **errp)
+                                          Error **errp)
 {
 #ifdef CONFIG_KVM
     DeviceState *dev;
@@ -872,7 +871,7 @@ static DeviceState *ppce500_init_mpic(PPCE500MachineState *pms,
         Error *err = NULL;
 
         if (kvm_kernel_irqchip_allowed()) {
-            dev = ppce500_init_mpic_kvm(pmc, irqs, &err);
+            dev = ppce500_init_mpic_kvm(pmc, &err);
         }
         if (kvm_kernel_irqchip_required() && !dev) {
             error_reportf_err(err,
@@ -1024,7 +1023,7 @@ void ppce500_init(MachineState *machine)
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8544_I2C_IRQ));
     memory_region_add_subregion(ccsr_addr_space, MPC8544_I2C_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
-    i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
+    i2c = I2C_BUS(qdev_get_child_bus(dev, "i2c"));
     i2c_slave_create_simple(i2c, "ds1338", RTC_REGS_OFFSET);
 
     /* eSDHC */
@@ -1073,7 +1072,7 @@ void ppce500_init(MachineState *machine)
     memory_region_add_subregion(ccsr_addr_space, MPC8544_PCI_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
-    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 

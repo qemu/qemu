@@ -136,7 +136,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_autoptr(GString) result = g_string_new("collected ");
     GList *data;
     GCompareFunc sort = &hottest;
-    int n = 0;
+    int i = 0;
 
     g_mutex_lock(&node_lock);
     g_string_append_printf(result, "%d control flow nodes in the hash table\n",
@@ -162,8 +162,8 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     data = g_list_sort(data, sort);
 
     for (GList *l = data;
-         l != NULL && n < topn;
-         l = l->next, n++) {
+         l != NULL && i < topn;
+         l = l->next, i++) {
         NodeData *n = l->data;
         const char *type = n->mid_count ? "sync fault" : "branch";
         g_string_append_printf(result, "  addr: 0x%"PRIx64 " %s: %s (%s)\n",

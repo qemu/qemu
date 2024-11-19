@@ -151,6 +151,9 @@ static CXLRetCode cmd_tunnel_management_cmd(const struct cxl_cmd *cmd,
     in = (void *)payload_in;
     out = (void *)payload_out;
 
+    if (len_in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
     /* Enough room for minimum sized message - no payload */
     if (in->size < sizeof(in->ccimessage)) {
         return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
@@ -266,6 +269,12 @@ static CXLRetCode cmd_events_clear_records(const struct cxl_cmd *cmd,
     CXLClearEventPayload *pl;
 
     pl = (CXLClearEventPayload *)payload_in;
+
+    if (len_in < sizeof(*pl) ||
+        len_in < sizeof(*pl) + sizeof(*pl->handle) * pl->nr_recs) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     *len_out = 0;
     return cxl_event_clear_records(cxlds, pl);
 }
@@ -374,7 +383,7 @@ static CXLRetCode cmd_infostat_identify(const struct cxl_cmd *cmd,
         uint16_t pcie_subsys_vid;
         uint16_t pcie_subsys_id;
         uint64_t sn;
-    uint8_t max_message_size;
+        uint8_t max_message_size;
         uint8_t component_type;
     } QEMU_PACKED *is_identify;
     QEMU_BUILD_BUG_ON(sizeof(*is_identify) != 18);
@@ -521,6 +530,9 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
     in = (struct cxl_fmapi_get_phys_port_state_req_pl *)payload_in;
     out = (struct cxl_fmapi_get_phys_port_state_resp_pl *)payload_out;
 
+    if (len_in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
     /* Check if what was requested can fit */
     if (sizeof(*out) + sizeof(*out->ports) * in->num_ports > cci->payload_max) {
         return CXL_MBOX_INVALID_INPUT;
@@ -649,9 +661,9 @@ static CXLRetCode cmd_firmware_update_get_info(const struct cxl_cmd *cmd,
     } QEMU_PACKED *fw_info;
     QEMU_BUILD_BUG_ON(sizeof(*fw_info) != 0x50);
 
-    if ((cxl_dstate->vmem_size < CXL_CAPACITY_MULTIPLIER) ||
-        (cxl_dstate->pmem_size < CXL_CAPACITY_MULTIPLIER) ||
-        (ct3d->dc.total_capacity < CXL_CAPACITY_MULTIPLIER)) {
+    if (!QEMU_IS_ALIGNED(cxl_dstate->vmem_size, CXL_CAPACITY_MULTIPLIER) ||
+        !QEMU_IS_ALIGNED(cxl_dstate->pmem_size, CXL_CAPACITY_MULTIPLIER) ||
+        !QEMU_IS_ALIGNED(ct3d->dc.total_capacity, CXL_CAPACITY_MULTIPLIER)) {
         return CXL_MBOX_INTERNAL_ERROR;
     }
 
@@ -698,6 +710,10 @@ static CXLRetCode cmd_firmware_update_transfer(const struct cxl_cmd *cmd,
         uint8_t data[];
     } QEMU_PACKED *fw_transfer = (void *)payload_in;
     size_t offset, length;
+
+    if (len < sizeof(*fw_transfer)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
 
     if (fw_transfer->action == CXL_FW_XFER_ACTION_ABORT) {
         /*
@@ -927,22 +943,26 @@ static CXLRetCode cmd_logs_get_log(const struct cxl_cmd *cmd,
 
     get_log = (void *)payload_in;
 
-    /*
-     * CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h)
-     *   The device shall return Invalid Input if the Offset or Length
-     *   fields attempt to access beyond the size of the log as reported by Get
-     *   Supported Logs.
-     *
-     * The CEL buffer is large enough to fit all commands in the emulation, so
-     * the only possible failure would be if the mailbox itself isn't big
-     * enough.
-     */
-    if (get_log->offset + get_log->length > cci->payload_max) {
+    if (get_log->length > cci->payload_max) {
         return CXL_MBOX_INVALID_INPUT;
     }
 
     if (!qemu_uuid_is_equal(&get_log->uuid, &cel_uuid)) {
         return CXL_MBOX_INVALID_LOG;
+    }
+
+    /*
+     * CXL r3.1 Section 8.2.9.5.2: Get Log (Opcode 0401h)
+     *   The device shall return Invalid Input if the Offset or Length
+     *   fields attempt to access beyond the size of the log as reported by Get
+     *   Supported Log.
+     *
+     * Only valid for there to be one entry per opcode, but the length + offset
+     * may still be greater than that if the inputs are not valid and so access
+     * beyond the end of cci->cel_log.
+     */
+    if ((uint64_t)get_log->offset + get_log->length >= sizeof(cci->cel_log)) {
+        return CXL_MBOX_INVALID_INPUT;
     }
 
     /* Store off everything to local variables so we can wipe out the payload */
@@ -1133,10 +1153,8 @@ static CXLRetCode cmd_features_get_supported(const struct cxl_cmd *cmd,
                          (struct CXLSupportedFeatureEntry) {
                 .uuid = ecs_uuid,
                 .feat_index = index,
-                .get_feat_size = CXL_ECS_NUM_MEDIA_FRUS *
-                                    sizeof(CXLMemECSReadAttrs),
-                .set_feat_size = CXL_ECS_NUM_MEDIA_FRUS *
-                                    sizeof(CXLMemECSWriteAttrs),
+                .get_feat_size = sizeof(CXLMemECSReadAttrs),
+                .set_feat_size = sizeof(CXLMemECSWriteAttrs),
                 .attr_flags = CXL_FEAT_ENTRY_ATTR_FLAG_CHANGABLE,
                 .get_feat_version = CXL_ECS_GET_FEATURE_VERSION,
                 .set_feat_version = CXL_ECS_SET_FEATURE_VERSION,
@@ -1204,13 +1222,10 @@ static CXLRetCode cmd_features_get_feature(const struct cxl_cmd *cmd,
                (uint8_t *)&ct3d->patrol_scrub_attrs + get_feature->offset,
                bytes_to_copy);
     } else if (qemu_uuid_is_equal(&get_feature->uuid, &ecs_uuid)) {
-        if (get_feature->offset >=  CXL_ECS_NUM_MEDIA_FRUS *
-                                sizeof(CXLMemECSReadAttrs)) {
+        if (get_feature->offset >= sizeof(CXLMemECSReadAttrs)) {
             return CXL_MBOX_INVALID_INPUT;
         }
-        bytes_to_copy = CXL_ECS_NUM_MEDIA_FRUS *
-                        sizeof(CXLMemECSReadAttrs) -
-                            get_feature->offset;
+        bytes_to_copy = sizeof(CXLMemECSReadAttrs) - get_feature->offset;
         bytes_to_copy = MIN(bytes_to_copy, get_feature->count);
         memcpy(payload_out,
                (uint8_t *)&ct3d->ecs_attrs + get_feature->offset,
@@ -1243,6 +1258,9 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
     CXLType3Dev *ct3d;
     uint16_t count;
 
+    if (len_in < sizeof(*hdr)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
 
     if (!object_dynamic_cast(OBJECT(cci->d), TYPE_CXL_TYPE3)) {
         return CXL_MBOX_UNSUPPORTED;
@@ -1277,6 +1295,11 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         ps_set_feature = (void *)payload_in;
         ps_write_attrs = &ps_set_feature->feat_data;
+
+        if ((uint32_t)hdr->offset + bytes_to_copy >
+            sizeof(ct3d->patrol_scrub_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
         memcpy((uint8_t *)&ct3d->patrol_scrub_wr_attrs + hdr->offset,
                ps_write_attrs,
                bytes_to_copy);
@@ -1299,18 +1322,22 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
 
         ecs_set_feature = (void *)payload_in;
         ecs_write_attrs = ecs_set_feature->feat_data;
-        memcpy((uint8_t *)ct3d->ecs_wr_attrs + hdr->offset,
+
+        if ((uint32_t)hdr->offset + bytes_to_copy >
+            sizeof(ct3d->ecs_wr_attrs)) {
+            return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+        }
+        memcpy((uint8_t *)&ct3d->ecs_wr_attrs + hdr->offset,
                ecs_write_attrs,
                bytes_to_copy);
         set_feat_info->data_size += bytes_to_copy;
 
         if (data_transfer_flag == CXL_SET_FEATURE_FLAG_FULL_DATA_TRANSFER ||
             data_transfer_flag ==  CXL_SET_FEATURE_FLAG_FINISH_DATA_TRANSFER) {
+            ct3d->ecs_attrs.ecs_log_cap = ct3d->ecs_wr_attrs.ecs_log_cap;
             for (count = 0; count < CXL_ECS_NUM_MEDIA_FRUS; count++) {
-                ct3d->ecs_attrs[count].ecs_log_cap =
-                                  ct3d->ecs_wr_attrs[count].ecs_log_cap;
-                ct3d->ecs_attrs[count].ecs_config =
-                                  ct3d->ecs_wr_attrs[count].ecs_config & 0x1F;
+                ct3d->ecs_attrs.fru_attrs[count].ecs_config =
+                        ct3d->ecs_wr_attrs.fru_attrs[count].ecs_config & 0x1F;
             }
         }
     } else {
@@ -1324,7 +1351,7 @@ static CXLRetCode cmd_features_set_feature(const struct cxl_cmd *cmd,
         if (qemu_uuid_is_equal(&hdr->uuid, &patrol_scrub_uuid)) {
             memset(&ct3d->patrol_scrub_wr_attrs, 0, set_feat_info->data_size);
         } else if (qemu_uuid_is_equal(&hdr->uuid, &ecs_uuid)) {
-            memset(ct3d->ecs_wr_attrs, 0, set_feat_info->data_size);
+            memset(&ct3d->ecs_wr_attrs, 0, set_feat_info->data_size);
         }
         set_feat_info->data_transfer_flag = 0;
         set_feat_info->data_saved_across_reset = false;
@@ -1445,7 +1472,7 @@ static CXLRetCode cmd_ccls_get_lsa(const struct cxl_cmd *cmd,
     } QEMU_PACKED *get_lsa;
     CXLType3Dev *ct3d = CXL_TYPE3(cci->d);
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
-    uint32_t offset, length;
+    uint64_t offset, length;
 
     get_lsa = (void *)payload_in;
     offset = get_lsa->offset;
@@ -1479,8 +1506,8 @@ static CXLRetCode cmd_ccls_set_lsa(const struct cxl_cmd *cmd,
     const size_t hdr_len = offsetof(struct set_lsa_pl, data);
 
     *len_out = 0;
-    if (!len_in) {
-        return CXL_MBOX_SUCCESS;
+    if (len_in < hdr_len) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
     if (set_lsa_payload->offset + len_in > cvc->get_lsa_size(ct3d) + hdr_len) {
@@ -2233,6 +2260,7 @@ static CXLRetCode cmd_dcd_get_dyn_cap_ext_list(const struct cxl_cmd *cmd,
             stw_le_p(&out_rec->shared_seq, ent->shared_seq);
 
             record_done++;
+            out_rec++;
             if (record_done == record_count) {
                 break;
             }
@@ -2470,9 +2498,18 @@ static CXLRetCode cmd_dcd_add_dyn_cap_rsp(const struct cxl_cmd *cmd,
     uint64_t dpa, len;
     CXLRetCode ret;
 
+    if (len_in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     if (in->num_entries_updated == 0) {
         cxl_extent_group_list_delete_front(&ct3d->dc.extents_pending);
         return CXL_MBOX_SUCCESS;
+    }
+
+    if (len_in <
+        sizeof(*in) + sizeof(*in->updated_entries) * in->num_entries_updated) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
     /* Adding extents causes exceeding device's extent tracking ability. */
@@ -2629,8 +2666,17 @@ static CXLRetCode cmd_dcd_release_dyn_cap(const struct cxl_cmd *cmd,
     uint32_t updated_list_size;
     CXLRetCode ret;
 
+    if (len_in < sizeof(*in)) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
+    }
+
     if (in->num_entries_updated == 0) {
         return CXL_MBOX_INVALID_INPUT;
+    }
+
+    if (len_in <
+        sizeof(*in) + sizeof(*in->updated_entries) * in->num_entries_updated) {
+        return CXL_MBOX_INVALID_PAYLOAD_LENGTH;
     }
 
     ret = cxl_detect_malformed_extent_list(ct3d, in);
@@ -2879,7 +2925,8 @@ static void bg_timercb(void *opaque)
         }
     } else {
         /* estimate only */
-        cci->bg.complete_pct = 100 * now / total_time;
+        cci->bg.complete_pct =
+            100 * (now - cci->bg.starttime) / cci->bg.runtime;
         timer_mod(cci->bg.timer, now + CXL_MBOX_BG_UPDATE_FREQ);
     }
 

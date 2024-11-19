@@ -530,7 +530,6 @@ typedef struct CPUArchState {
     CPUMIPSFPUContext active_fpu;
 
     uint32_t current_tc;
-    uint32_t current_fpu;
 
     uint32_t SEGBITS;
     uint32_t PABITS;
@@ -1318,6 +1317,12 @@ enum {
 bool cpu_type_supports_cps_smp(const char *cpu_type);
 bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask);
 bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa);
+
+/* Check presence of MIPS-3D ASE */
+static inline bool ase_3d_available(const CPUMIPSState *env)
+{
+    return env->active_fpu.fcr0 & (1 << FCR0_3D);
+}
 
 /* Check presence of MSA implementation */
 static inline bool ase_msa_available(CPUMIPSState *env)

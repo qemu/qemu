@@ -90,7 +90,7 @@ petalogix_ml605_init(MachineState *machine)
     object_property_set_int(OBJECT(cpu), "use-fpu", 1, &error_abort);
     object_property_set_bool(OBJECT(cpu), "dcache-writeback", true,
                              &error_abort);
-    object_property_set_bool(OBJECT(cpu), "endianness", true, &error_abort);
+    object_property_set_bool(OBJECT(cpu), "little-endian", true, &error_abort);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
@@ -213,7 +213,12 @@ petalogix_ml605_init(MachineState *machine)
 
 static void petalogix_ml605_machine_init(MachineClass *mc)
 {
-    mc->desc = "PetaLogix linux refdesign for xilinx ml605 little endian";
+#if TARGET_BIG_ENDIAN
+    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (big endian)";
+    mc->deprecation_reason = "big endian support is not tested";
+#else
+    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (little endian)";
+#endif
     mc->init = petalogix_ml605_init;
 }
 

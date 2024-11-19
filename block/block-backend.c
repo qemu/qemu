@@ -1019,20 +1019,32 @@ DeviceState *blk_get_attached_dev(BlockBackend *blk)
     return blk->dev;
 }
 
-/* Return the qdev ID, or if no ID is assigned the QOM path, of the block
- * device attached to the BlockBackend. */
-char *blk_get_attached_dev_id(BlockBackend *blk)
+static char *blk_get_attached_dev_id_or_path(BlockBackend *blk, bool want_id)
 {
     DeviceState *dev = blk->dev;
     IO_CODE();
 
     if (!dev) {
         return g_strdup("");
-    } else if (dev->id) {
+    } else if (want_id && dev->id) {
         return g_strdup(dev->id);
     }
 
     return object_get_canonical_path(OBJECT(dev)) ?: g_strdup("");
+}
+
+/*
+ * Return the qdev ID, or if no ID is assigned the QOM path, of the block
+ * device attached to the BlockBackend.
+ */
+char *blk_get_attached_dev_id(BlockBackend *blk)
+{
+    return blk_get_attached_dev_id_or_path(blk, true);
+}
+
+static char *blk_get_attached_dev_path(BlockBackend *blk)
+{
+    return blk_get_attached_dev_id_or_path(blk, false);
 }
 
 /*
@@ -2125,6 +2137,7 @@ static void send_qmp_error_event(BlockBackend *blk,
 
     optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
     qapi_event_send_block_io_error(blk_name(blk),
+                                   blk_get_attached_dev_path(blk),
                                    bs ? bdrv_get_node_name(bs) : NULL, optype,
                                    action, blk_iostatus_is_enabled(blk),
                                    error == ENOSPC, strerror(error));

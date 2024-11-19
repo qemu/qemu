@@ -497,7 +497,10 @@ uint32_t helper_flcmps(float32 src1, float32 src2)
      * Perform the comparison with a dummy fp environment.
      */
     float_status discard = { };
-    FloatRelation r = float32_compare_quiet(src1, src2, &discard);
+    FloatRelation r;
+
+    set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
+    r = float32_compare_quiet(src1, src2, &discard);
 
     switch (r) {
     case float_relation_equal:
@@ -518,7 +521,10 @@ uint32_t helper_flcmps(float32 src1, float32 src2)
 uint32_t helper_flcmpd(float64 src1, float64 src2)
 {
     float_status discard = { };
-    FloatRelation r = float64_compare_quiet(src1, src2, &discard);
+    FloatRelation r;
+
+    set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
+    r = float64_compare_quiet(src1, src2, &discard);
 
     switch (r) {
     case float_relation_equal:

@@ -2,14 +2,17 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::{
-    ffi::{c_int, c_uchar, c_uint, c_void, CStr},
-    ptr::{addr_of, addr_of_mut, NonNull},
+use core::ptr::{addr_of, addr_of_mut, NonNull};
+use std::{
+    ffi::CStr,
+    os::raw::{c_int, c_uchar, c_uint, c_void},
 };
 
 use qemu_api::{
     bindings::{self, *},
+    c_str,
     definitions::ObjectImpl,
+    device_class::TYPE_SYS_BUS_DEVICE,
 };
 
 use crate::{
@@ -18,15 +21,42 @@ use crate::{
     RegisterOffset,
 };
 
-static PL011_ID_ARM: [c_uchar; 8] = [0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1];
+/// Integer Baud Rate Divider, `UARTIBRD`
+const IBRD_MASK: u32 = 0xffff;
+
+/// Fractional Baud Rate Divider, `UARTFBRD`
+const FBRD_MASK: u32 = 0x3f;
 
 const DATA_BREAK: u32 = 1 << 10;
 
 /// QEMU sourced constant.
 pub const PL011_FIFO_DEPTH: usize = 16_usize;
 
+#[derive(Clone, Copy, Debug)]
+enum DeviceId {
+    #[allow(dead_code)]
+    Arm = 0,
+    Luminary,
+}
+
+impl std::ops::Index<hwaddr> for DeviceId {
+    type Output = c_uchar;
+
+    fn index(&self, idx: hwaddr) -> &Self::Output {
+        match self {
+            Self::Arm => &Self::PL011_ID_ARM[idx as usize],
+            Self::Luminary => &Self::PL011_ID_LUMINARY[idx as usize],
+        }
+    }
+}
+
+impl DeviceId {
+    const PL011_ID_ARM: [c_uchar; 8] = [0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1];
+    const PL011_ID_LUMINARY: [c_uchar; 8] = [0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1];
+}
+
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::Object)]
+#[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
     pub parent_obj: SysBusDevice,
@@ -69,6 +99,8 @@ pub struct PL011State {
     pub clock: NonNull<Clock>,
     #[doc(alias = "migrate_clk")]
     pub migrate_clock: bool,
+    /// The byte string that identifies the device.
+    device_id: DeviceId,
 }
 
 impl ObjectImpl for PL011State {
@@ -88,16 +120,12 @@ pub struct PL011Class {
 }
 
 impl qemu_api::definitions::Class for PL011Class {
-    const CLASS_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
-    > = Some(crate::device_class::pl011_class_init);
+    const CLASS_INIT: Option<unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void)> =
+        Some(crate::device_class::pl011_class_init);
     const CLASS_BASE_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut core::ffi::c_void),
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
     > = None;
 }
-
-#[used]
-pub static CLK_NAME: &CStr = c"clk";
 
 impl PL011State {
     /// Initializes a pre-allocated, unitialized instance of `PL011State`.
@@ -108,7 +136,9 @@ impl PL011State {
     /// `PL011State` type. It must not be called more than once on the same
     /// location/instance. All its fields are expected to hold unitialized
     /// values with the sole exception of `parent_obj`.
-    pub unsafe fn init(&mut self) {
+    unsafe fn init(&mut self) {
+        const CLK_NAME: &CStr = c_str!("clk");
+
         let dev = addr_of_mut!(*self).cast::<DeviceState>();
         // SAFETY:
         //
@@ -148,23 +178,18 @@ impl PL011State {
         }
     }
 
-    pub fn read(
-        &mut self,
-        offset: hwaddr,
-        _size: core::ffi::c_uint,
-    ) -> std::ops::ControlFlow<u64, u64> {
+    pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
         use RegisterOffset::*;
 
         std::ops::ControlFlow::Break(match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&v) => {
-                u64::from(PL011_ID_ARM[((offset - 0xfe0) >> 2) as usize])
+                u64::from(self.device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
                 0
             }
             Ok(DR) => {
-                // s->flags &= ~PL011_FLAG_RXFF;
                 self.flags.set_receive_fifo_full(false);
                 let c = self.read_fifo[self.read_pos];
                 if self.read_count > 0 {
@@ -172,11 +197,9 @@ impl PL011State {
                     self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
                 }
                 if self.read_count == 0 {
-                    // self.flags |= PL011_FLAG_RXFE;
                     self.flags.set_receive_fifo_empty(true);
                 }
                 if self.read_count + 1 == self.read_trigger {
-                    //self.int_level &= ~ INT_RX;
                     self.int_level &= !registers::INT_RX;
                 }
                 // Update error bits.
@@ -346,13 +369,6 @@ impl PL011State {
          * dealt with here.
          */
 
-        //fr = s->flags & ~(PL011_FLAG_RI | PL011_FLAG_DCD |
-        //                  PL011_FLAG_DSR | PL011_FLAG_CTS);
-        //fr |= (cr & CR_OUT2) ? PL011_FLAG_RI  : 0;
-        //fr |= (cr & CR_OUT1) ? PL011_FLAG_DCD : 0;
-        //fr |= (cr & CR_RTS)  ? PL011_FLAG_CTS : 0;
-        //fr |= (cr & CR_DTR)  ? PL011_FLAG_DSR : 0;
-        //
         self.flags.set_ring_indicator(self.control.out_2());
         self.flags.set_data_carrier_detect(self.control.out_1());
         self.flags.set_clear_to_send(self.control.request_to_send());
@@ -363,10 +379,6 @@ impl PL011State {
         let mut il = self.int_level;
 
         il &= !Interrupt::MS;
-        //il |= (fr & PL011_FLAG_DSR) ? INT_DSR : 0;
-        //il |= (fr & PL011_FLAG_DCD) ? INT_DCD : 0;
-        //il |= (fr & PL011_FLAG_CTS) ? INT_CTS : 0;
-        //il |= (fr & PL011_FLAG_RI)  ? INT_RI  : 0;
 
         if self.flags.data_set_ready() {
             il |= Interrupt::DSR as u32;
@@ -472,10 +484,8 @@ impl PL011State {
         let slot = (self.read_pos + self.read_count) & (depth - 1);
         self.read_fifo[slot] = value;
         self.read_count += 1;
-        // s->flags &= ~PL011_FLAG_RXFE;
         self.flags.set_receive_fifo_empty(false);
         if self.read_count == depth {
-            //s->flags |= PL011_FLAG_RXFF;
             self.flags.set_receive_fifo_full(true);
         }
 
@@ -491,6 +501,27 @@ impl PL011State {
             // SAFETY: self.interrupts have been initialized in init().
             unsafe { qemu_set_irq(*irq, i32::from(flags & i != 0)) };
         }
+    }
+
+    pub fn post_load(&mut self, _version_id: u32) -> Result<(), ()> {
+        /* Sanity-check input state */
+        if self.read_pos >= self.read_fifo.len() || self.read_count > self.read_fifo.len() {
+            return Err(());
+        }
+
+        if !self.fifo_enabled() && self.read_count > 0 && self.read_pos > 0 {
+            // Older versions of PL011 didn't ensure that the single
+            // character in the FIFO in FIFO-disabled mode is in
+            // element 0 of the array; convert to follow the current
+            // code's assumptions.
+            self.read_fifo[0] = self.read_fifo[self.read_pos];
+            self.read_pos = 0;
+        }
+
+        self.ibrd &= IBRD_MASK;
+        self.fbrd &= FBRD_MASK;
+
+        Ok(())
     }
 }
 
@@ -514,7 +545,6 @@ pub const IRQMASK: [u32; 6] = [
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-#[no_mangle]
 pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
     unsafe {
         debug_assert!(!opaque.is_null());
@@ -530,12 +560,7 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 /// readable/writeable from one thread at any time.
 ///
 /// The buffer and size arguments must also be valid.
-#[no_mangle]
-pub unsafe extern "C" fn pl011_receive(
-    opaque: *mut core::ffi::c_void,
-    buf: *const u8,
-    size: core::ffi::c_int,
-) {
+pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
     unsafe {
         debug_assert!(!opaque.is_null());
         let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
@@ -554,8 +579,7 @@ pub unsafe extern "C" fn pl011_receive(
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-#[no_mangle]
-pub unsafe extern "C" fn pl011_event(opaque: *mut core::ffi::c_void, event: QEMUChrEvent) {
+pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
     unsafe {
         debug_assert!(!opaque.is_null());
         let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
@@ -576,7 +600,7 @@ pub unsafe extern "C" fn pl011_create(
         let dev: *mut DeviceState = qdev_new(PL011State::TYPE_INFO.name);
         let sysbus: *mut SysBusDevice = dev.cast::<SysBusDevice>();
 
-        qdev_prop_set_chr(dev, bindings::TYPE_CHARDEV.as_ptr(), chr);
+        qdev_prop_set_chr(dev, c_str!("chardev").as_ptr(), chr);
         sysbus_realize_and_unref(sysbus, addr_of!(error_fatal) as *mut *mut Error);
         sysbus_mmio_map(sysbus, 0, addr);
         sysbus_connect_irq(sysbus, 0, irq);
@@ -589,11 +613,57 @@ pub unsafe extern "C" fn pl011_create(
 /// We expect the FFI user of this function to pass a valid pointer, that has
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
-#[no_mangle]
 pub unsafe extern "C" fn pl011_init(obj: *mut Object) {
     unsafe {
         debug_assert!(!obj.is_null());
         let mut state = NonNull::new_unchecked(obj.cast::<PL011State>());
         state.as_mut().init();
     }
+}
+
+#[repr(C)]
+#[derive(Debug, qemu_api_macros::Object)]
+/// PL011 Luminary device model.
+pub struct PL011Luminary {
+    parent_obj: PL011State,
+}
+
+#[repr(C)]
+pub struct PL011LuminaryClass {
+    _inner: [u8; 0],
+}
+
+/// Initializes a pre-allocated, unitialized instance of `PL011Luminary`.
+///
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer, that has
+/// the same size as [`PL011Luminary`]. We also expect the device is
+/// readable/writeable from one thread at any time.
+pub unsafe extern "C" fn pl011_luminary_init(obj: *mut Object) {
+    unsafe {
+        debug_assert!(!obj.is_null());
+        let mut state = NonNull::new_unchecked(obj.cast::<PL011Luminary>());
+        let state = state.as_mut();
+        state.parent_obj.device_id = DeviceId::Luminary;
+    }
+}
+
+impl qemu_api::definitions::Class for PL011LuminaryClass {
+    const CLASS_INIT: Option<unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void)> =
+        None;
+    const CLASS_BASE_INIT: Option<
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
+    > = None;
+}
+
+impl ObjectImpl for PL011Luminary {
+    type Class = PL011LuminaryClass;
+    const TYPE_INFO: qemu_api::bindings::TypeInfo = qemu_api::type_info! { Self };
+    const TYPE_NAME: &'static CStr = crate::TYPE_PL011_LUMINARY;
+    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(crate::TYPE_PL011);
+    const ABSTRACT: bool = false;
+    const INSTANCE_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = Some(pl011_luminary_init);
+    const INSTANCE_POST_INIT: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
+    const INSTANCE_FINALIZE: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
 }

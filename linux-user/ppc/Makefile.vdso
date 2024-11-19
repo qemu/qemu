@@ -6,9 +6,11 @@ VPATH += $(SUBDIR)
 all: $(SUBDIR)/vdso-32.so $(SUBDIR)/vdso-64.so $(SUBDIR)/vdso-64le.so
 
 LDFLAGS32 = -nostdlib -shared -Wl,-T,$(SUBDIR)/vdso-32.ld \
-            -Wl,-h,linux-vdso32.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+            -Wl,-h,linux-vdso32.so.1 -Wl,--hash-style=both \
+	    -Wl,--build-id=sha1 -Wl,-z,max-page-size=4096
 LDFLAGS64 = -nostdlib -shared -Wl,-T,$(SUBDIR)/vdso-64.ld \
-            -Wl,-h,linux-vdso64.so.1 -Wl,--hash-style=both -Wl,--build-id=sha1
+            -Wl,-h,linux-vdso64.so.1 -Wl,--hash-style=both \
+	    -Wl,--build-id=sha1 -Wl,-z,max-page-size=4096
 
 $(SUBDIR)/vdso-32.so: vdso.S vdso-32.ld vdso-asmoffset.h
 	$(CC) -o $@ $(LDFLAGS32) -m32 $<

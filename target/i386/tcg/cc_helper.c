@@ -22,41 +22,6 @@
 #include "exec/helper-proto.h"
 #include "helper-tcg.h"
 
-const uint8_t parity_table[256] = {
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
-    0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
-};
-
 #define SHIFT 0
 #include "cc_helper_template.h.inc"
 #undef SHIFT
@@ -95,6 +60,19 @@ static target_ulong compute_all_adcox(target_ulong dst, target_ulong src1,
     return (src1 & ~(CC_C | CC_O)) | (dst * CC_C) | (src2 * CC_O);
 }
 
+target_ulong helper_cc_compute_nz(target_ulong dst, target_ulong src1,
+                                  int op)
+{
+    if (CC_OP_HAS_EFLAGS(op)) {
+        return ~src1 & CC_Z;
+    } else {
+        MemOp size = cc_op_size(op);
+        target_ulong mask = MAKE_64BIT_MASK(0, 8 << size);
+
+        return dst & mask;
+    }
+}
+
 target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
                                    target_ulong src2, int op)
 {
@@ -104,8 +82,6 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
 
     case CC_OP_EFLAGS:
         return src1;
-    case CC_OP_CLR:
-        return CC_Z | CC_P;
     case CC_OP_POPCNT:
         return dst ? 0 : CC_Z;
 
@@ -243,7 +219,6 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_LOGICW:
     case CC_OP_LOGICL:
     case CC_OP_LOGICQ:
-    case CC_OP_CLR:
     case CC_OP_POPCNT:
         return 0;
 

@@ -9,7 +9,8 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "scsi.h"
@@ -25,20 +26,22 @@ static uint8_t scsi_inquiry_std_response[256];
 static ScsiInquiryEvpdPages scsi_inquiry_evpd_pages_response;
 static ScsiInquiryEvpdBl scsi_inquiry_evpd_bl_response;
 
-static inline void vs_assert(bool term, const char **msgs)
+static inline bool vs_assert(bool term, const char **msgs)
 {
     if (!term) {
         int i = 0;
 
-        sclp_print("\n! ");
+        printf("\n! ");
         while (msgs[i]) {
-            sclp_print(msgs[i++]);
+            printf("%s", msgs[i++]);
         }
-        panic(" !\n");
+        puts(" !");
     }
+
+    return term;
 }
 
-static void virtio_scsi_verify_response(VirtioScsiCmdResp *resp,
+static bool virtio_scsi_verify_response(VirtioScsiCmdResp *resp,
                                         const char *title)
 {
     const char *mr[] = {
@@ -55,8 +58,8 @@ static void virtio_scsi_verify_response(VirtioScsiCmdResp *resp,
         0
     };
 
-    vs_assert(resp->response == VIRTIO_SCSI_S_OK, mr);
-    vs_assert(resp->status == CDB_STATUS_GOOD, ms);
+    return vs_assert(resp->response == VIRTIO_SCSI_S_OK, mr) &&
+           vs_assert(resp->status == CDB_STATUS_GOOD, ms);
 }
 
 static void prepare_request(VDev *vdev, const void *cdb, int cdb_size,
@@ -77,24 +80,31 @@ static void prepare_request(VDev *vdev, const void *cdb, int cdb_size,
     }
 }
 
-static inline void vs_io_assert(bool term, const char *msg)
+static inline bool vs_io_assert(bool term, const char *msg)
 {
-    if (!term) {
-        virtio_scsi_verify_response(&resp, msg);
+    if (!term && !virtio_scsi_verify_response(&resp, msg)) {
+        return false;
     }
+
+    return true;
 }
 
-static void vs_run(const char *title, VirtioCmd *cmd, VDev *vdev,
+static int vs_run(const char *title, VirtioCmd *cmd, VDev *vdev,
                    const void *cdb, int cdb_size,
                    void *data, uint32_t data_size)
 {
     prepare_request(vdev, cdb, cdb_size, data, data_size);
-    vs_io_assert(virtio_run(vdev, VR_REQUEST, cmd) == 0, title);
+    if (!vs_io_assert(virtio_run(vdev, VR_REQUEST, cmd) == 0, title)) {
+        puts(title);
+        return -EIO;
+    }
+
+    return 0;
 }
 
 /* SCSI protocol implementation routines */
 
-static bool scsi_inquiry(VDev *vdev, uint8_t evpd, uint8_t page,
+static int scsi_inquiry(VDev *vdev, uint8_t evpd, uint8_t page,
                          void *data, uint32_t data_size)
 {
     ScsiCdbInquiry cdb = {
@@ -109,12 +119,13 @@ static bool scsi_inquiry(VDev *vdev, uint8_t evpd, uint8_t page,
         { data, data_size, VRING_DESC_F_WRITE },
     };
 
-    vs_run("inquiry", inquiry, vdev, &cdb, sizeof(cdb), data, data_size);
+    int ret = vs_run("inquiry", inquiry,
+                     vdev, &cdb, sizeof(cdb), data, data_size);
 
-    return virtio_scsi_response_ok(&resp);
+    return ret ? ret : virtio_scsi_response_ok(&resp);
 }
 
-static bool scsi_test_unit_ready(VDev *vdev)
+static int scsi_test_unit_ready(VDev *vdev)
 {
     ScsiCdbTestUnitReady cdb = {
         .command = 0x00,
@@ -130,7 +141,7 @@ static bool scsi_test_unit_ready(VDev *vdev)
     return virtio_scsi_response_ok(&resp);
 }
 
-static bool scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
+static int scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
 {
     ScsiCdbReportLuns cdb = {
         .command = 0xa0,
@@ -143,13 +154,13 @@ static bool scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
         { data, data_size, VRING_DESC_F_WRITE },
     };
 
-    vs_run("report luns", report_luns,
+    int ret = vs_run("report luns", report_luns,
            vdev, &cdb, sizeof(cdb), data, data_size);
 
-    return virtio_scsi_response_ok(&resp);
+    return ret ? ret : virtio_scsi_response_ok(&resp);
 }
 
-static bool scsi_read_10(VDev *vdev,
+static int scsi_read_10(VDev *vdev,
                          unsigned long sector, int sectors, void *data,
                          unsigned int data_size)
 {
@@ -167,12 +178,13 @@ static bool scsi_read_10(VDev *vdev,
     debug_print_int("read_10  sector", sector);
     debug_print_int("read_10 sectors", sectors);
 
-    vs_run("read(10)", read_10, vdev, &cdb, sizeof(cdb), data, data_size);
+    int ret = vs_run("read(10)", read_10,
+            vdev, &cdb, sizeof(cdb), data, data_size);
 
-    return virtio_scsi_response_ok(&resp);
+    return ret ? ret : virtio_scsi_response_ok(&resp);
 }
 
-static bool scsi_read_capacity(VDev *vdev,
+static int scsi_read_capacity(VDev *vdev,
                                void *data, uint32_t data_size)
 {
     ScsiCdbReadCapacity16 cdb = {
@@ -186,10 +198,10 @@ static bool scsi_read_capacity(VDev *vdev,
         { data, data_size, VRING_DESC_F_WRITE },
     };
 
-    vs_run("read capacity", read_capacity_16,
+    int ret = vs_run("read capacity", read_capacity_16,
            vdev, &cdb, sizeof(cdb), data, data_size);
 
-    return virtio_scsi_response_ok(&resp);
+    return ret ? ret : virtio_scsi_response_ok(&resp);
 }
 
 /* virtio-scsi routines */
@@ -206,7 +218,7 @@ static int virtio_scsi_locate_device(VDev *vdev)
     static uint8_t data[16 + 8 * 63];
     ScsiLunReport *r = (void *) data;
     ScsiDevice *sdev = vdev->scsi_device;
-    int i, luns;
+    int i, ret, luns;
 
     /* QEMU has hardcoded channel #0 in many places.
      * If this hardcoded value is ever changed, we'll need to add code for
@@ -232,15 +244,23 @@ static int virtio_scsi_locate_device(VDev *vdev)
         sdev->channel = channel;
         sdev->target = target;
         sdev->lun = 0;          /* LUN has to be 0 for REPORT LUNS */
-        if (!scsi_report_luns(vdev, data, sizeof(data))) {
+        ret = scsi_report_luns(vdev, data, sizeof(data));
+        if (ret < 0) {
+            return ret;
+        }
+
+        else if (ret == 0) {
             if (resp.response == VIRTIO_SCSI_S_BAD_TARGET) {
                 continue;
             }
-            print_int("target", target);
-            virtio_scsi_verify_response(&resp, "SCSI cannot report LUNs");
+            printf("target 0x%X\n", target);
+            if (!virtio_scsi_verify_response(&resp, "SCSI cannot report LUNs")) {
+                return -EIO;
+            }
         }
+
         if (r->lun_list_len == 0) {
-            print_int("no LUNs for target", target);
+            printf("no LUNs for target 0x%X\n", target);
             continue;
         }
         luns = r->lun_list_len / 8;
@@ -264,7 +284,7 @@ static int virtio_scsi_locate_device(VDev *vdev)
         }
     }
 
-    sclp_print("Warning: Could not locate a usable virtio-scsi device\n");
+    puts("Warning: Could not locate a usable virtio-scsi device");
     return -ENODEV;
 }
 
@@ -282,7 +302,9 @@ int virtio_scsi_read_many(VDev *vdev,
         data_size = sector_count * virtio_get_block_size() * f;
         if (!scsi_read_10(vdev, sector * f, sector_count * f, load_addr,
                           data_size)) {
-            virtio_scsi_verify_response(&resp, "virtio-scsi:read_many");
+            if (!virtio_scsi_verify_response(&resp, "virtio-scsi:read_many")) {
+                return -1;
+            }
         }
         load_addr += data_size;
         sector += sector_count;
@@ -351,11 +373,16 @@ static int virtio_scsi_setup(VDev *vdev)
             uint8_t code = resp.sense[0] & SCSI_SENSE_CODE_MASK;
             uint8_t sense_key = resp.sense[2] & SCSI_SENSE_KEY_MASK;
 
-            IPL_assert(resp.sense_len != 0, "virtio-scsi:setup: no SENSE data");
+            if (resp.sense_len == 0) {
+                puts("virtio-scsi: setup: no SENSE data");
+                return -EINVAL;
+            }
 
-            IPL_assert(retry_test_unit_ready && code == 0x70 &&
-                       sense_key == SCSI_SENSE_KEY_UNIT_ATTENTION,
-                       "virtio-scsi:setup: cannot retry");
+            if (!retry_test_unit_ready || code != 0x70 ||
+                       sense_key != SCSI_SENSE_KEY_UNIT_ATTENTION) {
+                puts("virtio-scsi:setup: cannot retry");
+                return -EIO;
+            }
 
             /* retry on CHECK_CONDITION/UNIT_ATTENTION as it
              * may not designate a real error, but it may be
@@ -366,30 +393,40 @@ static int virtio_scsi_setup(VDev *vdev)
             continue;
         }
 
-        virtio_scsi_verify_response(&resp, "virtio-scsi:setup");
+        if (!virtio_scsi_verify_response(&resp, "virtio-scsi:setup")) {
+            return -1;
+        }
     }
 
     /* read and cache SCSI INQUIRY response */
-    if (!scsi_inquiry(vdev,
+    ret = scsi_inquiry(vdev,
                       SCSI_INQUIRY_STANDARD,
                       SCSI_INQUIRY_STANDARD_NONE,
                       scsi_inquiry_std_response,
-                      sizeof(scsi_inquiry_std_response))) {
-        virtio_scsi_verify_response(&resp, "virtio-scsi:setup:inquiry");
+                      sizeof(scsi_inquiry_std_response));
+    if (ret < 1) {
+        if (ret != 0 || !virtio_scsi_verify_response(&resp,
+                "virtio-scsi:setup:inquiry")) {
+            return -1;
+        }
     }
 
     if (virtio_scsi_inquiry_response_is_cdrom(scsi_inquiry_std_response)) {
-        sclp_print("SCSI CD-ROM detected.\n");
+        puts("SCSI CD-ROM detected.");
         vdev->is_cdrom = true;
         vdev->scsi_block_size = VIRTIO_ISO_BLOCK_SIZE;
     }
 
-    if (!scsi_inquiry(vdev,
+    ret = scsi_inquiry(vdev,
                       SCSI_INQUIRY_EVPD,
                       SCSI_INQUIRY_EVPD_SUPPORTED_PAGES,
                       evpd,
-                      sizeof(*evpd))) {
-        virtio_scsi_verify_response(&resp, "virtio-scsi:setup:supported_pages");
+                      sizeof(*evpd));
+    if (ret < 1) {
+        if (ret != 0 || !virtio_scsi_verify_response(&resp,
+                "virtio-scsi:setup:supported_pages")) {
+            return -1;
+        }
     }
 
     debug_print_int("EVPD length", evpd->page_length);
@@ -401,12 +438,16 @@ static int virtio_scsi_setup(VDev *vdev)
             continue;
         }
 
-        if (!scsi_inquiry(vdev,
+        ret = scsi_inquiry(vdev,
                           SCSI_INQUIRY_EVPD,
                           SCSI_INQUIRY_EVPD_BLOCK_LIMITS,
                           evpd_bl,
-                          sizeof(*evpd_bl))) {
-            virtio_scsi_verify_response(&resp, "virtio-scsi:setup:blocklimits");
+                          sizeof(*evpd_bl));
+        if (ret < 1) {
+            if (ret != 0 || !virtio_scsi_verify_response(&resp,
+                    "virtio-scsi:setup:blocklimits")) {
+                return -1;
+            }
         }
 
         debug_print_int("max transfer", evpd_bl->max_transfer);
@@ -422,8 +463,12 @@ static int virtio_scsi_setup(VDev *vdev)
     vdev->max_transfer = MIN_NON_ZERO(VIRTIO_SCSI_MAX_SECTORS,
                                       vdev->max_transfer);
 
-    if (!scsi_read_capacity(vdev, data, data_size)) {
-        virtio_scsi_verify_response(&resp, "virtio-scsi:setup:read_capacity");
+    ret = scsi_read_capacity(vdev, data, data_size);
+    if (ret < 1) {
+        if (ret != 0 || !virtio_scsi_verify_response(&resp,
+                "virtio-scsi:setup:read_capacity")) {
+            return -1;
+        }
     }
     scsi_parse_capacity_report(data, &vdev->scsi_last_block,
                                (uint32_t *) &vdev->scsi_block_size);
@@ -438,12 +483,17 @@ int virtio_scsi_setup_device(SubChannelId schid)
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
 
-    IPL_assert(vdev->config.scsi.sense_size == VIRTIO_SCSI_SENSE_SIZE,
-               "Config: sense size mismatch");
-    IPL_assert(vdev->config.scsi.cdb_size == VIRTIO_SCSI_CDB_SIZE,
-               "Config: CDB size mismatch");
+    if (vdev->config.scsi.sense_size != VIRTIO_SCSI_SENSE_SIZE) {
+        puts("Config: sense size mismatch");
+        return -EINVAL;
+    }
 
-    sclp_print("Using virtio-scsi.\n");
+    if (vdev->config.scsi.cdb_size != VIRTIO_SCSI_CDB_SIZE) {
+        puts("Config: CDB size mismatch");
+        return -EINVAL;
+    }
+
+    puts("Using virtio-scsi.");
 
     return virtio_scsi_setup(vdev);
 }

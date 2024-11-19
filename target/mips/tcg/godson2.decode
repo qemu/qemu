@@ -1,0 +1,27 @@
+# Godson2 64-bit Integer instructions
+#
+# Copyright (C) 2021  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Reference:
+#       Godson-2E Software Manual
+#       (Document Number: godson2e-user-manual-V0.6)
+#
+
+&muldiv         rs rt rd
+
+@rs_rt_rd       ...... rs:5  rt:5  rd:5  ..... ......   &muldiv
+
+MULTu_G         011111 ..... ..... ..... 00000 01100-   @rs_rt_rd
+DMULTu_G        011111 ..... ..... ..... 00000 01110-   @rs_rt_rd
+
+DIV_G           011111 ..... ..... ..... 00000 011010   @rs_rt_rd
+DIVU_G          011111 ..... ..... ..... 00000 011011   @rs_rt_rd
+DDIV_G          011111 ..... ..... ..... 00000 011110   @rs_rt_rd
+DDIVU_G         011111 ..... ..... ..... 00000 011111   @rs_rt_rd
+
+MOD_G           011111 ..... ..... ..... 00000 100010   @rs_rt_rd
+MODU_G          011111 ..... ..... ..... 00000 100011   @rs_rt_rd
+DMOD_G          011111 ..... ..... ..... 00000 100110   @rs_rt_rd
+DMODU_G         011111 ..... ..... ..... 00000 100111   @rs_rt_rd

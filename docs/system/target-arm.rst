@@ -63,10 +63,6 @@ large amounts of RAM. It also supports 64-bit CPUs.
 Board-specific documentation
 ============================
 
-Unfortunately many of the Arm boards QEMU supports are currently
-undocumented; you can get a complete list by running
-``qemu-system-aarch64 --machine help``.
-
 ..
    This table of contents should be kept sorted alphabetically
    by the title text of each file, which isn't the same ordering
@@ -90,11 +86,15 @@ undocumented; you can get a complete list by running
    arm/digic
    arm/cubieboard
    arm/emcraft-sf2
+   arm/exynos
+   arm/fby35
    arm/musicpal
    arm/kzm
    arm/nrf
    arm/nuvoton
    arm/imx25-pdk
+   arm/mcimx6ul-evk
+   arm/mcimx7d-sabre
    arm/orangepi
    arm/raspi
    arm/collie
@@ -105,6 +105,7 @@ undocumented; you can get a complete list by running
    arm/xenpvh
    arm/xlnx-versal-virt
    arm/xlnx-zynq
+   arm/xlnx-zcu102
 
 Emulated CPU architecture support
 =================================

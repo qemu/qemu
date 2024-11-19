@@ -45,6 +45,7 @@ RUN apk update && \
         libaio-dev \
         libbpf-dev \
         libcap-ng-dev \
+        libcbor-dev \
         libdrm-dev \
         libepoxy-dev \
         libffi-dev \
@@ -90,6 +91,8 @@ RUN apk update && \
         py3-yaml \
         python3 \
         rpm2cpio \
+        rust \
+        rust-bindgen \
         samurai \
         sdl2-dev \
         sdl2_image-dev \

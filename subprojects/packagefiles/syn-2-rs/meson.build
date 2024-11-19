@@ -1,4 +1,5 @@
 project('syn-2-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '2.0.66',
   license: 'MIT OR Apache-2.0',
   default_options: [])
@@ -24,6 +25,7 @@ _syn_rs = static_library(
     '--cfg', 'feature="printing"',
     '--cfg', 'feature="clone-impls"',
     '--cfg', 'feature="proc-macro"',
+    '--cfg', 'feature="extra-traits"',
   ],
   dependencies: [
     quote_dep,

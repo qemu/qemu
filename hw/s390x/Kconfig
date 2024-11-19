@@ -7,6 +7,7 @@ config S390_CCW_VIRTIO
     imply VFIO_AP
     imply VFIO_CCW
     imply WDT_DIAG288
+    imply PCI_BRIDGE
     imply PCIE_DEVICES
     imply IOMMUFD
     select PCI_EXPRESS

@@ -22,17 +22,15 @@
  * @devid: the KVM device ID
  * @group: device control API group for setting addresses
  * @attr: device control API address type
- * @dev_fd: device control device file descriptor (or -1 if not supported)
+ * @dev_fd: device control device file descriptor
  * @addr_ormask: value to be OR'ed with resolved address
  *
- * Remember the memory region @mr, and when it is mapped by the
- * machine model, tell the kernel that base address using the
- * KVM_ARM_SET_DEVICE_ADDRESS ioctl or the newer device control API.  @devid
- * should be the ID of the device as defined by KVM_ARM_SET_DEVICE_ADDRESS or
- * the arm-vgic device in the device control API.
- * The machine model may map
- * and unmap the device multiple times; the kernel will only be told the final
- * address at the point where machine init is complete.
+ * Remember the memory region @mr, and when it is mapped by the machine
+ * model, tell the kernel that base address using the device control API.
+ * @devid should be the ID of the device as defined by  the arm-vgic device
+ * in the device control API.  The machine model may map and unmap the device
+ * multiple times; the kernel will only be told the final address at the
+ * point where machine init is complete.
  */
 void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
                              uint64_t attr, int dev_fd, uint64_t addr_ormask);
@@ -189,6 +187,13 @@ bool kvm_arm_pmu_supported(void);
 bool kvm_arm_sve_supported(void);
 
 /**
+ * kvm_arm_mte_supported:
+ *
+ * Returns: true if KVM can enable MTE, and false otherwise.
+ */
+bool kvm_arm_mte_supported(void);
+
+/**
  * kvm_arm_get_max_vm_ipa_size:
  * @ms: Machine state handle
  * @fixed_ipa: True when the IPA limit is fixed at 40. This is the case
@@ -214,6 +219,8 @@ void kvm_arm_pvtime_init(ARMCPU *cpu, uint64_t ipa);
 
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
+void kvm_arm_enable_mte(Object *cpuobj, Error **errp);
+
 #else
 
 /*
@@ -231,6 +238,11 @@ static inline bool kvm_arm_pmu_supported(void)
 }
 
 static inline bool kvm_arm_sve_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_mte_supported(void)
 {
     return false;
 }
@@ -279,6 +291,11 @@ static inline void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp)
 }
 
 static inline uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu)
+{
+    g_assert_not_reached();
+}
+
+static inline void kvm_arm_enable_mte(Object *cpuobj, Error **errp)
 {
     g_assert_not_reached();
 }

@@ -45,10 +45,10 @@ class QemuBaseTest(unittest.TestCase):
         os.makedirs(self.workdir, exist_ok=True)
 
         self.logdir = self.workdir
+        self.log_filename = os.path.join(self.logdir, 'base.log')
         self.log = logging.getLogger('qemu-test')
         self.log.setLevel(logging.DEBUG)
-        self._log_fh = logging.FileHandler(os.path.join(self.logdir,
-                                                        'base.log'), mode='w')
+        self._log_fh = logging.FileHandler(self.log_filename, mode='w')
         self._log_fh.setLevel(logging.DEBUG)
         fileFormatter = logging.Formatter(
             '%(asctime)s - %(levelname)s: %(message)s')
@@ -68,7 +68,14 @@ class QemuBaseTest(unittest.TestCase):
 
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
-        unittest.main(module = None, testRunner = tr, argv=["__dummy__", path])
+        res = unittest.main(module = None, testRunner = tr, exit = False,
+                            argv=["__dummy__", path])
+        for (test, message) in res.result.errors + res.result.failures:
+            print('More information on ' + test.id() + ' could be found here:'
+                  '\n %s' % test.log_filename, file=sys.stderr)
+            if hasattr(test, 'console_log_name'):
+                print(' %s' % test.console_log_name, file=sys.stderr)
+        sys.exit(not res.result.wasSuccessful())
 
 
 class QemuUserTest(QemuBaseTest):
@@ -101,8 +108,9 @@ class QemuSystemTest(QemuBaseTest):
 
         console_log = logging.getLogger('console')
         console_log.setLevel(logging.DEBUG)
-        self._console_log_fh = logging.FileHandler(os.path.join(self.workdir,
-                                                   'console.log'), mode='w')
+        self.console_log_name = os.path.join(self.workdir, 'console.log')
+        self._console_log_fh = logging.FileHandler(self.console_log_name,
+                                                   mode='w')
         self._console_log_fh.setLevel(logging.DEBUG)
         fileFormatter = logging.Formatter('%(asctime)s: %(message)s')
         self._console_log_fh.setFormatter(fileFormatter)

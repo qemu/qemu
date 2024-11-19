@@ -18,7 +18,6 @@
 #include <dirent.h>
 #include "qga-qapi-commands.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/host-utils.h"
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
@@ -85,7 +84,7 @@ static ssize_t ga_pipe_read_str(int fd[2], char **str)
         *str = g_realloc(*str, len + n + 1);
         memcpy(*str + len, buf, n);
         len += n;
-        *str[len] = '\0';
+        (*str)[len] = '\0';
     }
     close(fd[0]);
     fd[0] = -1;

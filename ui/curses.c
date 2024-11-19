@@ -38,7 +38,7 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 #define _XOPEN_SOURCE_EXTENDED 1
 #endif
 

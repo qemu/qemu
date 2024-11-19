@@ -5,6 +5,8 @@ gen = [
   decodetree.process('vr54xx.decode', extra_args: '--decode=decode_ext_vr54xx'),
   decodetree.process('octeon.decode', extra_args: '--decode=decode_ext_octeon'),
   decodetree.process('lcsr.decode', extra_args: '--decode=decode_ase_lcsr'),
+  decodetree.process('godson2.decode', extra_args: ['--static-decode=decode_godson2']),
+  decodetree.process('loong-ext.decode', extra_args: ['--static-decode=decode_loong_ext']),
 ]
 
 mips_ss.add(gen)
@@ -28,6 +30,7 @@ mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
   'tx79_translate.c',
   'octeon_translate.c',
   'lcsr_translate.c',
+  'loong_translate.c',
 ), if_false: files(
   'mxu_translate.c',
 ))

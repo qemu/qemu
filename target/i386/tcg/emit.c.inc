@@ -1452,19 +1452,12 @@ static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src, TCGv
      * C is the result of the test, Z is unchanged, and the others
      * are all undefined.
      */
-    switch (s->cc_op) {
-    case CC_OP_DYNAMIC:
-    case CC_OP_CLR:
-    case CC_OP_EFLAGS:
-    case CC_OP_ADCX:
-    case CC_OP_ADOX:
-    case CC_OP_ADCOX:
+    if (s->cc_op == CC_OP_DYNAMIC || CC_OP_HAS_EFLAGS(s->cc_op)) {
         /* Generate EFLAGS and replace the C bit.  */
         cf = tcg_temp_new();
         tcg_gen_setcond_tl(TCG_COND_TSTNE, cf, src, mask);
         prepare_update_cf(decode, s, cf);
-        break;
-    default:
+    } else {
         /*
          * Z was going to be computed from the non-zero status of CC_DST.
          * We can get that same Z value (and the new C value) by leaving
@@ -1473,9 +1466,8 @@ static void gen_bt_flags(DisasContext *s, X86DecodedInsn *decode, TCGv src, TCGv
          */
         decode->cc_src = tcg_temp_new();
         decode->cc_dst = cpu_cc_dst;
-        decode->cc_op = ((s->cc_op - CC_OP_MULB) & 3) + CC_OP_SARB;
+        decode->cc_op = CC_OP_SARB + cc_op_size(s->cc_op);
         tcg_gen_shr_tl(decode->cc_src, src, s->T1);
-        break;
     }
 }
 
@@ -3354,7 +3346,8 @@ static bool gen_eflags_adcox(DisasContext *s, X86DecodedInsn *decode, bool want_
          * bit, we might as well fish CF out of EFLAGS and save a shift.
          */
         if (want_carry && (!need_flags || s->cc_op == CC_OP_SHLB + MO_TL)) {
-            tcg_gen_shri_tl(decode->cc_dst, cpu_cc_src, (8 << (s->cc_op - CC_OP_SHLB)) - 1);
+            MemOp size = cc_op_size(s->cc_op);
+            tcg_gen_shri_tl(decode->cc_dst, cpu_cc_src, (8 << size) - 1);
             got_cf = true;
         }
         gen_mov_eflags(s, decode->cc_src);
@@ -3784,13 +3777,13 @@ static void gen_shift_dynamic_flags(DisasContext *s, X86DecodedInsn *decode, TCG
     decode->cc_op_dynamic = tcg_temp_new_i32();
 
     assert(decode->cc_dst == s->T0);
-    if (cc_op_live[s->cc_op] & USES_CC_DST) {
+    if (cc_op_live(s->cc_op) & USES_CC_DST) {
         decode->cc_dst = tcg_temp_new();
         tcg_gen_movcond_tl(TCG_COND_EQ, decode->cc_dst, count, tcg_constant_tl(0),
                            cpu_cc_dst, s->T0);
     }
 
-    if (cc_op_live[s->cc_op] & USES_CC_SRC) {
+    if (cc_op_live(s->cc_op) & USES_CC_SRC) {
         tcg_gen_movcond_tl(TCG_COND_EQ, decode->cc_src, count, tcg_constant_tl(0),
                            cpu_cc_src, decode->cc_src);
     }
@@ -4724,7 +4717,8 @@ static void gen_XOR(DisasContext *s, X86DecodedInsn *decode)
         decode->op[2].unit == X86_OP_INT &&
         decode->op[1].n == decode->op[2].n) {
         tcg_gen_movi_tl(s->T0, 0);
-        decode->cc_op = CC_OP_CLR;
+        decode->cc_op = CC_OP_EFLAGS;
+        decode->cc_src = tcg_constant_tl(CC_Z | CC_P);
     } else {
         MemOp ot = decode->op[1].ot;
 

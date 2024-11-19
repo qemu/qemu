@@ -1,4 +1,5 @@
 project('arbitrary-int-1-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '1.2.7',
   license: 'MIT',
   default_options: [])

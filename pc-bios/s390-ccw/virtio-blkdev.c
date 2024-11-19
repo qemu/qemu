@@ -8,7 +8,7 @@
  * directory.
  */
 
-#include "libc.h"
+#include <stdio.h>
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
@@ -59,7 +59,7 @@ int virtio_read_many(unsigned long sector, void *load_addr, int sec_num)
     case VIRTIO_ID_SCSI:
         return virtio_scsi_read_many(vdev, sector, load_addr, sec_num);
     }
-    panic("\n! No readable IPL device !\n");
+
     return -1;
 }
 
@@ -73,13 +73,13 @@ unsigned long virtio_load_direct(unsigned long rec_list1, unsigned long rec_list
     unsigned long addr = (unsigned long)load_addr;
 
     if (sec_len != virtio_get_block_size()) {
-        return -1;
+        return 0;
     }
 
-    sclp_print(".");
+    printf(".");
     status = virtio_read_many(sec, (void *)addr, sec_num);
     if (status) {
-        panic("I/O Error");
+        return 0;
     }
     addr += sec_num * virtio_get_block_size();
 
@@ -230,7 +230,7 @@ int virtio_blk_setup_device(SubChannelId schid)
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
 
-    sclp_print("Using virtio-blk.\n");
+    puts("Using virtio-blk.");
 
     return 0;
 }

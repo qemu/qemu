@@ -575,11 +575,6 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
             uint8_t *mbuf, *end;
             int16_t pil = ns->lbaf.ms - nvme_pi_tuple_size(ns);
 
-            status = nvme_check_prinfo(ns, prinfo, slba, reftag);
-            if (status) {
-                goto err;
-            }
-
             flags = 0;
 
             ctx->mdata.bounce = g_malloc0(mlen);

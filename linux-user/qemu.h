@@ -44,7 +44,6 @@ struct image_info {
         abi_ulong       file_string;
         uint32_t        elf_flags;
         int             personality;
-        abi_ulong       alignment;
         bool            exec_stack;
 
         /* Generic semihosting knows about these pointers. */

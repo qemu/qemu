@@ -521,6 +521,12 @@ struct TCGContext {
     struct qemu_plugin_insn *plugin_insn;
 #endif
 
+    /* For host-specific values. */
+#ifdef __riscv
+    MemOp riscv_cur_vsew;
+    TCGType riscv_cur_type;
+#endif
+
     GHashTable *const_table[TCG_TYPE_COUNT];
     TCGTempSet free_temps[TCG_TYPE_COUNT];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
