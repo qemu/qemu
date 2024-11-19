@@ -177,6 +177,16 @@ bool riscv_use_emulated_aplic(bool msimode)
 #endif
 }
 
+void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr)
+{
+#ifdef CONFIG_KVM
+    if (riscv_use_emulated_aplic(aplic->msimode)) {
+        aplic->kvm_msicfgaddr = extract64(addr, 0, 32);
+        aplic->kvm_msicfgaddrH = extract64(addr, 32, 32);
+    }
+#endif
+}
+
 static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
                                           uint32_t irq)
 {
@@ -381,13 +391,16 @@ static void riscv_aplic_msi_send(RISCVAPLICState *aplic,
     uint32_t lhxs, lhxw, hhxs, hhxw, group_idx, msicfgaddr, msicfgaddrH;
 
     aplic_m = aplic;
-    while (aplic_m && !aplic_m->mmode) {
-        aplic_m = aplic_m->parent;
-    }
-    if (!aplic_m) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: m-level APLIC not found\n",
-                      __func__);
-        return;
+
+    if (!aplic->kvm_splitmode) {
+        while (aplic_m && !aplic_m->mmode) {
+            aplic_m = aplic_m->parent;
+        }
+        if (!aplic_m) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: m-level APLIC not found\n",
+                          __func__);
+            return;
+        }
     }
 
     if (aplic->mmode) {
@@ -418,6 +431,11 @@ static void riscv_aplic_msi_send(RISCVAPLICState *aplic,
              APLIC_xMSICFGADDR_PPN_LHX_SHIFT(lhxs);
     addr |= (uint64_t)(guest_idx & APLIC_xMSICFGADDR_PPN_HART(lhxs));
     addr <<= APLIC_xMSICFGADDR_PPN_SHIFT;
+
+    if (aplic->kvm_splitmode) {
+        addr |= aplic->kvm_msicfgaddr;
+        addr |= ((uint64_t)aplic->kvm_msicfgaddrH << 32);
+    }
 
     address_space_stl_le(&address_space_memory, addr,
                          eiid, MEMTXATTRS_UNSPECIFIED, &result);
@@ -892,6 +910,10 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
         memory_region_init_io(&aplic->mmio, OBJECT(dev), &riscv_aplic_ops,
                               aplic, TYPE_RISCV_APLIC, aplic->aperture_size);
         sysbus_init_mmio(SYS_BUS_DEVICE(dev), &aplic->mmio);
+
+        if (kvm_enabled()) {
+            aplic->kvm_splitmode = true;
+        }
     }
 
     /*
@@ -939,8 +961,8 @@ static const Property riscv_aplic_properties[] = {
 
 static const VMStateDescription vmstate_riscv_aplic = {
     .name = "riscv_aplic",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
             VMSTATE_UINT32(domaincfg, RISCVAPLICState),
             VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
@@ -948,6 +970,8 @@ static const VMStateDescription vmstate_riscv_aplic = {
             VMSTATE_UINT32(smsicfgaddr, RISCVAPLICState),
             VMSTATE_UINT32(smsicfgaddrH, RISCVAPLICState),
             VMSTATE_UINT32(genmsi, RISCVAPLICState),
+            VMSTATE_UINT32(kvm_msicfgaddr, RISCVAPLICState),
+            VMSTATE_UINT32(kvm_msicfgaddrH, RISCVAPLICState),
             VMSTATE_VARRAY_UINT32(sourcecfg, RISCVAPLICState,
                                   num_irqs, 0,
                                   vmstate_info_uint32, uint32_t),

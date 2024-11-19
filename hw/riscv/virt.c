@@ -1300,7 +1300,7 @@ static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
                                     int base_hartid, int hart_count)
 {
     int i;
-    hwaddr addr;
+    hwaddr addr = 0;
     uint32_t guest_bits;
     DeviceState *aplic_s = NULL;
     DeviceState *aplic_m = NULL;
@@ -1349,6 +1349,10 @@ static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
                                  VIRT_IRQCHIP_NUM_SOURCES,
                                  VIRT_IRQCHIP_NUM_PRIO_BITS,
                                  msimode, false, aplic_m);
+
+    if (kvm_enabled() && msimode) {
+        riscv_aplic_set_kvm_msicfgaddr(RISCV_APLIC(aplic_s), addr);
+    }
 
     return kvm_enabled() ? aplic_s : aplic_m;
 }
