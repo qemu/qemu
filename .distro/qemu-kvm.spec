@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 2%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 3%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -252,6 +252,22 @@ Patch55: kvm-vfio-migration-Change-trace-formats-from-hex-to-deci.patch
 Patch56: kvm-kvm-Allow-kvm_arch_get-put_registers-to-accept-Error.patch
 # For RHEL-60914 - Fail migration properly when put cpu register fails
 Patch57: kvm-target-i386-kvm-Report-which-action-failed-in-kvm_ar.patch
+# For RHEL-11043 - [RFE] [HPEMC] [RHEL-9.6] qemu-kvm: support up to 4096 VCPUs
+Patch58: kvm-pc-q35-Bump-max_cpus-to-4096-vcpus.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch59: kvm-kvm-replace-fprintf-with-error_report-printf-in-kvm_.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch60: kvm-kvm-refactor-core-virtual-machine-creation-into-its-.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch61: kvm-accel-kvm-refactor-dirty-ring-setup.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch62: kvm-KVM-Dynamic-sized-kvm-memslots-array.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch63: kvm-KVM-Define-KVM_MEMSLOTS_NUM_MAX_DEFAULT.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch64: kvm-KVM-Rename-KVMMemoryListener.nr_used_slots-to-nr_slo.patch
+# For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
+Patch65: kvm-KVM-Rename-KVMState-nr_slots-to-nr_slots_max.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1318,6 +1334,23 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Tue Nov 19 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-3
+- kvm-pc-q35-Bump-max_cpus-to-4096-vcpus.patch [RHEL-11043]
+- kvm-kvm-replace-fprintf-with-error_report-printf-in-kvm_.patch [RHEL-57682]
+- kvm-kvm-refactor-core-virtual-machine-creation-into-its-.patch [RHEL-57682]
+- kvm-accel-kvm-refactor-dirty-ring-setup.patch [RHEL-57682]
+- kvm-KVM-Dynamic-sized-kvm-memslots-array.patch [RHEL-57682]
+- kvm-KVM-Define-KVM_MEMSLOTS_NUM_MAX_DEFAULT.patch [RHEL-57682]
+- kvm-KVM-Rename-KVMMemoryListener.nr_used_slots-to-nr_slo.patch [RHEL-57682]
+- kvm-KVM-Rename-KVMState-nr_slots-to-nr_slots_max.patch [RHEL-57682]
+- kvm-Require-new-dtrace-package.patch [RHEL-67900]
+- Resolves: RHEL-11043
+  ([RFE] [HPEMC] [RHEL-9.6] qemu-kvm: support up to 4096 VCPUs)
+- Resolves: RHEL-57682
+  (Bad migration performance when performing vGPU VM live migration )
+- Resolves: RHEL-67900
+  (Failed to build qemu-kvm due to missing dtrace [rhel-9.6])
+
 * Mon Nov 11 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-2
 - kvm-hw-s390x-ipl-Provide-more-memory-to-the-s390-ccw.img.patch [RHEL-11424]
 - kvm-pc-bios-s390-ccw-Use-the-libc-from-SLOF-and-remove-s.patch [RHEL-11424]
