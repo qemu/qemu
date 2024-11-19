@@ -18,15 +18,46 @@
 
 #define BITS_PER_BYTE           CHAR_BIT
 #define BITS_PER_LONG           (sizeof (unsigned long) * BITS_PER_BYTE)
+#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
+#define BITS_TO_U32S(nr)        DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(uint32_t))
 
 #define BIT(nr)                 (1UL << (nr))
 #define BIT_ULL(nr)             (1ULL << (nr))
-#define BIT_MASK(nr)            (1UL << ((nr) % BITS_PER_LONG))
-#define BIT_WORD(nr)            ((nr) / BITS_PER_LONG)
-#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 
 #define MAKE_64BIT_MASK(shift, length) \
     (((~0ULL) >> (64 - (length))) << (shift))
+
+/**
+ * DOC: Functions operating on arrays of bits
+ *
+ * We provide a set of functions which work on arbitrary-length arrays of
+ * bits. These come in several flavours which vary in what the type of the
+ * underlying storage for the bits is:
+ *
+ * - Bits stored in an array of 'unsigned long': set_bit(), clear_bit(), etc
+ * - Bits stored in an array of 'uint32_t': set_bit32(), clear_bit32(), etc
+ *
+ * Because the 'unsigned long' type has a size which varies between
+ * host systems, the versions using 'uint32_t' are often preferable.
+ * This is particularly the case in a device model where there may
+ * be some guest-visible register view of the bit array.
+ *
+ * We do not currently implement uint32_t versions of find_last_bit(),
+ * find_next_bit(), find_next_zero_bit(), find_first_bit() or
+ * find_first_zero_bit(), because we haven't yet needed them. If you
+ * need them you should implement them similarly to the 'unsigned long'
+ * versions.
+ *
+ * You can declare a bitmap to be used with these functions via the
+ * DECLARE_BITMAP and DECLARE_BITMAP32 macros in bitmap.h.
+ */
+
+/**
+ * DOC:  'unsigned long' bit array APIs
+ */
+
+#define BIT_MASK(nr)            (1UL << ((nr) % BITS_PER_LONG))
+#define BIT_WORD(nr)            ((nr) / BITS_PER_LONG)
 
 /**
  * set_bit - Set a bit in memory
@@ -223,6 +254,141 @@ static inline unsigned long find_first_zero_bit(const unsigned long *addr,
 {
     return find_next_zero_bit(addr, size, 0);
 }
+
+/**
+ * DOC:  'uint32_t' bit array APIs
+ */
+
+#define BIT32_MASK(nr)            (1UL << ((nr) % 32))
+#define BIT32_WORD(nr)            ((nr) / 32)
+
+/**
+ * set_bit32 - Set a bit in memory
+ * @nr: the bit to set
+ * @addr: the address to start counting from
+ */
+static inline void set_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+
+    *p  |= mask;
+}
+
+/**
+ * set_bit32_atomic - Set a bit in memory atomically
+ * @nr: the bit to set
+ * @addr: the address to start counting from
+ */
+static inline void set_bit32_atomic(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+
+    qatomic_or(p, mask);
+}
+
+/**
+ * clear_bit32 - Clears a bit in memory
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
+ */
+static inline void clear_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+
+    *p &= ~mask;
+}
+
+/**
+ * clear_bit32_atomic - Clears a bit in memory atomically
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
+ */
+static inline void clear_bit32_atomic(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+
+    return qatomic_and(p, ~mask);
+}
+
+/**
+ * change_bit32 - Toggle a bit in memory
+ * @nr: Bit to change
+ * @addr: Address to start counting from
+ */
+static inline void change_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+
+    *p ^= mask;
+}
+
+/**
+ * test_and_set_bit32 - Set a bit and return its old value
+ * @nr: Bit to set
+ * @addr: Address to count from
+ */
+static inline int test_and_set_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+    uint32_t old = *p;
+
+    *p = old | mask;
+    return (old & mask) != 0;
+}
+
+/**
+ * test_and_clear_bit32 - Clear a bit and return its old value
+ * @nr: Bit to clear
+ * @addr: Address to count from
+ */
+static inline int test_and_clear_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+    uint32_t old = *p;
+
+    *p = old & ~mask;
+    return (old & mask) != 0;
+}
+
+/**
+ * test_and_change_bit32 - Change a bit and return its old value
+ * @nr: Bit to change
+ * @addr: Address to count from
+ */
+static inline int test_and_change_bit32(long nr, uint32_t *addr)
+{
+    uint32_t mask = BIT32_MASK(nr);
+    uint32_t *p = addr + BIT32_WORD(nr);
+    uint32_t old = *p;
+
+    *p = old ^ mask;
+    return (old & mask) != 0;
+}
+
+/**
+ * test_bit32 - Determine whether a bit is set
+ * @nr: bit number to test
+ * @addr: Address to start counting from
+ */
+static inline int test_bit32(long nr, const uint32_t *addr)
+{
+    return 1U & (addr[BIT32_WORD(nr)] >> (nr & 31));
+}
+
+/**
+ * DOC: Miscellaneous bit operations on single values
+ *
+ * These functions are a collection of useful operations
+ * (rotations, bit extract, bit deposit, etc) on single
+ * integer values.
+ */
 
 /**
  * rol8 - rotate an 8-bit value left
