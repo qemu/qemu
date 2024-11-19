@@ -34,6 +34,7 @@
 #include "hw/pci/msix.h"
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
+#include "sysemu/spdm.h"
 #include "hw/virtio/virtio-pci.h"
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
@@ -754,6 +755,10 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     struct virtio_pci_cfg_cap *cfg;
 
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        pcie_doe_write_config(&pci_dev->doe_spdm, address, val, len);
+    }
+
     pci_default_write_config(pci_dev, address, val, len);
 
     if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
@@ -797,6 +802,13 @@ static uint32_t virtio_read_config(PCIDevice *pci_dev,
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     struct virtio_pci_cfg_cap *cfg;
+    uint32_t val;
+
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&pci_dev->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
 
     if (proxy->config_cap &&
         ranges_overlap(address, len, proxy->config_cap + offsetof(struct virtio_pci_cfg_cap,
@@ -2134,6 +2146,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
     bool pcie_port = pci_bus_is_express(pci_get_bus(pci_dev)) &&
                      !pci_bus_is_root(pci_get_bus(pci_dev));
+#ifdef CONFIG_LIBSPDM
+    uint16_t doe_offset;
+    SpdmDev *virtio_pci_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     /* fd-based ioevents can't be synchronized in record/replay */
     if (replay_mode != REPLAY_MODE_NONE) {
@@ -2250,6 +2266,16 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
             /* Set Function Level Reset capability bit */
             pcie_cap_flr_init(pci_dev);
         }
+
+#ifdef CONFIG_LIBSPDM
+        doe_offset = PCI_CONFIG_SPACE_SIZE;
+        pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                    doe_spdm_dev_prot, true, 0);
+        init_default_spdm_dev(virtio_pci_spdm_dev);
+        virtio_pci_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+
+        spdm_responder_init(virtio_pci_spdm_dev);
+#endif
     } else {
         /*
          * make future invocations of pci_is_express() return false

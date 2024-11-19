@@ -16,6 +16,7 @@
 #include "qemu/module.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/spdm.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-gpu-pci.h"
@@ -32,6 +33,11 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOGPUBase *g = vgpu->vgpu;
     DeviceState *vdev = DEVICE(g);
     int i;
+#ifdef CONFIG_LIBSPDM
+    PCIDevice *pci_dev = &vpci_dev->pci_dev;
+    uint16_t doe_offset;
+    SpdmDev *virtio_gpu_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     if (virtio_gpu_hostmem_enabled(g->conf)) {
         vpci_dev->msix_bar_idx = 1;
@@ -56,6 +62,15 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
         object_property_set_link(OBJECT(g->scanout[i].con), "device",
                                  OBJECT(vpci_dev), &error_abort);
     }
+#ifdef CONFIG_LIBSPDM
+    doe_offset = PCI_CONFIG_SPACE_SIZE;
+    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                  doe_spdm_dev_prot, true, 0);
+    init_default_spdm_dev(virtio_gpu_spdm_dev);
+    virtio_gpu_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+
+    spdm_responder_init(virtio_gpu_spdm_dev);
+#endif
 }
 
 static void virtio_gpu_pci_base_class_init(ObjectClass *klass, void *data)

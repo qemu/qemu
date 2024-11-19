@@ -17,6 +17,7 @@
 #include "hw/pci/shpc.h"
 #include "hw/pci/slotid_cap.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/spdm.h"
 #include "qom/object.h"
 
 struct PCIEPCIBridge {
@@ -36,6 +37,10 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
     PCIBridge *br = PCI_BRIDGE(d);
     PCIEPCIBridge *pcie_br = PCIE_PCI_BRIDGE_DEV(d);
     int rc, pos;
+#ifdef CONFIG_LIBSPDM
+    uint16_t doe_offset;
+    SpdmDev *ppbridge_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     pci_bridge_initfn(d, TYPE_PCI_BUS);
 
@@ -66,6 +71,16 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
     if (rc < 0) {
         goto aer_error;
     }
+
+#ifdef CONFIG_LIBSPDM
+    doe_offset = PCI_CONFIG_SPACE_SIZE;
+    pcie_doe_init(d, &d->doe_spdm, doe_offset,
+                  doe_spdm_dev_prot, true, 0);
+    init_default_spdm_dev(ppbridge_spdm_dev);
+    ppbridge_spdm_dev->doe_cap = &d->doe_spdm;
+
+    spdm_responder_init(ppbridge_spdm_dev);
+#endif
 
     Error *local_err = NULL;
     if (pcie_br->msi != ON_OFF_AUTO_OFF) {
@@ -124,6 +139,22 @@ static void pcie_pci_bridge_write_config(PCIDevice *d,
     shpc_cap_write_config(d, address, val, len);
 }
 
+#ifdef CONFIG_LIBSPDM
+static uint32_t pcie_pci_bridge_read_config(PCIDevice *d,
+        uint32_t address, int len)
+{
+    uint32_t val;
+
+    if (pcie_find_capability(d, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&d->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
+
+    return pci_default_read_config(d, address, len);
+}
+#endif
+
 static Property pcie_pci_bridge_dev_properties[] = {
         DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_AUTO),
         DEFINE_PROP_END_OF_LIST(),
@@ -150,6 +181,9 @@ static void pcie_pci_bridge_class_init(ObjectClass *klass, void *data)
     k->realize = pcie_pci_bridge_realize;
     k->exit = pcie_pci_bridge_exit;
     k->config_write = pcie_pci_bridge_write_config;
+#ifdef CONFIG_LIBSPDM
+    k->config_read = pcie_pci_bridge_read_config;
+#endif
     dc->vmsd = &pcie_pci_bridge_dev_vmstate;
     device_class_set_props(dc, pcie_pci_bridge_dev_properties);
     device_class_set_legacy_reset(dc, pcie_pci_bridge_reset);

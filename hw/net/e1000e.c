@@ -437,6 +437,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     uint8_t *macaddr;
     int ret;
 #ifdef CONFIG_LIBSPDM
+    uint16_t doe_offset;
     SpdmDev *e1000e_spdm_dev = g_malloc0(sizeof(SpdmDev));
 #endif
 
@@ -512,7 +513,7 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     e1000e_init_net_peer(s, pci_dev, macaddr);
 
 #ifdef CONFIG_LIBSPDM
-    uint16_t doe_offset = PCI_CONFIG_SPACE_SIZE;
+    doe_offset = PCI_CONFIG_SPACE_SIZE;
     pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
                   doe_spdm_dev_prot, true, 0);
     init_default_spdm_dev(e1000e_spdm_dev);
