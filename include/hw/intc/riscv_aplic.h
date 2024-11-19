@@ -71,6 +71,7 @@ struct RISCVAPLICState {
 };
 
 void riscv_aplic_add_child(DeviceState *parent, DeviceState *child);
+bool riscv_is_kvm_aia_aplic_imsic(bool msimode);
 
 DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
     uint32_t hartid_base, uint32_t num_harts, uint32_t num_sources,
