@@ -25,6 +25,29 @@
 #include "io/channel-util.h"
 #include "trace.h"
 
+static bool fd_is_pipe(int fd)
+{
+    struct stat statbuf;
+
+    if (fstat(fd, &statbuf) == -1) {
+        return false;
+    }
+
+    return S_ISFIFO(statbuf.st_mode);
+}
+
+static bool migration_fd_valid(int fd)
+{
+    if (fd_is_socket(fd)) {
+        return true;
+    }
+
+    if (fd_is_pipe(fd)) {
+        return true;
+    }
+
+    return false;
+}
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
@@ -34,7 +57,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    if (!fd_is_socket(fd)) {
+    if (!migration_fd_valid(fd)) {
         warn_report("fd: migration to a file is deprecated."
                     " Use file: instead.");
     }
@@ -68,7 +91,7 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
         return;
     }
 
-    if (!fd_is_socket(fd)) {
+    if (!migration_fd_valid(fd)) {
         warn_report("fd: migration to a file is deprecated."
                     " Use file: instead.");
     }
