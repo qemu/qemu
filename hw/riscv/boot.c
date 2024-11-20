@@ -293,7 +293,7 @@ out:
  * The FDT is fdt_packed() during the calculation.
  */
 uint64_t riscv_compute_fdt_addr(hwaddr dram_base, hwaddr dram_size,
-                                MachineState *ms)
+                                MachineState *ms, RISCVHartArrayState *harts)
 {
     int ret = fdt_pack(ms->fdt);
     hwaddr dram_end, temp;
@@ -317,11 +317,15 @@ uint64_t riscv_compute_fdt_addr(hwaddr dram_base, hwaddr dram_size,
 
     /*
      * We should put fdt as far as possible to avoid kernel/initrd overwriting
-     * its content. But it should be addressable by 32 bit system as well.
-     * Thus, put it at an 2MB aligned address that less than fdt size from the
-     * end of dram or 3GB whichever is lesser.
+     * its content. But it should be addressable by 32 bit system as well in RV32.
+     * Thus, put it near to the end of dram in RV64, and put it near to the end
+     * of dram or 3GB whichever is lesser in RV32.
      */
-    temp = (dram_base < 3072 * MiB) ? MIN(dram_end, 3072 * MiB) : dram_end;
+    if (!riscv_is_32bit(harts)) {
+        temp = dram_end;
+    } else {
+        temp = (dram_base < 3072 * MiB) ? MIN(dram_end, 3072 * MiB) : dram_end;
+    }
 
     return QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
 }
