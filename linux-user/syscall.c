@@ -10588,10 +10588,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return ret;
 #ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
-#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
-    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
-    defined(TARGET_M68K) || defined(TARGET_MICROBLAZE) \
-    || defined(TARGET_S390X)
+#ifdef TARGET_ARCH_WANT_SYS_OLD_MMAP
         {
             abi_ulong *v;
             abi_ulong v1, v2, v3, v4, v5, v6;
