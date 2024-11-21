@@ -1734,7 +1734,7 @@ Object *object_get_root(void)
     static Object *root;
 
     if (!root) {
-        root = object_new("container");
+        root = object_new(TYPE_CONTAINER);
     }
 
     return root;
@@ -1750,7 +1750,7 @@ Object *object_get_internal_root(void)
     static Object *internal_root;
 
     if (!internal_root) {
-        internal_root = object_new("container");
+        internal_root = object_new(TYPE_CONTAINER);
     }
 
     return internal_root;
