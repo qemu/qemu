@@ -37,6 +37,7 @@ struct WacomState {
     QemuInputHandlerState *hs;
     int buttons_state, last_buttons_state;
     uint16_t dx, dy, dz;
+    uint16_t last_x, last_y;
 };
 
 struct ADBWacomClass {
@@ -47,8 +48,11 @@ struct ADBWacomClass {
     DeviceRealize parent_realize;
 };
 
-#define ADB_WACOM_BUTTON_LEFT   0x01
-#define ADB_WACOM_BUTTON_RIGHT  0x02
+#define ADB_WACOM_BUTTON_MIDDLE     0x01
+#define ADB_WACOM_BUTTON_LEFT       0x02
+#define ADB_WACOM_BUTTON_RIGHT      0x04
+#define ADB_WACOM_BUTTON_SIDE       0x08
+#define ADB_WACOM_BUTTON_EXTRA      0x10
 
 static void adb_wacom_handle_event(DeviceState *dev, QemuConsole *src,
                                     InputEvent *evt) {
@@ -56,8 +60,11 @@ static void adb_wacom_handle_event(DeviceState *dev, QemuConsole *src,
     InputMoveEvent *move;
     InputBtnEvent *btn;
     static const int bmap[INPUT_BUTTON__MAX] = {
-            [INPUT_BUTTON_LEFT]   = ADB_WACOM_BUTTON_LEFT,
-            [INPUT_BUTTON_RIGHT]  = ADB_WACOM_BUTTON_RIGHT,
+            [INPUT_BUTTON_LEFT]        = ADB_WACOM_BUTTON_LEFT,
+            [INPUT_BUTTON_RIGHT]       = ADB_WACOM_BUTTON_RIGHT,
+            [INPUT_BUTTON_MIDDLE]      = ADB_WACOM_BUTTON_MIDDLE,
+            [INPUT_BUTTON_SIDE]        = ADB_WACOM_BUTTON_SIDE,
+            [INPUT_BUTTON_EXTRA]       = ADB_WACOM_BUTTON_EXTRA
     };
 
     switch (evt->type) {
@@ -68,12 +75,10 @@ static void adb_wacom_handle_event(DeviceState *dev, QemuConsole *src,
                 case INPUT_AXIS_X:
                     // Digitizer II / Artz lpi 2540 => dpi 5080
                     s->dx = (uint16_t) (move->value * qemu_console_get_width(src, 640) / 2450);
-//                    s->dx = (uint16_t) (move->value * qemu_console_get_width(src, 640) / 5080);
                     break;
                 case INPUT_AXIS_Y:
                     // 6x8 inch interactive surface => 4:3 aspect ratio
                     s->dy = (uint16_t) (move->value * qemu_console_get_height(src, 480) / 1905);
-//                    s->dy = (uint16_t) (move->value * qemu_console_get_height(src, 480) / 3810);
                     break;
                 default:
                     break;
@@ -111,7 +116,10 @@ static const QemuInputHandler adb_wacom_handler = {
 static int adb_wacom_poll(ADBDevice *d, uint8_t *obuf) {
     WacomState *s = ADB_WACOM(d);
 
-    if (s->last_buttons_state == s->buttons_state && !(s->dx || s->dy)) {
+    // if state of button(s) or coordinates have changed since last poll
+    if (!(s->last_buttons_state != s->buttons_state
+        || s->dx != s->last_x
+        || s->dy != s->last_y)) {
         return 0;
     }
     // Not quite any of the WACOM II-S/IV/IVe, BitPad One/Two, or MM 1201/961
@@ -121,12 +129,13 @@ static int adb_wacom_poll(ADBDevice *d, uint8_t *obuf) {
     // with ADB unlike with a standard serial bus, the packet can be condensed
     // into five bytes instead of requiring seven.
     s->last_buttons_state = s->buttons_state;
-    obuf[0] = 0xC0 | ((s->dx >> 8) & 0x3F);
+    s->last_x = s->dx;
+    s->last_y = s->dy;
+    obuf[0] = (0xC0 | ((s->dx >> 8) & 0x3F)) & 0xFF;
     obuf[1] = s->dx & 0xFF;
-    obuf[2] = ((s->dy >> 8) & 0xFF);
+    obuf[2] = (s->dy >> 8) & 0xFF;
     obuf[3] = s->dy & 0xFF;
-    obuf[4] = s->buttons_state;
-    s->dx = s->dy = 0;
+    obuf[4] = s->buttons_state & 0xFF;
     return 5;
 }
 
@@ -138,10 +147,8 @@ static int adb_wacom_request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf,
 
     if ((buf[0] & 0x0f) == ADB_FLUSH) {
         /* flush wacom fifo */
-        s->buttons_state = s->last_buttons_state;
-        s->dx = 0;
-        s->dy = 0;
-        s->dz = 0;
+        s->last_buttons_state = s->buttons_state = 0;
+        s->last_x = s->last_y = s->dx = s->dy = s->dz = 0;
         trace_adb_device_wacom_flush();
         return 0;
     }
@@ -153,9 +160,9 @@ static int adb_wacom_request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf,
         case ADB_WRITEREG:
             switch (reg) {
                 default:
-//                case 1: // receives 0xFE0449 on initialization. seems to be settings packet
+                case 1: // receives 0xFE0449 on initialization. seems to be settings packet
                         // described (the manual, p. 47)?
-//                case 2: // receives 0x204A when modifying certain settings in control panel
+                case 2: // receives 0x204A when modifying certain settings in control panel
                         // doesn't seem to vary based on settings values chosen.
                     break;
                 case 3:
@@ -170,6 +177,9 @@ static int adb_wacom_request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf,
                     }
 
                     switch (buf[2]) {
+                        case 'h':
+                            d->devaddr = (buf[0] & 0xF0) >> 4;
+                            break;
                         case ADB_CMD_SELF_TEST:
                             break;
                         case ADB_CMD_CHANGE_ID:
@@ -191,7 +201,7 @@ static int adb_wacom_request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf,
                             break;
                     }
             }
-            if (reg != 3) trace_adb_device_wacom_writereg(reg, *(uint64_t *) buf);
+            trace_adb_device_wacom_writereg(reg, *(uint64_t *) buf);
             break;
         case ADB_READREG:
             switch (reg) {
@@ -245,7 +255,7 @@ static void adb_wacom_reset(DeviceState *dev) {
     d->handler = 0x3A;
     d->devaddr = ADB_DEVID_TABLET;
     s->last_buttons_state = s->buttons_state = 0;
-    s->dx = s->dy = s->dz = 0;
+    s->last_x = s->last_y = s->dx = s->dy = s->dz = 0;
 }
 
 static const VMStateDescription vmstate_adb_wacom = {
@@ -257,6 +267,8 @@ static const VMStateDescription vmstate_adb_wacom = {
                                ADBDevice),
                 VMSTATE_INT32(buttons_state, WacomState),
                 VMSTATE_INT32(last_buttons_state, WacomState),
+                VMSTATE_UINT16(last_x, WacomState),
+                VMSTATE_UINT16(last_y, WacomState),
                 VMSTATE_UINT16(dx, WacomState),
                 VMSTATE_UINT16(dy, WacomState),
                 VMSTATE_UINT16(dz, WacomState),
