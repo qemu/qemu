@@ -57,9 +57,15 @@ class QemuBaseTest(unittest.TestCase):
         self._log_fh.setFormatter(fileFormatter)
         self.log.addHandler(self._log_fh)
 
+        # Capture QEMUMachine logging
+        self.machinelog = logging.getLogger('qemu.machine')
+        self.machinelog.setLevel(logging.DEBUG)
+        self.machinelog.addHandler(self._log_fh)
+
     def tearDown(self):
         if "QEMU_TEST_KEEP_SCRATCH" not in os.environ:
             shutil.rmtree(self.workdir)
+        self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
 
     def main():
