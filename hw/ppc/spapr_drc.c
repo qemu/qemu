@@ -27,7 +27,7 @@
 #include "sysemu/reset.h"
 #include "trace.h"
 
-#define DRC_CONTAINER_PATH "/dr-connector"
+#define DRC_CONTAINER_PATH "dr-connector"
 #define DRC_INDEX_TYPE_SHIFT 28
 #define DRC_INDEX_ID_MASK ((1ULL << DRC_INDEX_TYPE_SHIFT) - 1)
 
@@ -514,6 +514,16 @@ static const VMStateDescription vmstate_spapr_drc = {
     }
 };
 
+static void drc_container_create(void)
+{
+    object_property_add_new_container(object_get_root(), DRC_CONTAINER_PATH);
+}
+
+static Object *drc_container_get(void)
+{
+    return object_resolve_path_component(object_get_root(), DRC_CONTAINER_PATH);
+}
+
 static void drc_realize(DeviceState *d, Error **errp)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
@@ -529,7 +539,7 @@ static void drc_realize(DeviceState *d, Error **errp)
      * inaccessible by the guest, since lookups rely on this path
      * existing in the composition tree
      */
-    root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
+    root_container = drc_container_get();
     child_name = object_get_canonical_path_component(OBJECT(drc));
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
@@ -543,12 +553,10 @@ static void drc_unrealize(DeviceState *d)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     g_autofree gchar *name = g_strdup_printf("%x", spapr_drc_index(drc));
-    Object *root_container;
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
     vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
-    root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    object_property_del(root_container, name);
+    object_property_del(drc_container_get(), name);
 }
 
 SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
@@ -584,6 +592,8 @@ static void spapr_dr_connector_instance_init(Object *obj)
 static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
+
+    drc_container_create();
 
     dk->realize = drc_realize;
     dk->unrealize = drc_unrealize;
@@ -796,9 +806,8 @@ static const TypeInfo spapr_drc_pmem_info = {
 SpaprDrc *spapr_drc_by_index(uint32_t index)
 {
     Object *obj;
-    g_autofree gchar *name = g_strdup_printf("%s/%x", DRC_CONTAINER_PATH,
-                                             index);
-    obj = object_resolve_path(name, NULL);
+    g_autofree gchar *name = g_strdup_printf("%x", index);
+    obj = object_resolve_path_component(drc_container_get(), name);
 
     return !obj ? NULL : SPAPR_DR_CONNECTOR(obj);
 }
@@ -860,7 +869,7 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask)
     /* aliases for all DRConnector objects will be rooted in QOM
      * composition tree at DRC_CONTAINER_PATH
      */
-    root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
+    root_container = drc_container_get();
 
     object_property_iter_init(&iter, root_container);
     while ((prop = object_property_iter_next(&iter))) {
@@ -953,7 +962,7 @@ void spapr_drc_reset_all(SpaprMachineState *spapr)
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
 
-    drc_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
+    drc_container = drc_container_get();
 restart:
     object_property_iter_init(&iter, drc_container);
     while ((prop = object_property_iter_next(&iter))) {
