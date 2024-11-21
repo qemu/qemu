@@ -286,24 +286,25 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
                 gen_op_ld_v(s, op->ot, v, s->A0);
             }
 
-        } else if (op->ot == MO_8 && byte_reg_is_xH(s, op->n)) {
-            if (v == s->T0 && decode->e.special == X86_SPECIAL_SExtT0) {
-                tcg_gen_sextract_tl(v, cpu_regs[op->n - 4], 8, 8);
-            } else {
-                tcg_gen_extract_tl(v, cpu_regs[op->n - 4], 8, 8);
-            }
-
         } else if (op->ot < MO_TL && v == s->T0 &&
                    (decode->e.special == X86_SPECIAL_SExtT0 ||
                     decode->e.special == X86_SPECIAL_ZExtT0)) {
-            if (decode->e.special == X86_SPECIAL_SExtT0) {
-                tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot | MO_SIGN);
+            if (op->ot == MO_8 && byte_reg_is_xH(s, op->n)) {
+                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                    tcg_gen_sextract_tl(v, cpu_regs[op->n - 4], 8, 8);
+                } else {
+                    tcg_gen_extract_tl(v, cpu_regs[op->n - 4], 8, 8);
+                }
             } else {
-                tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot);
+                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                    tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot | MO_SIGN);
+                } else {
+                    tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot);
+                }
             }
 
         } else {
-            tcg_gen_mov_tl(v, cpu_regs[op->n]);
+            gen_op_mov_v_reg(s, op->ot, v, op->n);
         }
         break;
     case X86_OP_IMM:
