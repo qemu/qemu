@@ -33,7 +33,7 @@ class HotPlug(LinuxTest):
             'drive': 'disk',
             'id': 'virtio-disk0',
             'bus': 'pci.1',
-            'addr': 1
+            'addr': '1',
         }
 
         self.assert_no_vda()
