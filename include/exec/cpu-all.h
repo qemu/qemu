@@ -180,7 +180,11 @@ CPUArchState *cpu_copy(CPUArchState *env);
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
+#include "cpu.h"
+
 #ifdef CONFIG_USER_ONLY
+
+static inline int cpu_mmu_index(CPUState *cs, bool ifetch);
 
 /*
  * Allow some level of source compatibility with softmmu.  We do not
@@ -271,7 +275,6 @@ static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr)
 #endif /* !CONFIG_USER_ONLY */
 
 /* Validate correct placement of CPUArchState. */
-#include "cpu.h"
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 
