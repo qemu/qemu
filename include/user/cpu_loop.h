@@ -17,8 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CPU_LOOP_COMMON_H
-#define CPU_LOOP_COMMON_H
+#ifndef USER_CPU_LOOP_H
+#define USER_CPU_LOOP_H
 
 #include "exec/log.h"
 #include "special-errno.h"

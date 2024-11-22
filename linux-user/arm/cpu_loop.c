@@ -21,7 +21,7 @@
 #include "qemu.h"
 #include "user-internals.h"
 #include "elf.h"
-#include "cpu_loop-common.h"
+#include "user/cpu_loop.h"
 #include "signal-common.h"
 #include "semihosting/common-semi.h"
 #include "exec/page-protection.h"
