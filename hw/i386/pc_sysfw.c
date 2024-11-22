@@ -36,7 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/block/flash.h"
 #include "sysemu/kvm.h"
-#include "sev.h"
+#include "target/i386/sev.h"
 
 #define FLASH_SECTOR_SIZE 4096
 
