@@ -37,7 +37,7 @@ static inline void target_cpu_init(CPURISCVState *env,
     env->pc = regs->sepc;
 }
 
-static inline void target_cpu_loop(CPURISCVState *env)
+static inline G_NORETURN void target_cpu_loop(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr;

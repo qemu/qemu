@@ -23,6 +23,8 @@
 #include "exec/log.h"
 #include "special-errno.h"
 
+G_NORETURN void cpu_loop(CPUArchState *env);
+
 void target_exception_dump(CPUArchState *env, const char *fmt, int code);
 #define EXCP_DUMP(env, fmt, code) \
     target_exception_dump(env, fmt, code)
