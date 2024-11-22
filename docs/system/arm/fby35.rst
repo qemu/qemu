@@ -12,7 +12,7 @@ include various compute accelerators (video, inferencing, etc). At the moment,
 only the first server slot's BIC is included.
 
 Yosemite v3.5 is itself a sled which fits into a 40U chassis, and 3 sleds
-can be fit into a chassis. See `here <https://www.opencompute.org/products/423/wiwynn-yosemite-v3-server>`__
+can be fit into a chassis. See `here <https://www.opencompute.org/products-chiplets/237/wiwynn-yosemite-v3-server>`__
 for an example.
 
 In this generation, the BMC is an AST2600 and each BIC is an AST1030. The BMC
