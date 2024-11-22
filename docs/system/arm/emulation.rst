@@ -3,8 +3,8 @@
 A-profile CPU architecture support
 ==================================
 
-QEMU's TCG emulation includes support for the Armv5, Armv6, Armv7 and
-Armv8 versions of the A-profile architecture. It also has support for
+QEMU's TCG emulation includes support for the Armv5, Armv6, Armv7,
+Armv8 and Armv9 versions of the A-profile architecture. It also has support for
 the following architecture extensions:
 
 - FEAT_AA32BF16 (AArch32 BFloat16 instructions)
@@ -153,7 +153,7 @@ the following architecture extensions:
 - FEAT_XNX (Translation table stage 2 Unprivileged Execute-never)
 
 For information on the specifics of these extensions, please refer
-to the `Armv8-A Arm Architecture Reference Manual
+to the `Arm Architecture Reference Manual for A-profile architecture
 <https://developer.arm.com/documentation/ddi0487/latest>`_.
 
 When a specific named CPU is being emulated, only those features which
