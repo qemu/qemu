@@ -18,7 +18,9 @@
 #ifndef QEMU_CONFIDENTIAL_GUEST_SUPPORT_H
 #define QEMU_CONFIDENTIAL_GUEST_SUPPORT_H
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+#error Cannot include system/confidential-guest-support.h from user emulation
+#endif
 
 #include "qom/object.h"
 
@@ -93,7 +95,5 @@ static inline int confidential_guest_kvm_reset(ConfidentialGuestSupport *cgs,
 
     return 0;
 }
-
-#endif /* !CONFIG_USER_ONLY */
 
 #endif /* QEMU_CONFIDENTIAL_GUEST_SUPPORT_H */

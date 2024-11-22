@@ -107,7 +107,7 @@
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
 #include "system/arch_init.h"
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"

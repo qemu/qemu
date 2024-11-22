@@ -14,7 +14,7 @@
 #include "qom/object_interfaces.h"
 #include "system/kvm.h"
 #include "migration/blocker.h"
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 
 #define TYPE_PEF_GUEST "pef-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(PefGuest, PEF_GUEST)
