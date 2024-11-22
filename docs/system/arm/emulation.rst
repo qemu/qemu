@@ -37,6 +37,7 @@ the following architecture extensions:
 - FEAT_CSV3 (Cache speculation variant 3)
 - FEAT_DGH (Data gathering hint)
 - FEAT_DIT (Data Independent Timing instructions)
+- FEAT_DoubleLock (Double Lock)
 - FEAT_DPB (DC CVAP instruction)
 - FEAT_DPB2 (DC CVADP instruction)
 - FEAT_Debugv8p1 (Debug with VHE)
