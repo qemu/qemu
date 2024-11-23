@@ -188,7 +188,7 @@ void cpu_loop(CPUHPPAState *env)
     }
 }
 
-void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
+void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
 {
     int i;
     for (i = 1; i < 32; i++) {

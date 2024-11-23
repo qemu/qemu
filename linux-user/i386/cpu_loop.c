@@ -331,7 +331,7 @@ static void target_cpu_free(void *obj)
     g_free(obj);
 }
 
-void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
+void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
     bool is64 = (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) != 0;

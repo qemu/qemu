@@ -92,7 +92,7 @@ void cpu_loop(CPUM68KState *env)
     }
 }
 
-void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
+void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
     TaskState *ts = get_task_state(cpu);
