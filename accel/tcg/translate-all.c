@@ -44,6 +44,7 @@
 #endif
 
 #include "exec/cputlb.h"
+#include "exec/page-protection.h"
 #include "exec/translate-all.h"
 #include "exec/translator.h"
 #include "exec/tb-flush.h"
