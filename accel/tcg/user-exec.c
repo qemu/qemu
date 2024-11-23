@@ -24,6 +24,7 @@
 #include "qemu/bitops.h"
 #include "qemu/rcu.h"
 #include "exec/cpu_ldst.h"
+#include "user/cpu_loop.h"
 #include "qemu/main-loop.h"
 #include "user/page-protection.h"
 #include "exec/page-protection.h"

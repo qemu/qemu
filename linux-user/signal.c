@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "signal-common.h"
 #include "host-signal.h"
+#include "user/cpu_loop.h"
 #include "user/page-protection.h"
 #include "user/safe-syscall.h"
 #include "tcg/tcg.h"

@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #ifdef CONFIG_USER_ONLY
+#include "user/cpu_loop.h"
 #include "user/page-protection.h"
 #else
 #include "exec/ram_addr.h"
