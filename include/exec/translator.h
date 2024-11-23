@@ -267,16 +267,15 @@ bool translator_st(const DisasContextBase *db, void *dest,
  */
 size_t translator_st_len(const DisasContextBase *db);
 
-#ifdef COMPILING_PER_TARGET
-/*
- * Return whether addr is on the same page as where disassembly started.
+/**
+ * translator_is_same_page
+ * @db: disassembly context
+ * @addr: virtual address within TB
+ *
+ * Return whether @addr is on the same page as where disassembly started.
  * Translators can use this to enforce the rule that only single-insn
  * translation blocks are allowed to cross page boundaries.
  */
-static inline bool is_same_page(const DisasContextBase *db, vaddr addr)
-{
-    return ((addr ^ db->pc_first) & TARGET_PAGE_MASK) == 0;
-}
-#endif
+bool translator_is_same_page(const DisasContextBase *db, vaddr addr);
 
 #endif /* EXEC__TRANSLATOR_H */
