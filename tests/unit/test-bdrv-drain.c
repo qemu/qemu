@@ -28,6 +28,7 @@
 #include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
+#include "qemu/clang-tsa.h"
 #include "iothread.h"
 
 static QemuEvent done_event;
