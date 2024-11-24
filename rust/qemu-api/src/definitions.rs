@@ -45,10 +45,10 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
 /// - the struct must be `#[repr(C)]`;
 ///
 /// - the first field of the struct must be of the instance struct corresponding
-///   to the superclass, as declared in `ObjectImpl::PARENT_TYPE_NAME`
+///   to the superclass, which is `ObjectImpl::ParentType`
 ///
 /// - likewise, the first field of the `Class` must be of the class struct
-///   corresponding to the superclass
+///   corresponding to the superclass, which is `ObjectImpl::ParentType::Class`.
 pub unsafe trait ObjectType: Sized {
     /// The QOM class object corresponding to this struct.  Not used yet.
     type Class;
@@ -62,7 +62,7 @@ pub unsafe trait ObjectType: Sized {
 pub trait ObjectImpl: ObjectType + ClassInitImpl {
     /// The parent of the type.  This should match the first field of
     /// the struct that implements `ObjectImpl`:
-    const PARENT_TYPE_NAME: Option<&'static CStr>;
+    type ParentType: ObjectType;
 
     /// Whether the object can be instantiated
     const ABSTRACT: bool = false;
@@ -82,11 +82,7 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl {
 
     const TYPE_INFO: TypeInfo = TypeInfo {
         name: Self::TYPE_NAME.as_ptr(),
-        parent: if let Some(pname) = Self::PARENT_TYPE_NAME {
-            pname.as_ptr()
-        } else {
-            core::ptr::null_mut()
-        },
+        parent: Self::ParentType::TYPE_NAME.as_ptr(),
         instance_size: core::mem::size_of::<Self>(),
         instance_align: core::mem::align_of::<Self>(),
         instance_init: match Self::INSTANCE_INIT {

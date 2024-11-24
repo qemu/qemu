@@ -113,7 +113,8 @@ unsafe impl ObjectType for PL011State {
 }
 
 impl ObjectImpl for PL011State {
-    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(<SysBusDevice as ObjectType>::TYPE_NAME);
+    type ParentType = SysBusDevice;
+
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
 }
 
@@ -650,7 +651,8 @@ unsafe impl ObjectType for PL011Luminary {
 }
 
 impl ObjectImpl for PL011Luminary {
-    const PARENT_TYPE_NAME: Option<&'static CStr> = Some(<PL011State as ObjectType>::TYPE_NAME);
+    type ParentType = PL011State;
+
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
 }
 

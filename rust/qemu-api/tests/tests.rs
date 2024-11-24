@@ -48,8 +48,7 @@ fn test_device_decl_macros() {
     }
 
     impl ObjectImpl for DummyState {
-        const PARENT_TYPE_NAME: Option<&'static CStr> =
-            Some(<DeviceState as ObjectType>::TYPE_NAME);
+        type ParentType = DeviceState;
         const ABSTRACT: bool = false;
     }
 
