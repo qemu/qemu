@@ -3971,7 +3971,7 @@ print_mmap(CPUArchState *cpu_env, const struct syscallname *name,
 {
     return print_mmap_both(cpu_env, name, arg0, arg1, arg2, arg3,
                            arg4, arg5,
-#if defined(TARGET_NR_mmap2)
+#ifdef TARGET_ARCH_WANT_SYS_OLD_MMAP
                             true
 #else
                             false
@@ -4401,7 +4401,7 @@ print_syscall(CPUArchState *cpu_env, int num,
     if (!f) {
         return;
     }
-    fprintf(f, "%d ", getpid());
+    fprintf(f, "%d ", get_task_state(env_cpu(cpu_env))->ts_tid);
 
     for (i = 0; i < nsyscalls; i++) {
         if (scnames[i].nr == num) {

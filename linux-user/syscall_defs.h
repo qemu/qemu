@@ -2766,4 +2766,11 @@ struct target_open_how_ver0 {
 #define RESOLVE_NO_SYMLINKS     0x04
 #endif
 
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
+    defined(TARGET_M68K) || defined(TARGET_MICROBLAZE) || \
+    defined(TARGET_S390X)
+#define TARGET_ARCH_WANT_SYS_OLD_MMAP
+#endif
+
 #endif
