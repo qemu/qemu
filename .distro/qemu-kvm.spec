@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 3%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 4%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -268,6 +268,8 @@ Patch63: kvm-KVM-Define-KVM_MEMSLOTS_NUM_MAX_DEFAULT.patch
 Patch64: kvm-KVM-Rename-KVMMemoryListener.nr_used_slots-to-nr_slo.patch
 # For RHEL-57682 - Bad migration performance when performing vGPU VM live migration 
 Patch65: kvm-KVM-Rename-KVMState-nr_slots-to-nr_slots_max.patch
+# For RHEL-67844 - qemu crashed after killed virtiofsd during migration
+Patch66: kvm-migration-Ensure-vmstate_save-sets-errp.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1334,6 +1336,11 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Sun Nov 24 2024 Jon Maloy <jmaloy@redhat.com> - 9.1.0-4
+- kvm-migration-Ensure-vmstate_save-sets-errp.patch [RHEL-67844]
+- Resolves: RHEL-67844
+  (qemu crashed after killed virtiofsd during migration)
+
 * Tue Nov 19 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-3
 - kvm-pc-q35-Bump-max_cpus-to-4096-vcpus.patch [RHEL-11043]
 - kvm-kvm-replace-fprintf-with-error_report-printf-in-kvm_.patch [RHEL-57682]
