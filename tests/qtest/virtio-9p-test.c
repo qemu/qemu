@@ -702,6 +702,7 @@ static void fs_use_after_unlink(void *obj, void *data,
     g_autofree char *real_file = virtio_9p_test_path("09/doa_file");
     g_autofree char *buf = g_malloc0(write_count);
     struct stat st_file;
+    struct v9fs_attr attr;
     uint32_t fid_file;
     uint32_t count;
 
@@ -725,6 +726,10 @@ static void fs_use_after_unlink(void *obj, void *data,
     tunlinkat({ .client = v9p, .atPath = "09", .name = "doa_file" });
 
     /* file is removed, but we still have it open, so this should succeed */
+    tgetattr({
+        .client = v9p, .fid = fid_file, .request_mask = P9_GETATTR_BASIC,
+        .rgetattr.attr = &attr
+    });
     count = twrite({
         .client = v9p, .fid = fid_file, .offset = 0, .count = write_count,
         .data = buf
