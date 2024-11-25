@@ -285,7 +285,7 @@ struct MachineClass {
         no_cdrom:1,
         pci_allow_0_address:1,
         legacy_fw_cfg_order:1;
-    OnOffAuto no_sdcard;
+    bool auto_create_sdcard;
     bool is_default;
     const char *default_machine_opts;
     const char *default_boot_order;

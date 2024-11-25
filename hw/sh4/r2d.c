@@ -383,7 +383,7 @@ static void r2d_machine_init(MachineClass *mc)
     mc->block_default_type = IF_IDE;
     mc->default_cpu_type = TYPE_SH7751R_CPU;
     mc->default_nic = "rtl8139";
-    mc->no_sdcard = ON_OFF_AUTO_OFF;
+    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("r2d", r2d_machine_init)

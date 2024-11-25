@@ -1113,7 +1113,7 @@ static void sun4m_machine_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_display = "tcx";
     mc->default_ram_id = "sun4m.ram";
-    mc->no_sdcard = ON_OFF_AUTO_OFF;
+    mc->auto_create_sdcard = true;
 }
 
 static void ss5_class_init(ObjectClass *oc, void *data)

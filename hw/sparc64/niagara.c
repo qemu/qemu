@@ -167,7 +167,7 @@ static void niagara_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
     mc->default_ram_id = "sun4v-partition.ram";
-    mc->no_sdcard = ON_OFF_AUTO_OFF;
+    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo niagara_type = {
