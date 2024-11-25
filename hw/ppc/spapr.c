@@ -701,7 +701,7 @@ static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
     uint32_t radix_AP_encodings[PPC_PAGE_SIZES_MAX_SZ];
     int i;
 
-    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index);
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, env->core_index);
     if (drc) {
         drc_index = spapr_drc_index(drc);
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index)));
