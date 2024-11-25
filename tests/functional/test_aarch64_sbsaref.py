@@ -24,9 +24,9 @@ def fetch_firmware(test):
 
     Used components:
 
-    - Trusted Firmware         v2.11.0
-    - Tianocore EDK2           4d4f569924
-    - Tianocore EDK2-platforms 3f08401
+    - Trusted Firmware         v2.12.0
+    - Tianocore EDK2           edk2-stable202411
+    - Tianocore EDK2-platforms 4b3530d
 
     """
 
@@ -62,13 +62,13 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
     ASSET_FLASH0 = Asset(
         ('https://artifacts.codelinaro.org/artifactory/linaro-419-sbsa-ref/'
-         '20240619-148232/edk2/SBSA_FLASH0.fd.xz'),
-        '0c954842a590988f526984de22e21ae0ab9cb351a0c99a8a58e928f0c7359cf7')
+         '20241122-189881/edk2/SBSA_FLASH0.fd.xz'),
+        '76eb89d42eebe324e4395329f47447cda9ac920aabcf99aca85424609c3384a5')
 
     ASSET_FLASH1 = Asset(
         ('https://artifacts.codelinaro.org/artifactory/linaro-419-sbsa-ref/'
-         '20240619-148232/edk2/SBSA_FLASH1.fd.xz'),
-        'c6ec39374c4d79bb9e9cdeeb6db44732d90bb4a334cec92002b3f4b9cac4b5ee')
+         '20241122-189881/edk2/SBSA_FLASH1.fd.xz'),
+        'f850f243bd8dbd49c51e061e0f79f1697546938f454aeb59ab7d93e5f0d412fc')
 
     def test_sbsaref_edk2_firmware(self):
 
@@ -86,15 +86,15 @@ class Aarch64SbsarefMachine(QemuSystemTest):
 
         # AP Trusted ROM
         wait_for_console_pattern(self, "Booting Trusted Firmware")
-        wait_for_console_pattern(self, "BL1: v2.11.0(release):")
+        wait_for_console_pattern(self, "BL1: v2.12.0(release):")
         wait_for_console_pattern(self, "BL1: Booting BL2")
 
         # Trusted Boot Firmware
-        wait_for_console_pattern(self, "BL2: v2.11.0(release)")
+        wait_for_console_pattern(self, "BL2: v2.12.0(release)")
         wait_for_console_pattern(self, "Booting BL31")
 
         # EL3 Runtime Software
-        wait_for_console_pattern(self, "BL31: v2.11.0(release)")
+        wait_for_console_pattern(self, "BL31: v2.12.0(release)")
 
         # Non-trusted Firmware
         wait_for_console_pattern(self, "UEFI firmware (version 1.0")
