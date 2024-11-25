@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 4%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 5%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -270,6 +270,10 @@ Patch64: kvm-KVM-Rename-KVMMemoryListener.nr_used_slots-to-nr_slo.patch
 Patch65: kvm-KVM-Rename-KVMState-nr_slots-to-nr_slots_max.patch
 # For RHEL-67844 - qemu crashed after killed virtiofsd during migration
 Patch66: kvm-migration-Ensure-vmstate_save-sets-errp.patch
+# For RHEL-67935 - QEMU should fail gracefully with passthrough devices in SEV-SNP guests
+Patch67: kvm-vfio-container-Fix-container-object-destruction.patch
+# For RHEL-68289 - [RHEL-9.6] QEMU core dump on applying merge property to memory backend
+Patch68: kvm-hostmem-Apply-merge-property-after-the-memory-region.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1336,6 +1340,14 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Nov 25 2024 Jon Maloy <jmaloy@redhat.com> - 9.1.0-5
+- kvm-vfio-container-Fix-container-object-destruction.patch [RHEL-67935]
+- kvm-hostmem-Apply-merge-property-after-the-memory-region.patch [RHEL-68289]
+- Resolves: RHEL-67935
+  (QEMU should fail gracefully with passthrough devices in SEV-SNP guests)
+- Resolves: RHEL-68289
+  ([RHEL-9.6] QEMU core dump on applying merge property to memory backend)
+
 * Sun Nov 24 2024 Jon Maloy <jmaloy@redhat.com> - 9.1.0-4
 - kvm-migration-Ensure-vmstate_save-sets-errp.patch [RHEL-67844]
 - Resolves: RHEL-67844
