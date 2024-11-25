@@ -166,6 +166,7 @@ static void rx_gdbsim_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = TYPE_RX62N_CPU;
     mc->default_ram_size = 16 * MiB;
     mc->default_ram_id = "ext-sdram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static void rx62n7_class_init(ObjectClass *oc, void *data)

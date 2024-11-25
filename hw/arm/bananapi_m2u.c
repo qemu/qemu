@@ -141,6 +141,7 @@ static void bpim2u_machine_init(MachineClass *mc)
     mc->valid_cpu_types = valid_cpu_types;
     mc->default_ram_size = 1 * GiB;
     mc->default_ram_id = "bpim2u.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 DEFINE_MACHINE("bpim2u", bpim2u_machine_init)

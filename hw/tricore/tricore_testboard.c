@@ -111,6 +111,7 @@ static void ttb_machine_init(MachineClass *mc)
     mc->desc = "a minimal TriCore board";
     mc->init = tricoreboard_init;
     mc->default_cpu_type = TRICORE_CPU_TYPE_NAME("tc1796");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 DEFINE_MACHINE("tricore_testboard", ttb_machine_init)

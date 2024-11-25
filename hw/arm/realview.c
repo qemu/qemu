@@ -415,6 +415,7 @@ static void realview_eb_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }
@@ -435,6 +436,7 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm11mpcore");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }
@@ -453,6 +455,7 @@ static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
     mc->init = realview_pb_a8_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a8");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }
@@ -472,6 +475,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }

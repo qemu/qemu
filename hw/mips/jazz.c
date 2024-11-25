@@ -424,6 +424,7 @@ static void mips_magnum_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
     mc->default_ram_id = "mips_jazz.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo mips_magnum_type = {
@@ -441,6 +442,7 @@ static void mips_pica61_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_SCSI;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
     mc->default_ram_id = "mips_jazz.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo mips_pica61_type = {

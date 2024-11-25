@@ -419,6 +419,7 @@ static void versatilepb_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
     mc->default_ram_id = "versatile.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }
@@ -439,6 +440,7 @@ static void versatileab_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
     mc->default_ram_id = "versatile.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 
     machine_add_audiodev_property(mc);
 }

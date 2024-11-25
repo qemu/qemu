@@ -351,6 +351,7 @@ static void ppc405_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 128 * MiB;
     mc->default_ram_id = "ppc405.ram";
     mc->deprecation_reason = "machine is old and unmaintained";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo ppc405_machine_type = {

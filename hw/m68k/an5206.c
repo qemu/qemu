@@ -99,6 +99,7 @@ static void an5206_machine_init(MachineClass *mc)
     mc->init = an5206_init;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5206");
     mc->default_ram_id = "an5206.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 DEFINE_MACHINE("an5206", an5206_machine_init)

@@ -1421,6 +1421,7 @@ static void lm3s811evb_class_init(ObjectClass *oc, void *data)
     mc->init = lm3s811evb_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo lm3s811evb_type = {
@@ -1441,6 +1442,7 @@ static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
     mc->init = lm3s6965evb_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo lm3s6965evb_type = {

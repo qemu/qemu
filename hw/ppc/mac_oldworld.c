@@ -427,6 +427,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     mc->default_nic = "ne2k_pci";
     mc->ignore_boot_device_suffixes = true;
     mc->default_ram_id = "ppc_heathrow.ram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
     fwc->get_dev_path = heathrow_fw_dev_path;
 }
 

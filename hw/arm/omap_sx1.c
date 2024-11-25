@@ -216,6 +216,7 @@ static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
     mc->default_ram_size = SDRAM_SIZE;
     mc->default_ram_id = "omap1.dram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo sx1_machine_v2_type = {
@@ -234,6 +235,7 @@ static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
     mc->default_ram_size = SDRAM_SIZE;
     mc->default_ram_id = "omap1.dram";
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo sx1_machine_v1_type = {

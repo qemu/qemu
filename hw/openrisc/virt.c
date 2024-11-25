@@ -554,6 +554,7 @@ static void openrisc_virt_machine_init(ObjectClass *oc, void *data)
     mc->max_cpus = VIRT_CPUS_MAX;
     mc->is_default = false;
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo or1ksim_machine_typeinfo = {

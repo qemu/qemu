@@ -618,6 +618,7 @@ static void mps3r_an536_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 2;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-r52");
     mc->valid_cpu_types = valid_cpu_types;
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
     mmc->raminfo = an536_raminfo;
     mps3r_set_default_ram_info(mmc);
 }

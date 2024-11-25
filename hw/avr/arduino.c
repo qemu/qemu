@@ -67,6 +67,7 @@ static void arduino_machine_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static void arduino_duemilanove_class_init(ObjectClass *oc, void *data)

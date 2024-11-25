@@ -381,6 +381,7 @@ static void xen_pvh_class_init(ObjectClass *oc, void *data)
     mc->default_machine_opts = "accel=xen";
     /* Set to zero to make sure that the real ram size is passed. */
     mc->default_ram_size = 0;
+    mc->no_sdcard = ON_OFF_AUTO_OFF;
 }
 
 static const TypeInfo xen_pvh_info = {
