@@ -184,11 +184,11 @@ static int mark_used(BlockDriverState *bs, unsigned long *bitmap,
     BDRVParallelsState *s = bs->opaque;
     uint32_t cluster_index = host_cluster_index(s, off);
     unsigned long next_used;
-    if (cluster_index + count > bitmap_size) {
+    if ((uint64_t)cluster_index + count > bitmap_size) {
         return -E2BIG;
     }
     next_used = find_next_bit(bitmap, bitmap_size, cluster_index);
-    if (next_used < cluster_index + count) {
+    if (next_used < (uint64_t)cluster_index + count) {
         return -EBUSY;
     }
     bitmap_set(bitmap, cluster_index, count);
