@@ -217,8 +217,8 @@ static uint64_t pnv_core_power10_xscom_read(void *opaque, hwaddr addr,
     case PNV10_XSCOM_EC_CORE_RAS_STATUS:
         for (i = 0; i < nr_threads; i++) {
             PowerPCCPU *cpu = pc->threads[i];
-            CPUState *cs = CPU(cpu);
-            if (cs->stopped) {
+            CPUPPCState *env = &cpu->env;
+            if (env->quiesced) {
                 val |= PPC_BIT(0 + 8 * i) | PPC_BIT(1 + 8 * i);
             }
         }
@@ -244,20 +244,25 @@ static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
         for (i = 0; i < nr_threads; i++) {
             PowerPCCPU *cpu = pc->threads[i];
             CPUState *cs = CPU(cpu);
+            CPUPPCState *env = &cpu->env;
 
             if (val & PPC_BIT(7 + 8 * i)) { /* stop */
                 val &= ~PPC_BIT(7 + 8 * i);
                 cpu_pause(cs);
+                env->quiesced = true;
             }
             if (val & PPC_BIT(6 + 8 * i)) { /* start */
                 val &= ~PPC_BIT(6 + 8 * i);
+                env->quiesced = false;
                 cpu_resume(cs);
             }
             if (val & PPC_BIT(4 + 8 * i)) { /* sreset */
                 val &= ~PPC_BIT(4 + 8 * i);
+                env->quiesced = false;
                 pnv_cpu_do_nmi_resume(cs);
             }
             if (val & PPC_BIT(3 + 8 * i)) { /* clear maint */
+                env->quiesced = false;
                 /*
                  * Hardware has very particular cases for where clear maint
                  * must be used and where start must be used to resume a
@@ -316,6 +321,8 @@ static void pnv_core_cpu_realize(PnvCore *pc, PowerPCCPU *cpu, Error **errp,
     pcc->get_pir_tir(pc->chip, core_hwid, thread_index, &pir, &tir);
     pir_spr->default_value = pir;
     tir_spr->default_value = tir;
+
+    env->chip_index = pc->chip->chip_id;
 
     if (pc->big_core) {
         /* 2 "small cores" get the same core index for SMT operations */

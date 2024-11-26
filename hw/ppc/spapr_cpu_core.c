@@ -313,6 +313,7 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
         return NULL;
     }
 
+    env->chip_index = sc->node_id;
     env->core_index = cc->core_id;
 
     cpu->node_id = sc->node_id;
