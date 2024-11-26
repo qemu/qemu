@@ -19,6 +19,7 @@ gen = [
 
 mips_ss.add(gen)
 mips_ss.add(files(
+  'comput_translate.c',
   'dsp_helper.c',
   'exception.c',
   'fpu_helper.c',
