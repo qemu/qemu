@@ -57,7 +57,6 @@ enum {
 
     NM_POOL32S      = 0x30,
     NM_P_BRI        = 0x32,
-    NM_LI16         = 0x34,
     NM_SWGP16       = 0x35,
     NM_P16_BR       = 0x36,
 
@@ -86,7 +85,6 @@ enum {
 
 /* P48I instruction pool */
 enum {
-    NM_LI48        = 0x00,
     NM_ADDIU48     = 0x01,
     NM_ADDIUGP48   = 0x02,
     NM_ADDIUPC48   = 0x03,
@@ -3665,12 +3663,6 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                                        mo_endian(ctx));
             target_long addr_off = extract32(ctx->opcode, 0, 16) | insn << 16;
             switch (extract32(ctx->opcode, 16, 5)) {
-            case NM_LI48:
-                check_nms(ctx);
-                if (rt != 0) {
-                    tcg_gen_movi_tl(cpu_gpr[rt], addr_off);
-                }
-                break;
             case NM_ADDIU48:
                 check_nms(ctx);
                 if (rt != 0) {
@@ -4626,15 +4618,6 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
         default:
             gen_reserved_instruction(ctx);
             break;
-        }
-        break;
-    case NM_LI16:
-        {
-            imm = extract32(ctx->opcode, 0, 7);
-            imm = (imm == 0x7f ? -1 : imm);
-            if (rt != 0) {
-                tcg_gen_movi_tl(cpu_gpr[rt], imm);
-            }
         }
         break;
     case NM_ANDI16:

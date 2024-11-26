@@ -1712,7 +1712,7 @@ static inline void check_cp0_mt(DisasContext *ctx)
  * This code generates a "reserved instruction" exception if the
  * Config5 NMS bit is set.
  */
-static inline void check_nms(DisasContext *ctx)
+void check_nms(DisasContext *ctx)
 {
     if (unlikely(ctx->CP0_Config5 & (1 << CP0C5_NMS))) {
         gen_reserved_instruction(ctx);

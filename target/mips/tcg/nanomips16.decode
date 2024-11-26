@@ -6,3 +6,12 @@
 #
 # Reference: nanoMIPS32 Instruction Set Technical Reference Manual
 #            (Document Number: MD01247)
+
+&rd_imm             rd imm
+
+%rt3                7:3 !function=gpr3
+%s_eu               0:7 !function=s_eu
+
+@rt3_s          ...... ... .......          &rd_imm         rd=%rt3 imm=%s_eu
+
+LI              110100 ... .......          @rt3_s          # LI[16]
