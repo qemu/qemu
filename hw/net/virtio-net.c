@@ -3064,6 +3064,15 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queue_pairs(n);
 }
 
+static int virtio_net_pre_load_queues(VirtIODevice *vdev)
+{
+    virtio_net_set_multiqueue(VIRTIO_NET(vdev),
+                              virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_RSS) ||
+                              virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_MQ));
+
+    return 0;
+}
+
 static int virtio_net_post_load_device(void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
@@ -4073,6 +4082,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
     vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
+    vdc->pre_load_queues = virtio_net_pre_load_queues;
     vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
     vdc->primary_unplug_pending = primary_unplug_pending;
