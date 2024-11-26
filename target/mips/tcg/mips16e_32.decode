@@ -7,3 +7,12 @@
 # Reference: MIPS Architecture for Programmers, Volume IV-a
 #            The MIPS16e Application Specific Extension
 #            (Document Number: MD00076)
+
+&rd_imm         rd imm                                          !extern
+
+%ext_uimm16     16:5 21:6 0:5
+%rx3            8:3  !function=gpr3_m16
+
+@ext_ri         ..... ...... ..... ..... ... ... .....          &rd_imm rd=%rx3 imm=%ext_uimm16
+
+LI              11110 ...... ..... 01101 ... 000 .....          @ext_ri

@@ -24,7 +24,6 @@ enum {
   M16_OPC_SLTI = 0x0a,
   M16_OPC_SLTIU = 0x0b,
   M16_OPC_I8 = 0x0c,
-  M16_OPC_LI = 0x0d,
   M16_OPC_CMPI = 0x0e,
   M16_OPC_SD = 0x0f,
   M16_OPC_LB = 0x10,
@@ -575,9 +574,6 @@ static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
             break;
         }
         break;
-    case M16_OPC_LI:
-        tcg_gen_movi_tl(cpu_gpr[rx], (uint16_t) imm);
-        break;
     case M16_OPC_CMPI:
         tcg_gen_xori_tl(cpu_gpr[24], cpu_gpr[rx], (uint16_t) imm);
         break;
@@ -839,13 +835,6 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 break;
             }
-        }
-        break;
-    case M16_OPC_LI:
-        {
-            int16_t imm = (uint8_t) ctx->opcode;
-
-            gen_arith_imm(ctx, OPC_ADDIU, rx, 0, imm);
         }
         break;
     case M16_OPC_CMPI:

@@ -12,3 +12,10 @@
 /* Include the auto-generated decoders.  */
 #include "decode-mips16e_16.c.inc"
 #include "decode-mips16e_32.c.inc"
+
+static bool trans_LI(DisasContext *ctx, arg_rd_imm *a)
+{
+    gen_li(ctx, a->rd, a->imm);
+
+    return true;
+}
