@@ -1,0 +1,9 @@
+# MIPS16e 16-bit instruction set extensions
+#
+# Copyright (C) 2021  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Reference: MIPS Architecture for Programmers, Volume IV-a
+#            The MIPS16e Application Specific Extension
+#            (Document Number: MD00076)

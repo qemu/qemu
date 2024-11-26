@@ -658,7 +658,22 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
 
     ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
                                       mo_endian(ctx));
-    op = (ctx->opcode >> 11) & 0x1f;
+
+    op = extract32(ctx->opcode, 11, 5);
+    /* EXTEND-prefixed and JAL/JALX instructions are 32-bit */
+    if (op == M16_OPC_EXTEND || op == M16_OPC_JAL) {
+        uint32_t opcode;
+
+        opcode = ctx->opcode << 16;
+        opcode |= translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
+                                      mo_endian(ctx));
+        if (decode_ase_mips16e_32(ctx, opcode)) {
+            return 4;
+        }
+    } else if (decode_ase_mips16e_16(ctx, ctx->opcode)) {
+        return 2;
+    }
+
     sa = (ctx->opcode >> 2) & 0x7;
     sa = sa == 0 ? 8 : sa;
     rx = xlat((ctx->opcode >> 8) & 0x7);
