@@ -14,6 +14,11 @@ static int plus_1(DisasContext *ctx, int x)
     return x + 1;
 }
 
+static int li16_imm7(DisasContext *ctx, int x)
+{
+    return x == 0x7f ? -1 : x;
+}
+
 /* Include the auto-generated decoders.  */
 #include "decode-micromips16.c.inc"
 #include "decode-micromips32.c.inc"
@@ -22,4 +27,11 @@ static int plus_1(DisasContext *ctx, int x)
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
     return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
+}
+
+static bool trans_LI(DisasContext *ctx, arg_rd_imm *a)
+{
+    gen_li(ctx, a->rd, a->imm);
+
+    return true;
 }

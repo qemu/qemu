@@ -9,3 +9,10 @@
 #            (Document Number: MD00582)
 #            microMIPS64 Instruction Set
 #            (Document Number: MD00594)
+
+&rd_imm         rd imm
+
+%rd3            7:3 !function=gpr3_m16
+%li16_imm7      0:7 !function=li16_imm7
+
+LI              111011 ... .......          &rd_imm rd=%rd3 imm=%li16_imm7 # LI16
