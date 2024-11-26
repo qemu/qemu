@@ -1544,6 +1544,10 @@ def main():
                 insntype = 'uint64_t'
                 insnmask = 0xffffffffffffffff
                 bitop_width = 64
+            elif insnwidth == 48:
+                insntype = 'uint64_t'
+                insnmask = 0xffffffffffff
+                bitop_width = 64
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
         elif o == '--test-for-error':
