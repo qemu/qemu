@@ -15050,6 +15050,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         gen_set_label(l1);
     }
 
+    ctx->opcode = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
+                                     mo_endian(ctx));
+
     /* Transition to the auto-generated decoder.  */
 
     /* Vendor specific extensions */
@@ -15175,21 +15178,13 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     is_slot = ctx->hflags & MIPS_HFLAG_BMASK;
     if (ctx->insn_flags & ISA_NANOMIPS32) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_isa_nanomips(env, ctx);
     } else if (!(ctx->hflags & MIPS_HFLAG_M16)) {
-        ctx->opcode = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
-                                         mo_endian(ctx));
         insn_bytes = 4;
         decode_opc(env, ctx);
     } else if (ctx->insn_flags & ASE_MICROMIPS) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_isa_micromips(env, ctx);
     } else if (ctx->insn_flags & ASE_MIPS16) {
-        ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
-                                          mo_endian(ctx));
         insn_bytes = decode_ase_mips16e(env, ctx);
     } else {
         gen_reserved_instruction(ctx);

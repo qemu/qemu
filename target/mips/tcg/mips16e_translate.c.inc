@@ -453,12 +453,9 @@ static void decode_i64_mips16(DisasContext *ctx,
 
 static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
 {
-    int extend = translator_lduw_end(env, &ctx->base, ctx->base.pc_next + 2,
-                                     mo_endian(ctx));
     int op, rx, ry, funct, sa;
     int16_t imm, offset;
 
-    ctx->opcode = (ctx->opcode << 16) | extend;
     op = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 22) & 0x1f;
     funct = (ctx->opcode >> 8) & 0x7;
@@ -659,6 +656,8 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
     int funct;
     int n_bytes;
 
+    ctx->opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
+                                      mo_endian(ctx));
     op = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 2) & 0x7;
     sa = sa == 0 ? 8 : sa;
@@ -1105,6 +1104,10 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case M16_OPC_EXTEND:
+        ctx->opcode <<= 16;
+        ctx->opcode |= translator_lduw_end(env, &ctx->base,
+                                           ctx->base.pc_next + 2,
+                                           mo_endian(ctx));
         decode_extended_mips16_opc(env, ctx);
         n_bytes = 4;
         break;

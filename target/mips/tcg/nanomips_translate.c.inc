@@ -4463,10 +4463,11 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 
 static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
 {
+    uint64_t opcode;
     uint32_t op;
-    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
-    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
-    int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
+    int rt;
+    int rs;
+    int rd;
     int offset;
     int imm;
 
@@ -4478,6 +4479,12 @@ static int decode_isa_nanomips(CPUMIPSState *env, DisasContext *ctx)
         return 2;
     }
 
+    opcode = translator_lduw_end(env, &ctx->base, ctx->base.pc_next,
+                                 mo_endian(ctx));
+    ctx->opcode = opcode;
+    rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
+    rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
+    rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
     op = extract32(ctx->opcode, 10, 6);
     switch (op) {
     case NM_P16_MV:
