@@ -215,6 +215,9 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size);
 /* sgx.c */
 void pc_machine_init_sgx_epc(PCMachineState *pcms);
 
+extern GlobalProperty pc_compat_9_2[];
+extern const size_t pc_compat_9_2_len;
+
 extern GlobalProperty pc_compat_9_1[];
 extern const size_t pc_compat_9_1_len;
 

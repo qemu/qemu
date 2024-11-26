@@ -477,12 +477,21 @@ static void pc_i440fx_machine_options(MachineClass *m)
                                      "Use a different south bridge than PIIX3");
 }
 
-static void pc_i440fx_machine_9_2_options(MachineClass *m)
+static void pc_i440fx_machine_10_0_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
 }
 
-DEFINE_I440FX_MACHINE_AS_LATEST(9, 2);
+DEFINE_I440FX_MACHINE_AS_LATEST(10, 0);
+
+static void pc_i440fx_machine_9_2_options(MachineClass *m)
+{
+    pc_i440fx_machine_10_0_options(m);
+    compat_props_add(m->compat_props, hw_compat_9_2, hw_compat_9_2_len);
+    compat_props_add(m->compat_props, pc_compat_9_2, pc_compat_9_2_len);
+}
+
+DEFINE_I440FX_MACHINE(9, 2);
 
 static void pc_i440fx_machine_9_1_options(MachineClass *m)
 {

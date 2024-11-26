@@ -366,10 +366,17 @@ type_init(virt_machine_register_types)
 #define DEFINE_VIRT_MACHINE(major, minor) \
     DEFINE_VIRT_MACHINE_IMPL(false, major, minor)
 
-static void virt_machine_9_2_options(MachineClass *mc)
+static void virt_machine_10_0_options(MachineClass *mc)
 {
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(9, 2)
+DEFINE_VIRT_MACHINE_AS_LATEST(10, 0)
+
+static void virt_machine_9_2_options(MachineClass *mc)
+{
+    virt_machine_10_0_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_9_2, hw_compat_9_2_len);
+}
+DEFINE_VIRT_MACHINE(9, 2)
 
 static void virt_machine_9_1_options(MachineClass *mc)
 {
