@@ -338,6 +338,7 @@ migration_files = [files(
   'migration/migration-qmp.c',
   'migration/migration-util.c',
   'migration/compression-tests.c',
+  'migration/file-tests.c',
   'migration/postcopy-tests.c',
 )]
 
