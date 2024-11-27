@@ -24,7 +24,7 @@
 #include "ppc-util.h"
 
 #include "migration-helpers.h"
-#include "tests/migration/migration-test.h"
+#include "migration/migration-test.h"
 #ifdef CONFIG_GNUTLS
 # include "tests/unit/crypto-tls-psk-helpers.h"
 # ifdef CONFIG_TASN1
@@ -138,10 +138,10 @@ static char *bootpath;
 /* The boot file modifies memory area in [start_address, end_address)
  * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
  */
-#include "tests/migration/i386/a-b-bootblock.h"
-#include "tests/migration/aarch64/a-b-kernel.h"
-#include "tests/migration/ppc64/a-b-kernel.h"
-#include "tests/migration/s390x/a-b-bios.h"
+#include "migration/i386/a-b-bootblock.h"
+#include "migration/aarch64/a-b-kernel.h"
+#include "migration/ppc64/a-b-kernel.h"
+#include "migration/s390x/a-b-bios.h"
 
 static void bootfile_delete(void)
 {

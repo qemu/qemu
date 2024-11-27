@@ -118,7 +118,7 @@ F: pc-bios/s390-ccw.img
 F: target/s390x/
 F: docs/system/target-s390x.rst
 F: docs/system/s390x/
-F: tests/migration/s390x/
+F: tests/qtest/migration/s390x/
 K: ^Subject:.*(?i)s390x?
 L: qemu-s390x@nongnu.org
 
@@ -3423,10 +3423,11 @@ F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
+F: tests/qtest/migration/
 F: tests/qtest/migration-*
 F: docs/devel/migration/
 F: qapi/migration.json
-F: tests/migration/
+F: tests/migration-stress/
 F: util/userfaultfd.c
 X: migration/rdma*
 
