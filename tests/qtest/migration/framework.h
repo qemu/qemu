@@ -215,4 +215,10 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
 typedef struct QTestMigrationState QTestMigrationState;
 QTestMigrationState *get_src(void);
 
+#ifdef CONFIG_GNUTLS
+void migration_test_add_tls(MigrationTestEnv *env);
+#else
+static inline void migration_test_add_tls(MigrationTestEnv *env) {};
+#endif
+
 #endif /* TEST_FRAMEWORK_H */
