@@ -598,11 +598,19 @@ static void machine_set_mem(Object *obj, Visitor *v, const char *name,
         mem->size = mc->fixup_ram_size(mem->size);
     }
     if ((ram_addr_t)mem->size != mem->size) {
-        error_setg(errp, "ram size too large");
+        error_setg(errp, "ram size %llu exceeds permitted maximum %llu",
+                   (unsigned long long)mem->size,
+                   (unsigned long long)RAM_ADDR_MAX);
         goto out_free;
     }
 
     if (mem->has_max_size) {
+        if ((ram_addr_t)mem->max_size != mem->max_size) {
+            error_setg(errp, "ram size %llu exceeds permitted maximum %llu",
+                       (unsigned long long)mem->max_size,
+                       (unsigned long long)RAM_ADDR_MAX);
+            goto out_free;
+        }
         if (mem->max_size < mem->size) {
             error_setg(errp, "invalid value of maxmem: "
                        "maximum memory size (0x%" PRIx64 ") must be at least "
