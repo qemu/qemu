@@ -360,6 +360,7 @@ qtests = {
   'virtio-net-failover': files('migration-helpers.c'),
   'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
   'netdev-socket': files('netdev-socket.c', '../unit/socket-helpers.c'),
+  'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
 }
 
 if vnc.found()
