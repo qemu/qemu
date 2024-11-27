@@ -21,6 +21,7 @@
 #include "qemu/memalign.h"
 
 #include "migration-helpers.h"
+#include "migration/bootfile.h"
 
 /*
  * Number of seconds we wait when looking for migration
