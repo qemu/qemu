@@ -220,5 +220,6 @@ void migration_test_add_tls(MigrationTestEnv *env);
 #else
 static inline void migration_test_add_tls(MigrationTestEnv *env) {};
 #endif
+void migration_test_add_compression(MigrationTestEnv *env);
 
 #endif /* TEST_FRAMEWORK_H */
