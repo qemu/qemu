@@ -214,7 +214,8 @@ qtests_aspeed = \
    'aspeed_smc-test',
    'aspeed_gpio-test']
 qtests_aspeed64 = \
-  ['ast2700-gpio-test']
+  ['ast2700-gpio-test',
+   'ast2700-smc-test']
 
 qtests_stm32l4x5 = \
   ['stm32l4x5_exti-test',
@@ -361,6 +362,7 @@ qtests = {
   'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
   'netdev-socket': files('netdev-socket.c', '../unit/socket-helpers.c'),
   'aspeed_smc-test': files('aspeed-smc-utils.c', 'aspeed_smc-test.c'),
+  'ast2700-smc-test': files('aspeed-smc-utils.c', 'ast2700-smc-test.c'),
 }
 
 if vnc.found()
