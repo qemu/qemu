@@ -340,6 +340,7 @@ migration_files = [files(
   'migration/compression-tests.c',
   'migration/cpr-tests.c',
   'migration/file-tests.c',
+  'migration/misc-tests.c',
   'migration/precopy-tests.c',
   'migration/postcopy-tests.c',
 )]
