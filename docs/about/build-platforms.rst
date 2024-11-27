@@ -40,7 +40,7 @@ Those hosts are officially supported, with various accelerators:
    * - CPU Architecture
      - Accelerators
    * - Arm
-     - kvm (64 bit only), tcg, xen
+     - hvf (64 bit only), kvm (64 bit only), tcg, xen
    * - MIPS (64 bit little endian only)
      - kvm, tcg
    * - PPC
