@@ -34,7 +34,7 @@ void bootfile_delete(void)
     bootpath = NULL;
 }
 
-char *bootfile_create(const char *arch, char *dir, bool suspend_me)
+char *bootfile_create(const char *arch, const char *dir, bool suspend_me)
 {
     unsigned char *content;
     size_t len;

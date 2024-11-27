@@ -34,6 +34,6 @@
 #define ARM_TEST_MAX_KERNEL_SIZE (512 * 1024)
 
 void bootfile_delete(void);
-char *bootfile_create(const char *arch, char *dir, bool suspend_me);
+char *bootfile_create(const char *arch, const char *dir, bool suspend_me);
 
 #endif /* BOOTFILE_H */
