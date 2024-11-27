@@ -235,4 +235,6 @@ config IOSB
 config XLNX_VERSAL_TRNG
     bool
 
+config NEORV32_SYSINFO_QEMU
+    bool
 source macio/Kconfig

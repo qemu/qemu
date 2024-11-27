@@ -40,6 +40,7 @@ riscv_system_ss.add(files(
   'th_csr.c',
   'time_helper.c',
   'riscv-qmp-cmds.c',
+  'neorv32_csr.c',
 ))
 
 subdir('tcg')

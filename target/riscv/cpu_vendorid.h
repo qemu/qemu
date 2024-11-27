@@ -7,4 +7,6 @@
 #define VEYRON_V1_MIMPID        0x111
 #define VEYRON_V1_MVENDORID     0x61f
 
+#define NEORV32_VENDOR_ID       0xF0000001
+
 #endif /*  TARGET_RISCV_CPU_VENDORID_H */

@@ -128,3 +128,11 @@ config XIANGSHAN_KUNMINGHU
     select RISCV_APLIC
     select RISCV_IMSIC
     select SERIAL_MM
+
+config NEORV32
+    bool
+    default y
+    depends on RISCV32
+    select NEORV32_UART
+    select NEORV32_SPI
+    select NEORV32_SYSINFO_QEMU

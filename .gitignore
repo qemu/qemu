@@ -9,6 +9,7 @@
 .clang-format
 .gdb_history
 cscope.*
+phases.hold
 tags
 TAGS
 GPATH
