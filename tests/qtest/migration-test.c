@@ -34,7 +34,6 @@
 
 unsigned start_address;
 unsigned end_address;
-static bool uffd_feature_thread_id;
 static QTestMigrationState src_state;
 static QTestMigrationState dst_state;
 
@@ -85,6 +84,22 @@ typedef enum PostcopyRecoveryFailStage {
 
 static char *tmpfs;
 static char *bootpath;
+
+typedef struct MigrationTestEnv {
+    bool has_kvm;
+    bool has_tcg;
+    bool has_uffd;
+    bool uffd_feature_thread_id;
+    bool has_dirty_ring;
+    bool is_x86;
+    const char *arch;
+    const char *qemu_src;
+    const char *qemu_dst;
+    char *tmpfs;
+} MigrationTestEnv;
+
+
+MigrationTestEnv *migration_get_env(void);
 
 /*
  * Wait for some output in the serial output file,
@@ -972,6 +987,8 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 static void migrate_postcopy_complete(QTestState *from, QTestState *to,
                                       MigrateCommon *args)
 {
+    MigrationTestEnv *env = migration_get_env();
+
     wait_for_migration_complete(from);
 
     if (args->start.suspend_me) {
@@ -982,7 +999,7 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
     /* Make sure we get at least one "B" on destination */
     wait_for_serial("dest_serial");
 
-    if (uffd_feature_thread_id) {
+    if (env->uffd_feature_thread_id) {
         read_blocktime(to);
     }
 
@@ -3429,63 +3446,99 @@ static void test_dirty_limit(void)
     migrate_end(from, to, true);
 }
 
-int main(int argc, char **argv)
+MigrationTestEnv *migration_get_env(void)
 {
-    bool has_kvm, has_tcg;
-    bool has_uffd, is_x86;
-    const char *arch;
+    static MigrationTestEnv *env;
     g_autoptr(GError) err = NULL;
-    const char *qemu_src = getenv(QEMU_ENV_SRC);
-    const char *qemu_dst = getenv(QEMU_ENV_DST);
-    int ret;
 
-    g_test_init(&argc, &argv, NULL);
+    if (env) {
+        return env;
+    }
+
+    env = g_new0(MigrationTestEnv, 1);
+    env->qemu_src = getenv(QEMU_ENV_SRC);
+    env->qemu_dst = getenv(QEMU_ENV_DST);
 
     /*
      * The default QTEST_QEMU_BINARY must always be provided because
      * that is what helpers use to query the accel type and
      * architecture.
      */
-    if (qemu_src && qemu_dst) {
+    if (env->qemu_src && env->qemu_dst) {
         g_test_message("Only one of %s, %s is allowed",
                        QEMU_ENV_SRC, QEMU_ENV_DST);
         exit(1);
     }
 
-    has_kvm = qtest_has_accel("kvm");
-    has_tcg = qtest_has_accel("tcg");
+    env->has_kvm = qtest_has_accel("kvm");
+    env->has_tcg = qtest_has_accel("tcg");
 
-    if (!has_tcg && !has_kvm) {
+    if (!env->has_tcg && !env->has_kvm) {
         g_test_skip("No KVM or TCG accelerator available");
-        return 0;
+        return env;
     }
 
-    has_uffd = ufd_version_check(&uffd_feature_thread_id);
-    arch = qtest_get_arch();
-    is_x86 = !strcmp(arch, "i386") || !strcmp(arch, "x86_64");
+    env->has_dirty_ring = kvm_dirty_ring_supported();
+    env->has_uffd = ufd_version_check(&env->uffd_feature_thread_id);
+    env->arch = qtest_get_arch();
+    env->is_x86 = !strcmp(env->arch, "i386") || !strcmp(env->arch, "x86_64");
 
-    tmpfs = g_dir_make_tmp("migration-test-XXXXXX", &err);
-    if (!tmpfs) {
+    env->tmpfs = g_dir_make_tmp("migration-test-XXXXXX", &err);
+    if (!env->tmpfs) {
         g_test_message("Can't create temporary directory in %s: %s",
                        g_get_tmp_dir(), err->message);
     }
-    g_assert(tmpfs);
+    g_assert(env->tmpfs);
 
+    return env;
+}
+
+static int migration_env_clean(MigrationTestEnv *env)
+{
+    char *tmpfs;
+    int ret = 0;
+
+    if (!env) {
+        return ret;
+    }
+
+    bootfile_delete();
+
+    tmpfs = env->tmpfs;
+    ret = rmdir(tmpfs);
+    if (ret != 0) {
+        g_test_message("unable to rmdir: path (%s): %s",
+                       tmpfs, strerror(errno));
+    }
+    g_free(tmpfs);
+
+    return ret;
+}
+
+int main(int argc, char **argv)
+{
+    MigrationTestEnv *env;
+    int ret;
+
+    g_test_init(&argc, &argv, NULL);
+    env = migration_get_env();
     module_call_init(MODULE_INIT_QOM);
+
+    tmpfs = env->tmpfs;
 
     migration_test_add("/migration/bad_dest", test_baddest);
 #ifndef _WIN32
     migration_test_add("/migration/analyze-script", test_analyze_script);
 #endif
 
-    if (is_x86) {
+    if (env->is_x86) {
         migration_test_add("/migration/precopy/unix/suspend/live",
                            test_precopy_unix_suspend_live);
         migration_test_add("/migration/precopy/unix/suspend/notlive",
                            test_precopy_unix_suspend_notlive);
     }
 
-    if (has_uffd) {
+    if (env->has_uffd) {
         migration_test_add("/migration/postcopy/plain", test_postcopy);
         migration_test_add("/migration/postcopy/recovery/plain",
                            test_postcopy_recovery);
@@ -3497,7 +3550,7 @@ int main(int argc, char **argv)
                            test_postcopy_recovery_fail_handshake);
         migration_test_add("/migration/postcopy/recovery/double-failures/reconnect",
                            test_postcopy_recovery_fail_reconnect);
-        if (is_x86) {
+        if (env->is_x86) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);
         }
@@ -3552,7 +3605,7 @@ int main(int argc, char **argv)
     migration_test_add("/migration/precopy/unix/tls/psk",
                        test_precopy_unix_tls_psk);
 
-    if (has_uffd) {
+    if (env->has_uffd) {
         /*
          * NOTE: psk test is enough for postcopy, as other types of TLS
          * channels are tested under precopy.  Here what we want to test is the
@@ -3627,9 +3680,9 @@ int main(int argc, char **argv)
     if (g_test_slow()) {
         migration_test_add("/migration/auto_converge",
                            test_auto_converge);
-        if (g_str_equal(arch, "x86_64") &&
-            has_kvm && kvm_dirty_ring_supported()) {
-            migration_test_add("/migration/dirty_limit",
+        if (g_str_equal(env->arch, "x86_64") &&
+            env->has_kvm && env->has_dirty_ring) {
+            migration_test_add("/dirty_limit",
                                test_dirty_limit);
         }
     }
@@ -3680,7 +3733,9 @@ int main(int argc, char **argv)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-    if (g_str_equal(arch, "x86_64") && has_kvm && kvm_dirty_ring_supported()) {
+    if (g_str_equal(env->arch, "x86_64") &&
+        env->has_kvm && env->has_dirty_ring) {
+
         migration_test_add("/migration/dirty_ring",
                            test_precopy_unix_dirty_ring);
         if (qtest_has_machine("pc") && g_test_slow()) {
@@ -3693,13 +3748,8 @@ int main(int argc, char **argv)
 
     g_assert_cmpint(ret, ==, 0);
 
-    bootfile_delete();
-    ret = rmdir(tmpfs);
-    if (ret != 0) {
-        g_test_message("unable to rmdir: path (%s): %s",
-                       tmpfs, strerror(errno));
-    }
-    g_free(tmpfs);
+    tmpfs = NULL;
+    ret = migration_env_clean(env);
 
     return ret;
 }
