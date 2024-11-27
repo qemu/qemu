@@ -737,21 +737,62 @@ static void test_ast2500_evb(TestData *data)
     qtest_add_data_func("/ast2500/smc/read_status_reg",
                         data, test_read_status_reg);
 }
+
+static void test_ast2600_evb(TestData *data)
+{
+    int ret;
+    int fd;
+
+    fd = g_file_open_tmp("qtest.m25p80.mx66u51235f.XXXXXX",
+                         &data->tmp_path, NULL);
+    g_assert(fd >= 0);
+    ret = ftruncate(fd, 64 * 1024 * 1024);
+    g_assert(ret == 0);
+    close(fd);
+
+    data->s = qtest_initf("-machine ast2600-evb "
+                          "-drive file=%s,format=raw,if=mtd",
+                          data->tmp_path);
+
+    /* fmc cs0 with mx66u51235f flash */
+    data->flash_base = 0x20000000;
+    data->spi_base = 0x1E620000;
+    data->jedec_id = 0xc2253a;
+    data->cs = 0;
+    data->node = "/machine/soc/fmc/ssi.0/child[0]";
+    /* beyond 16MB */
+    data->page_addr = 0x14000 * FLASH_PAGE_SIZE;
+
+    qtest_add_data_func("/ast2600/smc/read_jedec", data, test_read_jedec);
+    qtest_add_data_func("/ast2600/smc/erase_sector", data, test_erase_sector);
+    qtest_add_data_func("/ast2600/smc/erase_all",  data, test_erase_all);
+    qtest_add_data_func("/ast2600/smc/write_page", data, test_write_page);
+    qtest_add_data_func("/ast2600/smc/read_page_mem",
+                        data, test_read_page_mem);
+    qtest_add_data_func("/ast2600/smc/write_page_mem",
+                        data, test_write_page_mem);
+    qtest_add_data_func("/ast2600/smc/read_status_reg",
+                        data, test_read_status_reg);
+}
 int main(int argc, char **argv)
 {
     TestData palmetto_data;
     TestData ast2500_evb_data;
+    TestData ast2600_evb_data;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
     test_palmetto_bmc(&palmetto_data);
     test_ast2500_evb(&ast2500_evb_data);
+    test_ast2600_evb(&ast2600_evb_data);
     ret = g_test_run();
 
     qtest_quit(palmetto_data.s);
     qtest_quit(ast2500_evb_data.s);
+    qtest_quit(ast2600_evb_data.s);
     unlink(palmetto_data.tmp_path);
     unlink(ast2500_evb_data.tmp_path);
+    unlink(ast2600_evb_data.tmp_path);
     return ret;
 }
