@@ -22,6 +22,13 @@
 #include "migration/bootfile.h"
 #include "migration/migration-util.h"
 
+/* for uffd_version_check() */
+#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+#include <sys/eventfd.h>
+#include "qemu/userfaultfd.h"
+#endif
+
+
 static char *SocketAddress_to_str(SocketAddress *addr)
 {
     switch (addr->type) {
@@ -281,5 +288,46 @@ bool probe_o_direct_support(const char *tmpfs)
     }
 
     return true;
+}
+#endif
+
+#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+bool ufd_version_check(bool *uffd_feature_thread_id)
+{
+    struct uffdio_api api_struct;
+    uint64_t ioctl_mask;
+
+    int ufd = uffd_open(O_CLOEXEC);
+
+    if (ufd == -1) {
+        g_test_message("Skipping test: userfaultfd not available");
+        return false;
+    }
+
+    api_struct.api = UFFD_API;
+    api_struct.features = 0;
+    if (ioctl(ufd, UFFDIO_API, &api_struct)) {
+        g_test_message("Skipping test: UFFDIO_API failed");
+        return false;
+    }
+
+    if (uffd_feature_thread_id) {
+        *uffd_feature_thread_id = api_struct.features & UFFD_FEATURE_THREAD_ID;
+    }
+
+    ioctl_mask = (1ULL << _UFFDIO_REGISTER |
+                  1ULL << _UFFDIO_UNREGISTER);
+    if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
+        g_test_message("Skipping test: Missing userfault feature");
+        return false;
+    }
+
+    return true;
+}
+#else
+bool ufd_version_check(bool *uffd_feature_thread_id)
+{
+    g_test_message("Skipping test: Userfault not available (builtdtime)");
+    return false;
 }
 #endif

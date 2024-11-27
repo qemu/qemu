@@ -35,6 +35,7 @@
 /* For dirty ring test; so far only x86_64 is supported */
 #if defined(__linux__) && defined(HOST_X86_64)
 #include "linux/kvm.h"
+#include <sys/ioctl.h>
 #endif
 
 unsigned start_address;
@@ -86,50 +87,6 @@ typedef enum PostcopyRecoveryFailStage {
 #if defined(__linux__)
 #include <sys/syscall.h>
 #include <sys/vfs.h>
-#endif
-
-#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
-#include <sys/eventfd.h>
-#include <sys/ioctl.h>
-#include "qemu/userfaultfd.h"
-
-static bool ufd_version_check(void)
-{
-    struct uffdio_api api_struct;
-    uint64_t ioctl_mask;
-
-    int ufd = uffd_open(O_CLOEXEC);
-
-    if (ufd == -1) {
-        g_test_message("Skipping test: userfaultfd not available");
-        return false;
-    }
-
-    api_struct.api = UFFD_API;
-    api_struct.features = 0;
-    if (ioctl(ufd, UFFDIO_API, &api_struct)) {
-        g_test_message("Skipping test: UFFDIO_API failed");
-        return false;
-    }
-    uffd_feature_thread_id = api_struct.features & UFFD_FEATURE_THREAD_ID;
-
-    ioctl_mask = (1ULL << _UFFDIO_REGISTER |
-                  1ULL << _UFFDIO_UNREGISTER);
-    if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
-        g_test_message("Skipping test: Missing userfault feature");
-        return false;
-    }
-
-    return true;
-}
-
-#else
-static bool ufd_version_check(void)
-{
-    g_test_message("Skipping test: Userfault not available (builtdtime)");
-    return false;
-}
-
 #endif
 
 static char *tmpfs;
@@ -3532,7 +3489,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    has_uffd = ufd_version_check();
+    has_uffd = ufd_version_check(&uffd_feature_thread_id);
     arch = qtest_get_arch();
     is_x86 = !strcmp(arch, "i386") || !strcmp(arch, "x86_64");
 
