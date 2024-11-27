@@ -32,12 +32,6 @@
 # endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-/* For dirty ring test; so far only x86_64 is supported */
-#if defined(__linux__) && defined(HOST_X86_64)
-#include "linux/kvm.h"
-#include <sys/ioctl.h>
-#endif
-
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
@@ -3433,29 +3427,6 @@ static void test_dirty_limit(void)
     wait_for_migration_complete(from);
 
     migrate_end(from, to, true);
-}
-
-static bool kvm_dirty_ring_supported(void)
-{
-#if defined(__linux__) && defined(HOST_X86_64)
-    int ret, kvm_fd = open("/dev/kvm", O_RDONLY);
-
-    if (kvm_fd < 0) {
-        return false;
-    }
-
-    ret = ioctl(kvm_fd, KVM_CHECK_EXTENSION, KVM_CAP_DIRTY_LOG_RING);
-    close(kvm_fd);
-
-    /* We test with 4096 slots */
-    if (ret < 4096) {
-        return false;
-    }
-
-    return true;
-#else
-    return false;
-#endif
 }
 
 int main(int argc, char **argv)
