@@ -22,9 +22,9 @@
 #include "crypto/tlscredspsk.h"
 #include "ppc-util.h"
 
-#include "migration-helpers.h"
 #include "migration/bootfile.h"
 #include "migration/migration-qmp.h"
+#include "migration/migration-util.h"
 #ifdef CONFIG_GNUTLS
 # include "tests/unit/crypto-tls-psk-helpers.h"
 # ifdef CONFIG_TASN1

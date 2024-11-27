@@ -1,5 +1,5 @@
 /*
- * QTest migration helpers
+ * QTest migration utilities
  *
  * Copyright (c) 2016-2018 Red Hat, Inc. and/or its affiliates
  *   based on the vhost-user-test.c that is:
@@ -19,8 +19,8 @@
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"
 
-#include "migration-helpers.h"
 #include "migration/bootfile.h"
+#include "migration/migration-util.h"
 
 static char *SocketAddress_to_str(SocketAddress *addr)
 {

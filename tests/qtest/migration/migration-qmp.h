@@ -2,6 +2,8 @@
 #ifndef MIGRATION_QMP_H
 #define MIGRATION_QMP_H
 
+#include "migration-util.h"
+
 G_GNUC_PRINTF(4, 5)
 void migrate_qmp_fail(QTestState *who, const char *uri,
                       const char *channels, const char *fmt, ...);

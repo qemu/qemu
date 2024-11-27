@@ -10,8 +10,8 @@
  *
  */
 
-#ifndef MIGRATION_HELPERS_H
-#define MIGRATION_HELPERS_H
+#ifndef MIGRATION_UTIL_H
+#define MIGRATION_UTIL_H
 
 #include "libqtest.h"
 
@@ -51,4 +51,4 @@ void migration_test_add(const char *path, void (*fn)(void));
 char *migrate_get_connect_uri(QTestState *who);
 void migrate_set_ports(QTestState *to, QList *channel_list);
 
-#endif /* MIGRATION_HELPERS_H */
+#endif /* MIGRATION_UTIL_H */
