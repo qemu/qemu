@@ -13,18 +13,18 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
-#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
 #include "qemu/sockets.h"
 #include "chardev/char.h"
 #include "crypto/tlscredspsk.h"
-#include "qapi/qmp/qlist.h"
 #include "ppc-util.h"
 
 #include "migration-helpers.h"
 #include "migration/bootfile.h"
+#include "migration/migration-qmp.h"
 #ifdef CONFIG_GNUTLS
 # include "tests/unit/crypto-tls-psk-helpers.h"
 # ifdef CONFIG_TASN1
@@ -170,89 +170,6 @@ static void wait_for_serial(const char *side)
     } while (true);
 }
 
-static void wait_for_stop(QTestState *who, QTestMigrationState *state)
-{
-    if (!state->stop_seen) {
-        qtest_qmp_eventwait(who, "STOP");
-    }
-}
-
-static void wait_for_resume(QTestState *who, QTestMigrationState *state)
-{
-    if (!state->resume_seen) {
-        qtest_qmp_eventwait(who, "RESUME");
-    }
-}
-
-static void wait_for_suspend(QTestState *who, QTestMigrationState *state)
-{
-    if (state->suspend_me && !state->suspend_seen) {
-        qtest_qmp_eventwait(who, "SUSPEND");
-    }
-}
-
-/*
- * It's tricky to use qemu's migration event capability with qtest,
- * events suddenly appearing confuse the qmp()/hmp() responses.
- */
-
-static int64_t read_ram_property_int(QTestState *who, const char *property)
-{
-    QDict *rsp_return, *rsp_ram;
-    int64_t result;
-
-    rsp_return = migrate_query_not_failed(who);
-    if (!qdict_haskey(rsp_return, "ram")) {
-        /* Still in setup */
-        result = 0;
-    } else {
-        rsp_ram = qdict_get_qdict(rsp_return, "ram");
-        result = qdict_get_try_int(rsp_ram, property, 0);
-    }
-    qobject_unref(rsp_return);
-    return result;
-}
-
-static int64_t read_migrate_property_int(QTestState *who, const char *property)
-{
-    QDict *rsp_return;
-    int64_t result;
-
-    rsp_return = migrate_query_not_failed(who);
-    result = qdict_get_try_int(rsp_return, property, 0);
-    qobject_unref(rsp_return);
-    return result;
-}
-
-static uint64_t get_migration_pass(QTestState *who)
-{
-    return read_ram_property_int(who, "dirty-sync-count");
-}
-
-static void read_blocktime(QTestState *who)
-{
-    QDict *rsp_return;
-
-    rsp_return = migrate_query_not_failed(who);
-    g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
-    qobject_unref(rsp_return);
-}
-
-/*
- * Wait for two changes in the migration pass count, but bail if we stop.
- */
-static void wait_for_migration_pass(QTestState *who)
-{
-    uint64_t pass, prev_pass = 0, changes = 0;
-
-    while (changes < 2 && !src_state.stop_seen && !src_state.suspend_seen) {
-        usleep(1000);
-        pass = get_migration_pass(who);
-        changes += (pass != prev_pass);
-        prev_pass = pass;
-    }
-}
-
 static void check_guests_ram(QTestState *who)
 {
     /* Our ASM test will have been incrementing one byte from each page from
@@ -306,114 +223,6 @@ static void cleanup(const char *filename)
     g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, filename);
 
     unlink(path);
-}
-
-static long long migrate_get_parameter_int(QTestState *who,
-                                           const char *parameter)
-{
-    QDict *rsp;
-    long long result;
-
-    rsp = qtest_qmp_assert_success_ref(
-        who, "{ 'execute': 'query-migrate-parameters' }");
-    result = qdict_get_int(rsp, parameter);
-    qobject_unref(rsp);
-    return result;
-}
-
-static void migrate_check_parameter_int(QTestState *who, const char *parameter,
-                                        long long value)
-{
-    long long result;
-
-    result = migrate_get_parameter_int(who, parameter);
-    g_assert_cmpint(result, ==, value);
-}
-
-static void migrate_set_parameter_int(QTestState *who, const char *parameter,
-                                      long long value)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-set-parameters',"
-                             "'arguments': { %s: %lld } }",
-                             parameter, value);
-    migrate_check_parameter_int(who, parameter, value);
-}
-
-static char *migrate_get_parameter_str(QTestState *who,
-                                       const char *parameter)
-{
-    QDict *rsp;
-    char *result;
-
-    rsp = qtest_qmp_assert_success_ref(
-        who, "{ 'execute': 'query-migrate-parameters' }");
-    result = g_strdup(qdict_get_str(rsp, parameter));
-    qobject_unref(rsp);
-    return result;
-}
-
-static void migrate_check_parameter_str(QTestState *who, const char *parameter,
-                                        const char *value)
-{
-    g_autofree char *result = migrate_get_parameter_str(who, parameter);
-    g_assert_cmpstr(result, ==, value);
-}
-
-static void migrate_set_parameter_str(QTestState *who, const char *parameter,
-                                      const char *value)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-set-parameters',"
-                             "'arguments': { %s: %s } }",
-                             parameter, value);
-    migrate_check_parameter_str(who, parameter, value);
-}
-
-static long long migrate_get_parameter_bool(QTestState *who,
-                                            const char *parameter)
-{
-    QDict *rsp;
-    int result;
-
-    rsp = qtest_qmp_assert_success_ref(
-        who, "{ 'execute': 'query-migrate-parameters' }");
-    result = qdict_get_bool(rsp, parameter);
-    qobject_unref(rsp);
-    return !!result;
-}
-
-static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
-                                         int value)
-{
-    int result;
-
-    result = migrate_get_parameter_bool(who, parameter);
-    g_assert_cmpint(result, ==, value);
-}
-
-static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
-                                       int value)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-set-parameters',"
-                             "'arguments': { %s: %i } }",
-                             parameter, value);
-    migrate_check_parameter_bool(who, parameter, value);
-}
-
-static void migrate_ensure_non_converge(QTestState *who)
-{
-    /* Can't converge with 1ms downtime + 3 mbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 3 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 1);
-}
-
-static void migrate_ensure_converge(QTestState *who)
-{
-    /* Should converge with 30s downtime + 1 gbs bandwidth limit */
-    migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
-    migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
 }
 
 /*
@@ -504,42 +313,6 @@ static void migrate_wait_for_dirty_mem(QTestState *from,
     do {
         usleep(1000 * 10);
     } while (qtest_readb(from, watch_address) == watch_byte);
-}
-
-
-static void migrate_pause(QTestState *who)
-{
-    qtest_qmp_assert_success(who, "{ 'execute': 'migrate-pause' }");
-}
-
-static void migrate_continue(QTestState *who, const char *state)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-continue',"
-                             "  'arguments': { 'state': %s } }",
-                             state);
-}
-
-static void migrate_recover(QTestState *who, const char *uri)
-{
-    qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-recover', "
-                             "  'id': 'recover-cmd', "
-                             "  'arguments': { 'uri': %s } }",
-                             uri);
-}
-
-static void migrate_cancel(QTestState *who)
-{
-    qtest_qmp_assert_success(who, "{ 'execute': 'migrate_cancel' }");
-}
-
-static void migrate_postcopy_start(QTestState *from, QTestState *to)
-{
-    qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
-
-    wait_for_stop(from, &src_state);
-    qtest_qmp_eventwait(to, "RESUME");
 }
 
 typedef struct {
@@ -1277,7 +1050,7 @@ static void test_postcopy_common(MigrateCommon *args)
     if (migrate_postcopy_prepare(&from, &to, args)) {
         return;
     }
-    migrate_postcopy_start(from, to);
+    migrate_postcopy_start(from, to, &src_state);
     migrate_postcopy_complete(from, to, args);
 }
 
@@ -1464,7 +1237,7 @@ static void test_postcopy_recovery_common(MigrateCommon *args)
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 4096);
 
     /* Now we start the postcopy */
-    migrate_postcopy_start(from, to);
+    migrate_postcopy_start(from, to, &src_state);
 
     /*
      * Wait until postcopy is really started; we can only run the
@@ -1704,7 +1477,7 @@ static void test_precopy_common(MigrateCommon *args)
              * for some dirty mem before switching to converge
              */
             while (args->iterations > 1) {
-                wait_for_migration_pass(from);
+                wait_for_migration_pass(from, &src_state);
                 args->iterations--;
             }
             migrate_wait_for_dirty_mem(from, to);

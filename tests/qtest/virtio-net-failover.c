@@ -12,6 +12,7 @@
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
 #include "migration-helpers.h"
+#include "migration/migration-qmp.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qjson.h"
