@@ -50,7 +50,7 @@ from typing import (
 )
 from qemu.machine import QEMUMachine
 from unittest import skipIf
-from qemu_test import QemuBaseTest, Asset
+from qemu_test import QemuSystemTest, Asset
 
 deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
 supported_platforms = ['x86_64'] # supported test platforms.
@@ -127,7 +127,7 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
 @skipIf(not supported_platform() or missing_deps(),
         'unsupported platform or dependencies (%s) not installed' \
         % ','.join(deps))
-class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
+class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attributes
     """
     ACPI and SMBIOS tests using biosbits.
     """
@@ -284,7 +284,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self.logger.info('iso file %s successfully generated.', iso_file)
 
     def setUp(self): # pylint: disable=arguments-differ
-        super().setUp('qemu-system-')
+        super().setUp()
         self.logger = self.log
 
         self._baseDir = Path(__file__).parent
@@ -354,6 +354,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
     def test_acpi_smbios_bits(self):
         """The main test case implementation."""
 
+        self.set_machine('pc')
         iso_file = os.path.join(self.workdir,
                                 'bits-%d.iso' %self.BITS_INTERNAL_VER)
 
@@ -388,4 +389,4 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self.parse_log()
 
 if __name__ == '__main__':
-    QemuBaseTest.main()
+    QemuSystemTest.main()
