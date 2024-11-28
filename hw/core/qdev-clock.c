@@ -87,11 +87,8 @@ void qdev_finalize_clocklist(DeviceState *dev)
         if (!ncl->output && !ncl->alias) {
             /*
              * We kept a reference on the input clock to ensure it lives up to
-             * this point so we can safely remove the callback.
-             * It avoids having a callback to a deleted object if ncl->clock
-             * is still referenced somewhere else (eg: by a clock output).
+             * this point; it is used by the monitor to show the frequency.
              */
-            clock_clear_callback(ncl->clock);
             object_unref(OBJECT(ncl->clock));
         }
         g_free(ncl->name);

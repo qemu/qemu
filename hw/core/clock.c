@@ -44,14 +44,10 @@ Clock *clock_new(Object *parent, const char *name)
 void clock_set_callback(Clock *clk, ClockCallback *cb, void *opaque,
                         unsigned int events)
 {
+    assert(OBJECT(clk)->parent);
     clk->callback = cb;
     clk->callback_opaque = opaque;
     clk->callback_events = events;
-}
-
-void clock_clear_callback(Clock *clk)
-{
-    clock_set_callback(clk, NULL, NULL, 0);
 }
 
 bool clock_set(Clock *clk, uint64_t period)
@@ -168,6 +164,16 @@ static void clock_period_prop_get(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &period, errp);
 }
 
+static void clock_unparent(Object *obj)
+{
+    /*
+     * Callback are registered by the parent, which might die anytime after
+     * it's unparented the children.  Avoid having a callback to a deleted
+     * object in case the clock is still referenced somewhere else (eg: by
+     * a clock output).
+     */
+    clock_set_callback(CLOCK(obj), NULL, NULL, 0);
+}
 
 static void clock_initfn(Object *obj)
 {
@@ -200,11 +206,17 @@ static void clock_finalizefn(Object *obj)
     g_free(clk->canonical_path);
 }
 
+static void clock_class_init(ObjectClass *klass, void *data)
+{
+    klass->unparent = clock_unparent;
+}
+
 static const TypeInfo clock_info = {
     .name              = TYPE_CLOCK,
     .parent            = TYPE_OBJECT,
     .instance_size     = sizeof(Clock),
     .instance_init     = clock_initfn,
+    .class_init        = clock_class_init,
     .instance_finalize = clock_finalizefn,
 };
 
