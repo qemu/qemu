@@ -877,7 +877,7 @@
 #     complex as there may be interleaving across multiple devices
 #     and shared links in the path.
 #
-# Since: 9.1
+# Since: 9.2
 ##
 { 'struct': 'AcpiGenericPortProperties',
   'data': { 'pci-bus': 'str',

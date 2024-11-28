@@ -1960,7 +1960,7 @@ static void build_append_srat_acpi_device_handle(GArray *table_data,
 {
     assert(strlen(hid) == 8);
     /* Device Handle - ACPI */
-    for (int i = 0; i < sizeof(hid); i++) {
+    for (int i = 0; i < 8; i++) {
         build_append_int_noprefix(table_data, hid[i], 1);
     }
     build_append_int_noprefix(table_data, uid, 4);

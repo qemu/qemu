@@ -182,7 +182,7 @@
 #
 # @unstable: The command is experimental.
 #
-# Since: 9.1
+# Since: 9.2
 ##
 { 'command': 'device-sync-config',
   'features': [ 'unstable' ],
