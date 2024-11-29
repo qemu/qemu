@@ -32,18 +32,17 @@ where
     }
 }
 
-impl SysBusDevice {
-    /// Return `self` cast to a mutable pointer, for use in calls to C code.
-    const fn as_mut_ptr(&self) -> *mut SysBusDevice {
-        addr_of!(*self) as *mut _
-    }
-
+/// Trait for methods of [`SysBusDevice`] and its subclasses.
+pub trait SysBusDeviceMethods: ObjectDeref
+where
+    Self::Target: IsA<SysBusDevice>,
+{
     /// Expose a memory region to the board so that it can give it an address
     /// in guest memory.  Note that the ordering of calls to `init_mmio` is
     /// important, since whoever creates the sysbus device will refer to the
     /// region with a number that corresponds to the order of calls to
     /// `init_mmio`.
-    pub fn init_mmio(&self, iomem: &bindings::MemoryRegion) {
+    fn init_mmio(&self, iomem: &bindings::MemoryRegion) {
         assert!(bql_locked());
         unsafe {
             bindings::sysbus_init_mmio(self.as_mut_ptr(), addr_of!(*iomem) as *mut _);
@@ -54,10 +53,12 @@ impl SysBusDevice {
     /// Note that the ordering of calls to `init_irq` is important, since
     /// whoever creates the sysbus device will refer to the interrupts with
     /// a number that corresponds to the order of calls to `init_irq`.
-    pub fn init_irq(&self, irq: &InterruptSource) {
+    fn init_irq(&self, irq: &InterruptSource) {
         assert!(bql_locked());
         unsafe {
             bindings::sysbus_init_irq(self.as_mut_ptr(), irq.as_ptr());
         }
     }
 }
+
+impl<R: ObjectDeref> SysBusDeviceMethods for R where R::Target: IsA<SysBusDevice> {}

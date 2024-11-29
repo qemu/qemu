@@ -207,11 +207,9 @@ impl PL011State {
     }
 
     fn post_init(&self) {
-        let sbd: &SysBusDevice = self.upcast();
-
-        sbd.init_mmio(&self.iomem);
+        self.init_mmio(&self.iomem);
         for irq in self.interrupts.iter() {
-            sbd.init_irq(irq);
+            self.init_irq(irq);
         }
     }
 
