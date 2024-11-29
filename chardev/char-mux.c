@@ -336,15 +336,12 @@ bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
 
 bool mux_chr_detach_frontend(MuxChardev *d, unsigned int tag)
 {
-    unsigned int bit;
-
-    bit = find_next_bit(&d->mux_bitset, MAX_MUX, tag);
-    if (bit != tag) {
+    if (!(d->mux_bitset & (1ul << tag))) {
         return false;
     }
 
-    d->mux_bitset &= ~(1ul << bit);
-    d->backends[bit] = NULL;
+    d->mux_bitset &= ~(1ul << tag);
+    d->backends[tag] = NULL;
 
     return true;
 }
@@ -353,7 +350,7 @@ void mux_set_focus(Chardev *chr, unsigned int focus)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
 
-    assert(find_next_bit(&d->mux_bitset, MAX_MUX, focus) == focus);
+    assert(d->mux_bitset & (1ul << focus));
 
     if (d->focus != -1) {
         mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_OUT);
