@@ -1596,11 +1596,13 @@ static void coroutine_fn v9fs_getattr(void *opaque)
         retval = -ENOENT;
         goto out_nofid;
     }
-    /*
-     * Currently we only support BASIC fields in stat, so there is no
-     * need to look at request_mask.
-     */
-    retval = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+    if ((fidp->fid_type == P9_FID_FILE && fidp->fs.fd != -1) ||
+        (fidp->fid_type == P9_FID_DIR && fidp->fs.dir.stream))
+    {
+        retval = v9fs_co_fstat(pdu, fidp, &stbuf);
+    } else {
+        retval = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+    }
     if (retval < 0) {
         goto out;
     }
