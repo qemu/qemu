@@ -1,5 +1,5 @@
 /*
- * QTest fuzzer-generated testcase for virtio balloon device
+ * QTest test cases for virtio balloon device
  *
  * Copyright (c) 2024 Gao Shiyuan <gaoshiyuan@baidu.com>
  *
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("fuzz/virtio/oss_fuzz_71649", oss_fuzz_71649);
+    qtest_add_func("virtio-balloon/oss_fuzz_71649", oss_fuzz_71649);
 
     return g_test_run();
 }
