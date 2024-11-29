@@ -14,7 +14,6 @@ from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
 from qemu_test.utils import lzma_uncompress
-from unittest import skipUnless
 
 def fetch_firmware(test):
     """

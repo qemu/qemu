@@ -9,8 +9,6 @@ Check compatibility of virtio device types
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
-import sys
-import os
 
 from qemu.machine import QEMUMachine
 from qemu_test import QemuSystemTest
