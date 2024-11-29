@@ -13,7 +13,6 @@ use qemu_api::{
     c_str,
     definitions::ObjectImpl,
     device_class::DeviceImpl,
-    impl_device_class,
     irq::InterruptSource,
     prelude::*,
 };
@@ -108,7 +107,7 @@ pub struct PL011State {
 }
 
 unsafe impl ObjectType for PL011State {
-    type Class = PL011Class;
+    type Class = <SysBusDevice as ObjectType>::Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
 }
 
@@ -116,11 +115,6 @@ impl ObjectImpl for PL011State {
     type ParentType = SysBusDevice;
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
-}
-
-#[repr(C)]
-pub struct PL011Class {
-    _inner: [u8; 0],
 }
 
 impl DeviceImpl for PL011State {
@@ -133,8 +127,6 @@ impl DeviceImpl for PL011State {
     const REALIZE: Option<fn(&mut Self)> = Some(Self::realize);
     const RESET: Option<fn(&mut Self)> = Some(Self::reset);
 }
-
-impl_device_class!(PL011State);
 
 impl PL011State {
     /// Initializes a pre-allocated, unitialized instance of `PL011State`.
@@ -627,11 +619,6 @@ pub struct PL011Luminary {
     parent_obj: PL011State,
 }
 
-#[repr(C)]
-pub struct PL011LuminaryClass {
-    _inner: [u8; 0],
-}
-
 impl PL011Luminary {
     /// Initializes a pre-allocated, unitialized instance of `PL011Luminary`.
     ///
@@ -646,7 +633,7 @@ impl PL011Luminary {
 }
 
 unsafe impl ObjectType for PL011Luminary {
-    type Class = PL011LuminaryClass;
+    type Class = <PL011State as ObjectType>::Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011_LUMINARY;
 }
 
@@ -657,5 +644,3 @@ impl ObjectImpl for PL011Luminary {
 }
 
 impl DeviceImpl for PL011Luminary {}
-
-impl_device_class!(PL011Luminary);

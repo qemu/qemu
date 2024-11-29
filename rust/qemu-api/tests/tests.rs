@@ -26,11 +26,6 @@ fn test_device_decl_macros() {
         pub migrate_clock: bool,
     }
 
-    #[repr(C)]
-    pub struct DummyClass {
-        pub _parent: DeviceClass,
-    }
-
     declare_properties! {
         DUMMY_PROPERTIES,
             define_property!(
@@ -43,7 +38,7 @@ fn test_device_decl_macros() {
     }
 
     unsafe impl ObjectType for DummyState {
-        type Class = DummyClass;
+        type Class = <DeviceState as ObjectType>::Class;
         const TYPE_NAME: &'static CStr = c_str!("dummy");
     }
 
@@ -60,8 +55,6 @@ fn test_device_decl_macros() {
             Some(&VMSTATE)
         }
     }
-
-    impl_device_class!(DummyState);
 
     unsafe {
         module_call_init(module_init_type::MODULE_INIT_QOM);

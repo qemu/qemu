@@ -2,10 +2,11 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, os::raw::c_void};
+use std::ffi::CStr;
 
 use crate::{
-    bindings::{self, DeviceClass, DeviceState, Error, ObjectClass, Property, VMStateDescription},
+    bindings::{self, DeviceClass, DeviceState, Error, Property, VMStateDescription},
+    definitions::ClassInitImpl,
     prelude::*,
 };
 
@@ -44,7 +45,7 @@ pub trait DeviceImpl {
 /// # Safety
 ///
 /// This function is only called through the QOM machinery and
-/// the `impl_device_class!` macro.
+/// used by the `ClassInitImpl<DeviceClass>` trait.
 /// We expect the FFI user of this function to pass a valid pointer that
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
@@ -65,46 +66,29 @@ unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
     T::RESET.unwrap()(unsafe { &mut *state });
 }
 
-/// # Safety
-///
-/// We expect the FFI user of this function to pass a valid pointer that
-/// can be downcasted to type `DeviceClass`, because `T` implements
-/// `DeviceImpl`.
-pub unsafe extern "C" fn rust_device_class_init<T: DeviceImpl>(
-    klass: *mut ObjectClass,
-    _: *mut c_void,
-) {
-    let mut dc = ::core::ptr::NonNull::new(klass.cast::<DeviceClass>()).unwrap();
-    unsafe {
-        let dc = dc.as_mut();
+impl<T> ClassInitImpl<DeviceClass> for T
+where
+    T: DeviceImpl,
+{
+    fn class_init(dc: &mut DeviceClass) {
         if <T as DeviceImpl>::REALIZE.is_some() {
             dc.realize = Some(rust_realize_fn::<T>);
         }
         if <T as DeviceImpl>::RESET.is_some() {
-            bindings::device_class_set_legacy_reset(dc, Some(rust_reset_fn::<T>));
+            unsafe {
+                bindings::device_class_set_legacy_reset(dc, Some(rust_reset_fn::<T>));
+            }
         }
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
             dc.vmsd = vmsd;
         }
         let prop = <T as DeviceImpl>::properties();
         if !prop.is_empty() {
-            bindings::device_class_set_props_n(dc, prop.as_ptr(), prop.len());
+            unsafe {
+                bindings::device_class_set_props_n(dc, prop.as_ptr(), prop.len());
+            }
         }
     }
-}
-
-#[macro_export]
-macro_rules! impl_device_class {
-    ($type:ty) => {
-        impl $crate::definitions::ClassInitImpl for $type {
-            const CLASS_INIT: Option<
-                unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut ::std::os::raw::c_void),
-            > = Some($crate::device_class::rust_device_class_init::<$type>);
-            const CLASS_BASE_INIT: Option<
-                unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut ::std::os::raw::c_void),
-            > = None;
-        }
-    };
 }
 
 #[macro_export]
@@ -148,8 +132,8 @@ macro_rules! declare_properties {
     };
 }
 
-unsafe impl ObjectType for bindings::DeviceState {
-    type Class = bindings::DeviceClass;
+unsafe impl ObjectType for DeviceState {
+    type Class = DeviceClass;
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
 }
