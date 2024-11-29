@@ -316,6 +316,8 @@ bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
 {
     unsigned int bit;
 
+    QEMU_BUILD_BUG_ON(MAX_MUX > (sizeof(d->mux_bitset) * BITS_PER_BYTE));
+
     bit = find_next_zero_bit(&d->mux_bitset, MAX_MUX, 0);
     if (bit >= MAX_MUX) {
         error_setg(errp,
@@ -325,7 +327,7 @@ bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
         return false;
     }
 
-    d->mux_bitset |= (1 << bit);
+    d->mux_bitset |= (1ul << bit);
     d->backends[bit] = b;
     *tag = bit;
 
@@ -341,7 +343,7 @@ bool mux_chr_detach_frontend(MuxChardev *d, unsigned int tag)
         return false;
     }
 
-    d->mux_bitset &= ~(1 << bit);
+    d->mux_bitset &= ~(1ul << bit);
     d->backends[bit] = NULL;
 
     return true;
