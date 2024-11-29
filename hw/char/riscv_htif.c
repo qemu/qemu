@@ -325,6 +325,10 @@ static const MemoryRegionOps htif_mm_ops = {
     .read = htif_mm_read,
     .write = htif_mm_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
