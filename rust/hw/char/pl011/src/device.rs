@@ -145,7 +145,7 @@ impl ObjectImpl for PL011State {
     type ParentType = SysBusDevice;
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
-    const INSTANCE_POST_INIT: Option<fn(&mut Self)> = Some(Self::post_init);
+    const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
 }
 
 impl DeviceImpl for PL011State {
@@ -206,7 +206,7 @@ impl PL011State {
         }
     }
 
-    fn post_init(&mut self) {
+    fn post_init(&self) {
         let sbd: &SysBusDevice = self.upcast();
 
         sbd.init_mmio(&self.iomem);

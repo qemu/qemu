@@ -163,11 +163,7 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_post_init<T>
     // is called from QOM core as the instance_post_init function
     // for class T
-    //
-    // FIXME: it's not really guaranteed that there are no backpointers to
-    // obj; it's quite possible that they have been created by instance_init().
-    // The receiver should be &self, not &mut self.
-    T::INSTANCE_POST_INIT.unwrap()(unsafe { &mut *obj.cast::<T>() })
+    T::INSTANCE_POST_INIT.unwrap()(unsafe { &*obj.cast::<T>() })
 }
 
 unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
@@ -463,7 +459,7 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 
     /// Function that is called to finish initialization of an object, once
     /// `INSTANCE_INIT` functions have been called.
-    const INSTANCE_POST_INIT: Option<fn(&mut Self)> = None;
+    const INSTANCE_POST_INIT: Option<fn(&Self)> = None;
 
     /// Called on descendent classes after all parent class initialization
     /// has occurred, but before the class itself is initialized.  This
