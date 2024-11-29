@@ -48,14 +48,6 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
     if (clk == NULL) {
         clk = CLOCK(object_new(TYPE_CLOCK));
         object_property_add_child(OBJECT(dev), name, OBJECT(clk));
-        if (output) {
-            /*
-             * Remove object_new()'s initial reference.
-             * Note that for inputs, the reference created by object_new()
-             * will be deleted in qdev_finalize_clocklist().
-             */
-            object_unref(OBJECT(clk));
-        }
     } else {
         object_property_add_link(OBJECT(dev), name,
                                  object_get_typename(OBJECT(clk)),
@@ -84,7 +76,7 @@ void qdev_finalize_clocklist(DeviceState *dev)
 
     QLIST_FOREACH_SAFE(ncl, &dev->clocks, node, ncl_next) {
         QLIST_REMOVE(ncl, node);
-        if (!ncl->output && !ncl->alias) {
+        if (!ncl->alias) {
             /*
              * We kept a reference on the input clock to ensure it lives up to
              * this point; it is used by the monitor to show the frequency.
