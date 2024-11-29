@@ -38,6 +38,7 @@
 #define LEGACY_PTE_PAGE_MASK        (0xffffffffllu << 12)
 #define PAE_PTE_PAGE_MASK           ((-1llu << 12) & ((1llu << 52) - 1))
 #define PAE_PTE_LARGE_PAGE_MASK     ((-1llu << (21)) & ((1llu << 52) - 1))
+#define PAE_PTE_SUPER_PAGE_MASK     ((-1llu << (30)) & ((1llu << 52) - 1))
 
 struct gpt_translation {
     target_ulong  gva;
@@ -96,7 +97,7 @@ static bool get_pt_entry(CPUState *cpu, struct gpt_translation *pt,
 
 /* test page table entry */
 static bool test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
-                          int level, bool *is_large, bool pae)
+                          int level, int *largeness, bool pae)
 {
     uint64_t pte = pt->pte[level];
 
@@ -118,9 +119,9 @@ static bool test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
         goto exit;
     }
 
-    if (1 == level && pte_large_page(pte)) {
+    if (level && pte_large_page(pte)) {
         pt->err_code |= MMU_PAGE_PT;
-        *is_large = true;
+        *largeness = level;
     }
     if (!level) {
         pt->err_code |= MMU_PAGE_PT;
@@ -152,9 +153,18 @@ static inline uint64_t pse_pte_to_page(uint64_t pte)
     return ((pte & 0x1fe000) << 19) | (pte & 0xffc00000);
 }
 
-static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae)
+static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae,
+                                      int largeness)
 {
-    VM_PANIC_ON(!pte_large_page(pt->pte[1]))
+    VM_PANIC_ON(!pte_large_page(pt->pte[largeness]))
+
+    /* 1Gib large page  */
+    if (pae && largeness == 2) {
+        return (pt->pte[2] & PAE_PTE_SUPER_PAGE_MASK) | (pt->gva & 0x3fffffff);
+    }
+
+    VM_PANIC_ON(largeness != 1)
+
     /* 2Mb large page  */
     if (pae) {
         return (pt->pte[1] & PAE_PTE_LARGE_PAGE_MASK) | (pt->gva & 0x1fffff);
@@ -170,7 +180,7 @@ static bool walk_gpt(CPUState *cpu, target_ulong addr, int err_code,
                      struct gpt_translation *pt, bool pae)
 {
     int top_level, level;
-    bool is_large = false;
+    int largeness = 0;
     target_ulong cr3 = rvmcs(cpu->accel->fd, VMCS_GUEST_CR3);
     uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
     
@@ -186,19 +196,19 @@ static bool walk_gpt(CPUState *cpu, target_ulong addr, int err_code,
     for (level = top_level; level > 0; level--) {
         get_pt_entry(cpu, pt, level, pae);
 
-        if (!test_pt_entry(cpu, pt, level - 1, &is_large, pae)) {
+        if (!test_pt_entry(cpu, pt, level - 1, &largeness, pae)) {
             return false;
         }
 
-        if (is_large) {
+        if (largeness) {
             break;
         }
     }
 
-    if (!is_large) {
+    if (!largeness) {
         pt->gpa = (pt->pte[0] & page_mask) | (pt->gva & 0xfff);
     } else {
-        pt->gpa = large_page_gpa(pt, pae);
+        pt->gpa = large_page_gpa(pt, pae, largeness);
     }
 
     return true;
