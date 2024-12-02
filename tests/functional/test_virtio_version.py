@@ -141,6 +141,7 @@ class VirtioVersionCheck(QemuSystemTest):
 
 
     def test_conventional_devs(self):
+        self.set_machine('pc')
         self.check_all_variants('virtio-net-pci', VIRTIO_NET)
         # virtio-blk requires 'driver' parameter
         #self.check_all_variants('virtio-blk-pci', VIRTIO_BLOCK)
@@ -167,6 +168,7 @@ class VirtioVersionCheck(QemuSystemTest):
         self.assertIn('pci-express-device', ifaces)
 
     def test_modern_only_devs(self):
+        self.set_machine('pc')
         self.check_modern_only('virtio-vga', VIRTIO_GPU)
         self.check_modern_only('virtio-gpu-pci', VIRTIO_GPU)
         self.check_modern_only('virtio-mouse-pci', VIRTIO_INPUT)
