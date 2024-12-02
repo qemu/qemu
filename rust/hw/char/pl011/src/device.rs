@@ -191,7 +191,7 @@ impl PL011Registers {
                     self.flags.set_receive_fifo_empty(true);
                 }
                 if self.read_count + 1 == self.read_trigger {
-                    self.int_level &= !registers::INT_RX;
+                    self.int_level &= !Interrupt::RX.0;
                 }
                 // Update error bits.
                 self.receive_status_error_clear.set_from_data(c);
@@ -230,7 +230,7 @@ impl PL011Registers {
             DR => {
                 // interrupts always checked
                 let _ = self.loopback_tx(value);
-                self.int_level |= registers::INT_TX;
+                self.int_level |= Interrupt::TX.0;
                 return true;
             }
             RSR => {
@@ -354,19 +354,19 @@ impl PL011Registers {
         // Change interrupts based on updated FR
         let mut il = self.int_level;
 
-        il &= !Interrupt::MS;
+        il &= !Interrupt::MS.0;
 
         if self.flags.data_set_ready() {
-            il |= Interrupt::DSR as u32;
+            il |= Interrupt::DSR.0;
         }
         if self.flags.data_carrier_detect() {
-            il |= Interrupt::DCD as u32;
+            il |= Interrupt::DCD.0;
         }
         if self.flags.clear_to_send() {
-            il |= Interrupt::CTS as u32;
+            il |= Interrupt::CTS.0;
         }
         if self.flags.ring_indicator() {
-            il |= Interrupt::RI as u32;
+            il |= Interrupt::RI.0;
         }
         self.int_level = il;
         true
@@ -444,7 +444,7 @@ impl PL011Registers {
         }
 
         if self.read_count == self.read_trigger {
-            self.int_level |= registers::INT_RX;
+            self.int_level |= Interrupt::RX.0;
             return true;
         }
         false
@@ -651,16 +651,12 @@ impl PL011State {
 /// Which bits in the interrupt status matter for each outbound IRQ line ?
 const IRQMASK: [u32; 6] = [
     /* combined IRQ */
-    Interrupt::E
-        | Interrupt::MS
-        | Interrupt::RT as u32
-        | Interrupt::TX as u32
-        | Interrupt::RX as u32,
-    Interrupt::RX as u32,
-    Interrupt::TX as u32,
-    Interrupt::RT as u32,
-    Interrupt::MS,
-    Interrupt::E,
+    Interrupt::E.0 | Interrupt::MS.0 | Interrupt::RT.0 | Interrupt::TX.0 | Interrupt::RX.0,
+    Interrupt::RX.0,
+    Interrupt::TX.0,
+    Interrupt::RT.0,
+    Interrupt::MS.0,
+    Interrupt::E.0,
 ];
 
 /// # Safety
