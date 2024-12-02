@@ -30,7 +30,7 @@ pub trait DeviceImpl {
     ///
     /// Rust does not yet support the three-phase reset protocol; this is
     /// usually okay for leaf classes.
-    const RESET: Option<fn(&mut Self)> = None;
+    const RESET: Option<fn(&Self)> = None;
 
     /// An array providing the properties that the user can set on the
     /// device.  Not a `const` because referencing statics in constants

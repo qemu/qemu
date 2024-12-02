@@ -172,7 +172,7 @@ impl DeviceImpl for PL011State {
         Some(&device_class::VMSTATE_PL011)
     }
     const REALIZE: Option<fn(&Self)> = Some(Self::realize);
-    const RESET: Option<fn(&mut Self)> = Some(Self::reset);
+    const RESET: Option<fn(&Self)> = Some(Self::reset);
 }
 
 impl PL011Registers {
@@ -631,7 +631,7 @@ impl PL011State {
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         self.regs.borrow_mut().reset();
     }
 
