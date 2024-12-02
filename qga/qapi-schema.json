@@ -1843,6 +1843,43 @@
   'if': 'CONFIG_LINUX'
 }
 
+
+##
+# @GuestLoadAverage:
+#
+# Statistics about process load information
+#
+# @load1m: 1-minute load avage
+#
+# @load5m: 5-minute load avage
+#
+# @load15m: 15-minute load avage
+#
+# Since: 10.0
+##
+{ 'struct': 'GuestLoadAverage',
+  'data': {
+      'load1m': 'number',
+      'load5m': 'number',
+      'load15m': 'number'
+  },
+  'if': 'CONFIG_GETLOADAVG'
+}
+
+##
+# @guest-get-load:
+#
+# Retrieve CPU process load information
+#
+# Returns: load information
+#
+# Since: 10.0
+##
+{ 'command': 'guest-get-load',
+  'returns': 'GuestLoadAverage',
+  'if': 'CONFIG_GETLOADAVG'
+}
+
 ##
 # @GuestNetworkRoute:
 #
