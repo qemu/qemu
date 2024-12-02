@@ -145,6 +145,7 @@ impl ObjectImpl for PL011State {
     type ParentType = SysBusDevice;
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
+    const INSTANCE_POST_INIT: Option<fn(&mut Self)> = Some(Self::post_init);
 }
 
 impl DeviceImpl for PL011State {
@@ -183,14 +184,6 @@ impl PL011State {
                 Self::TYPE_NAME.as_ptr(),
                 0x1000,
             );
-
-            let sbd: &mut SysBusDevice = self.upcast_mut();
-            sysbus_init_mmio(sbd, addr_of_mut!(self.iomem));
-        }
-
-        for irq in self.interrupts.iter() {
-            let sbd: &SysBusDevice = self.upcast();
-            sbd.init_irq(irq);
         }
 
         // SAFETY:
@@ -210,6 +203,15 @@ impl PL011State {
                 ClockEvent::ClockUpdate.0,
             ))
             .unwrap();
+        }
+    }
+
+    fn post_init(&mut self) {
+        let sbd: &SysBusDevice = self.upcast();
+
+        sbd.init_mmio(&self.iomem);
+        for irq in self.interrupts.iter() {
+            sbd.init_irq(irq);
         }
     }
 
