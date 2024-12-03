@@ -1802,10 +1802,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
     target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
     uint64_t deleg = async ? env->mideleg : env->medeleg;
-    bool s_injected = env->mvip & (1 << cause) & env->mvien &&
-        !(env->mip & (1 << cause));
-    bool vs_injected = env->hvip & (1 << cause) & env->hvien &&
-        !(env->mip & (1 << cause));
+    bool s_injected = env->mvip & (1ULL << cause) & env->mvien &&
+        !(env->mip & (1ULL << cause));
+    bool vs_injected = env->hvip & (1ULL << cause) & env->hvien &&
+        !(env->mip & (1ULL << cause));
     target_ulong tval = 0;
     target_ulong tinst = 0;
     target_ulong htval = 0;

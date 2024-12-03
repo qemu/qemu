@@ -2362,6 +2362,7 @@ static void configure_accelerators(const char *progname)
             /* Select the default accelerator */
             bool have_tcg = accel_find("tcg");
             bool have_kvm = accel_find("kvm");
+            bool have_hvf = accel_find("hvf");
 
             if (have_tcg && have_kvm) {
                 if (g_str_has_suffix(progname, "kvm")) {
@@ -2374,6 +2375,8 @@ static void configure_accelerators(const char *progname)
                 accelerators = "kvm";
             } else if (have_tcg) {
                 accelerators = "tcg";
+            } else if (have_hvf) {
+                accelerators = "hvf";
             } else {
                 error_report("No accelerator selected and"
                              " no default accelerator available");
