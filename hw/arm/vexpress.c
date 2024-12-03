@@ -30,11 +30,11 @@
 #include "hw/net/lan9118.h"
 #include "hw/i2c/i2c.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/block/flash.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "qemu/error-report.h"
 #include <libfdt.h>
 #include "hw/char/pl011.h"

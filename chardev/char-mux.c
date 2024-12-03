@@ -28,7 +28,7 @@
 #include "qemu/option.h"
 #include "qemu/bitops.h"
 #include "chardev/char.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/qapi-commands-control.h"
 #include "chardev-internal.h"
 

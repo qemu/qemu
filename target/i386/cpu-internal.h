@@ -1,5 +1,5 @@
 /*
- * i386 CPU internal definitions to be shared between cpu.c and cpu-sysemu.c
+ * i386 CPU internal definitions to be shared between cpu.c and cpu-system.c
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *

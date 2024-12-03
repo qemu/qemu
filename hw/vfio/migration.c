@@ -15,7 +15,7 @@
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/vfio/vfio-common.h"
 #include "migration/misc.h"
 #include "migration/savevm.h"

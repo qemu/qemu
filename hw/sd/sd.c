@@ -37,7 +37,7 @@
 #include "qemu/cutils.h"
 #include "hw/irq.h"
 #include "hw/registerfields.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "hw/sd/sd.h"
 #include "hw/sd/sdcard_legacy.h"
 #include "migration/vmstate.h"

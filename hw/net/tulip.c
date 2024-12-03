@@ -13,7 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/nvram/eeprom93xx.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "tulip.h"
 #include "trace.h"
 #include "net/eth.h"

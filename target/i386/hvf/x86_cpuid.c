@@ -26,7 +26,7 @@
 #include "cpu.h"
 #include "x86.h"
 #include "vmx.h"
-#include "sysemu/hvf.h"
+#include "system/hvf.h"
 #include "hvf-i386.h"
 
 static bool cached_xcr0;

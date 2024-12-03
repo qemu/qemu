@@ -8,12 +8,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/dma.h"
+#include "system/block-backend.h"
+#include "system/dma.h"
 #include "trace.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "qemu/range.h"
 
 /* #define DEBUG_IOMMU */

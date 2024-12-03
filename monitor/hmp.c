@@ -35,7 +35,7 @@
 #include "qemu/log.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "trace.h"
 
 static void monitor_command_cb(void *opaque, const char *cmdline,

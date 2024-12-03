@@ -17,7 +17,7 @@
 #include "clients.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 #include <vmnet/vmnet.h>
 #include <dispatch/dispatch.h>

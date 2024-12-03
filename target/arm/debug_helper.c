@@ -13,7 +13,7 @@
 #include "cpregs.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 
 #ifdef CONFIG_TCG
 /* Return the Exception Level targeted by debug exceptions. */

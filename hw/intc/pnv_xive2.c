@@ -11,8 +11,8 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "target/ppc/cpu.h"
-#include "sysemu/cpus.h"
-#include "sysemu/dma.h"
+#include "system/cpus.h"
+#include "system/dma.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_chip.h"
@@ -24,8 +24,8 @@
 #include "hw/ppc/xive2_regs.h"
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/reset.h"
-#include "sysemu/qtest.h"
+#include "system/reset.h"
+#include "system/qtest.h"
 
 #include <libfdt.h>
 

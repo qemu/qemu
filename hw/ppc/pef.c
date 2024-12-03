@@ -12,7 +12,7 @@
 
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "migration/blocker.h"
 #include "exec/confidential-guest-support.h"
 

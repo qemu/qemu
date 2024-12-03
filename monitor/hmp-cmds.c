@@ -28,7 +28,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 bool hmp_handle_error(Monitor *mon, Error *err)
 {

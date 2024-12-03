@@ -28,7 +28,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/loader.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/arm/allwinner-h3.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"

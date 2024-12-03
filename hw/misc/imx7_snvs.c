@@ -19,9 +19,9 @@
 #include "hw/misc/imx7_snvs.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/rtc.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/rtc.h"
+#include "system/runstate.h"
 #include "trace.h"
 
 #define RTC_FREQ    32768ULL

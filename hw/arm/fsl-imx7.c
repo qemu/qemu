@@ -23,7 +23,7 @@
 #include "hw/arm/fsl-imx7.h"
 #include "hw/misc/unimp.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "target/arm/cpu-qom.h"

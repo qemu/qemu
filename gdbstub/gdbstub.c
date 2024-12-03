@@ -41,8 +41,8 @@
 #endif
 #include "hw/core/cpu.h"
 
-#include "sysemu/hw_accel.h"
-#include "sysemu/runstate.h"
+#include "system/hw_accel.h"
+#include "system/runstate.h"
 #include "exec/replay-core.h"
 #include "exec/hwaddr.h"
 

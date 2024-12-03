@@ -37,8 +37,8 @@
 #include "migration/vmstate.h"
 #include "hw/intc/intc.h"
 #include "hw/irq.h"
-#include "sysemu/kvm.h"
-#include "sysemu/reset.h"
+#include "system/kvm.h"
+#include "system/reset.h"
 #include "target/ppc/cpu.h"
 
 void icp_pic_print_info(ICPState *icp, GString *buf)

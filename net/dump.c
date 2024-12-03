@@ -32,7 +32,7 @@
 #include "qapi/visitor.h"
 #include "net/filter.h"
 #include "qom/object.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 
 typedef struct DumpState {
     int64_t start_ts;

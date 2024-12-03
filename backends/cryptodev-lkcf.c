@@ -30,7 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qom/object.h"
-#include "sysemu/cryptodev.h"
+#include "system/cryptodev.h"
 #include "standard-headers/linux/virtio_crypto.h"
 
 #include <keyutils.h>

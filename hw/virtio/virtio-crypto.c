@@ -22,7 +22,7 @@
 #include "hw/virtio/virtio-crypto.h"
 #include "hw/qdev-properties.h"
 #include "standard-headers/linux/virtio_ids.h"
-#include "sysemu/cryptodev-vhost.h"
+#include "system/cryptodev-vhost.h"
 
 #define VIRTIO_CRYPTO_VM_VERSION 1
 

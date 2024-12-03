@@ -21,8 +21,8 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "cpu.h"
-#include "sysemu/xen.h"
-#include "sysemu/tcg.h"
+#include "system/xen.h"
+#include "system/tcg.h"
 #include "exec/ramlist.h"
 #include "exec/ramblock.h"
 #include "exec/exec-all.h"

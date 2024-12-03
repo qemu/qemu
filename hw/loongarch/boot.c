@@ -12,8 +12,8 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "qemu/error-report.h"
-#include "sysemu/reset.h"
-#include "sysemu/qtest.h"
+#include "system/reset.h"
+#include "system/qtest.h"
 
 struct memmap_entry *memmap_table;
 unsigned memmap_entries;

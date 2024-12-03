@@ -14,7 +14,7 @@
 #include "hw/i2c/allwinner-i2c.h"
 #include "hw/ssi/allwinner-a10-spi.h"
 #include "hw/watchdog/allwinner-wdt.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 #include "target/arm/cpu.h"
 #include "qom/object.h"

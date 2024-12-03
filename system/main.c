@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-main.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #ifdef CONFIG_SDL
 #include <SDL.h>

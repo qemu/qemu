@@ -11,8 +11,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
+#include "system/system.h"
+#include "system/qtest.h"
 #include "hw/irq.h"
 #include "hw/m68k/next-cube.h"
 #include "hw/boards.h"

@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 

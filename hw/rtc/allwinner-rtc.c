@@ -25,7 +25,7 @@
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/rtc/allwinner-rtc.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 #include "trace.h"
 
 /* RTC registers */

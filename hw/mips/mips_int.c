@@ -23,7 +23,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "hw/irq.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm_mips.h"
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)

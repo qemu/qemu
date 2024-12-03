@@ -30,7 +30,7 @@
 #include "trace.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 
 /*
  * The following M-mode trigger CSRs are implemented:

@@ -34,8 +34,8 @@
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #endif
-#include "sysemu/cpus.h"
-#include "sysemu/tcg.h"
+#include "system/cpus.h"
+#include "system/tcg.h"
 #include "exec/tswap.h"
 #include "exec/replay-core.h"
 #include "exec/cpu-common.h"

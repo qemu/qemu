@@ -14,8 +14,8 @@
 #include "qemu/osdep.h"
 
 #include "block/block.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/iothread.h"
+#include "system/block-backend.h"
+#include "system/iothread.h"
 #include "block/export.h"
 #include "block/fuse.h"
 #include "block/nbd.h"

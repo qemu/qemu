@@ -170,8 +170,8 @@ F: include/exec/helper*.h
 F: include/exec/helper*.h.inc
 F: include/exec/helper-info.c.inc
 F: include/exec/page-protection.h
-F: include/sysemu/cpus.h
-F: include/sysemu/tcg.h
+F: include/system/cpus.h
+F: include/system/tcg.h
 F: include/hw/core/tcg-cpu-ops.h
 F: host/include/*/host/cpuinfo.h
 F: util/cpuinfo-*.c
@@ -434,7 +434,7 @@ F: */*/kvm*
 F: accel/kvm/
 F: accel/stubs/kvm-stub.c
 F: include/hw/kvm/
-F: include/sysemu/kvm*.h
+F: include/system/kvm*.h
 F: scripts/kvm/kvm_flightrecorder
 
 ARM KVM CPUs
@@ -447,7 +447,7 @@ MIPS KVM CPUs
 M: Huacai Chen <chenhuacai@kernel.org>
 S: Odd Fixes
 F: target/mips/kvm*
-F: target/mips/sysemu/
+F: target/mips/system/
 
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
@@ -481,7 +481,7 @@ Xen emulation on X86 KVM CPUs
 M: David Woodhouse <dwmw2@infradead.org>
 M: Paul Durrant <paul@xen.org>
 S: Supported
-F: include/sysemu/kvm_xen.h
+F: include/system/kvm_xen.h
 F: target/i386/kvm/xen*
 F: hw/i386/kvm/xen*
 F: tests/avocado/kvm_xen_guest.py
@@ -493,7 +493,7 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/accel.h
-F: include/sysemu/accel-*.h
+F: include/system/accel-*.h
 F: include/hw/core/accel-cpu.h
 F: accel/accel-*.c
 F: accel/Makefile.objs
@@ -517,14 +517,14 @@ M: Roman Bolshakov <rbolshakov@ddn.com>
 W: https://wiki.qemu.org/Features/HVF
 S: Maintained
 F: accel/hvf/
-F: include/sysemu/hvf.h
-F: include/sysemu/hvf_int.h
+F: include/system/hvf.h
+F: include/system/hvf_int.h
 
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
 F: target/i386/whpx/
-F: include/sysemu/whpx.h
+F: include/system/whpx.h
 
 Guest CPU Cores (Xen)
 ---------------------
@@ -550,8 +550,8 @@ F: hw/i386/xen/
 F: hw/pci-host/xen_igd_pt.c
 F: include/hw/block/dataplane/xen*
 F: include/hw/xen/
-F: include/sysemu/xen.h
-F: include/sysemu/xen-mapcache.h
+F: include/system/xen.h
+F: include/system/xen-mapcache.h
 F: stubs/xen-hw-stub.c
 F: docs/system/arm/xenpvh.rst
 F: docs/system/i386/xenpvh.rst
@@ -561,7 +561,7 @@ Guest CPU Cores (NVMM)
 NetBSD Virtual Machine Monitor (NVMM) CPU support
 M: Reinoud Zandijk <reinoud@netbsd.org>
 S: Maintained
-F: include/sysemu/nvmm.h
+F: include/system/nvmm.h
 F: target/i386/nvmm/
 
 Hosts
@@ -579,7 +579,7 @@ POSIX
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: os-posix.c
-F: include/sysemu/os-posix.h
+F: include/system/os-posix.h
 F: util/*posix*.c
 F: include/qemu/*posix*.h
 
@@ -1866,7 +1866,7 @@ R: Yanan Wang <wangyanan55@huawei.com>
 R: Zhao Liu <zhao1.liu@intel.com>
 S: Supported
 F: hw/core/cpu-common.c
-F: hw/core/cpu-sysemu.c
+F: hw/core/cpu-system.c
 F: hw/core/machine-qmp-cmds.c
 F: hw/core/machine.c
 F: hw/core/machine-smp.c
@@ -1879,7 +1879,7 @@ F: qapi/machine-target.json
 F: include/hw/boards.h
 F: include/hw/core/cpu.h
 F: include/hw/cpu/cluster.h
-F: include/sysemu/numa.h
+F: include/system/numa.h
 F: tests/functional/test_cpu_queries.py
 F: tests/functional/test_empty_cpu_model.py
 F: tests/unit/test-smp-parse.c
@@ -2189,9 +2189,9 @@ M: Eric Auger <eric.auger@redhat.com>
 M: Zhenzhong Duan <zhenzhong.duan@intel.com>
 S: Supported
 F: backends/iommufd.c
-F: include/sysemu/iommufd.h
+F: include/system/iommufd.h
 F: backends/host_iommu_device.c
-F: include/sysemu/host_iommu_device.h
+F: include/system/host_iommu_device.h
 F: include/qemu/chardev_open.h
 F: util/chardev_open.c
 F: docs/devel/vfio-iommufd.rst
@@ -2205,7 +2205,7 @@ F: docs/interop/vhost-user.json
 F: docs/interop/vhost-user.rst
 F: contrib/vhost-user-*/
 F: backends/vhost-user.c
-F: include/sysemu/vhost-user-backend.h
+F: include/system/vhost-user-backend.h
 F: subprojects/libvhost-user/
 
 vhost-shadow-virtqueue
@@ -2233,7 +2233,7 @@ F: docs/interop/virtio-balloon-stats.rst
 F: hw/virtio/virtio-balloon*.c
 F: include/hw/virtio/virtio-balloon.h
 F: system/balloon.c
-F: include/sysemu/balloon.h
+F: include/system/balloon.h
 F: tests/qtest/virtio-balloon-test.c
 
 virtio-9p
@@ -2315,7 +2315,7 @@ R: Amit Shah <amit@kernel.org>
 S: Supported
 F: hw/virtio/virtio-rng.c
 F: include/hw/virtio/virtio-rng.h
-F: include/sysemu/rng*.h
+F: include/system/rng*.h
 F: backends/rng*.c
 F: tests/qtest/virtio-rng-test.c
 
@@ -2841,7 +2841,7 @@ F: hw/block/
 F: qapi/block*.json
 F: qapi/transaction.json
 F: include/block/
-F: include/sysemu/block-*.h
+F: include/system/block-*.h
 F: qemu-img*
 F: docs/tools/qemu-img.rst
 F: qemu-io*
@@ -2980,7 +2980,7 @@ M: Alistair Francis <alistair.francis@wdc.com>
 R: David Gibson <david@gibson.dropbear.id.au>
 S: Maintained
 F: system/device_tree.c
-F: include/sysemu/device_tree.h
+F: include/system/device_tree.h
 
 Dump
 S: Supported
@@ -2989,8 +2989,8 @@ F: dump/
 F: hw/misc/vmcoreinfo.c
 F: include/hw/misc/vmcoreinfo.h
 F: include/qemu/win_dump_defs
-F: include/sysemu/dump-arch.h
-F: include/sysemu/dump.h
+F: include/system/dump-arch.h
+F: include/system/dump.h
 F: qapi/dump.json
 F: scripts/dump-guest-memory.py
 F: stubs/dump.c
@@ -3036,7 +3036,7 @@ F: include/exec/memop.h
 F: include/exec/memory.h
 F: include/exec/ram_addr.h
 F: include/exec/ramblock.h
-F: include/sysemu/memory_mapping.h
+F: include/system/memory_mapping.h
 F: system/dma-helpers.c
 F: system/ioport.c
 F: system/memory.c
@@ -3089,8 +3089,8 @@ Main loop
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/main-loop.h
-F: include/sysemu/runstate.h
-F: include/sysemu/runstate-action.h
+F: include/system/runstate.h
+F: include/system/runstate-action.h
 F: util/main-loop.c
 F: util/qemu-timer*.c
 F: system/vl.c
@@ -3153,7 +3153,7 @@ M: David Hildenbrand <david@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
-F: include/sysemu/hostmem.h
+F: include/system/hostmem.h
 F: docs/system/vm-templating.rst
 T: git https://gitlab.com/ehabkost/qemu.git machine-next
 
@@ -3161,7 +3161,7 @@ Cryptodev Backends
 M: Gonglei <arei.gonglei@huawei.com>
 M: zhenwei pi <pizhenwei@bytedance.com>
 S: Maintained
-F: include/sysemu/cryptodev*.h
+F: include/system/cryptodev*.h
 F: backends/cryptodev*.c
 F: qapi/cryptodev.json
 
@@ -3310,7 +3310,7 @@ M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: system/qtest.c
-F: include/sysemu/qtest.h
+F: include/system/qtest.h
 F: accel/qtest/
 F: tests/qtest/
 F: docs/devel/qgraph.rst
@@ -3361,7 +3361,7 @@ T: git https://people.debian.org/~sthibault/qemu.git slirp
 
 Stats
 S: Orphan
-F: include/sysemu/stats.h
+F: include/system/stats.h
 F: stats/
 F: qapi/stats.json
 
@@ -3402,7 +3402,7 @@ S: Maintained
 F: system/tpm*
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
-F: include/sysemu/tpm*
+F: include/system/tpm*
 F: qapi/tpm.json
 F: backends/tpm/
 F: tests/qtest/*tpm*
@@ -3413,7 +3413,7 @@ SPDM
 M: Alistair Francis <alistair.francis@wdc.com>
 S: Maintained
 F: backends/spdm-socket.c
-F: include/sysemu/spdm-socket.h
+F: include/system/spdm-socket.h
 
 Checkpatch
 S: Odd Fixes
@@ -3448,10 +3448,10 @@ Migration dirty limit and dirty page rate
 M: Hyman Huang <yong.huang@smartx.com>
 S: Maintained
 F: system/dirtylimit.c
-F: include/sysemu/dirtylimit.h
+F: include/system/dirtylimit.h
 F: migration/dirtyrate.c
 F: migration/dirtyrate.h
-F: include/sysemu/dirtyrate.h
+F: include/system/dirtyrate.h
 F: docs/devel/migration/dirty-limit.rst
 
 Detached LUKS header
@@ -3479,7 +3479,7 @@ Seccomp
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: system/qemu-seccomp.c
-F: include/sysemu/seccomp.h
+F: include/system/seccomp.h
 F: tests/unit/test-seccomp.c
 
 Cryptography
@@ -3592,7 +3592,7 @@ F: replay/*
 F: block/blkreplay.c
 F: net/filter-replay.c
 F: include/exec/replay-core.h
-F: include/sysemu/replay.h
+F: include/system/replay.h
 F: docs/devel/replay.rst
 F: docs/system/replay.rst
 F: stubs/replay.c
@@ -3711,7 +3711,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: include/hw/resettable.h
 F: include/hw/core/resetcontainer.h
-F: include/sysemu/reset.h
+F: include/system/reset.h
 F: hw/core/reset.c
 F: hw/core/resettable.c
 F: hw/core/resetcontainer.c

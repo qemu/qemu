@@ -32,8 +32,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/tswap.h"
-#include "sysemu/dma.h"
-#include "sysemu/reset.h"
+#include "system/dma.h"
+#include "system/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"

@@ -14,7 +14,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "chardev/char-fe.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-types-char.h"

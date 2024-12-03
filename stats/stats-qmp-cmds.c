@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/stats.h"
+#include "system/stats.h"
 #include "qapi/qapi-commands-stats.h"
 #include "qemu/queue.h"
 #include "qapi/error.h"

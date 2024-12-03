@@ -2,8 +2,8 @@
 #define QEMU_PCI_H
 
 #include "exec/memory.h"
-#include "sysemu/dma.h"
-#include "sysemu/host_iommu_device.h"
+#include "system/dma.h"
+#include "system/host_iommu_device.h"
 
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"

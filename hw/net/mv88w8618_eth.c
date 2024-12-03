@@ -12,7 +12,7 @@
 #include "hw/irq.h"
 #include "hw/net/mv88w8618_eth.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "net/net.h"
 
 #define MP_ETH_SIZE             0x00001000

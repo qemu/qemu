@@ -17,7 +17,7 @@
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "hw/mem/sparse-mem.h"
 
 #define SPARSE_MEM(obj) OBJECT_CHECK(SparseMemState, (obj), TYPE_SPARSE_MEM)

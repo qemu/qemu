@@ -26,7 +26,7 @@
 #include "exec/page-protection.h"
 #include "exec/tb-flush.h"
 #include "exec/translate-all.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #include "tcg/tcg.h"
 #include "tb-hash.h"
 #include "tb-context.h"

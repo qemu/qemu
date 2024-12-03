@@ -20,7 +20,7 @@
 
 #include "qapi/error.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "exec/address-spaces.h"
 #include "qom/object.h"
 

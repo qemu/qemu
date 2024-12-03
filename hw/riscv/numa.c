@@ -23,7 +23,7 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/riscv/numa.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 
 static bool numa_enabled(const MachineState *ms)
 {

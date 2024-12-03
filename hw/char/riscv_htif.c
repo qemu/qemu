@@ -30,8 +30,8 @@
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "exec/tswap.h"
-#include "sysemu/dma.h"
-#include "sysemu/runstate.h"
+#include "system/dma.h"
+#include "system/runstate.h"
 
 #define RISCV_DEBUG_HTIF 0
 #define HTIF_DEBUG(fmt, ...)                                                   \

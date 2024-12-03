@@ -19,7 +19,7 @@
 #include "hw/ppc/xics_spapr.h"
 #include "hw/qdev-properties.h"
 #include "cpu-models.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 #include "trace.h"
 

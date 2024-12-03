@@ -29,7 +29,7 @@
 #include "tcg/tcg-op.h"
 #include "trace.h"
 #include "semihosting/common-semi.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "cpu_bits.h"
 #include "debug.h"
 #include "tcg/oversized-guest.h"

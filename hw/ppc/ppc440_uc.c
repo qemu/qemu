@@ -17,7 +17,7 @@
 #include "hw/pci-host/ppc4xx.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "cpu.h"
 #include "ppc440.h"
 

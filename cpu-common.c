@@ -21,7 +21,7 @@
 #include "qemu/main-loop.h"
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/lockable.h"
 #include "trace/trace-root.h"
 

@@ -18,8 +18,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/cpus.h"
-#include "sysemu/tcg.h"
+#include "system/cpus.h"
+#include "system/tcg.h"
 #include "qemu/plugin.h"
 #include "internal-common.h"
 

@@ -15,7 +15,7 @@
 #define HW_S390_PCI_INST_H
 
 #include "s390-pci-bus.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 /* Load/Store status codes */
 #define ZPCI_PCI_ST_FUNC_NOT_ENABLED        4

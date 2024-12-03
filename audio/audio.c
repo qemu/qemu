@@ -38,9 +38,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/help_option.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/replay.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/replay.h"
+#include "system/runstate.h"
 #include "ui/qemu-spice.h"
 #include "trace.h"
 

@@ -17,9 +17,9 @@
 #include "standard-headers/linux/virtio_blk.h"
 #include "hw/virtio/virtio.h"
 #include "hw/block/block.h"
-#include "sysemu/iothread.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/block-ram-registrar.h"
+#include "system/iothread.h"
+#include "system/block-backend.h"
+#include "system/block-ram-registrar.h"
 #include "qom/object.h"
 #include "qapi/qapi-types-virtio.h"
 

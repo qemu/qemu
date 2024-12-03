@@ -28,7 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ne2000.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 typedef struct PCINE2000State {
     PCIDevice dev;

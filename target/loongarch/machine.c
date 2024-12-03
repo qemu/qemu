@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "migration/cpu.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #include "vec.h"
 
 static const VMStateDescription vmstate_fpu_reg = {

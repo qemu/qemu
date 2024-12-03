@@ -35,8 +35,8 @@
 #include "net/net.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/dma.h"
-#include "sysemu/sysemu.h"
+#include "system/dma.h"
+#include "system/system.h"
 #include "trace.h"
 
 #include "pcnet.h"

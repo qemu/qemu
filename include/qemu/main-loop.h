@@ -27,7 +27,7 @@
 
 #include "block/aio.h"
 #include "qom/object.h"
-#include "sysemu/event-loop-base.h"
+#include "system/event-loop-base.h"
 
 #define SIG_IPI SIGUSR1
 

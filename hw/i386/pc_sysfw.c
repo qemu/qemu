@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
@@ -35,7 +35,7 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/block/flash.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "target/i386/sev.h"
 
 #define FLASH_SECTOR_SIZE 4096

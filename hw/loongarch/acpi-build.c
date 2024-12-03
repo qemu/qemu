@@ -18,7 +18,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 /* Supported chipsets: */
 #include "hw/pci-host/ls7a.h"
@@ -31,8 +31,8 @@
 
 #include "hw/acpi/generic_event_device.h"
 #include "hw/pci-host/gpex.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/tpm.h"
+#include "system/system.h"
+#include "system/tpm.h"
 #include "hw/platform-bus.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/hmat.h"

@@ -27,7 +27,7 @@
 #include "hw/virtio/vhost-user-scsi.h"
 #include "hw/virtio/virtio.h"
 #include "chardev/char-fe.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /* Features supported by the host application */
 static const int user_feature_bits[] = {

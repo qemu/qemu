@@ -15,7 +15,7 @@
 #include "arm-powerctl.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #include "target/arm/multiprocessing.h"
 
 #ifndef DEBUG_ARM_POWERCTL

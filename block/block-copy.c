@@ -20,7 +20,7 @@
 #include "block/block_int-io.h"
 #include "block/dirty-bitmap.h"
 #include "block/reqlist.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/units.h"
 #include "qemu/co-shared-resource.h"
 #include "qemu/coroutine.h"

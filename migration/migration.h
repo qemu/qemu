@@ -25,7 +25,7 @@
 #include "net/announce.h"
 #include "qom/object.h"
 #include "postcopy-ram.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/misc.h"
 
 #define  MIGRATION_THREAD_SNAPSHOT          "mig/snapshot"

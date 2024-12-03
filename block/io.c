@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "trace.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "block/aio-wait.h"
 #include "block/blockjob.h"
 #include "block/blockjob_int.h"
@@ -37,7 +37,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)

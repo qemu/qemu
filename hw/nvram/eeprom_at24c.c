@@ -15,7 +15,7 @@
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qom/object.h"
 
 /* #define DEBUG_AT24C */

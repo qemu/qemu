@@ -31,7 +31,7 @@
 #include "hw/irq.h"
 #include "hw/pci/msi.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"

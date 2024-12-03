@@ -25,19 +25,19 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/resettable.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #endif
 #include "hw/s390x/cpu-topology.h"
 
@@ -260,7 +260,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    if (!s390_cpu_realize_sysemu(dev, &err)) {
+    if (!s390_cpu_system_realize(dev, &err)) {
         goto out;
     }
 #endif
@@ -300,7 +300,7 @@ static void s390_cpu_initfn(Object *obj)
     cs->exception_index = EXCP_HLT;
 
 #if !defined(CONFIG_USER_ONLY)
-    s390_cpu_init_sysemu(obj);
+    s390_cpu_system_init(obj);
 #endif
 }
 
@@ -404,7 +404,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = s390_cpu_gdb_read_register;
     cc->gdb_write_register = s390_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
-    s390_cpu_class_init_sysemu(cc);
+    s390_cpu_system_class_init(cc);
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
     cc->gdb_core_xml_file = "s390x-core64.xml";

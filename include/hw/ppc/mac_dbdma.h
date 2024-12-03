@@ -25,7 +25,7 @@
 
 #include "exec/memory.h"
 #include "qemu/iov.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

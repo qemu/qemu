@@ -28,7 +28,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "ui/dbus-module.h"
 #ifdef CONFIG_OPENGL
 #include "ui/egl-helpers.h"

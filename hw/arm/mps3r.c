@@ -30,7 +30,7 @@
 #include "qapi/qmp/qlist.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"
 #include "hw/qdev-clock.h"

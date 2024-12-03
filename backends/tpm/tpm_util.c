@@ -26,8 +26,8 @@
 #include "tpm_int.h"
 #include "exec/memory.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/tpm_backend.h"
-#include "sysemu/tpm_util.h"
+#include "system/tpm_backend.h"
+#include "system/tpm_util.h"
 #include "trace.h"
 
 /* tpm backend property */

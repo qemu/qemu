@@ -34,8 +34,8 @@
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 
 #include "trace.h"
 

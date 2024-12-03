@@ -20,7 +20,7 @@
 #include "hub.h"
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.

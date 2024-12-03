@@ -27,9 +27,9 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
-#include "sysemu/tcg.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
+#include "system/tcg.h"
 #include "qemu/accel.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"

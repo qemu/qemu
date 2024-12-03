@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/dump-arch.h"
+#include "system/dump-arch.h"
 
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)

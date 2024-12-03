@@ -30,7 +30,7 @@
 #include "monitor/monitor-internal.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
 int monitor_set_cpu(Monitor *mon, int cpu_index)

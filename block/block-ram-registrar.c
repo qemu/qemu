@@ -5,8 +5,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/block-ram-registrar.h"
+#include "system/block-backend.h"
+#include "system/block-ram-registrar.h"
 #include "qapi/error.h"
 
 static void ram_block_added(RAMBlockNotifier *n, void *host, size_t size,

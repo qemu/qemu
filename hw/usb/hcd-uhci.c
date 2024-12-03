@@ -36,7 +36,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/iov.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

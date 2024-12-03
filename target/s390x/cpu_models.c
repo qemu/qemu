@@ -14,8 +14,8 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"
-#include "sysemu/kvm.h"
-#include "sysemu/tcg.h"
+#include "system/kvm.h"
+#include "system/tcg.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
@@ -23,7 +23,7 @@
 #include "qemu/hw-version.h"
 #include "qemu/qemu-print.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "target/s390x/kvm/pv.h"
 #include CONFIG_DEVICES
 #endif

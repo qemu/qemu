@@ -22,8 +22,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/cryptodev.h"
-#include "sysemu/stats.h"
+#include "system/cryptodev.h"
+#include "system/stats.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-cryptodev.h"
 #include "qapi/qapi-types-stats.h"

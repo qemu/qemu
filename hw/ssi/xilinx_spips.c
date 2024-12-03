@@ -33,7 +33,7 @@
 #include "hw/ssi/xilinx_spips.h"
 #include "qapi/error.h"
 #include "hw/register.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 

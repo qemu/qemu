@@ -33,8 +33,8 @@
 #include "migration/vmstate.h"
 #include "hw/char/parallel-isa.h"
 #include "hw/char/parallel.h"
-#include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "system/reset.h"
+#include "system/system.h"
 #include "trace.h"
 #include "qom/object.h"
 

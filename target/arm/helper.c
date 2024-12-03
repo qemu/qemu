@@ -21,9 +21,9 @@
 #include "exec/exec-all.h"
 #include <zlib.h> /* for crc32 */
 #include "hw/irq.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/kvm.h"
-#include "sysemu/tcg.h"
+#include "system/cpu-timers.h"
+#include "system/kvm.h"
+#include "system/tcg.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #ifdef CONFIG_TCG

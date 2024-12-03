@@ -28,8 +28,8 @@
 #include "xen_primary_console.h"
 #include "xen_xenstore.h"
 
-#include "sysemu/kvm.h"
-#include "sysemu/kvm_xen.h"
+#include "system/kvm.h"
+#include "system/kvm_xen.h"
 
 #include "trace.h"
 

@@ -23,13 +23,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "block/throttle-groups.h"
 #include "qemu/throttle-options.h"
 #include "qemu/main-loop.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qom/object.h"

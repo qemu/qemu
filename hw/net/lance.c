@@ -43,7 +43,7 @@
 #include "hw/net/lance.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 
 static void parent_lance_reset(void *opaque, int irq, int level)

@@ -25,7 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/ptimer.h"
 #include "hw/stream.h"
 #include "hw/register.h"

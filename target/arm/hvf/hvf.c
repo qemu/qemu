@@ -13,10 +13,10 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 
-#include "sysemu/runstate.h"
-#include "sysemu/hvf.h"
-#include "sysemu/hvf_int.h"
-#include "sysemu/hw_accel.h"
+#include "system/runstate.h"
+#include "system/hvf.h"
+#include "system/hvf_int.h"
+#include "system/hw_accel.h"
 #include "hvf_arm.h"
 #include "cpregs.h"
 
@@ -26,7 +26,7 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "arm-powerctl.h"
 #include "target/arm/cpu.h"
 #include "target/arm/internals.h"

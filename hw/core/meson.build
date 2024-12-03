@@ -27,7 +27,7 @@ system_ss.add(when: 'CONFIG_PLATFORM_BUS', if_true: files('sysbus-fdt.c'))
 system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutls])
 
 system_ss.add(files(
-  'cpu-sysemu.c',
+  'cpu-system.c',
   'fw-path-provider.c',
   'gpio.c',
   'hotplug.c',

@@ -18,10 +18,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/kvm.h"
+#include "system/hw_accel.h"
+#include "system/kvm.h"
 #include "kvm_ppc.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

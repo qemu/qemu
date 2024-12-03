@@ -22,8 +22,8 @@
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
 #include "exec/translate-all.h"
-#include "sysemu/tcg.h"
-#include "sysemu/replay.h"
+#include "system/tcg.h"
+#include "system/replay.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "hw/core/cpu.h"
 

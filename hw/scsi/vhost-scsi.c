@@ -29,7 +29,7 @@
 #include "hw/fw-path-provider.h"
 #include "hw/qdev-properties.h"
 #include "qemu/cutils.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {

@@ -16,7 +16,7 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "elf.h"
-#include "sysemu/dump.h"
+#include "system/dump.h"
 #include "kvm/kvm_s390x.h"
 #include "target/s390x/kvm/pv.h"
 

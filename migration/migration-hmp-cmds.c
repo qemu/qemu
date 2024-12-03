@@ -27,9 +27,9 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "ui/qemu-spice.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "options.h"
 #include "migration.h"
 

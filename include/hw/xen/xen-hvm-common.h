@@ -8,10 +8,10 @@
 #include "hw/hw.h"
 #include "hw/xen/xen_native.h"
 #include "hw/xen/xen-legacy-backend.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/xen.h"
-#include "sysemu/xen-mapcache.h"
+#include "system/runstate.h"
+#include "system/system.h"
+#include "system/xen.h"
+#include "system/xen-mapcache.h"
 #include "qemu/error-report.h"
 #include <xen/hvm/ioreq.h>
 

@@ -21,9 +21,9 @@
 #include "qapi/qapi-events-run-state.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "monitor/monitor.h"
 #include "kvm/kvm_i386.h"
 #endif

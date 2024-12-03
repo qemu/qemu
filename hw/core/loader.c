@@ -53,15 +53,15 @@
 #include "disas/disas.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
-#include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "system/reset.h"
+#include "system/system.h"
 #include "uboot_image.h"
 #include "hw/loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "tcg/debuginfo.h"
 
 #include <zlib.h>

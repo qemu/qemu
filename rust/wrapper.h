@@ -50,7 +50,7 @@ typedef enum memory_order {
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu-io.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/sysbus.h"
 #include "exec/memory.h"
 #include "chardev/char-fe.h"

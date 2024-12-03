@@ -19,7 +19,7 @@
 #include "qemu/log.h"
 #include "qemu/units.h"
 #include "qemu/uuid.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "qemu/range.h"
 
 #define CXL_CAPACITY_MULTIPLIER   (256 * MiB)

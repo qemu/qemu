@@ -11,7 +11,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"

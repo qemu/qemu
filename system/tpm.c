@@ -17,8 +17,8 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-tpm.h"
 #include "qapi/qmp/qerror.h"
-#include "sysemu/tpm_backend.h"
-#include "sysemu/tpm.h"
+#include "system/tpm_backend.h"
+#include "system/tpm.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 

@@ -23,7 +23,7 @@
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "qapi/error.h"
 
 

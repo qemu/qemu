@@ -11,13 +11,13 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/replay.h"
-#include "sysemu/runstate.h"
+#include "system/cpu-timers.h"
+#include "system/replay.h"
+#include "system/runstate.h"
 #include "replay-internal.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/error-report.h"
 
 /* Current version of the replay mechanism.

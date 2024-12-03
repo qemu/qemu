@@ -27,7 +27,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/riscv/boot.h"
 #include "qemu/units.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /*
  * This version of the OpenTitan machine currently supports

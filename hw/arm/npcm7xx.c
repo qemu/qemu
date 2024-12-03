@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/bswap.h"
 #include "qemu/units.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "target/arm/cpu-qom.h"
 
 /*

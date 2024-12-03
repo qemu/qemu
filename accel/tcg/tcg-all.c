@@ -24,9 +24,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #include "exec/replay-core.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "tcg/startup.h"
 #include "tcg/oversized-guest.h"
 #include "qapi/error.h"

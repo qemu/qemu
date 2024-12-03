@@ -22,7 +22,7 @@
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/virtio/virtio-nsm.h"
 #include "hw/virtio/vhost-user-vsock.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 
 static BusState *find_free_virtio_mmio_bus(void)
 {

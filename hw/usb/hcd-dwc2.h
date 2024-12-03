@@ -23,7 +23,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/usb.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qom/object.h"
 
 #define DWC2_MMIO_SIZE      0x11000

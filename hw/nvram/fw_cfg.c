@@ -24,9 +24,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/dma.h"
+#include "system/reset.h"
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"

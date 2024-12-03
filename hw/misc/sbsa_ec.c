@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/sysbus.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 typedef struct SECUREECState {
     SysBusDevice parent_obj;

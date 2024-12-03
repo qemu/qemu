@@ -28,7 +28,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/qmp/qlist.h"
 #include "qom/object.h"
 

@@ -41,7 +41,7 @@
 #include "qemu/error-report.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"

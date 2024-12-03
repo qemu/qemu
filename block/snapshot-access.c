@@ -22,7 +22,7 @@
 
 #include "qemu/osdep.h"
 
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 

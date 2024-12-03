@@ -24,9 +24,9 @@
 #include "qapi/error.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
-#include "sysemu/qtest.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/reset.h"
+#include "system/qtest.h"
+#include "system/device_tree.h"
+#include "system/reset.h"
 #include "hw/boards.h"
 #include "qom/object.h"
 

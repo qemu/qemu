@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "semihosting/semihost.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "gdbstub/user.h"
 #include "gdbstub/syscalls.h"
 #include "gdbstub/commands.h"
