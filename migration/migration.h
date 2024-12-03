@@ -37,7 +37,7 @@
 #define  MIGRATION_THREAD_SRC_TLS           "mig/src/tls"
 
 #define  MIGRATION_THREAD_DST_COLO          "mig/dst/colo"
-#define  MIGRATION_THREAD_DST_MULTIFD       "mig/src/recv_%d"
+#define  MIGRATION_THREAD_DST_MULTIFD       "mig/dst/recv_%d"
 #define  MIGRATION_THREAD_DST_FAULT         "mig/dst/fault"
 #define  MIGRATION_THREAD_DST_LISTEN        "mig/dst/listen"
 #define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
