@@ -34,6 +34,7 @@ test_timeouts = {
   'ppc64_tuxrun' : 420,
   'riscv64_tuxrun' : 120,
   's390x_ccw_virtio' : 420,
+  'sh4_tuxrun' : 240,
 }
 
 tests_generic_system = [
