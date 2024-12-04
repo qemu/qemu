@@ -302,9 +302,7 @@ impl PL011State {
             Ok(LCR_H) => {
                 let new_val: registers::LineControl = value.into();
                 // Reset the FIFO state on FIFO enable or disable
-                if bool::from(self.line_control.fifos_enabled())
-                    ^ bool::from(new_val.fifos_enabled())
-                {
+                if self.line_control.fifos_enabled() != new_val.fifos_enabled() {
                     self.reset_rx_fifo();
                     self.reset_tx_fifo();
                 }
@@ -497,7 +495,7 @@ impl PL011State {
 
     #[inline]
     pub fn fifo_enabled(&self) -> bool {
-        matches!(self.line_control.fifos_enabled(), registers::Mode::FIFO)
+        self.line_control.fifos_enabled() == registers::Mode::FIFO
     }
 
     #[inline]

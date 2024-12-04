@@ -419,12 +419,6 @@ pub mod registers {
         FIFO = 1,
     }
 
-    impl From<Mode> for bool {
-        fn from(val: Mode) -> Self {
-            matches!(val, Mode::FIFO)
-        }
-    }
-
     #[bitsize(2)]
     #[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
     /// `WLEN` Word length, field of [Line Control register](LineControl).
