@@ -22,27 +22,10 @@
   # actually starts the task
   timeout: 80m
   script:
+    - set -o allexport
     - source .gitlab-ci.d/cirrus/$NAME.vars
-    - sed -e "s|[@]CI_REPOSITORY_URL@|$CI_REPOSITORY_URL|g"
-          -e "s|[@]CI_COMMIT_REF_NAME@|$CI_COMMIT_REF_NAME|g"
-          -e "s|[@]CI_COMMIT_SHA@|$CI_COMMIT_SHA|g"
-          -e "s|[@]CIRRUS_VM_INSTANCE_TYPE@|$CIRRUS_VM_INSTANCE_TYPE|g"
-          -e "s|[@]CIRRUS_VM_IMAGE_SELECTOR@|$CIRRUS_VM_IMAGE_SELECTOR|g"
-          -e "s|[@]CIRRUS_VM_IMAGE_NAME@|$CIRRUS_VM_IMAGE_NAME|g"
-          -e "s|[@]CIRRUS_VM_CPUS@|$CIRRUS_VM_CPUS|g"
-          -e "s|[@]CIRRUS_VM_RAM@|$CIRRUS_VM_RAM|g"
-          -e "s|[@]UPDATE_COMMAND@|$UPDATE_COMMAND|g"
-          -e "s|[@]INSTALL_COMMAND@|$INSTALL_COMMAND|g"
-          -e "s|[@]PATH@|$PATH_EXTRA${PATH_EXTRA:+:}\$PATH|g"
-          -e "s|[@]PKG_CONFIG_PATH@|$PKG_CONFIG_PATH|g"
-          -e "s|[@]PKGS@|$PKGS|g"
-          -e "s|[@]MAKE@|$MAKE|g"
-          -e "s|[@]PYTHON@|$PYTHON|g"
-          -e "s|[@]PIP3@|$PIP3|g"
-          -e "s|[@]PYPI_PKGS@|$PYPI_PKGS|g"
-          -e "s|[@]CONFIGURE_ARGS@|$CONFIGURE_ARGS|g"
-          -e "s|[@]TEST_TARGETS@|$TEST_TARGETS|g"
-      <.gitlab-ci.d/cirrus/build.yml >.gitlab-ci.d/cirrus/$NAME.yml
+    - set +o allexport
+    - cirrus-vars <.gitlab-ci.d/cirrus/build.yml >.gitlab-ci.d/cirrus/$NAME.yml
     - cat .gitlab-ci.d/cirrus/$NAME.yml
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
   variables:
