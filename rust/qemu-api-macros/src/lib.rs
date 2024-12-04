@@ -3,57 +3,50 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
-use quote::{quote, quote_spanned};
+use quote::quote;
 use syn::{
     parse_macro_input, parse_quote, punctuated::Punctuated, token::Comma, Data, DeriveInput, Field,
     Fields, Ident, Type, Visibility,
 };
 
-struct CompileError(String, Span);
-
-impl From<CompileError> for proc_macro2::TokenStream {
-    fn from(err: CompileError) -> Self {
-        let CompileError(msg, span) = err;
-        quote_spanned! { span => compile_error!(#msg); }
-    }
-}
+mod utils;
+use utils::MacroError;
 
 fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,
-) -> Result<&'a Punctuated<Field, Comma>, CompileError> {
+) -> Result<&'a Punctuated<Field, Comma>, MacroError> {
     if let Data::Struct(s) = &input.data {
         if let Fields::Named(fs) = &s.fields {
             Ok(&fs.named)
         } else {
-            Err(CompileError(
+            Err(MacroError::Message(
                 format!("Named fields required for {}", msg),
                 input.ident.span(),
             ))
         }
     } else {
-        Err(CompileError(
+        Err(MacroError::Message(
             format!("Struct required for {}", msg),
             input.ident.span(),
         ))
     }
 }
 
-fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), CompileError> {
+fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
     let expected = parse_quote! { #[repr(C)] };
 
     if input.attrs.iter().any(|attr| attr == &expected) {
         Ok(())
     } else {
-        Err(CompileError(
+        Err(MacroError::Message(
             format!("#[repr(C)] required for {}", msg),
             input.ident.span(),
         ))
     }
 }
 
-fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, CompileError> {
+fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
     is_c_repr(&input, "#[derive(Object)]")?;
 
     let name = &input.ident;
@@ -80,7 +73,7 @@ pub fn derive_object(input: TokenStream) -> TokenStream {
 }
 
 #[rustfmt::skip::macros(quote)]
-fn derive_offsets_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, CompileError> {
+fn derive_offsets_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
     is_c_repr(&input, "#[derive(offsets)]")?;
 
     let name = &input.ident;
