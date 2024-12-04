@@ -230,7 +230,7 @@ pub mod registers {
     impl ReceiveStatusErrorClear {
         pub fn reset(&mut self) {
             // All the bits are cleared to 0 on reset.
-            *self = 0.into();
+            *self = Self::default();
         }
     }
 
@@ -297,19 +297,16 @@ pub mod registers {
 
     impl Flags {
         pub fn reset(&mut self) {
-            // After reset TXFF, RXFF, and BUSY are 0, and TXFE and RXFE are 1
-            self.set_receive_fifo_full(false);
-            self.set_transmit_fifo_full(false);
-            self.set_busy(false);
-            self.set_receive_fifo_empty(true);
-            self.set_transmit_fifo_empty(true);
+            *self = Self::default();
         }
     }
 
     impl Default for Flags {
         fn default() -> Self {
             let mut ret: Self = 0.into();
-            ret.reset();
+            // After reset TXFF, RXFF, and BUSY are 0, and TXFE and RXFE are 1
+            ret.set_receive_fifo_empty(true);
+            ret.set_transmit_fifo_empty(true);
             ret
         }
     }

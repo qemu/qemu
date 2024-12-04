@@ -262,7 +262,7 @@ impl PL011State {
                 self.update();
             }
             Ok(RSR) => {
-                self.receive_status_error_clear = 0.into();
+                self.receive_status_error_clear.reset();
             }
             Ok(FR) => {
                 // flag writes are ignored
@@ -283,7 +283,8 @@ impl PL011State {
                 if bool::from(self.line_control.fifos_enabled())
                     ^ bool::from(new_val.fifos_enabled())
                 {
-                    self.reset_fifo();
+                    self.reset_rx_fifo();
+                    self.reset_tx_fifo();
                 }
                 if self.line_control.send_break() ^ new_val.send_break() {
                     let mut break_enable: c_int = new_val.send_break().into();
@@ -442,16 +443,24 @@ impl PL011State {
         self.read_trigger = 1;
         self.ifl = 0x12;
         self.control.reset();
-        self.flags = 0.into();
-        self.reset_fifo();
+        self.flags.reset();
+        self.reset_rx_fifo();
+        self.reset_tx_fifo();
     }
 
-    pub fn reset_fifo(&mut self) {
+    pub fn reset_rx_fifo(&mut self) {
         self.read_count = 0;
         self.read_pos = 0;
 
-        /* Reset FIFO flags */
-        self.flags.reset();
+        // Reset FIFO flags
+        self.flags.set_receive_fifo_full(false);
+        self.flags.set_receive_fifo_empty(true);
+    }
+
+    pub fn reset_tx_fifo(&mut self) {
+        // Reset FIFO flags
+        self.flags.set_transmit_fifo_full(false);
+        self.flags.set_transmit_fifo_empty(true);
     }
 
     pub fn can_receive(&self) -> bool {
