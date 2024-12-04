@@ -15,6 +15,8 @@
   stage: build
   image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:latest
   needs: []
+  allow_failure:
+    exit_codes: 3
   # 20 mins larger than "timeout_in" in cirrus/build.yml
   # as there's often a 5-10 minute delay before Cirrus CI
   # actually starts the task
