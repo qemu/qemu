@@ -460,9 +460,8 @@ impl PL011State {
     }
 
     pub fn event(&mut self, event: QEMUChrEvent) {
-        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.fifo_enabled() {
+        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
             self.put_fifo(DATA_BREAK);
-            self.receive_status_error_clear.set_break_error(true);
         }
     }
 
