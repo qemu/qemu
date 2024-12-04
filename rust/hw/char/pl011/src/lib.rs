@@ -139,6 +139,21 @@ pub mod registers {
     //! unused thus treated as zero when read or written.
     use bilge::prelude::*;
 
+    /// Receive Status Register / Data Register common error bits
+    ///
+    /// The `UARTRSR` register is updated only when a read occurs
+    /// from the `UARTDR` register with the same status information
+    /// that can also be obtained by reading the `UARTDR` register
+    #[bitsize(8)]
+    #[derive(Clone, Copy, Default, DebugBits, FromBits)]
+    pub struct Errors {
+        pub framing_error: bool,
+        pub parity_error: bool,
+        pub break_error: bool,
+        pub overrun_error: bool,
+        _reserved_unpredictable: u4,
+    }
+
     // TODO: FIFO Mode has different semantics
     /// Data Register, `UARTDR`
     ///
@@ -181,16 +196,18 @@ pub mod registers {
     ///
     /// # Source
     /// ARM DDI 0183G 3.3.1 Data Register, UARTDR
-    #[bitsize(16)]
-    #[derive(Clone, Copy, DebugBits, FromBits)]
+    #[bitsize(32)]
+    #[derive(Clone, Copy, Default, DebugBits, FromBits)]
     #[doc(alias = "UARTDR")]
     pub struct Data {
-        _reserved: u4,
         pub data: u8,
-        pub framing_error: bool,
-        pub parity_error: bool,
-        pub break_error: bool,
-        pub overrun_error: bool,
+        pub errors: Errors,
+        _reserved: u16,
+    }
+
+    impl Data {
+        // bilge is not very const-friendly, unfortunately
+        pub const BREAK: Self = Self { value: 1 << 10 };
     }
 
     // TODO: FIFO Mode has different semantics
@@ -220,14 +237,14 @@ pub mod registers {
     #[bitsize(8)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     pub struct ReceiveStatusErrorClear {
-        pub framing_error: bool,
-        pub parity_error: bool,
-        pub break_error: bool,
-        pub overrun_error: bool,
-        _reserved_unpredictable: u4,
+        pub errors: Errors,
     }
 
     impl ReceiveStatusErrorClear {
+        pub fn set_from_data(&mut self, data: Data) {
+            self.set_errors(data.errors());
+        }
+
         pub fn reset(&mut self) {
             // All the bits are cleared to 0 on reset.
             *self = Self::default();

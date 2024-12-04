@@ -30,8 +30,6 @@ const IBRD_MASK: u32 = 0xffff;
 /// Fractional Baud Rate Divider, `UARTFBRD`
 const FBRD_MASK: u32 = 0x3f;
 
-const DATA_BREAK: u32 = 1 << 10;
-
 /// QEMU sourced constant.
 pub const PL011_FIFO_DEPTH: usize = 16_usize;
 
@@ -75,7 +73,7 @@ pub struct PL011State {
     pub dmacr: u32,
     pub int_enabled: u32,
     pub int_level: u32,
-    pub read_fifo: [u32; PL011_FIFO_DEPTH],
+    pub read_fifo: [registers::Data; PL011_FIFO_DEPTH],
     pub ilpr: u32,
     pub ibrd: u32,
     pub fbrd: u32,
@@ -210,10 +208,11 @@ impl PL011State {
                     self.int_level &= !registers::INT_RX;
                 }
                 // Update error bits.
-                self.receive_status_error_clear = c.to_be_bytes()[3].into();
+                self.receive_status_error_clear.set_from_data(c);
                 self.update();
                 // Must call qemu_chr_fe_accept_input, so return Continue:
-                return std::ops::ControlFlow::Continue(c.into());
+                let c = u32::from(c);
+                return std::ops::ControlFlow::Continue(u64::from(c));
             }
             Ok(RSR) => u8::from(self.receive_status_error_clear).into(),
             Ok(FR) => u16::from(self.flags).into(),
@@ -406,7 +405,7 @@ impl PL011State {
 
     fn loopback_break(&mut self, enable: bool) {
         if enable {
-            self.loopback_tx(DATA_BREAK);
+            self.loopback_tx(registers::Data::BREAK.into());
         }
     }
 
@@ -470,7 +469,7 @@ impl PL011State {
 
     pub fn event(&mut self, event: QEMUChrEvent) {
         if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
-            self.put_fifo(DATA_BREAK);
+            self.put_fifo(registers::Data::BREAK.into());
         }
     }
 
@@ -497,7 +496,7 @@ impl PL011State {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
-        self.read_fifo[slot] = value;
+        self.read_fifo[slot] = registers::Data::from(value);
         self.read_count += 1;
         self.flags.set_receive_fifo_empty(false);
         if self.read_count == depth {
