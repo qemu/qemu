@@ -45,7 +45,7 @@ pub const TYPE_PL011_LUMINARY: &::std::ffi::CStr = c_str!("pl011_luminary");
 #[doc(alias = "offset")]
 #[allow(non_camel_case_types)]
 #[repr(u64)]
-#[derive(Debug)]
+#[derive(Debug, qemu_api_macros::TryInto)]
 pub enum RegisterOffset {
     /// Data Register
     ///
@@ -100,32 +100,6 @@ pub enum RegisterOffset {
     DMACR = 0x048,
     ///// Reserved, offsets `0x04C` to `0x07C`.
     //Reserved = 0x04C,
-}
-
-impl core::convert::TryFrom<u64> for RegisterOffset {
-    type Error = u64;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        macro_rules! case {
-            ($($discriminant:ident),*$(,)*) => {
-                /* check that matching on all macro arguments compiles, which means we are not
-                 * missing any enum value; if the type definition ever changes this will stop
-                 * compiling.
-                 */
-                const fn _assert_exhaustive(val: RegisterOffset) {
-                    match val {
-                        $(RegisterOffset::$discriminant => (),)*
-                    }
-                }
-
-                match value {
-                    $(x if x == Self::$discriminant as u64 => Ok(Self::$discriminant),)*
-                     _ => Err(value),
-                }
-            }
-        }
-        case! { DR, RSR, FR, FBRD, ILPR, IBRD, LCR_H, CR, FLS, IMSC, RIS, MIS, ICR, DMACR }
-    }
 }
 
 pub mod registers {
