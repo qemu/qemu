@@ -168,6 +168,7 @@ static void uhi_fstat_cb(CPUState *cs, uint64_t ret, int err)
 
     if (!err) {
         CPUMIPSState *env = cpu_env(cs);
+        bool swap_needed = HOST_BIG_ENDIAN != mips_env_is_bigendian(env);
         target_ulong addr = env->active_tc.gpr[5];
         UHIStat *dst = lock_user(VERIFY_WRITE, addr, sizeof(UHIStat), 1);
         struct gdb_stat s;
@@ -179,19 +180,35 @@ static void uhi_fstat_cb(CPUState *cs, uint64_t ret, int err)
         memcpy(&s, dst, sizeof(struct gdb_stat));
         memset(dst, 0, sizeof(UHIStat));
 
-        dst->uhi_st_dev = tswap16(be32_to_cpu(s.gdb_st_dev));
-        dst->uhi_st_ino = tswap16(be32_to_cpu(s.gdb_st_ino));
-        dst->uhi_st_mode = tswap32(be32_to_cpu(s.gdb_st_mode));
-        dst->uhi_st_nlink = tswap16(be32_to_cpu(s.gdb_st_nlink));
-        dst->uhi_st_uid = tswap16(be32_to_cpu(s.gdb_st_uid));
-        dst->uhi_st_gid = tswap16(be32_to_cpu(s.gdb_st_gid));
-        dst->uhi_st_rdev = tswap16(be32_to_cpu(s.gdb_st_rdev));
-        dst->uhi_st_size = tswap64(be64_to_cpu(s.gdb_st_size));
-        dst->uhi_st_atime = tswap64(be32_to_cpu(s.gdb_st_atime));
-        dst->uhi_st_mtime = tswap64(be32_to_cpu(s.gdb_st_mtime));
-        dst->uhi_st_ctime = tswap64(be32_to_cpu(s.gdb_st_ctime));
-        dst->uhi_st_blksize = tswap64(be64_to_cpu(s.gdb_st_blksize));
-        dst->uhi_st_blocks = tswap64(be64_to_cpu(s.gdb_st_blocks));
+        dst->uhi_st_dev = be32_to_cpu(s.gdb_st_dev);
+        dst->uhi_st_ino = be32_to_cpu(s.gdb_st_ino);
+        dst->uhi_st_mode = be32_to_cpu(s.gdb_st_mode);
+        dst->uhi_st_nlink = be32_to_cpu(s.gdb_st_nlink);
+        dst->uhi_st_uid = be32_to_cpu(s.gdb_st_uid);
+        dst->uhi_st_gid = be32_to_cpu(s.gdb_st_gid);
+        dst->uhi_st_rdev = be32_to_cpu(s.gdb_st_rdev);
+        dst->uhi_st_size = be64_to_cpu(s.gdb_st_size);
+        dst->uhi_st_atime = be32_to_cpu(s.gdb_st_atime);
+        dst->uhi_st_mtime = be32_to_cpu(s.gdb_st_mtime);
+        dst->uhi_st_ctime = be32_to_cpu(s.gdb_st_ctime);
+        dst->uhi_st_blksize = be64_to_cpu(s.gdb_st_blksize);
+        dst->uhi_st_blocks = be64_to_cpu(s.gdb_st_blocks);
+
+        if (swap_needed) {
+            dst->uhi_st_dev = bswap16(dst->uhi_st_dev);
+            dst->uhi_st_ino = bswap16(dst->uhi_st_ino);
+            dst->uhi_st_mode = bswap32(dst->uhi_st_mode);
+            dst->uhi_st_nlink = bswap16(dst->uhi_st_nlink);
+            dst->uhi_st_uid = bswap16(dst->uhi_st_uid);
+            dst->uhi_st_gid = bswap16(dst->uhi_st_gid);
+            dst->uhi_st_rdev = bswap16(dst->uhi_st_rdev);
+            dst->uhi_st_size = bswap64(dst->uhi_st_size);
+            dst->uhi_st_atime = bswap64(dst->uhi_st_atime);
+            dst->uhi_st_mtime = bswap64(dst->uhi_st_mtime);
+            dst->uhi_st_ctime = bswap64(dst->uhi_st_ctime);
+            dst->uhi_st_blksize = bswap64(dst->uhi_st_blksize);
+            dst->uhi_st_blocks = bswap64(dst->uhi_st_blocks);
+        }
 
         unlock_user(dst, addr, sizeof(UHIStat));
     }
