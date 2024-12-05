@@ -21,6 +21,7 @@ _qemu_api_rs = static_library(
       'src/definitions.rs',
       'src/device_class.rs',
       'src/offset_of.rs',
+      'src/prelude.rs',
       'src/vmstate.rs',
       'src/zeroable.rs',
     ],

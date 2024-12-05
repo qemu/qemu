@@ -7,6 +7,11 @@
 #[rustfmt::skip]
 pub mod bindings;
 
+// preserve one-item-per-"use" syntax, it is clearer
+// for prelude-like modules
+#[rustfmt::skip]
+pub mod prelude;
+
 pub mod c_str;
 pub mod cell;
 pub mod definitions;
