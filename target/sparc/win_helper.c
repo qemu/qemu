@@ -24,29 +24,19 @@
 #include "exec/helper-proto.h"
 #include "trace.h"
 
-static inline void memcpy32(target_ulong *dst, const target_ulong *src)
-{
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    dst[3] = src[3];
-    dst[4] = src[4];
-    dst[5] = src[5];
-    dst[6] = src[6];
-    dst[7] = src[7];
-}
-
 void cpu_set_cwp(CPUSPARCState *env, int new_cwp)
 {
     /* put the modified wrap registers at their proper location */
     if (env->cwp == env->nwindows - 1) {
-        memcpy32(env->regbase, env->regbase + env->nwindows * 16);
+        memcpy(env->regbase, env->regbase + env->nwindows * 16,
+               sizeof(env->gregs));
     }
     env->cwp = new_cwp;
 
     /* put the wrap registers at their temporary location */
     if (new_cwp == env->nwindows - 1) {
-        memcpy32(env->regbase + env->nwindows * 16, env->regbase);
+        memcpy(env->regbase + env->nwindows * 16, env->regbase,
+               sizeof(env->gregs));
     }
     env->regwptr = env->regbase + (new_cwp * 16);
 }
@@ -361,8 +351,8 @@ void cpu_gl_switch_gregs(CPUSPARCState *env, uint32_t new_gl)
     dst = get_gl_gregset(env, env->gl);
 
     if (src != dst) {
-        memcpy32(dst, env->gregs);
-        memcpy32(env->gregs, src);
+        memcpy(dst, env->gregs, sizeof(env->gregs));
+        memcpy(env->gregs, src, sizeof(env->gregs));
     }
 }
 
@@ -393,8 +383,8 @@ void cpu_change_pstate(CPUSPARCState *env, uint32_t new_pstate)
         /* Switch global register bank */
         src = get_gregset(env, new_pstate_regs);
         dst = get_gregset(env, pstate_regs);
-        memcpy32(dst, env->gregs);
-        memcpy32(env->gregs, src);
+        memcpy(dst, env->gregs, sizeof(env->gregs));
+        memcpy(env->gregs, src, sizeof(env->gregs));
     } else {
         trace_win_helper_no_switch_pstate(new_pstate_regs);
     }
