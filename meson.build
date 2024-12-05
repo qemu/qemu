@@ -3782,6 +3782,7 @@ subdir('tcg')
 subdir('fpu')
 subdir('accel')
 subdir('plugins')
+subdir('panda')
 subdir('ebpf')
 
 if 'CONFIG_TCG' in config_all_accel
@@ -4277,7 +4278,7 @@ foreach target : target_dirs
                link_args: link_args,
                win_subsystem: exe['win_subsystem'])
     
-    emulator = shared_library('panda_' + target_name, exe['sources'],
+    emulator = shared_library('panda-' + target, exe['sources'],
                install: true,
                c_args: c_args,
                dependencies: arch_deps + exe['dependencies'],
