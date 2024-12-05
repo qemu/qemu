@@ -91,6 +91,7 @@ tests_arm_system_thorough = [
   'arm_smdkc210',
   'arm_sx1',
   'arm_vexpress',
+  'arm_virt',
   'arm_tuxrun',
 ]
 
