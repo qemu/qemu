@@ -106,6 +106,7 @@ class Panda():
         self.qlog = QEMU_Log_Manager(self)
         self.build_dir = None
         self.plugin_path = plugin_path
+        self.target = "softmmu"
 
         self.serial_unconsumed_data = b''
 
@@ -160,7 +161,7 @@ class Panda():
             environ["PANDA_LIB"] = self.libpanda_path = libpanda_path
         else:
             build_dir = self.get_build_dir()
-            lib_paths = ["libpanda-{0}.so".format(self.arch_name), "{0}-softmmu/libpanda-{0}.so".format(self.arch_name)]
+            lib_paths = [f"libpanda-{self.arch_name}-{self.target}.so", f"{self.arch_name}-softmmu/libpanda-{self.arch_name}-{self.target}.so"]
             # Select the first path that exists - we'll have libpanda-{arch}.so for a system install versus arch-softmmu/libpanda-arch.so for a build
             for p in lib_paths:
                 if isfile(pjoin(build_dir, p)):
@@ -175,7 +176,7 @@ class Panda():
 
         self.libpanda = self.ffi.dlopen(self.libpanda_path, self.ffi.RTLD_GLOBAL)
         from os.path import join
-        pandummy_path = join(dirname(self.libpanda_path),'panda/core/libpandacore.so')
+        pandummy_path = join(dirname(self.libpanda_path),'contrib/plugins/libpanda_plugin_interface.so')
         self.pandummy = self.ffi.dlopen(pandummy_path)
         self.C = self.ffi.dlopen(None)
 
@@ -315,7 +316,7 @@ class Panda():
         panda_arch_support = import_module(f".autogen.panda_{self.arch_name}_{self.bits}",package='pandare')
 
         ffi = panda_arch_support.ffi
-        self.callback, self.callback_dictionary = get_cbs(ffi)
+        # self.callback, self.callback_dictionary = get_cbs(ffi)
 
         return ffi
 
@@ -2731,6 +2732,7 @@ class Panda():
         Callbacks can be called as @panda.cb_XYZ in which case they'll take default arguments and be named the same as the decorated function
         Or they can be called as @panda.cb_XYZ(name='A', procname='B', enabled=True). Defaults: name is function name, procname=None, enabled=True unless procname set
         '''
+        breakpoint()
         cbs = [i for i in dir(self.libpanda) if i.startswith("qemu_plugin_register_") and i.endswith("_cb")]
         for cb_name in cbs:
             reg_fn = getattr(self.libpanda,cb_name)

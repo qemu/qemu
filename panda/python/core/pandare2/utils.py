@@ -175,7 +175,7 @@ class plugin_list(dict):
             self._panda.load_plugin(plugin_name)
         return super().__getitem__(plugin_name)
 
-def _find_build_dir(arch_name, find_executable=False):
+def _find_build_dir(arch_name, find_executable=False, mode="softmmu"):
     '''
     Internal function to return the build directory for the specified architecture
     '''
@@ -187,12 +187,12 @@ def _find_build_dir(arch_name, find_executable=False):
 
     arch_dir = f"{arch_name}-softmmu"
     file_name = f"panda-system-{arch_name}" if find_executable else \
-                f"libpanda-{arch_name}.so"
+                f"libpanda-{arch_name}-{mode}.so"
 
     # system path could have panda-system-X or libpanda-X.so. Others would have an arch_name - softmmu directory
     pot_paths = [system_build,
                  pjoin(python_package, arch_dir),
-                 pjoin(local_build, arch_dir)]
+                 pjoin(local_build)]
 
     if find_executable and 'PATH' in environ:
         # If we're looking for the panda executable, also search the user's path
@@ -213,7 +213,7 @@ def _find_build_dir(arch_name, find_executable=False):
                         f"Searched for {arch_dir}/{file_name} in:\n{searched_paths}"))
 
 
-def find_build_dir(arch_name=None, find_executable=False):
+def find_build_dir(arch_name=None, find_executable=False, mode="softmmu"):
     '''
     Find directory containing the binaries we care about (i.e., ~git/panda/build). If
     find_executable is False, we're looking for [arch]-softmmu/libpanda-[arch].so. If
@@ -235,7 +235,7 @@ def find_build_dir(arch_name=None, find_executable=False):
         e = None
         for arch in arches:
             try:
-                return _find_build_dir(arch, find_executable)
+                return _find_build_dir(arch, mode, find_executable)
             except RuntimeError as _e:
                 e = _e
         if e:
