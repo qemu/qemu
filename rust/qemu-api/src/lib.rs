@@ -12,6 +12,7 @@ pub mod bindings;
 #[rustfmt::skip]
 pub mod prelude;
 
+pub mod bitops;
 pub mod c_str;
 pub mod cell;
 pub mod definitions;
