@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 5%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 6%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -274,6 +274,26 @@ Patch66: kvm-migration-Ensure-vmstate_save-sets-errp.patch
 Patch67: kvm-vfio-container-Fix-container-object-destruction.patch
 # For RHEL-68289 - [RHEL-9.6] QEMU core dump on applying merge property to memory backend
 Patch68: kvm-hostmem-Apply-merge-property-after-the-memory-region.patch
+# For RHEL-69477 - qemu crashed when migrate vm with multiqueue from rhel9.4 to rhel9.6
+Patch69: kvm-virtio-net-Add-queues-before-loading-them.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch70: kvm-docs-system-s390x-bootdevices-Update-loadparm-docume.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch71: kvm-docs-system-bootindex-Make-it-clear-that-s390x-can-a.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch72: kvm-hw-s390x-Restrict-loadparm-property-to-devices-that-.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch73: kvm-hw-Add-loadparm-property-to-scsi-disk-devices-for-bo.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch74: kvm-scsi-fix-allocation-for-s390x-loadparm.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch75: kvm-pc-bios-s390x-Initialize-cdrom-type-to-false-for-eac.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch76: kvm-pc-bios-s390x-Initialize-machine-loadparm-before-pro.patch
+# For RHEL-68440 - The new "boot order" feature is sometimes not working as expected [RHEL 9]
+Patch77: kvm-pc-bios-s390-ccw-Re-initialize-receive-queue-index-b.patch
+# For RHEL-61633 - Qemu-kvm  crashed  if  no display device setting and switching display by remote-viewer [rhel-9]
+Patch78: kvm-vnc-fix-crash-when-no-console-attached.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1340,6 +1360,24 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Thu Dec 05 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-6
+- kvm-virtio-net-Add-queues-before-loading-them.patch [RHEL-69477]
+- kvm-docs-system-s390x-bootdevices-Update-loadparm-docume.patch [RHEL-68440]
+- kvm-docs-system-bootindex-Make-it-clear-that-s390x-can-a.patch [RHEL-68440]
+- kvm-hw-s390x-Restrict-loadparm-property-to-devices-that-.patch [RHEL-68440]
+- kvm-hw-Add-loadparm-property-to-scsi-disk-devices-for-bo.patch [RHEL-68440]
+- kvm-scsi-fix-allocation-for-s390x-loadparm.patch [RHEL-68440]
+- kvm-pc-bios-s390x-Initialize-cdrom-type-to-false-for-eac.patch [RHEL-68440]
+- kvm-pc-bios-s390x-Initialize-machine-loadparm-before-pro.patch [RHEL-68440]
+- kvm-pc-bios-s390-ccw-Re-initialize-receive-queue-index-b.patch [RHEL-68440]
+- kvm-vnc-fix-crash-when-no-console-attached.patch [RHEL-61633]
+- Resolves: RHEL-69477
+  (qemu crashed when migrate vm with multiqueue from rhel9.4 to rhel9.6)
+- Resolves: RHEL-68440
+  (The new "boot order" feature is sometimes not working as expected [RHEL 9])
+- Resolves: RHEL-61633
+  (Qemu-kvm  crashed  if  no display device setting and switching display by remote-viewer [rhel-9])
+
 * Mon Nov 25 2024 Jon Maloy <jmaloy@redhat.com> - 9.1.0-5
 - kvm-vfio-container-Fix-container-object-destruction.patch [RHEL-67935]
 - kvm-hostmem-Apply-merge-property-after-the-memory-region.patch [RHEL-68289]
