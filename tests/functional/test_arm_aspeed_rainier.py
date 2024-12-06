@@ -36,5 +36,29 @@ class RainierMachine(AspeedTest):
         self.wait_for_console_pattern('mmcblk0: p1 p2 p3 p4 p5 p6 p7')
         self.wait_for_console_pattern('IBM eBMC (OpenBMC for IBM Enterprise')
 
+    ASSET_DEBIAN_LINUX_ARMHF_DEB = Asset(
+            ('http://snapshot.debian.org/archive/debian/20220606T211338Z/pool/main/l/linux/linux-image-5.17.0-2-armmp_5.17.6-1%2Bb1_armhf.deb'),
+        '8acb2b4439faedc2f3ed4bdb2847ad4f6e0491f73debaeb7f660c8abe4dcdc0e')
+
+    def test_arm_debian_kernel_boot(self):
+        self.set_machine('rainier-bmc')
+
+        deb_path = self.ASSET_DEBIAN_LINUX_ARMHF_DEB.fetch()
+
+        kernel_path = self.extract_from_deb(deb_path, '/boot/vmlinuz-5.17.0-2-armmp')
+        dtb_path = self.extract_from_deb(deb_path,
+                '/usr/lib/linux-image-5.17.0-2-armmp/aspeed-bmc-ibm-rainier.dtb')
+
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', dtb_path,
+                         '-net', 'nic')
+        self.vm.launch()
+
+        self.wait_for_console_pattern("Booting Linux on physical CPU 0xf00")
+        self.wait_for_console_pattern("SMP: Total of 2 processors activated")
+        self.wait_for_console_pattern("No filesystem could mount root")
+
+
 if __name__ == '__main__':
     AspeedTest.main()

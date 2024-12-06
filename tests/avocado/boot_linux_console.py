@@ -470,29 +470,3 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern('CPU1: thread -1, cpu 1, socket 0')
         self.wait_for_console_pattern(
                 'Give root password for system maintenance')
-
-    def test_arm_ast2600_debian(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:rainier-bmc
-        """
-        deb_url = ('http://snapshot.debian.org/archive/debian/'
-                   '20220606T211338Z/'
-                   'pool/main/l/linux/'
-                   'linux-image-5.17.0-2-armmp_5.17.6-1%2Bb1_armhf.deb')
-        deb_hash = '8acb2b4439faedc2f3ed4bdb2847ad4f6e0491f73debaeb7f660c8abe4dcdc0e'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
-                                    algorithm='sha256')
-        kernel_path = self.extract_from_deb(deb_path, '/boot/vmlinuz-5.17.0-2-armmp')
-        dtb_path = self.extract_from_deb(deb_path,
-                '/usr/lib/linux-image-5.17.0-2-armmp/aspeed-bmc-ibm-rainier.dtb')
-
-        self.vm.set_console()
-        self.vm.add_args('-kernel', kernel_path,
-                         '-dtb', dtb_path,
-                         '-net', 'nic')
-        self.vm.launch()
-        self.wait_for_console_pattern("Booting Linux on physical CPU 0xf00")
-        self.wait_for_console_pattern("SMP: Total of 2 processors activated")
-        self.wait_for_console_pattern("No filesystem could mount root")
-
