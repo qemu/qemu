@@ -1558,6 +1558,8 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
             qemu_file_set_error(f, ret);
             return ret;
         }
+        /* Remember that we did this */
+        s->block_inactive = true;
     }
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
