@@ -86,9 +86,14 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x3e00:    /* Coffee Lake */
     case 0x9B00:    /* Comet Lake */
         return 9;
+    case 0x8A00:    /* Ice Lake */
     case 0x4500:    /* Elkhart Lake */
+    case 0x4E00:    /* Jasper Lake */
         return 11;
     case 0x9A00:    /* Tiger Lake */
+    case 0x4C00:    /* Rocket Lake */
+    case 0x4600:    /* Alder Lake */
+    case 0xA700:    /* Raptor Lake */
         return 12;
     }
 
