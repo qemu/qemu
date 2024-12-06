@@ -1936,13 +1936,28 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
+
 {
-    g_assert_not_reached();
+    return hexagon_greg_read(env, reg);
 }
 
 uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
+
 {
-    g_assert_not_reached();
+    if (reg == HEX_GREG_G0 || reg == HEX_GREG_G2) {
+        return (uint64_t)(env->greg[reg]) |
+               (((uint64_t)(env->greg[reg + 1])) << 32);
+    }
+    switch (reg) {
+    case HEX_GREG_GPCYCLELO: {
+        target_ulong ssr = ARCH_GET_SYSTEM_REG(env, HEX_SREG_SSR);
+        int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
+        return ssr_ce ? hexagon_get_sys_pcycle_count(env) : 0;
+    }
+    default:
+        return (uint64_t)hexagon_greg_read(env, reg) |
+               ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
+    }
 }
 
 void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
