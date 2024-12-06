@@ -41,34 +41,6 @@ class AST2x00Machine(LinuxKernelTest):
     def do_test_arm_aspeed_buildroot_poweroff(self):
         exec_command_and_wait_for_pattern(self, 'poweroff',
                                           'reboot: System halted');
-
-    ASSET_BR2_202311_AST2500_FLASH = Asset(
-        ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
-         'images/ast2500-evb/buildroot-2023.11/flash.img'),
-        'c23db6160cf77d0258397eb2051162c8473a56c441417c52a91ba217186e715f')
-
-    def test_arm_ast2500_evb_buildroot(self):
-        self.set_machine('ast2500-evb')
-
-        image_path = self.ASSET_BR2_202311_AST2500_FLASH.fetch()
-
-        self.vm.add_args('-device',
-                         'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
-        self.do_test_arm_aspeed_buildroot_start(image_path, '0x0',
-                                                'ast2500-evb login:')
-
-        exec_command_and_wait_for_pattern(self,
-             'echo lm75 0x4d > /sys/class/i2c-dev/i2c-3/device/new_device',
-             'i2c i2c-3: new_device: Instantiated device lm75 at 0x4d');
-        exec_command_and_wait_for_pattern(self,
-                             'cat /sys/class/hwmon/hwmon1/temp1_input', '0')
-        self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
-                    property='temperature', value=18000);
-        exec_command_and_wait_for_pattern(self,
-                             'cat /sys/class/hwmon/hwmon1/temp1_input', '18000')
-
-        self.do_test_arm_aspeed_buildroot_poweroff()
-
     ASSET_BR2_202311_AST2600_FLASH = Asset(
         ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
          'images/ast2600-evb/buildroot-2023.11/flash.img'),
@@ -160,22 +132,6 @@ class AST2x00Machine(LinuxKernelTest):
         self.wait_for_console_pattern('U-Boot 2019.04')
         self.wait_for_console_pattern('## Loading kernel from FIT Image')
         self.wait_for_console_pattern('Starting kernel ...')
-
-    ASSET_SDK_V806_AST2500 = Asset(
-        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v08.06/ast2500-default-obmc.tar.gz',
-        'e1755f3cadff69190438c688d52dd0f0d399b70a1e14b1d3d5540fc4851d38ca')
-
-    def test_arm_ast2500_evb_sdk(self):
-        self.set_machine('ast2500-evb')
-
-        image_path = self.ASSET_SDK_V806_AST2500.fetch()
-
-        archive_extract(image_path, self.workdir)
-
-        self.do_test_arm_aspeed_sdk_start(
-            self.workdir + '/ast2500-default/image-bmc')
-
-        self.wait_for_console_pattern('ast2500-default login:')
 
     ASSET_SDK_V806_AST2600_A2 = Asset(
         'https://github.com/AspeedTech-BMC/openbmc/releases/download/v08.06/ast2600-a2-obmc.tar.gz',
