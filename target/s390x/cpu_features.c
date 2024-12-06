@@ -240,6 +240,7 @@ void s390_get_deprecated_features(S390FeatBitmap features)
 /* indexed by feature group number for easy lookup */
 static S390FeatGroupDef s390_feature_groups[] = {
     FEAT_GROUP_INIT("plo", PLO, "Perform-locked-operation facility"),
+    FEAT_GROUP_INIT("plo_ext", PLO_EXT, "PLO-extension facility"),
     FEAT_GROUP_INIT("tods", TOD_CLOCK_STEERING, "Tod-clock-steering facility"),
     FEAT_GROUP_INIT("gen13ptff", GEN13_PTFF, "PTFF enhancements introduced with z13"),
     FEAT_GROUP_INIT("gen17ptff", GEN17_PTFF, "PTFF enhancements introduced with gen17"),
