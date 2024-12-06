@@ -1547,19 +1547,18 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     }
 
     if (inactivate_disks) {
-        /* Inactivate before sending QEMU_VM_EOF so that the
-         * bdrv_activate_all() on the other end won't fail. */
-        ret = bdrv_inactivate_all();
-        if (ret) {
-            error_setg(&local_err, "%s: bdrv_inactivate_all() failed (%d)",
-                       __func__, ret);
+        /*
+         * Inactivate before sending QEMU_VM_EOF so that the
+         * bdrv_activate_all() on the other end won't fail.
+         */
+        if (!migration_block_inactivate()) {
+            error_setg(&local_err, "%s: bdrv_inactivate_all() failed",
+                       __func__);
             migrate_set_error(ms, local_err);
             error_report_err(local_err);
-            qemu_file_set_error(f, ret);
+            qemu_file_set_error(f, -EFAULT);
             return ret;
         }
-        /* Remember that we did this */
-        s->block_inactive = true;
     }
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
@@ -2123,7 +2122,6 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
 
 static void loadvm_postcopy_handle_run_bh(void *opaque)
 {
-    Error *local_err = NULL;
     MigrationIncomingState *mis = opaque;
 
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-enter");
@@ -2146,12 +2144,11 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
          * Make sure all file formats throw away their mutable metadata.
          * If we get an error here, just don't restart the VM yet.
          */
-        bdrv_activate_all(&local_err);
+        bool success = migration_block_activate(NULL);
+
         trace_vmstate_downtime_checkpoint("dst-postcopy-bh-cache-invalidated");
-        if (local_err) {
-            error_report_err(local_err);
-            local_err = NULL;
-        } else {
+
+        if (success) {
             vm_start();
         }
     } else {
@@ -3193,11 +3190,7 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
          * side of the migration take control of the images.
          */
         if (live && !saved_vm_running) {
-            ret = bdrv_inactivate_all();
-            if (ret) {
-                error_setg(errp, "%s: bdrv_inactivate_all() failed (%d)",
-                           __func__, ret);
-            }
+            migration_block_inactivate();
         }
     }
 
