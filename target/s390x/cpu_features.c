@@ -257,6 +257,8 @@ static S390FeatGroupDef s390_feature_groups[] = {
     FEAT_GROUP_INIT("msa11", MSA_EXT_11, "Message-security-assist-extension 11 facility"),
     FEAT_GROUP_INIT("msa11_pckmo", MSA_EXT_11_PCKMO, "Message-security-assist-extension 11 PCKMO subfunctions"),
     FEAT_GROUP_INIT("msa12", MSA_EXT_12, "Message-security-assist-extension 12 facility"),
+    FEAT_GROUP_INIT("msa13", MSA_EXT_13, "Message-security-assist-extension 13 facility"),
+    FEAT_GROUP_INIT("msa13_pckmo", MSA_EXT_13_PCKMO, "Message-security-assist-extension 13 PCKMO subfunctions"),
     FEAT_GROUP_INIT("mepochptff", MULTIPLE_EPOCH_PTFF, "PTFF enhancements introduced with Multiple-epoch facility"),
     FEAT_GROUP_INIT("esort", ENH_SORT, "Enhanced-sort facility"),
     FEAT_GROUP_INIT("deflate", DEFLATE_CONVERSION, "Deflate-conversion facility"),
