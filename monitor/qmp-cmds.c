@@ -96,21 +96,23 @@ void qmp_cont(Error **errp)
         }
     }
 
-    /* Continuing after completed migration. Images have been inactivated to
-     * allow the destination to take control. Need to get control back now.
-     *
-     * If there are no inactive block nodes (e.g. because the VM was just
-     * paused rather than completing a migration), bdrv_inactivate_all() simply
-     * doesn't do anything. */
-    bdrv_activate_all(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         autostart = 1;
     } else {
+        /*
+         * Continuing after completed migration. Images have been
+         * inactivated to allow the destination to take control. Need to
+         * get control back now.
+         *
+         * If there are no inactive block nodes (e.g. because the VM was
+         * just paused rather than completing a migration),
+         * bdrv_inactivate_all() simply doesn't do anything.
+         */
+        bdrv_activate_all(&local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
         vm_start();
     }
 }
