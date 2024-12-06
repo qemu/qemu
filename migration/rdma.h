@@ -33,13 +33,6 @@ void rdma_start_incoming_migration(InetSocketAddress *host_port, Error **errp);
 #define RAM_CONTROL_ROUND     1
 #define RAM_CONTROL_FINISH    3
 
-/*
- * Whenever this is found in the data stream, the flags
- * will be passed to rdma functions in the incoming-migration
- * side.
- */
-#define RAM_SAVE_FLAG_HOOK     0x80
-
 #define RAM_SAVE_CONTROL_NOT_SUPP -1000
 #define RAM_SAVE_CONTROL_DELAYED  -2000
 
