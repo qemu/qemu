@@ -291,7 +291,7 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename, void *data,
                          size_t len);
 
 /**
- * fw_cfg_add_from_generator:
+ * fw_cfg_add_file_from_generator:
  * @s: fw_cfg device being modified
  * @filename: name of new fw_cfg file item
  * @gen_id: name of object implementing FW_CFG_DATA_GENERATOR interface
@@ -307,8 +307,8 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename, void *data,
  *
  * Returns: %true on success, %false on error.
  */
-bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
-                               const char *gen_id, Error **errp);
+bool fw_cfg_add_file_from_generator(FWCfgState *s, const char *filename,
+                                    const char *gen_id, Error **errp);
 
 /**
  * fw_cfg_add_extra_pci_roots:
