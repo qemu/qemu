@@ -177,20 +177,27 @@ again:
         return -1;
     }
 
-    if (close_if_special_file(fd) < 0) {
-        return -1;
-    }
-
-    serrno = errno;
-    /* O_NONBLOCK was only needed to open the file. Let's drop it. We don't
-     * do that with O_PATH since fcntl(F_SETFL) isn't supported, and openat()
-     * ignored it anyway.
-     */
+    /* Only if O_PATH is not set ... */
     if (!(flags & O_PATH_9P_UTIL)) {
+        /*
+         * Prevent I/O on special files (device files, etc.) on host side,
+         * however it is safe and required to allow opening them with O_PATH,
+         * as this is limited to (required) path based operations only.
+         */
+        if (close_if_special_file(fd) < 0) {
+            return -1;
+        }
+
+        serrno = errno;
+        /*
+         * O_NONBLOCK was only needed to open the file. Let's drop it. We don't
+         * do that with O_PATH since fcntl(F_SETFL) isn't supported, and
+         * openat() ignored it anyway.
+         */
         ret = fcntl(fd, F_SETFL, flags);
         assert(!ret);
+        errno = serrno;
     }
-    errno = serrno;
     return fd;
 }
 
