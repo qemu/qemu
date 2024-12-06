@@ -14,6 +14,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "hw/hw.h"
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
@@ -721,6 +722,31 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
                                         4, &quirk->mem[1], 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    /*
+     * Allow user to override dsm size using x-igd-gms option, in multiples of
+     * 32MiB. This option should only be used when the desired size cannot be
+     * set from DVMT Pre-Allocated option in host BIOS.
+     */
+    if (vdev->igd_gms) {
+        if (gen < 8) {
+            if (vdev->igd_gms <= 0x10) {
+                gmch &= ~(IGD_GMCH_GEN6_GMS_MASK << IGD_GMCH_GEN6_GMS_SHIFT);
+                gmch |= vdev->igd_gms << IGD_GMCH_GEN6_GMS_SHIFT;
+            } else {
+                error_report(QERR_INVALID_PARAMETER_VALUE,
+                             "x-igd-gms", "0~0x10");
+            }
+        } else {
+            if (vdev->igd_gms <= 0x40) {
+                gmch &= ~(IGD_GMCH_GEN8_GMS_MASK << IGD_GMCH_GEN8_GMS_SHIFT);
+                gmch |= vdev->igd_gms << IGD_GMCH_GEN8_GMS_SHIFT;
+            } else {
+                error_report(QERR_INVALID_PARAMETER_VALUE,
+                             "x-igd-gms", "0~0x40");
+            }
+        }
+    }
 
     ggms_size = igd_gtt_memory_size(gen, gmch);
     gms_size = igd_stolen_memory_size(gen, gmch);
