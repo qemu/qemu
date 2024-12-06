@@ -135,6 +135,21 @@ static bool migration_needs_multiple_sockets(void)
     return migrate_multifd() || migrate_postcopy_preempt();
 }
 
+static RunState migration_get_target_runstate(void)
+{
+    /*
+     * When the global state is not migrated, it means we don't know the
+     * runstate of the src QEMU.  We don't have much choice but assuming
+     * the VM is running.  NOTE: this is pretty rare case, so far only Xen
+     * uses it.
+     */
+    if (!global_state_received()) {
+        return RUN_STATE_RUNNING;
+    }
+
+    return global_state_get_runstate();
+}
+
 static bool transport_supports_multi_channels(MigrationAddress *addr)
 {
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
@@ -735,8 +750,7 @@ static void process_incoming_migration_bh(void *opaque)
      * unless we really are starting the VM.
      */
     if (!migrate_late_block_activate() ||
-         (autostart && (!global_state_received() ||
-            runstate_is_live(global_state_get_runstate())))) {
+        (autostart && runstate_is_live(migration_get_target_runstate()))) {
         /* Make sure all file formats throw away their mutable metadata.
          * If we get an error here, just don't restart the VM yet. */
         bdrv_activate_all(&local_err);
@@ -759,8 +773,7 @@ static void process_incoming_migration_bh(void *opaque)
 
     dirty_bitmap_mig_before_vm_start();
 
-    if (!global_state_received() ||
-        runstate_is_live(global_state_get_runstate())) {
+    if (runstate_is_live(migration_get_target_runstate())) {
         if (autostart) {
             vm_start();
         } else {
