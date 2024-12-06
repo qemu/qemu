@@ -31,6 +31,7 @@ test_timeouts = {
   'arm_raspi2' : 120,
   'arm_tuxrun' : 240,
   'arm_sx1' : 360,
+  'intel_iommu': 300,
   'mips_malta' : 120,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
@@ -227,11 +228,12 @@ tests_x86_64_system_quick = [
 
 tests_x86_64_system_thorough = [
   'acpi_bits',
-  'x86_64_tuxrun',
+  'intel_iommu',
   'linux_initrd',
   'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
+  'x86_64_tuxrun',
 ]
 
 tests_xtensa_system_thorough = [
