@@ -633,6 +633,7 @@ F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
 F: docs/system/arm/cubieboard.rst
 F: hw/misc/axp209.c
+F: tests/functional/test_arm_cubieboard.py
 
 Allwinner-h3
 M: Niek Linnenbank <nieklinnenbank@gmail.com>
