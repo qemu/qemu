@@ -308,6 +308,14 @@
     S390_FEAT_DEFLATE_XPND, \
     S390_FEAT_DEFLATE_F0
 
+#define S390_FEAT_GROUP_CONCURRENT_FUNCTIONS \
+    S390_FEAT_CCF_BASE, \
+    S390_FEAT_PFCR_QAF, \
+    S390_FEAT_PFCR_CSDST, \
+    S390_FEAT_PFCR_CSDSTG, \
+    S390_FEAT_PFCR_CSTST, \
+    S390_FEAT_PFCR_CSTSTG
+
 /* cpu feature groups */
 static uint16_t group_PLO[] = {
     S390_FEAT_GROUP_PLO,
@@ -396,6 +404,10 @@ static uint16_t group_ENH_SORT[] = {
 
 static uint16_t group_DEFLATE_CONVERSION[] = {
     S390_FEAT_GROUP_DEFLATE_CONVERSION,
+};
+
+static uint16_t group_CONCURRENT_FUNCTIONS[] = {
+    S390_FEAT_GROUP_CONCURRENT_FUNCTIONS,
 };
 
 /* Base features (in order of release)
@@ -948,6 +960,7 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(MULTIPLE_EPOCH_PTFF),
     FEAT_GROUP_INITIALIZER(ENH_SORT),
     FEAT_GROUP_INITIALIZER(DEFLATE_CONVERSION),
+    FEAT_GROUP_INITIALIZER(CONCURRENT_FUNCTIONS),
 };
 
 #define QEMU_FEAT_INITIALIZER(_name)                   \
