@@ -22,7 +22,7 @@ test_timeouts = {
   'arm_aspeed_romulus' : 120,
   'arm_aspeed_ast2500' : 480,
   'arm_aspeed_ast2600' : 720,
-  'arm_aspeed' : 600,
+  'arm_aspeed_rainier' : 240,
   'arm_bpim2u' : 500,
   'arm_collie' : 180,
   'arm_orangepi' : 540,
@@ -69,12 +69,12 @@ tests_alpha_system_thorough = [
 ]
 
 tests_arm_system_thorough = [
-  'arm_aspeed',
   'arm_aspeed_ast1030',
   'arm_aspeed_palmetto',
   'arm_aspeed_romulus',
   'arm_aspeed_ast2500',
   'arm_aspeed_ast2600',
+  'arm_aspeed_rainier',
   'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',

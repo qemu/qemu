@@ -1,25 +1,13 @@
 #!/usr/bin/env python3
 #
-# Functional test that boots the ASPEED SoCs with firmware
-#
-# Copyright (C) 2022 ASPEED Technology Inc
+# Functional test that boots the ASPEED machines
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-import time
-import subprocess
-import tempfile
+from qemu_test import Asset
+from aspeed import AspeedTest
 
-from qemu_test import LinuxKernelTest, Asset
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import interrupt_interactive_console_until_pattern
-from qemu_test import has_cmd
-from qemu_test.utils import archive_extract
-from zipfile import ZipFile
-from unittest import skipUnless
-
-class AST2x00MachineMMC(LinuxKernelTest):
+class RainierMachine(AspeedTest):
 
     ASSET_RAINIER_EMMC = Asset(
         ('https://fileserver.linaro.org/s/B6pJTwWEkzSDi36/download/'
@@ -49,4 +37,4 @@ class AST2x00MachineMMC(LinuxKernelTest):
         self.wait_for_console_pattern('IBM eBMC (OpenBMC for IBM Enterprise')
 
 if __name__ == '__main__':
-    LinuxKernelTest.main()
+    AspeedTest.main()
