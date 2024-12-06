@@ -720,6 +720,7 @@ S: Odd Fixes
 F: hw/*/exynos*
 F: include/hw/*/exynos*
 F: docs/system/arm/exynos.rst
+F: tests/functional/test_arm_smdkc210.py
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
