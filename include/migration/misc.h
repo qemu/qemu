@@ -104,4 +104,8 @@ bool migration_incoming_postcopy_advised(void);
 /* True if background snapshot is active */
 bool migration_in_bg_snapshot(void);
 
+/* Wrapper for block active/inactive operations */
+bool migration_block_activate(Error **errp);
+bool migration_block_inactivate(void);
+
 #endif
