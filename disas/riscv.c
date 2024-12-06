@@ -2611,7 +2611,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             break;
         case 2: op = rv_op_c_li; break;
         case 3:
-            if (dec->cfg->ext_zcmop) {
+            if (dec->cfg && dec->cfg->ext_zcmop) {
                 if ((((inst >> 2) & 0b111111) == 0b100000) &&
                     (((inst >> 11) & 0b11) == 0b0)) {
                     unsigned int cmop_code = 0;
@@ -2712,7 +2712,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 op = rv_op_c_sqsp;
             } else {
                 op = rv_op_c_fsdsp;
-                if (dec->cfg->ext_zcmp && ((inst >> 12) & 0b01)) {
+                if (dec->cfg && dec->cfg->ext_zcmp && ((inst >> 12) & 0b01)) {
                     switch ((inst >> 8) & 0b01111) {
                     case 8:
                         if (((inst >> 4) & 0b01111) >= 4) {
@@ -2738,7 +2738,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 } else {
                     switch ((inst >> 10) & 0b011) {
                     case 0:
-                        if (!dec->cfg->ext_zcmt) {
+                        if (dec->cfg && !dec->cfg->ext_zcmt) {
                             break;
                         }
                         if (((inst >> 2) & 0xFF) >= 32) {
@@ -2748,7 +2748,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                         }
                         break;
                     case 3:
-                        if (!dec->cfg->ext_zcmp) {
+                        if (dec->cfg && !dec->cfg->ext_zcmp) {
                             break;
                         }
                         switch ((inst >> 5) & 0b011) {
@@ -2956,7 +2956,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             break;
         case 5:
             op = rv_op_auipc;
-            if (dec->cfg->ext_zicfilp &&
+            if (dec->cfg && dec->cfg->ext_zicfilp &&
                 (((inst >> 7) & 0b11111) == 0b00000)) {
                 op = rv_op_lpad;
             }
@@ -4058,7 +4058,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 2: op = rv_op_csrrs; break;
             case 3: op = rv_op_csrrc; break;
             case 4:
-                if (dec->cfg->ext_zimop) {
+                if (dec->cfg && dec->cfg->ext_zimop) {
                     int imm_mop5, imm_mop3, reg_num;
                     if ((extract32(inst, 22, 10) & 0b1011001111)
                         == 0b1000000111) {
@@ -5112,28 +5112,28 @@ static GString *format_inst(size_t tab, rv_decode *dec)
             g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
             break;
         case '3':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rd]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rd]);
             }
             break;
         case '4':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs1]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs1]);
             }
             break;
         case '5':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs2]);
             }
             break;
         case '6':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs3]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs3]);
@@ -5439,7 +5439,8 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
         const rv_opcode_data *opcode_data = decoders[i].opcode_data;
         void (*decode_func)(rv_decode *, rv_isa) = decoders[i].decode_func;
 
-        if (guard_func(cfg)) {
+        /* always_true_p don't dereference cfg */
+        if (((i == 0) || cfg) && guard_func(cfg)) {
             dec.opcode_data = opcode_data;
             decode_func(&dec, isa);
             if (dec.op != rv_op_illegal)
