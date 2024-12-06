@@ -71,6 +71,7 @@ tests_arm_system_thorough = [
   'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',
+  'arm_emcraft_sf2',
   'arm_integratorcp',
   'arm_orangepi',
   'arm_raspi2',

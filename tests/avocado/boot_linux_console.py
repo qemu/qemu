@@ -30,11 +30,6 @@ Round up to next power of 2
 def pow2ceil(x):
     return 1 if x == 0 else 2**(x - 1).bit_length()
 
-def file_truncate(path, size):
-    if size != os.path.getsize(path):
-        with open(path, 'ab+') as fd:
-            fd.truncate(size)
-
 """
 Expand file size to next power of 2
 """
@@ -136,45 +131,6 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
-
-    def test_arm_emcraft_sf2(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:emcraft-sf2
-        :avocado: tags=endian:little
-        :avocado: tags=u-boot
-        :avocado: tags=accel:tcg
-        """
-        self.require_netdev('user')
-
-        uboot_url = ('https://raw.githubusercontent.com/'
-                     'Subbaraya-Sundeep/qemu-test-binaries/'
-                     'fe371d32e50ca682391e1e70ab98c2942aeffb01/u-boot')
-        uboot_hash = 'cbb8cbab970f594bf6523b9855be209c08374ae2'
-        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
-        spi_url = ('https://raw.githubusercontent.com/'
-                   'Subbaraya-Sundeep/qemu-test-binaries/'
-                   'fe371d32e50ca682391e1e70ab98c2942aeffb01/spi.bin')
-        spi_hash = '65523a1835949b6f4553be96dec1b6a38fb05501'
-        spi_path = self.fetch_asset(spi_url, asset_hash=spi_hash)
-        spi_path_rw = os.path.join(self.workdir, os.path.basename(spi_path))
-        shutil.copy(spi_path, spi_path_rw)
-
-        file_truncate(spi_path_rw, 16 << 20) # Spansion S25FL128SDPBHICO is 16 MiB
-
-        self.vm.set_console()
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
-        self.vm.add_args('-kernel', uboot_path,
-                         '-append', kernel_command_line,
-                         '-drive', 'file=' + spi_path_rw + ',if=mtd,format=raw',
-                         '-no-reboot')
-        self.vm.launch()
-        self.wait_for_console_pattern('Enter \'help\' for a list')
-
-        exec_command_and_wait_for_pattern(self, 'ifconfig eth0 10.0.2.15',
-                                                 'eth0: link becomes ready')
-        exec_command_and_wait_for_pattern(self, 'ping -c 3 10.0.2.2',
-            '3 packets transmitted, 3 packets received, 0% packet loss')
 
     def test_arm_exynos4210_initrd(self):
         """
