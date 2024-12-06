@@ -111,4 +111,8 @@ bool migration_in_bg_snapshot(void);
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
 
+/* Wrapper for block active/inactive operations */
+bool migration_block_activate(Error **errp);
+bool migration_block_inactivate(void);
+
 #endif
