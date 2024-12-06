@@ -81,8 +81,10 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x2200:    /* Cherryview */
         return 8;
     case 0x1900:    /* Skylake */
+    case 0x3100:    /* Gemini Lake */
     case 0x5900:    /* Kaby Lake */
     case 0x3e00:    /* Coffee Lake */
+    case 0x9B00:    /* Comet Lake */
         return 9;
     case 0x4500:    /* Elkhart Lake */
         return 11;
