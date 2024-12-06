@@ -18,6 +18,7 @@ test_timeouts = {
   'aarch64_tuxrun' : 240,
   'aarch64_virt' : 720,
   'acpi_bits' : 420,
+  'arm_aspeed_palmetto' : 120,
   'arm_aspeed' : 600,
   'arm_bpim2u' : 500,
   'arm_collie' : 180,
@@ -67,6 +68,7 @@ tests_alpha_system_thorough = [
 tests_arm_system_thorough = [
   'arm_aspeed',
   'arm_aspeed_ast1030',
+  'arm_aspeed_palmetto',
   'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',

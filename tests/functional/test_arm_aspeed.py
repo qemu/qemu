@@ -37,16 +37,6 @@ class AST2x00Machine(LinuxKernelTest):
         self.wait_for_console_pattern("ftgmac100 1e660000.ethernet eth0: irq ")
         self.wait_for_console_pattern("systemd[1]: Set hostname to")
 
-    ASSET_PALMETTO_FLASH = Asset(
-        ('https://github.com/openbmc/openbmc/releases/download/2.9.0/'
-         'obmc-phosphor-image-palmetto.static.mtd'),
-        '3e13bbbc28e424865dc42f35ad672b10f2e82cdb11846bb28fa625b48beafd0d');
-
-    def test_arm_ast2400_palmetto_openbmc_v2_9_0(self):
-        image_path = self.ASSET_PALMETTO_FLASH.fetch()
-
-        self.do_test_arm_aspeed('palmetto-bmc', image_path)
-
     ASSET_ROMULUS_FLASH = Asset(
         ('https://github.com/openbmc/openbmc/releases/download/2.9.0/'
          'obmc-phosphor-image-romulus.static.mtd'),
