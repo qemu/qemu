@@ -116,6 +116,7 @@ DEF_FEAT(BEAR_ENH, "beareh", STFL, 193, "BEAR-enhancement facility")
 DEF_FEAT(RDP, "rdp", STFL, 194, "Reset-DAT-protection facility")
 DEF_FEAT(PAI, "pai", STFL, 196, "Processor-Activity-Instrumentation facility")
 DEF_FEAT(PAIE, "paie", STFL, 197, "Processor-Activity-Instrumentation extension-1")
+DEF_FEAT(CCF_BASE, "ccf-base", STFL, 201, "Concurrent-Functions facility")
 
 /* Features exposed via SCLP SCCB Byte 80 - 98  (bit numbers relative to byte-80) */
 DEF_FEAT(SIE_GSLS, "gsls", SCLP_CONF_CHAR, 40, "SIE: Guest-storage-limit-suppression facility")
@@ -413,3 +414,10 @@ DEF_FEAT(DEFLATE_F0, "dfltcc-f0", DFLTCC, 192, "DFLTCC format 0 parameter-block"
 /* Features exposed via the UV-CALL instruction */
 DEF_FEAT(UV_FEAT_AP, "appv", UV_FEAT_GUEST, 4, "AP instructions installed for secure guests")
 DEF_FEAT(UV_FEAT_AP_INTR, "appvi", UV_FEAT_GUEST, 5, "AP instructions interruption support for secure guests")
+
+/* Features exposed via the PFCR instruction (concurrent-functions facility). */
+DEF_FEAT(PFCR_QAF, "pfcr-qaf", PFCR, 0, "PFCR Query-Available-Functions")
+DEF_FEAT(PFCR_CSDST, "pfcr-csdst", PFCR, 1, "PFCR Compare-and-Swap-and-Double-Store (32)")
+DEF_FEAT(PFCR_CSDSTG, "pfcr-csdstg", PFCR, 2, "PFCR Compare-and-Swap-and-Double-Store (64)")
+DEF_FEAT(PFCR_CSTST, "pfcr-cstst", PFCR, 3, "PFCR Compare-and-Swap-and-Triple-Store (32)")
+DEF_FEAT(PFCR_CSTSTG, "pfcr-cststg", PFCR, 4, "PFCR Compare-and-Swap-and-Triple-Store (64)")

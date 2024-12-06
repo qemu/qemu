@@ -93,6 +93,7 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     case S390_FEAT_TYPE_KDSA:
     case S390_FEAT_TYPE_SORTL:
     case S390_FEAT_TYPE_DFLTCC:
+    case S390_FEAT_TYPE_PFCR:
         set_be_bit(0, data); /* query is always available */
         break;
     default:
@@ -263,6 +264,7 @@ static S390FeatGroupDef s390_feature_groups[] = {
     FEAT_GROUP_INIT("mepochptff", MULTIPLE_EPOCH_PTFF, "PTFF enhancements introduced with Multiple-epoch facility"),
     FEAT_GROUP_INIT("esort", ENH_SORT, "Enhanced-sort facility"),
     FEAT_GROUP_INIT("deflate", DEFLATE_CONVERSION, "Deflate-conversion facility"),
+    FEAT_GROUP_INIT("ccf", CONCURRENT_FUNCTIONS, "Concurrent-functions facility"),
 };
 
 const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group)
