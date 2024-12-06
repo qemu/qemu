@@ -6,7 +6,7 @@ use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
     ops::ControlFlow,
-    os::raw::{c_int, c_uint, c_void},
+    os::raw::{c_int, c_void},
 };
 
 use qemu_api::{
@@ -478,6 +478,12 @@ impl PL011State {
         self.read_count < self.fifo_depth()
     }
 
+    pub fn receive(&mut self, ch: u32) {
+        if !self.loopback_enabled() {
+            self.put_fifo(ch)
+        }
+    }
+
     pub fn event(&mut self, event: QEMUChrEvent) {
         if event == QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
             self.put_fifo(registers::Data::BREAK.into());
@@ -503,7 +509,7 @@ impl PL011State {
         1
     }
 
-    pub fn put_fifo(&mut self, value: c_uint) {
+    pub fn put_fifo(&mut self, value: u32) {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
@@ -626,12 +632,9 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
     let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     unsafe {
-        if state.as_ref().loopback_enabled() {
-            return;
-        }
         if size > 0 {
             debug_assert!(!buf.is_null());
-            state.as_mut().put_fifo(c_uint::from(buf.read_volatile()))
+            state.as_mut().receive(u32::from(buf.read_volatile()));
         }
     }
 }
