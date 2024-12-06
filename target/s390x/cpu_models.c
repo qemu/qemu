@@ -512,6 +512,7 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_PFCR_CSDSTG, S390_FEAT_CCF_BASE },
         { S390_FEAT_PFCR_CSTST, S390_FEAT_CCF_BASE },
         { S390_FEAT_PFCR_CSTSTG, S390_FEAT_CCF_BASE },
+        { S390_FEAT_INEFF_NC_TX, S390_FEAT_TRANSACTIONAL_EXE },
     };
     int i;
 
