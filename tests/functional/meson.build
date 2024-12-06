@@ -66,6 +66,7 @@ tests_alpha_system_thorough = [
 
 tests_arm_system_thorough = [
   'arm_aspeed',
+  'arm_aspeed_ast1030',
   'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',
