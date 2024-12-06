@@ -561,6 +561,13 @@ static uint16_t base_GEN15_GA1[] = {
 
 #define base_GEN16_GA1 EmptyFeat
 
+static uint16_t base_GEN17_GA1[] = {
+    S390_FEAT_MISC_INSTRUCTION_EXT4,
+    S390_FEAT_SIF,
+    S390_FEAT_GROUP_MSA_EXT_12,
+    S390_FEAT_GROUP_PLO_EXT,
+};
+
 /* Full features (in order of release)
  * Automatically includes corresponding base features.
  * Full features are all features this hardware supports even if kvm/QEMU do not
@@ -715,6 +722,20 @@ static uint16_t full_GEN16_GA1[] = {
     S390_FEAT_UV_FEAT_AP_INTR,
 };
 
+static uint16_t full_GEN17_GA1[] = {
+    S390_FEAT_VECTOR_ENH3,
+    S390_FEAT_VECTOR_PACKED_DECIMAL_ENH3,
+    S390_FEAT_INEFF_NC_TX,
+    S390_FEAT_GROUP_GEN17_PTFF,
+    S390_FEAT_GROUP_MSA_EXT_10,
+    S390_FEAT_GROUP_MSA_EXT_10_PCKMO,
+    S390_FEAT_GROUP_MSA_EXT_11,
+    S390_FEAT_GROUP_MSA_EXT_11_PCKMO,
+    S390_FEAT_GROUP_MSA_EXT_13,
+    S390_FEAT_GROUP_MSA_EXT_13_PCKMO,
+    S390_FEAT_GROUP_CONCURRENT_FUNCTIONS,
+};
+
 
 /* Default features (in order of release)
  * Automatically includes corresponding base features.
@@ -808,6 +829,17 @@ static uint16_t default_GEN16_GA1[] = {
     S390_FEAT_RDP,
     S390_FEAT_PAI,
     S390_FEAT_PAIE,
+};
+
+static uint16_t default_GEN17_GA1[] = {
+    S390_FEAT_VECTOR_ENH3,
+    S390_FEAT_VECTOR_PACKED_DECIMAL_ENH3,
+    S390_FEAT_GROUP_MSA_EXT_10,
+    S390_FEAT_GROUP_MSA_EXT_10_PCKMO,
+    S390_FEAT_GROUP_MSA_EXT_11,
+    S390_FEAT_GROUP_MSA_EXT_11_PCKMO,
+    S390_FEAT_GROUP_MSA_EXT_13,
+    S390_FEAT_GROUP_MSA_EXT_13_PCKMO,
 };
 
 /* QEMU (CPU model) features */
@@ -958,6 +990,7 @@ static CpuFeatDefSpec CpuFeatDef[] = {
     CPU_FEAT_INITIALIZER(GEN14_GA2),
     CPU_FEAT_INITIALIZER(GEN15_GA1),
     CPU_FEAT_INITIALIZER(GEN16_GA1),
+    CPU_FEAT_INITIALIZER(GEN17_GA1),
 };
 
 #define FEAT_GROUP_INITIALIZER(_name)                  \
