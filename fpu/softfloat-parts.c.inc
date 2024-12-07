@@ -562,8 +562,9 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
  * Requires A and C extracted into a double-sized structure to provide the
  * extra space for the widening multiply.
  */
-static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
-                                   FloatPartsN *c, int flags, float_status *s)
+static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
+                                          FloatPartsN *c, int scale,
+                                          int flags, float_status *s)
 {
     int ab_mask, abc_mask;
     FloatPartsW p_widen, c_widen;
@@ -652,9 +653,11 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
     a->exp = p_widen.exp;
 
  return_normal:
+    /* TODO: Replace all use of float_muladd_halve_result with scale. */
     if (flags & float_muladd_halve_result) {
         a->exp -= 1;
     }
+    a->exp += scale;
  finish_sign:
     if (flags & float_muladd_negate_result) {
         a->sign ^= 1;
