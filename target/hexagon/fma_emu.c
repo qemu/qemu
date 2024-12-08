@@ -43,39 +43,29 @@
 
 #define WAY_BIG_EXP 4096
 
-typedef union {
-    double f;
-    uint64_t i;
-    struct {
-        uint64_t mant:52;
-        uint64_t exp:11;
-        uint64_t sign:1;
-    };
-} Double;
-
 static uint64_t float64_getmant(float64 f64)
 {
-    Double a = { .i = f64 };
+    uint64_t mant = extract64(f64, 0, 52);
     if (float64_is_normal(f64)) {
-        return a.mant | 1ULL << 52;
+        return mant | 1ULL << 52;
     }
     if (float64_is_zero(f64)) {
         return 0;
     }
     if (float64_is_denormal(f64)) {
-        return a.mant;
+        return mant;
     }
     return ~0ULL;
 }
 
 int32_t float64_getexp(float64 f64)
 {
-    Double a = { .i = f64 };
+    int exp = extract64(f64, 52, 11);
     if (float64_is_normal(f64)) {
-        return a.exp;
+        return exp;
     }
     if (float64_is_denormal(f64)) {
-        return a.exp + 1;
+        return exp + 1;
     }
     return -1;
 }
@@ -346,6 +336,8 @@ float32 infinite_float32(uint8_t sign)
 /* Return a maximum finite value with the requested sign */
 static float64 accum_round_float64(Accum a, float_status *fp_status)
 {
+    uint64_t ret;
+
     if ((int128_gethi(a.mant) == 0) && (int128_getlo(a.mant) == 0)
         && ((a.guard | a.round | a.sticky) == 0)) {
         /* result zero */
@@ -455,22 +447,16 @@ static float64 accum_round_float64(Accum a, float_status *fp_status)
         }
     }
     /* Underflow? */
-    if (int128_getlo(a.mant) & (1ULL << DF_MANTBITS)) {
+    ret = int128_getlo(a.mant);
+    if (ret & (1ULL << DF_MANTBITS)) {
         /* Leading one means: No, we're normal. So, we should be done... */
-        Double ret;
-        ret.i = 0;
-        ret.sign = a.sign;
-        ret.exp = a.exp;
-        ret.mant = int128_getlo(a.mant);
-        return ret.i;
+        ret = deposit64(ret, 52, 11, a.exp);
+    } else {
+        assert(a.exp == 1);
+        ret = deposit64(ret, 52, 11, 0);
     }
-    assert(a.exp == 1);
-    Double ret;
-    ret.i = 0;
-    ret.sign = a.sign;
-    ret.exp = 0;
-    ret.mant = int128_getlo(a.mant);
-    return ret.i;
+    ret = deposit64(ret, 63, 1, a.sign);
+    return ret;
 }
 
 float64 internal_mpyhh(float64 a, float64 b,
