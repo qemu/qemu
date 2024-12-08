@@ -354,135 +354,134 @@ float32 infinite_float32(uint8_t sign)
 }
 
 /* Return a maximum finite value with the requested sign */
-#define GEN_XF_ROUND(SUFFIX, MANTBITS, INF_EXP, INTERNAL_TYPE) \
-static SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
-{ \
-    if ((int128_gethi(a.mant) == 0) && (int128_getlo(a.mant) == 0) \
-        && ((a.guard | a.round | a.sticky) == 0)) { \
-        /* result zero */ \
-        switch (fp_status->float_rounding_mode) { \
-        case float_round_down: \
-            return zero_##SUFFIX(1); \
-        default: \
-            return zero_##SUFFIX(0); \
-        } \
-    } \
-    /* Normalize right */ \
-    /* We want MANTBITS bits of mantissa plus the leading one. */ \
-    /* That means that we want MANTBITS+1 bits, or 0x000000000000FF_FFFF */ \
-    /* So we need to normalize right while the high word is non-zero and \
-    * while the low word is nonzero when masked with 0xffe0_0000_0000_0000 */ \
-    while ((int128_gethi(a.mant) != 0) || \
-           ((int128_getlo(a.mant) >> (MANTBITS + 1)) != 0)) { \
-        a = accum_norm_right(a, 1); \
-    } \
-    /* \
-     * OK, now normalize left \
-     * We want to normalize left until we have a leading one in bit 24 \
-     * Theoretically, we only need to shift a maximum of one to the left if we \
-     * shifted out lots of bits from B, or if we had no shift / 1 shift sticky \
-     * should be 0  \
-     */ \
-    while ((int128_getlo(a.mant) & (1ULL << MANTBITS)) == 0) { \
-        a = accum_norm_left(a); \
-    } \
-    /* \
-     * OK, now we might need to denormalize because of potential underflow. \
-     * We need to do this before rounding, and rounding might make us normal \
-     * again \
-     */ \
-    while (a.exp <= 0) { \
-        a = accum_norm_right(a, 1 - a.exp); \
-        /* \
-         * Do we have underflow? \
-         * That's when we get an inexact answer because we ran out of bits \
-         * in a denormal. \
-         */ \
-        if (a.guard || a.round || a.sticky) { \
-            float_raise(float_flag_underflow, fp_status); \
-        } \
-    } \
-    /* OK, we're relatively canonical... now we need to round */ \
-    if (a.guard || a.round || a.sticky) { \
-        float_raise(float_flag_inexact, fp_status); \
-        switch (fp_status->float_rounding_mode) { \
-        case float_round_to_zero: \
-            /* Chop and we're done */ \
-            break; \
-        case float_round_up: \
-            if (a.sign == 0) { \
-                a.mant = int128_add(a.mant, int128_one()); \
-            } \
-            break; \
-        case float_round_down: \
-            if (a.sign != 0) { \
-                a.mant = int128_add(a.mant, int128_one()); \
-            } \
-            break; \
-        default: \
-            if (a.round || a.sticky) { \
-                /* round up if guard is 1, down if guard is zero */ \
-                a.mant = int128_add(a.mant, int128_make64(a.guard)); \
-            } else if (a.guard) { \
-                /* exactly .5, round up if odd */ \
-                a.mant = int128_add(a.mant, int128_and(a.mant, int128_one())); \
-            } \
-            break; \
-        } \
-    } \
-    /* \
-     * OK, now we might have carried all the way up. \
-     * So we might need to shr once \
-     * at least we know that the lsb should be zero if we rounded and \
-     * got a carry out... \
-     */ \
-    if ((int128_getlo(a.mant) >> (MANTBITS + 1)) != 0) { \
-        a = accum_norm_right(a, 1); \
-    } \
-    /* Overflow? */ \
-    if (a.exp >= INF_EXP) { \
-        /* Yep, inf result */ \
-        float_raise(float_flag_overflow, fp_status); \
-        float_raise(float_flag_inexact, fp_status); \
-        switch (fp_status->float_rounding_mode) { \
-        case float_round_to_zero: \
-            return maxfinite_##SUFFIX(a.sign); \
-        case float_round_up: \
-            if (a.sign == 0) { \
-                return infinite_##SUFFIX(a.sign); \
-            } else { \
-                return maxfinite_##SUFFIX(a.sign); \
-            } \
-        case float_round_down: \
-            if (a.sign != 0) { \
-                return infinite_##SUFFIX(a.sign); \
-            } else { \
-                return maxfinite_##SUFFIX(a.sign); \
-            } \
-        default: \
-            return infinite_##SUFFIX(a.sign); \
-        } \
-    } \
-    /* Underflow? */ \
-    if (int128_getlo(a.mant) & (1ULL << MANTBITS)) { \
-        /* Leading one means: No, we're normal. So, we should be done... */ \
-        INTERNAL_TYPE ret; \
-        ret.i = 0; \
-        ret.sign = a.sign; \
-        ret.exp = a.exp; \
-        ret.mant = int128_getlo(a.mant); \
-        return ret.i; \
-    } \
-    assert(a.exp == 1); \
-    INTERNAL_TYPE ret; \
-    ret.i = 0; \
-    ret.sign = a.sign; \
-    ret.exp = 0; \
-    ret.mant = int128_getlo(a.mant); \
-    return ret.i; \
+static float64 accum_round_float64(Accum a, float_status *fp_status)
+{
+    if ((int128_gethi(a.mant) == 0) && (int128_getlo(a.mant) == 0)
+        && ((a.guard | a.round | a.sticky) == 0)) {
+        /* result zero */
+        switch (fp_status->float_rounding_mode) {
+        case float_round_down:
+            return zero_float64(1);
+        default:
+            return zero_float64(0);
+        }
+    }
+    /*
+     * Normalize right
+     * We want DF_MANTBITS bits of mantissa plus the leading one.
+     * That means that we want DF_MANTBITS+1 bits, or 0x000000000000FF_FFFF
+     * So we need to normalize right while the high word is non-zero and
+     * while the low word is nonzero when masked with 0xffe0_0000_0000_0000
+     */
+    while ((int128_gethi(a.mant) != 0) ||
+           ((int128_getlo(a.mant) >> (DF_MANTBITS + 1)) != 0)) {
+        a = accum_norm_right(a, 1);
+    }
+    /*
+     * OK, now normalize left
+     * We want to normalize left until we have a leading one in bit 24
+     * Theoretically, we only need to shift a maximum of one to the left if we
+     * shifted out lots of bits from B, or if we had no shift / 1 shift sticky
+     * should be 0
+     */
+    while ((int128_getlo(a.mant) & (1ULL << DF_MANTBITS)) == 0) {
+        a = accum_norm_left(a);
+    }
+    /*
+     * OK, now we might need to denormalize because of potential underflow.
+     * We need to do this before rounding, and rounding might make us normal
+     * again
+     */
+    while (a.exp <= 0) {
+        a = accum_norm_right(a, 1 - a.exp);
+        /*
+         * Do we have underflow?
+         * That's when we get an inexact answer because we ran out of bits
+         * in a denormal.
+         */
+        if (a.guard || a.round || a.sticky) {
+            float_raise(float_flag_underflow, fp_status);
+        }
+    }
+    /* OK, we're relatively canonical... now we need to round */
+    if (a.guard || a.round || a.sticky) {
+        float_raise(float_flag_inexact, fp_status);
+        switch (fp_status->float_rounding_mode) {
+        case float_round_to_zero:
+            /* Chop and we're done */
+            break;
+        case float_round_up:
+            if (a.sign == 0) {
+                a.mant = int128_add(a.mant, int128_one());
+            }
+            break;
+        case float_round_down:
+            if (a.sign != 0) {
+                a.mant = int128_add(a.mant, int128_one());
+            }
+            break;
+        default:
+            if (a.round || a.sticky) {
+                /* round up if guard is 1, down if guard is zero */
+                a.mant = int128_add(a.mant, int128_make64(a.guard));
+            } else if (a.guard) {
+                /* exactly .5, round up if odd */
+                a.mant = int128_add(a.mant, int128_and(a.mant, int128_one()));
+            }
+            break;
+        }
+    }
+    /*
+     * OK, now we might have carried all the way up.
+     * So we might need to shr once
+     * at least we know that the lsb should be zero if we rounded and
+     * got a carry out...
+     */
+    if ((int128_getlo(a.mant) >> (DF_MANTBITS + 1)) != 0) {
+        a = accum_norm_right(a, 1);
+    }
+    /* Overflow? */
+    if (a.exp >= DF_INF_EXP) {
+        /* Yep, inf result */
+        float_raise(float_flag_overflow, fp_status);
+        float_raise(float_flag_inexact, fp_status);
+        switch (fp_status->float_rounding_mode) {
+        case float_round_to_zero:
+            return maxfinite_float64(a.sign);
+        case float_round_up:
+            if (a.sign == 0) {
+                return infinite_float64(a.sign);
+            } else {
+                return maxfinite_float64(a.sign);
+            }
+        case float_round_down:
+            if (a.sign != 0) {
+                return infinite_float64(a.sign);
+            } else {
+                return maxfinite_float64(a.sign);
+            }
+        default:
+            return infinite_float64(a.sign);
+        }
+    }
+    /* Underflow? */
+    if (int128_getlo(a.mant) & (1ULL << DF_MANTBITS)) {
+        /* Leading one means: No, we're normal. So, we should be done... */
+        Double ret;
+        ret.i = 0;
+        ret.sign = a.sign;
+        ret.exp = a.exp;
+        ret.mant = int128_getlo(a.mant);
+        return ret.i;
+    }
+    assert(a.exp == 1);
+    Double ret;
+    ret.i = 0;
+    ret.sign = a.sign;
+    ret.exp = 0;
+    ret.mant = int128_getlo(a.mant);
+    return ret.i;
 }
-
-GEN_XF_ROUND(float64, DF_MANTBITS, DF_INF_EXP, Double)
 
 float64 internal_mpyhh(float64 a, float64 b,
                       unsigned long long int accumulated,
