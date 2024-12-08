@@ -15,7 +15,7 @@ use qemu_api::{
         qemu_irq, sysbus_connect_irq, sysbus_mmio_map, sysbus_realize_and_unref, CharBackend,
         Chardev, Clock, ClockEvent, MemoryRegion, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
     },
-    c_str,
+    c_str, impl_vmstate_forward,
     irq::InterruptSource,
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property},
@@ -61,6 +61,7 @@ impl DeviceId {
 #[repr(transparent)]
 #[derive(Debug, Default)]
 pub struct Fifo([registers::Data; PL011_FIFO_DEPTH as usize]);
+impl_vmstate_forward!(Fifo);
 
 impl Fifo {
     const fn len(&self) -> u32 {
