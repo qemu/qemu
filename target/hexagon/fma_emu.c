@@ -53,16 +53,6 @@ typedef union {
     };
 } Double;
 
-typedef union {
-    float f;
-    uint32_t i;
-    struct {
-        uint32_t mant:23;
-        uint32_t exp:8;
-        uint32_t sign:1;
-    };
-} Float;
-
 static uint64_t float64_getmant(float64 f64)
 {
     Double a = { .i = f64 };
@@ -92,12 +82,12 @@ int32_t float64_getexp(float64 f64)
 
 int32_t float32_getexp(float32 f32)
 {
-    Float a = { .i = f32 };
+    int exp = float32_getexp_raw(f32);
     if (float32_is_normal(f32)) {
-        return a.exp;
+        return exp;
     }
     if (float32_is_denormal(f32)) {
-        return a.exp + 1;
+        return exp + 1;
     }
     return -1;
 }
