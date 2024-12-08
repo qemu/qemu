@@ -82,38 +82,12 @@ int32_t float32_getexp(float32 f32)
     return -1;
 }
 
-static uint32_t int128_getw0(Int128 x)
-{
-    return int128_getlo(x);
-}
-
-static uint32_t int128_getw1(Int128 x)
-{
-    return int128_getlo(x) >> 32;
-}
-
 static Int128 int128_mul_6464(uint64_t ai, uint64_t bi)
 {
-    Int128 a, b;
-    uint64_t pp0, pp1a, pp1b, pp1s, pp2;
+    uint64_t l, h;
 
-    a = int128_make64(ai);
-    b = int128_make64(bi);
-    pp0 = (uint64_t)int128_getw0(a) * (uint64_t)int128_getw0(b);
-    pp1a = (uint64_t)int128_getw1(a) * (uint64_t)int128_getw0(b);
-    pp1b = (uint64_t)int128_getw1(b) * (uint64_t)int128_getw0(a);
-    pp2 = (uint64_t)int128_getw1(a) * (uint64_t)int128_getw1(b);
-
-    pp1s = pp1a + pp1b;
-    if ((pp1s < pp1a) || (pp1s < pp1b)) {
-        pp2 += (1ULL << 32);
-    }
-    uint64_t ret_low = pp0 + (pp1s << 32);
-    if ((ret_low < pp0) || (ret_low < (pp1s << 32))) {
-        pp2 += 1;
-    }
-
-    return int128_make128(ret_low, pp2 + (pp1s >> 32));
+    mulu64(&l, &h, ai, bi);
+    return int128_make128(l, h);
 }
 
 static Int128 int128_sub_borrow(Int128 a, Int128 b, int borrow)
