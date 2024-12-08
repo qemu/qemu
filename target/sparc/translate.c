@@ -1359,93 +1359,109 @@ static void gen_op_fabsq(TCGv_i128 dst, TCGv_i128 src)
 
 static void gen_op_fmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+    TCGv_i32 z = tcg_constant_i32(0);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, z);
 }
 
 static void gen_op_fmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+    TCGv_i32 z = tcg_constant_i32(0);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, z);
 }
 
 static void gen_op_fmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_c;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_c;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_c | float_muladd_negate_result;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c |
+                                   float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_c | float_muladd_negate_result;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c |
+                                   float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_result;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_result;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 /* Use muladd to compute (1 * src1) + src2 / 2 with one rounding. */
 static void gen_op_fhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(0);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(0);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 /* Use muladd to compute (1 * src1) - src2 / 2 with one rounding. */
 static void gen_op_fhsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_negate_c | float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fhsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_negate_c | float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 /* Use muladd to compute -((1 * src1) + src2 / 2) with one rounding. */
 static void gen_op_fnhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_negate_result | float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fnhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_negate_result | float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fpexception_im(DisasContext *dc, int ftt)
