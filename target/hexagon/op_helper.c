@@ -1054,7 +1054,7 @@ float32 HELPER(sffma)(CPUHexagonState *env, float32 RxV,
                       float32 RsV, float32 RtV)
 {
     arch_fpop_start(env);
-    RxV = internal_fmafx(RsV, RtV, RxV, 0, &env->fp_status);
+    RxV = float32_muladd(RsV, RtV, RxV, 0, &env->fp_status);
     arch_fpop_end(env);
     return RxV;
 }
