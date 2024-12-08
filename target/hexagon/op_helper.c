@@ -1096,10 +1096,9 @@ float32 HELPER(sffma_sc)(CPUHexagonState *env, float32 RxV,
 float32 HELPER(sffms)(CPUHexagonState *env, float32 RxV,
                       float32 RsV, float32 RtV)
 {
-    float32 neg_RsV;
     arch_fpop_start(env);
-    neg_RsV = float32_set_sign(RsV, float32_is_neg(RsV) ? 0 : 1);
-    RxV = internal_fmafx(neg_RsV, RtV, RxV, 0, &env->fp_status);
+    RxV = float32_muladd(RsV, RtV, RxV, float_muladd_negate_product,
+                         &env->fp_status);
     arch_fpop_end(env);
     return RxV;
 }
