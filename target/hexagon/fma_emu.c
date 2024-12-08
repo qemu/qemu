@@ -655,14 +655,6 @@ float32 internal_fmafx(float32 a, float32 b, float32 c, int scale,
     return accum_round_float32(result, fp_status);
 }
 
-float32 internal_mpyf(float32 a, float32 b, float_status *fp_status)
-{
-    if (float32_is_zero(a) || float32_is_zero(b)) {
-        return float32_mul(a, b, fp_status);
-    }
-    return internal_fmafx(a, b, float32_zero, 0, fp_status);
-}
-
 float64 internal_mpyhh(float64 a, float64 b,
                       unsigned long long int accumulated,
                       float_status *fp_status)

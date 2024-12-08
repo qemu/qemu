@@ -1045,7 +1045,7 @@ float32 HELPER(sfmpy)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = internal_mpyf(RsV, RtV, &env->fp_status);
+    RdV = float32_mul(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
