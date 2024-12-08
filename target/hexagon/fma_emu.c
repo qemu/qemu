@@ -455,7 +455,7 @@ float64 internal_mpyhh(float64 a, float64 b,
         float64_is_infinity(b)) {
         return float64_mul(a, b, fp_status);
     }
-    x.mant = int128_mul_6464(accumulated, 1);
+    x.mant = int128_make64(accumulated);
     x.sticky = sticky;
     prod = fGETUWORD(1, float64_getmant(a)) * fGETUWORD(1, float64_getmant(b));
     x.mant = int128_add(x.mant, int128_mul_6464(prod, 0x100000000ULL));
