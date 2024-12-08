@@ -140,6 +140,8 @@ typedef enum __attribute__((__packed__)) {
     float_round_to_odd       = 5,
     /* Not an IEEE rounding mode: round to closest odd, overflow to inf */
     float_round_to_odd_inf   = 6,
+    /* Not an IEEE rounding mode: round to nearest even, overflow to max */
+    float_round_nearest_even_max = 7,
 } FloatRoundMode;
 
 /*

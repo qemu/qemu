@@ -241,6 +241,9 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     int exp, flags = 0;
 
     switch (s->float_rounding_mode) {
+    case float_round_nearest_even_max:
+        overflow_norm = true;
+        /* fall through */
     case float_round_nearest_even:
         if (N > 64 && frac_lsb == 0) {
             inc = ((p->frac_hi & 1) || (p->frac_lo & round_mask) != frac_lsbm1
