@@ -90,21 +90,6 @@ int32_t float64_getexp(float64 f64)
     return -1;
 }
 
-static uint64_t float32_getmant(float32 f32)
-{
-    Float a = { .i = f32 };
-    if (float32_is_normal(f32)) {
-        return a.mant | 1ULL << 23;
-    }
-    if (float32_is_zero(f32)) {
-        return 0;
-    }
-    if (float32_is_denormal(f32)) {
-        return a.mant;
-    }
-    return ~0ULL;
-}
-
 int32_t float32_getexp(float32 f32)
 {
     Float a = { .i = f32 };
@@ -369,25 +354,6 @@ float32 infinite_float32(uint8_t sign)
 }
 
 /* Return a maximum finite value with the requested sign */
-static float32 maxfinite_float32(uint8_t sign)
-{
-    if (sign) {
-        return make_float32(SF_MINUS_MAXF);
-    } else {
-        return make_float32(SF_MAXF);
-    }
-}
-
-/* Return a zero value with requested sign */
-static float32 zero_float32(uint8_t sign)
-{
-    if (sign) {
-        return make_float32(0x80000000);
-    } else {
-        return float32_zero;
-    }
-}
-
 #define GEN_XF_ROUND(SUFFIX, MANTBITS, INF_EXP, INTERNAL_TYPE) \
 static SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
 { \
@@ -517,143 +483,6 @@ static SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
 }
 
 GEN_XF_ROUND(float64, DF_MANTBITS, DF_INF_EXP, Double)
-GEN_XF_ROUND(float32, SF_MANTBITS, SF_INF_EXP, Float)
-
-static bool is_inf_prod(float64 a, float64 b)
-{
-    return ((float64_is_infinity(a) && float64_is_infinity(b)) ||
-            (float64_is_infinity(a) && is_finite(b) && (!float64_is_zero(b))) ||
-            (float64_is_infinity(b) && is_finite(a) && (!float64_is_zero(a))));
-}
-
-static float64 special_fma(float64 a, float64 b, float64 c,
-                           float_status *fp_status)
-{
-    float64 ret = make_float64(0);
-
-    /*
-     * If A multiplied by B is an exact infinity and C is also an infinity
-     * but with the opposite sign, FMA returns NaN and raises invalid.
-     */
-    uint8_t a_sign = float64_is_neg(a);
-    uint8_t b_sign = float64_is_neg(b);
-    uint8_t c_sign = float64_is_neg(c);
-    if (is_inf_prod(a, b) && float64_is_infinity(c)) {
-        if ((a_sign ^ b_sign) != c_sign) {
-            ret = make_float64(DF_NAN);
-            float_raise(float_flag_invalid, fp_status);
-            return ret;
-        }
-    }
-    if ((float64_is_infinity(a) && float64_is_zero(b)) ||
-        (float64_is_zero(a) && float64_is_infinity(b))) {
-        ret = make_float64(DF_NAN);
-        float_raise(float_flag_invalid, fp_status);
-        return ret;
-    }
-    /*
-     * If none of the above checks are true and C is a NaN,
-     * a NaN shall be returned
-     * If A or B are NaN, a NAN shall be returned.
-     */
-    if (float64_is_any_nan(a) ||
-        float64_is_any_nan(b) ||
-        float64_is_any_nan(c)) {
-        if (float64_is_any_nan(a) && (fGETBIT(51, a) == 0)) {
-            float_raise(float_flag_invalid, fp_status);
-        }
-        if (float64_is_any_nan(b) && (fGETBIT(51, b) == 0)) {
-            float_raise(float_flag_invalid, fp_status);
-        }
-        if (float64_is_any_nan(c) && (fGETBIT(51, c) == 0)) {
-            float_raise(float_flag_invalid, fp_status);
-        }
-        ret = make_float64(DF_NAN);
-        return ret;
-    }
-    /*
-     * We have checked for adding opposite-signed infinities.
-     * Other infinities return infinity with the correct sign
-     */
-    if (float64_is_infinity(c)) {
-        ret = infinite_float64(c_sign);
-        return ret;
-    }
-    if (float64_is_infinity(a) || float64_is_infinity(b)) {
-        ret = infinite_float64(a_sign ^ b_sign);
-        return ret;
-    }
-    g_assert_not_reached();
-}
-
-static float32 special_fmaf(float32 a, float32 b, float32 c,
-                            float_status *fp_status)
-{
-    float64 aa, bb, cc;
-    aa = float32_to_float64(a, fp_status);
-    bb = float32_to_float64(b, fp_status);
-    cc = float32_to_float64(c, fp_status);
-    return float64_to_float32(special_fma(aa, bb, cc, fp_status), fp_status);
-}
-
-float32 internal_fmafx(float32 a, float32 b, float32 c, int scale,
-                       float_status *fp_status)
-{
-    Accum prod;
-    Accum acc;
-    Accum result;
-    accum_init(&prod);
-    accum_init(&acc);
-    accum_init(&result);
-
-    uint8_t a_sign = float32_is_neg(a);
-    uint8_t b_sign = float32_is_neg(b);
-    uint8_t c_sign = float32_is_neg(c);
-    if (float32_is_infinity(a) ||
-        float32_is_infinity(b) ||
-        float32_is_infinity(c)) {
-        return special_fmaf(a, b, c, fp_status);
-    }
-    if (float32_is_any_nan(a) ||
-        float32_is_any_nan(b) ||
-        float32_is_any_nan(c)) {
-        return special_fmaf(a, b, c, fp_status);
-    }
-    if ((scale == 0) && (float32_is_zero(a) || float32_is_zero(b))) {
-        float32 tmp = float32_mul(a, b, fp_status);
-        tmp = float32_add(tmp, c, fp_status);
-        return tmp;
-    }
-
-    /* (a * 2**b) * (c * 2**d) == a*c * 2**(b+d) */
-    prod.mant = int128_mul_6464(float32_getmant(a), float32_getmant(b));
-
-    /*
-     * Note: extracting the mantissa into an int is multiplying by
-     * 2**23, so adjust here
-     */
-    prod.exp = float32_getexp(a) + float32_getexp(b) - SF_BIAS - 23;
-    prod.sign = a_sign ^ b_sign;
-    if (float32_is_zero(a) || float32_is_zero(b)) {
-        prod.exp = -2 * WAY_BIG_EXP;
-    }
-    if ((scale > 0) && float32_is_denormal(c)) {
-        acc.mant = int128_mul_6464(0, 0);
-        acc.exp = -WAY_BIG_EXP;
-        acc.sign = c_sign;
-        acc.sticky = 1;
-        result = accum_add(prod, acc);
-    } else if (!float32_is_zero(c)) {
-        acc.mant = int128_mul_6464(float32_getmant(c), 1);
-        acc.exp = float32_getexp(c);
-        acc.sign = c_sign;
-        result = accum_add(prod, acc);
-    } else {
-        result = prod;
-    }
-    result.exp += scale;
-    return accum_round_float32(result, fp_status);
-}
 
 float64 internal_mpyhh(float64 a, float64 b,
                       unsigned long long int accumulated,
