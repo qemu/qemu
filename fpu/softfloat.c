@@ -2274,6 +2274,9 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
     if (unlikely(!can_use_fpu(s))) {
         goto soft;
     }
+    if (unlikely(flags & float_muladd_suppress_add_product_zero)) {
+        goto soft;
+    }
 
     float32_input_flush3(&ua.s, &ub.s, &uc.s, s);
     if (unlikely(!f32_is_zon3(ua, ub, uc))) {

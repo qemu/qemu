@@ -120,11 +120,16 @@ bfloat16 bfloat16_squash_input_denormal(bfloat16 a, float_status *status);
 | Using these differs from negating an input or output before calling
 | the muladd function in that this means that a NaN doesn't have its
 | sign bit inverted before it is propagated.
+|
+| With float_muladd_suppress_add_product_zero, if A or B is zero
+| such that the product is a true zero, then return C without addition.
+| This preserves the sign of C when C is +/- 0.  Used for Hexagon.
 *----------------------------------------------------------------------------*/
 enum {
     float_muladd_negate_c = 1,
     float_muladd_negate_product = 2,
     float_muladd_negate_result = 4,
+    float_muladd_suppress_add_product_zero = 8,
 };
 
 /*----------------------------------------------------------------------------
