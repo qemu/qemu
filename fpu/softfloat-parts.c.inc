@@ -653,10 +653,6 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
     a->exp = p_widen.exp;
 
  return_normal:
-    /* TODO: Replace all use of float_muladd_halve_result with scale. */
-    if (flags & float_muladd_halve_result) {
-        a->exp -= 1;
-    }
     a->exp += scale;
  finish_sign:
     if (flags & float_muladd_negate_result) {
