@@ -1851,11 +1851,11 @@ static bool fold_extu(OptContext *ctx, TCGOp *op)
         g_assert_not_reached();
     }
 
-    ctx->z_mask = z_mask;
     if (!type_change && fold_affected_mask(ctx, op, z_mask_old ^ z_mask)) {
         return true;
     }
-    return fold_masks(ctx, op);
+
+    return fold_masks_z(ctx, op, z_mask);
 }
 
 static bool fold_mb(OptContext *ctx, TCGOp *op)
