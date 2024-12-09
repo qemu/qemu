@@ -70,21 +70,24 @@ static uint64_t pnv_power8_homer_read(void *opaque, hwaddr addr,
     PnvHomer *homer = PNV_HOMER(opaque);
 
     switch (addr) {
-    case PNV8_OCC_PSTATE_VERSION:
-    case PNV8_OCC_PSTATE_MIN:
-    case PNV8_OCC_PSTATE_ID_ZERO:
-        return 0;
     case PNV8_OCC_PSTATE_VALID:
+        return 1;
     case PNV8_OCC_PSTATE_THROTTLE:
+        return 0;
+    case PNV8_OCC_PSTATE_VERSION:
+        return 0x02;
+    case PNV8_OCC_PSTATE_MIN:
+        return -2;
     case PNV8_OCC_PSTATE_NOM:
     case PNV8_OCC_PSTATE_TURBO:
-    case PNV8_OCC_PSTATE_ID_ONE:
+        return -1;
+    case PNV8_OCC_PSTATE_ULTRA_TURBO:
+        return 0;
+    case PNV8_OCC_PSTATE_ID_ZERO:
+        return 0;
     case PNV8_OCC_VDD_VOLTAGE_IDENTIFIER:
     case PNV8_OCC_VCS_VOLTAGE_IDENTIFIER:
         return 1;
-    case PNV8_OCC_PSTATE_ULTRA_TURBO:
-    case PNV8_OCC_PSTATE_ID_TWO:
-        return 2;
     case PNV8_OCC_PSTATE_DATA:
         return 0x1000000000000000;
     /* P8 frequency for 0, 1, and 2 pstates */
@@ -92,6 +95,10 @@ static uint64_t pnv_power8_homer_read(void *opaque, hwaddr addr,
     case PNV8_OCC_PSTATE_ONE_FREQUENCY:
     case PNV8_OCC_PSTATE_TWO_FREQUENCY:
         return 3000;
+    case PNV8_OCC_PSTATE_ID_ONE:
+        return -1;
+    case PNV8_OCC_PSTATE_ID_TWO:
+        return -2;
     }
     /* pstate table core max array */
     if (core_max_array(homer, addr)) {
@@ -192,11 +199,12 @@ static const TypeInfo pnv_homer_power8_type_info = {
 
 /* P9 Pstate table */
 
+#define PNV9_OCC_PSTATE_VALID            0xe2000
 #define PNV9_OCC_PSTATE_ID_ZERO          0xe2018
 #define PNV9_OCC_PSTATE_ID_ONE           0xe2020
 #define PNV9_OCC_PSTATE_ID_TWO           0xe2028
 #define PNV9_OCC_PSTATE_DATA             0xe2000
-#define PNV9_OCC_PSTATE_DATA_AREA        0xe2008
+#define PNV9_OCC_PSTATE_MINOR_VERSION    0xe2008
 #define PNV9_OCC_PSTATE_MIN              0xe2003
 #define PNV9_OCC_PSTATE_NOM              0xe2004
 #define PNV9_OCC_PSTATE_TURBO            0xe2005
@@ -211,7 +219,7 @@ static const TypeInfo pnv_homer_power8_type_info = {
 #define PNV9_OCC_PSTATE_TWO_FREQUENCY    0xe202c
 #define PNV9_OCC_ROLE_MASTER_OR_SLAVE    0xe2002
 #define PNV9_CORE_MAX_BASE               0xe2819
-
+#define PNV9_DYNAMIC_DATA_STATE          0xe2b80
 
 static uint64_t pnv_power9_homer_read(void *opaque, hwaddr addr,
                                       unsigned size)
@@ -219,11 +227,17 @@ static uint64_t pnv_power9_homer_read(void *opaque, hwaddr addr,
     PnvHomer *homer = PNV_HOMER(opaque);
 
     switch (addr) {
+    case PNV9_OCC_PSTATE_VALID:
+        return 1;
     case PNV9_OCC_MAX_PSTATE_ULTRA_TURBO:
     case PNV9_OCC_PSTATE_ID_ZERO:
         return 0;
-    case PNV9_OCC_PSTATE_DATA:
     case PNV9_OCC_ROLE_MASTER_OR_SLAVE:
+        if (homer->chip->chip_id == 0) {
+            return 0x1; /* master */
+        } else {
+            return 0x0; /* slave */
+        }
     case PNV9_OCC_PSTATE_NOM:
     case PNV9_OCC_PSTATE_TURBO:
     case PNV9_OCC_PSTATE_ID_ONE:
@@ -241,10 +255,13 @@ static uint64_t pnv_power9_homer_read(void *opaque, hwaddr addr,
         return 3000;
     case PNV9_OCC_PSTATE_MAJOR_VERSION:
         return 0x90;
+    case PNV9_OCC_PSTATE_MINOR_VERSION:
+        return 0x01;
     case PNV9_CHIP_HOMER_BASE:
-    case PNV9_OCC_PSTATE_DATA_AREA:
     case PNV9_CHIP_HOMER_IMAGE_POINTER:
         return 0x1000000000000000;
+    case PNV9_DYNAMIC_DATA_STATE:
+        return 0x03; /* active */
     }
     /* pstate table core max array */
     if (core_max_array(homer, addr)) {
