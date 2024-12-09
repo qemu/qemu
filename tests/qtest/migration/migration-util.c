@@ -284,6 +284,7 @@ bool probe_o_direct_support(const char *tmpfs)
 
     buf = qemu_try_memalign(len, len);
     g_assert(buf);
+    memset(buf, 0, len);
 
     ret = pwrite(fd, buf, len, offset);
     unlink(filename);
