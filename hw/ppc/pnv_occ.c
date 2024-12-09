@@ -32,22 +32,21 @@
 #define OCB_OCI_OCCMISC_OR      0x4022
 
 /* OCC sensors */
-#define OCC_SENSOR_DATA_BLOCK_OFFSET          0x580000
-#define OCC_SENSOR_DATA_VALID                 0x580001
-#define OCC_SENSOR_DATA_VERSION               0x580002
-#define OCC_SENSOR_DATA_READING_VERSION       0x580004
-#define OCC_SENSOR_DATA_NR_SENSORS            0x580008
-#define OCC_SENSOR_DATA_NAMES_OFFSET          0x580010
-#define OCC_SENSOR_DATA_READING_PING_OFFSET   0x580014
-#define OCC_SENSOR_DATA_READING_PONG_OFFSET   0x58000c
-#define OCC_SENSOR_DATA_NAME_LENGTH           0x58000d
-#define OCC_SENSOR_NAME_STRUCTURE_TYPE        0x580023
-#define OCC_SENSOR_LOC_CORE                   0x580022
-#define OCC_SENSOR_LOC_GPU                    0x580020
-#define OCC_SENSOR_TYPE_POWER                 0x580003
-#define OCC_SENSOR_NAME                       0x580005
-#define HWMON_SENSORS_MASK                    0x58001e
-#define SLW_IMAGE_BASE                        0x0
+#define OCC_SENSOR_DATA_BLOCK_OFFSET          0x0000
+#define OCC_SENSOR_DATA_VALID                 0x0001
+#define OCC_SENSOR_DATA_VERSION               0x0002
+#define OCC_SENSOR_DATA_READING_VERSION       0x0004
+#define OCC_SENSOR_DATA_NR_SENSORS            0x0008
+#define OCC_SENSOR_DATA_NAMES_OFFSET          0x0010
+#define OCC_SENSOR_DATA_READING_PING_OFFSET   0x0014
+#define OCC_SENSOR_DATA_READING_PONG_OFFSET   0x000c
+#define OCC_SENSOR_DATA_NAME_LENGTH           0x000d
+#define OCC_SENSOR_NAME_STRUCTURE_TYPE        0x0023
+#define OCC_SENSOR_LOC_CORE                   0x0022
+#define OCC_SENSOR_LOC_GPU                    0x0020
+#define OCC_SENSOR_TYPE_POWER                 0x0003
+#define OCC_SENSOR_NAME                       0x0005
+#define HWMON_SENSORS_MASK                    0x001e
 
 static void pnv_occ_set_misc(PnvOCC *occ, uint64_t val)
 {
@@ -129,8 +128,6 @@ static uint64_t pnv_occ_common_area_read(void *opaque, hwaddr addr,
     case HWMON_SENSORS_MASK:
     case OCC_SENSOR_LOC_GPU:
         return 0x8e00;
-    case SLW_IMAGE_BASE:
-        return 0x1000000000000000;
     }
     return 0;
 }
