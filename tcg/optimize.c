@@ -1294,7 +1294,8 @@ static bool fold_add2(OptContext *ctx, TCGOp *op)
 
 static bool fold_and(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z1, z2;
+    uint64_t z1, z2, z_mask, s_mask;
+    TempOptInfo *t1, *t2;
 
     if (fold_const2_commutative(ctx, op) ||
         fold_xi_to_i(ctx, op, 0) ||
@@ -1303,27 +1304,28 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
         return true;
     }
 
-    z1 = arg_info(op->args[1])->z_mask;
-    z2 = arg_info(op->args[2])->z_mask;
-    ctx->z_mask = z1 & z2;
-
-    /*
-     * Sign repetitions are perforce all identical, whether they are 1 or 0.
-     * Bitwise operations preserve the relative quantity of the repetitions.
-     */
-    ctx->s_mask = arg_info(op->args[1])->s_mask
-                & arg_info(op->args[2])->s_mask;
+    t1 = arg_info(op->args[1]);
+    t2 = arg_info(op->args[2]);
+    z1 = t1->z_mask;
+    z2 = t2->z_mask;
 
     /*
      * Known-zeros does not imply known-ones.  Therefore unless
      * arg2 is constant, we can't infer affected bits from it.
      */
-    if (arg_is_const(op->args[2]) &&
-        fold_affected_mask(ctx, op, z1 & ~z2)) {
+    if (ti_is_const(t2) && fold_affected_mask(ctx, op, z1 & ~z2)) {
         return true;
     }
 
-    return fold_masks(ctx, op);
+    z_mask = z1 & z2;
+
+    /*
+     * Sign repetitions are perforce all identical, whether they are 1 or 0.
+     * Bitwise operations preserve the relative quantity of the repetitions.
+     */
+    s_mask = t1->s_mask & t2->s_mask;
+
+    return fold_masks_zs(ctx, op, z_mask, s_mask);
 }
 
 static bool fold_andc(OptContext *ctx, TCGOp *op)
