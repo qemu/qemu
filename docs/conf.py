@@ -186,7 +186,7 @@ html_js_files = [
 ]
 
 html_context = {
-    "display_gitlab": True,
+    "source_url_prefix": "https://gitlab.com/qemu-project/qemu/-/blob/master/docs/",
     "gitlab_user": "qemu-project",
     "gitlab_repo": "qemu",
     "gitlab_version": "master",
