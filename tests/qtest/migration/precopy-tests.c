@@ -877,6 +877,11 @@ static void test_dirty_limit(void)
     migrate_cancel(from);
     wait_for_migration_status(from, "cancelled", NULL);
 
+    /* destination always fails after cancel */
+    migration_event_wait(to, "failed");
+    qtest_set_expected_status(to, EXIT_FAILURE);
+    qtest_quit(to);
+
     /* Check if dirty limit throttle switched off, set timeout 1ms */
     do {
         throttle_us_per_full =
