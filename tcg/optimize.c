@@ -2387,8 +2387,7 @@ static bool fold_negsetcond(OptContext *ctx, TCGOp *op)
     }
 
     /* Value is {0,-1} so all bits are repetitions of the sign. */
-    ctx->s_mask = -1;
-    return false;
+    return fold_masks_s(ctx, op, -1);
 }
 
 static bool fold_setcond2(OptContext *ctx, TCGOp *op)
