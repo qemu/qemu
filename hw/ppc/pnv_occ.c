@@ -682,11 +682,11 @@ static bool occ_init_homer_memory(PnvOCC *occ, Error **errp)
         static_data.v2.pstate_turbo = -1;
         static_data.v2.pstate_ultra_turbo = 0;
         static_data.v2.pstates[0].id = 0;
-        static_data.v2.pstates[1].freq_khz = cpu_to_be32(3000);
+        static_data.v2.pstates[1].freq_khz = cpu_to_be32(4000000);
         static_data.v2.pstates[1].id = -1;
-        static_data.v2.pstates[1].freq_khz = cpu_to_be32(3000);
+        static_data.v2.pstates[1].freq_khz = cpu_to_be32(3000000);
         static_data.v2.pstates[2].id = -2;
-        static_data.v2.pstates[2].freq_khz = cpu_to_be32(3000);
+        static_data.v2.pstates[2].freq_khz = cpu_to_be32(2000000);
         for (i = 0; i < chip->nr_cores; i++) {
             static_data.v2.core_max[i] = 1;
         }
@@ -702,11 +702,11 @@ static bool occ_init_homer_memory(PnvOCC *occ, Error **errp)
         static_data.v9.pstate_turbo = 1;
         static_data.v9.pstate_ultra_turbo = 0;
         static_data.v9.pstates[0].id = 0;
-        static_data.v9.pstates[0].freq_khz = cpu_to_be32(3000);
+        static_data.v9.pstates[0].freq_khz = cpu_to_be32(4000000);
         static_data.v9.pstates[1].id = 1;
-        static_data.v9.pstates[1].freq_khz = cpu_to_be32(3000);
+        static_data.v9.pstates[1].freq_khz = cpu_to_be32(3000000);
         static_data.v9.pstates[2].id = 2;
-        static_data.v9.pstates[2].freq_khz = cpu_to_be32(3000);
+        static_data.v9.pstates[2].freq_khz = cpu_to_be32(2000000);
         for (i = 0; i < chip->nr_cores; i++) {
             static_data.v9.core_max[i] = 1;
         }
