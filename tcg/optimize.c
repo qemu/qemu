@@ -1778,49 +1778,44 @@ static bool fold_extract2(OptContext *ctx, TCGOp *op)
 
 static bool fold_exts(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask_old, s_mask, z_mask, sign;
+    uint64_t s_mask_old, s_mask, z_mask;
     bool type_change = false;
+    TempOptInfo *t1;
 
     if (fold_const1(ctx, op)) {
         return true;
     }
 
-    z_mask = arg_info(op->args[1])->z_mask;
-    s_mask = arg_info(op->args[1])->s_mask;
+    t1 = arg_info(op->args[1]);
+    z_mask = t1->z_mask;
+    s_mask = t1->s_mask;
     s_mask_old = s_mask;
 
     switch (op->opc) {
     CASE_OP_32_64(ext8s):
-        sign = INT8_MIN;
-        z_mask = (uint8_t)z_mask;
+        s_mask |= INT8_MIN;
+        z_mask = (int8_t)z_mask;
         break;
     CASE_OP_32_64(ext16s):
-        sign = INT16_MIN;
-        z_mask = (uint16_t)z_mask;
+        s_mask |= INT16_MIN;
+        z_mask = (int16_t)z_mask;
         break;
     case INDEX_op_ext_i32_i64:
         type_change = true;
         QEMU_FALLTHROUGH;
     case INDEX_op_ext32s_i64:
-        sign = INT32_MIN;
-        z_mask = (uint32_t)z_mask;
+        s_mask |= INT32_MIN;
+        z_mask = (int32_t)z_mask;
         break;
     default:
         g_assert_not_reached();
     }
 
-    if (z_mask & sign) {
-        z_mask |= sign;
-    }
-    s_mask |= sign << 1;
-
-    ctx->z_mask = z_mask;
-    ctx->s_mask = s_mask;
     if (0 && !type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
         return true;
     }
 
-    return fold_masks(ctx, op);
+    return fold_masks_zs(ctx, op, z_mask, s_mask);
 }
 
 static bool fold_extu(OptContext *ctx, TCGOp *op)
