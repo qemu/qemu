@@ -1482,10 +1482,7 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
     uint64_t z_mask, o_mask, s_mask, a_mask;
     TempOptInfo *t1, *t2;
 
-    if (fold_const2(ctx, op) ||
-        fold_xx_to_i(ctx, op, 0) ||
-        fold_xi_to_x(ctx, op, 0) ||
-        fold_ix_to_not(ctx, op, -1)) {
+    if (fold_const2(ctx, op)) {
         return true;
     }
 
@@ -1509,6 +1506,10 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
         }
         op->args[2] = arg_new_constant(ctx, ~ti_const_val(t2));
         return fold_and(ctx, op);
+    }
+    if (fold_xx_to_i(ctx, op, 0) ||
+        fold_ix_to_not(ctx, op, -1)) {
+        return true;
     }
 
     z_mask = t1->z_mask & ~t2->o_mask;
