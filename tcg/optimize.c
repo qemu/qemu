@@ -2480,7 +2480,7 @@ static bool fold_cmp_vec(OptContext *ctx, TCGOp *op)
     if (swap_commutative(NO_DEST, &op->args[1], &op->args[2])) {
         op->args[3] = tcg_swap_cond(op->args[3]);
     }
-    return false;
+    return finish_folding(ctx, op);
 }
 
 static bool fold_cmpsel_vec(OptContext *ctx, TCGOp *op)
