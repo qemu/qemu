@@ -41,6 +41,9 @@ DECLARE_INSTANCE_CHECKER(PnvOCC, PNV10_OCC, TYPE_PNV10_OCC)
 struct PnvOCC {
     DeviceState xd;
 
+    /* OCC dynamic model is driven by this timer. */
+    QEMUTimer state_machine_timer;
+
     /* OCC Misc interrupt */
     uint64_t occmisc;
 

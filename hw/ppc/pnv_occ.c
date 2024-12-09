@@ -35,6 +35,7 @@
 #define OCB_OCI_OCCMISC_AND     0x4021
 #define OCB_OCI_OCCMISC_OR      0x4022
 #define   OCCMISC_PSI_IRQ       PPC_BIT(0)
+#define   OCCMISC_IRQ_SHMEM     PPC_BIT(3)
 
 /* OCC sensors */
 #define OCC_SENSOR_DATA_BLOCK_OFFSET          0x0000
@@ -65,6 +66,11 @@ static void pnv_occ_set_misc(PnvOCC *occ, uint64_t val)
      * really correct (but skiboot is okay with it).
      */
     qemu_set_irq(occ->psi_irq, !!(val & OCCMISC_PSI_IRQ));
+}
+
+static void pnv_occ_raise_msg_irq(PnvOCC *occ)
+{
+    pnv_occ_set_misc(occ, occ->occmisc | OCCMISC_PSI_IRQ | OCCMISC_IRQ_SHMEM);
 }
 
 static uint64_t pnv_occ_power8_xscom_read(void *opaque, hwaddr addr,
@@ -281,6 +287,20 @@ static const TypeInfo pnv_occ_power10_type_info = {
 };
 
 static bool occ_init_homer_memory(PnvOCC *occ, Error **errp);
+static bool occ_model_tick(PnvOCC *occ);
+
+/* Relatively arbitrary */
+#define OCC_POLL_MS 100
+
+static void occ_state_machine_timer(void *opaque)
+{
+    PnvOCC *occ = opaque;
+    uint64_t next = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + OCC_POLL_MS;
+
+    if (occ_model_tick(occ)) {
+        timer_mod(&occ->state_machine_timer, next);
+    }
+}
 
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
@@ -306,6 +326,10 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
                           PNV_OCC_SENSOR_DATA_BLOCK_SIZE);
 
     qdev_init_gpio_out(dev, &occ->psi_irq, 1);
+
+    timer_init_ms(&occ->state_machine_timer, QEMU_CLOCK_VIRTUAL,
+                  occ_state_machine_timer, occ);
+    timer_mod(&occ->state_machine_timer, OCC_POLL_MS);
 }
 
 static const Property pnv_occ_properties[] = {
@@ -647,6 +671,27 @@ static bool occ_write_static_data(PnvOCC *occ,
     return true;
 }
 
+static bool occ_read_dynamic_data(PnvOCC *occ,
+                                  struct occ_dynamic_data *dynamic_data,
+                                  Error **errp)
+{
+    PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
+    PnvHomer *homer = occ->homer;
+    hwaddr static_addr = homer->base + poc->opal_shared_memory_offset;
+    hwaddr dynamic_addr = static_addr + OPAL_DYNAMIC_DATA_OFFSET;
+    MemTxResult ret;
+
+    ret = address_space_read(&address_space_memory, dynamic_addr,
+                             MEMTXATTRS_UNSPECIFIED, dynamic_data,
+                             sizeof(*dynamic_data));
+    if (ret != MEMTX_OK) {
+        error_setg(errp, "OCC: cannot read OCC-OPAL dynamic data");
+        return false;
+    }
+
+    return true;
+}
+
 static bool occ_write_dynamic_data(PnvOCC *occ,
                                   struct occ_dynamic_data *dynamic_data,
                                   Error **errp)
@@ -663,6 +708,107 @@ static bool occ_write_dynamic_data(PnvOCC *occ,
     if (ret != MEMTX_OK) {
         error_setg(errp, "OCC: cannot write OCC-OPAL dynamic data");
         return false;
+    }
+
+    return true;
+}
+
+static bool occ_opal_send_response(PnvOCC *occ,
+                                   struct occ_dynamic_data *dynamic_data,
+                                   enum occ_response_status status,
+                                   uint8_t *data, uint16_t datalen)
+{
+    struct opal_command_buffer *cmd = &dynamic_data->cmd;
+    struct occ_response_buffer *rsp = &dynamic_data->rsp;
+
+    rsp->request_id = cmd->request_id;
+    rsp->cmd = cmd->cmd;
+    rsp->status = status;
+    rsp->data_size = cpu_to_be16(datalen);
+    if (datalen) {
+        memcpy(rsp->data, data, datalen);
+    }
+    if (!occ_write_dynamic_data(occ, dynamic_data, NULL)) {
+        return false;
+    }
+    /* Would be a memory barrier here */
+    rsp->flag = OCC_FLAG_RSP_READY;
+    cmd->flag = 0;
+    if (!occ_write_dynamic_data(occ, dynamic_data, NULL)) {
+        return false;
+    }
+
+    pnv_occ_raise_msg_irq(occ);
+
+    return true;
+}
+
+/* Returns error status */
+static bool occ_opal_process_command(PnvOCC *occ,
+                                     struct occ_dynamic_data *dynamic_data)
+{
+    struct opal_command_buffer *cmd = &dynamic_data->cmd;
+    struct occ_response_buffer *rsp = &dynamic_data->rsp;
+
+    if (rsp->flag == 0) {
+        /* Spend one "tick" in the in-progress state */
+        rsp->flag = OCC_FLAG_CMD_IN_PROGRESS;
+        return occ_write_dynamic_data(occ, dynamic_data, NULL);
+    } else if (rsp->flag != OCC_FLAG_CMD_IN_PROGRESS) {
+        return occ_opal_send_response(occ, dynamic_data,
+                                      OCC_RSP_INTERNAL_ERROR,
+                                      NULL, 0);
+    }
+
+    switch (cmd->cmd) {
+    case 0xD1: { /* SET_POWER_CAP */
+        uint16_t data;
+        if (be16_to_cpu(cmd->data_size) != 2) {
+            return occ_opal_send_response(occ, dynamic_data,
+                                          OCC_RSP_INVALID_CMD_DATA_LENGTH,
+                                          (uint8_t *)&dynamic_data->cur_pwr_cap,
+                                          2);
+        }
+        data = be16_to_cpu(*(uint16_t *)cmd->data);
+        if (data == 0) { /* clear power cap */
+            dynamic_data->pwr_cap_type = 0x00; /* none */
+            data = PCAP_MAX_POWER_W;
+        } else {
+            dynamic_data->pwr_cap_type = 0x02; /* user set in-band */
+            if (data < PCAP_HARD_MIN_POWER_W) {
+                data = PCAP_HARD_MIN_POWER_W;
+            } else if (data > PCAP_MAX_POWER_W) {
+                data = PCAP_MAX_POWER_W;
+            }
+        }
+        dynamic_data->cur_pwr_cap = cpu_to_be16(data);
+        return occ_opal_send_response(occ, dynamic_data,
+                                      OCC_RSP_SUCCESS,
+                                      (uint8_t *)&dynamic_data->cur_pwr_cap, 2);
+    }
+
+    default:
+        return occ_opal_send_response(occ, dynamic_data,
+                                      OCC_RSP_INVALID_COMMAND,
+                                      NULL, 0);
+    }
+    g_assert_not_reached();
+}
+
+static bool occ_model_tick(PnvOCC *occ)
+{
+    struct occ_dynamic_data dynamic_data;
+
+    if (!occ_read_dynamic_data(occ, &dynamic_data, NULL)) {
+        /* Can't move OCC state field to safe because we can't map it! */
+        qemu_log("OCC: failed to read HOMER data, shutting down OCC\n");
+        return false;
+    }
+    if (dynamic_data.cmd.flag == OPAL_FLAG_CMD_READY) {
+        if (!occ_opal_process_command(occ, &dynamic_data)) {
+            qemu_log("OCC: failed to write HOMER data, shutting down OCC\n");
+            return false;
+        }
     }
 
     return true;
