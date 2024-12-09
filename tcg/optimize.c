@@ -2044,14 +2044,9 @@ static bool fold_neg_no_const(OptContext *ctx, TCGOp *op)
 {
     /* Set to 1 all bits to the left of the rightmost.  */
     uint64_t z_mask = arg_info(op->args[1])->z_mask;
-    ctx->z_mask = -(z_mask & -z_mask);
+    z_mask = -(z_mask & -z_mask);
 
-    /*
-     * Because of fold_sub_to_neg, we want to always return true,
-     * via finish_folding.
-     */
-    finish_folding(ctx, op);
-    return true;
+    return fold_masks_z(ctx, op, z_mask);
 }
 
 static bool fold_neg(OptContext *ctx, TCGOp *op)
