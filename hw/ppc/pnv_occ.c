@@ -263,14 +263,20 @@ static const TypeInfo pnv_occ_power9_type_info = {
 
 static void pnv_occ_power10_class_init(ObjectClass *klass, void *data)
 {
+    PnvOCCClass *poc = PNV_OCC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "PowerNV OCC Controller (POWER10)";
+    poc->opal_shared_memory_offset = P9_HOMER_OPAL_DATA_OFFSET;
+    poc->opal_shared_memory_version = 0xA0;
+    poc->xscom_size = PNV9_XSCOM_OCC_SIZE;
+    poc->xscom_ops = &pnv_occ_power9_xscom_ops;
+    assert(!dc->user_creatable);
 }
 
 static const TypeInfo pnv_occ_power10_type_info = {
     .name          = TYPE_PNV10_OCC,
-    .parent        = TYPE_PNV9_OCC,
+    .parent        = TYPE_PNV_OCC,
     .class_init    = pnv_occ_power10_class_init,
 };
 
@@ -711,6 +717,37 @@ static bool occ_init_homer_memory(PnvOCC *occ, Error **errp)
             static_data.v9.core_max[i] = 1;
         }
         break;
+    case 0xA0:
+        if (chip->chip_id == 0) {
+            static_data.v10.occ_role = OCC_ROLE_MASTER;
+        } else {
+            static_data.v10.occ_role = OCC_ROLE_SLAVE;
+        }
+        static_data.v10.pstate_min = 4;
+        static_data.v10.pstate_fixed_freq = 3;
+        static_data.v10.pstate_base = 2;
+        static_data.v10.pstate_ultra_turbo = 0;
+        static_data.v10.pstate_fmax = 1;
+        static_data.v10.minor = 0x01;
+        static_data.v10.pstates[0].valid = 1;
+        static_data.v10.pstates[0].id = 0;
+        static_data.v10.pstates[0].freq_khz = cpu_to_be32(4200000);
+        static_data.v10.pstates[1].valid = 1;
+        static_data.v10.pstates[1].id = 1;
+        static_data.v10.pstates[1].freq_khz = cpu_to_be32(4000000);
+        static_data.v10.pstates[2].valid = 1;
+        static_data.v10.pstates[2].id = 2;
+        static_data.v10.pstates[2].freq_khz = cpu_to_be32(3800000);
+        static_data.v10.pstates[3].valid = 1;
+        static_data.v10.pstates[3].id = 3;
+        static_data.v10.pstates[3].freq_khz = cpu_to_be32(3000000);
+        static_data.v10.pstates[4].valid = 1;
+        static_data.v10.pstates[4].id = 4;
+        static_data.v10.pstates[4].freq_khz = cpu_to_be32(2000000);
+        for (i = 0; i < chip->nr_cores; i++) {
+            static_data.v10.core_max[i] = 1;
+        }
+        break;
     default:
         g_assert_not_reached();
     }
@@ -726,6 +763,10 @@ static bool occ_init_homer_memory(PnvOCC *occ, Error **errp)
     dynamic_data.cur_pwr_cap = cpu_to_be16(PCAP_MAX_POWER_W);
     dynamic_data.soft_min_pwr_cap = cpu_to_be16(PCAP_SOFT_MIN_POWER_W);
     switch (poc->opal_shared_memory_version) {
+    case 0xA0:
+        dynamic_data.minor_version = 0x1;
+        dynamic_data.v10.wof_enabled = 0x1;
+        break;
     case 0x90:
         dynamic_data.minor_version = 0x1;
         break;
