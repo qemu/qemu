@@ -292,6 +292,7 @@ static void dump_aml_files(test_data *data, bool rebuild)
 
         g_free(aml_file);
     }
+    free_test_data(&exp_data);
 }
 
 static bool create_tmp_asl(AcpiSdtTable *sdt)
