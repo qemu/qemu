@@ -1048,6 +1048,12 @@ static bool fold_masks(OptContext *ctx, TCGOp *op)
 {
     uint64_t z_mask = ctx->z_mask;
     uint64_t s_mask = ctx->s_mask;
+    const TCGOpDef *def = &tcg_op_defs[op->opc];
+    TCGTemp *ts;
+    TempOptInfo *ti;
+
+    /* Only single-output opcodes are supported here. */
+    tcg_debug_assert(def->nb_oargs == 1);
 
     /*
      * 32-bit ops generate 32-bit results, which for the purpose of
@@ -1059,14 +1065,19 @@ static bool fold_masks(OptContext *ctx, TCGOp *op)
     if (ctx->type == TCG_TYPE_I32) {
         z_mask = (int32_t)z_mask;
         s_mask |= MAKE_64BIT_MASK(32, 32);
-        ctx->z_mask = z_mask;
-        ctx->s_mask = s_mask;
     }
 
     if (z_mask == 0) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], 0);
     }
-    return false;
+
+    ts = arg_temp(op->args[0]);
+    reset_ts(ctx, ts);
+
+    ti = ts_info(ts);
+    ti->z_mask = z_mask;
+    ti->s_mask = s_mask;
+    return true;
 }
 
 /*
