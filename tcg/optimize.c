@@ -1477,16 +1477,16 @@ static bool fold_brcond2(OptContext *ctx, TCGOp *op)
 static bool fold_bswap(OptContext *ctx, TCGOp *op)
 {
     uint64_t z_mask, s_mask, sign;
+    TempOptInfo *t1 = arg_info(op->args[1]);
 
-    if (arg_is_const(op->args[1])) {
-        uint64_t t = arg_info(op->args[1])->val;
-
-        t = do_constant_folding(op->opc, ctx->type, t, op->args[2]);
-        return tcg_opt_gen_movi(ctx, op, op->args[0], t);
+    if (ti_is_const(t1)) {
+        return tcg_opt_gen_movi(ctx, op, op->args[0],
+                                do_constant_folding(op->opc, ctx->type,
+                                                    ti_const_val(t1),
+                                                    op->args[2]));
     }
 
-    z_mask = arg_info(op->args[1])->z_mask;
-
+    z_mask = t1->z_mask;
     switch (op->opc) {
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -1514,18 +1514,17 @@ static bool fold_bswap(OptContext *ctx, TCGOp *op)
         /* If the sign bit may be 1, force all the bits above to 1. */
         if (z_mask & sign) {
             z_mask |= sign;
-            s_mask = sign << 1;
         }
+        /* The value and therefore s_mask is explicitly sign-extended. */
+        s_mask = sign;
         break;
     default:
         /* The high bits are undefined: force all bits above the sign to 1. */
         z_mask |= sign << 1;
         break;
     }
-    ctx->z_mask = z_mask;
-    ctx->s_mask = s_mask;
 
-    return fold_masks(ctx, op);
+    return fold_masks_zs(ctx, op, z_mask, s_mask);
 }
 
 static bool fold_call(OptContext *ctx, TCGOp *op)
