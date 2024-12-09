@@ -2501,7 +2501,7 @@ static bool fold_cmpsel_vec(OptContext *ctx, TCGOp *op)
     if (swap_commutative(op->args[0], &op->args[4], &op->args[3])) {
         op->args[5] = tcg_invert_cond(op->args[5]);
     }
-    return false;
+    return finish_folding(ctx, op);
 }
 
 static bool fold_sextract(OptContext *ctx, TCGOp *op)
