@@ -1566,10 +1566,12 @@ static bool fold_call(OptContext *ctx, TCGOp *op)
 
 static bool fold_count_zeros(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask;
+    uint64_t z_mask, s_mask;
+    TempOptInfo *t1 = arg_info(op->args[1]);
+    TempOptInfo *t2 = arg_info(op->args[2]);
 
-    if (arg_is_const(op->args[1])) {
-        uint64_t t = arg_info(op->args[1])->val;
+    if (ti_is_const(t1)) {
+        uint64_t t = ti_const_val(t1);
 
         if (t != 0) {
             t = do_constant_folding(op->opc, ctx->type, t, 0);
@@ -1588,8 +1590,11 @@ static bool fold_count_zeros(OptContext *ctx, TCGOp *op)
     default:
         g_assert_not_reached();
     }
-    ctx->z_mask = arg_info(op->args[2])->z_mask | z_mask;
-    return false;
+    s_mask = ~z_mask;
+    z_mask |= t2->z_mask;
+    s_mask &= t2->s_mask;
+
+    return fold_masks_zs(ctx, op, z_mask, s_mask);
 }
 
 static bool fold_ctpop(OptContext *ctx, TCGOp *op)
