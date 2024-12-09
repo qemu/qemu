@@ -64,8 +64,6 @@ typedef struct OptContext {
     QSIMPLEQ_HEAD(, MemCopyInfo) mem_free;
 
     /* In flight values from optimization. */
-    uint64_t z_mask;  /* mask bit is 0 iff value bit is 0 */
-    uint64_t s_mask;  /* mask bit is 1 if value bit matches msb */
     TCGType type;
 } OptContext;
 
@@ -961,13 +959,6 @@ static bool finish_folding(OptContext *ctx, TCGOp *op)
     for (i = 0; i < nb_oargs; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
         reset_ts(ctx, ts);
-        /*
-         * Save the corresponding known-zero/sign bits mask for the
-         * first output argument (only one supported so far).
-         */
-        if (i == 0) {
-            ts_info(ts)->z_mask = ctx->z_mask;
-        }
     }
     return true;
 }
@@ -2878,10 +2869,6 @@ void tcg_optimize(TCGContext *s)
         } else {
             ctx.type = TCG_TYPE_I32;
         }
-
-        /* Assume all bits affected, no bits known zero, no sign reps. */
-        ctx.z_mask = -1;
-        ctx.s_mask = 0;
 
         /*
          * Process each opcode.
