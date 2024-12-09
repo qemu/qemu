@@ -2152,7 +2152,7 @@ static bool fold_remainder(OptContext *ctx, TCGOp *op)
         fold_xx_to_i(ctx, op, 0)) {
         return true;
     }
-    return false;
+    return finish_folding(ctx, op);
 }
 
 static bool fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
