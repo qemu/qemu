@@ -784,6 +784,7 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
  * Return -1 if the condition can't be simplified,
  * and the result of the condition (0 or 1) if it can.
  */
+static bool fold_and(OptContext *ctx, TCGOp *op);
 static int do_constant_folding_cond1(OptContext *ctx, TCGOp *op, TCGArg dest,
                                      TCGArg *p1, TCGArg *p2, TCGArg *pcond)
 {
@@ -834,6 +835,7 @@ static int do_constant_folding_cond1(OptContext *ctx, TCGOp *op, TCGArg dest,
         op2->args[0] = tmp;
         op2->args[1] = *p1;
         op2->args[2] = *p2;
+        fold_and(ctx, op2);
 
         *p1 = tmp;
         *p2 = arg_new_constant(ctx, 0);
@@ -929,9 +931,12 @@ static int do_constant_folding_cond2(OptContext *ctx, TCGOp *op, TCGArg *args)
         op1->args[0] = t1;
         op1->args[1] = al;
         op1->args[2] = bl;
+        fold_and(ctx, op1);
+
         op2->args[0] = t2;
         op2->args[1] = ah;
         op2->args[2] = bh;
+        fold_and(ctx, op1);
 
         args[0] = t1;
         args[1] = t2;
