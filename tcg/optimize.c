@@ -1434,10 +1434,7 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
     uint64_t z_mask, o_mask, s_mask, a_mask;
     TempOptInfo *t1, *t2;
 
-    if (fold_const2_commutative(ctx, op) ||
-        fold_xi_to_i(ctx, op, 0) ||
-        fold_xi_to_x(ctx, op, -1) ||
-        fold_xx_to_x(ctx, op)) {
+    if (fold_const2_commutative(ctx, op)) {
         return true;
     }
 
@@ -1473,6 +1470,8 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
                     op->args[3] = len;
                 }
             }
+        } else {
+            fold_xx_to_x(ctx, op);
         }
     }
     return true;
