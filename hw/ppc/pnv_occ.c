@@ -30,6 +30,7 @@
 #define OCB_OCI_OCCMISC         0x4020
 #define OCB_OCI_OCCMISC_AND     0x4021
 #define OCB_OCI_OCCMISC_OR      0x4022
+#define   OCCMISC_PSI_IRQ       PPC_BIT(0)
 
 /* OCC sensors */
 #define OCC_SENSOR_DATA_BLOCK_OFFSET          0x0000
@@ -50,13 +51,16 @@
 
 static void pnv_occ_set_misc(PnvOCC *occ, uint64_t val)
 {
-    bool irq_state;
-
-    val &= 0xffff000000000000ull;
+    val &= PPC_BITMASK(0, 18); /* Mask out unimplemented bits */
 
     occ->occmisc = val;
-    irq_state = !!(val >> 63);
-    qemu_set_irq(occ->psi_irq, irq_state);
+
+    /*
+     * OCCMISC IRQ bit triggers the interrupt on a 0->1 edge, but not clear
+     * how that is handled in PSI so it is level-triggered here, which is not
+     * really correct (but skiboot is okay with it).
+     */
+    qemu_set_irq(occ->psi_irq, !!(val & OCCMISC_PSI_IRQ));
 }
 
 static uint64_t pnv_occ_power8_xscom_read(void *opaque, hwaddr addr,
