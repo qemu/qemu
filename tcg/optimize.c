@@ -2833,7 +2833,7 @@ static bool fold_bitsel_vec(OptContext *ctx, TCGOp *op)
             return fold_orc(ctx, op);
         }
     }
-    return false;
+    return finish_folding(ctx, op);
 }
 
 /* Propagate constants and copies, fold constant expressions. */
