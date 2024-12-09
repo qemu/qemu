@@ -2367,8 +2367,7 @@ static bool fold_setcond(OptContext *ctx, TCGOp *op)
         fold_setcond_tst_pow2(ctx, op, false);
     }
 
-    ctx->z_mask = 1;
-    return false;
+    return fold_masks_z(ctx, op, 1);
 }
 
 static bool fold_negsetcond(OptContext *ctx, TCGOp *op)
