@@ -2039,25 +2039,31 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
 
 static bool fold_extu(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask;
+    uint64_t z_mask, o_mask;
+    TempOptInfo *t1;
 
     if (fold_const1(ctx, op)) {
         return true;
     }
 
-    z_mask = arg_info(op->args[1])->z_mask;
+    t1 = arg_info(op->args[1]);
+    z_mask = t1->z_mask;
+    o_mask = t1->o_mask;
+
     switch (op->opc) {
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extu_i32_i64:
         z_mask = (uint32_t)z_mask;
+        o_mask = (uint32_t)o_mask;
         break;
     case INDEX_op_extrh_i64_i32:
         z_mask >>= 32;
+        o_mask >>= 32;
         break;
     default:
         g_assert_not_reached();
     }
-    return fold_masks_z(ctx, op, z_mask);
+    return fold_masks_zo(ctx, op, z_mask, o_mask);
 }
 
 static bool fold_mb(OptContext *ctx, TCGOp *op)
