@@ -43,7 +43,7 @@ pub const TYPE_PL011_LUMINARY: &::std::ffi::CStr = c_str!("pl011_luminary");
 #[doc(alias = "offset")]
 #[allow(non_camel_case_types)]
 #[repr(u64)]
-#[derive(Debug, qemu_api_macros::TryInto)]
+#[derive(Debug, Eq, PartialEq, qemu_api_macros::TryInto)]
 enum RegisterOffset {
     /// Data Register
     ///

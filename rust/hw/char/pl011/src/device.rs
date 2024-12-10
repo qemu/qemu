@@ -5,6 +5,7 @@
 use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
+    ops::ControlFlow,
     os::raw::{c_int, c_uint, c_void},
 };
 
@@ -222,19 +223,11 @@ impl PL011State {
         }
     }
 
-    pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
+    fn regs_read(&mut self, offset: RegisterOffset) -> ControlFlow<u32, u32> {
         use RegisterOffset::*;
 
-        let value = match RegisterOffset::try_from(offset) {
-            Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
-                let device_id = self.get_class().device_id;
-                u32::from(device_id[(offset - 0xfe0) >> 2])
-            }
-            Err(_) => {
-                // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
-                0
-            }
-            Ok(DR) => {
+        ControlFlow::Break(match offset {
+            DR => {
                 self.flags.set_receive_fifo_full(false);
                 let c = self.read_fifo[self.read_pos];
                 if self.read_count > 0 {
@@ -251,69 +244,53 @@ impl PL011State {
                 self.receive_status_error_clear.set_from_data(c);
                 self.update();
                 // Must call qemu_chr_fe_accept_input, so return Continue:
-                let c = u32::from(c);
-                return std::ops::ControlFlow::Continue(u64::from(c));
+                return ControlFlow::Continue(u32::from(c));
             }
-            Ok(RSR) => u32::from(self.receive_status_error_clear),
-            Ok(FR) => u32::from(self.flags),
-            Ok(FBRD) => self.fbrd,
-            Ok(ILPR) => self.ilpr,
-            Ok(IBRD) => self.ibrd,
-            Ok(LCR_H) => u32::from(self.line_control),
-            Ok(CR) => u32::from(self.control),
-            Ok(FLS) => self.ifl,
-            Ok(IMSC) => self.int_enabled,
-            Ok(RIS) => self.int_level,
-            Ok(MIS) => self.int_level & self.int_enabled,
-            Ok(ICR) => {
+            RSR => u32::from(self.receive_status_error_clear),
+            FR => u32::from(self.flags),
+            FBRD => self.fbrd,
+            ILPR => self.ilpr,
+            IBRD => self.ibrd,
+            LCR_H => u32::from(self.line_control),
+            CR => u32::from(self.control),
+            FLS => self.ifl,
+            IMSC => self.int_enabled,
+            RIS => self.int_level,
+            MIS => self.int_level & self.int_enabled,
+            ICR => {
                 // "The UARTICR Register is the interrupt clear register and is write-only"
                 // Source: ARM DDI 0183G 3.3.13 Interrupt Clear Register, UARTICR
                 0
             }
-            Ok(DMACR) => self.dmacr,
-        };
-        std::ops::ControlFlow::Break(value.into())
+            DMACR => self.dmacr,
+        })
     }
 
-    pub fn write(&mut self, offset: hwaddr, value: u64) {
+    fn regs_write(&mut self, offset: RegisterOffset, value: u32) {
         // eprintln!("write offset {offset} value {value}");
         use RegisterOffset::*;
-        let value: u32 = value as u32;
-        match RegisterOffset::try_from(offset) {
-            Err(_bad_offset) => {
-                eprintln!("write bad offset {offset} value {value}");
-            }
-            Ok(DR) => {
-                // ??? Check if transmitter is enabled.
-                let ch: u8 = value as u8;
-                // XXX this blocks entire thread. Rewrite to use
-                // qemu_chr_fe_write and background I/O callbacks
-
-                // SAFETY: self.char_backend is a valid CharBackend instance after it's been
-                // initialized in realize().
-                unsafe {
-                    qemu_chr_fe_write_all(addr_of_mut!(self.char_backend), &ch, 1);
-                }
+        match offset {
+            DR => {
                 self.loopback_tx(value);
                 self.int_level |= registers::INT_TX;
                 self.update();
             }
-            Ok(RSR) => {
-                self.receive_status_error_clear.reset();
+            RSR => {
+                self.receive_status_error_clear = 0.into();
             }
-            Ok(FR) => {
+            FR => {
                 // flag writes are ignored
             }
-            Ok(ILPR) => {
+            ILPR => {
                 self.ilpr = value;
             }
-            Ok(IBRD) => {
+            IBRD => {
                 self.ibrd = value;
             }
-            Ok(FBRD) => {
+            FBRD => {
                 self.fbrd = value;
             }
-            Ok(LCR_H) => {
+            LCR_H => {
                 let new_val: registers::LineControl = value.into();
                 // Reset the FIFO state on FIFO enable or disable
                 if self.line_control.fifos_enabled() != new_val.fifos_enabled() {
@@ -336,26 +313,26 @@ impl PL011State {
                 self.line_control = new_val;
                 self.set_read_trigger();
             }
-            Ok(CR) => {
+            CR => {
                 // ??? Need to implement the enable bit.
                 self.control = value.into();
                 self.loopback_mdmctrl();
             }
-            Ok(FLS) => {
+            FLS => {
                 self.ifl = value;
                 self.set_read_trigger();
             }
-            Ok(IMSC) => {
+            IMSC => {
                 self.int_enabled = value;
                 self.update();
             }
-            Ok(RIS) => {}
-            Ok(MIS) => {}
-            Ok(ICR) => {
+            RIS => {}
+            MIS => {}
+            ICR => {
                 self.int_level &= !value;
                 self.update();
             }
-            Ok(DMACR) => {
+            DMACR => {
                 self.dmacr = value;
                 if value & 3 > 0 {
                     // qemu_log_mask(LOG_UNIMP, "pl011: DMA not implemented\n");
@@ -569,6 +546,48 @@ impl PL011State {
         self.fbrd &= FBRD_MASK;
 
         Ok(())
+    }
+
+    pub fn read(&mut self, offset: hwaddr, _size: u32) -> ControlFlow<u64, u64> {
+        match RegisterOffset::try_from(offset) {
+            Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
+                let device_id = self.get_class().device_id;
+                ControlFlow::Break(u64::from(device_id[(offset - 0xfe0) >> 2]))
+            }
+            Err(_) => {
+                // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
+                ControlFlow::Break(0)
+            }
+            Ok(field) => {
+                let result = self.regs_read(field);
+                match result {
+                    ControlFlow::Break(value) => ControlFlow::Break(value.into()),
+                    ControlFlow::Continue(value) => ControlFlow::Continue(value.into()),
+                }
+            }
+        }
+    }
+
+    pub fn write(&mut self, offset: hwaddr, value: u64) {
+        if let Ok(field) = RegisterOffset::try_from(offset) {
+            // qemu_chr_fe_write_all() calls into the can_receive
+            // callback, so handle writes before entering PL011Registers.
+            if field == RegisterOffset::DR {
+                // ??? Check if transmitter is enabled.
+                let ch: u8 = value as u8;
+                // SAFETY: char_backend is a valid CharBackend instance after it's been
+                // initialized in realize().
+                // XXX this blocks entire thread. Rewrite to use
+                // qemu_chr_fe_write and background I/O callbacks
+                unsafe {
+                    qemu_chr_fe_write_all(&mut self.char_backend, &ch, 1);
+                }
+            }
+
+            self.regs_write(field, value as u32);
+        } else {
+            eprintln!("write bad offset {offset} value {value}");
+        }
     }
 }
 
