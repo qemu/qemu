@@ -2097,7 +2097,7 @@ static bool fold_mov(OptContext *ctx, TCGOp *op)
 
 static bool fold_movcond(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask, s_mask;
+    uint64_t z_mask, o_mask, s_mask;
     TempOptInfo *tt, *ft;
     int i;
 
@@ -2123,6 +2123,7 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
     tt = arg_info(op->args[3]);
     ft = arg_info(op->args[4]);
     z_mask = tt->z_mask | ft->z_mask;
+    o_mask = tt->o_mask & ft->o_mask;
     s_mask = tt->s_mask & ft->s_mask;
 
     if (ti_is_const(tt) && ti_is_const(ft)) {
@@ -2145,7 +2146,7 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
         }
     }
 
-    return fold_masks_zs(ctx, op, z_mask, s_mask);
+    return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
 }
 
 static bool fold_mul(OptContext *ctx, TCGOp *op)
