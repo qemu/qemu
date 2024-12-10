@@ -89,7 +89,7 @@ static uint64_t pnv_power8_homer_read(void *opaque, hwaddr addr,
     case PNV8_OCC_VCS_VOLTAGE_IDENTIFIER:
         return 1;
     case PNV8_OCC_PSTATE_DATA:
-        return 0x1000000000000000;
+        return 0;
     /* P8 frequency for 0, 1, and 2 pstates */
     case PNV8_OCC_PSTATE_ZERO_FREQUENCY:
     case PNV8_OCC_PSTATE_ONE_FREQUENCY:
@@ -259,7 +259,7 @@ static uint64_t pnv_power9_homer_read(void *opaque, hwaddr addr,
         return 0x01;
     case PNV9_CHIP_HOMER_BASE:
     case PNV9_CHIP_HOMER_IMAGE_POINTER:
-        return 0x1000000000000000;
+        return 0;
     case PNV9_DYNAMIC_DATA_STATE:
         return 0x03; /* active */
     }
