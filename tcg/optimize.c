@@ -1093,6 +1093,12 @@ static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
     return true;
 }
 
+static bool fold_masks_zos(OptContext *ctx, TCGOp *op,
+                           uint64_t z_mask, uint64_t o_mask, uint64_t s_mask)
+{
+    return fold_masks_zosa(ctx, op, z_mask, o_mask, s_mask, -1);
+}
+
 static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
                           uint64_t z_mask, uint64_t s_mask)
 {
@@ -1916,7 +1922,7 @@ static bool fold_dup2(OptContext *ctx, TCGOp *op)
 
 static bool fold_eqv(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask;
+    uint64_t z_mask, o_mask, s_mask;
     TempOptInfo *t1, *t2;
 
     if (fold_const2_commutative(ctx, op) ||
@@ -1946,8 +1952,12 @@ static bool fold_eqv(OptContext *ctx, TCGOp *op)
     }
 
     t1 = arg_info(op->args[1]);
+
+    z_mask = (t1->z_mask | ~t2->o_mask) & (t2->z_mask | ~t1->o_mask);
+    o_mask = ~(t1->z_mask | t2->z_mask) | (t1->o_mask & t2->o_mask);
     s_mask = t1->s_mask & t2->s_mask;
-    return fold_masks_s(ctx, op, s_mask);
+
+    return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
 }
 
 static bool fold_extract(OptContext *ctx, TCGOp *op)
