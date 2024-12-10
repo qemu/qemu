@@ -41,8 +41,16 @@ def remove_functions(code):
 			newcode.append(codelines[line])
 	return "\n".join(newcode)
 
+def gdb_resolve_issue(code):
+	cmd = code.decode(errors="ignore").replace('\n',' ')
+	print(f"cmd={cmd}")
+	cmd = cmd.replace("__fd_mask", "unsigned int")	
+	result = gdb.execute(f"p {cmd}",to_string=True).split(" = ")[1].strip()
+	return result.encode()
+	
 def simplify_brackets(code):
-	tree = parser.parse(bytes(code, 'utf8'))
+	code_bytes = bytes(code, 'utf8')
+	tree = parser.parse(code_bytes)
 	regex_replace = {}
 	for node in traverse_tree(tree):
 		if node.type == 'array_declarator':
@@ -50,32 +58,25 @@ def simplify_brackets(code):
 				if nn[0].type in ['number_literal', 'identifier']:
 					continue
 				elif nn[0].type in ['binary_expression', 'parenthesized_expression', 'conditional_expression']:
-					missing = nn[0].text.decode(errors="ignore")
-					cmd = missing.replace('\n',' ')
-					print(f"cmd={cmd}")
-					result = gdb.execute(f"p {cmd}",to_string=True).split(" = ")[1]
-					regex_replace[missing] = result
-					print(f"Replacing {missing} with {result}")
+					missing = nn[0].text
+					regex_replace[missing] = gdb_resolve_issue(missing)
+					print(f"Replacing {missing} with {regex_replace[missing]}")
 				else:
 					breakpoint()
 		elif node.type == 'enumerator':
 			if nn := node.children_by_field_name("value"):
-				if nn[0].type in ['unary_expression', 'conditional_expression']:
-					missing = nn[0].text.decode(errors="ignore")
-					cmd = missing.replace('\n',' ')
-					print(f"cmd={cmd}")
-					result = gdb.execute(f"p {cmd}",to_string=True).split(" = ")[1]
-					regex_replace[missing] = result
-					print(f"Replacing {missing} with {result}")
-				elif nn[0].type in ['number_literal', 'binary_expression', 'identifier', 'parenthesized_expression', 'char_literal']:
+				if nn[0].type in ['unary_expression', 'conditional_expression', 'parenthesized_expression']:
+					missing = nn[0].text
+					regex_replace[missing] = gdb_resolve_issue(missing) 
+					print(f"Replacing {missing} with {regex_replace[missing]}")
+				elif nn[0].type in ['number_literal', 'binary_expression', 'identifier', 'char_literal']:
 					 continue
 				else:
 					breakpoint()
-					   
 	
-	for c in regex_replace:
-		code = code.replace(c, regex_replace[c])
-	return code
+	for c in sorted(regex_replace, key=lambda x: -len(x)):
+		code_bytes = code_bytes.replace(c, regex_replace[c])
+	return code_bytes.decode("utf8", errors="ignore")
 
 def get_functions(prefixes):
 	functions = set()
@@ -93,8 +94,10 @@ def compile_target(arch, target):
 	def arch_to_generic(arch):
 		if arch == "x86_64":
 			return "i386"
-		if "mips" in arch:
+		elif "mips" in arch:
 			return "mips"
+		elif arch == "aarch64":
+			return "arm"
 		return arch
 	arch_trans = arch_to_generic(arch)
 	includes = [
@@ -127,8 +130,6 @@ def compile_target(arch, target):
 	#define __G_UTILS_H__
 	#define __int128_t int
 	#define __uint128_t int
-	//#define __typeof(x) 0
-	//#define __builtin_constant_p(x) x
 	#define __extension__
 	#define __asm__(...)
 	#define _Static_assert(...)
