@@ -131,12 +131,6 @@ impl core::convert::TryFrom<u64> for RegisterOffset {
 pub mod registers {
     //! Device registers exposed as typed structs which are backed by arbitrary
     //! integer bitmaps. [`Data`], [`Control`], [`LineControl`], etc.
-    //!
-    //! All PL011 registers are essentially 32-bit wide, but are typed here as
-    //! bitmaps with only the necessary width. That is, if a struct bitmap
-    //! in this module is for example 16 bits long, it should be conceived
-    //! as a 32-bit register where the unmentioned higher bits are always
-    //! unused thus treated as zero when read or written.
     use bilge::prelude::*;
 
     /// Receive Status Register / Data Register common error bits
@@ -234,10 +228,11 @@ pub mod registers {
     /// # Source
     /// ARM DDI 0183G 3.3.2 Receive Status Register/Error Clear Register,
     /// UARTRSR/UARTECR
-    #[bitsize(8)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     pub struct ReceiveStatusErrorClear {
         pub errors: Errors,
+        _reserved_unpredictable: u24,
     }
 
     impl ReceiveStatusErrorClear {
@@ -257,7 +252,7 @@ pub mod registers {
         }
     }
 
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     /// Flag Register, `UARTFR`
     #[doc(alias = "UARTFR")]
@@ -309,7 +304,7 @@ pub mod registers {
         pub transmit_fifo_empty: bool,
         /// `RI`, is `true` when `nUARTRI` is `LOW`.
         pub ring_indicator: bool,
-        _reserved_zero_no_modify: u7,
+        _reserved_zero_no_modify: u23,
     }
 
     impl Flags {
@@ -328,7 +323,7 @@ pub mod registers {
         }
     }
 
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     /// Line Control Register, `UARTLCR_H`
     #[doc(alias = "UARTLCR_H")]
@@ -382,8 +377,8 @@ pub mod registers {
         /// the PEN bit disables parity checking and generation. See Table 3-11
         /// on page 3-14 for the parity truth table.
         pub sticky_parity: bool,
-        /// 15:8 - Reserved, do not modify, read as zero.
-        _reserved_zero_no_modify: u8,
+        /// 31:8 - Reserved, do not modify, read as zero.
+        _reserved_zero_no_modify: u24,
     }
 
     impl LineControl {
@@ -454,7 +449,7 @@ pub mod registers {
     ///
     /// # Source
     /// ARM DDI 0183G, 3.3.8 Control Register, `UARTCR`, Table 3-12
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[doc(alias = "UARTCR")]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     pub struct Control {
@@ -532,6 +527,8 @@ pub mod registers {
         /// CTS hardware flow control is enabled. Data is only transmitted when
         /// the `nUARTCTS` signal is asserted.
         pub cts_hardware_flow_control_enable: bool,
+        /// 31:16 - Reserved, do not modify, read as zero.
+        _reserved_zero_no_modify2: u16,
     }
 
     impl Control {

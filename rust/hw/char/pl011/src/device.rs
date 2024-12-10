@@ -186,9 +186,9 @@ impl PL011State {
     pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
         use RegisterOffset::*;
 
-        std::ops::ControlFlow::Break(match RegisterOffset::try_from(offset) {
+        let value = match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
-                u64::from(self.device_id[(offset - 0xfe0) >> 2])
+                u32::from(self.device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
@@ -214,27 +214,25 @@ impl PL011State {
                 let c = u32::from(c);
                 return std::ops::ControlFlow::Continue(u64::from(c));
             }
-            Ok(RSR) => u8::from(self.receive_status_error_clear).into(),
-            Ok(FR) => u16::from(self.flags).into(),
-            Ok(FBRD) => self.fbrd.into(),
-            Ok(ILPR) => self.ilpr.into(),
-            Ok(IBRD) => self.ibrd.into(),
-            Ok(LCR_H) => u16::from(self.line_control).into(),
-            Ok(CR) => {
-                // We exercise our self-control.
-                u16::from(self.control).into()
-            }
-            Ok(FLS) => self.ifl.into(),
-            Ok(IMSC) => self.int_enabled.into(),
-            Ok(RIS) => self.int_level.into(),
-            Ok(MIS) => u64::from(self.int_level & self.int_enabled),
+            Ok(RSR) => u32::from(self.receive_status_error_clear),
+            Ok(FR) => u32::from(self.flags),
+            Ok(FBRD) => self.fbrd,
+            Ok(ILPR) => self.ilpr,
+            Ok(IBRD) => self.ibrd,
+            Ok(LCR_H) => u32::from(self.line_control),
+            Ok(CR) => u32::from(self.control),
+            Ok(FLS) => self.ifl,
+            Ok(IMSC) => self.int_enabled,
+            Ok(RIS) => self.int_level,
+            Ok(MIS) => self.int_level & self.int_enabled,
             Ok(ICR) => {
                 // "The UARTICR Register is the interrupt clear register and is write-only"
                 // Source: ARM DDI 0183G 3.3.13 Interrupt Clear Register, UARTICR
                 0
             }
-            Ok(DMACR) => self.dmacr.into(),
-        })
+            Ok(DMACR) => self.dmacr,
+        };
+        std::ops::ControlFlow::Break(value.into())
     }
 
     pub fn write(&mut self, offset: hwaddr, value: u64) {
@@ -276,7 +274,6 @@ impl PL011State {
                 self.fbrd = value;
             }
             Ok(LCR_H) => {
-                let value = value as u16;
                 let new_val: registers::LineControl = value.into();
                 // Reset the FIFO state on FIFO enable or disable
                 if bool::from(self.line_control.fifos_enabled())
@@ -303,7 +300,6 @@ impl PL011State {
             }
             Ok(CR) => {
                 // ??? Need to implement the enable bit.
-                let value = value as u16;
                 self.control = value.into();
                 self.loopback_mdmctrl();
             }
