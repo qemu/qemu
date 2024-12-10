@@ -106,28 +106,6 @@ macro_rules! vmstate_uint32 {
     }};
 }
 
-#[doc(alias = "VMSTATE_INT32_V")]
-#[macro_export]
-macro_rules! vmstate_int32_v {
-    ($field_name:ident, $struct_name:ty, $version_id:expr) => {{
-        $crate::vmstate_single!(
-            $field_name,
-            $struct_name,
-            $version_id,
-            ::core::ptr::addr_of!($crate::bindings::vmstate_info_int32),
-            ::core::mem::size_of::<i32>()
-        )
-    }};
-}
-
-#[doc(alias = "VMSTATE_INT32")]
-#[macro_export]
-macro_rules! vmstate_int32 {
-    ($field_name:ident, $struct_name:ty) => {{
-        $crate::vmstate_int32_v!($field_name, $struct_name, 0)
-    }};
-}
-
 #[doc(alias = "VMSTATE_ARRAY")]
 #[macro_export]
 macro_rules! vmstate_array {

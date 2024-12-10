@@ -31,7 +31,7 @@ const IBRD_MASK: u32 = 0xffff;
 const FBRD_MASK: u32 = 0x3f;
 
 /// QEMU sourced constant.
-pub const PL011_FIFO_DEPTH: usize = 16_usize;
+pub const PL011_FIFO_DEPTH: u32 = 16;
 
 #[derive(Clone, Copy, Debug)]
 enum DeviceId {
@@ -56,6 +56,32 @@ impl DeviceId {
     const PL011_ID_LUMINARY: [c_uchar; 8] = [0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1];
 }
 
+// FIFOs use 32-bit indices instead of usize, for compatibility with
+// the migration stream produced by the C version of this device.
+#[repr(transparent)]
+#[derive(Debug, Default)]
+pub struct Fifo([registers::Data; PL011_FIFO_DEPTH as usize]);
+
+impl Fifo {
+    const fn len(&self) -> u32 {
+        self.0.len() as u32
+    }
+}
+
+impl std::ops::IndexMut<u32> for Fifo {
+    fn index_mut(&mut self, idx: u32) -> &mut Self::Output {
+        &mut self.0[idx as usize]
+    }
+}
+
+impl std::ops::Index<u32> for Fifo {
+    type Output = registers::Data;
+
+    fn index(&self, idx: u32) -> &Self::Output {
+        &self.0[idx as usize]
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
 /// PL011 Device Model in QEMU
@@ -73,14 +99,14 @@ pub struct PL011State {
     pub dmacr: u32,
     pub int_enabled: u32,
     pub int_level: u32,
-    pub read_fifo: [registers::Data; PL011_FIFO_DEPTH],
+    pub read_fifo: Fifo,
     pub ilpr: u32,
     pub ibrd: u32,
     pub fbrd: u32,
     pub ifl: u32,
-    pub read_pos: usize,
-    pub read_count: usize,
-    pub read_trigger: usize,
+    pub read_pos: u32,
+    pub read_count: u32,
+    pub read_trigger: u32,
     #[doc(alias = "chr")]
     pub char_backend: CharBackend,
     /// QEMU interrupts
@@ -480,7 +506,7 @@ impl PL011State {
     }
 
     #[inline]
-    pub fn fifo_depth(&self) -> usize {
+    pub fn fifo_depth(&self) -> u32 {
         // Note: FIFO depth is expected to be power-of-2
         if self.fifo_enabled() {
             return PL011_FIFO_DEPTH;

@@ -6,8 +6,8 @@ use core::ptr::NonNull;
 use std::os::raw::{c_int, c_void};
 
 use qemu_api::{
-    bindings::*, c_str, vmstate_clock, vmstate_fields, vmstate_int32, vmstate_subsections,
-    vmstate_uint32, vmstate_uint32_array, vmstate_unused, zeroable::Zeroable,
+    bindings::*, c_str, vmstate_clock, vmstate_fields, vmstate_subsections, vmstate_uint32,
+    vmstate_uint32_array, vmstate_unused, zeroable::Zeroable,
 };
 
 use crate::device::{PL011State, PL011_FIFO_DEPTH};
@@ -64,9 +64,9 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
         vmstate_uint32!(ibrd, PL011State),
         vmstate_uint32!(fbrd, PL011State),
         vmstate_uint32!(ifl, PL011State),
-        vmstate_int32!(read_pos, PL011State),
-        vmstate_int32!(read_count, PL011State),
-        vmstate_int32!(read_trigger, PL011State),
+        vmstate_uint32!(read_pos, PL011State),
+        vmstate_uint32!(read_count, PL011State),
+        vmstate_uint32!(read_trigger, PL011State),
     },
     subsections: vmstate_subsections! {
         VMSTATE_PL011_CLOCK
