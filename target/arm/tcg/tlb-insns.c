@@ -1246,9 +1246,7 @@ void define_tlb_insn_regs(ARMCPU *cpu)
      * ops (i.e. matching the condition for el2_cp_reginfo[] in
      * helper.c), but we will be able to simplify this later.
      */
-    if (arm_feature(env, ARM_FEATURE_EL2)
-        || (arm_feature(env, ARM_FEATURE_EL3)
-            && arm_feature(env, ARM_FEATURE_V8))) {
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
         define_arm_cp_regs(cpu, tlbi_el2_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_EL3)) {
