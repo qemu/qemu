@@ -1146,13 +1146,20 @@ bool tlb_force_broadcast(CPUARMState *env);
 int tlbbits_for_regime(CPUARMState *env, ARMMMUIdx mmu_idx,
                        uint64_t addr);
 int vae1_tlbbits(CPUARMState *env, uint64_t addr);
+int vae2_tlbbits(CPUARMState *env, uint64_t addr);
 int vae1_tlbmask(CPUARMState *env);
+int vae2_tlbmask(CPUARMState *env);
 int ipas2e1_tlbmask(CPUARMState *env, int64_t value);
+int e2_tlbmask(CPUARMState *env);
 void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value);
 void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value);
 void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value);
+void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value);
+void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value);
 
 #endif /* TARGET_ARM_CPREGS_H */
