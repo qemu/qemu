@@ -1161,5 +1161,9 @@ void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value);
 void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value);
+void tlbi_aa64_vae3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value);
+void tlbi_aa64_alle3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value);
 
 #endif /* TARGET_ARM_CPREGS_H */
