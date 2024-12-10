@@ -2675,7 +2675,7 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
 
 static bool fold_shift(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask, z_mask;
+    uint64_t s_mask, z_mask, o_mask;
     TempOptInfo *t1, *t2;
 
     if (fold_const2(ctx, op) ||
@@ -2688,14 +2688,16 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
     t2 = arg_info(op->args[2]);
     s_mask = t1->s_mask;
     z_mask = t1->z_mask;
+    o_mask = t1->o_mask;
 
     if (ti_is_const(t2)) {
         int sh = ti_const_val(t2);
 
         z_mask = do_constant_folding(op->opc, ctx->type, z_mask, sh);
+        o_mask = do_constant_folding(op->opc, ctx->type, o_mask, sh);
         s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
 
-        return fold_masks_zs(ctx, op, z_mask, s_mask);
+        return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
     }
 
     switch (op->opc) {
