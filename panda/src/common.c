@@ -5,7 +5,7 @@
 #include "panda/debug.h"
 #include "panda/plugin.h"
 #include "panda/common.h"
-#include "panda/plog-cc-bridge.h"
+// #include "panda/plog-cc-bridge.h"
 
 #if defined(TARGET_ARM) && defined(CONFIG_SOFTMMU) && defined(TARGET_LATER)
 #include "target/arm/internals.h"
