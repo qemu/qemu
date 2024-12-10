@@ -1671,53 +1671,52 @@ static bool fold_brcond2(OptContext *ctx, TCGOp *op)
 
 static bool fold_bswap(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask, s_mask, sign;
+    uint64_t z_mask, o_mask, s_mask;
     TempOptInfo *t1 = arg_info(op->args[1]);
+    int flags = op->args[2];
 
     if (ti_is_const(t1)) {
         return tcg_opt_gen_movi(ctx, op, op->args[0],
                                 do_constant_folding(op->opc, ctx->type,
-                                                    ti_const_val(t1),
-                                                    op->args[2]));
+                                                    ti_const_val(t1), flags));
     }
 
     z_mask = t1->z_mask;
+    o_mask = t1->o_mask;
+    s_mask = 0;
+
     switch (op->opc) {
     case INDEX_op_bswap16:
         z_mask = bswap16(z_mask);
-        sign = INT16_MIN;
+        o_mask = bswap16(o_mask);
+        if (flags & TCG_BSWAP_OS) {
+            z_mask = (int16_t)z_mask;
+            o_mask = (int16_t)o_mask;
+            s_mask = INT16_MIN;
+        } else if (!(flags & TCG_BSWAP_OZ)) {
+            z_mask |= MAKE_64BIT_MASK(16, 48);
+        }
         break;
     case INDEX_op_bswap32:
         z_mask = bswap32(z_mask);
-        sign = INT32_MIN;
+        o_mask = bswap32(o_mask);
+        if (flags & TCG_BSWAP_OS) {
+            z_mask = (int32_t)z_mask;
+            o_mask = (int32_t)o_mask;
+            s_mask = INT32_MIN;
+        } else if (!(flags & TCG_BSWAP_OZ)) {
+            z_mask |= MAKE_64BIT_MASK(32, 32);
+        }
         break;
     case INDEX_op_bswap64:
         z_mask = bswap64(z_mask);
-        sign = INT64_MIN;
+        o_mask = bswap64(o_mask);
         break;
     default:
         g_assert_not_reached();
     }
 
-    s_mask = 0;
-    switch (op->args[2] & (TCG_BSWAP_OZ | TCG_BSWAP_OS)) {
-    case TCG_BSWAP_OZ:
-        break;
-    case TCG_BSWAP_OS:
-        /* If the sign bit may be 1, force all the bits above to 1. */
-        if (z_mask & sign) {
-            z_mask |= sign;
-        }
-        /* The value and therefore s_mask is explicitly sign-extended. */
-        s_mask = sign;
-        break;
-    default:
-        /* The high bits are undefined: force all bits above the sign to 1. */
-        z_mask |= sign << 1;
-        break;
-    }
-
-    return fold_masks_zs(ctx, op, z_mask, s_mask);
+    return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
 }
 
 static bool fold_call(OptContext *ctx, TCGOp *op)
