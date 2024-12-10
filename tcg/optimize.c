@@ -2013,7 +2013,7 @@ static bool fold_extract2(OptContext *ctx, TCGOp *op)
 
 static bool fold_exts(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask, z_mask;
+    uint64_t z_mask, o_mask, s_mask;
     TempOptInfo *t1;
 
     if (fold_const1(ctx, op)) {
@@ -2022,17 +2022,19 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
 
     t1 = arg_info(op->args[1]);
     z_mask = t1->z_mask;
+    o_mask = t1->o_mask;
     s_mask = t1->s_mask;
 
     switch (op->opc) {
     case INDEX_op_ext_i32_i64:
         s_mask |= INT32_MIN;
         z_mask = (int32_t)z_mask;
+        o_mask = (int32_t)o_mask;
         break;
     default:
         g_assert_not_reached();
     }
-    return fold_masks_zs(ctx, op, z_mask, s_mask);
+    return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
 }
 
 static bool fold_extu(OptContext *ctx, TCGOp *op)
