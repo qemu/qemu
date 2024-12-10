@@ -438,7 +438,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 }
 
-static int alle1_tlbmask(CPUARMState *env)
+int alle1_tlbmask(CPUARMState *env)
 {
     /*
      * Note that the 'ALL' scope must invalidate both stage 1 and
@@ -463,58 +463,6 @@ static int alle1_tlbmask(CPUARMState *env)
 bool tlb_force_broadcast(CPUARMState *env)
 {
     return arm_current_el(env) == 1 && (arm_hcr_el2_eff(env) & HCR_FB);
-}
-
-static void tlbiall_nsnh_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-
-    tlb_flush_by_mmuidx(cs, alle1_tlbmask(env));
-}
-
-static void tlbiall_nsnh_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                  uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-
-    tlb_flush_by_mmuidx_all_cpus_synced(cs, alle1_tlbmask(env));
-}
-
-
-static void tlbiall_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-
-    tlb_flush_by_mmuidx(cs, ARMMMUIdxBit_E2);
-}
-
-static void tlbiall_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                 uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-
-    tlb_flush_by_mmuidx_all_cpus_synced(cs, ARMMMUIdxBit_E2);
-}
-
-void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-    uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
-
-    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdxBit_E2);
-}
-
-void tlbimva_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
-{
-    CPUState *cs = env_cpu(env);
-    uint64_t pageaddr = value & ~MAKE_64BIT_MASK(0, 12);
-
-    tlb_flush_page_by_mmuidx_all_cpus_synced(cs, pageaddr,
-                                             ARMMMUIdxBit_E2);
 }
 
 static const ARMCPRegInfo cp_reginfo[] = {
@@ -6248,26 +6196,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
       .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS,
       .fieldoffset = offsetof(CPUARMState, cp15.ttbr0_el[2]) },
-    { .name = "TLBIALLNSNH",
-      .cp = 15, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 4,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbiall_nsnh_write },
-    { .name = "TLBIALLNSNHIS",
-      .cp = 15, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 4,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbiall_nsnh_is_write },
-    { .name = "TLBIALLH", .cp = 15, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbiall_hyp_write },
-    { .name = "TLBIALLHIS", .cp = 15, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 0,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbiall_hyp_is_write },
-    { .name = "TLBIMVAH", .cp = 15, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 1,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbimva_hyp_write },
-    { .name = "TLBIMVAHIS", .cp = 15, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 1,
-      .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbimva_hyp_is_write },
     { .name = "TLBI_ALLE2", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
       .access = PL2_W, .type = ARM_CP_NO_RAW | ARM_CP_EL3_NO_EL2_UNDEF,

@@ -1143,9 +1143,5 @@ CPAccessResult access_ttlb(CPUARMState *env, const ARMCPRegInfo *ri,
 CPAccessResult access_ttlbis(CPUARMState *env, const ARMCPRegInfo *ri,
                              bool isread);
 bool tlb_force_broadcast(CPUARMState *env);
-void tlbimva_hyp_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t value);
-void tlbimva_hyp_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value);
 
 #endif /* TARGET_ARM_CPREGS_H */
