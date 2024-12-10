@@ -1948,9 +1948,7 @@ static bool fold_eqv(OptContext *ctx, TCGOp *op)
     uint64_t z_mask, o_mask, s_mask;
     TempOptInfo *t1, *t2;
 
-    if (fold_const2_commutative(ctx, op) ||
-        fold_xi_to_x(ctx, op, -1) ||
-        fold_xi_to_not(ctx, op, 0)) {
+    if (fold_const2_commutative(ctx, op)) {
         return true;
     }
 
