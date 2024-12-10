@@ -1134,38 +1134,4 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
     return ri->opc1 == 4 || ri->opc1 == 5;
 }
 
-/*
- * Temporary declarations of functions until the move to tlb_insn_helper.c
- * is complete and we can make the functions static again
- */
-CPAccessResult access_ttlb(CPUARMState *env, const ARMCPRegInfo *ri,
-                           bool isread);
-CPAccessResult access_ttlbis(CPUARMState *env, const ARMCPRegInfo *ri,
-                             bool isread);
-CPAccessResult access_ttlbos(CPUARMState *env, const ARMCPRegInfo *ri,
-                             bool isread);
-bool tlb_force_broadcast(CPUARMState *env);
-int tlbbits_for_regime(CPUARMState *env, ARMMMUIdx mmu_idx,
-                       uint64_t addr);
-int vae1_tlbbits(CPUARMState *env, uint64_t addr);
-int vae2_tlbbits(CPUARMState *env, uint64_t addr);
-int vae1_tlbmask(CPUARMState *env);
-int vae2_tlbmask(CPUARMState *env);
-int ipas2e1_tlbmask(CPUARMState *env, int64_t value);
-int e2_tlbmask(CPUARMState *env);
-void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value);
-void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value);
-void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value);
-void tlbi_aa64_alle2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value);
-void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value);
-void tlbi_aa64_vae3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value);
-void tlbi_aa64_alle3is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value);
-
 #endif /* TARGET_ARM_CPREGS_H */
