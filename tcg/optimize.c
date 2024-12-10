@@ -1847,7 +1847,7 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
     int ofs = op->args[3];
     int len = op->args[4];
     int width = 8 * tcg_type_size(ctx->type);
-    uint64_t z_mask, s_mask;
+    uint64_t z_mask, o_mask, s_mask;
 
     if (ti_is_const(t1) && ti_is_const(t2)) {
         return tcg_opt_gen_movi(ctx, op, op->args[0],
@@ -1882,7 +1882,9 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
     }
 
     z_mask = deposit64(t1->z_mask, ofs, len, t2->z_mask);
-    return fold_masks_zs(ctx, op, z_mask, s_mask);
+    o_mask = deposit64(t1->o_mask, ofs, len, t2->o_mask);
+
+    return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
 }
 
 static bool fold_divide(OptContext *ctx, TCGOp *op)
