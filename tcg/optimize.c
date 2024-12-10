@@ -2251,10 +2251,14 @@ static bool fold_nor(OptContext *ctx, TCGOp *op)
 
 static bool fold_not(OptContext *ctx, TCGOp *op)
 {
+    TempOptInfo *t1;
+
     if (fold_const1(ctx, op)) {
         return true;
     }
-    return fold_masks_s(ctx, op, arg_info(op->args[1])->s_mask);
+
+    t1 = arg_info(op->args[1]);
+    return fold_masks_zos(ctx, op, ~t1->o_mask, ~t1->z_mask, t1->s_mask);
 }
 
 static bool fold_or(OptContext *ctx, TCGOp *op)
