@@ -1122,22 +1122,6 @@ static bool fold_masks_s(OptContext *ctx, TCGOp *op, uint64_t s_mask)
 }
 
 /*
- * An "affected" mask bit is 0 if and only if the result is identical
- * to the first input.  Thus if the entire mask is 0, the operation
- * is equivalent to a copy.
- */
-static bool fold_affected_mask(OptContext *ctx, TCGOp *op, uint64_t a_mask)
-{
-    if (ctx->type == TCG_TYPE_I32) {
-        a_mask = (uint32_t)a_mask;
-    }
-    if (a_mask == 0) {
-        return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
-    }
-    return false;
-}
-
-/*
  * Convert @op to NOT, if NOT is supported by the host.
  * Return true f the conversion is successful, which will still
  * indicate that the processing is complete.
@@ -2669,7 +2653,7 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
 
 static bool fold_sextract(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask, s_mask, s_mask_old;
+    uint64_t z_mask, o_mask, s_mask, a_mask;
     TempOptInfo *t1 = arg_info(op->args[1]);
     int pos = op->args[2];
     int len = op->args[3];
@@ -2679,16 +2663,14 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
                                 sextract64(ti_const_val(t1), pos, len));
     }
 
-    s_mask_old = t1->s_mask;
-    s_mask = s_mask_old >> pos;
+    s_mask = t1->s_mask >> pos;
     s_mask |= -1ull << (len - 1);
-
-    if (pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
-        return true;
-    }
+    a_mask = pos ? -1 : s_mask & ~t1->s_mask;
 
     z_mask = sextract64(t1->z_mask, pos, len);
-    return fold_masks_zs(ctx, op, z_mask, s_mask);
+    o_mask = sextract64(t1->o_mask, pos, len);
+
+    return fold_masks_zosa(ctx, op, z_mask, o_mask, s_mask, a_mask);
 }
 
 static bool fold_shift(OptContext *ctx, TCGOp *op)
