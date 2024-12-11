@@ -181,6 +181,10 @@ void cpu_init_fp_statuses(CPUX86State *env)
      */
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->sse_status);
     set_float_3nan_prop_rule(float_3nan_prop_abc, &env->sse_status);
+    /* Default NaN: sign bit set, most significant frac bit set */
+    set_float_default_nan_pattern(0b11000000, &env->fp_status);
+    set_float_default_nan_pattern(0b11000000, &env->mmx_status);
+    set_float_default_nan_pattern(0b11000000, &env->sse_status);
 }
 
 static inline uint8_t save_exception_flags(CPUX86State *env)
