@@ -504,10 +504,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
         }
     }
 
-    if (rule == float_3nan_prop_none) {
-        rule = float_3nan_prop_abc;
-    }
-
     assert(rule != float_3nan_prop_none);
     if (have_snan && (rule & R_3NAN_SNAN_MASK)) {
         /* We have at least one SNaN input and should prefer it */
