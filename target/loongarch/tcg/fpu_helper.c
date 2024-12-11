@@ -38,6 +38,8 @@ void restore_fp_status(CPULoongArchState *env)
      */
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->fp_status);
     set_float_3nan_prop_rule(float_3nan_prop_s_cab, &env->fp_status);
+    /* Default NaN: sign bit clear, msb frac bit set */
+    set_float_default_nan_pattern(0b01000000, &env->fp_status);
 }
 
 int ieee_ex_to_loongarch(int xcpt)
