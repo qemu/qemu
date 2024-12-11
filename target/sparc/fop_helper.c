@@ -490,13 +490,13 @@ uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_flcmps(float32 src1, float32 src2)
+uint32_t helper_flcmps(CPUSPARCState *env, float32 src1, float32 src2)
 {
     /*
      * FLCMP never raises an exception nor modifies any FSR fields.
      * Perform the comparison with a dummy fp environment.
      */
-    float_status discard = { };
+    float_status discard = env->fp_status;
     FloatRelation r;
 
     set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
@@ -518,9 +518,9 @@ uint32_t helper_flcmps(float32 src1, float32 src2)
     g_assert_not_reached();
 }
 
-uint32_t helper_flcmpd(float64 src1, float64 src2)
+uint32_t helper_flcmpd(CPUSPARCState *env, float64 src1, float64 src2)
 {
-    float_status discard = { };
+    float_status discard = env->fp_status;
     FloatRelation r;
 
     set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
