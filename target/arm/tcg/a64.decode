@@ -726,6 +726,15 @@ EOR_r           . 10 01010 .. . ..... ...... ..... .....    @logic_shift
 ANDS_r          . 11 01010 .. . ..... ...... ..... .....    @logic_shift
 
 # Add/subtract (shifted reg)
+
+&addsub_shift    rd rn rm sf sa st
+@addsub_shift    sf:1 .. ..... st:2 . rm:5 sa:6 rn:5 rd:5   &addsub_shift
+
+ADD_r           . 00 01011 .. 0 ..... ...... ..... .....    @addsub_shift
+SUB_r           . 10 01011 .. 0 ..... ...... ..... .....    @addsub_shift
+ADDS_r          . 01 01011 .. 0 ..... ...... ..... .....    @addsub_shift
+SUBS_r          . 11 01011 .. 0 ..... ...... ..... .....    @addsub_shift
+
 # Add/subtract (extended reg)
 
 &addsub_ext     rd rn rm sf sa st
