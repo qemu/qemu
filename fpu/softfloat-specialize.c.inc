@@ -475,6 +475,8 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
 static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
                          bool infzero, float_status *status)
 {
+    FloatInfZeroNaNRule rule = status->float_infzeronan_rule;
+
     /*
      * We guarantee not to require the target to tell us how to
      * pick a NaN if we're always returning the default NaN.
@@ -482,13 +484,67 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
      * specify.
      */
     assert(!status->default_nan_mode);
+
+    if (rule == float_infzeronan_none) {
+        /*
+         * Temporarily fall back to ifdef ladder
+         */
 #if defined(TARGET_ARM)
-    /* For ARM, the (inf,zero,qnan) case sets InvalidOp and returns
-     * the default NaN
-     */
-    if (infzero && is_qnan(c_cls)) {
-        return 3;
+        /*
+         * For ARM, the (inf,zero,qnan) case returns the default NaN,
+         * but (inf,zero,snan) returns the input NaN.
+         */
+        rule = float_infzeronan_dnan_if_qnan;
+#elif defined(TARGET_MIPS)
+        if (snan_bit_is_one(status)) {
+            /*
+             * For MIPS systems that conform to IEEE754-1985, the (inf,zero,nan)
+             * case sets InvalidOp and returns the default NaN
+             */
+            rule = float_infzeronan_dnan_always;
+        } else {
+            /*
+             * For MIPS systems that conform to IEEE754-2008, the (inf,zero,nan)
+             * case sets InvalidOp and returns the input value 'c'
+             */
+            rule = float_infzeronan_dnan_never;
+        }
+#elif defined(TARGET_PPC) || defined(TARGET_SPARC) || \
+    defined(TARGET_XTENSA) || defined(TARGET_HPPA) || \
+    defined(TARGET_I386) || defined(TARGET_LOONGARCH)
+        /*
+         * For LoongArch systems that conform to IEEE754-2008, the (inf,zero,nan)
+         * case sets InvalidOp and returns the input value 'c'
+         */
+        /*
+         * For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
+         * to return an input NaN if we have one (ie c) rather than generating
+         * a default NaN
+         */
+        rule = float_infzeronan_dnan_never;
+#elif defined(TARGET_S390X)
+        rule = float_infzeronan_dnan_always;
+#endif
     }
+
+    if (infzero) {
+        /*
+         * Inf * 0 + NaN -- some implementations return the default NaN here,
+         * and some return the input NaN.
+         */
+        switch (rule) {
+        case float_infzeronan_dnan_never:
+            return 2;
+        case float_infzeronan_dnan_always:
+            return 3;
+        case float_infzeronan_dnan_if_qnan:
+            return is_qnan(c_cls) ? 3 : 2;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+#if defined(TARGET_ARM)
 
     /* This looks different from the ARM ARM pseudocode, because the ARM ARM
      * puts the operands to a fused mac operation (a*b)+c in the order c,a,b.
@@ -508,13 +564,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
     }
 #elif defined(TARGET_MIPS)
     if (snan_bit_is_one(status)) {
-        /*
-         * For MIPS systems that conform to IEEE754-1985, the (inf,zero,nan)
-         * case sets InvalidOp and returns the default NaN
-         */
-        if (infzero) {
-            return 3;
-        }
         /* Prefer sNaN over qNaN, in the a, b, c order. */
         if (is_snan(a_cls)) {
             return 0;
@@ -530,10 +579,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
             return 2;
         }
     } else {
-        /*
-         * For MIPS systems that conform to IEEE754-2008, the (inf,zero,nan)
-         * case sets InvalidOp and returns the input value 'c'
-         */
         /* Prefer sNaN over qNaN, in the c, a, b order. */
         if (is_snan(c_cls)) {
             return 2;
@@ -550,11 +595,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
         }
     }
 #elif defined(TARGET_LOONGARCH64)
-    /*
-     * For LoongArch systems that conform to IEEE754-2008, the (inf,zero,nan)
-     * case sets InvalidOp and returns the input value 'c'
-     */
-
     /* Prefer sNaN over qNaN, in the c, a, b order. */
     if (is_snan(c_cls)) {
         return 2;
@@ -570,11 +610,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
         return 1;
     }
 #elif defined(TARGET_PPC)
-    /* For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
-     * to return an input NaN if we have one (ie c) rather than generating
-     * a default NaN
-     */
-
     /* If fRA is a NaN return it; otherwise if fRB is a NaN return it;
      * otherwise return fRC. Note that muladd on PPC is (fRA * fRC) + frB
      */
@@ -586,10 +621,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
         return 1;
     }
 #elif defined(TARGET_S390X)
-    if (infzero) {
-        return 3;
-    }
-
     if (is_snan(a_cls)) {
         return 0;
     } else if (is_snan(b_cls)) {
