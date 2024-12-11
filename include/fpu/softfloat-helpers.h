@@ -93,6 +93,12 @@ static inline void set_float_infzeronan_rule(FloatInfZeroNaNRule rule,
     status->float_infzeronan_rule = rule;
 }
 
+static inline void set_float_default_nan_pattern(uint8_t dnan_pattern,
+                                                 float_status *status)
+{
+    status->default_nan_pattern = dnan_pattern;
+}
+
 static inline void set_flush_to_zero(bool val, float_status *status)
 {
     status->flush_to_zero = val;
@@ -152,6 +158,11 @@ static inline Float3NaNPropRule get_float_3nan_prop_rule(float_status *status)
 static inline FloatInfZeroNaNRule get_float_infzeronan_rule(float_status *status)
 {
     return status->float_infzeronan_rule;
+}
+
+static inline uint8_t get_float_default_nan_pattern(float_status *status)
+{
+    return status->default_nan_pattern;
 }
 
 static inline bool get_flush_to_zero(float_status *status)

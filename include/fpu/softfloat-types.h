@@ -304,6 +304,16 @@ typedef struct float_status {
     bool flush_inputs_to_zero;
     bool default_nan_mode;
     /*
+     * The pattern to use for the default NaN. Here the high bit specifies
+     * the default NaN's sign bit, and bits 6..0 specify the high bits of the
+     * fractional part. The low bits of the fractional part are copies of bit 0.
+     * The exponent of the default NaN is (as for any NaN) always all 1s.
+     * Note that a value of 0 here is not a valid NaN. The target must set
+     * this to the correct non-zero value, or we will assert when trying to
+     * create a default NaN.
+     */
+    uint8_t default_nan_pattern;
+    /*
      * The flags below are not used on all specializations and may
      * constant fold away (see snan_bit_is_one()/no_signalling_nans() in
      * softfloat-specialize.inc.c)

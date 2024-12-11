@@ -133,35 +133,46 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
 {
     bool sign = 0;
     uint64_t frac;
+    uint8_t dnan_pattern = status->default_nan_pattern;
 
+    if (dnan_pattern == 0) {
 #if defined(TARGET_SPARC) || defined(TARGET_M68K)
-    /* !snan_bit_is_one, set all bits */
-    frac = (1ULL << DECOMPOSED_BINARY_POINT) - 1;
-#elif defined(TARGET_I386) || defined(TARGET_X86_64) \
+        /* Sign bit clear, all frac bits set */
+        dnan_pattern = 0b01111111;
+#elif defined(TARGET_I386) || defined(TARGET_X86_64)    \
     || defined(TARGET_MICROBLAZE)
-    /* !snan_bit_is_one, set sign and msb */
-    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-    sign = 1;
+        /* Sign bit set, most significant frac bit set */
+        dnan_pattern = 0b11000000;
 #elif defined(TARGET_HPPA)
-    /* snan_bit_is_one, set msb-1.  */
-    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
+        /* Sign bit clear, msb-1 frac bit set */
+        dnan_pattern = 0b00100000;
 #elif defined(TARGET_HEXAGON)
-    sign = 1;
-    frac = ~0ULL;
+        /* Sign bit set, all frac bits set. */
+        dnan_pattern = 0b11111111;
 #else
-    /*
-     * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
-     * S390, SH4, TriCore, and Xtensa.  Our other supported targets
-     * do not have floating-point.
-     */
-    if (snan_bit_is_one(status)) {
-        /* set all bits other than msb */
-        frac = (1ULL << (DECOMPOSED_BINARY_POINT - 1)) - 1;
-    } else {
-        /* set msb */
-        frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-    }
+        /*
+         * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
+         * S390, SH4, TriCore, and Xtensa.  Our other supported targets
+         * do not have floating-point.
+         */
+        if (snan_bit_is_one(status)) {
+            /* sign bit clear, set all frac bits other than msb */
+            dnan_pattern = 0b00111111;
+        } else {
+            /* sign bit clear, set frac msb */
+            dnan_pattern = 0b01000000;
+        }
 #endif
+    }
+    assert(dnan_pattern != 0);
+
+    sign = dnan_pattern >> 7;
+    /*
+     * Place default_nan_pattern [6:0] into bits [62:56],
+     * and replecate bit [0] down into [55:0]
+     */
+    frac = deposit64(0, DECOMPOSED_BINARY_POINT - 7, 7, dnan_pattern);
+    frac = deposit64(frac, 0, DECOMPOSED_BINARY_POINT - 7, -(dnan_pattern & 1));
 
     *p = (FloatParts64) {
         .cls = float_class_qnan,
