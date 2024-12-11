@@ -14,7 +14,7 @@ use qemu_api::{
     irq::InterruptSource,
     prelude::*,
     qdev::DeviceImpl,
-    qom::ObjectImpl,
+    qom::{ObjectImpl, ParentField},
 };
 
 use crate::{
@@ -86,7 +86,7 @@ impl std::ops::Index<u32> for Fifo {
 #[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
-    pub parent_obj: SysBusDevice,
+    pub parent_obj: ParentField<SysBusDevice>,
     pub iomem: MemoryRegion,
     #[doc(alias = "fr")]
     pub flags: registers::Flags,
@@ -645,7 +645,7 @@ pub unsafe extern "C" fn pl011_create(
 #[derive(Debug, qemu_api_macros::Object)]
 /// PL011 Luminary device model.
 pub struct PL011Luminary {
-    parent_obj: PL011State,
+    parent_obj: ParentField<PL011State>,
 }
 
 impl PL011Luminary {

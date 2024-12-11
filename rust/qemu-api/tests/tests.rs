@@ -15,7 +15,7 @@ use qemu_api::{
     declare_properties, define_property,
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property},
-    qom::ObjectImpl,
+    qom::{ObjectImpl, ParentField},
     vmstate::VMStateDescription,
     zeroable::Zeroable,
 };
@@ -31,7 +31,7 @@ pub static VMSTATE: VMStateDescription = VMStateDescription {
 #[repr(C)]
 #[derive(qemu_api_macros::Object)]
 pub struct DummyState {
-    parent: DeviceState,
+    parent: ParentField<DeviceState>,
     migrate_clock: bool,
 }
 

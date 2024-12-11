@@ -55,6 +55,7 @@
 
 use std::{
     ffi::CStr,
+    fmt,
     ops::{Deref, DerefMut},
     os::raw::c_void,
 };
@@ -105,6 +106,52 @@ macro_rules! qom_isa {
     };
 }
 
+/// This is the same as [`ManuallyDrop<T>`](std::mem::ManuallyDrop), though
+/// it hides the standard methods of `ManuallyDrop`.
+///
+/// The first field of an `ObjectType` must be of type `ParentField<T>`.
+/// (Technically, this is only necessary if there is at least one Rust
+/// superclass in the hierarchy).  This is to ensure that the parent field is
+/// dropped after the subclass; this drop order is enforced by the C
+/// `object_deinit` function.
+///
+/// # Examples
+///
+/// ```ignore
+/// #[repr(C)]
+/// #[derive(qemu_api_macros::Object)]
+/// pub struct MyDevice {
+///     parent: ParentField<DeviceState>,
+///     ...
+/// }
+/// ```
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct ParentField<T: ObjectType>(std::mem::ManuallyDrop<T>);
+
+impl<T: ObjectType> Deref for ParentField<T> {
+    type Target = T;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: ObjectType> DerefMut for ParentField<T> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.0.fmt(f)
+    }
+}
+
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
@@ -151,11 +198,16 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
 ///
 /// - the struct must be `#[repr(C)]`;
 ///
-/// - the first field of the struct must be of the instance struct corresponding
-///   to the superclass, which is `ObjectImpl::ParentType`
+/// - the first field of the struct must be of type
+///   [`ParentField<T>`](ParentField), where `T` is the parent type
+///   [`ObjectImpl::ParentType`]
 ///
-/// - likewise, the first field of the `Class` must be of the class struct
-///   corresponding to the superclass, which is `ObjectImpl::ParentType::Class`.
+/// - the first field of the `Class` must be of the class struct corresponding
+///   to the superclass, which is `ObjectImpl::ParentType::Class`. `ParentField`
+///   is not needed here.
+///
+/// In both cases, having a separate class type is not necessary if the subclass
+/// does not add any field.
 pub unsafe trait ObjectType: Sized {
     /// The QOM class object corresponding to this struct.  This is used
     /// to automatically generate a `class_init` method.
@@ -384,8 +436,8 @@ impl<T: ObjectType> ObjectCastMut for &mut T {}
 
 /// Trait a type must implement to be registered with QEMU.
 pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
-    /// The parent of the type.  This should match the first field of
-    /// the struct that implements `ObjectImpl`:
+    /// The parent of the type.  This should match the first field of the
+    /// struct that implements `ObjectImpl`, minus the `ParentField<_>` wrapper.
     type ParentType: ObjectType;
 
     /// Whether the object can be instantiated
