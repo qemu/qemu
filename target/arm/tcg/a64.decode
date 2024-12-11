@@ -716,6 +716,15 @@ XPACI           1 10 11010110 00001 010000 11111 rd:5
 XPACD           1 10 11010110 00001 010001 11111 rd:5
 
 # Logical (shifted reg)
+
+&logic_shift    rd rn rm sf sa st n
+@logic_shift    sf:1 .. ..... st:2 n:1 rm:5 sa:6 rn:5 rd:5  &logic_shift
+
+AND_r           . 00 01010 .. . ..... ...... ..... .....    @logic_shift
+ORR_r           . 01 01010 .. . ..... ...... ..... .....    @logic_shift
+EOR_r           . 10 01010 .. . ..... ...... ..... .....    @logic_shift
+ANDS_r          . 11 01010 .. . ..... ...... ..... .....    @logic_shift
+
 # Add/subtract (shifted reg)
 # Add/subtract (extended reg)
 # Add/subtract (carry)
