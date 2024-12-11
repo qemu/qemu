@@ -209,6 +209,8 @@ static void s390_cpu_reset_hold(Object *obj, ResetType type)
         set_float_3nan_prop_rule(float_3nan_prop_s_abc, &env->fpu_status);
         set_float_infzeronan_rule(float_infzeronan_dnan_always,
                                   &env->fpu_status);
+        /* Default NaN value: sign bit clear, frac msb set */
+        set_float_default_nan_pattern(0b01000000, &env->fpu_status);
        /* fall through */
     case RESET_TYPE_S390_CPU_NORMAL:
         env->psw.mask &= ~PSW_MASK_RI;
