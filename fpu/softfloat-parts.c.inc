@@ -40,7 +40,8 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
     bool have_snan = false;
-    int cmp, which;
+    FloatPartsN *ret;
+    int cmp;
 
     if (is_snan(a->cls) || is_snan(b->cls)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
@@ -55,21 +56,21 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
     switch (s->float_2nan_prop_rule) {
     case float_2nan_prop_s_ab:
         if (have_snan) {
-            which = is_snan(a->cls) ? 0 : 1;
+            ret = is_snan(a->cls) ? a : b;
             break;
         }
         /* fall through */
     case float_2nan_prop_ab:
-        which = is_nan(a->cls) ? 0 : 1;
+        ret = is_nan(a->cls) ? a : b;
         break;
     case float_2nan_prop_s_ba:
         if (have_snan) {
-            which = is_snan(b->cls) ? 1 : 0;
+            ret = is_snan(b->cls) ? b : a;
             break;
         }
         /* fall through */
     case float_2nan_prop_ba:
-        which = is_nan(b->cls) ? 1 : 0;
+        ret = is_nan(b->cls) ? b : a;
         break;
     case float_2nan_prop_x87:
         /*
@@ -85,35 +86,32 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
          */
         if (is_snan(a->cls)) {
             if (!is_snan(b->cls)) {
-                which = is_qnan(b->cls) ? 1 : 0;
+                ret = is_qnan(b->cls) ? b : a;
                 break;
             }
         } else if (is_qnan(a->cls)) {
             if (is_snan(b->cls) || !is_qnan(b->cls)) {
-                which = 0;
+                ret = a;
                 break;
             }
         } else {
-            which = 1;
+            ret = b;
             break;
         }
         cmp = frac_cmp(a, b);
         if (cmp == 0) {
             cmp = a->sign < b->sign;
         }
-        which = cmp > 0 ? 0 : 1;
+        ret = cmp > 0 ? a : b;
         break;
     default:
         g_assert_not_reached();
     }
 
-    if (which) {
-        a = b;
+    if (is_snan(ret->cls)) {
+        parts_silence_nan(ret, s);
     }
-    if (is_snan(a->cls)) {
-        parts_silence_nan(a, s);
-    }
-    return a;
+    return ret;
 }
 
 static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
