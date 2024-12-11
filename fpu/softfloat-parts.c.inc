@@ -67,8 +67,9 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
 {
     int which;
     bool infzero = (ab_mask == float_cmask_infzero);
+    bool have_snan = (abc_mask & float_cmask_snan);
 
-    if (unlikely(abc_mask & float_cmask_snan)) {
+    if (unlikely(have_snan)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
@@ -80,7 +81,7 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     if (s->default_nan_mode) {
         which = 3;
     } else {
-        which = pickNaNMulAdd(a->cls, b->cls, c->cls, infzero, s);
+        which = pickNaNMulAdd(a->cls, b->cls, c->cls, infzero, have_snan, s);
     }
 
     if (which == 3) {
