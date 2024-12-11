@@ -8401,8 +8401,8 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
 
     switch (opcode) {
     case 0x3: /* FSQRT */
-        gen_helper_vfp_sqrts(tcg_res, tcg_op, tcg_env);
-        goto done;
+        gen_fpst = gen_helper_vfp_sqrts;
+        break;
     case 0x6: /* BFCVT */
         gen_fpst = gen_helper_bfcvt;
         break;
@@ -8450,7 +8450,6 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
         gen_fpst(tcg_res, tcg_op, fpst);
     }
 
- done:
     write_fp_sreg(s, rd, tcg_res);
 }
 
@@ -8467,8 +8466,8 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
 
     switch (opcode) {
     case 0x3: /* FSQRT */
-        gen_helper_vfp_sqrtd(tcg_res, tcg_op, tcg_env);
-        goto done;
+        gen_fpst = gen_helper_vfp_sqrtd;
+        break;
     case 0x8: /* FRINTN */
     case 0x9: /* FRINTP */
     case 0xa: /* FRINTM */
@@ -8513,7 +8512,6 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
         gen_fpst(tcg_res, tcg_op, fpst);
     }
 
- done:
     write_fp_dreg(s, rd, tcg_res);
 }
 
@@ -9459,7 +9457,7 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
         gen_vfp_negd(tcg_rd, tcg_rn);
         break;
     case 0x7f: /* FSQRT */
-        gen_helper_vfp_sqrtd(tcg_rd, tcg_rn, tcg_env);
+        gen_helper_vfp_sqrtd(tcg_rd, tcg_rn, tcg_fpstatus);
         break;
     case 0x1a: /* FCVTNS */
     case 0x1b: /* FCVTMS */
@@ -10402,6 +10400,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             handle_2misc_fcmp_zero(s, opcode, false, u, is_q, size, rn, rd);
             return;
         case 0x7f: /* FSQRT */
+            need_fpstatus = true;
             if (size == 3 && !is_q) {
                 unallocated_encoding(s);
                 return;
@@ -10631,7 +10630,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     gen_vfp_negs(tcg_res, tcg_op);
                     break;
                 case 0x7f: /* FSQRT */
-                    gen_helper_vfp_sqrts(tcg_res, tcg_op, tcg_env);
+                    gen_helper_vfp_sqrts(tcg_res, tcg_op, tcg_fpstatus);
                     break;
                 case 0x1a: /* FCVTNS */
                 case 0x1b: /* FCVTMS */
