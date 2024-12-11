@@ -227,17 +227,17 @@ static void parts128_silence_nan(FloatParts128 *p, float_status *status)
 floatx80 floatx80_default_nan(float_status *status)
 {
     floatx80 r;
+    /*
+     * Extrapolate from the choices made by parts64_default_nan to fill
+     * in the floatx80 format. We assume that floatx80's explicit
+     * integer bit is always set (this is true for i386 and m68k,
+     * which are the only real users of this format).
+     */
+    FloatParts64 p64;
+    parts64_default_nan(&p64, status);
 
-    /* None of the targets that have snan_bit_is_one use floatx80.  */
-    assert(!snan_bit_is_one(status));
-#if defined(TARGET_M68K)
-    r.low = UINT64_C(0xFFFFFFFFFFFFFFFF);
-    r.high = 0x7FFF;
-#else
-    /* X86 */
-    r.low = UINT64_C(0xC000000000000000);
-    r.high = 0xFFFF;
-#endif
+    r.high = 0x7FFF | (p64.sign << 15);
+    r.low = (1ULL << DECOMPOSED_BINARY_POINT) | p64.frac;
     return r;
 }
 
