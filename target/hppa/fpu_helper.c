@@ -65,6 +65,8 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
     set_float_3nan_prop_rule(float_3nan_prop_abc, &env->fp_status);
     /* For inf * 0 + NaN, return the input NaN */
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->fp_status);
+    /* Default NaN: sign bit clear, msb-1 frac bit set */
+    set_float_default_nan_pattern(0b00100000, &env->fp_status);
 }
 
 void cpu_hppa_loaded_fr0(CPUHPPAState *env)
