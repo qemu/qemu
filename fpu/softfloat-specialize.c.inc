@@ -449,60 +449,6 @@ static int pickNaN(FloatClass a_cls, FloatClass b_cls,
 }
 
 /*----------------------------------------------------------------------------
-| Select which NaN to propagate for a three-input operation.
-| For the moment we assume that no CPU needs the 'larger significand'
-| information.
-| Return values : 0 : a; 1 : b; 2 : c; 3 : default-NaN
-*----------------------------------------------------------------------------*/
-static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
-                         bool infzero, bool have_snan, float_status *status)
-{
-    FloatClass cls[3] = { a_cls, b_cls, c_cls };
-    Float3NaNPropRule rule = status->float_3nan_prop_rule;
-    int which;
-
-    /*
-     * We guarantee not to require the target to tell us how to
-     * pick a NaN if we're always returning the default NaN.
-     * But if we're not in default-NaN mode then the target must
-     * specify.
-     */
-    assert(!status->default_nan_mode);
-
-    if (infzero) {
-        /*
-         * Inf * 0 + NaN -- some implementations return the default NaN here,
-         * and some return the input NaN.
-         */
-        switch (status->float_infzeronan_rule) {
-        case float_infzeronan_dnan_never:
-            return 2;
-        case float_infzeronan_dnan_always:
-            return 3;
-        case float_infzeronan_dnan_if_qnan:
-            return is_qnan(c_cls) ? 3 : 2;
-        default:
-            g_assert_not_reached();
-        }
-    }
-
-    assert(rule != float_3nan_prop_none);
-    if (have_snan && (rule & R_3NAN_SNAN_MASK)) {
-        /* We have at least one SNaN input and should prefer it */
-        do {
-            which = rule & R_3NAN_1ST_MASK;
-            rule >>= R_3NAN_1ST_LENGTH;
-        } while (!is_snan(cls[which]));
-    } else {
-        do {
-            which = rule & R_3NAN_1ST_MASK;
-            rule >>= R_3NAN_1ST_LENGTH;
-        } while (!is_nan(cls[which]));
-    }
-    return which;
-}
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/

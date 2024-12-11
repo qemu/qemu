@@ -79,9 +79,48 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     }
 
     if (s->default_nan_mode) {
+        /*
+         * We guarantee not to require the target to tell us how to
+         * pick a NaN if we're always returning the default NaN.
+         * But if we're not in default-NaN mode then the target must
+         * specify.
+         */
         which = 3;
+    } else if (infzero) {
+        /*
+         * Inf * 0 + NaN -- some implementations return the
+         * default NaN here, and some return the input NaN.
+         */
+        switch (s->float_infzeronan_rule) {
+        case float_infzeronan_dnan_never:
+            which = 2;
+            break;
+        case float_infzeronan_dnan_always:
+            which = 3;
+            break;
+        case float_infzeronan_dnan_if_qnan:
+            which = is_qnan(c->cls) ? 3 : 2;
+            break;
+        default:
+            g_assert_not_reached();
+        }
     } else {
-        which = pickNaNMulAdd(a->cls, b->cls, c->cls, infzero, have_snan, s);
+        FloatClass cls[3] = { a->cls, b->cls, c->cls };
+        Float3NaNPropRule rule = s->float_3nan_prop_rule;
+
+        assert(rule != float_3nan_prop_none);
+        if (have_snan && (rule & R_3NAN_SNAN_MASK)) {
+            /* We have at least one SNaN input and should prefer it */
+            do {
+                which = rule & R_3NAN_1ST_MASK;
+                rule >>= R_3NAN_1ST_LENGTH;
+            } while (!is_snan(cls[which]));
+        } else {
+            do {
+                which = rule & R_3NAN_1ST_MASK;
+                rule >>= R_3NAN_1ST_LENGTH;
+            } while (!is_nan(cls[which]));
+        }
     }
 
     if (which == 3) {
