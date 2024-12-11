@@ -437,19 +437,23 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #endif
 
     qemu_init_vcpu(cs);
-#ifndef CONFIG_USER_ONLY
     CPUHexagonState *env = cpu_env(cs);
+#ifndef CONFIG_USER_ONLY
     hex_mmu_realize(env);
     if (cs->cpu_index == 0) {
         env->g_sreg = g_new0(target_ulong, NUM_SREGS);
-        env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
     } else {
         CPUState *cpu0 = qemu_get_cpu(0);
         CPUHexagonState *env0 = cpu_env(cpu0);
         env->g_sreg = env0->g_sreg;
-        env->g_pcycle_base = env0->g_pcycle_base;
     }
 #endif
+    if (cs->cpu_index == 0) {
+        env->g_pcycle_base = g_malloc0(sizeof(*env->g_pcycle_base));
+    } else {
+        CPUState *cpu0 = qemu_get_cpu(0);
+        env->g_pcycle_base = cpu_env(cpu0)->g_pcycle_base;
+    }
 
     mcc->parent_realize(dev, errp);
 }
