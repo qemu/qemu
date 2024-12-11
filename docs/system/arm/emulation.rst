@@ -154,6 +154,7 @@ the following architecture extensions:
 - FEAT_VMID16 (16-bit VMID)
 - FEAT_WFxT (WFE and WFI instructions with timeout)
 - FEAT_XNX (Translation table stage 2 Unprivileged Execute-never)
+- FEAT_XS (XS attribute)
 
 For information on the specifics of these extensions, please refer
 to the `Arm Architecture Reference Manual for A-profile architecture
