@@ -71,6 +71,7 @@ int main(int ac, char **av)
     int i;
 
     set_float_2nan_prop_rule(float_2nan_prop_s_ab, &qsf);
+    set_float_default_nan_pattern(0b01000000, &qsf);
     set_float_rounding_mode(float_round_nearest_even, &qsf);
 
     test.d = 0.0;

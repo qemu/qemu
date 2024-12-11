@@ -941,6 +941,7 @@ void run_test(void)
      */
     set_float_2nan_prop_rule(float_2nan_prop_s_ab, &qsf);
     set_float_3nan_prop_rule(float_3nan_prop_s_cab, &qsf);
+    set_float_default_nan_pattern(0b01000000, &qsf);
     set_float_infzeronan_rule(float_infzeronan_dnan_if_qnan, &qsf);
 
     genCases_setLevel(test_level);
