@@ -65,9 +65,9 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
                                             FloatPartsN *c, float_status *s,
                                             int ab_mask, int abc_mask)
 {
-    int which;
     bool infzero = (ab_mask == float_cmask_infzero);
     bool have_snan = (abc_mask & float_cmask_snan);
+    FloatPartsN *ret;
 
     if (unlikely(have_snan)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
@@ -104,42 +104,30 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
         default:
             g_assert_not_reached();
         }
-        which = 2;
+        ret = c;
     } else {
-        FloatClass cls[3] = { a->cls, b->cls, c->cls };
+        FloatPartsN *val[3] = { a, b, c };
         Float3NaNPropRule rule = s->float_3nan_prop_rule;
 
         assert(rule != float_3nan_prop_none);
         if (have_snan && (rule & R_3NAN_SNAN_MASK)) {
             /* We have at least one SNaN input and should prefer it */
             do {
-                which = rule & R_3NAN_1ST_MASK;
+                ret = val[rule & R_3NAN_1ST_MASK];
                 rule >>= R_3NAN_1ST_LENGTH;
-            } while (!is_snan(cls[which]));
+            } while (!is_snan(ret->cls));
         } else {
             do {
-                which = rule & R_3NAN_1ST_MASK;
+                ret = val[rule & R_3NAN_1ST_MASK];
                 rule >>= R_3NAN_1ST_LENGTH;
-            } while (!is_nan(cls[which]));
+            } while (!is_nan(ret->cls));
         }
     }
 
-    switch (which) {
-    case 0:
-        break;
-    case 1:
-        a = b;
-        break;
-    case 2:
-        a = c;
-        break;
-    default:
-        g_assert_not_reached();
+    if (is_snan(ret->cls)) {
+        parts_silence_nan(ret, s);
     }
-    if (is_snan(a->cls)) {
-        parts_silence_nan(a, s);
-    }
-    return a;
+    return ret;
 
  default_nan:
     parts_default_nan(a, s);
