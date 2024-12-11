@@ -85,7 +85,7 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
          * But if we're not in default-NaN mode then the target must
          * specify.
          */
-        which = 3;
+        goto default_nan;
     } else if (infzero) {
         /*
          * Inf * 0 + NaN -- some implementations return the
@@ -93,17 +93,18 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
          */
         switch (s->float_infzeronan_rule) {
         case float_infzeronan_dnan_never:
-            which = 2;
             break;
         case float_infzeronan_dnan_always:
-            which = 3;
-            break;
+            goto default_nan;
         case float_infzeronan_dnan_if_qnan:
-            which = is_qnan(c->cls) ? 3 : 2;
+            if (is_qnan(c->cls)) {
+                goto default_nan;
+            }
             break;
         default:
             g_assert_not_reached();
         }
+        which = 2;
     } else {
         FloatClass cls[3] = { a->cls, b->cls, c->cls };
         Float3NaNPropRule rule = s->float_3nan_prop_rule;
@@ -123,11 +124,6 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
         }
     }
 
-    if (which == 3) {
-        parts_default_nan(a, s);
-        return a;
-    }
-
     switch (which) {
     case 0:
         break;
@@ -143,6 +139,10 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     if (is_snan(a->cls)) {
         parts_silence_nan(a, s);
     }
+    return a;
+
+ default_nan:
+    parts_default_nan(a, s);
     return a;
 }
 
