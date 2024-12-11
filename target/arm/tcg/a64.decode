@@ -1863,6 +1863,9 @@ FRECPE_v        0.00 1110 1.1 00001 11011 0 ..... .....     @qrr_sd
 FRSQRTE_v       0.10 1110 111 11001 11011 0 ..... .....     @qrr_h
 FRSQRTE_v       0.10 1110 1.1 00001 11011 0 ..... .....     @qrr_sd
 
+URECPE_v        0.00 1110 101 00001 11001 0 ..... .....     @qrr_s
+URSQRTE_v       0.10 1110 101 00001 11001 0 ..... .....     @qrr_s
+
 &fcvt_q         rd rn esz q shift
 @fcvtq_h        . q:1 . ...... 001 .... ...... rn:5 rd:5    \
                 &fcvt_q esz=1 shift=%fcvt_f_sh_h
