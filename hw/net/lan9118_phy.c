@@ -54,7 +54,7 @@ uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg)
         val = s->advertise;
         break;
     case 5: /* Auto-neg Link Partner Ability */
-        val = 0x0f71;
+        val = 0x0fe1;
         break;
     case 6: /* Auto-neg Expansion */
         val = 1;
