@@ -71,18 +71,30 @@ uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env,
         uint32_t cycles_hi)
 {
-    g_assert_not_reached();
+    uint64_t cur_cycles = hexagon_get_sys_pcycle_count(env);
+    uint64_t cycles =
+        ((uint64_t)cycles_hi << 32) | extract64(cur_cycles, 0, 32);
+    hexagon_set_sys_pcycle_count(env, cycles);
 }
 
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env,
         uint32_t cycles_lo)
 {
-    g_assert_not_reached();
+    uint64_t cur_cycles = hexagon_get_sys_pcycle_count(env);
+    uint64_t cycles = extract64(cur_cycles, 32, 32) | cycles_lo;
+    hexagon_set_sys_pcycle_count(env, cycles);
 }
 
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t cycles)
 {
-    g_assert_not_reached();
+    *(env->g_pcycle_base) = cycles;
+
+    CPUState *cs;
+    CPU_FOREACH(cs) {
+        HexagonCPU *cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *env_ = &cpu->env;
+        env_->t_cycle_count = 0;
+    }
 }
 
 static void set_wait_mode(CPUHexagonState *env)
