@@ -3,5 +3,6 @@ specific_ss.add(
         'common.c',
         'callbacks.c',
         'cb-support.c',
+        'panda_api.c',
     )
 )
