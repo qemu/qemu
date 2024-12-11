@@ -100,6 +100,8 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
      * then prefer dest over source", which is float_2nan_prop_s_ab.
      */
     set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    /* Default NaN value: sign bit clear, set frac msb */
+    set_float_default_nan_pattern(0b01000000, &env->fp_status);
 }
 
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
