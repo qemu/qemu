@@ -126,6 +126,14 @@ enum {
      * equivalent EL1 register when FEAT_NV2 is enabled.
      */
     ARM_CP_NV2_REDIRECT          = 1 << 20,
+    /*
+     * Flag: this is a TLBI insn which (when FEAT_XS is present) also has
+     * an NXS variant at the same encoding except that crn is 1 greater,
+     * so when registering this cpreg automatically also register one
+     * for the TLBI NXS variant. (For QEMU the NXS variant behaves
+     * identically to the normal one, other than FGT trapping handling.)
+     */
+    ARM_CP_ADD_TLBI_NXS          = 1 << 21,
 };
 
 /*

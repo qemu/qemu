@@ -9146,6 +9146,31 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                     if (r->state != state && r->state != ARM_CP_STATE_BOTH) {
                         continue;
                     }
+                    if ((r->type & ARM_CP_ADD_TLBI_NXS) &&
+                        cpu_isar_feature(aa64_xs, cpu)) {
+                        /*
+                         * This is a TLBI insn which has an NXS variant. The
+                         * NXS variant is at the same encoding except that
+                         * crn is +1, and has the same behaviour except for
+                         * fine-grained trapping. Add the NXS insn here and
+                         * then fall through to add the normal register.
+                         * add_cpreg_to_hashtable() copies the cpreg struct
+                         * and name that it is passed, so it's OK to use
+                         * a local struct here.
+                         */
+                        ARMCPRegInfo nxs_ri = *r;
+                        g_autofree char *name = g_strdup_printf("%sNXS", r->name);
+
+                        assert(state == ARM_CP_STATE_AA64);
+                        assert(nxs_ri.crn < 0xf);
+                        nxs_ri.crn++;
+                        if (nxs_ri.fgt) {
+                            nxs_ri.fgt |= R_FGT_NXS_MASK;
+                        }
+                        add_cpreg_to_hashtable(cpu, &nxs_ri, opaque, state,
+                                               ARM_CP_SECSTATE_NS,
+                                               crm, opc1, opc2, name);
+                    }
                     if (state == ARM_CP_STATE_AA32) {
                         /*
                          * Under AArch32 CP registers can be common
