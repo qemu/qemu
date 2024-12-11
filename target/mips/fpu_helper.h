@@ -47,6 +47,13 @@ static inline void restore_snan_bit_mode(CPUMIPSState *env)
     set_float_infzeronan_rule(izn_rule, &env->active_fpu.fp_status);
     nan3_rule = nan2008 ? float_3nan_prop_s_cab : float_3nan_prop_s_abc;
     set_float_3nan_prop_rule(nan3_rule, &env->active_fpu.fp_status);
+    /*
+     * With nan2008, the default NaN value has the sign bit clear and the
+     * frac msb set; with the older mode, the sign bit is clear, and all
+     * frac bits except the msb are set.
+     */
+    set_float_default_nan_pattern(nan2008 ? 0b01000000 : 0b00111111,
+                                  &env->active_fpu.fp_status);
 
 }
 

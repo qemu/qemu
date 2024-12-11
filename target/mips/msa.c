@@ -81,4 +81,7 @@ void msa_reset(CPUMIPSState *env)
     /* Inf * 0 + NaN returns the input NaN */
     set_float_infzeronan_rule(float_infzeronan_dnan_never,
                               &env->active_tc.msa_fp_status);
+    /* Default NaN: sign bit clear, frac msb set */
+    set_float_default_nan_pattern(0b01000000,
+                                  &env->active_tc.msa_fp_status);
 }
