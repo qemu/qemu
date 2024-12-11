@@ -180,6 +180,7 @@ void cpu_init_fp_statuses(CPUX86State *env)
      * there are multiple input NaNs they are selected in the order a, b, c.
      */
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->sse_status);
+    set_float_3nan_prop_rule(float_3nan_prop_abc, &env->sse_status);
 }
 
 static inline uint8_t save_exception_flags(CPUX86State *env)
