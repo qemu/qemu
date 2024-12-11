@@ -19,6 +19,27 @@ impl From<CompileError> for proc_macro2::TokenStream {
     }
 }
 
+fn get_fields<'a>(
+    input: &'a DeriveInput,
+    msg: &str,
+) -> Result<&'a Punctuated<Field, Comma>, CompileError> {
+    if let Data::Struct(s) = &input.data {
+        if let Fields::Named(fs) = &s.fields {
+            Ok(&fs.named)
+        } else {
+            Err(CompileError(
+                format!("Named fields required for {}", msg),
+                input.ident.span(),
+            ))
+        }
+    } else {
+        Err(CompileError(
+            format!("Struct required for {}", msg),
+            input.ident.span(),
+        ))
+    }
+}
+
 fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), CompileError> {
     let expected = parse_quote! { #[repr(C)] };
 
@@ -36,7 +57,12 @@ fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     is_c_repr(&input, "#[derive(Object)]")?;
 
     let name = &input.ident;
+    let parent = &get_fields(&input, "#[derive(Object)]")?[0].ident;
+
     Ok(quote! {
+        ::qemu_api::assert_field_type!(#name, #parent,
+            ::qemu_api::qom::ParentField<<#name as ::qemu_api::qom::ObjectImpl>::ParentType>);
+
         ::qemu_api::module_init! {
             MODULE_INIT_QOM => unsafe {
                 ::qemu_api::bindings::type_register_static(&<#name as ::qemu_api::qom::ObjectImpl>::TYPE_INFO);
@@ -53,30 +79,12 @@ pub fn derive_object(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-fn get_fields(input: &DeriveInput) -> Result<&Punctuated<Field, Comma>, CompileError> {
-    if let Data::Struct(s) = &input.data {
-        if let Fields::Named(fs) = &s.fields {
-            Ok(&fs.named)
-        } else {
-            Err(CompileError(
-                "Cannot generate offsets for unnamed fields.".to_string(),
-                input.ident.span(),
-            ))
-        }
-    } else {
-        Err(CompileError(
-            "Cannot generate offsets for union or enum.".to_string(),
-            input.ident.span(),
-        ))
-    }
-}
-
 #[rustfmt::skip::macros(quote)]
 fn derive_offsets_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, CompileError> {
     is_c_repr(&input, "#[derive(offsets)]")?;
 
     let name = &input.ident;
-    let fields = get_fields(&input)?;
+    let fields = get_fields(&input, "#[derive(offsets)]")?;
     let field_names: Vec<&Ident> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
     let field_types: Vec<&Type> = fields.iter().map(|f| &f.ty).collect();
     let field_vis: Vec<&Visibility> = fields.iter().map(|f| &f.vis).collect();
