@@ -136,10 +136,7 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
     uint8_t dnan_pattern = status->default_nan_pattern;
 
     if (dnan_pattern == 0) {
-#if defined(TARGET_SPARC)
-        /* Sign bit clear, all frac bits set */
-        dnan_pattern = 0b01111111;
-#elif defined(TARGET_HEXAGON)
+#if defined(TARGET_HEXAGON)
         /* Sign bit set, all frac bits set. */
         dnan_pattern = 0b11111111;
 #else
