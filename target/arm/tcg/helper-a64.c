@@ -618,38 +618,6 @@ uint32_t HELPER(advsimd_rinth)(uint32_t x, void *fp_status)
     return ret;
 }
 
-/*
- * Half-precision floating point conversion functions
- *
- * There are a multitude of conversion functions with various
- * different rounding modes. This is dealt with by the calling code
- * setting the mode appropriately before calling the helper.
- */
-
-uint32_t HELPER(advsimd_f16tosinth)(uint32_t a, void *fpstp)
-{
-    float_status *fpst = fpstp;
-
-    /* Invalid if we are passed a NaN */
-    if (float16_is_any_nan(a)) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_int16(a, fpst);
-}
-
-uint32_t HELPER(advsimd_f16touinth)(uint32_t a, void *fpstp)
-{
-    float_status *fpst = fpstp;
-
-    /* Invalid if we are passed a NaN */
-    if (float16_is_any_nan(a)) {
-        float_raise(float_flag_invalid, fpst);
-        return 0;
-    }
-    return float16_to_uint16(a, fpst);
-}
-
 static int el_from_spsr(uint32_t spsr)
 {
     /* Return the exception level that this SPSR is requesting a return to,

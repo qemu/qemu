@@ -9348,56 +9348,38 @@ static gen_helper_gvec_2_ptr * const f_fcvtzu_vf[] = {
 TRANS(FCVTZU_vf, do_gvec_op2_fpst,
       a->esz, a->q, a->rd, a->rn, a->shift, f_fcvtzu_vf)
 
-static void handle_2misc_64(DisasContext *s, int opcode, bool u,
-                            TCGv_i64 tcg_rd, TCGv_i64 tcg_rn,
-                            TCGv_i32 tcg_rmode, TCGv_ptr tcg_fpstatus)
-{
-    /* Handle 64->64 opcodes which are shared between the scalar and
-     * vector 2-reg-misc groups. We cover every integer opcode where size == 3
-     * is valid in either group and also the double-precision fp ops.
-     * The caller only need provide tcg_rmode and tcg_fpstatus if the op
-     * requires them.
-     */
-    switch (opcode) {
-    case 0x1a: /* FCVTNS */
-    case 0x1b: /* FCVTMS */
-    case 0x1c: /* FCVTAS */
-    case 0x3a: /* FCVTPS */
-    case 0x3b: /* FCVTZS */
-        gen_helper_vfp_tosqd(tcg_rd, tcg_rn, tcg_constant_i32(0), tcg_fpstatus);
-        break;
-    case 0x5a: /* FCVTNU */
-    case 0x5b: /* FCVTMU */
-    case 0x5c: /* FCVTAU */
-    case 0x7a: /* FCVTPU */
-    case 0x7b: /* FCVTZU */
-        gen_helper_vfp_touqd(tcg_rd, tcg_rn, tcg_constant_i32(0), tcg_fpstatus);
-        break;
-    default:
-    case 0x4: /* CLS, CLZ */
-    case 0x5: /* NOT */
-    case 0x7: /* SQABS, SQNEG */
-    case 0x8: /* CMGT, CMGE */
-    case 0x9: /* CMEQ, CMLE */
-    case 0xa: /* CMLT */
-    case 0xb: /* ABS, NEG */
-    case 0x2f: /* FABS */
-    case 0x6f: /* FNEG */
-    case 0x7f: /* FSQRT */
-    case 0x18: /* FRINTN */
-    case 0x19: /* FRINTM */
-    case 0x38: /* FRINTP */
-    case 0x39: /* FRINTZ */
-    case 0x58: /* FRINTA */
-    case 0x79: /* FRINTI */
-    case 0x59: /* FRINTX */
-    case 0x1e: /* FRINT32Z */
-    case 0x5e: /* FRINT32X */
-    case 0x1f: /* FRINT64Z */
-    case 0x5f: /* FRINT64X */
-        g_assert_not_reached();
-    }
-}
+static gen_helper_gvec_2_ptr * const f_fcvt_s_vi[] = {
+    gen_helper_gvec_vcvt_rm_sh,
+    gen_helper_gvec_vcvt_rm_ss,
+    gen_helper_gvec_vcvt_rm_sd,
+};
+
+static gen_helper_gvec_2_ptr * const f_fcvt_u_vi[] = {
+    gen_helper_gvec_vcvt_rm_uh,
+    gen_helper_gvec_vcvt_rm_us,
+    gen_helper_gvec_vcvt_rm_ud,
+};
+
+TRANS(FCVTNS_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_nearest_even, f_fcvt_s_vi)
+TRANS(FCVTNU_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_nearest_even, f_fcvt_u_vi)
+TRANS(FCVTPS_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_up, f_fcvt_s_vi)
+TRANS(FCVTPU_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_up, f_fcvt_u_vi)
+TRANS(FCVTMS_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_down, f_fcvt_s_vi)
+TRANS(FCVTMU_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_down, f_fcvt_u_vi)
+TRANS(FCVTZS_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_to_zero, f_fcvt_s_vi)
+TRANS(FCVTZU_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_to_zero, f_fcvt_u_vi)
+TRANS(FCVTAS_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_ties_away, f_fcvt_s_vi)
+TRANS(FCVTAU_vi, do_gvec_op2_fpst,
+      a->esz, a->q, a->rd, a->rn, float_round_ties_away, f_fcvt_u_vi)
 
 static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
                                    bool is_scalar, bool is_u, bool is_q,
@@ -9758,30 +9740,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             }
             handle_2misc_fcmp_zero(s, opcode, false, u, is_q, size, rn, rd);
             return;
-        case 0x1a: /* FCVTNS */
-        case 0x1b: /* FCVTMS */
-        case 0x3a: /* FCVTPS */
-        case 0x3b: /* FCVTZS */
-        case 0x5a: /* FCVTNU */
-        case 0x5b: /* FCVTMU */
-        case 0x7a: /* FCVTPU */
-        case 0x7b: /* FCVTZU */
-            need_fpstatus = true;
-            rmode = extract32(opcode, 5, 1) | (extract32(opcode, 0, 1) << 1);
-            if (size == 3 && !is_q) {
-                unallocated_encoding(s);
-                return;
-            }
-            break;
-        case 0x5c: /* FCVTAU */
-        case 0x1c: /* FCVTAS */
-            need_fpstatus = true;
-            rmode = FPROUNDING_TIEAWAY;
-            if (size == 3 && !is_q) {
-                unallocated_encoding(s);
-                return;
-            }
-            break;
         case 0x3c: /* URECPE */
             if (size == 3) {
                 unallocated_encoding(s);
@@ -9831,6 +9789,16 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         case 0x5f: /* FRINT64X */
         case 0x1d: /* SCVTF */
         case 0x5d: /* UCVTF */
+        case 0x1a: /* FCVTNS */
+        case 0x1b: /* FCVTMS */
+        case 0x3a: /* FCVTPS */
+        case 0x3b: /* FCVTZS */
+        case 0x5a: /* FCVTNU */
+        case 0x5b: /* FCVTMU */
+        case 0x7a: /* FCVTPU */
+        case 0x7b: /* FCVTZU */
+        case 0x5c: /* FCVTAU */
+        case 0x1c: /* FCVTAS */
             unallocated_encoding(s);
             return;
         }
@@ -9871,26 +9839,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         tcg_rmode = NULL;
     }
 
-    if (size == 3) {
-        /* All 64-bit element operations can be shared with scalar 2misc */
-        int pass;
-
-        /* Coverity claims (size == 3 && !is_q) has been eliminated
-         * from all paths leading to here.
-         */
-        tcg_debug_assert(is_q);
-        for (pass = 0; pass < 2; pass++) {
-            TCGv_i64 tcg_op = tcg_temp_new_i64();
-            TCGv_i64 tcg_res = tcg_temp_new_i64();
-
-            read_vec_element(s, tcg_op, rn, pass, MO_64);
-
-            handle_2misc_64(s, opcode, u, tcg_res, tcg_op,
-                            tcg_rmode, tcg_fpstatus);
-
-            write_vec_element(s, tcg_res, rd, pass, MO_64);
-        }
-    } else {
+    {
         int pass;
 
         assert(size == 2);
@@ -9903,22 +9852,6 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
             {
                 /* Special cases for 32 bit elements */
                 switch (opcode) {
-                case 0x1a: /* FCVTNS */
-                case 0x1b: /* FCVTMS */
-                case 0x1c: /* FCVTAS */
-                case 0x3a: /* FCVTPS */
-                case 0x3b: /* FCVTZS */
-                    gen_helper_vfp_tosls(tcg_res, tcg_op,
-                                         tcg_constant_i32(0), tcg_fpstatus);
-                    break;
-                case 0x5a: /* FCVTNU */
-                case 0x5b: /* FCVTMU */
-                case 0x5c: /* FCVTAU */
-                case 0x7a: /* FCVTPU */
-                case 0x7b: /* FCVTZU */
-                    gen_helper_vfp_touls(tcg_res, tcg_op,
-                                         tcg_constant_i32(0), tcg_fpstatus);
-                    break;
                 case 0x7c: /* URSQRTE */
                     gen_helper_rsqrte_u32(tcg_res, tcg_op);
                     break;
@@ -9938,6 +9871,16 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 case 0x5e: /* FRINT32X */
                 case 0x1f: /* FRINT64Z */
                 case 0x5f: /* FRINT64X */
+                case 0x1a: /* FCVTNS */
+                case 0x1b: /* FCVTMS */
+                case 0x1c: /* FCVTAS */
+                case 0x3a: /* FCVTPS */
+                case 0x3b: /* FCVTZS */
+                case 0x5a: /* FCVTNU */
+                case 0x5b: /* FCVTMU */
+                case 0x5c: /* FCVTAU */
+                case 0x7a: /* FCVTPU */
+                case 0x7b: /* FCVTZU */
                     g_assert_not_reached();
                 }
             }
@@ -10006,36 +9949,6 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     case 0x3d: /* FRECPE */
     case 0x3f: /* FRECPX */
         break;
-    case 0x1a: /* FCVTNS */
-        rmode = FPROUNDING_TIEEVEN;
-        break;
-    case 0x1b: /* FCVTMS */
-        rmode = FPROUNDING_NEGINF;
-        break;
-    case 0x1c: /* FCVTAS */
-        rmode = FPROUNDING_TIEAWAY;
-        break;
-    case 0x3a: /* FCVTPS */
-        rmode = FPROUNDING_POSINF;
-        break;
-    case 0x3b: /* FCVTZS */
-        rmode = FPROUNDING_ZERO;
-        break;
-    case 0x5a: /* FCVTNU */
-        rmode = FPROUNDING_TIEEVEN;
-        break;
-    case 0x5b: /* FCVTMU */
-        rmode = FPROUNDING_NEGINF;
-        break;
-    case 0x5c: /* FCVTAU */
-        rmode = FPROUNDING_TIEAWAY;
-        break;
-    case 0x7a: /* FCVTPU */
-        rmode = FPROUNDING_POSINF;
-        break;
-    case 0x7b: /* FCVTZU */
-        rmode = FPROUNDING_ZERO;
-        break;
     case 0x7d: /* FRSQRTE */
         break;
     default:
@@ -10051,6 +9964,16 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     case 0x79: /* FRINTI */
     case 0x1d: /* SCVTF */
     case 0x5d: /* UCVTF */
+    case 0x1a: /* FCVTNS */
+    case 0x1b: /* FCVTMS */
+    case 0x1c: /* FCVTAS */
+    case 0x3a: /* FCVTPS */
+    case 0x3b: /* FCVTZS */
+    case 0x5a: /* FCVTNU */
+    case 0x5b: /* FCVTMU */
+    case 0x5c: /* FCVTAU */
+    case 0x7a: /* FCVTPU */
+    case 0x7b: /* FCVTZU */
         unallocated_encoding(s);
         return;
     }
@@ -10115,22 +10038,8 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
             read_vec_element_i32(s, tcg_op, rn, pass, MO_16);
 
             switch (fpop) {
-            case 0x1a: /* FCVTNS */
-            case 0x1b: /* FCVTMS */
-            case 0x1c: /* FCVTAS */
-            case 0x3a: /* FCVTPS */
-            case 0x3b: /* FCVTZS */
-                gen_helper_advsimd_f16tosinth(tcg_res, tcg_op, tcg_fpstatus);
-                break;
             case 0x3d: /* FRECPE */
                 gen_helper_recpe_f16(tcg_res, tcg_op, tcg_fpstatus);
-                break;
-            case 0x5a: /* FCVTNU */
-            case 0x5b: /* FCVTMU */
-            case 0x5c: /* FCVTAU */
-            case 0x7a: /* FCVTPU */
-            case 0x7b: /* FCVTZU */
-                gen_helper_advsimd_f16touinth(tcg_res, tcg_op, tcg_fpstatus);
                 break;
             case 0x7d: /* FRSQRTE */
                 gen_helper_rsqrte_f16(tcg_res, tcg_op, tcg_fpstatus);
@@ -10146,6 +10055,16 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
             case 0x58: /* FRINTA */
             case 0x79: /* FRINTI */
             case 0x59: /* FRINTX */
+            case 0x1a: /* FCVTNS */
+            case 0x1b: /* FCVTMS */
+            case 0x1c: /* FCVTAS */
+            case 0x3a: /* FCVTPS */
+            case 0x3b: /* FCVTZS */
+            case 0x5a: /* FCVTNU */
+            case 0x5b: /* FCVTMU */
+            case 0x5c: /* FCVTAU */
+            case 0x7a: /* FCVTPU */
+            case 0x7b: /* FCVTZU */
                 g_assert_not_reached();
             }
 
