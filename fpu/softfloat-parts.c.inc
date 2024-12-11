@@ -39,24 +39,88 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
 static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
+    int cmp, which;
+
     if (is_snan(a->cls) || is_snan(b->cls)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
     if (s->default_nan_mode) {
         parts_default_nan(a, s);
-    } else {
-        int cmp = frac_cmp(a, b);
-        if (cmp == 0) {
-            cmp = a->sign < b->sign;
-        }
+        return a;
+    }
 
-        if (pickNaN(a->cls, b->cls, cmp > 0, s)) {
-            a = b;
-        }
+    cmp = frac_cmp(a, b);
+    if (cmp == 0) {
+        cmp = a->sign < b->sign;
+    }
+
+    switch (s->float_2nan_prop_rule) {
+    case float_2nan_prop_s_ab:
         if (is_snan(a->cls)) {
-            parts_silence_nan(a, s);
+            which = 0;
+        } else if (is_snan(b->cls)) {
+            which = 1;
+        } else if (is_qnan(a->cls)) {
+            which = 0;
+        } else {
+            which = 1;
         }
+        break;
+    case float_2nan_prop_s_ba:
+        if (is_snan(b->cls)) {
+            which = 1;
+        } else if (is_snan(a->cls)) {
+            which = 0;
+        } else if (is_qnan(b->cls)) {
+            which = 1;
+        } else {
+            which = 0;
+        }
+        break;
+    case float_2nan_prop_ab:
+        which = is_nan(a->cls) ? 0 : 1;
+        break;
+    case float_2nan_prop_ba:
+        which = is_nan(b->cls) ? 1 : 0;
+        break;
+    case float_2nan_prop_x87:
+        /*
+         * This implements x87 NaN propagation rules:
+         * SNaN + QNaN => return the QNaN
+         * two SNaNs => return the one with the larger significand, silenced
+         * two QNaNs => return the one with the larger significand
+         * SNaN and a non-NaN => return the SNaN, silenced
+         * QNaN and a non-NaN => return the QNaN
+         *
+         * If we get down to comparing significands and they are the same,
+         * return the NaN with the positive sign bit (if any).
+         */
+        if (is_snan(a->cls)) {
+            if (is_snan(b->cls)) {
+                which = cmp > 0 ? 0 : 1;
+            } else {
+                which = is_qnan(b->cls) ? 1 : 0;
+            }
+        } else if (is_qnan(a->cls)) {
+            if (is_snan(b->cls) || !is_qnan(b->cls)) {
+                which = 0;
+            } else {
+                which = cmp > 0 ? 0 : 1;
+            }
+        } else {
+            which = 1;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (which) {
+        a = b;
+    }
+    if (is_snan(a->cls)) {
+        parts_silence_nan(a, s);
     }
     return a;
 }
