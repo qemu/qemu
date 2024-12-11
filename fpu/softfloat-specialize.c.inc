@@ -135,20 +135,6 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
     uint64_t frac;
     uint8_t dnan_pattern = status->default_nan_pattern;
 
-    if (dnan_pattern == 0) {
-        /*
-         * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
-         * S390, SH4, TriCore, and Xtensa.  Our other supported targets
-         * do not have floating-point.
-         */
-        if (snan_bit_is_one(status)) {
-            /* sign bit clear, set all frac bits other than msb */
-            dnan_pattern = 0b00111111;
-        } else {
-            /* sign bit clear, set frac msb */
-            dnan_pattern = 0b01000000;
-        }
-    }
     assert(dnan_pattern != 0);
 
     sign = dnan_pattern >> 7;
