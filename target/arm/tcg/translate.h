@@ -608,6 +608,11 @@ void gen_gvec_fabs(unsigned vece, uint32_t dofs, uint32_t aofs,
 void gen_gvec_fneg(unsigned vece, uint32_t dofs, uint32_t aofs,
                    uint32_t oprsz, uint32_t maxsz);
 
+void gen_gvec_urecpe(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                     uint32_t opr_sz, uint32_t max_sz);
+void gen_gvec_ursqrte(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
+                      uint32_t opr_sz, uint32_t max_sz);
+
 /*
  * Forward to the isar_feature_* tests given a DisasContext pointer.
  */
