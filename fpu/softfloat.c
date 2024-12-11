@@ -4928,48 +4928,15 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 
 floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
 {
-    bool aIsLargerSignificand;
-    FloatClass a_cls, b_cls;
+    FloatParts128 pa, pb, *pr;
 
-    /* This is not complete, but is good enough for pickNaN.  */
-    a_cls = (!floatx80_is_any_nan(a)
-             ? float_class_normal
-             : floatx80_is_signaling_nan(a, status)
-             ? float_class_snan
-             : float_class_qnan);
-    b_cls = (!floatx80_is_any_nan(b)
-             ? float_class_normal
-             : floatx80_is_signaling_nan(b, status)
-             ? float_class_snan
-             : float_class_qnan);
-
-    if (is_snan(a_cls) || is_snan(b_cls)) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    if (status->default_nan_mode) {
+    if (!floatx80_unpack_canonical(&pa, a, status) ||
+        !floatx80_unpack_canonical(&pb, b, status)) {
         return floatx80_default_nan(status);
     }
 
-    if (a.low < b.low) {
-        aIsLargerSignificand = 0;
-    } else if (b.low < a.low) {
-        aIsLargerSignificand = 1;
-    } else {
-        aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
-    }
-
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
-        if (is_snan(b_cls)) {
-            return floatx80_silence_nan(b, status);
-        }
-        return b;
-    } else {
-        if (is_snan(a_cls)) {
-            return floatx80_silence_nan(a, status);
-        }
-        return a;
-    }
+    pr = parts_pick_nan(&pa, &pb, status);
+    return floatx80_round_pack_canonical(pr, status);
 }
 
 /*----------------------------------------------------------------------------
