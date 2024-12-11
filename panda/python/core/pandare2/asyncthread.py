@@ -8,7 +8,7 @@ import functools
 from queue import Queue, Empty
 from time import sleep, time
 from colorama import Fore, Style
-from pandare.utils import debug, warn
+from pandare2.utils import debug, warn
 
 
 def progress(msg):
