@@ -7793,6 +7793,18 @@ TRANS_FEAT(AUTIB, aa64_pauth, gen_pacaut, a, gen_helper_autib)
 TRANS_FEAT(AUTDA, aa64_pauth, gen_pacaut, a, gen_helper_autda)
 TRANS_FEAT(AUTDB, aa64_pauth, gen_pacaut, a, gen_helper_autdb)
 
+static bool do_xpac(DisasContext *s, int rd, NeonGenOne64OpEnvFn *fn)
+{
+    if (s->pauth_active) {
+        TCGv_i64 tcg_rd = cpu_reg(s, rd);
+        fn(tcg_rd, tcg_env, tcg_rd);
+    }
+    return true;
+}
+
+TRANS_FEAT(XPACI, aa64_pauth, do_xpac, a->rd, gen_helper_xpaci)
+TRANS_FEAT(XPACD, aa64_pauth, do_xpac, a->rd, gen_helper_xpacd)
+
 /* Logical (shifted register)
  *   31  30 29 28       24 23   22 21  20  16 15    10 9    5 4    0
  * +----+-----+-----------+-------+---+------+--------+------+------+
@@ -8377,84 +8389,6 @@ static void disas_cond_select(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Data-processing (1 source)
- *   31  30  29  28             21 20     16 15    10 9    5 4    0
- * +----+---+---+-----------------+---------+--------+------+------+
- * | sf | 1 | S | 1 1 0 1 0 1 1 0 | opcode2 | opcode |  Rn  |  Rd  |
- * +----+---+---+-----------------+---------+--------+------+------+
- */
-static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
-{
-    unsigned int sf, opcode, opcode2, rn, rd;
-    TCGv_i64 tcg_rd;
-
-    if (extract32(insn, 29, 1)) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    sf = extract32(insn, 31, 1);
-    opcode = extract32(insn, 10, 6);
-    opcode2 = extract32(insn, 16, 5);
-    rn = extract32(insn, 5, 5);
-    rd = extract32(insn, 0, 5);
-
-#define MAP(SF, O2, O1) ((SF) | (O1 << 1) | (O2 << 7))
-
-    switch (MAP(sf, opcode2, opcode)) {
-    case MAP(1, 0x01, 0x10): /* XPACI */
-        if (!dc_isar_feature(aa64_pauth, s) || rn != 31) {
-            goto do_unallocated;
-        } else if (s->pauth_active) {
-            tcg_rd = cpu_reg(s, rd);
-            gen_helper_xpaci(tcg_rd, tcg_env, tcg_rd);
-        }
-        break;
-    case MAP(1, 0x01, 0x11): /* XPACD */
-        if (!dc_isar_feature(aa64_pauth, s) || rn != 31) {
-            goto do_unallocated;
-        } else if (s->pauth_active) {
-            tcg_rd = cpu_reg(s, rd);
-            gen_helper_xpacd(tcg_rd, tcg_env, tcg_rd);
-        }
-        break;
-    default:
-    do_unallocated:
-    case MAP(0, 0x00, 0x00): /* RBIT */
-    case MAP(1, 0x00, 0x00):
-    case MAP(0, 0x00, 0x01): /* REV16 */
-    case MAP(1, 0x00, 0x01):
-    case MAP(0, 0x00, 0x02): /* REV/REV32 */
-    case MAP(1, 0x00, 0x02):
-    case MAP(1, 0x00, 0x03): /* REV64 */
-    case MAP(0, 0x00, 0x04): /* CLZ */
-    case MAP(1, 0x00, 0x04):
-    case MAP(0, 0x00, 0x05): /* CLS */
-    case MAP(1, 0x00, 0x05):
-    case MAP(1, 0x01, 0x00): /* PACIA */
-    case MAP(1, 0x01, 0x01): /* PACIB */
-    case MAP(1, 0x01, 0x02): /* PACDA */
-    case MAP(1, 0x01, 0x03): /* PACDB */
-    case MAP(1, 0x01, 0x04): /* AUTIA */
-    case MAP(1, 0x01, 0x05): /* AUTIB */
-    case MAP(1, 0x01, 0x06): /* AUTDA */
-    case MAP(1, 0x01, 0x07): /* AUTDB */
-    case MAP(1, 0x01, 0x08): /* PACIZA */
-    case MAP(1, 0x01, 0x09): /* PACIZB */
-    case MAP(1, 0x01, 0x0a): /* PACDZA */
-    case MAP(1, 0x01, 0x0b): /* PACDZB */
-    case MAP(1, 0x01, 0x0c): /* AUTIZA */
-    case MAP(1, 0x01, 0x0d): /* AUTIZB */
-    case MAP(1, 0x01, 0x0e): /* AUTDZA */
-    case MAP(1, 0x01, 0x0f): /* AUTDZB */
-        unallocated_encoding(s);
-        break;
-    }
-
-#undef MAP
-}
-
-
 /*
  * Data processing - register
  *  31  30 29  28      25    21  20  16      10         0
@@ -8464,7 +8398,6 @@ static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
  */
 static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
 {
-    int op0 = extract32(insn, 30, 1);
     int op1 = extract32(insn, 28, 1);
     int op2 = extract32(insn, 21, 4);
     int op3 = extract32(insn, 10, 6);
@@ -8517,19 +8450,13 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
         disas_cond_select(s, insn);
         break;
 
-    case 0x6: /* Data-processing */
-        if (op0) {    /* (1 source) */
-            disas_data_proc_1src(s, insn);
-        } else {      /* (2 source) */
-            goto do_unallocated;
-        }
-        break;
     case 0x8 ... 0xf: /* (3 source) */
         disas_data_proc_3src(s, insn);
         break;
 
     default:
     do_unallocated:
+    case 0x6: /* Data-processing */
         unallocated_encoding(s);
         break;
     }

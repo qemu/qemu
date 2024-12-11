@@ -712,6 +712,9 @@ AUTIB           1 10 11010110 00001 00.101 ..... .....  @pacaut
 AUTDA           1 10 11010110 00001 00.110 ..... .....  @pacaut
 AUTDB           1 10 11010110 00001 00.111 ..... .....  @pacaut
 
+XPACI           1 10 11010110 00001 010000 11111 rd:5
+XPACD           1 10 11010110 00001 010001 11111 rd:5
+
 # Logical (shifted reg)
 # Add/subtract (shifted reg)
 # Add/subtract (extended reg)
