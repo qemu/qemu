@@ -39,10 +39,12 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
 static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
+    bool have_snan = false;
     int cmp, which;
 
     if (is_snan(a->cls) || is_snan(b->cls)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+        have_snan = true;
     }
 
     if (s->default_nan_mode) {
@@ -57,30 +59,20 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
 
     switch (s->float_2nan_prop_rule) {
     case float_2nan_prop_s_ab:
-        if (is_snan(a->cls)) {
-            which = 0;
-        } else if (is_snan(b->cls)) {
-            which = 1;
-        } else if (is_qnan(a->cls)) {
-            which = 0;
-        } else {
-            which = 1;
+        if (have_snan) {
+            which = is_snan(a->cls) ? 0 : 1;
+            break;
         }
-        break;
-    case float_2nan_prop_s_ba:
-        if (is_snan(b->cls)) {
-            which = 1;
-        } else if (is_snan(a->cls)) {
-            which = 0;
-        } else if (is_qnan(b->cls)) {
-            which = 1;
-        } else {
-            which = 0;
-        }
-        break;
+        /* fall through */
     case float_2nan_prop_ab:
         which = is_nan(a->cls) ? 0 : 1;
         break;
+    case float_2nan_prop_s_ba:
+        if (have_snan) {
+            which = is_snan(b->cls) ? 1 : 0;
+            break;
+        }
+        /* fall through */
     case float_2nan_prop_ba:
         which = is_nan(b->cls) ? 1 : 0;
         break;
