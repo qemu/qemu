@@ -757,6 +757,10 @@ SBCS            . 11 11010000 ..... 000000 ..... .....  @rrr_sf
 RMIF            1 01 11010000 imm:6 00001 rn:5 0 mask:4
 
 # Evaluate into flags
+
+SETF8           0 01 11010000 00000 000010 rn:5 01101
+SETF16          0 01 11010000 00000 010010 rn:5 01101
+
 # Conditional compare (regster)
 # Conditional compare (immediate)
 # Conditional select
