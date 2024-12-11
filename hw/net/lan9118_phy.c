@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/net/lan9118_phy.h"
+#include "hw/net/mii.h"
 #include "hw/irq.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
@@ -38,26 +39,28 @@ uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg)
     uint16_t val;
 
     switch (reg) {
-    case 0: /* Basic Control */
+    case MII_BMCR:
         val = s->control;
         break;
-    case 1: /* Basic Status */
+    case MII_BMSR:
         val = s->status;
         break;
-    case 2: /* ID1 */
-        val = 0x0007;
+    case MII_PHYID1:
+        val = SMSCLAN9118_PHYID1;
         break;
-    case 3: /* ID2 */
-        val = 0xc0d1;
+    case MII_PHYID2:
+        val = SMSCLAN9118_PHYID2;
         break;
-    case 4: /* Auto-neg advertisement */
+    case MII_ANAR:
         val = s->advertise;
         break;
-    case 5: /* Auto-neg Link Partner Ability */
-        val = 0x0fe1;
+    case MII_ANLPAR:
+        val = MII_ANLPAR_PAUSEASY | MII_ANLPAR_PAUSE | MII_ANLPAR_T4 |
+              MII_ANLPAR_TXFD | MII_ANLPAR_TX | MII_ANLPAR_10FD |
+              MII_ANLPAR_10 | MII_ANLPAR_CSMACD;
         break;
-    case 6: /* Auto-neg Expansion */
-        val = 1;
+    case MII_ANER:
+        val = MII_ANER_NWAY;
         break;
     case 29: /* Interrupt source. */
         val = s->ints;
@@ -92,19 +95,24 @@ void lan9118_phy_write(Lan9118PhyState *s, int reg, uint16_t val)
     trace_lan9118_phy_write(val, reg);
 
     switch (reg) {
-    case 0: /* Basic Control */
-        if (val & 0x8000) {
+    case MII_BMCR:
+        if (val & MII_BMCR_RESET) {
             lan9118_phy_reset(s);
         } else {
-            s->control = val & 0x7980;
+            s->control = val & (MII_BMCR_LOOPBACK | MII_BMCR_SPEED100 |
+                                MII_BMCR_AUTOEN | MII_BMCR_PDOWN | MII_BMCR_FD |
+                                MII_BMCR_CTST);
             /* Complete autonegotiation immediately. */
-            if (val & 0x1000) {
-                s->status |= 0x0020;
+            if (val & MII_BMCR_AUTOEN) {
+                s->status |= MII_BMSR_AN_COMP;
             }
         }
         break;
-    case 4: /* Auto-neg advertisement */
-        s->advertise = (val & 0x2d7f) | 0x80;
+    case MII_ANAR:
+        s->advertise = (val & (MII_ANAR_RFAULT | MII_ANAR_PAUSE_ASYM |
+                               MII_ANAR_PAUSE | MII_ANAR_10FD | MII_ANAR_10 |
+                               MII_ANAR_SELECT))
+                     | MII_ANAR_TX;
         break;
     case 30: /* Interrupt mask */
         s->int_mask = val & 0xff;
@@ -131,11 +139,11 @@ void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down)
     /* Autonegotiation status mirrors link status. */
     if (link_down) {
         trace_lan9118_phy_update_link("down");
-        s->status &= ~0x0024;
+        s->status &= ~(MII_BMSR_AN_COMP | MII_BMSR_LINK_ST);
         s->ints |= PHY_INT_DOWN;
     } else {
         trace_lan9118_phy_update_link("up");
-        s->status |= 0x0024;
+        s->status |= MII_BMSR_AN_COMP | MII_BMSR_LINK_ST;
         s->ints |= PHY_INT_ENERGYON;
         s->ints |= PHY_INT_AUTONEG_COMPLETE;
     }
@@ -146,9 +154,18 @@ void lan9118_phy_reset(Lan9118PhyState *s)
 {
     trace_lan9118_phy_reset();
 
-    s->control = 0x3000;
-    s->status = 0x7809;
-    s->advertise = 0x01e1;
+    s->control = MII_BMCR_AUTOEN | MII_BMCR_SPEED100;
+    s->status = MII_BMSR_100TX_FD
+                | MII_BMSR_100TX_HD
+                | MII_BMSR_10T_FD
+                | MII_BMSR_10T_HD
+                | MII_BMSR_AUTONEG
+                | MII_BMSR_EXTCAP;
+    s->advertise = MII_ANAR_TXFD
+                   | MII_ANAR_TX
+                   | MII_ANAR_10FD
+                   | MII_ANAR_10
+                   | MII_ANAR_CSMACD;
     s->int_mask = 0;
     s->ints = 0;
     lan9118_phy_update_link(s, s->link_down);
