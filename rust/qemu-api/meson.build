@@ -15,6 +15,7 @@ _qemu_api_rs = static_library(
   structured_sources(
     [
       'src/lib.rs',
+      'src/assertions.rs',
       'src/bindings.rs',
       'src/bitops.rs',
       'src/callbacks.rs',
