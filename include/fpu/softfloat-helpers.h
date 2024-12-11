@@ -81,6 +81,12 @@ static inline void set_float_2nan_prop_rule(Float2NaNPropRule rule,
     status->float_2nan_prop_rule = rule;
 }
 
+static inline void set_float_3nan_prop_rule(Float3NaNPropRule rule,
+                                            float_status *status)
+{
+    status->float_3nan_prop_rule = rule;
+}
+
 static inline void set_float_infzeronan_rule(FloatInfZeroNaNRule rule,
                                              float_status *status)
 {
@@ -141,6 +147,11 @@ get_floatx80_rounding_precision(float_status *status)
 static inline Float2NaNPropRule get_float_2nan_prop_rule(float_status *status)
 {
     return status->float_2nan_prop_rule;
+}
+
+static inline Float3NaNPropRule get_float_3nan_prop_rule(float_status *status)
+{
+    return status->float_3nan_prop_rule;
 }
 
 static inline FloatInfZeroNaNRule get_float_infzeronan_rule(float_status *status)
