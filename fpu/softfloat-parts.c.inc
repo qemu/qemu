@@ -52,11 +52,6 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
         return a;
     }
 
-    cmp = frac_cmp(a, b);
-    if (cmp == 0) {
-        cmp = a->sign < b->sign;
-    }
-
     switch (s->float_2nan_prop_rule) {
     case float_2nan_prop_s_ab:
         if (have_snan) {
@@ -89,20 +84,24 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
          * return the NaN with the positive sign bit (if any).
          */
         if (is_snan(a->cls)) {
-            if (is_snan(b->cls)) {
-                which = cmp > 0 ? 0 : 1;
-            } else {
+            if (!is_snan(b->cls)) {
                 which = is_qnan(b->cls) ? 1 : 0;
+                break;
             }
         } else if (is_qnan(a->cls)) {
             if (is_snan(b->cls) || !is_qnan(b->cls)) {
                 which = 0;
-            } else {
-                which = cmp > 0 ? 0 : 1;
+                break;
             }
         } else {
             which = 1;
+            break;
         }
+        cmp = frac_cmp(a, b);
+        if (cmp == 0) {
+            cmp = a->sign < b->sign;
+        }
+        which = cmp > 0 ? 0 : 1;
         break;
     default:
         g_assert_not_reached();
