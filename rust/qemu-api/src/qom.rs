@@ -180,6 +180,16 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
     T::class_init(unsafe { &mut *klass.cast::<T::Class>() })
 }
 
+unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut Object) {
+    // SAFETY: obj is an instance of T, since drop_object<T> is called
+    // from the QOM core function object_deinit() as the instance_finalize
+    // function for class T.  Note that while object_deinit() will drop the
+    // superclass field separately after this function returns, `T` must
+    // implement the unsafe trait ObjectType; the safety rules for the
+    // trait mandate that the parent field is manually dropped.
+    unsafe { std::ptr::drop_in_place(obj.cast::<T>()) }
+}
+
 /// Trait exposed by all structs corresponding to QOM objects.
 ///
 /// # Safety
@@ -442,7 +452,6 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 
     /// Whether the object can be instantiated
     const ABSTRACT: bool = false;
-    const INSTANCE_FINALIZE: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
 
     /// Function that is called to initialize an object.  The parent class will
     /// have already been initialized so the type is only responsible for
@@ -478,7 +487,7 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
             None => None,
             Some(_) => Some(rust_instance_post_init::<Self>),
         },
-        instance_finalize: Self::INSTANCE_FINALIZE,
+        instance_finalize: Some(drop_object::<Self>),
         abstract_: Self::ABSTRACT,
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),
