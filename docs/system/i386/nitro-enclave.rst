@@ -13,7 +13,7 @@ the enclave VM gets a dynamic CID. Enclaves use an EIF (`Enclave Image Format`_)
 file which contains the necessary kernel, cmdline and ramdisk(s) to boot.
 
 In QEMU, ``nitro-enclave`` is a machine type based on ``microvm`` similar to how
-AWS nitro enclaves are based on `Firecracker`_ microvm. This is useful for
+AWS nitro enclaves look like a `Firecracker`_ microvm. This is useful for
 local testing of EIF files using QEMU instead of running real AWS Nitro Enclaves
 which can be difficult for debugging due to its roots in security. The vsock
 device emulation is done using vhost-user-vsock which means another process that
