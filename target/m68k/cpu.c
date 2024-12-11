@@ -76,7 +76,7 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(obj);
     CPUM68KState *env = cpu_env(cs);
-    floatx80 nan = floatx80_default_nan(NULL);
+    floatx80 nan;
     int i;
 
     if (mcc->parent_phases.hold) {
@@ -89,10 +89,6 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
 #else
     cpu_m68k_set_sr(env, SR_S | SR_I);
 #endif
-    for (i = 0; i < 8; i++) {
-        env->fregs[i].d = nan;
-    }
-    cpu_m68k_set_fpcr(env, 0);
     /*
      * M68000 FAMILY PROGRAMMER'S REFERENCE MANUAL
      * 3.4 FLOATING-POINT INSTRUCTION DETAILS
@@ -109,6 +105,12 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
      * preceding paragraph for nonsignaling NaNs.
      */
     set_float_2nan_prop_rule(float_2nan_prop_ab, &env->fp_status);
+
+    nan = floatx80_default_nan(&env->fp_status);
+    for (i = 0; i < 8; i++) {
+        env->fregs[i].d = nan;
+    }
+    cpu_m68k_set_fpcr(env, 0);
     env->fpsr = 0;
 
     /* TODO: We should set PC from the interrupt vector.  */
