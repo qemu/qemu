@@ -359,8 +359,7 @@ uint64_t helper_fclass_s(CPULoongArchState *env, uint64_t fj)
     } else if (float32_is_zero_or_denormal(f)) {
         return sign ? 1 << 4 : 1 << 8;
     } else if (float32_is_any_nan(f)) {
-        float_status s = { }; /* for snan_bit_is_one */
-        return float32_is_quiet_nan(f, &s) ? 1 << 1 : 1 << 0;
+        return float32_is_quiet_nan(f, &env->fp_status) ? 1 << 1 : 1 << 0;
     } else {
         return sign ? 1 << 3 : 1 << 7;
     }
@@ -378,8 +377,7 @@ uint64_t helper_fclass_d(CPULoongArchState *env, uint64_t fj)
     } else if (float64_is_zero_or_denormal(f)) {
         return sign ? 1 << 4 : 1 << 8;
     } else if (float64_is_any_nan(f)) {
-        float_status s = { }; /* for snan_bit_is_one */
-        return float64_is_quiet_nan(f, &s) ? 1 << 1 : 1 << 0;
+        return float64_is_quiet_nan(f, &env->fp_status) ? 1 << 1 : 1 << 0;
     } else {
         return sign ? 1 << 3 : 1 << 7;
     }
