@@ -111,6 +111,8 @@ static void openrisc_cpu_reset_hold(Object *obj, ResetType type)
      */
     set_float_2nan_prop_rule(float_2nan_prop_x87, &cpu->env.fp_status);
 
+    /* Default NaN: sign bit clear, frac msb set */
+    set_float_default_nan_pattern(0b01000000, &cpu->env.fp_status);
 
 #ifndef CONFIG_USER_ONLY
     cpu->env.picmr = 0x00000000;
