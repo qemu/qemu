@@ -753,6 +753,9 @@ SBC             . 10 11010000 ..... 000000 ..... .....  @rrr_sf
 SBCS            . 11 11010000 ..... 000000 ..... .....  @rrr_sf
 
 # Rotate right into flags
+
+RMIF            1 01 11010000 imm:6 00001 rn:5 0 mask:4
+
 # Evaluate into flags
 # Conditional compare (regster)
 # Conditional compare (immediate)

@@ -8045,30 +8045,18 @@ TRANS(SBC, do_adc_sbc, a, true, false)
 TRANS(ADCS, do_adc_sbc, a, false, true)
 TRANS(SBCS, do_adc_sbc, a, true, true)
 
-/*
- * Rotate right into flags
- *  31 30 29                21       15          10      5  4      0
- * +--+--+--+-----------------+--------+-----------+------+--+------+
- * |sf|op| S| 1 1 0 1 0 0 0 0 |  imm6  | 0 0 0 0 1 |  Rn  |o2| mask |
- * +--+--+--+-----------------+--------+-----------+------+--+------+
- */
-static void disas_rotate_right_into_flags(DisasContext *s, uint32_t insn)
+static bool trans_RMIF(DisasContext *s, arg_RMIF *a)
 {
-    int mask = extract32(insn, 0, 4);
-    int o2 = extract32(insn, 4, 1);
-    int rn = extract32(insn, 5, 5);
-    int imm6 = extract32(insn, 15, 6);
-    int sf_op_s = extract32(insn, 29, 3);
+    int mask = a->mask;
     TCGv_i64 tcg_rn;
     TCGv_i32 nzcv;
 
-    if (sf_op_s != 5 || o2 != 0 || !dc_isar_feature(aa64_condm_4, s)) {
-        unallocated_encoding(s);
-        return;
+    if (!dc_isar_feature(aa64_condm_4, s)) {
+        return false;
     }
 
-    tcg_rn = read_cpu_reg(s, rn, 1);
-    tcg_gen_rotri_i64(tcg_rn, tcg_rn, imm6);
+    tcg_rn = read_cpu_reg(s, a->rn, 1);
+    tcg_gen_rotri_i64(tcg_rn, tcg_rn, a->imm);
 
     nzcv = tcg_temp_new_i32();
     tcg_gen_extrl_i64_i32(nzcv, tcg_rn);
@@ -8086,6 +8074,7 @@ static void disas_rotate_right_into_flags(DisasContext *s, uint32_t insn)
     if (mask & 1) { /* V */
         tcg_gen_shli_i32(cpu_VF, nzcv, 31 - 0);
     }
+    return true;
 }
 
 /*
@@ -8297,11 +8286,6 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
     switch (op2) {
     case 0x0:
         switch (op3) {
-        case 0x01: /* Rotate right into flags */
-        case 0x21:
-            disas_rotate_right_into_flags(s, insn);
-            break;
-
         case 0x02: /* Evaluate into flags */
         case 0x12:
         case 0x22:
@@ -8311,6 +8295,8 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
 
         default:
         case 0x00: /* Add/subtract (with carry) */
+        case 0x01: /* Rotate right into flags */
+        case 0x21:
             goto do_unallocated;
         }
         break;
