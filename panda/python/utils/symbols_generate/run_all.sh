@@ -2,13 +2,13 @@
 
 ROOT=$(realpath ../../../../)
 BUILD=$(realpath $ROOT/build)
-PANDARE_AUTOGEN_DIR=$(realpath $ROOT/panda/python/core/autogen)
+PANDARE_AUTOGEN_DIR=$(realpath $ROOT/panda/python/core/pandare2/autogen)
 
-LIBPANDAS=$(find $BUILD -name "libpanda*.so")
+LIBPANDAS=$(find $BUILD -name "./libpanda-*.so")
 
 for LIBPANDA in $LIBPANDAS; do
     echo "Running $LIBPANDA"
     bash ./gdb_run.sh $LIBPANDA
 done
 
-mv _pandare_ffi_* $PANDARE_AUTOGEN_DIR
+mv _pandare_ffi_*.py $PANDARE_AUTOGEN_DIR
