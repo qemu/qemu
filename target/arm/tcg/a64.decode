@@ -1323,6 +1323,46 @@ FMAXV_s         0110 1110 00 11000 01111 10 ..... .....     @rr_q1e2
 FMINV_h         0.00 1110 10 11000 01111 10 ..... .....     @qrr_h
 FMINV_s         0110 1110 10 11000 01111 10 ..... .....     @rr_q1e2
 
+# Conversion between floating-point and fixed-point (general register)
+
+&fcvt           rd rn esz sf shift
+%fcvt_shift32   10:5 !function=rsub_32
+%fcvt_shift64   10:6 !function=rsub_64
+
+@fcvt32         0 ....... .. ...... 1..... rn:5 rd:5    \
+                &fcvt sf=0 esz=%esz_hsd shift=%fcvt_shift32
+@fcvt64         1 ....... .. ...... ...... rn:5 rd:5    \
+                &fcvt sf=1 esz=%esz_hsd shift=%fcvt_shift64
+
+SCVTF_g         . 0011110 .. 000010 ...... ..... .....  @fcvt32
+SCVTF_g         . 0011110 .. 000010 ...... ..... .....  @fcvt64
+UCVTF_g         . 0011110 .. 000011 ...... ..... .....  @fcvt32
+UCVTF_g         . 0011110 .. 000011 ...... ..... .....  @fcvt64
+
+FCVTZS_g        . 0011110 .. 011000 ...... ..... .....  @fcvt32
+FCVTZS_g        . 0011110 .. 011000 ...... ..... .....  @fcvt64
+FCVTZU_g        . 0011110 .. 011001 ...... ..... .....  @fcvt32
+FCVTZU_g        . 0011110 .. 011001 ...... ..... .....  @fcvt64
+
+# Conversion between floating-point and integer (general register)
+
+@icvt           sf:1 ....... .. ...... ...... rn:5 rd:5 \
+                &fcvt esz=%esz_hsd shift=0
+
+SCVTF_g         . 0011110 .. 100010 000000 ..... .....  @icvt
+UCVTF_g         . 0011110 .. 100011 000000 ..... .....  @icvt
+
+FCVTNS_g        . 0011110 .. 100000 000000 ..... .....  @icvt
+FCVTNU_g        . 0011110 .. 100001 000000 ..... .....  @icvt
+FCVTPS_g        . 0011110 .. 101000 000000 ..... .....  @icvt
+FCVTPU_g        . 0011110 .. 101001 000000 ..... .....  @icvt
+FCVTMS_g        . 0011110 .. 110000 000000 ..... .....  @icvt
+FCVTMU_g        . 0011110 .. 110001 000000 ..... .....  @icvt
+FCVTZS_g        . 0011110 .. 111000 000000 ..... .....  @icvt
+FCVTZU_g        . 0011110 .. 111001 000000 ..... .....  @icvt
+FCVTAS_g        . 0011110 .. 100100 000000 ..... .....  @icvt
+FCVTAU_g        . 0011110 .. 100101 000000 ..... .....  @icvt
+
 # Floating-point data processing (1 source)
 
 FMOV_s          00011110 .. 1 000000 10000 ..... .....      @rr_hsd
