@@ -1786,3 +1786,25 @@ FRINT32Z_v      0.00 1110 0.1 00001 11101 0 ..... .....     @qrr_sd
 FRINT32X_v      0.10 1110 0.1 00001 11101 0 ..... .....     @qrr_sd
 FRINT64Z_v      0.00 1110 0.1 00001 11111 0 ..... .....     @qrr_sd
 FRINT64X_v      0.10 1110 0.1 00001 11111 0 ..... .....     @qrr_sd
+
+SCVTF_vi        0.00 1110 011 11001 11011 0 ..... .....     @qrr_h
+SCVTF_vi        0.00 1110 0.1 00001 11011 0 ..... .....     @qrr_sd
+
+UCVTF_vi        0.10 1110 011 11001 11011 0 ..... .....     @qrr_h
+UCVTF_vi        0.10 1110 0.1 00001 11011 0 ..... .....     @qrr_sd
+
+&fcvt_q         rd rn esz q shift
+@fcvtq_h        . q:1 . ...... 001 .... ...... rn:5 rd:5    \
+                &fcvt_q esz=1 shift=%fcvt_f_sh_h
+@fcvtq_s        . q:1 . ...... 01 ..... ...... rn:5 rd:5    \
+                &fcvt_q esz=2 shift=%fcvt_f_sh_s
+@fcvtq_d        . q:1 . ...... 1 ...... ...... rn:5 rd:5    \
+                &fcvt_q esz=3 shift=%fcvt_f_sh_d
+
+SCVTF_vf        0.00 11110 ....... 111001 ..... .....       @fcvtq_h
+SCVTF_vf        0.00 11110 ....... 111001 ..... .....       @fcvtq_s
+SCVTF_vf        0.00 11110 ....... 111001 ..... .....       @fcvtq_d
+
+UCVTF_vf        0.10 11110 ....... 111001 ..... .....       @fcvtq_h
+UCVTF_vf        0.10 11110 ....... 111001 ..... .....       @fcvtq_s
+UCVTF_vf        0.10 11110 ....... 111001 ..... .....       @fcvtq_d
