@@ -10816,10 +10816,13 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         break;
     case 0x2f: /* FABS */
     case 0x6f: /* FNEG */
+        only_in_vector = true;
         need_fpst = false;
         break;
     case 0x7d: /* FRSQRTE */
+        break;
     case 0x7f: /* FSQRT (vector) */
+        only_in_vector = true;
         break;
     default:
         unallocated_encoding(s);
@@ -10876,9 +10879,6 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         case 0x7a: /* FCVTPU */
         case 0x7b: /* FCVTZU */
             gen_helper_advsimd_f16touinth(tcg_res, tcg_op, tcg_fpstatus);
-            break;
-        case 0x6f: /* FNEG */
-            tcg_gen_xori_i32(tcg_res, tcg_op, 0x8000);
             break;
         case 0x7d: /* FRSQRTE */
             gen_helper_rsqrte_f16(tcg_res, tcg_op, tcg_fpstatus);
