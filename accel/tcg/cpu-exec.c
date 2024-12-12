@@ -21,6 +21,7 @@
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"
 #include "qapi/type-helpers.h"
+#include "hw/core/cpu.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "trace.h"
 #include "disas/disas.h"
@@ -432,6 +433,16 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     }
 
     return tb->tc.ptr;
+}
+
+/* Return the current PC from CPU, which may be cached in TB. */
+static vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
+{
+    if (tb_cflags(tb) & CF_PCREL) {
+        return cpu->cc->get_pc(cpu);
+    } else {
+        return tb->pc;
+    }
 }
 
 /* Execute a TB, and fix up the CPU state afterwards if necessary */

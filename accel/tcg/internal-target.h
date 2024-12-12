@@ -72,16 +72,6 @@ G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 
 bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
 
-/* Return the current PC from CPU, which may be cached in TB. */
-static inline vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
-{
-    if (tb_cflags(tb) & CF_PCREL) {
-        return cpu->cc->get_pc(cpu);
-    } else {
-        return tb->pc;
-    }
-}
-
 /**
  * tcg_req_mo:
  * @type: TCGBar
