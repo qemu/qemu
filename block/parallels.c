@@ -1298,6 +1298,10 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "Catalog too large");
         return -EFBIG;
     }
+    if (le64_to_cpu(ph.ext_off) >= (INT64_MAX >> BDRV_SECTOR_BITS)) {
+        error_setg(errp, "Invalid image: Too big offset");
+        return -EFBIG;
+    }
 
     size = bat_entry_off(s->bat_size);
     s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file->bs));
