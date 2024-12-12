@@ -182,14 +182,14 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to translate
+        uint64_t pc: the guest PC we are about to translate
 
        Helper call location: cpu-exec.c
 
        Return value:
         none
     */
-    void (*before_block_translate)(CPUState *env, target_ptr_t pc);
+    void (*before_block_translate)(CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_BLOCK_TRANSLATE
 
@@ -251,7 +251,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to translate
+        uint64_t pc: the guest PC we are about to translate
 
        Helper call location: panda/target/ARCH/translate.c
 
@@ -265,7 +265,7 @@ typedef union panda_cb {
         If you do want to instrument every single instruction, just return
         true. See the documentation for PANDA_CB_INSN_EXEC for more detail.
     */
-    bool (*insn_translate)(CPUState *env, target_ptr_t pc);
+    bool (*insn_translate)(CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_INSN_EXEC
 
@@ -275,7 +275,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to execute
+        uint64_t pc: the guest PC we are about to execute
 
        Helper call location: TBA
 
@@ -288,7 +288,7 @@ typedef union panda_cb {
         This is fairly expensive, which is why it's only enabled via
         the PANDA_CB_INSN_TRANSLATE callback.
     */
-    int (*insn_exec)(CPUState *env, target_ptr_t pc);
+    int (*insn_exec)(CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_INSN_TRANSLATE
 
@@ -297,7 +297,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the next guest PC we've translated
+        uint64_t pc: the next guest PC we've translated
 
        Helper call location: panda/target/ARCH/translate.c
 
@@ -308,7 +308,7 @@ typedef union panda_cb {
        Notes:
         See `insn_translate`, callbacks are registered via PANDA_CB_AFTER_INSN_EXEC
     */
-    bool (*after_insn_translate)(CPUState *env, target_ptr_t pc);
+    bool (*after_insn_translate)(CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_INSN_EXEC
 
@@ -318,7 +318,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the next guest PC already executed
+        uint64_t pc: the next guest PC already executed
 
        Helper call location: TBA
 
@@ -328,7 +328,7 @@ typedef union panda_cb {
        Notes:
         See `insn_exec`. Enabled via the PANDA_CB_AFTER_INSN_TRANSLATE callback.
     */
-    int (*after_insn_exec)(CPUState *env, target_ptr_t pc);
+    int (*after_insn_exec)(CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_BEFORE_READ
 
@@ -337,8 +337,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (virtual) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (virtual) address being read
         size_t size:       the size of the read
 
        Helper call location: TBA
@@ -346,7 +346,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*virt_mem_before_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size);
+    void (*virt_mem_before_read)(CPUState *env, uint64_t pc, uint64_t addr, size_t size);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_BEFORE_WRITE
 
@@ -355,8 +355,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (virtual) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (virtual) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that is to be written
 
@@ -365,7 +365,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*virt_mem_before_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_before_write)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_BEFORE_READ
 
@@ -374,8 +374,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (physical) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (physical) address being read
         size_t size:       the size of the read
 
        Helper call location: TBA
@@ -383,7 +383,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*phys_mem_before_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size);
+    void (*phys_mem_before_read)(CPUState *env, uint64_t pc, uint64_t addr, size_t size);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_BEFORE_WRITE
 
@@ -392,8 +392,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (physical) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (physical) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that is to be written
 
@@ -402,7 +402,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*phys_mem_before_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_before_write)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_AFTER_READ
 
@@ -411,8 +411,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (virtual) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (virtual) address being read
         size_t size:       the size of the read
         uint8_t *buf:      pointer to data just read
 
@@ -421,7 +421,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*virt_mem_after_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_after_read)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_AFTER_WRITE
 
@@ -430,8 +430,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (virtual) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (virtual) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that was written
 
@@ -440,7 +440,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*virt_mem_after_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_after_write)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_AFTER_READ
 
@@ -449,8 +449,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (physical) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (physical) address being read
         size_t size:       the size of the read
         uint8_t *buf:      pointer to data just read
 
@@ -459,7 +459,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*phys_mem_after_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_after_read)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_AFTER_WRITE
 
@@ -468,8 +468,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (physical) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (physical) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that was written
 
@@ -478,7 +478,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*phys_mem_after_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_after_write)(CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_MMIO_AFTER_READ
 
@@ -487,8 +487,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          the current CPU state
-        target_ptr_t physaddr:  the physical address being read from
-        target_ptr_t vaddr:     the virtual address being read from
+        uint64_t physaddr:  the physical address being read from
+        uint64_t vaddr:     the virtual address being read from
         size_t size:            the size of the read
         uin64_t *val:           the value being read
 
@@ -497,7 +497,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*mmio_after_read)(CPUState *env, target_ptr_t physaddr, target_ptr_t vaddr, size_t size, uint64_t *val);
+    void (*mmio_after_read)(CPUState *env, uint64_t physaddr, uint64_t vaddr, size_t size, uint64_t *val);
 
     /* Callback ID: PANDA_CB_MMIO_BEFORE_WRITE
 
@@ -506,8 +506,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          the current CPU state
-        target_ptr_t physaddr:  the physical address being written to
-        target_ptr_t vaddr:     the virtual address being written to
+        uint64_t physaddr:  the physical address being written to
+        uint64_t vaddr:     the virtual address being written to
         size_t size:            the size of the write
         uin64_t *val:           the value being written
 
@@ -516,7 +516,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*mmio_before_write)(CPUState *env, target_ptr_t physaddr, target_ptr_t vaddr, size_t size, uint64_t *val);
+    void (*mmio_before_write)(CPUState *env, uint64_t physaddr, uint64_t vaddr, size_t size, uint64_t *val);
 
     /* Callback ID: PANDA_CB_HD_READ
        hd_read : called when there is a hard drive read
@@ -653,8 +653,8 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:       pointer to CPUState
-        target_ptr_t oldval: old asid value
-        target_ptr_t newval: new asid value
+        uint64_t oldval: old asid value
+        uint64_t newval: new asid value
 
        Helper call location: target/i386/helper.c, target/arm/helper.c
 
@@ -667,7 +667,7 @@ typedef union panda_cb {
         This should break plugins which rely on it to detect context
         switches in any other architecture.
     */
-    bool (*asid_changed)(CPUState *env, target_ptr_t oldval, target_ptr_t newval);
+    bool (*asid_changed)(CPUState *env, uint64_t oldval, uint64_t newval);
 
     /* Callback ID:     PANDA_CB_REPLAY_HD_TRANSFER,
 
@@ -677,8 +677,8 @@ typedef union panda_cb {
        Arguments:
         CPUState *env:          pointer to CPUState
         uint32_t type:          type of transfer  (Hd_transfer_type)
-        target_ptr_t src_addr:  address for src
-        target_ptr_t dest_addr: address for dest
+        uint64_t src_addr:  address for src
+        uint64_t dest_addr: address for dest
         size_t num_bytes:       size of transfer in bytes
 
        Helper call location: panda/src/rr/rr_log.c
@@ -693,7 +693,7 @@ typedef union panda_cb {
         In replay the transfer doesn't really happen. We are *at* the point at
         which it happened, really.
     */
-    void (*replay_hd_transfer)(CPUState *env, uint32_t type, target_ptr_t src_addr, target_ptr_t dest_addr, size_t num_bytes);
+    void (*replay_hd_transfer)(CPUState *env, uint32_t type, uint64_t src_addr, uint64_t dest_addr, size_t num_bytes);
 
     /* Callback ID:     PANDA_CB_REPLAY_BEFORE_DMA,
 
@@ -801,7 +801,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo
+        uint64_t fifo_addr: address of the data within the fifo
         uint8_t value:          value received
 
        Helper call location: panda/src/rr/rr_log.c
@@ -809,7 +809,7 @@ typedef union panda_cb {
        Return value:
         unused
     */
-    void (*replay_serial_receive)(CPUState *env, target_ptr_t fifo_addr, uint8_t value);
+    void (*replay_serial_receive)(CPUState *env, uint64_t fifo_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_READ,
 
@@ -818,7 +818,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo (source)
+        uint64_t fifo_addr: address of the data within the fifo (source)
         uint32_t port_addr:     address of the IO port where data is being read (destination)
         uint8_t value:          value read
 
@@ -827,7 +827,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*replay_serial_read)(CPUState *env, target_ptr_t fifo_addr, uint32_t port_addr, uint8_t value);
+    void (*replay_serial_read)(CPUState *env, uint64_t fifo_addr, uint32_t port_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_SEND,
 
@@ -836,7 +836,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo
+        uint64_t fifo_addr: address of the data within the fifo
         uint8_t value:          value received
 
        Helper call location: panda/src/rr/rr_log.c
@@ -844,7 +844,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*replay_serial_send)(CPUState *env, target_ptr_t fifo_addr, uint8_t value);
+    void (*replay_serial_send)(CPUState *env, uint64_t fifo_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_WRITE,
 
@@ -852,7 +852,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo (source)
+        uint64_t fifo_addr: address of the data within the fifo (source)
         uint32_t port_addr:     address of the IO port where data is being read (destination)
         uint8_t value:          value read
 
@@ -861,7 +861,7 @@ typedef union panda_cb {
        Return value:
         none
     */
-    void (*replay_serial_write)(CPUState *env, target_ptr_t fifo_addr, uint32_t port_addr, uint8_t value);
+    void (*replay_serial_write)(CPUState *env, uint64_t fifo_addr, uint32_t port_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_AFTER_MACHINE_INIT
 
@@ -965,7 +965,7 @@ typedef union panda_cb {
          True if value read was changed by a PANDA plugin and should be returned
          False if error-logic (invalid write) should be run
      */
-    bool (*unassigned_io_read)(CPUState *env, target_ptr_t pc, hwaddr addr, size_t size, uint64_t *val);
+    bool (*unassigned_io_read)(CPUState *env, uint64_t pc, hwaddr addr, size_t size, uint64_t *val);
 
     /* Callback ID:     PANDA_CB_UNASSIGNED_IO_WRITE
 
@@ -981,7 +981,7 @@ typedef union panda_cb {
          True if the write should be allowed without error
          False if normal behavior should be used (error-logic)
      */
-    bool (*unassigned_io_write)(CPUState *env, target_ptr_t pc, hwaddr addr, size_t size, uint64_t val);
+    bool (*unassigned_io_write)(CPUState *env, uint64_t pc, hwaddr addr, size_t size, uint64_t val);
 
 
     /* Callback ID:     PANDA_CB_BEFORE_HANDLE_EXCEPTION
@@ -1151,14 +1151,14 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to translate
+        uint64_t pc: the guest PC we are about to translate
 
        Helper call location: cpu-exec.c
 
        Return value:
         none
     */
-    void (*before_block_translate)(void* context, CPUState *env, target_ptr_t pc);
+    void (*before_block_translate)(void* context, CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_BLOCK_TRANSLATE
 
@@ -1220,7 +1220,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to translate
+        uint64_t pc: the guest PC we are about to translate
 
        Helper call location: panda/target/ARCH/translate.c
 
@@ -1234,7 +1234,7 @@ typedef union panda_cb_with_context {
         If you do want to instrument every single instruction, just return
         true. See the documentation for PANDA_CB_INSN_EXEC for more detail.
     */
-    bool (*insn_translate)(void* context, CPUState *env, target_ptr_t pc);
+    bool (*insn_translate)(void* context, CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_INSN_EXEC
 
@@ -1244,7 +1244,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the guest PC we are about to execute
+        uint64_t pc: the guest PC we are about to execute
 
        Helper call location: TBA
 
@@ -1257,7 +1257,7 @@ typedef union panda_cb_with_context {
         This is fairly expensive, which is why it's only enabled via
         the PANDA_CB_INSN_TRANSLATE callback.
     */
-    int (*insn_exec)(void* context, CPUState *env, target_ptr_t pc);
+    int (*insn_exec)(void* context, CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_INSN_TRANSLATE
 
@@ -1266,7 +1266,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the next guest PC we've translated
+        uint64_t pc: the next guest PC we've translated
 
        Helper call location: panda/target/ARCH/translate.c
 
@@ -1277,7 +1277,7 @@ typedef union panda_cb_with_context {
        Notes:
         See `insn_translate`, callbacks are registered via PANDA_CB_AFTER_INSN_EXEC
     */
-    bool (*after_insn_translate)(void* context, CPUState *env, target_ptr_t pc);
+    bool (*after_insn_translate)(void* context, CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_AFTER_INSN_EXEC
 
@@ -1287,7 +1287,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:   the current CPU state
-        target_ptr_t pc: the next guest PC already executed
+        uint64_t pc: the next guest PC already executed
 
        Helper call location: TBA
 
@@ -1297,7 +1297,7 @@ typedef union panda_cb_with_context {
        Notes:
         See `insn_exec`. Enabled via the PANDA_CB_AFTER_INSN_TRANSLATE callback.
     */
-    int (*after_insn_exec)(void* context, CPUState *env, target_ptr_t pc);
+    int (*after_insn_exec)(void* context, CPUState *env, uint64_t pc);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_BEFORE_READ
 
@@ -1306,8 +1306,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (virtual) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (virtual) address being read
         size_t size:       the size of the read
 
        Helper call location: TBA
@@ -1315,7 +1315,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*virt_mem_before_read)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size);
+    void (*virt_mem_before_read)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_BEFORE_WRITE
 
@@ -1324,8 +1324,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (virtual) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (virtual) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that is to be written
 
@@ -1334,7 +1334,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*virt_mem_before_write)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_before_write)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_BEFORE_READ
 
@@ -1343,8 +1343,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (physical) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (physical) address being read
         size_t size:       the size of the read
 
        Helper call location: TBA
@@ -1352,7 +1352,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*phys_mem_before_read)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size);
+    void (*phys_mem_before_read)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_BEFORE_WRITE
 
@@ -1361,8 +1361,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (physical) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (physical) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that is to be written
 
@@ -1371,7 +1371,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*phys_mem_before_write)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_before_write)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_AFTER_READ
 
@@ -1380,8 +1380,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (virtual) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (virtual) address being read
         size_t size:       the size of the read
         uint8_t *buf:      pointer to data just read
 
@@ -1390,7 +1390,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*virt_mem_after_read)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_after_read)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_VIRT_MEM_AFTER_WRITE
 
@@ -1399,8 +1399,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (virtual) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (virtual) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that was written
 
@@ -1409,7 +1409,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*virt_mem_after_write)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*virt_mem_after_write)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_AFTER_READ
 
@@ -1418,8 +1418,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the read
-        target_ptr_t addr: the (physical) address being read
+        uint64_t pc:   the guest PC doing the read
+        uint64_t addr: the (physical) address being read
         size_t size:       the size of the read
         uint8_t *buf:      pointer to data just read
 
@@ -1428,7 +1428,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*phys_mem_after_read)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_after_read)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_PHYS_MEM_AFTER_WRITE
 
@@ -1437,8 +1437,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:     the current CPU state
-        target_ptr_t pc:   the guest PC doing the write
-        target_ptr_t addr: the (physical) address being written
+        uint64_t pc:   the guest PC doing the write
+        uint64_t addr: the (physical) address being written
         size_t size:       the size of the write
         uint8_t *buf:      pointer to the data that was written
 
@@ -1447,7 +1447,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*phys_mem_after_write)(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf);
+    void (*phys_mem_after_write)(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf);
 
     /* Callback ID: PANDA_CB_MMIO_AFTER_READ
 
@@ -1456,8 +1456,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          the current CPU state
-        target_ptr_t physaddr:  the physical address being read from
-        target_ptr_t vaddr:     the virtual address being read from
+        uint64_t physaddr:  the physical address being read from
+        uint64_t vaddr:     the virtual address being read from
         size_t size:            the size of the read
         uin64_t *val:           the value being read
 
@@ -1466,7 +1466,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*mmio_after_read)(void* context, CPUState *env, target_ptr_t physaddr, target_ptr_t vaddr, size_t size, uint64_t *val);
+    void (*mmio_after_read)(void* context, CPUState *env, uint64_t physaddr, uint64_t vaddr, size_t size, uint64_t *val);
 
     /* Callback ID: PANDA_CB_MMIO_BEFORE_WRITE
 
@@ -1475,8 +1475,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          the current CPU state
-        target_ptr_t physaddr:  the physical address being written to
-        target_ptr_t vaddr:     the virtual address being written to
+        uint64_t physaddr:  the physical address being written to
+        uint64_t vaddr:     the virtual address being written to
         size_t size:            the size of the write
         uin64_t *val:           the value being written
 
@@ -1485,7 +1485,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*mmio_before_write)(void* context, CPUState *env, target_ptr_t physaddr, target_ptr_t vaddr, size_t size, uint64_t *val);
+    void (*mmio_before_write)(void* context, CPUState *env, uint64_t physaddr, uint64_t vaddr, size_t size, uint64_t *val);
 
     /* Callback ID: PANDA_CB_HD_READ
        hd_read : called when there is a hard drive read
@@ -1622,8 +1622,8 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:       pointer to CPUState
-        target_ptr_t oldval: old asid value
-        target_ptr_t newval: new asid value
+        uint64_t oldval: old asid value
+        uint64_t newval: new asid value
 
        Helper call location: target/i386/helper.c, target/arm/helper.c
 
@@ -1636,7 +1636,7 @@ typedef union panda_cb_with_context {
         This should break plugins which rely on it to detect context
         switches in any other architecture.
     */
-    bool (*asid_changed)(void* context, CPUState *env, target_ptr_t oldval, target_ptr_t newval);
+    bool (*asid_changed)(void* context, CPUState *env, uint64_t oldval, uint64_t newval);
 
     /* Callback ID:     PANDA_CB_REPLAY_HD_TRANSFER,
 
@@ -1646,8 +1646,8 @@ typedef union panda_cb_with_context {
        Arguments:
         CPUState *env:          pointer to CPUState
         uint32_t type:          type of transfer  (Hd_transfer_type)
-        target_ptr_t src_addr:  address for src
-        target_ptr_t dest_addr: address for dest
+        uint64_t src_addr:  address for src
+        uint64_t dest_addr: address for dest
         size_t num_bytes:       size of transfer in bytes
 
        Helper call location: panda/src/rr/rr_log.c
@@ -1662,7 +1662,7 @@ typedef union panda_cb_with_context {
         In replay the transfer doesn't really happen. We are *at* the point at
         which it happened, really.
     */
-    void (*replay_hd_transfer)(void* context, CPUState *env, uint32_t type, target_ptr_t src_addr, target_ptr_t dest_addr, size_t num_bytes);
+    void (*replay_hd_transfer)(void* context, CPUState *env, uint32_t type, uint64_t src_addr, uint64_t dest_addr, size_t num_bytes);
 
     /* Callback ID:     PANDA_CB_REPLAY_BEFORE_DMA,
 
@@ -1770,7 +1770,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo
+        uint64_t fifo_addr: address of the data within the fifo
         uint8_t value:          value received
 
        Helper call location: panda/src/rr/rr_log.c
@@ -1778,7 +1778,7 @@ typedef union panda_cb_with_context {
        Return value:
         unused
     */
-    void (*replay_serial_receive)(void* context, CPUState *env, target_ptr_t fifo_addr, uint8_t value);
+    void (*replay_serial_receive)(void* context, CPUState *env, uint64_t fifo_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_READ,
 
@@ -1787,7 +1787,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo (source)
+        uint64_t fifo_addr: address of the data within the fifo (source)
         uint32_t port_addr:     address of the IO port where data is being read (destination)
         uint8_t value:          value read
 
@@ -1796,7 +1796,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*replay_serial_read)(void* context, CPUState *env, target_ptr_t fifo_addr, uint32_t port_addr, uint8_t value);
+    void (*replay_serial_read)(void* context, CPUState *env, uint64_t fifo_addr, uint32_t port_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_SEND,
 
@@ -1805,7 +1805,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo
+        uint64_t fifo_addr: address of the data within the fifo
         uint8_t value:          value received
 
        Helper call location: panda/src/rr/rr_log.c
@@ -1813,7 +1813,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*replay_serial_send)(void* context, CPUState *env, target_ptr_t fifo_addr, uint8_t value);
+    void (*replay_serial_send)(void* context, CPUState *env, uint64_t fifo_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_REPLAY_SERIAL_WRITE,
 
@@ -1821,7 +1821,7 @@ typedef union panda_cb_with_context {
 
        Arguments:
         CPUState *env:          pointer to CPUState
-        target_ptr_t fifo_addr: address of the data within the fifo (source)
+        uint64_t fifo_addr: address of the data within the fifo (source)
         uint32_t port_addr:     address of the IO port where data is being read (destination)
         uint8_t value:          value read
 
@@ -1830,7 +1830,7 @@ typedef union panda_cb_with_context {
        Return value:
         none
     */
-    void (*replay_serial_write)(void* context, CPUState *env, target_ptr_t fifo_addr, uint32_t port_addr, uint8_t value);
+    void (*replay_serial_write)(void* context, CPUState *env, uint64_t fifo_addr, uint32_t port_addr, uint8_t value);
 
     /* Callback ID:     PANDA_CB_AFTER_MACHINE_INIT
 
@@ -1934,7 +1934,7 @@ typedef union panda_cb_with_context {
          True if value read was changed by a PANDA plugin and should be returned
          False if error-logic (invalid write) should be run
      */
-    bool (*unassigned_io_read)(void* context, CPUState *env, target_ptr_t pc, hwaddr addr, size_t size, uint64_t *val);
+    bool (*unassigned_io_read)(void* context, CPUState *env, uint64_t pc, hwaddr addr, size_t size, uint64_t *val);
 
     /* Callback ID:     PANDA_CB_UNASSIGNED_IO_WRITE
 
@@ -1950,7 +1950,7 @@ typedef union panda_cb_with_context {
          True if the write should be allowed without error
          False if normal behavior should be used (error-logic)
      */
-    bool (*unassigned_io_write)(void* context, CPUState *env, target_ptr_t pc, hwaddr addr, size_t size, uint64_t val);
+    bool (*unassigned_io_write)(void* context, CPUState *env, uint64_t pc, hwaddr addr, size_t size, uint64_t val);
 
 
     /* Callback ID:     PANDA_CB_BEFORE_HANDLE_EXCEPTION

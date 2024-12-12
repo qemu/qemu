@@ -20,7 +20,7 @@
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_HD_TRANSFER, replay_hd_transfer,
 //                     CPUState*, cpu, Hd_transfer_type, type,
-//                     target_ptr_t, src_addr, target_ptr_t, dest_addr,
+//                     uint64_t, src_addr, uint64_t, dest_addr,
 //                     size_t, num_bytes)
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_HANDLE_PACKET, replay_handle_packet,
@@ -55,7 +55,7 @@ MAKE_CALLBACK(void, AFTER_BLOCK_EXEC, after_block_exec,
                     uint8_t, exitCode);
 
 MAKE_CALLBACK(void, BEFORE_BLOCK_TRANSLATE, before_block_translate,
-                    CPUState*, cpu, target_ptr_t, pc);
+                    CPUState*, cpu, uint64_t, pc);
 
 MAKE_CALLBACK(void, AFTER_BLOCK_TRANSLATE, after_block_translate,
                     CPUState*, cpu, TranslationBlock*, tb);
@@ -70,10 +70,10 @@ MAKE_CALLBACK(void, AFTER_LOADVM, after_loadvm, CPUState*, env);
 
 // These are used in target-i386/translate.c
 MAKE_CALLBACK(bool, INSN_TRANSLATE, insn_translate,
-                    CPUState*, env, target_ptr_t, pc);
+                    CPUState*, env, uint64_t, pc);
 
 MAKE_CALLBACK(bool, AFTER_INSN_TRANSLATE, after_insn_translate,
-                    CPUState*, env, target_ptr_t, pc)
+                    CPUState*, env, uint64_t, pc)
 
 //MAKE_CALLBACK(void, START_BLOCK_EXEC, start_block_exec,
 //                    CPUState*, env, TranslationBlock*, tb)
@@ -107,7 +107,7 @@ MAKE_CALLBACK(bool, QMP, qmp, char*, cmd, char*, args, char **, result);
 
 #ifdef TARGET_LATER
 // Helper - get a physical address
-static inline hwaddr get_paddr(CPUState *cpu, target_ptr_t addr, void *ram_ptr) {
+static inline hwaddr get_paddr(CPUState *cpu, uint64_t addr, void *ram_ptr) {
     if (!ram_ptr) {
         return panda_virt_to_phys(cpu, addr);
     }
@@ -128,13 +128,13 @@ static inline hwaddr get_paddr(CPUState *cpu, target_ptr_t addr, void *ram_ptr) 
 
 // These are used in cputlb.c
 MAKE_CALLBACK(void, MMIO_AFTER_READ, mmio_after_read,
-                    CPUState*, env, target_ptr_t, physaddr,
-                    target_ptr_t, vaddr, size_t, size,
+                    CPUState*, env, uint64_t, physaddr,
+                    uint64_t, vaddr, size_t, size,
                     uint64_t*, val);
 
 MAKE_CALLBACK(void, MMIO_BEFORE_WRITE, mmio_before_write,
-                    CPUState*, env, target_ptr_t, physaddr,
-                    target_ptr_t, vaddr, size_t, size,
+                    CPUState*, env, uint64_t, physaddr,
+                    uint64_t, vaddr, size_t, size,
                     uint64_t*, val);
 
 // vl.c
@@ -147,7 +147,7 @@ MAKE_CALLBACK(void, DURING_MACHINE_INIT, during_machine_init,
 // Returns true if any registered&enabled callback returns non-zero.
 // If so, we'll silence the memory write error.
 MAKE_CALLBACK(bool, UNASSIGNED_IO_WRITE, unassigned_io_write,
-                    CPUState*, env, target_ptr_t, pc,
+                    CPUState*, env, uint64_t, pc,
                     hwaddr, addr, size_t, size,
                    uint64_t, val);
 
@@ -156,7 +156,7 @@ MAKE_CALLBACK(bool, UNASSIGNED_IO_WRITE, unassigned_io_write,
 // the value provided by the last callback in `val`
 // Note if multiple callbacks run they can each mutate val
 MAKE_CALLBACK(bool, UNASSIGNED_IO_READ, unassigned_io_read,
-                    CPUState*, env, target_ptr_t, pc,
+                    CPUState*, env, uint64_t, pc,
                     hwaddr, addr, size_t, size,
                    uint64_t*, val);
 
@@ -166,8 +166,8 @@ MAKE_CALLBACK(void, TOP_LOOP, top_loop,
 // Returns true if any registered + enabled callback returns nonzero.
 // If so, it doesn't let the asid change
 MAKE_CALLBACK(bool, ASID_CHANGED, asid_changed,
-                    CPUState*, env, target_ulong, old_asid,
-                    target_ulong, new_asid);
+                    CPUState*, env, uint64_t, old_asid,
+                    uint64_t, new_asid);
 
 
 // target-i386/misc_helpers.c
@@ -178,19 +178,19 @@ MAKE_CALLBACK(void, CPU_RESTORE_STATE, cpu_restore_state,
                     CPUState*, env, TranslationBlock*, tb);
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_SERIAL_RECEIVE, replay_serial_receive,
-//                     CPUState*, env, target_ptr_t, fifo_addr,
+//                     CPUState*, env, uint64_t, fifo_addr,
 //                     uint8_t, value);
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_SERIAL_READ, replay_serial_read,
-//                     CPUState*, env, target_ptr_t, fifo_addr,
+//                     CPUState*, env, uint64_t, fifo_addr,
 //                     uint32_t, port_addr, uint8_t, value);
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_SERIAL_SEND, replay_serial_send,
-//                     CPUState*, env, target_ptr_t, fifo_addr,
+//                     CPUState*, env, uint64_t, fifo_addr,
 //                     uint8_t, value);
 
 // MAKE_REPLAY_ONLY_CALLBACK(REPLAY_SERIAL_WRITE, replay_serial_write,
-//                     CPUState*, env, target_ptr_t, fifo_addr,
+//                     CPUState*, env, uint64_t, fifo_addr,
 //                     uint32_t, port_addr, uint8_t, value);
 
 MAKE_CALLBACK_NO_ARGS(void, MAIN_LOOP_WAIT, main_loop_wait);
@@ -243,11 +243,11 @@ int32_t panda_cb_trampoline_before_handle_exception(void* context, CPUState *cpu
     return (*(panda_cb*)context).before_handle_exception(cpu, exception_index);
 }
     
-int panda_cb_trampoline_insn_exec(void* context, CPUState *env, target_ptr_t pc) {
+int panda_cb_trampoline_insn_exec(void* context, CPUState *env, uint64_t pc) {
     return (*(panda_cb*)context).insn_exec(env, pc);
 }
     
-int panda_cb_trampoline_after_insn_exec(void* context, CPUState *env, target_ptr_t pc) {
+int panda_cb_trampoline_after_insn_exec(void* context, CPUState *env, uint64_t pc) {
     return (*(panda_cb*)context).after_insn_exec(env, pc);
 }
 
@@ -309,16 +309,16 @@ int32_t PCB(before_handle_interrupt)(CPUState *cpu, int32_t interrupt_request) {
 }
 
 #define MEM_CB_TRAMPOLINES(mode) \
-    void panda_cb_trampoline_ ## mode ## _mem_before_read(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size) { \
+    void panda_cb_trampoline_ ## mode ## _mem_before_read(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size) { \
         (*(panda_cb*)context) . mode ## _mem_before_read(env, pc, addr, size); \
     } \
-    void panda_cb_trampoline_ ## mode ## _mem_after_read(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf) { \
+    void panda_cb_trampoline_ ## mode ## _mem_after_read(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf) { \
         (*(panda_cb*)context) . mode ## _mem_after_read(env, pc, addr, size, buf); \
     } \
-    void panda_cb_trampoline_ ## mode ## _mem_before_write(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf) { \
+    void panda_cb_trampoline_ ## mode ## _mem_before_write(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf) { \
         (*(panda_cb*)context) . mode ## _mem_before_write(env, pc, addr, size, buf);\
     } \
-    void panda_cb_trampoline_ ## mode ## _mem_after_write(void* context, CPUState *env, target_ptr_t pc, target_ptr_t addr, size_t size, uint8_t *buf) { \
+    void panda_cb_trampoline_ ## mode ## _mem_after_write(void* context, CPUState *env, uint64_t pc, uint64_t addr, size_t size, uint8_t *buf) { \
         (*(panda_cb*)context) . mode ## _mem_after_write(env, pc, addr, size, buf); \
     }
 
@@ -328,7 +328,7 @@ MEM_CB_TRAMPOLINES(phys)
 #ifdef CONFIG_LATER
 // These are used in softmmu_template.h. They are distinct from MAKE_CALLBACK's standard form.
 // ram_ptr is a possible pointer into host memory from the TLB code. Can be NULL.
-void PCB(mem_before_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
+void PCB(mem_before_read)(CPUState *env, uint64_t pc, uint64_t addr,
                           size_t data_size, void *ram_ptr) {
     panda_cb_list *plist;
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_BEFORE_READ]; plist != NULL;
@@ -348,7 +348,7 @@ void PCB(mem_before_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
 }
 
 
-void PCB(mem_after_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
+void PCB(mem_after_read)(CPUState *env, uint64_t pc, uint64_t addr,
                          size_t data_size, uint64_t result, void *ram_ptr) {
     panda_cb_list *plist;
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_AFTER_READ]; plist != NULL;
@@ -370,7 +370,7 @@ void PCB(mem_after_read)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
 }
 
 
-void PCB(mem_before_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
+void PCB(mem_before_write)(CPUState *env, uint64_t pc, uint64_t addr,
                            size_t data_size, uint64_t val, void *ram_ptr) {
     panda_cb_list *plist;
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_BEFORE_WRITE]; plist != NULL;
@@ -392,7 +392,7 @@ void PCB(mem_before_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
 }
 
 
-void PCB(mem_after_write)(CPUState *env, target_ptr_t pc, target_ptr_t addr,
+void PCB(mem_after_write)(CPUState *env, uint64_t pc, uint64_t addr,
                           size_t data_size, uint64_t val, void *ram_ptr) {
     panda_cb_list *plist;
     for (plist = panda_cbs[PANDA_CB_VIRT_MEM_AFTER_WRITE]; plist != NULL;
