@@ -90,15 +90,15 @@ void panda_stop(int code) {
 //   return panda_aborted;
 // }
 
-// extern const char *qemu_file;
+extern const char *qemu_file;
 
-// void panda_set_qemu_path(char* filepath) {
-//     // *copy* filepath into a new buffer, also free & update qemu_file
-//     if (qemu_file != NULL)
-//       free((void*)qemu_file);
+void panda_set_qemu_path(char* filepath) {
+    // *copy* filepath into a new buffer, also free & update qemu_file
+    if (qemu_file != NULL)
+      free((void*)qemu_file);
 
-//     qemu_file=strdup(filepath);
-// }
+    qemu_file=strdup(filepath);
+}
 
 int panda_init_plugin(char *plugin_name, char **plugin_args, uint32_t num_args) {
     for (uint32_t i=0; i<num_args; i++)

@@ -318,6 +318,8 @@ char *this_executable_path(void)
     return NULL;
 }
 
+char *qemu_file = NULL;
+
 // Resolve a file in the plugin directory to a path. If the file doesn't
 // exist in any of the search paths, then NULL is returned. The search order 
 // for files is as follows:
@@ -344,7 +346,9 @@ char* resolve_file_from_plugin_directory(const char* file_name_fmt, const char* 
 
     // Note qemu_file is set in the first call to main_aux
     // so if this is called (likely via load_plugin) qemu_file must be set directly
-    char *qemu_file = this_executable_path();
+    if (qemu_file == NULL){
+        qemu_file = this_executable_path();
+    }
     assert(qemu_file != NULL);
 
     // Second, try relative to PANDA binary as it would be in the build or install directory
@@ -352,6 +356,7 @@ char* resolve_file_from_plugin_directory(const char* file_name_fmt, const char* 
     plugin_path = attempt_normalize_path(g_strdup_printf(
                                 "%s/panda/plugins/%s", dir,
                                   name_formatted));
+    printf("plugin_path: %s\n", plugin_path);
 
     g_free(dir);
     if (TRUE == g_file_test(plugin_path, G_FILE_TEST_EXISTS)) {
@@ -394,7 +399,7 @@ char* panda_shared_library_path(const char* name){
 // example: "taint2" might resolve to
 // /path/to/build/x86_64-softmmu/panda/plugins/panda_taint2.so
 char *panda_plugin_path(const char *plugin_name) {
-    return resolve_file_from_plugin_directory("panda_%s" CONFIG_HOST_DSOSUF, plugin_name);
+    return resolve_file_from_plugin_directory("libpanda-%s_" TARGET_NAME"-softmmu" CONFIG_HOST_DSOSUF, plugin_name);
 }
 
 static void _panda_require(const char *plugin_name, char **plugin_args, uint32_t num_args, bool library_mode) {
