@@ -271,7 +271,7 @@ class Panda():
     def get_plugin_path(self):
         if self.plugin_path is None:
             build_dir = self.get_build_dir()
-            rel_dir = pjoin(*[build_dir, self.arch_name+"-softmmu", "panda", "plugins"])
+            rel_dir = pjoin(*[build_dir, "panda", "plugins"])
 
             if build_dir == "/usr/local/bin/":
                 # Installed - use /usr/local/lib/panda/plugins
@@ -561,7 +561,6 @@ class Panda():
         self.enable_internal_callbacks()
         self._setup_internal_signal_handler()
         self.running.set()
-        print("called panda_run")
         self.libpanda.panda_run() # Give control to panda
         self.running.clear() # Back from panda's execution (due to shutdown or monitor quit)
         self.unload_plugins() # Unload pyplugins and C plugins
@@ -981,7 +980,7 @@ class Panda():
             libpanda_path_chr = self.ffi.new("char[]",bytes(self.libpanda_path, "UTF-8"))
             self.__did_load_libpanda = self.libpanda.panda_load_libpanda(libpanda_path_chr)
         if not name in self.plugins.keys():
-            plugin = pjoin(*[self.get_plugin_path(), f"panda_{name}.so"])
+            plugin = pjoin(*[self.get_plugin_path(), f"libpanda-{name}_{self.arch_name}-{self.target}.so"])
             assert(isfile(plugin))
             self.plugins[name] = self.ffi.dlopen(plugin)
 
