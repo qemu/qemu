@@ -19,6 +19,7 @@
 #include "tcg/tcg-op-common.h"
 #include "internal-target.h"
 #include "disas/disas.h"
+#include "tb-internal.h"
 
 static void set_can_do_io(DisasContextBase *db, bool val)
 {

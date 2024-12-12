@@ -40,6 +40,7 @@
 #include "tb-internal.h"
 #include "trace.h"
 #include "tb-hash.h"
+#include "tb-internal.h"
 #include "internal-common.h"
 #include "internal-target.h"
 #ifdef CONFIG_PLUGIN
