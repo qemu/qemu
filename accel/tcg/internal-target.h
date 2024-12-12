@@ -10,7 +10,7 @@
 #define ACCEL_TCG_INTERNAL_TARGET_H
 
 #include "exec/exec-all.h"
-#include "exec/translate-all.h"
+#include "tb-internal.h"
 
 /*
  * Access to the various translations structures need to be serialised
