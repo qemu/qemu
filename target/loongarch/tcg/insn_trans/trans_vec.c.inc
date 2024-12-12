@@ -5126,7 +5126,7 @@ static bool do_vbsrl_v(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz)
 {
     int i, ofs;
 
-    if (!check_vec(ctx, 32)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 
