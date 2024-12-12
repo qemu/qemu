@@ -900,7 +900,6 @@ static void test_override_hot_unplug(TestArgs *args, const char *devid,
     QTestState *qts;
     char *joined_args;
     QFWCFG *fw_cfg;
-    QDict *response;
     int i;
 
     joined_args = g_strjoinv(" ", args->argv);
@@ -913,13 +912,7 @@ static void test_override_hot_unplug(TestArgs *args, const char *devid,
     /* unplug device an restart */
     qtest_qmp_device_del_send(qts, devid);
 
-    response = qtest_qmp(qts,
-                         "{ 'execute': 'system_reset', 'arguments': { }}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
-
-    qtest_qmp_eventwait(qts, "RESET");
+    qtest_system_reset(qts);
 
     read_bootdevices(fw_cfg, expected2);
 

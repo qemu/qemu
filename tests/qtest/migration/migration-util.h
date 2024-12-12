@@ -10,8 +10,8 @@
  *
  */
 
-#ifndef MIGRATION_HELPERS_H
-#define MIGRATION_HELPERS_H
+#ifndef MIGRATION_UTIL_H
+#define MIGRATION_UTIL_H
 
 #include "libqtest.h"
 
@@ -24,21 +24,6 @@ typedef struct QTestMigrationState {
 
 bool migrate_watch_for_events(QTestState *who, const char *name,
                               QDict *event, void *opaque);
-
-G_GNUC_PRINTF(5, 6)
-void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
-                 const char *channels, const char *fmt, ...);
-
-G_GNUC_PRINTF(3, 4)
-void migrate_incoming_qmp(QTestState *who, const char *uri,
-                          const char *fmt, ...);
-
-G_GNUC_PRINTF(4, 5)
-void migrate_qmp_fail(QTestState *who, const char *uri,
-                      const char *channels, const char *fmt, ...);
-
-void migrate_set_capability(QTestState *who, const char *capability,
-                            bool value);
 
 QDict *migrate_query(QTestState *who);
 QDict *migrate_query_not_failed(QTestState *who);
@@ -62,7 +47,11 @@ static inline bool probe_o_direct_support(const char *tmpfs)
     return false;
 }
 #endif
-void migration_test_add(const char *path, void (*fn)(void));
-void migration_event_wait(QTestState *s, const char *target);
 
-#endif /* MIGRATION_HELPERS_H */
+bool ufd_version_check(bool *uffd_feature_thread_id);
+bool kvm_dirty_ring_supported(void);
+void migration_test_add(const char *path, void (*fn)(void));
+char *migrate_get_connect_uri(QTestState *who);
+void migrate_set_ports(QTestState *to, QList *channel_list);
+
+#endif /* MIGRATION_UTIL_H */

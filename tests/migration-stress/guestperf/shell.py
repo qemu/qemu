@@ -46,7 +46,8 @@ class BaseShell(object):
         parser.add_argument("--binary", dest="binary", default="/usr/bin/qemu-system-x86_64")
         parser.add_argument("--dst-host", dest="dst_host", default="localhost")
         parser.add_argument("--kernel", dest="kernel", default="/boot/vmlinuz-%s" % platform.release())
-        parser.add_argument("--initrd", dest="initrd", default="tests/migration/initrd-stress.img")
+        parser.add_argument("--initrd", dest="initrd",
+                            default="tests/migration-stress/initrd-stress.img")
         parser.add_argument("--transport", dest="transport", default="unix")
 
 
