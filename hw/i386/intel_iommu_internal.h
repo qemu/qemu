@@ -326,6 +326,7 @@ typedef enum VTDFaultReason {
     /* Non-zero reserved field in present first-stage paging entry */
     VTD_FR_FS_PAGING_ENTRY_RSVD = 0x72,
     VTD_FR_PASID_ENTRY_FSPTPTR_INV = 0x73, /* Invalid FSPTPTR in PASID entry */
+    VTD_FR_FS_NON_CANONICAL = 0x80, /* SNG.1 : Address for FS not canonical.*/
     VTD_FR_FS_PAGING_ENTRY_US = 0x81,      /* Privilege violation */
     VTD_FR_SM_WRITE = 0x85,                /* No write permission */
 
