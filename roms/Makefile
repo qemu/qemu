@@ -156,6 +156,11 @@ edk2-version: edk2
 		touch $@; \
 	fi
 
+edk2-basetools: edk2-version
+	$(PYTHON) edk2-build.py --config edk2-build.config \
+		--silent --no-logs \
+		--match none # build only basetools
+
 efi: edk2-version
 	$(PYTHON) edk2-build.py --config edk2-build.config \
 		--version-override "$(EDK2_STABLE)-for-qemu" \
