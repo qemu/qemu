@@ -215,7 +215,7 @@ static void do_check_export_symbols(panda_plugin *panda_plugin, const char *file
 
 static bool _panda_load_plugin(const char *filename, const char *plugin_name, bool library_mode) {
 
-    static bool libpanda_loaded = false;
+    // static bool libpanda_loaded = false;
 
     if ((plugin_name == NULL) || (*plugin_name == '\0')) {
         LOG_ERROR(PANDA_MSG_FMT "Fatal error: plugin_name is required\n", PANDA_CORE_NAME);
@@ -246,12 +246,17 @@ static bool _panda_load_plugin(const char *filename, const char *plugin_name, bo
 
     // Ensure libpanda has been dlopened so its symbols can be used in the plugin we're
     // now loading. XXX: This should probably happen earlier.
-    if (library_mode && (!libpanda_loaded)) {
-      if(!load_libpanda()) {
-        return false;
-      }
-      libpanda_loaded = true;
+    // if (library_mode && (!libpanda_loaded)) {
+    //   if(!load_libpanda()) {
+    //     printf("Failed to load libpanda\n");
+    //     return false;
+    //   }
+    //   libpanda_loaded = true;
+    // }
+    if (false){
+        load_libpanda();
     }
+    // libpanda_loaded = true;
 
     void *plugin = dlopen(filename, RTLD_NOW);
     if(!plugin) {
