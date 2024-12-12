@@ -1138,7 +1138,6 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
     uint32_t offset;
     uint64_t slpte;
     uint64_t access_right_check;
-    uint64_t xlat, size;
 
     if (!vtd_iova_sl_range_check(s, iova, ce, aw_bits, pasid)) {
         error_report_once("%s: detected IOVA overflow (iova=0x%" PRIx64 ","
@@ -1191,28 +1190,7 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
         level--;
     }
 
-    xlat = vtd_get_pte_addr(*slptep, aw_bits);
-    size = ~vtd_pt_level_page_mask(level) + 1;
-
-    /*
-     * From VT-d spec 3.14: Untranslated requests and translation
-     * requests that result in an address in the interrupt range will be
-     * blocked with condition code LGN.4 or SGN.8.
-     */
-    if ((xlat > VTD_INTERRUPT_ADDR_LAST ||
-         xlat + size - 1 < VTD_INTERRUPT_ADDR_FIRST)) {
-        return 0;
-    } else {
-        error_report_once("%s: xlat address is in interrupt range "
-                          "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
-                          "slpte=0x%" PRIx64 ", write=%d, "
-                          "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ", "
-                          "pasid=0x%" PRIx32 ")",
-                          __func__, iova, level, slpte, is_write,
-                          xlat, size, pasid);
-        return s->scalable_mode ? -VTD_FR_SM_INTERRUPT_ADDR :
-                                  -VTD_FR_INTERRUPT_ADDR;
-    }
+    return 0;
 }
 
 typedef int (*vtd_page_walk_hook)(const IOMMUTLBEvent *event, void *private);
@@ -2064,6 +2042,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     uint8_t access_flags;
     bool rid2pasid = (pasid == PCI_NO_PASID) && s->root_scalable;
     VTDIOTLBEntry *iotlb_entry;
+    uint64_t xlat, size;
 
     /*
      * We have standalone memory region for interrupt addresses, we
@@ -2173,6 +2152,29 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         ret_fr = vtd_iova_to_slpte(s, &ce, addr, is_write, &pte, &level,
                                    &reads, &writes, s->aw_bits, pasid);
     }
+    if (!ret_fr) {
+        xlat = vtd_get_pte_addr(pte, s->aw_bits);
+        size = ~vtd_pt_level_page_mask(level) + 1;
+
+        /*
+         * Per VT-d spec 4.1 section 3.15: Untranslated requests and translation
+         * requests that result in an address in the interrupt range will be
+         * blocked with condition code LGN.4 or SGN.8.
+         */
+        if ((xlat <= VTD_INTERRUPT_ADDR_LAST &&
+             xlat + size - 1 >= VTD_INTERRUPT_ADDR_FIRST)) {
+            error_report_once("%s: xlat address is in interrupt range "
+                              "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
+                              "pte=0x%" PRIx64 ", write=%d, "
+                              "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ", "
+                              "pasid=0x%" PRIx32 ")",
+                              __func__, addr, level, pte, is_write,
+                              xlat, size, pasid);
+            ret_fr = s->scalable_mode ? -VTD_FR_SM_INTERRUPT_ADDR :
+                                        -VTD_FR_INTERRUPT_ADDR;
+        }
+    }
+
     if (ret_fr) {
         vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
                          addr, is_write, pasid != PCI_NO_PASID, pasid);
