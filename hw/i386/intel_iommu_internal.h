@@ -533,24 +533,24 @@ typedef struct VTDRootEntry VTDRootEntry;
 /* Second Level Page Translation Pointer*/
 #define VTD_SM_PASID_ENTRY_SLPTPTR     (~0xfffULL)
 
-/* Paging Structure common */
-#define VTD_SL_PT_PAGE_SIZE_MASK    (1ULL << 7)
-/* Bits to decide the offset for each level */
-#define VTD_SL_LEVEL_BITS           9
-
 /* Second Level Paging Structure */
-#define VTD_SL_PML4_LEVEL           4
-#define VTD_SL_PDP_LEVEL            3
-#define VTD_SL_PD_LEVEL             2
-#define VTD_SL_PT_LEVEL             1
-#define VTD_SL_PT_ENTRY_NR          512
-
 /* Masks for Second Level Paging Entry */
 #define VTD_SL_RW_MASK              3ULL
 #define VTD_SL_R                    1ULL
 #define VTD_SL_W                    (1ULL << 1)
-#define VTD_SL_PT_BASE_ADDR_MASK(aw) (~(VTD_PAGE_SIZE - 1) & VTD_HAW_MASK(aw))
 #define VTD_SL_IGN_COM              0xbff0000000000000ULL
 #define VTD_SL_TM                   (1ULL << 62)
+
+/* Common for both First Level and Second Level */
+#define VTD_PML4_LEVEL           4
+#define VTD_PDP_LEVEL            3
+#define VTD_PD_LEVEL             2
+#define VTD_PT_LEVEL             1
+#define VTD_PT_ENTRY_NR          512
+#define VTD_PT_PAGE_SIZE_MASK    (1ULL << 7)
+#define VTD_PT_BASE_ADDR_MASK(aw) (~(VTD_PAGE_SIZE - 1) & VTD_HAW_MASK(aw))
+
+/* Bits to decide the offset for each level */
+#define VTD_LEVEL_BITS           9
 
 #endif
