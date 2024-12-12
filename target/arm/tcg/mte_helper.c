@@ -23,7 +23,9 @@
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#else
 #include "exec/ram_addr.h"
 #endif
 #include "exec/cpu_ldst.h"

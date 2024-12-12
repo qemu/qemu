@@ -57,6 +57,7 @@
 
 #include "qemu-bsd.h"
 #include "exec/page-protection.h"
+#include "user/page-protection.h"
 
 extern struct bsd_shm_regions bsd_shm_regions[];
 extern abi_ulong target_brk;
