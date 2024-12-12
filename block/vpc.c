@@ -237,6 +237,7 @@ static void vpc_parse_options(BlockDriverState *bs, QemuOpts *opts,
  *      'd2v '  :  current_size     Disk2vhd
  *      'tap\0' :  current_size     XenServer
  *      'CTXS'  :  current_size     XenConverter
+ *      'wa\0\0':  current_size     Azure
  *
  *  The user can override the table values via drive options, however
  *  even with an override we will still use current_size for images
@@ -244,11 +245,8 @@ static void vpc_parse_options(BlockDriverState *bs, QemuOpts *opts,
  */
 static bool vpc_ignore_current_size(VHDFooter *footer)
 {
-    return !!strncmp(footer->creator_app, "win ", 4) &&
-           !!strncmp(footer->creator_app, "qem2", 4) &&
-           !!strncmp(footer->creator_app, "d2v ", 4) &&
-           !!strncmp(footer->creator_app, "CTXS", 4) &&
-           !!memcmp(footer->creator_app, "tap", 4));
+    return !strncmp(footer->creator_app, "vpc ", 4) ||
+           !strncmp(footer->creator_app, "qemu", 4);
 }
 
 static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
