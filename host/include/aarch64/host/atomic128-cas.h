@@ -13,7 +13,7 @@
 
 /* Through gcc 10, aarch64 has no support for 128-bit atomics.  */
 #if defined(CONFIG_ATOMIC128) || defined(CONFIG_CMPXCHG128)
-#include "host/include/generic/host/atomic128-cas.h"
+#include "host/include/generic/host/atomic128-cas.h.inc"
 #else
 static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
 {

@@ -58,7 +58,7 @@
  * Therefore, special case each platform.
  */
 
-#include "host/atomic128-cas.h"
+#include "host/atomic128-cas.h.inc"
 #include "host/atomic128-ldst.h"
 
 #endif /* QEMU_ATOMIC128_H */
