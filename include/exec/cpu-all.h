@@ -130,18 +130,6 @@ extern const TargetPageBits target_page;
 
 int page_get_flags(target_ulong address);
 
-/**
- * page_check_range
- * @start: first byte of range
- * @len: length of range
- * @flags: flags required for each page
- *
- * Return true if every page in [@start, @start+@len) has @flags set.
- * Return false if any page is unmapped.  Thus testing flags == 0 is
- * equivalent to testing for flags == PAGE_VALID.
- */
-bool page_check_range(target_ulong start, target_ulong last, int flags);
-
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);

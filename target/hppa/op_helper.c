@@ -25,6 +25,9 @@
 #include "exec/cpu_ldst.h"
 #include "qemu/timer.h"
 #include "trace.h"
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#endif
 
 G_NORETURN void HELPER(excp)(CPUHPPAState *env, int excp)
 {

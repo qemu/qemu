@@ -26,6 +26,7 @@
 #include "exec/exec-all.h"
 
 #include "user/abitypes.h"
+#include "user/page-protection.h"
 
 extern char **environ;
 
