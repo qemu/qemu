@@ -13,6 +13,7 @@
 #ifndef QEMU_ATOMIC128_H
 #define QEMU_ATOMIC128_H
 
+#include "qemu/atomic.h"
 #include "qemu/int128.h"
 
 /*
