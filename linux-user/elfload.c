@@ -8,6 +8,7 @@
 
 #include "qemu.h"
 #include "user/tswap-target.h"
+#include "user/page-protection.h"
 #include "exec/page-protection.h"
 #include "user/guest-base.h"
 #include "user-internals.h"
@@ -3918,7 +3919,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 }
 
 #ifdef USE_ELF_CORE_DUMP
-#include "exec/translate-all.h"
 
 /*
  * Definitions to generate Intel SVR4-like core files.

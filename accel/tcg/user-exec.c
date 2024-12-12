@@ -25,7 +25,7 @@
 #include "qemu/rcu.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/main-loop.h"
-#include "exec/translate-all.h"
+#include "user/page-protection.h"
 #include "exec/page-protection.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"

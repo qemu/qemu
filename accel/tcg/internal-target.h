@@ -37,6 +37,7 @@ void page_table_config_init(void);
 #endif
 
 #ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
 /*
  * For user-only, page_protect sets the page read-only.
  * Since most execution is already on read-only pages, and we'd need to
