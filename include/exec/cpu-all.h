@@ -127,11 +127,6 @@ extern const TargetPageBits target_page;
 #define TARGET_PAGE_ALIGN(addr) ROUND_UP((addr), TARGET_PAGE_SIZE)
 
 #if defined(CONFIG_USER_ONLY)
-void page_dump(FILE *f);
-
-typedef int (*walk_memory_regions_fn)(void *, target_ulong,
-                                      target_ulong, unsigned long);
-int walk_memory_regions(void *, walk_memory_regions_fn);
 
 int page_get_flags(target_ulong address);
 

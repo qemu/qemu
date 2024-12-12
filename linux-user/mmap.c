@@ -22,6 +22,7 @@
 #include "exec/log.h"
 #include "exec/page-protection.h"
 #include "qemu.h"
+#include "user/page-protection.h"
 #include "user-internals.h"
 #include "user-mmap.h"
 #include "target_mman.h"
