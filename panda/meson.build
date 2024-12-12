@@ -1,1 +1,2 @@
 subdir('src')
+subdir('plugins')
