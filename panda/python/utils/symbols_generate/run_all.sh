@@ -4,7 +4,7 @@ ROOT=$(realpath ../../../../)
 BUILD=$(realpath $ROOT/build)
 PANDARE_AUTOGEN_DIR=$(realpath $ROOT/panda/python/core/pandare2/autogen)
 
-LIBPANDAS=$(find $BUILD -name "./libpanda-*.so")
+LIBPANDAS=$(find $BUILD -maxdepth 1 -name "libpanda-*.so")
 
 for LIBPANDA in $LIBPANDAS; do
     echo "Running $LIBPANDA"
