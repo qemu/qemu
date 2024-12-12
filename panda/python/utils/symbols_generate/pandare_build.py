@@ -159,6 +159,7 @@ def compile_target(arch, target):
 	#include "exec/cpu-common.h"
 	#include "panda/panda_api.h"
 	#include "plugins/plugin.h"
+	#include "sysemu/runstate.h"
 	"""
 	
 	target_name = target.replace("-", "_")
