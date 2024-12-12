@@ -15,6 +15,7 @@
 #include "system/kvm.h"
 #include "kvm/kvm_loongarch.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "cpu.h"
 #include "internals.h"
 #include "fpu/softfloat-helpers.h"

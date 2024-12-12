@@ -35,6 +35,7 @@
 #include "exec/exec-all.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
+#include "exec/translation-block.h"
 #include "gdbstub/enums.h"
 
 #include "hw/core/cpu.h"

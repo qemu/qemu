@@ -26,6 +26,7 @@
 #include "tcg/startup.h"
 #include "target_mman.h"
 #include "exec/page-protection.h"
+#include "exec/translation-block.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>

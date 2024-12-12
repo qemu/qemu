@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/translation-block.h"
 #include "tb-internal.h"
 #include "system/tcg.h"
 #include "system/replay.h"

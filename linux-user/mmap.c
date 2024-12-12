@@ -21,6 +21,7 @@
 #include "trace.h"
 #include "exec/log.h"
 #include "exec/page-protection.h"
+#include "exec/translation-block.h"
 #include "qemu.h"
 #include "user/page-protection.h"
 #include "user-internals.h"

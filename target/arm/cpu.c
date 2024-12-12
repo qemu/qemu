@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #ifdef CONFIG_TCG
+#include "exec/translation-block.h"
 #include "hw/core/tcg-cpu-ops.h"
 #endif /* CONFIG_TCG */
 #include "internals.h"

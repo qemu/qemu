@@ -188,9 +188,6 @@ void list_cpus(void);
 #ifdef CONFIG_TCG
 #include "qemu/atomic.h"
 
-bool tcg_cflags_has(CPUState *cpu, uint32_t flags);
-void tcg_cflags_set(CPUState *cpu, uint32_t flags);
-
 /**
  * cpu_unwind_state_data:
  * @cpu: the cpu context

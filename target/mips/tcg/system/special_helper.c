@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "internal.h"
 
 /* Specials */
