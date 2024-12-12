@@ -59,6 +59,6 @@
  */
 
 #include "host/atomic128-cas.h.inc"
-#include "host/atomic128-ldst.h"
+#include "host/atomic128-ldst.h.inc"
 
 #endif /* QEMU_ATOMIC128_H */

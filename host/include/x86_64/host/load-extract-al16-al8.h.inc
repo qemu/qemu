@@ -9,7 +9,7 @@
 #define X86_64_LOAD_EXTRACT_AL16_AL8_H
 
 #ifdef CONFIG_INT128_TYPE
-#include "host/atomic128-ldst.h"
+#include "host/atomic128-ldst.h.inc"
 
 /**
  * load_atom_extract_al16_or_al8:

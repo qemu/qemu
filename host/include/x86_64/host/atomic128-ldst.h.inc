@@ -69,7 +69,7 @@ static inline void atomic16_set(Int128 *ptr, Int128 val)
 }
 #else
 /* Provide QEMU_ERROR stubs. */
-#include "host/include/generic/host/atomic128-ldst.h"
+#include "host/include/generic/host/atomic128-ldst.h.inc"
 #endif
 
 #endif /* X86_64_ATOMIC128_LDST_H */
