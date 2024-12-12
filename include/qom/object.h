@@ -880,23 +880,9 @@ const char *object_get_typename(const Object *obj);
  * type_register_static:
  * @info: The #TypeInfo of the new type.
  *
- * @info and all of the strings it points to should exist for the life time
- * that the type is registered.
- *
  * Returns: the new #Type.
  */
 Type type_register_static(const TypeInfo *info);
-
-/**
- * type_register:
- * @info: The #TypeInfo of the new type
- *
- * Unlike type_register_static(), this call does not require @info or its
- * string members to continue to exist after the call returns.
- *
- * Returns: the new #Type.
- */
-Type type_register(const TypeInfo *info);
 
 /**
  * type_register_static_array:

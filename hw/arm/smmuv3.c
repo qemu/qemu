@@ -2065,8 +2065,8 @@ static const TypeInfo smmuv3_iommu_memory_region_info = {
 
 static void smmuv3_register_types(void)
 {
-    type_register(&smmuv3_type_info);
-    type_register(&smmuv3_iommu_memory_region_info);
+    type_register_static(&smmuv3_type_info);
+    type_register_static(&smmuv3_iommu_memory_region_info);
 }
 
 type_init(smmuv3_register_types)

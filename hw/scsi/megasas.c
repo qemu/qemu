@@ -2576,7 +2576,7 @@ static void megasas_register_types(void)
         type_info.class_init = megasas_class_init;
         type_info.interfaces = info->interfaces;
 
-        type_register(&type_info);
+        type_register_static(&type_info);
     }
 }
 

@@ -1362,7 +1362,7 @@ static void uhci_register_types(void)
     for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
         uhci_type_info.name = uhci_info[i].name;
         uhci_type_info.class_data = uhci_info + i;
-        type_register(&uhci_type_info);
+        type_register_static(&uhci_type_info);
     }
 }
 

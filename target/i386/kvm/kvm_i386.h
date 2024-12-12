@@ -13,22 +13,13 @@
 
 #include "sysemu/kvm.h"
 
-#ifdef CONFIG_KVM
-
+/* always false if !CONFIG_KVM */
 #define kvm_pit_in_kernel() \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
 #define kvm_pic_in_kernel()  \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
 #define kvm_ioapic_in_kernel() \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
-
-#else
-
-#define kvm_pit_in_kernel()      0
-#define kvm_pic_in_kernel()      0
-#define kvm_ioapic_in_kernel()   0
-
-#endif  /* CONFIG_KVM */
 
 bool kvm_has_smm(void);
 bool kvm_enable_x2apic(void);

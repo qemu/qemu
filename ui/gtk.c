@@ -2540,7 +2540,7 @@ static void early_gtk_display_init(DisplayOptions *opts)
     keycode_map = gd_get_keymap(&keycode_maplen);
 
 #if defined(CONFIG_VTE)
-    type_register(&char_gd_vc_type_info);
+    type_register_static(&char_gd_vc_type_info);
 #endif
 }
 

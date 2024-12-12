@@ -175,15 +175,10 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
     return ti;
 }
 
-TypeImpl *type_register(const TypeInfo *info)
+TypeImpl *type_register_static(const TypeInfo *info)
 {
     assert(info->parent);
     return type_register_internal(info);
-}
-
-TypeImpl *type_register_static(const TypeInfo *info)
-{
-    return type_register(info);
 }
 
 void type_register_static_array(const TypeInfo *infos, int nr_infos)

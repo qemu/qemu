@@ -33,7 +33,9 @@ unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint)
             // SAFETY: self.char_backend is a valid CharBackend instance after it's been
             // initialized in realize().
             let cb_ptr = unsafe { core::ptr::addr_of_mut!(state.as_mut().char_backend) };
-            unsafe { qemu_chr_fe_accept_input(cb_ptr) };
+            unsafe {
+                qemu_chr_fe_accept_input(cb_ptr);
+            }
 
             val
         }

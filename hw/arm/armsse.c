@@ -1731,7 +1731,7 @@ static void armsse_register_types(void)
             .class_init = armsse_class_init,
             .class_data = (void *)&armsse_variants[i],
         };
-        type_register(&ti);
+        type_register_static(&ti);
     }
 }
 

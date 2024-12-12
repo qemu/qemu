@@ -4,35 +4,22 @@
 
 #![cfg_attr(not(MESON), doc = include_str!("../README.md"))]
 
-#[allow(
-    dead_code,
-    improper_ctypes_definitions,
-    improper_ctypes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unsafe_op_in_unsafe_fn,
-    clippy::missing_const_for_fn,
-    clippy::too_many_arguments,
-    clippy::approx_constant,
-    clippy::use_self,
-    clippy::useless_transmute,
-    clippy::missing_safety_doc,
-)]
 #[rustfmt::skip]
 pub mod bindings;
 
-unsafe impl Send for bindings::Property {}
-unsafe impl Sync for bindings::Property {}
-unsafe impl Sync for bindings::TypeInfo {}
-unsafe impl Sync for bindings::VMStateDescription {}
-unsafe impl Sync for bindings::VMStateField {}
-unsafe impl Sync for bindings::VMStateInfo {}
+// preserve one-item-per-"use" syntax, it is clearer
+// for prelude-like modules
+#[rustfmt::skip]
+pub mod prelude;
 
+pub mod bitops;
 pub mod c_str;
+pub mod cell;
 pub mod definitions;
 pub mod device_class;
+pub mod irq;
 pub mod offset_of;
+pub mod sysbus;
 pub mod vmstate;
 pub mod zeroable;
 

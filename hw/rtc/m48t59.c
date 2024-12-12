@@ -679,7 +679,7 @@ static void m48t59_register_types(void)
     for (i = 0; i < ARRAY_SIZE(m48txx_sysbus_info); i++) {
         sysbus_type_info.name = m48txx_sysbus_info[i].bus_name;
         sysbus_type_info.class_data = &m48txx_sysbus_info[i];
-        type_register(&sysbus_type_info);
+        type_register_static(&sysbus_type_info);
     }
 }
 

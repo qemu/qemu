@@ -22,7 +22,7 @@
  * Add a new clock in a device
  */
 static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
-                                           bool output, Clock *clk)
+                                           bool alias, bool output, Clock *clk)
 {
     NamedClockList *ncl;
 
@@ -38,39 +38,8 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
      */
     ncl = g_new0(NamedClockList, 1);
     ncl->name = g_strdup(name);
+    ncl->alias = alias;
     ncl->output = output;
-    ncl->alias = (clk != NULL);
-
-    /*
-     * Trying to create a clock whose name clashes with some other
-     * clock or property is a bug in the caller and we will abort().
-     */
-    if (clk == NULL) {
-        clk = CLOCK(object_new(TYPE_CLOCK));
-        object_property_add_child(OBJECT(dev), name, OBJECT(clk));
-        if (output) {
-            /*
-             * Remove object_new()'s initial reference.
-             * Note that for inputs, the reference created by object_new()
-             * will be deleted in qdev_finalize_clocklist().
-             */
-            object_unref(OBJECT(clk));
-        }
-    } else {
-        object_property_add_link(OBJECT(dev), name,
-                                 object_get_typename(OBJECT(clk)),
-                                 (Object **) &ncl->clock,
-                                 NULL, OBJ_PROP_LINK_STRONG);
-        /*
-         * Since the link property has the OBJ_PROP_LINK_STRONG flag, the clk
-         * object reference count gets decremented on property deletion.
-         * However object_property_add_link does not increment it since it
-         * doesn't know the linked object. Increment it here to ensure the
-         * aliased clock stays alive during this device life-time.
-         */
-        object_ref(OBJECT(clk));
-    }
-
     ncl->clock = clk;
 
     QLIST_INSERT_HEAD(&dev->clocks, ncl, node);
@@ -84,14 +53,11 @@ void qdev_finalize_clocklist(DeviceState *dev)
 
     QLIST_FOREACH_SAFE(ncl, &dev->clocks, node, ncl_next) {
         QLIST_REMOVE(ncl, node);
-        if (!ncl->output && !ncl->alias) {
+        if (!ncl->alias) {
             /*
              * We kept a reference on the input clock to ensure it lives up to
-             * this point so we can safely remove the callback.
-             * It avoids having a callback to a deleted object if ncl->clock
-             * is still referenced somewhere else (eg: by a clock output).
+             * this point; it is used by the monitor to show the frequency.
              */
-            clock_clear_callback(ncl->clock);
             object_unref(OBJECT(ncl->clock));
         }
         g_free(ncl->name);
@@ -101,29 +67,25 @@ void qdev_finalize_clocklist(DeviceState *dev)
 
 Clock *qdev_init_clock_out(DeviceState *dev, const char *name)
 {
-    NamedClockList *ncl;
+    Clock *clk = CLOCK(object_new(TYPE_CLOCK));
+    object_property_add_child(OBJECT(dev), name, OBJECT(clk));
 
-    assert(name);
-
-    ncl = qdev_init_clocklist(dev, name, true, NULL);
-
-    return ncl->clock;
+    qdev_init_clocklist(dev, name, false, true, clk);
+    return clk;
 }
 
 Clock *qdev_init_clock_in(DeviceState *dev, const char *name,
                           ClockCallback *callback, void *opaque,
                           unsigned int events)
 {
-    NamedClockList *ncl;
+    Clock *clk = CLOCK(object_new(TYPE_CLOCK));
+    object_property_add_child(OBJECT(dev), name, OBJECT(clk));
 
-    assert(name);
-
-    ncl = qdev_init_clocklist(dev, name, false, NULL);
-
+    qdev_init_clocklist(dev, name, false, false, clk);
     if (callback) {
-        clock_set_callback(ncl->clock, callback, opaque, events);
+        clock_set_callback(clk, callback, opaque, events);
     }
-    return ncl->clock;
+    return clk;
 }
 
 void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks)
@@ -194,15 +156,25 @@ Clock *qdev_get_clock_out(DeviceState *dev, const char *name)
 Clock *qdev_alias_clock(DeviceState *dev, const char *name,
                         DeviceState *alias_dev, const char *alias_name)
 {
-    NamedClockList *ncl;
+    NamedClockList *ncl = qdev_get_clocklist(dev, name);
+    Clock *clk = ncl->clock;
 
-    assert(name && alias_name);
+    ncl = qdev_init_clocklist(alias_dev, alias_name, true, ncl->output, clk);
 
-    ncl = qdev_get_clocklist(dev, name);
+    object_property_add_link(OBJECT(alias_dev), alias_name,
+                             TYPE_CLOCK,
+                             (Object **) &ncl->clock,
+                             NULL, OBJ_PROP_LINK_STRONG);
+    /*
+     * Since the link property has the OBJ_PROP_LINK_STRONG flag, the clk
+     * object reference count gets decremented on property deletion.
+     * However object_property_add_link does not increment it since it
+     * doesn't know the linked object. Increment it here to ensure the
+     * aliased clock stays alive during this device life-time.
+     */
+    object_ref(OBJECT(clk));
 
-    qdev_init_clocklist(alias_dev, alias_name, ncl->output, ncl->clock);
-
-    return ncl->clock;
+    return clk;
 }
 
 void qdev_connect_clock_in(DeviceState *dev, const char *name, Clock *source)
