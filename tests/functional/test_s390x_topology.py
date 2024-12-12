@@ -11,7 +11,6 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
-import time
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command

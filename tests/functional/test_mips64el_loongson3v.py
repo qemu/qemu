@@ -10,7 +10,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import time
 
 from unittest import skipUnless
 from qemu_test import QemuSystemTest, Asset

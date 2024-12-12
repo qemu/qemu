@@ -25,6 +25,7 @@ test_timeouts = {
   'arm_aspeed_rainier' : 240,
   'arm_bpim2u' : 500,
   'arm_collie' : 180,
+  'arm_cubieboard' : 360,
   'arm_orangepi' : 540,
   'arm_raspi2' : 120,
   'arm_tuxrun' : 240,
@@ -38,6 +39,7 @@ test_timeouts = {
   'ppc64_tuxrun' : 420,
   'riscv64_tuxrun' : 120,
   's390x_ccw_virtio' : 420,
+  'sh4_tuxrun' : 240,
 }
 
 tests_generic_system = [
@@ -61,6 +63,7 @@ tests_aarch64_system_thorough = [
   'aarch64_sbsaref_freebsd',
   'aarch64_tuxrun',
   'aarch64_virt',
+  'aarch64_xlnx_versal',
   'multiprocess',
 ]
 
@@ -78,9 +81,12 @@ tests_arm_system_thorough = [
   'arm_bpim2u',
   'arm_canona1100',
   'arm_collie',
+  'arm_cubieboard',
+  'arm_emcraft_sf2',
   'arm_integratorcp',
   'arm_orangepi',
   'arm_raspi2',
+  'arm_smdkc210',
   'arm_sx1',
   'arm_vexpress',
   'arm_tuxrun',

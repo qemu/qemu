@@ -10,7 +10,6 @@ import shutil
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test.utils import archive_extract
-from unittest import skipUnless
 
 class R2dEBTest(LinuxKernelTest):
 

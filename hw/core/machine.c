@@ -36,6 +36,9 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "audio/audio.h"
 
+GlobalProperty hw_compat_9_2[] = {};
+const size_t hw_compat_9_2_len = G_N_ELEMENTS(hw_compat_9_2);
+
 GlobalProperty hw_compat_9_1[] = {
     { TYPE_PCI_DEVICE, "x-pcie-ext-tag", "false" },
 };

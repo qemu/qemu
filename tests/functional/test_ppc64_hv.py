@@ -72,10 +72,9 @@ class HypervisorTest(QemuSystemTest):
         cwd = os.getcwd()
         os.chdir(self.workdir)
 
-        with open(filename, "w") as outfile:
-            cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
-            subprocess.run(cmd.split(),
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
+        subprocess.run(cmd.split(),
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         os.chmod(filename, 0o600)
         os.chdir(cwd)

@@ -2526,6 +2526,11 @@ struct ethtool_link_settings {
 	uint8_t	master_slave_state;
 	uint8_t	rate_matching;
 	uint32_t	reserved[7];
+	/* Linux builds with -Wflex-array-member-not-at-end but does
+	 * not use the "link_mode_masks" member. Leave it defined for
+	 * userspace for now, and when userspace wants to start using
+	 * -Wfamnae, we'll need a new solution.
+	 */
 	uint32_t	link_mode_masks[];
 	/* layout of link_mode_masks fields:
 	 * uint32_t map_supported[link_mode_masks_nwords];

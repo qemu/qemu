@@ -39,7 +39,6 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-import time
 import zipfile
 
 from pathlib import Path
