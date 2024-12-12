@@ -39,65 +39,151 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
 static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
+    bool have_snan = false;
+    FloatPartsN *ret;
+    int cmp;
+
     if (is_snan(a->cls) || is_snan(b->cls)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+        have_snan = true;
     }
 
     if (s->default_nan_mode) {
         parts_default_nan(a, s);
-    } else {
-        int cmp = frac_cmp(a, b);
+        return a;
+    }
+
+    switch (s->float_2nan_prop_rule) {
+    case float_2nan_prop_s_ab:
+        if (have_snan) {
+            ret = is_snan(a->cls) ? a : b;
+            break;
+        }
+        /* fall through */
+    case float_2nan_prop_ab:
+        ret = is_nan(a->cls) ? a : b;
+        break;
+    case float_2nan_prop_s_ba:
+        if (have_snan) {
+            ret = is_snan(b->cls) ? b : a;
+            break;
+        }
+        /* fall through */
+    case float_2nan_prop_ba:
+        ret = is_nan(b->cls) ? b : a;
+        break;
+    case float_2nan_prop_x87:
+        /*
+         * This implements x87 NaN propagation rules:
+         * SNaN + QNaN => return the QNaN
+         * two SNaNs => return the one with the larger significand, silenced
+         * two QNaNs => return the one with the larger significand
+         * SNaN and a non-NaN => return the SNaN, silenced
+         * QNaN and a non-NaN => return the QNaN
+         *
+         * If we get down to comparing significands and they are the same,
+         * return the NaN with the positive sign bit (if any).
+         */
+        if (is_snan(a->cls)) {
+            if (!is_snan(b->cls)) {
+                ret = is_qnan(b->cls) ? b : a;
+                break;
+            }
+        } else if (is_qnan(a->cls)) {
+            if (is_snan(b->cls) || !is_qnan(b->cls)) {
+                ret = a;
+                break;
+            }
+        } else {
+            ret = b;
+            break;
+        }
+        cmp = frac_cmp(a, b);
         if (cmp == 0) {
             cmp = a->sign < b->sign;
         }
-
-        if (pickNaN(a->cls, b->cls, cmp > 0, s)) {
-            a = b;
-        }
-        if (is_snan(a->cls)) {
-            parts_silence_nan(a, s);
-        }
+        ret = cmp > 0 ? a : b;
+        break;
+    default:
+        g_assert_not_reached();
     }
-    return a;
+
+    if (is_snan(ret->cls)) {
+        parts_silence_nan(ret, s);
+    }
+    return ret;
 }
 
 static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
                                             FloatPartsN *c, float_status *s,
                                             int ab_mask, int abc_mask)
 {
-    int which;
+    bool infzero = (ab_mask == float_cmask_infzero);
+    bool have_snan = (abc_mask & float_cmask_snan);
+    FloatPartsN *ret;
 
-    if (unlikely(abc_mask & float_cmask_snan)) {
+    if (unlikely(have_snan)) {
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
-    which = pickNaNMulAdd(a->cls, b->cls, c->cls,
-                          ab_mask == float_cmask_infzero, s);
+    if (infzero) {
+        /* This is (0 * inf) + NaN or (inf * 0) + NaN */
+        float_raise(float_flag_invalid | float_flag_invalid_imz, s);
+    }
 
-    if (s->default_nan_mode || which == 3) {
+    if (s->default_nan_mode) {
         /*
-         * Note that this check is after pickNaNMulAdd so that function
-         * has an opportunity to set the Invalid flag for infzero.
+         * We guarantee not to require the target to tell us how to
+         * pick a NaN if we're always returning the default NaN.
+         * But if we're not in default-NaN mode then the target must
+         * specify.
          */
-        parts_default_nan(a, s);
-        return a;
+        goto default_nan;
+    } else if (infzero) {
+        /*
+         * Inf * 0 + NaN -- some implementations return the
+         * default NaN here, and some return the input NaN.
+         */
+        switch (s->float_infzeronan_rule) {
+        case float_infzeronan_dnan_never:
+            break;
+        case float_infzeronan_dnan_always:
+            goto default_nan;
+        case float_infzeronan_dnan_if_qnan:
+            if (is_qnan(c->cls)) {
+                goto default_nan;
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        ret = c;
+    } else {
+        FloatPartsN *val[R_3NAN_1ST_MASK + 1] = { a, b, c };
+        Float3NaNPropRule rule = s->float_3nan_prop_rule;
+
+        assert(rule != float_3nan_prop_none);
+        if (have_snan && (rule & R_3NAN_SNAN_MASK)) {
+            /* We have at least one SNaN input and should prefer it */
+            do {
+                ret = val[rule & R_3NAN_1ST_MASK];
+                rule >>= R_3NAN_1ST_LENGTH;
+            } while (!is_snan(ret->cls));
+        } else {
+            do {
+                ret = val[rule & R_3NAN_1ST_MASK];
+                rule >>= R_3NAN_1ST_LENGTH;
+            } while (!is_nan(ret->cls));
+        }
     }
 
-    switch (which) {
-    case 0:
-        break;
-    case 1:
-        a = b;
-        break;
-    case 2:
-        a = c;
-        break;
-    default:
-        g_assert_not_reached();
+    if (is_snan(ret->cls)) {
+        parts_silence_nan(ret, s);
     }
-    if (is_snan(a->cls)) {
-        parts_silence_nan(a, s);
-    }
+    return ret;
+
+ default_nan:
+    parts_default_nan(a, s);
     return a;
 }
 

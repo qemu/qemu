@@ -2813,25 +2813,19 @@ bool is_ebf(CPUARMState *env, float_status *statusp, float_status *oddstatusp)
      * no effect on AArch32 instructions.
      */
     bool ebf = is_a64(env) && env->vfp.fpcr & FPCR_EBF;
-    *statusp = (float_status){
-        .tininess_before_rounding = float_tininess_before_rounding,
-        .float_rounding_mode = float_round_to_odd_inf,
-        .flush_to_zero = true,
-        .flush_inputs_to_zero = true,
-        .default_nan_mode = true,
-    };
+
+    *statusp = env->vfp.fp_status;
+    set_default_nan_mode(true, statusp);
 
     if (ebf) {
-        float_status *fpst = &env->vfp.fp_status;
-        set_flush_to_zero(get_flush_to_zero(fpst), statusp);
-        set_flush_inputs_to_zero(get_flush_inputs_to_zero(fpst), statusp);
-        set_float_rounding_mode(get_float_rounding_mode(fpst), statusp);
-
         /* EBF=1 needs to do a step with round-to-odd semantics */
         *oddstatusp = *statusp;
         set_float_rounding_mode(float_round_to_odd, oddstatusp);
+    } else {
+        set_flush_to_zero(true, statusp);
+        set_flush_inputs_to_zero(true, statusp);
+        set_float_rounding_mode(float_round_to_odd_inf, statusp);
     }
-
     return ebf;
 }
 

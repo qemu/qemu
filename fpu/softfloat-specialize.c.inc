@@ -133,35 +133,17 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
 {
     bool sign = 0;
     uint64_t frac;
+    uint8_t dnan_pattern = status->default_nan_pattern;
 
-#if defined(TARGET_SPARC) || defined(TARGET_M68K)
-    /* !snan_bit_is_one, set all bits */
-    frac = (1ULL << DECOMPOSED_BINARY_POINT) - 1;
-#elif defined(TARGET_I386) || defined(TARGET_X86_64) \
-    || defined(TARGET_MICROBLAZE)
-    /* !snan_bit_is_one, set sign and msb */
-    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-    sign = 1;
-#elif defined(TARGET_HPPA)
-    /* snan_bit_is_one, set msb-1.  */
-    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
-#elif defined(TARGET_HEXAGON)
-    sign = 1;
-    frac = ~0ULL;
-#else
+    assert(dnan_pattern != 0);
+
+    sign = dnan_pattern >> 7;
     /*
-     * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
-     * S390, SH4, TriCore, and Xtensa.  Our other supported targets
-     * do not have floating-point.
+     * Place default_nan_pattern [6:0] into bits [62:56],
+     * and replecate bit [0] down into [55:0]
      */
-    if (snan_bit_is_one(status)) {
-        /* set all bits other than msb */
-        frac = (1ULL << (DECOMPOSED_BINARY_POINT - 1)) - 1;
-    } else {
-        /* set msb */
-        frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-    }
-#endif
+    frac = deposit64(0, DECOMPOSED_BINARY_POINT - 7, 7, dnan_pattern);
+    frac = deposit64(frac, 0, DECOMPOSED_BINARY_POINT - 7, -(dnan_pattern & 1));
 
     *p = (FloatParts64) {
         .cls = float_class_qnan,
@@ -227,17 +209,17 @@ static void parts128_silence_nan(FloatParts128 *p, float_status *status)
 floatx80 floatx80_default_nan(float_status *status)
 {
     floatx80 r;
+    /*
+     * Extrapolate from the choices made by parts64_default_nan to fill
+     * in the floatx80 format. We assume that floatx80's explicit
+     * integer bit is always set (this is true for i386 and m68k,
+     * which are the only real users of this format).
+     */
+    FloatParts64 p64;
+    parts64_default_nan(&p64, status);
 
-    /* None of the targets that have snan_bit_is_one use floatx80.  */
-    assert(!snan_bit_is_one(status));
-#if defined(TARGET_M68K)
-    r.low = UINT64_C(0xFFFFFFFFFFFFFFFF);
-    r.high = 0x7FFF;
-#else
-    /* X86 */
-    r.low = UINT64_C(0xC000000000000000);
-    r.high = 0xFFFF;
-#endif
+    r.high = 0x7FFF | (p64.sign << 15);
+    r.low = (1ULL << DECOMPOSED_BINARY_POINT) | p64.frac;
     return r;
 }
 
@@ -371,312 +353,6 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Select which NaN to propagate for a two-input operation.
-| IEEE754 doesn't specify all the details of this, so the
-| algorithm is target-specific.
-| The routine is passed various bits of information about the
-| two NaNs and should return 0 to select NaN a and 1 for NaN b.
-| Note that signalling NaNs are always squashed to quiet NaNs
-| by the caller, by calling floatXX_silence_nan() before
-| returning them.
-|
-| aIsLargerSignificand is only valid if both a and b are NaNs
-| of some kind, and is true if a has the larger significand,
-| or if both a and b have the same significand but a is
-| positive but b is negative. It is only needed for the x87
-| tie-break rule.
-*----------------------------------------------------------------------------*/
-
-static int pickNaN(FloatClass a_cls, FloatClass b_cls,
-                   bool aIsLargerSignificand, float_status *status)
-{
-    /*
-     * We guarantee not to require the target to tell us how to
-     * pick a NaN if we're always returning the default NaN.
-     * But if we're not in default-NaN mode then the target must
-     * specify via set_float_2nan_prop_rule().
-     */
-    assert(!status->default_nan_mode);
-
-    switch (status->float_2nan_prop_rule) {
-    case float_2nan_prop_s_ab:
-        if (is_snan(a_cls)) {
-            return 0;
-        } else if (is_snan(b_cls)) {
-            return 1;
-        } else if (is_qnan(a_cls)) {
-            return 0;
-        } else {
-            return 1;
-        }
-        break;
-    case float_2nan_prop_s_ba:
-        if (is_snan(b_cls)) {
-            return 1;
-        } else if (is_snan(a_cls)) {
-            return 0;
-        } else if (is_qnan(b_cls)) {
-            return 1;
-        } else {
-            return 0;
-        }
-        break;
-    case float_2nan_prop_ab:
-        if (is_nan(a_cls)) {
-            return 0;
-        } else {
-            return 1;
-        }
-        break;
-    case float_2nan_prop_ba:
-        if (is_nan(b_cls)) {
-            return 1;
-        } else {
-            return 0;
-        }
-        break;
-    case float_2nan_prop_x87:
-        /*
-         * This implements x87 NaN propagation rules:
-         * SNaN + QNaN => return the QNaN
-         * two SNaNs => return the one with the larger significand, silenced
-         * two QNaNs => return the one with the larger significand
-         * SNaN and a non-NaN => return the SNaN, silenced
-         * QNaN and a non-NaN => return the QNaN
-         *
-         * If we get down to comparing significands and they are the same,
-         * return the NaN with the positive sign bit (if any).
-         */
-        if (is_snan(a_cls)) {
-            if (is_snan(b_cls)) {
-                return aIsLargerSignificand ? 0 : 1;
-            }
-            return is_qnan(b_cls) ? 1 : 0;
-        } else if (is_qnan(a_cls)) {
-            if (is_snan(b_cls) || !is_qnan(b_cls)) {
-                return 0;
-            } else {
-                return aIsLargerSignificand ? 0 : 1;
-            }
-        } else {
-            return 1;
-        }
-    default:
-        g_assert_not_reached();
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Select which NaN to propagate for a three-input operation.
-| For the moment we assume that no CPU needs the 'larger significand'
-| information.
-| Return values : 0 : a; 1 : b; 2 : c; 3 : default-NaN
-*----------------------------------------------------------------------------*/
-static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
-                         bool infzero, float_status *status)
-{
-#if defined(TARGET_ARM)
-    /* For ARM, the (inf,zero,qnan) case sets InvalidOp and returns
-     * the default NaN
-     */
-    if (infzero && is_qnan(c_cls)) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 3;
-    }
-
-    /* This looks different from the ARM ARM pseudocode, because the ARM ARM
-     * puts the operands to a fused mac operation (a*b)+c in the order c,a,b.
-     */
-    if (is_snan(c_cls)) {
-        return 2;
-    } else if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_qnan(c_cls)) {
-        return 2;
-    } else if (is_qnan(a_cls)) {
-        return 0;
-    } else {
-        return 1;
-    }
-#elif defined(TARGET_MIPS)
-    if (snan_bit_is_one(status)) {
-        /*
-         * For MIPS systems that conform to IEEE754-1985, the (inf,zero,nan)
-         * case sets InvalidOp and returns the default NaN
-         */
-        if (infzero) {
-            float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-            return 3;
-        }
-        /* Prefer sNaN over qNaN, in the a, b, c order. */
-        if (is_snan(a_cls)) {
-            return 0;
-        } else if (is_snan(b_cls)) {
-            return 1;
-        } else if (is_snan(c_cls)) {
-            return 2;
-        } else if (is_qnan(a_cls)) {
-            return 0;
-        } else if (is_qnan(b_cls)) {
-            return 1;
-        } else {
-            return 2;
-        }
-    } else {
-        /*
-         * For MIPS systems that conform to IEEE754-2008, the (inf,zero,nan)
-         * case sets InvalidOp and returns the input value 'c'
-         */
-        if (infzero) {
-            float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-            return 2;
-        }
-        /* Prefer sNaN over qNaN, in the c, a, b order. */
-        if (is_snan(c_cls)) {
-            return 2;
-        } else if (is_snan(a_cls)) {
-            return 0;
-        } else if (is_snan(b_cls)) {
-            return 1;
-        } else if (is_qnan(c_cls)) {
-            return 2;
-        } else if (is_qnan(a_cls)) {
-            return 0;
-        } else {
-            return 1;
-        }
-    }
-#elif defined(TARGET_LOONGARCH64)
-    /*
-     * For LoongArch systems that conform to IEEE754-2008, the (inf,zero,nan)
-     * case sets InvalidOp and returns the input value 'c'
-     */
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 2;
-    }
-    /* Prefer sNaN over qNaN, in the c, a, b order. */
-    if (is_snan(c_cls)) {
-        return 2;
-    } else if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_qnan(c_cls)) {
-        return 2;
-    } else if (is_qnan(a_cls)) {
-        return 0;
-    } else {
-        return 1;
-    }
-#elif defined(TARGET_PPC)
-    /* For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
-     * to return an input NaN if we have one (ie c) rather than generating
-     * a default NaN
-     */
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 2;
-    }
-
-    /* If fRA is a NaN return it; otherwise if fRB is a NaN return it;
-     * otherwise return fRC. Note that muladd on PPC is (fRA * fRC) + frB
-     */
-    if (is_nan(a_cls)) {
-        return 0;
-    } else if (is_nan(c_cls)) {
-        return 2;
-    } else {
-        return 1;
-    }
-#elif defined(TARGET_RISCV)
-    /* For RISC-V, InvalidOp is set when multiplicands are Inf and zero */
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-    }
-    return 3; /* default NaN */
-#elif defined(TARGET_S390X)
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 3;
-    }
-
-    if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_snan(c_cls)) {
-        return 2;
-    } else if (is_qnan(a_cls)) {
-        return 0;
-    } else if (is_qnan(b_cls)) {
-        return 1;
-    } else {
-        return 2;
-    }
-#elif defined(TARGET_SPARC)
-    /* For (inf,0,nan) return c. */
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 2;
-    }
-    /* Prefer SNaN over QNaN, order C, B, A. */
-    if (is_snan(c_cls)) {
-        return 2;
-    } else if (is_snan(b_cls)) {
-        return 1;
-    } else if (is_snan(a_cls)) {
-        return 0;
-    } else if (is_qnan(c_cls)) {
-        return 2;
-    } else if (is_qnan(b_cls)) {
-        return 1;
-    } else {
-        return 0;
-    }
-#elif defined(TARGET_XTENSA)
-    /*
-     * For Xtensa, the (inf,zero,nan) case sets InvalidOp and returns
-     * an input NaN if we have one (ie c).
-     */
-    if (infzero) {
-        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
-        return 2;
-    }
-    if (status->use_first_nan) {
-        if (is_nan(a_cls)) {
-            return 0;
-        } else if (is_nan(b_cls)) {
-            return 1;
-        } else {
-            return 2;
-        }
-    } else {
-        if (is_nan(c_cls)) {
-            return 2;
-        } else if (is_nan(b_cls)) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
-#else
-    /* A default implementation: prefer a to b to c.
-     * This is unlikely to actually match any real implementation.
-     */
-    if (is_nan(a_cls)) {
-        return 0;
-    } else if (is_nan(b_cls)) {
-        return 1;
-    } else {
-        return 2;
-    }
-#endif
-}
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
@@ -777,58 +453,6 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
     assert(!snan_bit_is_one(status));
     a.low |= UINT64_C(0xC000000000000000);
     return a;
-}
-
-/*----------------------------------------------------------------------------
-| Takes two extended double-precision floating-point values `a' and `b', one
-| of which is a NaN, and returns the appropriate NaN result.  If either `a' or
-| `b' is a signaling NaN, the invalid exception is raised.
-*----------------------------------------------------------------------------*/
-
-floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
-{
-    bool aIsLargerSignificand;
-    FloatClass a_cls, b_cls;
-
-    /* This is not complete, but is good enough for pickNaN.  */
-    a_cls = (!floatx80_is_any_nan(a)
-             ? float_class_normal
-             : floatx80_is_signaling_nan(a, status)
-             ? float_class_snan
-             : float_class_qnan);
-    b_cls = (!floatx80_is_any_nan(b)
-             ? float_class_normal
-             : floatx80_is_signaling_nan(b, status)
-             ? float_class_snan
-             : float_class_qnan);
-
-    if (is_snan(a_cls) || is_snan(b_cls)) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    if (status->default_nan_mode) {
-        return floatx80_default_nan(status);
-    }
-
-    if (a.low < b.low) {
-        aIsLargerSignificand = 0;
-    } else if (b.low < a.low) {
-        aIsLargerSignificand = 1;
-    } else {
-        aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
-    }
-
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
-        if (is_snan(b_cls)) {
-            return floatx80_silence_nan(b, status);
-        }
-        return b;
-    } else {
-        if (is_snan(a_cls)) {
-            return floatx80_silence_nan(a, status);
-        }
-        return a;
-    }
 }
 
 /*----------------------------------------------------------------------------

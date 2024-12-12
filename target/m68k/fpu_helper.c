@@ -615,15 +615,13 @@ void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 
     fp_rem = floatx80_rem(val1->d, val0->d, &env->fp_status);
     if (!floatx80_is_any_nan(fp_rem)) {
-        float_status fp_status = { };
+        /* Use local temporary fp_status to set different rounding mode */
+        float_status fp_status = env->fp_status;
         uint32_t quotient;
         int sign;
 
         /* Calculate quotient directly using round to nearest mode */
-        set_float_2nan_prop_rule(float_2nan_prop_ab, &fp_status);
         set_float_rounding_mode(float_round_nearest_even, &fp_status);
-        set_floatx80_rounding_precision(
-            get_floatx80_rounding_precision(&env->fp_status), &fp_status);
         fp_quot.d = floatx80_div(val1->d, val0->d, &fp_status);
 
         sign = extractFloatx80Sign(fp_quot.d);

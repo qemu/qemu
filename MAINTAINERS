@@ -917,7 +917,7 @@ F: include/hw/ssi/imx_spi.h
 SBSA-REF
 M: Radoslaw Biernacki <rad@semihalf.com>
 M: Peter Maydell <peter.maydell@linaro.org>
-R: Leif Lindholm <quic_llindhol@quicinc.com>
+R: Leif Lindholm <leif.lindholm@oss.qualcomm.com>
 R: Marcin Juszkiewicz <marcin.juszkiewicz@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
@@ -1918,6 +1918,7 @@ F: tests/qtest/fuzz-sb16-test.c
 
 Xilinx CAN
 M: Francisco Iglesias <francisco.iglesias@amd.com>
+M: Vikram Garhwal <vikram.garhwal@bytedance.com>
 S: Maintained
 F: hw/net/can/xlnx-*
 F: include/hw/net/xlnx-*
@@ -2677,6 +2678,7 @@ F: include/hw/rx/
 CAN bus subsystem and hardware
 M: Pavel Pisa <pisa@cmp.felk.cvut.cz>
 M: Francisco Iglesias <francisco.iglesias@amd.com>
+M: Vikram Garhwal <vikram.garhwal@bytedance.com>
 S: Maintained
 W: https://canbus.pages.fel.cvut.cz/
 F: net/can/*
