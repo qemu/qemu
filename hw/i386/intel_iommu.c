@@ -2450,8 +2450,13 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     }
 }
 
+/*
+ * There is no pasid field in iotlb invalidation descriptor, so PCI_NO_PASID
+ * is passed as parameter. Piotlb invalidation supports pasid, pasid in its
+ * descriptor is passed which should not be PCI_NO_PASID.
+ */
 static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
-                                           uint16_t domain_id, hwaddr addr,
+                                             uint16_t domain_id, hwaddr addr,
                                              uint8_t am, uint32_t pasid)
 {
     VTDAddressSpace *vtd_as;
@@ -2460,19 +2465,37 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
     hwaddr size = (1 << am) * VTD_PAGE_SIZE;
 
     QLIST_FOREACH(vtd_as, &(s->vtd_as_with_notifiers), next) {
-        if (pasid != PCI_NO_PASID && pasid != vtd_as->pasid) {
-            continue;
-        }
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
+            uint32_t rid2pasid = PCI_NO_PASID;
+
+            if (s->root_scalable) {
+                rid2pasid = VTD_CE_GET_RID2PASID(&ce);
+            }
+
+            /*
+             * In legacy mode, vtd_as->pasid == pasid is always true.
+             * In scalable mode, for vtd address space backing a PCI
+             * device without pasid, needs to compare pasid with
+             * rid2pasid of this device.
+             */
+            if (!(vtd_as->pasid == pasid ||
+                  (vtd_as->pasid == PCI_NO_PASID && pasid == rid2pasid))) {
+                continue;
+            }
+
             if (vtd_as_has_map_notifier(vtd_as)) {
                 /*
-                 * As long as we have MAP notifications registered in
-                 * any of our IOMMU notifiers, we need to sync the
-                 * shadow page table.
+                 * When stage-1 translation is off, as long as we have MAP
+                 * notifications registered in any of our IOMMU notifiers,
+                 * we need to sync the shadow page table. Otherwise VFIO
+                 * device attaches to nested page table instead of shadow
+                 * page table, so no need to sync.
                  */
-                vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
+                if (!s->flts || !s->root_scalable) {
+                    vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
+                }
             } else {
                 /*
                  * For UNMAP-only notifiers, we don't need to walk the
@@ -2960,7 +2983,7 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
                 continue;
             }
 
-            if (!s->flts) {
+            if (!s->flts || !vtd_as_has_map_notifier(vtd_as)) {
                 vtd_address_space_sync(vtd_as);
             }
         }
@@ -2981,6 +3004,8 @@ static void vtd_piotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     g_hash_table_foreach_remove(s->iotlb,
                                 vtd_hash_remove_by_page_piotlb, &info);
     vtd_iommu_unlock(s);
+
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, pasid);
 }
 
 static bool vtd_process_piotlb_desc(IntelIOMMUState *s,
