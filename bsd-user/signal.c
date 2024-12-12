@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "qemu.h"
 #include "exec/page-protection.h"
+#include "user/page-protection.h"
 #include "user/tswap-target.h"
 #include "gdbstub/user.h"
 #include "signal-common.h"

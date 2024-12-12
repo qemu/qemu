@@ -19,6 +19,8 @@
 void page_protect(tb_page_addr_t page_addr);
 int page_unprotect(tb_page_addr_t address, uintptr_t pc);
 
+int page_get_flags(target_ulong address);
+
 /**
  * page_set_flags:
  * @start: first byte of range

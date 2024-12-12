@@ -126,12 +126,6 @@ extern const TargetPageBits target_page;
 
 #define TARGET_PAGE_ALIGN(addr) ROUND_UP((addr), TARGET_PAGE_SIZE)
 
-#if defined(CONFIG_USER_ONLY)
-
-int page_get_flags(target_ulong address);
-
-#endif
-
 CPUArchState *cpu_copy(CPUArchState *env);
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
