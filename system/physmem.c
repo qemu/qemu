@@ -61,7 +61,6 @@
 
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
-#include "exec/translate-all.h"
 #include "system/replay.h"
 
 #include "exec/memory-internal.h"
