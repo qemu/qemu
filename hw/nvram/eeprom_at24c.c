@@ -234,7 +234,7 @@ void at24c_eeprom_reset(DeviceState *state)
     ee->haveaddr = 0;
 }
 
-static Property at24c_eeprom_props[] = {
+static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_UINT32("rom-size", EEPROMState, rsize, 0),
     DEFINE_PROP_UINT8("address-size", EEPROMState, asize, 0),
     DEFINE_PROP_BOOL("writable", EEPROMState, writable, true),

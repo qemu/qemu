@@ -83,7 +83,7 @@ static void efuse_cache_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property efuse_cache_props[] = {
+static const Property efuse_cache_props[] = {
     DEFINE_PROP_LINK("efuse",
                      XlnxVersalEFuseCache, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),

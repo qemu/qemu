@@ -520,7 +520,7 @@ static const VMStateDescription vmstate_bbram_ctrl = {
     }
 };
 
-static Property bbram_ctrl_props[] = {
+static const Property bbram_ctrl_props[] = {
     DEFINE_PROP("drive", XlnxBBRam, blk, bbram_prop_drive, BlockBackend *),
     DEFINE_PROP_UINT32("crc-zpads", XlnxBBRam, crc_zpads, 1),
     DEFINE_PROP_END_OF_LIST(),
