@@ -3410,7 +3410,7 @@ static void rtl8139_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property rtl8139_properties[] = {
+static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

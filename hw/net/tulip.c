@@ -1007,7 +1007,7 @@ static void tulip_instance_init(Object *obj)
                                   &pci_dev->qdev);
 }
 
-static Property tulip_properties[] = {
+static const Property tulip_properties[] = {
     DEFINE_NIC_PROPERTIES(TULIPState, c),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -931,7 +931,7 @@ static const VMStateDescription vmstate_dp8393x = {
     }
 };
 
-static Property dp8393x_properties[] = {
+static const Property dp8393x_properties[] = {
     DEFINE_NIC_PROPERTIES(dp8393xState, conf),
     DEFINE_PROP_LINK("dma_mr", dp8393xState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),

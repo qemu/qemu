@@ -371,7 +371,7 @@ static const VMStateDescription mv88w8618_eth_vmsd = {
     }
 };
 
-static Property mv88w8618_eth_properties[] = {
+static const Property mv88w8618_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(mv88w8618_eth_state, conf),
     DEFINE_PROP_LINK("dma-memory", mv88w8618_eth_state, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),

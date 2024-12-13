@@ -252,7 +252,7 @@ static void pcnet_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property pcnet_properties[] = {
+static const Property pcnet_properties[] = {
     DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
     DEFINE_PROP_END_OF_LIST(),
 };

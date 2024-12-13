@@ -497,7 +497,7 @@ static void stellaris_enet_realize(DeviceState *dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
-static Property stellaris_enet_properties[] = {
+static const Property stellaris_enet_properties[] = {
     DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

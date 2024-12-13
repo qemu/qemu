@@ -1420,7 +1420,7 @@ static void sungem_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property sungem_properties[] = {
+static const Property sungem_properties[] = {
     DEFINE_NIC_PROPERTIES(SunGEMState, conf),
     /* Phy address should be 0 for most Apple machines except
      * for K2 in which case it's 1. Will be set by a machine

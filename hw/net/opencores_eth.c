@@ -743,7 +743,7 @@ static void qdev_open_eth_reset(DeviceState *dev)
     open_eth_reset(d);
 }
 
-static Property open_eth_properties[] = {
+static const Property open_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(OpenEthState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

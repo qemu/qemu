@@ -845,7 +845,7 @@ static const VMStateDescription vmstate_npcm7xx_emc = {
     },
 };
 
-static Property npcm7xx_emc_properties[] = {
+static const Property npcm7xx_emc_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCM7xxEMCState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
