@@ -538,7 +538,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property armv7m_properties[] = {
+static const Property armv7m_properties[] = {
     DEFINE_PROP_STRING("cpu-type", ARMv7MState, cpu_type),
     DEFINE_PROP_LINK("memory", ARMv7MState, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
@@ -631,7 +631,7 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
     qemu_register_reset(armv7m_reset, cpu);
 }
 
-static Property bitband_properties[] = {
+static const Property bitband_properties[] = {
     DEFINE_PROP_UINT32("base", BitBandState, base, 0),
     DEFINE_PROP_LINK("source-memory", BitBandState, source_memory,
                      TYPE_MEMORY_REGION, MemoryRegion *),

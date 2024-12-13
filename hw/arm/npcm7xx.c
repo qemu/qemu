@@ -810,7 +810,7 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.spix",         0xfb001000,   4 * KiB);
 }
 
-static Property npcm7xx_properties[] = {
+static const Property npcm7xx_properties[] = {
     DEFINE_PROP_LINK("dram-mr", NPCM7xxState, dram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),

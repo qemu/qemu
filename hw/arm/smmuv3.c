@@ -1976,7 +1976,7 @@ static const VMStateDescription vmstate_smmuv3 = {
     }
 };
 
-static Property smmuv3_properties[] = {
+static const Property smmuv3_properties[] = {
     /*
      * Stages of translation advertised.
      * "1": Stage 1

@@ -222,7 +222,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("usb", 0x40043000, 0x1000);
 }
 
-static Property m2sxxx_soc_properties[] = {
+static const Property m2sxxx_soc_properties[] = {
     /*
      * part name specifies the type of SmartFusion2 device variant(this
      * property is for information purpose only.

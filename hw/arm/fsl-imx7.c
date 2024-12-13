@@ -736,7 +736,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
                                 &s->caam);
 }
 
-static Property fsl_imx7_properties[] = {
+static const Property fsl_imx7_properties[] = {
     DEFINE_PROP_UINT32("fec1-phy-num", FslIMX7State, phy_num[0], 0),
     DEFINE_PROP_UINT32("fec2-phy-num", FslIMX7State, phy_num[1], 1),
     DEFINE_PROP_BOOL("fec1-phy-connected", FslIMX7State, phy_connected[0],

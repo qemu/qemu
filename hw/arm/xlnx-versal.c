@@ -968,7 +968,7 @@ static void versal_init(Object *obj)
                              "mr-rpu-ps-alias", &s->mr_ps, 0, UINT64_MAX);
 }
 
-static Property versal_properties[] = {
+static const Property versal_properties[] = {
     DEFINE_PROP_LINK("ddr", Versal, cfg.mr_ddr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_LINK("canbus0", Versal, lpd.iou.canbus[0],

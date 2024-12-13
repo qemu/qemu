@@ -694,7 +694,7 @@ static void integratorcp_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE("integratorcp", integratorcp_machine_init)
 
-static Property core_properties[] = {
+static const Property core_properties[] = {
     DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
