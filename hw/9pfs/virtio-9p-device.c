@@ -243,7 +243,7 @@ static const VMStateDescription vmstate_virtio_9p = {
     },
 };
 
-static Property virtio_9p_properties[] = {
+static const Property virtio_9p_properties[] = {
     DEFINE_PROP_STRING("mount_tag", V9fsVirtioState, state.fsconf.tag),
     DEFINE_PROP_STRING("fsdev", V9fsVirtioState, state.fsconf.fsdev_id),
     DEFINE_PROP_END_OF_LIST(),
