@@ -447,7 +447,7 @@ static const VMStateDescription vmstate_stm32l4x5_gpio = {
     }
 };
 
-static Property stm32l4x5_gpio_properties[] = {
+static const Property stm32l4x5_gpio_properties[] = {
     DEFINE_PROP_STRING("name", Stm32l4x5GpioState, name),
     DEFINE_PROP_UINT32("mode-reset", Stm32l4x5GpioState, moder_reset, 0),
     DEFINE_PROP_UINT32("ospeed-reset", Stm32l4x5GpioState, ospeedr_reset, 0),
