@@ -318,17 +318,15 @@ static const MemoryRegionOps extioi_virt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int vmstate_extioi_post_load(void *opaque, int version_id);
-#include "loongarch_extioi_common.c"
-
 static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
 {
-    LoongArchExtIOI *s = LOONGARCH_EXTIOI(dev);
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(dev);
+    LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *local_err = NULL;
     int i, pin;
 
-    loongarch_extioi_common_realize(dev, &local_err);
+    lec->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -399,24 +397,25 @@ static int vmstate_extioi_post_load(void *opaque, int version_id)
 static void loongarch_extioi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_CLASS(klass);
+    LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
 
-    dc->realize = loongarch_extioi_realize;
-    dc->unrealize = loongarch_extioi_unrealize;
+    device_class_set_parent_realize(dc, loongarch_extioi_realize,
+                                    &lec->parent_realize);
+    device_class_set_parent_unrealize(dc, loongarch_extioi_unrealize,
+                                      &lec->parent_unrealize);
     device_class_set_legacy_reset(dc, loongarch_extioi_reset);
-    device_class_set_props(dc, extioi_properties);
-    dc->vmsd = &vmstate_loongarch_extioi;
+    lecc->post_load = vmstate_extioi_post_load;
 }
 
-static const TypeInfo loongarch_extioi_info = {
-    .name          = TYPE_LOONGARCH_EXTIOI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct LoongArchExtIOI),
-    .class_init    = loongarch_extioi_class_init,
+static const TypeInfo loongarch_extioi_types[] = {
+    {
+        .name          = TYPE_LOONGARCH_EXTIOI,
+        .parent        = TYPE_LOONGARCH_EXTIOI_COMMON,
+        .instance_size = sizeof(LoongArchExtIOIState),
+        .class_size    = sizeof(LoongArchExtIOIClass),
+        .class_init    = loongarch_extioi_class_init,
+    }
 };
 
-static void loongarch_extioi_register_types(void)
-{
-    type_register_static(&loongarch_extioi_info);
-}
-
-type_init(loongarch_extioi_register_types)
+DEFINE_TYPES(loongarch_extioi_types)

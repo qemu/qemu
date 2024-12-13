@@ -7,6 +7,7 @@
 #ifndef LOONGARCH_EXTIOI_COMMON_H
 #define LOONGARCH_EXTIOI_COMMON_H
 
+#include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/loongarch/virt.h"
 
@@ -56,6 +57,10 @@
 #define EXTIOI_VIRT_COREMAP_START    (0x40)
 #define EXTIOI_VIRT_COREMAP_END      (0x240)
 
+#define TYPE_LOONGARCH_EXTIOI_COMMON "loongarch_extioi_common"
+OBJECT_DECLARE_TYPE(LoongArchExtIOICommonState,
+                    LoongArchExtIOICommonClass, LOONGARCH_EXTIOI_COMMON)
+
 typedef struct ExtIOICore {
     uint32_t coreisr[EXTIOI_IRQS_GROUP_COUNT];
     DECLARE_BITMAP(sw_isr[LS3A_INTC_IP], EXTIOI_IRQS);
@@ -81,5 +86,12 @@ struct LoongArchExtIOICommonState {
     ExtIOICore *cpu;
     MemoryRegion extioi_system_mem;
     MemoryRegion virt_extend;
+};
+
+struct LoongArchExtIOICommonClass {
+    SysBusDeviceClass parent_class;
+
+    DeviceRealize parent_realize;
+    int (*post_load)(void *s, int version_id);
 };
 #endif /* LOONGARCH_EXTIOI_H */

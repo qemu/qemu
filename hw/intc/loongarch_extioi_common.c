@@ -3,6 +3,12 @@
  * Loongson extioi interrupt controller emulation
  * Copyright (C) 2024 Loongson Technology Corporation Limited
  */
+#include "qemu/osdep.h"
+#include "qemu/module.h"
+#include "qapi/error.h"
+#include "hw/qdev-properties.h"
+#include "hw/intc/loongarch_extioi_common.h"
+#include "migration/vmstate.h"
 
 static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
 {
@@ -16,7 +22,14 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
 
 static int loongarch_extioi_common_post_load(void *opaque, int version_id)
 {
-    return vmstate_extioi_post_load(opaque, version_id);
+    LoongArchExtIOICommonState *s = (LoongArchExtIOICommonState *)opaque;
+    LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_GET_CLASS(s);
+
+    if (lecc->post_load) {
+        return lecc->post_load(s, version_id);
+    }
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_extioi_core = {
@@ -61,3 +74,27 @@ static const Property extioi_properties[] = {
                     features, EXTIOI_HAS_VIRT_EXTENSION, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void loongarch_extioi_common_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
+
+    device_class_set_parent_realize(dc, loongarch_extioi_common_realize,
+                                    &lecc->parent_realize);
+    device_class_set_props(dc, extioi_properties);
+    dc->vmsd = &vmstate_loongarch_extioi;
+}
+
+static const TypeInfo loongarch_extioi_common_types[] = {
+    {
+        .name               = TYPE_LOONGARCH_EXTIOI_COMMON,
+        .parent             = TYPE_SYS_BUS_DEVICE,
+        .instance_size      = sizeof(LoongArchExtIOICommonState),
+        .class_size         = sizeof(LoongArchExtIOICommonClass),
+        .class_init         = loongarch_extioi_common_class_init,
+        .abstract           = true,
+    }
+};
+
+DEFINE_TYPES(loongarch_extioi_common_types)
