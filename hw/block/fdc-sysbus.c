@@ -196,7 +196,7 @@ static const TypeInfo sysbus_fdc_common_typeinfo = {
     .class_size    = sizeof(FDCtrlSysBusClass),
 };
 
-static Property sysbus_fdc_properties[] = {
+static const Property sysbus_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtypeA", FDCtrlSysBus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
@@ -223,7 +223,7 @@ static const TypeInfo sysbus_fdc_typeinfo = {
     .class_init    = sysbus_fdc_class_init,
 };
 
-static Property sun4m_fdc_properties[] = {
+static const Property sun4m_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtype", FDCtrlSysBus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),

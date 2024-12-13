@@ -937,7 +937,7 @@ static void pflash_cfi02_reset(DeviceState *dev)
     pflash_reset_state_machine(pfl);
 }
 
-static Property pflash_cfi02_properties[] = {
+static const Property pflash_cfi02_properties[] = {
     DEFINE_PROP_DRIVE("drive", PFlashCFI02, blk),
     DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, uniform_nb_blocs, 0),
     DEFINE_PROP_UINT32("sector-length", PFlashCFI02, uniform_sector_len, 0),

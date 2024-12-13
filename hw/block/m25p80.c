@@ -1720,7 +1720,7 @@ static int m25p80_pre_save(void *opaque)
     return 0;
 }
 
-static Property m25p80_properties[] = {
+static const Property m25p80_properties[] = {
     /* This is default value for Micron flash */
     DEFINE_PROP_BOOL("write-enable", Flash, write_enable, false),
     DEFINE_PROP_UINT32("nonvolatile-cfg", Flash, nonvolatile_cfg, 0x8FFF),

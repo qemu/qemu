@@ -454,7 +454,7 @@ struct FloppyDrive {
     FloppyDriveType type;
 };
 
-static Property floppy_drive_properties[] = {
+static const Property floppy_drive_properties[] = {
     DEFINE_PROP_UINT32("unit", FloppyDrive, unit, -1),
     DEFINE_BLOCK_PROPERTIES(FloppyDrive, conf),
     DEFINE_PROP_SIGNED("drive-type", FloppyDrive, type,
