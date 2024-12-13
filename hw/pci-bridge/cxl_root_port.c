@@ -199,7 +199,7 @@ static void cxl_rp_reset_hold(Object *obj, ResetType type)
     latch_registers(crp);
 }
 
-static Property gen_rp_props[] = {
+static const Property gen_rp_props[] = {
     DEFINE_PROP_UINT32("bus-reserve", CXLRootPort, res_reserve.bus, -1),
     DEFINE_PROP_SIZE("io-reserve", CXLRootPort, res_reserve.io, -1),
     DEFINE_PROP_SIZE("mem-reserve", CXLRootPort, res_reserve.mem_non_pref, -1),

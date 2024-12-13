@@ -128,7 +128,7 @@ static const VMStateDescription vmstate_rp_dev = {
     }
 };
 
-static Property gen_rp_props[] = {
+static const Property gen_rp_props[] = {
     DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort,
                      migrate_msix, true),
     DEFINE_PROP_UINT32("bus-reserve", GenPCIERootPort,
