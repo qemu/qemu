@@ -191,7 +191,7 @@ static void vfio_ap_unrealize(DeviceState *dev)
     g_free(vapdev->vdev.name);
 }
 
-static Property vfio_ap_properties[] = {
+static const Property vfio_ap_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOAPDevice, vdev.sysfsdev),
 #ifdef CONFIG_IOMMUFD
     DEFINE_PROP_LINK("iommufd", VFIOAPDevice, vdev.iommufd,
