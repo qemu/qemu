@@ -69,7 +69,7 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
     /* FIXME not qdev yet */
 }
 
-static Property isa_cirrus_vga_properties[] = {
+static const Property isa_cirrus_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,

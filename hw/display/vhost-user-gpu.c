@@ -645,7 +645,7 @@ static struct vhost_dev *vhost_user_gpu_get_vhost(VirtIODevice *vdev)
     return g->vhost ? &g->vhost->dev : NULL;
 }
 
-static Property vhost_user_gpu_properties[] = {
+static const Property vhost_user_gpu_properties[] = {
     VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf),
     DEFINE_PROP_END_OF_LIST(),
 };

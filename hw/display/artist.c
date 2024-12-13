@@ -1474,7 +1474,7 @@ static const VMStateDescription vmstate_artist = {
     }
 };
 
-static Property artist_properties[] = {
+static const Property artist_properties[] = {
     DEFINE_PROP_UINT16("width",        ARTISTState, width, 1280),
     DEFINE_PROP_UINT16("height",       ARTISTState, height, 1024),
     DEFINE_PROP_UINT16("depth",        ARTISTState, depth, 8),

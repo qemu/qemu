@@ -1674,7 +1674,7 @@ static const VMStateDescription vmstate_virtio_gpu = {
     .post_load = virtio_gpu_post_load,
 };
 
-static Property virtio_gpu_properties[] = {
+static const Property virtio_gpu_properties[] = {
     VIRTIO_GPU_BASE_PROPERTIES(VirtIOGPU, parent_obj.conf),
     DEFINE_PROP_SIZE("max_hostmem", VirtIOGPU, conf_max_hostmem,
                      256 * MiB),

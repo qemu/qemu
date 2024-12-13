@@ -21,7 +21,7 @@
 #include "hw/virtio/virtio-gpu-pci.h"
 #include "qom/object.h"
 
-static Property virtio_gpu_pci_base_properties[] = {
+static const Property virtio_gpu_pci_base_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
     DEFINE_PROP_END_OF_LIST(),
 };

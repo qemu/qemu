@@ -111,7 +111,7 @@ static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
     s->vga.con = graphic_console_init(dev, 0, s->vga.hw_ops, &s->vga);
 }
 
-static Property vga_mmio_properties[] = {
+static const Property vga_mmio_properties[] = {
     DEFINE_PROP_UINT8("it_shift", VGAMmioState, it_shift, 0),
     DEFINE_PROP_UINT32("vgamem_mb", VGAMmioState, vga.vram_size_mb, 8),
     DEFINE_PROP_END_OF_LIST(),

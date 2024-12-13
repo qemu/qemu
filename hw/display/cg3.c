@@ -361,7 +361,7 @@ static void cg3_reset(DeviceState *d)
     qemu_irq_lower(s->irq);
 }
 
-static Property cg3_properties[] = {
+static const Property cg3_properties[] = {
     DEFINE_PROP_UINT32("vram-size",    CG3State, vram_size, -1),
     DEFINE_PROP_UINT16("width",        CG3State, width,     -1),
     DEFINE_PROP_UINT16("height",       CG3State, height,    -1),
