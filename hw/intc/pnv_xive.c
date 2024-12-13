@@ -2059,7 +2059,7 @@ static int pnv_xive_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return 0;
 }
 
-static Property pnv_xive_properties[] = {
+static const Property pnv_xive_properties[] = {
     DEFINE_PROP_UINT64("ic-bar", PnvXive, ic_base, 0),
     DEFINE_PROP_UINT64("vc-bar", PnvXive, vc_base, 0),
     DEFINE_PROP_UINT64("pc-bar", PnvXive, pc_base, 0),

@@ -388,7 +388,7 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
-static Property riscv_imsic_properties[] = {
+static const Property riscv_imsic_properties[] = {
     DEFINE_PROP_BOOL("mmode", RISCVIMSICState, mmode, 0),
     DEFINE_PROP_UINT32("hartid", RISCVIMSICState, hartid, 0),
     DEFINE_PROP_UINT32("num-pages", RISCVIMSICState, num_pages, 0),

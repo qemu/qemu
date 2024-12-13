@@ -2354,7 +2354,7 @@ static void pnv_xive2_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(pnv_xive2_reset, dev);
 }
 
-static Property pnv_xive2_properties[] = {
+static const Property pnv_xive2_properties[] = {
     DEFINE_PROP_UINT64("ic-bar", PnvXive2, ic_base, 0),
     DEFINE_PROP_UINT64("esb-bar", PnvXive2, esb_base, 0),
     DEFINE_PROP_UINT64("end-bar", PnvXive2, end_base, 0),

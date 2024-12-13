@@ -376,7 +376,7 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &irqmp->iomem);
 }
 
-static Property grlib_irqmp_properties[] = {
+static const Property grlib_irqmp_properties[] = {
     DEFINE_PROP_UINT32("ncpus", IRQMP, ncpus, 1),
     DEFINE_PROP_END_OF_LIST(),
 };

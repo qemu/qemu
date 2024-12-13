@@ -430,7 +430,7 @@ static const VMStateDescription vmstate_sifive_plic = {
         }
 };
 
-static Property sifive_plic_properties[] = {
+static const Property sifive_plic_properties[] = {
     DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
     DEFINE_PROP_UINT32("hartid-base", SiFivePLICState, hartid_base, 0),
     /* number of interrupt sources including interrupt source 0 */

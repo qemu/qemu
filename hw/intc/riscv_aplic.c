@@ -904,7 +904,7 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
-static Property riscv_aplic_properties[] = {
+static const Property riscv_aplic_properties[] = {
     DEFINE_PROP_UINT32("aperture-size", RISCVAPLICState, aperture_size, 0),
     DEFINE_PROP_UINT32("hartid-base", RISCVAPLICState, hartid_base, 0),
     DEFINE_PROP_UINT32("num-harts", RISCVAPLICState, num_harts, 0),

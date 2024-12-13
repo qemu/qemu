@@ -262,7 +262,7 @@ static const MemoryRegionOps riscv_aclint_mtimer_ops = {
     }
 };
 
-static Property riscv_aclint_mtimer_properties[] = {
+static const Property riscv_aclint_mtimer_properties[] = {
     DEFINE_PROP_UINT32("hartid-base", RISCVAclintMTimerState,
         hartid_base, 0),
     DEFINE_PROP_UINT32("num-harts", RISCVAclintMTimerState, num_harts, 1),
@@ -462,7 +462,7 @@ static const MemoryRegionOps riscv_aclint_swi_ops = {
     }
 };
 
-static Property riscv_aclint_swi_properties[] = {
+static const Property riscv_aclint_swi_properties[] = {
     DEFINE_PROP_UINT32("hartid-base", RISCVAclintSwiState, hartid_base, 0),
     DEFINE_PROP_UINT32("num-harts", RISCVAclintSwiState, num_harts, 1),
     DEFINE_PROP_UINT32("sswi", RISCVAclintSwiState, sswi, false),

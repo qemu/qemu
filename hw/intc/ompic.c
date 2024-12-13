@@ -128,7 +128,7 @@ static void or1k_ompic_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property or1k_ompic_properties[] = {
+static const Property or1k_ompic_properties[] = {
     DEFINE_PROP_UINT32("num-cpus", OR1KOMPICState, num_cpus, 1),
     DEFINE_PROP_END_OF_LIST(),
 };

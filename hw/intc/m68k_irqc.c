@@ -85,7 +85,7 @@ static const VMStateDescription vmstate_m68k_irqc = {
     }
 };
 
-static Property m68k_irqc_properties[] = {
+static const Property m68k_irqc_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", M68KIRQCState, cpu,
                      TYPE_M68K_CPU, ArchCPU *),
     DEFINE_PROP_END_OF_LIST(),

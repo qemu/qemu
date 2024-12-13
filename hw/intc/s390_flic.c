@@ -445,7 +445,7 @@ static void qemu_s390_flic_instance_init(Object *obj)
     }
 }
 
-static Property qemu_s390_flic_properties[] = {
+static const Property qemu_s390_flic_properties[] = {
     DEFINE_PROP_BOOL("migrate-all-state", QEMUS390FLICState,
                      migrate_all_state, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -471,7 +471,7 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->inject_crw_mchk = qemu_s390_inject_crw_mchk;
 }
 
-static Property s390_flic_common_properties[] = {
+static const Property s390_flic_common_properties[] = {
     DEFINE_PROP_UINT32("adapter_routes_max_batch", S390FLICState,
                        adapter_routes_max_batch, ADAPTER_ROUTES_MAX_GSI),
     DEFINE_PROP_BOOL("migration-enabled", S390FLICState,

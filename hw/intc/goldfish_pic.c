@@ -181,7 +181,7 @@ static void goldfish_pic_instance_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), goldfish_irq_request, GOLDFISH_PIC_IRQ_NB);
 }
 
-static Property goldfish_pic_properties[] = {
+static const Property goldfish_pic_properties[] = {
     DEFINE_PROP_UINT8("index", GoldfishPICState, idx, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

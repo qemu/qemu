@@ -2002,7 +2002,7 @@ static void gicv3_its_post_load(GICv3ITSState *s)
     }
 }
 
-static Property gicv3_its_props[] = {
+static const Property gicv3_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "arm-gicv3",
                      GICv3State *),
     DEFINE_PROP_END_OF_LIST(),

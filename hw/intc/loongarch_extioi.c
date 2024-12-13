@@ -423,7 +423,7 @@ static const VMStateDescription vmstate_loongarch_extioi = {
     }
 };
 
-static Property extioi_properties[] = {
+static const Property extioi_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", LoongArchExtIOI, num_cpu, 1),
     DEFINE_PROP_BIT("has-virtualization-extension", LoongArchExtIOI, features,
                     EXTIOI_HAS_VIRT_EXTENSION, 0),

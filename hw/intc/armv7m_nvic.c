@@ -2569,7 +2569,7 @@ static const VMStateDescription vmstate_nvic = {
     }
 };
 
-static Property props_nvic[] = {
+static const Property props_nvic[] = {
     /* Number of external IRQ lines (so excluding the 16 internal exceptions) */
     DEFINE_PROP_UINT32("num-irq", NVICState, num_irq, 64),
     /*

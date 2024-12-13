@@ -474,7 +474,7 @@ static const MemoryRegionOps xlnx_pmu_io_intc_ops = {
     },
 };
 
-static Property xlnx_pmu_io_intc_properties[] = {
+static const Property xlnx_pmu_io_intc_properties[] = {
     DEFINE_PROP_UINT32("intc-intr-size", XlnxPMUIOIntc, cfg.intr_size, 0),
     DEFINE_PROP_UINT32("intc-level-edge", XlnxPMUIOIntc, cfg.level_edge, 0),
     DEFINE_PROP_UINT32("intc-positive", XlnxPMUIOIntc, cfg.positive, 0),
