@@ -175,11 +175,6 @@ impl MemoryRegion {
     ) {
         unsafe {
             Self::do_init_io(
-                // self.0.as_mut_ptr() needed because Rust tries to call
-                // ObjectDeref::as_mut_ptr() on "&mut Self", instead of coercing
-                // to "&Self" and then calling MemoryRegion::as_mut_ptr().
-                // Revisit if/when ObjectCastMut is not needed anymore; it is
-                // only used in a couple places for initialization.
                 self.0.as_mut_ptr(),
                 owner.cast::<Object>(),
                 &ops.0,

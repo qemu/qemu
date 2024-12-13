@@ -2,13 +2,10 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{
-    ffi::{c_void, CStr},
-    ptr::{addr_of, addr_of_mut},
-};
+use std::{ffi::CStr, ptr::addr_of};
 
 use qemu_api::{
-    bindings::{module_call_init, module_init_type, object_new, object_unref, qdev_prop_bool},
+    bindings::{module_call_init, module_init_type, qdev_prop_bool},
     c_str,
     cell::{self, BqlCell},
     declare_properties, define_property,
@@ -180,32 +177,5 @@ fn test_cast() {
     unsafe {
         let sbd_ref: &SysBusDevice = obj_ref.unsafe_cast();
         assert_eq!(addr_of!(*sbd_ref), p_ptr.cast());
-    }
-}
-
-#[test]
-#[allow(clippy::shadow_unrelated)]
-/// Test casts on mutable references.
-fn test_cast_mut() {
-    init_qom();
-    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
-
-    let p_ref: &mut DummyState = unsafe { &mut *p };
-    let obj_ref: &mut Object = p_ref.upcast_mut();
-    assert_eq!(addr_of_mut!(*obj_ref), p.cast());
-
-    let sbd_ref: Result<&mut SysBusDevice, &mut Object> = obj_ref.dynamic_cast_mut();
-    let obj_ref = sbd_ref.unwrap_err();
-
-    let dev_ref: Result<&mut DeviceState, &mut Object> = obj_ref.downcast_mut();
-    let dev_ref = dev_ref.unwrap();
-    assert_eq!(addr_of_mut!(*dev_ref), p.cast());
-
-    // SAFETY: the cast is wrong, but the value is only used for comparison
-    unsafe {
-        let sbd_ref: &mut SysBusDevice = obj_ref.unsafe_cast_mut();
-        assert_eq!(addr_of_mut!(*sbd_ref), p.cast());
-
-        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
     }
 }
