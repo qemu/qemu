@@ -24,7 +24,7 @@ static void ide_cf_realize(IDEDevice *dev, Error **errp)
     ide_dev_initfn(dev, IDE_CFATA, errp);
 }
 
-static Property ide_cf_properties[] = {
+static const Property ide_cf_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
