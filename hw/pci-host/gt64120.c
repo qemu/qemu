@@ -1274,7 +1274,7 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
-static Property gt64120_properties[] = {
+static const Property gt64120_properties[] = {
     DEFINE_PROP_BOOL("cpu-little-endian", GT64120State,
                      cpu_little_endian, false),
     DEFINE_PROP_END_OF_LIST(),

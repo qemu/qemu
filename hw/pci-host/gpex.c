@@ -147,7 +147,7 @@ static const char *gpex_host_root_bus_path(PCIHostState *host_bridge,
     return "0000:00";
 }
 
-static Property gpex_host_properties[] = {
+static const Property gpex_host_properties[] = {
     /*
      * Permit CPU accesses to unmapped areas of the PIO and MMIO windows
      * (discarding writes and returning -1 for reads) rather than aborting.

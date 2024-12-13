@@ -283,7 +283,7 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return 0;
 }
 
-static Property pnv_pec_properties[] = {
+static const Property pnv_pec_properties[] = {
     DEFINE_PROP_UINT32("index", PnvPhb4PecState, index, 0),
     DEFINE_PROP_UINT32("chip-id", PnvPhb4PecState, chip_id, 0),
     DEFINE_PROP_LINK("chip", PnvPhb4PecState, chip, TYPE_PNV_CHIP,
