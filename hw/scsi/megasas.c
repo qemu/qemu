@@ -2448,7 +2448,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &megasas_scsi_info);
 }
 
-static Property megasas_properties_gen1[] = {
+static const Property megasas_properties_gen1[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
@@ -2462,7 +2462,7 @@ static Property megasas_properties_gen1[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property megasas_properties_gen2[] = {
+static const Property megasas_properties_gen2[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
@@ -2487,7 +2487,7 @@ typedef struct MegasasInfo {
     int mmio_bar;
     int osts;
     const VMStateDescription *vmsd;
-    Property *props;
+    const Property *props;
     InterfaceInfo *interfaces;
 } MegasasInfo;
 

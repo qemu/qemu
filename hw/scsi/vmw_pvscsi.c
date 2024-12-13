@@ -1296,7 +1296,7 @@ static const VMStateDescription vmstate_pvscsi = {
     }
 };
 
-static Property pvscsi_properties[] = {
+static const Property pvscsi_properties[] = {
     DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
     DEFINE_PROP_BIT("x-old-pci-configuration", PVSCSIState, compat_flags,
                     PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT, false),

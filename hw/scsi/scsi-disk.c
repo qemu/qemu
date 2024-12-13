@@ -3207,7 +3207,7 @@ static const TypeInfo scsi_disk_base_info = {
     DEFINE_PROP_BOOL("migrate-emulated-scsi-request", SCSIDiskState, migrate_emulated_scsi_request, true)
 
 
-static Property scsi_hd_properties[] = {
+static const Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
@@ -3267,7 +3267,7 @@ static const TypeInfo scsi_hd_info = {
     .class_init    = scsi_hd_class_initfn,
 };
 
-static Property scsi_cd_properties[] = {
+static const Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
     DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
@@ -3310,7 +3310,7 @@ static const TypeInfo scsi_cd_info = {
 };
 
 #ifdef __linux__
-static Property scsi_block_properties[] = {
+static const Property scsi_block_properties[] = {
     DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
