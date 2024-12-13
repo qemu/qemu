@@ -274,7 +274,7 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
     return UFS_REQUEST_NO_COMPLETE;
 }
 
-static Property ufs_lu_props[] = {
+static const Property ufs_lu_props[] = {
     DEFINE_PROP_DRIVE("drive", UfsLu, conf.blk),
     DEFINE_PROP_UINT8("lun", UfsLu, lun, 0),
     DEFINE_PROP_END_OF_LIST(),
