@@ -96,7 +96,7 @@ static const MemoryRegionOps sparse_mem_ops = {
         },
 };
 
-static Property sparse_mem_properties[] = {
+static const Property sparse_mem_properties[] = {
     /* The base address of the memory */
     DEFINE_PROP_UINT64("baseaddr", SparseMemState, baseaddr, 0x0),
     /* The length of the sparse memory region */
