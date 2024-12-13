@@ -1195,7 +1195,7 @@ static const MemoryRegionOps pnv_spi_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static Property pnv_spi_properties[] = {
+static const Property pnv_spi_properties[] = {
     DEFINE_PROP_UINT32("spic_num", PnvSpi, spic_num, 0),
     DEFINE_PROP_UINT8("transfer_len", PnvSpi, transfer_len, 4),
     DEFINE_PROP_END_OF_LIST(),
