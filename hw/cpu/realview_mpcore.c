@@ -108,7 +108,7 @@ static void mpcore_rirq_init(Object *obj)
     }
 }
 
-static Property mpcore_rirq_properties[] = {
+static const Property mpcore_rirq_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", mpcore_rirq_state, num_cpu, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
