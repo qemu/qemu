@@ -281,7 +281,7 @@ static void imx2_wdt_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property imx2_wdt_properties[] = {
+static const Property imx2_wdt_properties[] = {
     DEFINE_PROP_BOOL("pretimeout-support", IMX2WdtState, pretimeout_support,
                      false),
     DEFINE_PROP_END_OF_LIST()

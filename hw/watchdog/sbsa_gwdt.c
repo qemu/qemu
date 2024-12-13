@@ -262,7 +262,7 @@ static void wdt_sbsa_gwdt_realize(DeviceState *dev, Error **errp)
                 dev);
 }
 
-static Property wdt_sbsa_gwdt_props[] = {
+static const Property wdt_sbsa_gwdt_props[] = {
     /*
      * Timer frequency in Hz. This must match the frequency used by
      * the CPU's generic timer. Default 62.5Hz matches QEMU's legacy
