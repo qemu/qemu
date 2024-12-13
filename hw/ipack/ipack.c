@@ -73,7 +73,7 @@ static void ipack_device_unrealize(DeviceState *dev)
     qemu_free_irqs(idev->irq, 2);
 }
 
-static Property ipack_device_props[] = {
+static const Property ipack_device_props[] = {
     DEFINE_PROP_INT32("slot", IPackDevice, slot, -1),
     DEFINE_PROP_END_OF_LIST()
 };
