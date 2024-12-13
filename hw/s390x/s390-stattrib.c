@@ -360,7 +360,7 @@ static void s390_stattrib_realize(DeviceState *dev, Error **errp)
                          &savevm_s390_stattrib_handlers, dev);
 }
 
-static Property s390_stattrib_props[] = {
+static const Property s390_stattrib_props[] = {
     DEFINE_PROP_BOOL("migration-enabled", S390StAttribState, migration_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };

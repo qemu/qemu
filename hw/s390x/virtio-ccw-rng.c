@@ -43,7 +43,7 @@ static void virtio_ccw_rng_instance_init(Object *obj)
                                 TYPE_VIRTIO_RNG);
 }
 
-static Property virtio_ccw_rng_properties[] = {
+static const Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,

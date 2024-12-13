@@ -120,7 +120,7 @@ VirtualCssBus *virtual_css_bus_init(void)
 
 /***************** Virtual-css Bus Bridge Device ********************/
 
-static Property virtual_css_bridge_properties[] = {
+static const Property virtual_css_bridge_properties[] = {
     DEFINE_PROP_BOOL("css_dev_path", VirtualCssBridge, css_dev_path,
                      true),
     DEFINE_PROP_END_OF_LIST(),

@@ -291,7 +291,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(resettable_cold_reset_fn, dev);
 }
 
-static Property s390_ipl_properties[] = {
+static const Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("kernel", S390IPLState, kernel),
     DEFINE_PROP_STRING("initrd", S390IPLState, initrd),
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
