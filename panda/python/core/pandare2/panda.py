@@ -63,7 +63,9 @@ class Panda():
             catch_exceptions=True, # Should we catch and end_analysis() when python code raises an exception?
             libpanda_path=None,
             biospath=None,
-            plugin_path=None):
+            plugin_path=None,
+            nproc=1,
+            ):
         '''
         Construct a new `Panda` object.  Note that multiple Panda objects cannot coexist in the same Python instance.
         Args:
@@ -186,7 +188,8 @@ class Panda():
         plugin_interface = realpath(pjoin(self.panda, "../contrib/plugins/libpanda_plugin_interface.so"))
         self.plugin_interface = self.ffi.dlopen(plugin_interface, self.ffi.RTLD_GLOBAL)
         self.panda_args.extend(["-plugin", plugin_interface])
-        self.panda_args.extend(["-smp", "4"])
+        if nproc != 1:
+            self.panda_args.extend(["-smp", str(nproc)])
 
         if biospath is None:
             # hack since pc-bios is in the core not build now
