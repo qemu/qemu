@@ -101,7 +101,7 @@ manually instantiated:
       VirtIOBlock vdev;
   };
 
-  static Property virtio_blk_pci_properties[] = {
+  static const Property virtio_blk_pci_properties[] = {
       DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
       DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                       VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
