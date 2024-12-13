@@ -660,8 +660,9 @@ static const PropertyInfo trng_prop_fault_events = {
 
 static PropertyInfo trng_prop_uint64; /* to extend qdev_prop_uint64 */
 
-static Property trng_props[] = {
-    DEFINE_PROP_UINT64("forced-prng", XlnxVersalTRng, forced_prng_seed, 0),
+static const Property trng_props[] = {
+    DEFINE_PROP_UNSIGNED("forced-prng", XlnxVersalTRng, forced_prng_seed,
+                         0, trng_prop_uint64, uint64_t),
     DEFINE_PROP_UINT32("hw-version", XlnxVersalTRng, hw_version, 0x0200),
     DEFINE_PROP("fips-fault-events", XlnxVersalTRng, forced_faults,
                 trng_prop_fault_events, uint32_t),
@@ -694,7 +695,6 @@ static void trng_class_init(ObjectClass *klass, void *data)
     /* Clone uint64 property with set allowed after realized */
     trng_prop_uint64 = qdev_prop_uint64;
     trng_prop_uint64.realized_set_allowed = true;
-    trng_props[0].info = &trng_prop_uint64;
 
     device_class_set_props(dc, trng_props);
 }
