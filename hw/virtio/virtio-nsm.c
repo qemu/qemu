@@ -1705,7 +1705,7 @@ static const VMStateDescription vmstate_virtio_nsm = {
     },
 };
 
-static Property virtio_nsm_properties[] = {
+static const Property virtio_nsm_properties[] = {
     DEFINE_PROP_STRING("module-id", VirtIONSM, module_id),
     DEFINE_PROP_END_OF_LIST(),
 };

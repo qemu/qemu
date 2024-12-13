@@ -148,7 +148,7 @@ static void vuv_device_unrealize(DeviceState *dev)
 
 }
 
-static Property vuv_properties[] = {
+static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
     DEFINE_PROP_END_OF_LIST(),
 };
