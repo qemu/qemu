@@ -300,7 +300,7 @@ static const VMStateDescription vmstate_virtio_input = {
     .post_load = virtio_input_post_load,
 };
 
-static Property virtio_input_properties[] = {
+static const Property virtio_input_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOInput, serial),
     DEFINE_PROP_END_OF_LIST(),
 };
