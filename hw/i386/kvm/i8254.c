@@ -287,7 +287,7 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
     kpc->parent_realize(dev, errp);
 }
 
-static Property kvm_pit_properties[] = {
+static const Property kvm_pit_properties[] = {
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_POLICY_DELAY),
     DEFINE_PROP_END_OF_LIST(),

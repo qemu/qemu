@@ -252,7 +252,7 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     }
 }
 
-static Property vmport_properties[] = {
+static const Property vmport_properties[] = {
     /* Used to enforce compatibility for migration */
     DEFINE_PROP_BIT("x-read-set-eax", VMPortState, compat_flags,
                     VMPORT_COMPAT_READ_SET_EAX_BIT, true),
