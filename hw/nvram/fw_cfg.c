@@ -1031,6 +1031,7 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
                                     Object *parent, const char *part,
                                     const char *filename, Error **errp)
 {
+    ERRP_GUARD();
     FWCfgDataGeneratorClass *klass;
     GByteArray *array;
     Object *obj;
@@ -1048,7 +1049,7 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
     }
     klass = FW_CFG_DATA_GENERATOR_GET_CLASS(obj);
     array = klass->get_data(obj, errp);
-    if (!array) {
+    if (*errp || !array) {
         return false;
     }
     size = array->len;
