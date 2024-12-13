@@ -226,7 +226,7 @@ static const VMStateDescription vmstate_tpm_crb = {
     }
 };
 
-static Property tpm_crb_properties[] = {
+static const Property tpm_crb_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", CRBState, tpmbe),
     DEFINE_PROP_BOOL("ppi", CRBState, ppi_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
