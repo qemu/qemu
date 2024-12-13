@@ -65,7 +65,7 @@ static void cswmbcci_exit(PCIDevice *pci_dev)
     /* Nothing to do here yet */
 }
 
-static Property cxl_switch_cci_props[] = {
+static const Property cxl_switch_cci_props[] = {
     DEFINE_PROP_LINK("target", CSWMBCCIDev,
                      target, TYPE_CXL_USP, PCIDevice *),
     DEFINE_PROP_END_OF_LIST(),
