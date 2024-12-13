@@ -618,7 +618,7 @@ static void m48txx_sysbus_toggle_lock(Nvram *obj, int lock)
     m48t59_toggle_lock(&d->state, lock);
 }
 
-static Property m48t59_sysbus_properties[] = {
+static const Property m48t59_sysbus_properties[] = {
     DEFINE_PROP_INT32("base-year", M48txxSysBusState, state.base_year, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

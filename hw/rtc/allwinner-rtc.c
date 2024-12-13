@@ -311,7 +311,7 @@ static const VMStateDescription allwinner_rtc_vmstate = {
     }
 };
 
-static Property allwinner_rtc_properties[] = {
+static const Property allwinner_rtc_properties[] = {
     DEFINE_PROP_INT32("base-year", AwRtcState, base_year, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

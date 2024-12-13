@@ -960,7 +960,7 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
     return s;
 }
 
-static Property mc146818rtc_properties[] = {
+static const Property mc146818rtc_properties[] = {
     DEFINE_PROP_INT32("base_year", MC146818RtcState, base_year, 1980),
     DEFINE_PROP_UINT16("iobase", MC146818RtcState, io_base, RTC_ISA_BASE),
     DEFINE_PROP_UINT8("irq", MC146818RtcState, isairq, RTC_ISA_IRQ),
