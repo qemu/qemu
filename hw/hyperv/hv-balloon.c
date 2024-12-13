@@ -1733,7 +1733,7 @@ static void hv_balloon_finalize(Object *obj)
     hv_balloon_unrealize_finalize_common(balloon);
 }
 
-static Property hv_balloon_properties[] = {
+static const Property hv_balloon_properties[] = {
     DEFINE_PROP_BOOL("status-report", HvBalloon,
                      status_report.enabled, false),
 
