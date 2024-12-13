@@ -24,6 +24,4 @@ struct LoongArchExtIOIClass {
     DeviceUnrealize parent_unrealize;
 };
 
-#define LoongArchExtIOI         LoongArchExtIOICommonState
-#define LOONGARCH_EXTIOI(obj)   ((LoongArchExtIOICommonState *)obj)
 #endif /* LOONGARCH_EXTIOI_H */
