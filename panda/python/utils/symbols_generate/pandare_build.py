@@ -1,11 +1,14 @@
 from cffi import FFI
 from os.path import join, realpath
 import gdb
+import glob
 import re
 import tree_sitter_c as tsc
 from tree_sitter import Language, Parser
 
 root = "../../../.."
+plugins_dir = join(root, "panda/plugins")
+
 C_LANGUAGE = Language(tsc.language())
 parser = Parser(C_LANGUAGE)
 
@@ -161,42 +164,15 @@ def compile_target(arch, target):
 	#include "plugins/plugin.h"
 	#include "sysemu/runstate.h"
 	"""
+ 
+	# add plugin int_fns
+	for int_fns in glob.glob(f"{plugins_dir}/*/*_int_fns.h"):
+		source += f'#include "{int_fns}"\n'
+     
 	
 	target_name = target.replace("-", "_")
 
-	ffibuilder.set_source(f"_pandare_ffi_{arch}_{target_name}",
-	None, libraries=[f'panda-{arch}-{target}'],
-	include_dirs=[realpath(join(root, include)) for include in includes],
-	library_dirs=[realpath(join(root, "build"))],
-	undef_macros=['NDEBUG'], extra_compile_args=["-m64", "-Wall",
-														"-Winvalid-pch",
-			"-std=gnu11",
-			"-O2",
-			"-g",
-			"-fstack-protector-strong",
-			"-Wempty-body",
-			"-Wendif-labels",
-			"-Wexpansion-to-defined",
-			"-Wformat-security",
-			"-Wformat-y2k",
-			"-Wignored-qualifiers",
-			"-Wimplicit-fallthrough=2",
-			"-Winit-self",
-			"-Wmissing-format-attribute",
-			"-Wmissing-prototypes",
-			"-Wnested-externs",
-			"-Wold-style-declaration",
-			"-Wold-style-definition",
-			"-Wredundant-decls",
-			"-Wshadow=local",
-			"-Wstrict-prototypes",
-			"-Wtype-limits",
-			"-Wundef",
-			"-Wvla",
-			"-Wwrite-strings",
-			"-Wno-missing-include-dirs",
-			"-Wno-psabi",
-			"-Wno-shift-negative-value"])
+	ffibuilder.set_source(f"_pandare_ffi_{arch}_{target_name}", None)
 	
 	from subprocess import check_output
 	
