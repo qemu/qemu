@@ -252,9 +252,8 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     p->packet_num = be64_to_cpu(packet->packet_num);
     p->packets_recved++;
 
-    if (!(p->flags & MULTIFD_FLAG_SYNC)) {
-        ret = multifd_ram_unfill_packet(p, errp);
-    }
+    /* Always unfill, old QEMUs (<9.0) send data along with SYNC */
+    ret = multifd_ram_unfill_packet(p, errp);
 
     trace_multifd_recv_unfill(p->id, p->packet_num, p->flags,
                               p->next_packet_size);
@@ -1151,9 +1150,13 @@ static void *multifd_recv_thread(void *opaque)
             flags = p->flags;
             /* recv methods don't know how to handle the SYNC flag */
             p->flags &= ~MULTIFD_FLAG_SYNC;
-            if (!(flags & MULTIFD_FLAG_SYNC)) {
-                has_data = p->normal_num || p->zero_num;
-            }
+
+            /*
+             * Even if it's a SYNC packet, this needs to be set
+             * because older QEMUs (<9.0) still send data along with
+             * the SYNC packet.
+             */
+            has_data = p->normal_num || p->zero_num;
             qemu_mutex_unlock(&p->mutex);
         } else {
             /*
