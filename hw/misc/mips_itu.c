@@ -533,7 +533,7 @@ static void mips_itu_reset(DeviceState *dev)
     itc_reset_cells(s);
 }
 
-static Property mips_itu_properties[] = {
+static const Property mips_itu_properties[] = {
     DEFINE_PROP_UINT32("num-fifo", MIPSITUState, num_fifo,
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_UINT32("num-semaphores", MIPSITUState, num_semaphores,

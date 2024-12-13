@@ -405,7 +405,7 @@ static const VMStateDescription vmstate_macio_newworld = {
     }
 };
 
-static Property macio_newworld_properties[] = {
+static const Property macio_newworld_properties[] = {
     DEFINE_PROP_BOOL("has-pmu", NewWorldMacIOState, has_pmu, false),
     DEFINE_PROP_BOOL("has-adb", NewWorldMacIOState, has_adb, false),
     DEFINE_PROP_END_OF_LIST()
@@ -422,7 +422,7 @@ static void macio_newworld_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, macio_newworld_properties);
 }
 
-static Property macio_properties[] = {
+static const Property macio_properties[] = {
     DEFINE_PROP_UINT64("frequency", MacIOState, frequency, 0),
     DEFINE_PROP_END_OF_LIST()
 };

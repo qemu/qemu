@@ -456,7 +456,7 @@ static const VMStateDescription mps2_scc_vmstate = {
     }
 };
 
-static Property mps2_scc_properties[] = {
+static const Property mps2_scc_properties[] = {
     /* Values for various read-only ID registers (which are specific
      * to the board model or FPGA image)
      */

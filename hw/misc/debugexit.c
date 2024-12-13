@@ -56,7 +56,7 @@ static void debug_exit_realizefn(DeviceState *d, Error **errp)
                                 isa->iobase, &isa->io);
 }
 
-static Property debug_exit_properties[] = {
+static const Property debug_exit_properties[] = {
     DEFINE_PROP_UINT32("iobase", ISADebugExitState, iobase, 0x501),
     DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
     DEFINE_PROP_END_OF_LIST(),

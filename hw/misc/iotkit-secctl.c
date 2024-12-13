@@ -814,7 +814,7 @@ static const VMStateDescription iotkit_secctl_vmstate = {
     },
 };
 
-static Property iotkit_secctl_props[] = {
+static const Property iotkit_secctl_props[] = {
     DEFINE_PROP_UINT32("sse-version", IoTKitSecCtl, sse_version, 0),
     DEFINE_PROP_END_OF_LIST()
 };

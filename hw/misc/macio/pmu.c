@@ -760,7 +760,7 @@ static void pmu_init(Object *obj)
     sysbus_init_mmio(d, &s->mem);
 }
 
-static Property pmu_properties[] = {
+static const Property pmu_properties[] = {
     DEFINE_PROP_BOOL("has-adb", PMUState, has_adb, true),
     DEFINE_PROP_END_OF_LIST()
 };

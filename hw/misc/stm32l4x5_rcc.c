@@ -1426,7 +1426,7 @@ static void stm32l4x5_rcc_realize(DeviceState *dev, Error **errp)
     clock_update(s->gnd, 0);
 }
 
-static Property stm32l4x5_rcc_properties[] = {
+static const Property stm32l4x5_rcc_properties[] = {
     DEFINE_PROP_UINT64("hse_frequency", Stm32l4x5RccState,
         hse_frequency, HSE_DEFAULT_FRQ),
     DEFINE_PROP_UINT64("sai1_extclk_frequency", Stm32l4x5RccState,

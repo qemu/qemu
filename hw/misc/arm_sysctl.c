@@ -623,7 +623,7 @@ static void arm_sysctl_finalize(Object *obj)
     g_free(s->db_clock_reset);
 }
 
-static Property arm_sysctl_properties[] = {
+static const Property arm_sysctl_properties[] = {
     DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
     DEFINE_PROP_UINT32("proc_id", arm_sysctl_state, proc_id, 0),
     /* Daughterboard power supply voltages (as reported via SYS_CFG) */

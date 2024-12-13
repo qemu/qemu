@@ -623,7 +623,7 @@ static const VMStateDescription vmstate_zynq_slcr = {
     }
 };
 
-static Property zynq_slcr_props[] = {
+static const Property zynq_slcr_props[] = {
     DEFINE_PROP_UINT8("boot-mode", ZynqSLCRState, boot_mode, 1),
     DEFINE_PROP_END_OF_LIST(),
 };

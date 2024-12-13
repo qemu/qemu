@@ -436,7 +436,7 @@ static void aspeed_hace_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property aspeed_hace_properties[] = {
+static const Property aspeed_hace_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedHACEState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),

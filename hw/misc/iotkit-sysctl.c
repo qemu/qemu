@@ -835,7 +835,7 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
     }
 };
 
-static Property iotkit_sysctl_props[] = {
+static const Property iotkit_sysctl_props[] = {
     DEFINE_PROP_UINT32("sse-version", IoTKitSysCtl, sse_version, 0),
     DEFINE_PROP_UINT32("CPUWAIT_RST", IoTKitSysCtl, cpuwait_rst, 0),
     DEFINE_PROP_UINT32("INITSVTOR0_RST", IoTKitSysCtl, initsvtor0_rst,
