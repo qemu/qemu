@@ -203,7 +203,7 @@ static const VMStateDescription vmstate_glue = {
  * this cpu link property and could instead provide outbound IRQ lines
  * that the board could wire up to the CPU.
  */
-static Property glue_properties[] = {
+static const Property glue_properties[] = {
     DEFINE_PROP_LINK("cpu", GLUEState, cpu, TYPE_M68K_CPU, M68kCPU *),
     DEFINE_PROP_END_OF_LIST(),
 };

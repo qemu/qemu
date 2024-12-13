@@ -600,7 +600,7 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
     s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
 }
 
-static Property mcf5206_mbar_properties[] = {
+static const Property mcf5206_mbar_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", m5206_mbar_state, cpu,
                      TYPE_M68K_CPU, M68kCPU *),
     DEFINE_PROP_END_OF_LIST(),
