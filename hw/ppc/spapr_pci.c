@@ -2033,7 +2033,7 @@ static void spapr_phb_reset(DeviceState *qdev)
     g_hash_table_remove_all(sphb->msi);
 }
 
-static Property spapr_phb_properties[] = {
+static const Property spapr_phb_properties[] = {
     DEFINE_PROP_UINT32("index", SpaprPhbState, index, -1),
     DEFINE_PROP_UINT64("mem_win_size", SpaprPhbState, mem_win_size,
                        SPAPR_PCI_MEM32_WIN_SIZE),

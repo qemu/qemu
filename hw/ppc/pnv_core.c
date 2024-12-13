@@ -435,7 +435,7 @@ static void pnv_core_unrealize(DeviceState *dev)
     g_free(pc->threads);
 }
 
-static Property pnv_core_properties[] = {
+static const Property pnv_core_properties[] = {
     DEFINE_PROP_UINT32("hwid", PnvCore, hwid, 0),
     DEFINE_PROP_UINT64("hrmor", PnvCore, hrmor, 0),
     DEFINE_PROP_BOOL("big-core", PnvCore, big_core, false),
@@ -693,7 +693,7 @@ static void pnv_quad_power10_realize(DeviceState *dev, Error **errp)
                           pqc->xscom_qme_size);
 }
 
-static Property pnv_quad_properties[] = {
+static const Property pnv_quad_properties[] = {
     DEFINE_PROP_UINT32("quad-id", PnvQuad, quad_id, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

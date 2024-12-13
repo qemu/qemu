@@ -552,7 +552,7 @@ static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
     return 0;
 }
 
-static Property pnv_psi_properties[] = {
+static const Property pnv_psi_properties[] = {
     DEFINE_PROP_UINT64("bar", PnvPsi, bar, 0),
     DEFINE_PROP_UINT64("fsp-bar", PnvPsi, fsp_bar, 0),
     DEFINE_PROP_END_OF_LIST(),

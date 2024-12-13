@@ -112,7 +112,7 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
                           TYPE_PNV_PNOR, s->size);
 }
 
-static Property pnv_pnor_properties[] = {
+static const Property pnv_pnor_properties[] = {
     DEFINE_PROP_INT64("size", PnvPnor, size, 128 * MiB),
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
     DEFINE_PROP_END_OF_LIST(),

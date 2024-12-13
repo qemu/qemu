@@ -185,7 +185,7 @@ static void pnv_adu_realize(DeviceState *dev, Error **errp)
                           PNV9_XSCOM_ADU_SIZE);
 }
 
-static Property pnv_adu_properties[] = {
+static const Property pnv_adu_properties[] = {
     DEFINE_PROP_LINK("lpc", PnvADU, lpc, TYPE_PNV_LPC, PnvLpcController *),
     DEFINE_PROP_END_OF_LIST(),
 };
