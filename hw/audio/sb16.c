@@ -1440,7 +1440,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     s->can_write = 1;
 }
 
-static Property sb16_properties[] = {
+static const Property sb16_properties[] = {
     DEFINE_AUDIO_PROPERTIES(SB16State, card),
     DEFINE_PROP_UINT32 ("version", SB16State, ver,  0x0405), /* 4.5 */
     DEFINE_PROP_UINT32 ("iobase",  SB16State, port, 0x220),
