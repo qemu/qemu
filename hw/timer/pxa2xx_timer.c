@@ -549,7 +549,7 @@ static const VMStateDescription vmstate_pxa2xx_timer_regs = {
     }
 };
 
-static Property pxa25x_timer_dev_properties[] = {
+static const Property pxa25x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA25X_FREQ),
     DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
                     PXA2XX_TIMER_HAVE_TM4, false),

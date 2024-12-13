@@ -420,7 +420,7 @@ static void slavio_timer_init(Object *obj)
     }
 }
 
-static Property slavio_timer_properties[] = {
+static const Property slavio_timer_properties[] = {
     DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
     DEFINE_PROP_END_OF_LIST(),
 };

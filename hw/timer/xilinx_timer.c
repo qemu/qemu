@@ -242,7 +242,7 @@ static void xilinx_timer_init(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &t->irq);
 }
 
-static Property xilinx_timer_properties[] = {
+static const Property xilinx_timer_properties[] = {
     DEFINE_PROP_UINT32("clock-frequency", XpsTimerState, freq_hz, 62 * 1000000),
     DEFINE_PROP_UINT8("one-timer-only", XpsTimerState, one_timer_only, 0),
     DEFINE_PROP_END_OF_LIST(),

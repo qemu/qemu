@@ -379,7 +379,7 @@ static const VMStateDescription vmstate_nrf51_timer = {
     }
 };
 
-static Property nrf51_timer_properties[] = {
+static const Property nrf51_timer_properties[] = {
     DEFINE_PROP_UINT8("id", NRF51TimerState, id, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

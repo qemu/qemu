@@ -745,7 +745,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out(dev, &s->pit_enabled, 1);
 }
 
-static Property hpet_device_properties[] = {
+static const Property hpet_device_properties[] = {
     DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
     DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
     DEFINE_PROP_UINT32(HPET_INTCAP, HPETState, intcap, 0),

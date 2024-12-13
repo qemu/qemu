@@ -542,7 +542,7 @@ static const MemoryRegionOps avr_timer16_ifr_ops = {
     .impl = {.max_access_size = 1}
 };
 
-static Property avr_timer16_properties[] = {
+static const Property avr_timer16_properties[] = {
     DEFINE_PROP_UINT8("id", struct AVRTimer16State, id, 0),
     DEFINE_PROP_UINT64("cpu-frequency-hz", struct AVRTimer16State,
                        cpu_freq_hz, 0),
