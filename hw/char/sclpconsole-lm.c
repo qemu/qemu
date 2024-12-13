@@ -333,7 +333,7 @@ static void console_reset(DeviceState *dev)
    scon->write_errors = 0;
 }
 
-static Property console_properties[] = {
+static const Property console_properties[] = {
     DEFINE_PROP_CHR("chardev", SCLPConsoleLM, chr),
     DEFINE_PROP_UINT32("write_errors", SCLPConsoleLM, write_errors, 0),
     DEFINE_PROP_BOOL("echo", SCLPConsoleLM, echo, true),

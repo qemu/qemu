@@ -704,7 +704,7 @@ static void exynos4210_uart_realize(DeviceState *dev, Error **errp)
                              NULL, s, NULL, true);
 }
 
-static Property exynos4210_uart_properties[] = {
+static const Property exynos4210_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", Exynos4210UartState, chr),
     DEFINE_PROP_UINT32("channel", Exynos4210UartState, channel, 0),
     DEFINE_PROP_UINT32("rx-size", Exynos4210UartState, rx.size, 16),

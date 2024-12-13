@@ -114,7 +114,7 @@ static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
                                 isa->iobase, &s->io);
 }
 
-static Property debugcon_isa_properties[] = {
+static const Property debugcon_isa_properties[] = {
     DEFINE_PROP_UINT32("iobase", ISADebugconState, iobase, 0xe9),
     DEFINE_PROP_CHR("chardev",  ISADebugconState, state.chr),
     DEFINE_PROP_UINT32("readback", ISADebugconState, state.readback, 0xe9),
