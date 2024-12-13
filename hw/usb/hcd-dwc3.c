@@ -656,7 +656,7 @@ static const VMStateDescription vmstate_usb_dwc3 = {
     }
 };
 
-static Property usb_dwc3_properties[] = {
+static const Property usb_dwc3_properties[] = {
     DEFINE_PROP_UINT32("DWC_USB3_USERID", USBDWC3, cfg.dwc_usb3_user,
                        0x12345678),
     DEFINE_PROP_END_OF_LIST(),

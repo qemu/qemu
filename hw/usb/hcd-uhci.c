@@ -1227,14 +1227,14 @@ static void usb_uhci_exit(PCIDevice *dev)
     }
 }
 
-static Property uhci_properties_companion[] = {
+static const Property uhci_properties_companion[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };
-static Property uhci_properties_standalone[] = {
+static const Property uhci_properties_standalone[] = {
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),

@@ -953,7 +953,7 @@ static const VMStateDescription vmstate_usb_uas = {
     }
 };
 
-static Property uas_properties[] = {
+static const Property uas_properties[] = {
     DEFINE_PROP_UINT32("log-scsi-req", UASDevice, requestlog, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

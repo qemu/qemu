@@ -82,7 +82,7 @@ void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq)
     aml_append(scope, dev);
 }
 
-static Property xhci_sysbus_props[] = {
+static const Property xhci_sysbus_props[] = {
     DEFINE_PROP_UINT32("intrs", XHCISysbusState, xhci.numintrs, XHCI_MAXINTRS),
     DEFINE_PROP_UINT32("slots", XHCISysbusState, xhci.numslots, XHCI_MAXSLOTS),
     DEFINE_PROP_END_OF_LIST(),
