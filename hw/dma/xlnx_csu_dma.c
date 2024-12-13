@@ -691,7 +691,7 @@ static const VMStateDescription vmstate_xlnx_csu_dma = {
     }
 };
 
-static Property xlnx_csu_dma_properties[] = {
+static const Property xlnx_csu_dma_properties[] = {
     /*
      * Ref PG021, Stream Data Width:
      * Data width in bits of the AXI S2MM AXI4-Stream Data bus.
