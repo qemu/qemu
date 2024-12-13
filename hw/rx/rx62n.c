@@ -257,7 +257,7 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
     register_sci(s, 0);
 }
 
-static Property rx62n_properties[] = {
+static const Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
