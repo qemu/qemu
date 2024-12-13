@@ -211,7 +211,7 @@ static void pca954x_init(Object *obj)
     }
 }
 
-static Property pca954x_props[] = {
+static const Property pca954x_props[] = {
     DEFINE_PROP_STRING("name", Pca954xState, name),
     DEFINE_PROP_END_OF_LIST()
 };
