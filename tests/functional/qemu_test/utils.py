@@ -10,6 +10,13 @@
 
 import os
 
+from qemu.utils import get_info_usernet_hostfwd_port
+
+
+def get_usernet_hostfwd_port(vm):
+    res = vm.cmd('human-monitor-command', command_line='info usernet')
+    return get_info_usernet_hostfwd_port(res)
+
 """
 Round up to next power of 2
 """
