@@ -79,12 +79,6 @@ typedef struct CPUArchState {
     uint8_t slot_cancelled;
     target_ulong new_value_usr;
 
-    /*
-     * Only used when HEX_DEBUG is on, but unconditionally included
-     * to reduce recompile time when turning HEX_DEBUG on/off.
-     */
-    target_ulong reg_written[TOTAL_PER_THREAD_REGS];
-
     MemLog mem_log_stores[STORES_MAX];
 
     float_status fp_status;
@@ -149,7 +143,7 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
     }
     *flags = hex_flags;
     if (*pc & PCALIGN_MASK) {
-        hexagon_raise_exception_err(env, HEX_EXCP_PC_NOT_ALIGNED, 0);
+        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 }
 

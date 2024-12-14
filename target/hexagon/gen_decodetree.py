@@ -24,6 +24,7 @@ import sys
 import textwrap
 import iset
 import hex_common
+import argparse
 
 encs = {
     tag: "".join(reversed(iset.iset[tag]["enc"].replace(" ", "")))
@@ -191,8 +192,18 @@ def gen_decodetree_file(f, class_to_decode):
         f.write(f"{tag}\t{enc_str} @{tag}\n")
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Emit opaque macro calls with instruction semantics"
+    )
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("class_to_decode", help="instruction class to decode")
+    parser.add_argument("out", help="output file")
+    args = parser.parse_args()
+
+    hex_common.read_semantics_file(args.semantics)
+    with open(args.out, "w") as f:
+        gen_decodetree_file(f, args.class_to_decode)
+
 if __name__ == "__main__":
-    hex_common.read_semantics_file(sys.argv[1])
-    class_to_decode = sys.argv[2]
-    with open(sys.argv[3], "w") as f:
-        gen_decodetree_file(f, class_to_decode)
+    main()
