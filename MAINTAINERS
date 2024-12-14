@@ -226,7 +226,7 @@ F: target/avr/
 F: tests/functional/test_avr_mega2560.py
 
 Hexagon TCG CPUs
-M: Brian Cain <bcain@oss.qualcomm.com>
+M: Brian Cain <brian.cain@oss.qualcomm.com>
 S: Supported
 F: target/hexagon/
 X: target/hexagon/idef-parser/

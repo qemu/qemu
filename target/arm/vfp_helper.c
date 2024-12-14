@@ -314,19 +314,19 @@ VFP_BINOP(minnum)
 VFP_BINOP(maxnum)
 #undef VFP_BINOP
 
-dh_ctype_f16 VFP_HELPER(sqrt, h)(dh_ctype_f16 a, CPUARMState *env)
+dh_ctype_f16 VFP_HELPER(sqrt, h)(dh_ctype_f16 a, void *fpstp)
 {
-    return float16_sqrt(a, &env->vfp.fp_status_f16);
+    return float16_sqrt(a, fpstp);
 }
 
-float32 VFP_HELPER(sqrt, s)(float32 a, CPUARMState *env)
+float32 VFP_HELPER(sqrt, s)(float32 a, void *fpstp)
 {
-    return float32_sqrt(a, &env->vfp.fp_status);
+    return float32_sqrt(a, fpstp);
 }
 
-float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
+float64 VFP_HELPER(sqrt, d)(float64 a, void *fpstp)
 {
-    return float64_sqrt(a, &env->vfp.fp_status);
+    return float64_sqrt(a, fpstp);
 }
 
 static void softfloat_to_vfp_compare(CPUARMState *env, FloatRelation cmp)
@@ -495,6 +495,10 @@ VFP_CONV_FIX_A64(sq, h, 16, dh_ctype_f16, 64, int64)
 VFP_CONV_FIX(uh, h, 16, dh_ctype_f16, 32, uint16)
 VFP_CONV_FIX(ul, h, 16, dh_ctype_f16, 32, uint32)
 VFP_CONV_FIX_A64(uq, h, 16, dh_ctype_f16, 64, uint64)
+VFP_CONV_FLOAT_FIX_ROUND(sq, d, 64, float64, 64, int64,
+                         float_round_to_zero, _round_to_zero)
+VFP_CONV_FLOAT_FIX_ROUND(uq, d, 64, float64, 64, uint64,
+                         float_round_to_zero, _round_to_zero)
 
 #undef VFP_CONV_FIX
 #undef VFP_CONV_FIX_FLOAT
