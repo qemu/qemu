@@ -187,10 +187,16 @@ static void safe_unlink(char *f)
  * Upon success, the caller is reponsible for unlinking and freeing *kernel_path
  */
 static bool read_eif_kernel(FILE *f, uint64_t size, char **kernel_path,
-                            uint8_t *kernel, uint32_t *crc, Error **errp)
+                            QCryptoHash *hash0, QCryptoHash *hash1,
+                            uint32_t *crc, Error **errp)
 {
     size_t got;
     FILE *tmp_file = NULL;
+    uint8_t *kernel = g_try_malloc(size);
+    if (!kernel) {
+        error_setg(errp, "Out of memory reading kernel section");
+        goto cleanup;
+    }
 
     *kernel_path = NULL;
     if (!get_tmp_file("eif-kernel-XXXXXX", kernel_path, errp)) {
@@ -218,6 +224,11 @@ static bool read_eif_kernel(FILE *f, uint64_t size, char **kernel_path,
     }
 
     *crc = crc32(*crc, kernel, size);
+    if (qcrypto_hash_update(hash0, (char *)kernel, size, errp) != 0 ||
+        qcrypto_hash_update(hash1, (char *)kernel, size, errp) != 0) {
+        goto cleanup;
+    }
+    g_free(kernel);
     fclose(tmp_file);
 
     return true;
@@ -229,10 +240,12 @@ static bool read_eif_kernel(FILE *f, uint64_t size, char **kernel_path,
     g_free(*kernel_path);
     *kernel_path = NULL;
 
+    g_free(kernel);
     return false;
 }
 
 static bool read_eif_cmdline(FILE *f, uint64_t size, char *cmdline,
+                             QCryptoHash *hash0, QCryptoHash *hash1,
                              uint32_t *crc, Error **errp)
 {
     size_t got = fread(cmdline, 1, size, f);
@@ -242,28 +255,47 @@ static bool read_eif_cmdline(FILE *f, uint64_t size, char *cmdline,
     }
 
     *crc = crc32(*crc, (uint8_t *)cmdline, size);
+    if (qcrypto_hash_update(hash0, cmdline, size, errp) != 0 ||
+        qcrypto_hash_update(hash1, cmdline, size, errp) != 0) {
+        return false;
+    }
     return true;
 }
 
 static bool read_eif_ramdisk(FILE *eif, FILE *initrd, uint64_t size,
-                             uint8_t *ramdisk, uint32_t *crc, Error **errp)
+                             QCryptoHash *hash0, QCryptoHash *h, uint32_t *crc,
+                             Error **errp)
 {
     size_t got;
+    bool ret = false;
+    uint8_t *ramdisk = g_try_malloc(size);
+    if (!ramdisk) {
+        error_setg(errp, "Out of memory reading initrd section");
+        goto cleanup;
+    }
 
     got = fread(ramdisk, 1, size, eif);
     if ((uint64_t) got != size) {
         error_setg(errp, "Failed to read EIF ramdisk section data");
-        return false;
+        goto cleanup;
     }
 
     got = fwrite(ramdisk, 1, size, initrd);
     if ((uint64_t) got != size) {
         error_setg(errp, "Failed to write EIF ramdisk data to temporary file");
-        return false;
+        goto cleanup;
     }
 
     *crc = crc32(*crc, ramdisk, size);
-    return true;
+    if (qcrypto_hash_update(hash0, (char *)ramdisk, size, errp) != 0 ||
+        qcrypto_hash_update(h, (char *)ramdisk, size, errp) != 0) {
+        goto cleanup;
+    }
+    ret = true;
+
+ cleanup:
+    g_free(ramdisk);
+    return ret;
 }
 
 static bool get_signature_fingerprint_sha384(FILE *eif, uint64_t size,
@@ -391,34 +423,10 @@ static long get_file_size(FILE *f, Error **errp)
     return size;
 }
 
-static bool get_SHA384_digest(GList *list, uint8_t *digest, Error **errp)
+static bool get_SHA384_hash(QCryptoHash *h, uint8_t *hash, Error **errp)
 {
-    size_t digest_len = QCRYPTO_HASH_DIGEST_LEN_SHA384;
-    size_t list_len = g_list_length(list);
-    struct iovec *iovec_list = g_new0(struct iovec, list_len);
-    bool ret = true;
-    GList *l;
-    int i;
-
-    for (i = 0, l = list; l != NULL; l = l->next, i++) {
-        iovec_list[i] = *(struct iovec *) l->data;
-    }
-
-    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALGO_SHA384, iovec_list, list_len,
-                            &digest, &digest_len, errp) < 0) {
-        ret = false;
-    }
-
-    g_free(iovec_list);
-    return ret;
-}
-
-static void free_iovec(struct iovec *iov)
-{
-    if (iov) {
-        g_free(iov->iov_base);
-        g_free(iov);
-    }
+    size_t hash_len = QCRYPTO_HASH_DIGEST_LEN_SHA384;
+    return qcrypto_hash_finalize_bytes(h, &hash, &hash_len, errp) == 0;
 }
 
 /*
@@ -427,8 +435,8 @@ static void free_iovec(struct iovec *iov)
  */
 bool read_eif_file(const char *eif_path, const char *machine_initrd,
                    char **kernel_path, char **initrd_path, char **cmdline,
-                   uint8_t *image_sha384, uint8_t *bootstrap_sha384,
-                   uint8_t *app_sha384, uint8_t *fingerprint_sha384,
+                   uint8_t *image_hash, uint8_t *bootstrap_hash,
+                   uint8_t *app_hash, uint8_t *fingerprint_hash,
                    bool *signature_found, Error **errp)
 {
     FILE *f = NULL;
@@ -438,17 +446,28 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
     uint32_t crc = 0;
     EifHeader eif_header;
     bool seen_sections[EIF_SECTION_MAX] = {false};
-    /* kernel + ramdisks + cmdline sha384 hash */
-    GList *iov_PCR0 = NULL;
-    /* kernel + boot ramdisk + cmdline sha384 hash */
-    GList *iov_PCR1 = NULL;
-    /* application ramdisk(s) hash */
-    GList *iov_PCR2 = NULL;
-    uint8_t *ptr = NULL;
-    struct iovec *iov_ptr = NULL;
+    /* kernel + ramdisks + cmdline SHA384 hash */
+    g_autoptr(QCryptoHash) hash0 = NULL;
+    /* kernel + boot ramdisk + cmdline SHA384 hash */
+    g_autoptr(QCryptoHash) hash1 = NULL;
+    /* application ramdisk(s) SHA384 hash */
+    g_autoptr(QCryptoHash) hash2 = NULL;
 
     *signature_found = false;
     *kernel_path = *initrd_path = *cmdline = NULL;
+
+    hash0 = qcrypto_hash_new(QCRYPTO_HASH_ALGO_SHA384, errp);
+    if (!hash0) {
+        goto cleanup;
+    }
+    hash1 = qcrypto_hash_new(QCRYPTO_HASH_ALGO_SHA384, errp);
+    if (!hash1) {
+        goto cleanup;
+    }
+    hash2 = qcrypto_hash_new(QCRYPTO_HASH_ALGO_SHA384, errp);
+    if (!hash2) {
+        goto cleanup;
+    }
 
     f = fopen(eif_path, "rb");
     if (f == NULL) {
@@ -517,21 +536,8 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 goto cleanup;
             }
 
-            ptr = g_try_malloc(hdr.section_size);
-            if (!ptr) {
-                error_setg(errp, "Out of memory reading kernel section");
-                goto cleanup;
-            }
-
-            iov_ptr = g_malloc(sizeof(struct iovec));
-            iov_ptr->iov_base = ptr;
-            iov_ptr->iov_len = hdr.section_size;
-
-            iov_PCR0 = g_list_append(iov_PCR0, iov_ptr);
-            iov_PCR1 = g_list_append(iov_PCR1, iov_ptr);
-
-            if (!read_eif_kernel(f, hdr.section_size, kernel_path, ptr, &crc,
-                                 errp)) {
+            if (!read_eif_kernel(f, hdr.section_size, kernel_path, hash0,
+                                 hash1, &crc, errp)) {
                 goto cleanup;
             }
 
@@ -539,7 +545,6 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
         case EIF_SECTION_CMDLINE:
         {
             uint64_t size;
-            uint8_t *cmdline_copy;
             if (seen_sections[EIF_SECTION_CMDLINE]) {
                 error_setg(errp, "Invalid EIF image. More than 1 cmdline "
                            "section");
@@ -551,33 +556,26 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 error_setg(errp, "Out of memory reading command line section");
                 goto cleanup;
             }
-            if (!read_eif_cmdline(f, size, *cmdline, &crc, errp)) {
+            if (!read_eif_cmdline(f, size, *cmdline, hash0, hash1, &crc,
+                                  errp)) {
                 goto cleanup;
             }
             (*cmdline)[size] = '\0';
 
-            /*
-             * We make a copy of '*cmdline' for putting it in iovecs so that
-             * we can easily free all the iovec entries later as we cannot
-             * free '*cmdline' which is used by the caller.
-             */
-            cmdline_copy = g_memdup2(*cmdline, size);
-
-            iov_ptr = g_malloc(sizeof(struct iovec));
-            iov_ptr->iov_base = cmdline_copy;
-            iov_ptr->iov_len = size;
-
-            iov_PCR0 = g_list_append(iov_PCR0, iov_ptr);
-            iov_PCR1 = g_list_append(iov_PCR1, iov_ptr);
             break;
         }
         case EIF_SECTION_RAMDISK:
         {
+            QCryptoHash *h = hash2;
             if (!seen_sections[EIF_SECTION_RAMDISK]) {
                 /*
                  * If this is the first time we are seeing a ramdisk section,
-                 * we need to create the initrd temporary file.
+                 * we need to:
+                 * 1) hash it into bootstrap (hash1) instead of app (hash2)
+                 *    along with image (hash0)
+                 * 2) create the initrd temporary file.
                  */
+                h = hash1;
                 if (!get_tmp_file("eif-initrd-XXXXXX", initrd_path, errp)) {
                     goto cleanup;
                 }
@@ -589,29 +587,7 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
                 }
             }
 
-            ptr = g_try_malloc(hdr.section_size);
-            if (!ptr) {
-                error_setg(errp, "Out of memory reading initrd section");
-                goto cleanup;
-            }
-
-            iov_ptr = g_malloc(sizeof(struct iovec));
-            iov_ptr->iov_base = ptr;
-            iov_ptr->iov_len = hdr.section_size;
-
-            iov_PCR0 = g_list_append(iov_PCR0, iov_ptr);
-            /*
-             * If it's the first ramdisk, we need to hash it into bootstrap
-             * i.e., iov_PCR1, otherwise we need to hash it into app i.e.,
-             * iov_PCR2.
-             */
-            if (!seen_sections[EIF_SECTION_RAMDISK]) {
-                iov_PCR1 = g_list_append(iov_PCR1, iov_ptr);
-            } else {
-                iov_PCR2 = g_list_append(iov_PCR2, iov_ptr);
-            }
-
-            if (!read_eif_ramdisk(f, initrd_path_f, hdr.section_size, ptr,
+            if (!read_eif_ramdisk(f, initrd_path_f, hdr.section_size, hash0, h,
                                   &crc, errp)) {
                 goto cleanup;
             }
@@ -621,7 +597,7 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
         case EIF_SECTION_SIGNATURE:
             *signature_found = true;
             if (!get_signature_fingerprint_sha384(f, hdr.section_size,
-                                                  fingerprint_sha384, &crc,
+                                                  fingerprint_hash, &crc,
                                                   errp)) {
                 goto cleanup;
             }
@@ -692,52 +668,28 @@ bool read_eif_file(const char *eif_path, const char *machine_initrd,
             goto cleanup;
         }
 
-        ptr = g_try_malloc(machine_initrd_size);
-        if (!ptr) {
-            error_setg(errp, "Out of memory reading initrd file");
-            goto cleanup;
-        }
-
-        iov_ptr = g_malloc(sizeof(struct iovec));
-        iov_ptr->iov_base = ptr;
-        iov_ptr->iov_len = machine_initrd_size;
-
-        iov_PCR0 = g_list_append(iov_PCR0, iov_ptr);
-        iov_PCR2 = g_list_append(iov_PCR2, iov_ptr);
-
         if (!read_eif_ramdisk(machine_initrd_f, initrd_path_f,
-                              machine_initrd_size, ptr, &crc, errp)) {
+                              machine_initrd_size, hash0, hash2, &crc, errp)) {
             goto cleanup;
         }
     }
 
-    if (!get_SHA384_digest(iov_PCR0, image_sha384, errp)) {
+    if (!get_SHA384_hash(hash0, image_hash, errp)) {
         goto cleanup;
     }
-    if (!get_SHA384_digest(iov_PCR1, bootstrap_sha384, errp)) {
+    if (!get_SHA384_hash(hash1, bootstrap_hash, errp)) {
         goto cleanup;
     }
-    if (!get_SHA384_digest(iov_PCR2, app_sha384, errp)) {
+    if (!get_SHA384_hash(hash2, app_hash, errp)) {
         goto cleanup;
     }
 
-    /*
-     * We only need to free iov_PCR0 entries because iov_PCR1 and
-     * iov_PCR2 iovec entries are subsets of iov_PCR0 iovec entries.
-     */
-    g_list_free_full(iov_PCR0, (GDestroyNotify) free_iovec);
-    g_list_free(iov_PCR1);
-    g_list_free(iov_PCR2);
     fclose(f);
     fclose(initrd_path_f);
     safe_fclose(machine_initrd_f);
     return true;
 
  cleanup:
-    g_list_free_full(iov_PCR0, (GDestroyNotify) free_iovec);
-    g_list_free(iov_PCR1);
-    g_list_free(iov_PCR2);
-
     safe_fclose(f);
     safe_fclose(initrd_path_f);
     safe_fclose(machine_initrd_f);

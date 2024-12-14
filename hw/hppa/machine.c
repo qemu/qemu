@@ -240,7 +240,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus,
                     g_memdup2(qemu_version, sizeof(qemu_version)),
                     sizeof(qemu_version));
 
-    fw_cfg_add_extra_pci_roots(pci_bus, fw_cfg);
+    pci_bus_add_fw_cfg_extra_pci_roots(fw_cfg, pci_bus, &error_abort);
 
     return fw_cfg;
 }

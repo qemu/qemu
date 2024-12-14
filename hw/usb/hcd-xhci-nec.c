@@ -30,10 +30,8 @@
 OBJECT_DECLARE_SIMPLE_TYPE(XHCINecState, NEC_XHCI)
 
 struct XHCINecState {
-    /*< private >*/
     XHCIPciState parent_obj;
-    /*< public >*/
-    uint32_t flags;
+
     uint32_t intrs;
     uint32_t slots;
 };
@@ -51,7 +49,6 @@ static void nec_xhci_instance_init(Object *obj)
     XHCIPciState *pci = XHCI_PCI(obj);
     XHCINecState *nec = NEC_XHCI(obj);
 
-    pci->xhci.flags    = nec->flags;
     pci->xhci.numintrs = nec->intrs;
     pci->xhci.numslots = nec->slots;
 }

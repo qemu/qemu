@@ -1750,7 +1750,8 @@ void virt_machine_done(Notifier *notifier, void *data)
         exit(1);
     }
 
-    fw_cfg_add_extra_pci_roots(vms->bus, vms->fw_cfg);
+    pci_bus_add_fw_cfg_extra_pci_roots(vms->fw_cfg, vms->bus,
+                                       &error_abort);
 
     virt_acpi_setup(vms);
     virt_build_smbios(vms);

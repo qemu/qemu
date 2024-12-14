@@ -444,7 +444,7 @@ static bool handle_describe_pcr(VirtIONSM *vnsm, struct iovec *request,
  *       key = String("index"),
  *       value = Uint8(pcr),
  *       key = String("data"),
- *       value = Byte_String(data),
+ *       value = Byte_String(data) || String(data),
  *     }
  *   }
  * }
@@ -504,14 +504,21 @@ static enum NSMResponseTypes get_nsm_extend_pcr_req(uint8_t *req, size_t len,
 
         if (cbor_string_length(pair[i].key) == 4 &&
             memcmp(str, "data", 4) == 0) {
-            if (!cbor_isa_bytestring(pair[i].value)) {
+            if (cbor_isa_bytestring(pair[i].value)) {
+                str = cbor_bytestring_handle(pair[i].value);
+                if (!str) {
+                    goto cleanup;
+                }
+                nsm_req->data_len = cbor_bytestring_length(pair[i].value);
+            } else if (cbor_isa_string(pair[i].value)) {
+                str = cbor_string_handle(pair[i].value);
+                if (!str) {
+                    goto cleanup;
+                }
+                nsm_req->data_len = cbor_string_length(pair[i].value);
+            } else {
                 goto cleanup;
             }
-            str = cbor_bytestring_handle(pair[i].value);
-            if (!str) {
-                goto cleanup;
-            }
-            nsm_req->data_len = cbor_bytestring_length(pair[i].value);
             /*
              * nsm_req->data_len will be smaller than NSM_REQUEST_MAX_SIZE as
              * we already check for the max request size before processing
