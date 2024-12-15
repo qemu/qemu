@@ -832,16 +832,13 @@ static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
 #endif
 }
 
-static void gen_movs(DisasContext *s, MemOp ot)
+static void gen_movs(DisasContext *s, MemOp ot, TCGv dshift)
 {
-    TCGv dshift;
-
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
 
-    dshift = gen_compute_Dshift(s, ot);
     gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
@@ -1246,22 +1243,22 @@ static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
     }
 }
 
-static void gen_stos(DisasContext *s, MemOp ot)
+static void gen_stos(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_lods(DisasContext *s, MemOp ot)
+static void gen_lods(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_op_mov_reg_v(s, ot, R_EAX, s->T0);
-    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
 }
 
-static void gen_scas(DisasContext *s, MemOp ot)
+static void gen_scas(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
@@ -1270,13 +1267,11 @@ static void gen_scas(DisasContext *s, MemOp ot)
     tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
     set_cc_op(s, CC_OP_SUBB + ot);
 
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_cmps(DisasContext *s, MemOp ot)
+static void gen_cmps(DisasContext *s, MemOp ot, TCGv dshift)
 {
-    TCGv dshift;
-
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_string_movl_A0_ESI(s);
@@ -1286,7 +1281,6 @@ static void gen_cmps(DisasContext *s, MemOp ot)
     tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
     set_cc_op(s, CC_OP_SUBB + ot);
 
-    dshift = gen_compute_Dshift(s, ot);
     gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
@@ -1305,7 +1299,7 @@ static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
     }
 }
 
-static void gen_ins(DisasContext *s, MemOp ot)
+static void gen_ins(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     /* Note: we must do this dummy write first to be restartable in
@@ -1316,11 +1310,11 @@ static void gen_ins(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     gen_helper_in_func(ot, s->T0, s->tmp2_i32);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
-static void gen_outs(DisasContext *s, MemOp ot)
+static void gen_outs(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
@@ -1329,14 +1323,14 @@ static void gen_outs(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T0);
     gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
-    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
 #define REP_MAX 65535
 
-static void do_gen_rep(DisasContext *s, MemOp ot,
-                       void (*fn)(DisasContext *s, MemOp ot),
+static void do_gen_rep(DisasContext *s, MemOp ot, TCGv dshift,
+                       void (*fn)(DisasContext *s, MemOp ot, TCGv dshift),
                        bool is_repz_nz)
 {
     TCGLabel *last = gen_new_label();
@@ -1401,7 +1395,7 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
     }
 
     gen_set_label(loop);
-    fn(s, ot);
+    fn(s, ot, dshift);
     tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
     gen_update_cc_op(s);
 
@@ -1438,7 +1432,7 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
          */
         gen_set_label(last);
         set_cc_op(s, CC_OP_DYNAMIC);
-        fn(s, ot);
+        fn(s, ot, dshift);
         tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
         gen_update_cc_op(s);
     }
@@ -1453,23 +1447,27 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
 }
 
 static void gen_repz(DisasContext *s, MemOp ot,
-                     void (*fn)(DisasContext *s, MemOp ot))
+                     void (*fn)(DisasContext *s, MemOp ot, TCGv dshift))
 
 {
+    TCGv dshift = gen_compute_Dshift(s, ot);
+
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        do_gen_rep(s, ot, fn, false);
+        do_gen_rep(s, ot, dshift, fn, false);
     } else {
-        fn(s, ot);
+        fn(s, ot, dshift);
     }
 }
 
 static void gen_repz_nz(DisasContext *s, MemOp ot,
-                        void (*fn)(DisasContext *s, MemOp ot))
+                        void (*fn)(DisasContext *s, MemOp ot, TCGv dshift))
 {
+    TCGv dshift = gen_compute_Dshift(s, ot);
+
     if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        do_gen_rep(s, ot, fn, true);
+        do_gen_rep(s, ot, dshift, fn, true);
     } else {
-        fn(s, ot);
+        fn(s, ot, dshift);
     }
 }
 
