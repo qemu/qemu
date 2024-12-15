@@ -1339,6 +1339,7 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
 {
     TCGLabel *done = gen_new_label();
     target_ulong cx_mask = MAKE_64BIT_MASK(0, 8 << s->aflag);
+    TCGv cx_next = tcg_temp_new();
     bool had_rf = s->flags & HF_RF_MASK;
 
     /*
@@ -1364,7 +1365,19 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
     tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ECX], cx_mask, done);
 
     fn(s, ot);
-    gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
+
+    tcg_gen_subi_tl(cx_next, cpu_regs[R_ECX], 1);
+
+    /*
+     * Write back cx_next to CX/ECX/RCX.  There can be no carry, so zero
+     * extend if needed but do not do expensive deposit operations.
+     */
+#ifdef TARGET_X86_64
+    if (s->aflag == MO_32) {
+        tcg_gen_ext32u_tl(cx_next, cx_next);
+    }
+#endif
+    tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
     gen_update_cc_op(s);
 
     /* Leave if REP condition fails.  */
