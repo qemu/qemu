@@ -725,6 +725,46 @@ static inline void gen_op_jnz_ecx(DisasContext *s, TCGLabel *label1)
     gen_op_j_ecx(s, TCG_COND_NE, label1);
 }
 
+static void gen_set_hflag(DisasContext *s, uint32_t mask)
+{
+    if ((s->flags & mask) == 0) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        tcg_gen_ori_i32(t, t, mask);
+        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        s->flags |= mask;
+    }
+}
+
+static void gen_reset_hflag(DisasContext *s, uint32_t mask)
+{
+    if (s->flags & mask) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        tcg_gen_andi_i32(t, t, ~mask);
+        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        s->flags &= ~mask;
+    }
+}
+
+static void gen_set_eflags(DisasContext *s, target_ulong mask)
+{
+    TCGv t = tcg_temp_new();
+
+    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+    tcg_gen_ori_tl(t, t, mask);
+    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+}
+
+static void gen_reset_eflags(DisasContext *s, target_ulong mask)
+{
+    TCGv t = tcg_temp_new();
+
+    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+    tcg_gen_andi_tl(t, t, ~mask);
+    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+}
+
 static void gen_helper_in_func(MemOp ot, TCGv v, TCGv_i32 n)
 {
     switch (ot) {
@@ -2082,46 +2122,6 @@ static void gen_interrupt(DisasContext *s, uint8_t intno)
     gen_helper_raise_interrupt(tcg_env, tcg_constant_i32(intno),
                                cur_insn_len_i32(s));
     s->base.is_jmp = DISAS_NORETURN;
-}
-
-static void gen_set_hflag(DisasContext *s, uint32_t mask)
-{
-    if ((s->flags & mask) == 0) {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        tcg_gen_ori_i32(t, t, mask);
-        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        s->flags |= mask;
-    }
-}
-
-static void gen_reset_hflag(DisasContext *s, uint32_t mask)
-{
-    if (s->flags & mask) {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        tcg_gen_andi_i32(t, t, ~mask);
-        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        s->flags &= ~mask;
-    }
-}
-
-static void gen_set_eflags(DisasContext *s, target_ulong mask)
-{
-    TCGv t = tcg_temp_new();
-
-    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-    tcg_gen_ori_tl(t, t, mask);
-    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-}
-
-static void gen_reset_eflags(DisasContext *s, target_ulong mask)
-{
-    TCGv t = tcg_temp_new();
-
-    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-    tcg_gen_andi_tl(t, t, ~mask);
-    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
 }
 
 /* Clear BND registers during legacy branches.  */
