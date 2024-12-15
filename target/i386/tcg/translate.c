@@ -505,17 +505,24 @@ static inline void gen_op_jmp_v(DisasContext *s, TCGv dest)
     s->pc_save = -1;
 }
 
+static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
+{
+    /* Using cpu_regs[reg] does not work for xH registers.  */
+    assert(size >= MO_16);
+    if (size == MO_16) {
+        TCGv temp = tcg_temp_new();
+        tcg_gen_add_tl(temp, cpu_regs[reg], val);
+        gen_op_mov_reg_v(s, size, reg, temp);
+    } else {
+        tcg_gen_add_tl(cpu_regs[reg], cpu_regs[reg], val);
+        tcg_gen_ext_tl(cpu_regs[reg], cpu_regs[reg], size);
+    }
+}
+
 static inline
 void gen_op_add_reg_im(DisasContext *s, MemOp size, int reg, int32_t val)
 {
-    tcg_gen_addi_tl(s->tmp0, cpu_regs[reg], val);
-    gen_op_mov_reg_v(s, size, reg, s->tmp0);
-}
-
-static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
-{
-    tcg_gen_add_tl(s->tmp0, cpu_regs[reg], val);
-    gen_op_mov_reg_v(s, size, reg, s->tmp0);
+    gen_op_add_reg(s, size, reg, tcg_constant_tl(val));
 }
 
 static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
