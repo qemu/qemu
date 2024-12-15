@@ -1337,6 +1337,14 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
                        bool is_repz_nz)
 {
     TCGLabel *done = gen_new_label();
+    bool had_rf = s->flags & HF_RF_MASK;
+
+    /*
+     * Even if EFLAGS.RF was set on entry (such as if we're on the second or
+     * later iteration and an exception or interrupt happened), force gen_eob()
+     * not to clear the flag.  We do that ourselves after the last iteration.
+     */
+    s->flags &= ~HF_RF_MASK;
 
     gen_update_cc_op(s);
     gen_op_jz_ecx(s, done);
@@ -1348,12 +1356,24 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
         gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), done);
     }
 
+    /*
+     * Traps or interrupts set RF_MASK if they happen after any iteration
+     * but the last.  Set it here before giving the main loop a chance to
+     * execute.  (For faults, seg_helper.c sets the flag as usual).
+     */
+    if (!had_rf) {
+        gen_set_eflags(s, RF_MASK);
+    }
+
     /* Go to the main loop but reenter the same instruction.  */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 
     /* CX/ECX/RCX is zero, or REPZ/REPNZ broke the repetition.  */
     gen_set_label(done);
     set_cc_op(s, CC_OP_DYNAMIC);
+    if (had_rf) {
+        gen_reset_eflags(s, RF_MASK);
+    }
     gen_jmp_rel_csize(s, 0, 1);
 }
 
@@ -2158,7 +2178,7 @@ gen_eob(DisasContext *s, int mode)
         gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
     }
 
-    if (s->base.tb->flags & HF_RF_MASK) {
+    if (s->flags & HF_RF_MASK) {
         gen_reset_eflags(s, RF_MASK);
     }
     if (mode == DISAS_EOB_RECHECK_TF) {
