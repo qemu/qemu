@@ -1847,14 +1847,6 @@ static void gen_conditional_jump_labels(DisasContext *s, target_long diff,
     gen_jmp_rel(s, s->dflag, diff, 0);
 }
 
-static void gen_jcc(DisasContext *s, int b, int diff)
-{
-    TCGLabel *l1 = gen_new_label();
-
-    gen_jcc1(s, b, l1);
-    gen_conditional_jump_labels(s, diff, NULL, l1);
-}
-
 static void gen_cmovcc1(DisasContext *s, int b, TCGv dest, TCGv src)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
