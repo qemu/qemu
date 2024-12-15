@@ -1338,6 +1338,7 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
                        bool is_repz_nz)
 {
     TCGLabel *done = gen_new_label();
+    target_ulong cx_mask = MAKE_64BIT_MASK(0, 8 << s->aflag);
     bool had_rf = s->flags & HF_RF_MASK;
 
     /*
@@ -1360,7 +1361,7 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
     tcg_set_insn_start_param(s->base.insn_start, 1, CC_OP_DYNAMIC);
 
     /* Any iteration at all?  */
-    gen_op_jz_ecx(s, done);
+    tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ECX], cx_mask, done);
 
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
