@@ -1341,13 +1341,21 @@ static void gen_repz(DisasContext *s, MemOp ot,
                      void (*fn)(DisasContext *s, MemOp ot))
 
 {
-    do_gen_rep(s, ot, fn, false);
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        do_gen_rep(s, ot, fn, false);
+    } else {
+        fn(s, ot);
+    }
 }
 
 static void gen_repz_nz(DisasContext *s, MemOp ot,
                         void (*fn)(DisasContext *s, MemOp ot))
 {
-    do_gen_rep(s, ot, fn, true);
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        do_gen_rep(s, ot, fn, true);
+    } else {
+        fn(s, ot);
+    }
 }
 
 static void gen_helper_fp_arith_ST0_FT0(int op)
