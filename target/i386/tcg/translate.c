@@ -1310,14 +1310,18 @@ static void gen_outs(DisasContext *s, MemOp ot)
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
-/* Generate jumps to current or next instruction */
-static void gen_repz(DisasContext *s, MemOp ot,
-                     void (*fn)(DisasContext *s, MemOp ot))
+static void do_gen_rep(DisasContext *s, MemOp ot,
+                       void (*fn)(DisasContext *s, MemOp ot),
+                       bool is_repz_nz)
 {
     TCGLabel *l2;
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
+    if (is_repz_nz) {
+        int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
+        gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), l2);
+    }
     /*
      * A loop would cause two single step exceptions if ECX = 1
      * before rep string_insn
@@ -1325,28 +1329,25 @@ static void gen_repz(DisasContext *s, MemOp ot,
     if (s->repz_opt) {
         gen_op_jz_ecx(s, l2);
     }
+    /*
+     * For CMPS/SCAS there is no need to set CC_OP_DYNAMIC: only one iteration
+     * is done at a time, so the translation block ends unconditionally after
+     * this instruction and there is no control flow junction.
+     */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+}
+
+static void gen_repz(DisasContext *s, MemOp ot,
+                     void (*fn)(DisasContext *s, MemOp ot))
+
+{
+    do_gen_rep(s, ot, fn, false);
 }
 
 static void gen_repz_nz(DisasContext *s, MemOp ot,
                         void (*fn)(DisasContext *s, MemOp ot))
 {
-    TCGLabel *l2;
-    int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
-
-    l2 = gen_jz_ecx_string(s);
-    fn(s, ot);
-    gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-    gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), l2);
-    if (s->repz_opt) {
-        gen_op_jz_ecx(s, l2);
-    }
-    /*
-     * Only one iteration is done at a time, so the translation
-     * block ends unconditionally after this instruction and there
-     * is no control flow junction - no need to set CC_OP_DYNAMIC.
-     */
-    gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+    do_gen_rep(s, ot, fn, true);
 }
 
 static void gen_helper_fp_arith_ST0_FT0(int op)
