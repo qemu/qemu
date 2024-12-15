@@ -1333,13 +1333,28 @@ static void gen_outs(DisasContext *s, MemOp ot)
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
+#define REP_MAX 65535
+
 static void do_gen_rep(DisasContext *s, MemOp ot,
                        void (*fn)(DisasContext *s, MemOp ot),
                        bool is_repz_nz)
 {
+    TCGLabel *last = gen_new_label();
+    TCGLabel *loop = gen_new_label();
     TCGLabel *done = gen_new_label();
+
     target_ulong cx_mask = MAKE_64BIT_MASK(0, 8 << s->aflag);
     TCGv cx_next = tcg_temp_new();
+
+    /*
+     * Check if we must translate a single iteration only.  Normally, HF_RF_MASK
+     * would also limit translation blocks to one instruction, so that gen_eob
+     * can reset the flag; here however RF is set throughout the repetition, so
+     * we can plow through until CX/ECX/RCX is zero.
+     */
+    bool can_loop =
+        (!(tb_cflags(s->base.tb) & (CF_USE_ICOUNT | CF_SINGLE_STEP))
+	 && !(s->flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
     bool had_rf = s->flags & HF_RF_MASK;
 
     /*
@@ -1364,19 +1379,29 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
     /* Any iteration at all?  */
     tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ECX], cx_mask, done);
 
-    fn(s, ot);
-
-    tcg_gen_subi_tl(cx_next, cpu_regs[R_ECX], 1);
-
     /*
-     * Write back cx_next to CX/ECX/RCX.  There can be no carry, so zero
-     * extend if needed but do not do expensive deposit operations.
+     * From now on we operate on the value of CX/ECX/RCX that will be written
+     * back, which is stored in cx_next.  There can be no carry, so we can zero
+     * extend here if needed and not do any expensive deposit operations later.
      */
+    tcg_gen_subi_tl(cx_next, cpu_regs[R_ECX], 1);
 #ifdef TARGET_X86_64
     if (s->aflag == MO_32) {
         tcg_gen_ext32u_tl(cx_next, cx_next);
+        cx_mask = ~0;
     }
 #endif
+
+    /*
+     * The last iteration is handled outside the loop, so that cx_next
+     * can never underflow.
+     */
+    if (can_loop) {
+        tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cx_next, cx_mask, last);
+    }
+
+    gen_set_label(loop);
+    fn(s, ot);
     tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
     gen_update_cc_op(s);
 
@@ -1386,6 +1411,12 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
         gen_jcc_noeob(s, (JCC_Z << 1) | (nz ^ 1), done);
         /* gen_prepare_eflags_z never changes cc_op.  */
 	assert(!s->cc_op_dirty);
+    }
+
+    if (can_loop) {
+        tcg_gen_subi_tl(cx_next, cx_next, 1);
+        tcg_gen_brcondi_tl(TCG_COND_TSTNE, cx_next, REP_MAX, loop);
+        tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cx_next, cx_mask, last);
     }
 
     /*
@@ -1399,6 +1430,18 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
 
     /* Go to the main loop but reenter the same instruction.  */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+
+    if (can_loop) {
+        /*
+         * The last iteration needs no conditional jump, even if is_repz_nz,
+         * because the repeats are ending anyway.
+         */
+        gen_set_label(last);
+        set_cc_op(s, CC_OP_DYNAMIC);
+        fn(s, ot);
+        tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
+        gen_update_cc_op(s);
+    }
 
     /* CX/ECX/RCX is zero, or REPZ/REPNZ broke the repetition.  */
     gen_set_label(done);
