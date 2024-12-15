@@ -113,7 +113,6 @@ typedef struct DisasContext {
 #endif
     bool vex_w; /* used by AVX even on 32-bit processors */
     bool jmp_opt; /* use direct block chaining for direct jumps */
-    bool repz_opt; /* optimize jumps within repz instructions */
     bool cc_op_dirty;
 
     CCOp cc_op;  /* current CC operation */
@@ -1206,23 +1205,6 @@ static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
     }
 }
 
-/* XXX: does not work with gdbstub "ice" single step - not a
-   serious problem.  The caller can jump to the returned label
-   to stop the REP but, if the flags have changed, it has to call
-   gen_update_cc_op before doing so.  */
-static TCGLabel *gen_jz_ecx_string(DisasContext *s)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-
-    gen_update_cc_op(s);
-    gen_op_jnz_ecx(s, l1);
-    gen_set_label(l2);
-    gen_jmp_rel_csize(s, 0, 1);
-    gen_set_label(l1);
-    return l2;
-}
-
 static void gen_stos(DisasContext *s, MemOp ot)
 {
     gen_string_movl_A0_EDI(s);
@@ -1314,27 +1296,25 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
                        void (*fn)(DisasContext *s, MemOp ot),
                        bool is_repz_nz)
 {
-    TCGLabel *l2;
-    l2 = gen_jz_ecx_string(s);
+    TCGLabel *done = gen_new_label();
+
+    gen_update_cc_op(s);
+    gen_op_jz_ecx(s, done);
+
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
     if (is_repz_nz) {
         int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
-        gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), l2);
+        gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), done);
     }
-    /*
-     * A loop would cause two single step exceptions if ECX = 1
-     * before rep string_insn
-     */
-    if (s->repz_opt) {
-        gen_op_jz_ecx(s, l2);
-    }
-    /*
-     * For CMPS/SCAS there is no need to set CC_OP_DYNAMIC: only one iteration
-     * is done at a time, so the translation block ends unconditionally after
-     * this instruction and there is no control flow junction.
-     */
+
+    /* Go to the main loop but reenter the same instruction.  */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+
+    /* CX/ECX/RCX is zero, or REPZ/REPNZ broke the repetition.  */
+    gen_set_label(done);
+    set_cc_op(s, CC_OP_DYNAMIC);
+    gen_jmp_rel_csize(s, 0, 1);
 }
 
 static void gen_repz(DisasContext *s, MemOp ot,
@@ -3665,20 +3645,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
                     (flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
-    /*
-     * If jmp_opt, we want to handle each string instruction individually.
-     * For icount also disable repz optimization so that each iteration
-     * is accounted separately.
-     *
-     * FIXME: this is messy; it makes REP string instructions a lot less
-     * efficient than they should be and it gets in the way of correct
-     * handling of RF (interrupts or traps arriving after any iteration
-     * of a repeated string instruction but the last should set RF to 1).
-     * Perhaps it would be more efficient if REP string instructions were
-     * always at the beginning of the TB, or even their own TB?  That
-     * would even allow accounting up to 64k iterations at once for icount.
-     */
-    dc->repz_opt = !dc->jmp_opt && !(cflags & CF_USE_ICOUNT);
 
     dc->T0 = tcg_temp_new();
     dc->T1 = tcg_temp_new();
