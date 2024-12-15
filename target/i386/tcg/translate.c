@@ -1148,7 +1148,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     return cc;
 }
 
-static void gen_setcc1(DisasContext *s, int b, TCGv reg)
+static void gen_setcc(DisasContext *s, int b, TCGv reg)
 {
     CCPrepare cc = gen_prepare_cc(s, b, reg);
 
@@ -1170,12 +1170,12 @@ static void gen_setcc1(DisasContext *s, int b, TCGv reg)
 
 static inline void gen_compute_eflags_c(DisasContext *s, TCGv reg)
 {
-    gen_setcc1(s, JCC_B << 1, reg);
+    gen_setcc(s, JCC_B << 1, reg);
 }
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranteed not to be used. */
-static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
+static inline void gen_jcc_noeob(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
@@ -1190,7 +1190,7 @@ static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
    value 'b'. In the fast case, T0 is guaranteed not to be used.
    One or both of the branches will call gen_jmp_rel, so ensure
    cc_op is clean.  */
-static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
+static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
@@ -1337,7 +1337,7 @@ static void gen_repz_nz(DisasContext *s, MemOp ot,
     l2 = gen_jz_ecx_string(s);
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-    gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);
+    gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), l2);
     if (s->repz_opt) {
         gen_op_jz_ecx(s, l2);
     }
@@ -1847,7 +1847,7 @@ static void gen_conditional_jump_labels(DisasContext *s, target_long diff,
     gen_jmp_rel(s, s->dflag, diff, 0);
 }
 
-static void gen_cmovcc1(DisasContext *s, int b, TCGv dest, TCGv src)
+static void gen_cmovcc(DisasContext *s, int b, TCGv dest, TCGv src)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
@@ -2856,7 +2856,7 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 }
                 op1 = fcmov_cc[op & 3] | (((op >> 3) & 1) ^ 1);
                 l1 = gen_new_label();
-                gen_jcc1_noeob(s, op1, l1);
+                gen_jcc_noeob(s, op1, l1);
                 gen_helper_fmov_ST0_STN(tcg_env,
                                         tcg_constant_i32(opreg));
                 gen_set_label(l1);

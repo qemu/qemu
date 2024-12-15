@@ -1634,7 +1634,7 @@ static void gen_CMC(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_CMOVcc(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_cmovcc1(s, decode->b & 0xf, s->T0, s->T1);
+    gen_cmovcc(s, decode->b & 0xf, s->T0, s->T1);
 }
 
 static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
@@ -2300,7 +2300,7 @@ static void gen_Jcc(DisasContext *s, X86DecodedInsn *decode)
     TCGLabel *taken = gen_new_label();
 
     gen_bnd_jmp(s);
-    gen_jcc1(s, decode->b & 0xf, taken);
+    gen_jcc(s, decode->b & 0xf, taken);
     gen_conditional_jump_labels(s, decode->immediate, NULL, taken);
 }
 
@@ -2451,7 +2451,7 @@ static void gen_LOOPE(DisasContext *s, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
     gen_op_jz_ecx(s, not_taken);
-    gen_jcc1(s, (JCC_Z << 1), taken); /* jz taken */
+    gen_jcc(s, (JCC_Z << 1), taken); /* jz taken */
     gen_conditional_jump_labels(s, decode->immediate, not_taken, taken);
 }
 
@@ -2463,7 +2463,7 @@ static void gen_LOOPNE(DisasContext *s, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
     gen_op_jz_ecx(s, not_taken);
-    gen_jcc1(s, (JCC_Z << 1) | 1, taken); /* jnz taken */
+    gen_jcc(s, (JCC_Z << 1) | 1, taken); /* jnz taken */
     gen_conditional_jump_labels(s, decode->immediate, not_taken, taken);
 }
 
@@ -3888,7 +3888,7 @@ static void gen_SCAS(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_SETcc(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_setcc1(s, decode->b & 0xf, s->T0);
+    gen_setcc(s, decode->b & 0xf, s->T0);
 }
 
 static void gen_SFENCE(DisasContext *s, X86DecodedInsn *decode)
