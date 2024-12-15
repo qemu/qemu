@@ -1234,8 +1234,9 @@ static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
     /*
-     * Note that this must be _after_ gen_prepare_cc, because it
-     * can change the cc_op from CC_OP_DYNAMIC to CC_OP_EFLAGS!
+     * Note that this must be _after_ gen_prepare_cc, because it can change
+     * the cc_op to CC_OP_EFLAGS (because it's CC_OP_DYNAMIC or because
+     * it's cheaper to just compute the flags)!
      */
     gen_update_cc_op(s);
     if (cc.use_reg2) {
@@ -1346,14 +1347,31 @@ static void do_gen_rep(DisasContext *s, MemOp ot,
      */
     s->flags &= ~HF_RF_MASK;
 
+    /*
+     * For CMPS/SCAS, the CC_OP after a memory fault could come from either
+     * the previous instruction or the string instruction; but because we
+     * arrange to keep CC_OP up to date all the time, just mark the whole
+     * insn as CC_OP_DYNAMIC.
+     *
+     * It's not a problem to do this even for instructions that do not
+     * modify the flags, so do it unconditionally.
+     */
     gen_update_cc_op(s);
+    tcg_set_insn_start_param(s->base.insn_start, 1, CC_OP_DYNAMIC);
+
+    /* Any iteration at all?  */
     gen_op_jz_ecx(s, done);
 
     fn(s, ot);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
+    gen_update_cc_op(s);
+
+    /* Leave if REP condition fails.  */
     if (is_repz_nz) {
         int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
-        gen_jcc(s, (JCC_Z << 1) | (nz ^ 1), done);
+        gen_jcc_noeob(s, (JCC_Z << 1) | (nz ^ 1), done);
+        /* gen_prepare_eflags_z never changes cc_op.  */
+	assert(!s->cc_op_dirty);
     }
 
     /*
