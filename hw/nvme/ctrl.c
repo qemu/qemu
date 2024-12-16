@@ -1771,7 +1771,6 @@ static void nvme_aio_err(NvmeRequest *req, int ret)
     case NVME_CMD_READ:
         status = NVME_UNRECOVERED_READ;
         break;
-    case NVME_CMD_FLUSH:
     case NVME_CMD_WRITE:
     case NVME_CMD_WRITE_ZEROES:
     case NVME_CMD_ZONE_APPEND:
@@ -2157,11 +2156,16 @@ static inline bool nvme_is_write(NvmeRequest *req)
 static void nvme_misc_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
+    uint16_t cid = nvme_cid(req);
 
-    trace_pci_nvme_misc_cb(nvme_cid(req));
+    trace_pci_nvme_misc_cb(cid);
 
     if (ret) {
-        nvme_aio_err(req, ret);
+        if (!req->status) {
+            req->status = NVME_INTERNAL_DEV_ERROR;
+        }
+
+        trace_pci_nvme_err_aio(cid, strerror(-ret), req->status);
     }
 
     nvme_enqueue_req_completion(nvme_cq(req), req);
@@ -2264,7 +2268,10 @@ static void nvme_verify_cb(void *opaque, int ret)
 
     if (ret) {
         block_acct_failed(stats, acct);
-        nvme_aio_err(req, ret);
+        req->status = NVME_UNRECOVERED_READ;
+
+        trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
+
         goto out;
     }
 
@@ -2363,7 +2370,10 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
 
     if (ret) {
         block_acct_failed(stats, acct);
-        nvme_aio_err(req, ret);
+        req->status = NVME_UNRECOVERED_READ;
+
+        trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
+
         goto out;
     }
 
@@ -2445,7 +2455,10 @@ static void nvme_compare_data_cb(void *opaque, int ret)
 
     if (ret) {
         block_acct_failed(stats, acct);
-        nvme_aio_err(req, ret);
+        req->status = NVME_UNRECOVERED_READ;
+
+        trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
+
         goto out;
     }
 
@@ -2924,6 +2937,7 @@ static void nvme_copy_out_completed_cb(void *opaque, int ret)
 
     if (ret < 0) {
         iocb->ret = ret;
+        req->status = NVME_WRITE_FAULT;
         goto out;
     } else if (iocb->ret < 0) {
         goto out;
@@ -2988,6 +3002,7 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
 
     if (ret < 0) {
         iocb->ret = ret;
+        req->status = NVME_UNRECOVERED_READ;
         goto out;
     } else if (iocb->ret < 0) {
         goto out;
@@ -3510,6 +3525,7 @@ static void nvme_flush_ns_cb(void *opaque, int ret)
 
     if (ret < 0) {
         iocb->ret = ret;
+        iocb->req->status = NVME_WRITE_FAULT;
         goto out;
     } else if (iocb->ret < 0) {
         goto out;
