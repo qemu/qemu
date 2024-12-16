@@ -1232,8 +1232,9 @@ enum NvmeIdCtrlOacs {
     NVME_OACS_SECURITY      = 1 << 0,
     NVME_OACS_FORMAT        = 1 << 1,
     NVME_OACS_FW            = 1 << 2,
-    NVME_OACS_NS_MGMT       = 1 << 3,
+    NVME_OACS_NMS           = 1 << 3,
     NVME_OACS_DIRECTIVES    = 1 << 5,
+    NVME_OACS_VMS           = 1 << 7,
     NVME_OACS_DBBUF         = 1 << 8,
 };
 
