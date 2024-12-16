@@ -1762,42 +1762,6 @@ static uint16_t nvme_check_dulbe(NvmeNamespace *ns, uint64_t slba,
     return NVME_SUCCESS;
 }
 
-static void nvme_aio_err(NvmeRequest *req, int ret)
-{
-    uint16_t status = NVME_SUCCESS;
-    Error *local_err = NULL;
-
-    switch (req->cmd.opcode) {
-    case NVME_CMD_READ:
-        status = NVME_UNRECOVERED_READ;
-        break;
-    case NVME_CMD_WRITE:
-    case NVME_CMD_WRITE_ZEROES:
-    case NVME_CMD_ZONE_APPEND:
-    case NVME_CMD_COPY:
-        status = NVME_WRITE_FAULT;
-        break;
-    default:
-        status = NVME_INTERNAL_DEV_ERROR;
-        break;
-    }
-
-    trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), status);
-
-    error_setg_errno(&local_err, -ret, "aio failed");
-    error_report_err(local_err);
-
-    /*
-     * Set the command status code to the first encountered error but allow a
-     * subsequent Internal Device Error to trump it.
-     */
-    if (req->status && status != NVME_INTERNAL_DEV_ERROR) {
-        return;
-    }
-
-    req->status = status;
-}
-
 static inline uint32_t nvme_zone_idx(NvmeNamespace *ns, uint64_t slba)
 {
     return ns->zone_size_log2 > 0 ? slba >> ns->zone_size_log2 :
@@ -2182,8 +2146,30 @@ void nvme_rw_complete_cb(void *opaque, int ret)
     trace_pci_nvme_rw_complete_cb(nvme_cid(req), blk_name(blk));
 
     if (ret) {
+        Error *err = NULL;
+
         block_acct_failed(stats, acct);
-        nvme_aio_err(req, ret);
+
+        switch (req->cmd.opcode) {
+        case NVME_CMD_READ:
+            req->status = NVME_UNRECOVERED_READ;
+            break;
+
+        case NVME_CMD_WRITE:
+        case NVME_CMD_WRITE_ZEROES:
+        case NVME_CMD_ZONE_APPEND:
+            req->status = NVME_WRITE_FAULT;
+            break;
+
+        default:
+            req->status = NVME_INTERNAL_DEV_ERROR;
+            break;
+        }
+
+        trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
+
+        error_setg_errno(&err, -ret, "aio failed");
+        error_report_err(err);
     } else {
         block_acct_done(stats, acct);
     }
