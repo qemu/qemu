@@ -8823,15 +8823,13 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
 
-    if (n->subsys) {
-        id->cmic |= NVME_CMIC_MULTI_CTRL;
-        ctratt |= NVME_CTRATT_ENDGRPS;
+    id->cmic |= NVME_CMIC_MULTI_CTRL;
+    ctratt |= NVME_CTRATT_ENDGRPS;
 
-        id->endgidmax = cpu_to_le16(0x1);
+    id->endgidmax = cpu_to_le16(0x1);
 
-        if (n->subsys->endgrp.fdp.enabled) {
-            ctratt |= NVME_CTRATT_FDPS;
-        }
+    if (n->subsys->endgrp.fdp.enabled) {
+        ctratt |= NVME_CTRATT_FDPS;
     }
 
     id->ctratt = cpu_to_le32(ctratt);
@@ -8860,7 +8858,15 @@ static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
     int cntlid;
 
     if (!n->subsys) {
-        return 0;
+        DeviceState *dev = qdev_new(TYPE_NVME_SUBSYS);
+
+        qdev_prop_set_string(dev, "nqn", n->params.serial);
+
+        if (!qdev_realize(dev, NULL, errp)) {
+            return -1;
+        }
+
+        n->subsys = NVME_SUBSYS(dev);
     }
 
     cntlid = nvme_subsys_register_ctrl(n, errp);
@@ -8950,16 +8956,14 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     nvme_ctrl_reset(n, NVME_RESET_FUNCTION);
 
-    if (n->subsys) {
-        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
-            ns = nvme_ns(n, i);
-            if (ns) {
-                ns->attached--;
-            }
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+        ns = nvme_ns(n, i);
+        if (ns) {
+            ns->attached--;
         }
-
-        nvme_subsys_unregister_ctrl(n->subsys, n);
     }
+
+    nvme_subsys_unregister_ctrl(n->subsys, n);
 
     g_free(n->cq);
     g_free(n->sq);
