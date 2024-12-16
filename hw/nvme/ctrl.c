@@ -5681,7 +5681,7 @@ static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeRequest *req, bool active)
         return nvme_c2h(n, (uint8_t *)&ns->id_ns, sizeof(NvmeIdNs), req);
     }
 
-    return NVME_INVALID_CMD_SET | NVME_DNR;
+    return NVME_INVALID_IOCS | NVME_DNR;
 }
 
 static uint16_t nvme_identify_ctrl_list(NvmeCtrl *n, NvmeRequest *req,
@@ -6647,7 +6647,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
     case NVME_COMMAND_SET_PROFILE:
         if (dw11 & 0x1ff) {
             trace_pci_nvme_err_invalid_iocsci(dw11 & 0x1ff);
-            return NVME_CMD_SET_CMB_REJECTED | NVME_DNR;
+            return NVME_IOCS_COMBINATION_REJECTED | NVME_DNR;
         }
         break;
     case NVME_FDP_MODE:
