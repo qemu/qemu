@@ -1207,6 +1207,8 @@ typedef struct NvmeIdCtrlZoned {
     uint8_t     rsvd1[4095];
 } NvmeIdCtrlZoned;
 
+#define NVME_ID_CTRL_NVM_DMRL_MAX 255
+
 typedef struct NvmeIdCtrlNvm {
     uint8_t     vsl;
     uint8_t     wzsl;

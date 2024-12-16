@@ -5639,7 +5639,9 @@ static uint16_t nvme_identify_ctrl_csi(NvmeCtrl *n, NvmeRequest *req)
     switch (c->csi) {
     case NVME_CSI_NVM:
         id_nvm->vsl = n->params.vsl;
+        id_nvm->dmrl = NVME_ID_CTRL_NVM_DMRL_MAX;
         id_nvm->dmrsl = cpu_to_le32(n->dmrsl);
+        id_nvm->dmsl = NVME_ID_CTRL_NVM_DMRL_MAX * n->dmrsl;
         break;
 
     case NVME_CSI_ZONED:
@@ -6696,18 +6698,23 @@ static uint16_t nvme_aer(NvmeCtrl *n, NvmeRequest *req)
     return NVME_NO_COMPLETE;
 }
 
-static void nvme_update_dmrsl(NvmeCtrl *n)
+static void nvme_update_dsm_limits(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    int nsid;
+    if (ns) {
+        n->dmrsl =
+            MIN_NON_ZERO(n->dmrsl, BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
 
-    for (nsid = 1; nsid <= NVME_MAX_NAMESPACES; nsid++) {
-        NvmeNamespace *ns = nvme_ns(n, nsid);
+        return;
+    }
+
+    for (uint32_t nsid = 1; nsid <= NVME_MAX_NAMESPACES; nsid++) {
+        ns = nvme_ns(n, nsid);
         if (!ns) {
             continue;
         }
 
-        n->dmrsl = MIN_NON_ZERO(n->dmrsl,
-                                BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
+        n->dmrsl =
+            MIN_NON_ZERO(n->dmrsl, BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
     }
 }
 
@@ -6795,7 +6802,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             ctrl->namespaces[nsid] = NULL;
             ns->attached--;
 
-            nvme_update_dmrsl(ctrl);
+            nvme_update_dsm_limits(ctrl, NULL);
 
             break;
 
@@ -8902,8 +8909,7 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
     n->namespaces[nsid] = ns;
     ns->attached++;
 
-    n->dmrsl = MIN_NON_ZERO(n->dmrsl,
-                            BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
+    nvme_update_dsm_limits(n, ns);
 }
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
