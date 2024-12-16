@@ -237,7 +237,6 @@ typedef struct NvmeNamespace {
     NvmeLBAF     lbaf;
     unsigned int nlbaf;
     size_t       lbasz;
-    const uint32_t *iocs;
     uint8_t      csi;
     uint16_t     status;
     int          attached;
@@ -587,6 +586,10 @@ typedef struct NvmeCtrl {
 
     struct {
         uint32_t acs[256];
+        struct {
+            uint32_t nvm[256];
+            uint32_t zoned[256];
+        } iocs;
     } cse;
 
     struct {

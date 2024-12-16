@@ -142,9 +142,9 @@ enum NvmeCapMask {
     ((cap) |= (uint64_t)((val) & CAP_CMBS_MASK)   << CAP_CMBS_SHIFT)
 
 enum NvmeCapCss {
-    NVME_CAP_CSS_NVM        = 1 << 0,
-    NVME_CAP_CSS_CSI_SUPP   = 1 << 6,
-    NVME_CAP_CSS_ADMIN_ONLY = 1 << 7,
+    NVME_CAP_CSS_NCSS    = 1 << 0,
+    NVME_CAP_CSS_IOCSS   = 1 << 6,
+    NVME_CAP_CSS_NOIOCSS = 1 << 7,
 };
 
 enum NvmeCcShift {
@@ -177,7 +177,7 @@ enum NvmeCcMask {
 
 enum NvmeCcCss {
     NVME_CC_CSS_NVM        = 0x0,
-    NVME_CC_CSS_CSI        = 0x6,
+    NVME_CC_CSS_ALL        = 0x6,
     NVME_CC_CSS_ADMIN_ONLY = 0x7,
 };
 
@@ -938,6 +938,8 @@ enum NvmeStatusCodes {
     NVME_INVALID_SEC_CTRL_STATE = 0x0120,
     NVME_INVALID_NUM_RESOURCES  = 0x0121,
     NVME_INVALID_RESOURCE_ID    = 0x0122,
+    NVME_IOCS_NOT_SUPPORTED     = 0x0129,
+    NVME_IOCS_NOT_ENABLED       = 0x012a,
     NVME_IOCS_COMBINATION_REJECTED = 0x012b,
     NVME_INVALID_IOCS           = 0x012c,
     NVME_CONFLICTING_ATTRS      = 0x0180,

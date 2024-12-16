@@ -763,20 +763,6 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     ns->id_ns.endgid = cpu_to_le16(0x1);
     ns->id_ns_ind.endgrpid = cpu_to_le16(0x1);
-
-    if (ns->params.detached) {
-        return;
-    }
-
-    if (ns->params.shared) {
-        for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
-            NvmeCtrl *ctrl = subsys->ctrls[i];
-
-            if (ctrl && ctrl != SUBSYS_SLOT_RSVD) {
-                nvme_attach_ns(ctrl, ns);
-            }
-        }
-    }
 }
 
 static const Property nvme_ns_props[] = {

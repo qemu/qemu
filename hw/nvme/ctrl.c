@@ -277,15 +277,14 @@ static const uint32_t nvme_cse_acs_default[256] = {
     [NVME_ADM_CMD_SET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_GET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
-    [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
+    [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC |
+                                      NVME_CMD_EFF_CCC,
     [NVME_ADM_CMD_FORMAT_NVM]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_ADM_CMD_DIRECTIVE_RECV]   = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_DIRECTIVE_SEND]   = NVME_CMD_EFF_CSUPP,
 };
 
-static const uint32_t nvme_cse_iocs_none[256];
-
-static const uint32_t nvme_cse_iocs_nvm[256] = {
+static const uint32_t nvme_cse_iocs_nvm_default[256] = {
     [NVME_CMD_FLUSH]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_WRITE_ZEROES]         = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_WRITE]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
@@ -298,7 +297,7 @@ static const uint32_t nvme_cse_iocs_nvm[256] = {
     [NVME_CMD_IO_MGMT_SEND]         = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
 };
 
-static const uint32_t nvme_cse_iocs_zoned[256] = {
+static const uint32_t nvme_cse_iocs_zoned_default[256] = {
     [NVME_CMD_FLUSH]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_WRITE_ZEROES]         = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_WRITE]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
@@ -307,6 +306,9 @@ static const uint32_t nvme_cse_iocs_zoned[256] = {
     [NVME_CMD_VERIFY]               = NVME_CMD_EFF_CSUPP,
     [NVME_CMD_COPY]                 = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_COMPARE]              = NVME_CMD_EFF_CSUPP,
+    [NVME_CMD_IO_MGMT_RECV]         = NVME_CMD_EFF_CSUPP,
+    [NVME_CMD_IO_MGMT_SEND]         = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+
     [NVME_CMD_ZONE_APPEND]          = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_ZONE_MGMT_SEND]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_ZONE_MGMT_RECV]       = NVME_CMD_EFF_CSUPP,
@@ -4603,6 +4605,61 @@ static uint16_t nvme_io_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
     };
 }
 
+static uint16_t __nvme_io_cmd_nvm(NvmeCtrl *n, NvmeRequest *req)
+{
+    switch (req->cmd.opcode) {
+    case NVME_CMD_WRITE:
+        return nvme_write(n, req);
+    case NVME_CMD_READ:
+        return nvme_read(n, req);
+    case NVME_CMD_COMPARE:
+        return nvme_compare(n, req);
+    case NVME_CMD_WRITE_ZEROES:
+        return nvme_write_zeroes(n, req);
+    case NVME_CMD_DSM:
+        return nvme_dsm(n, req);
+    case NVME_CMD_VERIFY:
+        return nvme_verify(n, req);
+    case NVME_CMD_COPY:
+        return nvme_copy(n, req);
+    case NVME_CMD_IO_MGMT_RECV:
+        return nvme_io_mgmt_recv(n, req);
+    case NVME_CMD_IO_MGMT_SEND:
+        return nvme_io_mgmt_send(n, req);
+    }
+
+    g_assert_not_reached();
+}
+
+static uint16_t nvme_io_cmd_nvm(NvmeCtrl *n, NvmeRequest *req)
+{
+    if (!(n->cse.iocs.nvm[req->cmd.opcode] & NVME_CMD_EFF_CSUPP)) {
+        trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
+        return NVME_INVALID_OPCODE | NVME_DNR;
+    }
+
+    return __nvme_io_cmd_nvm(n, req);
+}
+
+static uint16_t nvme_io_cmd_zoned(NvmeCtrl *n, NvmeRequest *req)
+{
+    if (!(n->cse.iocs.zoned[req->cmd.opcode] & NVME_CMD_EFF_CSUPP)) {
+        trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
+        return NVME_INVALID_OPCODE | NVME_DNR;
+    }
+
+    switch (req->cmd.opcode) {
+    case NVME_CMD_ZONE_APPEND:
+        return nvme_zone_append(n, req);
+    case NVME_CMD_ZONE_MGMT_SEND:
+        return nvme_zone_mgmt_send(n, req);
+    case NVME_CMD_ZONE_MGMT_RECV:
+        return nvme_zone_mgmt_recv(n, req);
+    }
+
+    return __nvme_io_cmd_nvm(n, req);
+}
+
 static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -4644,11 +4701,6 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    if (!(ns->iocs[req->cmd.opcode] & NVME_CMD_EFF_CSUPP)) {
-        trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
-        return NVME_INVALID_OPCODE | NVME_DNR;
-    }
-
     if (ns->status) {
         return ns->status;
     }
@@ -4659,36 +4711,14 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 
     req->ns = ns;
 
-    switch (req->cmd.opcode) {
-    case NVME_CMD_WRITE_ZEROES:
-        return nvme_write_zeroes(n, req);
-    case NVME_CMD_ZONE_APPEND:
-        return nvme_zone_append(n, req);
-    case NVME_CMD_WRITE:
-        return nvme_write(n, req);
-    case NVME_CMD_READ:
-        return nvme_read(n, req);
-    case NVME_CMD_COMPARE:
-        return nvme_compare(n, req);
-    case NVME_CMD_DSM:
-        return nvme_dsm(n, req);
-    case NVME_CMD_VERIFY:
-        return nvme_verify(n, req);
-    case NVME_CMD_COPY:
-        return nvme_copy(n, req);
-    case NVME_CMD_ZONE_MGMT_SEND:
-        return nvme_zone_mgmt_send(n, req);
-    case NVME_CMD_ZONE_MGMT_RECV:
-        return nvme_zone_mgmt_recv(n, req);
-    case NVME_CMD_IO_MGMT_RECV:
-        return nvme_io_mgmt_recv(n, req);
-    case NVME_CMD_IO_MGMT_SEND:
-        return nvme_io_mgmt_send(n, req);
-    default:
-        g_assert_not_reached();
+    switch (ns->csi) {
+    case NVME_CSI_NVM:
+        return nvme_io_cmd_nvm(n, req);
+    case NVME_CSI_ZONED:
+        return nvme_io_cmd_zoned(n, req);
     }
 
-    return NVME_INVALID_OPCODE | NVME_DNR;
+    g_assert_not_reached();
 }
 
 static void nvme_cq_notifier(EventNotifier *e)
@@ -5147,7 +5177,7 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
                                  uint64_t off, NvmeRequest *req)
 {
     NvmeEffectsLog log = {};
-    const uint32_t *src_iocs = NULL;
+    const uint32_t *iocs = NULL;
     uint32_t trans_len;
 
     if (off >= sizeof(log)) {
@@ -5157,25 +5187,26 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
 
     switch (NVME_CC_CSS(ldl_le_p(&n->bar.cc))) {
     case NVME_CC_CSS_NVM:
-        src_iocs = nvme_cse_iocs_nvm;
-        /* fall through */
-    case NVME_CC_CSS_ADMIN_ONLY:
+        iocs = n->cse.iocs.nvm;
         break;
-    case NVME_CC_CSS_CSI:
+
+    case NVME_CC_CSS_ALL:
         switch (csi) {
         case NVME_CSI_NVM:
-            src_iocs = nvme_cse_iocs_nvm;
+            iocs = n->cse.iocs.nvm;
             break;
         case NVME_CSI_ZONED:
-            src_iocs = nvme_cse_iocs_zoned;
+            iocs = n->cse.iocs.zoned;
             break;
         }
+
+        break;
     }
 
     memcpy(log.acs, n->cse.acs, sizeof(log.acs));
 
-    if (src_iocs) {
-        memcpy(log.iocs, src_iocs, sizeof(log.iocs));
+    if (iocs) {
+        memcpy(log.iocs, iocs, sizeof(log.iocs));
     }
 
     trans_len = MIN(sizeof(log) - off, buf_len);
@@ -6718,25 +6749,29 @@ static void nvme_update_dsm_limits(NvmeCtrl *n, NvmeNamespace *ns)
     }
 }
 
-static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
+static bool nvme_csi_supported(NvmeCtrl *n, uint8_t csi)
 {
-    uint32_t cc = ldl_le_p(&n->bar.cc);
+    uint32_t cc;
 
-    ns->iocs = nvme_cse_iocs_none;
-    switch (ns->csi) {
+    switch (csi) {
     case NVME_CSI_NVM:
-        if (NVME_CC_CSS(cc) != NVME_CC_CSS_ADMIN_ONLY) {
-            ns->iocs = nvme_cse_iocs_nvm;
-        }
-        break;
+        return true;
+
     case NVME_CSI_ZONED:
-        if (NVME_CC_CSS(cc) == NVME_CC_CSS_CSI) {
-            ns->iocs = nvme_cse_iocs_zoned;
-        } else if (NVME_CC_CSS(cc) == NVME_CC_CSS_NVM) {
-            ns->iocs = nvme_cse_iocs_nvm;
-        }
-        break;
+        cc = ldl_le_p(&n->bar.cc);
+
+        return NVME_CC_CSS(cc) == NVME_CC_CSS_ALL;
     }
+
+    g_assert_not_reached();
+}
+
+static void nvme_detach_ns(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    assert(ns->attached > 0);
+
+    n->namespaces[ns->params.nsid] = NULL;
+    ns->attached--;
 }
 
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
@@ -6781,7 +6816,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
         switch (sel) {
         case NVME_NS_ATTACHMENT_ATTACH:
-            if (nvme_ns(ctrl, nsid)) {
+            if (nvme_ns(n, nsid)) {
                 return NVME_NS_ALREADY_ATTACHED | NVME_DNR;
             }
 
@@ -6789,19 +6824,17 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_PRIVATE | NVME_DNR;
             }
 
+            if (!nvme_csi_supported(n, ns->csi)) {
+                return NVME_IOCS_NOT_SUPPORTED | NVME_DNR;
+            }
+
             nvme_attach_ns(ctrl, ns);
-            nvme_select_iocs_ns(ctrl, ns);
+            nvme_update_dsm_limits(ctrl, ns);
 
             break;
 
         case NVME_NS_ATTACHMENT_DETACH:
-            if (!nvme_ns(ctrl, nsid)) {
-                return NVME_NS_NOT_ATTACHED | NVME_DNR;
-            }
-
-            ctrl->namespaces[nsid] = NULL;
-            ns->attached--;
-
+            nvme_detach_ns(ctrl, ns);
             nvme_update_dsm_limits(ctrl, NULL);
 
             break;
@@ -7652,21 +7685,6 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
     }
 }
 
-static void nvme_select_iocs(NvmeCtrl *n)
-{
-    NvmeNamespace *ns;
-    int i;
-
-    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
-        ns = nvme_ns(n, i);
-        if (!ns) {
-            continue;
-        }
-
-        nvme_select_iocs_ns(n, ns);
-    }
-}
-
 static int nvme_start_ctrl(NvmeCtrl *n)
 {
     uint64_t cap = ldq_le_p(&n->bar.cap);
@@ -7733,7 +7751,18 @@ static int nvme_start_ctrl(NvmeCtrl *n)
 
     nvme_set_timestamp(n, 0ULL);
 
-    nvme_select_iocs(n);
+    /* verify that the command sets of attached namespaces are supported */
+    for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+        NvmeNamespace *ns = nvme_subsys_ns(n->subsys, i);
+
+        if (ns && nvme_csi_supported(n, ns->csi) && !ns->params.detached) {
+            if (!ns->attached || ns->params.shared) {
+                nvme_attach_ns(n, ns);
+            }
+        }
+    }
+
+    nvme_update_dsm_limits(n, NULL);
 
     return 0;
 }
@@ -8748,6 +8777,9 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     uint16_t oacs;
 
     memcpy(n->cse.acs, nvme_cse_acs_default, sizeof(n->cse.acs));
+    memcpy(n->cse.iocs.nvm, nvme_cse_iocs_nvm_default, sizeof(n->cse.iocs.nvm));
+    memcpy(n->cse.iocs.zoned, nvme_cse_iocs_zoned_default,
+           sizeof(n->cse.iocs.zoned));
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
@@ -8859,9 +8891,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     NVME_CAP_SET_MQES(cap, n->params.mqes);
     NVME_CAP_SET_CQR(cap, 1);
     NVME_CAP_SET_TO(cap, 0xf);
-    NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_NVM);
-    NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_CSI_SUPP);
-    NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_ADMIN_ONLY);
+    NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_NCSS);
+    NVME_CAP_SET_CSS(cap, NVME_CAP_CSS_IOCSS);
     NVME_CAP_SET_MPSMAX(cap, 4);
     NVME_CAP_SET_CMBS(cap, n->params.cmb_size_mb ? 1 : 0);
     NVME_CAP_SET_PMRS(cap, n->pmr.dev ? 1 : 0);
@@ -8908,8 +8939,6 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 
     n->namespaces[nsid] = ns;
     ns->attached++;
-
-    nvme_update_dsm_limits(n, ns);
 }
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
@@ -8965,7 +8994,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
             return;
         }
 
-        nvme_attach_ns(n, ns);
+        n->subsys->namespaces[ns->params.nsid] = ns;
     }
 }
 
