@@ -36,9 +36,9 @@ static inline void page_table_config_init(void) { }
 void page_table_config_init(void);
 #endif
 
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
-#endif /* CONFIG_SOFTMMU */
+#endif /* CONFIG_USER_ONLY */
 
 /**
  * tcg_req_mo:
