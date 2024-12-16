@@ -27,6 +27,7 @@
 #include "system/replay.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "hw/core/cpu.h"
+#include "internal-common.h"
 
 /*
  * Return true if this watchpoint address matches the specified
