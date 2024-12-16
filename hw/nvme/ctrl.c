@@ -1783,10 +1783,6 @@ static void nvme_aio_err(NvmeRequest *req, int ret)
         break;
     }
 
-    if (ret == -ECANCELED) {
-        status = NVME_CMD_ABORT_REQ;
-    }
-
     trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), status);
 
     error_setg_errno(&local_err, -ret, "aio failed");
@@ -4827,6 +4823,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req)
     while (!QTAILQ_EMPTY(&sq->out_req_list)) {
         r = QTAILQ_FIRST(&sq->out_req_list);
         assert(r->aiocb);
+        r->status = NVME_CMD_ABORT_SQ_DEL;
         blk_aio_cancel(r->aiocb);
     }
 
@@ -6137,6 +6134,7 @@ static uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req)
     QTAILQ_FOREACH_SAFE(r, &sq->out_req_list, entry, next) {
         if (r->cqe.cid == cid) {
             if (r->aiocb) {
+                r->status = NVME_CMD_ABORT_REQ;
                 blk_aio_cancel_async(r->aiocb);
             }
             break;
