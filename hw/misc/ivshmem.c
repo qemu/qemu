@@ -1022,7 +1022,7 @@ static const VMStateDescription ivshmem_plain_vmsd = {
     },
 };
 
-static Property ivshmem_plain_properties[] = {
+static const Property ivshmem_plain_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
     DEFINE_PROP_LINK("memdev", IVShmemState, hostmem, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
@@ -1077,7 +1077,7 @@ static const VMStateDescription ivshmem_doorbell_vmsd = {
     },
 };
 
-static Property ivshmem_doorbell_properties[] = {
+static const Property ivshmem_doorbell_properties[] = {
     DEFINE_PROP_CHR("chardev", IVShmemState, server_chr),
     DEFINE_PROP_UINT32("vectors", IVShmemState, vectors, 1),
     DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD,

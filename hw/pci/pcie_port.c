@@ -111,7 +111,7 @@ void pcie_chassis_del_slot(PCIESlot *s)
     QLIST_REMOVE(s, next);
 }
 
-static Property pcie_port_props[] = {
+static const Property pcie_port_props[] = {
     DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
     DEFINE_PROP_UINT16("aer_log_max", PCIEPort,
                        parent_obj.parent_obj.exp.aer_log.log_max,
@@ -204,7 +204,7 @@ static const TypeInfo pcie_port_type_info = {
     .class_init = pcie_port_class_init,
 };
 
-static Property pcie_slot_props[] = {
+static const Property pcie_slot_props[] = {
     DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
     DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
     DEFINE_PROP_BOOL("hotplug", PCIESlot, hotplug, true),

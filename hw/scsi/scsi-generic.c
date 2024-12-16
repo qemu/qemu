@@ -772,7 +772,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
     return scsi_req_alloc(&scsi_generic_req_ops, d, tag, lun, hba_private);
 }
 
-static Property scsi_generic_properties[] = {
+static const Property scsi_generic_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.blk),
     DEFINE_PROP_BOOL("share-rw", SCSIDevice, conf.share_rw, false),
     DEFINE_PROP_UINT32("io_timeout", SCSIDevice, io_timeout,

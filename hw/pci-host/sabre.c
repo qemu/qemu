@@ -492,7 +492,7 @@ static char *sabre_ofw_unit_address(const SysBusDevice *dev)
                (uint32_t)(s->special_base & 0xffffffff));
 }
 
-static Property sabre_properties[] = {
+static const Property sabre_properties[] = {
     DEFINE_PROP_UINT64("special-base", SabreState, special_base, 0),
     DEFINE_PROP_UINT64("mem-base", SabreState, mem_base, 0),
     DEFINE_PROP_END_OF_LIST(),

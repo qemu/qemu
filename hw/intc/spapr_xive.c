@@ -627,7 +627,7 @@ static void spapr_xive_free_irq(SpaprInterruptController *intc, int lisn)
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
 }
 
-static Property spapr_xive_properties[] = {
+static const Property spapr_xive_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
     DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
     DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),

@@ -2982,7 +2982,7 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static Property pci_vga_cirrus_properties[] = {
+static const Property pci_vga_cirrus_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct PCICirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct PCICirrusVGAState,

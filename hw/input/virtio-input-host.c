@@ -221,7 +221,7 @@ static const VMStateDescription vmstate_virtio_input_host = {
     .unmigratable = 1,
 };
 
-static Property virtio_input_host_properties[] = {
+static const Property virtio_input_host_properties[] = {
     DEFINE_PROP_STRING("evdev", VirtIOInputHost, evdev),
     DEFINE_PROP_END_OF_LIST(),
 };

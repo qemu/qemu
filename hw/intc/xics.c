@@ -344,7 +344,7 @@ static void icp_unrealize(DeviceState *dev)
     vmstate_unregister(NULL, &vmstate_icp_server, icp);
 }
 
-static Property icp_properties[] = {
+static const Property icp_properties[] = {
     DEFINE_PROP_LINK(ICP_PROP_XICS, ICPState, xics, TYPE_XICS_FABRIC,
                      XICSFabric *),
     DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
@@ -676,7 +676,7 @@ static const VMStateDescription vmstate_ics = {
     },
 };
 
-static Property ics_properties[] = {
+static const Property ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_LINK(ICS_PROP_XICS, ICSState, xics, TYPE_XICS_FABRIC,
                      XICSFabric *),

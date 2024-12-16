@@ -300,7 +300,7 @@ static const VMStateDescription vmstate_arm_mptimer = {
     }
 };
 
-static Property arm_mptimer_properties[] = {
+static const Property arm_mptimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARMMPTimerState, num_cpu, 0),
     DEFINE_PROP_END_OF_LIST()
 };

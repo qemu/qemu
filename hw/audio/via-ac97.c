@@ -459,7 +459,7 @@ static void via_ac97_exit(PCIDevice *dev)
     AUD_remove_card(&s->card);
 }
 
-static Property via_ac97_properties[] = {
+static const Property via_ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ViaAC97State, card),
     DEFINE_PROP_END_OF_LIST(),
 };

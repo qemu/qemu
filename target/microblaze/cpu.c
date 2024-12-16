@@ -339,7 +339,7 @@ static void mb_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "little-endian", obj, "endianness");
 }
 
-static Property mb_properties[] = {
+static const Property mb_properties[] = {
     /*
      * Following properties are used by Xilinx DTS conversion tool
      * do not rename them.

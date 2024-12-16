@@ -135,7 +135,7 @@ static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
     i->ehci.as = busmaster ? pci_get_address_space(dev) : &address_space_memory;
 }
 
-static Property ehci_pci_properties[] = {
+static const Property ehci_pci_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };

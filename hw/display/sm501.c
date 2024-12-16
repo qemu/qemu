@@ -2054,7 +2054,7 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     /* TODO : chain irq to IRL */
 }
 
-static Property sm501_sysbus_properties[] = {
+static const Property sm501_sysbus_properties[] = {
     DEFINE_PROP_UINT32("vram-size", SM501SysBusState, vram_size, 0),
     /* this a debug option, prefer PROP_UINT over PROP_BIT for simplicity */
     DEFINE_PROP_UINT8("x-pixman", SM501SysBusState, state.use_pixman, DEFAULT_X_PIXMAN),
@@ -2143,7 +2143,7 @@ static void sm501_realize_pci(PCIDevice *dev, Error **errp)
                      &s->state.mmio_region);
 }
 
-static Property sm501_pci_properties[] = {
+static const Property sm501_pci_properties[] = {
     DEFINE_PROP_UINT32("vram-size", SM501PCIState, vram_size, 64 * MiB),
     DEFINE_PROP_UINT8("x-pixman", SM501PCIState, state.use_pixman, DEFAULT_X_PIXMAN),
     DEFINE_PROP_END_OF_LIST(),

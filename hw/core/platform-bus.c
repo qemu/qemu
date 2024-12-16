@@ -204,7 +204,7 @@ static void platform_bus_realize(DeviceState *dev, Error **errp)
     plaform_bus_refresh_irqs(pbus);
 }
 
-static Property platform_bus_properties[] = {
+static const Property platform_bus_properties[] = {
     DEFINE_PROP_UINT32("num_irqs", PlatformBusDevice, num_irqs, 0),
     DEFINE_PROP_UINT32("mmio_size", PlatformBusDevice, mmio_size, 0),
     DEFINE_PROP_END_OF_LIST()

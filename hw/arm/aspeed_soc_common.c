@@ -139,7 +139,7 @@ static bool aspeed_soc_boot_from_emmc(AspeedSoCState *s)
     return false;
 }
 
-static Property aspeed_soc_properties[] = {
+static const Property aspeed_soc_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,

@@ -319,7 +319,7 @@ static const VMStateDescription mps2_fpgaio_vmstate = {
     },
 };
 
-static Property mps2_fpgaio_properties[] = {
+static const Property mps2_fpgaio_properties[] = {
     /* Frequency of the prescale counter */
     DEFINE_PROP_UINT32("prescale-clk", MPS2FPGAIO, prescale_clk, 20000000),
     /* Number of LEDs controlled by LED0 register */

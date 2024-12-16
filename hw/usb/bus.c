@@ -18,7 +18,7 @@ static char *usb_get_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
 static void usb_qdev_unrealize(DeviceState *qdev);
 
-static Property usb_props[] = {
+static const Property usb_props[] = {
     DEFINE_PROP_STRING("port", USBDevice, port_path),
     DEFINE_PROP_STRING("serial", USBDevice, serial),
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,

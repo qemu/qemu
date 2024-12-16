@@ -312,7 +312,7 @@ static void mcf_uart_realize(DeviceState *dev, Error **errp)
                              mcf_uart_event, NULL, s, NULL, true);
 }
 
-static Property mcf_uart_properties[] = {
+static const Property mcf_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", mcf_uart_state, chr),
     DEFINE_PROP_END_OF_LIST(),
 };

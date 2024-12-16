@@ -1784,7 +1784,7 @@ static const VMStateDescription vmstate_cadence_gem = {
     }
 };
 
-static Property gem_properties[] = {
+static const Property gem_properties[] = {
     DEFINE_NIC_PROPERTIES(CadenceGEMState, conf),
     DEFINE_PROP_UINT32("revision", CadenceGEMState, revision,
                        GEM_MODID_VALUE),

@@ -412,7 +412,7 @@ static void pnv_homer_realize(DeviceState *dev, Error **errp)
                           hmrc->homer_size);
 }
 
-static Property pnv_homer_properties[] = {
+static const Property pnv_homer_properties[] = {
     DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_END_OF_LIST(),
 };

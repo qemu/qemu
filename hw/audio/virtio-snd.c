@@ -77,7 +77,7 @@ static const VMStateDescription vmstate_virtio_snd = {
     },
 };
 
-static Property virtio_snd_properties[] = {
+static const Property virtio_snd_properties[] = {
     DEFINE_AUDIO_PROPERTIES(VirtIOSound, card),
     DEFINE_PROP_UINT32("jacks", VirtIOSound, snd_conf.jacks,
                        VIRTIO_SOUND_JACK_DEFAULT),

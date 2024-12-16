@@ -914,7 +914,7 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
  * this cpu link property and could instead provide outbound IRQ lines
  * that the board could wire up to the CPU.
  */
-static Property next_pc_properties[] = {
+static const Property next_pc_properties[] = {
     DEFINE_PROP_LINK("cpu", NeXTPC, cpu, TYPE_M68K_CPU, M68kCPU *),
     DEFINE_PROP_END_OF_LIST(),
 };

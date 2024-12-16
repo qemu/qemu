@@ -2798,18 +2798,18 @@ static void emmc_realize(DeviceState *dev, Error **errp)
     sd_realize(dev, errp);
 }
 
-static Property sdmmc_common_properties[] = {
+static const Property sdmmc_common_properties[] = {
     DEFINE_PROP_DRIVE("drive", SDState, blk),
     DEFINE_PROP_END_OF_LIST()
 };
 
-static Property sd_properties[] = {
+static const Property sd_properties[] = {
     DEFINE_PROP_UINT8("spec_version", SDState,
                       spec_version, SD_PHY_SPECv3_01_VERS),
     DEFINE_PROP_END_OF_LIST()
 };
 
-static Property emmc_properties[] = {
+static const Property emmc_properties[] = {
     DEFINE_PROP_UINT64("boot-partition-size", SDState, boot_part_size, 0),
     DEFINE_PROP_UINT8("boot-config", SDState, boot_config, 0x0),
     DEFINE_PROP_END_OF_LIST()

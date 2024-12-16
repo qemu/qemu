@@ -661,7 +661,7 @@ static PropertyInfo e1000e_prop_disable_vnet,
                     e1000e_prop_subsys_ven,
                     e1000e_prop_subsys;
 
-static Property e1000e_properties[] = {
+static const Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
     DEFINE_PROP_SIGNED("disable_vnet_hdr", E1000EState, disable_vnet, false,
                         e1000e_prop_disable_vnet, bool),

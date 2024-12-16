@@ -3605,7 +3605,7 @@ const VMStateDescription vmstate_xhci = {
     }
 };
 
-static Property xhci_properties[] = {
+static const Property xhci_properties[] = {
     DEFINE_PROP_BIT("streams", XHCIState, flags,
                     XHCI_FLAG_ENABLE_STREAMS, true),
     DEFINE_PROP_UINT32("p2",    XHCIState, numports_2, 4),

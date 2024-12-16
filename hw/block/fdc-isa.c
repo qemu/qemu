@@ -283,7 +283,7 @@ static const VMStateDescription vmstate_isa_fdc = {
     }
 };
 
-static Property isa_fdc_properties[] = {
+static const Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("iobase", FDCtrlISABus, iobase, 0x3f0),
     DEFINE_PROP_UINT32("irq", FDCtrlISABus, irq, 6),
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),

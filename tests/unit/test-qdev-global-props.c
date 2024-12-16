@@ -46,7 +46,7 @@ struct MyType {
     uint32_t prop2;
 };
 
-static Property static_props[] = {
+static const Property static_props[] = {
     DEFINE_PROP_UINT32("prop1", MyType, prop1, PROP_DEFAULT),
     DEFINE_PROP_UINT32("prop2", MyType, prop2, PROP_DEFAULT),
     DEFINE_PROP_END_OF_LIST()

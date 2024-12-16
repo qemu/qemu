@@ -1096,7 +1096,7 @@ static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
     virtio_gpu_device_realize(qdev, errp);
 }
 
-static Property virtio_gpu_rutabaga_properties[] = {
+static const Property virtio_gpu_rutabaga_properties[] = {
     DEFINE_PROP_BIT64("gfxstream-vulkan", VirtIOGPURutabaga, capset_mask,
                       RUTABAGA_CAPSET_GFXSTREAM_VULKAN, false),
     DEFINE_PROP_BIT64("cross-domain", VirtIOGPURutabaga, capset_mask,

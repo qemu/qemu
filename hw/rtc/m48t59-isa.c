@@ -77,7 +77,7 @@ static void m48txx_isa_toggle_lock(Nvram *obj, int lock)
     m48t59_toggle_lock(&d->state, lock);
 }
 
-static Property m48t59_isa_properties[] = {
+static const Property m48t59_isa_properties[] = {
     DEFINE_PROP_INT32("base-year", M48txxISAState, state.base_year, 0),
     DEFINE_PROP_UINT32("iobase", M48txxISAState, io_base, 0x74),
     DEFINE_PROP_UINT8("irq", M48txxISAState, isairq, 8),

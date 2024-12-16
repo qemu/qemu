@@ -214,7 +214,7 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
     vmgenid_update_guest(vms);
 }
 
-static Property vmgenid_device_properties[] = {
+static const Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
     DEFINE_PROP_END_OF_LIST(),
 };

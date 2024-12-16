@@ -57,7 +57,7 @@ static void ohci_sysbus_reset(DeviceState *dev)
     ohci_hard_reset(ohci);
 }
 
-static Property ohci_sysbus_properties[] = {
+static const Property ohci_sysbus_properties[] = {
     DEFINE_PROP_STRING("masterbus", OHCISysBusState, masterbus),
     DEFINE_PROP_UINT32("num-ports", OHCISysBusState, num_ports, 3),
     DEFINE_PROP_UINT32("firstport", OHCISysBusState, firstport, 0),

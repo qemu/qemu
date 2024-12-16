@@ -101,7 +101,7 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
     return isadev;
 }
 
-static Property isa_ide_properties[] = {
+static const Property isa_ide_properties[] = {
     DEFINE_PROP_UINT32("iobase",  ISAIDEState, iobase,  0x1f0),
     DEFINE_PROP_UINT32("iobase2", ISAIDEState, iobase2, 0x3f6),
     DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),

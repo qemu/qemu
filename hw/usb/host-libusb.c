@@ -1758,7 +1758,7 @@ static const VMStateDescription vmstate_usb_host = {
     }
 };
 
-static Property usb_host_dev_properties[] = {
+static const Property usb_host_dev_properties[] = {
     DEFINE_PROP_UINT32("hostbus",  USBHostDevice, match.bus_num,    0),
     DEFINE_PROP_UINT32("hostaddr", USBHostDevice, match.addr,       0),
     DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),

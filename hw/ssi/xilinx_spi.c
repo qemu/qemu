@@ -361,7 +361,7 @@ static const VMStateDescription vmstate_xilinx_spi = {
     }
 };
 
-static Property xilinx_spi_properties[] = {
+static const Property xilinx_spi_properties[] = {
     DEFINE_PROP_UINT8("num-ss-bits", XilinxSPI, num_cs, 1),
     DEFINE_PROP_END_OF_LIST(),
 };

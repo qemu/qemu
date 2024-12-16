@@ -463,7 +463,7 @@ static const VMStateDescription vmstate_rtmr = {
     }
 };
 
-static Property rtmr_properties[] = {
+static const Property rtmr_properties[] = {
     DEFINE_PROP_UINT64("input-freq", RTMRState, input_freq, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -414,7 +414,7 @@ static void etsec_instance_init(Object *obj)
     sysbus_init_irq(sbd, &etsec->err_irq);
 }
 
-static Property etsec_properties[] = {
+static const Property etsec_properties[] = {
     DEFINE_NIC_PROPERTIES(eTSEC, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -46,7 +46,7 @@ static void virtio_ccw_balloon_instance_init(Object *obj)
                               "guest-stats-polling-interval");
 }
 
-static Property virtio_ccw_balloon_properties[] = {
+static const Property virtio_ccw_balloon_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,

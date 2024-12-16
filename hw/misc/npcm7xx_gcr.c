@@ -229,7 +229,7 @@ static const VMStateDescription vmstate_npcm7xx_gcr = {
     },
 };
 
-static Property npcm7xx_gcr_properties[] = {
+static const Property npcm7xx_gcr_properties[] = {
     DEFINE_PROP_UINT32("disabled-modules", NPCM7xxGCRState, reset_mdlr, 0),
     DEFINE_PROP_UINT32("power-on-straps", NPCM7xxGCRState, reset_pwron, 0),
     DEFINE_PROP_END_OF_LIST(),

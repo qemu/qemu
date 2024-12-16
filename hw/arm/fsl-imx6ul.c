@@ -718,7 +718,7 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                                 FSL_IMX6UL_OCRAM_ALIAS_ADDR, &s->ocram_alias);
 }
 
-static Property fsl_imx6ul_properties[] = {
+static const Property fsl_imx6ul_properties[] = {
     DEFINE_PROP_UINT32("fec1-phy-num", FslIMX6ULState, phy_num[0], 0),
     DEFINE_PROP_UINT32("fec2-phy-num", FslIMX6ULState, phy_num[1], 1),
     DEFINE_PROP_BOOL("fec1-phy-connected", FslIMX6ULState, phy_connected[0],

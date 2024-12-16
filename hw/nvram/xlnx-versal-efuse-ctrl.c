@@ -743,7 +743,7 @@ static const VMStateDescription vmstate_efuse_ctrl = {
     }
 };
 
-static Property efuse_ctrl_props[] = {
+static const Property efuse_ctrl_props[] = {
     DEFINE_PROP_LINK("efuse",
                      XlnxVersalEFuseCtrl, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),

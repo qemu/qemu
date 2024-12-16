@@ -659,14 +659,14 @@ invalid:
  *
  * https://xenbits.xen.org/docs/unstable/man/xen-vbd-interface.7.html
  */
-const PropertyInfo xen_block_prop_vdev = {
+static const PropertyInfo xen_block_prop_vdev = {
     .name  = "str",
     .description = "Virtual Disk specifier: d*p*/xvd*/hd*/sd*",
     .get = xen_block_get_vdev,
     .set = xen_block_set_vdev,
 };
 
-static Property xen_block_props[] = {
+static const Property xen_block_props[] = {
     DEFINE_PROP("vdev", XenBlockDevice, props.vdev,
                 xen_block_prop_vdev, XenBlockVdev),
     DEFINE_BLOCK_PROPERTIES(XenBlockDevice, props.conf),

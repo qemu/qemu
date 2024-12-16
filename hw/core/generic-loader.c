@@ -179,7 +179,7 @@ static void generic_loader_unrealize(DeviceState *dev)
     qemu_unregister_reset(generic_loader_reset, dev);
 }
 
-static Property generic_loader_props[] = {
+static const Property generic_loader_props[] = {
     DEFINE_PROP_UINT64("addr", GenericLoaderState, addr, 0),
     DEFINE_PROP_UINT64("data", GenericLoaderState, data, 0),
     DEFINE_PROP_UINT8("data-len", GenericLoaderState, data_len, 0),

@@ -124,7 +124,7 @@ static void pcie_pci_bridge_write_config(PCIDevice *d,
     shpc_cap_write_config(d, address, val, len);
 }
 
-static Property pcie_pci_bridge_dev_properties[] = {
+static const Property pcie_pci_bridge_dev_properties[] = {
         DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_AUTO),
         DEFINE_PROP_END_OF_LIST(),
 };

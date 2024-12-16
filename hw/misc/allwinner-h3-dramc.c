@@ -314,7 +314,7 @@ static void allwinner_h3_dramc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->dramphy_iomem);
 }
 
-static Property allwinner_h3_dramc_properties[] = {
+static const Property allwinner_h3_dramc_properties[] = {
     DEFINE_PROP_UINT64("ram-addr", AwH3DramCtlState, ram_addr, 0x0),
     DEFINE_PROP_UINT32("ram-size", AwH3DramCtlState, ram_size, 256 * MiB),
     DEFINE_PROP_END_OF_LIST()

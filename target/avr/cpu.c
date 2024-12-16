@@ -149,7 +149,7 @@ static void avr_cpu_initfn(Object *obj)
                       sizeof(cpu->env.intsrc) * 8);
 }
 
-static Property avr_cpu_properties[] = {
+static const Property avr_cpu_properties[] = {
     DEFINE_PROP_UINT32("init-sp", AVRCPU, init_sp, 0),
     DEFINE_PROP_END_OF_LIST()
 };

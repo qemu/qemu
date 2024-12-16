@@ -205,7 +205,7 @@ static void vhost_vsock_device_unrealize(DeviceState *dev)
     vhost_vsock_common_unrealize(vdev);
 }
 
-static Property vhost_vsock_properties[] = {
+static const Property vhost_vsock_properties[] = {
     DEFINE_PROP_UINT64("guest-cid", VHostVSock, conf.guest_cid, 0),
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
     DEFINE_PROP_END_OF_LIST(),

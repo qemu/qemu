@@ -95,7 +95,7 @@ static const VMStateDescription vmstate_i2c_ddc = {
     }
 };
 
-static Property i2c_ddc_properties[] = {
+static const Property i2c_ddc_properties[] = {
     DEFINE_EDID_PROPERTIES(I2CDDCState, edid_info),
     DEFINE_PROP_END_OF_LIST(),
 };

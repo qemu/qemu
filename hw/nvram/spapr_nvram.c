@@ -252,7 +252,7 @@ static const VMStateDescription vmstate_spapr_nvram = {
     },
 };
 
-static Property spapr_nvram_properties[] = {
+static const Property spapr_nvram_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprNvram, sdev),
     DEFINE_PROP_DRIVE("drive", SpaprNvram, blk),
     DEFINE_PROP_END_OF_LIST(),

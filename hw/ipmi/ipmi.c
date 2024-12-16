@@ -108,7 +108,7 @@ void ipmi_bmc_find_and_link(Object *obj, Object **bmc)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property ipmi_bmc_properties[] = {
+static const Property ipmi_bmc_properties[] = {
     DEFINE_PROP_UINT8("slave_addr",  IPMIBmc, slave_addr, 0x20),
     DEFINE_PROP_END_OF_LIST(),
 };

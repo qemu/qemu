@@ -145,7 +145,7 @@ static void spapr_tpm_proxy_unrealize(DeviceState *d)
     qemu_unregister_reset(spapr_tpm_proxy_reset, tpm_proxy);
 }
 
-static Property spapr_tpm_proxy_properties[] = {
+static const Property spapr_tpm_proxy_properties[] = {
     DEFINE_PROP_STRING("host-path", SpaprTpmProxy, host_path),
     DEFINE_PROP_END_OF_LIST(),
 };

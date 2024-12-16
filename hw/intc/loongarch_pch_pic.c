@@ -411,7 +411,7 @@ static void loongarch_pch_pic_init(Object *obj)
 
 }
 
-static Property loongarch_pch_pic_properties[] = {
+static const Property loongarch_pch_pic_properties[] = {
     DEFINE_PROP_UINT32("pch_pic_irq_num",  LoongArchPCHPIC, irq_num, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -265,7 +265,7 @@ static const PropertyInfo efuse_prop_drive = {
     .release = efuse_prop_release_drive,
 };
 
-static Property efuse_properties[] = {
+static const Property efuse_properties[] = {
     DEFINE_PROP("drive", XlnxEFuse, blk, efuse_prop_drive, BlockBackend *),
     DEFINE_PROP_UINT8("efuse-nr", XlnxEFuse, efuse_nr, 3),
     DEFINE_PROP_UINT32("efuse-size", XlnxEFuse, efuse_size, 64 * 32),

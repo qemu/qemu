@@ -602,7 +602,7 @@ static const VMStateDescription vmstate_aspeed_scu = {
     }
 };
 
-static Property aspeed_scu_properties[] = {
+static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("silicon-rev", AspeedSCUState, silicon_rev, 0),
     DEFINE_PROP_UINT32("hw-strap1", AspeedSCUState, hw_strap1, 0),
     DEFINE_PROP_UINT32("hw-strap2", AspeedSCUState, hw_strap2, 0),

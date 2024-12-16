@@ -1304,7 +1304,7 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->timer);
 }
 
-static Property lan9118_properties[] = {
+static const Property lan9118_properties[] = {
     DEFINE_NIC_PROPERTIES(lan9118_state, conf),
     DEFINE_PROP_UINT32("mode_16bit", lan9118_state, mode_16bit, 0),
     DEFINE_PROP_END_OF_LIST(),

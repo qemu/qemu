@@ -315,7 +315,7 @@ static const VMStateDescription vmstate_loongson_ipi_common = {
     }
 };
 
-static Property ipi_common_properties[] = {
+static const Property ipi_common_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", LoongsonIPICommonState, num_cpu, 1),
     DEFINE_PROP_END_OF_LIST(),
 };

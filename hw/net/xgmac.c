@@ -414,7 +414,7 @@ static void xgmac_enet_realize(DeviceState *dev, Error **errp)
                                   s->conf.macaddr.a[0];
 }
 
-static Property xgmac_properties[] = {
+static const Property xgmac_properties[] = {
     DEFINE_NIC_PROPERTIES(XgmacState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

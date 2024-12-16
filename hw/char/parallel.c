@@ -603,7 +603,7 @@ bool parallel_mm_init(MemoryRegion *address_space,
     return true;
 }
 
-static Property parallel_isa_properties[] = {
+static const Property parallel_isa_properties[] = {
     DEFINE_PROP_UINT32("index", ISAParallelState, index,   -1),
     DEFINE_PROP_UINT32("iobase", ISAParallelState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),

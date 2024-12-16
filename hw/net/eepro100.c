@@ -2058,7 +2058,7 @@ static E100PCIDeviceInfo *eepro100_get_class(EEPRO100State *s)
     return eepro100_get_class_by_name(object_get_typename(OBJECT(s)));
 }
 
-static Property e100_properties[] = {
+static const Property e100_properties[] = {
     DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

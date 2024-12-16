@@ -37,7 +37,7 @@ struct VirtIOCryptoPCI {
     VirtIOCrypto vdev;
 };
 
-static Property virtio_crypto_pci_properties[] = {
+static const Property virtio_crypto_pci_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),

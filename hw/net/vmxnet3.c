@@ -2471,7 +2471,7 @@ static const VMStateDescription vmstate_vmxnet3 = {
     }
 };
 
-static Property vmxnet3_properties[] = {
+static const Property vmxnet3_properties[] = {
     DEFINE_NIC_PROPERTIES(VMXNET3State, conf),
     DEFINE_PROP_BIT("x-old-msi-offsets", VMXNET3State, compat_flags,
                     VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT, false),

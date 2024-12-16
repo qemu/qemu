@@ -125,7 +125,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property x86_iommu_properties[] = {
+static const Property x86_iommu_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("intremap", X86IOMMUState,
                             intr_supported, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("device-iotlb", X86IOMMUState, dt_supported, false),

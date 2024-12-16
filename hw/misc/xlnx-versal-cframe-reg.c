@@ -720,7 +720,7 @@ static const VMStateDescription vmstate_cframe_reg = {
     }
 };
 
-static Property cframe_regs_props[] = {
+static const Property cframe_regs_props[] = {
     DEFINE_PROP_LINK("cfu-fdro", XlnxVersalCFrameReg, cfg.cfu_fdro,
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
     DEFINE_PROP_UINT32("blktype0-frames", XlnxVersalCFrameReg,
@@ -771,7 +771,7 @@ static const VMStateDescription vmstate_cframe_bcast_reg = {
     }
 };
 
-static Property cframe_bcast_regs_props[] = {
+static const Property cframe_bcast_regs_props[] = {
     DEFINE_PROP_LINK("cframe0", XlnxVersalCFrameBcastReg, cfg.cframe[0],
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
     DEFINE_PROP_LINK("cframe1", XlnxVersalCFrameBcastReg, cfg.cframe[1],

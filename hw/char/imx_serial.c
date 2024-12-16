@@ -438,7 +438,7 @@ static void imx_serial_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static Property imx_serial_properties[] = {
+static const Property imx_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", IMXSerialState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };

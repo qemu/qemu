@@ -144,7 +144,7 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property a15mp_priv_properties[] = {
+static const Property a15mp_priv_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A15MPPrivState, num_cpu, 1),
     /* The Cortex-A15MP may have anything from 0 to 224 external interrupt
      * IRQ lines (with another 32 internal). We default to 128+32, which

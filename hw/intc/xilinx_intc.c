@@ -176,7 +176,7 @@ static void xilinx_intc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
 }
 
-static Property xilinx_intc_properties[] = {
+static const Property xilinx_intc_properties[] = {
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

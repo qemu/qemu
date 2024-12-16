@@ -249,7 +249,7 @@ static const VMStateDescription vmstate_virtio_rng = {
     },
 };
 
-static Property virtio_rng_properties[] = {
+static const Property virtio_rng_properties[] = {
     /* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If
      * you have an entropy source capable of generating more entropy than this
      * and you can pass it through via virtio-rng, then hats off to you.  Until

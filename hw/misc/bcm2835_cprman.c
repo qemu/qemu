@@ -778,7 +778,7 @@ static const VMStateDescription cprman_vmstate = {
     }
 };
 
-static Property cprman_properties[] = {
+static const Property cprman_properties[] = {
     DEFINE_PROP_UINT32("xosc-freq-hz", BCM2835CprmanState, xosc_freq, 19200000),
     DEFINE_PROP_END_OF_LIST()
 };

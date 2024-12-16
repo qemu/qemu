@@ -751,7 +751,7 @@ static void virtio_mmio_pre_plugged(DeviceState *d, Error **errp)
 
 /* virtio-mmio device */
 
-static Property virtio_mmio_properties[] = {
+static const Property virtio_mmio_properties[] = {
     DEFINE_PROP_BOOL("format_transport_address", VirtIOMMIOProxy,
                      format_transport_address, true),
     DEFINE_PROP_BOOL("force-legacy", VirtIOMMIOProxy, legacy, true),

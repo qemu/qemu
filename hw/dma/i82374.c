@@ -139,7 +139,7 @@ static void i82374_realize(DeviceState *dev, Error **errp)
     memset(s->commands, 0, sizeof(s->commands));
 }
 
-static Property i82374_properties[] = {
+static const Property i82374_properties[] = {
     DEFINE_PROP_UINT32("iobase", I82374State, iobase, 0x400),
     DEFINE_PROP_END_OF_LIST()
 };

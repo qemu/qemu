@@ -98,7 +98,7 @@ static void build_pvpanic_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static Property pvpanic_isa_properties[] = {
+static const Property pvpanic_isa_properties[] = {
     DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicISAState, ioport, 0x505),
     DEFINE_PROP_UINT8("events", PVPanicISAState, pvpanic.events,
                       PVPANIC_EVENTS),

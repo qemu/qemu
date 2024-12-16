@@ -2422,7 +2422,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property pnv_chip_properties[] = {
+static const Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("chip-id", PnvChip, chip_id, 0),
     DEFINE_PROP_UINT64("ram-start", PnvChip, ram_start, 0),
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),

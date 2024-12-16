@@ -319,7 +319,7 @@ static void qdev_pci_testdev_reset(DeviceState *dev)
     pci_testdev_reset(d);
 }
 
-static Property pci_testdev_properties[] = {
+static const Property pci_testdev_properties[] = {
     DEFINE_PROP_SIZE("membar", PCITestDevState, membar_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

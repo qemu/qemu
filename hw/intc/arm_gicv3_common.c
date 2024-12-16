@@ -605,7 +605,7 @@ static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
     }
 }
 
-static Property arm_gicv3_common_properties[] = {
+static const Property arm_gicv3_common_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", GICv3State, num_cpu, 1),
     DEFINE_PROP_UINT32("num-irq", GICv3State, num_irq, 32),
     DEFINE_PROP_UINT32("revision", GICv3State, revision, 3),

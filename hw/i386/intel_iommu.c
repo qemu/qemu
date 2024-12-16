@@ -3404,7 +3404,7 @@ static const MemoryRegionOps vtd_mem_ops = {
     },
 };
 
-static Property vtd_properties[] = {
+static const Property vtd_properties[] = {
     DEFINE_PROP_UINT32("version", IntelIOMMUState, version, 0),
     DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
                             ON_OFF_AUTO_AUTO),

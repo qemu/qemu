@@ -810,7 +810,7 @@ static const VMStateDescription vmstate_zdma = {
     }
 };
 
-static Property zdma_props[] = {
+static const Property zdma_props[] = {
     DEFINE_PROP_UINT32("bus-width", XlnxZDMA, cfg.bus_width, 64),
     DEFINE_PROP_LINK("dma", XlnxZDMA, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),

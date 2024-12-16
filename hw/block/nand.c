@@ -445,7 +445,7 @@ static void nand_realize(DeviceState *dev, Error **errp)
     s->ioaddr = s->io;
 }
 
-static Property nand_properties[] = {
+static const Property nand_properties[] = {
     DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
     DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
     DEFINE_PROP_DRIVE("drive", NANDFlashState, blk),

@@ -131,7 +131,7 @@ static void mpcore_priv_initfn(Object *obj)
     object_initialize_child(obj, "wdtimer", &s->wdtimer, TYPE_ARM_MPTIMER);
 }
 
-static Property mpcore_priv_properties[] = {
+static const Property mpcore_priv_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARM11MPCorePriveState, num_cpu, 1),
     /* The ARM11 MPCORE TRM says the on-chip controller may have
      * anything from 0 to 224 external interrupt IRQ lines (with another

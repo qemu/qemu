@@ -251,7 +251,7 @@ static int sifive_uart_be_change(void *opaque)
     return 0;
 }
 
-static Property sifive_uart_properties[] = {
+static const Property sifive_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", SiFiveUARTState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };

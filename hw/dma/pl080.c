@@ -408,7 +408,7 @@ static void pl081_init(Object *obj)
     s->nchannels = 2;
 }
 
-static Property pl080_properties[] = {
+static const Property pl080_properties[] = {
     DEFINE_PROP_LINK("downstream", PL080State, downstream,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),

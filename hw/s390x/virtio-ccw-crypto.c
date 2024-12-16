@@ -44,7 +44,7 @@ static void virtio_ccw_crypto_instance_init(Object *obj)
                                 TYPE_VIRTIO_CRYPTO);
 }
 
-static Property virtio_ccw_crypto_properties[] = {
+static const Property virtio_ccw_crypto_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,

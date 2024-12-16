@@ -234,7 +234,7 @@ static void kvm_arm_its_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static Property kvm_arm_its_props[] = {
+static const Property kvm_arm_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "kvm-arm-gicv3",
                      GICv3State *),
     DEFINE_PROP_END_OF_LIST(),

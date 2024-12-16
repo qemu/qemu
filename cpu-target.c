@@ -183,7 +183,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
  * This can't go in hw/core/cpu.c because that file is compiled only
  * once for both user-mode and system builds.
  */
-static Property cpu_common_props[] = {
+static const Property cpu_common_props[] = {
 #ifdef CONFIG_USER_ONLY
     /*
      * Create a property for the user-only object, so users can

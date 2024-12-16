@@ -1020,7 +1020,7 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
     ppc460ex_pcie_register_dcrs(s);
 }
 
-static Property ppc460ex_pcie_props[] = {
+static const Property ppc460ex_pcie_props[] = {
     DEFINE_PROP_INT32("busnum", PPC460EXPCIEState, num, -1),
     DEFINE_PROP_INT32("dcrn-base", PPC460EXPCIEState, dcrn_base, -1),
     DEFINE_PROP_LINK("cpu", PPC460EXPCIEState, cpu, TYPE_POWERPC_CPU,

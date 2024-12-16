@@ -539,7 +539,7 @@ static const struct SysemuCPUOps mips_sysemu_ops = {
 };
 #endif
 
-static Property mips_cpu_properties[] = {
+static const Property mips_cpu_properties[] = {
     DEFINE_PROP_BOOL("big-endian", MIPSCPU, is_big_endian, TARGET_BIG_ENDIAN),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -1092,7 +1092,7 @@ unrealize:
     xen_device_unrealize(dev);
 }
 
-static Property xen_device_props[] = {
+static const Property xen_device_props[] = {
     DEFINE_PROP_UINT16("frontend-id", XenDevice, frontend_id,
                        DOMID_INVALID),
     DEFINE_PROP_END_OF_LIST()

@@ -231,7 +231,7 @@ static void ppc4xx_mal_finalize(Object *obj)
     g_free(mal->txctpr);
 }
 
-static Property ppc4xx_mal_properties[] = {
+static const Property ppc4xx_mal_properties[] = {
     DEFINE_PROP_UINT8("txc-num", Ppc4xxMalState, txcnum, 0),
     DEFINE_PROP_UINT8("rxc-num", Ppc4xxMalState, rxcnum, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -539,7 +539,7 @@ bool ppc4xx_dcr_realize(Ppc4xxDcrDeviceState *dev, PowerPCCPU *cpu,
     return sysbus_realize(SYS_BUS_DEVICE(dev), errp);
 }
 
-static Property ppc4xx_dcr_properties[] = {
+static const Property ppc4xx_dcr_properties[] = {
     DEFINE_PROP_LINK("cpu", Ppc4xxDcrDeviceState, cpu, TYPE_POWERPC_CPU,
                      PowerPCCPU *),
     DEFINE_PROP_END_OF_LIST(),

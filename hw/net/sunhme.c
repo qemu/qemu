@@ -177,7 +177,7 @@ struct SunHMEState {
     uint16_t miiregs[HME_MII_REGS_SIZE];
 };
 
-static Property sunhme_properties[] = {
+static const Property sunhme_properties[] = {
     DEFINE_NIC_PROPERTIES(SunHMEState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

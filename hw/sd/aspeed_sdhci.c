@@ -204,7 +204,7 @@ static const VMStateDescription vmstate_aspeed_sdhci = {
     },
 };
 
-static Property aspeed_sdhci_properties[] = {
+static const Property aspeed_sdhci_properties[] = {
     DEFINE_PROP_UINT8("num-slots", AspeedSDHCIState, num_slots, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

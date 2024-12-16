@@ -695,7 +695,7 @@ static void asc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->asc);
 }
 
-static Property asc_properties[] = {
+static const Property asc_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ASCState, card),
     DEFINE_PROP_UINT8("asctype", ASCState, type, ASC_TYPE_ASC),
     DEFINE_PROP_END_OF_LIST(),

@@ -158,7 +158,7 @@ static void lasi_82596_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property lasi_82596_properties[] = {
+static const Property lasi_82596_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusI82596State, state.conf),
     DEFINE_PROP_END_OF_LIST(),
 };

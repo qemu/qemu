@@ -67,7 +67,7 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
     s->scsi_dev = scsi_dev;
 }
 
-static Property msd_properties[] = {
+static const Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
     DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
     DEFINE_PROP_BOOL("removable", MSDState, removable, false),

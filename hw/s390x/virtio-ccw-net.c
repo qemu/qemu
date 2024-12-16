@@ -46,7 +46,7 @@ static void virtio_ccw_net_instance_init(Object *obj)
                               "bootindex");
 }
 
-static Property virtio_ccw_net_properties[] = {
+static const Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,

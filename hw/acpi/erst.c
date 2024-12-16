@@ -1011,7 +1011,7 @@ static void erst_reset(DeviceState *dev)
     trace_acpi_erst_reset_out(le32_to_cpu(s->header->record_count));
 }
 
-static Property erst_properties[] = {
+static const Property erst_properties[] = {
     DEFINE_PROP_LINK(ACPI_ERST_MEMDEV_PROP, ERSTDeviceState, hostmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT32(ACPI_ERST_RECORD_SIZE_PROP, ERSTDeviceState,

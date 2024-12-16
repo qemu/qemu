@@ -603,7 +603,7 @@ static const VMStateDescription vmstate_pl011 = {
     }
 };
 
-static Property pl011_properties[] = {
+static const Property pl011_properties[] = {
     DEFINE_PROP_CHR("chardev", PL011State, chr),
     DEFINE_PROP_BOOL("migrate-clk", PL011State, migrate_clk, true),
     DEFINE_PROP_END_OF_LIST(),

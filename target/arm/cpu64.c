@@ -547,11 +547,11 @@ void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
     cpu->isar.id_aa64isar2 = isar2;
 }
 
-static Property arm_cpu_pauth_property =
+static const Property arm_cpu_pauth_property =
     DEFINE_PROP_BOOL("pauth", ARMCPU, prop_pauth, true);
-static Property arm_cpu_pauth_impdef_property =
+static const Property arm_cpu_pauth_impdef_property =
     DEFINE_PROP_BOOL("pauth-impdef", ARMCPU, prop_pauth_impdef, false);
-static Property arm_cpu_pauth_qarma3_property =
+static const Property arm_cpu_pauth_qarma3_property =
     DEFINE_PROP_BOOL("pauth-qarma3", ARMCPU, prop_pauth_qarma3, false);
 
 void aarch64_add_pauth_properties(Object *obj)

@@ -884,7 +884,7 @@ static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)
     vmstate_unregister(NULL, &vmstate_spapr_nvdimm_states, dimm);
 }
 
-static Property spapr_nvdimm_properties[] = {
+static const Property spapr_nvdimm_properties[] = {
 #ifdef CONFIG_LIBPMEM
     DEFINE_PROP_BOOL("pmem-override", SpaprNVDIMMDevice, pmem_override, false),
 #endif

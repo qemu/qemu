@@ -420,7 +420,7 @@ static void pxb_dev_exitfn(PCIDevice *pci_dev)
     pxb_dev_list = g_list_remove(pxb_dev_list, pxb);
 }
 
-static Property pxb_dev_properties[] = {
+static const Property pxb_dev_properties[] = {
     /* Note: 0 is not a legal PXB bus number. */
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
@@ -507,7 +507,7 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
     pxb_cxl_dev_reset(DEVICE(dev));
 }
 
-static Property pxb_cxl_dev_properties[] = {
+static const Property pxb_cxl_dev_properties[] = {
     DEFINE_PROP_BOOL("hdm_for_passthrough", PXBCXLDev, hdm_for_passthrough, false),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -216,7 +216,7 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
     nvme_subsys_setup(subsys, errp);
 }
 
-static Property nvme_subsystem_props[] = {
+static const Property nvme_subsystem_props[] = {
     DEFINE_PROP_STRING("nqn", NvmeSubsystem, params.nqn),
     DEFINE_PROP_BOOL("fdp", NvmeSubsystem, params.fdp.enabled, false),
     DEFINE_PROP_SIZE("fdp.runs", NvmeSubsystem, params.fdp.runs,

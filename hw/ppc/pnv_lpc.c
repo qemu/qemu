@@ -828,7 +828,7 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, &lpc->psi_irq_lpchc, "LPCHC", 1);
 }
 
-static Property pnv_lpc_properties[] = {
+static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
     DEFINE_PROP_END_OF_LIST(),
 };

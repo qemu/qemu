@@ -166,7 +166,7 @@ static const BlockDevOps swim_block_ops = {
     .change_media_cb = swim_change_cb,
 };
 
-static Property swim_drive_properties[] = {
+static const Property swim_drive_properties[] = {
     DEFINE_PROP_INT32("unit", SWIMDrive, unit, -1),
     DEFINE_BLOCK_PROPERTIES(SWIMDrive, conf),
     DEFINE_PROP_END_OF_LIST(),

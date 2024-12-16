@@ -1082,7 +1082,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
-static Property fw_cfg_properties[] = {
+static const Property fw_cfg_properties[] = {
     DEFINE_PROP_BOOL("acpi-mr-restore", FWCfgState, acpi_mr_restore, true),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -1273,7 +1273,7 @@ static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
     s->entry_order = g_new0(int, fw_cfg_max_entry(s));
 }
 
-static Property fw_cfg_io_properties[] = {
+static const Property fw_cfg_io_properties[] = {
     DEFINE_PROP_BOOL("dma_enabled", FWCfgIoState, parent_obj.dma_enabled,
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
@@ -1322,7 +1322,7 @@ static const TypeInfo fw_cfg_io_info = {
 };
 
 
-static Property fw_cfg_mem_properties[] = {
+static const Property fw_cfg_mem_properties[] = {
     DEFINE_PROP_UINT32("data_width", FWCfgMemState, data_width, -1),
     DEFINE_PROP_BOOL("dma_enabled", FWCfgMemState, parent_obj.dma_enabled,
                      true),

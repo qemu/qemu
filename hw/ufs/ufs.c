@@ -1752,7 +1752,7 @@ static void ufs_exit(PCIDevice *pci_dev)
     }
 }
 
-static Property ufs_props[] = {
+static const Property ufs_props[] = {
     DEFINE_PROP_STRING("serial", UfsHc, params.serial),
     DEFINE_PROP_UINT8("nutrs", UfsHc, params.nutrs, 32),
     DEFINE_PROP_UINT8("nutmrs", UfsHc, params.nutmrs, 8),

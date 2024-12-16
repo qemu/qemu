@@ -833,7 +833,7 @@ static const VMStateDescription vmstate_efuse = {
     }
 };
 
-static Property zynqmp_efuse_props[] = {
+static const Property zynqmp_efuse_props[] = {
     DEFINE_PROP_LINK("efuse",
                      XlnxZynqMPEFuse, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),

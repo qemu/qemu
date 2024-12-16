@@ -199,7 +199,7 @@ static const MemoryRegionOps stm32f2xx_usart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static Property stm32f2xx_usart_properties[] = {
+static const Property stm32f2xx_usart_properties[] = {
     DEFINE_PROP_CHR("chardev", STM32F2XXUsartState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };

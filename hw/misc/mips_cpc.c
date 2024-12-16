@@ -163,7 +163,7 @@ static const VMStateDescription vmstate_mips_cpc = {
     },
 };
 
-static Property mips_cpc_properties[] = {
+static const Property mips_cpc_properties[] = {
     DEFINE_PROP_UINT32("num-vp", MIPSCPCState, num_vp, 0x1),
     DEFINE_PROP_UINT64("vp-start-running", MIPSCPCState, vp_start_running, 0x1),
     DEFINE_PROP_END_OF_LIST(),

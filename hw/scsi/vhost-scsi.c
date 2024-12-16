@@ -343,7 +343,7 @@ static struct vhost_dev *vhost_scsi_get_vhost(VirtIODevice *vdev)
     return &vsc->dev;
 }
 
-static Property vhost_scsi_properties[] = {
+static const Property vhost_scsi_properties[] = {
     DEFINE_PROP_STRING("vhostfd", VirtIOSCSICommon, conf.vhostfd),
     DEFINE_PROP_STRING("wwpn", VirtIOSCSICommon, conf.wwpn),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),

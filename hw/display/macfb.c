@@ -758,7 +758,7 @@ static void macfb_nubus_reset(DeviceState *d)
     macfb_reset(&s->macfb);
 }
 
-static Property macfb_sysbus_properties[] = {
+static const Property macfb_sysbus_properties[] = {
     DEFINE_PROP_UINT32("width", MacfbSysBusState, macfb.width, 640),
     DEFINE_PROP_UINT32("height", MacfbSysBusState, macfb.height, 480),
     DEFINE_PROP_UINT8("depth", MacfbSysBusState, macfb.depth, 8),
@@ -777,7 +777,7 @@ static const VMStateDescription vmstate_macfb_sysbus = {
     }
 };
 
-static Property macfb_nubus_properties[] = {
+static const Property macfb_nubus_properties[] = {
     DEFINE_PROP_UINT32("width", MacfbNubusState, macfb.width, 640),
     DEFINE_PROP_UINT32("height", MacfbNubusState, macfb.height, 480),
     DEFINE_PROP_UINT8("depth", MacfbNubusState, macfb.depth, 8),

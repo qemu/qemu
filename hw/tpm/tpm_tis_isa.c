@@ -91,7 +91,7 @@ static void tpm_tis_isa_reset(DeviceState *dev)
     return tpm_tis_reset(s);
 }
 
-static Property tpm_tis_isa_properties[] = {
+static const Property tpm_tis_isa_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMStateISA, state.irq_num, TPM_TIS_IRQ),
     DEFINE_PROP_TPMBE("tpmdev", TPMStateISA, state.be_driver),
     DEFINE_PROP_BOOL("ppi", TPMStateISA, state.ppi_enabled, true),

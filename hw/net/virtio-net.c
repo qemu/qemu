@@ -3985,7 +3985,7 @@ static const VMStateDescription vmstate_virtio_net = {
     .dev_unplug_pending = dev_unplug_pending,
 };
 
-static Property virtio_net_properties[] = {
+static const Property virtio_net_properties[] = {
     DEFINE_PROP_BIT64("csum", VirtIONet, host_features,
                     VIRTIO_NET_F_CSUM, true),
     DEFINE_PROP_BIT64("guest_csum", VirtIONet, host_features,

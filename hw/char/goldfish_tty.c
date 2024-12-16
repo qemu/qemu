@@ -241,7 +241,7 @@ static const VMStateDescription vmstate_goldfish_tty = {
     }
 };
 
-static Property goldfish_tty_properties[] = {
+static const Property goldfish_tty_properties[] = {
     DEFINE_PROP_CHR("chardev", GoldfishTTYState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };

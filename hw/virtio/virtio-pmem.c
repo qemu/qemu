@@ -155,7 +155,7 @@ static MemoryRegion *virtio_pmem_get_memory_region(VirtIOPMEM *pmem,
     return &pmem->memdev->mr;
 }
 
-static Property virtio_pmem_properties[] = {
+static const Property virtio_pmem_properties[] = {
     DEFINE_PROP_UINT64(VIRTIO_PMEM_ADDR_PROP, VirtIOPMEM, start, 0),
     DEFINE_PROP_LINK(VIRTIO_PMEM_MEMDEV_PROP, VirtIOPMEM, memdev,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),

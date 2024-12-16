@@ -1039,7 +1039,7 @@ static void ati_vga_exit(PCIDevice *dev)
     graphic_console_close(s->vga.con);
 }
 
-static Property ati_vga_properties[] = {
+static const Property ati_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", ATIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_STRING("model", ATIVGAState, model),
     DEFINE_PROP_UINT16("x-device-id", ATIVGAState, dev_id,

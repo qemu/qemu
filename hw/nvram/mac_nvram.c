@@ -134,7 +134,7 @@ static void macio_nvram_unrealizefn(DeviceState *dev)
     g_free(s->data);
 }
 
-static Property macio_nvram_properties[] = {
+static const Property macio_nvram_properties[] = {
     DEFINE_PROP_UINT32("size", MacIONVRAMState, size, 0),
     DEFINE_PROP_UINT32("it_shift", MacIONVRAMState, it_shift, 0),
     DEFINE_PROP_DRIVE("drive", MacIONVRAMState, blk),

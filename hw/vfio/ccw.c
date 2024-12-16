@@ -655,7 +655,7 @@ static void vfio_ccw_unrealize(DeviceState *dev)
     }
 }
 
-static Property vfio_ccw_properties[] = {
+static const Property vfio_ccw_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOCCWDevice, vdev.sysfsdev),
     DEFINE_PROP_BOOL("force-orb-pfch", VFIOCCWDevice, force_orb_pfch, false),
 #ifdef CONFIG_IOMMUFD

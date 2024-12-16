@@ -90,7 +90,7 @@ static void tpm_tis_sysbus_reset(DeviceState *dev)
     return tpm_tis_reset(s);
 }
 
-static Property tpm_tis_sysbus_properties[] = {
+static const Property tpm_tis_sysbus_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMStateSysBus, state.irq_num, TPM_TIS_IRQ),
     DEFINE_PROP_TPMBE("tpmdev", TPMStateSysBus, state.be_driver),
     DEFINE_PROP_END_OF_LIST(),

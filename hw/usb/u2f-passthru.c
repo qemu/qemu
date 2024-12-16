@@ -516,7 +516,7 @@ static const VMStateDescription u2f_passthru_vmstate = {
     }
 };
 
-static Property u2f_passthru_properties[] = {
+static const Property u2f_passthru_properties[] = {
     DEFINE_PROP_STRING("hidraw", U2FPassthruState, hidraw),
     DEFINE_PROP_END_OF_LIST(),
 };

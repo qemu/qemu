@@ -1285,7 +1285,7 @@ static void virtio_scsi_device_unrealize(DeviceState *dev)
     qemu_mutex_destroy(&s->tmf_bh_lock);
 }
 
-static Property virtio_scsi_properties[] = {
+static const Property virtio_scsi_properties[] = {
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues,
                        VIRTIO_SCSI_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,

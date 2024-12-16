@@ -857,7 +857,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property xlnx_zynqmp_props[] = {
+static const Property xlnx_zynqmp_props[] = {
     DEFINE_PROP_STRING("boot-cpu", XlnxZynqMPState, boot_cpu),
     DEFINE_PROP_BOOL("secure", XlnxZynqMPState, secure, false),
     DEFINE_PROP_BOOL("virtualization", XlnxZynqMPState, virt, false),

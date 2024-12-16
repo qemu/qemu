@@ -330,7 +330,7 @@ static void pci_secondary_vga_reset(DeviceState *dev)
     vga_common_reset(&d->vga);
 }
 
-static Property vga_pci_properties[] = {
+static const Property vga_pci_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_BIT("mmio", PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_MMIO, true),
     DEFINE_PROP_BIT("qemu-extended-regs",
@@ -342,7 +342,7 @@ static Property vga_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property secondary_pci_properties[] = {
+static const Property secondary_pci_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_BIT("qemu-extended-regs",
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),

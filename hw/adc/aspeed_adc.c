@@ -286,7 +286,7 @@ static const VMStateDescription vmstate_aspeed_adc_engine = {
     }
 };
 
-static Property aspeed_adc_engine_properties[] = {
+static const Property aspeed_adc_engine_properties[] = {
     DEFINE_PROP_UINT32("engine-id", AspeedADCEngineState, engine_id, 0),
     DEFINE_PROP_UINT32("nr-channels", AspeedADCEngineState, nr_channels, 0),
     DEFINE_PROP_END_OF_LIST(),

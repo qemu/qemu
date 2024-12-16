@@ -2078,7 +2078,7 @@ static const VMStateDescription vmstate_usb_mtp = {
     }
 };
 
-static Property mtp_properties[] = {
+static const Property mtp_properties[] = {
     DEFINE_PROP_STRING("rootdir", MTPState, root),
     DEFINE_PROP_STRING("desc", MTPState, desc),
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),

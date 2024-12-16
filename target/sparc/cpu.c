@@ -874,14 +874,14 @@ static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
     cpu->env.def.nwindows = value;
 }
 
-static PropertyInfo qdev_prop_nwindows = {
+static const PropertyInfo qdev_prop_nwindows = {
     .name  = "int",
     .get   = sparc_get_nwindows,
     .set   = sparc_set_nwindows,
 };
 
 /* This must match feature_name[]. */
-static Property sparc_cpu_properties[] = {
+static const Property sparc_cpu_properties[] = {
     DEFINE_PROP_BIT("float128", SPARCCPU, env.def.features,
                     CPU_FEATURE_BIT_FLOAT128, false),
 #ifdef TARGET_SPARC64

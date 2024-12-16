@@ -629,7 +629,7 @@ static const VMStateDescription vfio_platform_vmstate = {
     .unmigratable = 1,
 };
 
-static Property vfio_platform_dev_properties[] = {
+static const Property vfio_platform_dev_properties[] = {
     DEFINE_PROP_STRING("host", VFIOPlatformDevice, vbasedev.name),
     DEFINE_PROP_STRING("sysfsdev", VFIOPlatformDevice, vbasedev.sysfsdev),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPlatformDevice, vbasedev.no_mmap, false),

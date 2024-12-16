@@ -208,7 +208,7 @@ static void nrf51_soc_init(Object *obj)
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
 }
 
-static Property nrf51_soc_properties[] = {
+static const Property nrf51_soc_properties[] = {
     DEFINE_PROP_LINK("memory", NRF51State, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("sram-size", NRF51State, sram_size, NRF51822_SRAM_SIZE),

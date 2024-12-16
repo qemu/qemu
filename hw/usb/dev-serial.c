@@ -634,7 +634,7 @@ static const VMStateDescription vmstate_usb_serial = {
     .unmigratable = 1,
 };
 
-static Property serial_properties[] = {
+static const Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
     DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
     DEFINE_PROP_END_OF_LIST(),
@@ -677,7 +677,7 @@ static const TypeInfo serial_info = {
     .class_init    = usb_serial_class_initfn,
 };
 
-static Property braille_properties[] = {
+static const Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
     DEFINE_PROP_END_OF_LIST(),
 };

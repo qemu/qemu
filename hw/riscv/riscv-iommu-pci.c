@@ -157,7 +157,7 @@ static void riscv_iommu_pci_init(Object *obj)
     iommu->icvec_avail_vectors = RISCV_IOMMU_PCI_ICVEC_VECTORS;
 }
 
-static Property riscv_iommu_pci_properties[] = {
+static const Property riscv_iommu_pci_properties[] = {
     DEFINE_PROP_UINT16("vendor-id", RISCVIOMMUStatePci, vendor_id,
                        PCI_VENDOR_ID_REDHAT),
     DEFINE_PROP_UINT16("device-id", RISCVIOMMUStatePci, device_id,

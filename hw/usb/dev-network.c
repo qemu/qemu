@@ -1407,7 +1407,7 @@ static const VMStateDescription vmstate_usb_net = {
     .unmigratable = 1,
 };
 
-static Property net_properties[] = {
+static const Property net_properties[] = {
     DEFINE_NIC_PROPERTIES(USBNetState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

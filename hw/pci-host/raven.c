@@ -422,7 +422,7 @@ static const TypeInfo raven_info = {
     },
 };
 
-static Property raven_pcihost_properties[] = {
+static const Property raven_pcihost_properties[] = {
     DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
                        EM_NONE),
     DEFINE_PROP_STRING("bios-name", PREPPCIState, pci_dev.bios_name),

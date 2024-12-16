@@ -1448,7 +1448,7 @@ const VMStateDescription vmstate_dwc2_state = {
     }
 };
 
-static Property dwc2_usb_properties[] = {
+static const Property dwc2_usb_properties[] = {
     DEFINE_PROP_UINT32("usb_version", DWC2State, usb_version, 2),
     DEFINE_PROP_END_OF_LIST(),
 };

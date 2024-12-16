@@ -194,7 +194,7 @@ static const MemoryRegionOps sifive_u_otp_ops = {
     }
 };
 
-static Property sifive_u_otp_properties[] = {
+static const Property sifive_u_otp_properties[] = {
     DEFINE_PROP_UINT32("serial", SiFiveUOTPState, serial, 0),
     DEFINE_PROP_DRIVE("drive", SiFiveUOTPState, blk),
     DEFINE_PROP_END_OF_LIST(),

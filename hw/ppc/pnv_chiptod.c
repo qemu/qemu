@@ -450,7 +450,7 @@ static int pnv_chiptod_power9_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return pnv_chiptod_dt_xscom(dev, fdt, xscom_offset, compat, sizeof(compat));
 }
 
-static Property pnv_chiptod_properties[] = {
+static const Property pnv_chiptod_properties[] = {
     DEFINE_PROP_BOOL("primary", PnvChipTOD, primary, false),
     DEFINE_PROP_BOOL("secondary", PnvChipTOD, secondary, false),
     DEFINE_PROP_LINK("chip", PnvChipTOD , chip, TYPE_PNV_CHIP, PnvChip *),

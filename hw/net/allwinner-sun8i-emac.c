@@ -829,7 +829,7 @@ static void allwinner_sun8i_emac_realize(DeviceState *dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
-static Property allwinner_sun8i_emac_properties[] = {
+static const Property allwinner_sun8i_emac_properties[] = {
     DEFINE_NIC_PROPERTIES(AwSun8iEmacState, conf),
     DEFINE_PROP_UINT8("phy-addr", AwSun8iEmacState, mii_phy_addr, 0),
     DEFINE_PROP_LINK("dma-memory", AwSun8iEmacState, dma_mr,

@@ -912,7 +912,7 @@ static const VMStateDescription vmstate_npcm_gmac = {
     },
 };
 
-static Property npcm_gmac_properties[] = {
+static const Property npcm_gmac_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCMGMACState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };

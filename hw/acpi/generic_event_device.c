@@ -316,7 +316,7 @@ static void acpi_ged_send_event(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
     qemu_irq_pulse(s->irq);
 }
 
-static Property acpi_ged_properties[] = {
+static const Property acpi_ged_properties[] = {
     DEFINE_PROP_UINT32("ged-event", AcpiGedState, ged_event_bitmap, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

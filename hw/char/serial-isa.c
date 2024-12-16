@@ -113,7 +113,7 @@ static const VMStateDescription vmstate_isa_serial = {
     }
 };
 
-static Property serial_isa_properties[] = {
+static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("index",  ISASerialState, index,   -1),
     DEFINE_PROP_UINT32("iobase",  ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),

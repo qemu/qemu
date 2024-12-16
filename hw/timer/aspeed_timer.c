@@ -674,7 +674,7 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
     }
 };
 
-static Property aspeed_timer_properties[] = {
+static const Property aspeed_timer_properties[] = {
     DEFINE_PROP_LINK("scu", AspeedTimerCtrlState, scu, TYPE_ASPEED_SCU,
                      AspeedSCUState *),
     DEFINE_PROP_END_OF_LIST(),

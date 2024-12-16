@@ -21,7 +21,7 @@ static const VMStateDescription vu_snd_vmstate = {
     .unmigratable = 1,
 };
 
-static Property vsnd_properties[] = {
+static const Property vsnd_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
     DEFINE_PROP_END_OF_LIST(),
 };

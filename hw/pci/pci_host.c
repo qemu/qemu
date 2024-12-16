@@ -240,7 +240,7 @@ const VMStateDescription vmstate_pcihost = {
     }
 };
 
-static Property pci_host_properties_common[] = {
+static const Property pci_host_properties_common[] = {
     DEFINE_PROP_BOOL("x-config-reg-migration-enabled", PCIHostState,
                      mig_enabled, true),
     DEFINE_PROP_BOOL(PCI_HOST_BYPASS_IOMMU, PCIHostState, bypass_iommu, false),

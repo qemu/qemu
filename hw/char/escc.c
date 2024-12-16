@@ -1089,7 +1089,7 @@ static void escc_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property escc_properties[] = {
+static const Property escc_properties[] = {
     DEFINE_PROP_UINT32("frequency", ESCCState, frequency,   0),
     DEFINE_PROP_UINT32("it_shift",  ESCCState, it_shift,    0),
     DEFINE_PROP_BOOL("bit_swap",    ESCCState, bit_swap,    false),

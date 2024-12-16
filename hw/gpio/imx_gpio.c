@@ -290,7 +290,7 @@ static const VMStateDescription vmstate_imx_gpio = {
     }
 };
 
-static Property imx_gpio_properties[] = {
+static const Property imx_gpio_properties[] = {
     DEFINE_PROP_BOOL("has-edge-sel", IMXGPIOState, has_edge_sel, true),
     DEFINE_PROP_BOOL("has-upper-pin-irq", IMXGPIOState, has_upper_pin_irq,
                      false),

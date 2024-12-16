@@ -198,7 +198,7 @@ static void cpu_max_get_l0gptsz(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static Property arm_cpu_lpa2_property =
+static const Property arm_cpu_lpa2_property =
     DEFINE_PROP_BOOL("lpa2", ARMCPU, prop_lpa2, true);
 
 static void aarch64_a55_initfn(Object *obj)

@@ -1410,7 +1410,7 @@ static const VMStateDescription vmstate_mptsas = {
     }
 };
 
-static Property mptsas_properties[] = {
+static const Property mptsas_properties[] = {
     DEFINE_PROP_UINT64("sas_address", MPTSASState, sas_addr, 0),
     /* TODO: test MSI support under Windows */
     DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),

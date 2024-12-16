@@ -554,7 +554,7 @@ static void cuda_init(Object *obj)
               DEVICE(obj), "adb.0");
 }
 
-static Property cuda_properties[] = {
+static const Property cuda_properties[] = {
     DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
     DEFINE_PROP_END_OF_LIST()
 };

@@ -291,7 +291,7 @@ static void pca9554_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, pca9554_gpio_in_handler, PCA9554_PIN_COUNT);
 }
 
-static Property pca9554_properties[] = {
+static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
     DEFINE_PROP_END_OF_LIST(),
 };

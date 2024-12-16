@@ -374,7 +374,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
 }
 
-static Property ebus_properties[] = {
+static const Property ebus_properties[] = {
     DEFINE_PROP_UINT64("console-serial-base", EbusState,
                        console_serial_base, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -532,7 +532,7 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
     sysbus_mmio_map(s, 0, addr);
 }
 
-static Property ram_properties[] = {
+static const Property ram_properties[] = {
     DEFINE_PROP_UINT64("size", RamDevice, size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

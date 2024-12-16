@@ -438,7 +438,7 @@ static const VMStateDescription vmstate_stellaris_sys = {
     }
 };
 
-static Property stellaris_sys_properties[] = {
+static const Property stellaris_sys_properties[] = {
     DEFINE_PROP_UINT32("user0", ssys_state, user0, 0),
     DEFINE_PROP_UINT32("user1", ssys_state, user1, 0),
     DEFINE_PROP_UINT32("did0", ssys_state, did0, 0),

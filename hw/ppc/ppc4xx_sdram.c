@@ -425,7 +425,7 @@ static void ppc4xx_sdram_ddr_realize(DeviceState *dev, Error **errp)
                         s, &sdram_ddr_dcr_read, &sdram_ddr_dcr_write);
 }
 
-static Property ppc4xx_sdram_ddr_props[] = {
+static const Property ppc4xx_sdram_ddr_props[] = {
     DEFINE_PROP_LINK("dram", Ppc4xxSdramDdrState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("nbanks", Ppc4xxSdramDdrState, nbanks, 4),
@@ -710,7 +710,7 @@ static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
                         s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
 }
 
-static Property ppc4xx_sdram_ddr2_props[] = {
+static const Property ppc4xx_sdram_ddr2_props[] = {
     DEFINE_PROP_LINK("dram", Ppc4xxSdramDdr2State, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("nbanks", Ppc4xxSdramDdr2State, nbanks, 4),

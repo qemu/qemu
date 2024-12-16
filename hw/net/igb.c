@@ -591,7 +591,7 @@ static const VMStateDescription igb_vmstate = {
     }
 };
 
-static Property igb_properties[] = {
+static const Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
     DEFINE_PROP_END_OF_LIST(),

@@ -403,7 +403,7 @@ static const VMStateDescription vuf_backend_vmstate = {
     },
 };
 
-static Property vuf_properties[] = {
+static const Property vuf_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserFS, conf.chardev),
     DEFINE_PROP_STRING("tag", VHostUserFS, conf.tag),
     DEFINE_PROP_UINT16("num-request-queues", VHostUserFS,

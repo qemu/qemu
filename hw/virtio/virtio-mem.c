@@ -1680,7 +1680,7 @@ static void virtio_mem_instance_finalize(Object *obj)
     vmem->mr = NULL;
 }
 
-static Property virtio_mem_properties[] = {
+static const Property virtio_mem_properties[] = {
     DEFINE_PROP_UINT64(VIRTIO_MEM_ADDR_PROP, VirtIOMEM, addr, 0),
     DEFINE_PROP_UINT32(VIRTIO_MEM_NODE_PROP, VirtIOMEM, node, 0),
     DEFINE_PROP_BOOL(VIRTIO_MEM_PREALLOC_PROP, VirtIOMEM, prealloc, false),

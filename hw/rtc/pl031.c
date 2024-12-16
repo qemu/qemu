@@ -319,7 +319,7 @@ static const VMStateDescription vmstate_pl031 = {
     }
 };
 
-static Property pl031_properties[] = {
+static const Property pl031_properties[] = {
     /*
      * True to correctly migrate the tick offset of the RTC. False to
      * obtain backward migration compatibility with older QEMU versions,

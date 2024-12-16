@@ -313,7 +313,7 @@ static void pci_cmd646_ide_exitfn(PCIDevice *dev)
     }
 }
 
-static Property cmd646_ide_properties[] = {
+static const Property cmd646_ide_properties[] = {
     DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
     DEFINE_PROP_END_OF_LIST(),
 };

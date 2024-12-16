@@ -188,7 +188,7 @@ static const MemoryRegionOps a10_pit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static Property a10_pit_properties[] = {
+static const Property a10_pit_properties[] = {
     DEFINE_PROP_UINT32("clk0-freq", AwA10PITState, clk_freq[0], 0),
     DEFINE_PROP_UINT32("clk1-freq", AwA10PITState, clk_freq[1], 0),
     DEFINE_PROP_UINT32("clk2-freq", AwA10PITState, clk_freq[2], 0),
