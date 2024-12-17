@@ -14,7 +14,6 @@ from urllib.parse import urlparse
 import zipfile
 
 from .asset import Asset
-from .cmd import run_cmd
 
 
 def tar_extract(archive, dest_dir, member=None):
@@ -52,9 +51,11 @@ def deb_extract(archive, dest_dir, member=None):
     cwd = os.getcwd()
     os.chdir(dest_dir)
     try:
-        (stdout, stderr, ret) = run_cmd(['ar', 't', archive])
-        file_path = stdout.split()[2]
-        run_cmd(['ar', 'x', archive, file_path])
+        proc = run(['ar', 't', archive],
+                   check=True, capture_output=True, encoding='utf8')
+        file_path = proc.stdout.split()[2]
+        check_call(['ar', 'x', archive, file_path],
+                   stdout=DEVNULL, stderr=DEVNULL)
         tar_extract(file_path, dest_dir, member)
     finally:
         os.chdir(cwd)

@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 import pycotap
 import shutil
-import subprocess
+from subprocess import run
 import sys
 import tempfile
 import unittest
@@ -27,7 +27,6 @@ from qemu.utils import kvm_available, tcg_available
 
 from .archive import archive_extract
 from .asset import Asset
-from .cmd import run_cmd
 from .config import BUILD_DIR
 from .uncompress import uncompress
 
@@ -251,11 +250,11 @@ class QemuUserTest(QemuBaseTest):
         self._ldpath.append(os.path.abspath(ldpath))
 
     def run_cmd(self, bin_path, args=[]):
-        return subprocess.run([self.qemu_bin]
-                              + ["-L %s" % ldpath for ldpath in self._ldpath]
-                              + [bin_path]
-                              + args,
-                              text=True, capture_output=True)
+        return run([self.qemu_bin]
+                   + ["-L %s" % ldpath for ldpath in self._ldpath]
+                   + [bin_path]
+                   + args,
+                   text=True, capture_output=True)
 
 class QemuSystemTest(QemuBaseTest):
     """Facilitates system emulation tests."""
@@ -282,7 +281,9 @@ class QemuSystemTest(QemuBaseTest):
     def set_machine(self, machinename):
         # TODO: We should use QMP to get the list of available machines
         if not self._machinehelp:
-            self._machinehelp = run_cmd([self.qemu_bin, '-M', 'help'])[0];
+            self._machinehelp = run(
+                [self.qemu_bin, '-M', 'help'],
+                capture_output=True, check=True, encoding='utf8').stdout
         if self._machinehelp.find(machinename) < 0:
             self.skipTest('no support for machine ' + machinename)
         self.machine = machinename
@@ -310,15 +311,17 @@ class QemuSystemTest(QemuBaseTest):
                           "available" % accelerator)
 
     def require_netdev(self, netdevname):
-        netdevhelp = run_cmd([self.qemu_bin,
-                             '-M', 'none', '-netdev', 'help'])[0];
-        if netdevhelp.find('\n' + netdevname + '\n') < 0:
+        help = run([self.qemu_bin,
+                    '-M', 'none', '-netdev', 'help'],
+                   capture_output=True, check=True, encoding='utf8').stdout;
+        if help.find('\n' + netdevname + '\n') < 0:
             self.skipTest('no support for " + netdevname + " networking')
 
     def require_device(self, devicename):
-        devhelp = run_cmd([self.qemu_bin,
-                           '-M', 'none', '-device', 'help'])[0];
-        if devhelp.find(devicename) < 0:
+        help = run([self.qemu_bin,
+                    '-M', 'none', '-device', 'help'],
+                   capture_output=True, check=True, encoding='utf8').stdout;
+        if help.find(devicename) < 0:
             self.skipTest('no support for device ' + devicename)
 
     def _new_vm(self, name, *args):

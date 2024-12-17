@@ -11,9 +11,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from subprocess import check_call, DEVNULL
 import tempfile
 
-from qemu_test import run_cmd, Asset
+from qemu_test import Asset
 from qemu_test.tuxruntest import TuxRunBaselineTest
 
 class TuxRunPPC64Test(TuxRunBaselineTest):
@@ -70,7 +71,9 @@ class TuxRunPPC64Test(TuxRunBaselineTest):
         # Create a temporary qcow2 and launch the test-case
         with tempfile.NamedTemporaryFile(prefix=prefix,
                                          suffix='.qcow2') as qcow2:
-            run_cmd([self.qemu_img, 'create', '-f', 'qcow2', qcow2.name, ' 1G'])
+            check_call([self.qemu_img, 'create', '-f', 'qcow2',
+                        qcow2.name, ' 1G'],
+                       stdout=DEVNULL, stderr=DEVNULL)
 
             self.vm.add_args('-drive', 'file=' + qcow2.name +
                          ',format=qcow2,if=none,id='

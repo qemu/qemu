@@ -11,11 +11,12 @@
 
 import os
 import stat
+from subprocess import check_call, DEVNULL
 
 from qemu_test import QemuSystemTest
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern
-from qemu_test import which, run_cmd, get_qemu_img
+from qemu_test import which, get_qemu_img
 
 class TuxRunBaselineTest(QemuSystemTest):
 
@@ -76,8 +77,9 @@ class TuxRunBaselineTest(QemuSystemTest):
 
         disk_image = self.scratch_file("rootfs.ext4")
 
-        run_cmd(['zstd', "-f", "-d", disk_image_zst,
-                 "-o", disk_image])
+        check_call(['zstd', "-f", "-d", disk_image_zst,
+                    "-o", disk_image],
+                   stdout=DEVNULL, stderr=DEVNULL)
         # zstd copies source archive permissions for the output
         # file, so must make this writable for QEMU
         os.chmod(disk_image, stat.S_IRUSR | stat.S_IWUSR)
