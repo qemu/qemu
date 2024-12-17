@@ -14,7 +14,6 @@ import time
 import os
 import logging
 
-from qemu_test import BUILD_DIR
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command, wait_for_console_pattern
 from qemu_test import get_qemu_img, run_cmd
@@ -54,8 +53,8 @@ class Aarch64VirtMachine(QemuSystemTest):
                          "mte=on,"
                          "gic-version=max,iommu=smmuv3")
         self.vm.add_args("-smp", "2", "-m", "1024")
-        self.vm.add_args('-bios', os.path.join(BUILD_DIR, 'pc-bios',
-                                               'edk2-aarch64-code.fd'))
+        self.vm.add_args('-bios', self.build_file('pc-bios',
+                                                  'edk2-aarch64-code.fd'))
         self.vm.add_args("-drive", f"file={iso_path},media=cdrom,format=raw")
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')

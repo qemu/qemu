@@ -16,7 +16,6 @@ import os
 import os.path
 import subprocess
 
-from .config import BUILD_DIR
 
 def which(tool):
     """ looks up the full path for @tool, returns None if not found
@@ -205,10 +204,10 @@ def get_qemu_img(test):
 
     # If qemu-img has been built, use it, otherwise the system wide one
     # will be used.
-    qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
+    qemu_img = test.build_file('qemu-img')
     if os.path.exists(qemu_img):
         return qemu_img
     qemu_img = which('qemu-img')
     if qemu_img is not None:
         return qemu_img
-    test.skipTest(f"qemu-img not found in {BUILD_DIR} or '$PATH'")
+    test.skipTest(f"qemu-img not found in build dir or '$PATH'")
