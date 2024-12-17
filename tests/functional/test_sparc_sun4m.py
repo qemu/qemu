@@ -18,7 +18,7 @@ class Sun4mTest(LinuxKernelTest):
         self.set_machine('SS-20')
         file_path = self.ASSET_DAY11.fetch()
         archive_extract(file_path, self.workdir)
-        self.launch_kernel(self.workdir + '/day11/zImage.elf',
+        self.launch_kernel(self.scratch_file('day11', 'zImage.elf'),
                            wait_for='QEMU advent calendar')
 
 if __name__ == '__main__':

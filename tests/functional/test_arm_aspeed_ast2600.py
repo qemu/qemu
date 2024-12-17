@@ -114,7 +114,7 @@ class AST2600Machine(AspeedTest):
         self.vm.add_args('-device',
             'ds1338,bus=aspeed.i2c.bus.5,address=0x32');
         self.do_test_arm_aspeed_sdk_start(
-            self.workdir + '/ast2600-a2/image-bmc')
+            self.scratch_file("ast2600-a2", "image-bmc"))
 
         self.wait_for_console_pattern('ast2600-a2 login:')
 

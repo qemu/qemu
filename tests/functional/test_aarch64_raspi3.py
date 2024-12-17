@@ -7,7 +7,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 from zipfile import ZipFile
 
 from qemu_test import LinuxKernelTest, Asset
@@ -26,7 +25,7 @@ class Aarch64Raspi3Machine(LinuxKernelTest):
 
         with ZipFile(zip_path, 'r') as zf:
                      zf.extract(efi_name, path=self.workdir)
-        efi_fd = os.path.join(self.workdir, efi_name)
+        efi_fd = self.scratch_file(efi_name)
 
         self.set_machine('raspi3b')
         self.vm.set_console(console_index=1)

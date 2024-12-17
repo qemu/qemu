@@ -38,26 +38,28 @@ class AST2x00MachineSDK(QemuSystemTest):
         archive_extract(image_path, self.workdir)
 
         num_cpu = 4
-        image_dir = self.workdir + '/ast2700-default/'
-        uboot_size = os.path.getsize(image_dir + 'u-boot-nodtb.bin')
+        uboot_size = os.path.getsize(self.scratch_file('ast2700-default',
+                                                       'u-boot-nodtb.bin'))
         uboot_dtb_load_addr = hex(0x400000000 + uboot_size)
 
         load_images_list = [
             {
                 'addr': '0x400000000',
-                'file': image_dir + 'u-boot-nodtb.bin'
+                'file': self.scratch_file('ast2700-default',
+                                          'u-boot-nodtb.bin')
             },
             {
                 'addr': str(uboot_dtb_load_addr),
-                'file': image_dir + 'u-boot.dtb'
+                'file': self.scratch_file('ast2700-default', 'u-boot.dtb')
             },
             {
                 'addr': '0x430000000',
-                'file': image_dir + 'bl31.bin'
+                'file': self.scratch_file('ast2700-default', 'bl31.bin')
             },
             {
                 'addr': '0x430080000',
-                'file': image_dir + 'optee/tee-raw.bin'
+                'file': self.scratch_file('ast2700-default', 'optee',
+                                          'tee-raw.bin')
             }
         ]
 
@@ -74,7 +76,8 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.vm.add_args('-smp', str(num_cpu))
         self.vm.add_args('-device',
                          'tmp105,bus=aspeed.i2c.bus.1,address=0x4d,id=tmp-test')
-        self.do_test_aarch64_aspeed_sdk_start(image_dir + 'image-bmc')
+        self.do_test_aarch64_aspeed_sdk_start(
+            self.scratch_file('ast2700-default', 'image-bmc'))
 
         wait_for_console_pattern(self, 'ast2700-default login:')
 

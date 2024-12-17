@@ -22,7 +22,8 @@ class R2dTest(LinuxKernelTest):
         file_path = self.ASSET_DAY09.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.add_args('-append', 'console=ttySC1')
-        self.launch_kernel(self.workdir + '/day09/zImage', console_index=1,
+        self.launch_kernel(self.scratch_file('day09', 'zImage'),
+                           console_index=1,
                            wait_for='QEMU advent calendar')
 
 if __name__ == '__main__':

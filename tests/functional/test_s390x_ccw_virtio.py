@@ -175,7 +175,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
         kernel_path = self.ASSET_F31_KERNEL.fetch()
 
         initrd_path_xz = self.ASSET_F31_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
+        initrd_path = self.scratch_file('initrd-raw.img')
         lzma_uncompress(initrd_path_xz, initrd_path)
 
         self.vm.set_console()

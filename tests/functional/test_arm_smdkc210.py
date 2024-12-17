@@ -32,7 +32,7 @@ class Smdkc210Machine(LinuxKernelTest):
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
 
         initrd_path_gz = self.ASSET_ROOTFS.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
+        initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
 
         self.vm.set_console()

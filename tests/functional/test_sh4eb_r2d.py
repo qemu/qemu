@@ -4,7 +4,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 import shutil
 
 from qemu_test import LinuxKernelTest, Asset
@@ -22,11 +21,12 @@ class R2dEBTest(LinuxKernelTest):
         file_path = self.ASSET_TGZ.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.add_args('-append', 'console=ttySC1 noiotrap')
-        self.launch_kernel(os.path.join(self.workdir, 'sh4eb/linux-kernel'),
-                           initrd=os.path.join(self.workdir, 'sh4eb/initramfs.cpio.gz'),
+        self.launch_kernel(self.scratch_file('sh4eb', 'linux-kernel'),
+                           initrd=self.scratch_file('sh4eb',
+                                                    'initramfs.cpio.gz'),
                            console_index=1, wait_for='Type exit when done')
         exec_command_and_wait_for_pattern(self, 'exit', 'Restarting system')
-        shutil.rmtree(os.path.join(self.workdir, 'sh4eb'))
+        shutil.rmtree(self.scratch_file('sh4eb'))
 
 if __name__ == '__main__':
     LinuxKernelTest.main()

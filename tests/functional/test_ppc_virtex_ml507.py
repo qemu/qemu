@@ -28,8 +28,9 @@ class VirtexMl507Machine(QemuSystemTest):
         file_path = self.ASSET_IMAGE.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/hippo/hippo.linux',
-                         '-dtb', self.workdir + '/hippo/virtex440-ml507.dtb',
+        self.vm.add_args('-kernel', self.scratch_file('hippo', 'hippo.linux'),
+                         '-dtb', self.scratch_file('hippo',
+                                                   'virtex440-ml507.dtb'),
                          '-m', '512')
         self.vm.launch()
         wait_for_console_pattern(self, 'QEMU advent calendar 2020',

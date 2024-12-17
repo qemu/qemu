@@ -18,8 +18,9 @@ class VExpressTest(LinuxKernelTest):
         self.set_machine('vexpress-a9')
         file_path = self.ASSET_DAY16.fetch()
         archive_extract(file_path, self.workdir)
-        self.launch_kernel(self.workdir + '/day16/winter.zImage',
-                           dtb=self.workdir + '/day16/vexpress-v2p-ca9.dtb',
+        self.launch_kernel(self.scratch_file('day16', 'winter.zImage'),
+                           dtb=self.scratch_file('day16',
+                                                 'vexpress-v2p-ca9.dtb'),
                            wait_for='QEMU advent calendar')
 
 if __name__ == '__main__':

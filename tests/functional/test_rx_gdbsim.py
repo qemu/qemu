@@ -10,8 +10,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import os
-
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern, skipFlakyTest
@@ -40,7 +38,7 @@ class RxGdbSimMachine(QemuSystemTest):
         self.set_machine('gdbsim-r5f562n8')
 
         uboot_path_gz = self.ASSET_UBOOT.fetch()
-        uboot_path = os.path.join(self.workdir, 'u-boot.bin')
+        uboot_path = self.scratch_file('u-boot.bin')
         gzip_uncompress(uboot_path_gz, uboot_path)
 
         self.vm.set_console()

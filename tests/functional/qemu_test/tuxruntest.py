@@ -74,7 +74,7 @@ class TuxRunBaselineTest(QemuSystemTest):
         kernel_image =  kernel_asset.fetch()
         disk_image_zst = rootfs_asset.fetch()
 
-        disk_image = self.workdir + "/rootfs.ext4"
+        disk_image = self.scratch_file("rootfs.ext4")
 
         run_cmd(['zstd', "-f", "-d", disk_image_zst,
                  "-o", disk_image])

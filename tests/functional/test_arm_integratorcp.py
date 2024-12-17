@@ -12,7 +12,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 import logging
 
 from qemu_test import QemuSystemTest, Asset
@@ -67,7 +66,7 @@ class IntegratorMachine(QemuSystemTest):
         import numpy as np
         import cv2
 
-        screendump_path = os.path.join(self.workdir, "screendump.pbm")
+        screendump_path = self.scratch_file("screendump.pbm")
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()
 
         self.boot_integratorcp()

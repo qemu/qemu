@@ -19,7 +19,8 @@ class XTensaLX60Test(LinuxKernelTest):
         self.cpu = 'dc233c'
         file_path = self.ASSET_DAY02.fetch()
         archive_extract(file_path, self.workdir)
-        self.launch_kernel(self.workdir + '/day02/santas-sleigh-ride.elf',
+        self.launch_kernel(self.scratch_file('day02',
+                                             'santas-sleigh-ride.elf'),
                            wait_for='QEMU advent calendar')
 
 if __name__ == '__main__':

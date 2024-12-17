@@ -7,8 +7,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test.utils import gzip_uncompress
@@ -65,7 +63,7 @@ class ArmRaspi2Machine(LinuxKernelTest):
         kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
         dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
         initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
+        initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
 
         self.set_machine('raspi2b')

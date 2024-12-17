@@ -31,7 +31,8 @@ class CanonA1100Machine(QemuSystemTest):
                         member="day18/barebox.canon-a1100.bin")
         self.vm.set_console()
         self.vm.add_args('-bios',
-                         self.workdir + '/day18/barebox.canon-a1100.bin')
+                         self.scratch_file('day18',
+                                           'barebox.canon-a1100.bin'))
         self.vm.launch()
         wait_for_console_pattern(self, 'running /env/bin/init')
 

@@ -68,7 +68,7 @@ class MaltaMachineConsole(LinuxKernelTest):
     def test_mips64el_malta_5KEc_cpio(self):
         kernel_path = self.ASSET_KERNEL_3_19_3.fetch()
         initrd_path_gz = self.ASSET_CPIO_R1.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
+        initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
 
         self.set_machine('malta')
@@ -117,10 +117,10 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         import numpy as np
         import cv2
 
-        screendump_path = os.path.join(self.workdir, 'screendump.pbm')
+        screendump_path = self.scratch_file('screendump.pbm')
 
         kernel_path_gz = self.ASSET_KERNEL_4_7_0.fetch()
-        kernel_path = self.workdir + "/vmlinux"
+        kernel_path = self.scratch_file("vmlinux")
         gzip_uncompress(kernel_path_gz, kernel_path)
 
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()

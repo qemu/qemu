@@ -46,23 +46,15 @@ class HypervisorTest(QemuSystemTest):
         :param path: path within the iso file of the file to be extracted
         :returns: path of the extracted file
         """
-        filename = os.path.basename(path)
-
-        cwd = os.getcwd()
-        os.chdir(self.workdir)
+        filename = self.scratch_file(os.path.basename(path))
 
         cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
         subprocess.run(cmd.split(),
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         os.chmod(filename, 0o600)
-        os.chdir(cwd)
 
-        # Return complete path to extracted file.  Because callers to
-        # extract_from_iso() specify 'path' with a leading slash, it is
-        # necessary to use os.path.relpath() as otherwise os.path.join()
-        # interprets it as an absolute path and drops the self.workdir part.
-        return os.path.normpath(os.path.join(self.workdir, filename))
+        return filename
 
     def setUp(self):
         super().setUp()

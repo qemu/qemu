@@ -7,7 +7,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import os
 import time
 
 from qemu_test import QemuSystemTest, Asset
@@ -39,7 +38,7 @@ class NextCubeMachine(QemuSystemTest):
     @skipIfMissingImports("PIL")
     def test_bootrom_framebuffer_size(self):
         self.set_machine('next-cube')
-        screenshot_path = os.path.join(self.workdir, "dump.ppm")
+        screenshot_path = self.scratch_file("dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
 
         from PIL import Image
@@ -50,7 +49,7 @@ class NextCubeMachine(QemuSystemTest):
     @skipIfMissingCommands('tesseract')
     def test_bootrom_framebuffer_ocr_with_tesseract(self):
         self.set_machine('next-cube')
-        screenshot_path = os.path.join(self.workdir, "dump.ppm")
+        screenshot_path = self.scratch_file("dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
         lines = tesseract_ocr(screenshot_path)
         text = '\n'.join(lines)

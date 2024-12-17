@@ -18,7 +18,7 @@ class E500Test(LinuxKernelTest):
         self.cpu = 'e5500'
         file_path = self.ASSET_DAY19.fetch()
         archive_extract(file_path, self.workdir)
-        self.launch_kernel(self.workdir + '/day19/uImage',
+        self.launch_kernel(self.scratch_file('day19', 'uImage'),
                            wait_for='QEMU advent calendar')
 
 if __name__ == '__main__':

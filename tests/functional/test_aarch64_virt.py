@@ -11,7 +11,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import time
-import os
 import logging
 
 from qemu_test import QemuSystemTest, Asset
@@ -95,7 +94,7 @@ class Aarch64VirtMachine(QemuSystemTest):
 
         # Also add a scratch block device
         logger.info('creating scratch qcow2 image')
-        image_path = os.path.join(self.workdir, 'scratch.qcow2')
+        image_path = self.scratch_file('scratch.qcow2')
         qemu_img = get_qemu_img(self)
         run_cmd([qemu_img, 'create', '-f', 'qcow2', image_path, '8M'])
 

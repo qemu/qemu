@@ -19,7 +19,8 @@ class Mcf5208EvbTest(LinuxKernelTest):
         file_path = self.ASSET_DAY07.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/day07/sanity-clause.elf')
+        self.vm.add_args('-kernel',
+                         self.scratch_file('day07', 'sanity-clause.elf'))
         self.vm.launch()
         self.wait_for_console_pattern('QEMU advent calendar')
 

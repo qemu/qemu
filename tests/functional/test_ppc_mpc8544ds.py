@@ -28,7 +28,7 @@ class Mpc8544dsMachine(QemuSystemTest):
         file_path = self.ASSET_IMAGE.fetch()
         archive_extract(file_path, self.workdir, member='creek/creek.bin')
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/creek/creek.bin')
+        self.vm.add_args('-kernel', self.scratch_file('creek', 'creek.bin'))
         self.vm.launch()
         wait_for_console_pattern(self, 'QEMU advent calendar 2020',
                                  self.panic_message)

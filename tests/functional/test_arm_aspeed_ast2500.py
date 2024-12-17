@@ -50,7 +50,7 @@ class AST2500Machine(AspeedTest):
         archive_extract(image_path, self.workdir)
 
         self.do_test_arm_aspeed_sdk_start(
-            self.workdir + '/ast2500-default/image-bmc')
+            self.scratch_file("ast2500-default", "image-bmc"))
 
         self.wait_for_console_pattern('ast2500-default login:')
 

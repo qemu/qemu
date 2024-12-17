@@ -68,7 +68,7 @@ class BananaPiMachine(LinuxKernelTest):
                     'sun8i-r40-bananapi-m2-ultra.dtb')
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
         initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
+        initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
 
         self.vm.set_console()
@@ -106,7 +106,7 @@ class BananaPiMachine(LinuxKernelTest):
                     'sun8i-r40-bananapi-m2-ultra.dtb')
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
         rootfs_path_xz = self.ASSET_ROOTFS.fetch()
-        rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
+        rootfs_path = self.scratch_file('rootfs.cpio')
         lzma_uncompress(rootfs_path_xz, rootfs_path)
         image_pow2ceil_expand(rootfs_path)
 
@@ -150,7 +150,7 @@ class BananaPiMachine(LinuxKernelTest):
         # This test download a 8.9 MiB compressed image and expand it
         # to 127 MiB.
         image_path_gz = self.ASSET_SD_IMAGE.fetch()
-        image_path = os.path.join(self.workdir, 'sdcard.img')
+        image_path = self.scratch_file('sdcard.img')
         gzip_uncompress(image_path_gz, image_path)
         image_pow2ceil_expand(image_path)
 

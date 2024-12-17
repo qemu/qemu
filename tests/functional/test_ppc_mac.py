@@ -23,7 +23,7 @@ class MacTest(LinuxKernelTest):
         file_path = self.ASSET_DAY15.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.add_args('-M', 'graphics=off')
-        self.launch_kernel(self.workdir + '/day15/invaders.elf',
+        self.launch_kernel(self.scratch_file('day15', 'invaders.elf'),
                            wait_for='QEMU advent calendar')
 
     def test_ppc_g3beige(self):

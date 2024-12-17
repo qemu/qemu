@@ -46,8 +46,7 @@ class LinuxKernelTest(QemuSystemTest):
         os.chdir(cwd)
         # Return complete path to extracted file.  Because callers to
         # extract_from_deb() specify 'path' with a leading slash, it is
-        # necessary to use os.path.relpath() as otherwise os.path.join()
-        # interprets it as an absolute path and drops the self.workdir part.
-        return os.path.normpath(os.path.join(self.workdir,
-                                             os.path.relpath(path, '/')))
+        # necessary to use os.path.relpath() as otherwise scratch_file()
+        # interprets it as an absolute path and drops the required prefix
+        return os.path.normpath(self.scratch_file(os.path.relpath(path, '/')))
 

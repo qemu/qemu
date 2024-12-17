@@ -6,8 +6,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from zipfile import ZipFile
@@ -27,7 +25,7 @@ class AST1030Machine(LinuxKernelTest):
         kernel_name = "ast1030-evb-demo/zephyr.elf"
         with ZipFile(zip_file, 'r') as zf:
                      zf.extract(kernel_name, path=self.workdir)
-        kernel_file = os.path.join(self.workdir, kernel_name)
+        kernel_file = self.scratch_file(kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')
@@ -49,7 +47,7 @@ class AST1030Machine(LinuxKernelTest):
         kernel_name = "ast1030-evb-demo/zephyr.bin"
         with ZipFile(zip_file, 'r') as zf:
                      zf.extract(kernel_name, path=self.workdir)
-        kernel_file = os.path.join(self.workdir, kernel_name)
+        kernel_file = self.scratch_file(kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')

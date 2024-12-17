@@ -6,7 +6,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 import bz2
 
 from qemu_test import QemuUserTest, Asset
@@ -25,7 +24,7 @@ class LoadBFLT(QemuUserTest):
     def test_stm32(self):
         # See https://elinux.org/STM32#User_Space
         rootfs_path_bz2 = self.ASSET_ROOTFS.fetch()
-        busybox_path = os.path.join(self.workdir, "bin/busybox")
+        busybox_path = self.scratch_file("bin", "busybox")
 
         with bz2.open(rootfs_path_bz2, 'rb') as cpio_handle:
             cpio_extract(cpio_handle, self.workdir)

@@ -44,7 +44,7 @@ class CubieboardMachine(LinuxKernelTest):
         dtb_path = '/usr/lib/linux-image-6.6.16-current-sunxi/sun4i-a10-cubieboard.dtb'
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
         initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
+        initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
 
         self.vm.set_console()
@@ -78,7 +78,7 @@ class CubieboardMachine(LinuxKernelTest):
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
 
         rootfs_path_gz = self.ASSET_SATA_ROOTFS.fetch()
-        rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
+        rootfs_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(rootfs_path_gz, rootfs_path)
 
         self.vm.set_console()
@@ -112,7 +112,7 @@ class CubieboardMachine(LinuxKernelTest):
         # to 126 MiB.
         self.set_machine('cubieboard')
         image_path_gz = self.ASSET_OPENWRT.fetch()
-        image_path = os.path.join(self.workdir, 'sdcard.img')
+        image_path = self.scratch_file('sdcard.img')
         gzip_uncompress(image_path_gz, image_path)
         image_pow2ceil_expand(image_path)
 

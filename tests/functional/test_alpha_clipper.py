@@ -5,8 +5,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test.utils import gzip_uncompress
 
@@ -22,7 +20,7 @@ class AlphaClipperTest(LinuxKernelTest):
         self.set_machine('clipper')
         kernel_path = self.ASSET_KERNEL.fetch()
 
-        uncompressed_kernel = os.path.join(self.workdir, 'vmlinux')
+        uncompressed_kernel = self.scratch_file('vmlinux')
         gzip_uncompress(kernel_path, uncompressed_kernel)
 
         self.vm.set_console()

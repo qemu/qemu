@@ -19,7 +19,7 @@ class OpenRISC1kSimTest(LinuxKernelTest):
         file_path = self.ASSET_DAY20.fetch()
         archive_extract(file_path, self.workdir)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/day20/vmlinux')
+        self.vm.add_args('-kernel', self.scratch_file('day20', 'vmlinux'))
         self.vm.launch()
         self.wait_for_console_pattern('QEMU advent calendar')
 

@@ -8,8 +8,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
@@ -32,12 +30,12 @@ def fetch_firmware(test):
 
     # Secure BootRom (TF-A code)
     fs0_xz_path = Aarch64SbsarefMachine.ASSET_FLASH0.fetch()
-    fs0_path = os.path.join(test.workdir, "SBSA_FLASH0.fd")
+    fs0_path = test.scratch_file("SBSA_FLASH0.fd")
     lzma_uncompress(fs0_xz_path, fs0_path)
 
     # Non-secure rom (UEFI and EFI variables)
     fs1_xz_path = Aarch64SbsarefMachine.ASSET_FLASH1.fetch()
-    fs1_path = os.path.join(test.workdir, "SBSA_FLASH1.fd")
+    fs1_path = test.scratch_file("SBSA_FLASH1.fd")
     lzma_uncompress(fs1_xz_path, fs1_path)
 
     for path in [fs0_path, fs1_path]:

@@ -29,13 +29,15 @@ class AmigaOneMachine(QemuSystemTest):
         zip_file = self.ASSET_IMAGE.fetch()
         with ZipFile(zip_file, 'r') as zf:
             zf.extractall(path=self.workdir)
-        bios_fh = open(self.workdir + "/u-boot-amigaone.bin", "wb")
-        subprocess.run(['tail', '-c', '524288',
-                        self.workdir + "/floppy_edition/updater.image"],
-                        stdout=bios_fh)
+        bios = self.scratch_file("u-boot-amigaone.bin")
+        with open(bios, "wb") as bios_fh:
+            subprocess.run(['tail', '-c', '524288',
+                            self.scratch_file("floppy_edition",
+                                              "updater.image")],
+                           stdout=bios_fh)
 
         self.vm.set_console()
-        self.vm.add_args('-bios', self.workdir + '/u-boot-amigaone.bin')
+        self.vm.add_args('-bios', bios)
         self.vm.launch()
         wait_for_console_pattern(self, 'FLASH:')
 
