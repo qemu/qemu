@@ -15,7 +15,6 @@ import logging
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
-from qemu_test.utils import gzip_uncompress
 
 
 class MaltaMachineConsole(LinuxKernelTest):
@@ -67,9 +66,7 @@ class MaltaMachineConsole(LinuxKernelTest):
     @skipUntrustedTest()
     def test_mips64el_malta_5KEc_cpio(self):
         kernel_path = self.ASSET_KERNEL_3_19_3.fetch()
-        initrd_path_gz = self.ASSET_CPIO_R1.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_CPIO_R1)
 
         self.set_machine('malta')
         self.vm.set_console()
@@ -119,9 +116,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
 
         screendump_path = self.scratch_file('screendump.pbm')
 
-        kernel_path_gz = self.ASSET_KERNEL_4_7_0.fetch()
-        kernel_path = self.scratch_file("vmlinux")
-        gzip_uncompress(kernel_path_gz, kernel_path)
+        kernel_path = self.uncompress(self.ASSET_KERNEL_4_7_0)
 
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()
 

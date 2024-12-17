@@ -9,7 +9,7 @@ import os
 from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
 from qemu_test import skipBigDataTest
-from qemu_test.utils import gzip_uncompress, image_pow2ceil_expand
+from qemu_test.utils import image_pow2ceil_expand
 
 
 class CubieboardMachine(LinuxKernelTest):
@@ -43,9 +43,7 @@ class CubieboardMachine(LinuxKernelTest):
         dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/' +
                     'sun4i-a10-cubieboard.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -77,9 +75,7 @@ class CubieboardMachine(LinuxKernelTest):
                     'sun4i-a10-cubieboard.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
-        rootfs_path_gz = self.ASSET_SATA_ROOTFS.fetch()
-        rootfs_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(rootfs_path_gz, rootfs_path)
+        rootfs_path = self.uncompress(self.ASSET_SATA_ROOTFS)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -111,9 +107,7 @@ class CubieboardMachine(LinuxKernelTest):
         # This test download a 7.5 MiB compressed image and expand it
         # to 126 MiB.
         self.set_machine('cubieboard')
-        image_path_gz = self.ASSET_OPENWRT.fetch()
-        image_path = self.scratch_file('sdcard.img')
-        gzip_uncompress(image_path_gz, image_path)
+        image_path = self.uncompress(self.ASSET_OPENWRT)
         image_pow2ceil_expand(image_path)
 
         self.vm.set_console()

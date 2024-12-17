@@ -11,7 +11,7 @@
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
-from qemu_test.utils import lzma_uncompress
+
 
 def fetch_firmware(test):
     """
@@ -29,14 +29,10 @@ def fetch_firmware(test):
     """
 
     # Secure BootRom (TF-A code)
-    fs0_xz_path = Aarch64SbsarefMachine.ASSET_FLASH0.fetch()
-    fs0_path = test.scratch_file("SBSA_FLASH0.fd")
-    lzma_uncompress(fs0_xz_path, fs0_path)
+    fs0_path = test.uncompress(Aarch64SbsarefMachine.ASSET_FLASH0)
 
     # Non-secure rom (UEFI and EFI variables)
-    fs1_xz_path = Aarch64SbsarefMachine.ASSET_FLASH1.fetch()
-    fs1_path = test.scratch_file("SBSA_FLASH1.fd")
-    lzma_uncompress(fs1_xz_path, fs1_path)
+    fs1_path = test.uncompress(Aarch64SbsarefMachine.ASSET_FLASH1)
 
     for path in [fs0_path, fs1_path]:
         with open(path, "ab+") as fd:

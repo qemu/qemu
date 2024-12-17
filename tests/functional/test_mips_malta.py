@@ -8,7 +8,6 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import gzip_uncompress
 
 
 class MaltaMachineConsole(LinuxKernelTest):
@@ -49,9 +48,7 @@ class MaltaMachineConsole(LinuxKernelTest):
         kernel_path = self.archive_extract(
             self.ASSET_KERNEL_4_5_0,
             member='boot/vmlinux-4.5.0-2-4kc-malta')
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.set_machine('malta')
         self.vm.set_console()

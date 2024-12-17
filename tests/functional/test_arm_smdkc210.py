@@ -7,7 +7,7 @@
 import os
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import gzip_uncompress
+
 
 class Smdkc210Machine(LinuxKernelTest):
 
@@ -30,9 +30,7 @@ class Smdkc210Machine(LinuxKernelTest):
         dtb_path = 'usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
-        initrd_path_gz = self.ASSET_ROOTFS.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_ROOTFS)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +

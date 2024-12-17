@@ -10,7 +10,6 @@ import os
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
 from qemu_test import skipBigDataTest
-from qemu_test.utils import gzip_uncompress, lzma_uncompress
 from qemu_test.utils import image_pow2ceil_expand
 
 
@@ -65,9 +64,7 @@ class BananaPiMachine(LinuxKernelTest):
         dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -103,9 +100,7 @@ class BananaPiMachine(LinuxKernelTest):
         dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
-        rootfs_path_xz = self.ASSET_ROOTFS.fetch()
-        rootfs_path = self.scratch_file('rootfs.cpio')
-        lzma_uncompress(rootfs_path_xz, rootfs_path)
+        rootfs_path = self.uncompress(self.ASSET_ROOTFS)
         image_pow2ceil_expand(rootfs_path)
 
         self.vm.set_console()
@@ -147,9 +142,7 @@ class BananaPiMachine(LinuxKernelTest):
         self.set_machine('bpim2u')
         # This test download a 8.9 MiB compressed image and expand it
         # to 127 MiB.
-        image_path_gz = self.ASSET_SD_IMAGE.fetch()
-        image_path = self.scratch_file('sdcard.img')
-        gzip_uncompress(image_path_gz, image_path)
+        image_path = self.uncompress(self.ASSET_SD_IMAGE)
         image_pow2ceil_expand(image_path)
 
         self.vm.set_console()

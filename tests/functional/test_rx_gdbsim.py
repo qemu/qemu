@@ -13,7 +13,6 @@
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern, skipFlakyTest
-from qemu_test.utils import gzip_uncompress
 
 
 class RxGdbSimMachine(QemuSystemTest):
@@ -37,9 +36,7 @@ class RxGdbSimMachine(QemuSystemTest):
         """
         self.set_machine('gdbsim-r5f562n8')
 
-        uboot_path_gz = self.ASSET_UBOOT.fetch()
-        uboot_path = self.scratch_file('u-boot.bin')
-        gzip_uncompress(uboot_path_gz, uboot_path)
+        uboot_path = self.uncompress(self.ASSET_UBOOT)
 
         self.vm.set_console()
         self.vm.add_args('-bios', uboot_path,

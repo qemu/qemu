@@ -9,7 +9,6 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import gzip_uncompress
 
 
 class ArmRaspi2Machine(LinuxKernelTest):
@@ -64,9 +63,7 @@ class ArmRaspi2Machine(LinuxKernelTest):
                                            member='boot/kernel7.img')
         dtb_path = self.archive_extract(self.ASSET_KERNEL_20190215,
                                         member='boot/bcm2709-rpi-2-b.dtb')
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.set_machine('raspi2b')
         self.vm.set_console()

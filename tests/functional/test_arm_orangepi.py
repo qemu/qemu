@@ -11,7 +11,6 @@ import shutil
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
 from qemu_test import wait_for_console_pattern, skipBigDataTest
-from qemu_test.utils import gzip_uncompress, lzma_uncompress
 from qemu_test.utils import image_pow2ceil_expand
 
 
@@ -76,9 +75,7 @@ class BananaPiMachine(LinuxKernelTest):
         dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/' +
                     'sun8i-h3-orangepi-pc.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = self.scratch_file('rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -112,9 +109,7 @@ class BananaPiMachine(LinuxKernelTest):
         dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/' +
                     'sun8i-h3-orangepi-pc.dtb')
         dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
-        rootfs_path_xz = self.ASSET_ROOTFS.fetch()
-        rootfs_path = self.scratch_file('rootfs.cpio')
-        lzma_uncompress(rootfs_path_xz, rootfs_path)
+        rootfs_path = self.uncompress(self.ASSET_ROOTFS)
         image_pow2ceil_expand(rootfs_path)
 
         self.vm.set_console()
@@ -155,9 +150,7 @@ class BananaPiMachine(LinuxKernelTest):
         # This test download a 275 MiB compressed image and expand it
         # to 1036 MiB, but the underlying filesystem is 1552 MiB...
         # As we expand it to 2 GiB we are safe.
-        image_path_xz = self.ASSET_ARMBIAN.fetch()
-        image_path = self.scratch_file('armbian.img')
-        lzma_uncompress(image_path_xz, image_path)
+        image_path = self.uncompress(self.ASSET_ARMBIAN)
         image_pow2ceil_expand(image_path)
 
         self.vm.set_console()
@@ -195,9 +188,7 @@ class BananaPiMachine(LinuxKernelTest):
         # before to boot NetBSD.
         uboot_path = 'usr/lib/u-boot/orangepi_plus/u-boot-sunxi-with-spl.bin'
         uboot_path = self.archive_extract(self.ASSET_UBOOT, member=uboot_path)
-        image_path_gz = self.ASSET_NETBSD.fetch()
-        image_path = self.scratch_file('armv7.img')
-        gzip_uncompress(image_path_gz, image_path)
+        image_path = self.uncompress(self.ASSET_NETBSD)
         image_pow2ceil_expand(image_path)
         image_drive_args = 'if=sd,format=raw,snapshot=on,file=' + image_path
 
