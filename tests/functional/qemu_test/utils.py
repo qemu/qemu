@@ -10,11 +10,6 @@
 
 import os
 
-from .archive import tar_extract as archive_extract
-from .archive import cpio_extract
-from .uncompress import gzip_uncompress
-from .uncompress import lzma_uncompress
-
 """
 Round up to next power of 2
 """
