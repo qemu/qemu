@@ -16,6 +16,7 @@
 #define QEMU_COROUTINE_H
 
 #include "qemu/coroutine-core.h"
+#include "qemu/atomic.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
