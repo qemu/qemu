@@ -5780,11 +5780,15 @@ static char *feature_word_description(FeatureWordInfo *f)
         {
             const char *reg = get_register_name_32(f->cpuid.reg);
             assert(reg);
-            return g_strdup_printf("CPUID.%02XH:%s",
-                                   f->cpuid.eax, reg);
+            if (!f->cpuid.needs_ecx) {
+                return g_strdup_printf("CPUID[eax=%02Xh].%s", f->cpuid.eax, reg);
+            } else {
+                return g_strdup_printf("CPUID[eax=%02Xh,ecx=%02Xh].%s",
+                                       f->cpuid.eax, f->cpuid.ecx, reg);
+            }
         }
     case MSR_FEATURE_WORD:
-        return g_strdup_printf("MSR(%02XH)",
+        return g_strdup_printf("MSR(%02Xh)",
                                f->msr.index);
     }
 
