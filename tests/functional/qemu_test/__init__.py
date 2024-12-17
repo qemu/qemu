@@ -17,3 +17,4 @@ from .decorators import skipIfMissingCommands, skipIfNotMachine, \
     skipFlakyTest, skipUntrustedTest, skipBigDataTest, \
     skipIfMissingImports
 from .archive import archive_extract
+from .uncompress import uncompress
