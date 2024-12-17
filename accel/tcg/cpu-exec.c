@@ -25,7 +25,7 @@
 #include "hw/core/tcg-cpu-ops.h"
 #include "trace.h"
 #include "disas/disas.h"
-#include "exec/exec-all.h"
+#include "exec/cpu-common.h"
 #include "exec/page-protection.h"
 #include "tcg/tcg.h"
 #include "qemu/atomic.h"
