@@ -184,6 +184,14 @@ class QemuBaseTest(unittest.TestCase):
     def log_file(self, *args):
         return str(Path(self.outputdir, *args))
 
+    def assets_available(self):
+        for name, asset in vars(self.__class__).items():
+            if name.startswith("ASSET_") and type(asset) == Asset:
+                if not asset.available():
+                    self.log.debug(f"Asset {asset.url} not available")
+                    return False
+        return True
+
     def setUp(self, bin_prefix):
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
@@ -208,6 +216,9 @@ class QemuBaseTest(unittest.TestCase):
         self.machinelog = logging.getLogger('qemu.machine')
         self.machinelog.setLevel(logging.DEBUG)
         self.machinelog.addHandler(self._log_fh)
+
+        if not self.assets_available():
+            self.skipTest('One or more assets is not available')
 
     def tearDown(self):
         if "QEMU_TEST_KEEP_SCRATCH" not in os.environ:

@@ -65,6 +65,12 @@ class Asset:
     def valid(self):
         return self.cache_file.exists() and self._check(self.cache_file)
 
+    def fetchable(self):
+        return not os.environ.get("QEMU_TEST_NO_DOWNLOAD", False)
+
+    def available(self):
+        return self.valid() or self.fetchable()
+
     def _wait_for_other_download(self, tmp_cache_file):
         # Another thread already seems to download the asset, so wait until
         # it is done, while also checking the size to see whether it is stuck
@@ -103,7 +109,7 @@ class Asset:
                            self.cache_file, self.url)
             return str(self.cache_file)
 
-        if os.environ.get("QEMU_TEST_NO_DOWNLOAD", False):
+        if not self.fetchable():
             raise Exception("Asset cache is invalid and downloads disabled")
 
         self.log.info("Downloading %s to %s...", self.url, self.cache_file)
