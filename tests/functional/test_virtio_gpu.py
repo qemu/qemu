@@ -100,9 +100,7 @@ class VirtioGPUx86(QemuSystemTest):
         os.set_inheritable(qemu_sock.fileno(), True)
         os.set_inheritable(vug_sock.fileno(), True)
 
-        self._vug_log_path = os.path.join(
-            self.logdir, "vhost-user-gpu.log"
-        )
+        self._vug_log_path = self.log_file("vhost-user-gpu.log")
         self._vug_log_file = open(self._vug_log_path, "wb")
         self.log.info('Complete vhost-user-gpu.log file can be '
                       'found at %s', self._vug_log_path)
