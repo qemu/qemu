@@ -39,6 +39,9 @@ class Asset:
         return "Asset: url=%s hash=%s cache=%s" % (
             self.url, self.hash, self.cache_file)
 
+    def __str__(self):
+        return str(self.cache_file)
+
     def _check(self, cache_file):
         if self.hash is None:
             return True
