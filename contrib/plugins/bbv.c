@@ -109,7 +109,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         bb = g_new(Bb, 1);
         bb->vaddr = vaddr;
         bb->count = qemu_plugin_scoreboard_new(sizeof(uint64_t));
-        bb->index = g_hash_table_size(bbs);
+        bb->index = g_hash_table_size(bbs) + 1;
         g_hash_table_replace(bbs, &bb->vaddr, bb);
     }
     g_rw_lock_writer_unlock(&bbs_lock);
