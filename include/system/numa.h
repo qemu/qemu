@@ -3,7 +3,6 @@
 
 #include "qemu/bitmap.h"
 #include "qapi/qapi-types-machine.h"
-#include "exec/cpu-common.h"
 
 struct CPUArchId;
 
