@@ -11,16 +11,8 @@ import os
 import time
 
 from qemu_test import QemuSystemTest, Asset
-from unittest import skipUnless
-
-from qemu_test import has_cmd
+from qemu_test import skipIfMissingImports, skipIfMissingCommands
 from qemu_test.tesseract import tesseract_ocr
-
-PIL_AVAILABLE = True
-try:
-    from PIL import Image
-except ImportError:
-    PIL_AVAILABLE = False
 
 
 class NextCubeMachine(QemuSystemTest):
@@ -44,17 +36,18 @@ class NextCubeMachine(QemuSystemTest):
         self.vm.cmd('human-monitor-command',
                     command_line='screendump %s' % screenshot_path)
 
-    @skipUnless(PIL_AVAILABLE, 'Python PIL not installed')
+    @skipIfMissingImports("PIL")
     def test_bootrom_framebuffer_size(self):
         self.set_machine('next-cube')
         screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
 
+        from PIL import Image
         width, height = Image.open(screenshot_path).size
         self.assertEqual(width, 1120)
         self.assertEqual(height, 832)
 
-    @skipUnless(*has_cmd('tesseract'))
+    @skipIfMissingCommands('tesseract')
     def test_bootrom_framebuffer_ocr_with_tesseract(self):
         self.set_machine('next-cube')
         screenshot_path = os.path.join(self.workdir, "dump.ppm")

@@ -17,20 +17,7 @@ import logging
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from unittest import skipUnless
-
-
-NUMPY_AVAILABLE = True
-try:
-    import numpy as np
-except ImportError:
-    NUMPY_AVAILABLE = False
-
-CV2_AVAILABLE = True
-try:
-    import cv2
-except ImportError:
-    CV2_AVAILABLE = False
+from qemu_test import skipIfMissingImports, skipUntrustedTest
 
 
 class IntegratorMachine(QemuSystemTest):
@@ -63,7 +50,7 @@ class IntegratorMachine(QemuSystemTest):
                          '-append', 'printk.time=0 console=ttyAMA0')
         self.vm.launch()
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUntrustedTest()
     def test_integratorcp_console(self):
         """
         Boots the Linux kernel and checks that the console is operational
@@ -71,13 +58,15 @@ class IntegratorMachine(QemuSystemTest):
         self.boot_integratorcp()
         wait_for_console_pattern(self, 'Log in as root')
 
-    @skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
-    @skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipIfMissingImports("numpy", "cv2")
+    @skipUntrustedTest()
     def test_framebuffer_tux_logo(self):
         """
         Boot Linux and verify the Tux logo is displayed on the framebuffer.
         """
+        import numpy as np
+        import cv2
+
         screendump_path = os.path.join(self.workdir, "screendump.pbm")
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()
 

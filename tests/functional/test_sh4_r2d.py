@@ -4,11 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
-from qemu_test import LinuxKernelTest, Asset
+from qemu_test import LinuxKernelTest, Asset, skipFlakyTest
 from qemu_test.utils import archive_extract
-from unittest import skipUnless
 
 class R2dTest(LinuxKernelTest):
 
@@ -18,7 +15,8 @@ class R2dTest(LinuxKernelTest):
 
     # This test has a 6-10% failure rate on various hosts that look
     # like issues with a buggy kernel.
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable')
+    # XXX file tracking bug
+    @skipFlakyTest(bug_url=None)
     def test_r2d(self):
         self.set_machine('r2d')
         file_path = self.ASSET_DAY09.fetch()

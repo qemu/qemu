@@ -9,9 +9,10 @@ import os
 
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
+from qemu_test import skipBigDataTest
 from qemu_test.utils import gzip_uncompress, lzma_uncompress
 from qemu_test.utils import image_pow2ceil_expand
-from unittest import skipUnless
+
 
 class BananaPiMachine(LinuxKernelTest):
 
@@ -143,7 +144,7 @@ class BananaPiMachine(LinuxKernelTest):
         os.remove(dtb_path)
         os.remove(rootfs_path)
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+    @skipBigDataTest()
     def test_arm_bpim2u_openwrt_22_03_3(self):
         self.set_machine('bpim2u')
         # This test download a 8.9 MiB compressed image and expand it

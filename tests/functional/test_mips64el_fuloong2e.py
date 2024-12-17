@@ -13,7 +13,7 @@ import os
 import subprocess
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, skipUntrustedTest
 from unittest import skipUnless
 
 class MipsFuloong2e(LinuxKernelTest):
@@ -39,7 +39,7 @@ class MipsFuloong2e(LinuxKernelTest):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUntrustedTest()
     @skipUnless(os.getenv('RESCUE_YL_PATH'), 'RESCUE_YL_PATH not available')
     def test_linux_kernel_2_6_27_isa_serial(self):
         # Recovery system for the Yeeloong laptop

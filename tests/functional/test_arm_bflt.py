@@ -10,9 +10,8 @@ import os
 import bz2
 
 from qemu_test import QemuUserTest, Asset
-from qemu_test import has_cmd
+from qemu_test import skipIfMissingCommands, skipUntrustedTest
 from qemu_test.utils import cpio_extract
-from unittest import skipUnless
 
 
 class LoadBFLT(QemuUserTest):
@@ -21,8 +20,8 @@ class LoadBFLT(QemuUserTest):
         ('https://elinux.org/images/5/51/Stm32_mini_rootfs.cpio.bz2'),
          'eefb788e4980c9e8d6c9d60ce7d15d4da6bf4fbc6a80f487673824600d5ba9cc')
 
-    @skipUnless(*has_cmd('cpio'))
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipIfMissingCommands('cpio')
+    @skipUntrustedTest()
     def test_stm32(self):
         # See https://elinux.org/STM32#User_Space
         rootfs_path_bz2 = self.ASSET_ROOTFS.fetch()

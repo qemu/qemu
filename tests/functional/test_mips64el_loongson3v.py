@@ -9,11 +9,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
-from unittest import skipUnless
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, skipUntrustedTest
+
 
 class MipsLoongson3v(QemuSystemTest):
     timeout = 60
@@ -23,7 +21,7 @@ class MipsLoongson3v(QemuSystemTest):
          'releases/download/20210112/pmon-3avirt.bin'),
         'fcdf6bb2cb7885a4a62f31fcb0d5e368bac7b6cea28f40c6dfa678af22fea20a')
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUntrustedTest()
     def test_pmon_serial_console(self):
         self.set_machine('loongson3-virt')
 

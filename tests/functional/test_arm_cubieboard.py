@@ -8,8 +8,9 @@ import os
 
 from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
+from qemu_test import skipBigDataTest
 from qemu_test.utils import gzip_uncompress, image_pow2ceil_expand
-from unittest import skipUnless
+
 
 class CubieboardMachine(LinuxKernelTest):
 
@@ -105,7 +106,7 @@ class CubieboardMachine(LinuxKernelTest):
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
-    @skipUnless(os.getenv('AVOCADO_ALLOW_LARGE_STORAGE'), 'storage limited')
+    @skipBigDataTest()
     def test_arm_cubieboard_openwrt_22_03_2(self):
         # This test download a 7.5 MiB compressed image and expand it
         # to 126 MiB.

@@ -32,7 +32,6 @@ https://gitlab.com/qemu-project/biosbits-bits .
 """
 
 import os
-import platform
 import re
 import shutil
 import subprocess
@@ -46,27 +45,12 @@ from typing import (
     Sequence,
 )
 from qemu.machine import QEMUMachine
-from unittest import skipIf
-from qemu_test import QemuSystemTest, Asset, which
+from qemu_test import (QemuSystemTest, Asset, skipIfMissingCommands,
+                       skipIfNotMachine)
 
-deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
-supported_platforms = ['x86_64'] # supported test platforms.
 
 # default timeout of 120 secs is sometimes not enough for bits test.
 BITS_TIMEOUT = 200
-
-def missing_deps():
-    """ returns True if any of the test dependent tools are absent.
-    """
-    for dep in deps:
-        if which(dep) is None:
-            return True
-    return False
-
-def supported_platform():
-    """ checks if the test is running on a supported platform.
-    """
-    return platform.machine() in supported_platforms
 
 class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
     """
@@ -110,9 +94,8 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
         """return the base argument to QEMU binary"""
         return self._base_args
 
-@skipIf(not supported_platform() or missing_deps(),
-        'unsupported platform or dependencies (%s) not installed' \
-        % ','.join(deps))
+@skipIfMissingCommands("xorriso", "mformat")
+@skipIfNotMachine("x86_64")
 class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attributes
     """
     ACPI and SMBIOS tests using biosbits.

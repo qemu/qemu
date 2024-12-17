@@ -10,10 +10,10 @@ import shutil
 
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, skipBigDataTest
 from qemu_test.utils import gzip_uncompress, lzma_uncompress
 from qemu_test.utils import image_pow2ceil_expand
-from unittest import skipUnless
+
 
 class BananaPiMachine(LinuxKernelTest):
 
@@ -149,7 +149,7 @@ class BananaPiMachine(LinuxKernelTest):
         os.remove(dtb_path)
         os.remove(rootfs_path)
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+    @skipBigDataTest()
     def test_arm_orangepi_armbian(self):
         self.set_machine('orangepi-pc')
         # This test download a 275 MiB compressed image and expand it
@@ -185,7 +185,7 @@ class BananaPiMachine(LinuxKernelTest):
                                       'to <orangepipc>')
         self.wait_for_console_pattern('Starting Load Kernel Modules...')
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+    @skipBigDataTest()
     def test_arm_orangepi_uboot_netbsd9(self):
         self.set_machine('orangepi-pc')
         # This test download a 304MB compressed image and expand it to 2GB

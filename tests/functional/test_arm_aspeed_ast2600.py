@@ -11,10 +11,9 @@ import subprocess
 
 from qemu_test import Asset
 from aspeed import AspeedTest
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import has_cmd
+from qemu_test import exec_command_and_wait_for_pattern, skipIfMissingCommands
 from qemu_test.utils import archive_extract
-from unittest import skipUnless
+
 
 class AST2600Machine(AspeedTest):
 
@@ -68,7 +67,7 @@ class AST2600Machine(AspeedTest):
          'images/ast2600-evb/buildroot-2023.02-tpm/flash.img'),
         'a46009ae8a5403a0826d607215e731a8c68d27c14c41e55331706b8f9c7bd997')
 
-    @skipUnless(*has_cmd('swtpm'))
+    @skipIfMissingCommands('swtpm')
     def test_arm_ast2600_evb_buildroot_tpm(self):
         self.set_machine('ast2600-evb')
 
