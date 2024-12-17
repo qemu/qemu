@@ -130,11 +130,10 @@ void HELPER(name)(void *vd, void *vn, void *vm, uint32_t desc) \
 }
 
 #define NEON_GVEC_VOP2_ENV(name, vtype) \
-void HELPER(name)(void *vd, void *vn, void *vm, void *venv, uint32_t desc) \
+void HELPER(name)(void *vd, void *vn, void *vm, CPUARMState *env, uint32_t desc) \
 {                                                               \
     intptr_t i, opr_sz = simd_oprsz(desc);                      \
     vtype *d = vd, *n = vn, *m = vm;                            \
-    CPUARMState *env = venv;                                    \
     for (i = 0; i < opr_sz / sizeof(vtype); i++) {              \
         NEON_FN(d[i], n[i], m[i]);                              \
     }                                                           \
@@ -142,12 +141,11 @@ void HELPER(name)(void *vd, void *vn, void *vm, void *venv, uint32_t desc) \
 }
 
 #define NEON_GVEC_VOP2i_ENV(name, vtype) \
-void HELPER(name)(void *vd, void *vn, void *venv, uint32_t desc) \
+void HELPER(name)(void *vd, void *vn, CPUARMState *env, uint32_t desc) \
 {                                                               \
     intptr_t i, opr_sz = simd_oprsz(desc);                      \
     int imm = simd_data(desc);                                  \
     vtype *d = vd, *n = vn;                                     \
-    CPUARMState *env = venv;                                    \
     for (i = 0; i < opr_sz / sizeof(vtype); i++) {              \
         NEON_FN(d[i], n[i], imm);                               \
     }                                                           \
