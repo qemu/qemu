@@ -6,7 +6,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import sys
 import os
 
 from qemu_test import QemuSystemTest, Asset

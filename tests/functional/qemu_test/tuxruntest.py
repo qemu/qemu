@@ -11,10 +11,9 @@
 
 import os
 import stat
-import time
 
 from qemu_test import QemuSystemTest
-from qemu_test import exec_command, exec_command_and_wait_for_pattern
+from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern
 from qemu_test import has_cmd, run_cmd, get_qemu_img
 

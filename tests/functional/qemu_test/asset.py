@@ -9,7 +9,6 @@ import hashlib
 import logging
 import os
 import stat
-import subprocess
 import sys
 import unittest
 import urllib.request

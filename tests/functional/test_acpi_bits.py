@@ -31,14 +31,12 @@ including an upgraded acpica. The fork is located here:
 https://gitlab.com/qemu-project/biosbits-bits .
 """
 
-import logging
 import os
 import platform
 import re
 import shutil
 import subprocess
 import tarfile
-import tempfile
 import zipfile
 
 from pathlib import Path

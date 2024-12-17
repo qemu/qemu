@@ -10,7 +10,7 @@
 import subprocess
 
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern, run_cmd
+from qemu_test import wait_for_console_pattern
 from zipfile import ZipFile
 
 class AmigaOneMachine(QemuSystemTest):
