@@ -13,3 +13,6 @@ from .cmd import has_cmd, has_cmds, run_cmd, is_readable_executable_file, \
     exec_command, exec_command_and_wait_for_pattern, get_qemu_img, which
 from .testcase import QemuBaseTest, QemuUserTest, QemuSystemTest
 from .linuxkernel import LinuxKernelTest
+from .decorators import skipIfMissingCommands, skipIfNotMachine, \
+    skipFlakyTest, skipUntrustedTest, skipBigDataTest, \
+    skipIfMissingImports
