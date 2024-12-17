@@ -12,6 +12,8 @@ import subprocess
 import tarfile
 import zipfile
 
+from .cmd import run_cmd
+
 
 def tar_extract(archive, dest_dir, member=None):
     with tarfile.open(archive) as tf:
@@ -37,3 +39,14 @@ def zip_extract(archive, dest_dir, member=None):
             zf.extract(member=member, path=dest_dir)
         else:
             zf.extractall(path=dest_dir)
+
+def deb_extract(archive, dest_dir, member=None):
+    cwd = os.getcwd()
+    os.chdir(dest_dir)
+    try:
+        (stdout, stderr, ret) = run_cmd(['ar', 't', archive])
+        file_path = stdout.split()[2]
+        run_cmd(['ar', 'x', archive, file_path])
+        tar_extract(file_path, dest_dir, member)
+    finally:
+        os.chdir(cwd)
