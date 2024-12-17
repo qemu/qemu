@@ -15,6 +15,7 @@ import urllib.request
 from time import sleep
 from pathlib import Path
 from shutil import copyfileobj
+from urllib.error import HTTPError
 
 
 # Instances of this class must be declared as class level variables
@@ -170,7 +171,18 @@ class Asset:
         for name, asset in vars(test.__class__).items():
             if name.startswith("ASSET_") and type(asset) == Asset:
                 log.info("Attempting to cache '%s'" % asset)
-                asset.fetch()
+                try:
+                    asset.fetch()
+                except HTTPError as e:
+                    # Treat 404 as fatal, since it is highly likely to
+                    # indicate a broken test rather than a transient
+                    # server or networking problem
+                    if e.code == 404:
+                        raise
+
+                    log.debug(f"HTTP error {e.code} from {asset.url} " +
+                              "skipping asset precache")
+
         log.removeHandler(handler)
 
     def precache_suite(suite):
