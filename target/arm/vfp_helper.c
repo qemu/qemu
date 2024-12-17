@@ -1099,8 +1099,6 @@ float64 HELPER(rintd)(float64 x, void *fp_status)
 
     ret = float64_round_to_int(x, fp_status);
 
-    new_flags = get_float_exception_flags(fp_status);
-
     /* Suppress any inexact exceptions the conversion produced */
     if (!(old_flags & float_flag_inexact)) {
         new_flags = get_float_exception_flags(fp_status);
