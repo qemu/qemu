@@ -384,10 +384,9 @@ float64 HELPER(frecpx_f64)(float64 a, float_status *fpst)
     }
 }
 
-float32 HELPER(fcvtx_f64_to_f32)(float64 a, CPUARMState *env)
+float32 HELPER(fcvtx_f64_to_f32)(float64 a, float_status *fpst)
 {
     float32 r;
-    float_status *fpst = &env->vfp.fp_status;
     int old = get_float_rounding_mode(fpst);
 
     set_float_rounding_mode(float_round_to_odd, fpst);
