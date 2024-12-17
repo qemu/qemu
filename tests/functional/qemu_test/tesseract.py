@@ -7,17 +7,7 @@
 
 import logging
 
-from . import has_cmd, run_cmd
-
-def tesseract_available(expected_version):
-    (has_tesseract, _) = has_cmd('tesseract')
-    if not has_tesseract:
-        return False
-    (stdout, stderr, ret) = run_cmd([ 'tesseract', '--version'])
-    if ret:
-        return False
-    version = stdout.split()[1]
-    return int(version.split('.')[0]) >= expected_version
+from . import run_cmd
 
 def tesseract_ocr(image_path, tesseract_args=''):
     console_logger = logging.getLogger('console')

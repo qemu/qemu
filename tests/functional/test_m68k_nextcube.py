@@ -13,7 +13,8 @@ import time
 from qemu_test import QemuSystemTest, Asset
 from unittest import skipUnless
 
-from qemu_test.tesseract import tesseract_available, tesseract_ocr
+from qemu_test import has_cmd
+from qemu_test.tesseract import tesseract_ocr
 
 PIL_AVAILABLE = True
 try:
@@ -53,10 +54,7 @@ class NextCubeMachine(QemuSystemTest):
         self.assertEqual(width, 1120)
         self.assertEqual(height, 832)
 
-    # Tesseract 4 adds a new OCR engine based on LSTM neural networks. The
-    # new version is faster and more accurate than version 3. The drawback is
-    # that it is still alpha-level software.
-    @skipUnless(tesseract_available(4), 'tesseract OCR tool not available')
+    @skipUnless(*has_cmd('tesseract'))
     def test_bootrom_framebuffer_ocr_with_tesseract(self):
         self.set_machine('next-cube')
         screenshot_path = os.path.join(self.workdir, "dump.ppm")
