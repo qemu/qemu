@@ -11,7 +11,7 @@ import os
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import archive_extract
+
 
 class AST2x00MachineSDK(QemuSystemTest):
 
@@ -34,8 +34,7 @@ class AST2x00MachineSDK(QemuSystemTest):
     def test_aarch64_ast2700_evb_sdk_v09_02(self):
         self.set_machine('ast2700-evb')
 
-        image_path = self.ASSET_SDK_V902_AST2700.fetch()
-        archive_extract(image_path, self.workdir)
+        self.archive_extract(self.ASSET_SDK_V902_AST2700)
 
         num_cpu = 4
         uboot_size = os.path.getsize(self.scratch_file('ast2700-default',

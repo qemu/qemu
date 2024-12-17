@@ -13,7 +13,6 @@ from qemu_test import QemuSystemTest, LinuxKernelTest, Asset
 from qemu_test import interrupt_interactive_console_until_pattern
 from qemu_test import wait_for_console_pattern
 from qemu_test.utils import lzma_uncompress
-from zipfile import ZipFile
 
 
 class MaltaMachineConsole(LinuxKernelTest):
@@ -73,9 +72,7 @@ class MaltaMachineYAMON(QemuSystemTest):
 
     def test_mipsel_malta_yamon(self):
         yamon_bin = 'yamon-02.22.bin'
-        zip_path = self.ASSET_YAMON_ROM.fetch()
-        with ZipFile(zip_path, 'r') as zf:
-            zf.extract(yamon_bin, path=self.workdir)
+        self.archive_extract(self.ASSET_YAMON_ROM)
         yamon_path = self.scratch_file(yamon_bin)
 
         self.set_machine('malta')

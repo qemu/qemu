@@ -11,7 +11,7 @@ import time
 from qemu_test import exec_command, exec_command_and_wait_for_pattern
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from qemu_test.utils import archive_extract
+
 
 class MicroblazeelMachine(QemuSystemTest):
 
@@ -24,8 +24,7 @@ class MicroblazeelMachine(QemuSystemTest):
     def test_microblazeel_s3adsp1800(self):
         self.require_netdev('user')
         self.set_machine('petalogix-s3adsp1800')
-        file_path = self.ASSET_IMAGE.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_IMAGE)
         self.vm.set_console()
         self.vm.add_args('-kernel', self.scratch_file('day13', 'xmaton.bin'))
         tftproot = self.scratch_file('day13')

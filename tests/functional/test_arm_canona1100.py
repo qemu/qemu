@@ -12,7 +12,7 @@
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from qemu_test.utils import archive_extract
+
 
 class CanonA1100Machine(QemuSystemTest):
     """Boots the barebox firmware and checks that the console is operational"""
@@ -26,13 +26,10 @@ class CanonA1100Machine(QemuSystemTest):
     def test_arm_canona1100(self):
         self.set_machine('canon-a1100')
 
-        file_path = self.ASSET_BIOS.fetch()
-        archive_extract(file_path, dest_dir=self.workdir,
-                        member="day18/barebox.canon-a1100.bin")
+        bios = self.archive_extract(self.ASSET_BIOS,
+                                    member="day18/barebox.canon-a1100.bin")
         self.vm.set_console()
-        self.vm.add_args('-bios',
-                         self.scratch_file('day18',
-                                           'barebox.canon-a1100.bin'))
+        self.vm.add_args('-bios', bios)
         self.vm.launch()
         wait_for_console_pattern(self, 'running /env/bin/init')
 

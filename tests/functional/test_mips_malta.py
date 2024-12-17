@@ -20,9 +20,9 @@ class MaltaMachineConsole(LinuxKernelTest):
         '16ca524148afb0626f483163e5edf352bc1ab0e4fc7b9f9d473252762f2c7a43')
 
     def test_mips_malta(self):
-        deb_path = self.ASSET_KERNEL_2_63_2.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-2.6.32-5-4kc-malta')
+        kernel_path = self.archive_extract(
+            self.ASSET_KERNEL_2_63_2,
+            member='boot/vmlinux-2.6.32-5-4kc-malta')
 
         self.set_machine('malta')
         self.vm.set_console()
@@ -46,9 +46,9 @@ class MaltaMachineConsole(LinuxKernelTest):
         'dcfe3a7fe3200da3a00d176b95caaa086495eb158f2bff64afc67d7e1eb2cddc')
 
     def test_mips_malta_cpio(self):
-        deb_path = self.ASSET_KERNEL_4_5_0.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-4.5.0-2-4kc-malta')
+        kernel_path = self.archive_extract(
+            self.ASSET_KERNEL_4_5_0,
+            member='boot/vmlinux-4.5.0-2-4kc-malta')
         initrd_path_gz = self.ASSET_INITRD.fetch()
         initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)

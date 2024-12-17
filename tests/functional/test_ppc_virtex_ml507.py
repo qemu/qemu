@@ -7,9 +7,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test.utils import archive_extract
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
+
 
 class VirtexMl507Machine(QemuSystemTest):
 
@@ -25,8 +25,7 @@ class VirtexMl507Machine(QemuSystemTest):
     def test_ppc_virtex_ml507(self):
         self.require_accelerator("tcg")
         self.set_machine('virtex-ml507')
-        file_path = self.ASSET_IMAGE.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_IMAGE)
         self.vm.set_console()
         self.vm.add_args('-kernel', self.scratch_file('hippo', 'hippo.linux'),
                          '-dtb', self.scratch_file('hippo',

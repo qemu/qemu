@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import archive_extract
+
 
 class XTensaLX60Test(LinuxKernelTest):
 
@@ -17,8 +17,7 @@ class XTensaLX60Test(LinuxKernelTest):
     def test_xtensa_lx60(self):
         self.set_machine('lx60')
         self.cpu = 'dc233c'
-        file_path = self.ASSET_DAY02.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY02)
         self.launch_kernel(self.scratch_file('day02',
                                              'santas-sleigh-ride.elf'),
                            wait_for='QEMU advent calendar')

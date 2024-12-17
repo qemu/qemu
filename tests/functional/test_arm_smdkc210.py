@@ -25,11 +25,10 @@ class Smdkc210Machine(LinuxKernelTest):
     def test_arm_exynos4210_initrd(self):
         self.set_machine('smdkc210')
 
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-4.19.0-6-armmp')
-        dtb_path = '/usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        kernel_path = self.archive_extract(self.ASSET_DEB,
+                                           member='boot/vmlinuz-4.19.0-6-armmp')
+        dtb_path = 'usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
         initrd_path_gz = self.ASSET_ROOTFS.fetch()
         initrd_path = self.scratch_file('rootfs.cpio')

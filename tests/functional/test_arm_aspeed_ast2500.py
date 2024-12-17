@@ -7,7 +7,7 @@
 from qemu_test import Asset
 from aspeed import AspeedTest
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import archive_extract
+
 
 class AST2500Machine(AspeedTest):
 
@@ -45,9 +45,7 @@ class AST2500Machine(AspeedTest):
     def test_arm_ast2500_evb_sdk(self):
         self.set_machine('ast2500-evb')
 
-        image_path = self.ASSET_SDK_V806_AST2500.fetch()
-
-        archive_extract(image_path, self.workdir)
+        self.archive_extract(self.ASSET_SDK_V806_AST2500)
 
         self.do_test_arm_aspeed_sdk_start(
             self.scratch_file("ast2500-default", "image-bmc"))

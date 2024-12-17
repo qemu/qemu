@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import archive_extract
+
 
 class E500Test(LinuxKernelTest):
 
@@ -16,8 +16,7 @@ class E500Test(LinuxKernelTest):
     def test_ppc64_e500(self):
         self.set_machine('ppce500')
         self.cpu = 'e5500'
-        file_path = self.ASSET_DAY19.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY19)
         self.launch_kernel(self.scratch_file('day19', 'uImage'),
                            wait_for='QEMU advent calendar')
 

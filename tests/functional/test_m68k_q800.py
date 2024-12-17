@@ -18,9 +18,8 @@ class Q800MachineTest(LinuxKernelTest):
     def test_m68k_q800(self):
         self.set_machine('q800')
 
-        deb_path = self.ASSET_KERNEL.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-5.3.0-1-m68k')
+        kernel_path = self.archive_extract(self.ASSET_KERNEL,
+                                           member='boot/vmlinux-5.3.0-1-m68k')
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +

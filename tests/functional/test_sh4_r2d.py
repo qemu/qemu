@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset, skipFlakyTest
-from qemu_test.utils import archive_extract
+
 
 class R2dTest(LinuxKernelTest):
 
@@ -19,8 +19,7 @@ class R2dTest(LinuxKernelTest):
     @skipFlakyTest(bug_url=None)
     def test_r2d(self):
         self.set_machine('r2d')
-        file_path = self.ASSET_DAY09.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY09)
         self.vm.add_args('-append', 'console=ttySC1')
         self.launch_kernel(self.scratch_file('day09', 'zImage'),
                            console_index=1,

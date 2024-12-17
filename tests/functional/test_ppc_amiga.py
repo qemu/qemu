@@ -11,7 +11,7 @@ import subprocess
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from zipfile import ZipFile
+
 
 class AmigaOneMachine(QemuSystemTest):
 
@@ -26,9 +26,7 @@ class AmigaOneMachine(QemuSystemTest):
         self.require_accelerator("tcg")
         self.set_machine('amigaone')
         tar_name = 'A1Firmware_Floppy_05-Mar-2005.zip'
-        zip_file = self.ASSET_IMAGE.fetch()
-        with ZipFile(zip_file, 'r') as zf:
-            zf.extractall(path=self.workdir)
+        self.archive_extract(self.ASSET_IMAGE, format="zip")
         bios = self.scratch_file("u-boot-amigaone.bin")
         with open(bios, "wb") as bios_fh:
             subprocess.run(['tail', '-c', '524288',

@@ -8,7 +8,7 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from zipfile import ZipFile
+
 
 class AST1030Machine(LinuxKernelTest):
 
@@ -20,12 +20,9 @@ class AST1030Machine(LinuxKernelTest):
     def test_ast1030_zephyros_1_04(self):
         self.set_machine('ast1030-evb')
 
-        zip_file = self.ASSET_ZEPHYR_1_04.fetch()
-
         kernel_name = "ast1030-evb-demo/zephyr.elf"
-        with ZipFile(zip_file, 'r') as zf:
-                     zf.extract(kernel_name, path=self.workdir)
-        kernel_file = self.scratch_file(kernel_name)
+        kernel_file = self.archive_extract(
+            self.ASSET_ZEPHYR_1_04, member=kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')
@@ -42,12 +39,9 @@ class AST1030Machine(LinuxKernelTest):
     def test_ast1030_zephyros_1_07(self):
         self.set_machine('ast1030-evb')
 
-        zip_file = self.ASSET_ZEPHYR_1_07.fetch()
-
         kernel_name = "ast1030-evb-demo/zephyr.bin"
-        with ZipFile(zip_file, 'r') as zf:
-                     zf.extract(kernel_name, path=self.workdir)
-        kernel_file = self.scratch_file(kernel_name)
+        kernel_file = self.archive_extract(
+            self.ASSET_ZEPHYR_1_07, member=kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')

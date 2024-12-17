@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import archive_extract
+
 
 class Sun4mTest(LinuxKernelTest):
 
@@ -16,8 +16,7 @@ class Sun4mTest(LinuxKernelTest):
 
     def test_sparc_ss20(self):
         self.set_machine('SS-20')
-        file_path = self.ASSET_DAY11.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY11)
         self.launch_kernel(self.scratch_file('day11', 'zImage.elf'),
                            wait_for='QEMU advent calendar')
 

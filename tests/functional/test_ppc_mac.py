@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import archive_extract
+
 
 class MacTest(LinuxKernelTest):
 
@@ -19,9 +19,7 @@ class MacTest(LinuxKernelTest):
         # we're running kvm_hv or kvm_pr. For now let's disable this test
         # if we don't have TCG support.
         self.require_accelerator("tcg")
-
-        file_path = self.ASSET_DAY15.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY15)
         self.vm.add_args('-M', 'graphics=off')
         self.launch_kernel(self.scratch_file('day15', 'invaders.elf'),
                            wait_for='QEMU advent calendar')

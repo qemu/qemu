@@ -30,9 +30,10 @@ class Aarch64Raspi4Machine(LinuxKernelTest):
         '7c0b16d1853772f6f4c3ca63e789b3b9ff4936efac9c8a01fb0c98c05c7a7648')
 
     def test_arm_raspi4(self):
-        deb_path = self.ASSET_KERNEL_20190215.fetch()
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel8.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2711-rpi-4-b.dtb')
+        kernel_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                           member='boot/kernel8.img')
+        dtb_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                        member='boot/bcm2711-rpi-4-b.dtb')
 
         self.set_machine('raspi4b')
         self.vm.set_console()
@@ -58,9 +59,10 @@ class Aarch64Raspi4Machine(LinuxKernelTest):
 
 
     def test_arm_raspi4_initrd(self):
-        deb_path = self.ASSET_KERNEL_20190215.fetch()
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel8.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2711-rpi-4-b.dtb')
+        kernel_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                           member='boot/kernel8.img')
+        dtb_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                        member='boot/bcm2711-rpi-4-b.dtb')
         initrd_path_gz = self.ASSET_INITRD.fetch()
         initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)

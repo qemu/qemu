@@ -6,7 +6,7 @@
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import archive_extract
+
 
 class R2dEBTest(LinuxKernelTest):
 
@@ -16,8 +16,7 @@ class R2dEBTest(LinuxKernelTest):
 
     def test_sh4eb_r2d(self):
         self.set_machine('r2d')
-        file_path = self.ASSET_TGZ.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_TGZ)
         self.vm.add_args('-append', 'console=ttySC1 noiotrap')
         self.launch_kernel(self.scratch_file('sh4eb', 'linux-kernel'),
                            initrd=self.scratch_file('sh4eb',

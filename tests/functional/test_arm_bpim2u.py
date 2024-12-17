@@ -39,12 +39,11 @@ class BananaPiMachine(LinuxKernelTest):
 
     def test_arm_bpim2u(self):
         self.set_machine('bpim2u')
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -61,12 +60,11 @@ class BananaPiMachine(LinuxKernelTest):
 
     def test_arm_bpim2u_initrd(self):
         self.set_machine('bpim2u')
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
         initrd_path_gz = self.ASSET_INITRD.fetch()
         initrd_path = self.scratch_file('rootfs.cpio')
         gzip_uncompress(initrd_path_gz, initrd_path)
@@ -100,11 +98,11 @@ class BananaPiMachine(LinuxKernelTest):
         self.require_netdev('user')
 
         deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
         rootfs_path_xz = self.ASSET_ROOTFS.fetch()
         rootfs_path = self.scratch_file('rootfs.cpio')
         lzma_uncompress(rootfs_path_xz, rootfs_path)

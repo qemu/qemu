@@ -12,7 +12,6 @@ import subprocess
 from qemu_test import Asset
 from aspeed import AspeedTest
 from qemu_test import exec_command_and_wait_for_pattern, skipIfMissingCommands
-from qemu_test.utils import archive_extract
 
 
 class AST2600Machine(AspeedTest):
@@ -105,9 +104,7 @@ class AST2600Machine(AspeedTest):
     def test_arm_ast2600_evb_sdk(self):
         self.set_machine('ast2600-evb')
 
-        image_path = self.ASSET_SDK_V806_AST2600_A2.fetch()
-
-        archive_extract(image_path, self.workdir)
+        self.archive_extract(self.ASSET_SDK_V806_AST2600_A2)
 
         self.vm.add_args('-device',
             'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test');

@@ -26,9 +26,9 @@ class MipsFuloong2e(LinuxKernelTest):
         '2a70f15b397f4ced632b0c15cb22660394190644146d804d60a4796eefbe1f50')
 
     def test_linux_kernel_3_16(self):
-        deb_path = self.ASSET_KERNEL.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-3.16.0-6-loongson-2e')
+        kernel_path = self.archive_extract(
+            self.ASSET_KERNEL,
+            member='boot/vmlinux-3.16.0-6-loongson-2e')
 
         self.set_machine('fuloong2e')
         self.vm.set_console()
