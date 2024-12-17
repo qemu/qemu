@@ -14,7 +14,6 @@
 import logging
 import os
 import os.path
-import subprocess
 
 
 def which(tool):
@@ -27,16 +26,6 @@ def which(tool):
         if os.access(p, os.X_OK):
             return p
     return None
-
-def run_cmd(args):
-    subp = subprocess.Popen(args,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            universal_newlines=True)
-    stdout, stderr = subp.communicate()
-    ret = subp.returncode
-
-    return (stdout, stderr, ret)
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
