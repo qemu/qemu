@@ -25,7 +25,7 @@ def which(tool):
     paths=os.getenv('PATH')
     for p in paths.split(os.path.pathsep):
         p = os.path.join(p, tool)
-        if os.path.exists(p) and os.access(p, os.X_OK):
+        if os.access(p, os.X_OK):
             return p
     return None
 
