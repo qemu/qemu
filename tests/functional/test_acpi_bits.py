@@ -38,7 +38,6 @@ import subprocess
 import tarfile
 import zipfile
 
-from pathlib import Path
 from typing import (
     List,
     Optional,
@@ -119,7 +118,6 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._vm = None
-        self._baseDir = None
 
         self._debugcon_addr = '0x403'
         self._debugcon_log = 'debugcon-log.txt'
@@ -134,26 +132,22 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
     def copy_bits_config(self):
         """ copies the bios bits config file into bits.
         """
-        config_file = 'bits-cfg.txt'
-        bits_config_dir = os.path.join(self._baseDir, 'acpi-bits',
-                                       'bits-config')
+        bits_config_file = self.data_file('acpi-bits',
+                                          'bits-config',
+                                          'bits-cfg.txt')
         target_config_dir = os.path.join(self.workdir,
                                          'bits-%d' %self.BITS_INTERNAL_VER,
                                          'boot')
-        self.assertTrue(os.path.exists(bits_config_dir))
+        self.assertTrue(os.path.exists(bits_config_file))
         self.assertTrue(os.path.exists(target_config_dir))
-        self.assertTrue(os.access(os.path.join(bits_config_dir,
-                                               config_file), os.R_OK))
-        shutil.copy2(os.path.join(bits_config_dir, config_file),
-                     target_config_dir)
+        shutil.copy2(bits_config_file, target_config_dir)
         self.logger.info('copied config file %s to %s',
-                         config_file, target_config_dir)
+                         bits_config_file, target_config_dir)
 
     def copy_test_scripts(self):
         """copies the python test scripts into bits. """
 
-        bits_test_dir = os.path.join(self._baseDir, 'acpi-bits',
-                                     'bits-tests')
+        bits_test_dir = self.data_file('acpi-bits', 'bits-tests')
         target_test_dir = os.path.join(self.workdir,
                                        'bits-%d' %self.BITS_INTERNAL_VER,
                                        'boot', 'python')
@@ -255,8 +249,6 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
     def setUp(self): # pylint: disable=arguments-differ
         super().setUp()
         self.logger = self.log
-
-        self._baseDir = Path(__file__).parent
 
         prebuiltDir = os.path.join(self.workdir, 'prebuilt')
         if not os.path.isdir(prebuiltDir):
