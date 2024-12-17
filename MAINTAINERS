@@ -4157,6 +4157,7 @@ W: https://cirrus-ci.com/github/qemu/qemu
 Functional testing framework
 M: Thomas Huth <thuth@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
+R: Daniel P. Berrange <berrange@redhat.com>
 F: tests/functional/qemu_test/
 
 Windows Hosted Continuous Integration
