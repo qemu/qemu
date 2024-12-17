@@ -29,52 +29,6 @@ def which(tool):
             return p
     return None
 
-def has_cmd(name, args=None):
-    """
-    This function is for use in a @skipUnless decorator, e.g.:
-
-        @skipUnless(*has_cmd('sudo -n', ('sudo', '-n', 'true')))
-        def test_something_that_needs_sudo(self):
-            ...
-    """
-
-    if args is None:
-        args = ('which', name)
-
-    try:
-        _, stderr, exitcode = run_cmd(args)
-    except Exception as e:
-        exitcode = -1
-        stderr = str(e)
-
-    if exitcode != 0:
-        cmd_line = ' '.join(args)
-        err = f'{name} required, but "{cmd_line}" failed: {stderr.strip()}'
-        return (False, err)
-    else:
-        return (True, '')
-
-def has_cmds(*cmds):
-    """
-    This function is for use in a @skipUnless decorator and
-    allows checking for the availability of multiple commands, e.g.:
-
-        @skipUnless(*has_cmds(('cmd1', ('cmd1', '--some-parameter')),
-                              'cmd2', 'cmd3'))
-        def test_something_that_needs_cmd1_and_cmd2(self):
-            ...
-    """
-
-    for cmd in cmds:
-        if isinstance(cmd, str):
-            cmd = (cmd,)
-
-        ok, errstr = has_cmd(*cmd)
-        if not ok:
-            return (False, errstr)
-
-    return (True, '')
-
 def run_cmd(args):
     subp = subprocess.Popen(args,
                             stdout=subprocess.PIPE,
@@ -254,7 +208,7 @@ def get_qemu_img(test):
     qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
     if os.path.exists(qemu_img):
         return qemu_img
-    (has_system_qemu_img, errmsg) = has_cmd('qemu-img')
-    if has_system_qemu_img:
-        return 'qemu-img'
-    test.skipTest(errmsg)
+    qemu_img = which('qemu-img')
+    if qemu_img is not None:
+        return qemu_img
+    test.skipTest(f"qemu-img not found in {BUILD_DIR} or '$PATH'")
