@@ -1180,51 +1180,44 @@ uint64_t HELPER(neon_qneg_s64)(CPUARMState *env, uint64_t x)
  * Note that EQ doesn't signal InvalidOp for QNaNs but GE and GT do.
  * Softfloat routines return 0/1, which we convert to the 0/-1 Neon requires.
  */
-uint32_t HELPER(neon_ceq_f32)(uint32_t a, uint32_t b, void *fpstp)
+uint32_t HELPER(neon_ceq_f32)(uint32_t a, uint32_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     return -float32_eq_quiet(make_float32(a), make_float32(b), fpst);
 }
 
-uint32_t HELPER(neon_cge_f32)(uint32_t a, uint32_t b, void *fpstp)
+uint32_t HELPER(neon_cge_f32)(uint32_t a, uint32_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     return -float32_le(make_float32(b), make_float32(a), fpst);
 }
 
-uint32_t HELPER(neon_cgt_f32)(uint32_t a, uint32_t b, void *fpstp)
+uint32_t HELPER(neon_cgt_f32)(uint32_t a, uint32_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     return -float32_lt(make_float32(b), make_float32(a), fpst);
 }
 
-uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b, void *fpstp)
+uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
     return -float32_le(f1, f0, fpst);
 }
 
-uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b, void *fpstp)
+uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
     return -float32_lt(f1, f0, fpst);
 }
 
-uint64_t HELPER(neon_acge_f64)(uint64_t a, uint64_t b, void *fpstp)
+uint64_t HELPER(neon_acge_f64)(uint64_t a, uint64_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     float64 f0 = float64_abs(make_float64(a));
     float64 f1 = float64_abs(make_float64(b));
     return -float64_le(f1, f0, fpst);
 }
 
-uint64_t HELPER(neon_acgt_f64)(uint64_t a, uint64_t b, void *fpstp)
+uint64_t HELPER(neon_acgt_f64)(uint64_t a, uint64_t b, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     float64 f0 = float64_abs(make_float64(a));
     float64 f1 = float64_abs(make_float64(b));
     return -float64_lt(f1, f0, fpst);
