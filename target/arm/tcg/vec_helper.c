@@ -2057,28 +2057,25 @@ static void do_fmlal(float32 *d, void *vn, void *vm, float_status *fpst,
 }
 
 void HELPER(gvec_fmlal_a32)(void *vd, void *vn, void *vm,
-                            void *venv, uint32_t desc)
+                            CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal(vd, vn, vm, &env->vfp.standard_fp_status, desc,
              get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(gvec_fmlal_a64)(void *vd, void *vn, void *vm,
-                            void *venv, uint32_t desc)
+                            CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal(vd, vn, vm, &env->vfp.fp_status, desc,
              get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
-                               void *venv, uint32_t desc)
+                               CPUARMState *env, uint32_t desc)
 {
     intptr_t i, oprsz = simd_oprsz(desc);
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
-    CPUARMState *env = venv;
     float_status *status = &env->vfp.fp_status;
     bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
 
@@ -2122,29 +2119,26 @@ static void do_fmlal_idx(float32 *d, void *vn, void *vm, float_status *fpst,
 }
 
 void HELPER(gvec_fmlal_idx_a32)(void *vd, void *vn, void *vm,
-                                void *venv, uint32_t desc)
+                                CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal_idx(vd, vn, vm, &env->vfp.standard_fp_status, desc,
                  get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(gvec_fmlal_idx_a64)(void *vd, void *vn, void *vm,
-                                void *venv, uint32_t desc)
+                                CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status, desc,
                  get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
-                               void *venv, uint32_t desc)
+                               CPUARMState *env, uint32_t desc)
 {
     intptr_t i, j, oprsz = simd_oprsz(desc);
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
     intptr_t idx = extract32(desc, SIMD_DATA_SHIFT + 2, 3) * sizeof(float16);
-    CPUARMState *env = venv;
     float_status *status = &env->vfp.fp_status;
     bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
 
@@ -2562,10 +2556,9 @@ DO_VRINT_RMODE(gvec_vrint_rm_s, helper_rints, uint32_t)
 #undef DO_VRINT_RMODE
 
 #ifdef TARGET_AARCH64
-void HELPER(simd_tblx)(void *vd, void *vm, void *venv, uint32_t desc)
+void HELPER(simd_tblx)(void *vd, void *vm, CPUARMState *env, uint32_t desc)
 {
     const uint8_t *indices = vm;
-    CPUARMState *env = venv;
     size_t oprsz = simd_oprsz(desc);
     uint32_t rn = extract32(desc, SIMD_DATA_SHIFT, 5);
     bool is_tbx = extract32(desc, SIMD_DATA_SHIFT + 5, 1);
