@@ -47,24 +47,13 @@ from typing import (
 )
 from qemu.machine import QEMUMachine
 from unittest import skipIf
-from qemu_test import QemuSystemTest, Asset
+from qemu_test import QemuSystemTest, Asset, which
 
 deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
 supported_platforms = ['x86_64'] # supported test platforms.
 
 # default timeout of 120 secs is sometimes not enough for bits test.
 BITS_TIMEOUT = 200
-
-def which(tool):
-    """ looks up the full path for @tool, returns None if not found
-        or if @tool does not have executable permissions.
-    """
-    paths=os.getenv('PATH')
-    for p in paths.split(os.path.pathsep):
-        p = os.path.join(p, tool)
-        if os.path.exists(p) and os.access(p, os.X_OK):
-            return p
-    return None
 
 def missing_deps():
     """ returns True if any of the test dependent tools are absent.
