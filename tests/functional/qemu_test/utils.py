@@ -12,8 +12,9 @@ import gzip
 import lzma
 import os
 import shutil
-import subprocess
-import tarfile
+
+from .archive import tar_extract as archive_extract
+from .archive import cpio_extract
 
 """
 Round up to next power of 2
@@ -36,16 +37,6 @@ def image_pow2ceil_expand(path):
             with open(path, 'ab+') as fd:
                 fd.truncate(size_aligned)
 
-def archive_extract(archive, dest_dir, member=None):
-    with tarfile.open(archive) as tf:
-        if hasattr(tarfile, 'data_filter'):
-            tf.extraction_filter = getattr(tarfile, 'data_filter',
-                                           (lambda member, path: member))
-        if member:
-            tf.extract(member=member, path=dest_dir)
-        else:
-            tf.extractall(path=dest_dir)
-
 def gzip_uncompress(gz_path, output_path):
     if os.path.exists(output_path):
         return
@@ -67,11 +58,3 @@ def lzma_uncompress(xz_path, output_path):
         except:
             os.remove(output_path)
             raise
-
-def cpio_extract(cpio_handle, output_path):
-    cwd = os.getcwd()
-    os.chdir(output_path)
-    subprocess.run(['cpio', '-i'],
-                   input=cpio_handle.read(),
-                   stderr=subprocess.DEVNULL)
-    os.chdir(cwd)
