@@ -8,7 +8,7 @@
 #  Thomas Huth <thuth@redhat.com>
 
 import os
-import subprocess
+from subprocess import check_call, run, DEVNULL
 import tarfile
 import zipfile
 
@@ -25,12 +25,18 @@ def tar_extract(archive, dest_dir, member=None):
         else:
             tf.extractall(path=dest_dir)
 
-def cpio_extract(cpio_handle, output_path):
+def cpio_extract(archive, output_path):
     cwd = os.getcwd()
     os.chdir(output_path)
-    subprocess.run(['cpio', '-i'],
-                   input=cpio_handle.read(),
-                   stderr=subprocess.DEVNULL)
+    # Not passing 'check=True' as cpio exits with non-zero
+    # status if the archive contains any device nodes :-(
+    if type(archive) == str:
+        run(['cpio', '-i', '-F', archive],
+            stdout=DEVNULL, stderr=DEVNULL)
+    else:
+        run(['cpio', '-i'],
+            input=archive.read(),
+            stdout=DEVNULL, stderr=DEVNULL)
     os.chdir(cwd)
 
 def zip_extract(archive, dest_dir, member=None):
