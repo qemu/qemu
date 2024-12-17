@@ -10,6 +10,7 @@
 import os
 import subprocess
 import tarfile
+import zipfile
 
 
 def tar_extract(archive, dest_dir, member=None):
@@ -29,3 +30,10 @@ def cpio_extract(cpio_handle, output_path):
                    input=cpio_handle.read(),
                    stderr=subprocess.DEVNULL)
     os.chdir(cwd)
+
+def zip_extract(archive, dest_dir, member=None):
+    with zipfile.ZipFile(archive, 'r') as zf:
+        if member:
+            zf.extract(member=member, path=dest_dir)
+        else:
+            zf.extractall(path=dest_dir)
