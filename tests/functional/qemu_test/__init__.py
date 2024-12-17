@@ -16,3 +16,4 @@ from .linuxkernel import LinuxKernelTest
 from .decorators import skipIfMissingCommands, skipIfNotMachine, \
     skipFlakyTest, skipUntrustedTest, skipBigDataTest, \
     skipIfMissingImports
+from .archive import archive_extract
