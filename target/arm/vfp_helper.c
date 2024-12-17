@@ -400,14 +400,14 @@ FLOAT_CONVS(ui, d, float64, 64, u)
 #undef FLOAT_CONVS
 
 /* floating point conversion */
-float64 VFP_HELPER(fcvtd, s)(float32 x, CPUARMState *env)
+float64 VFP_HELPER(fcvtd, s)(float32 x, float_status *status)
 {
-    return float32_to_float64(x, &env->vfp.fp_status);
+    return float32_to_float64(x, status);
 }
 
-float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
+float32 VFP_HELPER(fcvts, d)(float64 x, float_status *status)
 {
-    return float64_to_float32(x, &env->vfp.fp_status);
+    return float64_to_float32(x, status);
 }
 
 uint32_t HELPER(bfcvt)(float32 x, float_status *status)
