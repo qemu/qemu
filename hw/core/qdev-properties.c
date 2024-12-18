@@ -1058,22 +1058,6 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, const Property *prop
         NULL, NULL, (Property *)prop);
 }
 
-void (device_class_set_props)(DeviceClass *dc, const Property *props)
-{
-    const Property *prop;
-    size_t n;
-
-    dc->props_ = props;
-    for (prop = props, n = 0; prop && prop->name; prop++, n++) {
-        qdev_class_add_legacy_property(dc, prop);
-        qdev_class_add_property(dc, prop->name, prop);
-    }
-
-    /* We used a hole in DeviceClass because that's still a lot. */
-    assert(n <= UINT16_MAX);
-    dc->props_count_ = n;
-}
-
 void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n)
 {
     /* We used a hole in DeviceClass because that's still a lot. */

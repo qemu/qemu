@@ -948,22 +948,18 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
  * To modify an inherited property you need to use????
  *
  * Validate that @props has at least one Property plus the terminator.
+ * Validate that @props is an array, not a pointer, via ARRAY_SIZE.
  * Validate that the array is terminated at compile-time (with -O2),
  * which requires the array to be const.
  */
-void device_class_set_props(DeviceClass *dc, const Property *props);
-
 #define device_class_set_props(dc, props) \
     do {                                                                \
-        QEMU_BUILD_BUG_ON(sizeof(props) != sizeof(const Property *) &&  \
-                          sizeof(props) < 2 * sizeof(Property));        \
-        if (sizeof(props) != sizeof(const Property *)) {                \
-            size_t props_count_ = sizeof(props) / sizeof(Property) - 1; \
-            if ((props)[props_count_].name != NULL) {                   \
-                qemu_build_not_reached();                               \
-            }                                                           \
+        QEMU_BUILD_BUG_ON(sizeof(props) == 0);                          \
+        size_t props_count_ = ARRAY_SIZE(props) - 1;                    \
+        if ((props)[props_count_].name != NULL) {                       \
+            qemu_build_not_reached();                                   \
         }                                                               \
-        (device_class_set_props)((dc), (props));                        \
+        device_class_set_props_n((dc), (props), props_count_);          \
     } while (0)
 
 /**
