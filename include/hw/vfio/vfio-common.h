@@ -143,7 +143,7 @@ typedef struct VFIODevice {
     OnOffAuto pre_copy_dirty_page_tracking;
     OnOffAuto device_dirty_page_tracking;
     bool dirty_pages_supported;
-    bool dirty_tracking;
+    bool dirty_tracking; /* Protected by BQL */
     bool iommu_dirty_tracking;
     HostIOMMUDevice *hiod;
     int devid;
