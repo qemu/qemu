@@ -873,13 +873,12 @@ DO_DOT_IDX(gvec_sdot_idx_h, int64_t, int16_t, int16_t, H8)
 DO_DOT_IDX(gvec_udot_idx_h, uint64_t, uint16_t, uint16_t, H8)
 
 void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float16 *d = vd;
     float16 *n = vn;
     float16 *m = vm;
-    float_status *fpst = vfpst;
     uint32_t neg_real = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = neg_real ^ 1;
     uintptr_t i;
@@ -901,13 +900,12 @@ void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
 }
 
 void HELPER(gvec_fcadds)(void *vd, void *vn, void *vm,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float32 *d = vd;
     float32 *n = vn;
     float32 *m = vm;
-    float_status *fpst = vfpst;
     uint32_t neg_real = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = neg_real ^ 1;
     uintptr_t i;
@@ -929,13 +927,12 @@ void HELPER(gvec_fcadds)(void *vd, void *vn, void *vm,
 }
 
 void HELPER(gvec_fcaddd)(void *vd, void *vn, void *vm,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float64 *d = vd;
     float64 *n = vn;
     float64 *m = vm;
-    float_status *fpst = vfpst;
     uint64_t neg_real = extract64(desc, SIMD_DATA_SHIFT, 1);
     uint64_t neg_imag = neg_real ^ 1;
     uintptr_t i;
@@ -957,11 +954,10 @@ void HELPER(gvec_fcaddd)(void *vd, void *vn, void *vm,
 }
 
 void HELPER(gvec_fcmlah)(void *vd, void *vn, void *vm, void *va,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float16 *d = vd, *n = vn, *m = vm, *a = va;
-    float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     uint32_t neg_real = flip ^ neg_imag;
@@ -984,11 +980,10 @@ void HELPER(gvec_fcmlah)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm, void *va,
-                             void *vfpst, uint32_t desc)
+                             float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float16 *d = vd, *n = vn, *m = vm, *a = va;
-    float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
@@ -1019,11 +1014,10 @@ void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_fcmlas)(void *vd, void *vn, void *vm, void *va,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float32 *d = vd, *n = vn, *m = vm, *a = va;
-    float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     uint32_t neg_real = flip ^ neg_imag;
@@ -1046,11 +1040,10 @@ void HELPER(gvec_fcmlas)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_fcmlas_idx)(void *vd, void *vn, void *vm, void *va,
-                             void *vfpst, uint32_t desc)
+                             float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float32 *d = vd, *n = vn, *m = vm, *a = va;
-    float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
@@ -1081,11 +1074,10 @@ void HELPER(gvec_fcmlas_idx)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_fcmlad)(void *vd, void *vn, void *vm, void *va,
-                         void *vfpst, uint32_t desc)
+                         float_status *fpst, uint32_t desc)
 {
     uintptr_t opr_sz = simd_oprsz(desc);
     float64 *d = vd, *n = vn, *m = vm, *a = va;
-    float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint64_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     uint64_t neg_real = flip ^ neg_imag;
@@ -1187,9 +1179,8 @@ static uint64_t float64_acgt(float64 op1, float64 op2, float_status *stat)
     return -float64_lt(float64_abs(op2), float64_abs(op1), stat);
 }
 
-static int16_t vfp_tosszh(float16 x, void *fpstp)
+static int16_t vfp_tosszh(float16 x, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     if (float16_is_any_nan(x)) {
         float_raise(float_flag_invalid, fpst);
         return 0;
@@ -1197,9 +1188,8 @@ static int16_t vfp_tosszh(float16 x, void *fpstp)
     return float16_to_int16_round_to_zero(x, fpst);
 }
 
-static uint16_t vfp_touszh(float16 x, void *fpstp)
+static uint16_t vfp_touszh(float16 x, float_status *fpst)
 {
-    float_status *fpst = fpstp;
     if (float16_is_any_nan(x)) {
         float_raise(float_flag_invalid, fpst);
         return 0;
@@ -1208,7 +1198,7 @@ static uint16_t vfp_touszh(float16 x, void *fpstp)
 }
 
 #define DO_2OP(NAME, FUNC, TYPE) \
-void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)  \
+void HELPER(NAME)(void *vd, void *vn, float_status *stat, uint32_t desc)  \
 {                                                                 \
     intptr_t i, oprsz = simd_oprsz(desc);                         \
     TYPE *d = vd, *n = vn;                                        \
@@ -1368,7 +1358,8 @@ static float32 float32_rsqrts_nf(float32 op1, float32 op2, float_status *stat)
 }
 
 #define DO_3OP(NAME, FUNC, TYPE) \
-void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+void HELPER(NAME)(void *vd, void *vn, void *vm,                            \
+                  float_status *stat, uint32_t desc)                       \
 {                                                                          \
     intptr_t i, oprsz = simd_oprsz(desc);                                  \
     TYPE *d = vd, *n = vn, *m = vm;                                        \
@@ -1522,8 +1513,9 @@ static float64 float64_mulsub_f(float64 dest, float64 op1, float64 op2,
     return float64_muladd(float64_chs(op1), op2, dest, 0, stat);
 }
 
-#define DO_MULADD(NAME, FUNC, TYPE)                                     \
-void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+#define DO_MULADD(NAME, FUNC, TYPE)                                        \
+void HELPER(NAME)(void *vd, void *vn, void *vm,                            \
+                  float_status *stat, uint32_t desc)                       \
 {                                                                          \
     intptr_t i, oprsz = simd_oprsz(desc);                                  \
     TYPE *d = vd, *n = vn, *m = vm;                                        \
@@ -1600,7 +1592,8 @@ DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -, H8)
 #undef DO_MLA_IDX
 
 #define DO_FMUL_IDX(NAME, ADD, MUL, TYPE, H)                               \
-void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+void HELPER(NAME)(void *vd, void *vn, void *vm,                            \
+                  float_status *stat, uint32_t desc)                       \
 {                                                                          \
     intptr_t i, j, oprsz = simd_oprsz(desc);                               \
     intptr_t segment = MIN(16, oprsz) / sizeof(TYPE);                      \
@@ -1644,7 +1637,7 @@ DO_FMUL_IDX(gvec_fmls_nf_idx_s, float32_sub, float32_mul, float32, H4)
 
 #define DO_FMLA_IDX(NAME, TYPE, H)                                         \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *va,                  \
-                  void *stat, uint32_t desc)                               \
+                  float_status *stat, uint32_t desc)                       \
 {                                                                          \
     intptr_t i, j, oprsz = simd_oprsz(desc);                               \
     intptr_t segment = MIN(16, oprsz) / sizeof(TYPE);                      \
@@ -2064,28 +2057,25 @@ static void do_fmlal(float32 *d, void *vn, void *vm, float_status *fpst,
 }
 
 void HELPER(gvec_fmlal_a32)(void *vd, void *vn, void *vm,
-                            void *venv, uint32_t desc)
+                            CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal(vd, vn, vm, &env->vfp.standard_fp_status, desc,
              get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(gvec_fmlal_a64)(void *vd, void *vn, void *vm,
-                            void *venv, uint32_t desc)
+                            CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal(vd, vn, vm, &env->vfp.fp_status, desc,
              get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
-                               void *venv, uint32_t desc)
+                               CPUARMState *env, uint32_t desc)
 {
     intptr_t i, oprsz = simd_oprsz(desc);
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
-    CPUARMState *env = venv;
     float_status *status = &env->vfp.fp_status;
     bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
 
@@ -2129,29 +2119,26 @@ static void do_fmlal_idx(float32 *d, void *vn, void *vm, float_status *fpst,
 }
 
 void HELPER(gvec_fmlal_idx_a32)(void *vd, void *vn, void *vm,
-                                void *venv, uint32_t desc)
+                                CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal_idx(vd, vn, vm, &env->vfp.standard_fp_status, desc,
                  get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(gvec_fmlal_idx_a64)(void *vd, void *vn, void *vm,
-                                void *venv, uint32_t desc)
+                                CPUARMState *env, uint32_t desc)
 {
-    CPUARMState *env = venv;
     do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status, desc,
                  get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
 }
 
 void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
-                               void *venv, uint32_t desc)
+                               CPUARMState *env, uint32_t desc)
 {
     intptr_t i, j, oprsz = simd_oprsz(desc);
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
     intptr_t idx = extract32(desc, SIMD_DATA_SHIFT + 2, 3) * sizeof(float16);
-    CPUARMState *env = venv;
     float_status *status = &env->vfp.fp_status;
     bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
 
@@ -2410,7 +2397,8 @@ DO_ABA(gvec_uaba_d, uint64_t)
 #undef DO_ABA
 
 #define DO_3OP_PAIR(NAME, FUNC, TYPE, H) \
-void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+void HELPER(NAME)(void *vd, void *vn, void *vm,                            \
+                  float_status *stat, uint32_t desc)                       \
 {                                                                          \
     ARMVectorReg scratch;                                                  \
     intptr_t oprsz = simd_oprsz(desc);                                     \
@@ -2495,7 +2483,7 @@ DO_3OP_PAIR(gvec_uminp_s, MIN, uint32_t, H4)
 #undef DO_3OP_PAIR
 
 #define DO_VCVT_FIXED(NAME, FUNC, TYPE)                                 \
-    void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
+    void HELPER(NAME)(void *vd, void *vn, float_status *stat, uint32_t desc) \
     {                                                                   \
         intptr_t i, oprsz = simd_oprsz(desc);                           \
         int shift = simd_data(desc);                                    \
@@ -2524,9 +2512,8 @@ DO_VCVT_FIXED(gvec_vcvt_rz_hu, helper_vfp_touhh_round_to_zero, uint16_t)
 #undef DO_VCVT_FIXED
 
 #define DO_VCVT_RMODE(NAME, FUNC, TYPE)                                 \
-    void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
+    void HELPER(NAME)(void *vd, void *vn, float_status *fpst, uint32_t desc) \
     {                                                                   \
-        float_status *fpst = stat;                                      \
         intptr_t i, oprsz = simd_oprsz(desc);                           \
         uint32_t rmode = simd_data(desc);                               \
         uint32_t prev_rmode = get_float_rounding_mode(fpst);            \
@@ -2549,9 +2536,8 @@ DO_VCVT_RMODE(gvec_vcvt_rm_uh, helper_vfp_touhh, uint16_t)
 #undef DO_VCVT_RMODE
 
 #define DO_VRINT_RMODE(NAME, FUNC, TYPE)                                \
-    void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)    \
+    void HELPER(NAME)(void *vd, void *vn, float_status *fpst, uint32_t desc) \
     {                                                                   \
-        float_status *fpst = stat;                                      \
         intptr_t i, oprsz = simd_oprsz(desc);                           \
         uint32_t rmode = simd_data(desc);                               \
         uint32_t prev_rmode = get_float_rounding_mode(fpst);            \
@@ -2570,10 +2556,9 @@ DO_VRINT_RMODE(gvec_vrint_rm_s, helper_rints, uint32_t)
 #undef DO_VRINT_RMODE
 
 #ifdef TARGET_AARCH64
-void HELPER(simd_tblx)(void *vd, void *vm, void *venv, uint32_t desc)
+void HELPER(simd_tblx)(void *vd, void *vm, CPUARMState *env, uint32_t desc)
 {
     const uint8_t *indices = vm;
-    CPUARMState *env = venv;
     size_t oprsz = simd_oprsz(desc);
     uint32_t rn = extract32(desc, SIMD_DATA_SHIFT, 5);
     bool is_tbx = extract32(desc, SIMD_DATA_SHIFT + 5, 1);
@@ -3015,7 +3000,7 @@ void HELPER(gvec_bfmmla)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_bfmlal)(void *vd, void *vn, void *vm, void *va,
-                         void *stat, uint32_t desc)
+                         float_status *stat, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc);
     intptr_t sel = simd_data(desc);
@@ -3031,7 +3016,7 @@ void HELPER(gvec_bfmlal)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(gvec_bfmlal_idx)(void *vd, void *vn, void *vm,
-                             void *va, void *stat, uint32_t desc)
+                             void *va, float_status *stat, uint32_t desc)
 {
     intptr_t i, j, opr_sz = simd_oprsz(desc);
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT, 1);
