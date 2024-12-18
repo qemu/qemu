@@ -1645,13 +1645,6 @@ bool migration_is_active(void)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
-bool migration_is_device(void)
-{
-    MigrationState *s = current_migration;
-
-    return s->state == MIGRATION_STATUS_DEVICE;
-}
-
 bool migration_thread_is_self(void)
 {
     MigrationState *s = current_migration;
