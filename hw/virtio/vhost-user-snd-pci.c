@@ -23,10 +23,6 @@ typedef struct VHostUserSoundPCI VHostUserSoundPCI;
 DECLARE_INSTANCE_CHECKER(VHostUserSoundPCI, VHOST_USER_SND_PCI,
                          TYPE_VHOST_USER_SND_PCI)
 
-static Property vhost_user_snd_pci_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void vhost_user_snd_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserSoundPCI *dev = VHOST_USER_SND_PCI(vpci_dev);
@@ -44,7 +40,6 @@ static void vhost_user_snd_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
     k->realize = vhost_user_snd_pci_realize;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    device_class_set_props(dc, vhost_user_snd_pci_properties);
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = 0; /* Set by virtio-pci based on virtio id */
     pcidev_k->revision = 0x00;
