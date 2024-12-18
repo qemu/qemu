@@ -196,6 +196,7 @@ struct ArchCPU {
     uint32_t l2vic_base_addr;
     uint32_t hvx_contexts;
     uint32_t boot_addr;
+    uint64_t config_table_addr;
 #endif
 };
 

@@ -65,6 +65,8 @@ static const Property hexagon_cpu_properties[] = {
         0xffffffffULL),
     DEFINE_PROP_UINT32("hvx-contexts", HexagonCPU, hvx_contexts, 0),
     DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffffULL),
+    DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
+                       0xffffffffULL),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
@@ -360,6 +362,8 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 }
 #endif
 
+
+#define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -400,6 +404,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->wait_next_pc = 0;
     env->cause_code = -1;
     ARCH_SET_THREAD_REG(env, HEX_REG_PC, cpu->boot_addr);
+    ARCH_SET_SYSTEM_REG(env, HEX_SREG_CFGBASE,
+                        HEXAGON_CFG_ADDR_BASE(cpu->config_table_addr));
+
 #endif
 }
 
