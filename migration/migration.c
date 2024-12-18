@@ -1139,6 +1139,14 @@ bool migration_is_running(void)
     }
 }
 
+static bool migration_is_active(void)
+{
+    MigrationState *s = current_migration;
+
+    return (s->state == MIGRATION_STATUS_ACTIVE ||
+            s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
+}
+
 static bool migrate_show_downtime(MigrationState *s)
 {
     return (s->state == MIGRATION_STATUS_COMPLETED) || migration_in_postcopy();
@@ -1635,14 +1643,6 @@ bool migration_incoming_postcopy_advised(void)
 bool migration_in_bg_snapshot(void)
 {
     return migrate_background_snapshot() && migration_is_running();
-}
-
-bool migration_is_active(void)
-{
-    MigrationState *s = current_migration;
-
-    return (s->state == MIGRATION_STATUS_ACTIVE ||
-            s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
 bool migration_thread_is_self(void)
