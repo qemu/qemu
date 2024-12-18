@@ -234,7 +234,7 @@ impl PL011Registers {
         match offset {
             DR => {
                 // interrupts always checked
-                let _ = self.loopback_tx(value);
+                let _ = self.loopback_tx(value.into());
                 self.int_level |= Interrupt::TX.0;
                 return true;
             }
@@ -301,7 +301,7 @@ impl PL011Registers {
 
     #[inline]
     #[must_use]
-    fn loopback_tx(&mut self, value: u32) -> bool {
+    fn loopback_tx(&mut self, value: registers::Data) -> bool {
         // Caveat:
         //
         // In real hardware, TX loopback happens at the serial-bit level
@@ -370,7 +370,7 @@ impl PL011Registers {
     }
 
     fn loopback_break(&mut self, enable: bool) -> bool {
-        enable && self.loopback_tx(registers::Data::BREAK.into())
+        enable && self.loopback_tx(registers::Data::BREAK)
     }
 
     fn set_read_trigger(&mut self) {
@@ -429,11 +429,11 @@ impl PL011Registers {
     }
 
     #[must_use]
-    pub fn put_fifo(&mut self, value: u32) -> bool {
+    pub fn put_fifo(&mut self, value: registers::Data) -> bool {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
-        self.read_fifo[slot] = registers::Data::from(value);
+        self.read_fifo[slot] = value;
         self.read_count += 1;
         self.flags.set_receive_fifo_empty(false);
         if self.read_count == depth {
@@ -578,7 +578,8 @@ impl PL011State {
             return;
         }
         let mut regs = self.regs.borrow_mut();
-        let update_irq = !regs.loopback_enabled() && regs.put_fifo(buf[0].into());
+        let c: u32 = buf[0].into();
+        let update_irq = !regs.loopback_enabled() && regs.put_fifo(c.into());
         // Release the BqlRefCell before calling self.update()
         drop(regs);
 
@@ -591,7 +592,7 @@ impl PL011State {
         let mut update_irq = false;
         let mut regs = self.regs.borrow_mut();
         if event == Event::CHR_EVENT_BREAK && !regs.loopback_enabled() {
-            update_irq = regs.put_fifo(registers::Data::BREAK.into());
+            update_irq = regs.put_fifo(registers::Data::BREAK);
         }
         // Release the BqlRefCell before calling self.update()
         drop(regs);
