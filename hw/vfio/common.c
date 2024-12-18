@@ -191,7 +191,7 @@ bool vfio_devices_all_dirty_tracking_started(
            bcontainer->dirty_pages_started;
 }
 
-static bool vfio_devices_all_dirty_tracking(VFIOContainerBase *bcontainer)
+static bool vfio_log_sync_needed(const VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
 
@@ -1364,7 +1364,7 @@ static void vfio_listener_log_sync(MemoryListener *listener,
         return;
     }
 
-    if (vfio_devices_all_dirty_tracking(bcontainer)) {
+    if (vfio_log_sync_needed(bcontainer)) {
         ret = vfio_sync_dirty_bitmap(bcontainer, section, &local_err);
         if (ret) {
             error_report_err(local_err);
