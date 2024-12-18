@@ -58,15 +58,10 @@ static void tricore_testdevice_init(Object *obj)
                           "tricore_testdevice", 0x4);
 }
 
-static Property tricore_testdevice_properties[] = {
-    DEFINE_PROP_END_OF_LIST()
-};
-
 static void tricore_testdevice_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_props(dc, tricore_testdevice_properties);
     device_class_set_legacy_reset(dc, tricore_testdevice_reset);
 }
 
