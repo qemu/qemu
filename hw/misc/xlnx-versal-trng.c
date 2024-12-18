@@ -641,7 +641,7 @@ static void trng_prop_fault_event_set(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     uint32_t *events = object_field_prop_ptr(obj, prop);
 
     if (!visit_type_uint32(v, name, events, errp)) {
