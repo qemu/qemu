@@ -749,16 +749,13 @@ const PropertyInfo qdev_prop_array = {
 
 /* --- public helpers --- */
 
-static const Property *qdev_prop_walk(const Property *props, const char *name)
+static const Property *qdev_prop_walk(DeviceClass *cls, const char *name)
 {
-    if (!props) {
-        return NULL;
-    }
-    while (props->name) {
-        if (strcmp(props->name, name) == 0) {
-            return props;
+    for (int i = 0, n = cls->props_count_; i < n; ++i) {
+        const Property *prop = &cls->props_[i];
+        if (strcmp(prop->name, name) == 0) {
+            return prop;
         }
-        props++;
     }
     return NULL;
 }
@@ -771,7 +768,7 @@ static const Property *qdev_prop_find(DeviceState *dev, const char *name)
     /* device properties */
     class = object_get_class(OBJECT(dev));
     do {
-        prop = qdev_prop_walk(DEVICE_CLASS(class)->props_, name);
+        prop = qdev_prop_walk(DEVICE_CLASS(class), name);
         if (prop) {
             return prop;
         }
@@ -1064,9 +1061,31 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, const Property *prop
 void (device_class_set_props)(DeviceClass *dc, const Property *props)
 {
     const Property *prop;
+    size_t n;
 
     dc->props_ = props;
-    for (prop = props; prop && prop->name; prop++) {
+    for (prop = props, n = 0; prop && prop->name; prop++, n++) {
+        qdev_class_add_legacy_property(dc, prop);
+        qdev_class_add_property(dc, prop->name, prop);
+    }
+
+    /* We used a hole in DeviceClass because that's still a lot. */
+    assert(n <= UINT16_MAX);
+    dc->props_count_ = n;
+}
+
+void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n)
+{
+    /* We used a hole in DeviceClass because that's still a lot. */
+    assert(n <= UINT16_MAX);
+    assert(n != 0);
+
+    dc->props_ = props;
+    dc->props_count_ = n;
+
+    for (size_t i = 0; i < n; ++i) {
+        const Property *prop = &props[i];
+        assert(prop->name);
         qdev_class_add_legacy_property(dc, prop);
         qdev_class_add_property(dc, prop->name, prop);
     }

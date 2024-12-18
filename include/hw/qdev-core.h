@@ -139,6 +139,12 @@ struct DeviceClass {
     const Property *props_;
 
     /**
+     * @props_count_: number of elements in @props_; should only be
+     * assigned by using device_class_set_props().
+     */
+    uint16_t props_count_;
+
+    /**
      * @user_creatable: Can user instantiate with -device / device_add?
      *
      * All devices should support instantiation with device_add, and
@@ -959,6 +965,18 @@ void device_class_set_props(DeviceClass *dc, const Property *props);
         }                                                               \
         (device_class_set_props)((dc), (props));                        \
     } while (0)
+
+/**
+ * device_class_set_props_n(): add a set of properties to an device
+ * @dc: the parent DeviceClass all devices inherit
+ * @props: an array of properties, not terminated by DEFINE_PROP_END_OF_LIST.
+ * @n: ARRAY_SIZE(@props)
+ *
+ * This will add a set of properties to the object. It will fault if
+ * you attempt to add an existing property defined by a parent class.
+ * To modify an inherited property you need to use????
+ */
+void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n);
 
 /**
  * device_class_set_parent_realize() - set up for chaining realize fns
