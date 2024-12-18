@@ -1690,14 +1690,13 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 
 bool multifd_send_prepare_common(MultiFDSendParams *p)
 {
+    multifd_send_prepare_header(p);
     multifd_send_zero_page_detect(p);
 
     if (!p->pages->normal_num) {
         p->next_packet_size = 0;
         return false;
     }
-
-    multifd_send_prepare_header(p);
 
     return true;
 }
