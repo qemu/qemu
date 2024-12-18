@@ -171,9 +171,6 @@ extern const PropertyInfo qdev_prop_link;
 #define DEFINE_PROP_SIZE32(_n, _s, _f, _d)                       \
     DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, qdev_prop_size32, uint32_t)
 
-#define DEFINE_PROP_END_OF_LIST()               \
-    {}
-
 /*
  * Set properties between creation and realization.
  *

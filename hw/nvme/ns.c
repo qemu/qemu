@@ -834,7 +834,6 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_ns_class_init(ObjectClass *oc, void *data)

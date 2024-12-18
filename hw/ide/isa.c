@@ -105,7 +105,6 @@ static const Property isa_ide_properties[] = {
     DEFINE_PROP_UINT32("iobase",  ISAIDEState, iobase,  0x1f0),
     DEFINE_PROP_UINT32("iobase2", ISAIDEState, iobase2, 0x3f6),
     DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void isa_ide_class_initfn(ObjectClass *klass, void *data)

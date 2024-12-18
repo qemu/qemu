@@ -2066,7 +2066,6 @@ static const Property pnv_xive_properties[] = {
     DEFINE_PROP_UINT64("tm-bar", PnvXive, tm_base, 0),
     /* The PnvChip id identifies the XIVE interrupt controller. */
     DEFINE_PROP_LINK("chip", PnvXive, chip, TYPE_PNV_CHIP, PnvChip *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_xive_class_init(ObjectClass *klass, void *data)

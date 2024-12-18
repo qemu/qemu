@@ -450,7 +450,6 @@ static void sh_serial_init(Object *obj)
 static const Property sh_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SHSerialState, chr),
     DEFINE_PROP_UINT8("features", SHSerialState, feat, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void sh_serial_class_init(ObjectClass *oc, void *data)

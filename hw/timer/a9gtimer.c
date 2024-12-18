@@ -375,7 +375,6 @@ static const VMStateDescription vmstate_a9_gtimer = {
 
 static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void a9_gtimer_class_init(ObjectClass *klass, void *data)

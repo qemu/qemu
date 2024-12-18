@@ -1488,7 +1488,6 @@ static const Property s390_pci_device_properties[] = {
     DEFINE_PROP_BOOL("interpret", S390PCIBusDevice, interp, true),
     DEFINE_PROP_BOOL("forwarding-assist", S390PCIBusDevice, forwarding_assist,
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription s390_pci_device_vmstate = {

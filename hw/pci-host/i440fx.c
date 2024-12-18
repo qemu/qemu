@@ -362,7 +362,6 @@ static const Property i440fx_props[] = {
                      above_4g_mem_size, 0),
     DEFINE_PROP_BOOL("x-pci-hole64-fix", I440FXState, pci_hole64_fix, true),
     DEFINE_PROP_STRING(I440FX_HOST_PROP_PCI_TYPE, I440FXState, pci_type),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)

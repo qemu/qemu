@@ -298,7 +298,6 @@ static void canokey_unrealize(USBDevice *base)
 
 static const Property canokey_properties[] = {
     DEFINE_PROP_STRING("file", CanoKeyState, file),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void canokey_class_init(ObjectClass *klass, void *data)

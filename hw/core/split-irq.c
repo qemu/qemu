@@ -61,7 +61,6 @@ static void split_irq_realize(DeviceState *dev, Error **errp)
 
 static const Property split_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", SplitIRQ, num_lines, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void split_irq_class_init(ObjectClass *klass, void *data)

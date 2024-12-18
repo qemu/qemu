@@ -674,7 +674,6 @@ static const Property xen_block_props[] = {
                        props.max_ring_page_order, 4),
     DEFINE_PROP_LINK("iothread", XenBlockDevice, props.iothread,
                      TYPE_IOTHREAD, IOThread *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xen_block_class_init(ObjectClass *class, void *data)

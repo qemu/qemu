@@ -64,7 +64,6 @@ static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
 
 static const Property sysbus_ahci_properties[] = {
     DEFINE_PROP_UINT32("num-ports", SysbusAHCIState, ahci.ports, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sysbus_ahci_class_init(ObjectClass *klass, void *data)

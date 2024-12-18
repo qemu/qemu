@@ -725,7 +725,6 @@ static const Property fsl_imx6ul_properties[] = {
                      true),
     DEFINE_PROP_BOOL("fec2-phy-connected", FslIMX6ULState, phy_connected[1],
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fsl_imx6ul_class_init(ObjectClass *oc, void *data)

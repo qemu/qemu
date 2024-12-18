@@ -366,7 +366,6 @@ static const Property cg3_properties[] = {
     DEFINE_PROP_UINT16("width",        CG3State, width,     -1),
     DEFINE_PROP_UINT16("height",       CG3State, height,    -1),
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cg3_class_init(ObjectClass *klass, void *data)

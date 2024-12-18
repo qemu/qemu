@@ -1032,7 +1032,6 @@ static const Property virtio_balloon_properties[] = {
                      qemu_4_0_config_size, false),
     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
                      IOThread *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_balloon_class_init(ObjectClass *klass, void *data)

@@ -1729,7 +1729,6 @@ static const Property m25p80_properties[] = {
     DEFINE_PROP_UINT8("spansion-cr3nv", Flash, spansion_cr3nv, 0x2),
     DEFINE_PROP_UINT8("spansion-cr4nv", Flash, spansion_cr4nv, 0x10),
     DEFINE_PROP_DRIVE("drive", Flash, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static int m25p80_pre_load(void *opaque)

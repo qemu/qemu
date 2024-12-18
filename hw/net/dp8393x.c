@@ -937,7 +937,6 @@ static const Property dp8393x_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT8("it_shift", dp8393xState, it_shift, 0),
     DEFINE_PROP_BOOL("big_endian", dp8393xState, big_endian, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void dp8393x_class_init(ObjectClass *klass, void *data)

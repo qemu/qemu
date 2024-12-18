@@ -460,7 +460,6 @@ static const Property floppy_drive_properties[] = {
     DEFINE_PROP_SIGNED("drive-type", FloppyDrive, type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void floppy_drive_realize(DeviceState *qdev, Error **errp)

@@ -698,7 +698,6 @@ static void asc_init(Object *obj)
 static const Property asc_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ASCState, card),
     DEFINE_PROP_UINT8("asctype", ASCState, type, ASC_TYPE_ASC),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void asc_class_init(ObjectClass *oc, void *data)

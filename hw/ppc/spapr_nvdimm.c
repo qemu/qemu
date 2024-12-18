@@ -887,7 +887,6 @@ static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)
 #ifdef CONFIG_LIBPMEM
 static const Property spapr_nvdimm_properties[] = {
     DEFINE_PROP_BOOL("pmem-override", SpaprNVDIMMDevice, pmem_override, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 #endif
 

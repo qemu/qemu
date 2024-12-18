@@ -457,13 +457,11 @@ static const Property cfu_props[] = {
                          TYPE_XLNX_CFI_IF, XlnxCfiIf *),
         DEFINE_PROP_LINK("cframe14", XlnxVersalCFUAPB, cfg.cframe[14],
                          TYPE_XLNX_CFI_IF, XlnxCfiIf *),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static const Property cfu_sfr_props[] = {
         DEFINE_PROP_LINK("cfu", XlnxVersalCFUSFR, cfg.cfu,
                          TYPE_XLNX_VERSAL_CFU_APB, XlnxVersalCFUAPB *),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_cfu_apb = {

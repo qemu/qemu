@@ -219,7 +219,6 @@ static const Property mips_gcr_properties[] = {
                      MemoryRegion *),
     DEFINE_PROP_LINK("cpc", MIPSGCRState, cpc_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mips_gcr_realize(DeviceState *dev, Error **errp)

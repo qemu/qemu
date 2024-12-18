@@ -179,7 +179,6 @@ struct SunHMEState {
 
 static const Property sunhme_properties[] = {
     DEFINE_NIC_PROPERTIES(SunHMEState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sunhme_reset_tx(SunHMEState *s)

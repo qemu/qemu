@@ -72,7 +72,6 @@ static const Property msd_properties[] = {
     DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
     DEFINE_PROP_BOOL("removable", MSDState, removable, false),
     DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)

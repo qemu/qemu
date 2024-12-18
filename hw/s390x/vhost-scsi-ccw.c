@@ -44,7 +44,6 @@ static void vhost_ccw_scsi_instance_init(Object *obj)
 static const Property vhost_ccw_scsi_properties[] = {
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_ccw_scsi_class_init(ObjectClass *klass, void *data)

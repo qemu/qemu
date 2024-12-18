@@ -1026,7 +1026,6 @@ static const Property ivshmem_plain_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
     DEFINE_PROP_LINK("memdev", IVShmemState, hostmem, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
@@ -1083,7 +1082,6 @@ static const Property ivshmem_doorbell_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD,
                     true),
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ivshmem_doorbell_init(Object *obj)

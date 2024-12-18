@@ -292,7 +292,6 @@ static void sifive_e_aon_init(Object *obj)
 static const Property sifive_e_aon_properties[] = {
     DEFINE_PROP_UINT64("wdogclk-frequency", SiFiveEAONState, wdogclk_freq,
                        SIFIVE_E_LFCLK_DEFAULT_FREQ),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_e_aon_class_init(ObjectClass *oc, void *data)

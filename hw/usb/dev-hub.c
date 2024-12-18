@@ -668,7 +668,6 @@ static const VMStateDescription vmstate_usb_hub = {
 static const Property usb_hub_properties[] = {
     DEFINE_PROP_UINT32("ports", USBHubState, num_ports, 8),
     DEFINE_PROP_BOOL("port-power", USBHubState, port_power, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_hub_class_initfn(ObjectClass *klass, void *data)

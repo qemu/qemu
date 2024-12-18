@@ -318,7 +318,6 @@ static const Property s390x_cpu_properties[] = {
     DEFINE_PROP_BOOL("dedicated", S390CPU, env.dedicated, false),
     DEFINE_PROP_CPUS390ENTITLEMENT("entitlement", S390CPU, env.entitlement,
                                    S390_CPU_ENTITLEMENT_AUTO),
-    DEFINE_PROP_END_OF_LIST()
 };
 #endif
 

@@ -677,7 +677,6 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
 static const Property aspeed_timer_properties[] = {
     DEFINE_PROP_LINK("scu", AspeedTimerCtrlState, scu, TYPE_ASPEED_SCU,
                      AspeedSCUState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void timer_class_init(ObjectClass *klass, void *data)

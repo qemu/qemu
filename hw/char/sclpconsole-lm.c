@@ -337,7 +337,6 @@ static const Property console_properties[] = {
     DEFINE_PROP_CHR("chardev", SCLPConsoleLM, chr),
     DEFINE_PROP_UINT32("write_errors", SCLPConsoleLM, write_errors, 0),
     DEFINE_PROP_BOOL("echo", SCLPConsoleLM, echo, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void console_class_init(ObjectClass *klass, void *data)

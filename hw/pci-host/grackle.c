@@ -131,7 +131,6 @@ static char *grackle_ofw_unit_address(const SysBusDevice *dev)
 
 static const Property grackle_properties[] = {
     DEFINE_PROP_UINT32("ofw-addr", GrackleState, ofw_addr, -1),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void grackle_class_init(ObjectClass *klass, void *data)

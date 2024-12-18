@@ -429,7 +429,6 @@ static const Property raven_pcihost_properties[] = {
     /* Temporary workaround until legacy prep machine is removed */
     DEFINE_PROP_BOOL("is-legacy-prep", PREPPCIState, is_legacy_prep,
                      false),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void raven_pcihost_class_init(ObjectClass *klass, void *data)

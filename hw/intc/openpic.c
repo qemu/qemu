@@ -1609,7 +1609,6 @@ static void openpic_realize(DeviceState *dev, Error **errp)
 static const Property openpic_properties[] = {
     DEFINE_PROP_UINT32("model", OpenPICState, model, OPENPIC_MODEL_FSL_MPIC_20),
     DEFINE_PROP_UINT32("nb_cpus", OpenPICState, nb_cpus, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void openpic_class_init(ObjectClass *oc, void *data)

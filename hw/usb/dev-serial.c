@@ -637,7 +637,6 @@ static const VMStateDescription vmstate_usb_serial = {
 static const Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
     DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_serial_dev_class_init(ObjectClass *klass, void *data)
@@ -679,7 +678,6 @@ static const TypeInfo serial_info = {
 
 static const Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_braille_class_initfn(ObjectClass *klass, void *data)

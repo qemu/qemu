@@ -867,7 +867,6 @@ static const Property xlnx_zynqmp_props[] = {
                      CanBusState *),
     DEFINE_PROP_LINK("canbus1", XlnxZynqMPState, canbus[1], TYPE_CAN_BUS,
                      CanBusState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)

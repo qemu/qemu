@@ -291,7 +291,6 @@ static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 static const Property aspeed_wdt_properties[] = {
     DEFINE_PROP_LINK("scu", AspeedWDTState, scu, TYPE_ASPEED_SCU,
                      AspeedSCUState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_wdt_class_init(ObjectClass *klass, void *data)

@@ -100,7 +100,6 @@ static void mv64361_pcihost_realize(DeviceState *dev, Error **errp)
 
 static const Property mv64361_pcihost_props[] = {
     DEFINE_PROP_UINT8("index", MV64361PCIState, index, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void mv64361_pcihost_class_init(ObjectClass *klass, void *data)

@@ -220,7 +220,6 @@ static const VMStateDescription vmstate_xram_ctrl = {
 
 static const Property xram_ctrl_properties[] = {
     DEFINE_PROP_UINT64("size", XlnxXramCtrl, cfg.size, 1 * MiB),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xram_ctrl_class_init(ObjectClass *klass, void *data)

@@ -666,8 +666,6 @@ static const Property trng_props[] = {
     DEFINE_PROP_UINT32("hw-version", XlnxVersalTRng, hw_version, 0x0200),
     DEFINE_PROP("fips-fault-events", XlnxVersalTRng, forced_faults,
                 trng_prop_fault_events, uint32_t),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_trng = {

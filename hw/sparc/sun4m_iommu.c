@@ -370,7 +370,6 @@ static void iommu_init(Object *obj)
 
 static const Property iommu_properties[] = {
     DEFINE_PROP_UINT32("version", IOMMUState, version, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void iommu_class_init(ObjectClass *klass, void *data)

@@ -116,7 +116,6 @@ static const Property guest_loader_props[] = {
     DEFINE_PROP_STRING("kernel", GuestLoaderState, kernel),
     DEFINE_PROP_STRING("bootargs", GuestLoaderState, args),
     DEFINE_PROP_STRING("initrd", GuestLoaderState, initrd),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void guest_loader_class_init(ObjectClass *klass, void *data)

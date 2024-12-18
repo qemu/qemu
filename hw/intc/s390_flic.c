@@ -448,7 +448,6 @@ static void qemu_s390_flic_instance_init(Object *obj)
 static const Property qemu_s390_flic_properties[] = {
     DEFINE_PROP_BOOL("migrate-all-state", QEMUS390FLICState,
                      migrate_all_state, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
@@ -476,7 +475,6 @@ static const Property s390_flic_common_properties[] = {
                        adapter_routes_max_batch, ADAPTER_ROUTES_MAX_GSI),
     DEFINE_PROP_BOOL("migration-enabled", S390FLICState,
                      migration_enabled, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_flic_common_realize(DeviceState *dev, Error **errp)

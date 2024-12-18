@@ -380,7 +380,6 @@ static const VMStateDescription cmsdk_apb_uart_vmstate = {
 static const Property cmsdk_apb_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", CMSDKAPBUART, chr),
     DEFINE_PROP_UINT32("pclk-frq", CMSDKAPBUART, pclk_frq, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cmsdk_apb_uart_class_init(ObjectClass *klass, void *data)

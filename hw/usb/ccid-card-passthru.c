@@ -391,7 +391,6 @@ static const VMStateDescription passthru_vmstate = {
 static const Property passthru_card_properties[] = {
     DEFINE_PROP_CHR("chardev", PassthruState, cs),
     DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void passthru_class_initfn(ObjectClass *klass, void *data)

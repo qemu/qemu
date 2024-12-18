@@ -501,7 +501,6 @@ static const TypeInfo versatile_pci_host_info = {
 static const Property pci_vpb_properties[] = {
     DEFINE_PROP_UINT8("broken-irq-mapping", PCIVPBState, irq_mapping_prop,
                       PCI_VPB_IRQMAP_ASSUME_OK),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pci_vpb_class_init(ObjectClass *klass, void *data)

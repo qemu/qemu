@@ -443,7 +443,6 @@ static const Property pnv_core_properties[] = {
                      false),
     DEFINE_PROP_BOOL("lpar-per-core", PnvCore, lpar_per_core, false),
     DEFINE_PROP_LINK("chip", PnvCore, chip, TYPE_PNV_CHIP, PnvChip *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_core_power8_class_init(ObjectClass *oc, void *data)
@@ -695,7 +694,6 @@ static void pnv_quad_power10_realize(DeviceState *dev, Error **errp)
 
 static const Property pnv_quad_properties[] = {
     DEFINE_PROP_UINT32("quad-id", PnvQuad, quad_id, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_quad_power9_class_init(ObjectClass *oc, void *data)

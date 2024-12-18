@@ -477,7 +477,6 @@ static void s390_skeys_realize(DeviceState *dev, Error **errp)
 
 static const Property s390_skeys_props[] = {
     DEFINE_PROP_BOOL("migration-enabled", S390SKeysState, migration_enabled, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_skeys_class_init(ObjectClass *oc, void *data)

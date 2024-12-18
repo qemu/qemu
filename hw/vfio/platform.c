@@ -640,7 +640,6 @@ static const Property vfio_platform_dev_properties[] = {
     DEFINE_PROP_LINK("iommufd", VFIOPlatformDevice, vbasedev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vfio_platform_instance_init(Object *obj)

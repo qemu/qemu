@@ -110,7 +110,6 @@ void ipmi_bmc_find_and_link(Object *obj, Object **bmc)
 
 static const Property ipmi_bmc_properties[] = {
     DEFINE_PROP_UINT8("slave_addr",  IPMIBmc, slave_addr, 0x20),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void bmc_class_init(ObjectClass *oc, void *data)

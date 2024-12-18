@@ -262,7 +262,6 @@ static void ppc_uic_realize(DeviceState *dev, Error **errp)
 static const Property ppc_uic_properties[] = {
     DEFINE_PROP_UINT32("dcr-base", PPCUIC, dcr_base, 0xc0),
     DEFINE_PROP_BOOL("use-vectors", PPCUIC, use_vectors, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription ppc_uic_vmstate = {

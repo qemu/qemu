@@ -234,7 +234,6 @@ static void ppc4xx_mal_finalize(Object *obj)
 static const Property ppc4xx_mal_properties[] = {
     DEFINE_PROP_UINT8("txc-num", Ppc4xxMalState, txcnum, 0),
     DEFINE_PROP_UINT8("rxc-num", Ppc4xxMalState, rxcnum, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ppc4xx_mal_class_init(ObjectClass *oc, void *data)
@@ -542,7 +541,6 @@ bool ppc4xx_dcr_realize(Ppc4xxDcrDeviceState *dev, PowerPCCPU *cpu,
 static const Property ppc4xx_dcr_properties[] = {
     DEFINE_PROP_LINK("cpu", Ppc4xxDcrDeviceState, cpu, TYPE_POWERPC_CPU,
                      PowerPCCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ppc4xx_dcr_class_init(ObjectClass *oc, void *data)

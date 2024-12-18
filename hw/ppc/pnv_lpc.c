@@ -830,7 +830,6 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 
 static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)

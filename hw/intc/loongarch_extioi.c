@@ -427,7 +427,6 @@ static const Property extioi_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", LoongArchExtIOI, num_cpu, 1),
     DEFINE_PROP_BIT("has-virtualization-extension", LoongArchExtIOI, features,
                     EXTIOI_HAS_VIRT_EXTENSION, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void loongarch_extioi_class_init(ObjectClass *klass, void *data)

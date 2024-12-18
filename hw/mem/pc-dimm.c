@@ -157,7 +157,6 @@ static const Property pc_dimm_properties[] = {
                       PC_DIMM_UNASSIGNED_SLOT),
     DEFINE_PROP_LINK(PC_DIMM_MEMDEV_PROP, PCDIMMDevice, hostmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,

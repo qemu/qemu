@@ -1252,7 +1252,6 @@ static int spapr_vscsi_devnode(SpaprVioDevice *dev, void *fdt, int node_off)
 
 static const Property spapr_vscsi_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_spapr_vscsi = {

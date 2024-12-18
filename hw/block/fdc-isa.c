@@ -296,7 +296,6 @@ static const Property isa_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fallback", FDCtrlISABus, state.fallback,
                         FLOPPY_DRIVE_TYPE_288, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void isabus_fdc_class_init(ObjectClass *klass, void *data)

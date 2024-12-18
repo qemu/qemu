@@ -842,7 +842,6 @@ static const Property iotkit_sysctl_props[] = {
                        0x10000000),
     DEFINE_PROP_UINT32("INITSVTOR1_RST", IoTKitSysCtl, initsvtor1_rst,
                        0x10000000),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void iotkit_sysctl_class_init(ObjectClass *klass, void *data)

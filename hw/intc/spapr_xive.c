@@ -633,7 +633,6 @@ static const Property spapr_xive_properties[] = {
     DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
     DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
     DEFINE_PROP_UINT8("hv-prio", SpaprXive, hv_prio, 7),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,

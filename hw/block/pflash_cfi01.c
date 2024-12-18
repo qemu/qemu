@@ -932,7 +932,6 @@ static const Property pflash_cfi01_properties[] = {
     DEFINE_PROP_STRING("name", PFlashCFI01, name),
     DEFINE_PROP_BOOL("old-multiple-chip-handling", PFlashCFI01,
                      old_multiple_chip_handling, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pflash_cfi01_class_init(ObjectClass *klass, void *data)

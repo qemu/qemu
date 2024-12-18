@@ -24,7 +24,6 @@ static const Property usb_props[] = {
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
                     USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void usb_bus_class_init(ObjectClass *klass, void *data)

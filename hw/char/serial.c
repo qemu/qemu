@@ -968,7 +968,6 @@ static const Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
     DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void serial_class_init(ObjectClass *klass, void* data)

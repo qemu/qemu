@@ -27,7 +27,6 @@
 
 static const Property cpu_cluster_properties[] = {
     DEFINE_PROP_UINT32("cluster-id", CPUClusterState, cluster_id, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 typedef struct CallbackData {

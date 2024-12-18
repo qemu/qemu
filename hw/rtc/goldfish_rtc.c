@@ -289,7 +289,6 @@ static void goldfish_rtc_realize(DeviceState *d, Error **errp)
 static const Property goldfish_rtc_properties[] = {
     DEFINE_PROP_BOOL("big-endian", GoldfishRTCState, big_endian,
                       false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void goldfish_rtc_class_init(ObjectClass *klass, void *data)

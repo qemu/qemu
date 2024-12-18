@@ -28,7 +28,6 @@ static const Property vhost_user_fs_ccw_properties[] = {
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_user_fs_ccw_realize(VirtioCcwDevice *ccw_dev, Error **errp)

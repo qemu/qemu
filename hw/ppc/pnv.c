@@ -2431,7 +2431,6 @@ static const Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_BOOL("big-core", PnvChip, big_core, false),
     DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_chip_class_init(ObjectClass *klass, void *data)

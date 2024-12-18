@@ -34,7 +34,6 @@ static const Property ehci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCISysBusState, ehci.maxframes, 128),
     DEFINE_PROP_BOOL("companion-enable", EHCISysBusState, ehci.companion_enable,
                      false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_ehci_sysbus_realize(DeviceState *dev, Error **errp)

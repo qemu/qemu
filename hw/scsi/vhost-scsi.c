@@ -362,7 +362,6 @@ static const Property vhost_scsi_properties[] = {
     DEFINE_PROP_BOOL("migratable", VHostSCSICommon, migratable, false),
     DEFINE_PROP_BOOL("worker_per_virtqueue", VirtIOSCSICommon,
                      conf.worker_per_virtqueue, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_scsi_class_init(ObjectClass *klass, void *data)

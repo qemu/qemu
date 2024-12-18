@@ -363,7 +363,6 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
 static const Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_INT32("node-id", SpaprCpuCore, node_id, CPU_UNSET_NUMA_NODE_ID),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)

@@ -284,8 +284,6 @@ static const Property vmport_properties[] = {
      * 5 - ACE 1.x (Deprecated)
      */
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmport_class_initfn(ObjectClass *klass, void *data)

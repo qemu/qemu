@@ -166,7 +166,6 @@ void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
 static const Property spapr_vty_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprVioVty, sdev),
     DEFINE_PROP_CHR("chardev", SpaprVioVty, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_spapr_vty = {

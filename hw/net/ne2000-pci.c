@@ -98,7 +98,6 @@ static void ne2000_instance_init(Object *obj)
 
 static const Property ne2000_properties[] = {
     DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ne2000_class_init(ObjectClass *klass, void *data)

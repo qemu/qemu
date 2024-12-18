@@ -248,7 +248,6 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
 static const Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)

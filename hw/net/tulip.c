@@ -1009,7 +1009,6 @@ static void tulip_instance_init(Object *obj)
 
 static const Property tulip_properties[] = {
     DEFINE_NIC_PROPERTIES(TULIPState, c),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tulip_class_init(ObjectClass *klass, void *data)

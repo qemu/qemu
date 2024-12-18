@@ -37,7 +37,6 @@ struct VHostVSockPCI {
 
 static const Property vhost_vsock_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_vsock_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)

@@ -265,7 +265,6 @@ int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 static const Property kvm_openpic_properties[] = {
     DEFINE_PROP_UINT32("model", KVMOpenPICState, model,
                        OPENPIC_MODEL_FSL_MPIC_20),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvm_openpic_class_init(ObjectClass *oc, void *data)

@@ -403,7 +403,6 @@ static const Property mb_properties[] = {
     /*
      * End of properties reserved by Xilinx DTS conversion tool.
      */
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)

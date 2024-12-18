@@ -563,7 +563,6 @@ static const MemoryRegionOps ibex_spi_ops = {
 
 static const Property ibex_spi_properties[] = {
     DEFINE_PROP_UINT32("num_cs", IbexSPIHostState, num_cs, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_ibex = {

@@ -135,7 +135,6 @@ static void kvm_ioapic_realize(DeviceState *dev, Error **errp)
 
 static const Property kvm_ioapic_properties[] = {
     DEFINE_PROP_UINT32("gsi_base", KVMIOAPICState, kvm_gsi_base, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void kvm_ioapic_class_init(ObjectClass *klass, void *data)

@@ -547,7 +547,6 @@ static const Property pnv_i2c_properties[] = {
     DEFINE_PROP_LINK("chip", PnvI2C, chip, TYPE_PNV_CHIP, PnvChip *),
     DEFINE_PROP_UINT32("engine", PnvI2C, engine, 1),
     DEFINE_PROP_UINT32("num-busses", PnvI2C, num_busses, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_i2c_class_init(ObjectClass *klass, void *data)

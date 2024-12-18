@@ -117,7 +117,6 @@ static const VMStateDescription vmstate_or_irq = {
 
 static const Property or_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", OrIRQState, num_lines, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void or_irq_class_init(ObjectClass *klass, void *data)

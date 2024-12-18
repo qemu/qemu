@@ -62,7 +62,6 @@ static const VMStateDescription ramfb_dev_vmstate = {
 
 static const Property ramfb_properties[] = {
     DEFINE_PROP_BOOL("x-migrate", RAMFBStandaloneState, migrate,  true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ramfb_class_initfn(ObjectClass *klass, void *data)

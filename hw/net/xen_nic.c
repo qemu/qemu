@@ -558,7 +558,6 @@ static void xen_netdev_unrealize(XenDevice *xendev)
 static const Property xen_netdev_properties[] = {
     DEFINE_NIC_PROPERTIES(XenNetDev, conf),
     DEFINE_PROP_INT32("idx", XenNetDev, dev, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xen_netdev_class_init(ObjectClass *class, void *data)

@@ -619,7 +619,6 @@ static const VMStateDescription vmstate_cadence_uart = {
 
 static const Property cadence_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", CadenceUARTState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cadence_uart_class_init(ObjectClass *klass, void *data)

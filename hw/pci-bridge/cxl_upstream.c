@@ -369,7 +369,6 @@ static const Property cxl_upstream_props[] = {
                                 speed, PCIE_LINK_SPEED_32),
     DEFINE_PROP_PCIE_LINK_WIDTH("x-width", CXLUpstreamPort,
                                 width, PCIE_LINK_WIDTH_16),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void cxl_upstream_class_init(ObjectClass *oc, void *data)

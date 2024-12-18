@@ -142,7 +142,6 @@ static const Property mpcore_priv_properties[] = {
      * has more IRQ lines than the kernel expects.
      */
     DEFINE_PROP_UINT32("num-irq", ARM11MPCorePriveState, num_irq, 64),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mpcore_priv_class_init(ObjectClass *klass, void *data)

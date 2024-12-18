@@ -208,7 +208,6 @@ static void vhost_vsock_device_unrealize(DeviceState *dev)
 static const Property vhost_vsock_properties[] = {
     DEFINE_PROP_UINT64("guest-cid", VHostVSock, conf.guest_cid, 0),
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_vsock_class_init(ObjectClass *klass, void *data)

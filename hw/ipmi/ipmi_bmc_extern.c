@@ -517,7 +517,6 @@ static void ipmi_bmc_extern_finalize(Object *obj)
 
 static const Property ipmi_bmc_extern_properties[] = {
     DEFINE_PROP_CHR("chardev", IPMIBmcExtern, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)

@@ -105,7 +105,6 @@ static const Property led_properties[] = {
     DEFINE_PROP_STRING("color", LEDState, color),
     DEFINE_PROP_STRING("description", LEDState, description),
     DEFINE_PROP_BOOL("gpio-active-high", LEDState, gpio_active_high, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void led_class_init(ObjectClass *klass, void *data)

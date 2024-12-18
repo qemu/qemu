@@ -556,7 +556,6 @@ static void cuda_init(Object *obj)
 
 static const Property cuda_properties[] = {
     DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void cuda_class_init(ObjectClass *oc, void *data)

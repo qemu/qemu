@@ -1108,7 +1108,6 @@ static const Property virtio_gpu_rutabaga_properties[] = {
     DEFINE_PROP_STRING("wayland-socket-path", VirtIOGPURutabaga,
                        wayland_socket_path),
     DEFINE_PROP_STRING("wsi", VirtIOGPURutabaga, wsi),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, void *data)

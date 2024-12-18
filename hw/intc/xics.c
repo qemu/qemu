@@ -348,7 +348,6 @@ static const Property icp_properties[] = {
     DEFINE_PROP_LINK(ICP_PROP_XICS, ICPState, xics, TYPE_XICS_FABRIC,
                      XICSFabric *),
     DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void icp_class_init(ObjectClass *klass, void *data)
@@ -680,7 +679,6 @@ static const Property ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_LINK(ICS_PROP_XICS, ICSState, xics, TYPE_XICS_FABRIC,
                      XICSFabric *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ics_class_init(ObjectClass *klass, void *data)

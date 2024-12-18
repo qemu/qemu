@@ -1662,7 +1662,6 @@ static const Property virtio_iommu_properties[] = {
     DEFINE_PROP_GRANULE_MODE("granule", VirtIOIOMMU, granule_mode,
                              GRANULE_MODE_HOST),
     DEFINE_PROP_UINT8("aw-bits", VirtIOIOMMU, aw_bits, 64),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_iommu_class_init(ObjectClass *klass, void *data)

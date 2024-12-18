@@ -694,7 +694,6 @@ static const Property cs4231a_properties[] = {
     DEFINE_PROP_UINT32 ("iobase",  CSState, port, 0x534),
     DEFINE_PROP_UINT32 ("irq",     CSState, irq,  9),
     DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),
-    DEFINE_PROP_END_OF_LIST (),
 };
 
 static void cs4231a_class_initfn (ObjectClass *klass, void *data)

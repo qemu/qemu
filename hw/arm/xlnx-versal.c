@@ -975,7 +975,6 @@ static const Property versal_properties[] = {
                       TYPE_CAN_BUS, CanBusState *),
     DEFINE_PROP_LINK("canbus1", Versal, lpd.iou.canbus[1],
                       TYPE_CAN_BUS, CanBusState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void versal_class_init(ObjectClass *klass, void *data)

@@ -917,7 +917,6 @@ static const Property sparc_cpu_properties[] = {
     DEFINE_PROP_UINT32("mmu-version", SPARCCPU, env.def.mmu_version, 0),
     DEFINE_PROP("nwindows", SPARCCPU, env.def.nwindows,
                 qdev_prop_nwindows, uint32_t),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 #ifndef CONFIG_USER_ONLY

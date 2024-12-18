@@ -201,7 +201,6 @@ static const MemoryRegionOps stm32f2xx_usart_ops = {
 
 static const Property stm32f2xx_usart_properties[] = {
     DEFINE_PROP_CHR("chardev", STM32F2XXUsartState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void stm32f2xx_usart_init(Object *obj)

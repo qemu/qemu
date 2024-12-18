@@ -234,7 +234,6 @@ static const Property m2sxxx_soc_properties[] = {
     /* default divisors in Libero GUI */
     DEFINE_PROP_UINT8("apb0div", MSF2State, apb0div, 2),
     DEFINE_PROP_UINT8("apb1div", MSF2State, apb1div, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void m2sxxx_soc_class_init(ObjectClass *klass, void *data)

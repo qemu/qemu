@@ -1099,7 +1099,6 @@ static const Property escc_properties[] = {
     DEFINE_PROP_CHR("chrB", ESCCState, chn[0].chr),
     DEFINE_PROP_CHR("chrA", ESCCState, chn[1].chr),
     DEFINE_PROP_STRING("chnA-sunkbd-layout", ESCCState, chn[1].sunkbd_layout),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void escc_class_init(ObjectClass *klass, void *data)

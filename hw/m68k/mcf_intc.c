@@ -180,7 +180,6 @@ static void mcf_intc_instance_init(Object *obj)
 static const Property mcf_intc_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", mcf_intc_state, cpu,
                      TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mcf_intc_class_init(ObjectClass *oc, void *data)

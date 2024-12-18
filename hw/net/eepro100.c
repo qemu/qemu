@@ -2060,7 +2060,6 @@ static E100PCIDeviceInfo *eepro100_get_class(EEPRO100State *s)
 
 static const Property e100_properties[] = {
     DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void eepro100_class_init(ObjectClass *klass, void *data)

@@ -967,7 +967,6 @@ static void ppc405_cpc_realize(DeviceState *dev, Error **errp)
 
 static const Property ppc405_cpc_properties[] = {
     DEFINE_PROP_UINT32("sys-clk", Ppc405CpcState, sysclk, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ppc405_cpc_class_init(ObjectClass *oc, void *data)

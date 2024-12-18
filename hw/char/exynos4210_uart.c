@@ -709,7 +709,6 @@ static const Property exynos4210_uart_properties[] = {
     DEFINE_PROP_UINT32("channel", Exynos4210UartState, channel, 0),
     DEFINE_PROP_UINT32("rx-size", Exynos4210UartState, rx.size, 16),
     DEFINE_PROP_UINT32("tx-size", Exynos4210UartState, tx.size, 16),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void exynos4210_uart_class_init(ObjectClass *klass, void *data)

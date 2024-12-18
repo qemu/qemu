@@ -144,7 +144,6 @@ static const Property aspeed_soc_properties[] = {
                      MemoryRegion *),
     DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_soc_class_init(ObjectClass *oc, void *data)

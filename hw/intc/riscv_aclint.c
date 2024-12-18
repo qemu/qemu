@@ -274,7 +274,6 @@ static const Property riscv_aclint_mtimer_properties[] = {
         aperture_size, RISCV_ACLINT_DEFAULT_MTIMER_SIZE),
     DEFINE_PROP_UINT32("timebase-freq", RISCVAclintMTimerState,
         timebase_freq, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
@@ -466,7 +465,6 @@ static const Property riscv_aclint_swi_properties[] = {
     DEFINE_PROP_UINT32("hartid-base", RISCVAclintSwiState, hartid_base, 0),
     DEFINE_PROP_UINT32("num-harts", RISCVAclintSwiState, num_harts, 1),
     DEFINE_PROP_UINT32("sswi", RISCVAclintSwiState, sswi, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)

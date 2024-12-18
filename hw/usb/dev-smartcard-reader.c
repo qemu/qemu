@@ -1173,7 +1173,6 @@ static Answer *ccid_peek_next_answer(USBCCIDState *s)
 
 static const Property ccid_props[] = {
     DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const TypeInfo ccid_bus_info = {
@@ -1433,7 +1432,6 @@ static const VMStateDescription ccid_vmstate = {
 
 static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ccid_class_initfn(ObjectClass *klass, void *data)

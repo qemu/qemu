@@ -555,7 +555,6 @@ static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 static const Property pnv_psi_properties[] = {
     DEFINE_PROP_UINT64("bar", PnvPsi, bar, 0),
     DEFINE_PROP_UINT64("fsp-bar", PnvPsi, fsp_bar, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)

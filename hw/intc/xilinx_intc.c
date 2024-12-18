@@ -178,7 +178,6 @@ static void xilinx_intc_init(Object *obj)
 
 static const Property xilinx_intc_properties[] = {
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_intc_class_init(ObjectClass *klass, void *data)

@@ -104,7 +104,6 @@ static const Property pci_props[] = {
     DEFINE_PROP_BIT("x-pcie-ext-tag", PCIDevice, cap_present,
                     QEMU_PCIE_EXT_TAG_BITNR, true),
     { .name = "busnr", .info = &prop_pci_busnr },
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pcibus = {

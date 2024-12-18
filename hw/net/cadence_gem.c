@@ -1799,7 +1799,6 @@ static const Property gem_properties[] = {
                        jumbo_max_len, 10240),
     DEFINE_PROP_LINK("dma", CadenceGEMState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void gem_class_init(ObjectClass *klass, void *data)

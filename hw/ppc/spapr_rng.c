@@ -134,7 +134,6 @@ static const Property spapr_rng_properties[] = {
     DEFINE_PROP_BOOL("use-kvm", SpaprRngState, use_kvm, false),
     DEFINE_PROP_LINK("rng", SpaprRngState, backend, TYPE_RNG_BACKEND,
                      RngBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void spapr_rng_class_init(ObjectClass *oc, void *data)

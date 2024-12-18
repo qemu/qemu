@@ -367,7 +367,6 @@ static const VMStateDescription vmstate_spapr_vtpm = {
 static const Property tpm_spapr_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprTpmState, vdev),
     DEFINE_PROP_TPMBE("tpmdev", SpaprTpmState, be_driver),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tpm_spapr_realizefn(SpaprVioDevice *dev, Error **errp)

@@ -416,7 +416,6 @@ static void xgmac_enet_realize(DeviceState *dev, Error **errp)
 
 static const Property xgmac_properties[] = {
     DEFINE_NIC_PROPERTIES(XgmacState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xgmac_enet_class_init(ObjectClass *klass, void *data)

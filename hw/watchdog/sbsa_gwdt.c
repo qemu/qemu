@@ -270,7 +270,6 @@ static const Property wdt_sbsa_gwdt_props[] = {
      */
     DEFINE_PROP_UINT64("clock-frequency", struct SBSA_GWDTState, freq,
                        62500000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, void *data)

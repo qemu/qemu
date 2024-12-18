@@ -117,7 +117,6 @@ static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("index",  ISASerialState, index,   -1),
     DEFINE_PROP_UINT32("iobase",  ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void serial_isa_class_initfn(ObjectClass *klass, void *data)

@@ -163,7 +163,6 @@ static const Property riscv_iommu_pci_properties[] = {
     DEFINE_PROP_UINT16("device-id", RISCVIOMMUStatePci, device_id,
                        PCI_DEVICE_ID_REDHAT_RISCV_IOMMU),
     DEFINE_PROP_UINT8("revision", RISCVIOMMUStatePci, revision, 0x01),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void riscv_iommu_pci_class_init(ObjectClass *klass, void *data)

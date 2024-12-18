@@ -448,7 +448,6 @@ static const Property stellaris_sys_properties[] = {
     DEFINE_PROP_UINT32("dc2", ssys_state, dc2, 0),
     DEFINE_PROP_UINT32("dc3", ssys_state, dc3, 0),
     DEFINE_PROP_UINT32("dc4", ssys_state, dc4, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void stellaris_sys_instance_init(Object *obj)

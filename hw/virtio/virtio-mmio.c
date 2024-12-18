@@ -757,7 +757,6 @@ static const Property virtio_mmio_properties[] = {
     DEFINE_PROP_BOOL("force-legacy", VirtIOMMIOProxy, legacy, true),
     DEFINE_PROP_BIT("ioeventfd", VirtIOMMIOProxy, flags,
                     VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_mmio_realizefn(DeviceState *d, Error **errp)

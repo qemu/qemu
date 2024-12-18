@@ -2366,7 +2366,6 @@ static const Property pnv_xive2_properties[] = {
     DEFINE_PROP_UINT64("config", PnvXive2, config,
                        PNV_XIVE2_CONFIGURATION),
     DEFINE_PROP_LINK("chip", PnvXive2, chip, TYPE_PNV_CHIP, PnvChip *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_xive2_instance_init(Object *obj)

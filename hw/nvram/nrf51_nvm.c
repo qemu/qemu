@@ -356,7 +356,6 @@ static void nrf51_nvm_reset(DeviceState *dev)
 
 static const Property nrf51_nvm_properties[] = {
     DEFINE_PROP_UINT32("flash-size", NRF51NVMState, flash_size, 0x40000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_nvm = {

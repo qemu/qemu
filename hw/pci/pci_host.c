@@ -244,7 +244,6 @@ static const Property pci_host_properties_common[] = {
     DEFINE_PROP_BOOL("x-config-reg-migration-enabled", PCIHostState,
                      mig_enabled, true),
     DEFINE_PROP_BOOL(PCI_HOST_BYPASS_IOMMU, PCIHostState, bypass_iommu, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_host_class_init(ObjectClass *klass, void *data)

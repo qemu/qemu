@@ -2699,7 +2699,6 @@ static const Property riscv_cpu_properties[] = {
      * it with -x and default to 'false'.
      */
     DEFINE_PROP_BOOL("x-misa-w", RISCVCPU, cfg.misa_w, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 #if defined(TARGET_RISCV64)

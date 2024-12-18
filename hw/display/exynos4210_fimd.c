@@ -1928,7 +1928,6 @@ static const GraphicHwOps exynos4210_fimd_ops = {
 static const Property exynos4210_fimd_properties[] = {
     DEFINE_PROP_LINK("framebuffer-memory", Exynos4210fimdState, fbmem,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void exynos4210_fimd_init(Object *obj)

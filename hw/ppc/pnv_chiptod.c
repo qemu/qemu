@@ -454,7 +454,6 @@ static const Property pnv_chiptod_properties[] = {
     DEFINE_PROP_BOOL("primary", PnvChipTOD, primary, false),
     DEFINE_PROP_BOOL("secondary", PnvChipTOD, secondary, false),
     DEFINE_PROP_LINK("chip", PnvChipTOD , chip, TYPE_PNV_CHIP, PnvChip *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_chiptod_power9_class_init(ObjectClass *klass, void *data)
