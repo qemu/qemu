@@ -90,6 +90,15 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         if (env->cause_code == 0) {
             qemu_log_mask(LOG_UNIMP,
                           "trap0 is unhandled, no semihosting available\n");
+
+            /*
+             * Detect the code sequence the standalone runtime uses
+             * to signal the program has finished.
+             * r0 = #0x18; r2 = #0x0; trap0(#0)
+             */
+            if (env->gpr[HEX_REG_R00] == 0x18) {
+                exit(env->gpr[HEX_REG_R02]);
+            }
         }
 
         hexagon_ssr_set_cause(env, env->cause_code);
