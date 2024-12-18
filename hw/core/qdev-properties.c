@@ -1061,7 +1061,7 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, const Property *prop
         NULL, NULL, (Property *)prop);
 }
 
-void device_class_set_props(DeviceClass *dc, const Property *props)
+void (device_class_set_props)(DeviceClass *dc, const Property *props)
 {
     const Property *prop;
 

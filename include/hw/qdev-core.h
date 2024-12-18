@@ -940,8 +940,25 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
  * This will add a set of properties to the object. It will fault if
  * you attempt to add an existing property defined by a parent class.
  * To modify an inherited property you need to use????
+ *
+ * Validate that @props has at least one Property plus the terminator.
+ * Validate that the array is terminated at compile-time (with -O2),
+ * which requires the array to be const.
  */
 void device_class_set_props(DeviceClass *dc, const Property *props);
+
+#define device_class_set_props(dc, props) \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(sizeof(props) != sizeof(const Property *) &&  \
+                          sizeof(props) < 2 * sizeof(Property));        \
+        if (sizeof(props) != sizeof(const Property *)) {                \
+            size_t props_count_ = sizeof(props) / sizeof(Property) - 1; \
+            if ((props)[props_count_].name != NULL) {                   \
+                qemu_build_not_reached();                               \
+            }                                                           \
+        }                                                               \
+        (device_class_set_props)((dc), (props));                        \
+    } while (0)
 
 /**
  * device_class_set_parent_realize() - set up for chaining realize fns

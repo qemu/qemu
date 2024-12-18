@@ -3822,7 +3822,7 @@ static void migration_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->user_creatable = false;
-    device_class_set_props(dc, migration_properties);
+    (device_class_set_props)(dc, migration_properties);
 }
 
 static void migration_instance_finalize(Object *obj)
