@@ -72,7 +72,7 @@ class Vnc(QemuSystemTest):
                          'Could not set password')
 
     def test_change_password_requires_a_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0')
+        self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change-vnc-password',
@@ -84,7 +84,7 @@ class Vnc(QemuSystemTest):
                          'Could not set password')
 
     def test_change_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password=on')
+        self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999,password=on')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         self.vm.cmd('change-vnc-password',
