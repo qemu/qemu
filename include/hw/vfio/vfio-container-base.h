@@ -44,6 +44,7 @@ typedef struct VFIOContainerBase {
     unsigned long pgsizes;
     unsigned int dma_max_mappings;
     bool dirty_pages_supported;
+    bool dirty_pages_started; /* Protected by BQL */
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
     QLIST_ENTRY(VFIOContainerBase) next;
