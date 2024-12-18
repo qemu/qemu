@@ -20,7 +20,7 @@
 
 /* migration properties */
 
-extern Property migration_properties[];
+extern const Property migration_properties[];
 
 /* capabilities */
 
