@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Simple functional tests for VNC functionality
 #
 # Copyright (c) 2018 Red Hat, Inc.
@@ -11,7 +13,7 @@
 import socket
 from typing import List
 
-from avocado_qemu import QemuSystemTest
+from qemu_test import QemuSystemTest
 
 
 VNC_ADDR = '127.0.0.1'
@@ -51,10 +53,7 @@ def find_free_ports(count: int) -> List[int]:
 
 
 class Vnc(QemuSystemTest):
-    """
-    :avocado: tags=vnc,quick
-    :avocado: tags=machine:none
-    """
+
     def test_no_vnc(self):
         self.vm.add_args('-nodefaults', '-S')
         self.vm.launch()
@@ -113,3 +112,6 @@ class Vnc(QemuSystemTest):
         self.assertFalse(check_connect(a))
         self.assertTrue(check_connect(b))
         self.assertTrue(check_connect(c))
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
