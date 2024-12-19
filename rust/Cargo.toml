@@ -38,6 +38,7 @@ should_implement_trait = "deny"
 unused_self = "allow"
 
 # default-allow lints
+as_ptr_cast_mut = "deny"
 as_underscore = "deny"
 assertions_on_result_states = "deny"
 bool_to_int_with_if = "deny"

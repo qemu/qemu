@@ -106,6 +106,8 @@ pub struct PL011State {
     device_id: DeviceId,
 }
 
+qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
+
 unsafe impl ObjectType for PL011State {
     type Class = <SysBusDevice as ObjectType>::Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
@@ -140,8 +142,6 @@ impl PL011State {
     unsafe fn init(&mut self) {
         const CLK_NAME: &CStr = c_str!("clk");
 
-        let sbd = unsafe { &mut *(addr_of_mut!(*self).cast::<SysBusDevice>()) };
-
         // SAFETY:
         //
         // self and self.iomem are guaranteed to be valid at this point since callers
@@ -155,14 +155,15 @@ impl PL011State {
                 Self::TYPE_NAME.as_ptr(),
                 0x1000,
             );
+
+            let sbd: &mut SysBusDevice = self.upcast_mut();
             sysbus_init_mmio(sbd, addr_of_mut!(self.iomem));
         }
 
         for irq in self.interrupts.iter() {
+            let sbd: &SysBusDevice = self.upcast();
             sbd.init_irq(irq);
         }
-
-        let dev = addr_of_mut!(*self).cast::<DeviceState>();
 
         // SAFETY:
         //
@@ -172,6 +173,7 @@ impl PL011State {
         // calls this function to initialize the fields; therefore no code is
         // able to access an invalid self.clock value.
         unsafe {
+            let dev: &mut DeviceState = self.upcast_mut();
             self.clock = NonNull::new(qdev_init_clock_in(
                 dev,
                 CLK_NAME.as_ptr(),
@@ -631,6 +633,8 @@ impl PL011Luminary {
         self.parent_obj.device_id = DeviceId::Luminary;
     }
 }
+
+qom_isa!(PL011Luminary : PL011State, SysBusDevice, DeviceState, Object);
 
 unsafe impl ObjectType for PL011Luminary {
     type Class = <PL011State as ObjectType>::Class;

@@ -2,7 +2,11 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::ffi::CStr;
+use std::{
+    ffi::CStr,
+    os::raw::c_void,
+    ptr::{addr_of, addr_of_mut},
+};
 
 use qemu_api::{
     bindings::*,
@@ -30,6 +34,8 @@ pub struct DummyState {
     parent: DeviceState,
     migrate_clock: bool,
 }
+
+qom_isa!(DummyState: Object, DeviceState);
 
 declare_properties! {
     DUMMY_PROPERTIES,
@@ -79,5 +85,65 @@ fn test_object_new() {
     init_qom();
     unsafe {
         object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
+    }
+}
+
+// a note on all "cast" tests: usually, especially for downcasts the desired
+// class would be placed on the right, for example:
+//
+//    let sbd_ref = p.dynamic_cast::<SysBusDevice>();
+//
+// Here I am doing the opposite to check that the resulting type is correct.
+
+#[test]
+#[allow(clippy::shadow_unrelated)]
+/// Test casts on shared references.
+fn test_cast() {
+    init_qom();
+    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+
+    let p_ref: &DummyState = unsafe { &*p };
+    let obj_ref: &Object = p_ref.upcast();
+    assert_eq!(addr_of!(*obj_ref), p.cast());
+
+    let sbd_ref: Option<&SysBusDevice> = obj_ref.dynamic_cast();
+    assert!(sbd_ref.is_none());
+
+    let dev_ref: Option<&DeviceState> = obj_ref.downcast();
+    assert_eq!(addr_of!(*dev_ref.unwrap()), p.cast());
+
+    // SAFETY: the cast is wrong, but the value is only used for comparison
+    unsafe {
+        let sbd_ref: &SysBusDevice = obj_ref.unsafe_cast();
+        assert_eq!(addr_of!(*sbd_ref), p.cast());
+
+        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
+    }
+}
+
+#[test]
+#[allow(clippy::shadow_unrelated)]
+/// Test casts on mutable references.
+fn test_cast_mut() {
+    init_qom();
+    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+
+    let p_ref: &mut DummyState = unsafe { &mut *p };
+    let obj_ref: &mut Object = p_ref.upcast_mut();
+    assert_eq!(addr_of_mut!(*obj_ref), p.cast());
+
+    let sbd_ref: Result<&mut SysBusDevice, &mut Object> = obj_ref.dynamic_cast_mut();
+    let obj_ref = sbd_ref.unwrap_err();
+
+    let dev_ref: Result<&mut DeviceState, &mut Object> = obj_ref.downcast_mut();
+    let dev_ref = dev_ref.unwrap();
+    assert_eq!(addr_of_mut!(*dev_ref), p.cast());
+
+    // SAFETY: the cast is wrong, but the value is only used for comparison
+    unsafe {
+        let sbd_ref: &mut SysBusDevice = obj_ref.unsafe_cast_mut();
+        assert_eq!(addr_of_mut!(*sbd_ref), p.cast());
+
+        object_unref(p_ref.as_object_mut_ptr().cast::<c_void>());
     }
 }

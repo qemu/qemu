@@ -7,7 +7,11 @@ use std::{ffi::CStr, ptr::addr_of};
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
 use crate::{
-    bindings, cell::bql_locked, irq::InterruptSource, prelude::*, qdev::DeviceClass,
+    bindings,
+    cell::bql_locked,
+    irq::InterruptSource,
+    prelude::*,
+    qdev::{DeviceClass, DeviceState},
     qom::ClassInitImpl,
 };
 
@@ -16,6 +20,7 @@ unsafe impl ObjectType for SysBusDevice {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
 }
+qom_isa!(SysBusDevice: DeviceState, Object);
 
 // TODO: add SysBusDeviceImpl
 impl<T> ClassInitImpl<SysBusDeviceClass> for T
