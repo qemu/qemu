@@ -18,17 +18,17 @@
 #include "migration/vmstate.h"
 #include "hw/misc/vmcoreinfo.h"
 
-static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)
+static void fw_cfg_vmci_write(void *opaque, off_t offset, size_t len)
 {
-    VMCoreInfoState *s = VMCOREINFO(dev);
+    VMCoreInfoState *s = opaque;
 
     s->has_vmcoreinfo = offset == 0 && len == sizeof(s->vmcoreinfo)
         && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
 }
 
-static void vmcoreinfo_reset(void *dev)
+static void vmcoreinfo_reset(void *opaque)
 {
-    VMCoreInfoState *s = VMCOREINFO(dev);
+    VMCoreInfoState *s = opaque;
 
     s->has_vmcoreinfo = false;
     memset(&s->vmcoreinfo, 0, sizeof(s->vmcoreinfo));
@@ -65,7 +65,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
      * This device requires to register a global reset because it is
      * not plugged to a bus (which, as its QOM parent, would reset it).
      */
-    qemu_register_reset(vmcoreinfo_reset, dev);
+    qemu_register_reset(vmcoreinfo_reset, s);
     vmcoreinfo_state = s;
 }
 
