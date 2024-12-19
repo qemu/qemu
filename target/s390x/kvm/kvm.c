@@ -51,6 +51,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "target/s390x/kvm/pv.h"
+#include CONFIG_DEVICES
 
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
@@ -1494,9 +1495,11 @@ static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
 static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
 {
     CPUS390XState *env = &cpu->env;
-    int ret;
+    int ret = -EINVAL;
 
+#ifdef CONFIG_S390_CCW_VIRTIO
     ret = s390_virtio_hypercall(env);
+#endif /* CONFIG_S390_CCW_VIRTIO */
     if (ret == -EINVAL) {
         kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
         return 0;
