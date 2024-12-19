@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from qemu_test.utils import archive_extract
+
 
 class OpenRISC1kSimTest(LinuxKernelTest):
 
@@ -16,10 +16,9 @@ class OpenRISC1kSimTest(LinuxKernelTest):
 
     def test_or1k_sim(self):
         self.set_machine('or1k-sim')
-        file_path = self.ASSET_DAY20.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_DAY20)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/day20/vmlinux')
+        self.vm.add_args('-kernel', self.scratch_file('day20', 'vmlinux'))
         self.vm.launch()
         self.wait_for_console_pattern('QEMU advent calendar')
 

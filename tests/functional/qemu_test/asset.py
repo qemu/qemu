@@ -9,13 +9,13 @@ import hashlib
 import logging
 import os
 import stat
-import subprocess
 import sys
 import unittest
 import urllib.request
 from time import sleep
 from pathlib import Path
 from shutil import copyfileobj
+from urllib.error import HTTPError
 
 
 # Instances of this class must be declared as class level variables
@@ -40,6 +40,9 @@ class Asset:
         return "Asset: url=%s hash=%s cache=%s" % (
             self.url, self.hash, self.cache_file)
 
+    def __str__(self):
+        return str(self.cache_file)
+
     def _check(self, cache_file):
         if self.hash is None:
             return True
@@ -62,6 +65,12 @@ class Asset:
 
     def valid(self):
         return self.cache_file.exists() and self._check(self.cache_file)
+
+    def fetchable(self):
+        return not os.environ.get("QEMU_TEST_NO_DOWNLOAD", False)
+
+    def available(self):
+        return self.valid() or self.fetchable()
 
     def _wait_for_other_download(self, tmp_cache_file):
         # Another thread already seems to download the asset, so wait until
@@ -101,7 +110,7 @@ class Asset:
                            self.cache_file, self.url)
             return str(self.cache_file)
 
-        if os.environ.get("QEMU_TEST_NO_DOWNLOAD", False):
+        if not self.fetchable():
             raise Exception("Asset cache is invalid and downloads disabled")
 
         self.log.info("Downloading %s to %s...", self.url, self.cache_file)
@@ -162,7 +171,18 @@ class Asset:
         for name, asset in vars(test.__class__).items():
             if name.startswith("ASSET_") and type(asset) == Asset:
                 log.info("Attempting to cache '%s'" % asset)
-                asset.fetch()
+                try:
+                    asset.fetch()
+                except HTTPError as e:
+                    # Treat 404 as fatal, since it is highly likely to
+                    # indicate a broken test rather than a transient
+                    # server or networking problem
+                    if e.code == 404:
+                        raise
+
+                    log.debug(f"HTTP error {e.code} from {asset.url} " +
+                              "skipping asset precache")
+
         log.removeHandler(handler)
 
     def precache_suite(suite):

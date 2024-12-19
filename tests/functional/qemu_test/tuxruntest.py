@@ -11,12 +11,12 @@
 
 import os
 import stat
-import time
+from subprocess import check_call, DEVNULL
 
 from qemu_test import QemuSystemTest
-from qemu_test import exec_command, exec_command_and_wait_for_pattern
+from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern
-from qemu_test import has_cmd, run_cmd, get_qemu_img
+from qemu_test import which, get_qemu_img
 
 class TuxRunBaselineTest(QemuSystemTest):
 
@@ -39,10 +39,8 @@ class TuxRunBaselineTest(QemuSystemTest):
         super().setUp()
 
         # We need zstd for all the tuxrun tests
-        (has_zstd, msg) = has_cmd('zstd')
-        if has_zstd is False:
-            self.skipTest(msg)
-        self.zstd = 'zstd'
+        if which('zstd') is None:
+            self.skipTest("zstd not found in $PATH")
 
         # Pre-init TuxRun specific settings: Most machines work with
         # reasonable defaults but we sometimes need to tweak the
@@ -77,10 +75,11 @@ class TuxRunBaselineTest(QemuSystemTest):
         kernel_image =  kernel_asset.fetch()
         disk_image_zst = rootfs_asset.fetch()
 
-        disk_image = self.workdir + "/rootfs.ext4"
+        disk_image = self.scratch_file("rootfs.ext4")
 
-        run_cmd([self.zstd, "-f", "-d", disk_image_zst,
-                 "-o", disk_image])
+        check_call(['zstd', "-f", "-d", disk_image_zst,
+                    "-o", disk_image],
+                   stdout=DEVNULL, stderr=DEVNULL)
         # zstd copies source archive permissions for the output
         # file, so must make this writable for QEMU
         os.chmod(disk_image, stat.S_IRUSR | stat.S_IWUSR)

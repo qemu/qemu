@@ -27,9 +27,11 @@ test_timeouts = {
   'arm_collie' : 180,
   'arm_cubieboard' : 360,
   'arm_orangepi' : 540,
+  'arm_quanta_gsj' : 240,
   'arm_raspi2' : 120,
   'arm_tuxrun' : 240,
   'arm_sx1' : 360,
+  'intel_iommu': 300,
   'mips_malta' : 120,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
@@ -85,10 +87,12 @@ tests_arm_system_thorough = [
   'arm_emcraft_sf2',
   'arm_integratorcp',
   'arm_orangepi',
+  'arm_quanta_gsj',
   'arm_raspi2',
   'arm_smdkc210',
   'arm_sx1',
   'arm_vexpress',
+  'arm_virt',
   'arm_tuxrun',
 ]
 
@@ -224,11 +228,13 @@ tests_x86_64_system_quick = [
 
 tests_x86_64_system_thorough = [
   'acpi_bits',
-  'x86_64_tuxrun',
+  'intel_iommu',
   'linux_initrd',
   'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
+  'x86_64_hotplug_cpu',
+  'x86_64_tuxrun',
 ]
 
 tests_xtensa_system_thorough = [

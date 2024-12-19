@@ -14,20 +14,7 @@ import logging
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import gzip_uncompress
-from unittest import skipUnless
-
-NUMPY_AVAILABLE = True
-try:
-    import numpy as np
-except ImportError:
-    NUMPY_AVAILABLE = False
-
-CV2_AVAILABLE = True
-try:
-    import cv2
-except ImportError:
-    CV2_AVAILABLE = False
+from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
 
 
 class MaltaMachineConsole(LinuxKernelTest):
@@ -51,9 +38,9 @@ class MaltaMachineConsole(LinuxKernelTest):
         [2] https://kernel-team.pages.debian.net/kernel-handbook/
             ch-common-tasks.html#s-common-official
         """
-        deb_path = self.ASSET_KERNEL_2_63_2.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-2.6.32-5-5kc-malta')
+        kernel_path = self.archive_extract(
+            self.ASSET_KERNEL_2_63_2,
+            member='boot/vmlinux-2.6.32-5-5kc-malta')
 
         self.set_machine('malta')
         self.vm.set_console()
@@ -76,12 +63,10 @@ class MaltaMachineConsole(LinuxKernelTest):
          'rootfs.mipsel64r1.cpio.gz'),
         '75ba10cd35fb44e32948eeb26974f061b703c81c4ba2fab1ebcacf1d1bec3b61')
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    @skipUntrustedTest()
     def test_mips64el_malta_5KEc_cpio(self):
         kernel_path = self.ASSET_KERNEL_3_19_3.fetch()
-        initrd_path_gz = self.ASSET_CPIO_R1.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_CPIO_R1)
 
         self.set_machine('malta')
         self.vm.set_console()
@@ -106,8 +91,7 @@ class MaltaMachineConsole(LinuxKernelTest):
         self.vm.wait()
 
 
-@skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
-@skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
+@skipIfMissingImports('numpy', 'cv2')
 class MaltaMachineFramebuffer(LinuxKernelTest):
 
     timeout = 30
@@ -126,11 +110,13 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         """
         Boot Linux kernel and check Tux logo is displayed on the framebuffer.
         """
-        screendump_path = os.path.join(self.workdir, 'screendump.pbm')
 
-        kernel_path_gz = self.ASSET_KERNEL_4_7_0.fetch()
-        kernel_path = self.workdir + "/vmlinux"
-        gzip_uncompress(kernel_path_gz, kernel_path)
+        import numpy as np
+        import cv2
+
+        screendump_path = self.scratch_file('screendump.pbm')
+
+        kernel_path = self.uncompress(self.ASSET_KERNEL_4_7_0)
 
         tuxlogo_path = self.ASSET_TUXLOGO.fetch()
 
@@ -171,11 +157,12 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
     def test_mips_malta_i6400_framebuffer_logo_1core(self):
         self.do_test_i6400_framebuffer_logo(1)
 
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+    # XXX file tracking bug
+    @skipFlakyTest(bug_url=None)
     def test_mips_malta_i6400_framebuffer_logo_7cores(self):
         self.do_test_i6400_framebuffer_logo(7)
 
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+    @skipFlakyTest(bug_url=None)
     def test_mips_malta_i6400_framebuffer_logo_8cores(self):
         self.do_test_i6400_framebuffer_logo(8)
 

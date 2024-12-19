@@ -11,13 +11,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import time
-import os
 import logging
+from subprocess import check_call, DEVNULL
 
-from qemu_test import BUILD_DIR
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command, wait_for_console_pattern
-from qemu_test import get_qemu_img, run_cmd
+from qemu_test import get_qemu_img
 
 
 class Aarch64VirtMachine(QemuSystemTest):
@@ -54,8 +53,8 @@ class Aarch64VirtMachine(QemuSystemTest):
                          "mte=on,"
                          "gic-version=max,iommu=smmuv3")
         self.vm.add_args("-smp", "2", "-m", "1024")
-        self.vm.add_args('-bios', os.path.join(BUILD_DIR, 'pc-bios',
-                                               'edk2-aarch64-code.fd'))
+        self.vm.add_args('-bios', self.build_file('pc-bios',
+                                                  'edk2-aarch64-code.fd'))
         self.vm.add_args("-drive", f"file={iso_path},media=cdrom,format=raw")
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
@@ -96,9 +95,10 @@ class Aarch64VirtMachine(QemuSystemTest):
 
         # Also add a scratch block device
         logger.info('creating scratch qcow2 image')
-        image_path = os.path.join(self.workdir, 'scratch.qcow2')
+        image_path = self.scratch_file('scratch.qcow2')
         qemu_img = get_qemu_img(self)
-        run_cmd([qemu_img, 'create', '-f', 'qcow2', image_path, '8M'])
+        check_call([qemu_img, 'create', '-f', 'qcow2', image_path, '8M'],
+                   stdout=DEVNULL, stderr=DEVNULL)
 
         # Add the device
         self.vm.add_args('-blockdev',

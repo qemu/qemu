@@ -7,11 +7,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test.utils import gzip_uncompress
 
 
 class ArmRaspi2Machine(LinuxKernelTest):
@@ -37,9 +34,10 @@ class ArmRaspi2Machine(LinuxKernelTest):
         serial_kernel_cmdline = {
             0: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
         }
-        deb_path = self.ASSET_KERNEL_20190215.fetch()
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
+        kernel_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                           member='boot/kernel7.img')
+        dtb_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                        member='boot/bcm2709-rpi-2-b.dtb')
 
         self.set_machine('raspi2b')
         self.vm.set_console()
@@ -61,12 +59,11 @@ class ArmRaspi2Machine(LinuxKernelTest):
         self.do_test_arm_raspi2(0)
 
     def test_arm_raspi2_initrd(self):
-        deb_path = self.ASSET_KERNEL_20190215.fetch()
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        kernel_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                           member='boot/kernel7.img')
+        dtb_path = self.archive_extract(self.ASSET_KERNEL_20190215,
+                                        member='boot/bcm2709-rpi-2-b.dtb')
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.set_machine('raspi2b')
         self.vm.set_console()

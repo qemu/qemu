@@ -9,9 +9,9 @@ import os
 
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
-from qemu_test.utils import archive_extract, gzip_uncompress, lzma_uncompress
+from qemu_test import skipBigDataTest
 from qemu_test.utils import image_pow2ceil_expand
-from unittest import skipUnless
+
 
 class BananaPiMachine(LinuxKernelTest):
 
@@ -38,12 +38,11 @@ class BananaPiMachine(LinuxKernelTest):
 
     def test_arm_bpim2u(self):
         self.set_machine('bpim2u')
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -60,15 +59,12 @@ class BananaPiMachine(LinuxKernelTest):
 
     def test_arm_bpim2u_initrd(self):
         self.set_machine('bpim2u')
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
-        initrd_path_gz = self.ASSET_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
+        initrd_path = self.uncompress(self.ASSET_INITRD)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -99,14 +95,12 @@ class BananaPiMachine(LinuxKernelTest):
         self.require_netdev('user')
 
         deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = ('/usr/lib/linux-image-6.6.16-current-sunxi/'
+        kernel_path = self.archive_extract(
+            self.ASSET_DEB, member='boot/vmlinuz-6.6.16-current-sunxi')
+        dtb_path = ('usr/lib/linux-image-6.6.16-current-sunxi/'
                     'sun8i-r40-bananapi-m2-ultra.dtb')
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
-        rootfs_path_xz = self.ASSET_ROOTFS.fetch()
-        rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
-        lzma_uncompress(rootfs_path_xz, rootfs_path)
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
+        rootfs_path = self.uncompress(self.ASSET_ROOTFS)
         image_pow2ceil_expand(rootfs_path)
 
         self.vm.set_console()
@@ -143,14 +137,12 @@ class BananaPiMachine(LinuxKernelTest):
         os.remove(dtb_path)
         os.remove(rootfs_path)
 
-    @skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+    @skipBigDataTest()
     def test_arm_bpim2u_openwrt_22_03_3(self):
         self.set_machine('bpim2u')
         # This test download a 8.9 MiB compressed image and expand it
         # to 127 MiB.
-        image_path_gz = self.ASSET_SD_IMAGE.fetch()
-        image_path = os.path.join(self.workdir, 'sdcard.img')
-        gzip_uncompress(image_path_gz, image_path)
+        image_path = self.uncompress(self.ASSET_SD_IMAGE)
         image_pow2ceil_expand(image_path)
 
         self.vm.set_console()

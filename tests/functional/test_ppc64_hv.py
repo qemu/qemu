@@ -9,34 +9,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from unittest import skipIf, skipUnless
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern, exec_command
+from qemu_test import skipIfMissingCommands, skipBigDataTest
 import os
 import time
 import subprocess
 from datetime import datetime
-
-deps = ["xorriso"] # dependent tools needed in the test setup/box.
-
-def which(tool):
-    """ looks up the full path for @tool, returns None if not found
-        or if @tool does not have executable permissions.
-    """
-    paths=os.getenv('PATH')
-    for p in paths.split(os.path.pathsep):
-        p = os.path.join(p, tool)
-        if os.path.exists(p) and os.access(p, os.X_OK):
-            return p
-    return None
-
-def missing_deps():
-    """ returns True if any of the test dependent tools are absent.
-    """
-    for dep in deps:
-        if which(dep) is None:
-            return True
-    return False
 
 # Alpine is a light weight distro that supports QEMU. These tests boot
 # that on the machine then run a QEMU guest inside it in KVM mode,
@@ -45,8 +24,8 @@ def missing_deps():
 # large download, but it may be more polite to create qcow2 image with
 # QEMU already installed and use that.
 # XXX: The order of these tests seems to matter, see git blame.
-@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
-@skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+@skipIfMissingCommands("xorriso")
+@skipBigDataTest()
 class HypervisorTest(QemuSystemTest):
 
     timeout = 1000
@@ -67,23 +46,15 @@ class HypervisorTest(QemuSystemTest):
         :param path: path within the iso file of the file to be extracted
         :returns: path of the extracted file
         """
-        filename = os.path.basename(path)
-
-        cwd = os.getcwd()
-        os.chdir(self.workdir)
+        filename = self.scratch_file(os.path.basename(path))
 
         cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
         subprocess.run(cmd.split(),
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         os.chmod(filename, 0o600)
-        os.chdir(cwd)
 
-        # Return complete path to extracted file.  Because callers to
-        # extract_from_iso() specify 'path' with a leading slash, it is
-        # necessary to use os.path.relpath() as otherwise os.path.join()
-        # interprets it as an absolute path and drops the self.workdir part.
-        return os.path.normpath(os.path.join(self.workdir, filename))
+        return filename
 
     def setUp(self):
         super().setUp()

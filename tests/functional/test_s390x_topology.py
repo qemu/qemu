@@ -10,13 +10,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import os
-
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import wait_for_console_pattern
-from qemu_test.utils import lzma_uncompress
 
 
 class S390CPUTopology(QemuSystemTest):
@@ -88,9 +85,7 @@ class S390CPUTopology(QemuSystemTest):
         """
         self.require_accelerator("kvm")
         kernel_path = self.ASSET_F35_KERNEL.fetch()
-        initrd_path_xz = self.ASSET_F35_INITRD.fetch()
-        initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
-        lzma_uncompress(initrd_path_xz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_F35_INITRD, format="xz")
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE

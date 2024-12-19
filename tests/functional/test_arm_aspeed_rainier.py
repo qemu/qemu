@@ -43,11 +43,12 @@ class RainierMachine(AspeedTest):
     def test_arm_debian_kernel_boot(self):
         self.set_machine('rainier-bmc')
 
-        deb_path = self.ASSET_DEBIAN_LINUX_ARMHF_DEB.fetch()
-
-        kernel_path = self.extract_from_deb(deb_path, '/boot/vmlinuz-5.17.0-2-armmp')
-        dtb_path = self.extract_from_deb(deb_path,
-                '/usr/lib/linux-image-5.17.0-2-armmp/aspeed-bmc-ibm-rainier.dtb')
+        kernel_path = self.archive_extract(
+            self.ASSET_DEBIAN_LINUX_ARMHF_DEB,
+            member='boot/vmlinuz-5.17.0-2-armmp')
+        dtb_path = self.archive_extract(
+            self.ASSET_DEBIAN_LINUX_ARMHF_DEB,
+            member='usr/lib/linux-image-5.17.0-2-armmp/aspeed-bmc-ibm-rainier.dtb')
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_path,

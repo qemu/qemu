@@ -28,7 +28,7 @@ class EmcraftSf2Machine(LinuxKernelTest):
 
         uboot_path = self.ASSET_UBOOT.fetch()
         spi_path = self.ASSET_SPI.fetch()
-        spi_path_rw = os.path.join(self.workdir, 'spi.bin')
+        spi_path_rw = self.scratch_file('spi.bin')
         shutil.copy(spi_path, spi_path_rw)
         os.chmod(spi_path_rw, 0o600)
 

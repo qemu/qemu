@@ -31,55 +31,23 @@ including an upgraded acpica. The fork is located here:
 https://gitlab.com/qemu-project/biosbits-bits .
 """
 
-import logging
 import os
-import platform
 import re
 import shutil
 import subprocess
-import tarfile
-import tempfile
-import zipfile
 
-from pathlib import Path
 from typing import (
     List,
     Optional,
     Sequence,
 )
 from qemu.machine import QEMUMachine
-from unittest import skipIf
-from qemu_test import QemuSystemTest, Asset
+from qemu_test import (QemuSystemTest, Asset, skipIfMissingCommands,
+                       skipIfNotMachine)
 
-deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
-supported_platforms = ['x86_64'] # supported test platforms.
 
 # default timeout of 120 secs is sometimes not enough for bits test.
 BITS_TIMEOUT = 200
-
-def which(tool):
-    """ looks up the full path for @tool, returns None if not found
-        or if @tool does not have executable permissions.
-    """
-    paths=os.getenv('PATH')
-    for p in paths.split(os.path.pathsep):
-        p = os.path.join(p, tool)
-        if os.path.exists(p) and os.access(p, os.X_OK):
-            return p
-    return None
-
-def missing_deps():
-    """ returns True if any of the test dependent tools are absent.
-    """
-    for dep in deps:
-        if which(dep) is None:
-            return True
-    return False
-
-def supported_platform():
-    """ checks if the test is running on a supported platform.
-    """
-    return platform.machine() in supported_platforms
 
 class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
     """
@@ -123,9 +91,8 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
         """return the base argument to QEMU binary"""
         return self._base_args
 
-@skipIf(not supported_platform() or missing_deps(),
-        'unsupported platform or dependencies (%s) not installed' \
-        % ','.join(deps))
+@skipIfMissingCommands("xorriso", "mformat")
+@skipIfNotMachine("x86_64")
 class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attributes
     """
     ACPI and SMBIOS tests using biosbits.
@@ -149,7 +116,6 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._vm = None
-        self._baseDir = None
 
         self._debugcon_addr = '0x403'
         self._debugcon_log = 'debugcon-log.txt'
@@ -164,29 +130,24 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
     def copy_bits_config(self):
         """ copies the bios bits config file into bits.
         """
-        config_file = 'bits-cfg.txt'
-        bits_config_dir = os.path.join(self._baseDir, 'acpi-bits',
-                                       'bits-config')
-        target_config_dir = os.path.join(self.workdir,
-                                         'bits-%d' %self.BITS_INTERNAL_VER,
-                                         'boot')
-        self.assertTrue(os.path.exists(bits_config_dir))
+        bits_config_file = self.data_file('acpi-bits',
+                                          'bits-config',
+                                          'bits-cfg.txt')
+        target_config_dir = self.scratch_file('bits-%d' %
+                                              self.BITS_INTERNAL_VER,
+                                              'boot')
+        self.assertTrue(os.path.exists(bits_config_file))
         self.assertTrue(os.path.exists(target_config_dir))
-        self.assertTrue(os.access(os.path.join(bits_config_dir,
-                                               config_file), os.R_OK))
-        shutil.copy2(os.path.join(bits_config_dir, config_file),
-                     target_config_dir)
+        shutil.copy2(bits_config_file, target_config_dir)
         self.logger.info('copied config file %s to %s',
-                         config_file, target_config_dir)
+                         bits_config_file, target_config_dir)
 
     def copy_test_scripts(self):
         """copies the python test scripts into bits. """
 
-        bits_test_dir = os.path.join(self._baseDir, 'acpi-bits',
-                                     'bits-tests')
-        target_test_dir = os.path.join(self.workdir,
-                                       'bits-%d' %self.BITS_INTERNAL_VER,
-                                       'boot', 'python')
+        bits_test_dir = self.data_file('acpi-bits', 'bits-tests')
+        target_test_dir = self.scratch_file('bits-%d' % self.BITS_INTERNAL_VER,
+                                            'boot', 'python')
 
         self.assertTrue(os.path.exists(bits_test_dir))
         self.assertTrue(os.path.exists(target_test_dir))
@@ -223,8 +184,8 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
             the directory where we have extracted our pre-built bits grub
             tarball.
         """
-        grub_x86_64_mods = os.path.join(self.workdir, 'grub-inst-x86_64-efi')
-        grub_i386_mods = os.path.join(self.workdir, 'grub-inst')
+        grub_x86_64_mods = self.scratch_file('grub-inst-x86_64-efi')
+        grub_i386_mods = self.scratch_file('grub-inst')
 
         self.assertTrue(os.path.exists(grub_x86_64_mods))
         self.assertTrue(os.path.exists(grub_i386_mods))
@@ -245,13 +206,11 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         """ Uses grub-mkrescue to generate a fresh bits iso with the python
             test scripts
         """
-        bits_dir = os.path.join(self.workdir,
-                                'bits-%d' %self.BITS_INTERNAL_VER)
-        iso_file = os.path.join(self.workdir,
-                                'bits-%d.iso' %self.BITS_INTERNAL_VER)
-        mkrescue_script = os.path.join(self.workdir,
-                                       'grub-inst-x86_64-efi', 'bin',
-                                       'grub-mkrescue')
+        bits_dir = self.scratch_file('bits-%d' % self.BITS_INTERNAL_VER)
+        iso_file = self.scratch_file('bits-%d.iso' % self.BITS_INTERNAL_VER)
+        mkrescue_script = self.scratch_file('grub-inst-x86_64-efi',
+                                            'bin',
+                                            'grub-mkrescue')
 
         self.assertTrue(os.access(mkrescue_script,
                                   os.R_OK | os.W_OK | os.X_OK))
@@ -286,33 +245,25 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         super().setUp()
         self.logger = self.log
 
-        self._baseDir = Path(__file__).parent
-
-        prebuiltDir = os.path.join(self.workdir, 'prebuilt')
+        prebuiltDir = self.scratch_file('prebuilt')
         if not os.path.isdir(prebuiltDir):
             os.mkdir(prebuiltDir, mode=0o775)
 
-        bits_zip_file = os.path.join(prebuiltDir, 'bits-%d-%s.zip'
-                                     %(self.BITS_INTERNAL_VER,
-                                       self.BITS_COMMIT_HASH))
-        grub_tar_file = os.path.join(prebuiltDir,
-                                     'bits-%d-%s-grub.tar.gz'
-                                     %(self.BITS_INTERNAL_VER,
-                                       self.BITS_COMMIT_HASH))
-
-        bitsLocalArtLoc = self.ASSET_BITS.fetch()
-        self.logger.info("downloaded bits artifacts to %s", bitsLocalArtLoc)
+        bits_zip_file = self.scratch_file('prebuilt',
+                                          'bits-%d-%s.zip'
+                                          %(self.BITS_INTERNAL_VER,
+                                            self.BITS_COMMIT_HASH))
+        grub_tar_file = self.scratch_file('prebuilt',
+                                          'bits-%d-%s-grub.tar.gz'
+                                          %(self.BITS_INTERNAL_VER,
+                                            self.BITS_COMMIT_HASH))
 
         # extract the bits artifact in the temp working directory
-        with zipfile.ZipFile(bitsLocalArtLoc, 'r') as zref:
-            zref.extractall(prebuiltDir)
+        self.archive_extract(self.ASSET_BITS, sub_dir='prebuilt', format='zip')
 
         # extract the bits software in the temp working directory
-        with zipfile.ZipFile(bits_zip_file, 'r') as zref:
-            zref.extractall(self.workdir)
-
-        with tarfile.open(grub_tar_file, 'r', encoding='utf-8') as tarball:
-            tarball.extractall(self.workdir)
+        self.archive_extract(bits_zip_file)
+        self.archive_extract(grub_tar_file)
 
         self.copy_test_scripts()
         self.copy_bits_config()
@@ -322,7 +273,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         """parse the log generated by running bits tests and
            check for failures.
         """
-        debugconf = os.path.join(self.workdir, self._debugcon_log)
+        debugconf = self.scratch_file(self._debugcon_log)
         log = ""
         with open(debugconf, 'r', encoding='utf-8') as filehandle:
             log = filehandle.read()
@@ -354,8 +305,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         """The main test case implementation."""
 
         self.set_machine('pc')
-        iso_file = os.path.join(self.workdir,
-                                'bits-%d.iso' %self.BITS_INTERNAL_VER)
+        iso_file = self.scratch_file('bits-%d.iso' % self.BITS_INTERNAL_VER)
 
         self.assertTrue(os.access(iso_file, os.R_OK))
 

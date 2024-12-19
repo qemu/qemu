@@ -11,10 +11,8 @@ import subprocess
 
 from qemu_test import Asset
 from aspeed import AspeedTest
-from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import has_cmd
-from qemu_test.utils import archive_extract
-from unittest import skipUnless
+from qemu_test import exec_command_and_wait_for_pattern, skipIfMissingCommands
+
 
 class AST2600Machine(AspeedTest):
 
@@ -68,7 +66,7 @@ class AST2600Machine(AspeedTest):
          'images/ast2600-evb/buildroot-2023.02-tpm/flash.img'),
         'a46009ae8a5403a0826d607215e731a8c68d27c14c41e55331706b8f9c7bd997')
 
-    @skipUnless(*has_cmd('swtpm'))
+    @skipIfMissingCommands('swtpm')
     def test_arm_ast2600_evb_buildroot_tpm(self):
         self.set_machine('ast2600-evb')
 
@@ -106,16 +104,14 @@ class AST2600Machine(AspeedTest):
     def test_arm_ast2600_evb_sdk(self):
         self.set_machine('ast2600-evb')
 
-        image_path = self.ASSET_SDK_V806_AST2600_A2.fetch()
-
-        archive_extract(image_path, self.workdir)
+        self.archive_extract(self.ASSET_SDK_V806_AST2600_A2)
 
         self.vm.add_args('-device',
             'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test');
         self.vm.add_args('-device',
             'ds1338,bus=aspeed.i2c.bus.5,address=0x32');
         self.do_test_arm_aspeed_sdk_start(
-            self.workdir + '/ast2600-a2/image-bmc')
+            self.scratch_file("ast2600-a2", "image-bmc"))
 
         self.wait_for_console_pattern('ast2600-a2 login:')
 

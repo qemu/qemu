@@ -6,25 +6,19 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from qemu_test import BUILD_DIR
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import is_readable_executable_file
 
-from qemu.utils import kvm_available
 
 import os
 import socket
 import subprocess
 
 
-def pick_default_vug_bin():
-    relative_path = "./contrib/vhost-user-gpu/vhost-user-gpu"
-    if is_readable_executable_file(relative_path):
-        return relative_path
-
-    bld_dir_path = os.path.join(BUILD_DIR, relative_path)
+def pick_default_vug_bin(test):
+    bld_dir_path = test.build_file("contrib", "vhost-user-gpu", "vhost-user-gpu")
     if is_readable_executable_file(bld_dir_path):
         return bld_dir_path
 
@@ -87,7 +81,7 @@ class VirtioGPUx86(QemuSystemTest):
         # FIXME: should check presence of vhost-user-gpu, virgl, memfd etc
         self.require_accelerator('kvm')
 
-        vug = pick_default_vug_bin()
+        vug = pick_default_vug_bin(self)
         if not vug:
             self.skipTest("Could not find vhost-user-gpu")
 
@@ -101,9 +95,7 @@ class VirtioGPUx86(QemuSystemTest):
         os.set_inheritable(qemu_sock.fileno(), True)
         os.set_inheritable(vug_sock.fileno(), True)
 
-        self._vug_log_path = os.path.join(
-            self.logdir, "vhost-user-gpu.log"
-        )
+        self._vug_log_path = self.log_file("vhost-user-gpu.log")
         self._vug_log_file = open(self._vug_log_path, "wb")
         self.log.info('Complete vhost-user-gpu.log file can be '
                       'found at %s', self._vug_log_path)

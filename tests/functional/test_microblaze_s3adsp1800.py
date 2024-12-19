@@ -7,10 +7,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
-from qemu_test import exec_command, exec_command_and_wait_for_pattern
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
-from qemu_test.utils import archive_extract
+
 
 class MicroblazeMachine(QemuSystemTest):
 
@@ -23,10 +22,10 @@ class MicroblazeMachine(QemuSystemTest):
 
     def test_microblaze_s3adsp1800(self):
         self.set_machine('petalogix-s3adsp1800')
-        file_path = self.ASSET_IMAGE.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_IMAGE)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir + '/day17/ballerina.bin')
+        self.vm.add_args('-kernel',
+                         self.scratch_file('day17', 'ballerina.bin'))
         self.vm.launch()
         wait_for_console_pattern(self, 'This architecture does not have '
                                        'kernel memory protection')

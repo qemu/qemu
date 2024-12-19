@@ -5,10 +5,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import shutil
 
-from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test.utils import gzip_uncompress
+from qemu_test import LinuxKernelTest, Asset
+
 
 class Smdkc210Machine(LinuxKernelTest):
 
@@ -26,15 +25,12 @@ class Smdkc210Machine(LinuxKernelTest):
     def test_arm_exynos4210_initrd(self):
         self.set_machine('smdkc210')
 
-        deb_path = self.ASSET_DEB.fetch()
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-4.19.0-6-armmp')
-        dtb_path = '/usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        kernel_path = self.archive_extract(self.ASSET_DEB,
+                                           member='boot/vmlinuz-4.19.0-6-armmp')
+        dtb_path = 'usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
+        dtb_path = self.archive_extract(self.ASSET_DEB, member=dtb_path)
 
-        initrd_path_gz = self.ASSET_ROOTFS.fetch()
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
-        gzip_uncompress(initrd_path_gz, initrd_path)
+        initrd_path = self.uncompress(self.ASSET_ROOTFS)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
