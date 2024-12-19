@@ -93,16 +93,13 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo vmcoreinfo_device_info = {
-    .name          = VMCOREINFO_DEVICE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(VMCoreInfoState),
-    .class_init    = vmcoreinfo_device_class_init,
+static const TypeInfo vmcoreinfo_types[] = {
+    {
+        .name           = VMCOREINFO_DEVICE,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(VMCoreInfoState),
+        .class_init     = vmcoreinfo_device_class_init,
+    }
 };
 
-static void vmcoreinfo_register_types(void)
-{
-    type_register_static(&vmcoreinfo_device_info);
-}
-
-type_init(vmcoreinfo_register_types)
+DEFINE_TYPES(vmcoreinfo_types)
