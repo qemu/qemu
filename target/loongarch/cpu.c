@@ -379,6 +379,7 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
+    uint32_t data = 0;
     int i;
 
     for (i = 0; i < 21; i++) {
@@ -388,7 +389,6 @@ static void loongarch_la464_initfn(Object *obj)
     cpu->dtb_compatible = "loongarch,Loongson-3A5000";
     env->cpucfg[0] = 0x14c010;  /* PRID */
 
-    uint32_t data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
@@ -477,7 +477,7 @@ static void loongarch_la132_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
-
+    uint32_t data = 0;
     int i;
 
     for (i = 0; i < 21; i++) {
@@ -487,7 +487,6 @@ static void loongarch_la132_initfn(Object *obj)
     cpu->dtb_compatible = "loongarch,Loongson-1C103";
     env->cpucfg[0] = 0x148042;  /* PRID */
 
-    uint32_t data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
@@ -615,27 +614,30 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static bool loongarch_get_lsx(Object *obj, Error **errp)
 {
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    bool ret;
-
-    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
-        ret = true;
-    } else {
-        ret = false;
-    }
-    return ret;
+    return LOONGARCH_CPU(obj)->lsx != ON_OFF_AUTO_OFF;
 }
 
 static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    uint32_t val;
 
-    if (value) {
-        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 1);
-    } else {
-        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 0);
-        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    cpu->lsx = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    if (kvm_enabled()) {
+        /* kvm feature detection in function kvm_arch_init_vcpu */
+        return;
     }
+
+    /* LSX feature detection in TCG mode */
+    val = cpu->env.cpucfg[2];
+    if (cpu->lsx == ON_OFF_AUTO_ON) {
+        if (FIELD_EX32(val, CPUCFG2, LSX) == 0) {
+            error_setg(errp, "Failed to enable LSX in TCG mode");
+            return;
+        }
+    }
+
+    cpu->env.cpucfg[2] = FIELD_DP32(val, CPUCFG2, LSX, value);
 }
 
 static bool loongarch_get_lasx(Object *obj, Error **errp)
@@ -693,6 +695,7 @@ void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
+    cpu->lsx = ON_OFF_AUTO_AUTO;
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
                              loongarch_set_lsx);
     object_property_add_bool(obj, "lasx", loongarch_get_lasx,
@@ -713,6 +716,7 @@ void loongarch_cpu_post_init(Object *obj)
 
     } else {
         cpu->lbt = ON_OFF_AUTO_OFF;
+        cpu->pmu = ON_OFF_AUTO_OFF;
     }
 }
 

@@ -798,8 +798,35 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
 {
     int ret;
     struct kvm_device_attr attr;
+    uint64_t val;
 
     switch (feature) {
+    case LOONGARCH_FEATURE_LSX:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_LSX;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        if (ret == 0) {
+            return true;
+        }
+
+        /* Fallback to old kernel detect interface */
+        val = 0;
+        attr.group = KVM_LOONGARCH_VCPU_CPUCFG;
+        /* Cpucfg2 */
+        attr.attr  = 2;
+        attr.addr = (uint64_t)&val;
+        ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
+        if (!ret) {
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+            if (ret) {
+                return false;
+            }
+
+            ret = FIELD_EX32((uint32_t)val, CPUCFG2, LSX);
+            return (ret != 0);
+        }
+        return false;
+
     case LOONGARCH_FEATURE_LBT:
         /*
          * Return all if all the LBT features are supported such as:
@@ -827,6 +854,28 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
     }
 
     return false;
+}
+
+static int kvm_cpu_check_lsx(CPUState *cs, Error **errp)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    bool kvm_supported;
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_LSX);
+    env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LSX, 0);
+    if (cpu->lsx == ON_OFF_AUTO_ON) {
+        if (kvm_supported) {
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LSX, 1);
+        } else {
+            error_setg(errp, "'lsx' feature not supported by KVM on this host");
+            return -ENOTSUP;
+        }
+    } else if ((cpu->lsx == ON_OFF_AUTO_AUTO) && kvm_supported) {
+        env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LSX, 1);
+    }
+
+    return 0;
 }
 
 static int kvm_cpu_check_lbt(CPUState *cs, Error **errp)
@@ -887,6 +936,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (!kvm_get_one_reg(cs, KVM_REG_LOONGARCH_DEBUG_INST, &val)) {
         brk_insn = val;
+    }
+
+    ret = kvm_cpu_check_lsx(cs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
     }
 
     ret = kvm_cpu_check_lbt(cs, &local_err);
