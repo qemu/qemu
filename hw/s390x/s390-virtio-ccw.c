@@ -45,6 +45,7 @@
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
 #include "hw/s390x/cpu-topology.h"
+#include "kvm/kvm_s390x.h"
 #include CONFIG_DEVICES
 
 static Error *pv_mig_blocker;
@@ -121,12 +122,16 @@ static void subsystem_reset(void)
     }
 }
 
-static void set_memory_limit(uint64_t new_limit)
+static void s390_set_memory_limit(S390CcwMachineState *s390ms,
+                                  uint64_t new_limit)
 {
-    uint64_t hw_limit;
-    int ret;
+    uint64_t hw_limit = 0;
+    int ret = 0;
 
-    ret = s390_set_memory_limit(new_limit, &hw_limit);
+    assert(!s390ms->memory_limit && new_limit);
+    if (kvm_enabled()) {
+        ret = kvm_s390_set_mem_limit(new_limit, &hw_limit);
+    }
     if (ret == -E2BIG) {
         error_report("host supports a maximum of %" PRIu64 " GB",
                      hw_limit / GiB);
@@ -135,10 +140,12 @@ static void set_memory_limit(uint64_t new_limit)
         error_report("setting the guest size failed");
         exit(EXIT_FAILURE);
     }
+    s390ms->memory_limit = new_limit;
 }
 
 static void s390_memory_init(MachineState *machine)
 {
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(machine);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = machine->ram;
     uint64_t ram_size = memory_region_size(ram);
@@ -154,7 +161,7 @@ static void s390_memory_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    set_memory_limit(ram_size);
+    s390_set_memory_limit(s390ms, ram_size);
 
     /* Map the initial memory. Must happen after setting the memory limit. */
     memory_region_add_subregion(sysmem, 0, ram);
