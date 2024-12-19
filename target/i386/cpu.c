@@ -6499,7 +6499,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t limit;
     uint32_t signature[3];
     X86CPUTopoInfo topo_info;
-    uint32_t cores_per_pkg;
     uint32_t threads_per_pkg;
 
     topo_info.dies_per_pkg = env->nr_dies;
@@ -6507,9 +6506,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     topo_info.cores_per_module = cs->nr_cores / env->nr_dies / env->nr_modules;
     topo_info.threads_per_core = cs->nr_threads;
 
-    cores_per_pkg = topo_info.cores_per_module * topo_info.modules_per_die *
-                    topo_info.dies_per_pkg;
-    threads_per_pkg = cores_per_pkg * topo_info.threads_per_core;
+    threads_per_pkg = topo_info.threads_per_core * topo_info.cores_per_module *
+                      topo_info.modules_per_die * topo_info.dies_per_pkg;
 
     /* Calculate & apply limits for different index ranges */
     if (index >= 0xC0000000) {
