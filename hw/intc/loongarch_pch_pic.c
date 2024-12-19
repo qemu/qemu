@@ -7,17 +7,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
-#include "hw/loongarch/virt.h"
-#include "hw/pci-host/ls7a.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
-#include "hw/qdev-properties.h"
-#include "migration/vmstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 
-static void pch_pic_update_irq(LoongArchPCHPIC *s, uint64_t mask, int level)
+static void pch_pic_update_irq(LoongArchPICCommonState *s, uint64_t mask,
+                               int level)
 {
     uint64_t val;
     int irq;
@@ -45,7 +41,7 @@ static void pch_pic_update_irq(LoongArchPCHPIC *s, uint64_t mask, int level)
 
 static void pch_pic_irq_handler(void *opaque, int irq, int level)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint64_t mask = 1ULL << irq;
 
     assert(irq < s->irq_num);
@@ -78,7 +74,7 @@ static void pch_pic_irq_handler(void *opaque, int irq, int level)
 static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
                                             unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint64_t val = 0;
     uint32_t offset = addr & 0xfff;
 
@@ -136,7 +132,7 @@ static uint64_t get_writew_val(uint64_t value, uint32_t target, bool hi)
 static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
                                          uint64_t value, unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint32_t offset, old_valid, data = (uint32_t)value;
     uint64_t old, int_mask;
     offset = addr & 0xfff;
@@ -208,7 +204,7 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
 static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint64_t val = 0;
     uint32_t offset = addr & 0xfff;
 
@@ -236,7 +232,7 @@ static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
 static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
                                      uint64_t value, unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint32_t offset, data = (uint32_t)value;
     offset = addr & 0xfff;
 
@@ -263,7 +259,7 @@ static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
 static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint64_t val = 0;
     uint32_t offset = (addr & 0xfff) + PCH_PIC_ROUTE_ENTRY_OFFSET;
     int64_t offset_tmp;
@@ -292,7 +288,7 @@ static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
 static void loongarch_pch_pic_writeb(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     int32_t offset_tmp;
     uint32_t offset = (addr & 0xfff) + PCH_PIC_ROUTE_ENTRY_OFFSET;
 
@@ -360,7 +356,7 @@ static const MemoryRegionOps loongarch_pch_pic_reg8_ops = {
 
 static void loongarch_pch_pic_reset(DeviceState *d)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(d);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(d);
     int i;
 
     s->int_mask = -1;
@@ -379,30 +375,27 @@ static void loongarch_pch_pic_reset(DeviceState *d)
     s->int_polarity = 0x0;
 }
 
-static void loongarch_pch_pic_realize(DeviceState *dev, Error **errp)
+static void loongarch_pic_realize(DeviceState *dev, Error **errp)
 {
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(dev);
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(dev);
+    LoongarchPICClass *lpc = LOONGARCH_PIC_GET_CLASS(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Error *local_err = NULL;
 
-    if (!s->irq_num || s->irq_num  > VIRT_PCH_PIC_IRQ_NUM) {
-        error_setg(errp, "Invalid 'pic_irq_num'");
+    lpc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
     qdev_init_gpio_out(dev, s->parent_irq, s->irq_num);
     qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
-}
-
-static void loongarch_pch_pic_init(Object *obj)
-{
-    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem32_low, obj,
+    memory_region_init_io(&s->iomem32_low, OBJECT(dev),
                           &loongarch_pch_pic_reg32_low_ops,
                           s, PCH_PIC_NAME(.reg32_part1), 0x100);
-    memory_region_init_io(&s->iomem8, obj, &loongarch_pch_pic_reg8_ops,
+    memory_region_init_io(&s->iomem8, OBJECT(dev), &loongarch_pch_pic_reg8_ops,
                           s, PCH_PIC_NAME(.reg8), 0x2a0);
-    memory_region_init_io(&s->iomem32_high, obj,
+    memory_region_init_io(&s->iomem32_high, OBJECT(dev),
                           &loongarch_pch_pic_reg32_high_ops,
                           s, PCH_PIC_NAME(.reg32_part2), 0xc60);
     sysbus_init_mmio(sbd, &s->iomem32_low);
@@ -411,53 +404,24 @@ static void loongarch_pch_pic_init(Object *obj)
 
 }
 
-static const Property loongarch_pch_pic_properties[] = {
-    DEFINE_PROP_UINT32("pch_pic_irq_num",  LoongArchPCHPIC, irq_num, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
+static void loongarch_pic_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    LoongarchPICClass *lpc = LOONGARCH_PIC_CLASS(klass);
 
-static const VMStateDescription vmstate_loongarch_pch_pic = {
-    .name = TYPE_LOONGARCH_PCH_PIC,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(int_mask, LoongArchPCHPIC),
-        VMSTATE_UINT64(htmsi_en, LoongArchPCHPIC),
-        VMSTATE_UINT64(intedge, LoongArchPCHPIC),
-        VMSTATE_UINT64(intclr, LoongArchPCHPIC),
-        VMSTATE_UINT64(auto_crtl0, LoongArchPCHPIC),
-        VMSTATE_UINT64(auto_crtl1, LoongArchPCHPIC),
-        VMSTATE_UINT8_ARRAY(route_entry, LoongArchPCHPIC, 64),
-        VMSTATE_UINT8_ARRAY(htmsi_vector, LoongArchPCHPIC, 64),
-        VMSTATE_UINT64(last_intirr, LoongArchPCHPIC),
-        VMSTATE_UINT64(intirr, LoongArchPCHPIC),
-        VMSTATE_UINT64(intisr, LoongArchPCHPIC),
-        VMSTATE_UINT64(int_polarity, LoongArchPCHPIC),
-        VMSTATE_END_OF_LIST()
+    device_class_set_legacy_reset(dc, loongarch_pch_pic_reset);
+    device_class_set_parent_realize(dc, loongarch_pic_realize,
+                                    &lpc->parent_realize);
+}
+
+static const TypeInfo loongarch_pic_types[] = {
+   {
+        .name               = TYPE_LOONGARCH_PIC,
+        .parent             = TYPE_LOONGARCH_PIC_COMMON,
+        .instance_size      = sizeof(LoongarchPICState),
+        .class_size         = sizeof(LoongarchPICClass),
+        .class_init         = loongarch_pic_class_init,
     }
 };
 
-static void loongarch_pch_pic_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = loongarch_pch_pic_realize;
-    device_class_set_legacy_reset(dc, loongarch_pch_pic_reset);
-    dc->vmsd = &vmstate_loongarch_pch_pic;
-    device_class_set_props(dc, loongarch_pch_pic_properties);
-}
-
-static const TypeInfo loongarch_pch_pic_info = {
-    .name          = TYPE_LOONGARCH_PCH_PIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongArchPCHPIC),
-    .instance_init = loongarch_pch_pic_init,
-    .class_init    = loongarch_pch_pic_class_init,
-};
-
-static void loongarch_pch_pic_register_types(void)
-{
-    type_register_static(&loongarch_pch_pic_info);
-}
-
-type_init(loongarch_pch_pic_register_types)
+DEFINE_TYPES(loongarch_pic_types)
