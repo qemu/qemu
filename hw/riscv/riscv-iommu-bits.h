@@ -88,6 +88,12 @@ struct riscv_iommu_pq_record {
 #define RISCV_IOMMU_CAP_PD17            BIT_ULL(39)
 #define RISCV_IOMMU_CAP_PD20            BIT_ULL(40)
 
+enum riscv_iommu_igs_modes {
+    RISCV_IOMMU_CAP_IGS_MSI = 0,
+    RISCV_IOMMU_CAP_IGS_WSI,
+    RISCV_IOMMU_CAP_IGS_BOTH
+};
+
 /* 5.4 Features control register (32bits) */
 #define RISCV_IOMMU_REG_FCTL            0x0008
 #define RISCV_IOMMU_FCTL_BE             BIT(0)
