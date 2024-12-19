@@ -58,6 +58,22 @@ static int dev_major_minor(const char *devpath,
     return -1;
 }
 
+/*
+ * Check if we already have the devmajor:devminor in the mounts
+ * If thats the case return true.
+ */
+static bool dev_exists(FsMountList *mounts, unsigned int devmajor, unsigned int devminor)
+{
+    FsMount *mount;
+
+    QTAILQ_FOREACH(mount, mounts, next) {
+        if (mount->devmajor == devmajor && mount->devminor == devminor) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool build_fs_mount_list_from_mtab(FsMountList *mounts, Error **errp)
 {
     struct mntent *ment;
@@ -86,6 +102,10 @@ static bool build_fs_mount_list_from_mtab(FsMountList *mounts, Error **errp)
         }
         if (dev_major_minor(ment->mnt_fsname, &devmajor, &devminor) == -2) {
             /* Skip bind mounts */
+            continue;
+        }
+        if (dev_exists(mounts, devmajor, devminor)) {
+            /* Skip already existing devices (bind mounts) */
             continue;
         }
 
@@ -169,6 +189,11 @@ bool build_fs_mount_list(FsMountList *mounts, Error **errp)
                 dev_major_minor(dash + dev_s, &devmajor, &devminor) < 0) {
                 continue;
             }
+        }
+
+        if (dev_exists(mounts, devmajor, devminor)) {
+            /* Skip already existing devices (bind mounts) */
+            continue;
         }
 
         mount = g_new0(FsMount, 1);
