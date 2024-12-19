@@ -64,7 +64,6 @@ typedef struct OptContext {
     QSIMPLEQ_HEAD(, MemCopyInfo) mem_free;
 
     /* In flight values from optimization. */
-    uint64_t a_mask;  /* mask bit is 0 iff value identical to first input */
     uint64_t z_mask;  /* mask bit is 0 iff value bit is 0 */
     uint64_t s_mask;  /* mask of clrsb(value) bits */
     TCGType type;
@@ -1047,7 +1046,6 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
 
 static bool fold_masks(OptContext *ctx, TCGOp *op)
 {
-    uint64_t a_mask = ctx->a_mask;
     uint64_t z_mask = ctx->z_mask;
     uint64_t s_mask = ctx->s_mask;
 
@@ -1059,7 +1057,6 @@ static bool fold_masks(OptContext *ctx, TCGOp *op)
      * type changing opcodes.
      */
     if (ctx->type == TCG_TYPE_I32) {
-        a_mask = (int32_t)a_mask;
         z_mask = (int32_t)z_mask;
         s_mask |= MAKE_64BIT_MASK(32, 32);
         ctx->z_mask = z_mask;
@@ -1068,6 +1065,19 @@ static bool fold_masks(OptContext *ctx, TCGOp *op)
 
     if (z_mask == 0) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], 0);
+    }
+    return false;
+}
+
+/*
+ * An "affected" mask bit is 0 if and only if the result is identical
+ * to the first input.  Thus if the entire mask is 0, the operation
+ * is equivalent to a copy.
+ */
+static bool fold_affected_mask(OptContext *ctx, TCGOp *op, uint64_t a_mask)
+{
+    if (ctx->type == TCG_TYPE_I32) {
+        a_mask = (uint32_t)a_mask;
     }
     if (a_mask == 0) {
         return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
@@ -1305,8 +1315,9 @@ static bool fold_and(OptContext *ctx, TCGOp *op)
      * Known-zeros does not imply known-ones.  Therefore unless
      * arg2 is constant, we can't infer affected bits from it.
      */
-    if (arg_is_const(op->args[2])) {
-        ctx->a_mask = z1 & ~z2;
+    if (arg_is_const(op->args[2]) &&
+        fold_affected_mask(ctx, op, z1 & ~z2)) {
+        return true;
     }
 
     return fold_masks(ctx, op);
@@ -1331,7 +1342,9 @@ static bool fold_andc(OptContext *ctx, TCGOp *op)
      */
     if (arg_is_const(op->args[2])) {
         uint64_t z2 = ~arg_info(op->args[2])->z_mask;
-        ctx->a_mask = z1 & ~z2;
+        if (fold_affected_mask(ctx, op, z1 & ~z2)) {
+            return true;
+        }
         z1 &= z2;
     }
     ctx->z_mask = z1;
@@ -1709,8 +1722,8 @@ static bool fold_extract(OptContext *ctx, TCGOp *op)
 
     z_mask_old = arg_info(op->args[1])->z_mask;
     z_mask = extract64(z_mask_old, pos, len);
-    if (pos == 0) {
-        ctx->a_mask = z_mask_old ^ z_mask;
+    if (pos == 0 && fold_affected_mask(ctx, op, z_mask_old ^ z_mask)) {
+        return true;
     }
     ctx->z_mask = z_mask;
     ctx->s_mask = smask_from_zmask(z_mask);
@@ -1777,8 +1790,8 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
 
     ctx->z_mask = z_mask;
     ctx->s_mask = s_mask;
-    if (!type_change) {
-        ctx->a_mask = s_mask & ~s_mask_old;
+    if (!type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+        return true;
     }
 
     return fold_masks(ctx, op);
@@ -1819,8 +1832,8 @@ static bool fold_extu(OptContext *ctx, TCGOp *op)
 
     ctx->z_mask = z_mask;
     ctx->s_mask = smask_from_zmask(z_mask);
-    if (!type_change) {
-        ctx->a_mask = z_mask_old ^ z_mask;
+    if (!type_change && fold_affected_mask(ctx, op, z_mask_old ^ z_mask)) {
+        return true;
     }
     return fold_masks(ctx, op);
 }
@@ -2482,8 +2495,8 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
     s_mask |= MAKE_64BIT_MASK(len, 64 - len);
     ctx->s_mask = s_mask;
 
-    if (pos == 0) {
-        ctx->a_mask = s_mask & ~s_mask_old;
+    if (pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+        return true;
     }
 
     return fold_masks(ctx, op);
@@ -2843,7 +2856,6 @@ void tcg_optimize(TCGContext *s)
         }
 
         /* Assume all bits affected, no bits known zero, no sign reps. */
-        ctx.a_mask = -1;
         ctx.z_mask = -1;
         ctx.s_mask = 0;
 
