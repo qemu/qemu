@@ -203,4 +203,29 @@ static inline bool x86_has_extended_topo(unsigned long *topo_bitmap)
            test_bit(CPU_TOPOLOGY_LEVEL_DIE, topo_bitmap);
 }
 
+static inline unsigned x86_module_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->modules_per_die * topo_info->dies_per_pkg;
+}
+
+static inline unsigned x86_cores_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->cores_per_module * x86_module_per_pkg(topo_info);
+}
+
+static inline unsigned x86_threads_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->threads_per_core * x86_cores_per_pkg(topo_info);
+}
+
+static inline unsigned x86_threads_per_module(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->threads_per_core * topo_info->cores_per_module;
+}
+
+static inline unsigned x86_threads_per_die(X86CPUTopoInfo *topo_info)
+{
+    return x86_threads_per_module(topo_info) * topo_info->modules_per_die;
+}
+
 #endif /* HW_I386_TOPOLOGY_H */
