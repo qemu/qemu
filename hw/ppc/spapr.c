@@ -2917,6 +2917,9 @@ static void spapr_machine_init(MachineState *machine)
         spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
     }
 
+    qemu_guest_getrandom_nofail(&spapr->hashpkey_val,
+                                sizeof(spapr->hashpkey_val));
+
     /* init CPUs */
     spapr_init_cpus(spapr);
 
