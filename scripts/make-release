@@ -10,6 +10,27 @@
 # This work is licensed under the terms of the GNU GPLv2 or later.
 # See the COPYING file in the top-level directory.
 
+function subproject_dir() {
+    if test ! -f "subprojects/$1.wrap"; then
+      error "scripts/archive-source.sh should only process wrap subprojects"
+    fi
+
+    # Print the directory key of the wrap file, defaulting to the
+    # subproject name.  The wrap file is in ini format and should
+    # have a single section only.  There should be only one section
+    # named "[wrap-*]", which helps keeping the script simple.
+    local dir
+    dir=$(sed -n \
+      -e '/^\[wrap-[a-z][a-z]*\]$/,/^\[/{' \
+      -e    '/^directory *= */!b' \
+      -e    's///p' \
+      -e    'q' \
+      -e '}' \
+      "subprojects/$1.wrap")
+
+    echo "${dir:-$1}"
+}
+
 if [ $# -ne 2 ]; then
     echo "Usage:"
     echo " $0 gitrepo version"
@@ -51,5 +72,13 @@ meson subprojects download $SUBPROJECTS
         CryptoPkg/Library/OpensslLib/openssl \
         MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
 popd
-tar --exclude=.git -cJf ${destination}.tar.xz ${destination}
+
+exclude=(--exclude=.git)
+# include the tarballs in subprojects/packagecache but not their expansion
+for sp in $SUBPROJECTS; do
+    if grep -xqF "[wrap-file]" subprojects/$sp.wrap; then
+      exclude+=(--exclude=subprojects/"$(subproject_dir $sp)")
+    fi
+done
+tar "${exclude[@]}" -cJf ${destination}.tar.xz ${destination}
 rm -rf ${destination}
