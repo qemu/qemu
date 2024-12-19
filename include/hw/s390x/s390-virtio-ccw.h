@@ -29,9 +29,17 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+    uint64_t memory_limit;
 
     SCLPDevice *sclp;
 };
+
+static inline uint64_t s390_get_memory_limit(S390CcwMachineState *s390ms)
+{
+    /* We expect to be called only after the limit was set. */
+    assert(s390ms->memory_limit);
+    return s390ms->memory_limit;
+}
 
 #define S390_PTF_REASON_NONE (0x00 << 8)
 #define S390_PTF_REASON_DONE (0x01 << 8)
