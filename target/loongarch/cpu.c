@@ -623,6 +623,14 @@ static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
     uint32_t val;
 
     cpu->lsx = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    if (cpu->lsx == ON_OFF_AUTO_OFF) {
+        cpu->lasx = ON_OFF_AUTO_OFF;
+        if (cpu->lasx == ON_OFF_AUTO_ON) {
+            error_setg(errp, "Failed to disable LSX since LASX is enabled");
+            return;
+        }
+    }
+
     if (kvm_enabled()) {
         /* kvm feature detection in function kvm_arch_init_vcpu */
         return;
@@ -635,6 +643,9 @@ static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
             error_setg(errp, "Failed to enable LSX in TCG mode");
             return;
         }
+    } else {
+        cpu->env.cpucfg[2] = FIELD_DP32(val, CPUCFG2, LASX, 0);
+        val = cpu->env.cpucfg[2];
     }
 
     cpu->env.cpucfg[2] = FIELD_DP32(val, CPUCFG2, LSX, value);
@@ -642,29 +653,35 @@ static void loongarch_set_lsx(Object *obj, bool value, Error **errp)
 
 static bool loongarch_get_lasx(Object *obj, Error **errp)
 {
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    bool ret;
-
-    if (FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LASX)) {
-        ret = true;
-    } else {
-        ret = false;
-    }
-    return ret;
+    return LOONGARCH_CPU(obj)->lasx != ON_OFF_AUTO_OFF;
 }
 
 static void loongarch_set_lasx(Object *obj, bool value, Error **errp)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    uint32_t val;
 
-    if (value) {
-	if (!FIELD_EX32(cpu->env.cpucfg[2], CPUCFG2, LSX)) {
-            cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LSX, 1);
-	}
-        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 1);
-    } else {
-        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, LASX, 0);
+    cpu->lasx = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    if ((cpu->lsx == ON_OFF_AUTO_OFF) && (cpu->lasx == ON_OFF_AUTO_ON)) {
+        error_setg(errp, "Failed to enable LASX since lSX is disabled");
+        return;
     }
+
+    if (kvm_enabled()) {
+        /* kvm feature detection in function kvm_arch_init_vcpu */
+        return;
+    }
+
+    /* LASX feature detection in TCG mode */
+    val = cpu->env.cpucfg[2];
+    if (cpu->lasx == ON_OFF_AUTO_ON) {
+        if (FIELD_EX32(val, CPUCFG2, LASX) == 0) {
+            error_setg(errp, "Failed to enable LASX in TCG mode");
+            return;
+        }
+    }
+
+    cpu->env.cpucfg[2] = FIELD_DP32(val, CPUCFG2, LASX, value);
 }
 
 static bool loongarch_get_lbt(Object *obj, Error **errp)
@@ -696,6 +713,7 @@ void loongarch_cpu_post_init(Object *obj)
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
     cpu->lsx = ON_OFF_AUTO_AUTO;
+    cpu->lasx = ON_OFF_AUTO_AUTO;
     object_property_add_bool(obj, "lsx", loongarch_get_lsx,
                              loongarch_set_lsx);
     object_property_add_bool(obj, "lasx", loongarch_get_lasx,

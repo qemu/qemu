@@ -827,6 +827,32 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
         }
         return false;
 
+    case LOONGARCH_FEATURE_LASX:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_LASX;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        if (ret == 0) {
+            return true;
+        }
+
+        /* Fallback to old kernel detect interface */
+        val = 0;
+        attr.group = KVM_LOONGARCH_VCPU_CPUCFG;
+        /* Cpucfg2 */
+        attr.attr  = 2;
+        attr.addr = (uint64_t)&val;
+        ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
+        if (!ret) {
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+            if (ret) {
+                return false;
+            }
+
+            ret = FIELD_EX32((uint32_t)val, CPUCFG2, LASX);
+            return (ret != 0);
+        }
+        return false;
+
     case LOONGARCH_FEATURE_LBT:
         /*
          * Return all if all the LBT features are supported such as:
@@ -873,6 +899,28 @@ static int kvm_cpu_check_lsx(CPUState *cs, Error **errp)
         }
     } else if ((cpu->lsx == ON_OFF_AUTO_AUTO) && kvm_supported) {
         env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LSX, 1);
+    }
+
+    return 0;
+}
+
+static int kvm_cpu_check_lasx(CPUState *cs, Error **errp)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    bool kvm_supported;
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_LASX);
+    env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LASX, 0);
+    if (cpu->lasx == ON_OFF_AUTO_ON) {
+        if (kvm_supported) {
+            env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LASX, 1);
+        } else {
+            error_setg(errp, "'lasx' feature not supported by KVM on host");
+            return -ENOTSUP;
+        }
+    } else if ((cpu->lasx == ON_OFF_AUTO_AUTO) && kvm_supported) {
+        env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, LASX, 1);
     }
 
     return 0;
@@ -939,6 +987,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     ret = kvm_cpu_check_lsx(cs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+
+    ret = kvm_cpu_check_lasx(cs, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
     }
