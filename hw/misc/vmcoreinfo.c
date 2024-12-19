@@ -47,13 +47,13 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
      */
     if (!vmcoreinfo_find()) {
         error_setg(errp, "at most one %s device is permitted",
-                   VMCOREINFO_DEVICE);
+                   TYPE_VMCOREINFO);
         return;
     }
 
     if (!fw_cfg || !fw_cfg->dma_enabled) {
         error_setg(errp, "%s device requires fw_cfg with DMA",
-                   VMCOREINFO_DEVICE);
+                   TYPE_VMCOREINFO);
         return;
     }
 
@@ -95,7 +95,7 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo vmcoreinfo_types[] = {
     {
-        .name           = VMCOREINFO_DEVICE,
+        .name           = TYPE_VMCOREINFO,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(VMCoreInfoState),
         .class_init     = vmcoreinfo_device_class_init,
