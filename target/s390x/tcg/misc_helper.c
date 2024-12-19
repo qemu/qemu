@@ -43,6 +43,7 @@
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/boards.h"
 #include "hw/s390x/tod.h"
+#include CONFIG_DEVICES
 #endif
 
 /* #define DEBUG_HELPER */
@@ -116,12 +117,14 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     uint64_t r;
 
     switch (num) {
+#ifdef CONFIG_S390_CCW_VIRTIO
     case 0x500:
         /* KVM hypercall */
         bql_lock();
         r = s390_virtio_hypercall(env);
         bql_unlock();
         break;
+#endif /* CONFIG_S390_CCW_VIRTIO */
     case 0x44:
         /* yield */
         r = 0;
