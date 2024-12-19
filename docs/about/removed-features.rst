@@ -1087,8 +1087,8 @@ processor IP (see `Intel discontinuance notification`_).
 TCG introspection features
 --------------------------
 
-TCG trace-events (since 6.2)
-''''''''''''''''''''''''''''
+TCG trace-events (removed in 7.0)
+'''''''''''''''''''''''''''''''''
 
 The ability to add new TCG trace points had bit rotted and as the
 feature can be replicated with TCG plugins it was removed. If
