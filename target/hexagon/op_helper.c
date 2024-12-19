@@ -1824,7 +1824,7 @@ static uint32_t hexagon_find_last_irq(CPUHexagonState *env, uint32_t vid)
 static void hexagon_read_timer(CPUHexagonState *env, uint32_t *low,
                                uint32_t *high)
 {
-    g_assert_not_reached();
+    qemu_log_mask(LOG_UNIMP, "reading timer_hi/lo not yet supported\n");
 }
 
 static inline QEMU_ALWAYS_INLINE void sreg_write(CPUHexagonState *env,
