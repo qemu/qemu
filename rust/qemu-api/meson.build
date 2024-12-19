@@ -7,7 +7,7 @@ if rustc.version().version_compare('>=1.77.0')
   _qemu_api_cfg += ['--cfg', 'has_offset_of']
 endif
 if get_option('debug_mutex')
-  _qemu_api_cfg += ['--feature', 'debug_cell']
+  _qemu_api_cfg += ['--cfg', 'feature="debug_cell"']
 endif
 
 _qemu_api_rs = static_library(
