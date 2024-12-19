@@ -6538,7 +6538,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = env->features[FEAT_1_EDX];
         if (threads_per_pkg > 1) {
             *ebx |= threads_per_pkg << 16;
-            *edx |= CPUID_HT;
         }
         if (!cpu->enable_pmu) {
             *ecx &= ~CPUID_EXT_PDCM;
@@ -7527,6 +7526,10 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
             x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
             env->avx10_version = ebx & 0xff;
         }
+    }
+
+    if (x86_threads_per_pkg(&env->topo_info) > 1) {
+        env->features[FEAT_1_EDX] |= CPUID_HT;
     }
 
     for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {
