@@ -75,7 +75,7 @@ marked deprecated since 9.0, users have to ensure that all the topology members
 described with -smp are supported by the target machine.
 
 ``-runas`` (since 9.1)
-----------------------
+''''''''''''''''''''''
 
 Use ``-run-with user=..`` instead.
 
