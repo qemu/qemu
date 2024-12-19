@@ -309,3 +309,14 @@ void x86_cpu_get_crash_info_qom(Object *obj, Visitor *v,
                                      errp);
     qapi_free_GuestPanicInformation(panic_info);
 }
+
+uint64_t cpu_x86_get_msr_core_thread_count(X86CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    uint64_t val;
+
+    val = cs->nr_threads * cs->nr_cores;  /* thread count, bits 15..0 */
+    val |= ((uint32_t)cs->nr_cores << 16); /* core count, bits 31..16 */
+
+    return val;
+}
