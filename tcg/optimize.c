@@ -1044,10 +1044,14 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
     return fold_const2(ctx, op);
 }
 
-static bool fold_masks(OptContext *ctx, TCGOp *op)
+/*
+ * Record "zero" and "sign" masks for the single output of @op.
+ * See TempOptInfo definition of z_mask and s_mask.
+ * If z_mask allows, fold the output to constant zero.
+ */
+static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
+                          uint64_t z_mask, uint64_t s_mask)
 {
-    uint64_t z_mask = ctx->z_mask;
-    uint64_t s_mask = ctx->s_mask;
     const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGTemp *ts;
     TempOptInfo *ti;
@@ -1078,6 +1082,11 @@ static bool fold_masks(OptContext *ctx, TCGOp *op)
     ti->z_mask = z_mask;
     ti->s_mask = s_mask;
     return true;
+}
+
+static bool fold_masks(OptContext *ctx, TCGOp *op)
+{
+    return fold_masks_zs(ctx, op, ctx->z_mask, ctx->s_mask);
 }
 
 /*
