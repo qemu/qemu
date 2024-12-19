@@ -143,6 +143,16 @@ static void s390_set_memory_limit(S390CcwMachineState *s390ms,
     s390ms->memory_limit = new_limit;
 }
 
+static void s390_set_max_pagesize(S390CcwMachineState *s390ms,
+                                  uint64_t pagesize)
+{
+    assert(!s390ms->max_pagesize && pagesize);
+    if (kvm_enabled()) {
+        kvm_s390_set_max_pagesize(pagesize, &error_fatal);
+    }
+    s390ms->max_pagesize = pagesize;
+}
+
 static void s390_memory_init(MachineState *machine)
 {
     S390CcwMachineState *s390ms = S390_CCW_MACHINE(machine);
@@ -191,7 +201,7 @@ static void s390_memory_init(MachineState *machine)
      * Configure the maximum page size. As no memory devices were created
      * yet, this is the page size of initial memory only.
      */
-    s390_set_max_pagesize(qemu_maxrampagesize(), &error_fatal);
+    s390_set_max_pagesize(s390ms, qemu_maxrampagesize());
     /* Initialize storage key device */
     s390_skeys_init();
     /* Initialize storage attributes device */
