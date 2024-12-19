@@ -312,11 +312,11 @@ void x86_cpu_get_crash_info_qom(Object *obj, Visitor *v,
 
 uint64_t cpu_x86_get_msr_core_thread_count(X86CPU *cpu)
 {
-    CPUState *cs = CPU(cpu);
+    CPUX86State *env = &cpu->env;
     uint64_t val;
 
-    val = cs->nr_threads * cs->nr_cores;  /* thread count, bits 15..0 */
-    val |= ((uint32_t)cs->nr_cores << 16); /* core count, bits 31..16 */
+    val = x86_threads_per_pkg(&env->topo_info);  /* thread count, bits 15..0 */
+    val |= x86_cores_per_pkg(&env->topo_info) << 16; /* core count, bits 31..16 */
 
     return val;
 }

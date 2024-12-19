@@ -6496,15 +6496,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     CPUState *cs = env_cpu(env);
     uint32_t limit;
     uint32_t signature[3];
-    X86CPUTopoInfo topo_info;
+    X86CPUTopoInfo *topo_info = &env->topo_info;
     uint32_t threads_per_pkg;
 
-    topo_info.dies_per_pkg = env->nr_dies;
-    topo_info.modules_per_die = env->nr_modules;
-    topo_info.cores_per_module = cs->nr_cores / env->nr_dies / env->nr_modules;
-    topo_info.threads_per_core = cs->nr_threads;
-
-    threads_per_pkg = x86_threads_per_pkg(&topo_info);
+    threads_per_pkg = x86_threads_per_pkg(topo_info);
 
     /* Calculate & apply limits for different index ranges */
     if (index >= 0xC0000000) {
@@ -6581,12 +6576,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
 
                 *eax &= ~0xFC000000;
-                *eax |= max_core_ids_in_package(&topo_info) << 26;
+                *eax |= max_core_ids_in_package(topo_info) << 26;
                 if (host_vcpus_per_cache > threads_per_pkg) {
                     *eax &= ~0x3FFC000;
 
                     /* Share the cache at package level. */
-                    *eax |= max_thread_ids_for_cache(&topo_info,
+                    *eax |= max_thread_ids_for_cache(topo_info,
                                 CPU_TOPOLOGY_LEVEL_SOCKET) << 14;
                 }
             }
@@ -6598,7 +6593,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             switch (count) {
             case 0: /* L1 dcache info */
                 encode_cache_cpuid4(env->cache_info_cpuid4.l1d_cache,
-                                    &topo_info,
+                                    topo_info,
                                     eax, ebx, ecx, edx);
                 if (!cpu->l1_cache_per_core) {
                     *eax &= ~MAKE_64BIT_MASK(14, 12);
@@ -6606,7 +6601,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 break;
             case 1: /* L1 icache info */
                 encode_cache_cpuid4(env->cache_info_cpuid4.l1i_cache,
-                                    &topo_info,
+                                    topo_info,
                                     eax, ebx, ecx, edx);
                 if (!cpu->l1_cache_per_core) {
                     *eax &= ~MAKE_64BIT_MASK(14, 12);
@@ -6614,13 +6609,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 break;
             case 2: /* L2 cache info */
                 encode_cache_cpuid4(env->cache_info_cpuid4.l2_cache,
-                                    &topo_info,
+                                    topo_info,
                                     eax, ebx, ecx, edx);
                 break;
             case 3: /* L3 cache info */
                 if (cpu->enable_l3_cache) {
                     encode_cache_cpuid4(env->cache_info_cpuid4.l3_cache,
-                                        &topo_info,
+                                        topo_info,
                                         eax, ebx, ecx, edx);
                     break;
                 }
@@ -6703,12 +6698,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         switch (count) {
         case 0:
-            *eax = apicid_core_offset(&topo_info);
-            *ebx = topo_info.threads_per_core;
+            *eax = apicid_core_offset(topo_info);
+            *ebx = topo_info->threads_per_core;
             *ecx |= CPUID_B_ECX_TOPO_LEVEL_SMT << 8;
             break;
         case 1:
-            *eax = apicid_pkg_offset(&topo_info);
+            *eax = apicid_pkg_offset(topo_info);
             *ebx = threads_per_pkg;
             *ecx |= CPUID_B_ECX_TOPO_LEVEL_CORE << 8;
             break;
@@ -6734,7 +6729,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         }
 
-        encode_topo_cpuid1f(env, count, &topo_info, eax, ebx, ecx, edx);
+        encode_topo_cpuid1f(env, count, topo_info, eax, ebx, ecx, edx);
         break;
     case 0xD: {
         /* Processor Extended State */
@@ -7037,7 +7032,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              * thread ID within a package".
              * Bits 7:0 is "The number of threads in the package is NC+1"
              */
-            *ecx = (apicid_pkg_offset(&topo_info) << 12) |
+            *ecx = (apicid_pkg_offset(topo_info) << 12) |
                    (threads_per_pkg - 1);
         } else {
             *ecx = 0;
@@ -7066,19 +7061,19 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         switch (count) {
         case 0: /* L1 dcache info */
             encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+                                       topo_info, eax, ebx, ecx, edx);
             break;
         case 1: /* L1 icache info */
             encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+                                       topo_info, eax, ebx, ecx, edx);
             break;
         case 2: /* L2 cache info */
             encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+                                       topo_info, eax, ebx, ecx, edx);
             break;
         case 3: /* L3 cache info */
             encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache,
-                                       &topo_info, eax, ebx, ecx, edx);
+                                       topo_info, eax, ebx, ecx, edx);
             break;
         default: /* end of info */
             *eax = *ebx = *ecx = *edx = 0;
@@ -7090,7 +7085,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x8000001E:
         if (cpu->core_id <= 255) {
-            encode_topo_cpuid8000001e(cpu, &topo_info, eax, ebx, ecx, edx);
+            encode_topo_cpuid8000001e(cpu, topo_info, eax, ebx, ecx, edx);
         } else {
             *eax = 0;
             *ebx = 0;
@@ -7997,17 +7992,14 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * fixes this issue by adjusting CPUID_0000_0001_EBX and CPUID_8000_0008_ECX
      * based on inputs (sockets,cores,threads), it is still better to give
      * users a warning.
-     *
-     * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
-     * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
     if (IS_AMD_CPU(env) &&
         !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
-        cs->nr_threads > 1) {
+        env->topo_info.threads_per_core > 1) {
             warn_report_once("This family of AMD CPU doesn't support "
                              "hyperthreading(%d). Please configure -smp "
                              "options properly or try enabling topoext "
-                             "feature.", cs->nr_threads);
+                             "feature.", env->topo_info.threads_per_core);
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -8168,8 +8160,7 @@ static void x86_cpu_init_default_topo(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
 
-    env->nr_modules = 1;
-    env->nr_dies = 1;
+    env->topo_info = (X86CPUTopoInfo) {1, 1, 1, 1};
 
     /* thread, core and socket levels are set by default. */
     set_bit(CPU_TOPOLOGY_LEVEL_THREAD, env->avail_cpu_topo);
