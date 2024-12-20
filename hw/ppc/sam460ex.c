@@ -234,7 +234,7 @@ static void main_cpu_reset(void *opaque)
 
         /* Create a mapping for the kernel.  */
         booke_set_tlb(&env->tlb.tlbe[0], 0, 0, 1 << 31);
-        env->gpr[6] = tswap32(EPAPR_MAGIC);
+        env->gpr[6] = EPAPR_MAGIC;
         env->gpr[7] = (16 * MiB) - 8; /* bi->ima_size; */
 
     } else {
