@@ -5,3 +5,6 @@ source_filename = itertools-0.11.0.tar.gz
 source_hash = b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57
 #method = cargo
 patch_directory = itertools-0.11-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2

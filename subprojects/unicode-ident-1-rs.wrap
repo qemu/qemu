@@ -5,3 +5,6 @@ source_filename = unicode-ident-1.0.12.tar.gz
 source_hash = 3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b
 #method = cargo
 patch_directory = unicode-ident-1-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2

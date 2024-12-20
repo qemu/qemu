@@ -19,6 +19,7 @@ _syn_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: [
+    '--cap-lints', 'allow',
     '--cfg', 'feature="full"',
     '--cfg', 'feature="derive"',
     '--cfg', 'feature="parsing"',

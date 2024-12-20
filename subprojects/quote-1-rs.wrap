@@ -5,3 +5,6 @@ source_filename = quote-1.0.36.0.tar.gz
 source_hash = 0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7
 #method = cargo
 patch_directory = quote-1-rs
+
+# bump this version number on every change to meson.build or the patches:
+# v2

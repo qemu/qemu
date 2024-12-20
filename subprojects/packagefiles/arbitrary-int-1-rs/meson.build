@@ -9,6 +9,7 @@ _arbitrary_int_rs = static_library(
   files('src/lib.rs'),
   gnu_symbol_visibility: 'hidden',
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
+  rust_args: ['--cap-lints', 'allow'],
   rust_abi: 'rust',
   dependencies: [],
 )

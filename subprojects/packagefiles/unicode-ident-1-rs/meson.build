@@ -10,6 +10,7 @@ _unicode_ident_rs = static_library(
   gnu_symbol_visibility: 'hidden',
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
+  rust_args: ['--cap-lints', 'allow'],
   dependencies: [],
   native: true,
 )
