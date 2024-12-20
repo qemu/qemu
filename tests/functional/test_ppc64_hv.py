@@ -81,6 +81,10 @@ class HypervisorTest(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'), ps1)
         ps1='alpine:~#'
         exec_command_and_wait_for_pattern(self, 'setup-alpine -qe', ps1)
+        exec_command_and_wait_for_pattern(self, 'setup-apkrepos -c1', ps1)
+        exec_command_and_wait_for_pattern(self, 'apk update', ps1)
+        # Could upgrade here but it usually should not be necessary
+        # exec_command_and_wait_for_pattern(self, 'apk upgrade --available', ps1)
 
     def do_stop_alpine(self):
         exec_command(self, 'echo "TEST ME"')
@@ -91,9 +95,6 @@ class HypervisorTest(QemuSystemTest):
 
     def do_setup_kvm(self):
         ps1='alpine:~#'
-        exec_command_and_wait_for_pattern(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/main > /etc/apk/repositories', ps1)
-        exec_command_and_wait_for_pattern(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/community >> /etc/apk/repositories', ps1)
-        exec_command_and_wait_for_pattern(self, 'apk update', ps1)
         exec_command_and_wait_for_pattern(self, 'apk add qemu-system-ppc64', ps1)
         exec_command_and_wait_for_pattern(self, 'modprobe kvm-hv', ps1)
 
