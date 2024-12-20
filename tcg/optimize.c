@@ -2530,7 +2530,7 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
 
 static bool fold_shift(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask, z_mask, sign;
+    uint64_t s_mask, z_mask;
     TempOptInfo *t1, *t2;
 
     if (fold_const2(ctx, op) ||
@@ -2565,8 +2565,7 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
          * If the sign bit is known zero, then logical right shift
          * will not reduce the number of input sign repetitions.
          */
-        sign = -s_mask;
-        if (sign && !(z_mask & sign)) {
+        if (~z_mask & -s_mask) {
             return fold_masks_s(ctx, op, s_mask);
         }
         break;
