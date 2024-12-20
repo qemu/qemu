@@ -12,6 +12,7 @@
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern, exec_command
 from qemu_test import skipIfMissingCommands, skipBigDataTest
+from qemu_test import exec_command_and_wait_for_pattern
 import os
 import time
 import subprocess
@@ -73,31 +74,28 @@ class HypervisorTest(QemuSystemTest):
                                     "id=drive0,read-only=true")
 
         self.vm.launch()
-        wait_for_console_pattern(self, 'Welcome to Alpine Linux 3.18')
-        exec_command(self, 'root')
+        ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
-        wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
+        exec_command_and_wait_for_pattern(self, 'root', ps1)
         # If the time is wrong, SSL certificates can fail.
-        exec_command(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'))
-        exec_command(self, 'setup-alpine -qe')
-        wait_for_console_pattern(self, 'Updating repository indexes... done.')
+        exec_command_and_wait_for_pattern(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'), ps1)
+        ps1='alpine:~#'
+        exec_command_and_wait_for_pattern(self, 'setup-alpine -qe', ps1)
 
     def do_stop_alpine(self):
-        exec_command(self, 'poweroff')
+        exec_command(self, 'echo "TEST ME"')
         wait_for_console_pattern(self, 'alpine:~#')
+        exec_command(self, 'poweroff')
+        wait_for_console_pattern(self, 'reboot: Power down')
         self.vm.wait()
 
     def do_setup_kvm(self):
-        exec_command(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/main > /etc/apk/repositories')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/community >> /etc/apk/repositories')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'apk update')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'apk add qemu-system-ppc64')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'modprobe kvm-hv')
-        wait_for_console_pattern(self, 'alpine:~#')
+        ps1='alpine:~#'
+        exec_command_and_wait_for_pattern(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/main > /etc/apk/repositories', ps1)
+        exec_command_and_wait_for_pattern(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/community >> /etc/apk/repositories', ps1)
+        exec_command_and_wait_for_pattern(self, 'apk update', ps1)
+        exec_command_and_wait_for_pattern(self, 'apk add qemu-system-ppc64', ps1)
+        exec_command_and_wait_for_pattern(self, 'modprobe kvm-hv', ps1)
 
     # This uses the host's block device as the source file for guest block
     # device for install media. This is a bit hacky but allows reuse of the
@@ -116,15 +114,12 @@ class HypervisorTest(QemuSystemTest):
                            '-kernel /media/nvme0n1/boot/vmlinuz-lts '
                            '-append \'usbcore.nousb ' + append + '\'')
         # Alpine 3.18 kernel seems to crash in XHCI USB driver.
-        wait_for_console_pattern(self, 'Welcome to Alpine Linux 3.18')
-        exec_command(self, 'root')
+        ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
-        wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
-        exec_command(self, 'poweroff >& /dev/null')
-        wait_for_console_pattern(self, 'localhost:~#')
+        exec_command_and_wait_for_pattern(self, 'root', ps1)
+        exec_command(self, 'poweroff')
         wait_for_console_pattern(self, 'reboot: Power down')
-        time.sleep(1)
-        exec_command(self, '')
+        # Now wait for the host's prompt to come back
         wait_for_console_pattern(self, 'alpine:~#')
 
     def test_hv_pseries(self):
