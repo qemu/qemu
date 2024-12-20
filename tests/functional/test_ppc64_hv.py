@@ -35,9 +35,9 @@ class HypervisorTest(QemuSystemTest):
     good_message = 'VFS: Cannot open root device'
 
     ASSET_ISO = Asset(
-        ('https://dl-cdn.alpinelinux.org/alpine/v3.18/'
-         'releases/ppc64le/alpine-standard-3.18.4-ppc64le.iso'),
-        'c26b8d3e17c2f3f0fed02b4b1296589c2390e6d5548610099af75300edd7b3ff')
+        ('https://dl-cdn.alpinelinux.org/alpine/v3.21/'
+         'releases/ppc64le/alpine-standard-3.21.0-ppc64le.iso'),
+        '7651ab4e3027604535c0b36e86c901b4695bf8fe97b908f5b48590f6baae8f30')
 
     def extract_from_iso(self, iso, path):
         """
@@ -114,7 +114,7 @@ class HypervisorTest(QemuSystemTest):
                            '-initrd /media/nvme0n1/boot/initramfs-lts '
                            '-kernel /media/nvme0n1/boot/vmlinuz-lts '
                            '-append \'usbcore.nousb ' + append + '\'')
-        # Alpine 3.18 kernel seems to crash in XHCI USB driver.
+        # Alpine 3.21 kernel seems to crash in XHCI USB driver.
         ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
         exec_command_and_wait_for_pattern(self, 'root', ps1)
