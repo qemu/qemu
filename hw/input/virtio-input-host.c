@@ -223,7 +223,6 @@ static const VMStateDescription vmstate_virtio_input_host = {
 
 static const Property virtio_input_host_properties[] = {
     DEFINE_PROP_STRING("evdev", VirtIOInputHost, evdev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_input_host_class_init(ObjectClass *klass, void *data)

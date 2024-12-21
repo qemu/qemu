@@ -1334,7 +1334,6 @@ static const VMStateDescription vmstate_strongarm_uart_regs = {
 
 static const Property strongarm_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", StrongARMUARTState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void strongarm_uart_class_init(ObjectClass *klass, void *data)

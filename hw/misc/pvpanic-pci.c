@@ -56,7 +56,6 @@ static void pvpanic_pci_realizefn(PCIDevice *dev, Error **errp)
 static const Property pvpanic_pci_properties[] = {
     DEFINE_PROP_UINT8("events", PVPanicPCIState, pvpanic.events,
                       PVPANIC_EVENTS),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pvpanic_pci_class_init(ObjectClass *klass, void *data)

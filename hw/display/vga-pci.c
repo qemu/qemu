@@ -339,7 +339,6 @@ static const Property vga_pci_properties[] = {
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_EDID, true),
     DEFINE_EDID_PROPERTIES(PCIVGAState, edid_info),
     DEFINE_PROP_BOOL("global-vmstate", PCIVGAState, vga.global_vmstate, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const Property secondary_pci_properties[] = {
@@ -349,7 +348,6 @@ static const Property secondary_pci_properties[] = {
     DEFINE_PROP_BIT("edid",
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_EDID, true),
     DEFINE_EDID_PROPERTIES(PCIVGAState, edid_info),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vga_pci_class_init(ObjectClass *klass, void *data)

@@ -377,7 +377,6 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 static const Property ebus_properties[] = {
     DEFINE_PROP_UINT64("console-serial-base", EbusState,
                        console_serial_base, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ebus_class_init(ObjectClass *klass, void *data)
@@ -471,15 +470,10 @@ static void prom_realize(DeviceState *ds, Error **errp)
     sysbus_init_mmio(dev, &s->prom);
 }
 
-static Property prom_properties[] = {
-    {/* end of property list */},
-};
-
 static void prom_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_props(dc, prom_properties);
     dc->realize = prom_realize;
 }
 
@@ -534,7 +528,6 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
 
 static const Property ram_properties[] = {
     DEFINE_PROP_UINT64("size", RamDevice, size, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ram_class_init(ObjectClass *klass, void *data)

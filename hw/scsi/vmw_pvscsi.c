@@ -1302,7 +1302,6 @@ static const Property pvscsi_properties[] = {
                     PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT, false),
     DEFINE_PROP_BIT("x-disable-pcie", PVSCSIState, compat_flags,
                     PVSCSI_COMPAT_DISABLE_PCIE_BIT, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pvscsi_realize(DeviceState *qdev, Error **errp)

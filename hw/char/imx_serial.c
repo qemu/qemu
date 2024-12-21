@@ -440,7 +440,6 @@ static void imx_serial_init(Object *obj)
 
 static const Property imx_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", IMXSerialState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void imx_serial_class_init(ObjectClass *klass, void *data)

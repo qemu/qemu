@@ -32,7 +32,6 @@
 static const Property ide_props[] = {
     DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
     DEFINE_PROP_BOOL("win2k-install-hack", IDEDevice, win2k_install_hack, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_qdev_realize(DeviceState *qdev, Error **errp)
@@ -197,7 +196,6 @@ static const Property ide_hd_properties[] = {
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
     DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_hd_class_init(ObjectClass *klass, void *data)
@@ -220,7 +218,6 @@ static const TypeInfo ide_hd_info = {
 
 static const Property ide_cd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_cd_class_init(ObjectClass *klass, void *data)

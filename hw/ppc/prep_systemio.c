@@ -288,7 +288,6 @@ static const VMStateDescription vmstate_prep_systemio = {
 static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("ibm-planar-id", PrepSystemIoState, ibm_planar_id, 0),
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void prep_systemio_class_initfn(ObjectClass *klass, void *data)

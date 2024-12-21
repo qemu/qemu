@@ -2580,7 +2580,6 @@ static const Property usbredir_properties[] = {
     DEFINE_PROP_BOOL("streams", USBRedirDevice, enable_streams, true),
     DEFINE_PROP_BOOL("suppress-remote-wake", USBRedirDevice,
                      suppress_remote_wake, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usbredir_class_initfn(ObjectClass *klass, void *data)

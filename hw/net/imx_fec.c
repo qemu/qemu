@@ -1229,7 +1229,6 @@ static const Property imx_eth_properties[] = {
     DEFINE_PROP_BOOL("phy-connected", IMXFECState, phy_connected, true),
     DEFINE_PROP_LINK("phy-consumer", IMXFECState, phy_consumer, TYPE_IMX_FEC,
                      IMXFECState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void imx_eth_class_init(ObjectClass *klass, void *data)

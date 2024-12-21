@@ -762,7 +762,6 @@ static void pmu_init(Object *obj)
 
 static const Property pmu_properties[] = {
     DEFINE_PROP_BOOL("has-adb", PMUState, has_adb, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pmu_class_init(ObjectClass *oc, void *data)

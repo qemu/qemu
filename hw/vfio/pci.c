@@ -3409,7 +3409,6 @@ static const Property vfio_pci_dev_properties[] = {
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_BOOL("skip-vsc-check", VFIOPCIDevice, skip_vsc_check, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 #ifdef CONFIG_IOMMUFD
@@ -3455,7 +3454,6 @@ static const Property vfio_pci_dev_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
     DEFINE_PROP_ON_OFF_AUTO("x-ramfb-migrate", VFIOPCIDevice, ramfb_migrate,
                             ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)

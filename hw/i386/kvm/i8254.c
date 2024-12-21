@@ -290,7 +290,6 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
 static const Property kvm_pit_properties[] = {
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_POLICY_DELAY),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvm_pit_class_init(ObjectClass *klass, void *data)

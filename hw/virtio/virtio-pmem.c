@@ -159,7 +159,6 @@ static const Property virtio_pmem_properties[] = {
     DEFINE_PROP_UINT64(VIRTIO_PMEM_ADDR_PROP, VirtIOPMEM, start, 0),
     DEFINE_PROP_LINK(VIRTIO_PMEM_MEMDEV_PROP, VirtIOPMEM, memdev,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_pmem_class_init(ObjectClass *klass, void *data)

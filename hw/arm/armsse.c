@@ -72,6 +72,7 @@ struct ARMSSEInfo {
     bool has_cpu_pwrctrl;
     bool has_sse_counter;
     bool has_tcms;
+    uint8_t props_count;
     const Property *props;
     const ARMSSEDeviceInfo *devinfo;
     const bool *irq_is_common;
@@ -87,7 +88,6 @@ static const Property iotkit_properties[] = {
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
     DEFINE_PROP_UINT32("CPU0_MPU_NS", ARMSSE, cpu_mpu_ns[0], 8),
     DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const Property sse200_properties[] = {
@@ -104,7 +104,6 @@ static const Property sse200_properties[] = {
     DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
     DEFINE_PROP_UINT32("CPU1_MPU_NS", ARMSSE, cpu_mpu_ns[1], 8),
     DEFINE_PROP_UINT32("CPU1_MPU_S", ARMSSE, cpu_mpu_s[1], 8),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const Property sse300_properties[] = {
@@ -117,7 +116,6 @@ static const Property sse300_properties[] = {
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
     DEFINE_PROP_UINT32("CPU0_MPU_NS", ARMSSE, cpu_mpu_ns[0], 8),
     DEFINE_PROP_UINT32("CPU0_MPU_S", ARMSSE, cpu_mpu_s[0], 8),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const ARMSSEDeviceInfo iotkit_devices[] = {
@@ -528,6 +526,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_sse_counter = false,
         .has_tcms = false,
         .props = iotkit_properties,
+        .props_count = ARRAY_SIZE(iotkit_properties),
         .devinfo = iotkit_devices,
         .irq_is_common = sse200_irq_is_common,
     },
@@ -549,6 +548,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_sse_counter = false,
         .has_tcms = false,
         .props = sse200_properties,
+        .props_count = ARRAY_SIZE(sse200_properties),
         .devinfo = sse200_devices,
         .irq_is_common = sse200_irq_is_common,
     },
@@ -570,6 +570,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_sse_counter = true,
         .has_tcms = true,
         .props = sse300_properties,
+        .props_count = ARRAY_SIZE(sse300_properties),
         .devinfo = sse300_devices,
         .irq_is_common = sse300_irq_is_common,
     },
@@ -1699,7 +1700,7 @@ static void armsse_class_init(ObjectClass *klass, void *data)
 
     dc->realize = armsse_realize;
     dc->vmsd = &armsse_vmstate;
-    device_class_set_props(dc, info->props);
+    device_class_set_props_n(dc, info->props, info->props_count);
     device_class_set_legacy_reset(dc, armsse_reset);
     iic->check = armsse_idau_check;
     asc->info = info;

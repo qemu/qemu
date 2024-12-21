@@ -330,7 +330,6 @@ static const Property pl031_properties[] = {
      */
     DEFINE_PROP_BOOL("migrate-tick-offset",
                      PL031State, migrate_tick_offset, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pl031_class_init(ObjectClass *klass, void *data)

@@ -358,7 +358,6 @@ static void atmega_realize(DeviceState *dev, Error **errp)
 static const Property atmega_props[] = {
     DEFINE_PROP_UINT64("xtal-frequency-hz", AtmegaMcuState,
                        xtal_freq_hz, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void atmega_class_init(ObjectClass *oc, void *data)

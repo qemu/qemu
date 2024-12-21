@@ -227,7 +227,6 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk)
 
 static const Property omap_gpio_properties[] = {
     DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void omap_gpio_class_init(ObjectClass *klass, void *data)

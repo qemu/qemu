@@ -187,7 +187,6 @@ static void pnv_adu_realize(DeviceState *dev, Error **errp)
 
 static const Property pnv_adu_properties[] = {
     DEFINE_PROP_LINK("lpc", PnvADU, lpc, TYPE_PNV_LPC, PnvLpcController *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_adu_class_init(ObjectClass *klass, void *data)

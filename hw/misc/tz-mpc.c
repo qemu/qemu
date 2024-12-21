@@ -590,7 +590,6 @@ static const VMStateDescription tz_mpc_vmstate = {
 static const Property tz_mpc_properties[] = {
     DEFINE_PROP_LINK("downstream", TZMPC, downstream,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tz_mpc_class_init(ObjectClass *klass, void *data)

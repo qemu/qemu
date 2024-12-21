@@ -449,7 +449,6 @@ static const Property nand_properties[] = {
     DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
     DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
     DEFINE_PROP_DRIVE("drive", NANDFlashState, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nand_class_init(ObjectClass *klass, void *data)

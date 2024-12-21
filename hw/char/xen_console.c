@@ -490,7 +490,6 @@ static char *xen_console_get_frontend_path(XenDevice *xendev, Error **errp)
 static const Property xen_console_properties[] = {
     DEFINE_PROP_CHR("chardev", XenConsole, chr),
     DEFINE_PROP_INT32("idx", XenConsole, dev, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xen_console_class_init(ObjectClass *class, void *data)

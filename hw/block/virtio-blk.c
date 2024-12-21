@@ -2014,7 +2014,6 @@ static const Property virtio_blk_properties[] = {
                        conf.max_write_zeroes_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_BOOL("x-enable-wce-if-config-wce", VirtIOBlock,
                      conf.x_enable_wce_if_config_wce, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_blk_class_init(ObjectClass *klass, void *data)

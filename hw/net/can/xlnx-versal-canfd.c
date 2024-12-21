@@ -2052,7 +2052,6 @@ static const Property canfd_core_properties[] = {
                        CANFD_DEFAULT_CLOCK),
     DEFINE_PROP_LINK("canfdbus", XlnxVersalCANFDState, canfdbus, TYPE_CAN_BUS,
                      CanBusState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void canfd_class_init(ObjectClass *klass, void *data)

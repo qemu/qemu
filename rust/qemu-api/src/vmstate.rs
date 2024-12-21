@@ -10,6 +10,8 @@
 //! [`vmstate_fields`](crate::vmstate_fields) are meant to be used when
 //! declaring a device model state struct.
 
+pub use crate::bindings::VMStateDescription;
+
 #[doc(alias = "VMSTATE_UNUSED_BUFFER")]
 #[macro_export]
 macro_rules! vmstate_unused_buffer {
@@ -101,28 +103,6 @@ macro_rules! vmstate_uint32_v {
 macro_rules! vmstate_uint32 {
     ($field_name:ident, $struct_name:ty) => {{
         $crate::vmstate_uint32_v!($field_name, $struct_name, 0)
-    }};
-}
-
-#[doc(alias = "VMSTATE_INT32_V")]
-#[macro_export]
-macro_rules! vmstate_int32_v {
-    ($field_name:ident, $struct_name:ty, $version_id:expr) => {{
-        $crate::vmstate_single!(
-            $field_name,
-            $struct_name,
-            $version_id,
-            ::core::ptr::addr_of!($crate::bindings::vmstate_info_int32),
-            ::core::mem::size_of::<i32>()
-        )
-    }};
-}
-
-#[doc(alias = "VMSTATE_INT32")]
-#[macro_export]
-macro_rules! vmstate_int32 {
-    ($field_name:ident, $struct_name:ty) => {{
-        $crate::vmstate_int32_v!($field_name, $struct_name, 0)
     }};
 }
 
@@ -328,7 +308,7 @@ macro_rules! vmstate_fields {
 }
 
 /// A transparent wrapper type for the `subsections` field of
-/// [`VMStateDescription`](crate::bindings::VMStateDescription).
+/// [`VMStateDescription`].
 ///
 /// This is necessary to be able to declare subsection descriptions as statics,
 /// because the only way to implement `Sync` for a foreign type (and `*const`
@@ -342,9 +322,8 @@ pub struct VMStateSubsectionsWrapper(pub &'static [*const crate::bindings::VMSta
 
 unsafe impl Sync for VMStateSubsectionsWrapper {}
 
-/// Helper macro to declare a list of subsections
-/// ([`VMStateDescription`](`crate::bindings::VMStateDescription`)) into a
-/// static and return a pointer to the array of pointers it created.
+/// Helper macro to declare a list of subsections ([`VMStateDescription`])
+/// into a static and return a pointer to the array of pointers it created.
 #[macro_export]
 macro_rules! vmstate_subsections {
     ($($subsection:expr),*$(,)*) => {{

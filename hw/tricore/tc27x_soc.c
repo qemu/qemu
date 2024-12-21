@@ -201,16 +201,11 @@ static void tc27x_soc_init(Object *obj)
     object_initialize_child(obj, "tc27x", &s->cpu, sc->cpu_type);
 }
 
-static Property tc27x_soc_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void tc27x_soc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = tc27x_soc_realize;
-    device_class_set_props(dc, tc27x_soc_properties);
 }
 
 static void tc277d_soc_class_init(ObjectClass *oc, void *data)

@@ -567,7 +567,6 @@ static const Property ipoctal_properties[] = {
     DEFINE_PROP_CHR("chardev5", IPOctalState, ch[5].dev),
     DEFINE_PROP_CHR("chardev6", IPOctalState, ch[6].dev),
     DEFINE_PROP_CHR("chardev7", IPOctalState, ch[7].dev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ipoctal_class_init(ObjectClass *klass, void *data)

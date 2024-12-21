@@ -319,7 +319,6 @@ static void vmmouse_realizefn(DeviceState *dev, Error **errp)
 
 static const Property vmmouse_properties[] = {
     DEFINE_PROP_LINK("i8042", VMMouseState, i8042, TYPE_I8042, ISAKBDState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmmouse_class_initfn(ObjectClass *klass, void *data)

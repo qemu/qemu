@@ -1326,7 +1326,6 @@ static void ac97_exit(PCIDevice *dev)
 
 static const Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, card),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ac97_class_init(ObjectClass *klass, void *data)

@@ -123,7 +123,6 @@ VirtualCssBus *virtual_css_bus_init(void)
 static const Property virtual_css_bridge_properties[] = {
     DEFINE_PROP_BOOL("css_dev_path", VirtualCssBridge, css_dev_path,
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static bool prop_get_true(Object *obj, Error **errp)

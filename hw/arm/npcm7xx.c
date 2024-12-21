@@ -813,7 +813,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
 static const Property npcm7xx_properties[] = {
     DEFINE_PROP_LINK("dram-mr", NPCM7xxState, dram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void npcm7xx_class_init(ObjectClass *oc, void *data)

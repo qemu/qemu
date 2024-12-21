@@ -378,7 +378,6 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
 
 static const Property grlib_irqmp_properties[] = {
     DEFINE_PROP_UINT32("ncpus", IRQMP, ncpus, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void grlib_irqmp_class_init(ObjectClass *klass, void *data)

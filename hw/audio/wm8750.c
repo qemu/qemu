@@ -708,7 +708,6 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
 
 static const Property wm8750_properties[] = {
     DEFINE_AUDIO_PROPERTIES(WM8750State, card),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void wm8750_class_init(ObjectClass *klass, void *data)

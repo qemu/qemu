@@ -81,7 +81,6 @@ static const Property m48t59_isa_properties[] = {
     DEFINE_PROP_INT32("base-year", M48txxISAState, state.base_year, 0),
     DEFINE_PROP_UINT32("iobase", M48txxISAState, io_base, 0x74),
     DEFINE_PROP_UINT8("irq", M48txxISAState, isairq, 8),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void m48t59_reset_isa(DeviceState *d)

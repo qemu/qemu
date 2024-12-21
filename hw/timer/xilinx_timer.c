@@ -245,7 +245,6 @@ static void xilinx_timer_init(Object *obj)
 static const Property xilinx_timer_properties[] = {
     DEFINE_PROP_UINT32("clock-frequency", XpsTimerState, freq_hz, 62 * 1000000),
     DEFINE_PROP_UINT8("one-timer-only", XpsTimerState, one_timer_only, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_timer_class_init(ObjectClass *klass, void *data)

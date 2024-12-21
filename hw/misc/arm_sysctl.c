@@ -632,7 +632,6 @@ static const Property arm_sysctl_properties[] = {
     /* Daughterboard clock reset values (as reported via SYS_CFG) */
     DEFINE_PROP_ARRAY("db-clock", arm_sysctl_state, db_num_clocks,
                       db_clock_reset, qdev_prop_uint32, uint32_t),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void arm_sysctl_class_init(ObjectClass *klass, void *data)

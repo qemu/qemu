@@ -590,7 +590,6 @@ static const Property i8257_properties[] = {
     DEFINE_PROP_INT32("page-base", I8257State, page_base, 0x80),
     DEFINE_PROP_INT32("pageh-base", I8257State, pageh_base, 0x480),
     DEFINE_PROP_INT32("dshift", I8257State, dshift, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void i8257_class_init(ObjectClass *klass, void *data)

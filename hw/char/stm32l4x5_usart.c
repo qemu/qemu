@@ -536,7 +536,6 @@ static const MemoryRegionOps stm32l4x5_usart_base_ops = {
 
 static const Property stm32l4x5_usart_base_properties[] = {
     DEFINE_PROP_CHR("chardev", Stm32l4x5UsartBaseState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void stm32l4x5_usart_base_init(Object *obj)

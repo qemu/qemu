@@ -239,7 +239,6 @@ static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_UINT8("address-size", EEPROMState, asize, 0),
     DEFINE_PROP_BOOL("writable", EEPROMState, writable, true),
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static

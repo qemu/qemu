@@ -139,6 +139,12 @@ struct DeviceClass {
     const Property *props_;
 
     /**
+     * @props_count_: number of elements in @props_; should only be
+     * assigned by using device_class_set_props().
+     */
+    uint16_t props_count_;
+
+    /**
      * @user_creatable: Can user instantiate with -device / device_add?
      *
      * All devices should support instantiation with device_add, and
@@ -935,13 +941,38 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 /**
  * device_class_set_props(): add a set of properties to an device
  * @dc: the parent DeviceClass all devices inherit
- * @props: an array of properties, terminate by DEFINE_PROP_END_OF_LIST()
+ * @props: an array of properties
+ *
+ * This will add a set of properties to the object. It will fault if
+ * you attempt to add an existing property defined by a parent class.
+ * To modify an inherited property you need to use????
+ *
+ * Validate that @props has at least one Property.
+ * Validate that @props is an array, not a pointer, via ARRAY_SIZE.
+ * Validate that the array does not have a legacy terminator at compile-time;
+ * requires -O2 and the array to be const.
+ */
+#define device_class_set_props(dc, props) \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(sizeof(props) == 0);                          \
+        size_t props_count_ = ARRAY_SIZE(props);                        \
+        if ((props)[props_count_ - 1].name == NULL) {                   \
+            qemu_build_not_reached();                                   \
+        }                                                               \
+        device_class_set_props_n((dc), (props), props_count_);          \
+    } while (0)
+
+/**
+ * device_class_set_props_n(): add a set of properties to an device
+ * @dc: the parent DeviceClass all devices inherit
+ * @props: an array of properties
+ * @n: ARRAY_SIZE(@props)
  *
  * This will add a set of properties to the object. It will fault if
  * you attempt to add an existing property defined by a parent class.
  * To modify an inherited property you need to use????
  */
-void device_class_set_props(DeviceClass *dc, const Property *props);
+void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n);
 
 /**
  * device_class_set_parent_realize() - set up for chaining realize fns

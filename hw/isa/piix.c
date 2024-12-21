@@ -415,7 +415,6 @@ static const Property pci_piix_props[] = {
     DEFINE_PROP_BOOL("has-pit", PIIXState, has_pit, true),
     DEFINE_PROP_BOOL("has-usb", PIIXState, has_usb, true),
     DEFINE_PROP_BOOL("smm-enabled", PIIXState, smm_enabled, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_piix_class_init(ObjectClass *klass, void *data)

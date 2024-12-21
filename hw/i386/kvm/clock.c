@@ -308,7 +308,6 @@ static const VMStateDescription kvmclock_vmsd = {
 static const Property kvmclock_properties[] = {
     DEFINE_PROP_BOOL("x-mach-use-reliable-get-clock", KVMClockState,
                       mach_use_reliable_get_clock, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvmclock_class_init(ObjectClass *klass, void *data)

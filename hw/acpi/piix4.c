@@ -617,7 +617,6 @@ static const Property piix4_pm_properties[] = {
     DEFINE_PROP_BOOL("smm-enabled", PIIX4PMState, smm_enabled, false),
     DEFINE_PROP_BOOL("x-not-migrate-acpi-index", PIIX4PMState,
                       not_migrate_acpi_index, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void piix4_pm_class_init(ObjectClass *klass, void *data)

@@ -589,7 +589,6 @@ static const Property emulated_card_properties[] = {
     DEFINE_PROP_STRING("cert3", EmulatedState, cert3),
     DEFINE_PROP_STRING("db", EmulatedState, db),
     DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void emulated_class_initfn(ObjectClass *klass, void *data)

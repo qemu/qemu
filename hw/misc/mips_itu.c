@@ -538,7 +538,6 @@ static const Property mips_itu_properties[] = {
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_UINT32("num-semaphores", MIPSITUState, num_semaphores,
                       ITC_SEMAPH_NUM_MAX),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mips_itu_class_init(ObjectClass *klass, void *data)

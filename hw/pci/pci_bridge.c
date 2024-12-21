@@ -480,7 +480,6 @@ int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
 static const Property pci_bridge_properties[] = {
     DEFINE_PROP_BOOL("x-pci-express-writeable-slt-bug", PCIBridge,
                      pcie_writeable_slt_bug, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_bridge_class_init(ObjectClass *klass, void *data)

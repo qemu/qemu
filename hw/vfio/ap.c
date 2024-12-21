@@ -197,7 +197,6 @@ static const Property vfio_ap_properties[] = {
     DEFINE_PROP_LINK("iommufd", VFIOAPDevice, vdev.iommufd,
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vfio_ap_reset(DeviceState *dev)

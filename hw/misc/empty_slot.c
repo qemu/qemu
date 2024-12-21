@@ -82,7 +82,6 @@ static void empty_slot_realize(DeviceState *dev, Error **errp)
 static const Property empty_slot_properties[] = {
     DEFINE_PROP_UINT64("size", EmptySlot, size, 0),
     DEFINE_PROP_STRING("name", EmptySlot, name),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void empty_slot_class_init(ObjectClass *klass, void *data)

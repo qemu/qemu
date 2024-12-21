@@ -1427,7 +1427,6 @@ static const Property sungem_properties[] = {
      * override.
      */
     DEFINE_PROP_UINT32("phy_addr", SunGEMState, phy_addr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_sungem = {

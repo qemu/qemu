@@ -366,7 +366,6 @@ static const Property rxicu_properties[] = {
                       qdev_prop_uint8, uint8_t),
     DEFINE_PROP_ARRAY("trigger-level", RXICUState, nr_sense, init_sense,
                       qdev_prop_uint8, uint8_t),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void rxicu_class_init(ObjectClass *klass, void *data)

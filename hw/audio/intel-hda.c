@@ -39,7 +39,6 @@
 
 static const Property hda_props[] = {
     DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const TypeInfo hda_codec_bus_info = {
@@ -1219,7 +1218,6 @@ static const Property intel_hda_properties[] = {
     DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
     DEFINE_PROP_ON_OFF_AUTO("msi", IntelHDAState, msi, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("old_msi_addr", IntelHDAState, old_msi_addr, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void intel_hda_class_init(ObjectClass *klass, void *data)

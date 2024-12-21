@@ -764,7 +764,6 @@ static const Property macfb_sysbus_properties[] = {
     DEFINE_PROP_UINT8("depth", MacfbSysBusState, macfb.depth, 8),
     DEFINE_PROP_UINT8("display", MacfbSysBusState, macfb.type,
                       MACFB_DISPLAY_VGA),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_macfb_sysbus = {
@@ -783,7 +782,6 @@ static const Property macfb_nubus_properties[] = {
     DEFINE_PROP_UINT8("depth", MacfbNubusState, macfb.depth, 8),
     DEFINE_PROP_UINT8("display", MacfbNubusState, macfb.type,
                       MACFB_DISPLAY_VGA),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_macfb_nubus = {

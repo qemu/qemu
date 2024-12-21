@@ -959,7 +959,6 @@ static const Property pflash_cfi02_properties[] = {
     DEFINE_PROP_UINT16("unlock-addr0", PFlashCFI02, unlock_addr0, 0),
     DEFINE_PROP_UINT16("unlock-addr1", PFlashCFI02, unlock_addr1, 0),
     DEFINE_PROP_STRING("name", PFlashCFI02, name),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pflash_cfi02_unrealize(DeviceState *dev)

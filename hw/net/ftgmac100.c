@@ -1258,7 +1258,6 @@ static const Property ftgmac100_properties[] = {
     DEFINE_PROP_BOOL("aspeed", FTGMAC100State, aspeed, false),
     DEFINE_NIC_PROPERTIES(FTGMAC100State, conf),
     DEFINE_PROP_BOOL("dma64", FTGMAC100State, dma64, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ftgmac100_class_init(ObjectClass *klass, void *data)
@@ -1418,7 +1417,6 @@ static const VMStateDescription vmstate_aspeed_mii = {
 static const Property aspeed_mii_properties[] = {
     DEFINE_PROP_LINK("nic", AspeedMiiState, nic, TYPE_FTGMAC100,
                      FTGMAC100State *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_mii_class_init(ObjectClass *klass, void *data)

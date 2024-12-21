@@ -240,7 +240,6 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
 static const Property virtio_input_hid_properties[] = {
     DEFINE_PROP_STRING("display", VirtIOInputHID, display),
     DEFINE_PROP_UINT32("head", VirtIOInputHID, head, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_input_hid_class_init(ObjectClass *klass, void *data)
@@ -382,7 +381,6 @@ static struct virtio_input_config virtio_mouse_config_v2[] = {
 
 static const Property virtio_mouse_properties[] = {
     DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_mouse_class_init(ObjectClass *klass, void *data)
@@ -507,7 +505,6 @@ static struct virtio_input_config virtio_tablet_config_v2[] = {
 
 static const Property virtio_tablet_properties[] = {
     DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_tablet_class_init(ObjectClass *klass, void *data)

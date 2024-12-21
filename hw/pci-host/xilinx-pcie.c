@@ -163,7 +163,6 @@ static const Property xilinx_pcie_host_props[] = {
     DEFINE_PROP_SIZE("mmio_base", XilinxPCIEHost, mmio_base, 0),
     DEFINE_PROP_SIZE("mmio_size", XilinxPCIEHost, mmio_size, 1 * MiB),
     DEFINE_PROP_BOOL("link_up", XilinxPCIEHost, link_up, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_pcie_host_class_init(ObjectClass *klass, void *data)

@@ -216,7 +216,6 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
 
 static const Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmgenid_device_class_init(ObjectClass *klass, void *data)

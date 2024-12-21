@@ -288,7 +288,6 @@ static struct vhost_dev *vhost_vsock_common_get_vhost(VirtIODevice *vdev)
 static const Property vhost_vsock_common_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("seqpacket", VHostVSockCommon, seqpacket,
                             ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_vsock_common_class_init(ObjectClass *klass, void *data)

@@ -354,7 +354,6 @@ static const Property applesmc_isa_properties[] = {
     DEFINE_PROP_UINT32(APPLESMC_PROP_IO_BASE, AppleSMCState, iobase,
                        APPLESMC_DEFAULT_IOBASE),
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)

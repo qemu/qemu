@@ -49,7 +49,6 @@ static const Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
                        VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_ccw_blk_class_init(ObjectClass *klass, void *data)

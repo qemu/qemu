@@ -145,7 +145,6 @@ static const Property gen_rp_props[] = {
                                 speed, PCIE_LINK_SPEED_16),
     DEFINE_PROP_PCIE_LINK_WIDTH("x-width", PCIESlot,
                                 width, PCIE_LINK_WIDTH_32),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void gen_rp_dev_class_init(ObjectClass *klass, void *data)

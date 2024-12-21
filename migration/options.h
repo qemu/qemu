@@ -20,7 +20,8 @@
 
 /* migration properties */
 
-extern Property migration_properties[];
+extern const Property migration_properties[];
+extern const size_t migration_properties_count;
 
 /* capabilities */
 

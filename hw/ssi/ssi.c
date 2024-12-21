@@ -110,7 +110,6 @@ static void ssi_peripheral_realize(DeviceState *dev, Error **errp)
 
 static const Property ssi_peripheral_properties[] = {
     DEFINE_PROP_UINT8("cs", SSIPeripheral, cs_index, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ssi_peripheral_class_init(ObjectClass *klass, void *data)

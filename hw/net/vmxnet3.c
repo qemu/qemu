@@ -2477,7 +2477,6 @@ static const Property vmxnet3_properties[] = {
                     VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT, false),
     DEFINE_PROP_BIT("x-disable-pcie", VMXNET3State, compat_flags,
                     VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmxnet3_realize(DeviceState *qdev, Error **errp)

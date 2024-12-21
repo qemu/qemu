@@ -124,9 +124,18 @@ use std::{
 
 use crate::bindings;
 
-// TODO: When building doctests do not include the actual BQL, because cargo
-// does not know how to link them to libqemuutil.  This can be fixed by
-// running rustdoc from "meson test" instead of relying on cargo.
+/// An internal function that is used by doctests.
+pub fn bql_start_test() {
+    if cfg!(MESON) {
+        // SAFETY: integration tests are run with --test-threads=1, while
+        // unit tests and doctests are not multithreaded and do not have
+        // any BQL-protected data.  Just set bql_locked to true.
+        unsafe {
+            bindings::rust_bql_mock_lock();
+        }
+    }
+}
+
 pub fn bql_locked() -> bool {
     // SAFETY: the function does nothing but return a thread-local bool
     !cfg!(MESON) || unsafe { bindings::bql_locked() }
@@ -220,6 +229,7 @@ impl<T> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     /// ```
@@ -236,6 +246,7 @@ impl<T> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -253,6 +264,7 @@ impl<T> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let cell = BqlCell::new(5);
     /// assert_eq!(cell.get(), 5);
@@ -274,6 +286,7 @@ impl<T> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     /// let five = c.into_inner();
@@ -293,6 +306,7 @@ impl<T: Copy> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -315,6 +329,7 @@ impl<T> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -333,6 +348,7 @@ impl<T: Default> BqlCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlCell::new(5);
     /// let five = c.take();
@@ -461,6 +477,7 @@ impl<T> BqlRefCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlRefCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlRefCell::new(5);
     ///
@@ -472,6 +489,7 @@ impl<T> BqlRefCell<T> {
     ///
     /// ```should_panic
     /// use qemu_api::cell::BqlRefCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlRefCell::new(5);
     ///
@@ -513,6 +531,7 @@ impl<T> BqlRefCell<T> {
     ///
     /// ```
     /// use qemu_api::cell::BqlRefCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlRefCell::new("hello".to_owned());
     ///
@@ -525,6 +544,7 @@ impl<T> BqlRefCell<T> {
     ///
     /// ```should_panic
     /// use qemu_api::cell::BqlRefCell;
+    /// # qemu_api::cell::bql_start_test();
     ///
     /// let c = BqlRefCell::new(5);
     /// let m = c.borrow();

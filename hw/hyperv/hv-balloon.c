@@ -1741,8 +1741,6 @@ static const Property hv_balloon_properties[] = {
     DEFINE_PROP_LINK(HV_BALLOON_MEMDEV_PROP, HvBalloon, hostmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT64(HV_BALLOON_ADDR_PROP, HvBalloon, addr, 0),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void hv_balloon_class_init(ObjectClass *klass, void *data)

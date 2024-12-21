@@ -129,7 +129,6 @@ static void allwinner_sid_init(Object *obj)
 
 static const Property allwinner_sid_properties[] = {
     DEFINE_PROP_UUID_NODEFAULT("identifier", AwSidState, identifier),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription allwinner_sid_vmstate = {

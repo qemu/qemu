@@ -462,7 +462,6 @@ static void macio_ide_initfn(Object *obj)
 static const Property macio_ide_properties[] = {
     DEFINE_PROP_UINT32("channel", MACIOIDEState, channel, 0),
     DEFINE_PROP_UINT32("addr", MACIOIDEState, addr, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void macio_ide_class_init(ObjectClass *oc, void *data)

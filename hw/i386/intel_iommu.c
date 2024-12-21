@@ -3418,7 +3418,6 @@ static const Property vtd_properties[] = {
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
     DEFINE_PROP_BOOL("stale-tm", IntelIOMMUState, stale_tm, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 /* Read IRTE entry with specific index */

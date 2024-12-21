@@ -74,7 +74,6 @@ static const Property isa_cirrus_vga_properties[] = {
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
                      cirrus_vga.enable_blitter, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)

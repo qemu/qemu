@@ -430,7 +430,6 @@ static void pca955x_realize(DeviceState *dev, Error **errp)
 
 static const Property pca955x_properties[] = {
     DEFINE_PROP_STRING("description", PCA955xState, description),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pca955x_class_init(ObjectClass *klass, void *data)

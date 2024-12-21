@@ -1409,7 +1409,6 @@ static const VMStateDescription vmstate_usb_net = {
 
 static const Property net_properties[] = {
     DEFINE_NIC_PROPERTIES(USBNetState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_net_class_initfn(ObjectClass *klass, void *data)

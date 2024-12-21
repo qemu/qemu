@@ -1685,7 +1685,6 @@ static const Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_TSO_BIT, true),
     DEFINE_PROP_BIT("init-vet", E1000State,
                     compat_flags, E1000_FLAG_VET_BIT, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 typedef struct E1000Info {

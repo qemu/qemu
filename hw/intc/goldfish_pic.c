@@ -183,7 +183,6 @@ static void goldfish_pic_instance_init(Object *obj)
 
 static const Property goldfish_pic_properties[] = {
     DEFINE_PROP_UINT8("index", GoldfishPICState, idx, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void goldfish_pic_class_init(ObjectClass *oc, void *data)

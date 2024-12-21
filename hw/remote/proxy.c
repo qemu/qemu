@@ -193,7 +193,6 @@ static void pci_proxy_write_config(PCIDevice *d, uint32_t addr, uint32_t val,
 
 static const Property proxy_properties[] = {
     DEFINE_PROP_STRING("fd", PCIProxyDev, fd),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)

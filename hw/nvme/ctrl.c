@@ -8965,7 +8965,6 @@ static const Property nvme_props[] = {
     DEFINE_PROP_BOOL("atomic.dn", NvmeCtrl, params.atomic_dn, 0),
     DEFINE_PROP_UINT16("atomic.awun", NvmeCtrl, params.atomic_awun, 0),
     DEFINE_PROP_UINT16("atomic.awupf", NvmeCtrl, params.atomic_awupf, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_get_smart_warning(Object *obj, Visitor *v, const char *name,

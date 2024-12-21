@@ -1468,7 +1468,6 @@ static const Property rocker_properties[] = {
                        switch_id, 0),
     DEFINE_PROP_ARRAY("ports", Rocker, fp_ports,
                       fp_ports_peers, qdev_prop_netdev, NICPeers),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription rocker_vmsd = {

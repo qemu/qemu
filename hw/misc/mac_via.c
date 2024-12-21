@@ -1324,7 +1324,6 @@ static const VMStateDescription vmstate_q800_via1 = {
 
 static const Property mos6522_q800_via1_properties[] = {
     DEFINE_PROP_DRIVE("drive", MOS6522Q800VIA1State, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)

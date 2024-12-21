@@ -159,7 +159,6 @@ static void shakti_uart_instance_init(Object *obj)
 
 static const Property shakti_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", ShaktiUartState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void shakti_uart_class_init(ObjectClass *klass, void *data)

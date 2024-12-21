@@ -360,7 +360,6 @@ static const Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_BIT64("t10_pi", VHostSCSICommon, host_features,
                                                  VIRTIO_SCSI_F_T10_PI,
                                                  false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_user_scsi_reset(VirtIODevice *vdev)

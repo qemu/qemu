@@ -94,7 +94,6 @@ static const MemoryRegionOps armsse_cpuid_ops = {
 
 static const Property armsse_cpuid_props[] = {
     DEFINE_PROP_UINT32("CPUID", ARMSSECPUID, cpuid, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void armsse_cpuid_init(Object *obj)

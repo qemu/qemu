@@ -1047,7 +1047,6 @@ static const Property ati_vga_properties[] = {
     DEFINE_PROP_BOOL("guest_hwcursor", ATIVGAState, cursor_guest_mode, false),
     /* this is a debug option, prefer PROP_UINT over PROP_BIT for simplicity */
     DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void ati_vga_class_init(ObjectClass *klass, void *data)

@@ -1779,7 +1779,6 @@ static const Property usb_host_dev_properties[] = {
                     USB_HOST_OPT_PIPELINE, true),
     DEFINE_PROP_BOOL("suppress-remote-wake", USBHostDevice,
                      suppress_remote_wake, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_host_class_initfn(ObjectClass *klass, void *data)

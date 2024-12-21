@@ -811,7 +811,6 @@ static const VMStateDescription vmstate_allwinner_sdhost = {
 static const Property allwinner_sdhost_properties[] = {
     DEFINE_PROP_LINK("dma-memory", AwSdHostState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void allwinner_sdhost_init(Object *obj)

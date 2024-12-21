@@ -621,7 +621,6 @@ static const Property arm_gicv3_common_properties[] = {
                       redist_region_count, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_LINK("sysmem", GICv3State, dma, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)

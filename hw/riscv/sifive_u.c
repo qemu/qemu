@@ -939,7 +939,6 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
 static const Property sifive_u_soc_props[] = {
     DEFINE_PROP_UINT32("serial", SiFiveUSoCState, serial, OTP_SERIAL),
     DEFINE_PROP_STRING("cpu-type", SiFiveUSoCState, cpu_type),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void sifive_u_soc_class_init(ObjectClass *oc, void *data)

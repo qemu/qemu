@@ -553,7 +553,6 @@ static const Property pxa25x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA25X_FREQ),
     DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
                     PXA2XX_TIMER_HAVE_TM4, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)

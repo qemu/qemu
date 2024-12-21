@@ -703,6 +703,7 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props_ = NULL;
+    klass->props_count_ = 0;
 }
 
 static void device_unparent(Object *obj)

@@ -478,7 +478,6 @@ static void ioapic_unrealize(DeviceState *dev)
 
 static const Property ioapic_properties[] = {
     DEFINE_PROP_UINT8("version", IOAPICCommonState, version, IOAPIC_VER_DEF),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ioapic_class_init(ObjectClass *klass, void *data)

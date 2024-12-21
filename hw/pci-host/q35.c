@@ -182,7 +182,6 @@ static const Property q35_host_props[] = {
     DEFINE_PROP_BOOL(PCI_HOST_PROP_SMM_RANGES, Q35PCIHost,
                      mch.has_smm_ranges, true),
     DEFINE_PROP_BOOL("x-pci-hole64-fix", Q35PCIHost, pci_hole64_fix, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void q35_host_class_init(ObjectClass *klass, void *data)
@@ -666,7 +665,6 @@ static const Property mch_props[] = {
     DEFINE_PROP_UINT16("extended-tseg-mbytes", MCHPCIState, ext_tseg_mbytes,
                        16),
     DEFINE_PROP_BOOL("smbase-smram", MCHPCIState, has_smram_at_smbase, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mch_class_init(ObjectClass *klass, void *data)

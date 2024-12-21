@@ -46,7 +46,6 @@ static void loongarch_pic_common_realize(DeviceState *dev, Error **errp)
 
 static const Property loongarch_pic_common_properties[] = {
     DEFINE_PROP_UINT32("pch_pic_irq_num", LoongArchPICCommonState, irq_num, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_loongarch_pic_common = {

@@ -862,7 +862,6 @@ static const Property hda_audio_properties[] = {
     DEFINE_PROP_UINT32("debug", HDAAudioState, debug,   0),
     DEFINE_PROP_BOOL("mixer", HDAAudioState, mixer,  true),
     DEFINE_PROP_BOOL("use-timer", HDAAudioState, use_timer,  true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void hda_audio_init_output(HDACodecDevice *hda, Error **errp)

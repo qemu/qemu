@@ -6,12 +6,30 @@ use std::{ffi::CStr, ptr::addr_of};
 
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
-use crate::{bindings, cell::bql_locked, irq::InterruptSource, prelude::*};
+use crate::{
+    bindings,
+    cell::bql_locked,
+    irq::InterruptSource,
+    prelude::*,
+    qdev::{DeviceClass, DeviceState},
+    qom::ClassInitImpl,
+};
 
 unsafe impl ObjectType for SysBusDevice {
     type Class = SysBusDeviceClass;
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
+}
+qom_isa!(SysBusDevice: DeviceState, Object);
+
+// TODO: add SysBusDeviceImpl
+impl<T> ClassInitImpl<SysBusDeviceClass> for T
+where
+    T: ClassInitImpl<DeviceClass>,
+{
+    fn class_init(sdc: &mut SysBusDeviceClass) {
+        <T as ClassInitImpl<DeviceClass>>::class_init(&mut sdc.parent_class);
+    }
 }
 
 impl SysBusDevice {

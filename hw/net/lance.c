@@ -141,7 +141,6 @@ static const Property lance_properties[] = {
     DEFINE_PROP_LINK("dma", SysBusPCNetState, state.dma_opaque,
                      TYPE_DEVICE, DeviceState *),
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void lance_class_init(ObjectClass *klass, void *data)

@@ -2577,7 +2577,6 @@ static const Property props_nvic[] = {
      * to use a reasonable default.
      */
     DEFINE_PROP_UINT8("num-prio-bits", NVICState, num_prio_bits, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void armv7m_nvic_reset(DeviceState *dev)

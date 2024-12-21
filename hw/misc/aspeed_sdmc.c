@@ -297,7 +297,6 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 static const Property aspeed_sdmc_properties[] = {
     DEFINE_PROP_UINT64("max-ram-size", AspeedSDMCState, max_ram_size, 0),
     DEFINE_PROP_BOOL("unlocked", AspeedSDMCState, unlocked, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_sdmc_class_init(ObjectClass *klass, void *data)

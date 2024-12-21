@@ -132,7 +132,6 @@ static const Property serial_mm_properties[] = {
      */
     DEFINE_PROP_UINT8("regshift", SerialMM, regshift, 0),
     DEFINE_PROP_UINT8("endianness", SerialMM, endianness, DEVICE_NATIVE_ENDIAN),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void serial_mm_class_init(ObjectClass *oc, void *data)

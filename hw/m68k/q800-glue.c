@@ -205,7 +205,6 @@ static const VMStateDescription vmstate_glue = {
  */
 static const Property glue_properties[] = {
     DEFINE_PROP_LINK("cpu", GLUEState, cpu, TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void glue_finalize(Object *obj)

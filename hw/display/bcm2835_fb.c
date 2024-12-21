@@ -440,7 +440,6 @@ static const Property bcm2835_fb_props[] = {
                        initial_config.pixo, 1), /* 1=RGB, 0=BGR */
     DEFINE_PROP_UINT32("alpha", BCM2835FBState,
                        initial_config.alpha, 2), /* alpha ignored */
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void bcm2835_fb_class_init(ObjectClass *klass, void *data)

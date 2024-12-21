@@ -301,7 +301,6 @@ static const VMStateDescription vmstate_stm32f2xx_timer = {
 static const Property stm32f2xx_timer_properties[] = {
     DEFINE_PROP_UINT64("clock-frequency", struct STM32F2XXTimerState,
                        freq_hz, 1000000000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void stm32f2xx_timer_init(Object *obj)

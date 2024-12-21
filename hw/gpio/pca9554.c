@@ -293,7 +293,6 @@ static void pca9554_realize(DeviceState *dev, Error **errp)
 
 static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pca9554_class_init(ObjectClass *klass, void *data)

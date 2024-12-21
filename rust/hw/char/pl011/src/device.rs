@@ -11,11 +11,10 @@ use std::{
 use qemu_api::{
     bindings::{self, *},
     c_str,
-    definitions::ObjectImpl,
-    device_class::DeviceImpl,
-    impl_device_class,
     irq::InterruptSource,
     prelude::*,
+    qdev::DeviceImpl,
+    qom::ObjectImpl,
 };
 
 use crate::{
@@ -31,10 +30,8 @@ const IBRD_MASK: u32 = 0xffff;
 /// Fractional Baud Rate Divider, `UARTFBRD`
 const FBRD_MASK: u32 = 0x3f;
 
-const DATA_BREAK: u32 = 1 << 10;
-
 /// QEMU sourced constant.
-pub const PL011_FIFO_DEPTH: usize = 16_usize;
+pub const PL011_FIFO_DEPTH: u32 = 16;
 
 #[derive(Clone, Copy, Debug)]
 enum DeviceId {
@@ -59,6 +56,32 @@ impl DeviceId {
     const PL011_ID_LUMINARY: [c_uchar; 8] = [0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1];
 }
 
+// FIFOs use 32-bit indices instead of usize, for compatibility with
+// the migration stream produced by the C version of this device.
+#[repr(transparent)]
+#[derive(Debug, Default)]
+pub struct Fifo([registers::Data; PL011_FIFO_DEPTH as usize]);
+
+impl Fifo {
+    const fn len(&self) -> u32 {
+        self.0.len() as u32
+    }
+}
+
+impl std::ops::IndexMut<u32> for Fifo {
+    fn index_mut(&mut self, idx: u32) -> &mut Self::Output {
+        &mut self.0[idx as usize]
+    }
+}
+
+impl std::ops::Index<u32> for Fifo {
+    type Output = registers::Data;
+
+    fn index(&self, idx: u32) -> &Self::Output {
+        &self.0[idx as usize]
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
 /// PL011 Device Model in QEMU
@@ -76,14 +99,14 @@ pub struct PL011State {
     pub dmacr: u32,
     pub int_enabled: u32,
     pub int_level: u32,
-    pub read_fifo: [u32; PL011_FIFO_DEPTH],
+    pub read_fifo: Fifo,
     pub ilpr: u32,
     pub ibrd: u32,
     pub fbrd: u32,
     pub ifl: u32,
-    pub read_pos: usize,
-    pub read_count: usize,
-    pub read_trigger: usize,
+    pub read_pos: u32,
+    pub read_count: u32,
+    pub read_trigger: u32,
     #[doc(alias = "chr")]
     pub char_backend: CharBackend,
     /// QEMU interrupts
@@ -107,8 +130,10 @@ pub struct PL011State {
     device_id: DeviceId,
 }
 
+qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
+
 unsafe impl ObjectType for PL011State {
-    type Class = PL011Class;
+    type Class = <SysBusDevice as ObjectType>::Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
 }
 
@@ -116,11 +141,6 @@ impl ObjectImpl for PL011State {
     type ParentType = SysBusDevice;
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
-}
-
-#[repr(C)]
-pub struct PL011Class {
-    _inner: [u8; 0],
 }
 
 impl DeviceImpl for PL011State {
@@ -134,8 +154,6 @@ impl DeviceImpl for PL011State {
     const RESET: Option<fn(&mut Self)> = Some(Self::reset);
 }
 
-impl_device_class!(PL011State);
-
 impl PL011State {
     /// Initializes a pre-allocated, unitialized instance of `PL011State`.
     ///
@@ -147,8 +165,6 @@ impl PL011State {
     /// values with the sole exception of `parent_obj`.
     unsafe fn init(&mut self) {
         const CLK_NAME: &CStr = c_str!("clk");
-
-        let sbd = unsafe { &mut *(addr_of_mut!(*self).cast::<SysBusDevice>()) };
 
         // SAFETY:
         //
@@ -163,14 +179,15 @@ impl PL011State {
                 Self::TYPE_NAME.as_ptr(),
                 0x1000,
             );
+
+            let sbd: &mut SysBusDevice = self.upcast_mut();
             sysbus_init_mmio(sbd, addr_of_mut!(self.iomem));
         }
 
         for irq in self.interrupts.iter() {
+            let sbd: &SysBusDevice = self.upcast();
             sbd.init_irq(irq);
         }
-
-        let dev = addr_of_mut!(*self).cast::<DeviceState>();
 
         // SAFETY:
         //
@@ -180,6 +197,7 @@ impl PL011State {
         // calls this function to initialize the fields; therefore no code is
         // able to access an invalid self.clock value.
         unsafe {
+            let dev: &mut DeviceState = self.upcast_mut();
             self.clock = NonNull::new(qdev_init_clock_in(
                 dev,
                 CLK_NAME.as_ptr(),
@@ -194,9 +212,9 @@ impl PL011State {
     pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
         use RegisterOffset::*;
 
-        std::ops::ControlFlow::Break(match RegisterOffset::try_from(offset) {
+        let value = match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
-                u64::from(self.device_id[(offset - 0xfe0) >> 2])
+                u32::from(self.device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
@@ -216,32 +234,31 @@ impl PL011State {
                     self.int_level &= !registers::INT_RX;
                 }
                 // Update error bits.
-                self.receive_status_error_clear = c.to_be_bytes()[3].into();
+                self.receive_status_error_clear.set_from_data(c);
                 self.update();
                 // Must call qemu_chr_fe_accept_input, so return Continue:
-                return std::ops::ControlFlow::Continue(c.into());
+                let c = u32::from(c);
+                return std::ops::ControlFlow::Continue(u64::from(c));
             }
-            Ok(RSR) => u8::from(self.receive_status_error_clear).into(),
-            Ok(FR) => u16::from(self.flags).into(),
-            Ok(FBRD) => self.fbrd.into(),
-            Ok(ILPR) => self.ilpr.into(),
-            Ok(IBRD) => self.ibrd.into(),
-            Ok(LCR_H) => u16::from(self.line_control).into(),
-            Ok(CR) => {
-                // We exercise our self-control.
-                u16::from(self.control).into()
-            }
-            Ok(FLS) => self.ifl.into(),
-            Ok(IMSC) => self.int_enabled.into(),
-            Ok(RIS) => self.int_level.into(),
-            Ok(MIS) => u64::from(self.int_level & self.int_enabled),
+            Ok(RSR) => u32::from(self.receive_status_error_clear),
+            Ok(FR) => u32::from(self.flags),
+            Ok(FBRD) => self.fbrd,
+            Ok(ILPR) => self.ilpr,
+            Ok(IBRD) => self.ibrd,
+            Ok(LCR_H) => u32::from(self.line_control),
+            Ok(CR) => u32::from(self.control),
+            Ok(FLS) => self.ifl,
+            Ok(IMSC) => self.int_enabled,
+            Ok(RIS) => self.int_level,
+            Ok(MIS) => self.int_level & self.int_enabled,
             Ok(ICR) => {
                 // "The UARTICR Register is the interrupt clear register and is write-only"
                 // Source: ARM DDI 0183G 3.3.13 Interrupt Clear Register, UARTICR
                 0
             }
-            Ok(DMACR) => self.dmacr.into(),
-        })
+            Ok(DMACR) => self.dmacr,
+        };
+        std::ops::ControlFlow::Break(value.into())
     }
 
     pub fn write(&mut self, offset: hwaddr, value: u64) {
@@ -268,7 +285,7 @@ impl PL011State {
                 self.update();
             }
             Ok(RSR) => {
-                self.receive_status_error_clear = 0.into();
+                self.receive_status_error_clear.reset();
             }
             Ok(FR) => {
                 // flag writes are ignored
@@ -283,13 +300,11 @@ impl PL011State {
                 self.fbrd = value;
             }
             Ok(LCR_H) => {
-                let value = value as u16;
                 let new_val: registers::LineControl = value.into();
                 // Reset the FIFO state on FIFO enable or disable
-                if bool::from(self.line_control.fifos_enabled())
-                    ^ bool::from(new_val.fifos_enabled())
-                {
-                    self.reset_fifo();
+                if self.line_control.fifos_enabled() != new_val.fifos_enabled() {
+                    self.reset_rx_fifo();
+                    self.reset_tx_fifo();
                 }
                 if self.line_control.send_break() ^ new_val.send_break() {
                     let mut break_enable: c_int = new_val.send_break().into();
@@ -309,7 +324,6 @@ impl PL011State {
             }
             Ok(CR) => {
                 // ??? Need to implement the enable bit.
-                let value = value as u16;
                 self.control = value.into();
                 self.loopback_mdmctrl();
             }
@@ -411,7 +425,7 @@ impl PL011State {
 
     fn loopback_break(&mut self, enable: bool) {
         if enable {
-            self.loopback_tx(DATA_BREAK);
+            self.loopback_tx(registers::Data::BREAK.into());
         }
     }
 
@@ -448,16 +462,24 @@ impl PL011State {
         self.read_trigger = 1;
         self.ifl = 0x12;
         self.control.reset();
-        self.flags = 0.into();
-        self.reset_fifo();
+        self.flags.reset();
+        self.reset_rx_fifo();
+        self.reset_tx_fifo();
     }
 
-    pub fn reset_fifo(&mut self) {
+    pub fn reset_rx_fifo(&mut self) {
         self.read_count = 0;
         self.read_pos = 0;
 
-        /* Reset FIFO flags */
-        self.flags.reset();
+        // Reset FIFO flags
+        self.flags.set_receive_fifo_full(false);
+        self.flags.set_receive_fifo_empty(true);
+    }
+
+    pub fn reset_tx_fifo(&mut self) {
+        // Reset FIFO flags
+        self.flags.set_transmit_fifo_full(false);
+        self.flags.set_transmit_fifo_empty(true);
     }
 
     pub fn can_receive(&self) -> bool {
@@ -466,15 +488,14 @@ impl PL011State {
     }
 
     pub fn event(&mut self, event: QEMUChrEvent) {
-        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.fifo_enabled() {
-            self.put_fifo(DATA_BREAK);
-            self.receive_status_error_clear.set_break_error(true);
+        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
+            self.put_fifo(registers::Data::BREAK.into());
         }
     }
 
     #[inline]
     pub fn fifo_enabled(&self) -> bool {
-        matches!(self.line_control.fifos_enabled(), registers::Mode::FIFO)
+        self.line_control.fifos_enabled() == registers::Mode::FIFO
     }
 
     #[inline]
@@ -483,7 +504,7 @@ impl PL011State {
     }
 
     #[inline]
-    pub fn fifo_depth(&self) -> usize {
+    pub fn fifo_depth(&self) -> u32 {
         // Note: FIFO depth is expected to be power-of-2
         if self.fifo_enabled() {
             return PL011_FIFO_DEPTH;
@@ -495,7 +516,7 @@ impl PL011State {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
-        self.read_fifo[slot] = value;
+        self.read_fifo[slot] = registers::Data::from(value);
         self.read_count += 1;
         self.flags.set_receive_fifo_empty(false);
         if self.read_count == depth {
@@ -627,11 +648,6 @@ pub struct PL011Luminary {
     parent_obj: PL011State,
 }
 
-#[repr(C)]
-pub struct PL011LuminaryClass {
-    _inner: [u8; 0],
-}
-
 impl PL011Luminary {
     /// Initializes a pre-allocated, unitialized instance of `PL011Luminary`.
     ///
@@ -645,8 +661,10 @@ impl PL011Luminary {
     }
 }
 
+qom_isa!(PL011Luminary : PL011State, SysBusDevice, DeviceState, Object);
+
 unsafe impl ObjectType for PL011Luminary {
-    type Class = PL011LuminaryClass;
+    type Class = <PL011State as ObjectType>::Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011_LUMINARY;
 }
 
@@ -657,5 +675,3 @@ impl ObjectImpl for PL011Luminary {
 }
 
 impl DeviceImpl for PL011Luminary {}
-
-impl_device_class!(PL011Luminary);

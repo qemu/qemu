@@ -912,7 +912,6 @@ static const Property riscv_aplic_properties[] = {
     DEFINE_PROP_UINT32("num-irqs", RISCVAPLICState, num_irqs, 0),
     DEFINE_PROP_BOOL("msimode", RISCVAPLICState, msimode, 0),
     DEFINE_PROP_BOOL("mmode", RISCVAPLICState, mmode, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_riscv_aplic = {

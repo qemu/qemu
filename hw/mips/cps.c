@@ -171,7 +171,6 @@ static const Property mips_cps_properties[] = {
     DEFINE_PROP_UINT32("num-irq", MIPSCPSState, num_irq, 256),
     DEFINE_PROP_STRING("cpu-type", MIPSCPSState, cpu_type),
     DEFINE_PROP_BOOL("cpu-big-endian", MIPSCPSState, cpu_is_bigendian, false),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void mips_cps_class_init(ObjectClass *klass, void *data)

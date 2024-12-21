@@ -607,7 +607,6 @@ static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("hw-strap1", AspeedSCUState, hw_strap1, 0),
     DEFINE_PROP_UINT32("hw-strap2", AspeedSCUState, hw_strap2, 0),
     DEFINE_PROP_UINT32("hw-prot-key", AspeedSCUState, hw_prot_key, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_scu_class_init(ObjectClass *klass, void *data)

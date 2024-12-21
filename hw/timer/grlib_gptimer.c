@@ -407,7 +407,6 @@ static const Property grlib_gptimer_properties[] = {
     DEFINE_PROP_UINT32("frequency", GPTimerUnit, freq_hz,   40000000),
     DEFINE_PROP_UINT32("irq-line",  GPTimerUnit, irq_line,  8),
     DEFINE_PROP_UINT32("nr-timers", GPTimerUnit, nr_timers, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void grlib_gptimer_class_init(ObjectClass *klass, void *data)

@@ -174,7 +174,6 @@ static const VMStateDescription vmstate_digic_uart = {
 
 static const Property digic_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", DigicUartState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void digic_uart_class_init(ObjectClass *klass, void *data)

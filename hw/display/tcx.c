@@ -884,7 +884,6 @@ static const Property tcx_properties[] = {
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tcx_class_init(ObjectClass *klass, void *data)

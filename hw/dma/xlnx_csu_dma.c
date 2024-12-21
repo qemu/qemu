@@ -710,7 +710,6 @@ static const Property xlnx_csu_dma_properties[] = {
                      TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("dma", XlnxCSUDMA, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)

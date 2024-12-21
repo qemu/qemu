@@ -914,7 +914,6 @@ static const VMStateDescription vmstate_npcm_gmac = {
 
 static const Property npcm_gmac_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCMGMACState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void npcm_gmac_class_init(ObjectClass *klass, void *data)

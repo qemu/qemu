@@ -308,7 +308,6 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
 
 static const Property lowrisc_ibex_soc_props[] = {
     DEFINE_PROP_UINT32("resetvec", LowRISCIbexSoCState, resetvec, 0x20000400),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)

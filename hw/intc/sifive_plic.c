@@ -444,7 +444,6 @@ static const Property sifive_plic_properties[] = {
     DEFINE_PROP_UINT32("context-base", SiFivePLICState, context_base, 0),
     DEFINE_PROP_UINT32("context-stride", SiFivePLICState, context_stride, 0),
     DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_plic_class_init(ObjectClass *klass, void *data)

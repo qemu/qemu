@@ -1016,7 +1016,6 @@ static const Property erst_properties[] = {
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT32(ACPI_ERST_RECORD_SIZE_PROP, ERSTDeviceState,
                      default_record_size, ERST_RECORD_SIZE),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void erst_class_init(ObjectClass *klass, void *data)

@@ -223,7 +223,6 @@ static const Property nvme_subsystem_props[] = {
                      NVME_DEFAULT_RU_SIZE),
     DEFINE_PROP_UINT32("fdp.nrg", NvmeSubsystem, params.fdp.nrg, 1),
     DEFINE_PROP_UINT16("fdp.nruh", NvmeSubsystem, params.fdp.nruh, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_subsys_class_init(ObjectClass *oc, void *data)

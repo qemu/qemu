@@ -311,7 +311,6 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
 
 static const Property fsl_imx25_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX25State, phy_num, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fsl_imx25_class_init(ObjectClass *oc, void *data)

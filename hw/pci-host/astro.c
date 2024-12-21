@@ -461,10 +461,6 @@ static void elroy_pcihost_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), elroy_set_irq, ELROY_IRQS);
 }
 
-static Property elroy_pcihost_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static const VMStateDescription vmstate_elroy = {
     .name = "Elroy",
     .version_id = 1,
@@ -490,7 +486,6 @@ static void elroy_pcihost_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, elroy_reset);
-    device_class_set_props(dc, elroy_pcihost_properties);
     dc->vmsd = &vmstate_elroy;
     dc->user_creatable = false;
 }

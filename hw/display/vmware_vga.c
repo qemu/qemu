@@ -1337,7 +1337,6 @@ static const Property vga_vmware_properties[] = {
                        chip.vga.vram_size_mb, 16),
     DEFINE_PROP_BOOL("global-vmstate", struct pci_vmsvga_state_s,
                      chip.vga.global_vmstate, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmsvga_class_init(ObjectClass *klass, void *data)

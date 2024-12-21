@@ -173,7 +173,6 @@ static void gicv2m_init(Object *obj)
 static const Property gicv2m_properties[] = {
     DEFINE_PROP_UINT32("base-spi", ARMGICv2mState, base_spi, 0),
     DEFINE_PROP_UINT32("num-spi", ARMGICv2mState, num_spi, 64),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void gicv2m_class_init(ObjectClass *klass, void *data)

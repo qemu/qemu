@@ -452,7 +452,6 @@ static const Property stm32l4x5_gpio_properties[] = {
     DEFINE_PROP_UINT32("mode-reset", Stm32l4x5GpioState, moder_reset, 0),
     DEFINE_PROP_UINT32("ospeed-reset", Stm32l4x5GpioState, ospeedr_reset, 0),
     DEFINE_PROP_UINT32("pupd-reset", Stm32l4x5GpioState, pupdr_reset, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void stm32l4x5_gpio_class_init(ObjectClass *klass, void *data)

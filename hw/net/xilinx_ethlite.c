@@ -255,7 +255,6 @@ static const Property xilinx_ethlite_properties[] = {
     DEFINE_PROP_UINT32("tx-ping-pong", struct xlx_ethlite, c_tx_pingpong, 1),
     DEFINE_PROP_UINT32("rx-ping-pong", struct xlx_ethlite, c_rx_pingpong, 1),
     DEFINE_NIC_PROPERTIES(struct xlx_ethlite, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)

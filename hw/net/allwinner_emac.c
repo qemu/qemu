@@ -465,7 +465,6 @@ static void aw_emac_realize(DeviceState *dev, Error **errp)
 static const Property aw_emac_properties[] = {
     DEFINE_NIC_PROPERTIES(AwEmacState, conf),
     DEFINE_PROP_UINT8("phy-addr", AwEmacState, phy_addr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_mii = {

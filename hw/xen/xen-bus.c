@@ -1095,7 +1095,6 @@ unrealize:
 static const Property xen_device_props[] = {
     DEFINE_PROP_UINT16("frontend-id", XenDevice, frontend_id,
                        DOMID_INVALID),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xen_device_class_init(ObjectClass *class, void *data)

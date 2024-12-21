@@ -160,7 +160,6 @@ static void lasi_82596_instance_init(Object *obj)
 
 static const Property lasi_82596_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusI82596State, state.conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void lasi_82596_class_init(ObjectClass *klass, void *data)

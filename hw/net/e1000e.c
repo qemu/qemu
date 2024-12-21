@@ -672,7 +672,6 @@ static const Property e1000e_properties[] = {
                         e1000e_prop_subsys, uint16_t),
     DEFINE_PROP_BOOL("init-vet", E1000EState, init_vet, true),
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void e1000e_class_init(ObjectClass *class, void *data)

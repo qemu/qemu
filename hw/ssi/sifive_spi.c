@@ -330,7 +330,6 @@ static void sifive_spi_realize(DeviceState *dev, Error **errp)
 
 static const Property sifive_spi_properties[] = {
     DEFINE_PROP_UINT32("num-cs", SiFiveSPIState, num_cs, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_spi_class_init(ObjectClass *klass, void *data)

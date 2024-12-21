@@ -797,7 +797,6 @@ static const Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
         DEFINE_PROP_STRING("display", USBHIDState, display),
         DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
@@ -820,7 +819,6 @@ static const TypeInfo usb_tablet_info = {
 
 static const Property usb_mouse_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
@@ -844,7 +842,6 @@ static const TypeInfo usb_mouse_info = {
 static const Property usb_keyboard_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
         DEFINE_PROP_STRING("display", USBHIDState, display),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)

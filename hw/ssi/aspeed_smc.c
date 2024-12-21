@@ -1292,7 +1292,6 @@ static const Property aspeed_smc_properties[] = {
     DEFINE_PROP_UINT64("dram-base", AspeedSMCState, dram_base, 0),
     DEFINE_PROP_LINK("dram", AspeedSMCState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_smc_class_init(ObjectClass *klass, void *data)
@@ -1340,7 +1339,6 @@ static const Property aspeed_smc_flash_properties[] = {
     DEFINE_PROP_UINT8("cs", AspeedSMCFlash, cs, 0),
     DEFINE_PROP_LINK("controller", AspeedSMCFlash, controller, TYPE_ASPEED_SMC,
                      AspeedSMCState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_smc_flash_class_init(ObjectClass *klass, void *data)

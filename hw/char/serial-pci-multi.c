@@ -136,7 +136,6 @@ static const Property multi_2x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev1",  PCIMultiSerialState, state[0].chr),
     DEFINE_PROP_CHR("chardev2",  PCIMultiSerialState, state[1].chr),
     DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const Property multi_4x_serial_pci_properties[] = {
@@ -145,7 +144,6 @@ static const Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev3",  PCIMultiSerialState, state[2].chr),
     DEFINE_PROP_CHR("chardev4",  PCIMultiSerialState, state[3].chr),
     DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)

@@ -169,7 +169,6 @@ static const BlockDevOps swim_block_ops = {
 static const Property swim_drive_properties[] = {
     DEFINE_PROP_INT32("unit", SWIMDrive, unit, -1),
     DEFINE_BLOCK_PROPERTIES(SWIMDrive, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void swim_drive_realize(DeviceState *qdev, Error **errp)

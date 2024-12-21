@@ -299,7 +299,6 @@ static const Property s390_ipl_properties[] = {
     DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
     DEFINE_PROP_BOOL("iplbext_migration", S390IPLState, iplbext_migration,
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_ipl_set_boot_menu(S390IPLState *ipl)

@@ -513,7 +513,6 @@ void omap_i2c_set_fclk(OMAPI2CState *i2c, omap_clk clk)
 
 static const Property omap_i2c_properties[] = {
     DEFINE_PROP_UINT8("revision", OMAPI2CState, revision, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void omap_i2c_class_init(ObjectClass *klass, void *data)

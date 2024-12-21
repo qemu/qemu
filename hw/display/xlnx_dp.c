@@ -1389,7 +1389,6 @@ static void xlnx_dp_reset(DeviceState *dev)
 
 static const Property xlnx_dp_device_properties[] = {
     DEFINE_AUDIO_PROPERTIES(XlnxDPState, aud_card),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xlnx_dp_class_init(ObjectClass *oc, void *data)

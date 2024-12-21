@@ -375,7 +375,6 @@ static const Property mv88w8618_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(mv88w8618_eth_state, conf),
     DEFINE_PROP_LINK("dma-memory", mv88w8618_eth_state, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)

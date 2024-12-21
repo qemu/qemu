@@ -442,7 +442,6 @@ static const VMStateDescription sse_timer_vmstate = {
 
 static const Property sse_timer_properties[] = {
     DEFINE_PROP_LINK("counter", SSETimer, counter, TYPE_SSE_COUNTER, SSECounter *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sse_timer_class_init(ObjectClass *klass, void *data)

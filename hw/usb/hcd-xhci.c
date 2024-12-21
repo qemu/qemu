@@ -3612,7 +3612,6 @@ static const Property xhci_properties[] = {
     DEFINE_PROP_UINT32("p3",    XHCIState, numports_3, 4),
     DEFINE_PROP_LINK("host",    XHCIState, hostOpaque, TYPE_DEVICE,
                      DeviceState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xhci_class_init(ObjectClass *klass, void *data)

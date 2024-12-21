@@ -663,7 +663,6 @@ static const Property vfio_ccw_properties[] = {
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vfio_ccw_vmstate = {

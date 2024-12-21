@@ -377,7 +377,6 @@ void omap_intc_set_fclk(OMAPIntcState *intc, omap_clk clk)
 
 static const Property omap_intc_properties[] = {
     DEFINE_PROP_UINT32("size", OMAPIntcState, size, 0x100),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void omap_intc_class_init(ObjectClass *klass, void *data)

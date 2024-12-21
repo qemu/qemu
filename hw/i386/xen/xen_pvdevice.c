@@ -120,7 +120,6 @@ static const Property xen_pv_props[] = {
     DEFINE_PROP_UINT16("device-id", XenPVDevice, device_id, 0xffff),
     DEFINE_PROP_UINT8("revision", XenPVDevice, revision, 0x01),
     DEFINE_PROP_UINT32("size", XenPVDevice, size, 0x400000),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xen_pv_class_init(ObjectClass *klass, void *data)

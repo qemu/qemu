@@ -565,7 +565,6 @@ static void pl061_realize(DeviceState *dev, Error **errp)
 static const Property pl061_props[] = {
     DEFINE_PROP_UINT32("pullups", PL061State, pullups, 0xff),
     DEFINE_PROP_UINT32("pulldowns", PL061State, pulldowns, 0x0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pl061_class_init(ObjectClass *klass, void *data)

@@ -931,7 +931,6 @@ static const Property xive_tctx_properties[] = {
     DEFINE_PROP_LINK("cpu", XiveTCTX, cs, TYPE_CPU, CPUState *),
     DEFINE_PROP_LINK("presenter", XiveTCTX, xptr, TYPE_XIVE_PRESENTER,
                      XivePresenter *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xive_tctx_class_init(ObjectClass *klass, void *data)
@@ -1414,7 +1413,6 @@ static const Property xive_source_properties[] = {
     DEFINE_PROP_UINT8("reset-pq", XiveSource, reset_pq, XIVE_ESB_OFF),
     DEFINE_PROP_LINK("xive", XiveSource, xive, TYPE_XIVE_NOTIFIER,
                      XiveNotifier *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xive_source_class_init(ObjectClass *klass, void *data)
@@ -2005,7 +2003,6 @@ void xive_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
 static const Property xive_router_properties[] = {
     DEFINE_PROP_LINK("xive-fabric", XiveRouter, xfb,
                      TYPE_XIVE_FABRIC, XiveFabric *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xive_router_class_init(ObjectClass *klass, void *data)
@@ -2175,7 +2172,6 @@ static const Property xive_end_source_properties[] = {
     DEFINE_PROP_UINT32("shift", XiveENDSource, esb_shift, XIVE_ESB_64K),
     DEFINE_PROP_LINK("xive", XiveENDSource, xrtr, TYPE_XIVE_ROUTER,
                      XiveRouter *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xive_end_source_class_init(ObjectClass *klass, void *data)

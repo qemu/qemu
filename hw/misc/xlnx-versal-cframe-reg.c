@@ -737,7 +737,6 @@ static const Property cframe_regs_props[] = {
                        cfg.blktype_num_frames[5], 0),
     DEFINE_PROP_UINT32("blktype6-frames", XlnxVersalCFrameReg,
                        cfg.blktype_num_frames[6], 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cframe_bcast_reg_init(Object *obj)
@@ -802,7 +801,6 @@ static const Property cframe_bcast_regs_props[] = {
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
     DEFINE_PROP_LINK("cframe14", XlnxVersalCFrameBcastReg, cfg.cframe[14],
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cframe_reg_class_init(ObjectClass *klass, void *data)

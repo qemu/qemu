@@ -314,7 +314,6 @@ static void mcf_uart_realize(DeviceState *dev, Error **errp)
 
 static const Property mcf_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", mcf_uart_state, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mcf_uart_class_init(ObjectClass *oc, void *data)

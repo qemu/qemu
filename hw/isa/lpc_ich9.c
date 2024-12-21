@@ -840,7 +840,6 @@ static const Property ich9_lpc_properties[] = {
                      pm.swsmi_timer_enabled, true),
     DEFINE_PROP_BOOL("x-smi-periodic-timer", ICH9LPCState,
                      pm.periodic_timer_enabled, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ich9_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)

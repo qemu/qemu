@@ -414,7 +414,6 @@ static const Property apic_properties_common[] = {
                     true),
     DEFINE_PROP_BOOL("legacy-instance-id", APICCommonState, legacy_instance_id,
                      false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void apic_common_get_id(Object *obj, Visitor *v, const char *name,

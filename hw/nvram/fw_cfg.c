@@ -1084,7 +1084,6 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 
 static const Property fw_cfg_properties[] = {
     DEFINE_PROP_BOOL("acpi-mr-restore", FWCfgState, acpi_mr_restore, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
@@ -1278,7 +1277,6 @@ static const Property fw_cfg_io_properties[] = {
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
                        FW_CFG_FILE_SLOTS_DFLT),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
@@ -1328,7 +1326,6 @@ static const Property fw_cfg_mem_properties[] = {
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgMemState, parent_obj.file_slots,
                        FW_CFG_FILE_SLOTS_DFLT),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)

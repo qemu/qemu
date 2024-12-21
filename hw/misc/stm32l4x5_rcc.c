@@ -1433,7 +1433,6 @@ static const Property stm32l4x5_rcc_properties[] = {
         sai1_extclk_frequency, 0),
     DEFINE_PROP_UINT64("sai2_extclk_frequency", Stm32l4x5RccState,
         sai2_extclk_frequency, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void stm32l4x5_rcc_class_init(ObjectClass *klass, void *data)

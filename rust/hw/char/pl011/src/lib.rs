@@ -131,13 +131,22 @@ impl core::convert::TryFrom<u64> for RegisterOffset {
 pub mod registers {
     //! Device registers exposed as typed structs which are backed by arbitrary
     //! integer bitmaps. [`Data`], [`Control`], [`LineControl`], etc.
-    //!
-    //! All PL011 registers are essentially 32-bit wide, but are typed here as
-    //! bitmaps with only the necessary width. That is, if a struct bitmap
-    //! in this module is for example 16 bits long, it should be conceived
-    //! as a 32-bit register where the unmentioned higher bits are always
-    //! unused thus treated as zero when read or written.
     use bilge::prelude::*;
+
+    /// Receive Status Register / Data Register common error bits
+    ///
+    /// The `UARTRSR` register is updated only when a read occurs
+    /// from the `UARTDR` register with the same status information
+    /// that can also be obtained by reading the `UARTDR` register
+    #[bitsize(8)]
+    #[derive(Clone, Copy, Default, DebugBits, FromBits)]
+    pub struct Errors {
+        pub framing_error: bool,
+        pub parity_error: bool,
+        pub break_error: bool,
+        pub overrun_error: bool,
+        _reserved_unpredictable: u4,
+    }
 
     // TODO: FIFO Mode has different semantics
     /// Data Register, `UARTDR`
@@ -181,16 +190,18 @@ pub mod registers {
     ///
     /// # Source
     /// ARM DDI 0183G 3.3.1 Data Register, UARTDR
-    #[bitsize(16)]
-    #[derive(Clone, Copy, DebugBits, FromBits)]
+    #[bitsize(32)]
+    #[derive(Clone, Copy, Default, DebugBits, FromBits)]
     #[doc(alias = "UARTDR")]
     pub struct Data {
-        _reserved: u4,
         pub data: u8,
-        pub framing_error: bool,
-        pub parity_error: bool,
-        pub break_error: bool,
-        pub overrun_error: bool,
+        pub errors: Errors,
+        _reserved: u16,
+    }
+
+    impl Data {
+        // bilge is not very const-friendly, unfortunately
+        pub const BREAK: Self = Self { value: 1 << 10 };
     }
 
     // TODO: FIFO Mode has different semantics
@@ -217,20 +228,21 @@ pub mod registers {
     /// # Source
     /// ARM DDI 0183G 3.3.2 Receive Status Register/Error Clear Register,
     /// UARTRSR/UARTECR
-    #[bitsize(8)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     pub struct ReceiveStatusErrorClear {
-        pub framing_error: bool,
-        pub parity_error: bool,
-        pub break_error: bool,
-        pub overrun_error: bool,
-        _reserved_unpredictable: u4,
+        pub errors: Errors,
+        _reserved_unpredictable: u24,
     }
 
     impl ReceiveStatusErrorClear {
+        pub fn set_from_data(&mut self, data: Data) {
+            self.set_errors(data.errors());
+        }
+
         pub fn reset(&mut self) {
             // All the bits are cleared to 0 on reset.
-            *self = 0.into();
+            *self = Self::default();
         }
     }
 
@@ -240,7 +252,7 @@ pub mod registers {
         }
     }
 
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     /// Flag Register, `UARTFR`
     #[doc(alias = "UARTFR")]
@@ -292,59 +304,45 @@ pub mod registers {
         pub transmit_fifo_empty: bool,
         /// `RI`, is `true` when `nUARTRI` is `LOW`.
         pub ring_indicator: bool,
-        _reserved_zero_no_modify: u7,
+        _reserved_zero_no_modify: u23,
     }
 
     impl Flags {
         pub fn reset(&mut self) {
-            // After reset TXFF, RXFF, and BUSY are 0, and TXFE and RXFE are 1
-            self.set_receive_fifo_full(false);
-            self.set_transmit_fifo_full(false);
-            self.set_busy(false);
-            self.set_receive_fifo_empty(true);
-            self.set_transmit_fifo_empty(true);
+            *self = Self::default();
         }
     }
 
     impl Default for Flags {
         fn default() -> Self {
             let mut ret: Self = 0.into();
-            ret.reset();
+            // After reset TXFF, RXFF, and BUSY are 0, and TXFE and RXFE are 1
+            ret.set_receive_fifo_empty(true);
+            ret.set_transmit_fifo_empty(true);
             ret
         }
     }
 
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     /// Line Control Register, `UARTLCR_H`
     #[doc(alias = "UARTLCR_H")]
     pub struct LineControl {
-        /// 15:8 - Reserved, do not modify, read as zero.
-        _reserved_zero_no_modify: u8,
-        /// 7 SPS Stick parity select.
-        /// 0 = stick parity is disabled
-        /// 1 = either:
-        /// • if the EPS bit is 0 then the parity bit is transmitted and checked
-        /// as a 1 • if the EPS bit is 1 then the parity bit is
-        /// transmitted and checked as a 0. This bit has no effect when
-        /// the PEN bit disables parity checking and generation. See Table 3-11
-        /// on page 3-14 for the parity truth table.
-        pub sticky_parity: bool,
-        /// WLEN Word length. These bits indicate the number of data bits
-        /// transmitted or received in a frame as follows: b11 = 8 bits
-        /// b10 = 7 bits
-        /// b01 = 6 bits
-        /// b00 = 5 bits.
-        pub word_length: WordLength,
-        /// FEN Enable FIFOs:
-        /// 0 = FIFOs are disabled (character mode) that is, the FIFOs become
-        /// 1-byte-deep holding registers 1 = transmit and receive FIFO
-        /// buffers are enabled (FIFO mode).
-        pub fifos_enabled: Mode,
-        /// 3 STP2 Two stop bits select. If this bit is set to 1, two stop bits
-        /// are transmitted at the end of the frame. The receive
-        /// logic does not check for two stop bits being received.
-        pub two_stops_bits: bool,
+        /// BRK Send break.
+        ///
+        /// If this bit is set to `1`, a low-level is continually output on the
+        /// `UARTTXD` output, after completing transmission of the
+        /// current character. For the proper execution of the break command,
+        /// the software must set this bit for at least two complete
+        /// frames. For normal use, this bit must be cleared to `0`.
+        pub send_break: bool,
+        /// 1 PEN Parity enable:
+        ///
+        /// - 0 = parity is disabled and no parity bit added to the data frame
+        /// - 1 = parity checking and generation is enabled.
+        ///
+        /// See Table 3-11 on page 3-14 for the parity truth table.
+        pub parity_enabled: bool,
         /// EPS Even parity select. Controls the type of parity the UART uses
         /// during transmission and reception:
         /// - 0 = odd parity. The UART generates or checks for an odd number of
@@ -355,21 +353,32 @@ pub mod registers {
         /// and generation. See Table 3-11 on page 3-14 for the parity
         /// truth table.
         pub parity: Parity,
-        /// 1 PEN Parity enable:
-        ///
-        /// - 0 = parity is disabled and no parity bit added to the data frame
-        /// - 1 = parity checking and generation is enabled.
-        ///
-        /// See Table 3-11 on page 3-14 for the parity truth table.
-        pub parity_enabled: bool,
-        /// BRK Send break.
-        ///
-        /// If this bit is set to `1`, a low-level is continually output on the
-        /// `UARTTXD` output, after completing transmission of the
-        /// current character. For the proper execution of the break command,
-        /// the software must set this bit for at least two complete
-        /// frames. For normal use, this bit must be cleared to `0`.
-        pub send_break: bool,
+        /// 3 STP2 Two stop bits select. If this bit is set to 1, two stop bits
+        /// are transmitted at the end of the frame. The receive
+        /// logic does not check for two stop bits being received.
+        pub two_stops_bits: bool,
+        /// FEN Enable FIFOs:
+        /// 0 = FIFOs are disabled (character mode) that is, the FIFOs become
+        /// 1-byte-deep holding registers 1 = transmit and receive FIFO
+        /// buffers are enabled (FIFO mode).
+        pub fifos_enabled: Mode,
+        /// WLEN Word length. These bits indicate the number of data bits
+        /// transmitted or received in a frame as follows: b11 = 8 bits
+        /// b10 = 7 bits
+        /// b01 = 6 bits
+        /// b00 = 5 bits.
+        pub word_length: WordLength,
+        /// 7 SPS Stick parity select.
+        /// 0 = stick parity is disabled
+        /// 1 = either:
+        /// • if the EPS bit is 0 then the parity bit is transmitted and checked
+        /// as a 1 • if the EPS bit is 1 then the parity bit is
+        /// transmitted and checked as a 0. This bit has no effect when
+        /// the PEN bit disables parity checking and generation. See Table 3-11
+        /// on page 3-14 for the parity truth table.
+        pub sticky_parity: bool,
+        /// 31:8 - Reserved, do not modify, read as zero.
+        _reserved_zero_no_modify: u24,
     }
 
     impl LineControl {
@@ -410,12 +419,6 @@ pub mod registers {
         FIFO = 1,
     }
 
-    impl From<Mode> for bool {
-        fn from(val: Mode) -> Self {
-            matches!(val, Mode::FIFO)
-        }
-    }
-
     #[bitsize(2)]
     #[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
     /// `WLEN` Word length, field of [Line Control register](LineControl).
@@ -440,7 +443,7 @@ pub mod registers {
     ///
     /// # Source
     /// ARM DDI 0183G, 3.3.8 Control Register, `UARTCR`, Table 3-12
-    #[bitsize(16)]
+    #[bitsize(32)]
     #[doc(alias = "UARTCR")]
     #[derive(Clone, Copy, DebugBits, FromBits)]
     pub struct Control {
@@ -518,6 +521,8 @@ pub mod registers {
         /// CTS hardware flow control is enabled. Data is only transmitted when
         /// the `nUARTCTS` signal is asserted.
         pub cts_hardware_flow_control_enable: bool,
+        /// 31:16 - Reserved, do not modify, read as zero.
+        _reserved_zero_no_modify2: u16,
     }
 
     impl Control {
