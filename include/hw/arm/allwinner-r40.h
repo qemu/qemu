@@ -35,7 +35,7 @@
 #include "hw/usb/hcd-ehci.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "target/arm/cpu.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 enum {
     AW_R40_DEV_SRAM_A1,

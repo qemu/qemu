@@ -30,8 +30,8 @@
 #include "vmcs.h"
 #include "cpu.h"
 #include "x86.h"
-#include "sysemu/hvf.h"
-#include "sysemu/hvf_int.h"
+#include "system/hvf.h"
+#include "system/hvf_int.h"
 
 #include "exec/address-spaces.h"
 

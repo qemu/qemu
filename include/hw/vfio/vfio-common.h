@@ -29,10 +29,10 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/vfio/vfio-container-base.h"
-#include "sysemu/host_iommu_device.h"
-#include "sysemu/iommufd.h"
+#include "system/host_iommu_device.h"
+#include "system/iommufd.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 

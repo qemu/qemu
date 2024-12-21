@@ -28,7 +28,7 @@
 #include "exec/ram_addr.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "pci.h"

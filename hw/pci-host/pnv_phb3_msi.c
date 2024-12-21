@@ -15,7 +15,7 @@
 #include "hw/pci/msi.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
 {

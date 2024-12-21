@@ -26,8 +26,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/atomic.h"
-#include "sysemu/kvm.h"
-#include "sysemu/balloon.h"
+#include "system/kvm.h"
+#include "system/balloon.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qerror.h"

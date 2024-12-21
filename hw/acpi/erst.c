@@ -24,7 +24,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "exec/address-spaces.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "hw/acpi/erst.h"
 #include "trace.h"
 

@@ -28,7 +28,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block.h"
 #include "qemu/main-loop.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 #include <fuse.h>
 #include <fuse_lowlevel.h>

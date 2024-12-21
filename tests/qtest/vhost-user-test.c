@@ -20,7 +20,7 @@
 #include "chardev/char-fe.h"
 #include "qemu/memfd.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"

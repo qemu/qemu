@@ -28,7 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "sh7750_regs.h"

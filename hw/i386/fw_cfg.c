@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/firmware/smbios.h"

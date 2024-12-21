@@ -22,7 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/pci/msi.h"
 #include "qemu/iov.h"
 #include "hw/scsi/scsi.h"

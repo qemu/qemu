@@ -22,7 +22,7 @@
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm_ppc.h"
 #include "exec/log.h"
 #include "internal.h"

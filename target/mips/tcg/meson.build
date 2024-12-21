@@ -36,5 +36,5 @@ mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
 ))
 
 if have_system
-  subdir('sysemu')
+  subdir('system')
 endif

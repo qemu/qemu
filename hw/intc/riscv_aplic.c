@@ -30,9 +30,9 @@
 #include "hw/intc/riscv_aplic.h"
 #include "hw/irq.h"
 #include "target/riscv/cpu.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
-#include "sysemu/tcg.h"
+#include "system/system.h"
+#include "system/kvm.h"
+#include "system/tcg.h"
 #include "kvm/kvm_riscv.h"
 #include "migration/vmstate.h"
 

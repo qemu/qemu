@@ -26,6 +26,7 @@ typedef struct InterfaceClass InterfaceClass;
 typedef struct InterfaceInfo InterfaceInfo;
 
 #define TYPE_OBJECT "object"
+#define TYPE_CONTAINER "container"
 
 typedef struct ObjectProperty ObjectProperty;
 
@@ -2017,6 +2018,18 @@ int object_child_foreach_recursive(Object *obj,
  * Returns: the container object.
  */
 Object *container_get(Object *root, const char *path);
+
+/**
+ * object_property_add_new_container:
+ * @obj: the parent object
+ * @name: the name of the parent object's property to add
+ *
+ * Add a newly created container object to a parent object.
+ *
+ * Returns: the newly created container object.  Its reference count is 1,
+ * and the reference is owned by the parent object.
+ */
+Object *object_property_add_new_container(Object *obj, const char *name);
 
 /**
  * object_property_help:

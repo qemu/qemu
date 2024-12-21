@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "qemu/timed-average.h"
 
 /* This is the clock for QEMU_CLOCK_VIRTUAL */

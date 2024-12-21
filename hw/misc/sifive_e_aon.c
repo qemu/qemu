@@ -24,7 +24,7 @@
 #include "hw/misc/sifive_e_aon.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "hw/qdev-properties.h"
 
 REG32(AON_WDT_WDOGCFG, 0x0)

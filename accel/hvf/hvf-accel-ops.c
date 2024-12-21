@@ -54,10 +54,10 @@
 #include "exec/exec-all.h"
 #include "gdbstub/enums.h"
 #include "hw/boards.h"
-#include "sysemu/cpus.h"
-#include "sysemu/hvf.h"
-#include "sysemu/hvf_int.h"
-#include "sysemu/runstate.h"
+#include "system/cpus.h"
+#include "system/hvf.h"
+#include "system/hvf_int.h"
+#include "system/runstate.h"
 #include "qemu/guest-random.h"
 
 HVFState *hvf_state;

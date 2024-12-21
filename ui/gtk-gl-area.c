@@ -16,7 +16,7 @@
 #include "ui/gtk.h"
 #include "ui/egl-helpers.h"
 
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static void gtk_gl_area_set_scanout_mode(VirtualConsole *vc, bool scanout)
 {

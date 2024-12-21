@@ -16,7 +16,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/char/goldfish_tty.h"
 
 #define GOLDFISH_TTY_VERSION 1

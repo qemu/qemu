@@ -37,6 +37,7 @@
 #include "qemu/qemu-print.h"
 #include "semihosting/semihost.h"
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"

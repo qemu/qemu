@@ -27,9 +27,9 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qapi/visitor.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
-#include "sysemu/kvm_int.h"
+#include "system/system.h"
+#include "system/kvm.h"
+#include "system/kvm_int.h"
 #include "cpu.h"
 #include "trace.h"
 #include "hw/core/accel-cpu.h"
@@ -45,7 +45,7 @@
 #include "sbi_ecall_interface.h"
 #include "chardev/char-fe.h"
 #include "migration/misc.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/riscv/numa.h"
 
 #define PR_RISCV_V_SET_CONTROL            69

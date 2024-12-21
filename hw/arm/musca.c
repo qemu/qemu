@@ -23,7 +23,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/armsse.h"
 #include "hw/boards.h"

@@ -26,7 +26,7 @@
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/sh4/sh_intc.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #endif
 
 #define MMU_OK                   0

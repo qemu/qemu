@@ -32,7 +32,7 @@
 #include "qom/object.h"
 #include "qemu/error-report.h" /* for error_report() */
 #include "qemu/module.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "cpu.h"
 #include "trace.h"
 

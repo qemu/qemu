@@ -23,7 +23,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "migration/blocker.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm_arm.h"
 #include "gic_internal.h"
 #include "vgic_common.h"

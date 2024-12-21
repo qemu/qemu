@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 
 void cpu_synchronize_state(CPUState *cpu)
 {

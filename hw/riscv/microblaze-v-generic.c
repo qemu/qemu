@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/char/serial-mm.h"

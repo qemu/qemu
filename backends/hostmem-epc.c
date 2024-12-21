@@ -14,7 +14,7 @@
 #include <sys/ioctl.h>
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "hw/i386/hostmem-epc.h"
 
 static bool

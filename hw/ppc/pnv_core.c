@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

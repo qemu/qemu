@@ -26,9 +26,9 @@
 #include "qemu/units.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
-#include "sysemu/numa.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/xen.h"
+#include "system/numa.h"
+#include "system/system.h"
+#include "system/xen.h"
 #include "trace.h"
 
 #include "hw/i386/x86.h"

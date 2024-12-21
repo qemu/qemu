@@ -25,7 +25,7 @@
 #include "qemu/module.h"
 #include "hw/arm/digic.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #define DIGIC4_TIMER_BASE(n)    (0xc0210000 + (n) * 0x100)
 

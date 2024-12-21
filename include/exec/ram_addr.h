@@ -21,12 +21,15 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "cpu.h"
-#include "sysemu/xen.h"
-#include "sysemu/tcg.h"
+#include "system/xen.h"
+#include "system/tcg.h"
 #include "exec/ramlist.h"
 #include "exec/ramblock.h"
 #include "exec/exec-all.h"
 #include "qemu/rcu.h"
+
+#include "exec/hwaddr.h"
+#include "exec/cpu-common.h"
 
 extern uint64_t total_dirty_pages;
 

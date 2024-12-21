@@ -23,7 +23,7 @@
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 #include "hw/boards.h"
 #include "qom/object.h"
 

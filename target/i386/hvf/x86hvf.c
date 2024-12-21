@@ -25,7 +25,7 @@
 #include "cpu.h"
 #include "x86_descr.h"
 #include "x86_decode.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 
 #include "hw/i386/apic_internal.h"
 

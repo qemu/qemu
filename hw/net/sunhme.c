@@ -31,7 +31,7 @@
 #include "qemu/module.h"
 #include "net/checksum.h"
 #include "net/eth.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "trace.h"
 #include "qom/object.h"
 

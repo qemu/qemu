@@ -36,7 +36,7 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/pci/pci_device.h"

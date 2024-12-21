@@ -5,6 +5,7 @@
 #include "exec/cpu_ldst.h"
 
 #include "user/abitypes.h"
+#include "user/page-protection.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"

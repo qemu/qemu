@@ -9,7 +9,7 @@
 #ifndef KVM_PPC_H
 #define KVM_PPC_H
 
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "exec/hwaddr.h"
 #include "cpu.h"
 

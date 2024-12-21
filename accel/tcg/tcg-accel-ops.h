@@ -12,7 +12,7 @@
 #ifndef TCG_ACCEL_OPS_H
 #define TCG_ACCEL_OPS_H
 
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 
 void tcg_cpu_destroy(CPUState *cpu);
 int tcg_cpu_exec(CPUState *cpu);

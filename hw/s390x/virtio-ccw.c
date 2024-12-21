@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "net/net.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
@@ -32,7 +32,7 @@
 #include "trace.h"
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-virtio-ccw.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 
 #define NR_CLASSIC_INDICATOR_BITS 64
 

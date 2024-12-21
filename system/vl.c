@@ -39,12 +39,12 @@
 #include "qemu/help_option.h"
 #include "qemu/hw-version.h"
 #include "qemu/uuid.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/runstate-action.h"
-#include "sysemu/seccomp.h"
-#include "sysemu/tcg.h"
-#include "sysemu/xen.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/runstate-action.h"
+#include "system/seccomp.h"
+#include "system/tcg.h"
+#include "system/xen.h"
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -64,30 +64,30 @@
 #include "monitor/monitor.h"
 #include "ui/console.h"
 #include "ui/input.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/numa.h"
-#include "sysemu/hostmem.h"
+#include "system/system.h"
+#include "system/numa.h"
+#include "system/hostmem.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/enums.h"
 #include "qemu/timer.h"
 #include "chardev/char.h"
 #include "qemu/bitmap.h"
 #include "qemu/log.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "hw/block/block.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
-#include "sysemu/tpm.h"
-#include "sysemu/dma.h"
+#include "system/tpm.h"
+#include "system/dma.h"
 #include "hw/audio/soundhw.h"
 #include "audio/audio.h"
-#include "sysemu/cpus.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpus.h"
+#include "system/cpu-timers.h"
 #include "migration/colo.h"
 #include "migration/postcopy-ram.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -95,7 +95,7 @@
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #ifdef CONFIG_TCG
 #include "tcg/perf.h"
 #endif
@@ -106,8 +106,8 @@
 #include "trace/control.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
-#include "sysemu/arch_init.h"
-#include "exec/confidential-guest-support.h"
+#include "system/arch_init.h"
+#include "system/confidential-guest-support.h"
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
@@ -116,7 +116,7 @@
 #include "qom/object_interfaces.h"
 #include "semihosting/semihost.h"
 #include "crypto/init.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qapi-types-audio.h"
 #include "qapi/qapi-visit-audio.h"
@@ -131,7 +131,7 @@
 #include "qapi/qapi-commands-ui.h"
 #include "block/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "sysemu/iothread.h"
+#include "system/iothread.h"
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
 
@@ -2113,6 +2113,21 @@ static void parse_memory_options(void)
     loc_pop(&loc);
 }
 
+static const char *const machine_containers[] = {
+    "unattached",
+    "peripheral",
+    "peripheral-anon"
+};
+
+static void qemu_create_machine_containers(Object *machine)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(machine_containers); i++) {
+        object_property_add_new_container(machine, machine_containers[i]);
+    }
+}
+
 static void qemu_create_machine(QDict *qdict)
 {
     MachineClass *machine_class = select_machine(qdict, &error_fatal);
@@ -2121,6 +2136,7 @@ static void qemu_create_machine(QDict *qdict)
     current_machine = MACHINE(object_new_with_class(OBJECT_CLASS(machine_class)));
     object_property_add_child(object_get_root(), "machine",
                               OBJECT(current_machine));
+    qemu_create_machine_containers(OBJECT(current_machine));
     object_property_add_child(container_get(OBJECT(current_machine),
                                             "/unattached"),
                               "sysbus", OBJECT(sysbus_get_default()));

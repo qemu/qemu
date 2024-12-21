@@ -29,7 +29,7 @@
 #include "multiboot.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/error-report.h"
 
 /* Show multiboot debug output */

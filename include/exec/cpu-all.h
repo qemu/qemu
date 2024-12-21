@@ -64,39 +64,7 @@
 
 /* MMU memory access macros */
 
-#if defined(CONFIG_USER_ONLY)
-#include "user/abitypes.h"
-
-/*
- * If non-zero, the guest virtual address space is a contiguous subset
- * of the host virtual address space, i.e. '-R reserved_va' is in effect
- * either from the command-line or by default.  The value is the last
- * byte of the guest address space e.g. UINT32_MAX.
- *
- * If zero, the host and guest virtual address spaces are intermingled.
- */
-extern unsigned long reserved_va;
-
-/*
- * Limit the guest addresses as best we can.
- *
- * When not using -R reserved_va, we cannot really limit the guest
- * to less address space than the host.  For 32-bit guests, this
- * acts as a sanity check that we're not giving the guest an address
- * that it cannot even represent.  For 64-bit guests... the address
- * might not be what the real kernel would give, but it is at least
- * representable in the guest.
- *
- * TODO: Improve address allocation to avoid this problem, and to
- * avoid setting bits at the top of guest addresses that might need
- * to be used for tags.
- */
-#define GUEST_ADDR_MAX_                                                 \
-    ((MIN_CONST(TARGET_VIRT_ADDR_SPACE_BITS, TARGET_ABI_BITS) <= 32) ?  \
-     UINT32_MAX : ~0ul)
-#define GUEST_ADDR_MAX    (reserved_va ? : GUEST_ADDR_MAX_)
-
-#else
+#if !defined(CONFIG_USER_ONLY)
 
 #include "exec/hwaddr.h"
 
@@ -136,7 +104,7 @@ static inline void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val
 #endif
 
 /* page related stuff */
-
+#include "exec/cpu-defs.h"
 #ifdef TARGET_PAGE_BITS_VARY
 # include "exec/page-vary.h"
 extern const TargetPageBits target_page;
@@ -157,84 +125,6 @@ extern const TargetPageBits target_page;
 #endif
 
 #define TARGET_PAGE_ALIGN(addr) ROUND_UP((addr), TARGET_PAGE_SIZE)
-
-#if defined(CONFIG_USER_ONLY)
-void page_dump(FILE *f);
-
-typedef int (*walk_memory_regions_fn)(void *, target_ulong,
-                                      target_ulong, unsigned long);
-int walk_memory_regions(void *, walk_memory_regions_fn);
-
-int page_get_flags(target_ulong address);
-
-/**
- * page_set_flags:
- * @start: first byte of range
- * @last: last byte of range
- * @flags: flags to set
- * Context: holding mmap lock
- *
- * Modify the flags of a page and invalidate the code if necessary.
- * The flag PAGE_WRITE_ORG is positioned automatically depending
- * on PAGE_WRITE.  The mmap_lock should already be held.
- */
-void page_set_flags(target_ulong start, target_ulong last, int flags);
-
-void page_reset_target_data(target_ulong start, target_ulong last);
-
-/**
- * page_check_range
- * @start: first byte of range
- * @len: length of range
- * @flags: flags required for each page
- *
- * Return true if every page in [@start, @start+@len) has @flags set.
- * Return false if any page is unmapped.  Thus testing flags == 0 is
- * equivalent to testing for flags == PAGE_VALID.
- */
-bool page_check_range(target_ulong start, target_ulong last, int flags);
-
-/**
- * page_check_range_empty:
- * @start: first byte of range
- * @last: last byte of range
- * Context: holding mmap lock
- *
- * Return true if the entire range [@start, @last] is unmapped.
- * The memory lock must be held so that the caller will can ensure
- * the result stays true until a new mapping can be installed.
- */
-bool page_check_range_empty(target_ulong start, target_ulong last);
-
-/**
- * page_find_range_empty
- * @min: first byte of search range
- * @max: last byte of search range
- * @len: size of the hole required
- * @align: alignment of the hole required (power of 2)
- *
- * If there is a range [x, x+@len) within [@min, @max] such that
- * x % @align == 0, then return x.  Otherwise return -1.
- * The memory lock must be held, as the caller will want to ensure
- * the returned range stays empty until a new mapping can be installed.
- */
-target_ulong page_find_range_empty(target_ulong min, target_ulong max,
-                                   target_ulong len, target_ulong align);
-
-/**
- * page_get_target_data(address)
- * @address: guest virtual address
- *
- * Return TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
- * with the guest page at @address, allocating it if necessary.  The
- * caller should already have verified that the address is valid.
- *
- * The memory will be freed when the guest page is deallocated,
- * e.g. with the munmap system call.
- */
-void *page_get_target_data(target_ulong address)
-    __attribute__((returns_nonnull));
-#endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
 
@@ -290,7 +180,11 @@ CPUArchState *cpu_copy(CPUArchState *env);
      | CPU_INTERRUPT_TGT_EXT_3   \
      | CPU_INTERRUPT_TGT_EXT_4)
 
+#include "cpu.h"
+
 #ifdef CONFIG_USER_ONLY
+
+static inline int cpu_mmu_index(CPUState *cs, bool ifetch);
 
 /*
  * Allow some level of source compatibility with softmmu.  We do not
@@ -381,7 +275,6 @@ static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr)
 #endif /* !CONFIG_USER_ONLY */
 
 /* Validate correct placement of CPUArchState. */
-#include "cpu.h"
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
 QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 

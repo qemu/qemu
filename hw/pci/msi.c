@@ -23,7 +23,7 @@
 #include "hw/xen/xen.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
-#include "sysemu/xen.h"
+#include "system/xen.h"
 
 #include "hw/i386/kvm/xen_evtchn.h"
 

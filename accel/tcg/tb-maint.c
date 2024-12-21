@@ -25,13 +25,17 @@
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/tb-flush.h"
-#include "exec/translate-all.h"
-#include "sysemu/tcg.h"
+#include "tb-internal.h"
+#include "system/tcg.h"
 #include "tcg/tcg.h"
 #include "tb-hash.h"
 #include "tb-context.h"
+#include "tb-internal.h"
 #include "internal-common.h"
 #include "internal-target.h"
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#endif
 
 
 /* List iterators for lists of tagged pointers in TranslationBlock. */

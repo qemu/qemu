@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "exec/helper-proto.h"
 #include "helper-tcg.h"
 

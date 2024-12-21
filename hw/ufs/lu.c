@@ -14,7 +14,7 @@
 #include "qemu/memalign.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "ufs.h"

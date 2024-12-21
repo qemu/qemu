@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "qemu/notify.h"
 #include "qemu/rcu.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/boards.h"

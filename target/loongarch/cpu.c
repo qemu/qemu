@@ -10,17 +10,18 @@
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "sysemu/qtest.h"
-#include "sysemu/tcg.h"
-#include "sysemu/kvm.h"
+#include "system/qtest.h"
+#include "system/tcg.h"
+#include "system/kvm.h"
 #include "kvm/kvm_loongarch.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "cpu.h"
 #include "internals.h"
 #include "fpu/softfloat-helpers.h"
 #include "cpu-csr.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #endif
 #include "vec.h"
 #ifdef CONFIG_KVM
@@ -742,7 +743,7 @@ static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+static void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     CPULoongArchState *env = cpu_env(cs);
     int i;

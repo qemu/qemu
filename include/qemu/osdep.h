@@ -8,7 +8,7 @@
  * To avoid getting into possible circular include dependencies, this
  * file should not include any other QEMU headers, with the exceptions
  * of config-host.h, config-target.h, qemu/compiler.h,
- * sysemu/os-posix.h, sysemu/os-win32.h, glib-compat.h and
+ * system/os-posix.h, system/os-win32.h, glib-compat.h and
  * qemu/typedefs.h, all of which are doing a similar job to this file
  * and are under similar constraints.
  *
@@ -128,7 +128,7 @@ QEMU_EXTERN_C int daemon(int, int);
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <assert.h>
-/* setjmp must be declared before sysemu/os-win32.h
+/* setjmp must be declared before system/os-win32.h
  * because it is redefined there. */
 #include <setjmp.h>
 #include <signal.h>
@@ -161,11 +161,11 @@ QEMU_EXTERN_C int daemon(int, int);
 #include "glib-compat.h"
 
 #ifdef _WIN32
-#include "sysemu/os-win32.h"
+#include "system/os-win32.h"
 #endif
 
 #ifdef CONFIG_POSIX
-#include "sysemu/os-posix.h"
+#include "system/os-posix.h"
 #endif
 
 #ifdef __cplusplus

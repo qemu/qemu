@@ -26,7 +26,7 @@
 #include "hw/arm/linux-boot-if.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 static int gic_pre_save(void *opaque)
 {

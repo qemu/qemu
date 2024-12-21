@@ -23,7 +23,7 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "hw/nvram/chrp_nvram.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str,
                               int max_len)

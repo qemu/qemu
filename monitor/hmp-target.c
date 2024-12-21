@@ -26,7 +26,7 @@
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "net/slirp.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "block/block-hmp-cmds.h"

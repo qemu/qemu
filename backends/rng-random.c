@@ -11,8 +11,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/rng-random.h"
-#include "sysemu/rng.h"
+#include "system/rng-random.h"
+#include "system/rng.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"

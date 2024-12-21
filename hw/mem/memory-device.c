@@ -16,7 +16,7 @@
 #include "hw/boards.h"
 #include "qemu/range.h"
 #include "hw/virtio/vhost.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 

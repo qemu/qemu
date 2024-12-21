@@ -10,8 +10,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "sysemu/hvf.h"
-#include "sysemu/hvf_int.h"
+#include "system/hvf.h"
+#include "system/hvf_int.h"
 
 const char *hvf_return_string(hv_return_t ret)
 {

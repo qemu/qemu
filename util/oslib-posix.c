@@ -31,7 +31,7 @@
 
 #include <glib/gprintf.h>
 
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

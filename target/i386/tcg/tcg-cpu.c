@@ -22,6 +22,7 @@
 #include "helper-tcg.h"
 #include "qemu/accel.h"
 #include "hw/core/accel-cpu.h"
+#include "exec/translation-block.h"
 
 #include "tcg-cpu.h"
 

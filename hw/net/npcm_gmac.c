@@ -33,7 +33,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/units.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 
 REG32(NPCM_DMA_BUS_MODE, 0x1000)

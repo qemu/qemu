@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"

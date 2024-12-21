@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/ratelimit.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "block/copy-on-read.h"
 
 enum {

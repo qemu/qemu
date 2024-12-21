@@ -9,12 +9,12 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "scsi/constants.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/block-backend.h"
+#include "system/blockdev.h"
+#include "system/system.h"
+#include "system/runstate.h"
 #include "trace.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/cutils.h"
 
 static char *scsibus_get_dev_path(DeviceState *dev);

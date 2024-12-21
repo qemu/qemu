@@ -24,7 +24,7 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/cutils.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 /* Root node for synth file system */
 static V9fsSynthNode synth_root = {

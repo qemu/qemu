@@ -14,7 +14,7 @@
 
 #include "qom/object.h"
 
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 
 #define TYPE_X86_CONFIDENTIAL_GUEST "x86-confidential-guest"
 

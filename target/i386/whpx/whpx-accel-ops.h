@@ -10,7 +10,7 @@
 #ifndef TARGET_I386_WHPX_ACCEL_OPS_H
 #define TARGET_I386_WHPX_ACCEL_OPS_H
 
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 
 int whpx_init_vcpu(CPUState *cpu);
 int whpx_vcpu_exec(CPUState *cpu);

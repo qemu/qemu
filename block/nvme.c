@@ -26,8 +26,8 @@
 #include "qemu/vfio-helpers.h"
 #include "block/block-io.h"
 #include "block/block_int.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/replay.h"
+#include "system/block-backend.h"
+#include "system/replay.h"
 #include "trace.h"
 
 #include "block/nvme.h"

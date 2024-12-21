@@ -13,7 +13,7 @@
 #ifndef VIRTIO_BLK_HANDLER_H
 #define VIRTIO_BLK_HANDLER_H
 
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 #define VIRTIO_BLK_SECTOR_BITS 9
 #define VIRTIO_BLK_SECTOR_SIZE (1ULL << VIRTIO_BLK_SECTOR_BITS)

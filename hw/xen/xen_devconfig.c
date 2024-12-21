@@ -1,8 +1,8 @@
 #include "qemu/osdep.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "qemu/option.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
+#include "system/blockdev.h"
+#include "system/system.h"
 
 /* ------------------------------------------------------------- */
 

@@ -29,11 +29,11 @@
 #include "hw/openrisc/boot.h"
 #include "hw/qdev-properties.h"
 #include "exec/address-spaces.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/sysemu.h"
+#include "system/device_tree.h"
+#include "system/system.h"
 #include "hw/sysbus.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
+#include "system/qtest.h"
+#include "system/reset.h"
 #include "hw/core/split-irq.h"
 
 #include <libfdt.h>

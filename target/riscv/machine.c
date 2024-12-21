@@ -19,9 +19,9 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "migration/cpu.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "debug.h"
 
 static bool pmp_needed(void *opaque)

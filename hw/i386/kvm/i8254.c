@@ -29,11 +29,11 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "target/i386/kvm/kvm_i386.h"
 #include "qom/object.h"
 

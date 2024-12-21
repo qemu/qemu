@@ -14,7 +14,7 @@
 #include "qemu/cutils.h"
 #include "qemu/rcu.h"
 #include "exec/target_page.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "exec/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"

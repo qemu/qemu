@@ -18,7 +18,7 @@
 #include "qemu/error-report.h"
 #include "hw/i2c/aspeed_i2c.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/intc/arm_gicv3.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/log.h"

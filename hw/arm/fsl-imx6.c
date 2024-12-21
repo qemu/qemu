@@ -26,7 +26,7 @@
 #include "hw/usb/imx-usb-phy.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "chardev/char.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

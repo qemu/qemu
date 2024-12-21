@@ -36,7 +36,7 @@
 #include "qapi/error.h"
 #include "io/channel-command.h"
 #include "chardev/spice.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qom/object.h"
 
 static const char *tmp_dir;

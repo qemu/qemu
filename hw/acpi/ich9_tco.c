@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "hw/southbridge/ich9.h"
 #include "migration/vmstate.h"
 

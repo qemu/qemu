@@ -26,7 +26,7 @@
 #include "crypto/akcipher.h"
 #include "crypto/random.h"
 #include "qapi/error.h"
-#include "sysemu/cryptodev.h"
+#include "system/cryptodev.h"
 #include "rsakey.h"
 
 typedef struct QCryptoGcryptRSA {

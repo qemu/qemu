@@ -31,7 +31,7 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/json-parser.h"
 #include "qemu/readline.h"
-#include "sysemu/iothread.h"
+#include "system/iothread.h"
 
 /*
  * Supported types:

@@ -18,7 +18,7 @@
 #include "exec/address-spaces.h"
 #include "hw/ppc/vof.h"
 #include "hw/ppc/fdt.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "qom/qom-qobject.h"
 #include "trace.h"
 

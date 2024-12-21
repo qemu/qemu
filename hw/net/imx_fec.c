@@ -26,7 +26,7 @@
 #include "hw/net/imx_fec.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "net/checksum.h"

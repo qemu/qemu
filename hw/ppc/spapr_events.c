@@ -27,8 +27,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/runstate.h"
+#include "system/device_tree.h"
+#include "system/runstate.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"

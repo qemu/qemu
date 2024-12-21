@@ -10,7 +10,7 @@
 #include "panic.h"
 #include "qemu/error-report.h"
 
-#include "sysemu/hvf.h"
+#include "system/hvf.h"
 #include "hvf-i386.h"
 #include "vmcs.h"
 #include "vmx.h"

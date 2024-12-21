@@ -20,7 +20,7 @@
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qnull.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/colo.h"
 #include "migration/misc.h"
 #include "migration.h"
@@ -28,7 +28,7 @@
 #include "qemu-file.h"
 #include "ram.h"
 #include "options.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 /* Maximum migrate downtime set to 2000 seconds */
 #define MAX_MIGRATE_DOWNTIME_SECONDS 2000

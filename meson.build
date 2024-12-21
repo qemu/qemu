@@ -4110,7 +4110,7 @@ foreach target : target_dirs
   arch_deps = []
   c_args = ['-DCOMPILING_PER_TARGET',
             '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
-            '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
+  ]
   link_args = emulator_link_args
 
   target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
@@ -4130,6 +4130,7 @@ foreach target : target_dirs
       arch_deps += hw.dependencies()
     endif
 
+    c_args += ['-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
     arch_srcs += config_devices_h[target]
     link_args += ['@block.syms', '@qemu.syms']
   else

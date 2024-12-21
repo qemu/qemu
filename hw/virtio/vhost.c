@@ -26,7 +26,7 @@
 #include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */

@@ -13,9 +13,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "sysemu/dump.h"
+#include "system/dump.h"
 #include "elf.h"
-#include "sysemu/memory_mapping.h"
+#include "system/memory_mapping.h"
 
 #define ELF_NOTE_SIZE(hdr_size, name_size, desc_size)   \
     ((DIV_ROUND_UP((hdr_size), 4)                       \

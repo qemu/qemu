@@ -56,9 +56,9 @@
 #include "hw/intc/sifive_plic.h"
 #include "chardev/char.h"
 #include "net/eth.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/device_tree.h"
+#include "system/runstate.h"
+#include "system/system.h"
 
 #include <libfdt.h>
 

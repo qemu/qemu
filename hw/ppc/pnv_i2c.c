@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

@@ -41,8 +41,8 @@
 #include "xen_overlay.h"
 #include "xen_xenstore.h"
 
-#include "sysemu/kvm.h"
-#include "sysemu/kvm_xen.h"
+#include "system/kvm.h"
+#include "system/kvm_xen.h"
 #include <linux/kvm.h>
 #include <sys/eventfd.h>
 

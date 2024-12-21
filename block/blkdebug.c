@@ -37,7 +37,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 /* All APIs are thread-safe */
 

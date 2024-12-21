@@ -20,7 +20,7 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "trace.h"
 #include "exec/ramblock.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include <sys/ioctl.h>
 #include <linux/memfd.h>
 #include "qemu/memfd.h"

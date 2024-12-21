@@ -36,7 +36,7 @@
 #include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/input.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #ifdef __APPLE__
 #define _XOPEN_SOURCE_EXTENDED 1

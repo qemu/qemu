@@ -32,7 +32,7 @@
 #include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "hw/ppc/ppc.h"
 #include "e500.h"
 #include "qom/object.h"

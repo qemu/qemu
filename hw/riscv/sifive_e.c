@@ -46,7 +46,7 @@
 #include "hw/misc/sifive_e_prci.h"
 #include "hw/misc/sifive_e_aon.h"
 #include "chardev/char.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static const MemMapEntry sifive_e_memmap[] = {
     [SIFIVE_E_DEV_DEBUG] =    {        0x0,     0x1000 },

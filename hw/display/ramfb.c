@@ -17,7 +17,7 @@
 #include "hw/display/ramfb.h"
 #include "hw/display/bochs-vbe.h" /* for limits */
 #include "ui/console.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 struct QEMU_PACKED RAMFBCfg {
     uint64_t addr;

@@ -12,7 +12,7 @@
 #include "qemu/sockets.h"
 #include "ui/input.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/iothread.h"
+#include "system/iothread.h"
 #include "block/aio.h"
 
 #include <sys/ioctl.h>

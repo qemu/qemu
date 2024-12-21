@@ -26,7 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/hmat.h"
 

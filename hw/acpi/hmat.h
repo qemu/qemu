@@ -28,7 +28,7 @@
 #define HMAT_H
 
 #include "hw/acpi/bios-linker-loader.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 
 /*
  * ACPI 6.3: 5.2.27.3 Memory Proximity Domain Attributes Structure,

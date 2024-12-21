@@ -23,7 +23,7 @@
  */
 
 #include "hw/ppc/spapr.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/irq.h"
 #include "qom/object.h"
 

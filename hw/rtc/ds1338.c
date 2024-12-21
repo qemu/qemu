@@ -15,7 +15,7 @@
 #include "migration/vmstate.h"
 #include "qemu/bcd.h"
 #include "qom/object.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 #include "trace.h"
 
 /* Size of NVRAM including both the user-accessible area and the

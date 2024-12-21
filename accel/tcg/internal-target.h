@@ -10,7 +10,8 @@
 #define ACCEL_TCG_INTERNAL_TARGET_H
 
 #include "exec/exec-all.h"
-#include "exec/translate-all.h"
+#include "exec/translation-block.h"
+#include "tb-internal.h"
 
 /*
  * Access to the various translations structures need to be serialised
@@ -36,50 +37,9 @@ static inline void page_table_config_init(void) { }
 void page_table_config_init(void);
 #endif
 
-#ifdef CONFIG_USER_ONLY
-/*
- * For user-only, page_protect sets the page read-only.
- * Since most execution is already on read-only pages, and we'd need to
- * account for other TBs on the same page, defer undoing any page protection
- * until we receive the write fault.
- */
-static inline void tb_lock_page0(tb_page_addr_t p0)
-{
-    page_protect(p0);
-}
-
-static inline void tb_lock_page1(tb_page_addr_t p0, tb_page_addr_t p1)
-{
-    page_protect(p1);
-}
-
-static inline void tb_unlock_page1(tb_page_addr_t p0, tb_page_addr_t p1) { }
-static inline void tb_unlock_pages(TranslationBlock *tb) { }
-#else
-void tb_lock_page0(tb_page_addr_t);
-void tb_lock_page1(tb_page_addr_t, tb_page_addr_t);
-void tb_unlock_page1(tb_page_addr_t, tb_page_addr_t);
-void tb_unlock_pages(TranslationBlock *);
-#endif
-
-#ifdef CONFIG_SOFTMMU
-void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
-                                   unsigned size,
-                                   uintptr_t retaddr);
+#ifndef CONFIG_USER_ONLY
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
-#endif /* CONFIG_SOFTMMU */
-
-bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
-
-/* Return the current PC from CPU, which may be cached in TB. */
-static inline vaddr log_pc(CPUState *cpu, const TranslationBlock *tb)
-{
-    if (tb_cflags(tb) & CF_PCREL) {
-        return cpu->cc->get_pc(cpu);
-    } else {
-        return tb->pc;
-    }
-}
+#endif /* CONFIG_USER_ONLY */
 
 /**
  * tcg_req_mo:

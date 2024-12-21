@@ -28,8 +28,8 @@
 #include "hw/loader.h"
 #include "hw/xen/xen.h"
 #include "net/net.h"
-#include "sysemu/cpus.h"
-#include "sysemu/sysemu.h"
+#include "system/cpus.h"
+#include "system/system.h"
 
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;

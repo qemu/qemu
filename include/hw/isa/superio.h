@@ -10,7 +10,7 @@
 #ifndef HW_ISA_SUPERIO_H
 #define HW_ISA_SUPERIO_H
 
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/isa/isa.h"
 #include "qom/object.h"
 

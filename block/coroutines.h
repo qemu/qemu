@@ -28,7 +28,7 @@
 #include "block/block_int.h"
 
 /* For blk_bs() in generated block/block-gen.c */
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 /*
  * I/O API functions. These functions are thread-safe.

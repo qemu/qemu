@@ -11,7 +11,7 @@
 #ifndef QEMU_KVM_I386_H
 #define QEMU_KVM_I386_H
 
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 /* always false if !CONFIG_KVM */
 #define kvm_pit_in_kernel() \

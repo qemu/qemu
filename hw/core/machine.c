@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/accel.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
@@ -21,16 +21,16 @@
 #include "qapi/qapi-visit-machine.h"
 #include "qemu/madvise.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/cpus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/xen.h"
-#include "sysemu/qtest.h"
+#include "system/cpus.h"
+#include "system/system.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/xen.h"
+#include "system/qtest.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/mem/nvdimm.h"
 #include "migration/global_state.h"
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-iommu.h"
@@ -1228,9 +1228,6 @@ static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
-
-    container_get(obj, "/peripheral");
-    container_get(obj, "/peripheral-anon");
 
     ms->dump_guest_core = true;
     ms->mem_merge = (QEMU_MADV_MERGEABLE != QEMU_MADV_INVALID);

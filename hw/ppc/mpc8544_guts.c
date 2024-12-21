@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"

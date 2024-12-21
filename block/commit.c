@@ -20,7 +20,7 @@
 #include "qapi/error.h"
 #include "qemu/ratelimit.h"
 #include "qemu/memalign.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 enum {
     /*

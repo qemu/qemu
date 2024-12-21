@@ -41,7 +41,7 @@
 #include "hw/block/flash.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/bitops.h"
@@ -50,8 +50,8 @@
 #include "qemu/option.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/runstate.h"
+#include "system/blockdev.h"
+#include "system/runstate.h"
 #include "trace.h"
 
 #define PFLASH_BE          0

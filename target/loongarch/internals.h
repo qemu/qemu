@@ -18,8 +18,6 @@
 
 void loongarch_translate_init(void);
 
-void loongarch_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-
 void G_NORETURN do_raise_exception(CPULoongArchState *env,
                                    uint32_t exception,
                                    uintptr_t pc);

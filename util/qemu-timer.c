@@ -26,9 +26,9 @@
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "qemu/lockable.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/replay.h"
-#include "sysemu/cpus.h"
+#include "system/cpu-timers.h"
+#include "system/replay.h"
+#include "system/cpus.h"
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>
@@ -680,7 +680,7 @@ int64_t qemu_clock_advance_virtual_time(int64_t dest)
     aio_context = qemu_get_aio_context();
 
     deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL,
-                                                      QEMU_TIMER_ATTR_ALL);
+                                          QEMU_TIMER_ATTR_ALL);
     /*
      * A deadline of < 0 indicates this timer is not enabled, so we
      * won't get far trying to run it forward.

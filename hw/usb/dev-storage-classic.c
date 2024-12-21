@@ -13,8 +13,8 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/usb/msd.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
+#include "system/system.h"
+#include "system/block-backend.h"
 
 static const struct SCSIBusInfo usb_msd_scsi_info_storage = {
     .tcq = false,

@@ -19,7 +19,7 @@
 #include "block/blockjob.h"
 #include "block/block_int.h"
 #include "block/block_backup.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "block/replication.h"

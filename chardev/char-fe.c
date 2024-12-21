@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 
 #include "chardev/char-fe.h"
 #include "chardev/char-io.h"

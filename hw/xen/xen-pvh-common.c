@@ -13,9 +13,9 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/tpm.h"
-#include "sysemu/tpm_backend.h"
+#include "system/system.h"
+#include "system/tpm.h"
+#include "system/tpm_backend.h"
 #include "hw/xen/xen-pvh-common.h"
 #include "trace.h"
 

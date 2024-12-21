@@ -19,7 +19,7 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 static void mcimx7d_sabre_init(MachineState *machine)
 {

@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "ui/win32-kbd-hook.h"
 
 static Notifier win32_unhook_notifier;

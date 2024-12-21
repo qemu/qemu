@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "hw/resettable.h"
 #include "hw/core/resetcontainer.h"
 

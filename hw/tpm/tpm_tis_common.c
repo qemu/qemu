@@ -34,8 +34,8 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/tpm_backend.h"
-#include "sysemu/tpm_util.h"
+#include "system/tpm_backend.h"
+#include "system/tpm_util.h"
 #include "tpm_ppi.h"
 #include "trace.h"
 

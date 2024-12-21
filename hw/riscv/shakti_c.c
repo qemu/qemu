@@ -23,7 +23,7 @@
 #include "qemu/error-report.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/intc/riscv_aclint.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/qdev-properties.h"
 #include "exec/address-spaces.h"
 #include "hw/riscv/boot.h"

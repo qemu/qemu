@@ -26,7 +26,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
@@ -34,7 +34,7 @@
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "chardev/char-fe.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"

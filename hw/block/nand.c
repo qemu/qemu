@@ -23,7 +23,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/block/flash.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

@@ -12,8 +12,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/reset.h"
-#include "sysemu/watchdog.h"
+#include "system/reset.h"
+#include "system/watchdog.h"
 #include "qemu/timer.h"
 #include "hw/watchdog/wdt_diag288.h"
 #include "migration/vmstate.h"

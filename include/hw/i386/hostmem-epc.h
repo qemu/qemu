@@ -12,7 +12,7 @@
 #ifndef QEMU_HOSTMEM_EPC_H
 #define QEMU_HOSTMEM_EPC_H
 
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 
 #define TYPE_MEMORY_BACKEND_EPC "memory-backend-epc"
 

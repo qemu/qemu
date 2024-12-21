@@ -31,8 +31,8 @@
 #include "hw/irq.h"
 #include "target/riscv/cpu.h"
 #include "target/riscv/cpu_bits.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "system/system.h"
+#include "system/kvm.h"
 #include "migration/vmstate.h"
 
 #define IMSIC_MMIO_PAGE_LE             0x00

@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "exec/hwaddr.h"
 #include "exec/memory.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"

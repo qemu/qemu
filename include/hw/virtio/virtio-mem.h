@@ -17,7 +17,7 @@
 #include "hw/resettable.h"
 #include "hw/virtio/virtio.h"
 #include "qapi/qapi-types-misc.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_MEM "virtio-mem"

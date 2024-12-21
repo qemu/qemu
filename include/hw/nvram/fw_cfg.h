@@ -4,7 +4,7 @@
 #include "exec/hwaddr.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
 #include "hw/sysbus.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qom/object.h"
 
 #define TYPE_FW_CFG     "fw_cfg"

@@ -12,9 +12,9 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/openrisc/boot.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
+#include "system/device_tree.h"
+#include "system/qtest.h"
+#include "system/reset.h"
 #include "qemu/error-report.h"
 
 #include <libfdt.h>

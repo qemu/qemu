@@ -18,7 +18,17 @@
 #include CONFIG_DEVICES /* CONFIG_SEV */
 #endif
 
-#include "exec/confidential-guest-support.h"
+#if !defined(CONFIG_SEV) || defined(CONFIG_USER_ONLY)
+#define sev_enabled() 0
+#define sev_es_enabled() 0
+#define sev_snp_enabled() 0
+#else
+bool sev_enabled(void);
+bool sev_es_enabled(void);
+bool sev_snp_enabled(void);
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
 
 #define TYPE_SEV_COMMON "sev-common"
 #define TYPE_SEV_GUEST "sev-guest"
@@ -45,18 +55,6 @@ typedef struct SevKernelLoaderContext {
     size_t cmdline_size;
 } SevKernelLoaderContext;
 
-#ifdef CONFIG_SEV
-bool sev_enabled(void);
-bool sev_es_enabled(void);
-bool sev_snp_enabled(void);
-#else
-#define sev_enabled() 0
-#define sev_es_enabled() 0
-#define sev_snp_enabled() 0
-#endif
-
-uint32_t sev_get_cbit_position(void);
-uint32_t sev_get_reduced_phys_bits(void);
 bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp);
 
 int sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp);
@@ -67,5 +65,10 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size);
 void sev_es_set_reset_vector(CPUState *cpu);
 
 void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
+
+#endif /* !CONFIG_USER_ONLY */
+
+uint32_t sev_get_cbit_position(void);
+uint32_t sev_get_reduced_phys_bits(void);
 
 #endif

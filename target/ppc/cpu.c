@@ -25,7 +25,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "mmu-hash64.h"
 #include "helper_regs.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 
 target_ulong cpu_read_xer(const CPUPPCState *env)
 {

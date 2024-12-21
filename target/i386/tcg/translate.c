@@ -21,6 +21,7 @@
 #include "qemu/host-utils.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/translator.h"
@@ -228,7 +229,7 @@ typedef struct DisasContext {
 #endif
 
 /*
- * Many sysemu-only helpers are not reachable for user-only.
+ * Many system-only helpers are not reachable for user-only.
  * Define stub generators here, so that we need not either sprinkle
  * ifdefs through the translator, nor provide the helper function.
  */
@@ -1511,7 +1512,7 @@ static uint64_t advance_pc(CPUX86State *env, DisasContext *s, int num_bytes)
 
     /* This is a subsequent insn that crosses a page boundary.  */
     if (s->base.num_insns > 1 &&
-        !is_same_page(&s->base, s->pc + num_bytes - 1)) {
+        !translator_is_same_page(&s->base, s->pc + num_bytes - 1)) {
         siglongjmp(s->jmpbuf, 2);
     }
 
@@ -2225,7 +2226,7 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
          * no extra masking to apply (data16 branch in code32, see above),
          * then we have also proven that the addition does not wrap.
          */
-        if (!use_goto_tb || !is_same_page(&s->base, new_pc)) {
+        if (!use_goto_tb || !translator_is_same_page(&s->base, new_pc)) {
             tcg_gen_andi_tl(cpu_eip, cpu_eip, mask);
             use_goto_tb = false;
         }
@@ -3762,7 +3763,7 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
              * chance to happen.
              */
             dc->base.is_jmp = DISAS_EOB_NEXT;
-        } else if (!is_same_page(&dc->base, dc->base.pc_next)) {
+        } else if (!translator_is_same_page(&dc->base, dc->base.pc_next)) {
             dc->base.is_jmp = DISAS_TOO_MANY;
         }
     }

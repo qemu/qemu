@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 
 OBJECT_DEFINE_ABSTRACT_TYPE(ConfidentialGuestSupport,
                             confidential_guest_support,

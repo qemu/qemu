@@ -29,9 +29,9 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
-#include "sysemu/replay.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/rtc.h"
+#include "system/replay.h"
+#include "system/system.h"
+#include "system/rtc.h"
 #include "hw/rtc/mc146818rtc.h"
 
 static enum {

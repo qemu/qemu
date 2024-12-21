@@ -23,7 +23,7 @@
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "qemu/guest-random.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "hw/loader.h"
 #include "hw/boards.h"
 #include "qemu/config-file.h"

@@ -10,12 +10,12 @@
 #include "hw/irq.h"
 #include "hw/register.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 #include "hw/registerfields.h"
 
 #define SYS_TOYTRIM        0x20

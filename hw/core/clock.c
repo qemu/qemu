@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qapi/visitor.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "hw/clock.h"
 #include "trace.h"
 
