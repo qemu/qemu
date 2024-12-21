@@ -2682,6 +2682,7 @@ static const struct SysemuCPUOps arm_sysemu_ops = {
 #ifdef CONFIG_TCG
 static const TCGCPUOps arm_tcg_ops = {
     .initialize = arm_translate_init,
+    .translate_code = arm_translate_code,
     .synchronize_from_tb = arm_cpu_synchronize_from_tb,
     .debug_excp_handler = arm_debug_excp_handler,
     .restore_state_to_opc = arm_restore_state_to_opc,

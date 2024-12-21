@@ -17,6 +17,8 @@
 #define TARGET_VIRT_MASK MAKE_64BIT_MASK(0, TARGET_VIRT_ADDR_SPACE_BITS)
 
 void loongarch_translate_init(void);
+void loongarch_translate_code(CPUState *cs, TranslationBlock *tb,
+                              int *max_insns, vaddr pc, void *host_pc);
 
 void G_NORETURN do_raise_exception(CPULoongArchState *env,
                                    uint32_t exception,

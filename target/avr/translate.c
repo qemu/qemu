@@ -2599,7 +2599,7 @@ static bool trans_WDR(DisasContext *ctx, arg_WDR *a)
  *
  *    - translate()
  *    - canonicalize_skip()
- *    - gen_intermediate_code()
+ *    - translate_code()
  *    - restore_state_to_opc()
  *
  */
@@ -2795,8 +2795,8 @@ static const TranslatorOps avr_tr_ops = {
     .tb_stop            = avr_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void avr_cpu_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc = { };
     translator_loop(cs, tb, max_insns, pc, host_pc, &avr_tr_ops, &dc.base);

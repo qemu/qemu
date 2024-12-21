@@ -59,6 +59,8 @@ static inline target_long lshift(target_long x, int n)
 
 /* translate.c */
 void tcg_x86_init(void);
+void x86_translate_code(CPUState *cs, TranslationBlock *tb,
+                        int *max_insns, vaddr pc, void *host_pc);
 
 /* excp_helper.c */
 G_NORETURN void raise_exception(CPUX86State *env, int exception_index);

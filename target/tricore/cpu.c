@@ -172,6 +172,7 @@ static const struct SysemuCPUOps tricore_sysemu_ops = {
 
 static const TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
+    .translate_code = tricore_translate_code,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .restore_state_to_opc = tricore_restore_state_to_opc,
     .tlb_fill = tricore_cpu_tlb_fill,

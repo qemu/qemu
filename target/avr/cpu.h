@@ -183,6 +183,8 @@ static inline void set_avr_feature(CPUAVRState *env, int feature)
 }
 
 void avr_cpu_tcg_init(void);
+void avr_cpu_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc);
 
 int cpu_avr_exec(CPUState *cpu);
 

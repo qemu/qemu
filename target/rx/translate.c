@@ -2258,8 +2258,8 @@ static const TranslatorOps rx_tr_ops = {
     .tb_stop            = rx_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void rx_translate_code(CPUState *cs, TranslationBlock *tb,
+                       int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc;
 

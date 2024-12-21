@@ -150,6 +150,8 @@ static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, vaddr *pc,
 typedef HexagonCPU ArchCPU;
 
 void hexagon_translate_init(void);
+void hexagon_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc);
 
 #include "exec/cpu-all.h"
 
