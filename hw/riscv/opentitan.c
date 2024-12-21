@@ -81,6 +81,7 @@ static void opentitan_machine_init(MachineState *machine)
     OpenTitanState *s = OPENTITAN_MACHINE(machine);
     const MemMapEntry *memmap = ibex_memmap;
     MemoryRegion *sys_mem = get_system_memory();
+    RISCVBootInfo boot_info;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -102,8 +103,9 @@ static void opentitan_machine_init(MachineState *machine)
         riscv_load_firmware(machine->firmware, &firmware_load_addr, NULL);
     }
 
+    riscv_boot_info_init(&boot_info, &s->soc.cpus);
     if (machine->kernel_filename) {
-        riscv_load_kernel(machine, &s->soc.cpus,
+        riscv_load_kernel(machine, &boot_info,
                           memmap[IBEX_DEV_RAM].base,
                           false, NULL);
     }
