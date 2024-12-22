@@ -42,7 +42,13 @@
 #define RAM_SIZE    0x4000000
 #define ROM_FILE    "Rev_2.5_v66.bin"
 
-typedef struct NeXTRTC {
+
+#define TYPE_NEXT_RTC "next-rtc"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTRTC, NEXT_RTC)
+
+struct NeXTRTC {
+    SysBusDevice parent_obj;
+
     int8_t phase;
     uint8_t ram[32];
     uint8_t command;
@@ -50,7 +56,7 @@ typedef struct NeXTRTC {
     uint8_t status;
     uint8_t control;
     uint8_t retval;
-} NeXTRTC;
+};
 
 #define TYPE_NEXT_SCSI "next-scsi"
 OBJECT_DECLARE_SIMPLE_TYPE(NeXTSCSI, NEXT_SCSI)
@@ -1012,6 +1018,37 @@ static const MemoryRegionOps next_dummy_en_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static const VMStateDescription next_rtc_vmstate = {
+    .name = "next-rtc",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT8(phase, NeXTRTC),
+        VMSTATE_UINT8_ARRAY(ram, NeXTRTC, 32),
+        VMSTATE_UINT8(command, NeXTRTC),
+        VMSTATE_UINT8(value, NeXTRTC),
+        VMSTATE_UINT8(status, NeXTRTC),
+        VMSTATE_UINT8(control, NeXTRTC),
+        VMSTATE_UINT8(retval, NeXTRTC),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void next_rtc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "NeXT RTC";
+    dc->vmsd = &next_rtc_vmstate;
+}
+
+static const TypeInfo next_rtc_info = {
+    .name = TYPE_NEXT_RTC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(NeXTRTC),
+    .class_init = next_rtc_class_init,
+};
+
 static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
 {
     NeXTPC *s = NEXT_PC(opaque);
@@ -1078,6 +1115,12 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     }
     sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(dev, NEXT_SCC_I));
     sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(dev, NEXT_SCC_DMA_I));
+
+    /* RTC */
+    d = DEVICE(&s->rtc);
+    if (!sysbus_realize(SYS_BUS_DEVICE(d), errp)) {
+        return;
+    }
 }
 
 static void next_pc_init(Object *obj)
@@ -1111,6 +1154,8 @@ static void next_pc_init(Object *obj)
                           "next.timer", 4);
     sysbus_init_mmio(sbd, &s->timer_mem);
 
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_NEXT_RTC);
+
     s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
     qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
                             "pc-rtc-data-in", 1);
@@ -1128,26 +1173,10 @@ static const Property next_pc_properties[] = {
     DEFINE_PROP_LINK("cpu", NeXTPC, cpu, TYPE_M68K_CPU, M68kCPU *),
 };
 
-static const VMStateDescription next_rtc_vmstate = {
-    .name = "next-rtc",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT8(phase, NeXTRTC),
-        VMSTATE_UINT8_ARRAY(ram, NeXTRTC, 32),
-        VMSTATE_UINT8(command, NeXTRTC),
-        VMSTATE_UINT8(value, NeXTRTC),
-        VMSTATE_UINT8(status, NeXTRTC),
-        VMSTATE_UINT8(control, NeXTRTC),
-        VMSTATE_UINT8(retval, NeXTRTC),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
 static const VMStateDescription next_pc_vmstate = {
     .name = "next-pc",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
@@ -1155,7 +1184,6 @@ static const VMStateDescription next_pc_vmstate = {
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
         VMSTATE_UINT32(led, NeXTPC),
-        VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NeXTRTC),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1305,6 +1333,7 @@ static void next_register_type(void)
     type_register_static(&next_typeinfo);
     type_register_static(&next_pc_info);
     type_register_static(&next_scsi_info);
+    type_register_static(&next_rtc_info);
 }
 
 type_init(next_register_type)
