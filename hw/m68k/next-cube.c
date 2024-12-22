@@ -980,6 +980,7 @@ static const MemoryRegionOps next_floppy_ops = {
 
 static void next_escc_init(DeviceState *pcdev)
 {
+    NeXTPC *next_pc = NEXT_PC(pcdev);
     DeviceState *dev;
     SysBusDevice *s;
 
@@ -997,7 +998,9 @@ static void next_escc_init(DeviceState *pcdev)
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(pcdev, NEXT_SCC_I));
     sysbus_connect_irq(s, 1, qdev_get_gpio_in(pcdev, NEXT_SCC_DMA_I));
-    sysbus_mmio_map(s, 0, 0x2118000);
+
+    memory_region_add_subregion(&next_pc->scrmem, 0x18000,
+                                sysbus_mmio_get_region(s, 0));
 }
 
 static void next_pc_reset(DeviceState *dev)
