@@ -58,6 +58,7 @@ struct NeXTRTC {
     uint8_t retval;
 
     qemu_irq data_out_irq;
+    qemu_irq power_irq;
 };
 
 #define TYPE_NEXT_SCSI "next-scsi"
@@ -106,7 +107,6 @@ struct NeXTPC {
     ESCCState escc;
 
     NeXTRTC rtc;
-    qemu_irq rtc_power_irq;
     qemu_irq rtc_data_irq;
     qemu_irq rtc_cmd_reset_irq;
 };
@@ -184,7 +184,6 @@ static bool next_rtc_cmd_is_write(uint8_t cmd)
 static void next_rtc_data_in_irq(void *opaque, int n, int level)
 {
     NeXTRTC *rtc = NEXT_RTC(opaque);
-    NeXTPC *s = NEXT_PC(container_of(rtc, NeXTPC, rtc));
 
     if (rtc->phase < 8) {
         rtc->command = (rtc->command << 1) | level;
@@ -256,7 +255,7 @@ static void next_rtc_data_in_irq(void *opaque, int n, int level)
             if (rtc->value & 0x04) {
                 /* clear FTU */
                 rtc->status = rtc->status & (~0x18);
-                qemu_irq_lower(s->rtc_power_irq);
+                qemu_irq_lower(rtc->power_irq);
             }
         }
     }
@@ -1044,6 +1043,8 @@ static void next_rtc_init(Object *obj)
                              "rtc-data-out", 1);
     qdev_init_gpio_in_named(DEVICE(obj), next_rtc_cmd_reset_irq,
                             "rtc-cmd-reset", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &rtc->power_irq,
+                             "rtc-power-out", 1);
 }
 
 static const VMStateDescription next_rtc_vmstate = {
@@ -1156,6 +1157,8 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
                                                        "rtc-data-in", 0));
     qdev_connect_gpio_out_named(dev, "rtc-cmd-reset", 0,
                                 qdev_get_gpio_in_named(d, "rtc-cmd-reset", 0));
+    qdev_connect_gpio_out_named(d, "rtc-power-out", 0,
+                                qdev_get_gpio_in(dev, NEXT_PWR_I));
 }
 
 static void next_pc_init(Object *obj)
@@ -1191,7 +1194,6 @@ static void next_pc_init(Object *obj)
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_NEXT_RTC);
 
-    s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
     qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
                             "rtc-data-in", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_data_irq,
