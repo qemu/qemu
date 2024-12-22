@@ -1538,6 +1538,9 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
                               "[remap|forbid|warn]\n");
             return -1;
         }
+    } else {
+        fse->export_flags &= ~V9FS_FORBID_MULTIDEVS;
+        fse->export_flags |= V9FS_REMAP_INODES;
     }
 
     if (!path) {
