@@ -121,7 +121,7 @@ static void riscv_iommu_sysdev_init_msi(RISCVIOMMUStateSys *s,
                                         uint32_t n_vectors)
 {
     RISCVIOMMUState *iommu = &s->iommu;
-    uint32_t table_size = table_size = n_vectors * PCI_MSIX_ENTRY_SIZE;
+    uint32_t table_size = n_vectors * PCI_MSIX_ENTRY_SIZE;
     uint32_t table_offset = RISCV_IOMMU_REG_MSI_CONFIG;
     uint32_t pba_size = QEMU_ALIGN_UP(n_vectors, 64) / 8;
     uint32_t pba_offset = RISCV_IOMMU_REG_MSI_CONFIG + 256;
