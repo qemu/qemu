@@ -94,6 +94,7 @@ struct NeXTPC {
 
     MemoryRegion mmiomem;
     MemoryRegion scrmem;
+    MemoryRegion scsimem;
 
     uint32_t scr1;
     uint32_t scr2;
@@ -843,7 +844,12 @@ static void next_scsi_init(DeviceState *pcdev)
     sysbusdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbusdev, &error_fatal);
     sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(pcdev, NEXT_SCSI_I));
-    sysbus_mmio_map(sysbusdev, 0, 0x2114000);
+
+    memory_region_init(&next_pc->scsimem, OBJECT(next_pc), "next.scsi", 0x40);
+    memory_region_add_subregion(&next_pc->scsimem, 0x0,
+                                sysbus_mmio_get_region(sysbusdev, 0));
+
+    memory_region_add_subregion(&next_pc->scrmem, 0x14000, &next_pc->scsimem);
 
     next_pc->scsi_reset = qdev_get_gpio_in(dev, 0);
     next_pc->scsi_dma = qdev_get_gpio_in(dev, 1);
