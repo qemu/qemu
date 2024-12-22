@@ -908,6 +908,9 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
                           "next.scr", 0x20000);
     sysbus_init_mmio(sbd, &s->mmiomem);
     sysbus_init_mmio(sbd, &s->scrmem);
+
+    /* SCSI */
+    next_scsi_init(dev);
 }
 
 /*
@@ -1050,8 +1053,6 @@ static void next_cube_init(MachineState *machine)
 
     /* TODO: */
     /* Network */
-    /* SCSI */
-    next_scsi_init(pcdev);
 
     /* DMA */
     memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
