@@ -18,6 +18,7 @@ config NEXTCUBE
     depends on M68K
     select FRAMEBUFFER
     select ESCC
+    select EMPTY_SLOT
 
 config Q800
     bool

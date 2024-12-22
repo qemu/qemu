@@ -22,6 +22,7 @@
 #include "qom/object.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
+#include "hw/misc/empty_slot.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -1237,6 +1238,13 @@ static void next_cube_init(MachineState *machine)
 
     /* BMAP IO - acts as a catch-all for now */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
+
+    /* unknown: Brightness control register? */
+    empty_slot_init("next.unknown.0", 0x02110000, 0x10);
+    /* unknown: Magneto-Optical drive controller? */
+    empty_slot_init("next.unknown.1", 0x02112000, 0x10);
+    /* unknown: Serial clock configuration register? */
+    empty_slot_init("next.unknown.2", 0x02118004, 0x10);
 
     /* BMAP memory */
     memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
