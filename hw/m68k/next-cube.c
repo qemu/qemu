@@ -109,6 +109,7 @@ struct NeXTPC {
     M68kCPU *cpu;
 
     MemoryRegion floppy_mem;
+    MemoryRegion timer_mem;
     MemoryRegion mmiomem;
     MemoryRegion scrmem;
 
@@ -371,17 +372,6 @@ static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
     uint64_t val;
 
     switch (addr) {
-    /*
-     * These 4 registers are the hardware timer, not sure which register
-     * is the latch instead of data, but no problems so far.
-     *
-     * Hack: We need to have the LSB change consistently to make it work
-     */
-    case 0x1a000 ... 0x1a003:
-        val = extract32(clock(), (4 - (addr - 0x1a000) - size) << 3,
-                        size << 3);
-        break;
-
     /* For now return dummy byte to allow the Ethernet test to timeout */
     case 0x6000:
         val = 0xff;
@@ -400,8 +390,6 @@ static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     switch (addr) {
-    /* Hardware timer latch - not implemented yet */
-    case 0x1a000:
     default:
         DPRINTF("BMAP Write @ 0x%x with 0x%"PRIx64 " size %u\n",
                 (unsigned int)addr, val, size);
@@ -980,6 +968,50 @@ static const MemoryRegionOps next_floppy_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static void next_timer_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
+{
+    switch (addr) {
+    case 0 ... 3:
+        /* Hardware timer latch - not implemented yet */
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t next_timer_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case 0 ... 3:
+        /*
+         * These 4 registers are the hardware timer, not sure which register
+         * is the latch instead of data, but no problems so far.
+         *
+         * Hack: We need to have the LSB change consistently to make it work
+         */
+        val = extract32(clock(), (4 - addr - size) << 3,
+                        size << 3);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_timer_ops = {
+    .read = next_timer_read,
+    .write = next_timer_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void next_pc_reset(DeviceState *dev)
 {
     NeXTPC *s = NEXT_PC(dev);
@@ -1042,6 +1074,8 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->scrmem, 0x18000,
                                 sysbus_mmio_get_region(sbd, 0));
 
+    /* Timer */
+    memory_region_add_subregion(&s->scrmem, 0x1a000, &s->timer_mem);
 }
 
 static void next_pc_init(Object *obj)
@@ -1065,6 +1099,9 @@ static void next_pc_init(Object *obj)
                           "next.floppy", 4);
 
     object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
+
+    memory_region_init_io(&s->timer_mem, OBJECT(s), &next_timer_ops, s,
+                          "next.timer", 4);
 }
 
 /*
