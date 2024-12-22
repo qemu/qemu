@@ -56,6 +56,8 @@ struct NeXTRTC {
     uint8_t status;
     uint8_t control;
     uint8_t retval;
+
+    qemu_irq data_out_irq;
 };
 
 #define TYPE_NEXT_SCSI "next-scsi"
@@ -234,13 +236,10 @@ static void next_rtc_data_in_irq(void *opaque, int n, int level)
             rtc->value = (rtc->value << 1) | level;
         } else {
             /* Shift out value to read */
-            qemu_irq rtc_data_in_irq = qdev_get_gpio_in_named(
-                DEVICE(s), "pc-rtc-data-in", 0);
-
             if (rtc->retval & (0x80 >> (rtc->phase - 8))) {
-                qemu_irq_raise(rtc_data_in_irq);
+                qemu_irq_raise(rtc->data_out_irq);
             } else {
-                qemu_irq_lower(rtc_data_in_irq);
+                qemu_irq_lower(rtc->data_out_irq);
             }
         }
     }
@@ -1028,8 +1027,12 @@ static void next_rtc_reset_hold(Object *obj, ResetType type)
 
 static void next_rtc_init(Object *obj)
 {
+    NeXTRTC *rtc = NEXT_RTC(obj);
+
     qdev_init_gpio_in_named(DEVICE(obj), next_rtc_data_in_irq,
                             "rtc-data-in", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &rtc->data_out_irq,
+                             "rtc-data-out", 1);
 }
 
 static const VMStateDescription next_rtc_vmstate = {
@@ -1136,6 +1139,10 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     /* Data from NeXTPC to RTC */
     qdev_connect_gpio_out_named(dev, "rtc-data-out", 0,
                                 qdev_get_gpio_in_named(d, "rtc-data-in", 0));
+    /* Data from RTC to NeXTPC */
+    qdev_connect_gpio_out_named(d, "rtc-data-out", 0,
+                                qdev_get_gpio_in_named(dev,
+                                                       "rtc-data-in", 0));
 }
 
 static void next_pc_init(Object *obj)
@@ -1173,7 +1180,7 @@ static void next_pc_init(Object *obj)
 
     s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
     qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
-                            "pc-rtc-data-in", 1);
+                            "rtc-data-in", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_data_irq,
                              "rtc-data-out", 1);
 }
