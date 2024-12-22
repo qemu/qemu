@@ -98,6 +98,7 @@ struct NeXTPC {
     ESCCState escc;
 
     NeXTRTC rtc;
+    qemu_irq rtc_power_irq;
 };
 
 typedef struct next_dma {
@@ -267,7 +268,7 @@ static void next_scr2_rtc_update(NeXTPC *s)
                     /* clear FTU */
                     if (rtc->value & 0x04) {
                         rtc->status = rtc->status & (~0x18);
-                        s->int_status = s->int_status & (~0x04);
+                        qemu_irq_lower(s->rtc_power_irq);
                     }
                 }
             }
@@ -1093,6 +1094,8 @@ static void next_pc_init(Object *obj)
     memory_region_init_io(&s->timer_mem, OBJECT(s), &next_timer_ops, s,
                           "next.timer", 4);
     sysbus_init_mmio(sbd, &s->timer_mem);
+
+    s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
 }
 
 /*
