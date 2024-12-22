@@ -286,10 +286,6 @@ static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
                         size << 3);
         break;
 
-    case 0x14020:
-        val = 0x7f;
-        break;
-
     default:
         val = 0;
         DPRINTF("MMIO Read @ 0x%"HWADDR_PRIx" size %d\n", addr, size);
