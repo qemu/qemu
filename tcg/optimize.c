@@ -52,7 +52,7 @@ typedef struct TempOptInfo {
     QSIMPLEQ_HEAD(, MemCopyInfo) mem_copy;
     uint64_t val;
     uint64_t z_mask;  /* mask bit is 0 if and only if value bit is 0 */
-    uint64_t s_mask;  /* a left-aligned mask of clrsb(value) bits. */
+    uint64_t s_mask;  /* mask bit is 1 if value bit matches msb */
 } TempOptInfo;
 
 typedef struct OptContext {
@@ -65,48 +65,9 @@ typedef struct OptContext {
 
     /* In flight values from optimization. */
     uint64_t z_mask;  /* mask bit is 0 iff value bit is 0 */
-    uint64_t s_mask;  /* mask of clrsb(value) bits */
+    uint64_t s_mask;  /* mask bit is 1 if value bit matches msb */
     TCGType type;
 } OptContext;
-
-/* Calculate the smask for a specific value. */
-static uint64_t smask_from_value(uint64_t value)
-{
-    int rep = clrsb64(value);
-    return ~(~0ull >> rep);
-}
-
-/*
- * Calculate the smask for a given set of known-zeros.
- * If there are lots of zeros on the left, we can consider the remainder
- * an unsigned field, and thus the corresponding signed field is one bit
- * larger.
- */
-static uint64_t smask_from_zmask(uint64_t zmask)
-{
-    /*
-     * Only the 0 bits are significant for zmask, thus the msb itself
-     * must be zero, else we have no sign information.
-     */
-    int rep = clz64(zmask);
-    if (rep == 0) {
-        return 0;
-    }
-    rep -= 1;
-    return ~(~0ull >> rep);
-}
-
-/*
- * Recreate a properly left-aligned smask after manipulation.
- * Some bit-shuffling, particularly shifts and rotates, may
- * retain sign bits on the left, but may scatter disconnected
- * sign bits on the right.  Retain only what remains to the left.
- */
-static uint64_t smask_from_smask(int64_t smask)
-{
-    /* Only the 1 bits are significant for smask */
-    return smask_from_zmask(~smask);
-}
 
 static inline TempOptInfo *ts_info(TCGTemp *ts)
 {
@@ -173,7 +134,7 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
         ti->is_const = true;
         ti->val = ts->val;
         ti->z_mask = ts->val;
-        ti->s_mask = smask_from_value(ts->val);
+        ti->s_mask = INT64_MIN >> clrsb64(ts->val);
     } else {
         ti->is_const = false;
         ti->z_mask = -1;
@@ -992,7 +953,6 @@ static void finish_folding(OptContext *ctx, TCGOp *op)
          */
         if (i == 0) {
             ts_info(ts)->z_mask = ctx->z_mask;
-            ts_info(ts)->s_mask = ctx->s_mask;
         }
     }
 }
@@ -1051,11 +1011,12 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
  * The passed s_mask may be augmented by z_mask.
  */
 static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
-                          uint64_t z_mask, uint64_t s_mask)
+                          uint64_t z_mask, int64_t s_mask)
 {
     const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGTemp *ts;
     TempOptInfo *ti;
+    int rep;
 
     /* Only single-output opcodes are supported here. */
     tcg_debug_assert(def->nb_oargs == 1);
@@ -1069,7 +1030,7 @@ static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
      */
     if (ctx->type == TCG_TYPE_I32) {
         z_mask = (int32_t)z_mask;
-        s_mask |= MAKE_64BIT_MASK(32, 32);
+        s_mask |= INT32_MIN;
     }
 
     if (z_mask == 0) {
@@ -1081,7 +1042,13 @@ static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
 
     ti = ts_info(ts);
     ti->z_mask = z_mask;
-    ti->s_mask = s_mask | smask_from_zmask(z_mask);
+
+    /* Canonicalize s_mask and incorporate data from z_mask. */
+    rep = clz64(~s_mask);
+    rep = MAX(rep, clz64(z_mask));
+    rep = MAX(rep - 1, 0);
+    ti->s_mask = INT64_MIN >> rep;
+
     return true;
 }
 
@@ -1807,7 +1774,7 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
 
     ctx->z_mask = z_mask;
     ctx->s_mask = s_mask;
-    if (!type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+    if (0 && !type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
         return true;
     }
 
@@ -2509,7 +2476,7 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
     s_mask |= MAKE_64BIT_MASK(len, 64 - len);
     ctx->s_mask = s_mask;
 
-    if (pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+    if (0 && pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
         return true;
     }
 
@@ -2535,7 +2502,6 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
         ctx->z_mask = do_constant_folding(op->opc, ctx->type, z_mask, sh);
 
         s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
-        ctx->s_mask = smask_from_smask(s_mask);
 
         return fold_masks(ctx, op);
     }
