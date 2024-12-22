@@ -105,6 +105,7 @@ struct NeXTPC {
 
     NeXTRTC rtc;
     qemu_irq rtc_power_irq;
+    qemu_irq rtc_data_irq;
 };
 
 typedef struct next_dma {
@@ -179,8 +180,8 @@ static bool next_rtc_cmd_is_write(uint8_t cmd)
 
 static void next_rtc_data_in_irq(void *opaque, int n, int level)
 {
-    NeXTPC *s = NEXT_PC(opaque);
-    NeXTRTC *rtc = &s->rtc;
+    NeXTRTC *rtc = NEXT_RTC(opaque);
+    NeXTPC *s = NEXT_PC(container_of(rtc, NeXTPC, rtc));
 
     if (rtc->phase < 8) {
         rtc->command = (rtc->command << 1) | level;
@@ -274,13 +275,10 @@ static void next_scr2_rtc_update(NeXTPC *s)
         /* If we are in going down clock... do something */
         if (((old_scr2 & SCR2_RTCLK) != (scr2_2 & SCR2_RTCLK)) &&
                 ((scr2_2 & SCR2_RTCLK) == 0)) {
-            qemu_irq rtc_data_in_irq = qdev_get_gpio_in_named(
-                DEVICE(s), "rtc-data-in", 0);
-
             if (scr2_2 & SCR2_RTDATA) {
-                qemu_irq_raise(rtc_data_in_irq);
+                qemu_irq_raise(s->rtc_data_irq);
             } else {
-                qemu_irq_lower(rtc_data_in_irq);
+                qemu_irq_lower(s->rtc_data_irq);
             }
         }
     } else {
@@ -1028,6 +1026,12 @@ static void next_rtc_reset_hold(Object *obj, ResetType type)
     memcpy(rtc->ram, rtc_ram2, 32);
 }
 
+static void next_rtc_init(Object *obj)
+{
+    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_data_in_irq,
+                            "rtc-data-in", 1);
+}
+
 static const VMStateDescription next_rtc_vmstate = {
     .name = "next-rtc",
     .version_id = 3,
@@ -1057,6 +1061,7 @@ static void next_rtc_class_init(ObjectClass *klass, void *data)
 static const TypeInfo next_rtc_info = {
     .name = TYPE_NEXT_RTC,
     .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = next_rtc_init,
     .instance_size = sizeof(NeXTRTC),
     .class_init = next_rtc_class_init,
 };
@@ -1128,6 +1133,9 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(d), errp)) {
         return;
     }
+    /* Data from NeXTPC to RTC */
+    qdev_connect_gpio_out_named(dev, "rtc-data-out", 0,
+                                qdev_get_gpio_in_named(d, "rtc-data-in", 0));
 }
 
 static void next_pc_init(Object *obj)
@@ -1166,8 +1174,8 @@ static void next_pc_init(Object *obj)
     s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
     qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
                             "pc-rtc-data-in", 1);
-    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_data_in_irq,
-                            "rtc-data-in", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_data_irq,
+                             "rtc-data-out", 1);
 }
 
 /*
