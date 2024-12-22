@@ -1797,7 +1797,7 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
         g_assert_not_reached();
     }
 
-    if (0 && !type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+    if (!type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
         return true;
     }
 
@@ -2506,7 +2506,7 @@ static bool fold_sextract(OptContext *ctx, TCGOp *op)
     s_mask = s_mask_old >> pos;
     s_mask |= -1ull << (len - 1);
 
-    if (0 && pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
+    if (pos == 0 && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
         return true;
     }
 
