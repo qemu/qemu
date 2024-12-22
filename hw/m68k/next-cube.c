@@ -175,92 +175,6 @@ static void next_scr2_led_update(NeXTPC *s)
     }
 }
 
-static bool next_rtc_cmd_is_write(uint8_t cmd)
-{
-    return (cmd >= 0x80 && cmd <= 0x9f) ||
-           (cmd == 0xb1);
-}
-
-static void next_rtc_data_in_irq(void *opaque, int n, int level)
-{
-    NeXTRTC *rtc = NEXT_RTC(opaque);
-
-    if (rtc->phase < 8) {
-        rtc->command = (rtc->command << 1) | level;
-
-        if (rtc->phase == 7 && !next_rtc_cmd_is_write(rtc->command)) {
-            if (rtc->command <= 0x1f) {
-                /* RAM registers */
-                rtc->retval = rtc->ram[rtc->command];
-            }
-            if ((rtc->command >= 0x20) && (rtc->command <= 0x2f)) {
-                /* RTC */
-                time_t time_h = time(NULL);
-                struct tm *info = localtime(&time_h);
-                rtc->retval = 0;
-
-                switch (rtc->command) {
-                case 0x20:
-                    rtc->retval = SCR2_TOBCD(info->tm_sec);
-                    break;
-                case 0x21:
-                    rtc->retval = SCR2_TOBCD(info->tm_min);
-                    break;
-                case 0x22:
-                    rtc->retval = SCR2_TOBCD(info->tm_hour);
-                    break;
-                case 0x24:
-                    rtc->retval = SCR2_TOBCD(info->tm_mday);
-                    break;
-                case 0x25:
-                    rtc->retval = SCR2_TOBCD((info->tm_mon + 1));
-                    break;
-                case 0x26:
-                    rtc->retval = SCR2_TOBCD((info->tm_year - 100));
-                    break;
-                }
-            }
-            if (rtc->command == 0x30) {
-                /* read the status 0x30 */
-                rtc->retval = rtc->status;
-            }
-            if (rtc->command == 0x31) {
-                /* read the control 0x31 */
-                rtc->retval = rtc->control;
-            }
-        }
-    }
-    if (rtc->phase >= 8 && rtc->phase < 16) {
-        if (next_rtc_cmd_is_write(rtc->command)) {
-            /* Shift in value to write */
-            rtc->value = (rtc->value << 1) | level;
-        } else {
-            /* Shift out value to read */
-            if (rtc->retval & (0x80 >> (rtc->phase - 8))) {
-                qemu_irq_raise(rtc->data_out_irq);
-            } else {
-                qemu_irq_lower(rtc->data_out_irq);
-            }
-        }
-    }
-
-    rtc->phase++;
-    if (rtc->phase == 16 && next_rtc_cmd_is_write(rtc->command)) {
-        if (rtc->command >= 0x80 && rtc->command <= 0x9f) {
-            /* RAM registers */
-            rtc->ram[rtc->command - 0x80] = rtc->value;
-        }
-        if (rtc->command == 0xb1) {
-            /* write to 0x30 register */
-            if (rtc->value & 0x04) {
-                /* clear FTU */
-                rtc->status = rtc->status & (~0x18);
-                qemu_irq_lower(rtc->power_irq);
-            }
-        }
-    }
-}
-
 static void next_scr2_rtc_update(NeXTPC *s)
 {
     uint8_t old_scr2, scr2_2;
@@ -1011,6 +925,92 @@ static const MemoryRegionOps next_dummy_en_ops = {
     .valid.max_access_size = 4,
     .endianness = DEVICE_BIG_ENDIAN,
 };
+
+static bool next_rtc_cmd_is_write(uint8_t cmd)
+{
+    return (cmd >= 0x80 && cmd <= 0x9f) ||
+           (cmd == 0xb1);
+}
+
+static void next_rtc_data_in_irq(void *opaque, int n, int level)
+{
+    NeXTRTC *rtc = NEXT_RTC(opaque);
+
+    if (rtc->phase < 8) {
+        rtc->command = (rtc->command << 1) | level;
+
+        if (rtc->phase == 7 && !next_rtc_cmd_is_write(rtc->command)) {
+            if (rtc->command <= 0x1f) {
+                /* RAM registers */
+                rtc->retval = rtc->ram[rtc->command];
+            }
+            if ((rtc->command >= 0x20) && (rtc->command <= 0x2f)) {
+                /* RTC */
+                time_t time_h = time(NULL);
+                struct tm *info = localtime(&time_h);
+                rtc->retval = 0;
+
+                switch (rtc->command) {
+                case 0x20:
+                    rtc->retval = SCR2_TOBCD(info->tm_sec);
+                    break;
+                case 0x21:
+                    rtc->retval = SCR2_TOBCD(info->tm_min);
+                    break;
+                case 0x22:
+                    rtc->retval = SCR2_TOBCD(info->tm_hour);
+                    break;
+                case 0x24:
+                    rtc->retval = SCR2_TOBCD(info->tm_mday);
+                    break;
+                case 0x25:
+                    rtc->retval = SCR2_TOBCD((info->tm_mon + 1));
+                    break;
+                case 0x26:
+                    rtc->retval = SCR2_TOBCD((info->tm_year - 100));
+                    break;
+                }
+            }
+            if (rtc->command == 0x30) {
+                /* read the status 0x30 */
+                rtc->retval = rtc->status;
+            }
+            if (rtc->command == 0x31) {
+                /* read the control 0x31 */
+                rtc->retval = rtc->control;
+            }
+        }
+    }
+    if (rtc->phase >= 8 && rtc->phase < 16) {
+        if (next_rtc_cmd_is_write(rtc->command)) {
+            /* Shift in value to write */
+            rtc->value = (rtc->value << 1) | level;
+        } else {
+            /* Shift out value to read */
+            if (rtc->retval & (0x80 >> (rtc->phase - 8))) {
+                qemu_irq_raise(rtc->data_out_irq);
+            } else {
+                qemu_irq_lower(rtc->data_out_irq);
+            }
+        }
+    }
+
+    rtc->phase++;
+    if (rtc->phase == 16 && next_rtc_cmd_is_write(rtc->command)) {
+        if (rtc->command >= 0x80 && rtc->command <= 0x9f) {
+            /* RAM registers */
+            rtc->ram[rtc->command - 0x80] = rtc->value;
+        }
+        if (rtc->command == 0xb1) {
+            /* write to 0x30 register */
+            if (rtc->value & 0x04) {
+                /* clear FTU */
+                rtc->status = rtc->status & (~0x18);
+                qemu_irq_lower(rtc->power_irq);
+            }
+        }
+    }
+}
 
 static void next_rtc_cmd_reset_irq(void *opaque, int n, int level)
 {
