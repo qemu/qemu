@@ -110,6 +110,7 @@ struct NeXTPC {
 
     MemoryRegion floppy_mem;
     MemoryRegion timer_mem;
+    MemoryRegion dummyen_mem;
     MemoryRegion mmiomem;
     MemoryRegion scrmem;
 
@@ -372,11 +373,6 @@ static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
     uint64_t val;
 
     switch (addr) {
-    /* For now return dummy byte to allow the Ethernet test to timeout */
-    case 0x6000:
-        val = 0xff;
-        break;
-
     default:
         DPRINTF("BMAP Read @ 0x%x size %u\n", (unsigned int)addr, size);
         val = 0;
@@ -1012,6 +1008,38 @@ static const MemoryRegionOps next_timer_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static void next_dummy_en_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+    /* Do nothing */
+    return;
+}
+
+static uint64_t next_dummy_en_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case 0:
+        /* For now return dummy byte to allow the Ethernet test to timeout */
+        val = 0xff;
+        break;
+
+    default:
+        val = 0;
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_dummy_en_ops = {
+    .read = next_dummy_en_read,
+    .write = next_dummy_en_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void next_pc_reset(DeviceState *dev)
 {
     NeXTPC *s = NEXT_PC(dev);
@@ -1033,6 +1061,10 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     NeXTPC *s = NEXT_PC(dev);
     SysBusDevice *sbd;
     DeviceState *d;
+
+    /* en network (dummy) */
+    memory_region_add_subregion(&s->scrmem, 0x6000,
+                                &s->dummyen_mem);
 
     /* SCSI */
     sbd = SYS_BUS_DEVICE(&s->next_scsi);
@@ -1092,6 +1124,9 @@ static void next_pc_init(Object *obj)
 
     sysbus_init_mmio(sbd, &s->mmiomem);
     sysbus_init_mmio(sbd, &s->scrmem);
+
+    memory_region_init_io(&s->dummyen_mem, OBJECT(s), &next_dummy_en_ops, s,
+                          "next.en", 0x20);
 
     object_initialize_child(obj, "next-scsi", &s->next_scsi, TYPE_NEXT_SCSI);
 
@@ -1237,9 +1272,6 @@ static void next_cube_init(MachineState *machine)
             exit(1);
         }
     }
-
-    /* TODO: */
-    /* Network */
 
     /* DMA */
     memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
