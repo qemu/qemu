@@ -38,29 +38,9 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
-OBJECT_DECLARE_SIMPLE_TYPE(NeXTState, NEXT_MACHINE)
-
 #define ENTRY       0x0100001e
 #define RAM_SIZE    0x4000000
 #define ROM_FILE    "Rev_2.5_v66.bin"
-
-typedef struct next_dma {
-    uint32_t csr;
-
-    uint32_t saved_next;
-    uint32_t saved_limit;
-    uint32_t saved_start;
-    uint32_t saved_stop;
-
-    uint32_t next;
-    uint32_t limit;
-    uint32_t start;
-    uint32_t stop;
-
-    uint32_t next_initbuf;
-    uint32_t size;
-} next_dma;
 
 typedef struct NextRtc {
     int8_t phase;
@@ -71,18 +51,6 @@ typedef struct NextRtc {
     uint8_t control;
     uint8_t retval;
 } NextRtc;
-
-struct NeXTState {
-    MachineState parent;
-
-    MemoryRegion rom;
-    MemoryRegion rom2;
-    MemoryRegion dmamem;
-    MemoryRegion bmapm1;
-    MemoryRegion bmapm2;
-
-    next_dma dma[10];
-};
 
 #define TYPE_NEXT_SCSI "next-scsi"
 OBJECT_DECLARE_SIMPLE_TYPE(NeXTSCSI, NEXT_SCSI)
@@ -130,6 +98,38 @@ struct NeXTPC {
     ESCCState escc;
 
     NextRtc rtc;
+};
+
+typedef struct next_dma {
+    uint32_t csr;
+
+    uint32_t saved_next;
+    uint32_t saved_limit;
+    uint32_t saved_start;
+    uint32_t saved_stop;
+
+    uint32_t next;
+    uint32_t limit;
+    uint32_t start;
+    uint32_t stop;
+
+    uint32_t next_initbuf;
+    uint32_t size;
+} next_dma;
+
+#define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTState, NEXT_MACHINE)
+
+struct NeXTState {
+    MachineState parent;
+
+    MemoryRegion rom;
+    MemoryRegion rom2;
+    MemoryRegion dmamem;
+    MemoryRegion bmapm1;
+    MemoryRegion bmapm2;
+
+    next_dma dma[10];
 };
 
 /* Thanks to NeXT forums for this */
