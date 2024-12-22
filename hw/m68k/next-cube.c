@@ -83,6 +83,18 @@ struct NeXTState {
     next_dma dma[10];
 };
 
+#define TYPE_NEXT_SCSI "next-scsi"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTSCSI, NEXT_SCSI)
+
+/* NeXT SCSI Controller */
+struct NeXTSCSI {
+    SysBusDevice parent_obj;
+
+    MemoryRegion scsi_mem;
+
+    SysBusESPState sysbus_esp;
+};
+
 #define TYPE_NEXT_PC "next-pc"
 OBJECT_DECLARE_SIMPLE_TYPE(NeXTPC, NEXT_PC)
 
@@ -94,7 +106,6 @@ struct NeXTPC {
 
     MemoryRegion mmiomem;
     MemoryRegion scrmem;
-    MemoryRegion scsimem;
 
     uint32_t scr1;
     uint32_t scr2;
@@ -102,6 +113,8 @@ struct NeXTPC {
     uint32_t int_mask;
     uint32_t int_status;
     uint32_t led;
+
+    NeXTSCSI next_scsi;
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
 
@@ -825,37 +838,60 @@ static void nextscsi_write(void *opaque, uint8_t *buf, int size)
     nextdma_write(opaque, buf, size, NEXTDMA_SCSI);
 }
 
-static void next_scsi_init(DeviceState *pcdev)
+static void next_scsi_init(Object *obj)
 {
-    struct NeXTPC *next_pc = NEXT_PC(pcdev);
-    DeviceState *dev;
-    SysBusDevice *sysbusdev;
-    SysBusESPState *sysbus_esp;
-    ESPState *esp;
+    NeXTSCSI *s = NEXT_SCSI(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    dev = qdev_new(TYPE_SYSBUS_ESP);
-    sysbus_esp = SYSBUS_ESP(dev);
+    object_initialize_child(obj, "esp", &s->sysbus_esp, TYPE_SYSBUS_ESP);
+
+    memory_region_init(&s->scsi_mem, obj, "next.scsi", 0x40);
+    sysbus_init_mmio(sbd, &s->scsi_mem);
+}
+
+static void next_scsi_realize(DeviceState *dev, Error **errp)
+{
+    NeXTSCSI *s = NEXT_SCSI(dev);
+    SysBusESPState *sysbus_esp;
+    SysBusDevice *sbd;
+    ESPState *esp;
+    NeXTPC *pcdev;
+
+    pcdev = NEXT_PC(container_of(s, NeXTPC, next_scsi));
+
+    /* ESP */
+    sysbus_esp = SYSBUS_ESP(&s->sysbus_esp);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = nextscsi_read;
     esp->dma_memory_write = nextscsi_write;
     esp->dma_opaque = pcdev;
     sysbus_esp->it_shift = 0;
     esp->dma_enabled = 1;
-    sysbusdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbusdev, &error_fatal);
-    sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(pcdev, NEXT_SCSI_I));
+    sbd = SYS_BUS_DEVICE(sysbus_esp);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->scsi_mem, 0x0,
+                                sysbus_mmio_get_region(sbd, 0));
 
-    memory_region_init(&next_pc->scsimem, OBJECT(next_pc), "next.scsi", 0x40);
-    memory_region_add_subregion(&next_pc->scsimem, 0x0,
-                                sysbus_mmio_get_region(sysbusdev, 0));
-
-    memory_region_add_subregion(&next_pc->scrmem, 0x14000, &next_pc->scsimem);
-
-    next_pc->scsi_reset = qdev_get_gpio_in(dev, 0);
-    next_pc->scsi_dma = qdev_get_gpio_in(dev, 1);
-
-    scsi_bus_legacy_handle_cmdline(&esp->bus);
+    scsi_bus_legacy_handle_cmdline(&s->sysbus_esp.esp.bus);
 }
+
+static void next_scsi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "NeXT SCSI Controller";
+    dc->realize = next_scsi_realize;
+}
+
+static const TypeInfo next_scsi_info = {
+    .name = TYPE_NEXT_SCSI,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = next_scsi_init,
+    .instance_size = sizeof(NeXTSCSI),
+    .class_init = next_scsi_class_init,
+};
 
 static void next_escc_init(DeviceState *pcdev)
 {
@@ -897,8 +933,24 @@ static void next_pc_reset(DeviceState *dev)
 
 static void next_pc_realize(DeviceState *dev, Error **errp)
 {
+    NeXTPC *s = NEXT_PC(dev);
+    SysBusDevice *sbd;
+    DeviceState *d;
+
     /* SCSI */
-    next_scsi_init(dev);
+    sbd = SYS_BUS_DEVICE(&s->next_scsi);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->scrmem, 0x14000,
+                                sysbus_mmio_get_region(sbd, 0));
+
+    d = DEVICE(object_resolve_path_component(OBJECT(&s->next_scsi), "esp"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(d), 0,
+                       qdev_get_gpio_in(DEVICE(s), NEXT_SCSI_I));
+
+    s->scsi_reset = qdev_get_gpio_in(d, 0);
+    s->scsi_dma = qdev_get_gpio_in(d, 1);
 }
 
 static void next_pc_init(Object *obj)
@@ -915,6 +967,8 @@ static void next_pc_init(Object *obj)
 
     sysbus_init_mmio(sbd, &s->mmiomem);
     sysbus_init_mmio(sbd, &s->scrmem);
+
+    object_initialize_child(obj, "next-scsi", &s->next_scsi, TYPE_NEXT_SCSI);
 }
 
 /*
@@ -1089,6 +1143,7 @@ static void next_register_type(void)
 {
     type_register_static(&next_typeinfo);
     type_register_static(&next_pc_info);
+    type_register_static(&next_scsi_info);
 }
 
 type_init(next_register_type)
