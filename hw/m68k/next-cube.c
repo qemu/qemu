@@ -93,6 +93,10 @@ struct NeXTSCSI {
     MemoryRegion scsi_mem;
 
     SysBusESPState sysbus_esp;
+
+    MemoryRegion scsi_csr_mem;
+    uint8_t scsi_csr_1;
+    uint8_t scsi_csr_2;
 };
 
 #define TYPE_NEXT_PC "next-pc"
@@ -115,8 +119,6 @@ struct NeXTPC {
     uint32_t led;
 
     NeXTSCSI next_scsi;
-    uint8_t scsi_csr_1;
-    uint8_t scsi_csr_2;
 
     qemu_irq scsi_reset;
     qemu_irq scsi_dma;
@@ -364,6 +366,7 @@ static const MemoryRegionOps next_mmio_ops = {
 static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     NeXTPC *s = NEXT_PC(opaque);
+    NeXTSCSI *ns = NEXT_SCSI(&s->next_scsi);
     uint64_t val;
 
     switch (addr) {
@@ -373,12 +376,12 @@ static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case 0x14020:
-        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
-        val = s->scsi_csr_1;
+        DPRINTF("SCSI 4020  STATUS READ %X\n", ns->scsi_csr_1);
+        val = ns->scsi_csr_1;
         break;
 
     case 0x14021:
-        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
+        DPRINTF("SCSI 4021 STATUS READ %X\n", ns->scsi_csr_2);
         val = 0x40;
         break;
 
@@ -411,6 +414,7 @@ static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     NeXTPC *s = NEXT_PC(opaque);
+    NeXTSCSI *ns = NEXT_SCSI(&s->next_scsi);
 
     switch (addr) {
     case 0x14108:
@@ -445,7 +449,7 @@ static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
             DPRINTF("SCSICSR Reset\n");
             /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
             qemu_irq_raise(s->scsi_reset);
-            s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
+            ns->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
             qemu_irq_lower(s->scsi_reset);
         }
         if (val & SCSICSR_DMADIR) {
@@ -838,12 +842,63 @@ static void nextscsi_write(void *opaque, uint8_t *buf, int size)
     nextdma_write(opaque, buf, size, NEXTDMA_SCSI);
 }
 
+static void next_scsi_csr_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+    NeXTSCSI *s = NEXT_SCSI(opaque);
+
+    switch (addr) {
+    case 0:
+        s->scsi_csr_1 = val;
+        break;
+
+    case 1:
+        s->scsi_csr_2 = val;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t next_scsi_csr_read(void *opaque, hwaddr addr, unsigned size)
+{
+    NeXTSCSI *s = NEXT_SCSI(opaque);
+    uint64_t val;
+
+    switch (addr) {
+    case 0:
+        val = s->scsi_csr_1;
+        break;
+
+    case 1:
+        val = s->scsi_csr_2;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_scsi_csr_ops = {
+    .read = next_scsi_csr_read,
+    .write = next_scsi_csr_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
 static void next_scsi_init(Object *obj)
 {
     NeXTSCSI *s = NEXT_SCSI(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     object_initialize_child(obj, "esp", &s->sysbus_esp, TYPE_SYSBUS_ESP);
+
+    memory_region_init_io(&s->scsi_csr_mem, obj, &next_scsi_csr_ops,
+                          s, "csrs", 2);
 
     memory_region_init(&s->scsi_mem, obj, "next.scsi", 0x40);
     sysbus_init_mmio(sbd, &s->scsi_mem);
@@ -874,8 +929,22 @@ static void next_scsi_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->scsi_mem, 0x0,
                                 sysbus_mmio_get_region(sbd, 0));
 
+    /* SCSI CSRs */
+    memory_region_add_subregion(&s->scsi_mem, 0x20, &s->scsi_csr_mem);
+
     scsi_bus_legacy_handle_cmdline(&s->sysbus_esp.esp.bus);
 }
+
+static const VMStateDescription next_scsi_vmstate = {
+    .name = "next-scsi",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT8(scsi_csr_1, NeXTSCSI),
+        VMSTATE_UINT8(scsi_csr_2, NeXTSCSI),
+        VMSTATE_END_OF_LIST()
+    },
+};
 
 static void next_scsi_class_init(ObjectClass *klass, void *data)
 {
@@ -883,6 +952,7 @@ static void next_scsi_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NeXT SCSI Controller";
     dc->realize = next_scsi_realize;
+    dc->vmsd = &next_scsi_vmstate;
 }
 
 static const TypeInfo next_scsi_info = {
@@ -999,8 +1069,8 @@ static const VMStateDescription next_rtc_vmstate = {
 
 static const VMStateDescription next_pc_vmstate = {
     .name = "next-pc",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
@@ -1008,8 +1078,6 @@ static const VMStateDescription next_pc_vmstate = {
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
         VMSTATE_UINT32(led, NeXTPC),
-        VMSTATE_UINT8(scsi_csr_1, NeXTPC),
-        VMSTATE_UINT8(scsi_csr_2, NeXTPC),
         VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NextRtc),
         VMSTATE_END_OF_LIST()
     },
