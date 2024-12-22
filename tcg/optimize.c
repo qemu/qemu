@@ -39,12 +39,11 @@ typedef struct MemCopyInfo {
 } MemCopyInfo;
 
 typedef struct TempOptInfo {
-    bool is_const_;
     TCGTemp *prev_copy;
     TCGTemp *next_copy;
     QSIMPLEQ_HEAD(, MemCopyInfo) mem_copy;
-    uint64_t val_;
     uint64_t z_mask;  /* mask bit is 0 if and only if value bit is 0 */
+    uint64_t o_mask;  /* mask bit is 1 if and only if value bit is 1 */
     uint64_t s_mask;  /* mask bit is 1 if value bit matches msb */
 } TempOptInfo;
 
@@ -73,12 +72,14 @@ static inline TempOptInfo *arg_info(TCGArg arg)
 
 static inline bool ti_is_const(TempOptInfo *ti)
 {
-    return ti->is_const_;
+    /* If all bits that are not known zeros are known ones, it's constant. */
+    return ti->z_mask == ti->o_mask;
 }
 
 static inline uint64_t ti_const_val(TempOptInfo *ti)
 {
-    return ti->val_;
+    /* If constant, both z_mask and o_mask contain the value. */
+    return ti->z_mask;
 }
 
 static inline bool ti_is_const_val(TempOptInfo *ti, uint64_t val)
@@ -142,13 +143,12 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
     ti->prev_copy = ts;
     QSIMPLEQ_INIT(&ti->mem_copy);
     if (ts->kind == TEMP_CONST) {
-        ti->is_const_ = true;
-        ti->val_ = ts->val;
         ti->z_mask = ts->val;
+        ti->o_mask = ts->val;
         ti->s_mask = INT64_MIN >> clrsb64(ts->val);
     } else {
-        ti->is_const_ = false;
         ti->z_mask = -1;
+        ti->o_mask = 0;
         ti->s_mask = 0;
     }
 }
@@ -234,8 +234,8 @@ static void reset_ts(OptContext *ctx, TCGTemp *ts)
     pi->next_copy = ti->next_copy;
     ti->next_copy = ts;
     ti->prev_copy = ts;
-    ti->is_const_ = false;
     ti->z_mask = -1;
+    ti->o_mask = 0;
     ti->s_mask = 0;
 
     if (!QSIMPLEQ_EMPTY(&ti->mem_copy)) {
@@ -390,6 +390,7 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
     op->args[1] = src;
 
     di->z_mask = si->z_mask;
+    di->o_mask = si->o_mask;
     di->s_mask = si->s_mask;
 
     if (src_ts->type == dst_ts->type) {
@@ -399,13 +400,19 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
         di->prev_copy = src_ts;
         ni->prev_copy = dst_ts;
         si->next_copy = dst_ts;
-        di->is_const_ = si->is_const_;
-        di->val_ = si->val_;
 
         if (!QSIMPLEQ_EMPTY(&si->mem_copy)
             && cmp_better_copy(src_ts, dst_ts) == dst_ts) {
             move_mem_copies(dst_ts, src_ts);
         }
+    } else if (dst_ts->type == TCG_TYPE_I32) {
+        di->z_mask = (int32_t)di->z_mask;
+        di->o_mask = (int32_t)di->o_mask;
+        di->s_mask |= INT32_MIN;
+    } else {
+        di->z_mask |= MAKE_64BIT_MASK(32, 32);
+        di->o_mask = (uint32_t)di->o_mask;
+        di->s_mask = INT64_MIN;
     }
     return true;
 }
@@ -1032,8 +1039,8 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
  * If z_mask allows, fold the output to constant zero.
  * The passed s_mask may be augmented by z_mask.
  */
-static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
-                          uint64_t z_mask, int64_t s_mask)
+static bool fold_masks_zos(OptContext *ctx, TCGOp *op, uint64_t z_mask,
+                           uint64_t o_mask, int64_t s_mask)
 {
     const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGTemp *ts;
@@ -1052,11 +1059,16 @@ static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
      */
     if (ctx->type == TCG_TYPE_I32) {
         z_mask = (int32_t)z_mask;
+        o_mask = (int32_t)o_mask;
         s_mask |= INT32_MIN;
     }
 
-    if (z_mask == 0) {
-        return tcg_opt_gen_movi(ctx, op, op->args[0], 0);
+    /* Bits that are known 1 and bits that are known 0 must not overlap. */
+    tcg_debug_assert((o_mask & ~z_mask) == 0);
+
+    /* All bits that are not known zero are known one is a constant. */
+    if (z_mask == o_mask) {
+        return tcg_opt_gen_movi(ctx, op, op->args[0], o_mask);
     }
 
     ts = arg_temp(op->args[0]);
@@ -1068,20 +1080,27 @@ static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
     /* Canonicalize s_mask and incorporate data from z_mask. */
     rep = clz64(~s_mask);
     rep = MAX(rep, clz64(z_mask));
+    rep = MAX(rep, clz64(~o_mask));
     rep = MAX(rep - 1, 0);
     ti->s_mask = INT64_MIN >> rep;
 
     return true;
 }
 
+static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
+                          uint64_t z_mask, uint64_t s_mask)
+{
+    return fold_masks_zos(ctx, op, z_mask, 0, s_mask);
+}
+
 static bool fold_masks_z(OptContext *ctx, TCGOp *op, uint64_t z_mask)
 {
-    return fold_masks_zs(ctx, op, z_mask, 0);
+    return fold_masks_zos(ctx, op, z_mask, 0, 0);
 }
 
 static bool fold_masks_s(OptContext *ctx, TCGOp *op, uint64_t s_mask)
 {
-    return fold_masks_zs(ctx, op, -1, s_mask);
+    return fold_masks_zos(ctx, op, -1, 0, s_mask);
 }
 
 /*
