@@ -240,10 +240,13 @@ static void next_scr2_rtc_update(NeXTPC *s)
                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
                 } else {
                     /* Shift out value to read */
+                    qemu_irq rtc_data_in_irq = qdev_get_gpio_in_named(
+                        DEVICE(s), "pc-rtc-data-in", 0);
+
                     if (rtc->retval & (0x80 >> (rtc->phase - 8))) {
-                        scr2_2 |= SCR2_RTDATA;
+                        qemu_irq_raise(rtc_data_in_irq);
                     } else {
-                        scr2_2 &= ~SCR2_RTDATA;
+                        qemu_irq_lower(rtc_data_in_irq);
                     }
                 }
             }
@@ -270,8 +273,6 @@ static void next_scr2_rtc_update(NeXTPC *s)
         rtc->command = 0;
         rtc->value = 0;
     }
-
-    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
 }
 
 static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -1001,6 +1002,20 @@ static const MemoryRegionOps next_dummy_en_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
+{
+    NeXTPC *s = NEXT_PC(opaque);
+    uint8_t scr2_2 = extract32(s->scr2, 8, 8);
+
+    if (level) {
+        scr2_2 |= SCR2_RTDATA;
+    } else {
+        scr2_2 &= ~SCR2_RTDATA;
+    }
+
+    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
+}
+
 static void next_pc_reset_hold(Object *obj, ResetType type)
 {
     NeXTPC *s = NEXT_PC(obj);
@@ -1087,6 +1102,8 @@ static void next_pc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->timer_mem);
 
     s->rtc_power_irq = qdev_get_gpio_in(DEVICE(obj), NEXT_PWR_I);
+    qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
+                            "pc-rtc-data-in", 1);
 }
 
 /*
