@@ -124,6 +124,8 @@ struct NeXTPC {
     qemu_irq scsi_reset;
     qemu_irq scsi_dma;
 
+    ESCCState escc;
+
     NextRtc rtc;
 };
 
@@ -978,31 +980,6 @@ static const MemoryRegionOps next_floppy_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void next_escc_init(DeviceState *pcdev)
-{
-    NeXTPC *next_pc = NEXT_PC(pcdev);
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    dev = qdev_new(TYPE_ESCC);
-    qdev_prop_set_uint32(dev, "disabled", 0);
-    qdev_prop_set_uint32(dev, "frequency", 9600 * 384);
-    qdev_prop_set_uint32(dev, "it_shift", 0);
-    qdev_prop_set_bit(dev, "bit_swap", true);
-    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
-    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
-    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
-    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, qdev_get_gpio_in(pcdev, NEXT_SCC_I));
-    sysbus_connect_irq(s, 1, qdev_get_gpio_in(pcdev, NEXT_SCC_DMA_I));
-
-    memory_region_add_subregion(&next_pc->scrmem, 0x18000,
-                                sysbus_mmio_get_region(s, 0));
-}
-
 static void next_pc_reset(DeviceState *dev)
 {
     NeXTPC *s = NEXT_PC(dev);
@@ -1043,6 +1020,28 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     /* Floppy */
     memory_region_add_subregion(&s->scrmem, 0x14108,
                                 &s->floppy_mem);
+
+    /* ESCC */
+    d = DEVICE(&s->escc);
+    qdev_prop_set_uint32(d, "disabled", 0);
+    qdev_prop_set_uint32(d, "frequency", 9600 * 384);
+    qdev_prop_set_uint32(d, "it_shift", 0);
+    qdev_prop_set_bit(d, "bit_swap", true);
+    qdev_prop_set_chr(d, "chrB", serial_hd(1));
+    qdev_prop_set_chr(d, "chrA", serial_hd(0));
+    qdev_prop_set_uint32(d, "chnBtype", escc_serial);
+    qdev_prop_set_uint32(d, "chnAtype", escc_serial);
+
+    sbd = SYS_BUS_DEVICE(d);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(dev, NEXT_SCC_I));
+    sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(dev, NEXT_SCC_DMA_I));
+
+    memory_region_add_subregion(&s->scrmem, 0x18000,
+                                sysbus_mmio_get_region(sbd, 0));
+
 }
 
 static void next_pc_init(Object *obj)
@@ -1064,6 +1063,8 @@ static void next_pc_init(Object *obj)
 
     memory_region_init_io(&s->floppy_mem, OBJECT(s), &next_floppy_ops, s,
                           "next.floppy", 4);
+
+    object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
 }
 
 /*
@@ -1199,9 +1200,6 @@ static void next_cube_init(MachineState *machine)
             exit(1);
         }
     }
-
-    /* Serial */
-    next_escc_init(pcdev);
 
     /* TODO: */
     /* Network */
