@@ -79,15 +79,29 @@ static inline TempOptInfo *arg_info(TCGArg arg)
     return ts_info(arg_temp(arg));
 }
 
+static inline bool ti_is_const(TempOptInfo *ti)
+{
+    return ti->is_const;
+}
+
+static inline uint64_t ti_const_val(TempOptInfo *ti)
+{
+    return ti->val;
+}
+
+static inline bool ti_is_const_val(TempOptInfo *ti, uint64_t val)
+{
+    return ti_is_const(ti) && ti_const_val(ti) == val;
+}
+
 static inline bool ts_is_const(TCGTemp *ts)
 {
-    return ts_info(ts)->is_const;
+    return ti_is_const(ts_info(ts));
 }
 
 static inline bool ts_is_const_val(TCGTemp *ts, uint64_t val)
 {
-    TempOptInfo *ti = ts_info(ts);
-    return ti->is_const && ti->val == val;
+    return ti_is_const_val(ts_info(ts), val);
 }
 
 static inline bool arg_is_const(TCGArg arg)
