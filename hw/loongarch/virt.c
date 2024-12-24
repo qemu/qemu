@@ -615,12 +615,67 @@ static void virt_build_smbios(LoongArchVirtMachineState *lvms)
     }
 }
 
+static void virt_fdt_setup(LoongArchVirtMachineState *lvms)
+{
+    MachineState *machine = MACHINE(lvms);
+    uint32_t cpuintc_phandle, eiointc_phandle, pch_pic_phandle, pch_msi_phandle;
+    int i;
+
+    create_fdt(lvms);
+    fdt_add_cpu_nodes(lvms);
+    fdt_add_memory_nodes(machine);
+    fdt_add_fw_cfg_node(lvms);
+    fdt_add_flash_node(lvms);
+
+    /* Add cpu interrupt-controller */
+    fdt_add_cpuic_node(lvms, &cpuintc_phandle);
+    /* Add Extend I/O Interrupt Controller node */
+    fdt_add_eiointc_node(lvms, &cpuintc_phandle, &eiointc_phandle);
+    /* Add PCH PIC node */
+    fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
+    /* Add PCH MSI node */
+    fdt_add_pch_msi_node(lvms, &eiointc_phandle, &pch_msi_phandle);
+    /* Add pcie node */
+    fdt_add_pcie_node(lvms, &pch_pic_phandle, &pch_msi_phandle);
+
+    /*
+     * Create uart fdt node in reverse order so that they appear
+     * in the finished device tree lowest address first
+     */
+    for (i = VIRT_UART_COUNT; i-- > 0;) {
+        hwaddr base = VIRT_UART_BASE + i * VIRT_UART_SIZE;
+        int irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
+        fdt_add_uart_node(lvms, &pch_pic_phandle, base, irq, i == 0);
+    }
+
+    fdt_add_rtc_node(lvms, &pch_pic_phandle);
+    fdt_add_ged_reset(lvms);
+    platform_bus_add_all_fdt_nodes(machine->fdt, "/platic",
+                                   VIRT_PLATFORM_BUS_BASEADDRESS,
+                                   VIRT_PLATFORM_BUS_SIZE,
+                                   VIRT_PLATFORM_BUS_IRQ);
+
+    /*
+     * Since lowmem region starts from 0 and Linux kernel legacy start address
+     * at 2 MiB, FDT base address is located at 1 MiB to avoid NULL pointer
+     * access. FDT size limit with 1 MiB.
+     * Put the FDT into the memory map as a ROM image: this will ensure
+     * the FDT is copied again upon reset, even if addr points into RAM.
+     */
+    qemu_fdt_dumpdtb(machine->fdt, lvms->fdt_size);
+    rom_add_blob_fixed_as("fdt", machine->fdt, lvms->fdt_size, FDT_BASE,
+                          &address_space_memory);
+    qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
+            rom_ptr_for_as(&address_space_memory, FDT_BASE, lvms->fdt_size));
+}
+
 static void virt_done(Notifier *notifier, void *data)
 {
     LoongArchVirtMachineState *lvms = container_of(notifier,
                                       LoongArchVirtMachineState, machine_done);
     virt_build_smbios(lvms);
     loongarch_acpi_setup(lvms);
+    virt_fdt_setup(lvms);
 }
 
 static void virt_powerdown_req(Notifier *notifier, void *opaque)
@@ -699,9 +754,7 @@ static DeviceState *create_platform_bus(DeviceState *pch_pic)
 }
 
 static void virt_devices_init(DeviceState *pch_pic,
-                                   LoongArchVirtMachineState *lvms,
-                                   uint32_t *pch_pic_phandle,
-                                   uint32_t *pch_msi_phandle)
+                                   LoongArchVirtMachineState *lvms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(lvms);
     DeviceState *gpex_dev;
@@ -747,9 +800,6 @@ static void virt_devices_init(DeviceState *pch_pic,
         gpex_set_irq_num(GPEX_HOST(gpex_dev), i, 16 + i);
     }
 
-    /* Add pcie node */
-    fdt_add_pcie_node(lvms, pch_pic_phandle, pch_msi_phandle);
-
     /*
      * Create uart fdt node in reverse order so that they appear
      * in the finished device tree lowest address first
@@ -760,7 +810,6 @@ static void virt_devices_init(DeviceState *pch_pic,
         serial_mm_init(get_system_memory(), base, 0,
                        qdev_get_gpio_in(pch_pic, irq),
                        115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
-        fdt_add_uart_node(lvms, pch_pic_phandle, base, irq, i == 0);
     }
 
     /* Network init */
@@ -774,8 +823,6 @@ static void virt_devices_init(DeviceState *pch_pic,
     sysbus_create_simple("ls7a_rtc", VIRT_RTC_REG_BASE,
                          qdev_get_gpio_in(pch_pic,
                          VIRT_RTC_IRQ - VIRT_GSI_BASE));
-    fdt_add_rtc_node(lvms, pch_pic_phandle);
-    fdt_add_ged_reset(lvms);
 
     /* acpi ged */
     lvms->acpi_ged = create_acpi_ged(pch_pic, lvms);
@@ -793,7 +840,6 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
     CPULoongArchState *env;
     CPUState *cpu_state;
     int cpu, pin, i, start, num;
-    uint32_t cpuintc_phandle, eiointc_phandle, pch_pic_phandle, pch_msi_phandle;
 
     /*
      * Extended IRQ model.
@@ -850,9 +896,6 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
     memory_region_add_subregion(&lvms->system_iocsr, MAIL_SEND_ADDR,
                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
 
-    /* Add cpu interrupt-controller */
-    fdt_add_cpuic_node(lvms, &cpuintc_phandle);
-
     for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         cpu_state = qemu_get_cpu(cpu);
         cpudev = DEVICE(cpu_state);
@@ -891,9 +934,6 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         }
     }
 
-    /* Add Extend I/O Interrupt Controller node */
-    fdt_add_eiointc_node(lvms, &cpuintc_phandle, &eiointc_phandle);
-
     pch_pic = qdev_new(TYPE_LOONGARCH_PIC);
     num = VIRT_PCH_PIC_IRQ_NUM;
     qdev_prop_set_uint32(pch_pic, "pch_pic_irq_num", num);
@@ -913,9 +953,6 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         qdev_connect_gpio_out(DEVICE(d), i, qdev_get_gpio_in(extioi, i));
     }
 
-    /* Add PCH PIC node */
-    fdt_add_pch_pic_node(lvms, &eiointc_phandle, &pch_pic_phandle);
-
     pch_msi = qdev_new(TYPE_LOONGARCH_PCH_MSI);
     start   =  num;
     num = EXTIOI_IRQS - start;
@@ -930,10 +967,7 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
                               qdev_get_gpio_in(extioi, i + start));
     }
 
-    /* Add PCH MSI node */
-    fdt_add_pch_msi_node(lvms, &eiointc_phandle, &pch_msi_phandle);
-
-    virt_devices_init(pch_pic, lvms, &pch_pic_phandle, &pch_msi_phandle);
+    virt_devices_init(pch_pic, lvms);
 }
 
 static void virt_firmware_init(LoongArchVirtMachineState *lvms)
@@ -1151,8 +1185,6 @@ static void virt_init(MachineState *machine)
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
     }
 
-    create_fdt(lvms);
-
     /* Create IOCSR space */
     memory_region_init_io(&lvms->system_iocsr, OBJECT(machine), NULL,
                           machine, "iocsr", UINT64_MAX);
@@ -1171,8 +1203,6 @@ static void virt_init(MachineState *machine)
         lacpu = LOONGARCH_CPU(cpu);
         lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
     }
-    fdt_add_cpu_nodes(lvms);
-    fdt_add_memory_nodes(machine);
     fw_cfg_add_memory(machine);
 
     /* Node0 memory */
@@ -1224,33 +1254,14 @@ static void virt_init(MachineState *machine)
                         memmap_table,
                         sizeof(struct memmap_entry) * (memmap_entries));
     }
-    fdt_add_fw_cfg_node(lvms);
-    fdt_add_flash_node(lvms);
 
     /* Initialize the IO interrupt subsystem */
     virt_irq_init(lvms);
-    platform_bus_add_all_fdt_nodes(machine->fdt, "/platic",
-                                   VIRT_PLATFORM_BUS_BASEADDRESS,
-                                   VIRT_PLATFORM_BUS_SIZE,
-                                   VIRT_PLATFORM_BUS_IRQ);
     lvms->machine_done.notify = virt_done;
     qemu_add_machine_init_done_notifier(&lvms->machine_done);
      /* connect powerdown request */
     lvms->powerdown_notifier.notify = virt_powerdown_req;
     qemu_register_powerdown_notifier(&lvms->powerdown_notifier);
-
-    /*
-     * Since lowmem region starts from 0 and Linux kernel legacy start address
-     * at 2 MiB, FDT base address is located at 1 MiB to avoid NULL pointer
-     * access. FDT size limit with 1 MiB.
-     * Put the FDT into the memory map as a ROM image: this will ensure
-     * the FDT is copied again upon reset, even if addr points into RAM.
-     */
-    qemu_fdt_dumpdtb(machine->fdt, lvms->fdt_size);
-    rom_add_blob_fixed_as("fdt", machine->fdt, lvms->fdt_size, FDT_BASE,
-                          &address_space_memory);
-    qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
-            rom_ptr_for_as(&address_space_memory, FDT_BASE, lvms->fdt_size));
 
     lvms->bootinfo.ram_size = ram_size;
     loongarch_load_kernel(machine, &lvms->bootinfo);
