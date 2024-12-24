@@ -5854,7 +5854,8 @@ static int kvm_install_msr_filters(KVMState *s)
     };
     int i, j = 0;
 
-    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(msr_handlers) != ARRAY_SIZE(filter.ranges));
+    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
         KVMMSRHandlers *handler = &msr_handlers[i];
         if (handler->msr) {
             struct kvm_msr_filter_range *range = &filter.ranges[j++];
