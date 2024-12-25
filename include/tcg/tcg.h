@@ -840,6 +840,12 @@ typedef struct TCGTargetOpDef {
  * on which we are currently executing.
  */
 bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags);
+/*
+ * tcg_op_deposit_valid:
+ * Query if a deposit into (ofs, len) is supported for @type by
+ * the host on which we are currently executing.
+ */
+bool tcg_op_deposit_valid(TCGType type, unsigned ofs, unsigned len);
 
 void tcg_gen_call0(void *func, TCGHelperInfo *, TCGTemp *ret);
 void tcg_gen_call1(void *func, TCGHelperInfo *, TCGTemp *ret, TCGTemp *);

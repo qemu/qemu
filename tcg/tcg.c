@@ -2238,6 +2238,27 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     }
 }
 
+bool tcg_op_deposit_valid(TCGType type, unsigned ofs, unsigned len)
+{
+    tcg_debug_assert(len > 0);
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_debug_assert(ofs < 32);
+        tcg_debug_assert(len <= 32);
+        tcg_debug_assert(ofs + len <= 32);
+        return TCG_TARGET_HAS_deposit_i32 &&
+               TCG_TARGET_deposit_i32_valid(ofs, len);
+    case TCG_TYPE_I64:
+        tcg_debug_assert(ofs < 64);
+        tcg_debug_assert(len <= 64);
+        tcg_debug_assert(ofs + len <= 64);
+        return TCG_TARGET_HAS_deposit_i64 &&
+               TCG_TARGET_deposit_i64_valid(ofs, len);
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static TCGOp *tcg_op_alloc(TCGOpcode opc, unsigned nargs);
 
 static void tcg_gen_callN(void *func, TCGHelperInfo *info,
