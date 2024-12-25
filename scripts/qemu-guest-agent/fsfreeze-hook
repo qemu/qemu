@@ -19,15 +19,43 @@ is_ignored_file() {
     return 1
 }
 
+USE_SYSLOG=0
+# if log file is not writable, fallback to syslog
+[ ! -w "$LOGFILE" ] && USE_SYSLOG=1
+# try to update log file and fallback to syslog if it fails
+touch "$LOGFILE" &>/dev/null || USE_SYSLOG=1
+
+# Ensure the log file is writable, fallback to syslog if not
+log_message() {
+    local message="$1"
+    if [ "$USE_SYSLOG" -eq 0 ]; then
+        printf "%s: %s\n" "$(date)" "$message" >>"$LOGFILE"
+    else
+        logger -t qemu-ga-freeze-hook "$message"
+    fi
+}
+
 # Iterate executables in directory "fsfreeze-hook.d" with the specified args
 [ ! -d "$FSFREEZE_D" ] && exit 0
+
 for file in "$FSFREEZE_D"/* ; do
     is_ignored_file "$file" && continue
     [ -x "$file" ] || continue
-    printf "$(date): execute $file $@\n" >>$LOGFILE
-    "$file" "$@" >>$LOGFILE 2>&1
-    STATUS=$?
-    printf "$(date): $file finished with status=$STATUS\n" >>$LOGFILE
+
+    log_message "Executing $file $@"
+    if [ "$USE_SYSLOG" -eq 0 ]; then
+        "$file" "$@" >>"$LOGFILE" 2>&1
+        STATUS=$?
+    else
+        "$file" "$@" 2>&1 | logger -t qemu-ga-freeze-hook
+        STATUS=${PIPESTATUS[0]}
+    fi
+
+    if [ $STATUS -ne 0 ]; then
+        log_message "Error: $file finished with status=$STATUS"
+    else
+        log_message "$file finished successfully"
+    fi
 done
 
 exit 0
