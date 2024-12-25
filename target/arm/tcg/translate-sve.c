@@ -596,14 +596,8 @@ static void gen_bsl1n_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 static void gen_bsl1n_vec(unsigned vece, TCGv_vec d, TCGv_vec n,
                           TCGv_vec m, TCGv_vec k)
 {
-    if (TCG_TARGET_HAS_bitsel_vec) {
-        tcg_gen_not_vec(vece, n, n);
-        tcg_gen_bitsel_vec(vece, d, k, n, m);
-    } else {
-        tcg_gen_andc_vec(vece, n, k, n);
-        tcg_gen_andc_vec(vece, m, m, k);
-        tcg_gen_or_vec(vece, d, n, m);
-    }
+    tcg_gen_not_vec(vece, n, n);
+    tcg_gen_bitsel_vec(vece, d, k, n, m);
 }
 
 static void gen_bsl1n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
@@ -640,14 +634,8 @@ static void gen_bsl2n_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 static void gen_bsl2n_vec(unsigned vece, TCGv_vec d, TCGv_vec n,
                           TCGv_vec m, TCGv_vec k)
 {
-    if (TCG_TARGET_HAS_bitsel_vec) {
-        tcg_gen_not_vec(vece, m, m);
-        tcg_gen_bitsel_vec(vece, d, k, n, m);
-    } else {
-        tcg_gen_and_vec(vece, n, n, k);
-        tcg_gen_or_vec(vece, m, m, k);
-        tcg_gen_orc_vec(vece, d, n, m);
-    }
+    tcg_gen_not_vec(vece, m, m);
+    tcg_gen_bitsel_vec(vece, d, k, n, m);
 }
 
 static void gen_bsl2n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
