@@ -1931,9 +1931,11 @@ TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 }
 #endif /* CONFIG_DEBUG_TCG */
 
-/* Return true if OP may appear in the opcode stream.
-   Test the runtime variable that controls each opcode.  */
-bool tcg_op_supported(TCGOpcode op)
+/*
+ * Return true if OP may appear in the opcode stream with TYPE.
+ * Test the runtime variable that controls each opcode.
+ */
+bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
 {
     const bool have_vec
         = TCG_TARGET_HAS_v64 | TCG_TARGET_HAS_v128 | TCG_TARGET_HAS_v256;
@@ -6243,7 +6245,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             /* fall through */
         default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
-            tcg_debug_assert(tcg_op_supported(opc));
+            tcg_debug_assert(tcg_op_supported(opc, TCGOP_TYPE(op),
+                                              TCGOP_FLAGS(op)));
             /* Note: in order to speed up the code, it would be much
                faster to have specialized register allocator functions for
                some common argument patterns */

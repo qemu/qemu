@@ -834,7 +834,12 @@ typedef struct TCGTargetOpDef {
     const char *args_ct_str[TCG_MAX_OP_ARGS];
 } TCGTargetOpDef;
 
-bool tcg_op_supported(TCGOpcode op);
+/*
+ * tcg_op_supported:
+ * Query if @op, for @type and @flags, is supported by the host
+ * on which we are currently executing.
+ */
+bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags);
 
 void tcg_gen_call0(void *func, TCGHelperInfo *, TCGTemp *ret);
 void tcg_gen_call1(void *func, TCGHelperInfo *, TCGTemp *ret, TCGTemp *);
