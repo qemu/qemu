@@ -301,9 +301,7 @@ DEF(cmpsel_vec, 1, 4, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_cmpsel_vec))
 
 DEF(last_generic, 0, 0, 0, TCG_OPF_NOT_PRESENT)
 
-#if TCG_TARGET_MAYBE_vec
-#include "tcg-target.opc.h"
-#endif
+#include "tcg-target-opc.h.inc"
 
 #ifdef TCG_TARGET_INTERPRETER
 /* These opcodes are only for use between the tci generator and interpreter. */
