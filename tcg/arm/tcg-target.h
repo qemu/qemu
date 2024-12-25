@@ -85,14 +85,6 @@ extern bool use_idiv_instructions;
 extern bool use_neon_instructions;
 #endif
 
-/* used for function call generation */
-#define TCG_TARGET_STACK_ALIGN		8
-#define TCG_TARGET_CALL_STACK_OFFSET	0
-#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_NORMAL
-#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_EVEN
-#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_EVEN
-#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_BY_REF
-
 /* optional instructions */
 #define TCG_TARGET_HAS_ext8s_i32        1
 #define TCG_TARGET_HAS_ext16s_i32       1

@@ -49,19 +49,6 @@ typedef enum {
 
 #define TCG_TARGET_NB_REGS 64
 
-/* used for function call generation */
-#define TCG_REG_CALL_STACK              TCG_REG_SP
-#define TCG_TARGET_STACK_ALIGN          16
-#define TCG_TARGET_CALL_STACK_OFFSET    0
-#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_NORMAL
-#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_NORMAL
-#ifdef CONFIG_DARWIN
-# define TCG_TARGET_CALL_ARG_I128       TCG_CALL_ARG_NORMAL
-#else
-# define TCG_TARGET_CALL_ARG_I128       TCG_CALL_ARG_EVEN
-#endif
-#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
-
 #define have_lse    (cpuinfo & CPUINFO_LSE)
 #define have_lse2   (cpuinfo & CPUINFO_LSE2)
 

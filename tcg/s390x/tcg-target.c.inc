@@ -28,6 +28,14 @@
 #include "../tcg-pool.c.inc"
 #include "elf.h"
 
+/* Used for function call generation. */
+#define TCG_TARGET_STACK_ALIGN          8
+#define TCG_TARGET_CALL_STACK_OFFSET    160
+#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_EXTEND
+#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_BY_REF
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_BY_REF
+
 #define TCG_CT_CONST_S16        (1 << 8)
 #define TCG_CT_CONST_S32        (1 << 9)
 #define TCG_CT_CONST_U32        (1 << 10)
