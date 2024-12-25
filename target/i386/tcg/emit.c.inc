@@ -24,9 +24,9 @@
  * The exact opcode to check depends on 32- vs. 64-bit.
  */
 #ifdef TARGET_X86_64
-#define TCG_TARGET_HAS_extract2_tl      TCG_TARGET_HAS_extract2_i64
+#define INDEX_op_extract2_tl            INDEX_op_extract2_i64
 #else
-#define TCG_TARGET_HAS_extract2_tl      TCG_TARGET_HAS_extract2_i32
+#define INDEX_op_extract2_tl            INDEX_op_extract2_i32
 #endif
 
 #define MMX_OFFSET(reg)                        \
@@ -2993,7 +2993,7 @@ static void gen_PMOVMSKB(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_ld8u_tl(s->T0, tcg_env, offsetof(CPUX86State, xmm_t0.ZMM_B(vec_len - 1)));
     while (vec_len > 8) {
         vec_len -= 8;
-        if (TCG_TARGET_HAS_extract2_tl) {
+        if (tcg_op_supported(INDEX_op_extract2_tl, TCG_TYPE_TL, 0)) {
             /*
              * Load the next byte of the result into the high byte of T.
              * TCG does a similar expansion of deposit to shl+extract2; by
