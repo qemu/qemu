@@ -25,10 +25,8 @@
  */
 #ifdef TARGET_X86_64
 #define TCG_TARGET_HAS_extract2_tl      TCG_TARGET_HAS_extract2_i64
-#define TCG_TARGET_deposit_tl_valid     TCG_TARGET_deposit_i64_valid
 #else
 #define TCG_TARGET_HAS_extract2_tl      TCG_TARGET_HAS_extract2_i32
-#define TCG_TARGET_deposit_tl_valid     TCG_TARGET_deposit_i32_valid
 #endif
 
 #define MMX_OFFSET(reg)                        \
@@ -3449,7 +3447,7 @@ static void gen_RCL(DisasContext *s, X86DecodedInsn *decode)
     }
 
     /* Compute high part, including incoming carry.  */
-    if (!have_1bit_cin || TCG_TARGET_deposit_tl_valid(1, TARGET_LONG_BITS - 1)) {
+    if (!have_1bit_cin || tcg_op_deposit_valid(TCG_TYPE_TL, 1, TARGET_LONG_BITS - 1)) {
         /* high = (T0 << 1) | cin */
         TCGv cin = have_1bit_cin ? decode->cc_dst : decode->cc_src;
         tcg_gen_deposit_tl(high, cin, s->T0, 1, TARGET_LONG_BITS - 1);
@@ -3501,7 +3499,7 @@ static void gen_RCR(DisasContext *s, X86DecodedInsn *decode)
     }
 
     /* Save incoming carry into high, it will be shifted later.  */
-    if (!have_1bit_cin || TCG_TARGET_deposit_tl_valid(1, TARGET_LONG_BITS - 1)) {
+    if (!have_1bit_cin || tcg_op_deposit_valid(TCG_TYPE_TL, 1, TARGET_LONG_BITS - 1)) {
         TCGv cin = have_1bit_cin ? decode->cc_dst : decode->cc_src;
         tcg_gen_deposit_tl(high, cin, s->T0, 1, TARGET_LONG_BITS - 1);
     } else {
