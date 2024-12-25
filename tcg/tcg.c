@@ -170,6 +170,10 @@ static inline void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 {
     g_assert_not_reached();
 }
+int tcg_can_emit_vec_op(TCGOpcode o, TCGType t, unsigned ve)
+{
+    return 0;
+}
 #endif
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2);
