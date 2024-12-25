@@ -23,8 +23,6 @@
  */
 
 #include "elf.h"
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
 
 int arm_arch = __ARM_ARCH;
 

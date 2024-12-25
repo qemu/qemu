@@ -10,8 +10,6 @@
  * See the COPYING file in the top-level directory for details.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
 #include "qemu/bitops.h"
 
 /* Used for function call generation. */

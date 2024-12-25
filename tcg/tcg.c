@@ -66,6 +66,11 @@ static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count);
+
+typedef struct TCGLabelQemuLdst TCGLabelQemuLdst;
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
 typedef struct {
@@ -90,7 +95,7 @@ typedef struct QEMU_PACKED {
     DebugFrameFDEHeader fde;
 } DebugFrameHeader;
 
-typedef struct TCGLabelQemuLdst {
+struct TCGLabelQemuLdst {
     bool is_ld;             /* qemu_ld: true, qemu_st: false */
     MemOpIdx oi;
     TCGType type;           /* result type of a load */
@@ -101,7 +106,7 @@ typedef struct TCGLabelQemuLdst {
     const tcg_insn_unit *raddr;   /* addr of the next IR of qemu_ld/st IR */
     tcg_insn_unit *label_ptr[2]; /* label pointers to be updated */
     QSIMPLEQ_ENTRY(TCGLabelQemuLdst) next;
-} TCGLabelQemuLdst;
+};
 
 static void tcg_register_jit_int(const void *buf, size_t size,
                                  const void *debug_frame,
@@ -175,9 +180,6 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
 static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot);
 static bool tcg_target_const_match(int64_t val, int ct,
                                    TCGType type, TCGCond cond, int vece);
-#ifdef TCG_TARGET_NEED_LDST_LABELS
-static int tcg_out_ldst_finalize(TCGContext *s);
-#endif
 
 #ifndef CONFIG_USER_ONLY
 #define guest_base  ({ qemu_build_not_reached(); (uintptr_t)0; })
@@ -632,6 +634,197 @@ static void tcg_out_movext3(TCGContext *s, const TCGMovExtend *i1,
     } else {
         g_assert_not_reached();
     }
+}
+
+/*
+ * Allocate a new TCGLabelQemuLdst entry.
+ */
+
+__attribute__((unused))
+static TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
+{
+    TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
+
+    memset(l, 0, sizeof(*l));
+    QSIMPLEQ_INSERT_TAIL(&s->ldst_labels, l, next);
+
+    return l;
+}
+
+/*
+ * Allocate new constant pool entries.
+ */
+
+typedef struct TCGLabelPoolData {
+    struct TCGLabelPoolData *next;
+    tcg_insn_unit *label;
+    intptr_t addend;
+    int rtype;
+    unsigned nlong;
+    tcg_target_ulong data[];
+} TCGLabelPoolData;
+
+static TCGLabelPoolData *new_pool_alloc(TCGContext *s, int nlong, int rtype,
+                                        tcg_insn_unit *label, intptr_t addend)
+{
+    TCGLabelPoolData *n = tcg_malloc(sizeof(TCGLabelPoolData)
+                                     + sizeof(tcg_target_ulong) * nlong);
+
+    n->label = label;
+    n->addend = addend;
+    n->rtype = rtype;
+    n->nlong = nlong;
+    return n;
+}
+
+static void new_pool_insert(TCGContext *s, TCGLabelPoolData *n)
+{
+    TCGLabelPoolData *i, **pp;
+    int nlong = n->nlong;
+
+    /* Insertion sort on the pool.  */
+    for (pp = &s->pool_labels; (i = *pp) != NULL; pp = &i->next) {
+        if (nlong > i->nlong) {
+            break;
+        }
+        if (nlong < i->nlong) {
+            continue;
+        }
+        if (memcmp(n->data, i->data, sizeof(tcg_target_ulong) * nlong) >= 0) {
+            break;
+        }
+    }
+    n->next = *pp;
+    *pp = n;
+}
+
+/* The "usual" for generic integer code.  */
+__attribute__((unused))
+static void new_pool_label(TCGContext *s, tcg_target_ulong d, int rtype,
+                           tcg_insn_unit *label, intptr_t addend)
+{
+    TCGLabelPoolData *n = new_pool_alloc(s, 1, rtype, label, addend);
+    n->data[0] = d;
+    new_pool_insert(s, n);
+}
+
+/* For v64 or v128, depending on the host.  */
+__attribute__((unused))
+static void new_pool_l2(TCGContext *s, int rtype, tcg_insn_unit *label,
+                        intptr_t addend, tcg_target_ulong d0,
+                        tcg_target_ulong d1)
+{
+    TCGLabelPoolData *n = new_pool_alloc(s, 2, rtype, label, addend);
+    n->data[0] = d0;
+    n->data[1] = d1;
+    new_pool_insert(s, n);
+}
+
+/* For v128 or v256, depending on the host.  */
+__attribute__((unused))
+static void new_pool_l4(TCGContext *s, int rtype, tcg_insn_unit *label,
+                        intptr_t addend, tcg_target_ulong d0,
+                        tcg_target_ulong d1, tcg_target_ulong d2,
+                        tcg_target_ulong d3)
+{
+    TCGLabelPoolData *n = new_pool_alloc(s, 4, rtype, label, addend);
+    n->data[0] = d0;
+    n->data[1] = d1;
+    n->data[2] = d2;
+    n->data[3] = d3;
+    new_pool_insert(s, n);
+}
+
+/* For v256, for 32-bit host.  */
+__attribute__((unused))
+static void new_pool_l8(TCGContext *s, int rtype, tcg_insn_unit *label,
+                        intptr_t addend, tcg_target_ulong d0,
+                        tcg_target_ulong d1, tcg_target_ulong d2,
+                        tcg_target_ulong d3, tcg_target_ulong d4,
+                        tcg_target_ulong d5, tcg_target_ulong d6,
+                        tcg_target_ulong d7)
+{
+    TCGLabelPoolData *n = new_pool_alloc(s, 8, rtype, label, addend);
+    n->data[0] = d0;
+    n->data[1] = d1;
+    n->data[2] = d2;
+    n->data[3] = d3;
+    n->data[4] = d4;
+    n->data[5] = d5;
+    n->data[6] = d6;
+    n->data[7] = d7;
+    new_pool_insert(s, n);
+}
+
+/*
+ * Generate TB finalization at the end of block
+ */
+
+static int tcg_out_ldst_finalize(TCGContext *s)
+{
+    TCGLabelQemuLdst *lb;
+
+    /* qemu_ld/st slow paths */
+    QSIMPLEQ_FOREACH(lb, &s->ldst_labels, next) {
+        if (lb->is_ld
+            ? !tcg_out_qemu_ld_slow_path(s, lb)
+            : !tcg_out_qemu_st_slow_path(s, lb)) {
+            return -2;
+        }
+
+        /*
+         * Test for (pending) buffer overflow.  The assumption is that any
+         * one operation beginning below the high water mark cannot overrun
+         * the buffer completely.  Thus we can test for overflow after
+         * generating code without having to check during generation.
+         */
+        if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int tcg_out_pool_finalize(TCGContext *s)
+{
+    TCGLabelPoolData *p = s->pool_labels;
+    TCGLabelPoolData *l = NULL;
+    void *a;
+
+    if (p == NULL) {
+        return 0;
+    }
+
+    /*
+     * ??? Round up to qemu_icache_linesize, but then do not round
+     * again when allocating the next TranslationBlock structure.
+     */
+    a = (void *)ROUND_UP((uintptr_t)s->code_ptr,
+                         sizeof(tcg_target_ulong) * p->nlong);
+    tcg_out_nop_fill(s->code_ptr, (tcg_insn_unit *)a - s->code_ptr);
+    s->data_gen_ptr = a;
+
+    for (; p != NULL; p = p->next) {
+        size_t size = sizeof(tcg_target_ulong) * p->nlong;
+        uintptr_t value;
+
+        if (!l || l->nlong != p->nlong || memcmp(l->data, p->data, size)) {
+            if (unlikely(a > s->code_gen_highwater)) {
+                return -1;
+            }
+            memcpy(a, p->data, size);
+            a += size;
+            l = p;
+        }
+
+        value = (uintptr_t)tcg_splitwx_to_rx(a) - size;
+        if (!patch_reloc(p->label, p->rtype, value, p->addend)) {
+            return -2;
+        }
+    }
+
+    s->code_ptr = a;
+    return 0;
 }
 
 #define C_PFX1(P, A)                    P##A
@@ -6204,12 +6397,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     s->code_ptr = s->code_buf;
     s->data_gen_ptr = NULL;
 
-#ifdef TCG_TARGET_NEED_LDST_LABELS
     QSIMPLEQ_INIT(&s->ldst_labels);
-#endif
-#ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
-#endif
 
     start_words = s->insn_start_words;
     s->gen_insn_data =
@@ -6290,18 +6479,14 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
-#ifdef TCG_TARGET_NEED_LDST_LABELS
     i = tcg_out_ldst_finalize(s);
     if (i < 0) {
         return i;
     }
-#endif
-#ifdef TCG_TARGET_NEED_POOL_LABELS
     i = tcg_out_pool_finalize(s);
     if (i < 0) {
         return i;
     }
-#endif
     if (!tcg_resolve_relocs(s)) {
         return -2;
     }

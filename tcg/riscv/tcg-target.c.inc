@@ -27,9 +27,6 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
-
 /* Used for function call generation. */
 #define TCG_REG_CALL_STACK              TCG_REG_SP
 #define TCG_TARGET_STACK_ALIGN          16

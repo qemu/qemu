@@ -29,7 +29,6 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
 #include <asm/hwcap.h>
 
 /* used for function call generation */
@@ -2463,6 +2462,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 static void tcg_out_tb_start(TCGContext *s)
 {
     /* nothing to do */
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    for (int i = 0; i < count; ++i) {
+        /* Canonical nop is andi r0,r0,0 */
+        p[i] = OPC_ANDI;
+    }
 }
 
 static void tcg_target_init(TCGContext *s)

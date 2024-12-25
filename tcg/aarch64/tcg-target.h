@@ -157,7 +157,5 @@ typedef enum {
 #define TCG_TARGET_HAS_tst_vec          1
 
 #define TCG_TARGET_DEFAULT_MO (0)
-#define TCG_TARGET_NEED_LDST_LABELS
-#define TCG_TARGET_NEED_POOL_LABELS
 
 #endif /* AARCH64_TCG_TARGET_H */

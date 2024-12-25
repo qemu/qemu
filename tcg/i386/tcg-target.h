@@ -227,7 +227,5 @@ typedef enum {
 #include "tcg/tcg-mo.h"
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
-#define TCG_TARGET_NEED_LDST_LABELS
-#define TCG_TARGET_NEED_POOL_LABELS
 
 #endif

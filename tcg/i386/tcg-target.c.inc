@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
-
 /* Used for function call generation. */
 #define TCG_TARGET_STACK_ALIGN 16
 #if defined(_WIN64)

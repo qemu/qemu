@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-pool.c.inc"
-
 /* Used for function call generation. */
 #define TCG_TARGET_CALL_STACK_OFFSET    0
 #define TCG_TARGET_STACK_ALIGN          8
@@ -978,4 +976,14 @@ static void tcg_out_tb_start(TCGContext *s)
 bool tcg_target_has_memory_bswap(MemOp memop)
 {
     return true;
+}
+
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    g_assert_not_reached();
+}
+
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    g_assert_not_reached();
 }

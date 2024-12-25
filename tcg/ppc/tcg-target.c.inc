@@ -23,8 +23,6 @@
  */
 
 #include "elf.h"
-#include "../tcg-pool.c.inc"
-#include "../tcg-ldst.c.inc"
 
 /*
  * Standardize on the _CALL_FOO symbols used by GCC:

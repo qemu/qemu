@@ -166,7 +166,5 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_tst_vec        0
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
-#define TCG_TARGET_NEED_LDST_LABELS
-#define TCG_TARGET_NEED_POOL_LABELS
 
 #endif

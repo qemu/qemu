@@ -24,8 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
 #include "elf.h"
 
 /* Used for function call generation. */

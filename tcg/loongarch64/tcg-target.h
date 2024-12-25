@@ -189,6 +189,4 @@ typedef enum {
 
 #define TCG_TARGET_DEFAULT_MO (0)
 
-#define TCG_TARGET_NEED_LDST_LABELS
-
 #endif /* LOONGARCH_TCG_TARGET_H */

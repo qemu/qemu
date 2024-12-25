@@ -27,9 +27,6 @@
 #error "unsupported code generation mode"
 #endif
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
-
 /* Used for function call generation. */
 #define TCG_REG_CALL_STACK              TCG_REG_O6
 #define TCG_TARGET_STACK_BIAS           2047
