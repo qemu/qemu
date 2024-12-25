@@ -551,6 +551,7 @@ static const struct SysemuCPUOps m68k_sysemu_ops = {
 
 static const TCGCPUOps m68k_tcg_ops = {
     .initialize = m68k_tcg_init,
+    .translate_code = m68k_translate_code,
     .restore_state_to_opc = m68k_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY

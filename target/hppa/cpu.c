@@ -223,6 +223,7 @@ static const struct SysemuCPUOps hppa_sysemu_ops = {
 
 static const TCGCPUOps hppa_tcg_ops = {
     .initialize = hppa_translate_init,
+    .translate_code = hppa_translate_code,
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
     .restore_state_to_opc = hppa_restore_state_to_opc,
 

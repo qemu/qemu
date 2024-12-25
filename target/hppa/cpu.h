@@ -303,6 +303,8 @@ static inline int HPPA_BTLB_ENTRIES(CPUHPPAState *env)
 }
 
 void hppa_translate_init(void);
+void hppa_translate_code(CPUState *cs, TranslationBlock *tb,
+                         int *max_insns, vaddr pc, void *host_pc);
 
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 

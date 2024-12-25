@@ -22,20 +22,6 @@
 #include "exec/vaddr.h"
 
 /**
- * gen_intermediate_code
- * @cpu: cpu context
- * @tb: translation block
- * @max_insns: max number of instructions to translate
- * @pc: guest virtual program counter address
- * @host_pc: host physical program counter address
- *
- * This function must be provided by the target, which should create
- * the target-specific DisasContext, and then invoke translator_loop.
- */
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc);
-
-/**
  * DisasJumpType:
  * @DISAS_NEXT: Next instruction in program order.
  * @DISAS_TOO_MANY: Too many instructions translated.

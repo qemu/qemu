@@ -109,6 +109,7 @@ static bool x86_debug_check_breakpoint(CPUState *cs)
 
 static const TCGCPUOps x86_tcg_ops = {
     .initialize = tcg_x86_init,
+    .translate_code = x86_translate_code,
     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
     .restore_state_to_opc = x86_restore_state_to_opc,
     .cpu_exec_enter = x86_cpu_exec_enter,

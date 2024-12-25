@@ -196,6 +196,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 
 static const TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
+    .translate_code = rx_translate_code,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .restore_state_to_opc = rx_restore_state_to_opc,
     .tlb_fill = rx_cpu_tlb_fill,

@@ -431,6 +431,8 @@ enum {
 };
 
 void alpha_translate_init(void);
+void alpha_translate_code(CPUState *cs, TranslationBlock *tb,
+                          int *max_insns, vaddr pc, void *host_pc);
 
 #define CPU_RESOLVING_TYPE TYPE_ALPHA_CPU
 

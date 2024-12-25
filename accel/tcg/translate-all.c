@@ -276,8 +276,10 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
 
     tcg_func_start(tcg_ctx);
 
-    tcg_ctx->cpu = env_cpu(env);
-    gen_intermediate_code(env_cpu(env), tb, max_insns, pc, host_pc);
+    CPUState *cs = env_cpu(env);
+    tcg_ctx->cpu = cs;
+    cs->cc->tcg_ops->translate_code(cs, tb, max_insns, pc, host_pc);
+
     assert(tb->size != 0);
     tcg_ctx->cpu = NULL;
     *max_insns = tb->icount;
@@ -364,7 +366,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             /*
              * Overflow of code_gen_buffer, or the current slice of it.
              *
-             * TODO: We don't need to re-do gen_intermediate_code, nor
+             * TODO: We don't need to re-do tcg_ops->translate_code, nor
              * should we re-do the tcg optimization currently hidden
              * inside tcg_gen_code.  All that should be required is to
              * flush the TBs, allocate a new TB, re-initialize it per

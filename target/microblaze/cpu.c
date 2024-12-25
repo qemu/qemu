@@ -423,6 +423,7 @@ static const struct SysemuCPUOps mb_sysemu_ops = {
 
 static const TCGCPUOps mb_tcg_ops = {
     .initialize = mb_tcg_init,
+    .translate_code = mb_translate_code,
     .synchronize_from_tb = mb_cpu_synchronize_from_tb,
     .restore_state_to_opc = mb_restore_state_to_opc,
 

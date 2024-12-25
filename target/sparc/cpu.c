@@ -996,6 +996,7 @@ static const struct SysemuCPUOps sparc_sysemu_ops = {
 
 static const TCGCPUOps sparc_tcg_ops = {
     .initialize = sparc_tcg_init,
+    .translate_code = sparc_translate_code,
     .synchronize_from_tb = sparc_cpu_synchronize_from_tb,
     .restore_state_to_opc = sparc_restore_state_to_opc,
 

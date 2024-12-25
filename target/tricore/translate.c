@@ -8460,9 +8460,8 @@ static const TranslatorOps tricore_tr_ops = {
     .tb_stop            = tricore_tr_tb_stop,
 };
 
-
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void tricore_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext ctx;
     translator_loop(cs, tb, max_insns, pc, host_pc,

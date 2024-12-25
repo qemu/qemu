@@ -102,6 +102,15 @@ static void gen_disable_mem_helper(void)
 
 static TCGv_i32 gen_cpu_index(void)
 {
+    /*
+     * Optimize when we run with a single vcpu. All values using cpu_index,
+     * including scoreboard index, will be optimized out.
+     * User-mode calls tb_flush when setting this flag. In system-mode, all
+     * vcpus are created before generating code.
+     */
+    if (!tcg_cflags_has(current_cpu, CF_PARALLEL)) {
+        return tcg_constant_i32(current_cpu->cpu_index);
+    }
     TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
     tcg_gen_ld_i32(cpu_index, tcg_env,
                    -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));

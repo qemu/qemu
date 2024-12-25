@@ -262,7 +262,7 @@ uint32_t HELPER(rsqrtsf_f16)(uint32_t a, uint32_t b, float_status *fpst)
         (float16_is_infinity(b) && float16_is_zero(a))) {
         return float16_one_point_five;
     }
-    return float16_muladd(a, b, float16_three, float_muladd_halve_result, fpst);
+    return float16_muladd_scalbn(a, b, float16_three, -1, 0, fpst);
 }
 
 float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, float_status *fpst)
@@ -275,7 +275,7 @@ float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, float_status *fpst)
         (float32_is_infinity(b) && float32_is_zero(a))) {
         return float32_one_point_five;
     }
-    return float32_muladd(a, b, float32_three, float_muladd_halve_result, fpst);
+    return float32_muladd_scalbn(a, b, float32_three, -1, 0, fpst);
 }
 
 float64 HELPER(rsqrtsf_f64)(float64 a, float64 b, float_status *fpst)
@@ -288,7 +288,7 @@ float64 HELPER(rsqrtsf_f64)(float64 a, float64 b, float_status *fpst)
         (float64_is_infinity(b) && float64_is_zero(a))) {
         return float64_one_point_five;
     }
-    return float64_muladd(a, b, float64_three, float_muladd_halve_result, fpst);
+    return float64_muladd_scalbn(a, b, float64_three, -1, 0, fpst);
 }
 
 /* Floating-point reciprocal exponent - see FPRecpX in ARM ARM */

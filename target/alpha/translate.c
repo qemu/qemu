@@ -2955,8 +2955,8 @@ static const TranslatorOps alpha_tr_ops = {
     .tb_stop            = alpha_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void alpha_translate_code(CPUState *cpu, TranslationBlock *tb,
+                          int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc;
     translator_loop(cpu, tb, max_insns, pc, host_pc, &alpha_tr_ops, &dc.base);

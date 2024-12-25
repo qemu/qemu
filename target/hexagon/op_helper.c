@@ -1045,7 +1045,7 @@ float32 HELPER(sfmpy)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = internal_mpyf(RsV, RtV, &env->fp_status);
+    RdV = float32_mul(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
@@ -1054,41 +1054,18 @@ float32 HELPER(sffma)(CPUHexagonState *env, float32 RxV,
                       float32 RsV, float32 RtV)
 {
     arch_fpop_start(env);
-    RxV = internal_fmafx(RsV, RtV, RxV, 0, &env->fp_status);
+    RxV = float32_muladd(RsV, RtV, RxV, 0, &env->fp_status);
     arch_fpop_end(env);
     return RxV;
-}
-
-static bool is_zero_prod(float32 a, float32 b)
-{
-    return ((float32_is_zero(a) && is_finite(b)) ||
-            (float32_is_zero(b) && is_finite(a)));
-}
-
-static float32 check_nan(float32 dst, float32 x, float_status *fp_status)
-{
-    float32 ret = dst;
-    if (float32_is_any_nan(x)) {
-        if (extract32(x, 22, 1) == 0) {
-            float_raise(float_flag_invalid, fp_status);
-        }
-        ret = make_float32(0xffffffff);    /* nan */
-    }
-    return ret;
 }
 
 float32 HELPER(sffma_sc)(CPUHexagonState *env, float32 RxV,
                          float32 RsV, float32 RtV, float32 PuV)
 {
-    size4s_t tmp;
     arch_fpop_start(env);
-    RxV = check_nan(RxV, RxV, &env->fp_status);
-    RxV = check_nan(RxV, RsV, &env->fp_status);
-    RxV = check_nan(RxV, RtV, &env->fp_status);
-    tmp = internal_fmafx(RsV, RtV, RxV, fSXTN(8, 64, PuV), &env->fp_status);
-    if (!(float32_is_zero(RxV) && is_zero_prod(RsV, RtV))) {
-        RxV = tmp;
-    }
+    RxV = float32_muladd_scalbn(RsV, RtV, RxV, fSXTN(8, 64, PuV),
+                                float_muladd_suppress_add_product_zero,
+                                &env->fp_status);
     arch_fpop_end(env);
     return RxV;
 }
@@ -1096,86 +1073,50 @@ float32 HELPER(sffma_sc)(CPUHexagonState *env, float32 RxV,
 float32 HELPER(sffms)(CPUHexagonState *env, float32 RxV,
                       float32 RsV, float32 RtV)
 {
-    float32 neg_RsV;
     arch_fpop_start(env);
-    neg_RsV = float32_set_sign(RsV, float32_is_neg(RsV) ? 0 : 1);
-    RxV = internal_fmafx(neg_RsV, RtV, RxV, 0, &env->fp_status);
+    RxV = float32_muladd(RsV, RtV, RxV, float_muladd_negate_product,
+                         &env->fp_status);
     arch_fpop_end(env);
     return RxV;
 }
 
-static bool is_inf_prod(int32_t a, int32_t b)
+static float32 do_sffma_lib(CPUHexagonState *env, float32 RxV,
+                            float32 RsV, float32 RtV, int negate)
 {
-    return (float32_is_infinity(a) && float32_is_infinity(b)) ||
-           (float32_is_infinity(a) && is_finite(b) && !float32_is_zero(b)) ||
-           (float32_is_infinity(b) && is_finite(a) && !float32_is_zero(a));
+    int flags;
+
+    arch_fpop_start(env);
+
+    set_float_rounding_mode(float_round_nearest_even_max, &env->fp_status);
+    RxV = float32_muladd(RsV, RtV, RxV,
+                         negate | float_muladd_suppress_add_product_zero,
+                         &env->fp_status);
+
+    flags = get_float_exception_flags(&env->fp_status);
+    if (flags) {
+        /* Flags are suppressed by this instruction. */
+        set_float_exception_flags(0, &env->fp_status);
+
+        /* Return 0 for Inf - Inf. */
+        if (flags & float_flag_invalid_isi) {
+            RxV = 0;
+        }
+    }
+
+    arch_fpop_end(env);
+    return RxV;
 }
 
 float32 HELPER(sffma_lib)(CPUHexagonState *env, float32 RxV,
                           float32 RsV, float32 RtV)
 {
-    bool infinp;
-    bool infminusinf;
-    float32 tmp;
-
-    arch_fpop_start(env);
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    infminusinf = float32_is_infinity(RxV) &&
-                  is_inf_prod(RsV, RtV) &&
-                  (fGETBIT(31, RsV ^ RxV ^ RtV) != 0);
-    infinp = float32_is_infinity(RxV) ||
-             float32_is_infinity(RtV) ||
-             float32_is_infinity(RsV);
-    RxV = check_nan(RxV, RxV, &env->fp_status);
-    RxV = check_nan(RxV, RsV, &env->fp_status);
-    RxV = check_nan(RxV, RtV, &env->fp_status);
-    tmp = internal_fmafx(RsV, RtV, RxV, 0, &env->fp_status);
-    if (!(float32_is_zero(RxV) && is_zero_prod(RsV, RtV))) {
-        RxV = tmp;
-    }
-    set_float_exception_flags(0, &env->fp_status);
-    if (float32_is_infinity(RxV) && !infinp) {
-        RxV = RxV - 1;
-    }
-    if (infminusinf) {
-        RxV = 0;
-    }
-    arch_fpop_end(env);
-    return RxV;
+    return do_sffma_lib(env, RxV, RsV, RtV, 0);
 }
 
 float32 HELPER(sffms_lib)(CPUHexagonState *env, float32 RxV,
                           float32 RsV, float32 RtV)
 {
-    bool infinp;
-    bool infminusinf;
-    float32 tmp;
-
-    arch_fpop_start(env);
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-    infminusinf = float32_is_infinity(RxV) &&
-                  is_inf_prod(RsV, RtV) &&
-                  (fGETBIT(31, RsV ^ RxV ^ RtV) == 0);
-    infinp = float32_is_infinity(RxV) ||
-             float32_is_infinity(RtV) ||
-             float32_is_infinity(RsV);
-    RxV = check_nan(RxV, RxV, &env->fp_status);
-    RxV = check_nan(RxV, RsV, &env->fp_status);
-    RxV = check_nan(RxV, RtV, &env->fp_status);
-    float32 minus_RsV = float32_sub(float32_zero, RsV, &env->fp_status);
-    tmp = internal_fmafx(minus_RsV, RtV, RxV, 0, &env->fp_status);
-    if (!(float32_is_zero(RxV) && is_zero_prod(RsV, RtV))) {
-        RxV = tmp;
-    }
-    set_float_exception_flags(0, &env->fp_status);
-    if (float32_is_infinity(RxV) && !infinp) {
-        RxV = RxV - 1;
-    }
-    if (infminusinf) {
-        RxV = 0;
-    }
-    arch_fpop_end(env);
-    return RxV;
+    return do_sffma_lib(env, RxV, RsV, RtV, float_muladd_negate_product);
 }
 
 float64 HELPER(dfmpyfix)(CPUHexagonState *env, float64 RssV, float64 RttV)
