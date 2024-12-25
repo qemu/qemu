@@ -53,6 +53,4 @@ typedef enum {
     TCG_AREG0 = TCG_REG_R27
 } TCGReg;
 
-#define TCG_TARGET_DEFAULT_MO (0)
-
 #endif

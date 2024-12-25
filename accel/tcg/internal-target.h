@@ -12,6 +12,7 @@
 #include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "tb-internal.h"
+#include "tcg-target-mo.h"
 
 /*
  * Access to the various translations structures need to be serialised

@@ -74,9 +74,4 @@ typedef enum {
 #define HAVE_TCG_QEMU_TB_EXEC
 #define TCG_TARGET_NEED_POOL_LABELS
 
-/* We could notice __i386__ or __s390x__ and reduce the barriers depending
-   on the host.  But if you want performance, you use the normal backend.
-   We prefer consistency across hosts on this.  */
-#define TCG_TARGET_DEFAULT_MO  (0)
-
 #endif /* TCG_TARGET_H */

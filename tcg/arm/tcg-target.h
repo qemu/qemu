@@ -70,6 +70,4 @@ typedef enum {
 
 #define TCG_TARGET_NB_REGS 32
 
-#define TCG_TARGET_DEFAULT_MO (0)
-
 #endif

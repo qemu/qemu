@@ -31,6 +31,7 @@
 #include "exec/plugin-gen.h"
 #include "tcg-internal.h"
 #include "tcg-has.h"
+#include "tcg-target-mo.h"
 
 static void check_max_alignment(unsigned a_bits)
 {

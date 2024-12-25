@@ -57,6 +57,4 @@ typedef enum {
     TCG_REG_TMP2       = TCG_REG_T4,
 } TCGReg;
 
-#define TCG_TARGET_DEFAULT_MO (0)
-
 #endif
