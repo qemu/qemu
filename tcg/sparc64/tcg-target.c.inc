@@ -1510,6 +1510,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_mb(s, a0);
         break;
 
+    case INDEX_op_extract_i64:
+        tcg_debug_assert(a2 + args[3] == 32);
+        tcg_out_arithi(s, a0, a1, a2, SHIFT_SRL);
+        break;
+    case INDEX_op_sextract_i64:
+        tcg_debug_assert(a2 + args[3] == 32);
+        tcg_out_arithi(s, a0, a1, a2, SHIFT_SRA);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1559,6 +1568,8 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ext32u_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i64:
     case INDEX_op_qemu_ld_a32_i32:
     case INDEX_op_qemu_ld_a64_i32:
     case INDEX_op_qemu_ld_a32_i64:
