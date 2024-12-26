@@ -59,16 +59,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_not_i64:
     case INDEX_op_neg_i32:
     case INDEX_op_neg_i64:
-    case INDEX_op_ext8s_i32:
-    case INDEX_op_ext8s_i64:
-    case INDEX_op_ext16s_i32:
-    case INDEX_op_ext16s_i64:
-    case INDEX_op_ext8u_i32:
-    case INDEX_op_ext8u_i64:
-    case INDEX_op_ext16u_i32:
-    case INDEX_op_ext16u_i64:
-    case INDEX_op_ext32s_i64:
-    case INDEX_op_ext32u_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
     case INDEX_op_bswap16_i32:
@@ -535,76 +525,54 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
+static void tcg_out_extract(TCGContext *s, TCGType type, TCGReg rd,
+                            TCGReg rs, unsigned pos, unsigned len)
+{
+    TCGOpcode opc = type == TCG_TYPE_I32 ?
+                    INDEX_op_extract_i32 :
+                    INDEX_op_extract_i64;
+    tcg_out_op_rrbb(s, opc, rd, rs, pos, len);
+}
+
+static void tcg_out_sextract(TCGContext *s, TCGType type, TCGReg rd,
+                             TCGReg rs, unsigned pos, unsigned len)
+{
+    TCGOpcode opc = type == TCG_TYPE_I32 ?
+                    INDEX_op_sextract_i32 :
+                    INDEX_op_sextract_i64;
+    tcg_out_op_rrbb(s, opc, rd, rs, pos, len);
+}
+
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
 {
-    switch (type) {
-    case TCG_TYPE_I32:
-        tcg_debug_assert(TCG_TARGET_HAS_ext8s_i32);
-        tcg_out_op_rr(s, INDEX_op_ext8s_i32, rd, rs);
-        break;
-#if TCG_TARGET_REG_BITS == 64
-    case TCG_TYPE_I64:
-        tcg_debug_assert(TCG_TARGET_HAS_ext8s_i64);
-        tcg_out_op_rr(s, INDEX_op_ext8s_i64, rd, rs);
-        break;
-#endif
-    default:
-        g_assert_not_reached();
-    }
+    tcg_out_sextract(s, type, rd, rs, 0, 8);
 }
 
 static void tcg_out_ext8u(TCGContext *s, TCGReg rd, TCGReg rs)
 {
-    if (TCG_TARGET_REG_BITS == 64) {
-        tcg_debug_assert(TCG_TARGET_HAS_ext8u_i64);
-        tcg_out_op_rr(s, INDEX_op_ext8u_i64, rd, rs);
-    } else {
-        tcg_debug_assert(TCG_TARGET_HAS_ext8u_i32);
-        tcg_out_op_rr(s, INDEX_op_ext8u_i32, rd, rs);
-    }
+    tcg_out_extract(s, TCG_TYPE_REG, rd, rs, 0, 8);
 }
 
 static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
 {
-    switch (type) {
-    case TCG_TYPE_I32:
-        tcg_debug_assert(TCG_TARGET_HAS_ext16s_i32);
-        tcg_out_op_rr(s, INDEX_op_ext16s_i32, rd, rs);
-        break;
-#if TCG_TARGET_REG_BITS == 64
-    case TCG_TYPE_I64:
-        tcg_debug_assert(TCG_TARGET_HAS_ext16s_i64);
-        tcg_out_op_rr(s, INDEX_op_ext16s_i64, rd, rs);
-        break;
-#endif
-    default:
-        g_assert_not_reached();
-    }
+    tcg_out_sextract(s, type, rd, rs, 0, 16);
 }
 
 static void tcg_out_ext16u(TCGContext *s, TCGReg rd, TCGReg rs)
 {
-    if (TCG_TARGET_REG_BITS == 64) {
-        tcg_debug_assert(TCG_TARGET_HAS_ext16u_i64);
-        tcg_out_op_rr(s, INDEX_op_ext16u_i64, rd, rs);
-    } else {
-        tcg_debug_assert(TCG_TARGET_HAS_ext16u_i32);
-        tcg_out_op_rr(s, INDEX_op_ext16u_i32, rd, rs);
-    }
+    tcg_out_extract(s, TCG_TYPE_REG, rd, rs, 0, 16);
 }
 
 static void tcg_out_ext32s(TCGContext *s, TCGReg rd, TCGReg rs)
 {
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
-    tcg_debug_assert(TCG_TARGET_HAS_ext32s_i64);
-    tcg_out_op_rr(s, INDEX_op_ext32s_i64, rd, rs);
+    tcg_out_sextract(s, TCG_TYPE_I64, rd, rs, 0, 32);
 }
 
 static void tcg_out_ext32u(TCGContext *s, TCGReg rd, TCGReg rs)
 {
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
-    tcg_debug_assert(TCG_TARGET_HAS_ext32u_i64);
-    tcg_out_op_rr(s, INDEX_op_ext32u_i64, rd, rs);
+    tcg_out_extract(s, TCG_TYPE_I64, rd, rs, 0, 32);
 }
 
 static void tcg_out_exts_i32_i64(TCGContext *s, TCGReg rd, TCGReg rs)
@@ -690,7 +658,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    TCGOpcode exts;
+    int width;
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -777,18 +745,16 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_bswap16_i32: /* Optional (TCG_TARGET_HAS_bswap16_i32). */
-        exts = INDEX_op_ext16s_i32;
-        goto do_bswap;
     case INDEX_op_bswap16_i64: /* Optional (TCG_TARGET_HAS_bswap16_i64). */
-        exts = INDEX_op_ext16s_i64;
+        width = 16;
         goto do_bswap;
     case INDEX_op_bswap32_i64: /* Optional (TCG_TARGET_HAS_bswap32_i64). */
-        exts = INDEX_op_ext32s_i64;
+        width = 32;
     do_bswap:
         /* The base tci bswaps zero-extend, and ignore high bits. */
         tcg_out_op_rr(s, opc, args[0], args[1]);
         if (args[2] & TCG_BSWAP_OS) {
-            tcg_out_op_rr(s, exts, args[0], args[0]);
+            tcg_out_sextract(s, TCG_TYPE_REG, args[0], args[0], 0, width);
         }
         break;
 
@@ -838,17 +804,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
-    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
-    case INDEX_op_ext8s_i64:
-    case INDEX_op_ext8u_i32:
-    case INDEX_op_ext8u_i64:
-    case INDEX_op_ext16s_i32:
-    case INDEX_op_ext16s_i64:
-    case INDEX_op_ext16u_i32:
-    case INDEX_op_ext16u_i64:
-    case INDEX_op_ext32s_i64:
-    case INDEX_op_ext32u_i64:
-    case INDEX_op_ext_i32_i64:
+    case INDEX_op_ext_i32_i64:  /* Always emitted via tcg_reg_alloc_op.  */
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extrl_i64_i32:
     default:

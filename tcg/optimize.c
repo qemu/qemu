@@ -513,18 +513,6 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
     case INDEX_op_ctpop_i64:
         return ctpop64(x);
 
-    CASE_OP_32_64(ext8s):
-        return (int8_t)x;
-
-    CASE_OP_32_64(ext16s):
-        return (int16_t)x;
-
-    CASE_OP_32_64(ext8u):
-        return (uint8_t)x;
-
-    CASE_OP_32_64(ext16u):
-        return (uint16_t)x;
-
     CASE_OP_32_64(bswap16):
         x = bswap16(x);
         return y & TCG_BSWAP_OS ? (int16_t)x : x;
@@ -537,12 +525,10 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
         return bswap64(x);
 
     case INDEX_op_ext_i32_i64:
-    case INDEX_op_ext32s_i64:
         return (int32_t)x;
 
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extrl_i64_i32:
-    case INDEX_op_ext32u_i64:
         return (uint32_t)x;
 
     case INDEX_op_extrh_i64_i32:
@@ -1869,8 +1855,7 @@ static bool fold_extract2(OptContext *ctx, TCGOp *op)
 
 static bool fold_exts(OptContext *ctx, TCGOp *op)
 {
-    uint64_t s_mask_old, s_mask, z_mask;
-    bool type_change = false;
+    uint64_t s_mask, z_mask;
     TempOptInfo *t1;
 
     if (fold_const1(ctx, op)) {
@@ -1880,72 +1865,38 @@ static bool fold_exts(OptContext *ctx, TCGOp *op)
     t1 = arg_info(op->args[1]);
     z_mask = t1->z_mask;
     s_mask = t1->s_mask;
-    s_mask_old = s_mask;
 
     switch (op->opc) {
-    CASE_OP_32_64(ext8s):
-        s_mask |= INT8_MIN;
-        z_mask = (int8_t)z_mask;
-        break;
-    CASE_OP_32_64(ext16s):
-        s_mask |= INT16_MIN;
-        z_mask = (int16_t)z_mask;
-        break;
     case INDEX_op_ext_i32_i64:
-        type_change = true;
-        QEMU_FALLTHROUGH;
-    case INDEX_op_ext32s_i64:
         s_mask |= INT32_MIN;
         z_mask = (int32_t)z_mask;
         break;
     default:
         g_assert_not_reached();
     }
-
-    if (!type_change && fold_affected_mask(ctx, op, s_mask & ~s_mask_old)) {
-        return true;
-    }
-
     return fold_masks_zs(ctx, op, z_mask, s_mask);
 }
 
 static bool fold_extu(OptContext *ctx, TCGOp *op)
 {
-    uint64_t z_mask_old, z_mask;
-    bool type_change = false;
+    uint64_t z_mask;
 
     if (fold_const1(ctx, op)) {
         return true;
     }
 
-    z_mask_old = z_mask = arg_info(op->args[1])->z_mask;
-
+    z_mask = arg_info(op->args[1])->z_mask;
     switch (op->opc) {
-    CASE_OP_32_64(ext8u):
-        z_mask = (uint8_t)z_mask;
-        break;
-    CASE_OP_32_64(ext16u):
-        z_mask = (uint16_t)z_mask;
-        break;
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extu_i32_i64:
-        type_change = true;
-        QEMU_FALLTHROUGH;
-    case INDEX_op_ext32u_i64:
         z_mask = (uint32_t)z_mask;
         break;
     case INDEX_op_extrh_i64_i32:
-        type_change = true;
         z_mask >>= 32;
         break;
     default:
         g_assert_not_reached();
     }
-
-    if (!type_change && fold_affected_mask(ctx, op, z_mask_old ^ z_mask)) {
-        return true;
-    }
-
     return fold_masks_z(ctx, op, z_mask);
 }
 
@@ -2948,15 +2899,9 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(extract2):
             done = fold_extract2(&ctx, op);
             break;
-        CASE_OP_32_64(ext8s):
-        CASE_OP_32_64(ext16s):
-        case INDEX_op_ext32s_i64:
         case INDEX_op_ext_i32_i64:
             done = fold_exts(&ctx, op);
             break;
-        CASE_OP_32_64(ext8u):
-        CASE_OP_32_64(ext16u):
-        case INDEX_op_ext32u_i64:
         case INDEX_op_extu_i32_i64:
         case INDEX_op_extrl_i64_i32:
         case INDEX_op_extrh_i64_i32:

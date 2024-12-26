@@ -689,31 +689,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_write_reg64(regs, r1, r0, tmp64);
             break;
 #endif
-#if TCG_TARGET_HAS_ext8s_i32 || TCG_TARGET_HAS_ext8s_i64
-        CASE_32_64(ext8s)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (int8_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext16s_i32 || TCG_TARGET_HAS_ext16s_i64 || \
-    TCG_TARGET_HAS_bswap16_i32 || TCG_TARGET_HAS_bswap16_i64
-        CASE_32_64(ext16s)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (int16_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext8u_i32 || TCG_TARGET_HAS_ext8u_i64
-        CASE_32_64(ext8u)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (uint8_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext16u_i32 || TCG_TARGET_HAS_ext16u_i64
-        CASE_32_64(ext16u)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (uint16_t)regs[r1];
-            break;
-#endif
 #if TCG_TARGET_HAS_bswap16_i32 || TCG_TARGET_HAS_bswap16_i64
         CASE_32_64(bswap16)
             tci_args_rr(insn, &r0, &r1);
@@ -864,12 +839,10 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
                 tb_ptr = ptr;
             }
             break;
-        case INDEX_op_ext32s_i64:
         case INDEX_op_ext_i32_i64:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = (int32_t)regs[r1];
             break;
-        case INDEX_op_ext32u_i64:
         case INDEX_op_extu_i32_i64:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = (uint32_t)regs[r1];
@@ -1092,15 +1065,6 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
 
     case INDEX_op_mov_i32:
     case INDEX_op_mov_i64:
-    case INDEX_op_ext8s_i32:
-    case INDEX_op_ext8s_i64:
-    case INDEX_op_ext8u_i32:
-    case INDEX_op_ext8u_i64:
-    case INDEX_op_ext16s_i32:
-    case INDEX_op_ext16s_i64:
-    case INDEX_op_ext16u_i32:
-    case INDEX_op_ext32s_i64:
-    case INDEX_op_ext32u_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
     case INDEX_op_bswap16_i32:
