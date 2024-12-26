@@ -2195,6 +2195,8 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
+    case INDEX_op_extract_i32:
+    case INDEX_op_sextract_i32:
         return true;
 
     case INDEX_op_negsetcond_i32:
@@ -2213,10 +2215,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_rot_i32;
     case INDEX_op_deposit_i32:
         return TCG_TARGET_HAS_deposit_i32;
-    case INDEX_op_extract_i32:
-        return TCG_TARGET_HAS_extract_i32;
-    case INDEX_op_sextract_i32:
-        return TCG_TARGET_HAS_sextract_i32;
     case INDEX_op_extract2_i32:
         return TCG_TARGET_HAS_extract2_i32;
     case INDEX_op_add2_i32:
@@ -2293,6 +2291,8 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_sar_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i64:
         return TCG_TARGET_REG_BITS == 64;
 
     case INDEX_op_negsetcond_i64:
@@ -2311,10 +2311,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_rot_i64;
     case INDEX_op_deposit_i64:
         return TCG_TARGET_HAS_deposit_i64;
-    case INDEX_op_extract_i64:
-        return TCG_TARGET_HAS_extract_i64;
-    case INDEX_op_sextract_i64:
-        return TCG_TARGET_HAS_sextract_i64;
     case INDEX_op_extract2_i64:
         return TCG_TARGET_HAS_extract2_i64;
     case INDEX_op_extrl_i64_i32:

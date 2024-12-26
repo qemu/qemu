@@ -35,8 +35,6 @@
 #define TCG_TARGET_HAS_ctz_i64          0
 #define TCG_TARGET_HAS_ctpop_i64        0
 #define TCG_TARGET_HAS_deposit_i64      0
-#define TCG_TARGET_HAS_extract_i64      0
-#define TCG_TARGET_HAS_sextract_i64     0
 #define TCG_TARGET_HAS_extract2_i64     0
 #define TCG_TARGET_HAS_negsetcond_i64   0
 #define TCG_TARGET_HAS_add2_i64         0
@@ -55,16 +53,6 @@
 #endif
 #ifndef TCG_TARGET_deposit_i64_valid
 #define TCG_TARGET_deposit_i64_valid(ofs, len) 1
-#endif
-#ifndef TCG_TARGET_extract_valid
-#define TCG_TARGET_extract_valid(type, ofs, len) \
-    ((type) == TCG_TYPE_I32 ? TCG_TARGET_HAS_extract_i32 \
-     : TCG_TARGET_HAS_extract_i64)
-#endif
-#ifndef TCG_TARGET_sextract_valid
-#define TCG_TARGET_sextract_valid(type, ofs, len) \
-    ((type) == TCG_TYPE_I32 ? TCG_TARGET_HAS_sextract_i32 \
-     : TCG_TARGET_HAS_sextract_i64)
 #endif
 
 /* Only one of DIV or DIV2 should be defined.  */
