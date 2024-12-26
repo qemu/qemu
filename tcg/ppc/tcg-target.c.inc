@@ -3430,11 +3430,39 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_extract_i32:
+        if (args[2] == 0 && args[3] <= 16) {
+            tcg_out32(s, ANDI | SAI(args[1], args[0], (1 << args[3]) - 1));
+            break;
+        }
         tcg_out_rlw(s, RLWINM, args[0], args[1],
                     32 - args[2], 32 - args[3], 31);
         break;
     case INDEX_op_extract_i64:
+        if (args[2] == 0 && args[3] <= 16) {
+            tcg_out32(s, ANDI | SAI(args[1], args[0], (1 << args[3]) - 1));
+            break;
+        }
         tcg_out_rld(s, RLDICL, args[0], args[1], 64 - args[2], 64 - args[3]);
+        break;
+
+    case INDEX_op_sextract_i64:
+        if (args[2] + args[3] == 32) {
+            if (args[2] == 0) {
+                tcg_out_ext32s(s, args[0], args[1]);
+            } else {
+                tcg_out_sari32(s, args[0], args[1], args[2]);
+            }
+            break;
+        }
+        /* FALLTHRU */
+    case INDEX_op_sextract_i32:
+        if (args[2] == 0 && args[3] == 8) {
+            tcg_out_ext8s(s, TCG_TYPE_I32, args[0], args[1]);
+        } else if (args[2] == 0 && args[3] == 16) {
+            tcg_out_ext16s(s, TCG_TYPE_I32, args[0], args[1]);
+        } else {
+            g_assert_not_reached();
+        }
         break;
 
     case INDEX_op_movcond_i32:
@@ -4160,6 +4188,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap32_i32:
     case INDEX_op_extract_i32:
+    case INDEX_op_sextract_i32:
     case INDEX_op_ld8u_i64:
     case INDEX_op_ld8s_i64:
     case INDEX_op_ld16u_i64:
@@ -4179,6 +4208,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_bswap32_i64:
     case INDEX_op_bswap64_i64:
     case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i64:
         return C_O1_I1(r, r);
 
     case INDEX_op_st8_i32:
