@@ -1329,16 +1329,31 @@ static inline void tcg_out_rolw_8(TCGContext *s, int reg)
 
 static void tcg_out_ext8u(TCGContext *s, TCGReg dest, TCGReg src)
 {
-    /* movzbl */
-    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+    if (TCG_TARGET_REG_BITS == 32 && src >= 4) {
+        tcg_out_mov(s, TCG_TYPE_I32, dest, src);
+        if (dest >= 4) {
+            tcg_out_modrm(s, OPC_ARITH_EvIz, ARITH_AND, dest);
+            tcg_out32(s, 0xff);
+            return;
+        }
+        src = dest;
+    }
     tcg_out_modrm(s, OPC_MOVZBL + P_REXB_RM, dest, src);
 }
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
     int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
-    /* movsbl */
-    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+
+    if (TCG_TARGET_REG_BITS == 32 && src >= 4) {
+        tcg_out_mov(s, TCG_TYPE_I32, dest, src);
+        if (dest >= 4) {
+            tcg_out_shifti(s, SHIFT_SHL, dest, 24);
+            tcg_out_shifti(s, SHIFT_SAR, dest, 24);
+            return;
+        }
+        src = dest;
+    }
     tcg_out_modrm(s, OPC_MOVSBL + P_REXB_RM + rexw, dest, src);
 }
 
