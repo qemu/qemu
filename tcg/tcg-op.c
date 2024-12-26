@@ -1014,8 +1014,7 @@ void tcg_gen_extract_i32(TCGv_i32 ret, TCGv_i32 arg,
         return;
     }
 
-    if (TCG_TARGET_HAS_extract_i32
-        && TCG_TARGET_extract_i32_valid(ofs, len)) {
+    if (TCG_TARGET_extract_valid(TCG_TYPE_I32, ofs, len)) {
         tcg_gen_op4ii_i32(INDEX_op_extract_i32, ret, arg, ofs, len);
         return;
     }
@@ -1077,8 +1076,7 @@ void tcg_gen_sextract_i32(TCGv_i32 ret, TCGv_i32 arg,
         }
     }
 
-    if (TCG_TARGET_HAS_sextract_i32
-        && TCG_TARGET_extract_i32_valid(ofs, len)) {
+    if (TCG_TARGET_sextract_valid(TCG_TYPE_I32, ofs, len)) {
         tcg_gen_op4ii_i32(INDEX_op_sextract_i32, ret, arg, ofs, len);
         return;
     }
@@ -2811,8 +2809,7 @@ void tcg_gen_extract_i64(TCGv_i64 ret, TCGv_i64 arg,
         goto do_shift_and;
     }
 
-    if (TCG_TARGET_HAS_extract_i64
-        && TCG_TARGET_extract_i64_valid(ofs, len)) {
+    if (TCG_TARGET_extract_valid(TCG_TYPE_I64, ofs, len)) {
         tcg_gen_op4ii_i64(INDEX_op_extract_i64, ret, arg, ofs, len);
         return;
     }
@@ -2917,8 +2914,7 @@ void tcg_gen_sextract_i64(TCGv_i64 ret, TCGv_i64 arg,
         return;
     }
 
-    if (TCG_TARGET_HAS_sextract_i64
-        && TCG_TARGET_extract_i64_valid(ofs, len)) {
+    if (TCG_TARGET_sextract_valid(TCG_TYPE_I64, ofs, len)) {
         tcg_gen_op4ii_i64(INDEX_op_sextract_i64, ret, arg, ofs, len);
         return;
     }
