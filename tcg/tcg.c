@@ -3364,7 +3364,7 @@ static void process_constraint_sets(void)
 
 static const TCGArgConstraint *opcode_args_ct(const TCGOp *op)
 {
-    TCGOpDef *def = &tcg_op_defs[op->opc];
+    const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGConstraintSetIndex con_set;
 
     if (def->nb_iargs + def->nb_oargs == 0) {

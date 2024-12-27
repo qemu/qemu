@@ -716,7 +716,7 @@ typedef struct TCGOpDef {
     uint8_t flags;
 } TCGOpDef;
 
-extern TCGOpDef tcg_op_defs[];
+extern const TCGOpDef tcg_op_defs[];
 extern const size_t tcg_op_defs_max;
 
 /*
