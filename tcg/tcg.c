@@ -862,6 +862,7 @@ static int tcg_out_pool_finalize(TCGContext *s)
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4),
 
 typedef enum {
+    C_NotImplemented = -1,
 #include "tcg-target-con-set.h"
 } TCGConstraintSetIndex;
 
@@ -3176,6 +3177,7 @@ static void process_op_defs(TCGContext *s)
         const TCGTargetOpDef *tdefs;
         bool saw_alias_pair = false;
         int i, o, i2, o2, nb_args;
+        TCGConstraintSetIndex con_set;
 
         if (def->flags & TCG_OPF_NOT_PRESENT) {
             continue;
@@ -3188,11 +3190,11 @@ static void process_op_defs(TCGContext *s)
 
         /*
          * Macro magic should make it impossible, but double-check that
-         * the array index is in range.  Since the signness of an enum
-         * is implementation defined, force the result to unsigned.
+         * the array index is in range.  At the same time, double-check
+         * that the opcode is implemented, i.e. not C_NotImplemented.
          */
-        unsigned con_set = tcg_target_op_def(op);
-        tcg_debug_assert(con_set < ARRAY_SIZE(constraint_sets));
+        con_set = tcg_target_op_def(op);
+        tcg_debug_assert(con_set >= 0 && con_set < ARRAY_SIZE(constraint_sets));
         tdefs = &constraint_sets[con_set];
 
         for (i = 0; i < nb_args; i++) {

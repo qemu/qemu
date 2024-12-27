@@ -2260,7 +2260,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_bitsel_vec:
         return C_O1_I3(w, w, w, w);
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 

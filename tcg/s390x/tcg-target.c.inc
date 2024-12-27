@@ -3427,7 +3427,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
                 : C_O1_I4(v, v, v, vZ, v));
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 
