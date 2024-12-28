@@ -736,7 +736,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
         timer->state = s;
     }
 
-    /* 64-bit main counter; LegacyReplacementRoute. */
+    /* 64-bit General Capabilities and ID Register; LegacyReplacementRoute. */
     s->capability = 0x8086a001ULL;
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     s->capability |= ((uint64_t)(HPET_CLK_PERIOD * FS_PER_NS) << 32);
