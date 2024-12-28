@@ -391,10 +391,10 @@ Misc
 
 .. list-table::
 
-   * - mov_i32/i64 *t0*, *t1*
+   * - mov *t0*, *t1*
 
      - | *t0* = *t1*
-       | Move *t1* to *t0* (both operands must have the same type).
+       | Move *t1* to *t0*.
 
    * - bswap16_i32/i64 *t0*, *t1*, *flags*
 
