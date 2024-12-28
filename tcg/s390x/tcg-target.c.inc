@@ -2117,9 +2117,9 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
         case glue(glue(INDEX_op_,x),_i32): \
         case glue(glue(INDEX_op_,x),_i64)
 
-static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                              const TCGArg args[TCG_MAX_OP_ARGS],
-                              const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     S390Opcode op, op2;
     TCGArg a0, a1, a2;
@@ -2713,7 +2713,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             /* Since we can't support "0Z" as a constraint, we allow a1 in
                any register.  Fix things up as if a matching constraint.  */
             if (a0 != a1) {
-                TCGType type = (opc == INDEX_op_deposit_i64);
                 if (a0 == a2) {
                     tcg_out_mov(s, type, TCG_TMP0, a2);
                     a2 = TCG_TMP0;

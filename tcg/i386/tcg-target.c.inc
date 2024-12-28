@@ -2612,17 +2612,16 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     /* no need to flush icache explicitly */
 }
 
-static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                              const TCGArg args[TCG_MAX_OP_ARGS],
-                              const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c, const_a2, vexop, rexw = 0;
+    int c, const_a2, vexop, rexw;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_, x), _i64): \
-            rexw = P_REXW; /* FALLTHRU */    \
         case glue(glue(INDEX_op_, x), _i32)
 #else
 # define OP_32_64(x) \
@@ -2634,6 +2633,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     a1 = args[1];
     a2 = args[2];
     const_a2 = const_args[2];
+    rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
 
     switch (opc) {
     case INDEX_op_goto_ptr:
