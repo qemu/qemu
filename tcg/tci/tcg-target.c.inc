@@ -774,7 +774,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_op_rrr(s, opc, args[0], args[1], args[2]);
         break;
 
-    CASE_32_64(deposit)  /* Optional (TCG_TARGET_HAS_deposit_*). */
+    CASE_32_64(deposit)
         tcg_out_op_rrrbb(s, opc, args[0], args[1], args[2], args[3], args[4]);
         break;
 

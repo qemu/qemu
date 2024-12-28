@@ -40,7 +40,6 @@ extern bool use_neon_instructions;
 #define TCG_TARGET_HAS_clz_i32          1
 #define TCG_TARGET_HAS_ctz_i32          use_armv7_instructions
 #define TCG_TARGET_HAS_ctpop_i32        0
-#define TCG_TARGET_HAS_deposit_i32      use_armv7_instructions
 #define TCG_TARGET_HAS_extract2_i32     1
 #define TCG_TARGET_HAS_negsetcond_i32   1
 #define TCG_TARGET_HAS_mulu2_i32        1
@@ -96,5 +95,6 @@ tcg_target_extract_valid(TCGType type, unsigned ofs, unsigned len)
 
 #define TCG_TARGET_extract_valid   tcg_target_extract_valid
 #define TCG_TARGET_sextract_valid  tcg_target_extract_valid
+#define TCG_TARGET_deposit_valid(type, ofs, len)  use_armv7_instructions
 
 #endif
