@@ -21,13 +21,16 @@ class RxGdbSimMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     ASSET_UBOOT = Asset(
-        'https://acc.dl.osdn.jp/users/23/23888/u-boot.bin.gz',
-        '7146567d669e91dbac166384b29aeba1715beb844c8551e904b86831bfd9d046')
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'u-boot.bin'),
+        'dd7dd4220cccf7aeb32227b26233bf39600db05c3f8e26005bcc2bf6c927207d')
     ASSET_DTB = Asset(
-        'https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb',
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'rx-gdbsim.dtb'),
         'aa278d9c1907a4501741d7ee57e7f65c02dd1b3e0323b33c6d4247f1b32cf29a')
     ASSET_KERNEL = Asset(
-        'http://acc.dl.osdn.jp/users/23/23845/zImage',
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'zImage'),
         'baa43205e74a7220ed8482188c5e9ce497226712abb7f4e7e4f825ce19ff9656')
 
     def test_uboot(self):
@@ -36,7 +39,7 @@ class RxGdbSimMachine(QemuSystemTest):
         """
         self.set_machine('gdbsim-r5f562n8')
 
-        uboot_path = self.uncompress(self.ASSET_UBOOT)
+        uboot_path = self.ASSET_UBOOT.fetch()
 
         self.vm.set_console()
         self.vm.add_args('-bios', uboot_path,
