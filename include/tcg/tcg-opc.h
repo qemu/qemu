@@ -303,12 +303,6 @@ DEF(last_generic, 0, 0, 0, TCG_OPF_NOT_PRESENT)
 
 #include "tcg-target-opc.h.inc"
 
-#ifdef TCG_TARGET_INTERPRETER
-/* These opcodes are only for use between the tci generator and interpreter. */
-DEF(tci_movi, 1, 0, 1, TCG_OPF_NOT_PRESENT)
-DEF(tci_movl, 1, 0, 1, TCG_OPF_NOT_PRESENT)
-#endif
-
 #undef DATA64_ARGS
 #undef IMPL
 #undef IMPL64
