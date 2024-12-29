@@ -155,7 +155,7 @@ static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_timer_ops = {
     .read = m5208_timer_read,
     .write = m5208_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
@@ -192,7 +192,7 @@ static void m5208_sys_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_sys_ops = {
     .read = m5208_sys_read,
     .write = m5208_sys_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t m5208_rcm_read(void *opaque, hwaddr addr,
@@ -224,7 +224,7 @@ static void m5208_rcm_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_rcm_ops = {
     .read = m5208_rcm_read,
     .write = m5208_rcm_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic,

@@ -2,6 +2,7 @@
  * NeXT Cube System Driver
  *
  * Copyright (c) 2011 Bryce Lanham
+ * Copyright (c) 2024 Mark Cave-Ayland
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published
@@ -22,6 +23,7 @@
 #include "qom/object.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
+#include "hw/misc/empty_slot.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -37,12 +39,78 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
-OBJECT_DECLARE_SIMPLE_TYPE(NeXTState, NEXT_MACHINE)
-
 #define ENTRY       0x0100001e
 #define RAM_SIZE    0x4000000
 #define ROM_FILE    "Rev_2.5_v66.bin"
+
+
+#define TYPE_NEXT_RTC "next-rtc"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTRTC, NEXT_RTC)
+
+struct NeXTRTC {
+    SysBusDevice parent_obj;
+
+    int8_t phase;
+    uint8_t ram[32];
+    uint8_t command;
+    uint8_t value;
+    uint8_t status;
+    uint8_t control;
+    uint8_t retval;
+
+    qemu_irq data_out_irq;
+    qemu_irq power_irq;
+};
+
+#define TYPE_NEXT_SCSI "next-scsi"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTSCSI, NEXT_SCSI)
+
+/* NeXT SCSI Controller */
+struct NeXTSCSI {
+    SysBusDevice parent_obj;
+
+    MemoryRegion scsi_mem;
+
+    SysBusESPState sysbus_esp;
+
+    MemoryRegion scsi_csr_mem;
+    uint8_t scsi_csr_1;
+    uint8_t scsi_csr_2;
+};
+
+#define TYPE_NEXT_PC "next-pc"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTPC, NEXT_PC)
+
+/* NeXT Peripheral Controller */
+struct NeXTPC {
+    SysBusDevice parent_obj;
+
+    M68kCPU *cpu;
+
+    MemoryRegion floppy_mem;
+    MemoryRegion timer_mem;
+    MemoryRegion dummyen_mem;
+    MemoryRegion mmiomem;
+    MemoryRegion scrmem;
+
+    uint32_t scr1;
+    uint32_t scr2;
+    uint32_t old_scr2;
+    uint32_t int_mask;
+    uint32_t int_status;
+    uint32_t led;
+
+    NeXTSCSI next_scsi;
+
+    qemu_irq scsi_reset;
+    qemu_irq scsi_dma;
+
+    ESCCState escc;
+
+    NeXTRTC rtc;
+    qemu_irq rtc_data_irq;
+    qemu_irq rtc_cmd_reset_irq;
+};
 
 typedef struct next_dma {
     uint32_t csr;
@@ -61,15 +129,8 @@ typedef struct next_dma {
     uint32_t size;
 } next_dma;
 
-typedef struct NextRtc {
-    int8_t phase;
-    uint8_t ram[32];
-    uint8_t command;
-    uint8_t value;
-    uint8_t status;
-    uint8_t control;
-    uint8_t retval;
-} NextRtc;
+#define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTState, NEXT_MACHINE)
 
 struct NeXTState {
     MachineState parent;
@@ -81,33 +142,6 @@ struct NeXTState {
     MemoryRegion bmapm2;
 
     next_dma dma[10];
-};
-
-#define TYPE_NEXT_PC "next-pc"
-OBJECT_DECLARE_SIMPLE_TYPE(NeXTPC, NEXT_PC)
-
-/* NeXT Peripheral Controller */
-struct NeXTPC {
-    SysBusDevice parent_obj;
-
-    M68kCPU *cpu;
-
-    MemoryRegion mmiomem;
-    MemoryRegion scrmem;
-
-    uint32_t scr1;
-    uint32_t scr2;
-    uint32_t old_scr2;
-    uint32_t int_mask;
-    uint32_t int_status;
-    uint32_t led;
-    uint8_t scsi_csr_1;
-    uint8_t scsi_csr_2;
-
-    qemu_irq scsi_reset;
-    qemu_irq scsi_dma;
-
-    NextRtc rtc;
 };
 
 /* Thanks to NeXT forums for this */
@@ -144,120 +178,26 @@ static void next_scr2_led_update(NeXTPC *s)
 
 static void next_scr2_rtc_update(NeXTPC *s)
 {
-    uint8_t old_scr2, scr2_2;
-    NextRtc *rtc = &s->rtc;
+    uint8_t old_scr2_rtc, scr2_rtc;
 
-    old_scr2 = extract32(s->old_scr2, 8, 8);
-    scr2_2 = extract32(s->scr2, 8, 8);
+    old_scr2_rtc = extract32(s->old_scr2, 8, 8);
+    scr2_rtc = extract32(s->scr2, 8, 8);
 
-    if (scr2_2 & 0x1) {
+    if (scr2_rtc & 0x1) {
         /* DPRINTF("RTC %x phase %i\n", scr2_2, rtc->phase); */
-        if (rtc->phase == -1) {
-            rtc->phase = 0;
-        }
         /* If we are in going down clock... do something */
-        if (((old_scr2 & SCR2_RTCLK) != (scr2_2 & SCR2_RTCLK)) &&
-                ((scr2_2 & SCR2_RTCLK) == 0)) {
-            if (rtc->phase < 8) {
-                rtc->command = (rtc->command << 1) |
-                               ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-            }
-            if (rtc->phase >= 8 && rtc->phase < 16) {
-                rtc->value = (rtc->value << 1) |
-                             ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-
-                /* if we read RAM register, output RT_DATA bit */
-                if (rtc->command <= 0x1F) {
-                    scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->ram[rtc->command] & (0x80 >> (rtc->phase - 8))) {
-                        scr2_2 |= SCR2_RTDATA;
-                    }
-
-                    rtc->retval = (rtc->retval << 1) |
-                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-                }
-                /* read the status 0x30 */
-                if (rtc->command == 0x30) {
-                    scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    /* for now status = 0x98 (new rtc + FTU) */
-                    if (rtc->status & (0x80 >> (rtc->phase - 8))) {
-                        scr2_2 |= SCR2_RTDATA;
-                    }
-
-                    rtc->retval = (rtc->retval << 1) |
-                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-                }
-                /* read the status 0x31 */
-                if (rtc->command == 0x31) {
-                    scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (rtc->control & (0x80 >> (rtc->phase - 8))) {
-                        scr2_2 |= SCR2_RTDATA;
-                    }
-                    rtc->retval = (rtc->retval << 1) |
-                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-                }
-
-                if ((rtc->command >= 0x20) && (rtc->command <= 0x2F)) {
-                    scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    /* for now 0x00 */
-                    time_t time_h = time(NULL);
-                    struct tm *info = localtime(&time_h);
-                    int ret = 0;
-
-                    switch (rtc->command) {
-                    case 0x20:
-                        ret = SCR2_TOBCD(info->tm_sec);
-                        break;
-                    case 0x21:
-                        ret = SCR2_TOBCD(info->tm_min);
-                        break;
-                    case 0x22:
-                        ret = SCR2_TOBCD(info->tm_hour);
-                        break;
-                    case 0x24:
-                        ret = SCR2_TOBCD(info->tm_mday);
-                        break;
-                    case 0x25:
-                        ret = SCR2_TOBCD((info->tm_mon + 1));
-                        break;
-                    case 0x26:
-                        ret = SCR2_TOBCD((info->tm_year - 100));
-                        break;
-
-                    }
-
-                    if (ret & (0x80 >> (rtc->phase - 8))) {
-                        scr2_2 |= SCR2_RTDATA;
-                    }
-                    rtc->retval = (rtc->retval << 1) |
-                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
-                }
-
-            }
-
-            rtc->phase++;
-            if (rtc->phase == 16) {
-                if (rtc->command >= 0x80 && rtc->command <= 0x9F) {
-                    rtc->ram[rtc->command - 0x80] = rtc->value;
-                }
-                /* write to x30 register */
-                if (rtc->command == 0xB1) {
-                    /* clear FTU */
-                    if (rtc->value & 0x04) {
-                        rtc->status = rtc->status & (~0x18);
-                        s->int_status = s->int_status & (~0x04);
-                    }
-                }
+        if (((old_scr2_rtc & SCR2_RTCLK) != (scr2_rtc & SCR2_RTCLK)) &&
+                ((scr2_rtc & SCR2_RTCLK) == 0)) {
+            if (scr2_rtc & SCR2_RTDATA) {
+                qemu_irq_raise(s->rtc_data_irq);
+            } else {
+                qemu_irq_lower(s->rtc_data_irq);
             }
         }
     } else {
         /* else end or abort */
-        rtc->phase = -1;
-        rtc->command = 0;
-        rtc->value = 0;
+        qemu_irq_raise(s->rtc_cmd_reset_irq);
     }
-
-    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
 }
 
 static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -266,28 +206,24 @@ static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val;
 
     switch (addr) {
-    case 0x7000:
+    case 0x2000:    /* 0x2007000 */
         /* DPRINTF("Read INT status: %x\n", s->int_status); */
         val = s->int_status;
         break;
 
-    case 0x7800:
+    case 0x2800:    /* 0x2007800 */
         DPRINTF("MMIO Read INT mask: %x\n", s->int_mask);
         val = s->int_mask;
         break;
 
-    case 0xc000 ... 0xc003:
-        val = extract32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+    case 0x7000 ... 0x7003:    /* 0x200c000 */
+        val = extract32(s->scr1, (4 - (addr - 0x7000) - size) << 3,
                         size << 3);
         break;
 
-    case 0xd000 ... 0xd003:
-        val = extract32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+    case 0x8000 ... 0x8003:    /* 0x200d000 */
+        val = extract32(s->scr2, (4 - (addr - 0x8000) - size) << 3,
                         size << 3);
-        break;
-
-    case 0x14020:
-        val = 0x7f;
         break;
 
     default:
@@ -305,25 +241,25 @@ static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     NeXTPC *s = NEXT_PC(opaque);
 
     switch (addr) {
-    case 0x7000:
+    case 0x2000:    /* 0x2007000 */
         DPRINTF("INT Status old: %x new: %x\n", s->int_status,
                 (unsigned int)val);
         s->int_status = val;
         break;
 
-    case 0x7800:
+    case 0x2800:    /* 0x2007800 */
         DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, (unsigned int)val);
         s->int_mask  = val;
         break;
 
-    case 0xc000 ... 0xc003:
+    case 0x7000 ... 0x7003:    /* 0x200c000 */
         DPRINTF("SCR1 Write: %x\n", (unsigned int)val);
-        s->scr1 = deposit32(s->scr1, (4 - (addr - 0xc000) - size) << 3,
+        s->scr1 = deposit32(s->scr1, (4 - (addr - 0x7000) - size) << 3,
                             size << 3, val);
         break;
 
-    case 0xd000 ... 0xd003:
-        s->scr2 = deposit32(s->scr2, (4 - (addr - 0xd000) - size) << 3,
+    case 0x8000 ... 0x8003:    /* 0x200d000 */
+        s->scr2 = deposit32(s->scr2, (4 - (addr - 0x8000) - size) << 3,
                             size << 3, val);
         next_scr2_led_update(s);
         next_scr2_rtc_update(s);
@@ -350,143 +286,6 @@ static const MemoryRegionOps next_mmio_ops = {
 #define SCSICSR_DMADIR  0x08  /* if set, scsi to mem */
 #define SCSICSR_CPUDMA  0x10  /* if set, dma enabled */
 #define SCSICSR_INTMASK 0x20  /* if set, interrupt enabled */
-
-static uint64_t next_scr_readfn(void *opaque, hwaddr addr, unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-    uint64_t val;
-
-    switch (addr) {
-    case 0x14108:
-        DPRINTF("FD read @ %x\n", (unsigned int)addr);
-        val = 0x40 | 0x04 | 0x2 | 0x1;
-        break;
-
-    case 0x14020:
-        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
-        val = s->scsi_csr_1;
-        break;
-
-    case 0x14021:
-        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
-        val = 0x40;
-        break;
-
-    /*
-     * These 4 registers are the hardware timer, not sure which register
-     * is the latch instead of data, but no problems so far.
-     *
-     * Hack: We need to have the LSB change consistently to make it work
-     */
-    case 0x1a000 ... 0x1a003:
-        val = extract32(clock(), (4 - (addr - 0x1a000) - size) << 3,
-                        size << 3);
-        break;
-
-    /* For now return dummy byte to allow the Ethernet test to timeout */
-    case 0x6000:
-        val = 0xff;
-        break;
-
-    default:
-        DPRINTF("BMAP Read @ 0x%x size %u\n", (unsigned int)addr, size);
-        val = 0;
-        break;
-    }
-
-    return val;
-}
-
-static void next_scr_writefn(void *opaque, hwaddr addr, uint64_t val,
-                             unsigned size)
-{
-    NeXTPC *s = NEXT_PC(opaque);
-
-    switch (addr) {
-    case 0x14108:
-        DPRINTF("FDCSR Write: %"PRIx64 "\n", val);
-        if (val == 0x0) {
-            /* qemu_irq_raise(s->fd_irq[0]); */
-        }
-        break;
-
-    case 0x14020: /* SCSI Control Register */
-        if (val & SCSICSR_FIFOFL) {
-            DPRINTF("SCSICSR FIFO Flush\n");
-            /* will have to add another irq to the esp if this is needed */
-            /* esp_puflush_fifo(esp_g); */
-        }
-
-        if (val & SCSICSR_ENABLE) {
-            DPRINTF("SCSICSR Enable\n");
-            /*
-             * qemu_irq_raise(s->scsi_dma);
-             * s->scsi_csr_1 = 0xc0;
-             * s->scsi_csr_1 |= 0x1;
-             * qemu_irq_pulse(s->scsi_dma);
-             */
-        }
-        /*
-         * else
-         *     s->scsi_csr_1 &= ~SCSICSR_ENABLE;
-         */
-
-        if (val & SCSICSR_RESET) {
-            DPRINTF("SCSICSR Reset\n");
-            /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
-            qemu_irq_raise(s->scsi_reset);
-            s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
-            qemu_irq_lower(s->scsi_reset);
-        }
-        if (val & SCSICSR_DMADIR) {
-            DPRINTF("SCSICSR DMAdir\n");
-        }
-        if (val & SCSICSR_CPUDMA) {
-            DPRINTF("SCSICSR CPUDMA\n");
-            /* qemu_irq_raise(s->scsi_dma); */
-            s->int_status |= 0x4000000;
-        } else {
-            /* fprintf(stderr,"SCSICSR CPUDMA disabled\n"); */
-            s->int_status &= ~(0x4000000);
-            /* qemu_irq_lower(s->scsi_dma); */
-        }
-        if (val & SCSICSR_INTMASK) {
-            DPRINTF("SCSICSR INTMASK\n");
-            /*
-             * int_mask &= ~0x1000;
-             * s->scsi_csr_1 |= val;
-             * s->scsi_csr_1 &= ~SCSICSR_INTMASK;
-             * if (s->scsi_queued) {
-             *     s->scsi_queued = 0;
-             *     next_irq(s, NEXT_SCSI_I, level);
-             * }
-             */
-        } else {
-            /* int_mask |= 0x1000; */
-        }
-        if (val & 0x80) {
-            /* int_mask |= 0x1000; */
-            /* s->scsi_csr_1 |= 0x80; */
-        }
-        DPRINTF("SCSICSR Write: %"PRIx64 "\n", val);
-        /* s->scsi_csr_1 = val; */
-        break;
-
-    /* Hardware timer latch - not implemented yet */
-    case 0x1a000:
-    default:
-        DPRINTF("BMAP Write @ 0x%x with 0x%"PRIx64 " size %u\n",
-                (unsigned int)addr, val, size);
-    }
-}
-
-static const MemoryRegionOps next_scr_ops = {
-    .read = next_scr_readfn,
-    .write = next_scr_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
 
 #define NEXTDMA_SCSI(x)      (0x10 + x)
 #define NEXTDMA_FD(x)        (0x10 + x)
@@ -828,84 +627,580 @@ static void nextscsi_write(void *opaque, uint8_t *buf, int size)
     nextdma_write(opaque, buf, size, NEXTDMA_SCSI);
 }
 
-static void next_scsi_init(DeviceState *pcdev)
+static void next_scsi_csr_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
 {
-    struct NeXTPC *next_pc = NEXT_PC(pcdev);
-    DeviceState *dev;
-    SysBusDevice *sysbusdev;
-    SysBusESPState *sysbus_esp;
-    ESPState *esp;
+    NeXTSCSI *s = NEXT_SCSI(opaque);
+    NeXTPC *pc = NEXT_PC(container_of(s, NeXTPC, next_scsi));
 
-    dev = qdev_new(TYPE_SYSBUS_ESP);
-    sysbus_esp = SYSBUS_ESP(dev);
+    switch (addr) {
+    case 0:
+        if (val & SCSICSR_FIFOFL) {
+            DPRINTF("SCSICSR FIFO Flush\n");
+            /* will have to add another irq to the esp if this is needed */
+            /* esp_puflush_fifo(esp_g); */
+        }
+
+        if (val & SCSICSR_ENABLE) {
+            DPRINTF("SCSICSR Enable\n");
+            /*
+             * qemu_irq_raise(s->scsi_dma);
+             * s->scsi_csr_1 = 0xc0;
+             * s->scsi_csr_1 |= 0x1;
+             * qemu_irq_pulse(s->scsi_dma);
+             */
+        }
+        /*
+         * else
+         *     s->scsi_csr_1 &= ~SCSICSR_ENABLE;
+         */
+
+        if (val & SCSICSR_RESET) {
+            DPRINTF("SCSICSR Reset\n");
+            /* I think this should set DMADIR. CPUDMA and INTMASK to 0 */
+            qemu_irq_raise(pc->scsi_reset);
+            s->scsi_csr_1 &= ~(SCSICSR_INTMASK | 0x80 | 0x1);
+            qemu_irq_lower(pc->scsi_reset);
+        }
+        if (val & SCSICSR_DMADIR) {
+            DPRINTF("SCSICSR DMAdir\n");
+        }
+        if (val & SCSICSR_CPUDMA) {
+            DPRINTF("SCSICSR CPUDMA\n");
+            /* qemu_irq_raise(s->scsi_dma); */
+            pc->int_status |= 0x4000000;
+        } else {
+            /* fprintf(stderr,"SCSICSR CPUDMA disabled\n"); */
+            pc->int_status &= ~(0x4000000);
+            /* qemu_irq_lower(s->scsi_dma); */
+        }
+        if (val & SCSICSR_INTMASK) {
+            DPRINTF("SCSICSR INTMASK\n");
+            /*
+             * int_mask &= ~0x1000;
+             * s->scsi_csr_1 |= val;
+             * s->scsi_csr_1 &= ~SCSICSR_INTMASK;
+             * if (s->scsi_queued) {
+             *     s->scsi_queued = 0;
+             *     next_irq(s, NEXT_SCSI_I, level);
+             * }
+             */
+        } else {
+            /* int_mask |= 0x1000; */
+        }
+        if (val & 0x80) {
+            /* int_mask |= 0x1000; */
+            /* s->scsi_csr_1 |= 0x80; */
+        }
+        DPRINTF("SCSICSR1 Write: %"PRIx64 "\n", val);
+        s->scsi_csr_1 = val;
+        break;
+
+    case 1:
+        DPRINTF("SCSICSR2 Write: %"PRIx64 "\n", val);
+        s->scsi_csr_2 = val;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t next_scsi_csr_read(void *opaque, hwaddr addr, unsigned size)
+{
+    NeXTSCSI *s = NEXT_SCSI(opaque);
+    uint64_t val;
+
+    switch (addr) {
+    case 0:
+        DPRINTF("SCSI 4020  STATUS READ %X\n", s->scsi_csr_1);
+        val = s->scsi_csr_1;
+        break;
+
+    case 1:
+        DPRINTF("SCSI 4021 STATUS READ %X\n", s->scsi_csr_2);
+        val = s->scsi_csr_2;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_scsi_csr_ops = {
+    .read = next_scsi_csr_read,
+    .write = next_scsi_csr_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void next_scsi_init(Object *obj)
+{
+    NeXTSCSI *s = NEXT_SCSI(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    object_initialize_child(obj, "esp", &s->sysbus_esp, TYPE_SYSBUS_ESP);
+
+    memory_region_init_io(&s->scsi_csr_mem, obj, &next_scsi_csr_ops,
+                          s, "csrs", 2);
+
+    memory_region_init(&s->scsi_mem, obj, "next.scsi", 0x40);
+    sysbus_init_mmio(sbd, &s->scsi_mem);
+}
+
+static void next_scsi_realize(DeviceState *dev, Error **errp)
+{
+    NeXTSCSI *s = NEXT_SCSI(dev);
+    SysBusESPState *sysbus_esp;
+    SysBusDevice *sbd;
+    ESPState *esp;
+    NeXTPC *pcdev;
+
+    pcdev = NEXT_PC(container_of(s, NeXTPC, next_scsi));
+
+    /* ESP */
+    sysbus_esp = SYSBUS_ESP(&s->sysbus_esp);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = nextscsi_read;
     esp->dma_memory_write = nextscsi_write;
     esp->dma_opaque = pcdev;
     sysbus_esp->it_shift = 0;
     esp->dma_enabled = 1;
-    sysbusdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sysbusdev, &error_fatal);
-    sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(pcdev, NEXT_SCSI_I));
-    sysbus_mmio_map(sysbusdev, 0, 0x2114000);
+    sbd = SYS_BUS_DEVICE(sysbus_esp);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->scsi_mem, 0x0,
+                                sysbus_mmio_get_region(sbd, 0));
 
-    next_pc->scsi_reset = qdev_get_gpio_in(dev, 0);
-    next_pc->scsi_dma = qdev_get_gpio_in(dev, 1);
+    /* SCSI CSRs */
+    memory_region_add_subregion(&s->scsi_mem, 0x20, &s->scsi_csr_mem);
 
-    scsi_bus_legacy_handle_cmdline(&esp->bus);
+    scsi_bus_legacy_handle_cmdline(&s->sysbus_esp.esp.bus);
 }
 
-static void next_escc_init(DeviceState *pcdev)
+static const VMStateDescription next_scsi_vmstate = {
+    .name = "next-scsi",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT8(scsi_csr_1, NeXTSCSI),
+        VMSTATE_UINT8(scsi_csr_2, NeXTSCSI),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void next_scsi_class_init(ObjectClass *klass, void *data)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dev = qdev_new(TYPE_ESCC);
-    qdev_prop_set_uint32(dev, "disabled", 0);
-    qdev_prop_set_uint32(dev, "frequency", 9600 * 384);
-    qdev_prop_set_uint32(dev, "it_shift", 0);
-    qdev_prop_set_bit(dev, "bit_swap", true);
-    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
-    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
-    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
-    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, qdev_get_gpio_in(pcdev, NEXT_SCC_I));
-    sysbus_connect_irq(s, 1, qdev_get_gpio_in(pcdev, NEXT_SCC_DMA_I));
-    sysbus_mmio_map(s, 0, 0x2118000);
+    dc->desc = "NeXT SCSI Controller";
+    dc->realize = next_scsi_realize;
+    dc->vmsd = &next_scsi_vmstate;
 }
 
-static void next_pc_reset(DeviceState *dev)
+static const TypeInfo next_scsi_info = {
+    .name = TYPE_NEXT_SCSI,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = next_scsi_init,
+    .instance_size = sizeof(NeXTSCSI),
+    .class_init = next_scsi_class_init,
+};
+
+static void next_floppy_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
-    NeXTPC *s = NEXT_PC(dev);
+    switch (addr) {
+    case 0:
+        DPRINTF("FDCSR Write: %"PRIx64 "\n", val);
+        if (val == 0x0) {
+            /* qemu_irq_raise(s->fd_irq[0]); */
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t next_floppy_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case 0:
+        DPRINTF("FD read @ %x\n", (unsigned int)addr);
+        val = 0x40 | 0x04 | 0x2 | 0x1;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_floppy_ops = {
+    .read = next_floppy_read,
+    .write = next_floppy_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void next_timer_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
+{
+    switch (addr) {
+    case 0 ... 3:
+        /* Hardware timer latch - not implemented yet */
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint64_t next_timer_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case 0 ... 3:
+        /*
+         * These 4 registers are the hardware timer, not sure which register
+         * is the latch instead of data, but no problems so far.
+         *
+         * Hack: We need to have the LSB change consistently to make it work
+         */
+        val = extract32(clock(), (4 - addr - size) << 3,
+                        size << 3);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_timer_ops = {
+    .read = next_timer_read,
+    .write = next_timer_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void next_dummy_en_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+    /* Do nothing */
+    return;
+}
+
+static uint64_t next_dummy_en_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case 0:
+        /* For now return dummy byte to allow the Ethernet test to timeout */
+        val = 0xff;
+        break;
+
+    default:
+        val = 0;
+    }
+
+    return val;
+}
+
+static const MemoryRegionOps next_dummy_en_ops = {
+    .read = next_dummy_en_read,
+    .write = next_dummy_en_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static bool next_rtc_cmd_is_write(uint8_t cmd)
+{
+    return (cmd >= 0x80 && cmd <= 0x9f) ||
+           (cmd == 0xb1);
+}
+
+static void next_rtc_data_in_irq(void *opaque, int n, int level)
+{
+    NeXTRTC *rtc = NEXT_RTC(opaque);
+
+    if (rtc->phase < 8) {
+        rtc->command = (rtc->command << 1) | level;
+
+        if (rtc->phase == 7 && !next_rtc_cmd_is_write(rtc->command)) {
+            if (rtc->command <= 0x1f) {
+                /* RAM registers */
+                rtc->retval = rtc->ram[rtc->command];
+            }
+            if ((rtc->command >= 0x20) && (rtc->command <= 0x2f)) {
+                /* RTC */
+                time_t time_h = time(NULL);
+                struct tm *info = localtime(&time_h);
+                rtc->retval = 0;
+
+                switch (rtc->command) {
+                case 0x20:
+                    rtc->retval = SCR2_TOBCD(info->tm_sec);
+                    break;
+                case 0x21:
+                    rtc->retval = SCR2_TOBCD(info->tm_min);
+                    break;
+                case 0x22:
+                    rtc->retval = SCR2_TOBCD(info->tm_hour);
+                    break;
+                case 0x24:
+                    rtc->retval = SCR2_TOBCD(info->tm_mday);
+                    break;
+                case 0x25:
+                    rtc->retval = SCR2_TOBCD((info->tm_mon + 1));
+                    break;
+                case 0x26:
+                    rtc->retval = SCR2_TOBCD((info->tm_year - 100));
+                    break;
+                }
+            }
+            if (rtc->command == 0x30) {
+                /* read the status 0x30 */
+                rtc->retval = rtc->status;
+            }
+            if (rtc->command == 0x31) {
+                /* read the control 0x31 */
+                rtc->retval = rtc->control;
+            }
+        }
+    }
+    if (rtc->phase >= 8 && rtc->phase < 16) {
+        if (next_rtc_cmd_is_write(rtc->command)) {
+            /* Shift in value to write */
+            rtc->value = (rtc->value << 1) | level;
+        } else {
+            /* Shift out value to read */
+            if (rtc->retval & (0x80 >> (rtc->phase - 8))) {
+                qemu_irq_raise(rtc->data_out_irq);
+            } else {
+                qemu_irq_lower(rtc->data_out_irq);
+            }
+        }
+    }
+
+    rtc->phase++;
+    if (rtc->phase == 16 && next_rtc_cmd_is_write(rtc->command)) {
+        if (rtc->command >= 0x80 && rtc->command <= 0x9f) {
+            /* RAM registers */
+            rtc->ram[rtc->command - 0x80] = rtc->value;
+        }
+        if (rtc->command == 0xb1) {
+            /* write to 0x30 register */
+            if (rtc->value & 0x04) {
+                /* clear FTU */
+                rtc->status = rtc->status & (~0x18);
+                qemu_irq_lower(rtc->power_irq);
+            }
+        }
+    }
+}
+
+static void next_rtc_cmd_reset_irq(void *opaque, int n, int level)
+{
+    NeXTRTC *rtc = NEXT_RTC(opaque);
+
+    if (level) {
+        rtc->phase = 0;
+        rtc->command = 0;
+        rtc->value = 0;
+    }
+}
+
+static void next_rtc_reset_hold(Object *obj, ResetType type)
+{
+    NeXTRTC *rtc = NEXT_RTC(obj);
+
+    rtc->status = 0x90;
+
+    /* Load RTC RAM - TODO: provide possibility to load contents from file */
+    memcpy(rtc->ram, rtc_ram2, 32);
+}
+
+static void next_rtc_init(Object *obj)
+{
+    NeXTRTC *rtc = NEXT_RTC(obj);
+
+    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_data_in_irq,
+                            "rtc-data-in", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &rtc->data_out_irq,
+                             "rtc-data-out", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_cmd_reset_irq,
+                            "rtc-cmd-reset", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &rtc->power_irq,
+                             "rtc-power-out", 1);
+}
+
+static const VMStateDescription next_rtc_vmstate = {
+    .name = "next-rtc",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT8(phase, NeXTRTC),
+        VMSTATE_UINT8_ARRAY(ram, NeXTRTC, 32),
+        VMSTATE_UINT8(command, NeXTRTC),
+        VMSTATE_UINT8(value, NeXTRTC),
+        VMSTATE_UINT8(status, NeXTRTC),
+        VMSTATE_UINT8(control, NeXTRTC),
+        VMSTATE_UINT8(retval, NeXTRTC),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void next_rtc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    dc->desc = "NeXT RTC";
+    dc->vmsd = &next_rtc_vmstate;
+    rc->phases.hold = next_rtc_reset_hold;
+}
+
+static const TypeInfo next_rtc_info = {
+    .name = TYPE_NEXT_RTC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = next_rtc_init,
+    .instance_size = sizeof(NeXTRTC),
+    .class_init = next_rtc_class_init,
+};
+
+static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
+{
+    NeXTPC *s = NEXT_PC(opaque);
+    uint8_t scr2_2 = extract32(s->scr2, 8, 8);
+
+    if (level) {
+        scr2_2 |= SCR2_RTDATA;
+    } else {
+        scr2_2 &= ~SCR2_RTDATA;
+    }
+
+    s->scr2 = deposit32(s->scr2, 8, 8, scr2_2);
+}
+
+static void next_pc_reset_hold(Object *obj, ResetType type)
+{
+    NeXTPC *s = NEXT_PC(obj);
 
     /* Set internal registers to initial values */
     /*     0x0000XX00 << vital bits */
     s->scr1 = 0x00011102;
     s->scr2 = 0x00ff0c80;
     s->old_scr2 = s->scr2;
-
-    s->rtc.status = 0x90;
-
-    /* Load RTC RAM - TODO: provide possibility to load contents from file */
-    memcpy(s->rtc.ram, rtc_ram2, 32);
 }
 
 static void next_pc_realize(DeviceState *dev, Error **errp)
 {
     NeXTPC *s = NEXT_PC(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd;
+    DeviceState *d;
 
-    qdev_init_gpio_in(dev, next_irq, NEXT_NUM_IRQS);
+    /* SCSI */
+    sbd = SYS_BUS_DEVICE(&s->next_scsi);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+
+    d = DEVICE(object_resolve_path_component(OBJECT(&s->next_scsi), "esp"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(d), 0,
+                       qdev_get_gpio_in(DEVICE(s), NEXT_SCSI_I));
+
+    s->scsi_reset = qdev_get_gpio_in(d, 0);
+    s->scsi_dma = qdev_get_gpio_in(d, 1);
+
+    /* ESCC */
+    d = DEVICE(&s->escc);
+    qdev_prop_set_uint32(d, "disabled", 0);
+    qdev_prop_set_uint32(d, "frequency", 9600 * 384);
+    qdev_prop_set_uint32(d, "it_shift", 0);
+    qdev_prop_set_bit(d, "bit_swap", true);
+    qdev_prop_set_chr(d, "chrB", serial_hd(1));
+    qdev_prop_set_chr(d, "chrA", serial_hd(0));
+    qdev_prop_set_uint32(d, "chnBtype", escc_serial);
+    qdev_prop_set_uint32(d, "chnAtype", escc_serial);
+
+    sbd = SYS_BUS_DEVICE(d);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(dev, NEXT_SCC_I));
+    sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(dev, NEXT_SCC_DMA_I));
+
+    /* RTC */
+    d = DEVICE(&s->rtc);
+    if (!sysbus_realize(SYS_BUS_DEVICE(d), errp)) {
+        return;
+    }
+    /* Data from NeXTPC to RTC */
+    qdev_connect_gpio_out_named(dev, "rtc-data-out", 0,
+                                qdev_get_gpio_in_named(d, "rtc-data-in", 0));
+    /* Data from RTC to NeXTPC */
+    qdev_connect_gpio_out_named(d, "rtc-data-out", 0,
+                                qdev_get_gpio_in_named(dev,
+                                                       "rtc-data-in", 0));
+    qdev_connect_gpio_out_named(dev, "rtc-cmd-reset", 0,
+                                qdev_get_gpio_in_named(d, "rtc-cmd-reset", 0));
+    qdev_connect_gpio_out_named(d, "rtc-power-out", 0,
+                                qdev_get_gpio_in(dev, NEXT_PWR_I));
+}
+
+static void next_pc_init(Object *obj)
+{
+    NeXTPC *s = NEXT_PC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    qdev_init_gpio_in(DEVICE(obj), next_irq, NEXT_NUM_IRQS);
 
     memory_region_init_io(&s->mmiomem, OBJECT(s), &next_mmio_ops, s,
-                          "next.mmio", 0xd0000);
-    memory_region_init_io(&s->scrmem, OBJECT(s), &next_scr_ops, s,
-                          "next.scr", 0x20000);
+                          "next.mmio", 0x9000);
     sysbus_init_mmio(sbd, &s->mmiomem);
-    sysbus_init_mmio(sbd, &s->scrmem);
+
+    memory_region_init_io(&s->dummyen_mem, OBJECT(s), &next_dummy_en_ops, s,
+                          "next.en", 0x20);
+    sysbus_init_mmio(sbd, &s->dummyen_mem);
+
+    object_initialize_child(obj, "next-scsi", &s->next_scsi, TYPE_NEXT_SCSI);
+    sysbus_init_mmio(sbd,
+                     sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->next_scsi), 0));
+
+    memory_region_init_io(&s->floppy_mem, OBJECT(s), &next_floppy_ops, s,
+                          "next.floppy", 4);
+    sysbus_init_mmio(sbd, &s->floppy_mem);
+
+    object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
+    sysbus_init_mmio(sbd,
+                     sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->escc), 0));
+
+    memory_region_init_io(&s->timer_mem, OBJECT(s), &next_timer_ops, s,
+                          "next.timer", 4);
+    sysbus_init_mmio(sbd, &s->timer_mem);
+
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_NEXT_RTC);
+
+    qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
+                            "rtc-data-in", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_data_irq,
+                             "rtc-data-out", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_cmd_reset_irq,
+                             "rtc-cmd-reset", 1);
 }
 
 /*
@@ -918,26 +1213,10 @@ static const Property next_pc_properties[] = {
     DEFINE_PROP_LINK("cpu", NeXTPC, cpu, TYPE_M68K_CPU, M68kCPU *),
 };
 
-static const VMStateDescription next_rtc_vmstate = {
-    .name = "next-rtc",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT8(phase, NextRtc),
-        VMSTATE_UINT8_ARRAY(ram, NextRtc, 32),
-        VMSTATE_UINT8(command, NextRtc),
-        VMSTATE_UINT8(value, NextRtc),
-        VMSTATE_UINT8(status, NextRtc),
-        VMSTATE_UINT8(control, NextRtc),
-        VMSTATE_UINT8(retval, NextRtc),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
 static const VMStateDescription next_pc_vmstate = {
     .name = "next-pc",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(scr1, NeXTPC),
         VMSTATE_UINT32(scr2, NeXTPC),
@@ -945,9 +1224,6 @@ static const VMStateDescription next_pc_vmstate = {
         VMSTATE_UINT32(int_mask, NeXTPC),
         VMSTATE_UINT32(int_status, NeXTPC),
         VMSTATE_UINT32(led, NeXTPC),
-        VMSTATE_UINT8(scsi_csr_1, NeXTPC),
-        VMSTATE_UINT8(scsi_csr_2, NeXTPC),
-        VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NextRtc),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -955,17 +1231,19 @@ static const VMStateDescription next_pc_vmstate = {
 static void next_pc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "NeXT Peripheral Controller";
     dc->realize = next_pc_realize;
-    device_class_set_legacy_reset(dc, next_pc_reset);
     device_class_set_props(dc, next_pc_properties);
     dc->vmsd = &next_pc_vmstate;
+    rc->phases.hold = next_pc_reset_hold;
 }
 
 static const TypeInfo next_pc_info = {
     .name = TYPE_NEXT_PC,
     .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = next_pc_init,
     .instance_size = sizeof(NeXTPC),
     .class_init = next_pc_class_init,
 };
@@ -1003,10 +1281,31 @@ static void next_cube_init(MachineState *machine)
     sysbus_create_simple(TYPE_NEXTFB, 0x0B000000, NULL);
 
     /* MMIO */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02000000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02005000);
 
     /* BMAP IO - acts as a catch-all for now */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
+
+    /* en network (dummy) */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02106000);
+
+    /* unknown: Brightness control register? */
+    empty_slot_init("next.unknown.0", 0x02110000, 0x10);
+    /* unknown: Magneto-Optical drive controller? */
+    empty_slot_init("next.unknown.1", 0x02112000, 0x10);
+
+    /* SCSI */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 2, 0x02114000);
+    /* Floppy */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 3, 0x02114108);
+    /* ESCC */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 4, 0x02118000);
+
+    /* unknown: Serial clock configuration register? */
+    empty_slot_init("next.unknown.2", 0x02118004, 0x10);
+
+    /* Timer */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 5, 0x0211a000);
 
     /* BMAP memory */
     memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
@@ -1043,14 +1342,6 @@ static void next_cube_init(MachineState *machine)
         }
     }
 
-    /* Serial */
-    next_escc_init(pcdev);
-
-    /* TODO: */
-    /* Network */
-    /* SCSI */
-    next_scsi_init(pcdev);
-
     /* DMA */
     memory_region_init_io(&m->dmamem, NULL, &next_dma_ops, machine,
                           "next.dma", 0x5000);
@@ -1067,6 +1358,7 @@ static void next_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = RAM_SIZE;
     mc->default_ram_id = "next.ram";
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
+    mc->no_cdrom = true;
 }
 
 static const TypeInfo next_typeinfo = {
@@ -1080,6 +1372,8 @@ static void next_register_type(void)
 {
     type_register_static(&next_typeinfo);
     type_register_static(&next_pc_info);
+    type_register_static(&next_scsi_info);
+    type_register_static(&next_rtc_info);
 }
 
 type_init(next_register_type)

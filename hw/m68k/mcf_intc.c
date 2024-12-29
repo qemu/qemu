@@ -166,7 +166,7 @@ static void mcf_intc_reset(DeviceState *dev)
 static const MemoryRegionOps mcf_intc_ops = {
     .read = mcf_intc_read,
     .write = mcf_intc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void mcf_intc_instance_init(Object *obj)
