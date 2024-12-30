@@ -112,31 +112,21 @@
 static inline bool
 tcg_target_extract_valid(TCGType type, unsigned ofs, unsigned len)
 {
-    if (ofs == 0) {
-        switch (len) {
-        case 16:
-            return cpuinfo & CPUINFO_ZBB;
-        case 32:
-            return (cpuinfo & CPUINFO_ZBA) && type == TCG_TYPE_I64;
-        }
+    if (type == TCG_TYPE_I64 && ofs + len == 32) {
+        /* ofs > 0 uses SRLIW; ofs == 0 uses add.uw. */
+        return ofs || (cpuinfo & CPUINFO_ZBA);
     }
-    return false;
+    return (cpuinfo & CPUINFO_ZBB) && ofs == 0 && len == 16;
 }
 #define TCG_TARGET_extract_valid  tcg_target_extract_valid
 
 static inline bool
 tcg_target_sextract_valid(TCGType type, unsigned ofs, unsigned len)
 {
-    if (ofs == 0) {
-        switch (len) {
-        case 8:
-        case 16:
-            return cpuinfo & CPUINFO_ZBB;
-        case 32:
-            return type == TCG_TYPE_I64;
-        }
+    if (type == TCG_TYPE_I64 && ofs + len == 32) {
+        return true;
     }
-    return false;
+    return (cpuinfo & CPUINFO_ZBB) && ofs == 0 && (len == 8 || len == 16);
 }
 #define TCG_TARGET_sextract_valid  tcg_target_sextract_valid
 

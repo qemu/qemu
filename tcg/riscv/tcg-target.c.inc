@@ -2344,8 +2344,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_extract_i64:
-        if (a2 == 0 && args[3] == 32) {
-            tcg_out_ext32u(s, a0, a1);
+        if (a2 + args[3] == 32) {
+            if (a2 == 0) {
+                tcg_out_ext32u(s, a0, a1);
+            } else {
+                tcg_out_opc_imm(s, OPC_SRLIW, a0, a1, a2);
+            }
             break;
         }
         /* FALLTHRU */
@@ -2358,8 +2362,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_sextract_i64:
-        if (a2 == 0 && args[3] == 32) {
-            tcg_out_ext32s(s, a0, a1);
+        if (a2 + args[3] == 32) {
+            if (a2 == 0) {
+                tcg_out_ext32s(s, a0, a1);
+            } else {
+                tcg_out_opc_imm(s, OPC_SRAIW, a0, a1, a2);
+            }
             break;
         }
         /* FALLTHRU */
