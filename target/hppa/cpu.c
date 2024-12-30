@@ -209,7 +209,7 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
     memset(env, 0, offsetof(CPUHPPAState, end_reset_fields));
 
     cpu_hppa_loaded_fr0(env);
-    cpu_hppa_put_psw(env, PSW_W);
+    cpu_hppa_put_psw(env, PSW_M);
 }
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
