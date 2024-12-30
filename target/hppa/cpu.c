@@ -204,6 +204,7 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
         scc->parent_phases.hold(obj, type);
     }
     cs->exception_index = -1;
+    cs->halted = 0;
 
     memset(env, 0, offsetof(CPUHPPAState, end_reset_fields));
 
