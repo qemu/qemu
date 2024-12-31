@@ -119,8 +119,6 @@ if gtk.found()
 endif
 
 if sdl.found()
-  system_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
-
   sdl_ss = ss.source_set()
   sdl_ss.add(sdl, sdl_image, pixman, glib, files(
     'sdl2-2d.c',
