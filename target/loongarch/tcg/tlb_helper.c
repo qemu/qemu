@@ -512,7 +512,6 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
 {
     CPUState *cs = env_cpu(env);
     target_ulong badvaddr, index, phys, ret;
-    int shift;
     uint64_t dir_base, dir_width;
 
     if (unlikely((level == 0) || (level > 4))) {
@@ -537,14 +536,9 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
 
     badvaddr = env->CSR_TLBRBADV;
     base = base & TARGET_PHYS_MASK;
-
-    /* 0:64bit, 1:128bit, 2:192bit, 3:256bit */
-    shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
-    shift = (shift + 1) * 3;
-
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
-    phys = base | index << shift;
+    phys = base | index << 3;
     ret = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
     return ret;
 }
@@ -554,7 +548,6 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
 {
     CPUState *cs = env_cpu(env);
     target_ulong phys, tmp0, ptindex, ptoffset0, ptoffset1, ps, badv;
-    int shift;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
     uint64_t dir_base, dir_width;
@@ -595,16 +588,12 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
             tmp0 += MAKE_64BIT_MASK(ps, 1);
         }
     } else {
-        /* 0:64bit, 1:128bit, 2:192bit, 3:256bit */
-        shift = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTEWIDTH);
-        shift = (shift + 1) * 3;
         badv = env->CSR_TLBRBADV;
 
         ptindex = (badv >> ptbase) & ((1 << ptwidth) - 1);
         ptindex = ptindex & ~0x1;   /* clear bit 0 */
-        ptoffset0 = ptindex << shift;
-        ptoffset1 = (ptindex + 1) << shift;
-
+        ptoffset0 = ptindex << 3;
+        ptoffset1 = (ptindex + 1) << 3;
         phys = base | (odd ? ptoffset1 : ptoffset0);
         tmp0 = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
         ps = ptbase;
