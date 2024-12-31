@@ -1,6 +1,8 @@
 ## Virtual Shell
 A program to run an Unix shell command inside an virtual environment (assuming the disk image used is Linux).
 ### How It [Would] Work(s)
-virtsh takes the iamge and emulates it using QEMU. However, because of bootloaders showing up, it takes the disk's filesystem and runs the command as if it had booted. 
-#### I don't have any experience with emulation
-Yeah...
+virtsh takes the iamge and emulates it using QEMU. However, because of bootloaders showing up, it takes the disk's filesystem and runs the command as if it had booted. It uses the system default shell and temporarily sets all environment variables... no, scratch that.. it uses chroot...
+#### Aw, Chroot!
+Yeah, virtsh needs chroot to work, which is a problem since it requires root. however, it uses [lxroot](https://github.com/parke/lxroot) as its chroot as it is an safe, non-needing-root alternative to schroot, which was another workaround to this puzzle.
+### I don't have any experience with emulation
+Yeah... good luck? (for me...)
