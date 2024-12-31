@@ -1203,6 +1203,7 @@ F: include/hw/pci-host/astro.h
 F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
+F: tests/functional/test_hppa_seabios.py
 
 LoongArch Machines
 ------------------
