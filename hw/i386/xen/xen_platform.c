@@ -514,7 +514,7 @@ static void platform_mmio_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps platform_mmio_handler = {
     .read = &platform_mmio_read,
     .write = &platform_mmio_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void platform_mmio_setup(PCIXenPlatformState *d)
