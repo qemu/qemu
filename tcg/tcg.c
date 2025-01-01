@@ -2136,8 +2136,28 @@ TCGTemp *tcgv_i32_temp(TCGv_i32 v)
  */
 bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
 {
-    const bool have_vec
-        = TCG_TARGET_HAS_v64 | TCG_TARGET_HAS_v128 | TCG_TARGET_HAS_v256;
+    bool has_type;
+
+    switch (type) {
+    case TCG_TYPE_I32:
+        has_type = true;
+        break;
+    case TCG_TYPE_I64:
+        has_type = TCG_TARGET_REG_BITS == 64;
+        break;
+    case TCG_TYPE_V64:
+        has_type = TCG_TARGET_HAS_v64;
+        break;
+    case TCG_TYPE_V128:
+        has_type = TCG_TARGET_HAS_v128;
+        break;
+    case TCG_TYPE_V256:
+        has_type = TCG_TARGET_HAS_v256;
+        break;
+    default:
+        has_type = false;
+        break;
+    }
 
     switch (op) {
     case INDEX_op_discard:
@@ -2376,60 +2396,60 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_cmp_vec:
-        return have_vec;
+        return has_type;
     case INDEX_op_dup2_vec:
-        return have_vec && TCG_TARGET_REG_BITS == 32;
+        return has_type && TCG_TARGET_REG_BITS == 32;
     case INDEX_op_not_vec:
-        return have_vec && TCG_TARGET_HAS_not_vec;
+        return has_type && TCG_TARGET_HAS_not_vec;
     case INDEX_op_neg_vec:
-        return have_vec && TCG_TARGET_HAS_neg_vec;
+        return has_type && TCG_TARGET_HAS_neg_vec;
     case INDEX_op_abs_vec:
-        return have_vec && TCG_TARGET_HAS_abs_vec;
+        return has_type && TCG_TARGET_HAS_abs_vec;
     case INDEX_op_andc_vec:
-        return have_vec && TCG_TARGET_HAS_andc_vec;
+        return has_type && TCG_TARGET_HAS_andc_vec;
     case INDEX_op_orc_vec:
-        return have_vec && TCG_TARGET_HAS_orc_vec;
+        return has_type && TCG_TARGET_HAS_orc_vec;
     case INDEX_op_nand_vec:
-        return have_vec && TCG_TARGET_HAS_nand_vec;
+        return has_type && TCG_TARGET_HAS_nand_vec;
     case INDEX_op_nor_vec:
-        return have_vec && TCG_TARGET_HAS_nor_vec;
+        return has_type && TCG_TARGET_HAS_nor_vec;
     case INDEX_op_eqv_vec:
-        return have_vec && TCG_TARGET_HAS_eqv_vec;
+        return has_type && TCG_TARGET_HAS_eqv_vec;
     case INDEX_op_mul_vec:
-        return have_vec && TCG_TARGET_HAS_mul_vec;
+        return has_type && TCG_TARGET_HAS_mul_vec;
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
-        return have_vec && TCG_TARGET_HAS_shi_vec;
+        return has_type && TCG_TARGET_HAS_shi_vec;
     case INDEX_op_shls_vec:
     case INDEX_op_shrs_vec:
     case INDEX_op_sars_vec:
-        return have_vec && TCG_TARGET_HAS_shs_vec;
+        return has_type && TCG_TARGET_HAS_shs_vec;
     case INDEX_op_shlv_vec:
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
-        return have_vec && TCG_TARGET_HAS_shv_vec;
+        return has_type && TCG_TARGET_HAS_shv_vec;
     case INDEX_op_rotli_vec:
-        return have_vec && TCG_TARGET_HAS_roti_vec;
+        return has_type && TCG_TARGET_HAS_roti_vec;
     case INDEX_op_rotls_vec:
-        return have_vec && TCG_TARGET_HAS_rots_vec;
+        return has_type && TCG_TARGET_HAS_rots_vec;
     case INDEX_op_rotlv_vec:
     case INDEX_op_rotrv_vec:
-        return have_vec && TCG_TARGET_HAS_rotv_vec;
+        return has_type && TCG_TARGET_HAS_rotv_vec;
     case INDEX_op_ssadd_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_sssub_vec:
     case INDEX_op_ussub_vec:
-        return have_vec && TCG_TARGET_HAS_sat_vec;
+        return has_type && TCG_TARGET_HAS_sat_vec;
     case INDEX_op_smin_vec:
     case INDEX_op_umin_vec:
     case INDEX_op_smax_vec:
     case INDEX_op_umax_vec:
-        return have_vec && TCG_TARGET_HAS_minmax_vec;
+        return has_type && TCG_TARGET_HAS_minmax_vec;
     case INDEX_op_bitsel_vec:
-        return have_vec && TCG_TARGET_HAS_bitsel_vec;
+        return has_type && TCG_TARGET_HAS_bitsel_vec;
     case INDEX_op_cmpsel_vec:
-        return have_vec && TCG_TARGET_HAS_cmpsel_vec;
+        return has_type && TCG_TARGET_HAS_cmpsel_vec;
 
     default:
         tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
