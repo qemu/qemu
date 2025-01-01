@@ -1818,30 +1818,16 @@ static inline void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
             tcg_gen_movi_i32(TCGV_LOW(ret), 0);
         }
     } else if (right) {
-        if (tcg_op_supported(INDEX_op_extract2, TCG_TYPE_I32, 0)) {
-            tcg_gen_extract2_i32(TCGV_LOW(ret),
-                                 TCGV_LOW(arg1), TCGV_HIGH(arg1), c);
-        } else {
-            tcg_gen_shri_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
-            tcg_gen_deposit_i32(TCGV_LOW(ret), TCGV_LOW(ret),
-                                TCGV_HIGH(arg1), 32 - c, c);
-        }
+        tcg_gen_extract2_i32(TCGV_LOW(ret), TCGV_LOW(arg1),
+                             TCGV_HIGH(arg1), c);
         if (arith) {
             tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
         } else {
             tcg_gen_shri_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
         }
     } else {
-        if (tcg_op_supported(INDEX_op_extract2, TCG_TYPE_I32, 0)) {
-            tcg_gen_extract2_i32(TCGV_HIGH(ret),
-                                 TCGV_LOW(arg1), TCGV_HIGH(arg1), 32 - c);
-        } else {
-            TCGv_i32 t0 = tcg_temp_ebb_new_i32();
-            tcg_gen_shri_i32(t0, TCGV_LOW(arg1), 32 - c);
-            tcg_gen_deposit_i32(TCGV_HIGH(ret), t0,
-                                TCGV_HIGH(arg1), c, 32 - c);
-            tcg_temp_free_i32(t0);
-        }
+        tcg_gen_extract2_i32(TCGV_HIGH(ret), TCGV_LOW(arg1),
+                             TCGV_HIGH(arg1), 32 - c);
         tcg_gen_shli_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
     }
 }
