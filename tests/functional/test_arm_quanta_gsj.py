@@ -35,7 +35,7 @@ class EmcraftSf2Machine(LinuxKernelTest):
     @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_arm_quanta_gsj(self):
         self.set_machine('quanta-gsj')
-        image_path = self.uncompress(ASSET_IMAGE, 'obmc.mtd', format='gz')
+        image_path = self.uncompress(self.ASSET_IMAGE, format='gz')
 
         self.vm.set_console()
         drive_args = 'file=' + image_path + ',if=mtd,bus=0,unit=0'

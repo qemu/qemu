@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Simple functional tests for VNC functionality
 #
 # Copyright (c) 2018 Red Hat, Inc.
@@ -11,23 +13,10 @@
 import socket
 from typing import List
 
-from avocado_qemu import QemuSystemTest
-
+from qemu_test import QemuSystemTest
+from qemu_test.ports import Ports
 
 VNC_ADDR = '127.0.0.1'
-VNC_PORT_START = 32768
-VNC_PORT_END = VNC_PORT_START + 1024
-
-
-def check_bind(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        try:
-            sock.bind((VNC_ADDR, port))
-        except OSError:
-            return False
-
-    return True
-
 
 def check_connect(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -38,27 +27,7 @@ def check_connect(port: int) -> bool:
 
     return True
 
-
-def find_free_ports(count: int) -> List[int]:
-    result = []
-    for port in range(VNC_PORT_START, VNC_PORT_END):
-        if check_bind(port):
-            result.append(port)
-            if len(result) >= count:
-                break
-    assert len(result) == count
-    return result
-
-
 class Vnc(QemuSystemTest):
-    """
-    :avocado: tags=vnc,quick
-    :avocado: tags=machine:none
-    """
-    def test_no_vnc(self):
-        self.vm.add_args('-nodefaults', '-S')
-        self.vm.launch()
-        self.assertFalse(self.vm.qmp('query-vnc')['return']['enabled'])
 
     def test_no_vnc_change_password(self):
         self.vm.add_args('-nodefaults', '-S')
@@ -73,7 +42,7 @@ class Vnc(QemuSystemTest):
                          'Could not set password')
 
     def test_change_password_requires_a_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0')
+        self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change-vnc-password',
@@ -85,14 +54,13 @@ class Vnc(QemuSystemTest):
                          'Could not set password')
 
     def test_change_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password=on')
+        self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999,password=on')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         self.vm.cmd('change-vnc-password',
                     password='new_password')
 
-    def test_change_listen(self):
-        a, b, c = find_free_ports(3)
+    def do_test_change_listen(self, a, b, c):
         self.assertFalse(check_connect(a))
         self.assertFalse(check_connect(b))
         self.assertFalse(check_connect(c))
@@ -113,3 +81,12 @@ class Vnc(QemuSystemTest):
         self.assertFalse(check_connect(a))
         self.assertTrue(check_connect(b))
         self.assertTrue(check_connect(c))
+
+    def test_change_listen(self):
+        with Ports() as ports:
+            a, b, c = ports.find_free_ports(3)
+            self.do_test_change_listen(a, b, c)
+
+
+if __name__ == '__main__':
+    QemuSystemTest.main()
