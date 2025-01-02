@@ -20,7 +20,6 @@
 
 #include "user/thunk.h"
 #include "exec/exec-all.h"
-#include "exec/tb-flush.h"
 #include "qemu/log.h"
 
 extern char *exec_path;
