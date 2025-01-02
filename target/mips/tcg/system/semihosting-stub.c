@@ -1,9 +1,10 @@
 /*
  *  MIPS semihosting stub
  *
- * SPDX-FileContributor: Philippe Mathieu-Daudé <philmd@linaro.org>
- * SPDX-FileCopyrightText: 2024 Linaro Ltd.
  * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2024 Linaro Ltd.
+ * Authors:
+ *   Philippe Mathieu-Daudé
  */
 
 #include "qemu/osdep.h"

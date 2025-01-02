@@ -2,9 +2,11 @@
 #
 # Functional test that boots a kernel and checks the console
 #
-# SPDX-FileCopyrightText: 2023-2024 Linaro Ltd.
-# SPDX-FileContributor: Philippe Mathieu-Daudé <philmd@linaro.org>
-# SPDX-FileContributor: Marcin Juszkiewicz <marcin.juszkiewicz@linaro.org>
+# Copyright (c) 2023-2024 Linaro Ltd.
+#
+# Authors:
+#   Philippe Mathieu-Daudé
+#   Marcin Juszkiewicz
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
