@@ -46,3 +46,4 @@ system_ss.add(files(
   'vm-change-state-handler.c',
   'clock-vmstate.c',
 ))
+user_ss.add(files('qdev-user.c'))

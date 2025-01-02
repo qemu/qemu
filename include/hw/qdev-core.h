@@ -1024,6 +1024,16 @@ void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
 
 /**
+ * qdev_create_fake_machine(): Create a fake machine container.
+ *
+ * .. note::
+ *    This function is a kludge for user emulation (USER_ONLY)
+ *    because when thread (TYPE_CPU) are realized, qdev_realize()
+ *    access a machine container.
+ */
+void qdev_create_fake_machine(void);
+
+/**
  * qdev_get_human_name() - Return a human-readable name for a device
  * @dev: The device. Must be a valid and non-NULL pointer.
  *
