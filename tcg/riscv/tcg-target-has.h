@@ -110,7 +110,13 @@ tcg_target_extract_valid(TCGType type, unsigned ofs, unsigned len)
         /* ofs > 0 uses SRLIW; ofs == 0 uses add.uw. */
         return ofs || (cpuinfo & CPUINFO_ZBA);
     }
-    return (cpuinfo & CPUINFO_ZBB) && ofs == 0 && len == 16;
+    switch (len) {
+    case 1:
+        return (cpuinfo & CPUINFO_ZBS) && ofs != 0;
+    case 16:
+        return (cpuinfo & CPUINFO_ZBB) && ofs == 0;
+    }
+    return false;
 }
 #define TCG_TARGET_extract_valid  tcg_target_extract_valid
 

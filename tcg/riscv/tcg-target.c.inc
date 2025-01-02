@@ -163,6 +163,7 @@ typedef enum {
     OPC_ANDI = 0x7013,
     OPC_AUIPC = 0x17,
     OPC_BEQ = 0x63,
+    OPC_BEXTI = 0x48005013,
     OPC_BGE = 0x5063,
     OPC_BGEU = 0x7063,
     OPC_BLT = 0x4063,
@@ -2354,9 +2355,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         /* FALLTHRU */
     case INDEX_op_extract_i32:
-        if (a2 == 0 && args[3] == 16) {
+        switch (args[3]) {
+        case 1:
+            tcg_out_opc_imm(s, OPC_BEXTI, a0, a1, a2);
+            break;
+        case 16:
+            tcg_debug_assert(a2 == 0);
             tcg_out_ext16u(s, a0, a1);
-        } else {
+            break;
+        default:
             g_assert_not_reached();
         }
         break;
