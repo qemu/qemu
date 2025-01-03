@@ -66,16 +66,8 @@ static char *virtual_css_bus_get_dev_path(DeviceState *dev)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     SubchDev *sch = ccw_dev->sch;
-    VirtualCssBridge *bridge =
-        VIRTUAL_CSS_BRIDGE(qdev_get_parent_bus(dev)->parent);
 
-    /*
-     * We can't provide a dev path for backward compatibility on
-     * older machines, as it is visible in the migration stream.
-     */
-    return bridge->css_dev_path ?
-        g_strdup_printf("/%02x.%1x.%04x", sch->cssid, sch->ssid, sch->devno) :
-        NULL;
+    return g_strdup_printf("/%02x.%1x.%04x", sch->cssid, sch->ssid, sch->devno);
 }
 
 static void virtual_css_bus_class_init(ObjectClass *klass, void *data)
@@ -120,11 +112,6 @@ VirtualCssBus *virtual_css_bus_init(void)
 
 /***************** Virtual-css Bus Bridge Device ********************/
 
-static const Property virtual_css_bridge_properties[] = {
-    DEFINE_PROP_BOOL("css_dev_path", VirtualCssBridge, css_dev_path,
-                     true),
-};
-
 static bool prop_get_true(Object *obj, Error **errp)
 {
     return true;
@@ -137,7 +124,6 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 
     hc->unplug = ccw_device_unplug;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    device_class_set_props(dc, virtual_css_bridge_properties);
     object_class_property_add_bool(klass, "cssid-unrestricted",
                                    prop_get_true, NULL);
     object_class_property_set_description(klass, "cssid-unrestricted",
