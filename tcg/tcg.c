@@ -3249,6 +3249,8 @@ TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *old_op,
                             TCGOpcode opc, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
+
+    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
     QTAILQ_INSERT_BEFORE(old_op, new_op, link);
     return new_op;
 }
@@ -3257,6 +3259,8 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
                            TCGOpcode opc, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
+
+    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
     QTAILQ_INSERT_AFTER(&s->ops, old_op, new_op, link);
     return new_op;
 }
