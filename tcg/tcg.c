@@ -2616,7 +2616,8 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             nb_cargs = def->nb_cargs;
 
             if (def->flags & TCG_OPF_VECTOR) {
-                col += ne_fprintf(f, "v%d,e%d,", 64 << TCGOP_VECL(op),
+                col += ne_fprintf(f, "v%d,e%d,",
+                                  8 * tcg_type_size(TCGOP_TYPE(op)),
                                   8 << TCGOP_VECE(op));
             }
 
@@ -4709,7 +4710,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
 
     itype = its->type;
     vece = TCGOP_VECE(op);
-    vtype = TCGOP_VECL(op) + TCG_TYPE_V64;
+    vtype = TCGOP_TYPE(op);
 
     if (its->val_type == TEMP_VAL_CONST) {
         /* Propagate constant via movi -> dupi.  */
@@ -5176,8 +5177,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
     default:
         if (def->flags & TCG_OPF_VECTOR) {
-            tcg_out_vec_op(s, op->opc, TCGOP_VECL(op), TCGOP_VECE(op),
-                           new_args, const_args);
+            tcg_out_vec_op(s, op->opc, TCGOP_TYPE(op) - TCG_TYPE_V64,
+                           TCGOP_VECE(op), new_args, const_args);
         } else {
             tcg_out_op(s, op->opc, new_args, const_args);
         }
@@ -5203,7 +5204,7 @@ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
 {
     const TCGLifeData arg_life = op->life;
     TCGTemp *ots, *itsl, *itsh;
-    TCGType vtype = TCGOP_VECL(op) + TCG_TYPE_V64;
+    TCGType vtype = TCGOP_TYPE(op);
 
     /* This opcode is only valid for 32-bit hosts, for 64-bit elements. */
     tcg_debug_assert(TCG_TARGET_REG_BITS == 32);

@@ -370,7 +370,7 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
     case TCG_TYPE_V256:
-        /* TCGOP_VECL and TCGOP_VECE remain unchanged.  */
+        /* TCGOP_TYPE and TCGOP_VECE remain unchanged.  */
         new_op = INDEX_op_mov_vec;
         break;
     default:
@@ -2866,13 +2866,7 @@ void tcg_optimize(TCGContext *s)
         copy_propagate(&ctx, op, def->nb_oargs, def->nb_iargs);
 
         /* Pre-compute the type of the operation. */
-        if (def->flags & TCG_OPF_VECTOR) {
-            ctx.type = TCG_TYPE_V64 + TCGOP_VECL(op);
-        } else if (def->flags & TCG_OPF_64BIT) {
-            ctx.type = TCG_TYPE_I64;
-        } else {
-            ctx.type = TCG_TYPE_I32;
-        }
+        ctx.type = TCGOP_TYPE(op);
 
         /*
          * Process each opcode.
