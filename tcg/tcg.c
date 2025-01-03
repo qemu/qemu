@@ -3371,9 +3371,6 @@ static const TCGArgConstraint *opcode_args_ct(const TCGOp *op)
     assert(tcg_op_supported(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op)));
 #endif
 
-    if (def->nb_iargs + def->nb_oargs == 0) {
-        return NULL;
-    }
     if (def->flags & TCG_OPF_NOT_PRESENT) {
         return empty_cts;
     }
