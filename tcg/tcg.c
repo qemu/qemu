@@ -866,7 +866,7 @@ typedef enum {
 #include "tcg-target-con-set.h"
 } TCGConstraintSetIndex;
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode);
+static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode, TCGType, unsigned);
 
 #undef C_O0_I1
 #undef C_O0_I2
@@ -3375,7 +3375,7 @@ static const TCGArgConstraint *opcode_args_ct(const TCGOp *op)
         return empty_cts;
     }
 
-    con_set = tcg_target_op_def(op->opc);
+    con_set = tcg_target_op_def(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op));
     tcg_debug_assert(con_set >= 0 && con_set < ARRAY_SIZE(constraint_sets));
 
     /* The constraint arguments must match TCGOpcode arguments. */
