@@ -1804,10 +1804,6 @@ static FeatureDep feature_dependencies[] = {
         .to = { FEAT_7_1_EAX,               CPUID_7_1_EAX_FRED },
     },
     {
-        .from = { FEAT_7_1_EAX,             CPUID_7_1_EAX_WRMSRNS },
-        .to = { FEAT_7_1_EAX,               CPUID_7_1_EAX_FRED },
-    },
-    {
         .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_SGX },
         .to = { FEAT_7_0_ECX,               CPUID_7_0_ECX_SGX_LC },
     },
