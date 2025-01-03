@@ -24,9 +24,9 @@
  * consider these to be UNSPEC with names.
  */
 
-DEF(ppc_mrgh_vec, 1, 2, 0, IMPLVEC)
-DEF(ppc_mrgl_vec, 1, 2, 0, IMPLVEC)
-DEF(ppc_msum_vec, 1, 3, 0, IMPLVEC)
-DEF(ppc_muleu_vec, 1, 2, 0, IMPLVEC)
-DEF(ppc_mulou_vec, 1, 2, 0, IMPLVEC)
-DEF(ppc_pkum_vec, 1, 2, 0, IMPLVEC)
+DEF(ppc_mrgh_vec, 1, 2, 0, TCG_OPF_VECTOR)
+DEF(ppc_mrgl_vec, 1, 2, 0, TCG_OPF_VECTOR)
+DEF(ppc_msum_vec, 1, 3, 0, TCG_OPF_VECTOR)
+DEF(ppc_muleu_vec, 1, 2, 0, TCG_OPF_VECTOR)
+DEF(ppc_mulou_vec, 1, 2, 0, TCG_OPF_VECTOR)
+DEF(ppc_pkum_vec, 1, 2, 0, TCG_OPF_VECTOR)

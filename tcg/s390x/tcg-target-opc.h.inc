@@ -10,6 +10,6 @@
  * emitted by tcg_expand_vec_op.  For those familiar with GCC internals,
  * consider these to be UNSPEC with names.
  */
-DEF(s390_vuph_vec, 1, 1, 0, IMPLVEC)
-DEF(s390_vupl_vec, 1, 1, 0, IMPLVEC)
-DEF(s390_vpks_vec, 1, 2, 0, IMPLVEC)
+DEF(s390_vuph_vec, 1, 1, 0, TCG_OPF_VECTOR)
+DEF(s390_vupl_vec, 1, 1, 0, TCG_OPF_VECTOR)
+DEF(s390_vpks_vec, 1, 2, 0, TCG_OPF_VECTOR)
