@@ -267,4 +267,10 @@ int pthread_fchdir_np(int fd) __attribute__((weak_import));
 #endif
 int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
 
+/*
+ * Returns a newly allocated string presentation of open() flags, intended
+ * for debugging (tracing) purposes only.
+ */
+char *qemu_open_flags_tostr(int flags);
+
 #endif

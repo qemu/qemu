@@ -2008,6 +2008,7 @@ static void coroutine_fn v9fs_open(void *opaque)
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
+    g_autofree char *trace_oflags = NULL;
 
     if (s->proto_version == V9FS_PROTO_2000L) {
         err = pdu_unmarshal(pdu, offset, "dd", &fid, &mode);
@@ -2019,7 +2020,13 @@ static void coroutine_fn v9fs_open(void *opaque)
     if (err < 0) {
         goto out_nofid;
     }
-    trace_v9fs_open(pdu->tag, pdu->id, fid, mode);
+    if (trace_event_get_state_backends(TRACE_V9FS_OPEN)) {
+        trace_oflags = qemu_open_flags_tostr(
+            (s->proto_version == V9FS_PROTO_2000L) ?
+                dotl_to_open_flags(mode) : omode_to_uflags(mode)
+        );
+        trace_v9fs_open(pdu->tag, pdu->id, fid, mode, trace_oflags);
+    }
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
