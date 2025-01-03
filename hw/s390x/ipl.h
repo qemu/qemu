@@ -80,7 +80,6 @@ struct S390IPLState {
     uint8_t cssid;
     uint8_t ssid;
     uint16_t devno;
-    bool iplbext_migration;
 };
 QEMU_BUILD_BUG_MSG(offsetof(S390IPLState, iplb) & 3, "alignment of iplb wrong");
 
