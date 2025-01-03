@@ -469,15 +469,8 @@ static void s390_skeys_realize(DeviceState *dev, Error **errp)
 {
     S390SKeysState *ss = S390_SKEYS(dev);
 
-    if (ss->migration_enabled) {
-        register_savevm_live(TYPE_S390_SKEYS, 0, 1,
-                             &savevm_s390_storage_keys, ss);
-    }
+    register_savevm_live(TYPE_S390_SKEYS, 0, 1, &savevm_s390_storage_keys, ss);
 }
-
-static const Property s390_skeys_props[] = {
-    DEFINE_PROP_BOOL("migration-enabled", S390SKeysState, migration_enabled, true),
-};
 
 static void s390_skeys_class_init(ObjectClass *oc, void *data)
 {
@@ -485,7 +478,6 @@ static void s390_skeys_class_init(ObjectClass *oc, void *data)
 
     dc->hotpluggable = false;
     dc->realize = s390_skeys_realize;
-    device_class_set_props(dc, s390_skeys_props);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
