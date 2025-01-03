@@ -53,14 +53,11 @@ struct S390CcwMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
-    bool ri_allowed;
     bool cpu_model_allowed;
     bool hpage_1m_allowed;
     int max_threads;
 };
 
-/* runtime-instrumentation allowed by the machine */
-bool ri_allowed(void);
 /* cpu model allowed by the machine */
 bool cpu_model_allowed(void);
 /* 1M huge page mappings allowed by the machine */
