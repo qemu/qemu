@@ -22,6 +22,11 @@
 #include "migration/bootfile.h"
 #include "migration/migration-util.h"
 
+#if defined(__linux__)
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+#endif
+
 /* for uffd_version_check() */
 #if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
 #include <sys/eventfd.h>
@@ -31,7 +36,6 @@
 /* For dirty ring test; so far only x86_64 is supported */
 #if defined(__linux__) && defined(HOST_X86_64)
 #include "linux/kvm.h"
-#include <sys/ioctl.h>
 #endif
 
 
@@ -284,6 +288,7 @@ bool probe_o_direct_support(const char *tmpfs)
 
     buf = qemu_try_memalign(len, len);
     g_assert(buf);
+    memset(buf, 0, len);
 
     ret = pwrite(fd, buf, len, offset);
     unlink(filename);

@@ -105,7 +105,7 @@ static int send_map(QTestState *qts, QVirtioIOMMU *v_iommu,
     QVirtQueue *vq = v_iommu->vq;
     uint64_t ro_addr, wr_addr;
     uint32_t free_head;
-    struct virtio_iommu_req_map req;
+    struct virtio_iommu_req_map req = {};
     size_t ro_size = sizeof(req) - sizeof(struct virtio_iommu_req_tail);
     size_t wr_size = sizeof(struct virtio_iommu_req_tail);
     struct virtio_iommu_req_tail buffer;
@@ -147,7 +147,7 @@ static int send_unmap(QTestState *qts, QVirtioIOMMU *v_iommu,
     QVirtQueue *vq = v_iommu->vq;
     uint64_t ro_addr, wr_addr;
     uint32_t free_head;
-    struct virtio_iommu_req_unmap req;
+    struct virtio_iommu_req_unmap req = {};
     size_t ro_size = sizeof(req) - sizeof(struct virtio_iommu_req_tail);
     size_t wr_size = sizeof(struct virtio_iommu_req_tail);
     struct virtio_iommu_req_tail buffer;

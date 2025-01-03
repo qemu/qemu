@@ -243,12 +243,6 @@ int main(int argc, char **argv)
     qtest_add_func("fw_cfg/ram_size", test_fw_cfg_ram_size);
     qtest_add_func("fw_cfg/nographic", test_fw_cfg_nographic);
     qtest_add_func("fw_cfg/nb_cpus", test_fw_cfg_nb_cpus);
-#if 0
-    qtest_add_func("fw_cfg/machine_id", test_fw_cfg_machine_id);
-    qtest_add_func("fw_cfg/kernel", test_fw_cfg_kernel);
-    qtest_add_func("fw_cfg/initrd", test_fw_cfg_initrd);
-    qtest_add_func("fw_cfg/boot_device", test_fw_cfg_boot_device);
-#endif
     qtest_add_func("fw_cfg/max_cpus", test_fw_cfg_max_cpus);
     qtest_add_func("fw_cfg/numa", test_fw_cfg_numa);
     qtest_add_func("fw_cfg/boot_menu", test_fw_cfg_boot_menu);
