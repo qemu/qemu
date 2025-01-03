@@ -1001,6 +1001,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 /* Linear Address Masking */
 #define CPUID_7_1_EAX_LAM               (1U << 26)
 
+/* The immediate form of MSR access instructions */
+#define CPUID_7_1_ECX_MSR_IMM           (1U << 5)
+
 /* Support for VPDPB[SU,UU,SS]D[,S] */
 #define CPUID_7_1_EDX_AVX_VNNI_INT8     (1U << 4)
 /* AVX NE CONVERT Instructions */
@@ -1024,6 +1027,7 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_7_2_EDX_DDPD_U            (1U << 3)
 /* Indicate bit 10 of the IA32_SPEC_CTRL MSR is supported */
 #define CPUID_7_2_EDX_BHI_CTRL          (1U << 4)
+
 /* Do not exhibit MXCSR Configuration Dependent Timing (MCDT) behavior */
 #define CPUID_7_2_EDX_MCDT_NO           (1U << 5)
 
