@@ -861,6 +861,7 @@ static int tcg_out_pool_finalize(TCGContext *s)
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4),
 
 typedef enum {
+    C_Dynamic = -2,
     C_NotImplemented = -1,
 #include "tcg-target-con-set.h"
 } TCGConstraintSetIndex;
@@ -954,6 +955,29 @@ static const TCGConstraintSet constraint_sets[] = {
 #define C_O2_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_o2_i4_, O1, O2, I1, I2, I3, I4)
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4)
 
+/*
+ * TCGOutOp is the base class for a set of structures that describe how
+ * to generate code for a given TCGOpcode.
+ *
+ * @static_constraint:
+ *   C_NotImplemented: The TCGOpcode is not supported by the backend.
+ *   C_Dynamic:        Use @dynamic_constraint to select a constraint set
+ *                     based on any of @type, @flags, or host isa.
+ *   Otherwise:        The register allocation constrains for the TCGOpcode.
+ *
+ * Subclasses of TCGOutOp will define a set of output routines that may
+ * be used.  Such routines will often be selected by the set of registers
+ * and constants that come out of register allocation.  The set of
+ * routines that are provided will guide the set of constraints that are
+ * legal.  In particular, assume that tcg_optimize() has done its job in
+ * swapping commutative operands and folding operations for which all
+ * operands are constant.
+ */
+typedef struct TCGOutOp {
+    TCGConstraintSetIndex static_constraint;
+    TCGConstraintSetIndex (*dynamic_constraint)(TCGType type, unsigned flags);
+} TCGOutOp;
+
 #include "tcg-target.c.inc"
 
 #ifndef CONFIG_TCG_INTERPRETER
@@ -962,6 +986,10 @@ QEMU_BUILD_BUG_ON((int)(offsetof(CPUNegativeOffsetState, tlb.f[0]) -
                         sizeof(CPUNegativeOffsetState))
                   < MIN_TLB_MASK_TABLE_OFS);
 #endif
+
+/* Register allocation descriptions for every TCGOpcode. */
+static const TCGOutOp * const all_outop[NB_OPS] = {
+};
 
 /*
  * All TCG threads except the parent (i.e. the one that called tcg_context_init
@@ -2416,8 +2444,32 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return has_type && TCG_TARGET_HAS_cmpsel_vec;
 
     default:
-        tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
+        if (op < INDEX_op_last_generic) {
+            const TCGOutOp *outop;
+            TCGConstraintSetIndex con_set;
+
+            if (!has_type) {
+                return false;
+            }
+
+            outop = all_outop[op];
+            tcg_debug_assert(outop != NULL);
+
+            con_set = outop->static_constraint;
+            if (con_set == C_Dynamic) {
+                con_set = outop->dynamic_constraint(type, flags);
+            }
+            if (con_set >= 0) {
+                return true;
+            }
+            tcg_debug_assert(con_set == C_NotImplemented);
+            return false;
+        }
+        tcg_debug_assert(op < NB_OPS);
         return true;
+
+    case INDEX_op_last_generic:
+        g_assert_not_reached();
     }
 }
 
@@ -3335,19 +3387,27 @@ static void process_constraint_sets(void)
 
 static const TCGArgConstraint *opcode_args_ct(const TCGOp *op)
 {
-    const TCGOpDef *def = &tcg_op_defs[op->opc];
+    TCGOpcode opc = op->opc;
+    TCGType type = TCGOP_TYPE(op);
+    unsigned flags = TCGOP_FLAGS(op);
+    const TCGOpDef *def = &tcg_op_defs[opc];
+    const TCGOutOp *outop = all_outop[opc];
     TCGConstraintSetIndex con_set;
-
-#ifdef CONFIG_DEBUG_TCG
-    assert(tcg_op_supported(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op)));
-#endif
 
     if (def->flags & TCG_OPF_NOT_PRESENT) {
         return empty_cts;
     }
 
-    con_set = tcg_target_op_def(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op));
-    tcg_debug_assert(con_set >= 0 && con_set < ARRAY_SIZE(constraint_sets));
+    if (outop) {
+        con_set = outop->static_constraint;
+        if (con_set == C_Dynamic) {
+            con_set = outop->dynamic_constraint(type, flags);
+        }
+    } else {
+        con_set = tcg_target_op_def(opc, type, flags);
+    }
+    tcg_debug_assert(con_set >= 0);
+    tcg_debug_assert(con_set < ARRAY_SIZE(constraint_sets));
 
     /* The constraint arguments must match TCGOpcode arguments. */
     tcg_debug_assert(constraint_sets[con_set].nb_oargs == def->nb_oargs);
