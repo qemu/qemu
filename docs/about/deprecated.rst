@@ -74,12 +74,6 @@ configurations (e.g. -smp drawers=1,books=1,clusters=1 for x86 PC machine) is
 marked deprecated since 9.0, users have to ensure that all the topology members
 described with -smp are supported by the target machine.
 
-``-runas`` (since 9.1)
-''''''''''''''''''''''
-
-Use ``-run-with user=..`` instead.
-
-
 User-mode emulator command line arguments
 -----------------------------------------
 

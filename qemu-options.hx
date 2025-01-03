@@ -4976,19 +4976,6 @@ SRST
     ``-nodefaults`` option will disable all those default devices.
 ERST
 
-#ifndef _WIN32
-DEF("runas", HAS_ARG, QEMU_OPTION_runas, \
-    "-runas user     change to user id user just before starting the VM\n" \
-    "                user can be numeric uid:gid instead\n",
-    QEMU_ARCH_ALL)
-#endif
-SRST
-``-runas user``
-    Immediately before starting guest execution, drop root privileges,
-    switching to the specified user. This option is deprecated, use
-    ``-run-with user=...`` instead.
-ERST
-
 DEF("prom-env", HAS_ARG, QEMU_OPTION_prom_env,
     "-prom-env variable=value\n"
     "                set OpenBIOS nvram variables\n",
@@ -5176,7 +5163,7 @@ SRST
 
     ``chroot=dir`` can be used for doing a chroot to the specified directory
     immediately before starting the guest execution. This is especially useful
-    in combination with -runas.
+    in combination with ``user=...``.
 
     ``user=username`` or ``user=uid:gid`` can be used to drop root privileges
     before starting guest execution. QEMU will use the ``setuid`` and ``setgid``

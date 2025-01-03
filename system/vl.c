@@ -3611,15 +3611,6 @@ void qemu_init(int argc, char **argv)
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
 #if defined(CONFIG_POSIX)
-            case QEMU_OPTION_runas:
-                warn_report("-runas is deprecated, use '-run-with user=...' instead");
-                if (!os_set_runas(optarg)) {
-                    error_report("User \"%s\" doesn't exist"
-                                 " (and is not <uid>:<gid>)",
-                                 optarg);
-                    exit(1);
-                }
-                break;
             case QEMU_OPTION_daemonize:
                 os_set_daemonize(true);
                 break;
