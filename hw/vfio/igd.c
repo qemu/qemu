@@ -18,6 +18,7 @@
 #include "hw/hw.h"
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
+#include "pci-quirks.h"
 #include "trace.h"
 
 /*
@@ -422,83 +423,13 @@ static const MemoryRegionOps vfio_igd_index_quirk = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t vfio_igd_pci_config_read(VFIOPCIDevice *vdev, uint64_t offset,
-                                         unsigned size)
-{
-    switch (size) {
-    case 1:
-        return pci_get_byte(vdev->pdev.config + offset);
-    case 2:
-        return pci_get_word(vdev->pdev.config + offset);
-    case 4:
-        return pci_get_long(vdev->pdev.config + offset);
-    case 8:
-        return pci_get_quad(vdev->pdev.config + offset);
-    default:
-        hw_error("igd: unsupported pci config read at %"PRIx64", size %u",
-                 offset, size);
-        break;
-    }
-
-    return 0;
-}
-
-static void vfio_igd_pci_config_write(VFIOPCIDevice *vdev, uint64_t offset,
-                                      uint64_t data, unsigned size)
-{
-    switch (size) {
-    case 1:
-        pci_set_byte(vdev->pdev.config + offset, data);
-        break;
-    case 2:
-        pci_set_word(vdev->pdev.config + offset, data);
-        break;
-    case 4:
-        pci_set_long(vdev->pdev.config + offset, data);
-        break;
-    case 8:
-        pci_set_quad(vdev->pdev.config + offset, data);
-        break;
-    default:
-        hw_error("igd: unsupported pci config write at %"PRIx64", size %u",
-                 offset, size);
-        break;
-    }
-}
-
-#define VFIO_IGD_QUIRK_MIRROR_REG(reg, name)                            \
-static uint64_t vfio_igd_quirk_read_##name(void *opaque,                \
-                                           hwaddr addr, unsigned size)  \
-{                                                                       \
-    VFIOPCIDevice *vdev = opaque;                                       \
-                                                                        \
-    return vfio_igd_pci_config_read(vdev, reg + addr, size);            \
-}                                                                       \
-                                                                        \
-static void vfio_igd_quirk_write_##name(void *opaque, hwaddr addr,      \
-                                        uint64_t data, unsigned size)   \
-{                                                                       \
-    VFIOPCIDevice *vdev = opaque;                                       \
-                                                                        \
-    vfio_igd_pci_config_write(vdev, reg + addr, data, size);            \
-}                                                                       \
-                                                                        \
-static const MemoryRegionOps vfio_igd_quirk_mirror_##name = {           \
-    .read = vfio_igd_quirk_read_##name,                                 \
-    .write = vfio_igd_quirk_write_##name,                               \
-    .endianness = DEVICE_LITTLE_ENDIAN,                                 \
-};
-
-VFIO_IGD_QUIRK_MIRROR_REG(IGD_GMCH, ggc)
-VFIO_IGD_QUIRK_MIRROR_REG(IGD_BDSM, bdsm)
-VFIO_IGD_QUIRK_MIRROR_REG(IGD_BDSM_GEN11, bdsm64)
-
 #define IGD_GGC_MMIO_OFFSET     0x108040
 #define IGD_BDSM_MMIO_OFFSET    0x1080C0
 
 void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 {
-    VFIOQuirk *quirk;
+    VFIOQuirk *ggc_quirk, *bdsm_quirk;
+    VFIOConfigMirrorQuirk *ggc_mirror, *bdsm_mirror;
     int gen;
 
     /*
@@ -522,33 +453,39 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = vfio_quirk_alloc(2);
-    quirk->data = vdev;
+    ggc_quirk = vfio_quirk_alloc(1);
+    ggc_mirror = ggc_quirk->data = g_malloc0(sizeof(*ggc_mirror));
+    ggc_mirror->mem = ggc_quirk->mem;
+    ggc_mirror->vdev = vdev;
+    ggc_mirror->bar = nr;
+    ggc_mirror->offset = IGD_GGC_MMIO_OFFSET;
+    ggc_mirror->config_offset = IGD_GMCH;
 
-    memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
-                          &vfio_igd_quirk_mirror_ggc, vdev,
+    memory_region_init_io(ggc_mirror->mem, OBJECT(vdev),
+                          &vfio_generic_mirror_quirk, ggc_mirror,
                           "vfio-igd-ggc-quirk", 2);
-    memory_region_add_subregion_overlap(vdev->bars[0].region.mem,
-                                        IGD_GGC_MMIO_OFFSET, &quirk->mem[0],
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                        ggc_mirror->offset, ggc_mirror->mem,
                                         1);
 
-    if (gen < 11) {
-        memory_region_init_io(&quirk->mem[1], OBJECT(vdev),
-                              &vfio_igd_quirk_mirror_bdsm, vdev,
-                              "vfio-igd-bdsm-quirk", 4);
-        memory_region_add_subregion_overlap(vdev->bars[0].region.mem,
-                                            IGD_BDSM_MMIO_OFFSET,
-                                            &quirk->mem[1], 1);
-    } else {
-        memory_region_init_io(&quirk->mem[1], OBJECT(vdev),
-                              &vfio_igd_quirk_mirror_bdsm64, vdev,
-                              "vfio-igd-bdsm-quirk", 8);
-        memory_region_add_subregion_overlap(vdev->bars[0].region.mem,
-                                            IGD_BDSM_MMIO_OFFSET,
-                                            &quirk->mem[1], 1);
-    }
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, ggc_quirk, next);
 
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+    bdsm_quirk = vfio_quirk_alloc(1);
+    bdsm_mirror = bdsm_quirk->data = g_malloc0(sizeof(*bdsm_mirror));
+    bdsm_mirror->mem = bdsm_quirk->mem;
+    bdsm_mirror->vdev = vdev;
+    bdsm_mirror->bar = nr;
+    bdsm_mirror->offset = IGD_BDSM_MMIO_OFFSET;
+    bdsm_mirror->config_offset = (gen < 11) ? IGD_BDSM : IGD_BDSM_GEN11;
+
+    memory_region_init_io(bdsm_mirror->mem, OBJECT(vdev),
+                          &vfio_generic_mirror_quirk, bdsm_mirror,
+                          "vfio-igd-bdsm-quirk", (gen < 11) ? 4 : 8);
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                        bdsm_mirror->offset, bdsm_mirror->mem,
+                                        1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, bdsm_quirk, next);
 }
 
 void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
