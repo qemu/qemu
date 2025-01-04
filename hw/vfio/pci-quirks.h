@@ -60,7 +60,8 @@ extern const MemoryRegionOps vfio_generic_window_data_quirk;
  */
 typedef struct VFIOConfigMirrorQuirk {
     struct VFIOPCIDevice *vdev;
-    uint32_t offset;
+    uint32_t offset; /* Offset in BAR */
+    uint32_t config_offset; /* Offset in PCI config space */
     uint8_t bar;
     MemoryRegion *mem;
     uint8_t data[];
