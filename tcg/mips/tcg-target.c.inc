@@ -1708,6 +1708,10 @@ static const TCGOutOpBinary outop_and = {
     .out_rri = tgen_andi,
 };
 
+static const TCGOutOpBinary outop_andc = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],

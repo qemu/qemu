@@ -2615,6 +2615,24 @@ static const TCGOutOpBinary outop_and = {
     .out_rri = tgen_andi,
 };
 
+static void tgen_andc(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_vex_modrm(s, OPC_ANDN + rexw, a0, a2, a1);
+}
+
+static TCGConstraintSetIndex cset_andc(TCGType type, unsigned flags)
+{
+    return have_bmi1 ? C_O1_I2(r, r, r) : C_NotImplemented;
+}
+
+static const TCGOutOpBinary outop_andc = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_andc,
+    .out_rrr = tgen_andc,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2710,15 +2728,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tgen_arithi(s, c + rexw, a0, a2, 0);
         } else {
             tgen_arithr(s, c + rexw, a0, a2);
-        }
-        break;
-
-    OP_32_64(andc):
-        if (const_a2) {
-            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32, a0, a1);
-            tgen_arithi(s, ARITH_AND + rexw, a0, ~a2, 0);
-        } else {
-            tcg_out_vex_modrm(s, OPC_ANDN + rexw, a0, a2, a1);
         }
         break;
 
@@ -3641,10 +3650,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_xor_i32:
     case INDEX_op_xor_i64:
         return C_O1_I2(r, 0, re);
-
-    case INDEX_op_andc_i32:
-    case INDEX_op_andc_i64:
-        return C_O1_I2(r, r, rI);
 
     case INDEX_op_shl_i32:
     case INDEX_op_shl_i64:
