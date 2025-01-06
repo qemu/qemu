@@ -2595,6 +2595,26 @@ static const TCGOutOpBinary outop_add = {
     .out_rri = tgen_addi,
 };
 
+static void tgen_and(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tgen_arithr(s, ARITH_AND + rexw, a0, a2);
+}
+
+static void tgen_andi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tgen_arithi(s, ARITH_AND + rexw, a0, a2, false);
+}
+
+static const TCGOutOpBinary outop_and = {
+    .base.static_constraint = C_O1_I2(r, 0, reZ),
+    .out_rrr = tgen_and,
+    .out_rri = tgen_andi,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2678,9 +2698,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     OP_32_64(sub):
         c = ARITH_SUB;
-        goto gen_arith;
-    OP_32_64(and):
-        c = ARITH_AND;
         goto gen_arith;
     OP_32_64(or):
         c = ARITH_OR;
@@ -3624,10 +3641,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_xor_i32:
     case INDEX_op_xor_i64:
         return C_O1_I2(r, 0, re);
-
-    case INDEX_op_and_i32:
-    case INDEX_op_and_i64:
-        return C_O1_I2(r, 0, reZ);
 
     case INDEX_op_andc_i32:
     case INDEX_op_andc_i64:

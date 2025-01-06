@@ -1005,6 +1005,8 @@ QEMU_BUILD_BUG_ON((int)(offsetof(CPUNegativeOffsetState, tlb.f[0]) -
 /* Register allocation descriptions for every TCGOpcode. */
 static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
+    OUTOP(INDEX_op_and_i32, TCGOutOpBinary, outop_and),
+    OUTOP(INDEX_op_and_i64, TCGOutOpBinary, outop_and),
 };
 
 #undef OUTOP
@@ -5442,6 +5444,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
 
     case INDEX_op_add:
+    case INDEX_op_and_i32:
+    case INDEX_op_and_i64:
         {
             const TCGOutOpBinary *out =
                 container_of(all_outop[op->opc], TCGOutOpBinary, base);
