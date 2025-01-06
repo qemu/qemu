@@ -176,10 +176,9 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_S12   0x100
 #define TCG_CT_CONST_S32   0x200
 #define TCG_CT_CONST_U12   0x400
-#define TCG_CT_CONST_C12   0x800
-#define TCG_CT_CONST_WSZ   0x1000
-#define TCG_CT_CONST_VCMP  0x2000
-#define TCG_CT_CONST_VADD  0x4000
+#define TCG_CT_CONST_WSZ   0x800
+#define TCG_CT_CONST_VCMP  0x1000
+#define TCG_CT_CONST_VADD  0x2000
 
 #define ALL_GENERAL_REGS   MAKE_64BIT_MASK(0, 32)
 #define ALL_VECTOR_REGS    MAKE_64BIT_MASK(32, 32)
@@ -203,9 +202,6 @@ static bool tcg_target_const_match(int64_t val, int ct,
         return true;
     }
     if ((ct & TCG_CT_CONST_U12) && val >= 0 && val <= 0xfff) {
-        return true;
-    }
-    if ((ct & TCG_CT_CONST_C12) && ~val >= 0 && ~val <= 0xfff) {
         return true;
     }
     if ((ct & TCG_CT_CONST_WSZ) && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
@@ -1350,6 +1346,17 @@ static const TCGOutOpBinary outop_or = {
     .out_rri = tgen_ori,
 };
 
+static void tgen_orc(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_opc_orn(s, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_orc = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_orc,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -1397,16 +1404,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out_opc_nor(s, a0, a0, TCG_REG_ZERO);
         } else {
             tcg_out_opc_nor(s, a0, a1, a2);
-        }
-        break;
-
-    case INDEX_op_orc_i32:
-    case INDEX_op_orc_i64:
-        if (c2) {
-            /* guaranteed to fit due to constraint */
-            tcg_out_opc_ori(s, a0, a1, ~a2);
-        } else {
-            tcg_out_opc_orn(s, a0, a1, a2);
         }
         break;
 
@@ -2285,15 +2282,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
         return C_O1_I1(r, r);
-
-    case INDEX_op_orc_i32:
-    case INDEX_op_orc_i64:
-        /*
-         * LoongArch insns for these ops don't have reg-imm forms, but we
-         * can express using andi/ori if ~constant satisfies
-         * TCG_CT_CONST_U12.
-         */
-        return C_O1_I2(r, r, rC);
 
     case INDEX_op_shl_i32:
     case INDEX_op_shl_i64:
