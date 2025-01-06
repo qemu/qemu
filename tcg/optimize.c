@@ -424,7 +424,7 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
     uint64_t l64, h64;
 
     switch (op) {
-    CASE_OP_32_64(add):
+    case INDEX_op_add:
         return x + y;
 
     CASE_OP_32_64(sub):
@@ -2261,7 +2261,7 @@ static int fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
             break;
         }
         if (convert) {
-            TCGOpcode add_opc, xor_opc, neg_opc;
+            TCGOpcode xor_opc, neg_opc;
 
             if (!inv && !neg) {
                 return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
@@ -2269,12 +2269,10 @@ static int fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
 
             switch (ctx->type) {
             case TCG_TYPE_I32:
-                add_opc = INDEX_op_add_i32;
                 neg_opc = INDEX_op_neg_i32;
                 xor_opc = INDEX_op_xor_i32;
                 break;
             case TCG_TYPE_I64:
-                add_opc = INDEX_op_add_i64;
                 neg_opc = INDEX_op_neg_i64;
                 xor_opc = INDEX_op_xor_i64;
                 break;
@@ -2285,7 +2283,7 @@ static int fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
             if (!inv) {
                 op->opc = neg_opc;
             } else if (neg) {
-                op->opc = add_opc;
+                op->opc = INDEX_op_add;
                 op->args[2] = arg_new_constant(ctx, -1);
             } else {
                 op->opc = xor_opc;
@@ -2650,8 +2648,7 @@ static bool fold_sub(OptContext *ctx, TCGOp *op)
     if (arg_is_const(op->args[2])) {
         uint64_t val = arg_info(op->args[2])->val;
 
-        op->opc = (ctx->type == TCG_TYPE_I32
-                   ? INDEX_op_add_i32 : INDEX_op_add_i64);
+        op->opc = INDEX_op_add;
         op->args[2] = arg_new_constant(ctx, -val);
     }
     return finish_folding(ctx, op);
@@ -2842,7 +2839,7 @@ void tcg_optimize(TCGContext *s)
          * Sorted alphabetically by opcode as much as possible.
          */
         switch (opc) {
-        CASE_OP_32_64(add):
+        case INDEX_op_add:
             done = fold_add(&ctx, op);
             break;
         case INDEX_op_add_vec:

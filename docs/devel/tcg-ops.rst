@@ -261,7 +261,7 @@ Arithmetic
 
 .. list-table::
 
-   * - add_i32/i64 *t0*, *t1*, *t2*
+   * - add *t0*, *t1*, *t2*
 
      - | *t0* = *t1* + *t2*
 
