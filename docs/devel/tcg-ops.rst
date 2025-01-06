@@ -303,7 +303,7 @@ Logical
 
 .. list-table::
 
-   * - and_i32/i64 *t0*, *t1*, *t2*
+   * - and *t0*, *t1*, *t2*
 
      - | *t0* = *t1* & *t2*
 
