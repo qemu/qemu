@@ -323,7 +323,7 @@ Logical
 
      - | *t0* = *t1* & ~\ *t2*
 
-   * - eqv_i32/i64 *t0*, *t1*, *t2*
+   * - eqv *t0*, *t1*, *t2*
 
      - | *t0* = ~(*t1* ^ *t2*), or equivalently, *t0* = *t1* ^ ~\ *t2*
 
