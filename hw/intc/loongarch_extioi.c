@@ -347,12 +347,6 @@ static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
         s->status |= BIT(EXTIOI_ENABLE);
     }
 
-    s->cpu = g_new0(ExtIOICore, s->num_cpu);
-    if (s->cpu == NULL) {
-        error_setg(errp, "Memory allocation for ExtIOICore faile");
-        return;
-    }
-
     for (i = 0; i < s->num_cpu; i++) {
         for (pin = 0; pin < LS3A_INTC_IP; pin++) {
             qdev_init_gpio_out(dev, &s->cpu[i].parent_irq[pin], 1);
