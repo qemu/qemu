@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 7%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 8%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -296,6 +296,44 @@ Patch77: kvm-pc-bios-s390-ccw-Re-initialize-receive-queue-index-b.patch
 Patch78: kvm-vnc-fix-crash-when-no-console-attached.patch
 # For RHEL-66089 - warning: fd: migration to a file is deprecated when create or revert a snapshot
 Patch79: kvm-migration-Allow-pipes-to-keep-working-for-fd-migrati.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch80: kvm-linux-headers-Update-to-Linux-v6.12-rc5.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch81: kvm-s390x-cpumodel-add-msa10-subfunctions.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch82: kvm-s390x-cpumodel-add-msa11-subfunctions.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch83: kvm-s390x-cpumodel-add-msa12-changes.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch84: kvm-s390x-cpumodel-add-msa13-subfunctions.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch85: kvm-s390x-cpumodel-Add-ptff-Query-Time-Stamp-Event-QTSE-.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch86: kvm-linux-headers-Update-to-Linux-6.13-rc1.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch87: kvm-s390x-cpumodel-add-Concurrent-functions-facility-sup.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch88: kvm-s390x-cpumodel-add-Vector-Enhancements-facility-3.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch89: kvm-s390x-cpumodel-add-Miscellaneous-Instruction-Extensi.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch90: kvm-s390x-cpumodel-add-Vector-Packed-Decimal-Enhancement.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch91: kvm-s390x-cpumodel-add-Ineffective-nonconstrained-transa.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch92: kvm-s390x-cpumodel-Add-Sequential-Instruction-Fetching-f.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch93: kvm-s390x-cpumodel-correct-PLO-feature-wording.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch94: kvm-s390x-cpumodel-Add-PLO-extension-facility.patch
+# For RHEL-50212 - [IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part
+Patch95: kvm-s390x-cpumodel-gen17-model.patch
+# For RHEL-71940 - qemu-ga cannot freeze filesystems with sentinelone
+Patch96: kvm-qga-skip-bind-mounts-in-fs-list.patch
+# For RHEL-27832 - The post-copy migration of RT-VM leads to race while accessing vhost-user device and hung/stalled target VM
+Patch97: kvm-vhost-fail-device-start-if-iotlb-update-fails.patch
+# For RHEL-67107 - [aarch64] [rhel-9.6] Backport some important post 9.1 qemu fixes
+Patch98: kvm-hw-char-pl011-Use-correct-masks-for-IBRD-and-FBRD.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1362,6 +1400,35 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jan 06 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-8
+- kvm-linux-headers-Update-to-Linux-v6.12-rc5.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-msa10-subfunctions.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-msa11-subfunctions.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-msa12-changes.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-msa13-subfunctions.patch [RHEL-50212]
+- kvm-s390x-cpumodel-Add-ptff-Query-Time-Stamp-Event-QTSE-.patch [RHEL-50212]
+- kvm-linux-headers-Update-to-Linux-6.13-rc1.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-Concurrent-functions-facility-sup.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-Vector-Enhancements-facility-3.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-Miscellaneous-Instruction-Extensi.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-Vector-Packed-Decimal-Enhancement.patch [RHEL-50212]
+- kvm-s390x-cpumodel-add-Ineffective-nonconstrained-transa.patch [RHEL-50212]
+- kvm-s390x-cpumodel-Add-Sequential-Instruction-Fetching-f.patch [RHEL-50212]
+- kvm-s390x-cpumodel-correct-PLO-feature-wording.patch [RHEL-50212]
+- kvm-s390x-cpumodel-Add-PLO-extension-facility.patch [RHEL-50212]
+- kvm-s390x-cpumodel-gen17-model.patch [RHEL-50212]
+- kvm-qga-skip-bind-mounts-in-fs-list.patch [RHEL-71940]
+- kvm-vhost-fail-device-start-if-iotlb-update-fails.patch [RHEL-27832]
+- kvm-hw-char-pl011-Use-correct-masks-for-IBRD-and-FBRD.patch [RHEL-67107]
+- Resolves: RHEL-50212
+  ([IBM 9.6 FEAT] KVM: CPU model for new IBM Z HW - qemu part)
+- Resolves: RHEL-71940
+  (qemu-ga cannot freeze filesystems with sentinelone)
+- Resolves: RHEL-27832
+  (The post-copy migration of RT-VM leads to race while accessing vhost-user device and hung/stalled target VM)
+- Resolves: RHEL-67107
+  ([aarch64] [rhel-9.6] Backport some important post 9.1 qemu fixes)
+
 * Fri Dec 13 2024 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-7
 - kvm-migration-Allow-pipes-to-keep-working-for-fd-migrati.patch [RHEL-66089]
 - Resolves: RHEL-66089
