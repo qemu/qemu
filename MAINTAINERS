@@ -4207,7 +4207,6 @@ F: tests/tcg/Makefile.target
 Integration Testing with the Avocado framework
 W: https://trello.com/b/6Qi1pxVn/avocado-qemu
 R: Cleber Rosa <crosa@redhat.com>
-R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: tests/avocado/
 
