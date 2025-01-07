@@ -1357,6 +1357,24 @@ static const TCGOutOpBinary outop_mul = {
     .out_rri = tgen_muli,
 };
 
+static void tgen_muluh(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_arith(s, a0, a1, a2, ARITH_UMULXHI);
+}
+
+static TCGConstraintSetIndex cset_muluh(TCGType type, unsigned flags)
+{
+    return (type == TCG_TYPE_I64 && use_vis3_instructions
+            ? C_O1_I2(r, r, r) : C_NotImplemented);
+}
+
+static const TCGOutOpBinary outop_muluh = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_muluh,
+    .out_rrr = tgen_muluh,
+};
+
 static const TCGOutOpBinary outop_nand = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -1612,9 +1630,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
                             const_args[4], args[5], const_args[5], true);
         break;
-    case INDEX_op_muluh_i64:
-        tcg_out_arith(s, args[0], args[1], args[2], ARITH_UMULXHI);
-        break;
 
     gen_arith:
         tcg_out_arithc(s, a0, a1, a2, c2, c);
@@ -1711,8 +1726,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_mulu2_i32:
     case INDEX_op_muls2_i32:
         return C_O2_I2(r, r, rz, rJ);
-    case INDEX_op_muluh_i64:
-        return C_O1_I2(r, r, r);
 
     default:
         return C_NotImplemented;

@@ -2984,6 +2984,18 @@ static const TCGOutOpBinary outop_mul = {
     .out_rri = tgen_muli,
 };
 
+static void tgen_muluh(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    uint32_t insn = type == TCG_TYPE_I32 ? MULHWU : MULHDU;
+    tcg_out32(s, insn | TAB(a0, a1, a2));
+}
+
+static const TCGOutOpBinary outop_muluh = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_muluh,
+};
+
 static void tgen_nand(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3487,14 +3499,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_muluh_i32:
-        tcg_out32(s, MULHWU | TAB(args[0], args[1], args[2]));
-        break;
     case INDEX_op_mulsh_i32:
         tcg_out32(s, MULHW | TAB(args[0], args[1], args[2]));
-        break;
-    case INDEX_op_muluh_i64:
-        tcg_out32(s, MULHDU | TAB(args[0], args[1], args[2]));
         break;
     case INDEX_op_mulsh_i64:
         tcg_out32(s, MULHD | TAB(args[0], args[1], args[2]));
@@ -4177,14 +4183,12 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_divu_i32:
     case INDEX_op_rem_i32:
     case INDEX_op_remu_i32:
-    case INDEX_op_muluh_i32:
     case INDEX_op_mulsh_i32:
     case INDEX_op_div_i64:
     case INDEX_op_divu_i64:
     case INDEX_op_rem_i64:
     case INDEX_op_remu_i64:
     case INDEX_op_mulsh_i64:
-    case INDEX_op_muluh_i64:
         return C_O1_I2(r, r, r);
 
     case INDEX_op_clz_i32:
