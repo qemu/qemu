@@ -1104,11 +1104,11 @@ static bool fold_to_not(OptContext *ctx, TCGOp *op, int idx)
     switch (ctx->type) {
     case TCG_TYPE_I32:
         not_op = INDEX_op_not_i32;
-        have_not = TCG_TARGET_HAS_not_i32;
+        have_not = tcg_op_supported(INDEX_op_not_i32, TCG_TYPE_I32, 0);
         break;
     case TCG_TYPE_I64:
         not_op = INDEX_op_not_i64;
-        have_not = TCG_TARGET_HAS_not_i64;
+        have_not = tcg_op_supported(INDEX_op_not_i64, TCG_TYPE_I64, 0);
         break;
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:

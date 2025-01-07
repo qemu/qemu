@@ -1413,6 +1413,16 @@ static const TCGOutOpUnary outop_neg = {
     .out_rr = tgen_neg,
 };
 
+static void tgen_not(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+     tgen_orc(s, type, a0, TCG_REG_G0, a1);
+}
+
+static const TCGOutOpUnary outop_not = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_not,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -1482,10 +1492,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_mul_i32:
         c = ARITH_UMUL;
         goto gen_arith;
-
-    OP_32_64(not):
-	c = ARITH_ORN;
-	goto gen_arith1;
 
     case INDEX_op_div_i32:
         tcg_out_div32(s, a0, a1, a2, c2, 0);
@@ -1600,10 +1606,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_arithc(s, a0, a1, a2, c2, c);
         break;
 
-    gen_arith1:
-	tcg_out_arithc(s, a0, TCG_REG_G0, a1, const_args[1], c);
-	break;
-
     case INDEX_op_mb:
         tcg_out_mb(s, a0);
         break;
@@ -1646,8 +1648,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld32u_i64:
     case INDEX_op_ld32s_i64:
     case INDEX_op_ld_i64:
-    case INDEX_op_not_i32:
-    case INDEX_op_not_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extract_i64:
