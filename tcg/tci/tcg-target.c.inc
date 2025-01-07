@@ -663,7 +663,7 @@ static void tgen_divu(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_divu32
-                     : INDEX_op_divu_i64);
+                     : INDEX_op_divu);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 
