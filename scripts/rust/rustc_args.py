@@ -215,6 +215,8 @@ def main() -> None:
 
     if rustc_version >= (1, 80):
         if args.lints:
+            print("--check-cfg")
+            print("cfg(test)")
             for cfg in sorted(cargo_toml.check_cfg):
                 print("--check-cfg")
                 print(cfg)
