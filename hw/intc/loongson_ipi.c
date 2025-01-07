@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/loongson_ipi.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "target/mips/cpu.h"
 
@@ -75,6 +76,10 @@ static void loongson_ipi_unrealize(DeviceState *dev)
     k->parent_unrealize(dev);
 }
 
+static const Property loongson_ipi_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", LoongsonIPICommonState, num_cpu, 1),
+};
+
 static void loongson_ipi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -85,6 +90,7 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
                                     &lic->parent_realize);
     device_class_set_parent_unrealize(dc, loongson_ipi_unrealize,
                                       &lic->parent_unrealize);
+    device_class_set_props(dc, loongson_ipi_properties);
     licc->get_iocsr_as = get_iocsr_as;
     licc->cpu_by_arch_id = cpu_by_arch_id;
 }
