@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "qapi/error.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "target/loongarch/cpu.h"
 
@@ -49,10 +50,26 @@ static CPUState *loongarch_cpu_by_arch_id(int64_t arch_id)
     return NULL;
 }
 
+static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
+{
+    LoongarchIPIClass *lic = LOONGARCH_IPI_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    lic->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
 static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
+    LoongarchIPIClass *lic = LOONGARCH_IPI_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_parent_realize(dc, loongarch_ipi_realize,
+                                    &lic->parent_realize);
     licc->get_iocsr_as = get_iocsr_as;
     licc->cpu_by_arch_id = loongarch_cpu_by_arch_id;
 }
@@ -61,6 +78,8 @@ static const TypeInfo loongarch_ipi_types[] = {
     {
         .name               = TYPE_LOONGARCH_IPI,
         .parent             = TYPE_LOONGSON_IPI_COMMON,
+        .instance_size      = sizeof(LoongarchIPIState),
+        .class_size         = sizeof(LoongarchIPIClass),
         .class_init         = loongarch_ipi_class_init,
     }
 };
