@@ -79,10 +79,6 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static const Property loongarch_ipi_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", LoongsonIPICommonState, num_cpu, 1),
-};
-
 static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
@@ -91,7 +87,6 @@ static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, loongarch_ipi_realize,
                                     &lic->parent_realize);
-    device_class_set_props(dc, loongarch_ipi_properties);
     licc->get_iocsr_as = get_iocsr_as;
     licc->cpu_by_arch_id = loongarch_cpu_by_arch_id;
 }
