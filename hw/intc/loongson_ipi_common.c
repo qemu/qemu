@@ -10,7 +10,6 @@
 #include "hw/intc/loongson_ipi_common.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "trace.h"
@@ -253,12 +252,6 @@ static void loongson_ipi_common_realize(DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *s = LOONGSON_IPI_COMMON(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    int i;
-
-    if (s->num_cpu == 0) {
-        error_setg(errp, "num-cpu must be at least 1");
-        return;
-    }
 
     memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev),
                           &loongson_ipi_iocsr_ops,
@@ -273,13 +266,6 @@ static void loongson_ipi_common_realize(DeviceState *dev, Error **errp)
                           &loongson_ipi64_ops,
                           s, "loongson_ipi64_iocsr", 0x118);
     sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem);
-
-    s->cpu = g_new0(IPICore, s->num_cpu);
-    for (i = 0; i < s->num_cpu; i++) {
-        s->cpu[i].ipi = s;
-
-        qdev_init_gpio_out(dev, &s->cpu[i].irq, 1);
-    }
 }
 
 static void loongson_ipi_common_unrealize(DeviceState *dev)

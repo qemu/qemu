@@ -52,13 +52,26 @@ static CPUState *loongarch_cpu_by_arch_id(int64_t arch_id)
 
 static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
 {
+    LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(dev);
     LoongarchIPIClass *lic = LOONGARCH_IPI_GET_CLASS(dev);
     Error *local_err = NULL;
+    int i;
 
     lic->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
+    }
+
+    if (lics->num_cpu == 0) {
+        error_setg(errp, "num-cpu must be at least 1");
+        return;
+    }
+
+    lics->cpu = g_new0(IPICore, lics->num_cpu);
+    for (i = 0; i < lics->num_cpu; i++) {
+        lics->cpu[i].ipi = lics;
+        qdev_init_gpio_out(dev, &lics->cpu[i].irq, 1);
     }
 }
 

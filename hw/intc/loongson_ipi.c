@@ -36,6 +36,7 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
     LoongsonIPIClass *lic = LOONGSON_IPI_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *local_err = NULL;
+    int i;
 
     lic->parent_realize(dev, &local_err);
     if (local_err) {
@@ -43,8 +44,19 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (sc->num_cpu == 0) {
+        error_setg(errp, "num-cpu must be at least 1");
+        return;
+    }
+
+    sc->cpu = g_new0(IPICore, sc->num_cpu);
+    for (i = 0; i < sc->num_cpu; i++) {
+        sc->cpu[i].ipi = sc;
+        qdev_init_gpio_out(dev, &sc->cpu[i].irq, 1);
+    }
+
     s->ipi_mmio_mem = g_new0(MemoryRegion, sc->num_cpu);
-    for (unsigned i = 0; i < sc->num_cpu; i++) {
+    for (i = 0; i < sc->num_cpu; i++) {
         g_autofree char *name = g_strdup_printf("loongson_ipi_cpu%d_mmio", i);
 
         memory_region_init_io(&s->ipi_mmio_mem[i], OBJECT(dev),
