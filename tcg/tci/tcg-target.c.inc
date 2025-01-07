@@ -651,7 +651,7 @@ static void tgen_divs(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_divs32
-                     : INDEX_op_div_i64);
+                     : INDEX_op_divs);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 

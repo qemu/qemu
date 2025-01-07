@@ -556,13 +556,15 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
         muls64(&l64, &h64, x, y);
         return h64;
 
-    case INDEX_op_div_i32:
+    case INDEX_op_divs:
         /* Avoid crashing on divide by zero, otherwise undefined.  */
-        return (int32_t)x / ((int32_t)y ? : 1);
+        if (type == TCG_TYPE_I32) {
+            return (int32_t)x / ((int32_t)y ? : 1);
+        }
+        return (int64_t)x / ((int64_t)y ? : 1);
+
     case INDEX_op_divu_i32:
         return (uint32_t)x / ((uint32_t)y ? : 1);
-    case INDEX_op_div_i64:
-        return (int64_t)x / ((int64_t)y ? : 1);
     case INDEX_op_divu_i64:
         return (uint64_t)x / ((uint64_t)y ? : 1);
 
@@ -2905,7 +2907,7 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(deposit):
             done = fold_deposit(&ctx, op);
             break;
-        CASE_OP_32_64(div):
+        case INDEX_op_divs:
         CASE_OP_32_64(divu):
             done = fold_divide(&ctx, op);
             break;

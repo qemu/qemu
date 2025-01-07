@@ -277,7 +277,7 @@ Arithmetic
 
      - | *t0* = *t1* * *t2*
 
-   * - div_i32/i64 *t0*, *t1*, *t2*
+   * - divs *t0*, *t1*, *t2*
 
      - | *t0* = *t1* / *t2* (signed)
        | Undefined behavior if division by zero or overflow.
