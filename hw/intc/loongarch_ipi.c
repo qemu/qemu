@@ -38,17 +38,28 @@ static CPUArchId *find_cpu_by_archid(MachineState *ms, uint32_t id)
     return found_cpu;
 }
 
-static CPUState *loongarch_cpu_by_arch_id(int64_t arch_id)
+static int loongarch_cpu_by_arch_id(LoongsonIPICommonState *lics,
+                                    int64_t arch_id, int *index, CPUState **pcs)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     CPUArchId *archid;
+    CPUState *cs;
 
     archid = find_cpu_by_archid(machine, arch_id);
-    if (archid) {
-        return CPU(archid->cpu);
+    if (archid && archid->cpu) {
+        cs = archid->cpu;
+        if (index) {
+            *index = cs->cpu_index;
+        }
+
+        if (pcs) {
+            *pcs = cs;
+        }
+
+        return MEMTX_OK;
     }
 
-    return NULL;
+    return MEMTX_ERROR;
 }
 
 static void loongarch_ipi_realize(DeviceState *dev, Error **errp)

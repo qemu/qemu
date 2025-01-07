@@ -20,6 +20,27 @@ static AddressSpace *get_iocsr_as(CPUState *cpu)
     return NULL;
 }
 
+static int loongson_cpu_by_arch_id(LoongsonIPICommonState *lics,
+                                   int64_t arch_id, int *index, CPUState **pcs)
+{
+    CPUState *cs;
+
+    cs = cpu_by_arch_id(arch_id);
+    if (cs == NULL) {
+        return MEMTX_ERROR;
+    }
+
+    if (index) {
+        *index = cs->cpu_index;
+    }
+
+    if (pcs) {
+        *pcs = cs;
+    }
+
+    return MEMTX_OK;
+}
+
 static const MemoryRegionOps loongson_ipi_core_ops = {
     .read_with_attrs = loongson_ipi_core_readl,
     .write_with_attrs = loongson_ipi_core_writel,
@@ -92,7 +113,7 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
                                       &lic->parent_unrealize);
     device_class_set_props(dc, loongson_ipi_properties);
     licc->get_iocsr_as = get_iocsr_as;
-    licc->cpu_by_arch_id = cpu_by_arch_id;
+    licc->cpu_by_arch_id = loongson_cpu_by_arch_id;
 }
 
 static const TypeInfo loongson_ipi_types[] = {

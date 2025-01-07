@@ -103,16 +103,17 @@ static MemTxResult mail_send(LoongsonIPICommonState *ipi,
     uint32_t cpuid;
     hwaddr addr;
     CPUState *cs;
+    int cpu, ret;
 
     cpuid = extract32(val, 16, 10);
-    cs = licc->cpu_by_arch_id(cpuid);
-    if (cs == NULL) {
+    ret = licc->cpu_by_arch_id(ipi, cpuid, &cpu, &cs);
+    if (ret != MEMTX_OK) {
         return MEMTX_DECODE_ERROR;
     }
 
     /* override requester_id */
     addr = SMP_IPI_MAILBOX + CORE_BUF_20 + (val & 0x1c);
-    attrs.requester_id = cs->cpu_index;
+    attrs.requester_id = cpu;
     return send_ipi_data(ipi, cs, val, addr, attrs);
 }
 
@@ -123,16 +124,17 @@ static MemTxResult any_send(LoongsonIPICommonState *ipi,
     uint32_t cpuid;
     hwaddr addr;
     CPUState *cs;
+    int cpu, ret;
 
     cpuid = extract32(val, 16, 10);
-    cs = licc->cpu_by_arch_id(cpuid);
-    if (cs == NULL) {
+    ret = licc->cpu_by_arch_id(ipi, cpuid, &cpu, &cs);
+    if (ret != MEMTX_OK) {
         return MEMTX_DECODE_ERROR;
     }
 
     /* override requester_id */
     addr = val & 0xffff;
-    attrs.requester_id = cs->cpu_index;
+    attrs.requester_id = cpu;
     return send_ipi_data(ipi, cs, val, addr, attrs);
 }
 
@@ -146,6 +148,7 @@ MemTxResult loongson_ipi_core_writel(void *opaque, hwaddr addr, uint64_t val,
     uint32_t cpuid;
     uint8_t vector;
     CPUState *cs;
+    int cpu, ret;
 
     addr &= 0xff;
     trace_loongson_ipi_write(size, (uint64_t)addr, val);
@@ -176,11 +179,11 @@ MemTxResult loongson_ipi_core_writel(void *opaque, hwaddr addr, uint64_t val,
         cpuid = extract32(val, 16, 10);
         /* IPI status vector */
         vector = extract8(val, 0, 5);
-        cs = licc->cpu_by_arch_id(cpuid);
-        if (cs == NULL || cs->cpu_index >= ipi->num_cpu) {
+        ret = licc->cpu_by_arch_id(ipi, cpuid, &cpu, &cs);
+        if (ret != MEMTX_OK || cpu >= ipi->num_cpu) {
             return MEMTX_DECODE_ERROR;
         }
-        loongson_ipi_core_writel(&ipi->cpu[cs->cpu_index], CORE_SET_OFF,
+        loongson_ipi_core_writel(&ipi->cpu[cpu], CORE_SET_OFF,
                                  BIT(vector), 4, attrs);
         break;
     default:
