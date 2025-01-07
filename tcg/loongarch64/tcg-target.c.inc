@@ -1328,6 +1328,21 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_divs(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_opc_div_w(s, a0, a1, a2);
+    } else {
+        tcg_out_opc_div_d(s, a0, a1, a2);
+    }
+}
+
+static const TCGOutOpBinary outop_divs = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_divs,
+};
+
 static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -1669,13 +1684,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         } else {
             tcg_out_opc_rotr_d(s, a0, a1, a2);
         }
-        break;
-
-    case INDEX_op_div_i32:
-        tcg_out_opc_div_w(s, a0, a1, a2);
-        break;
-    case INDEX_op_div_i64:
-        tcg_out_opc_div_d(s, a0, a1, a2);
         break;
 
     case INDEX_op_divu_i32:
@@ -2357,8 +2365,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i64:
         return C_O1_I2(r, rz, rJ);
 
-    case INDEX_op_div_i32:
-    case INDEX_op_div_i64:
     case INDEX_op_divu_i32:
     case INDEX_op_divu_i64:
     case INDEX_op_rem_i32:

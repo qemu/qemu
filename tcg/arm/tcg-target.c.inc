@@ -937,12 +937,6 @@ static void tcg_out_smull32(TCGContext *s, ARMCond cond, TCGReg rd0,
               (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
 }
 
-static void tcg_out_sdiv(TCGContext *s, ARMCond cond,
-                         TCGReg rd, TCGReg rn, TCGReg rm)
-{
-    tcg_out32(s, 0x0710f010 | (cond << 28) | (rd << 16) | rn | (rm << 8));
-}
-
 static void tcg_out_udiv(TCGContext *s, ARMCond cond,
                          TCGReg rd, TCGReg rn, TCGReg rm)
 {
@@ -1874,6 +1868,24 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static TCGConstraintSetIndex cset_idiv(TCGType type, unsigned flags)
+{
+    return use_idiv_instructions ? C_O1_I2(r, r, r) : C_NotImplemented;
+}
+
+static void tgen_divs(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    /* sdiv */
+    tcg_out32(s, 0x0710f010 | (COND_AL << 28) | (a0 << 16) | a1 | (a2 << 8));
+}
+
+static const TCGOutOpBinary outop_divs = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_idiv,
+    .out_rrr = tgen_divs,
+};
+
 static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -2218,9 +2230,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_div_i32:
-        tcg_out_sdiv(s, COND_AL, args[0], args[1], args[2]);
-        break;
     case INDEX_op_divu_i32:
         tcg_out_udiv(s, COND_AL, args[0], args[1], args[2]);
         break;
@@ -2268,7 +2277,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ctz_i32:
         return C_O1_I2(r, r, rIK);
 
-    case INDEX_op_div_i32:
     case INDEX_op_divu_i32:
         return C_O1_I2(r, r, r);
 

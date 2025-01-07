@@ -1333,6 +1333,40 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_divs_rJ(TCGContext *s, TCGType type,
+                         TCGReg a0, TCGReg a1, TCGArg a2, bool c2)
+{
+    uint32_t insn;
+
+    if (type == TCG_TYPE_I32) {
+        /* Load Y with the sign extension of a1 to 64-bits.  */
+        tcg_out_arithi(s, TCG_REG_T1, a1, 31, SHIFT_SRA);
+        tcg_out_sety(s, TCG_REG_T1);
+        insn = ARITH_SDIV;
+    } else {
+        insn = ARITH_SDIVX;
+    }
+    tcg_out_arithc(s, a0, a1, a2, c2, insn);
+}
+
+static void tgen_divs(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_divs_rJ(s, type, a0, a1, a2, false);
+}
+
+static void tgen_divsi(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_divs_rJ(s, type, a0, a1, a2, true);
+}
+
+static const TCGOutOpBinary outop_divs = {
+    .base.static_constraint = C_O1_I2(r, r, rJ),
+    .out_rrr = tgen_divs,
+    .out_rri = tgen_divsi,
+};
+
 static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -1532,9 +1566,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         c = SHIFT_SRA;
         goto do_shift32;
 
-    case INDEX_op_div_i32:
-        tcg_out_div32(s, a0, a1, a2, c2, 0);
-        break;
     case INDEX_op_divu_i32:
         tcg_out_div32(s, a0, a1, a2, c2, 1);
         break;
@@ -1607,9 +1638,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_sar_i64:
         c = SHIFT_SRAX;
         goto do_shift64;
-    case INDEX_op_div_i64:
-        c = ARITH_SDIVX;
-        goto gen_arith;
     case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
@@ -1700,8 +1728,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_st_i64:
         return C_O0_I2(rz, r);
 
-    case INDEX_op_div_i32:
-    case INDEX_op_div_i64:
     case INDEX_op_divu_i32:
     case INDEX_op_divu_i64:
     case INDEX_op_shl_i32:
