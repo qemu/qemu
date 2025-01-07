@@ -1336,6 +1336,17 @@ static const TCGOutOpBinary outop_nand = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_nor(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_opc_nor(s, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_nor = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_nor,
+};
+
 static void tgen_or(TCGContext *s, TCGType type,
                     TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -1421,11 +1432,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_not_i32:
     case INDEX_op_not_i64:
         tcg_out_opc_nor(s, a0, a1, TCG_REG_ZERO);
-        break;
-
-    case INDEX_op_nor_i32:
-    case INDEX_op_nor_i64:
-        tcg_out_opc_nor(s, a0, a1, a2);
         break;
 
     case INDEX_op_extract_i32:
@@ -2306,10 +2312,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_rotr_i32:
     case INDEX_op_rotr_i64:
         return C_O1_I2(r, r, ri);
-
-    case INDEX_op_nor_i32:
-    case INDEX_op_nor_i64:
-        return C_O1_I2(r, r, r);
 
     case INDEX_op_clz_i32:
     case INDEX_op_clz_i64:
