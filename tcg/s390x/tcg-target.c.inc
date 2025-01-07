@@ -2258,6 +2258,57 @@ static const TCGOutOpBinary outop_eqv = {
     .out_rrr = tgen_eqv,
 };
 
+static void tgen_mul(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type == TCG_TYPE_I32) {
+        if (a0 == a1) {
+            tcg_out_insn(s, RRE, MSR, a0, a2);
+        } else {
+            tcg_out_insn(s, RRFa, MSRKC, a0, a1, a2);
+        }
+    } else {
+        if (a0 == a1) {
+            tcg_out_insn(s, RRE, MSGR, a0, a2);
+        } else {
+            tcg_out_insn(s, RRFa, MSGRKC, a0, a1, a2);
+        }
+    }
+}
+
+static void tgen_muli(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_mov(s, type, a0, a1);
+    if (type == TCG_TYPE_I32) {
+        if (a2 == (int16_t)a2) {
+            tcg_out_insn(s, RI, MHI, a0, a2);
+        } else {
+            tcg_out_insn(s, RIL, MSFI, a0, a2);
+        }
+    } else {
+        if (a2 == (int16_t)a2) {
+            tcg_out_insn(s, RI, MGHI, a0, a2);
+        } else {
+            tcg_out_insn(s, RIL, MSGFI, a0, a2);
+        }
+    }
+}
+
+static TCGConstraintSetIndex cset_mul(TCGType type, unsigned flags)
+{
+    return (HAVE_FACILITY(MISC_INSN_EXT2)
+            ? C_O1_I2(r, r, rJ)
+            : C_O1_I2(r, 0, rJ));
+}
+
+static const TCGOutOpBinary outop_mul = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mul,
+    .out_rrr = tgen_mul,
+    .out_rri = tgen_muli,
+};
+
 static void tgen_nand(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2460,22 +2511,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_mul_i32:
-        a0 = args[0], a1 = args[1], a2 = (int32_t)args[2];
-        if (const_args[2]) {
-            tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
-            if (a2 == (int16_t)a2) {
-                tcg_out_insn(s, RI, MHI, a0, a2);
-            } else {
-                tcg_out_insn(s, RIL, MSFI, a0, a2);
-            }
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, MSR, a0, a2);
-        } else {
-            tcg_out_insn(s, RRFa, MSRKC, a0, a1, a2);
-        }
-        break;
-
     case INDEX_op_div2_i32:
         tcg_debug_assert(args[0] == args[2]);
         tcg_debug_assert(args[1] == args[3]);
@@ -2649,22 +2684,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_bswap64_i64:
         tcg_out_insn(s, RRE, LRVGR, args[0], args[1]);
-        break;
-
-    case INDEX_op_mul_i64:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
-            tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
-            if (a2 == (int16_t)a2) {
-                tcg_out_insn(s, RI, MGHI, a0, a2);
-            } else {
-                tcg_out_insn(s, RIL, MSGFI, a0, a2);
-            }
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, MSGR, a0, a2);
-        } else {
-            tcg_out_insn(s, RRFa, MSGRKC, a0, a1, a2);
-        }
         break;
 
     case INDEX_op_div2_i64:
@@ -3315,15 +3334,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
-
-    case INDEX_op_mul_i32:
-        return (HAVE_FACILITY(MISC_INSN_EXT2)
-                ? C_O1_I2(r, r, ri)
-                : C_O1_I2(r, 0, ri));
-    case INDEX_op_mul_i64:
-        return (HAVE_FACILITY(MISC_INSN_EXT2)
-                ? C_O1_I2(r, r, rJ)
-                : C_O1_I2(r, 0, rJ));
 
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
