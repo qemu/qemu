@@ -1425,12 +1425,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_nor_i32:
     case INDEX_op_nor_i64:
-        if (c2) {
-            tcg_out_opc_ori(s, a0, a1, a2);
-            tcg_out_opc_nor(s, a0, a0, TCG_REG_ZERO);
-        } else {
-            tcg_out_opc_nor(s, a0, a1, a2);
-        }
+        tcg_out_opc_nor(s, a0, a1, a2);
         break;
 
     case INDEX_op_extract_i32:
@@ -2314,8 +2309,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_nor_i32:
     case INDEX_op_nor_i64:
-        /* LoongArch reg-imm bitops have their imms ZERO-extended */
-        return C_O1_I2(r, r, rU);
+        return C_O1_I2(r, r, r);
 
     case INDEX_op_clz_i32:
     case INDEX_op_clz_i64:
