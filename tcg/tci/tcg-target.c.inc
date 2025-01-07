@@ -681,7 +681,7 @@ static const TCGOutOpBinary outop_nand = {
 static void tgen_nor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
-    tcg_out_op_rrr(s, glue(INDEX_op_nor_i,TCG_TARGET_REG_BITS), a0, a1, a2);
+    tcg_out_op_rrr(s, INDEX_op_nor, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_nor = {
