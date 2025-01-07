@@ -419,7 +419,8 @@ static bool tcg_opt_gen_movi(OptContext *ctx, TCGOp *op,
     return tcg_opt_gen_mov(ctx, op, dst, arg_new_constant(ctx, val));
 }
 
-static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
+static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
+                                      uint64_t x, uint64_t y)
 {
     uint64_t l64, h64;
 
@@ -541,14 +542,16 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
     case INDEX_op_extrh_i64_i32:
         return (uint64_t)x >> 32;
 
-    case INDEX_op_muluh_i32:
-        return ((uint64_t)(uint32_t)x * (uint32_t)y) >> 32;
+    case INDEX_op_muluh:
+        if (type == TCG_TYPE_I32) {
+            return ((uint64_t)(uint32_t)x * (uint32_t)y) >> 32;
+        }
+        mulu64(&l64, &h64, x, y);
+        return h64;
+
     case INDEX_op_mulsh_i32:
         return ((int64_t)(int32_t)x * (int32_t)y) >> 32;
 
-    case INDEX_op_muluh_i64:
-        mulu64(&l64, &h64, x, y);
-        return h64;
     case INDEX_op_mulsh_i64:
         muls64(&l64, &h64, x, y);
         return h64;
@@ -580,7 +583,7 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
 static uint64_t do_constant_folding(TCGOpcode op, TCGType type,
                                     uint64_t x, uint64_t y)
 {
-    uint64_t res = do_constant_folding_2(op, x, y);
+    uint64_t res = do_constant_folding_2(op, type, x, y);
     if (type == TCG_TYPE_I32) {
         res = (int32_t)res;
     }
@@ -2967,7 +2970,7 @@ void tcg_optimize(TCGContext *s)
             done = fold_mul(&ctx, op);
             break;
         CASE_OP_32_64(mulsh):
-        CASE_OP_32_64(muluh):
+        case INDEX_op_muluh:
             done = fold_mul_highpart(&ctx, op);
             break;
         CASE_OP_32_64(muls2):

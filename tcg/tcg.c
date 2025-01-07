@@ -1022,8 +1022,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
     OUTOP(INDEX_op_eqv, TCGOutOpBinary, outop_eqv),
     OUTOP(INDEX_op_mul, TCGOutOpBinary, outop_mul),
-    OUTOP(INDEX_op_muluh_i32, TCGOutOpBinary, outop_muluh),
-    OUTOP(INDEX_op_muluh_i64, TCGOutOpBinary, outop_muluh),
+    OUTOP(INDEX_op_muluh, TCGOutOpBinary, outop_muluh),
     OUTOP(INDEX_op_nand, TCGOutOpBinary, outop_nand),
     OUTOP(INDEX_op_neg, TCGOutOpUnary, outop_neg),
     OUTOP(INDEX_op_nor, TCGOutOpBinary, outop_nor),
@@ -4030,17 +4029,14 @@ liveness_pass_1(TCGContext *s)
             }
             goto do_not_remove;
 
-        case INDEX_op_mulu2_i32:
-            opc_new = INDEX_op_mul;
-            opc_new2 = INDEX_op_muluh_i32;
-            goto do_mul2;
         case INDEX_op_muls2_i32:
             opc_new = INDEX_op_mul;
             opc_new2 = INDEX_op_mulsh_i32;
             goto do_mul2;
+        case INDEX_op_mulu2_i32:
         case INDEX_op_mulu2_i64:
             opc_new = INDEX_op_mul;
-            opc_new2 = INDEX_op_muluh_i64;
+            opc_new2 = INDEX_op_muluh;
             goto do_mul2;
         case INDEX_op_muls2_i64:
             opc_new = INDEX_op_mul;
@@ -5430,8 +5426,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_andc:
     case INDEX_op_eqv:
     case INDEX_op_mul:
-    case INDEX_op_muluh_i32:
-    case INDEX_op_muluh_i64:
+    case INDEX_op_muluh:
     case INDEX_op_nand:
     case INDEX_op_nor:
     case INDEX_op_or:

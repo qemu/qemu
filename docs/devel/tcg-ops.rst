@@ -591,7 +591,7 @@ Multiword arithmetic support
 
    * - mulsh_i32/i64 *t0*, *t1*, *t2*
 
-       muluh_i32/i64 *t0*, *t1*, *t2*
+       muluh *t0*, *t1*, *t2*
 
      - | Provide the high part of a signed or unsigned multiply, respectively.
        |
