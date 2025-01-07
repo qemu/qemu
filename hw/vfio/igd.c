@@ -133,7 +133,7 @@ static uint64_t igd_gtt_memory_size(int gen, uint16_t gmch)
     } else {
         ggms = (gmch >> IGD_GMCH_GEN8_GGMS_SHIFT) & IGD_GMCH_GEN8_GGMS_MASK;
         if (ggms != 0) {
-            ggms = 1 << ggms;
+            ggms = 1ULL << ggms;
         }
     }
 
