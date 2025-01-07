@@ -27,7 +27,7 @@ pub static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
     minimum_version_id: 1,
     needed: Some(pl011_clock_needed),
     fields: vmstate_fields! {
-        vmstate_clock!(clock, PL011State),
+        vmstate_clock!(PL011State, clock),
     },
     ..Zeroable::ZERO
 };
