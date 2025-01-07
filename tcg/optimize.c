@@ -549,10 +549,10 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
         mulu64(&l64, &h64, x, y);
         return h64;
 
-    case INDEX_op_mulsh_i32:
-        return ((int64_t)(int32_t)x * (int32_t)y) >> 32;
-
-    case INDEX_op_mulsh_i64:
+    case INDEX_op_mulsh:
+        if (type == TCG_TYPE_I32) {
+            return ((int64_t)(int32_t)x * (int32_t)y) >> 32;
+        }
         muls64(&l64, &h64, x, y);
         return h64;
 
@@ -2969,7 +2969,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_mul:
             done = fold_mul(&ctx, op);
             break;
-        CASE_OP_32_64(mulsh):
+        case INDEX_op_mulsh:
         case INDEX_op_muluh:
             done = fold_mul_highpart(&ctx, op);
             break;

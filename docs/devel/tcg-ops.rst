@@ -589,7 +589,7 @@ Multiword arithmetic support
 
      - | Similar to mulu2, except the two inputs *t1* and *t2* are signed.
 
-   * - mulsh_i32/i64 *t0*, *t1*, *t2*
+   * - mulsh *t0*, *t1*, *t2*
 
        muluh *t0*, *t1*, *t2*
 
