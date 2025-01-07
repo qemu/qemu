@@ -475,7 +475,8 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
     case INDEX_op_rotl_i64:
         return rol64(x, y & 63);
 
-    CASE_OP_32_64_VEC(not):
+    case INDEX_op_not:
+    case INDEX_op_not_vec:
         return ~x;
 
     case INDEX_op_neg:
@@ -1103,12 +1104,9 @@ static bool fold_to_not(OptContext *ctx, TCGOp *op, int idx)
 
     switch (ctx->type) {
     case TCG_TYPE_I32:
-        not_op = INDEX_op_not_i32;
-        have_not = tcg_op_supported(INDEX_op_not_i32, TCG_TYPE_I32, 0);
-        break;
     case TCG_TYPE_I64:
-        not_op = INDEX_op_not_i64;
-        have_not = tcg_op_supported(INDEX_op_not_i64, TCG_TYPE_I64, 0);
+        not_op = INDEX_op_not;
+        have_not = tcg_op_supported(INDEX_op_not, ctx->type, 0);
         break;
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
@@ -2987,7 +2985,8 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_nor_vec:
             done = fold_nor(&ctx, op);
             break;
-        CASE_OP_32_64_VEC(not):
+        case INDEX_op_not:
+        case INDEX_op_not_vec:
             done = fold_not(&ctx, op);
             break;
         case INDEX_op_or:

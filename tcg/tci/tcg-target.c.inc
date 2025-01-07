@@ -739,7 +739,7 @@ static const TCGOutOpUnary outop_neg = {
 
 static void tgen_not(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
-    tcg_out_op_rr(s, glue(INDEX_op_not_i,TCG_TARGET_REG_BITS), a0, a1);
+    tcg_out_op_rr(s, INDEX_op_not, a0, a1);
 }
 
 static const TCGOutOpUnary outop_not = {
