@@ -273,7 +273,7 @@ Arithmetic
 
      - | *t0* = -*t1* (two's complement)
 
-   * - mul_i32/i64 *t0*, *t1*, *t2*
+   * - mul *t0*, *t1*, *t2*
 
      - | *t0* = *t1* * *t2*
 
