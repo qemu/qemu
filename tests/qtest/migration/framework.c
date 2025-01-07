@@ -194,6 +194,16 @@ static void cleanup(const char *filename)
     unlink(path);
 }
 
+static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
+{
+    QList *capabilities = qlist_new();
+
+    if (args->oob) {
+        qlist_append_str(capabilities, "oob");
+    }
+    return capabilities;
+}
+
 int migrate_start(QTestState **from, QTestState **to, const char *uri,
                   MigrateStart *args)
 {
@@ -210,6 +220,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     const char *machine_alias, *machine_opts = "";
     g_autofree char *machine = NULL;
     const char *bootpath;
+    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
 
     if (args->use_shmem) {
         if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
@@ -314,7 +325,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
     if (!args->only_target) {
-        *from = qtest_init_with_env(QEMU_ENV_SRC, cmd_source);
+        *from = qtest_init_with_env_and_capabilities(QEMU_ENV_SRC, cmd_source,
+                                                     capabilities);
         qtest_qmp_set_event_callback(*from,
                                      migrate_watch_for_events,
                                      &src_state);
@@ -334,7 +346,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
-    *to = qtest_init_with_env(QEMU_ENV_DST, cmd_target);
+    *to = qtest_init_with_env_and_capabilities(QEMU_ENV_DST, cmd_target,
+                                               capabilities);
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_events,
                                  &dst_state);
@@ -600,6 +613,12 @@ void test_postcopy_recovery_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     g_autofree char *uri = NULL;
+
+    /*
+     * Always enable OOB QMP capability for recovery tests, migrate-recover is
+     * executed out-of-band
+     */
+    args->start.oob = true;
 
     /* Always hide errors for postcopy recover tests since they're expected */
     args->start.hide_stderr = true;

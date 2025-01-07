@@ -109,6 +109,8 @@ typedef struct {
     const char *opts_target;
     /* suspend the src before migrating to dest. */
     bool suspend_me;
+    /* enable OOB QMP capability */
+    bool oob;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {
