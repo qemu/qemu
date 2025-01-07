@@ -27,6 +27,8 @@ typedef struct IPICore {
     /* 64bit buf divide into 2 32-bit buf */
     uint32_t buf[IPI_MBX_NUM * 2];
     qemu_irq irq;
+    uint64_t arch_id;
+    CPUState *cpu;
 } IPICore;
 
 struct LoongsonIPICommonState {

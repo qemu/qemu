@@ -55,6 +55,9 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(dev);
     LoongarchIPIClass *lic = LOONGARCH_IPI_GET_CLASS(dev);
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const CPUArchIdList *id_list;
     Error *local_err = NULL;
     int i;
 
@@ -64,13 +67,13 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (lics->num_cpu == 0) {
-        error_setg(errp, "num-cpu must be at least 1");
-        return;
-    }
-
+    assert(mc->possible_cpu_arch_ids);
+    id_list = mc->possible_cpu_arch_ids(machine);
+    lics->num_cpu = id_list->len;
     lics->cpu = g_new0(IPICore, lics->num_cpu);
     for (i = 0; i < lics->num_cpu; i++) {
+        lics->cpu[i].arch_id = id_list->cpus[i].arch_id;
+        lics->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
         lics->cpu[i].ipi = lics;
         qdev_init_gpio_out(dev, &lics->cpu[i].irq, 1);
     }
