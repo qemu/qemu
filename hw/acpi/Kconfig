@@ -60,6 +60,11 @@ config ACPI_VMGENID
     default y
     depends on PC
 
+config ACPI_VMCLOCK
+    bool
+    default y
+    depends on PC
+
 config ACPI_VIOT
     bool
     depends on ACPI
