@@ -19,6 +19,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "libqmp.h"
 
 typedef struct QTestState QTestState;
@@ -67,6 +68,22 @@ QTestState *qtest_init(const char *extra_args);
  * Returns: #QTestState instance.
  */
 QTestState *qtest_init_with_env(const char *var, const char *extra_args);
+
+/**
+ * qtest_init_with_env_and_capabilities:
+ * @var: Environment variable from where to take the QEMU binary
+ * @extra_args: Other arguments to pass to QEMU.  CAUTION: these
+ * arguments are subject to word splitting and shell evaluation.
+ * @capabilities: list of QMP capabilities (strings) to enable
+ *
+ * Like qtest_init_with_env(), but enable specified capabilities during
+ * hadshake.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_with_env_and_capabilities(const char *var,
+                                                 const char *extra_args,
+                                                 QList *capabilities);
 
 /**
  * qtest_init_without_qmp_handshake:

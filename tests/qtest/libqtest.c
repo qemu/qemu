@@ -543,7 +543,9 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     return qtest_init_internal(qtest_qemu_binary(NULL), extra_args);
 }
 
-QTestState *qtest_init_with_env(const char *var, const char *extra_args)
+QTestState *qtest_init_with_env_and_capabilities(const char *var,
+                                                 const char *extra_args,
+                                                 QList *capabilities)
 {
     QTestState *s = qtest_init_internal(qtest_qemu_binary(var), extra_args);
     QDict *greeting;
@@ -551,9 +553,21 @@ QTestState *qtest_init_with_env(const char *var, const char *extra_args)
     /* Read the QMP greeting and then do the handshake */
     greeting = qtest_qmp_receive(s);
     qobject_unref(greeting);
-    qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
+    if (capabilities) {
+        qtest_qmp_assert_success(s,
+                                 "{ 'execute': 'qmp_capabilities', "
+                                 "'arguments': { 'enable': %p } }",
+                                 qobject_ref(capabilities));
+    } else {
+        qtest_qmp_assert_success(s, "{ 'execute': 'qmp_capabilities' }");
+    }
 
     return s;
+}
+
+QTestState *qtest_init_with_env(const char *var, const char *extra_args)
+{
+    return qtest_init_with_env_and_capabilities(var, extra_args, NULL);
 }
 
 QTestState *qtest_init(const char *extra_args)
