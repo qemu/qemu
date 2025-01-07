@@ -327,7 +327,7 @@ Logical
 
      - | *t0* = ~(*t1* ^ *t2*), or equivalently, *t0* = *t1* ^ ~\ *t2*
 
-   * - nand_i32/i64 *t0*, *t1*, *t2*
+   * - nand *t0*, *t1*, *t2*
 
      - | *t0* = ~(*t1* & *t2*)
 
