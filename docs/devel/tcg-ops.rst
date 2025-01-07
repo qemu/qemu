@@ -269,7 +269,7 @@ Arithmetic
 
      - | *t0* = *t1* - *t2*
 
-   * - neg_i32/i64 *t0*, *t1*
+   * - neg *t0*, *t1*
 
      - | *t0* = -*t1* (two's complement)
 
