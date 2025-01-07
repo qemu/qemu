@@ -2331,6 +2331,23 @@ static const TCGOutOpBinary outop_orc = {
     .out_rrr = tgen_orc,
 };
 
+static void tgen_sub(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type != TCG_TYPE_I32) {
+        tcg_out_insn(s, RRFa, SGRK, a0, a1, a2);
+    } else if (a0 == a1) {
+        tcg_out_insn(s, RR, SR, a0, a2);
+    } else {
+        tcg_out_insn(s, RRFa, SRK, a0, a1, a2);
+    }
+}
+
+static const TCGOutOpSubtract outop_sub = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_sub,
+};
+
 static void tgen_xor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2411,17 +2428,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_st_i32:
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
-        break;
-
-    case INDEX_op_sub_i32:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
-            tgen_addi(s, type, a0, a1, (int32_t)-a2);
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RR, SR, a0, a2);
-        } else {
-            tcg_out_insn(s, RRFa, SRK, a0, a1, a2);
-        }
         break;
 
     case INDEX_op_neg_i32:
@@ -2616,15 +2622,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_st_i64:
         tcg_out_st(s, TCG_TYPE_I64, args[0], args[1], args[2]);
-        break;
-
-    case INDEX_op_sub_i64:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[2]) {
-            tgen_addi(s, type, a0, a1, -a2);
-        } else {
-            tcg_out_insn(s, RRFa, SGRK, a0, a1, a2);
-        }
         break;
 
     case INDEX_op_neg_i64:
@@ -3301,10 +3298,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
-
-    case INDEX_op_sub_i32:
-    case INDEX_op_sub_i64:
-        return C_O1_I2(r, r, ri);
 
     case INDEX_op_mul_i32:
         return (HAVE_FACILITY(MISC_INSN_EXT2)

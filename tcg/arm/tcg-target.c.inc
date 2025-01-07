@@ -1915,6 +1915,24 @@ static const TCGOutOpBinary outop_orc = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_sub(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_dat_reg(s, COND_AL, ARITH_SUB, a0, a1, a2, SHIFT_IMM_LSL(0));
+}
+
+static void tgen_subfi(TCGContext *s, TCGType type,
+                       TCGReg a0, tcg_target_long a1, TCGReg a2)
+{
+    tcg_out_dat_imm(s, COND_AL, ARITH_RSB, a0, a2, encode_imm_nofail(a1));
+}
+
+static const TCGOutOpSubtract outop_sub = {
+    .base.static_constraint = C_O1_I2(r, rI, r),
+    .out_rrr = tgen_sub,
+    .out_rir = tgen_subfi,
+};
+
 static void tgen_xor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -1981,15 +1999,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         c = tcg_out_cmp(s, args[5], args[1], args[2], const_args[2]);
         tcg_out_dat_rIK(s, tcg_cond_to_arm_cond[c], ARITH_MOV,
                         ARITH_MVN, args[0], 0, args[3], const_args[3]);
-        break;
-    case INDEX_op_sub_i32:
-        if (const_args[1]) {
-            tcg_out_dat_imm(s, COND_AL, ARITH_RSB,
-                            args[0], args[2], encode_imm_nofail(args[1]));
-        } else {
-            tcg_out_dat_rIN(s, COND_AL, ARITH_SUB, ARITH_ADD,
-                            args[0], args[1], args[2], const_args[2]);
-        }
         break;
     case INDEX_op_add2_i32:
         a0 = args[0], a1 = args[1], a2 = args[2];
@@ -2233,8 +2242,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i32:
     case INDEX_op_negsetcond_i32:
         return C_O1_I2(r, r, rIN);
-    case INDEX_op_sub_i32:
-        return C_O1_I2(r, rI, r);
 
     case INDEX_op_clz_i32:
     case INDEX_op_ctz_i32:

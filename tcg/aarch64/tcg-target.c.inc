@@ -2205,6 +2205,17 @@ static const TCGOutOpBinary outop_orc = {
     .out_rrr = tgen_orc,
 };
 
+static void tgen_sub(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, 3502, SUB, type, a0, a1, a2);
+}
+
+static const TCGOutOpSubtract outop_sub = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_sub,
+};
+
 static void tgen_xor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2288,15 +2299,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_st_i64:
         tcg_out_ldst(s, I3312_STRX, a0, a1, a2, 3);
-        break;
-
-    case INDEX_op_sub_i32:
-    case INDEX_op_sub_i64:
-        if (c2) {
-            tgen_addi(s, ext, a0, a1, -a2);
-        } else {
-            tcg_out_insn(s, 3502, SUB, ext, a0, a1, a2);
-        }
         break;
 
     case INDEX_op_neg_i64:
@@ -3013,10 +3015,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_sub_i32:
-    case INDEX_op_sub_i64:
-        return C_O1_I2(r, r, rA);
 
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:
