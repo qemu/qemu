@@ -17,43 +17,29 @@ static AddressSpace *get_iocsr_as(CPUState *cpu)
     return LOONGARCH_CPU(cpu)->env.address_space_iocsr;
 }
 
-static int archid_cmp(const void *a, const void *b)
+static int loongarch_ipi_cmp(const void *a, const void *b)
 {
-   CPUArchId *archid_a = (CPUArchId *)a;
-   CPUArchId *archid_b = (CPUArchId *)b;
+   IPICore *ipi_a = (IPICore *)a;
+   IPICore *ipi_b = (IPICore *)b;
 
-   return archid_a->arch_id - archid_b->arch_id;
-}
-
-static CPUArchId *find_cpu_by_archid(MachineState *ms, uint32_t id)
-{
-    CPUArchId apic_id, *found_cpu;
-
-    apic_id.arch_id = id;
-    found_cpu = bsearch(&apic_id, ms->possible_cpus->cpus,
-                        ms->possible_cpus->len,
-                        sizeof(*ms->possible_cpus->cpus),
-                        archid_cmp);
-
-    return found_cpu;
+   return ipi_a->arch_id - ipi_b->arch_id;
 }
 
 static int loongarch_cpu_by_arch_id(LoongsonIPICommonState *lics,
                                     int64_t arch_id, int *index, CPUState **pcs)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
-    CPUArchId *archid;
-    CPUState *cs;
+    IPICore ipi, *found;
 
-    archid = find_cpu_by_archid(machine, arch_id);
-    if (archid && archid->cpu) {
-        cs = archid->cpu;
+    ipi.arch_id = arch_id;
+    found = bsearch(&ipi, lics->cpu, lics->num_cpu, sizeof(IPICore),
+                    loongarch_ipi_cmp);
+    if (found && found->cpu) {
         if (index) {
-            *index = cs->cpu_index;
+            *index = found - lics->cpu;
         }
 
         if (pcs) {
-            *pcs = cs;
+            *pcs = found->cpu;
         }
 
         return MEMTX_OK;
