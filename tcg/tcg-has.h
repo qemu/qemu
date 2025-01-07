@@ -33,17 +33,16 @@
 #define TCG_TARGET_HAS_sub2_i32         1
 #endif
 
-/* Only one of DIV or DIV2 should be defined.  */
-#if defined(TCG_TARGET_HAS_div_i32)
+#ifndef TCG_TARGET_HAS_div2_i32
 #define TCG_TARGET_HAS_div2_i32         0
-#elif defined(TCG_TARGET_HAS_div2_i32)
-#define TCG_TARGET_HAS_div_i32          0
+#endif
+#ifndef TCG_TARGET_HAS_div2_i64
+#define TCG_TARGET_HAS_div2_i64         0
+#endif
+#ifndef TCG_TARGET_HAS_rem_i32
 #define TCG_TARGET_HAS_rem_i32          0
 #endif
-#if defined(TCG_TARGET_HAS_div_i64)
-#define TCG_TARGET_HAS_div2_i64         0
-#elif defined(TCG_TARGET_HAS_div2_i64)
-#define TCG_TARGET_HAS_div_i64          0
+#ifndef TCG_TARGET_HAS_rem_i64
 #define TCG_TARGET_HAS_rem_i64          0
 #endif
 

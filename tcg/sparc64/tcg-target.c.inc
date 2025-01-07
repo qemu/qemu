@@ -596,21 +596,6 @@ static void tcg_out_sety(TCGContext *s, TCGReg rs)
     tcg_out32(s, WRY | INSN_RS1(TCG_REG_G0) | INSN_RS2(rs));
 }
 
-static void tcg_out_div32(TCGContext *s, TCGReg rd, TCGReg rs1,
-                          int32_t val2, int val2const, int uns)
-{
-    /* Load Y with the sign/zero extension of RS1 to 64-bits.  */
-    if (uns) {
-        tcg_out_sety(s, TCG_REG_G0);
-    } else {
-        tcg_out_arithi(s, TCG_REG_T1, rs1, 31, SHIFT_SRA);
-        tcg_out_sety(s, TCG_REG_T1);
-    }
-
-    tcg_out_arithc(s, rd, rs1, val2, val2const,
-                   uns ? ARITH_UDIV : ARITH_SDIV);
-}
-
 static const uint8_t tcg_cond_to_bcond[16] = {
     [TCG_COND_EQ] = COND_E,
     [TCG_COND_NE] = COND_NE,
@@ -1367,6 +1352,39 @@ static const TCGOutOpBinary outop_divs = {
     .out_rri = tgen_divsi,
 };
 
+static void tgen_divu_rJ(TCGContext *s, TCGType type,
+                         TCGReg a0, TCGReg a1, TCGArg a2, bool c2)
+{
+    uint32_t insn;
+
+    if (type == TCG_TYPE_I32) {
+        /* Load Y with the zero extension to 64-bits.  */
+        tcg_out_sety(s, TCG_REG_G0);
+        insn = ARITH_UDIV;
+    } else {
+        insn = ARITH_UDIVX;
+    }
+    tcg_out_arithc(s, a0, a1, a2, c2, insn);
+}
+
+static void tgen_divu(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_divu_rJ(s, type, a0, a1, a2, false);
+}
+
+static void tgen_divui(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_divu_rJ(s, type, a0, a1, a2, true);
+}
+
+static const TCGOutOpBinary outop_divu = {
+    .base.static_constraint = C_O1_I2(r, r, rJ),
+    .out_rrr = tgen_divu,
+    .out_rri = tgen_divui,
+};
+
 static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -1566,10 +1584,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         c = SHIFT_SRA;
         goto do_shift32;
 
-    case INDEX_op_divu_i32:
-        tcg_out_div32(s, a0, a1, a2, c2, 1);
-        break;
-
     case INDEX_op_brcond_i32:
         tcg_out_brcond_i32(s, a2, a0, a1, const_args[1], arg_label(args[3]));
         break;
@@ -1638,9 +1652,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_sar_i64:
         c = SHIFT_SRAX;
         goto do_shift64;
-    case INDEX_op_divu_i64:
-        c = ARITH_UDIVX;
-        goto gen_arith;
 
     case INDEX_op_brcond_i64:
         tcg_out_brcond_i64(s, a2, a0, a1, const_args[1], arg_label(args[3]));
@@ -1661,10 +1672,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_sub2_i64:
         tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
                             const_args[4], args[5], const_args[5], true);
-        break;
-
-    gen_arith:
-        tcg_out_arithc(s, a0, a1, a2, c2, c);
         break;
 
     case INDEX_op_mb:
@@ -1728,8 +1735,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_st_i64:
         return C_O0_I2(rz, r);
 
-    case INDEX_op_divu_i32:
-    case INDEX_op_divu_i64:
     case INDEX_op_shl_i32:
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i32:
