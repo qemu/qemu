@@ -1897,6 +1897,10 @@ static const TCGOutOpBinary outop_divu = {
     .out_rrr = tgen_divu,
 };
 
+static const TCGOutOpDivRem outop_divu2 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
