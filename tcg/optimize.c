@@ -446,10 +446,10 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
     case INDEX_op_xor_vec:
         return x ^ y;
 
-    case INDEX_op_shl_i32:
-        return (uint32_t)x << (y & 31);
-
-    case INDEX_op_shl_i64:
+    case INDEX_op_shl:
+        if (type == TCG_TYPE_I32) {
+            return (uint32_t)x << (y & 31);
+        }
         return (uint64_t)x << (y & 63);
 
     case INDEX_op_shr_i32:
@@ -3031,7 +3031,7 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(rotl):
         CASE_OP_32_64(rotr):
         CASE_OP_32_64(sar):
-        CASE_OP_32_64(shl):
+        case INDEX_op_shl:
         CASE_OP_32_64(shr):
             done = fold_shift(&ctx, op);
             break;

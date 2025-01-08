@@ -379,10 +379,10 @@ Shifts/Rotates
 
 .. list-table::
 
-   * - shl_i32/i64 *t0*, *t1*, *t2*
+   * - shl *t0*, *t1*, *t2*
 
      - | *t0* = *t1* << *t2*
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
    * - shr_i32/i64 *t0*, *t1*, *t2*
 

@@ -779,7 +779,7 @@ static const TCGOutOpBinary outop_remu = {
 static void tgen_shl(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
-    tcg_out_op_rrr(s, glue(INDEX_op_shl_i,TCG_TARGET_REG_BITS), a0, a1, a2);
+    tcg_out_op_rrr(s, INDEX_op_shl, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_shl = {
