@@ -12,8 +12,6 @@
 #if TCG_TARGET_REG_BITS == 32
 /* Turn some undef macros into false macros.  */
 #define TCG_TARGET_HAS_extr_i64_i32     0
-#define TCG_TARGET_HAS_div_i64          0
-#define TCG_TARGET_HAS_rem_i64          0
 #define TCG_TARGET_HAS_rot_i64          0
 #define TCG_TARGET_HAS_bswap16_i64      0
 #define TCG_TARGET_HAS_bswap32_i64      0
@@ -30,13 +28,6 @@
 /* Turn some undef macros into true macros.  */
 #define TCG_TARGET_HAS_add2_i32         1
 #define TCG_TARGET_HAS_sub2_i32         1
-#endif
-
-#ifndef TCG_TARGET_HAS_rem_i32
-#define TCG_TARGET_HAS_rem_i32          0
-#endif
-#ifndef TCG_TARGET_HAS_rem_i64
-#define TCG_TARGET_HAS_rem_i64          0
 #endif
 
 #if !defined(TCG_TARGET_HAS_v64) \
