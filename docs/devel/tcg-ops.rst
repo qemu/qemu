@@ -394,15 +394,15 @@ Shifts/Rotates
      - | *t0* = *t1* >> *t2* (signed)
        | Unspecified behavior for negative or out-of-range shifts.
 
-   * - rotl_i32/i64 *t0*, *t1*, *t2*
+   * - rotl *t0*, *t1*, *t2*
 
      - | Rotation of *t2* bits to the left
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
-   * - rotr_i32/i64 *t0*, *t1*, *t2*
+   * - rotr *t0*, *t1*, *t2*
 
      - | Rotation of *t2* bits to the right.
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
 
 Misc

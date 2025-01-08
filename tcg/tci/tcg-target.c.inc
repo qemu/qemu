@@ -773,7 +773,7 @@ static void tgen_rotl(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_rotl32
-                     : INDEX_op_rotl_i64);
+                     : INDEX_op_rotl);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 
@@ -787,7 +787,7 @@ static void tgen_rotr(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_rotr32
-                     : INDEX_op_rotr_i64);
+                     : INDEX_op_rotr);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 
