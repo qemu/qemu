@@ -307,6 +307,16 @@ Arithmetic
          pass *nh* as a simple sign-extension of *nl*, so the only
          overflow should be *INT_MIN* / -1.
 
+   * - divu2 *q*, *r*, *nl*, *nh*, *d*
+
+     - | *q* = *nh:nl* / *d* (unsigned)
+       | *r* = *nh:nl* % *d*
+       | Undefined behaviour if division by zero, or the double-word
+         numerator divided by the single-word divisor does not fit
+         within the single-word quotient.  The code generator will
+         pass 0 to *nh* to make a simple zero-extension of *nl*,
+         so overflow should never occur.
+
 Logical
 -------
 
