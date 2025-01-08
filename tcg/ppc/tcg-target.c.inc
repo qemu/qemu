@@ -3122,6 +3122,30 @@ static const TCGOutOpBinary outop_remu = {
     .out_rrr = tgen_remu,
 };
 
+static void tgen_sar(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    uint32_t insn = type == TCG_TYPE_I32 ? SRAW : SRAD;
+    tcg_out32(s, insn | SAB(a1, a0, a2));
+}
+
+static void tgen_sari(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    /* Limit immediate shift count lest we create an illegal insn.  */
+    if (type == TCG_TYPE_I32) {
+        tcg_out_sari32(s, a0, a1, a2 & 31);
+    } else {
+        tcg_out_sari64(s, a0, a1, a2 & 63);
+    }
+}
+
+static const TCGOutOpBinary outop_sar = {
+    .base.static_constraint = C_O1_I2(r, r, ri),
+    .out_rrr = tgen_sar,
+    .out_rri = tgen_sari,
+};
+
 static void tgen_shl(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3320,13 +3344,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out32(s, CNTPOPD | SAB(args[1], args[0], 0));
         break;
 
-    case INDEX_op_sar_i32:
-        if (const_args[2]) {
-            tcg_out_sari32(s, args[0], args[1], args[2]);
-        } else {
-            tcg_out32(s, SRAW | SAB(args[1], args[0], args[2]));
-        }
-        break;
     case INDEX_op_rotl_i32:
         if (const_args[2]) {
             tcg_out_rlw(s, RLWINM, args[0], args[1], args[2], 0, 31);
@@ -3357,13 +3374,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_brcond2(s, args, const_args);
         break;
 
-    case INDEX_op_sar_i64:
-        if (const_args[2]) {
-            tcg_out_sari64(s, args[0], args[1], args[2]);
-        } else {
-            tcg_out32(s, SRAD | SAB(args[1], args[0], args[2]));
-        }
-        break;
     case INDEX_op_rotl_i64:
         if (const_args[2]) {
             tcg_out_rld(s, RLDICL, args[0], args[1], args[2], 0);
@@ -4222,10 +4232,8 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_sar_i32:
     case INDEX_op_rotl_i32:
     case INDEX_op_rotr_i32:
-    case INDEX_op_sar_i64:
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
         return C_O1_I2(r, r, ri);

@@ -2445,6 +2445,36 @@ static const TCGOutOpBinary outop_remu = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_sar_int(TCGContext *s, TCGType type, TCGReg dst,
+                         TCGReg src, TCGReg v, tcg_target_long i)
+{
+    if (type != TCG_TYPE_I32) {
+        tcg_out_sh64(s, RSY_SRAG, dst, src, v, i);
+    } else if (dst == src) {
+        tcg_out_sh32(s, RS_SRA, dst, v, i);
+    } else {
+        tcg_out_sh64(s, RSY_SRAK, dst, src, v, i);
+    }
+}
+
+static void tgen_sar(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_sar_int(s, type, a0, a1, a2, 0);
+}
+
+static void tgen_sari(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_sar_int(s, type, a0, a1, TCG_REG_NONE, a2);
+}
+
+static const TCGOutOpBinary outop_sar = {
+    .base.static_constraint = C_O1_I2(r, r, ri),
+    .out_rrr = tgen_sar,
+    .out_rri = tgen_sari,
+};
+
 static void tgen_shl_int(TCGContext *s, TCGType type, TCGReg dst,
                          TCGReg src, TCGReg v, tcg_target_long i)
 {
@@ -2586,7 +2616,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    S390Opcode op, op2;
     TCGArg a0, a1, a2;
 
     switch (opc) {
@@ -2633,28 +2662,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_st_i32:
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
         break;
-
-    do_shift32:
-        a0 = args[0], a1 = args[1], a2 = (int32_t)args[2];
-        if (a0 == a1) {
-            if (const_args[2]) {
-                tcg_out_sh32(s, op, a0, TCG_REG_NONE, a2);
-            } else {
-                tcg_out_sh32(s, op, a0, a2, 0);
-            }
-        } else {
-            /* Using tcg_out_sh64 here for the format; it is a 32-bit shift.  */
-            if (const_args[2]) {
-                tcg_out_sh64(s, op2, a0, a1, TCG_REG_NONE, a2);
-            } else {
-                tcg_out_sh64(s, op2, a0, a1, a2, 0);
-            }
-        }
-        break;
-    case INDEX_op_sar_i32:
-        op = RS_SRA;
-        op2 = RSY_SRAK;
-        goto do_shift32;
 
     case INDEX_op_rotl_i32:
         /* ??? Using tcg_out_sh64 here for the format; it is a 32-bit rol.  */
@@ -2798,17 +2805,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_debug_assert(args[0] == args[1] + 1);
         tcg_out_insn(s, RRFa, MGRK, args[1], args[2], args[3]);
         break;
-
-    do_shift64:
-        if (const_args[2]) {
-            tcg_out_sh64(s, op, args[0], args[1], TCG_REG_NONE, args[2]);
-        } else {
-            tcg_out_sh64(s, op, args[0], args[1], args[2], 0);
-        }
-        break;
-    case INDEX_op_sar_i64:
-        op = RSY_SRAG;
-        goto do_shift64;
 
     case INDEX_op_rotl_i64:
         if (const_args[2]) {
@@ -3394,7 +3390,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_sar_i64:
     case INDEX_op_rotl_i32:
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i32:
@@ -3408,9 +3403,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
-
-    case INDEX_op_sar_i32:
-        return C_O1_I2(r, r, ri);
 
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, ri);

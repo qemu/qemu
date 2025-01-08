@@ -2749,6 +2749,33 @@ static TCGConstraintSetIndex cset_shift(TCGType type, unsigned flags)
     return have_bmi2 ? C_O1_I2(r, r, ri) : C_O1_I2(r, 0, ci);
 }
 
+static void tgen_sar(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    if (have_bmi2) {
+        tcg_out_vex_modrm(s, OPC_SARX + rexw, a0, a2, a1);
+    } else {
+        tcg_out_modrm(s, OPC_SHIFT_cl + rexw, SHIFT_SAR, a0);
+    }
+}
+
+static void tgen_sari(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+
+    tcg_out_mov(s, type, a0, a1);
+    tcg_out_shifti(s, SHIFT_SAR + rexw, a0, a2);
+}
+
+static const TCGOutOpBinary outop_sar = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_shift,
+    .out_rrr = tgen_sar,
+    .out_rri = tgen_sari,
+};
+
 static void tgen_shl(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2874,7 +2901,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c, const_a2, vexop, rexw;
+    int c, const_a2, rexw;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
@@ -2949,25 +2976,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    OP_32_64(sar):
-        c = SHIFT_SAR;
-        vexop = OPC_SARX;
-        goto gen_shift_maybe_vex;
     OP_32_64(rotl):
         c = SHIFT_ROL;
         goto gen_shift;
     OP_32_64(rotr):
         c = SHIFT_ROR;
         goto gen_shift;
-    gen_shift_maybe_vex:
-        if (have_bmi2) {
-            if (!const_a2) {
-                tcg_out_vex_modrm(s, vexop + rexw, a0, a2, a1);
-                break;
-            }
-            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32, a0, a1);
-        }
-        /* FALLTHRU */
     gen_shift:
         if (const_a2) {
             tcg_out_shifti(s, c + rexw, a0, a2);
@@ -3809,10 +3823,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_st_i64:
         return C_O0_I2(re, r);
-
-    case INDEX_op_sar_i32:
-    case INDEX_op_sar_i64:
-        return have_bmi2 ? C_O1_I2(r, r, ri) : C_O1_I2(r, 0, ci);
 
     case INDEX_op_rotl_i32:
     case INDEX_op_rotl_i64:
