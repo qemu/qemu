@@ -297,6 +297,15 @@ Arithmetic
      - | *t0* = *t1* % *t2* (unsigned)
        | Undefined behavior if division by zero.
 
+   * - divs2 *q*, *r*, *nl*, *nh*, *d*
+
+     - | *q* = *nh:nl* / *d* (signed)
+       | *r* = *nh:nl* % *d*
+       | Undefined behaviour if division by zero, or the double-word
+         numerator divided by the single-word divisor does not fit
+         within the single-word quotient.  The code generator will
+         pass *nh* as a simple sign-extension of *nl*, so the only
+         overflow should be *INT_MIN* / -1.
 
 Logical
 -------
