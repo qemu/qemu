@@ -1999,6 +1999,8 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
                                     offsetof(typeof(hdr),
                                              virtio_net.hdr.num_buffers),
                                     sizeof(hdr.virtio_net.hdr.num_buffers));
+            } else {
+                hdr.virtio_net.hdr.num_buffers = cpu_to_le16(1);
             }
 
             guest_offset = n->has_vnet_hdr ?
