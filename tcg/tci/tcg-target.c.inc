@@ -757,7 +757,7 @@ static void tgen_rems(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_rems32
-                     : INDEX_op_rem_i64);
+                     : INDEX_op_rems);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 

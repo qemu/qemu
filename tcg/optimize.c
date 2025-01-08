@@ -569,12 +569,14 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
         }
         return (uint64_t)x / ((uint64_t)y ? : 1);
 
-    case INDEX_op_rem_i32:
-        return (int32_t)x % ((int32_t)y ? : 1);
+    case INDEX_op_rems:
+        if (type == TCG_TYPE_I32) {
+            return (int32_t)x % ((int32_t)y ? : 1);
+        }
+        return (int64_t)x % ((int64_t)y ? : 1);
+
     case INDEX_op_remu_i32:
         return (uint32_t)x % ((uint32_t)y ? : 1);
-    case INDEX_op_rem_i64:
-        return (int64_t)x % ((int64_t)y ? : 1);
     case INDEX_op_remu_i64:
         return (uint64_t)x % ((uint64_t)y ? : 1);
 
@@ -3021,7 +3023,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_qemu_st_i128:
             done = fold_qemu_st(&ctx, op);
             break;
-        CASE_OP_32_64(rem):
+        case INDEX_op_rems:
         CASE_OP_32_64(remu):
             done = fold_remainder(&ctx, op);
             break;
