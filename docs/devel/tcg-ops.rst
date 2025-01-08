@@ -292,7 +292,7 @@ Arithmetic
      - | *t0* = *t1* % *t2* (signed)
        | Undefined behavior if division by zero or overflow.
 
-   * - remu_i32/i64 *t0*, *t1*, *t2*
+   * - remu *t0*, *t1*, *t2*
 
      - | *t0* = *t1* % *t2* (unsigned)
        | Undefined behavior if division by zero.
