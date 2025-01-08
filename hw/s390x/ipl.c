@@ -49,13 +49,6 @@
 #define BIOS_MAX_SIZE                   0x300000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
 
-static bool iplb_extended_needed(void *opaque)
-{
-    S390IPLState *ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
-
-    return ipl->iplbext_migration;
-}
-
 /* Place the IPLB chain immediately before the BIOS in memory */
 static uint64_t find_iplb_chain_addr(uint64_t bios_addr, uint16_t count)
 {
@@ -67,7 +60,6 @@ static const VMStateDescription vmstate_iplb_extended = {
     .name = "ipl/iplb_extended",
     .version_id = 0,
     .minimum_version_id = 0,
-    .needed = iplb_extended_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(reserved_ext, IplParameterBlock, 4096 - 200),
         VMSTATE_END_OF_LIST()
@@ -297,8 +289,6 @@ static const Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
     DEFINE_PROP_STRING("firmware", S390IPLState, firmware),
     DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
-    DEFINE_PROP_BOOL("iplbext_migration", S390IPLState, iplbext_migration,
-                     true),
 };
 
 static void s390_ipl_set_boot_menu(S390IPLState *ipl)

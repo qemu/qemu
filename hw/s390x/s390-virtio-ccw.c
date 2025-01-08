@@ -725,10 +725,9 @@ static S390CcwMachineClass *current_mc;
  * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
  * below return the correct default value for the "none" machine.
  *
- * Attention! Do *not* add additional new wrappers for CPU features (e.g. like
- * the ri_allowed() wrapper) via this mechanism anymore. CPU features should
- * be handled via the CPU models, i.e. checking with cpu_model_allowed() during
- * CPU initialization and s390_has_feat() later should be sufficient.
+ * Attention! Do *not* add additional new wrappers for CPU features via this
+ * mechanism anymore. CPU features should be handled via the CPU models,
+ * i.e. checking with s390_has_feat() should be sufficient.
  */
 static S390CcwMachineClass *get_machine_class(void)
 {
@@ -742,16 +741,6 @@ static S390CcwMachineClass *get_machine_class(void)
                      object_class_by_name(TYPE_S390_CCW_MACHINE));
     }
     return current_mc;
-}
-
-bool ri_allowed(void)
-{
-    return get_machine_class()->ri_allowed;
-}
-
-bool cpu_model_allowed(void)
-{
-    return get_machine_class()->cpu_model_allowed;
 }
 
 bool hpage_1m_allowed(void)
@@ -791,8 +780,6 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
 
-    s390mc->ri_allowed = true;
-    s390mc->cpu_model_allowed = true;
     s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
     mc->init = ccw_init;
@@ -1272,95 +1259,6 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     css_migration_enabled = false;
 }
 DEFINE_CCW_MACHINE(2, 9);
-
-static void ccw_machine_2_8_instance_options(MachineState *machine)
-{
-    ccw_machine_2_9_instance_options(machine);
-}
-
-static void ccw_machine_2_8_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_S390_FLIC_COMMON, "adapter_routes_max_batch", "64", },
-    };
-
-    ccw_machine_2_9_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 8);
-
-static void ccw_machine_2_7_instance_options(MachineState *machine)
-{
-    ccw_machine_2_8_instance_options(machine);
-}
-
-static void ccw_machine_2_7_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-
-    s390mc->cpu_model_allowed = false;
-    ccw_machine_2_8_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_7, hw_compat_2_7_len);
-}
-DEFINE_CCW_MACHINE(2, 7);
-
-static void ccw_machine_2_6_instance_options(MachineState *machine)
-{
-    ccw_machine_2_7_instance_options(machine);
-}
-
-static void ccw_machine_2_6_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        { TYPE_S390_IPL, "iplbext_migration", "off", },
-         { TYPE_VIRTUAL_CSS_BRIDGE, "css_dev_path", "off", },
-    };
-
-    s390mc->ri_allowed = false;
-    ccw_machine_2_7_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 6);
-
-static void ccw_machine_2_5_instance_options(MachineState *machine)
-{
-    ccw_machine_2_6_instance_options(machine);
-}
-
-static void ccw_machine_2_5_class_options(MachineClass *mc)
-{
-    ccw_machine_2_6_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_5, hw_compat_2_5_len);
-}
-DEFINE_CCW_MACHINE(2, 5);
-
-static void ccw_machine_2_4_instance_options(MachineState *machine)
-{
-    ccw_machine_2_5_instance_options(machine);
-}
-
-static void ccw_machine_2_4_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_S390_SKEYS, "migration-enabled", "off", },
-        { "virtio-blk-ccw", "max_revision", "0", },
-        { "virtio-balloon-ccw", "max_revision", "0", },
-        { "virtio-serial-ccw", "max_revision", "0", },
-        { "virtio-9p-ccw", "max_revision", "0", },
-        { "virtio-rng-ccw", "max_revision", "0", },
-        { "virtio-net-ccw", "max_revision", "0", },
-        { "virtio-scsi-ccw", "max_revision", "0", },
-        { "vhost-scsi-ccw", "max_revision", "0", },
-    };
-
-    ccw_machine_2_5_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_4, hw_compat_2_4_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 4);
 
 #endif
 

@@ -59,11 +59,13 @@ class HotPlugCPU(LinuxKernelTest):
                                           'cd /sys/devices/system/cpu/cpu1',
                                           'cpu1#')
 
+        exec_command_and_wait_for_pattern(self, 'cd ..', prompt)
         self.vm.cmd('device_del', id='c1')
 
         exec_command_and_wait_for_pattern(self,
-                                          'cd /sys/devices/system/cpu/cpu1',
-                                          'No such file or directory')
+                                    'while cd /sys/devices/system/cpu/cpu1 ;'
+                                    ' do sleep 0.2 ; done',
+                                    'No such file or directory')
 
 if __name__ == '__main__':
     LinuxKernelTest.main()

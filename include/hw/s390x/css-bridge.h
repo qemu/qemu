@@ -19,7 +19,6 @@
 /* virtual css bridge */
 struct VirtualCssBridge {
     SysBusDevice sysbus_dev;
-    bool css_dev_path;
 };
 
 #define TYPE_VIRTUAL_CSS_BRIDGE "virtual-css-bridge"

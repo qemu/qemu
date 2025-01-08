@@ -21,8 +21,6 @@ OBJECT_DECLARE_TYPE(S390SKeysState, S390SKeysClass, S390_SKEYS)
 
 struct S390SKeysState {
     DeviceState parent_obj;
-    bool migration_enabled;
-
 };
 
 

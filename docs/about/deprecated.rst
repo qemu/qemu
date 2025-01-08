@@ -24,12 +24,6 @@ should exclusively use a non-deprecated machine type, with use of the most
 recent version highly recommended. Non-versioned machine types follow the
 general feature deprecation policy.
 
-Prior to the 2.10.0 release there was no official policy on how
-long features would be deprecated prior to their removal, nor
-any documented list of which features were deprecated. Thus
-any features deprecated prior to 2.10.0 will be treated as if
-they were first deprecated in the 2.10.0 release.
-
 What follows is a list of all features currently marked as
 deprecated.
 
@@ -73,12 +67,6 @@ topology parameter as "1", which is meaningless. So support for this kind of
 configurations (e.g. -smp drawers=1,books=1,clusters=1 for x86 PC machine) is
 marked deprecated since 9.0, users have to ensure that all the topology members
 described with -smp are supported by the target machine.
-
-``-runas`` (since 9.1)
-''''''''''''''''''''''
-
-Use ``-run-with user=..`` instead.
-
 
 User-mode emulator command line arguments
 -----------------------------------------

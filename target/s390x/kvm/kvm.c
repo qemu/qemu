@@ -374,13 +374,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_CPU_TOPOLOGY, 0);
-    if (ri_allowed()) {
-        if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
-            cap_ri = 1;
-        }
-    }
-    if (cpu_model_allowed()) {
-        kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0);
+    if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
+        cap_ri = 1;
     }
 
     /*
@@ -389,7 +385,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * support is considered necessary, we only try to enable this for
      * newer machine types if KVM_CAP_S390_AIS_MIGRATION is available.
      */
-    if (cpu_model_allowed() && kvm_kernel_irqchip_allowed() &&
+    if (kvm_kernel_irqchip_allowed() &&
         kvm_check_extension(s, KVM_CAP_S390_AIS_MIGRATION)) {
         kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
     }
@@ -2354,10 +2350,6 @@ static int configure_cpu_feat(const S390FeatBitmap features)
 
 bool kvm_s390_cpu_models_supported(void)
 {
-    if (!cpu_model_allowed()) {
-        /* compatibility machines interfere with the cpu model */
-        return false;
-    }
     return kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
                              KVM_S390_VM_CPU_MACHINE) &&
            kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
