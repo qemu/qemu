@@ -3091,6 +3091,24 @@ static const TCGOutOpBinary outop_orc = {
     .out_rrr = tgen_orc,
 };
 
+static TCGConstraintSetIndex cset_mod(TCGType type, unsigned flags)
+{
+    return have_isa_3_00 ? C_O1_I2(r, r, r) : C_NotImplemented;
+}
+
+static void tgen_rems(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    uint32_t insn = type == TCG_TYPE_I32 ? MODSW : MODSD;
+    tcg_out32(s, insn | TAB(a0, a1, a2));
+}
+
+static const TCGOutOpBinary outop_rems = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mod,
+    .out_rrr = tgen_rems,
+};
+
 static void tgen_sub(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3241,10 +3259,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out32(s, CNTPOPD | SAB(args[1], args[0], 0));
         break;
 
-    case INDEX_op_rem_i32:
-        tcg_out32(s, MODSW | TAB(args[0], args[1], args[2]));
-        break;
-
     case INDEX_op_remu_i32:
         tcg_out32(s, MODUW | TAB(args[0], args[1], args[2]));
         break;
@@ -3341,9 +3355,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_rem_i64:
-        tcg_out32(s, MODSD | TAB(args[0], args[1], args[2]));
-        break;
     case INDEX_op_remu_i64:
         tcg_out32(s, MODUD | TAB(args[0], args[1], args[2]));
         break;
@@ -4202,9 +4213,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_rotr_i64:
         return C_O1_I2(r, r, ri);
 
-    case INDEX_op_rem_i32:
     case INDEX_op_remu_i32:
-    case INDEX_op_rem_i64:
     case INDEX_op_remu_i64:
         return C_O1_I2(r, r, r);
 
