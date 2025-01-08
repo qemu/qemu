@@ -30,7 +30,7 @@
 #include "exec/translation-block.h"
 #include "exec/plugin-gen.h"
 #include "tcg-internal.h"
-
+#include "tcg-has.h"
 
 static void check_max_alignment(unsigned a_bits)
 {

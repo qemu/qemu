@@ -64,8 +64,6 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
-#include "tcg/tcg-has.h"
-
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg/tcg-opc.h"
