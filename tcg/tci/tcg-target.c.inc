@@ -792,7 +792,7 @@ static void tgen_shr(TCGContext *s, TCGType type,
         tcg_out_ext32u(s, TCG_REG_TMP, a1);
         a1 = TCG_REG_TMP;
     }
-    tcg_out_op_rrr(s, glue(INDEX_op_shr_i,TCG_TARGET_REG_BITS), a0, a1, a2);
+    tcg_out_op_rrr(s, INDEX_op_shr, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_shr = {
