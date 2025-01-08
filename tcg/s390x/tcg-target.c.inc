@@ -2445,6 +2445,35 @@ static const TCGOutOpBinary outop_remu = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_rotl_int(TCGContext *s, TCGType type, TCGReg dst,
+                          TCGReg src, TCGReg v, tcg_target_long i)
+{
+    S390Opcode insn = type == TCG_TYPE_I32 ? RSY_RLL : RSY_RLLG;
+    tcg_out_sh64(s, insn, dst, src, v, i);
+}
+
+static void tgen_rotl(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_rotl_int(s, type, a0, a1, a2, 0);
+}
+
+static void tgen_rotli(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_rotl_int(s, type, a0, a1, TCG_REG_NONE, a2);
+}
+
+static const TCGOutOpBinary outop_rotl = {
+    .base.static_constraint = C_O1_I2(r, r, ri),
+    .out_rrr = tgen_rotl,
+    .out_rri = tgen_rotli,
+};
+
+static const TCGOutOpBinary outop_rotr = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_sar_int(TCGContext *s, TCGType type, TCGReg dst,
                          TCGReg src, TCGReg v, tcg_target_long i)
 {
@@ -2663,24 +2692,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_rotl_i32:
-        /* ??? Using tcg_out_sh64 here for the format; it is a 32-bit rol.  */
-        if (const_args[2]) {
-            tcg_out_sh64(s, RSY_RLL, args[0], args[1], TCG_REG_NONE, args[2]);
-        } else {
-            tcg_out_sh64(s, RSY_RLL, args[0], args[1], args[2], 0);
-        }
-        break;
-    case INDEX_op_rotr_i32:
-        if (const_args[2]) {
-            tcg_out_sh64(s, RSY_RLL, args[0], args[1],
-                         TCG_REG_NONE, (32 - args[2]) & 31);
-        } else {
-            tcg_out_insn(s, RR, LCR, TCG_TMP0, args[2]);
-            tcg_out_sh64(s, RSY_RLL, args[0], args[1], TCG_TMP0, 0);
-        }
-        break;
-
     case INDEX_op_bswap16_i32:
         a0 = args[0], a1 = args[1], a2 = args[2];
         tcg_out_insn(s, RRE, LRVR, a0, a1);
@@ -2804,26 +2815,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_debug_assert((args[1] & 1) == 0);
         tcg_debug_assert(args[0] == args[1] + 1);
         tcg_out_insn(s, RRFa, MGRK, args[1], args[2], args[3]);
-        break;
-
-    case INDEX_op_rotl_i64:
-        if (const_args[2]) {
-            tcg_out_sh64(s, RSY_RLLG, args[0], args[1],
-                         TCG_REG_NONE, args[2]);
-        } else {
-            tcg_out_sh64(s, RSY_RLLG, args[0], args[1], args[2], 0);
-        }
-        break;
-    case INDEX_op_rotr_i64:
-        if (const_args[2]) {
-            tcg_out_sh64(s, RSY_RLLG, args[0], args[1],
-                         TCG_REG_NONE, (64 - args[2]) & 63);
-        } else {
-            /* We can use the smaller 32-bit negate because only the
-               low 6 bits are examined for the rotate.  */
-            tcg_out_insn(s, RR, LCR, TCG_TMP0, args[2]);
-            tcg_out_sh64(s, RSY_RLLG, args[0], args[1], TCG_TMP0, 0);
-        }
         break;
 
     case INDEX_op_add2_i64:
@@ -3390,11 +3381,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i32:
-    case INDEX_op_rotr_i64:
-        return C_O1_I2(r, r, ri);
     case INDEX_op_setcond_i32:
     case INDEX_op_negsetcond_i32:
     case INDEX_op_setcond_i64:

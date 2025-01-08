@@ -3122,6 +3122,36 @@ static const TCGOutOpBinary outop_remu = {
     .out_rrr = tgen_remu,
 };
 
+static void tgen_rotl(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out32(s, RLWNM | SAB(a1, a0, a2) | MB(0) | ME(31));
+    } else {
+        tcg_out32(s, RLDCL | SAB(a1, a0, a2) | MB64(0));
+    }
+}
+
+static void tgen_rotli(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_rlw(s, RLWINM, a0, a1, a2, 0, 31);
+    } else {
+        tcg_out_rld(s, RLDICL, a0, a1, a2, 0);
+    }
+}
+
+static const TCGOutOpBinary outop_rotl = {
+    .base.static_constraint = C_O1_I2(r, r, ri),
+    .out_rrr = tgen_rotl,
+    .out_rri = tgen_rotli,
+};
+
+static const TCGOutOpBinary outop_rotr = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_sar(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3344,24 +3374,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out32(s, CNTPOPD | SAB(args[1], args[0], 0));
         break;
 
-    case INDEX_op_rotl_i32:
-        if (const_args[2]) {
-            tcg_out_rlw(s, RLWINM, args[0], args[1], args[2], 0, 31);
-        } else {
-            tcg_out32(s, RLWNM | SAB(args[1], args[0], args[2])
-                         | MB(0) | ME(31));
-        }
-        break;
-    case INDEX_op_rotr_i32:
-        if (const_args[2]) {
-            tcg_out_rlw(s, RLWINM, args[0], args[1], 32 - args[2], 0, 31);
-        } else {
-            tcg_out32(s, SUBFIC | TAI(TCG_REG_R0, args[2], 32));
-            tcg_out32(s, RLWNM | SAB(args[1], args[0], TCG_REG_R0)
-                         | MB(0) | ME(31));
-        }
-        break;
-
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
                        arg_label(args[3]), TCG_TYPE_I32);
@@ -3372,22 +3384,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_brcond2_i32:
         tcg_out_brcond2(s, args, const_args);
-        break;
-
-    case INDEX_op_rotl_i64:
-        if (const_args[2]) {
-            tcg_out_rld(s, RLDICL, args[0], args[1], args[2], 0);
-        } else {
-            tcg_out32(s, RLDCL | SAB(args[1], args[0], args[2]) | MB64(0));
-        }
-        break;
-    case INDEX_op_rotr_i64:
-        if (const_args[2]) {
-            tcg_out_rld(s, RLDICL, args[0], args[1], 64 - args[2], 0);
-        } else {
-            tcg_out32(s, SUBFIC | TAI(TCG_REG_R0, args[2], 64));
-            tcg_out32(s, RLDCL | SAB(args[1], args[0], TCG_REG_R0) | MB64(0));
-        }
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -4231,12 +4227,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
-
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i32:
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i64:
-        return C_O1_I2(r, r, ri);
 
     case INDEX_op_clz_i32:
     case INDEX_op_ctz_i32:

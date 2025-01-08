@@ -1908,6 +1908,39 @@ static const TCGOutOpBinary outop_remu = {
     .out_rrr = tgen_remu,
 };
 
+static const TCGOutOpBinary outop_rotl = {
+    .base.static_constraint = C_NotImplemented,
+};
+
+static TCGConstraintSetIndex cset_rotr(TCGType type, unsigned flags)
+{
+    return use_mips32r2_instructions ? C_O1_I2(r, r, ri) : C_NotImplemented;
+}
+
+static void tgen_rotr(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    MIPSInsn insn = type == TCG_TYPE_I32 ? OPC_ROTRV : OPC_DROTRV;
+    tcg_out_opc_reg(s, insn, a0, a1, a2);
+}
+
+static void tgen_rotri(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_opc_sa(s, OPC_ROTR, a0, a1, a2);
+    } else {
+        tcg_out_opc_sa64(s, OPC_DROTR, OPC_DROTR32, a0, a1, a2);
+    }
+}
+
+static const TCGOutOpBinary outop_rotr = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_rotr,
+    .out_rrr = tgen_rotr,
+    .out_rri = tgen_rotri,
+};
+
 static void tgen_sar(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2032,14 +2065,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    MIPSInsn i1, i2;
+    MIPSInsn i1;
     TCGArg a0, a1, a2;
-    int c2;
 
     a0 = args[0];
     a1 = args[1];
     a2 = args[2];
-    c2 = const_args[2];
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -2132,39 +2163,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_extrh_i64_i32:
         tcg_out_dsra(s, a0, a1, 32);
-        break;
-
-    case INDEX_op_rotr_i32:
-        i1 = OPC_ROTRV, i2 = OPC_ROTR;
-        if (c2) {
-            tcg_out_opc_sa(s, i2, a0, a1, a2);
-            break;
-        }
-    do_shiftv:
-        tcg_out_opc_reg(s, i1, a0, a2, a1);
-        break;
-    case INDEX_op_rotl_i32:
-        if (c2) {
-            tcg_out_opc_sa(s, OPC_ROTR, a0, a1, 32 - a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_SUBU, TCG_TMP0, TCG_REG_ZERO, a2);
-            tcg_out_opc_reg(s, OPC_ROTRV, a0, TCG_TMP0, a1);
-        }
-        break;
-    case INDEX_op_rotr_i64:
-        if (c2) {
-            tcg_out_opc_sa64(s, OPC_DROTR, OPC_DROTR32, a0, a1, a2);
-            break;
-        }
-        i1 = OPC_DROTRV;
-        goto do_shiftv;
-    case INDEX_op_rotl_i64:
-        if (c2) {
-            tcg_out_opc_sa64(s, OPC_DROTR, OPC_DROTR32, a0, a1, 64 - a2);
-        } else {
-            tcg_out_opc_reg(s, OPC_DSUBU, TCG_TMP0, TCG_REG_ZERO, a2);
-            tcg_out_opc_reg(s, OPC_DROTRV, a0, TCG_TMP0, a1);
-        }
         break;
 
     case INDEX_op_clz_i32:
@@ -2331,11 +2329,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_muls2_i64:
     case INDEX_op_mulu2_i64:
         return C_O2_I2(r, r, r, r);
-    case INDEX_op_rotr_i32:
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i64:
-    case INDEX_op_rotl_i64:
-        return C_O1_I2(r, r, ri);
     case INDEX_op_clz_i32:
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rzW);

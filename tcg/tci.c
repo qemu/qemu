@@ -630,16 +630,14 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             regs[r0] = ((tcg_target_long)regs[r1]
                         >> (regs[r2] % TCG_TARGET_REG_BITS));
             break;
-#if TCG_TARGET_HAS_rot_i32
-        case INDEX_op_rotl_i32:
+        case INDEX_op_tci_rotl32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = rol32(regs[r1], regs[r2] & 31);
             break;
-        case INDEX_op_rotr_i32:
+        case INDEX_op_tci_rotr32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ror32(regs[r1], regs[r2] & 31);
             break;
-#endif
         case INDEX_op_deposit_i32:
             tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
             regs[r0] = deposit32(regs[r1], pos, len, regs[r2]);
@@ -788,7 +786,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
 
             /* Shift/rotate operations (64 bit). */
 
-#if TCG_TARGET_HAS_rot_i64
         case INDEX_op_rotl_i64:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = rol64(regs[r1], regs[r2] & 63);
@@ -797,7 +794,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ror64(regs[r1], regs[r2] & 63);
             break;
-#endif
         case INDEX_op_deposit_i64:
             tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
             regs[r0] = deposit64(regs[r1], pos, len, regs[r2]);
@@ -1075,9 +1071,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
     case INDEX_op_shr:
     case INDEX_op_sub:
     case INDEX_op_xor:
-    case INDEX_op_rotl_i32:
     case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i32:
     case INDEX_op_rotr_i64:
     case INDEX_op_clz_i32:
     case INDEX_op_clz_i64:
@@ -1087,6 +1081,8 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
     case INDEX_op_tci_divu32:
     case INDEX_op_tci_rems32:
     case INDEX_op_tci_remu32:
+    case INDEX_op_tci_rotl32:
+    case INDEX_op_tci_rotr32:
         tci_args_rrr(insn, &r0, &r1, &r2);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s",
                            op_name, str_r(r0), str_r(r1), str_r(r2));

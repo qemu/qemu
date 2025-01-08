@@ -2744,6 +2744,46 @@ static const TCGOutOpBinary outop_remu = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_rotl(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_modrm(s, OPC_SHIFT_cl + rexw, SHIFT_ROL, a0);
+}
+
+static void tgen_rotli(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_shifti(s, SHIFT_ROL + rexw, a0, a2);
+}
+
+static const TCGOutOpBinary outop_rotl = {
+    .base.static_constraint = C_O1_I2(r, 0, ci),
+    .out_rrr = tgen_rotl,
+    .out_rri = tgen_rotli,
+};
+
+static void tgen_rotr(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_modrm(s, OPC_SHIFT_cl + rexw, SHIFT_ROR, a0);
+}
+
+static void tgen_rotri(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_shifti(s, SHIFT_ROR + rexw, a0, a2);
+}
+
+static const TCGOutOpBinary outop_rotr = {
+    .base.static_constraint = C_O1_I2(r, 0, ci),
+    .out_rrr = tgen_rotr,
+    .out_rri = tgen_rotri,
+};
+
 static TCGConstraintSetIndex cset_shift(TCGType type, unsigned flags)
 {
     return have_bmi2 ? C_O1_I2(r, r, ri) : C_O1_I2(r, 0, ci);
@@ -2901,7 +2941,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c, const_a2, rexw;
+    int const_a2, rexw;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
@@ -2973,20 +3013,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out32(s, a0);
         } else {
             tcg_out_st(s, TCG_TYPE_I32, a0, a1, a2);
-        }
-        break;
-
-    OP_32_64(rotl):
-        c = SHIFT_ROL;
-        goto gen_shift;
-    OP_32_64(rotr):
-        c = SHIFT_ROR;
-        goto gen_shift;
-    gen_shift:
-        if (const_a2) {
-            tcg_out_shifti(s, c + rexw, a0, a2);
-        } else {
-            tcg_out_modrm(s, OPC_SHIFT_cl + rexw, c, a0);
         }
         break;
 
@@ -3823,12 +3849,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_st_i64:
         return C_O0_I2(re, r);
-
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i32:
-    case INDEX_op_rotr_i64:
-        return C_O1_I2(r, 0, ci);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:

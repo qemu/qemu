@@ -1963,6 +1963,28 @@ static const TCGOutOpBinary outop_remu = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static const TCGOutOpBinary outop_rotl = {
+    .base.static_constraint = C_NotImplemented,
+};
+
+static void tgen_rotr(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV, a0, 0, a1, SHIFT_REG_ROR(a2));
+}
+
+static void tgen_rotri(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV, a0, 0, a1, SHIFT_IMM_ROR(a2 & 0x1f));
+}
+
+static const TCGOutOpBinary outop_rotr = {
+    .base.static_constraint = C_O1_I2(r, r, ri),
+    .out_rrr = tgen_rotr,
+    .out_rri = tgen_rotri,
+};
+
 static void tgen_sar(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2171,24 +2193,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_muls2_i32:
         tcg_out_smull32(s, COND_AL, args[0], args[1], args[2], args[3]);
         break;
-    case INDEX_op_rotr_i32:
-        c = const_args[2] ? (args[2] & 0x1f) ? SHIFT_IMM_ROR(args[2] & 0x1f) :
-                SHIFT_IMM_LSL(0) : SHIFT_REG_ROR(args[2]);
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1], c);
-        break;
-
-    case INDEX_op_rotl_i32:
-        if (const_args[2]) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1],
-                            ((0x20 - args[2]) & 0x1f) ?
-                            SHIFT_IMM_ROR((0x20 - args[2]) & 0x1f) :
-                            SHIFT_IMM_LSL(0));
-        } else {
-            tcg_out_dat_imm(s, COND_AL, ARITH_RSB, TCG_REG_TMP, args[2], 0x20);
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1],
-                            SHIFT_REG_ROR(TCG_REG_TMP));
-        }
-        break;
 
     case INDEX_op_ctz_i32:
         tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, args[1], 0);
@@ -2341,10 +2345,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_mulu2_i32:
     case INDEX_op_muls2_i32:
         return C_O2_I2(r, r, r, r);
-
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i32:
-        return C_O1_I2(r, r, ri);
 
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, rIN);
