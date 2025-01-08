@@ -1026,6 +1026,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
     OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
+    OUTOP(INDEX_op_clz_i32, TCGOutOpBinary, outop_clz),
+    OUTOP(INDEX_op_clz_i64, TCGOutOpBinary, outop_clz),
     OUTOP(INDEX_op_divs, TCGOutOpBinary, outop_divs),
     OUTOP(INDEX_op_divu, TCGOutOpBinary, outop_divu),
     OUTOP(INDEX_op_divs2, TCGOutOpDivRem, outop_divs2),
@@ -2288,8 +2290,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_bswap16_i32;
     case INDEX_op_bswap32_i32:
         return TCG_TARGET_HAS_bswap32_i32;
-    case INDEX_op_clz_i32:
-        return TCG_TARGET_HAS_clz_i32;
     case INDEX_op_ctz_i32:
         return TCG_TARGET_HAS_ctz_i32;
     case INDEX_op_ctpop_i32:
@@ -2333,8 +2333,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_bswap32_i64;
     case INDEX_op_bswap64_i64:
         return TCG_TARGET_HAS_bswap64_i64;
-    case INDEX_op_clz_i64:
-        return TCG_TARGET_HAS_clz_i64;
     case INDEX_op_ctz_i64:
         return TCG_TARGET_HAS_ctz_i64;
     case INDEX_op_ctpop_i64:
@@ -5404,6 +5402,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_add:
     case INDEX_op_and:
     case INDEX_op_andc:
+    case INDEX_op_clz_i32:
+    case INDEX_op_clz_i64:
     case INDEX_op_divs:
     case INDEX_op_divu:
     case INDEX_op_eqv:

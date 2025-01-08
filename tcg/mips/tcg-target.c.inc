@@ -1563,33 +1563,6 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out32(s, sync[a0 & TCG_MO_ALL]);
 }
 
-static void tcg_out_clz(TCGContext *s, MIPSInsn opcv2, MIPSInsn opcv6,
-                        int width, TCGReg a0, TCGReg a1, TCGArg a2)
-{
-    if (use_mips32r6_instructions) {
-        if (a2 == width) {
-            tcg_out_opc_reg(s, opcv6, a0, a1, 0);
-        } else {
-            tcg_out_opc_reg(s, opcv6, TCG_TMP0, a1, 0);
-            tcg_out_movcond(s, TCG_COND_EQ, a0, a1, 0, a2, TCG_TMP0);
-        }
-    } else {
-        if (a2 == width) {
-            tcg_out_opc_reg(s, opcv2, a0, a1, a1);
-        } else if (a0 == a2) {
-            tcg_out_opc_reg(s, opcv2, TCG_TMP0, a1, a1);
-            tcg_out_opc_reg(s, OPC_MOVN, a0, TCG_TMP0, a1);
-        } else if (a0 != a1) {
-            tcg_out_opc_reg(s, opcv2, a0, a1, a1);
-            tcg_out_opc_reg(s, OPC_MOVZ, a0, a2, a1);
-        } else {
-            tcg_out_opc_reg(s, opcv2, TCG_TMP0, a1, a1);
-            tcg_out_opc_reg(s, OPC_MOVZ, TCG_TMP0, a2, a1);
-            tcg_out_mov(s, TCG_TYPE_REG, a0, TCG_TMP0);
-        }
-    }
-}
-
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 {
     TCGReg base = TCG_REG_ZERO;
@@ -1710,6 +1683,55 @@ static const TCGOutOpBinary outop_and = {
 
 static const TCGOutOpBinary outop_andc = {
     .base.static_constraint = C_NotImplemented,
+};
+
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (use_mips32r6_instructions) {
+        MIPSInsn opcv6 = type == TCG_TYPE_I32 ? OPC_CLZ_R6 : OPC_DCLZ_R6;
+        tcg_out_opc_reg(s, opcv6, TCG_TMP0, a1, 0);
+        tcg_out_movcond(s, TCG_COND_EQ, a0, a1, 0, a2, TCG_TMP0);
+    } else {
+        MIPSInsn opcv2 = type == TCG_TYPE_I32 ? OPC_CLZ : OPC_DCLZ;
+        if (a0 == a2) {
+            tcg_out_opc_reg(s, opcv2, TCG_TMP0, a1, a1);
+            tcg_out_opc_reg(s, OPC_MOVN, a0, TCG_TMP0, a1);
+        } else if (a0 != a1) {
+            tcg_out_opc_reg(s, opcv2, a0, a1, a1);
+            tcg_out_opc_reg(s, OPC_MOVZ, a0, a2, a1);
+        } else {
+            tcg_out_opc_reg(s, opcv2, TCG_TMP0, a1, a1);
+            tcg_out_opc_reg(s, OPC_MOVZ, TCG_TMP0, a2, a1);
+            tcg_out_mov(s, type, a0, TCG_TMP0);
+        }
+    }
+}
+
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    if (a2 == 0) {
+        tgen_clz(s, type, a0, a1, TCG_REG_ZERO);
+    } else if (use_mips32r6_instructions) {
+        MIPSInsn opcv6 = type == TCG_TYPE_I32 ? OPC_CLZ_R6 : OPC_DCLZ_R6;
+        tcg_out_opc_reg(s, opcv6, a0, a1, 0);
+    } else {
+        MIPSInsn opcv2 = type == TCG_TYPE_I32 ? OPC_CLZ : OPC_DCLZ;
+        tcg_out_opc_reg(s, opcv2, a0, a1, a1);
+    }
+}
+
+static TCGConstraintSetIndex cset_clz(TCGType type, unsigned flags)
+{
+    return use_mips32r2_instructions ? C_O1_I2(r, r, rzW) : C_NotImplemented;
+}
+
+static const TCGOutOpBinary outop_clz = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_clz,
+    .out_rrr = tgen_clz,
+    .out_rri = tgen_clzi,
 };
 
 static void tgen_divs(TCGContext *s, TCGType type,
@@ -2165,13 +2187,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_dsra(s, a0, a1, 32);
         break;
 
-    case INDEX_op_clz_i32:
-        tcg_out_clz(s, OPC_CLZ, OPC_CLZ_R6, 32, a0, a1, a2);
-        break;
-    case INDEX_op_clz_i64:
-        tcg_out_clz(s, OPC_DCLZ, OPC_DCLZ_R6, 64, a0, a1, a2);
-        break;
-
     case INDEX_op_deposit_i32:
         tcg_out_opc_bf(s, OPC_INS, a0, a2, args[3] + args[4] - 1, args[3]);
         break;
@@ -2329,9 +2344,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_muls2_i64:
     case INDEX_op_mulu2_i64:
         return C_O2_I2(r, r, r, r);
-    case INDEX_op_clz_i32:
-    case INDEX_op_clz_i64:
-        return C_O1_I2(r, r, rzW);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:

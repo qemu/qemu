@@ -1869,32 +1869,6 @@ static void tcg_out_ctz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
     }
 }
 
-static void tcg_out_clz(TCGContext *s, int rexw, TCGReg dest, TCGReg arg1,
-                        TCGArg arg2, bool const_a2)
-{
-    if (have_lzcnt) {
-        tcg_out_modrm(s, OPC_LZCNT + rexw, dest, arg1);
-        if (const_a2) {
-            tcg_debug_assert(arg2 == (rexw ? 64 : 32));
-        } else {
-            tcg_debug_assert(dest != arg2);
-            tcg_out_cmov(s, JCC_JB, rexw, dest, arg2);
-        }
-    } else {
-        tcg_debug_assert(!const_a2);
-        tcg_debug_assert(dest != arg1);
-        tcg_debug_assert(dest != arg2);
-
-        /* Recall that the output of BSR is the index not the count.  */
-        tcg_out_modrm(s, OPC_BSR + rexw, dest, arg1);
-        tgen_arithi(s, ARITH_XOR + rexw, dest, rexw ? 63 : 31, 0);
-
-        /* Since we have destroyed the flags from BSR, we have to re-test.  */
-        int jcc = tcg_out_cmp(s, TCG_COND_EQ, arg1, 0, 1, rexw);
-        tcg_out_cmov(s, jcc, rexw, dest, arg2);
-    }
-}
-
 static void tcg_out_branch(TCGContext *s, int call, const tcg_insn_unit *dest)
 {
     intptr_t disp = tcg_pcrel_diff(s, dest) - 5;
@@ -2633,6 +2607,45 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    int jcc;
+
+    if (have_lzcnt) {
+        tcg_out_modrm(s, OPC_LZCNT + rexw, a0, a1);
+        jcc = JCC_JB;
+    } else {
+        /* Recall that the output of BSR is the index not the count.  */
+        tcg_out_modrm(s, OPC_BSR + rexw, a0, a1);
+        tgen_arithi(s, ARITH_XOR + rexw, a0, rexw ? 63 : 31, 0);
+
+        /* Since we have destroyed the flags from BSR, we have to re-test.  */
+        jcc = tcg_out_cmp(s, TCG_COND_EQ, a1, 0, 1, rexw);
+    }
+    tcg_out_cmov(s, jcc, rexw, a0, a2);
+}
+
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_modrm(s, OPC_LZCNT + rexw, a0, a1);
+}
+
+static TCGConstraintSetIndex cset_clz(TCGType type, unsigned flags)
+{
+    return have_lzcnt ? C_N1_I2(r, r, rW) : C_N1_I2(r, r, r);
+}
+
+static const TCGOutOpBinary outop_clz = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_clz,
+    .out_rrr = tgen_clz,
+    .out_rri = tgen_clzi,
+};
+
 static const TCGOutOpBinary outop_divs = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -3018,9 +3031,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     OP_32_64(ctz):
         tcg_out_ctz(s, rexw, args[0], args[1], args[2], const_args[2]);
-        break;
-    OP_32_64(clz):
-        tcg_out_clz(s, rexw, args[0], args[1], args[2], const_args[2]);
         break;
     OP_32_64(ctpop):
         tcg_out_modrm(s, OPC_POPCNT + rexw, a0, a1);
@@ -3906,10 +3916,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ctz_i32:
     case INDEX_op_ctz_i64:
         return have_bmi1 ? C_N1_I2(r, r, rW) : C_N1_I2(r, r, r);
-
-    case INDEX_op_clz_i32:
-    case INDEX_op_clz_i64:
-        return have_lzcnt ? C_N1_I2(r, r, rW) : C_N1_I2(r, r, r);
 
     case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, L);

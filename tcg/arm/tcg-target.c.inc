@@ -1862,6 +1862,32 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0, a1, 0);
+    tcg_out_dat_reg(s, COND_NE, INSN_CLZ, a0, 0, a1, 0);
+    tcg_out_mov_reg(s, COND_EQ, a0, a2);
+}
+
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    if (a2 == 32) {
+        tcg_out_dat_reg(s, COND_AL, INSN_CLZ, a0, 0, a1, 0);
+    } else {
+        tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0, a1, 0);
+        tcg_out_dat_reg(s, COND_NE, INSN_CLZ, a0, 0, a1, 0);
+        tcg_out_movi32(s, COND_EQ, a0, a2);
+    }
+}
+
+static const TCGOutOpBinary outop_clz = {
+    .base.static_constraint = C_O1_I2(r, r, rIK),
+    .out_rrr = tgen_clz,
+    .out_rri = tgen_clzi,
+};
+
 static TCGConstraintSetIndex cset_idiv(TCGType type, unsigned flags)
 {
     return use_idiv_instructions ? C_O1_I2(r, r, r) : C_NotImplemented;
@@ -2196,23 +2222,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_ctz_i32:
         tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, args[1], 0);
-        a1 = TCG_REG_TMP;
-        goto do_clz;
-
-    case INDEX_op_clz_i32:
-        a1 = args[1];
-    do_clz:
-        a0 = args[0];
-        a2 = args[2];
-        c = const_args[2];
-        if (c && a2 == 32) {
-            tcg_out_dat_reg(s, COND_AL, INSN_CLZ, a0, 0, a1, 0);
-            break;
-        }
-        tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0, a1, 0);
-        tcg_out_dat_reg(s, COND_NE, INSN_CLZ, a0, 0, a1, 0);
-        if (c || a0 != a2) {
-            tcg_out_dat_rIK(s, COND_EQ, ARITH_MOV, ARITH_MVN, a0, 0, a2, c);
+        if (const_args[2]) {
+            tgen_clzi(s, TCG_TYPE_I32, args[0], TCG_REG_TMP, args[2]);
+        } else {
+            tgen_clz(s, TCG_TYPE_I32, args[0], TCG_REG_TMP, args[2]);
         }
         break;
 

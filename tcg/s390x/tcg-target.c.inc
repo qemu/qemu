@@ -1514,27 +1514,6 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
     tgen_movcond_int(s, type, dest, v3, v3const, v4, cc, inv_cc);
 }
 
-static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
-                     TCGArg a2, int a2const)
-{
-    /* Since this sets both R and R+1, we have no choice but to store the
-       result into R0, allowing R1 == TCG_TMP0 to be clobbered as well.  */
-    QEMU_BUILD_BUG_ON(TCG_TMP0 != TCG_REG_R1);
-    tcg_out_insn(s, RRE, FLOGR, TCG_REG_R0, a1);
-
-    if (a2const && a2 == 64) {
-        tcg_out_mov(s, TCG_TYPE_I64, dest, TCG_REG_R0);
-        return;
-    }
-
-    /*
-     * Conditions from FLOGR are:
-     *   2 -> one bit found
-     *   8 -> no one bit found
-     */
-    tgen_movcond_int(s, TCG_TYPE_I64, dest, a2, a2const, TCG_REG_R0, 8, 2);
-}
-
 static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
     /* With MIE3, and bit 0 of m4 set, we get the complete result. */
@@ -2242,6 +2221,53 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_clz_int(TCGContext *s, TCGReg dest, TCGReg a1,
+                         TCGArg a2, int a2const)
+{
+    /*
+     * Since this sets both R and R+1, we have no choice but to store the
+     * result into R0, allowing R1 == TCG_TMP0 to be clobbered as well.
+     */
+    QEMU_BUILD_BUG_ON(TCG_TMP0 != TCG_REG_R1);
+    tcg_out_insn(s, RRE, FLOGR, TCG_REG_R0, a1);
+
+    if (a2const && a2 == 64) {
+        tcg_out_mov(s, TCG_TYPE_I64, dest, TCG_REG_R0);
+        return;
+    }
+
+    /*
+     * Conditions from FLOGR are:
+     *   2 -> one bit found
+     *   8 -> no one bit found
+     */
+    tgen_movcond_int(s, TCG_TYPE_I64, dest, a2, a2const, TCG_REG_R0, 8, 2);
+}
+
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_clz_int(s, a0, a1, a2, false);
+}
+
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_clz_int(s, a0, a1, a2, true);
+}
+
+static TCGConstraintSetIndex cset_clz(TCGType type, unsigned flags)
+{
+    return type == TCG_TYPE_I64 ? C_O1_I2(r, r, rI) : C_NotImplemented;
+}
+
+static const TCGOutOpBinary outop_clz = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_clz,
+    .out_rrr = tgen_clz,
+    .out_rri = tgen_clzi,
+};
+
 static const TCGOutOpBinary outop_divs = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -2884,10 +2910,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tgen_sextract(s, args[0], args[1], args[2], args[3]);
         break;
 
-    case INDEX_op_clz_i64:
-        tgen_clz(s, args[0], args[1], args[2], const_args[2]);
-        break;
-
     case INDEX_op_ctpop_i32:
         tgen_ctpop(s, TCG_TYPE_I32, args[0], args[1]);
         break;
@@ -3386,9 +3408,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i64:
     case INDEX_op_negsetcond_i64:
         return C_O1_I2(r, r, rC);
-
-    case INDEX_op_clz_i64:
-        return C_O1_I2(r, r, rI);
 
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, ri);

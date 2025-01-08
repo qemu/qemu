@@ -2954,6 +2954,26 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    uint32_t insn = type == TCG_TYPE_I32 ? CNTLZW : CNTLZD;
+    tcg_out_cntxz(s, type, insn, a0, a1, a2, false);
+}
+
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    uint32_t insn = type == TCG_TYPE_I32 ? CNTLZW : CNTLZD;
+    tcg_out_cntxz(s, type, insn, a0, a1, a2, true);
+}
+
+static const TCGOutOpBinary outop_clz = {
+    .base.static_constraint = C_O1_I2(r, r, rZW),
+    .out_rrr = tgen_clz,
+    .out_rri = tgen_clzi,
+};
+
 static void tgen_eqv(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3350,10 +3370,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_mem_long(s, STD, STDX, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_clz_i32:
-        tcg_out_cntxz(s, TCG_TYPE_I32, CNTLZW, args[0], args[1],
-                      args[2], const_args[2]);
-        break;
     case INDEX_op_ctz_i32:
         tcg_out_cntxz(s, TCG_TYPE_I32, CNTTZW, args[0], args[1],
                       args[2], const_args[2]);
@@ -3362,10 +3378,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out32(s, CNTPOPW | SAB(args[1], args[0], 0));
         break;
 
-    case INDEX_op_clz_i64:
-        tcg_out_cntxz(s, TCG_TYPE_I64, CNTLZD, args[0], args[1],
-                      args[2], const_args[2]);
-        break;
     case INDEX_op_ctz_i64:
         tcg_out_cntxz(s, TCG_TYPE_I64, CNTTZD, args[0], args[1],
                       args[2], const_args[2]);
@@ -4228,9 +4240,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_clz_i32:
     case INDEX_op_ctz_i32:
-    case INDEX_op_clz_i64:
     case INDEX_op_ctz_i64:
         return C_O1_I2(r, r, rZW);
 
