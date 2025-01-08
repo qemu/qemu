@@ -986,6 +986,12 @@ typedef struct TCGOutOpBinary {
                     TCGReg a0, TCGReg a1, tcg_target_long a2);
 } TCGOutOpBinary;
 
+typedef struct TCGOutOpDivRem {
+    TCGOutOp base;
+    void (*out_rr01r)(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a4);
+} TCGOutOpDivRem;
+
 typedef struct TCGOutOpUnary {
     TCGOutOp base;
     void (*out_rr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1);
@@ -1022,6 +1028,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
     OUTOP(INDEX_op_divs, TCGOutOpBinary, outop_divs),
     OUTOP(INDEX_op_divu, TCGOutOpBinary, outop_divu),
+    OUTOP(INDEX_op_div2_i32, TCGOutOpDivRem, outop_divs2),
+    OUTOP(INDEX_op_div2_i64, TCGOutOpDivRem, outop_divs2),
     OUTOP(INDEX_op_eqv, TCGOutOpBinary, outop_eqv),
     OUTOP(INDEX_op_mul, TCGOutOpBinary, outop_mul),
     OUTOP(INDEX_op_mulsh, TCGOutOpBinary, outop_mulsh),
@@ -2265,7 +2273,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_rem_i32:
     case INDEX_op_remu_i32:
         return TCG_TARGET_HAS_rem_i32;
-    case INDEX_op_div2_i32:
     case INDEX_op_divu2_i32:
         return TCG_TARGET_HAS_div2_i32;
     case INDEX_op_rotl_i32:
@@ -2325,7 +2332,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_rem_i64:
     case INDEX_op_remu_i64:
         return TCG_TARGET_HAS_rem_i64;
-    case INDEX_op_div2_i64:
     case INDEX_op_divu2_i64:
         return TCG_TARGET_HAS_div2_i64;
     case INDEX_op_rotl_i64:
@@ -5464,6 +5470,20 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             /* Constants should have been folded. */
             tcg_debug_assert(!const_args[1]);
             out->out_rr(s, type, new_args[0], new_args[1]);
+        }
+        break;
+
+    case INDEX_op_div2_i32:
+    case INDEX_op_div2_i64:
+        {
+            const TCGOutOpDivRem *out =
+                container_of(all_outop[op->opc], TCGOutOpDivRem, base);
+
+            /* Only used by x86 and s390x, which use matching constraints. */
+            tcg_debug_assert(new_args[0] == new_args[2]);
+            tcg_debug_assert(new_args[1] == new_args[3]);
+            tcg_debug_assert(!const_args[4]);
+            out->out_rr01r(s, type, new_args[0], new_args[1], new_args[4]);
         }
         break;
 

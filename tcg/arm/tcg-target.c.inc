@@ -1880,6 +1880,10 @@ static const TCGOutOpBinary outop_divs = {
     .out_rrr = tgen_divs,
 };
 
+static const TCGOutOpDivRem outop_divs2 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_divu(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, TCGReg a2)
 {
