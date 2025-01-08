@@ -1914,6 +1914,8 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
                                     sg, elem->in_num,
                                     offsetof(typeof(mhdr), num_buffers),
                                     sizeof(mhdr.num_buffers));
+            } else {
+                mhdr.num_buffers = cpu_to_le16(1);
             }
 
             receive_header(n, sg, elem->in_num, buf, size);
