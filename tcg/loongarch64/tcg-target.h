@@ -85,8 +85,6 @@ typedef enum {
     TCG_VEC_TMP0 = TCG_REG_V23,
 } TCGReg;
 
-#include "tcg-target-has.h"
-
 #define TCG_TARGET_DEFAULT_MO (0)
 
 #endif /* LOONGARCH_TCG_TARGET_H */

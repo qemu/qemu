@@ -88,8 +88,6 @@ typedef enum {
     TCG_REG_CALL_STACK = TCG_REG_ESP
 } TCGReg;
 
-#include "tcg-target-has.h"
-
 /* This defines the natural memory order supported by this
  * architecture before guarantees made by various barrier
  * instructions.

@@ -44,8 +44,6 @@
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 
-#include "tcg-target-has.h"
-
 /* Number of registers available. */
 #define TCG_TARGET_NB_REGS 16
 

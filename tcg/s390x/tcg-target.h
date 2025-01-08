@@ -51,8 +51,6 @@ typedef enum TCGReg {
 
 #define TCG_TARGET_NB_REGS 64
 
-#include "tcg-target-has.h"
-
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
 
 #endif

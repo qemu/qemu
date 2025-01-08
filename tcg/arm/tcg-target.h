@@ -70,8 +70,6 @@ typedef enum {
 
 #define TCG_TARGET_NB_REGS 32
 
-#include "tcg-target-has.h"
-
 #define TCG_TARGET_DEFAULT_MO (0)
 
 #endif
