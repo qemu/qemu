@@ -41,8 +41,6 @@ class Aarch64VirtMachine(QemuSystemTest):
 
         self.set_machine('virt')
         self.vm.set_console()
-        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               'console=ttyAMA0')
         self.require_accelerator("tcg")
 
         self.vm.add_args("-accel", "tcg")
