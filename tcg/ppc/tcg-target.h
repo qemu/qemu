@@ -55,14 +55,6 @@ typedef enum {
     TCG_AREG0 = TCG_REG_R27
 } TCGReg;
 
-typedef enum {
-    tcg_isa_base,
-    tcg_isa_2_06,
-    tcg_isa_2_07,
-    tcg_isa_3_00,
-    tcg_isa_3_10,
-} TCGPowerISA;
-
 #define have_isa_2_06  (cpuinfo & CPUINFO_V2_06)
 #define have_isa_2_07  (cpuinfo & CPUINFO_V2_07)
 #define have_isa_3_00  (cpuinfo & CPUINFO_V3_0)
