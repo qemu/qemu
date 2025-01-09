@@ -750,11 +750,11 @@ void tcg_gen_ctz_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     TCGv_i32 z, t;
 
-    if (tcg_op_supported(INDEX_op_ctz_i32, TCG_TYPE_I32, 0)) {
-        tcg_gen_op3_i32(INDEX_op_ctz_i32, ret, arg1, arg2);
+    if (tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3_i32(INDEX_op_ctz, ret, arg1, arg2);
         return;
     }
-    if (tcg_op_supported(INDEX_op_ctz_i64, TCG_TYPE_I64, 0)) {
+    if (tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I64, 0)) {
         TCGv_i64 t1 = tcg_temp_ebb_new_i64();
         TCGv_i64 t2 = tcg_temp_ebb_new_i64();
         tcg_gen_extu_i32_i64(t1, arg1);
@@ -788,7 +788,7 @@ void tcg_gen_ctz_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 void tcg_gen_ctzi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
 {
-    if (!tcg_op_supported(INDEX_op_ctz_i32, TCG_TYPE_I32, 0)
+    if (!tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I32, 0)
         && TCG_TARGET_HAS_ctpop_i32 && arg2 == 32) {
         /* This equivalence has the advantage of not requiring a fixup.  */
         TCGv_i32 t = tcg_temp_ebb_new_i32();
@@ -2366,8 +2366,8 @@ void tcg_gen_ctz_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
     TCGv_i64 z, t;
 
-    if (tcg_op_supported(INDEX_op_ctz_i64, TCG_TYPE_I64, 0)) {
-        tcg_gen_op3_i64(INDEX_op_ctz_i64, ret, arg1, arg2);
+    if (tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3_i64(INDEX_op_ctz, ret, arg1, arg2);
         return;
     }
     if (TCG_TARGET_HAS_ctpop_i64) {
@@ -2395,7 +2395,7 @@ void tcg_gen_ctzi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
 {
     if (TCG_TARGET_REG_BITS == 32
         && arg2 <= 0xffffffffu
-        && tcg_op_supported(INDEX_op_ctz_i32, TCG_TYPE_I32, 0)) {
+        && tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I32, 0)) {
         TCGv_i32 t32 = tcg_temp_ebb_new_i32();
         tcg_gen_ctzi_i32(t32, TCGV_HIGH(arg1), arg2 - 32);
         tcg_gen_addi_i32(t32, t32, 32);
@@ -2403,7 +2403,7 @@ void tcg_gen_ctzi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
         tcg_temp_free_i32(t32);
     } else if (arg2 == 64
-               && !tcg_op_supported(INDEX_op_ctz_i64, TCG_TYPE_I64, 0)
+               && !tcg_op_supported(INDEX_op_ctz, TCG_TYPE_I64, 0)
                && TCG_TARGET_HAS_ctpop_i64) {
         /* This equivalence has the advantage of not requiring a fixup.  */
         TCGv_i64 t = tcg_temp_ebb_new_i64();

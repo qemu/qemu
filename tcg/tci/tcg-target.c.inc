@@ -645,7 +645,7 @@ static void tgen_ctz(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_ctz32
-                     : INDEX_op_ctz_i64);
+                     : INDEX_op_ctz);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 
