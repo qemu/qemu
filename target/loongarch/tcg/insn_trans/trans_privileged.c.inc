@@ -95,7 +95,7 @@ static const CSRInfo csr_info[] = {
     CSR_OFF(PGDL),
     CSR_OFF(PGDH),
     CSR_OFF_FUNCS(PGD, CSRFL_READONLY, gen_helper_csrrd_pgd, NULL),
-    CSR_OFF(PWCL),
+    CSR_OFF_FUNCS(PWCL, 0, NULL, gen_helper_csrwr_pwcl),
     CSR_OFF(PWCH),
     CSR_OFF(STLBPS),
     CSR_OFF(RVACFG),

@@ -886,11 +886,11 @@ struct linux_efi_zboot_header {
  *
  * If the image is not a Linux EFI zboot image, do nothing and return success.
  */
-ssize_t unpack_efi_zboot_image(uint8_t **buffer, int *size)
+ssize_t unpack_efi_zboot_image(uint8_t **buffer, ssize_t *size)
 {
     const struct linux_efi_zboot_header *header;
     uint8_t *data = NULL;
-    int ploff, plsize;
+    ssize_t ploff, plsize;
     ssize_t bytes;
 
     /* ignore if this is too small to be a EFI zboot image */
