@@ -633,7 +633,7 @@ static void tgen_clz(TCGContext *s, TCGType type,
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_clz32
-                     : INDEX_op_clz_i64);
+                     : INDEX_op_clz);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
 }
 
