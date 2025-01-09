@@ -366,12 +366,12 @@ Logical
 
      - | *t0* = *t1* ? ctz(*t1*) : *t2*
 
-   * - ctpop_i32/i64 *t0*, *t1*
+   * - ctpop *t0*, *t1*
 
      - | *t0* = number of bits set in *t1*
        |
-       | With *ctpop* short for "count population", matching
-       | the function name used in ``include/qemu/host-utils.h``.
+       | The name *ctpop* is short for "count population", and matches
+         the function name used in ``include/qemu/host-utils.h``.
 
 
 Shifts/Rotates

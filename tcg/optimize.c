@@ -515,11 +515,8 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
         }
         return x ? ctz64(x) : y;
 
-    case INDEX_op_ctpop_i32:
-        return ctpop32(x);
-
-    case INDEX_op_ctpop_i64:
-        return ctpop64(x);
+    case INDEX_op_ctpop:
+        return type == TCG_TYPE_I32 ? ctpop32(x) : ctpop64(x);
 
     CASE_OP_32_64(bswap16):
         x = bswap16(x);
@@ -2902,7 +2899,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_ctz:
             done = fold_count_zeros(&ctx, op);
             break;
-        CASE_OP_32_64(ctpop):
+        case INDEX_op_ctpop:
             done = fold_ctpop(&ctx, op);
             break;
         CASE_OP_32_64(deposit):
