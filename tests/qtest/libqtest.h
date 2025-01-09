@@ -601,6 +601,20 @@ uint64_t qtest_rtas_call(QTestState *s, const char *name,
                          uint32_t nret, uint64_t ret);
 
 /**
+ * qtest_csr_call:
+ * @s: #QTestState instance to operate on.
+ * @name: name of the command to call.
+ * @cpu: hart number.
+ * @csr: CSR number.
+ * @val: Value for reading/writing.
+ *
+ * Call an RISC-V CSR read/write function
+ */
+uint64_t qtest_csr_call(QTestState *s, const char *name,
+                         uint64_t cpu, int csr,
+                         uint64_t *val);
+
+/**
  * qtest_bufread:
  * @s: #QTestState instance to operate on.
  * @addr: Guest address to read from.
