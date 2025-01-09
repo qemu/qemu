@@ -2205,6 +2205,10 @@ static const TCGOutOpBinary outop_mul = {
     .out_rrr = tgen_mul,
 };
 
+static const TCGOutOpMul2 outop_muls2 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static TCGConstraintSetIndex cset_mulh(TCGType type, unsigned flags)
 {
     return type == TCG_TYPE_I64 ? C_O1_I2(r, r, r) : C_NotImplemented;

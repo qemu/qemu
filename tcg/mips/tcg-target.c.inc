@@ -1823,6 +1823,26 @@ static const TCGOutOpBinary outop_mul = {
     .out_rrr = tgen_mul,
 };
 
+static void tgen_muls2(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3)
+{
+    MIPSInsn insn = type == TCG_TYPE_I32 ? OPC_MULT : OPC_DMULT;
+    tcg_out_opc_reg(s, insn, 0, a2, a3);
+    tcg_out_opc_reg(s, OPC_MFLO, a0, 0, 0);
+    tcg_out_opc_reg(s, OPC_MFHI, a1, 0, 0);
+}
+
+static TCGConstraintSetIndex cset_mul2(TCGType type, unsigned flags)
+{
+    return use_mips32r6_instructions ? C_NotImplemented : C_O2_I2(r, r, r, r);
+}
+
+static const TCGOutOpMul2 outop_muls2 = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mul2,
+    .out_rrrr = tgen_muls2,
+};
+
 static void tgen_mulsh(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2161,14 +2181,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, i1, a0, a1, a2);
         break;
 
-    case INDEX_op_muls2_i32:
-        i1 = OPC_MULT;
-        goto do_hilo2;
     case INDEX_op_mulu2_i32:
         i1 = OPC_MULTU;
-        goto do_hilo2;
-    case INDEX_op_muls2_i64:
-        i1 = OPC_DMULT;
         goto do_hilo2;
     case INDEX_op_mulu2_i64:
         i1 = OPC_DMULTU;
@@ -2347,9 +2361,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:
         return C_O1_I2(r, rz, rz);
-    case INDEX_op_muls2_i32:
     case INDEX_op_mulu2_i32:
-    case INDEX_op_muls2_i64:
     case INDEX_op_mulu2_i64:
         return C_O2_I2(r, r, r, r);
 
