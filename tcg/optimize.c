@@ -1996,23 +1996,19 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
     if (ti_is_const(tt) && ti_is_const(ft)) {
         uint64_t tv = ti_const_val(tt);
         uint64_t fv = ti_const_val(ft);
-        TCGOpcode opc, negopc = 0;
+        TCGOpcode opc, negopc;
         TCGCond cond = op->args[5];
 
         switch (ctx->type) {
         case TCG_TYPE_I32:
             opc = INDEX_op_setcond_i32;
-            if (TCG_TARGET_HAS_negsetcond_i32) {
-                negopc = INDEX_op_negsetcond_i32;
-            }
+            negopc = INDEX_op_negsetcond_i32;
             tv = (int32_t)tv;
             fv = (int32_t)fv;
             break;
         case TCG_TYPE_I64:
             opc = INDEX_op_setcond_i64;
-            if (TCG_TARGET_HAS_negsetcond_i64) {
-                negopc = INDEX_op_negsetcond_i64;
-            }
+            negopc = INDEX_op_negsetcond_i64;
             break;
         default:
             g_assert_not_reached();
@@ -2024,14 +2020,12 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
         } else if (fv == 1 && tv == 0) {
             op->opc = opc;
             op->args[3] = tcg_invert_cond(cond);
-        } else if (negopc) {
-            if (tv == -1 && fv == 0) {
-                op->opc = negopc;
-                op->args[3] = cond;
-            } else if (fv == -1 && tv == 0) {
-                op->opc = negopc;
-                op->args[3] = tcg_invert_cond(cond);
-            }
+        } else if (tv == -1 && fv == 0) {
+            op->opc = negopc;
+            op->args[3] = cond;
+        } else if (fv == -1 && tv == 0) {
+            op->opc = negopc;
+            op->args[3] = tcg_invert_cond(cond);
         }
     }
 
