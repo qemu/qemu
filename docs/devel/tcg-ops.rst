@@ -599,7 +599,7 @@ Multiword arithmetic support
          formed from two single-word arguments, and the double-word output *t0*
          is returned in two single-word outputs.
 
-   * - mulu2_i32/i64 *t0_low*, *t0_high*, *t1*, *t2*
+   * - mulu2 *t0_low*, *t0_high*, *t1*, *t2*
 
      - | Similar to mul, except two unsigned inputs *t1* and *t2* yielding the full
          double-word product *t0*. The latter is returned in two single-word outputs.

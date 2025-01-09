@@ -2069,13 +2069,14 @@ static bool fold_multiply2(OptContext *ctx, TCGOp *op)
         TCGOp *op2;
 
         switch (op->opc) {
-        case INDEX_op_mulu2_i32:
-            l = (uint64_t)(uint32_t)a * (uint32_t)b;
-            h = (int32_t)(l >> 32);
-            l = (int32_t)l;
-            break;
-        case INDEX_op_mulu2_i64:
-            mulu64(&l, &h, a, b);
+        case INDEX_op_mulu2:
+            if (ctx->type == TCG_TYPE_I32) {
+                l = (uint64_t)(uint32_t)a * (uint32_t)b;
+                h = (int32_t)(l >> 32);
+                l = (int32_t)l;
+            } else {
+                mulu64(&l, &h, a, b);
+            }
             break;
         case INDEX_op_muls2:
             if (ctx->type == TCG_TYPE_I32) {
@@ -2975,7 +2976,7 @@ void tcg_optimize(TCGContext *s)
             done = fold_mul_highpart(&ctx, op);
             break;
         case INDEX_op_muls2:
-        CASE_OP_32_64(mulu2):
+        case INDEX_op_mulu2:
             done = fold_multiply2(&ctx, op);
             break;
         case INDEX_op_nand:
