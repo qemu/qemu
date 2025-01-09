@@ -604,7 +604,7 @@ Multiword arithmetic support
      - | Similar to mul, except two unsigned inputs *t1* and *t2* yielding the full
          double-word product *t0*. The latter is returned in two single-word outputs.
 
-   * - muls2_i32/i64 *t0_low*, *t0_high*, *t1*, *t2*
+   * - muls2 *t0_low*, *t0_high*, *t1*, *t2*
 
      - | Similar to mulu2, except the two inputs *t1* and *t2* are signed.
 

@@ -716,8 +716,7 @@ static TCGConstraintSetIndex cset_mul2(TCGType type, unsigned flags)
 static void tgen_muls2(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3)
 {
-    tcg_out_op_rrrr(s, glue(INDEX_op_muls2_i,TCG_TARGET_REG_BITS),
-                    a0, a1, a2, a3);
+    tcg_out_op_rrrr(s, INDEX_op_muls2, a0, a1, a2, a3);
 }
 
 static const TCGOutOpMul2 outop_muls2 = {
