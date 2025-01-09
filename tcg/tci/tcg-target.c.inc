@@ -79,6 +79,8 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_setcond_i32:
     case INDEX_op_setcond_i64:
+    case INDEX_op_negsetcond_i32:
+    case INDEX_op_negsetcond_i64:
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, r, r);
@@ -964,6 +966,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_setcond2_i32:
         tcg_out_op_rrrrrc(s, opc, args[0], args[1], args[2],
                           args[3], args[4], args[5]);
+        break;
+
+    case INDEX_op_negsetcond_i32:
+        tcg_out_op_rrrc(s, INDEX_op_setcond_i32,
+                        args[0], args[1], args[2], args[3]);
+        tcg_out_op_rr(s, INDEX_op_neg, args[0], args[0]);
+        break;
+    case INDEX_op_negsetcond_i64:
+        tcg_out_op_rrrc(s, INDEX_op_setcond_i64,
+                        args[0], args[1], args[2], args[3]);
+        tcg_out_op_rr(s, INDEX_op_neg, args[0], args[0]);
         break;
 
     CASE_32_64(ld8u)
