@@ -1457,6 +1457,19 @@ static const TCGOutOpBinary outop_mulsh = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_mulu2(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3)
+{
+    tcg_out_arith(s, a0, a2, a3, ARITH_UMUL);
+    tcg_out_arithi(s, a1, a0, 32, SHIFT_SRLX);
+}
+
+static const TCGOutOpMul2 outop_mulu2 = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mul2,
+    .out_rrrr = tgen_mulu2,
+};
+
 static void tgen_muluh(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -1646,7 +1659,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c, c2;
+    int c2;
 
     /* Hoist the loads of the most common arguments.  */
     a0 = args[0];
@@ -1717,12 +1730,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
                             args[4], const_args[4], args[5], const_args[5],
                             ARITH_SUBCC, ARITH_SUBC);
-        break;
-    case INDEX_op_mulu2_i32:
-        c = ARITH_UMUL;
-        /* The 32-bit multiply insns produce a full 64-bit result. */
-        tcg_out_arithc(s, a0, a2, args[3], const_args[3], c);
-        tcg_out_arithi(s, a1, a0, 32, SHIFT_SRLX);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -1847,8 +1854,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_sub2_i32:
     case INDEX_op_sub2_i64:
         return C_O2_I4(r, r, rz, rz, rJ, rJ);
-    case INDEX_op_mulu2_i32:
-        return C_O2_I2(r, r, rz, rJ);
 
     default:
         return C_NotImplemented;

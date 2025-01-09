@@ -2415,6 +2415,27 @@ static const TCGOutOpBinary outop_mulsh = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_mulu2(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3)
+{
+    tcg_debug_assert(a0 == a2);
+    tcg_debug_assert((a1 & 1) == 0);
+    tcg_debug_assert(a0 == a1 + 1);
+    tcg_out_insn(s, RRE, MLGR, a1, a3);
+}
+
+static TCGConstraintSetIndex cset_mulu2(TCGType type, unsigned flags)
+{
+    return (type == TCG_TYPE_I64 && HAVE_FACILITY(MISC_INSN_EXT2)
+            ? C_O2_I2(o, m, 0, r) : C_NotImplemented);
+}
+
+static const TCGOutOpMul2 outop_mulu2 = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mulu2,
+    .out_rrrr = tgen_mulu2,
+};
+
 static const TCGOutOpBinary outop_muluh = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -2858,13 +2879,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_bswap64_i64:
         tcg_out_insn(s, RRE, LRVGR, args[0], args[1]);
-        break;
-
-    case INDEX_op_mulu2_i64:
-        tcg_debug_assert(args[0] == args[2]);
-        tcg_debug_assert((args[1] & 1) == 0);
-        tcg_debug_assert(args[0] == args[1] + 1);
-        tcg_out_insn(s, RRE, MLGR, args[1], args[3]);
         break;
 
     case INDEX_op_add2_i64:
@@ -3463,9 +3477,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O1_I4(r, r, ri, rI, r);
     case INDEX_op_movcond_i64:
         return C_O1_I4(r, r, rC, rI, r);
-
-    case INDEX_op_mulu2_i64:
-        return C_O2_I2(o, m, 0, r);
 
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:

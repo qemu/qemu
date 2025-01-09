@@ -3095,6 +3095,10 @@ static const TCGOutOpBinary outop_mulsh = {
     .out_rrr = tgen_mulsh,
 };
 
+static const TCGOutOpMul2 outop_mulu2 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_muluh(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {

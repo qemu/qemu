@@ -921,14 +921,6 @@ static void tcg_out_dat_rIN(TCGContext *s, ARMCond cond, ARMInsn opc,
     }
 }
 
-static void tcg_out_umull32(TCGContext *s, ARMCond cond, TCGReg rd0,
-                            TCGReg rd1, TCGReg rn, TCGReg rm)
-{
-    /* umull */
-    tcg_out32(s, (cond << 28) | 0x00800090 |
-              (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
-}
-
 static void tcg_out_ext8s(TCGContext *s, TCGType t, TCGReg rd, TCGReg rn)
 {
     /* sxtb */
@@ -1982,6 +1974,19 @@ static const TCGOutOpBinary outop_mulsh = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_mulu2(TCGContext *s, TCGType type,
+                       TCGReg rd0, TCGReg rd1, TCGReg rn, TCGReg rm)
+{
+    /* umull */
+    tcg_out32(s, (COND_AL << 28) | 0x00800090 |
+              (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
+}
+
+static const TCGOutOpMul2 outop_mulu2 = {
+    .base.static_constraint = C_O2_I2(r, r, r, r),
+    .out_rrrr = tgen_mulu2,
+};
+
 static const TCGOutOpBinary outop_muluh = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -2248,9 +2253,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         tcg_out_mov_reg(s, COND_AL, args[0], a0);
         break;
-    case INDEX_op_mulu2_i32:
-        tcg_out_umull32(s, COND_AL, args[0], args[1], args[2], args[3]);
-        break;
 
     case INDEX_op_brcond_i32:
         c = tcg_out_cmp(s, args[2], args[0], args[1], const_args[1]);
@@ -2373,9 +2375,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i32:
     case INDEX_op_negsetcond_i32:
         return C_O1_I2(r, r, rIN);
-
-    case INDEX_op_mulu2_i32:
-        return C_O2_I2(r, r, r, r);
 
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, rIN);

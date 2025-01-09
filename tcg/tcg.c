@@ -1043,6 +1043,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_mul, TCGOutOpBinary, outop_mul),
     OUTOP(INDEX_op_muls2, TCGOutOpMul2, outop_muls2),
     OUTOP(INDEX_op_mulsh, TCGOutOpBinary, outop_mulsh),
+    OUTOP(INDEX_op_mulu2_i32, TCGOutOpMul2, outop_mulu2),
+    OUTOP(INDEX_op_mulu2_i64, TCGOutOpMul2, outop_mulu2),
     OUTOP(INDEX_op_muluh, TCGOutOpBinary, outop_muluh),
     OUTOP(INDEX_op_nand, TCGOutOpBinary, outop_nand),
     OUTOP(INDEX_op_neg, TCGOutOpUnary, outop_neg),
@@ -2290,8 +2292,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_add2_i32;
     case INDEX_op_sub2_i32:
         return TCG_TARGET_HAS_sub2_i32;
-    case INDEX_op_mulu2_i32:
-        return TCG_TARGET_HAS_mulu2_i32;
     case INDEX_op_bswap16_i32:
         return TCG_TARGET_HAS_bswap16_i32;
     case INDEX_op_bswap32_i32:
@@ -2339,8 +2339,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_add2_i64;
     case INDEX_op_sub2_i64:
         return TCG_TARGET_HAS_sub2_i64;
-    case INDEX_op_mulu2_i64:
-        return TCG_TARGET_HAS_mulu2_i64;
 
     case INDEX_op_mov_vec:
     case INDEX_op_dup_vec:
@@ -5476,6 +5474,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
 
     case INDEX_op_muls2:
+    case INDEX_op_mulu2_i32:
+    case INDEX_op_mulu2_i64:
         {
             const TCGOutOpMul2 *out =
                 container_of(all_outop[op->opc], TCGOutOpMul2, base);

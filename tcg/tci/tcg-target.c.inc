@@ -98,10 +98,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O0_I4(r, r, r, r);
 #endif
 
-    case INDEX_op_mulu2_i32:
-    case INDEX_op_mulu2_i64:
-        return C_O2_I2(r, r, r, r);
-
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
     case INDEX_op_setcond2_i32:
@@ -729,6 +725,19 @@ static const TCGOutOpBinary outop_mulsh = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_mulu2(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3)
+{
+    tcg_out_op_rrrr(s, glue(INDEX_op_mulu2_i,TCG_TARGET_REG_BITS),
+                    a0, a1, a2, a3);
+}
+
+static const TCGOutOpMul2 outop_mulu2 = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_mul2,
+    .out_rrrr = tgen_mulu2,
+};
+
 static const TCGOutOpBinary outop_muluh = {
     .base.static_constraint = C_NotImplemented,
 };
@@ -1022,10 +1031,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_op_rl(s, INDEX_op_brcond_i32, TCG_REG_TMP, arg_label(args[5]));
         break;
 #endif
-
-    CASE_32_64(mulu2)
-        tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], args[3]);
-        break;
 
     case INDEX_op_qemu_ld_i64:
     case INDEX_op_qemu_st_i64:
