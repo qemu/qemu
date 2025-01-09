@@ -750,11 +750,11 @@ void tcg_gen_ctz_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     TCGv_i32 z, t;
 
-    if (TCG_TARGET_HAS_ctz_i32) {
+    if (tcg_op_supported(INDEX_op_ctz_i32, TCG_TYPE_I32, 0)) {
         tcg_gen_op3_i32(INDEX_op_ctz_i32, ret, arg1, arg2);
         return;
     }
-    if (TCG_TARGET_HAS_ctz_i64) {
+    if (tcg_op_supported(INDEX_op_ctz_i64, TCG_TYPE_I64, 0)) {
         TCGv_i64 t1 = tcg_temp_ebb_new_i64();
         TCGv_i64 t2 = tcg_temp_ebb_new_i64();
         tcg_gen_extu_i32_i64(t1, arg1);
@@ -788,7 +788,8 @@ void tcg_gen_ctz_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 void tcg_gen_ctzi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
 {
-    if (!TCG_TARGET_HAS_ctz_i32 && TCG_TARGET_HAS_ctpop_i32 && arg2 == 32) {
+    if (!tcg_op_supported(INDEX_op_ctz_i32, TCG_TYPE_I32, 0)
+        && TCG_TARGET_HAS_ctpop_i32 && arg2 == 32) {
         /* This equivalence has the advantage of not requiring a fixup.  */
         TCGv_i32 t = tcg_temp_ebb_new_i32();
         tcg_gen_subi_i32(t, arg1, 1);
@@ -2365,7 +2366,7 @@ void tcg_gen_ctz_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
     TCGv_i64 z, t;
 
-    if (TCG_TARGET_HAS_ctz_i64) {
+    if (tcg_op_supported(INDEX_op_ctz_i64, TCG_TYPE_I64, 0)) {
         tcg_gen_op3_i64(INDEX_op_ctz_i64, ret, arg1, arg2);
         return;
     }

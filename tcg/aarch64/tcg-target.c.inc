@@ -2129,6 +2129,26 @@ static const TCGOutOpBinary outop_clz = {
     .out_rri = tgen_clzi,
 };
 
+static void tgen_ctz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, 3507, RBIT, type, TCG_REG_TMP0, a1);
+    tgen_clz(s, type, a0, TCG_REG_TMP0, a2);
+}
+
+static void tgen_ctzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_insn(s, 3507, RBIT, type, TCG_REG_TMP0, a1);
+    tgen_clzi(s, type, a0, TCG_REG_TMP0, a2);
+}
+
+static const TCGOutOpBinary outop_ctz = {
+    .base.static_constraint = C_O1_I2(r, r, rAL),
+    .out_rrr = tgen_ctz,
+    .out_rri = tgen_ctzi,
+};
+
 static void tgen_divs(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2466,16 +2486,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_st_i64:
         tcg_out_ldst(s, I3312_STRX, a0, a1, a2, 3);
-        break;
-
-    case INDEX_op_ctz_i64:
-    case INDEX_op_ctz_i32:
-        tcg_out_insn(s, 3507, RBIT, ext, TCG_REG_TMP0, a1);
-        if (c2) {
-            tgen_clzi(s, ext, a0, TCG_REG_TMP0, a2);
-        } else {
-            tgen_clz(s, ext, a0, TCG_REG_TMP0, a2);
-        }
         break;
 
     case INDEX_op_brcond_i32:
@@ -3097,10 +3107,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_negsetcond_i32:
     case INDEX_op_negsetcond_i64:
         return C_O1_I2(r, r, rC);
-
-    case INDEX_op_ctz_i32:
-    case INDEX_op_ctz_i64:
-        return C_O1_I2(r, r, rAL);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:

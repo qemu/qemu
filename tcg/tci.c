@@ -599,13 +599,11 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tmp32 = regs[r1];
             regs[r0] = tmp32 ? clz32(tmp32) : regs[r2];
             break;
-#if TCG_TARGET_HAS_ctz_i32
-        case INDEX_op_ctz_i32:
+        case INDEX_op_tci_ctz32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             tmp32 = regs[r1];
             regs[r0] = tmp32 ? ctz32(tmp32) : regs[r2];
             break;
-#endif
 #if TCG_TARGET_HAS_ctpop_i32
         case INDEX_op_ctpop_i32:
             tci_args_rr(insn, &r0, &r1);
@@ -737,12 +735,10 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] ? clz64(regs[r1]) : regs[r2];
             break;
-#if TCG_TARGET_HAS_ctz_i64
         case INDEX_op_ctz_i64:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] ? ctz64(regs[r1]) : regs[r2];
             break;
-#endif
 #if TCG_TARGET_HAS_ctpop_i64
         case INDEX_op_ctpop_i64:
             tci_args_rr(insn, &r0, &r1);
@@ -1070,8 +1066,8 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
     case INDEX_op_shr:
     case INDEX_op_sub:
     case INDEX_op_xor:
-    case INDEX_op_ctz_i32:
     case INDEX_op_ctz_i64:
+    case INDEX_op_tci_ctz32:
     case INDEX_op_tci_clz32:
     case INDEX_op_tci_divs32:
     case INDEX_op_tci_divu32:

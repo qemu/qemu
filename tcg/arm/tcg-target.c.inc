@@ -1888,6 +1888,32 @@ static const TCGOutOpBinary outop_clz = {
     .out_rri = tgen_clzi,
 };
 
+static void tgen_ctz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, a1, 0);
+    tgen_clz(s, TCG_TYPE_I32, a0, TCG_REG_TMP, a2);
+}
+
+static void tgen_ctzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, a1, 0);
+    tgen_clzi(s, TCG_TYPE_I32, a0, TCG_REG_TMP, a2);
+}
+
+static TCGConstraintSetIndex cset_ctz(TCGType type, unsigned flags)
+{
+    return use_armv7_instructions ? C_O1_I2(r, r, rIK) : C_NotImplemented;
+}
+
+static const TCGOutOpBinary outop_ctz = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_ctz,
+    .out_rrr = tgen_ctz,
+    .out_rri = tgen_ctzi,
+};
+
 static TCGConstraintSetIndex cset_idiv(TCGType type, unsigned flags)
 {
     return use_idiv_instructions ? C_O1_I2(r, r, r) : C_NotImplemented;
@@ -2220,15 +2246,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_smull32(s, COND_AL, args[0], args[1], args[2], args[3]);
         break;
 
-    case INDEX_op_ctz_i32:
-        tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, args[1], 0);
-        if (const_args[2]) {
-            tgen_clzi(s, TCG_TYPE_I32, args[0], TCG_REG_TMP, args[2]);
-        } else {
-            tgen_clz(s, TCG_TYPE_I32, args[0], TCG_REG_TMP, args[2]);
-        }
-        break;
-
     case INDEX_op_brcond_i32:
         c = tcg_out_cmp(s, args[2], args[0], args[1], const_args[1]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[3]));
@@ -2350,10 +2367,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond_i32:
     case INDEX_op_negsetcond_i32:
         return C_O1_I2(r, r, rIN);
-
-    case INDEX_op_clz_i32:
-    case INDEX_op_ctz_i32:
-        return C_O1_I2(r, r, rIK);
 
     case INDEX_op_mulu2_i32:
     case INDEX_op_muls2_i32:
