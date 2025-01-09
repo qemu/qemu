@@ -1333,6 +1333,10 @@ static const TCGOutOpBinary outop_clz = {
     .out_rri = tgen_clzi,
 };
 
+static const TCGOutOpUnary outop_ctpop = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_ctzi(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, tcg_target_long a2)
 {

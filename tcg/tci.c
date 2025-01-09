@@ -26,6 +26,8 @@
 #include <ffi.h>
 
 
+#define ctpop_tr    glue(ctpop, TCG_TARGET_REG_BITS)
+
 /*
  * Enable TCI assertions only when debugging TCG (and without NDEBUG defined).
  * Without assertions, the interpreter runs much faster.
@@ -575,6 +577,11 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = ~regs[r1];
             break;
+        case INDEX_op_ctpop_i32:
+        case INDEX_op_ctpop_i64:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = ctpop_tr(regs[r1]);
+            break;
 
             /* Arithmetic operations (32 bit). */
 
@@ -604,12 +611,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tmp32 = regs[r1];
             regs[r0] = tmp32 ? ctz32(tmp32) : regs[r2];
             break;
-#if TCG_TARGET_HAS_ctpop_i32
-        case INDEX_op_ctpop_i32:
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ctpop32(regs[r1]);
-            break;
-#endif
 
             /* Shift/rotate operations. */
 
@@ -739,12 +740,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] ? ctz64(regs[r1]) : regs[r2];
             break;
-#if TCG_TARGET_HAS_ctpop_i64
-        case INDEX_op_ctpop_i64:
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ctpop64(regs[r1]);
-            break;
-#endif
 #if TCG_TARGET_HAS_mulu2_i64
         case INDEX_op_mulu2_i64:
             tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
