@@ -2144,9 +2144,9 @@ static const TCGOutOpBrcond outop_brcond = {
     .out_ri = tgen_brcondi,
 };
 
-static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
-                            TCGArg dest, TCGArg c1, TCGArg c2, TCGArg v1,
-                            TCGArg v2, bool const_c2)
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg c1, TCGArg c2, bool const_c2,
+                         TCGArg v1, bool const_v1, TCGArg v2, bool const_v2)
 {
     /* If for some reason both inputs are zero, don't produce bad code.  */
     if (v1 == 0 && v2 == 0) {
@@ -2191,6 +2191,11 @@ static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
         }
     }
 }
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, rC, rZ, rZ),
+    .out = tgen_movcond,
+};
 
 static void tcg_out_cntxz(TCGContext *s, TCGType type, uint32_t opc,
                           TCGArg a0, TCGArg a1, TCGArg a2, bool const_a2)
@@ -3578,15 +3583,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_movcond_i32:
-        tcg_out_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1], args[2],
-                        args[3], args[4], const_args[2]);
-        break;
-    case INDEX_op_movcond_i64:
-        tcg_out_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1], args[2],
-                        args[3], args[4], const_args[2]);
-        break;
-
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_add2_i64:
 #else
@@ -4296,10 +4292,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rC, rZ, rZ);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:

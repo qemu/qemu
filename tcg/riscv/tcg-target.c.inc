@@ -1501,10 +1501,10 @@ static void tcg_out_movcond_br2(TCGContext *s, TCGCond cond, TCGReg ret,
     tcg_out_mov(s, TCG_TYPE_REG, ret, tmp);
 }
 
-static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg cmp1, int cmp2, bool c_cmp2,
-                            TCGReg val1, bool c_val1,
-                            TCGReg val2, bool c_val2)
+static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg ret, TCGReg cmp1, TCGArg cmp2, bool c_cmp2,
+                            TCGArg val1, bool c_val1,
+                            TCGArg val2, bool c_val2)
 {
     int tmpflags;
     TCGReg t;
@@ -1531,6 +1531,11 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, rI, rM, rM),
+    .out = tcg_out_movcond,
+};
+
 static void tcg_out_cltz(TCGContext *s, TCGType type, RISCVInsn insn,
                          TCGReg ret, TCGReg src1, int src2, bool c_src2)
 {
@@ -1542,7 +1547,7 @@ static void tcg_out_cltz(TCGContext *s, TCGType type, RISCVInsn insn,
          * Note that constraints put 'ret' in a new register, so the
          * computation above did not clobber either 'src1' or 'src2'.
          */
-        tcg_out_movcond(s, TCG_COND_EQ, ret, src1, 0, true,
+        tcg_out_movcond(s, type, TCG_COND_EQ, ret, src1, 0, true,
                         src2, c_src2, ret, false);
     }
 }
@@ -2425,7 +2430,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     TCGArg a0 = args[0];
     TCGArg a1 = args[1];
     TCGArg a2 = args[2];
-    int c2 = const_args[2];
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -2519,12 +2523,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_sub2_i64:
         tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
                         const_args[4], const_args[5], true, false);
-        break;
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        tcg_out_movcond(s, args[5], a0, a1, a2, c2,
-                        args[3], const_args[3], args[4], const_args[4]);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -2862,10 +2860,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rI, rM, rM);
 
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:

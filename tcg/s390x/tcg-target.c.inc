@@ -1540,15 +1540,20 @@ static void tgen_movcond_int(TCGContext *s, TCGType type, TCGReg dest,
     tcg_out_insn(s, RRFc, LOCGR, dest, src, cc);
 }
 
-static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
-                         TCGReg c1, TCGArg c2, int c2const,
-                         TCGArg v3, int v3const, TCGReg v4)
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c,
+                         TCGReg dest, TCGReg c1, TCGArg c2, bool c2const,
+                         TCGArg v3, bool v3const, TCGArg v4, bool v4const)
 {
     int cc, inv_cc;
 
     cc = tgen_cmp2(s, type, c, c1, c2, c2const, false, &inv_cc);
     tgen_movcond_int(s, type, dest, v3, v3const, v4, cc, inv_cc);
 }
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, rC, rI, r),
+    .out = tgen_movcond,
+};
 
 static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
                          int ofs, int len, int z)
@@ -2875,11 +2880,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tgen_branch(s, S390_CC_ALWAYS, arg_label(args[0]));
         break;
 
-    case INDEX_op_movcond_i32:
-        tgen_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3], const_args[3], args[4]);
-        break;
-
     case INDEX_op_qemu_ld_i32:
         tcg_out_qemu_ld(s, args[0], args[1], args[2], TCG_TYPE_I32);
         break;
@@ -2946,11 +2946,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
         }
         tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
-        break;
-
-    case INDEX_op_movcond_i64:
-        tgen_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3], const_args[3], args[4]);
         break;
 
     OP_32_64(deposit):
@@ -3491,11 +3486,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, rZ, r);
-
-    case INDEX_op_movcond_i32:
-        return C_O1_I4(r, r, ri, rI, r);
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rC, rI, r);
 
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:

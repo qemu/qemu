@@ -1900,13 +1900,20 @@ static void tcg_out_cmov(TCGContext *s, int jcc, int rexw,
     tcg_out_modrm(s, OPC_CMOVCC | jcc | rexw, dest, v1);
 }
 
-static void tcg_out_movcond(TCGContext *s, int rexw, TCGCond cond,
-                            TCGReg dest, TCGReg c1, TCGArg c2, int const_c2,
-                            TCGReg v1)
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg c1, TCGArg c2, bool const_c2,
+                         TCGArg vt, bool const_vt,
+                         TCGArg vf, bool consf_vf)
 {
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
     int jcc = tcg_out_cmp(s, cond, c1, c2, const_c2, rexw);
-    tcg_out_cmov(s, jcc, rexw, dest, v1);
+    tcg_out_cmov(s, jcc, rexw, dest, vt);
 }
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, reT, r, 0),
+    .out = tgen_movcond,
+};
 
 static void tcg_out_branch(TCGContext *s, int call, const tcg_insn_unit *dest)
 {
@@ -3144,10 +3151,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    OP_32_64(movcond):
-        tcg_out_movcond(s, rexw, args[5], a0, a1, a2, const_a2, args[3]);
-        break;
-
     OP_32_64(bswap16):
         if (a2 & TCG_BSWAP_OS) {
             /* Output must be sign-extended. */
@@ -3976,10 +3979,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(q, 0, qi);
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, reT, r, 0);
 
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:

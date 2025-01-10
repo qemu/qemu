@@ -898,6 +898,22 @@ static const TCGOutOpSetcond outop_negsetcond = {
     .out_rri = tgen_negsetcondi,
 };
 
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg ret, TCGReg c1, TCGArg c2, bool c2const,
+                         TCGArg v1, bool v1const, TCGArg v2, bool v2consf)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_movcond_i32(s, cond, ret, c1, c2, c2const, v1, v1const);
+    } else {
+        tcg_out_movcond_i64(s, cond, ret, c1, c2, c2const, v1, v1const);
+    }
+}
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, rJ, rI, 0),
+    .out = tgen_movcond,
+};
+
 static void tcg_out_addsub2_i32(TCGContext *s, TCGReg rl, TCGReg rh,
                                 TCGReg al, TCGReg ah, int32_t bl, int blconst,
                                 int32_t bh, int bhconst, int opl, int oph)
@@ -1735,13 +1751,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c2;
 
     /* Hoist the loads of the most common arguments.  */
     a0 = args[0];
     a1 = args[1];
     a2 = args[2];
-    c2 = const_args[2];
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -1784,10 +1798,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, a0, a1, a2, STW);
         break;
 
-    case INDEX_op_movcond_i32:
-        tcg_out_movcond_i32(s, args[5], a0, a1, a2, c2, args[3], const_args[3]);
-        break;
-
     case INDEX_op_add2_i32:
         tcg_out_addsub2_i32(s, args[0], args[1], args[2], args[3],
                             args[4], const_args[4], args[5], const_args[5],
@@ -1822,9 +1832,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, a0, a1, a2, STX);
         break;
 
-    case INDEX_op_movcond_i64:
-        tcg_out_movcond_i64(s, args[5], a0, a1, a2, c2, args[3], const_args[3]);
-        break;
     case INDEX_op_add2_i64:
         tcg_out_addsub2_i64(s, args[0], args[1], args[2], args[3], args[4],
                             const_args[4], args[5], const_args[5], false);
@@ -1895,9 +1902,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_st_i64:
         return C_O0_I2(rz, r);
 
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, rz, rJ, rI, 0);
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:
     case INDEX_op_sub2_i32:

@@ -1086,8 +1086,9 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
     tcg_out_nop(s);
 }
 
-static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg c1, TCGReg c2, TCGReg v1, TCGReg v2)
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg ret, TCGReg c1, TCGArg c2, bool const_c2,
+                         TCGArg v1, bool const_v1, TCGArg v2, bool const_v2)
 {
     int tmpflags;
     bool eqz;
@@ -1132,6 +1133,13 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_opc_reg(s, OPC_OR, ret, v1, TCG_REG_ZERO);
     }
 }
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = (use_mips32r6_instructions
+                               ? C_O1_I4(r, r, rz, rz, rz)
+                               : C_O1_I4(r, r, rz, rz, 0)),
+    .out = tgen_movcond,
+};
 
 static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
@@ -1726,7 +1734,8 @@ static void tgen_clz(TCGContext *s, TCGType type,
     if (use_mips32r6_instructions) {
         MIPSInsn opcv6 = type == TCG_TYPE_I32 ? OPC_CLZ_R6 : OPC_DCLZ_R6;
         tcg_out_opc_reg(s, opcv6, TCG_TMP0, a1, 0);
-        tcg_out_movcond(s, TCG_COND_EQ, a0, a1, 0, a2, TCG_TMP0);
+        tgen_movcond(s, TCG_TYPE_REG, TCG_COND_EQ, a0, a1, a2, false,
+                     TCG_TMP0, false, TCG_REG_ZERO, false);
     } else {
         MIPSInsn opcv2 = type == TCG_TYPE_I32 ? OPC_CLZ : OPC_DCLZ;
         if (a0 == a2) {
@@ -2292,11 +2301,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_brcond2(s, args[4], a0, a1, a2, args[3], arg_label(args[5]));
         break;
 
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        tcg_out_movcond(s, args[5], a0, a1, a2, args[3], args[4]);
-        break;
-
     case INDEX_op_setcond2_i32:
         tcg_out_setcond2(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
@@ -2392,11 +2396,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, 0, rz);
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return (use_mips32r6_instructions
-                ? C_O1_I4(r, rz, rz, rz, rz)
-                : C_O1_I4(r, rz, rz, rz, 0));
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
         return C_O2_I4(r, r, rz, rz, rN, rN);

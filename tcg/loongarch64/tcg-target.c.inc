@@ -723,11 +723,11 @@ static const TCGOutOpSetcond outop_negsetcond = {
     .out_rri = tgen_negsetcondi,
 };
 
-static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg c1, tcg_target_long c2, bool const2,
-                            TCGReg v1, TCGReg v2)
+static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg ret, TCGReg c1, TCGArg c2, bool const_c2,
+                         TCGArg v1, bool const_v1, TCGArg v2, bool const_v2)
 {
-    int tmpflags = tcg_out_setcond_int(s, cond, TCG_REG_TMP0, c1, c2, const2);
+    int tmpflags = tcg_out_setcond_int(s, cond, TCG_REG_TMP0, c1, c2, const_c2);
     TCGReg t;
 
     /* Standardize the test below to t != 0. */
@@ -746,6 +746,11 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_opc_or(s, ret, TCG_REG_TMP1, TCG_REG_TMP2);
     }
 }
+
+static const TCGOutOpMovcond outop_movcond = {
+    .base.static_constraint = C_O1_I4(r, r, rJ, rz, rz),
+    .out = tgen_movcond,
+};
 
 /*
  * Branch helpers
@@ -1759,7 +1764,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     TCGArg a1 = args[1];
     TCGArg a2 = args[2];
     TCGArg a3 = args[3];
-    int c2 = const_args[2];
 
     switch (opc) {
     case INDEX_op_mb:
@@ -1847,11 +1851,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_bswap64_i64:
         tcg_out_opc_revb_d(s, a0, a1);
-        break;
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        tcg_out_movcond(s, args[5], a0, a1, a2, c2, args[3], args[4]);
         break;
 
     case INDEX_op_ld8s_i32:
@@ -2474,10 +2473,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i64:
         /* Must deposit into the same register as input */
         return C_O1_I2(r, 0, rz);
-
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(r, rz, rJ, rz, rz);
 
     case INDEX_op_ld_vec:
     case INDEX_op_dupm_vec:
