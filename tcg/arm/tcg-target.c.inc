@@ -2253,6 +2253,19 @@ static const TCGOutOpMovcond outop_movcond = {
     .out = tgen_movcond,
 };
 
+static void tgen_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
+                         TCGArg bl, bool const_bl, TCGArg bh, bool const_bh,
+                         TCGLabel *l)
+{
+    cond = tcg_out_cmp2(s, cond, al, ah, bl, const_bl, bh, const_bh);
+    tcg_out_goto_label(s, tcg_cond_to_arm_cond[cond], l);
+}
+
+static const TCGOutOpBrcond2 outop_brcond2 = {
+    .base.static_constraint = C_O0_I4(r, r, rI, rI),
+    .out = tgen_brcond2,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2335,11 +2348,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_mov_reg(s, COND_AL, args[0], a0);
         break;
 
-    case INDEX_op_brcond2_i32:
-        c = tcg_out_cmp2(s, args[4], args[0], args[1], args[2], const_args[2],
-                         args[3], const_args[3]);
-        tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[5]));
-        break;
     case INDEX_op_setcond2_i32:
         c = tcg_out_cmp2(s, args[5], args[1], args[2], args[3], const_args[3],
                          args[4], const_args[4]);
@@ -2444,8 +2452,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O2_I4(r, r, r, r, rIN, rIK);
     case INDEX_op_sub2_i32:
         return C_O2_I4(r, r, rI, rI, rIN, rIK);
-    case INDEX_op_brcond2_i32:
-        return C_O0_I4(r, r, rI, rI);
     case INDEX_op_setcond2_i32:
         return C_O1_I4(r, r, r, rI, rI);
 
