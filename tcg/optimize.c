@@ -2943,7 +2943,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_mov_vec:
             done = fold_mov(&ctx, op);
             break;
-        CASE_OP_32_64(movcond):
+        case INDEX_op_movcond:
             done = fold_movcond(&ctx, op);
             break;
         case INDEX_op_mul:

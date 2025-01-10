@@ -511,7 +511,7 @@ Conditional moves
        |
        | Set *dest* to -1 if (*t1* *cond* *t2*) is true, otherwise set to 0.
 
-   * - movcond_i32/i64 *dest*, *c1*, *c2*, *v1*, *v2*, *cond*
+   * - movcond *dest*, *c1*, *c2*, *v1*, *v2*, *cond*
 
      - | *dest* = (*c1* *cond* *c2* ? *v1* : *v2*)
        |
