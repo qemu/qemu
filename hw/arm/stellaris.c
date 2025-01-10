@@ -1021,6 +1021,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
       { 0x40004000, 0x40005000, 0x40006000, 0x40007000,
         0x40024000, 0x40025000, 0x40026000};
     static const int gpio_irq[NUM_GPIO] = {0, 1, 2, 3, 4, 30, 31};
+    static const uint32_t i2c_addr[NUM_I2C] = {0x40020000, 0x40021000};
+    static const int i2c_irq[NUM_I2C] = {8, 37};
 
     /* Memory map of SoC devices, from
      * Stellaris LM3S6965 Microcontroller Data Sheet (rev I)
@@ -1062,7 +1064,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qemu_irq adc;
     int sram_size;
     int flash_size;
-    I2CBus *i2c;
+    DeviceState *i2c_dev[NUM_I2C] = { };
     DeviceState *dev;
     DeviceState *ssys_dev;
     int i;
@@ -1196,13 +1198,17 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    if (DEV_CAP(2, I2C(0))) {
-        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000,
-                                   qdev_get_gpio_in(nvic, 8));
-        i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-        if (board->peripherals & BP_OLED_I2C) {
-            i2c_slave_create_simple(i2c, "ssd0303", 0x3d);
+    for (i = 0; i < NUM_I2C; i++) {
+        if (DEV_CAP(2, I2C(i))) {
+            i2c_dev[i] = sysbus_create_simple(TYPE_STELLARIS_I2C, i2c_addr[i],
+                                              qdev_get_gpio_in(nvic,
+                                                               i2c_irq[i]));
         }
+    }
+    if (board->peripherals & BP_OLED_I2C) {
+        I2CBus *bus = (I2CBus *)qdev_get_child_bus(i2c_dev[0], "i2c");
+
+        i2c_slave_create_simple(bus, "ssd0303", 0x3d);
     }
 
     for (i = 0; i < NUM_UART; i++) {
@@ -1382,7 +1388,6 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     /* Add dummy regions for the devices we don't implement yet,
      * so guest accesses don't cause unlogged crashes.
      */
-    create_unimplemented_device("i2c-2", 0x40021000, 0x1000);
     create_unimplemented_device("PWM", 0x40028000, 0x1000);
     create_unimplemented_device("QEI-0", 0x4002c000, 0x1000);
     create_unimplemented_device("QEI-1", 0x4002d000, 0x1000);
