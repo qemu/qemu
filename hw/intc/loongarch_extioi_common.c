@@ -4,11 +4,37 @@
  * Copyright (C) 2024 Loongson Technology Corporation Limited
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/loongarch_extioi_common.h"
 #include "migration/vmstate.h"
+#include "target/loongarch/cpu.h"
+
+static void loongarch_extioi_cpu_plug(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    Object *obj = OBJECT(dev);
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+}
+
+static void loongarch_extioi_cpu_unplug(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    Object *obj = OBJECT(dev);
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+}
 
 static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
 {
@@ -107,11 +133,14 @@ static void loongarch_extioi_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_extioi_common_realize,
                                     &lecc->parent_realize);
     device_class_set_props(dc, extioi_properties);
     dc->vmsd = &vmstate_loongarch_extioi;
+    hc->plug = loongarch_extioi_cpu_plug;
+    hc->unplug = loongarch_extioi_cpu_unplug;
 }
 
 static const TypeInfo loongarch_extioi_common_types[] = {
@@ -121,6 +150,10 @@ static const TypeInfo loongarch_extioi_common_types[] = {
         .instance_size      = sizeof(LoongArchExtIOICommonState),
         .class_size         = sizeof(LoongArchExtIOICommonClass),
         .class_init         = loongarch_extioi_common_class_init,
+        .interfaces         = (InterfaceInfo[]) {
+            { TYPE_HOTPLUG_HANDLER },
+            { }
+        },
         .abstract           = true,
     }
 };
