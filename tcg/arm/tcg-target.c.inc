@@ -1254,17 +1254,9 @@ static TCGCond tcg_out_cmp(TCGContext *s, TCGCond cond, TCGReg a,
     }
 }
 
-static TCGCond tcg_out_cmp2(TCGContext *s, const TCGArg *args,
-                            const int *const_args)
+static TCGCond tcg_out_cmp2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
+                            TCGArg bl, bool const_bl, TCGArg bh, bool const_bh)
 {
-    TCGReg al = args[0];
-    TCGReg ah = args[1];
-    TCGArg bl = args[2];
-    TCGArg bh = args[3];
-    TCGCond cond = args[4];
-    int const_bl = const_args[2];
-    int const_bh = const_args[3];
-
     switch (cond) {
     case TCG_COND_EQ:
     case TCG_COND_NE:
@@ -2344,11 +2336,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_brcond2_i32:
-        c = tcg_out_cmp2(s, args, const_args);
+        c = tcg_out_cmp2(s, args[4], args[0], args[1], args[2], const_args[2],
+                         args[3], const_args[3]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[5]));
         break;
     case INDEX_op_setcond2_i32:
-        c = tcg_out_cmp2(s, args + 1, const_args + 1);
+        c = tcg_out_cmp2(s, args[5], args[1], args[2], args[3], const_args[3],
+                         args[4], const_args[4]);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[c], ARITH_MOV, args[0], 0, 1);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(c)],
                         ARITH_MOV, args[0], 0, 0);
