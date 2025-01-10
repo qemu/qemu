@@ -476,8 +476,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (!obj->parent) {
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
-            object_property_add_child(container_get(qdev_get_machine(),
-                                                    "/unattached"),
+            object_property_add_child(machine_get_container("unattached"),
                                       name, obj);
             unattached_parent = true;
             g_free(name);
@@ -691,7 +690,6 @@ static void device_finalize(Object *obj)
         dev->canonical_path = NULL;
     }
 
-    qobject_unref(dev->opts);
     g_free(dev->id);
 }
 
@@ -818,10 +816,26 @@ Object *qdev_get_machine(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = container_get(object_get_root(), "/machine");
+        dev = object_resolve_path_component(object_get_root(), "machine");
+        /*
+         * Any call to this function before machine is created is treated
+         * as a programming error as of now.
+         */
+        assert(dev);
     }
 
     return dev;
+}
+
+Object *machine_get_container(const char *name)
+{
+    Object *container, *machine;
+
+    machine = qdev_get_machine();
+    container = object_resolve_path_component(machine, name);
+    assert(object_dynamic_cast(container, TYPE_CONTAINER));
+
+    return container;
 }
 
 char *qdev_get_human_name(DeviceState *dev)

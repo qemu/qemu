@@ -2113,18 +2113,16 @@ static void parse_memory_options(void)
     loc_pop(&loc);
 }
 
-static const char *const machine_containers[] = {
-    "unattached",
-    "peripheral",
-    "peripheral-anon"
-};
-
 static void qemu_create_machine_containers(Object *machine)
 {
-    int i;
+    static const char *const containers[] = {
+        "unattached",
+        "peripheral",
+        "peripheral-anon",
+    };
 
-    for (i = 0; i < ARRAY_SIZE(machine_containers); i++) {
-        object_property_add_new_container(machine, machine_containers[i]);
+    for (unsigned i = 0; i < ARRAY_SIZE(containers); i++) {
+        object_property_add_new_container(machine, containers[i]);
     }
 }
 
@@ -2137,8 +2135,7 @@ static void qemu_create_machine(QDict *qdict)
     object_property_add_child(object_get_root(), "machine",
                               OBJECT(current_machine));
     qemu_create_machine_containers(OBJECT(current_machine));
-    object_property_add_child(container_get(OBJECT(current_machine),
-                                            "/unattached"),
+    object_property_add_child(machine_get_container("unattached"),
                               "sysbus", OBJECT(sysbus_get_default()));
 
     if (machine_class->minimum_page_bits) {

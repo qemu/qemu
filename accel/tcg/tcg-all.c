@@ -35,7 +35,9 @@
 #include "qemu/atomic.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
-#if !defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_USER_ONLY)
+#include "hw/qdev-core.h"
+#else
 #include "hw/boards.h"
 #endif
 #include "internal-common.h"
@@ -122,6 +124,10 @@ static int tcg_init_machine(MachineState *ms)
      * initialize the prologue now.
      */
     tcg_prologue_init();
+#endif
+
+#ifdef CONFIG_USER_ONLY
+    qdev_create_fake_machine();
 #endif
 
     return 0;
