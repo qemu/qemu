@@ -687,6 +687,42 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tcg_out_setcond(s, cond, dest, arg1, arg2, false, false);
+}
+
+static void tgen_setcondi(TCGContext *s, TCGType type, TCGCond cond,
+                          TCGReg dest, TCGReg arg1, tcg_target_long arg2)
+{
+    tcg_out_setcond(s, cond, dest, arg1, arg2, true, false);
+}
+
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(r, r, rJ),
+    .out_rrr = tgen_setcond,
+    .out_rri = tgen_setcondi,
+};
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tcg_out_setcond(s, cond, dest, arg1, arg2, false, true);
+}
+
+static void tgen_negsetcondi(TCGContext *s, TCGType type, TCGCond cond,
+                             TCGReg dest, TCGReg arg1, tcg_target_long arg2)
+{
+    tcg_out_setcond(s, cond, dest, arg1, arg2, true, true);
+}
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(r, r, rJ),
+    .out_rrr = tgen_negsetcond,
+    .out_rri = tgen_negsetcondi,
+};
+
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
                             TCGReg c1, tcg_target_long c2, bool const2,
                             TCGReg v1, TCGReg v2)
@@ -1813,15 +1849,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_opc_revb_d(s, a0, a1);
         break;
 
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-        tcg_out_setcond(s, args[3], a0, a1, a2, c2, false);
-        break;
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        tcg_out_setcond(s, args[3], a0, a1, a2, c2, true);
-        break;
-
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         tcg_out_movcond(s, args[5], a0, a1, a2, c2, args[3], args[4]);
@@ -2451,12 +2478,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i64:
         /* Must deposit into the same register as input */
         return C_O1_I2(r, 0, rz);
-
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        return C_O1_I2(r, r, rJ);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:

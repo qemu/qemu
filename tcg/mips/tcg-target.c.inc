@@ -952,15 +952,20 @@ static void tcg_out_setcond_end(TCGContext *s, TCGReg ret, int tmpflags)
     }
 }
 
-static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg arg1, TCGReg arg2)
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg ret, TCGReg arg1, TCGReg arg2)
 {
     int tmpflags = tcg_out_setcond_int(s, cond, ret, arg1, arg2);
     tcg_out_setcond_end(s, ret, tmpflags);
 }
 
-static void tcg_out_negsetcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                               TCGReg arg1, TCGReg arg2)
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(r, r, rz),
+    .out_rrr = tgen_setcond,
+};
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg ret, TCGReg arg1, TCGReg arg2)
 {
     int tmpflags = tcg_out_setcond_int(s, cond, ret, arg1, arg2);
     TCGReg tmp = tmpflags & ~SETCOND_FLAGS;
@@ -977,6 +982,11 @@ static void tcg_out_negsetcond(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_opc_reg(s, OPC_SUBU, ret, TCG_REG_ZERO, tmp);
     }
 }
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(r, r, rz),
+    .out_rrr = tgen_negsetcond,
+};
 
 static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
                            TCGReg arg2, TCGLabel *l)
@@ -1041,10 +1051,11 @@ static int tcg_out_setcond2_int(TCGContext *s, TCGCond cond, TCGReg ret,
         break;
 
     default:
-        tcg_out_setcond(s, TCG_COND_EQ, TCG_TMP0, ah, bh);
-        tcg_out_setcond(s, tcg_unsigned_cond(cond), TCG_TMP1, al, bl);
+        tgen_setcond(s, TCG_TYPE_I32, TCG_COND_EQ, TCG_TMP0, ah, bh);
+        tgen_setcond(s, TCG_TYPE_I32, tcg_unsigned_cond(cond),
+                     TCG_TMP1, al, bl);
         tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, TCG_TMP1, TCG_TMP0);
-        tcg_out_setcond(s, tcg_high_cond(cond), TCG_TMP0, ah, bh);
+        tgen_setcond(s, TCG_TYPE_I32, tcg_high_cond(cond), TCG_TMP0, ah, bh);
         tcg_out_opc_reg(s, OPC_OR, ret, TCG_TMP0, TCG_TMP1);
         break;
     }
@@ -2285,14 +2296,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_movcond(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
 
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-        tcg_out_setcond(s, args[3], a0, a1, a2);
-        break;
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        tcg_out_negsetcond(s, args[3], a0, a1, a2);
-        break;
     case INDEX_op_setcond2_i32:
         tcg_out_setcond2(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
@@ -2384,12 +2387,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        return C_O1_I2(r, rz, rz);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:

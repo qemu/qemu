@@ -1679,10 +1679,11 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
 }
 #endif
 
-static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
-                            TCGArg dest, TCGArg arg1, TCGArg arg2,
-                            int const_arg2, bool neg)
+static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg dest, TCGReg arg1, TCGArg arg2,
+                            bool const_arg2, bool neg)
 {
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
     int cmp_rexw = rexw;
     bool inv = false;
     bool cleared;
@@ -1757,7 +1758,7 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
     case TCG_COND_LT:
         /* If arg2 is 0, extract the sign bit. */
         if (const_arg2 && arg2 == 0) {
-            tcg_out_mov(s, rexw ? TCG_TYPE_I64 : TCG_TYPE_I32, dest, arg1);
+            tcg_out_mov(s, type, dest, arg1);
             if (inv) {
                 tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, dest);
             }
@@ -1792,6 +1793,42 @@ static void tcg_out_setcond(TCGContext *s, int rexw, TCGCond cond,
         tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NEG, dest);
     }
 }
+
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tcg_out_setcond(s, type, cond, dest, arg1, arg2, false, false);
+}
+
+static void tgen_setcondi(TCGContext *s, TCGType type, TCGCond cond,
+                          TCGReg dest, TCGReg arg1, tcg_target_long arg2)
+{
+    tcg_out_setcond(s, type, cond, dest, arg1, arg2, true, false);
+}
+
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(q, r, reT),
+    .out_rrr = tgen_setcond,
+    .out_rri = tgen_setcondi,
+};
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tcg_out_setcond(s, type, cond, dest, arg1, arg2, false, true);
+}
+
+static void tgen_negsetcondi(TCGContext *s, TCGType type, TCGCond cond,
+                             TCGReg dest, TCGReg arg1, tcg_target_long arg2)
+{
+    tcg_out_setcond(s, type, cond, dest, arg1, arg2, true, true);
+}
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(q, r, reT),
+    .out_rrr = tgen_negsetcond,
+    .out_rri = tgen_negsetcondi,
+};
 
 #if TCG_TARGET_REG_BITS == 32
 static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
@@ -3091,12 +3128,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_brcond(s, rexw, a2, a0, a1, const_args[1],
                        arg_label(args[3]), 0);
         break;
-    OP_32_64(setcond):
-        tcg_out_setcond(s, rexw, args[3], a0, a1, a2, const_a2, false);
-        break;
-    OP_32_64(negsetcond):
-        tcg_out_setcond(s, rexw, args[3], a0, a1, a2, const_a2, true);
-        break;
     OP_32_64(movcond):
         tcg_out_movcond(s, rexw, args[5], a0, a1, a2, const_a2, args[3]);
         break;
@@ -3933,12 +3964,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(q, 0, qi);
-
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        return C_O1_I2(q, r, reT);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:

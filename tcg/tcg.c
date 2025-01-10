@@ -1003,6 +1003,14 @@ typedef struct TCGOutOpUnary {
     void (*out_rr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1);
 } TCGOutOpUnary;
 
+typedef struct TCGOutOpSetcond {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type, TCGCond cond,
+                    TCGReg ret, TCGReg a1, TCGReg a2);
+    void (*out_rri)(TCGContext *s, TCGType type, TCGCond cond,
+                    TCGReg ret, TCGReg a1, tcg_target_long a2);
+} TCGOutOpSetcond;
+
 typedef struct TCGOutOpSubtract {
     TCGOutOp base;
     void (*out_rrr)(TCGContext *s, TCGType type,
@@ -1047,6 +1055,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_muluh, TCGOutOpBinary, outop_muluh),
     OUTOP(INDEX_op_nand, TCGOutOpBinary, outop_nand),
     OUTOP(INDEX_op_neg, TCGOutOpUnary, outop_neg),
+    OUTOP(INDEX_op_negsetcond_i32, TCGOutOpSetcond, outop_negsetcond),
+    OUTOP(INDEX_op_negsetcond_i64, TCGOutOpSetcond, outop_negsetcond),
     OUTOP(INDEX_op_nor, TCGOutOpBinary, outop_nor),
     OUTOP(INDEX_op_not, TCGOutOpUnary, outop_not),
     OUTOP(INDEX_op_or, TCGOutOpBinary, outop_or),
@@ -1056,6 +1066,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
     OUTOP(INDEX_op_rotr, TCGOutOpBinary, outop_rotr),
     OUTOP(INDEX_op_sar, TCGOutOpBinary, outop_sar),
+    OUTOP(INDEX_op_setcond_i32, TCGOutOpSetcond, outop_setcond),
+    OUTOP(INDEX_op_setcond_i64, TCGOutOpSetcond, outop_setcond),
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
     OUTOP(INDEX_op_sub, TCGOutOpSubtract, outop_sub),
@@ -5482,6 +5494,25 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
+    case INDEX_op_setcond_i32:
+    case INDEX_op_setcond_i64:
+    case INDEX_op_negsetcond_i32:
+    case INDEX_op_negsetcond_i64:
+        {
+            const TCGOutOpSetcond *out =
+                container_of(all_outop[op->opc], TCGOutOpSetcond, base);
+            TCGCond cond = new_args[3];
+
+            tcg_debug_assert(!const_args[1]);
+            if (const_args[2]) {
+                out->out_rri(s, type, cond,
+                             new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, cond,
+                             new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
 
     default:
         if (def->flags & TCG_OPF_VECTOR) {

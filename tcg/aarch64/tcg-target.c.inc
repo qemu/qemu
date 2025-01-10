@@ -1356,25 +1356,37 @@ static inline void tcg_out_dep(TCGContext *s, TCGType ext, TCGReg rd,
     tcg_out_bfm(s, ext, rd, rn, a, b);
 }
 
+static void tgen_cmp(TCGContext *s, TCGType ext, TCGCond cond,
+                     TCGReg a, TCGReg b)
+{
+    if (is_tst_cond(cond)) {
+        tcg_out_insn(s, 3510, ANDS, ext, TCG_REG_XZR, a, b);
+    } else {
+        tcg_out_insn(s, 3502, SUBS, ext, TCG_REG_XZR, a, b);
+    }
+}
+
+static void tgen_cmpi(TCGContext *s, TCGType ext, TCGCond cond,
+                      TCGReg a, tcg_target_long b)
+{
+    if (is_tst_cond(cond)) {
+        tcg_out_logicali(s, I3404_ANDSI, ext, TCG_REG_XZR, a, b);
+    } else if (b >= 0) {
+        tcg_debug_assert(is_aimm(b));
+        tcg_out_insn(s, 3401, SUBSI, ext, TCG_REG_XZR, a, b);
+    } else {
+        tcg_debug_assert(is_aimm(-b));
+        tcg_out_insn(s, 3401, ADDSI, ext, TCG_REG_XZR, a, -b);
+    }
+}
+
 static void tcg_out_cmp(TCGContext *s, TCGType ext, TCGCond cond, TCGReg a,
                         tcg_target_long b, bool const_b)
 {
-    if (is_tst_cond(cond)) {
-        if (!const_b) {
-            tcg_out_insn(s, 3510, ANDS, ext, TCG_REG_XZR, a, b);
-        } else {
-            tcg_out_logicali(s, I3404_ANDSI, ext, TCG_REG_XZR, a, b);
-        }
+    if (const_b) {
+        tgen_cmpi(s, ext, cond, a, b);
     } else {
-        if (!const_b) {
-            tcg_out_insn(s, 3502, SUBS, ext, TCG_REG_XZR, a, b);
-        } else if (b >= 0) {
-            tcg_debug_assert(is_aimm(b));
-            tcg_out_insn(s, 3401, SUBSI, ext, TCG_REG_XZR, a, b);
-        } else {
-            tcg_debug_assert(is_aimm(-b));
-            tcg_out_insn(s, 3401, ADDSI, ext, TCG_REG_XZR, a, -b);
-        }
+        tgen_cmp(s, ext, cond, a, b);
     }
 }
 
@@ -2433,6 +2445,59 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tgen_cset(TCGContext *s, TCGCond cond, TCGReg ret)
+{
+    /* Use CSET alias of CSINC Wd, WZR, WZR, invert(cond).  */
+    tcg_out_insn(s, 3506, CSINC, TCG_TYPE_I32, ret, TCG_REG_XZR,
+                 TCG_REG_XZR, tcg_invert_cond(cond));
+}
+
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_cmp(s, type, cond, a1, a2);
+    tgen_cset(s, cond, a0);
+}
+
+static void tgen_setcondi(TCGContext *s, TCGType type, TCGCond cond,
+                          TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_cmpi(s, type, cond, a1, a2);
+    tgen_cset(s, cond, a0);
+}
+
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(r, r, rC),
+    .out_rrr = tgen_setcond,
+    .out_rri = tgen_setcondi,
+};
+
+static void tgen_csetm(TCGContext *s, TCGType ext, TCGCond cond, TCGReg ret)
+{
+    /* Use CSETM alias of CSINV Wd, WZR, WZR, invert(cond).  */
+    tcg_out_insn(s, 3506, CSINV, ext, ret, TCG_REG_XZR,
+                 TCG_REG_XZR, tcg_invert_cond(cond));
+}
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_cmp(s, type, cond, a1, a2);
+    tgen_csetm(s, type, cond, a0);
+}
+
+static void tgen_negsetcondi(TCGContext *s, TCGType type, TCGCond cond,
+                             TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_cmpi(s, type, cond, a1, a2);
+    tgen_csetm(s, type, cond, a0);
+}
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(r, r, rC),
+    .out_rrr = tgen_negsetcond,
+    .out_rri = tgen_negsetcondi,
+};
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2505,26 +2570,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         /* FALLTHRU */
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], arg_label(args[3]));
-        break;
-
-    case INDEX_op_setcond_i32:
-        a2 = (int32_t)a2;
-        /* FALLTHRU */
-    case INDEX_op_setcond_i64:
-        tcg_out_cmp(s, ext, args[3], a1, a2, c2);
-        /* Use CSET alias of CSINC Wd, WZR, WZR, invert(cond).  */
-        tcg_out_insn(s, 3506, CSINC, TCG_TYPE_I32, a0, TCG_REG_XZR,
-                     TCG_REG_XZR, tcg_invert_cond(args[3]));
-        break;
-
-    case INDEX_op_negsetcond_i32:
-        a2 = (int32_t)a2;
-        /* FALLTHRU */
-    case INDEX_op_negsetcond_i64:
-        tcg_out_cmp(s, ext, args[3], a1, a2, c2);
-        /* Use CSETM alias of CSINV Wd, WZR, WZR, invert(cond).  */
-        tcg_out_insn(s, 3506, CSINV, ext, a0, TCG_REG_XZR,
-                     TCG_REG_XZR, tcg_invert_cond(args[3]));
         break;
 
     case INDEX_op_movcond_i32:
@@ -3113,12 +3158,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
-        return C_O1_I2(r, r, rC);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:

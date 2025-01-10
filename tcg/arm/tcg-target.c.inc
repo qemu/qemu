@@ -1210,31 +1210,48 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     }
 }
 
-static TCGCond tcg_out_cmp(TCGContext *s, TCGCond cond, TCGReg a,
-                           TCGArg b, int b_const)
+static TCGCond tgen_cmp(TCGContext *s, TCGCond cond, TCGReg a, TCGReg b)
 {
+    if (is_tst_cond(cond)) {
+        tcg_out_dat_reg(s, COND_AL, ARITH_TST, 0, a, b, SHIFT_IMM_LSL(0));
+        return tcg_tst_eqne_cond(cond);
+    }
+    tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, a, b, SHIFT_IMM_LSL(0));
+    return cond;
+}
+
+static TCGCond tgen_cmpi(TCGContext *s, TCGCond cond, TCGReg a, TCGArg b)
+{
+    int imm12;
+
     if (!is_tst_cond(cond)) {
-        tcg_out_dat_rIN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0, a, b, b_const);
+        tcg_out_dat_IN(s, COND_AL, ARITH_CMP, ARITH_CMN, 0, a, b);
         return cond;
     }
 
-    cond = tcg_tst_eqne_cond(cond);
-    if (b_const) {
-        int imm12 = encode_imm(b);
-
-        /*
-         * The compare constraints allow rIN, but TST does not support N.
-         * Be prepared to load the constant into a scratch register.
-         */
-        if (imm12 >= 0) {
-            tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, a, imm12);
-            return cond;
-        }
+    /*
+     * The compare constraints allow rIN, but TST does not support N.
+     * Be prepared to load the constant into a scratch register.
+     */
+    imm12 = encode_imm(b);
+    if (imm12 >= 0) {
+        tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, a, imm12);
+    } else {
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, b);
-        b = TCG_REG_TMP;
+        tcg_out_dat_reg(s, COND_AL, ARITH_TST, 0,
+                        a, TCG_REG_TMP, SHIFT_IMM_LSL(0));
     }
-    tcg_out_dat_reg(s, COND_AL, ARITH_TST, 0, a, b, SHIFT_IMM_LSL(0));
-    return cond;
+    return tcg_tst_eqne_cond(cond);
+}
+
+static TCGCond tcg_out_cmp(TCGContext *s, TCGCond cond, TCGReg a,
+                           TCGArg b, int b_const)
+{
+    if (b_const) {
+        return tgen_cmpi(s, cond, a, b);
+    } else {
+        return tgen_cmp(s, cond, a, b);
+    }
 }
 
 static TCGCond tcg_out_cmp2(TCGContext *s, const TCGArg *args,
@@ -2164,6 +2181,52 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void finish_setcond(TCGContext *s, TCGCond cond, TCGReg ret, bool neg)
+{
+    tcg_out_movi32(s, tcg_cond_to_arm_cond[tcg_invert_cond(cond)], ret, 0);
+    tcg_out_movi32(s, tcg_cond_to_arm_cond[cond], ret, neg ? -1 : 1);
+}
+
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    cond = tgen_cmp(s, cond, a1, a2);
+    finish_setcond(s, cond, a0, false);
+}
+
+static void tgen_setcondi(TCGContext *s, TCGType type, TCGCond cond,
+                          TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    cond = tgen_cmpi(s, cond, a1, a2);
+    finish_setcond(s, cond, a0, false);
+}
+
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(r, r, rIN),
+    .out_rrr = tgen_setcond,
+    .out_rri = tgen_setcondi,
+};
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    cond = tgen_cmp(s, cond, a1, a2);
+    finish_setcond(s, cond, a0, true);
+}
+
+static void tgen_negsetcondi(TCGContext *s, TCGType type, TCGCond cond,
+                             TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    cond = tgen_cmpi(s, cond, a1, a2);
+    finish_setcond(s, cond, a0, true);
+}
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(r, r, rIN),
+    .out_rrr = tgen_negsetcond,
+    .out_rri = tgen_negsetcondi,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -2257,20 +2320,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_brcond_i32:
         c = tcg_out_cmp(s, args[2], args[0], args[1], const_args[1]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[3]));
-        break;
-    case INDEX_op_setcond_i32:
-        c = tcg_out_cmp(s, args[3], args[1], args[2], const_args[2]);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[c],
-                        ARITH_MOV, args[0], 0, 1);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(c)],
-                        ARITH_MOV, args[0], 0, 0);
-        break;
-    case INDEX_op_negsetcond_i32:
-        c = tcg_out_cmp(s, args[3], args[1], args[2], const_args[2]);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[c],
-                        ARITH_MVN, args[0], 0, 0);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(c)],
-                        ARITH_MOV, args[0], 0, 0);
         break;
 
     case INDEX_op_brcond2_i32:
@@ -2371,10 +2420,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st16_i32:
     case INDEX_op_st_i32:
         return C_O0_I2(r, r);
-
-    case INDEX_op_setcond_i32:
-    case INDEX_op_negsetcond_i32:
-        return C_O1_I2(r, r, rIN);
 
     case INDEX_op_brcond_i32:
         return C_O0_I2(r, rIN);

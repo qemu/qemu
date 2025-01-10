@@ -77,10 +77,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, r, r);
@@ -942,6 +938,32 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    TCGOpcode opc = (type == TCG_TYPE_I32
+                     ? INDEX_op_setcond_i32
+                     : INDEX_op_setcond_i64);
+    tcg_out_op_rrrc(s, opc, dest, arg1, arg2, cond);
+}
+
+static const TCGOutOpSetcond outop_setcond = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_setcond,
+};
+
+static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
+                            TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tgen_setcond(s, type, cond, dest, arg1, arg2);
+    tgen_neg(s, type, dest, dest);
+}
+
+static const TCGOutOpSetcond outop_negsetcond = {
+    .base.static_constraint = C_O1_I2(r, r, r),
+    .out_rrr = tgen_negsetcond,
+};
+
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
@@ -958,25 +980,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_op_l(s, opc, arg_label(args[0]));
         break;
 
-    CASE_32_64(setcond)
-        tcg_out_op_rrrc(s, opc, args[0], args[1], args[2], args[3]);
-        break;
-
     CASE_32_64(movcond)
     case INDEX_op_setcond2_i32:
         tcg_out_op_rrrrrc(s, opc, args[0], args[1], args[2],
                           args[3], args[4], args[5]);
-        break;
-
-    case INDEX_op_negsetcond_i32:
-        tcg_out_op_rrrc(s, INDEX_op_setcond_i32,
-                        args[0], args[1], args[2], args[3]);
-        tcg_out_op_rr(s, INDEX_op_neg, args[0], args[0]);
-        break;
-    case INDEX_op_negsetcond_i64:
-        tcg_out_op_rrrc(s, INDEX_op_setcond_i64,
-                        args[0], args[1], args[2], args[3]);
-        tcg_out_op_rr(s, INDEX_op_neg, args[0], args[0]);
         break;
 
     CASE_32_64(ld8u)
@@ -1005,9 +1012,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     CASE_32_64(brcond)
-        tcg_out_op_rrrc(s, (opc == INDEX_op_brcond_i32
-                            ? INDEX_op_setcond_i32 : INDEX_op_setcond_i64),
-                        TCG_REG_TMP, args[0], args[1], args[2]);
+        tgen_setcond(s, type, args[2], TCG_REG_TMP, args[0], args[1]);
         tcg_out_op_rl(s, opc, TCG_REG_TMP, arg_label(args[3]));
         break;
 
