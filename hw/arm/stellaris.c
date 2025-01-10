@@ -101,7 +101,7 @@ static void ssys_update(ssys_state *s)
   qemu_set_irq(s->irq, (s->int_status & s->int_mask) != 0);
 }
 
-static uint32_t pllcfg_sandstorm[16] = {
+static const uint32_t pllcfg_sandstorm[16] = {
     0x31c0, /* 1 Mhz */
     0x1ae0, /* 1.8432 Mhz */
     0x18c0, /* 2 Mhz */
@@ -120,7 +120,7 @@ static uint32_t pllcfg_sandstorm[16] = {
     0x585b /* 8.192 Mhz */
 };
 
-static uint32_t pllcfg_fury[16] = {
+static const uint32_t pllcfg_fury[16] = {
     0x3200, /* 1 Mhz */
     0x1b20, /* 1.8432 Mhz */
     0x1900, /* 2 Mhz */
@@ -964,7 +964,7 @@ static void stellaris_adc_init(Object *obj)
 }
 
 /* Board init.  */
-static stellaris_board_info stellaris_boards[] = {
+static const stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
     0,
     0x0032000e,
