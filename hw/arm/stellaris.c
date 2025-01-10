@@ -1380,6 +1380,10 @@ static void lm3s6965evb_init(MachineState *machine)
     stellaris_init(machine, &stellaris_boards[1]);
 }
 
+/*
+ * Stellaris LM3S811 Evaluation Board Schematics:
+ * https://www.ti.com/lit/ug/symlink/spmu030.pdf
+ */
 static void lm3s811evb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1396,6 +1400,10 @@ static const TypeInfo lm3s811evb_type = {
     .class_init = lm3s811evb_class_init,
 };
 
+/*
+ * Stellaris: LM3S6965 Evaluation Board Schematics:
+ * https://www.ti.com/lit/ug/symlink/spmu029.pdf
+ */
 static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
