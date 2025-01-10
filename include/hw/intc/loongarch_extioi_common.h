@@ -65,6 +65,8 @@ typedef struct ExtIOICore {
     uint32_t coreisr[EXTIOI_IRQS_GROUP_COUNT];
     DECLARE_BITMAP(sw_isr[LS3A_INTC_IP], EXTIOI_IRQS);
     qemu_irq parent_irq[LS3A_INTC_IP];
+    uint64_t arch_id;
+    CPUState *cpu;
 } ExtIOICore;
 
 struct LoongArchExtIOICommonState {

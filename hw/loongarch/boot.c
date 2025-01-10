@@ -15,6 +15,26 @@
 #include "system/reset.h"
 #include "system/qtest.h"
 
+/*
+ * Linux Image Format
+ * https://docs.kernel.org/arch/loongarch/booting.html
+ */
+#define LINUX_PE_MAGIC  0x818223cd
+#define MZ_MAGIC        0x5a4d /* "MZ" */
+
+struct loongarch_linux_hdr {
+    uint32_t mz_magic;
+    uint32_t res0;
+    uint64_t kernel_entry;
+    uint64_t kernel_size;
+    uint64_t load_offset;
+    uint64_t res1;
+    uint64_t res2;
+    uint64_t res3;
+    uint32_t linux_pe_magic;
+    uint32_t pe_header_offset;
+} QEMU_PACKED;
+
 struct memmap_entry *memmap_table;
 unsigned memmap_entries;
 
@@ -171,6 +191,50 @@ static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
     return addr & MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS);
 }
 
+static int64_t load_loongarch_linux_image(const char *filename,
+                                          uint64_t *kernel_entry,
+                                          uint64_t *kernel_low,
+                                          uint64_t *kernel_high)
+{
+    gsize len;
+    ssize_t size;
+    uint8_t *buffer;
+    struct loongarch_linux_hdr *hdr;
+
+    /* Load as raw file otherwise */
+    if (!g_file_get_contents(filename, (char **)&buffer, &len, NULL)) {
+        return -1;
+    }
+    size = len;
+
+    /* Unpack the image if it is a EFI zboot image */
+    if (unpack_efi_zboot_image(&buffer, &size) < 0) {
+        g_free(buffer);
+        return -1;
+    }
+
+    hdr = (struct loongarch_linux_hdr *)buffer;
+
+    if (extract32(le32_to_cpu(hdr->mz_magic), 0, 16) != MZ_MAGIC ||
+        le32_to_cpu(hdr->linux_pe_magic) != LINUX_PE_MAGIC) {
+        g_free(buffer);
+        return -1;
+    }
+
+    /* Early kernel versions may have those fields in virtual address */
+    *kernel_entry = extract64(le64_to_cpu(hdr->kernel_entry),
+                              0, TARGET_PHYS_ADDR_SPACE_BITS);
+    *kernel_low = extract64(le64_to_cpu(hdr->load_offset),
+                            0, TARGET_PHYS_ADDR_SPACE_BITS);
+    *kernel_high = *kernel_low + size;
+
+    rom_add_blob_fixed(filename, buffer, size, *kernel_low);
+
+    g_free(buffer);
+
+    return size;
+}
+
 static int64_t load_kernel_info(struct loongarch_boot_info *info)
 {
     uint64_t kernel_entry, kernel_low, kernel_high;
@@ -181,6 +245,11 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
                            &kernel_entry, &kernel_low,
                            &kernel_high, NULL, 0,
                            EM_LOONGARCH, 1, 0);
+    if (kernel_size < 0) {
+        kernel_size = load_loongarch_linux_image(info->kernel_filename,
+                                                 &kernel_entry, &kernel_low,
+                                                 &kernel_high);
+    }
 
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",

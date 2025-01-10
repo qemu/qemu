@@ -140,6 +140,8 @@ struct XenEvtchnState {
 
     uint64_t callback_param;
     bool evtchn_in_kernel;
+    bool setting_callback_gsi;
+    int extern_gsi_level;
     uint32_t callback_gsi;
 
     QEMUBH *gsi_bh;
@@ -431,9 +433,22 @@ void xen_evtchn_set_callback_level(int level)
     }
 
     if (s->callback_gsi && s->callback_gsi < s->nr_callback_gsis) {
-        qemu_set_irq(s->callback_gsis[s->callback_gsi], level);
-        if (level) {
-            /* Ensure the vCPU polls for deassertion */
+        /*
+         * Ugly, but since we hold the BQL we can set this flag so that
+         * xen_evtchn_set_gsi() can tell the difference between this code
+         * setting the GSI, and an external device (PCI INTx) doing so.
+         */
+        s->setting_callback_gsi = true;
+        /* Do not deassert the line if an external device is asserting it. */
+        qemu_set_irq(s->callback_gsis[s->callback_gsi],
+                     level || s->extern_gsi_level);
+        s->setting_callback_gsi = false;
+
+        /*
+         * If the callback GSI is the only one asserted, ensure the status
+         * is polled for deassertion in kvm_arch_post_run().
+         */
+        if (level && !s->extern_gsi_level) {
             kvm_xen_set_callback_asserted();
         }
     }
@@ -1596,7 +1611,7 @@ static int allocate_pirq(XenEvtchnState *s, int type, int gsi)
     return pirq;
 }
 
-bool xen_evtchn_set_gsi(int gsi, int level)
+bool xen_evtchn_set_gsi(int gsi, int *level)
 {
     XenEvtchnState *s = xen_evtchn_singleton;
     int pirq;
@@ -1608,16 +1623,35 @@ bool xen_evtchn_set_gsi(int gsi, int level)
     }
 
     /*
-     * Check that that it *isn't* the event channel GSI, and thus
-     * that we are not recursing and it's safe to take s->port_lock.
-     *
-     * Locking aside, it's perfectly sane to bail out early for that
-     * special case, as it would make no sense for the event channel
-     * GSI to be routed back to event channels, when the delivery
-     * method is to raise the GSI... that recursion wouldn't *just*
-     * be a locking issue.
+     * For the callback_gsi we need to implement a logical OR of the event
+     * channel GSI and the external input (e.g. from PCI INTx), because
+     * QEMU itself doesn't support shared level interrupts via demux or
+     * resamplers.
      */
     if (gsi && gsi == s->callback_gsi) {
+        /* Remember the external state of the GSI pin (e.g. from PCI INTx) */
+        if (!s->setting_callback_gsi) {
+            s->extern_gsi_level = *level;
+
+            /*
+             * Don't allow the external device to deassert the line if the
+             * eveht channel GSI should still be asserted.
+             */
+            if (!s->extern_gsi_level) {
+                struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+                if (vi && vi->evtchn_upcall_pending) {
+                    /* Need to poll for deassertion */
+                    kvm_xen_set_callback_asserted();
+                    *level = 1;
+                }
+            }
+        }
+
+        /*
+         * The event channel GSI cannot be routed to PIRQ, as that would make
+         * no sense. It could also deadlock on s->port_lock, if we proceed.
+         * So bail out now.
+         */
         return false;
     }
 
@@ -1628,7 +1662,7 @@ bool xen_evtchn_set_gsi(int gsi, int level)
         return false;
     }
 
-    if (level) {
+    if (*level) {
         int port = s->pirq[pirq].port;
 
         s->pirq_gsi_set |= (1U << gsi);

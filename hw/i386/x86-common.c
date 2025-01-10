@@ -450,8 +450,27 @@ static long get_file_size(FILE *f)
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
+    bool bypass_ioapic = false;
 
     trace_x86_gsi_interrupt(n, level);
+
+#ifdef CONFIG_XEN_EMU
+    /*
+     * Xen delivers the GSI to the Legacy PIC (not that Legacy PIC
+     * routing actually works properly under Xen). And then to
+     * *either* the PIRQ handling or the I/OAPIC depending on whether
+     * the former wants it.
+     *
+     * Additionally, this hook allows the Xen event channel GSI to
+     * work around QEMU's lack of support for shared level interrupts,
+     * by keeping track of the externally driven state of the pin and
+     * implementing a logical OR with the state of the evtchn GSI.
+     */
+    if (xen_mode == XEN_EMULATE) {
+        bypass_ioapic = xen_evtchn_set_gsi(n, &level);
+    }
+#endif
+
     switch (n) {
     case 0 ... ISA_NUM_IRQS - 1:
         if (s->i8259_irq[n]) {
@@ -460,18 +479,9 @@ void gsi_handler(void *opaque, int n, int level)
         }
         /* fall through */
     case ISA_NUM_IRQS ... IOAPIC_NUM_PINS - 1:
-#ifdef CONFIG_XEN_EMU
-        /*
-         * Xen delivers the GSI to the Legacy PIC (not that Legacy PIC
-         * routing actually works properly under Xen). And then to
-         * *either* the PIRQ handling or the I/OAPIC depending on
-         * whether the former wants it.
-         */
-        if (xen_mode == XEN_EMULATE && xen_evtchn_set_gsi(n, level)) {
-            break;
+        if (!bypass_ioapic) {
+            qemu_set_irq(s->ioapic_irq[n], level);
         }
-#endif
-        qemu_set_irq(s->ioapic_irq[n], level);
         break;
     case IO_APIC_SECONDARY_IRQBASE
         ... IO_APIC_SECONDARY_IRQBASE + IOAPIC_NUM_PINS - 1:

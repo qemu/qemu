@@ -13,10 +13,23 @@
 static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
 {
     LoongArchExtIOICommonState *s = (LoongArchExtIOICommonState *)dev;
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const CPUArchIdList *id_list;
+    int i;
 
-    if (s->num_cpu == 0) {
-        error_setg(errp, "num-cpu must be at least 1");
+    assert(mc->possible_cpu_arch_ids);
+    id_list = mc->possible_cpu_arch_ids(machine);
+    s->num_cpu = id_list->len;
+    s->cpu = g_new0(ExtIOICore, s->num_cpu);
+    if (s->cpu == NULL) {
+        error_setg(errp, "Memory allocation for ExtIOICore faile");
         return;
+    }
+
+    for (i = 0; i < s->num_cpu; i++) {
+        s->cpu[i].arch_id = id_list->cpus[i].arch_id;
+        s->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
     }
 }
 
@@ -82,7 +95,6 @@ static const VMStateDescription vmstate_loongarch_extioi = {
 };
 
 static const Property extioi_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", LoongArchExtIOICommonState, num_cpu, 1),
     DEFINE_PROP_BIT("has-virtualization-extension", LoongArchExtIOICommonState,
                     features, EXTIOI_HAS_VIRT_EXTENSION, 0),
 };
