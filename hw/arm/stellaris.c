@@ -49,6 +49,11 @@
 #define NUM_IRQ_LINES 64
 #define NUM_PRIO_BITS 3
 
+#define NUM_GPIO    7
+#define NUM_UART    4
+#define NUM_GPTM    4
+#define NUM_I2C     2
+
 typedef const struct {
     const char *name;
     uint32_t did0;
@@ -989,12 +994,12 @@ static const stellaris_board_info stellaris_boards[] = {
 
 static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 {
-    static const int uart_irq[] = {5, 6, 33, 34};
-    static const int timer_irq[] = {19, 21, 23, 35};
-    static const uint32_t gpio_addr[7] =
+    static const int uart_irq[NUM_UART] = {5, 6, 33, 34};
+    static const int timer_irq[NUM_GPTM] = {19, 21, 23, 35};
+    static const uint32_t gpio_addr[NUM_GPIO] =
       { 0x40004000, 0x40005000, 0x40006000, 0x40007000,
         0x40024000, 0x40025000, 0x40026000};
-    static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
+    static const int gpio_irq[NUM_GPIO] = {0, 1, 2, 3, 4, 30, 31};
 
     /* Memory map of SoC devices, from
      * Stellaris LM3S6965 Microcontroller Data Sheet (rev I)
@@ -1030,9 +1035,9 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      */
 
     Object *soc_container;
-    DeviceState *gpio_dev[7], *armv7m, *nvic;
-    qemu_irq gpio_in[7][8];
-    qemu_irq gpio_out[7][8];
+    DeviceState *gpio_dev[NUM_GPIO], *armv7m, *nvic;
+    qemu_irq gpio_in[NUM_GPIO][8];
+    qemu_irq gpio_out[NUM_GPIO][8];
     qemu_irq adc;
     int sram_size;
     int flash_size;
@@ -1124,7 +1129,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     } else {
         adc = NULL;
     }
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NUM_GPTM; i++) {
         if (board->dc2 & (0x10000 << i)) {
             SysBusDevice *sbd;
 
@@ -1158,7 +1163,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
 
 
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < NUM_GPIO; i++) {
         if (board->dc4 & (1 << i)) {
             gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
                                                qdev_get_gpio_in(nvic,
@@ -1179,7 +1184,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NUM_UART; i++) {
         if (board->dc2 & (1 << i)) {
             SysBusDevice *sbd;
 
