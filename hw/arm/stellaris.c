@@ -1001,7 +1001,6 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      * http://www.ti.com/lit/ds/symlink/lm3s6965.pdf
      *
      * 40000000 wdtimer
-     * 40002000 i2c (unimplemented)
      * 40004000 GPIO
      * 40005000 GPIO
      * 40006000 GPIO
@@ -1357,7 +1356,6 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     /* Add dummy regions for the devices we don't implement yet,
      * so guest accesses don't cause unlogged crashes.
      */
-    create_unimplemented_device("i2c-0", 0x40002000, 0x1000);
     create_unimplemented_device("i2c-2", 0x40021000, 0x1000);
     create_unimplemented_device("PWM", 0x40028000, 0x1000);
     create_unimplemented_device("QEI-0", 0x4002c000, 0x1000);
