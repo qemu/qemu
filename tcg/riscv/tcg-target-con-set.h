@@ -11,7 +11,7 @@
  */
 C_O0_I1(r)
 C_O0_I2(rz, r)
-C_O0_I2(rz, rz)
+C_O0_I2(r, rz)
 C_O1_I1(r, r)
 C_O1_I2(r, r, r)
 C_O1_I2(r, r, ri)

@@ -767,8 +767,8 @@ static const struct {
     [TCG_COND_GTU] = { OPC_BGTU, false }
 };
 
-static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
-                           TCGReg arg2, TCGLabel *l)
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg arg1, TCGReg arg2, TCGLabel *l)
 {
     LoongArchInsn op = tcg_brcond_to_loongarch[cond].op;
 
@@ -784,6 +784,11 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_reloc(s, s->code_ptr, R_LOONGARCH_BR_SK16, l, 0);
     tcg_out32(s, encode_djsk16_insn(op, arg1, arg2, 0));
 }
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rz),
+    .out_rr = tgen_brcond,
+};
 
 static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
@@ -1771,11 +1776,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_opc_b(s, 0);
         break;
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
-        break;
-
     case INDEX_op_extrh_i64_i32:
         tcg_out_opc_srai_d(s, a0, a1, 32);
         break;
@@ -2440,10 +2440,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_qemu_st_i128:
         return C_O0_I3(r, r, r);
-
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(rz, rz);
 
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extrl_i64_i32:

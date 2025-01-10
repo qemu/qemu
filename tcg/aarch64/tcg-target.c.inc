@@ -1424,8 +1424,16 @@ static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
-                           TCGArg b, bool b_const, TCGLabel *l)
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
+                        TCGReg a, TCGReg b, TCGLabel *l)
+{
+    tgen_cmp(s, type, c, a, b);
+    tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
+    tcg_out_insn(s, 3202, B_C, c, 0);
+}
+
+static void tgen_brcondi(TCGContext *s, TCGType ext, TCGCond c,
+                         TCGReg a, tcg_target_long b, TCGLabel *l)
 {
     int tbit = -1;
     bool need_cmp = true;
@@ -1434,14 +1442,14 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
     case TCG_COND_EQ:
     case TCG_COND_NE:
         /* cmp xN,0; b.ne L -> cbnz xN,L */
-        if (b_const && b == 0) {
+        if (b == 0) {
             need_cmp = false;
         }
         break;
     case TCG_COND_LT:
     case TCG_COND_GE:
         /* cmp xN,0; b.mi L -> tbnz xN,63,L */
-        if (b_const && b == 0) {
+        if (b == 0) {
             c = (c == TCG_COND_LT ? TCG_COND_TSTNE : TCG_COND_TSTEQ);
             tbit = ext ? 63 : 31;
             need_cmp = false;
@@ -1450,14 +1458,14 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
     case TCG_COND_TSTEQ:
     case TCG_COND_TSTNE:
         /* tst xN,0xffffffff; b.ne L -> cbnz wN,L */
-        if (b_const && b == UINT32_MAX) {
+        if (b == UINT32_MAX) {
             c = tcg_tst_eqne_cond(c);
             ext = TCG_TYPE_I32;
             need_cmp = false;
             break;
         }
         /* tst xN,1<<B; b.ne L -> tbnz xN,B,L */
-        if (b_const && is_power_of_2(b)) {
+        if (is_power_of_2(b)) {
             tbit = ctz64(b);
             need_cmp = false;
         }
@@ -1467,7 +1475,7 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
     }
 
     if (need_cmp) {
-        tcg_out_cmp(s, ext, c, a, b, b_const);
+        tgen_cmpi(s, ext, c, a, b);
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_CONDBR19, l, 0);
         tcg_out_insn(s, 3202, B_C, c, 0);
         return;
@@ -1499,6 +1507,12 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
         }
     }
 }
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rC),
+    .out_rr = tgen_brcond,
+    .out_ri = tgen_brcondi,
+};
 
 static inline void tcg_out_rev(TCGContext *s, int ext, MemOp s_bits,
                                TCGReg rd, TCGReg rn)
@@ -2565,13 +2579,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         tcg_out_ldst(s, I3312_STRX, a0, a1, a2, 3);
         break;
 
-    case INDEX_op_brcond_i32:
-        a1 = (int32_t)a1;
-        /* FALLTHRU */
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], arg_label(args[3]));
-        break;
-
     case INDEX_op_movcond_i32:
         a2 = (int32_t)a2;
         /* FALLTHRU */
@@ -3158,10 +3165,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(r, rC);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:

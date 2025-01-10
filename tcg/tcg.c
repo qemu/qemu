@@ -986,6 +986,14 @@ typedef struct TCGOutOpBinary {
                     TCGReg a0, TCGReg a1, tcg_target_long a2);
 } TCGOutOpBinary;
 
+typedef struct TCGOutOpBrcond {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type, TCGCond cond,
+                   TCGReg a1, TCGReg a2, TCGLabel *label);
+    void (*out_ri)(TCGContext *s, TCGType type, TCGCond cond,
+                   TCGReg a1, tcg_target_long a2, TCGLabel *label);
+} TCGOutOpBrcond;
+
 typedef struct TCGOutOpDivRem {
     TCGOutOp base;
     void (*out_rr01r)(TCGContext *s, TCGType type,
@@ -1040,6 +1048,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
     OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
+    OUTOP(INDEX_op_brcond_i32, TCGOutOpBrcond, outop_brcond),
+    OUTOP(INDEX_op_brcond_i64, TCGOutOpBrcond, outop_brcond),
     OUTOP(INDEX_op_clz, TCGOutOpBinary, outop_clz),
     OUTOP(INDEX_op_ctpop, TCGOutOpUnary, outop_ctpop),
     OUTOP(INDEX_op_ctz, TCGOutOpBinary, outop_ctz),
@@ -5483,6 +5493,22 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             tcg_debug_assert(!const_args[3]);
             out->out_rrrr(s, type, new_args[0], new_args[1],
                           new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_brcond_i32:
+    case INDEX_op_brcond_i64:
+        {
+            const TCGOutOpBrcond *out = &outop_brcond;
+            TCGCond cond = new_args[2];
+            TCGLabel *label = arg_label(new_args[3]);
+
+            tcg_debug_assert(!const_args[0]);
+            if (const_args[1]) {
+                out->out_ri(s, type, cond, new_args[0], new_args[1], label);
+            } else {
+                out->out_rr(s, type, cond, new_args[0], new_args[1], label);
+            }
         }
         break;
 

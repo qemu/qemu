@@ -822,6 +822,35 @@ static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
+static void tcg_out_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                           TCGReg arg1, TCGArg arg2, bool const_arg2,
+                           TCGLabel *l)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_brcond_i32(s, cond, arg1, arg2, const_arg2, l);
+    } else {
+        tcg_out_brcond_i64(s, cond, arg1, arg2, const_arg2, l);
+    }
+}
+
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg arg1, TCGReg arg2, TCGLabel *l)
+{
+    tcg_out_brcond(s, type, cond, arg1, arg2, false, l);
+}
+
+static void tgen_brcondi(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg arg1, tcg_target_long arg2, TCGLabel *l)
+{
+    tcg_out_brcond(s, type, cond, arg1, arg2, true, l);
+}
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rJ),
+    .out_rr = tgen_brcond,
+    .out_ri = tgen_brcondi,
+};
+
 static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
                             TCGReg ret, TCGReg c1,
                             TCGArg c2, bool c2const, bool neg)
@@ -1755,9 +1784,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, a0, a1, a2, STW);
         break;
 
-    case INDEX_op_brcond_i32:
-        tcg_out_brcond_i32(s, a2, a0, a1, const_args[1], arg_label(args[3]));
-        break;
     case INDEX_op_movcond_i32:
         tcg_out_movcond_i32(s, args[5], a0, a1, a2, c2, args[3], const_args[3]);
         break;
@@ -1796,9 +1822,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, a0, a1, a2, STX);
         break;
 
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond_i64(s, a2, a0, a1, const_args[1], arg_label(args[3]));
-        break;
     case INDEX_op_movcond_i64:
         tcg_out_movcond_i64(s, args[5], a0, a1, a2, c2, args[3], const_args[3]);
         break;
@@ -1872,9 +1895,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_st_i64:
         return C_O0_I2(rz, r);
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(rz, rJ);
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         return C_O1_I4(r, rz, rJ, rI, 0);

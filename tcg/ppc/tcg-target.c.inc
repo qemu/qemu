@@ -2124,13 +2124,25 @@ static void tcg_out_bc_lab(TCGContext *s, TCGCond cond, TCGLabel *l)
     tcg_out_bc(s, cond, bd);
 }
 
-static void tcg_out_brcond(TCGContext *s, TCGCond cond,
-                           TCGArg arg1, TCGArg arg2, int const_arg2,
-                           TCGLabel *l, TCGType type)
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg arg1, TCGReg arg2, TCGLabel *l)
 {
-    tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 0, type);
+    tcg_out_cmp(s, cond, arg1, arg2, false, 0, type);
     tcg_out_bc_lab(s, cond, l);
 }
+
+static void tgen_brcondi(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg arg1, tcg_target_long arg2, TCGLabel *l)
+{
+    tcg_out_cmp(s, cond, arg1, arg2, true, 0, type);
+    tcg_out_bc_lab(s, cond, l);
+}
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rC),
+    .out_rr = tgen_brcond,
+    .out_ri = tgen_brcondi,
+};
 
 static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
                             TCGArg dest, TCGArg c1, TCGArg c2, TCGArg v1,
@@ -3457,14 +3469,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_mem_long(s, STD, STDX, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_brcond_i32:
-        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       arg_label(args[3]), TCG_TYPE_I32);
-        break;
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       arg_label(args[3]), TCG_TYPE_I64);
-        break;
     case INDEX_op_brcond2_i32:
         tcg_out_brcond2(s, args, const_args);
         break;
@@ -4293,9 +4297,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(r, rC);
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         return C_O1_I4(r, r, rC, rZ, rZ);

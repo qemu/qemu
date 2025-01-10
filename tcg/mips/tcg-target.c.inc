@@ -988,8 +988,8 @@ static const TCGOutOpSetcond outop_negsetcond = {
     .out_rrr = tgen_negsetcond,
 };
 
-static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
-                           TCGReg arg2, TCGLabel *l)
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg arg1, TCGReg arg2, TCGLabel *l)
 {
     static const MIPSInsn b_zero[16] = {
         [TCG_COND_LT] = OPC_BLTZ,
@@ -1033,6 +1033,11 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_opc_br(s, b_opc, arg1, arg2);
     tcg_out_nop(s);
 }
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rz),
+    .out_rr = tgen_brcond,
+};
 
 static int tcg_out_setcond2_int(TCGContext *s, TCGCond cond, TCGReg ret,
                                 TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
@@ -2178,8 +2183,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
     case INDEX_op_br:
-        tcg_out_brcond(s, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO,
-                       arg_label(a0));
+        tgen_brcond(s, TCG_TYPE_I32, TCG_COND_EQ,
+                    TCG_REG_ZERO, TCG_REG_ZERO, arg_label(a0));
         break;
 
     case INDEX_op_ld8u_i32:
@@ -2283,10 +2288,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
-        break;
     case INDEX_op_brcond2_i32:
         tcg_out_brcond2(s, args[4], a0, a1, a2, args[3], arg_label(args[5]));
         break;
@@ -2391,9 +2392,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         return C_O1_I2(r, 0, rz);
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(rz, rz);
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         return (use_mips32r6_instructions

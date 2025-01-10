@@ -1184,8 +1184,8 @@ static const struct {
     [TCG_COND_GTU] = { OPC_BLTU, true  }
 };
 
-static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
-                           TCGReg arg2, TCGLabel *l)
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg arg1, TCGReg arg2, TCGLabel *l)
 {
     RISCVInsn op = tcg_brcond_to_riscv[cond].op;
 
@@ -1200,6 +1200,11 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_reloc(s, s->code_ptr, R_RISCV_BRANCH, l, 0);
     tcg_out_opc_branch(s, op, arg1, arg2, 0);
 }
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rz),
+    .out_rr = tgen_brcond,
+};
 
 #define SETCOND_INV    TCG_TARGET_NB_REGS
 #define SETCOND_NEZ    (SETCOND_INV << 1)
@@ -2516,11 +2521,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                         const_args[4], const_args[5], true, false);
         break;
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
-        break;
-
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         tcg_out_movcond(s, args[5], a0, a1, a2, c2,
@@ -2862,10 +2862,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(rz, rz);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:

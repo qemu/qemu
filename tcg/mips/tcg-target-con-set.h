@@ -10,12 +10,10 @@
  * tcg-target-con-str.h; the constraint combination is inclusive or.
  */
 C_O0_I1(r)
+C_O0_I2(r, rz)
 C_O0_I2(rz, r)
-C_O0_I2(rz, rz)
-C_O0_I3(rz, r, r)
 C_O0_I3(rz, rz, r)
 C_O0_I4(rz, rz, rz, rz)
-C_O0_I4(rz, rz, r, r)
 C_O1_I1(r, r)
 C_O1_I2(r, 0, rz)
 C_O1_I2(r, r, r)

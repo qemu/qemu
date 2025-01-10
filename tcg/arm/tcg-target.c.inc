@@ -2181,6 +2181,26 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
+                        TCGReg a0, TCGReg a1, TCGLabel *l)
+{
+    cond = tgen_cmp(s, cond, a0, a1);
+    tcg_out_goto_label(s, tcg_cond_to_arm_cond[cond], l);
+}
+
+static void tgen_brcondi(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg a0, tcg_target_long a1, TCGLabel *l)
+{
+    cond = tgen_cmpi(s, cond, a0, a1);
+    tcg_out_goto_label(s, tcg_cond_to_arm_cond[cond], l);
+}
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rIN),
+    .out_rr = tgen_brcond,
+    .out_ri = tgen_brcondi,
+};
+
 static void finish_setcond(TCGContext *s, TCGCond cond, TCGReg ret, bool neg)
 {
     tcg_out_movi32(s, tcg_cond_to_arm_cond[tcg_invert_cond(cond)], ret, 0);
@@ -2317,11 +2337,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_mov_reg(s, COND_AL, args[0], a0);
         break;
 
-    case INDEX_op_brcond_i32:
-        c = tcg_out_cmp(s, args[2], args[0], args[1], const_args[1]);
-        tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[3]));
-        break;
-
     case INDEX_op_brcond2_i32:
         c = tcg_out_cmp2(s, args, const_args);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[c], arg_label(args[5]));
@@ -2421,8 +2436,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i32:
         return C_O0_I2(r, r);
 
-    case INDEX_op_brcond_i32:
-        return C_O0_I2(r, rIN);
     case INDEX_op_deposit_i32:
         return C_O1_I2(r, 0, rZ);
     case INDEX_op_extract2_i32:

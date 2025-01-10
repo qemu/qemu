@@ -1693,6 +1693,24 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
     tgen_branch(s, cc, l);
 }
 
+static void tgen_brcondr(TCGContext *s, TCGType type, TCGCond c,
+                         TCGReg a0, TCGReg a1, TCGLabel *l)
+{
+    tgen_brcond(s, type, c, a0, a1, false, l);
+}
+
+static void tgen_brcondi(TCGContext *s, TCGType type, TCGCond c,
+                         TCGReg a0, tcg_target_long a1, TCGLabel *l)
+{
+    tgen_brcond(s, type, c, a0, a1, true, l);
+}
+
+static const TCGOutOpBrcond outop_brcond = {
+    .base.static_constraint = C_O0_I2(r, rC),
+    .out_rr = tgen_brcondr,
+    .out_ri = tgen_brcondi,
+};
+
 static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *dest)
 {
     ptrdiff_t off = tcg_pcrel_diff(s, dest) >> 1;
@@ -2857,10 +2875,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tgen_branch(s, S390_CC_ALWAYS, arg_label(args[0]));
         break;
 
-    case INDEX_op_brcond_i32:
-        tgen_brcond(s, TCG_TYPE_I32, args[2], args[0],
-                    args[1], const_args[1], arg_label(args[3]));
-        break;
     case INDEX_op_movcond_i32:
         tgen_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1],
                      args[2], const_args[2], args[3], const_args[3], args[4]);
@@ -2934,10 +2948,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
         break;
 
-    case INDEX_op_brcond_i64:
-        tgen_brcond(s, TCG_TYPE_I64, args[2], args[0],
-                    args[1], const_args[1], arg_label(args[3]));
-        break;
     case INDEX_op_movcond_i64:
         tgen_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1],
                      args[2], const_args[2], args[3], const_args[3], args[4]);
@@ -3453,11 +3463,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
-
-    case INDEX_op_brcond_i32:
-        return C_O0_I2(r, ri);
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(r, rC);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:

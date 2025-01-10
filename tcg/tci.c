@@ -665,8 +665,9 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             regs[r0] = sextract32(regs[r1], pos, len);
             break;
         case INDEX_op_brcond_i32:
+        case INDEX_op_brcond_i64:
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
-            if ((uint32_t)regs[r0]) {
+            if (regs[r0]) {
                 tb_ptr = ptr;
             }
             break;
@@ -783,12 +784,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
         case INDEX_op_sextract_i64:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
             regs[r0] = sextract64(regs[r1], pos, len);
-            break;
-        case INDEX_op_brcond_i64:
-            tci_args_rl(insn, tb_ptr, &r0, &ptr);
-            if (regs[r0]) {
-                tb_ptr = ptr;
-            }
             break;
         case INDEX_op_ext_i32_i64:
             tci_args_rr(insn, &r0, &r1);
