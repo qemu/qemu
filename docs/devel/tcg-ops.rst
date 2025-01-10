@@ -239,7 +239,7 @@ Jumps/Labels
 
      - | Jump to label.
 
-   * - brcond_i32/i64 *t0*, *t1*, *cond*, *label*
+   * - brcond *t0*, *t1*, *cond*, *label*
 
      - | Conditional jump if *t0* *cond* *t1* is true. *cond* can be:
        |

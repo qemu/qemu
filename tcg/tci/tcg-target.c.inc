@@ -964,7 +964,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
                         TCGReg arg0, TCGReg arg1, TCGLabel *l)
 {
     tgen_setcond(s, type, cond, TCG_REG_TMP, arg0, arg1);
-    tcg_out_op_rl(s, INDEX_op_brcond_i32, TCG_REG_TMP, l);
+    tcg_out_op_rl(s, INDEX_op_brcond, TCG_REG_TMP, l);
 }
 
 static const TCGOutOpBrcond outop_brcond = {
@@ -1047,7 +1047,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_brcond2_i32:
         tcg_out_op_rrrrrc(s, INDEX_op_setcond2_i32, TCG_REG_TMP,
                           args[0], args[1], args[2], args[3], args[4]);
-        tcg_out_op_rl(s, INDEX_op_brcond_i32, TCG_REG_TMP, arg_label(args[5]));
+        tcg_out_op_rl(s, INDEX_op_brcond, TCG_REG_TMP, arg_label(args[5]));
         break;
 #endif
 

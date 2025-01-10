@@ -1048,8 +1048,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
     OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
-    OUTOP(INDEX_op_brcond_i32, TCGOutOpBrcond, outop_brcond),
-    OUTOP(INDEX_op_brcond_i64, TCGOutOpBrcond, outop_brcond),
+    OUTOP(INDEX_op_brcond, TCGOutOpBrcond, outop_brcond),
     OUTOP(INDEX_op_clz, TCGOutOpBinary, outop_clz),
     OUTOP(INDEX_op_ctpop, TCGOutOpUnary, outop_ctpop),
     OUTOP(INDEX_op_ctz, TCGOutOpBinary, outop_ctz),
@@ -2282,6 +2281,7 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_add:
     case INDEX_op_and:
+    case INDEX_op_brcond:
     case INDEX_op_mov:
     case INDEX_op_negsetcond:
     case INDEX_op_or:
@@ -2289,7 +2289,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_xor:
         return has_type;
 
-    case INDEX_op_brcond_i32:
     case INDEX_op_movcond_i32:
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
@@ -2319,7 +2318,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond2_i32:
         return TCG_TARGET_REG_BITS == 32;
 
-    case INDEX_op_brcond_i64:
     case INDEX_op_movcond_i64:
     case INDEX_op_ld8u_i64:
     case INDEX_op_ld8s_i64:
@@ -2869,13 +2867,12 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                                                   op->args[k++]));
             }
             switch (c) {
-            case INDEX_op_brcond_i32:
+            case INDEX_op_brcond:
             case INDEX_op_setcond:
             case INDEX_op_negsetcond:
             case INDEX_op_movcond_i32:
             case INDEX_op_brcond2_i32:
             case INDEX_op_setcond2_i32:
-            case INDEX_op_brcond_i64:
             case INDEX_op_movcond_i64:
             case INDEX_op_cmp_vec:
             case INDEX_op_cmpsel_vec:
@@ -2961,8 +2958,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             switch (c) {
             case INDEX_op_set_label:
             case INDEX_op_br:
-            case INDEX_op_brcond_i32:
-            case INDEX_op_brcond_i64:
+            case INDEX_op_brcond:
             case INDEX_op_brcond2_i32:
                 col += ne_fprintf(f, "%s$L%d", k ? "," : "",
                                   arg_label(op->args[k])->id);
@@ -3417,8 +3413,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     case INDEX_op_br:
         remove_label_use(op, 0);
         break;
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         remove_label_use(op, 3);
         break;
     case INDEX_op_brcond2_i32:
@@ -3519,8 +3514,7 @@ static void move_label_uses(TCGLabel *to, TCGLabel *from)
         case INDEX_op_br:
             op->args[0] = label_arg(to);
             break;
-        case INDEX_op_brcond_i32:
-        case INDEX_op_brcond_i64:
+        case INDEX_op_brcond:
             op->args[3] = label_arg(to);
             break;
         case INDEX_op_brcond2_i32:
@@ -5068,8 +5062,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     o_allocated_regs = s->reserved_regs;
 
     switch (op->opc) {
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         op_cond = op->args[2];
         break;
     case INDEX_op_setcond:
@@ -5496,8 +5489,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         {
             const TCGOutOpBrcond *out = &outop_brcond;
             TCGCond cond = new_args[2];

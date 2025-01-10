@@ -1529,14 +1529,14 @@ static bool fold_brcond2(OptContext *ctx, TCGOp *op)
         break;
 
     do_brcond_low:
-        op->opc = INDEX_op_brcond_i32;
+        op->opc = INDEX_op_brcond;
         op->args[1] = op->args[2];
         op->args[2] = cond;
         op->args[3] = label;
         return fold_brcond(ctx, op);
 
     do_brcond_high:
-        op->opc = INDEX_op_brcond_i32;
+        op->opc = INDEX_op_brcond;
         op->args[0] = op->args[1];
         op->args[1] = op->args[3];
         op->args[2] = cond;
@@ -2864,7 +2864,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_andc_vec:
             done = fold_andc(&ctx, op);
             break;
-        CASE_OP_32_64(brcond):
+        case INDEX_op_brcond:
             done = fold_brcond(&ctx, op);
             break;
         case INDEX_op_brcond2_i32:
