@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "hw/core/split-irq.h"
 #include "hw/sysbus.h"
@@ -53,6 +54,26 @@
 #define NUM_UART    4
 #define NUM_GPTM    4
 #define NUM_I2C     2
+
+/*
+ * See Stellaris Data Sheet chapter 5.2.5 "System Control",
+ * Register 13 .. 17: Device Capabilities 0 .. 4 (DC0 .. DC4).
+ */
+#define DC1_WDT          3
+#define DC1_HIB          6
+#define DC1_MPU          7
+#define DC1_ADC          16
+#define DC1_PWM          20
+#define DC2_UART(n)     (n)
+#define DC2_SSI          4
+#define DC2_QEI(n)      (8 + n)
+#define DC2_I2C(n)      (12 + 2 * n)
+#define DC2_GPTM(n)     (16 + n)
+#define DC2_COMP(n)     (24 + n)
+#define DC4_GPIO(n)     (n)
+#define DC4_EMAC         28
+
+#define DEV_CAP(_dc, _cap) extract32(board->dc##_dc, DC##_dc##_##_cap, 1)
 
 typedef const struct {
     const char *name;
@@ -1118,7 +1139,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
-    if (board->dc1 & (1 << 16)) {
+    if (DEV_CAP(1, ADC)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
                                     qdev_get_gpio_in(nvic, 14),
                                     qdev_get_gpio_in(nvic, 15),
@@ -1130,7 +1151,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         adc = NULL;
     }
     for (i = 0; i < NUM_GPTM; i++) {
-        if (board->dc2 & (0x10000 << i)) {
+        if (DEV_CAP(2, GPTM(i))) {
             SysBusDevice *sbd;
 
             dev = qdev_new(TYPE_STELLARIS_GPTM);
@@ -1147,7 +1168,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    if (board->dc1 & (1 << 3)) { /* watchdog present */
+    if (DEV_CAP(1, WDT)) {
         dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
         object_property_add_child(soc_container, "wdg", OBJECT(dev));
         qdev_connect_clock_in(dev, "WDOGCLK",
@@ -1164,7 +1185,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
 
     for (i = 0; i < NUM_GPIO; i++) {
-        if (board->dc4 & (1 << i)) {
+        if (DEV_CAP(4, GPIO(i))) {
             gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
                                                qdev_get_gpio_in(nvic,
                                                                 gpio_irq[i]));
@@ -1175,7 +1196,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    if (board->dc2 & (1 << 12)) {
+    if (DEV_CAP(2, I2C(0))) {
         dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000,
                                    qdev_get_gpio_in(nvic, 8));
         i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
@@ -1185,7 +1206,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
 
     for (i = 0; i < NUM_UART; i++) {
-        if (board->dc2 & (1 << i)) {
+        if (DEV_CAP(2, UART(i))) {
             SysBusDevice *sbd;
 
             dev = qdev_new("pl011_luminary");
@@ -1197,7 +1218,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
         }
     }
-    if (board->dc2 & (1 << 4)) {
+    if (DEV_CAP(2, SSI)) {
         dev = sysbus_create_simple("pl022", 0x40008000,
                                    qdev_get_gpio_in(nvic, 7));
         if (board->peripherals & BP_OLED_SSI) {
@@ -1306,7 +1327,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             qemu_irq_raise(gpio_out[GPIO_D][0]);
         }
     }
-    if (board->dc4 & (1 << 28)) {
+    if (DEV_CAP(4, EMAC)) {
         DeviceState *enet;
 
         enet = qdev_new("stellaris_enet");
