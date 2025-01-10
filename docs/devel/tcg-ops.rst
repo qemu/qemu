@@ -499,13 +499,13 @@ Conditional moves
 
 .. list-table::
 
-   * - setcond_i32/i64 *dest*, *t1*, *t2*, *cond*
+   * - setcond *dest*, *t1*, *t2*, *cond*
 
      - | *dest* = (*t1* *cond* *t2*)
        |
        | Set *dest* to 1 if (*t1* *cond* *t2*) is true, otherwise set to 0.
 
-   * - negsetcond_i32/i64 *dest*, *t1*, *t2*, *cond*
+   * - negsetcond *dest*, *t1*, *t2*, *cond*
 
      - | *dest* = -(*t1* *cond* *t2*)
        |

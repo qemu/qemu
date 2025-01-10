@@ -942,8 +942,8 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
                          TCGReg dest, TCGReg arg1, TCGReg arg2)
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
-                     ? INDEX_op_setcond_i32
-                     : INDEX_op_setcond_i64);
+                     ? INDEX_op_tci_setcond32
+                     : INDEX_op_setcond);
     tcg_out_op_rrrc(s, opc, dest, arg1, arg2, cond);
 }
 

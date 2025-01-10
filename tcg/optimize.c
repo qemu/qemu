@@ -1996,35 +1996,19 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
     if (ti_is_const(tt) && ti_is_const(ft)) {
         uint64_t tv = ti_const_val(tt);
         uint64_t fv = ti_const_val(ft);
-        TCGOpcode opc, negopc;
         TCGCond cond = op->args[5];
 
-        switch (ctx->type) {
-        case TCG_TYPE_I32:
-            opc = INDEX_op_setcond_i32;
-            negopc = INDEX_op_negsetcond_i32;
-            tv = (int32_t)tv;
-            fv = (int32_t)fv;
-            break;
-        case TCG_TYPE_I64:
-            opc = INDEX_op_setcond_i64;
-            negopc = INDEX_op_negsetcond_i64;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-
         if (tv == 1 && fv == 0) {
-            op->opc = opc;
+            op->opc = INDEX_op_setcond;
             op->args[3] = cond;
         } else if (fv == 1 && tv == 0) {
-            op->opc = opc;
+            op->opc = INDEX_op_setcond;
             op->args[3] = tcg_invert_cond(cond);
         } else if (tv == -1 && fv == 0) {
-            op->opc = negopc;
+            op->opc = INDEX_op_negsetcond;
             op->args[3] = cond;
         } else if (fv == -1 && tv == 0) {
-            op->opc = negopc;
+            op->opc = INDEX_op_negsetcond;
             op->args[3] = tcg_invert_cond(cond);
         }
     }
@@ -2526,14 +2510,14 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
     do_setcond_low:
         op->args[2] = op->args[3];
         op->args[3] = cond;
-        op->opc = INDEX_op_setcond_i32;
+        op->opc = INDEX_op_setcond;
         return fold_setcond(ctx, op);
 
     do_setcond_high:
         op->args[1] = op->args[2];
         op->args[2] = op->args[4];
         op->args[3] = cond;
-        op->opc = INDEX_op_setcond_i32;
+        op->opc = INDEX_op_setcond;
         return fold_setcond(ctx, op);
     }
 
@@ -3025,10 +3009,10 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_shr:
             done = fold_shift(&ctx, op);
             break;
-        CASE_OP_32_64(setcond):
+        case INDEX_op_setcond:
             done = fold_setcond(&ctx, op);
             break;
-        CASE_OP_32_64(negsetcond):
+        case INDEX_op_negsetcond:
             done = fold_negsetcond(&ctx, op);
             break;
         case INDEX_op_setcond2_i32:

@@ -1995,7 +1995,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
         if ((ld_dst == B11_8) + (ld_dst == B7_4) != 1 || mv_src >= 0) {
             goto fail;
         }
-        op_opc = INDEX_op_setcond_i32;  /* placeholder */
+        op_opc = INDEX_op_setcond;  /* placeholder */
         op_src = (ld_dst == B11_8 ? B7_4 : B11_8);
         op_arg = REG(op_src);
 
@@ -2030,7 +2030,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
         if (ld_dst != B11_8 || ld_dst != B7_4 || mv_src >= 0) {
             goto fail;
         }
-        op_opc = INDEX_op_setcond_i32;
+        op_opc = INDEX_op_setcond;
         op_arg = tcg_constant_i32(0);
 
         NEXT_INSN;
@@ -2147,7 +2147,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
         }
         break;
 
-    case INDEX_op_setcond_i32:
+    case INDEX_op_setcond:
         if (st_src == ld_dst) {
             goto fail;
         }
