@@ -1658,6 +1658,7 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
         tcg_out_brcond(s, 0, cond, args[1], args[3], const_args[3],
                        label_this, small);
         break;
+
     case TCG_COND_NE:
     case TCG_COND_TSTNE:
         tcg_out_brcond(s, 0, cond, args[0], args[2], const_args[2],
@@ -1665,64 +1666,14 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
         tcg_out_brcond(s, 0, cond, args[1], args[3], const_args[3],
                        label_this, small);
         break;
-    case TCG_COND_LT:
-        tcg_out_brcond(s, 0, TCG_COND_LT, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_LTU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_LE:
-        tcg_out_brcond(s, 0, TCG_COND_LT, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_LEU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_GT:
-        tcg_out_brcond(s, 0, TCG_COND_GT, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_GTU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_GE:
-        tcg_out_brcond(s, 0, TCG_COND_GT, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_GEU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_LTU:
-        tcg_out_brcond(s, 0, TCG_COND_LTU, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_LTU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_LEU:
-        tcg_out_brcond(s, 0, TCG_COND_LTU, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_LEU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_GTU:
-        tcg_out_brcond(s, 0, TCG_COND_GTU, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_GTU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
-    case TCG_COND_GEU:
-        tcg_out_brcond(s, 0, TCG_COND_GTU, args[1], args[3], const_args[3],
-                       label_this, small);
-        tcg_out_jxx(s, JCC_JNE, label_next, 1);
-        tcg_out_brcond(s, 0, TCG_COND_GEU, args[0], args[2], const_args[2],
-                       label_this, small);
-        break;
+
     default:
-        g_assert_not_reached();
+        tcg_out_brcond(s, 0, tcg_high_cond(cond), args[1],
+                       args[3], const_args[3], label_this, small);
+        tcg_out_jxx(s, JCC_JNE, label_next, 1);
+        tcg_out_brcond(s, 0, tcg_unsigned_cond(cond), args[0],
+                       args[2], const_args[2], label_this, small);
+        break;
     }
     tcg_out_label(s, label_next);
 }
