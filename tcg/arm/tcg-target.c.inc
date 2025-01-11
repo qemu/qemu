@@ -981,19 +981,19 @@ static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
               | (ofs << 7) | ((ofs + len - 1) << 16));
 }
 
-static void tcg_out_extract(TCGContext *s, ARMCond cond, TCGReg rd,
-                            TCGReg rn, int ofs, int len)
+static void tgen_extract(TCGContext *s, TCGType type, TCGReg rd, TCGReg rn,
+                         unsigned ofs, unsigned len)
 {
     /* According to gcc, AND can be faster. */
     if (ofs == 0 && len <= 8) {
-        tcg_out_dat_imm(s, cond, ARITH_AND, rd, rn,
+        tcg_out_dat_imm(s, COND_AL, ARITH_AND, rd, rn,
                         encode_imm_nofail((1 << len) - 1));
         return;
     }
 
     if (use_armv7_instructions) {
         /* ubfx */
-        tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | rn
+        tcg_out32(s, 0x07e00050 | (COND_AL << 28) | (rd << 12) | rn
                   | (ofs << 7) | ((len - 1) << 16));
         return;
     }
@@ -1002,16 +1002,23 @@ static void tcg_out_extract(TCGContext *s, ARMCond cond, TCGReg rd,
     switch (len) {
     case 8:
         /* uxtb */
-        tcg_out32(s, 0x06ef0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        tcg_out32(s, 0x06ef0070 | (COND_AL << 28) |
+                  (rd << 12) | (ofs << 7) | rn);
         break;
     case 16:
         /* uxth */
-        tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        tcg_out32(s, 0x06ff0070 | (COND_AL << 28) |
+                  (rd << 12) | (ofs << 7) | rn);
         break;
     default:
         g_assert_not_reached();
     }
 }
+
+static const TCGOutOpExtract outop_extract = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_extract,
+};
 
 static void tcg_out_sextract(TCGContext *s, ARMCond cond, TCGReg rd,
                              TCGReg rn, int ofs, int len)
@@ -2392,9 +2399,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_deposit(s, COND_AL, args[0], args[2],
                         args[3], args[4], const_args[2]);
         break;
-    case INDEX_op_extract_i32:
-        tcg_out_extract(s, COND_AL, args[0], args[1], args[2], args[3]);
-        break;
     case INDEX_op_sextract_i32:
         tcg_out_sextract(s, COND_AL, args[0], args[1], args[2], args[3]);
         break;
@@ -2444,7 +2448,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16s_i32:
     case INDEX_op_ld_i32:
-    case INDEX_op_extract_i32:
     case INDEX_op_sextract_i32:
         return C_O1_I1(r, r);
 
