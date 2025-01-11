@@ -415,7 +415,7 @@ Misc
      - | *t0* = *t1*
        | Move *t1* to *t0*.
 
-   * - bswap16_i32/i64 *t0*, *t1*, *flags*
+   * - bswap16 *t0*, *t1*, *flags*
 
      - | 16 bit byte swap on the low bits of a 32/64 bit input.
        |

@@ -905,7 +905,7 @@ static const TCGOutOpUnary outop_ctpop = {
 static void tgen_bswap16(TCGContext *s, TCGType type,
                          TCGReg a0, TCGReg a1, unsigned flags)
 {
-    tcg_out_op_rr(s, INDEX_op_bswap16_i32, a0, a1);
+    tcg_out_op_rr(s, INDEX_op_bswap16, a0, a1);
     if (flags & TCG_BSWAP_OS) {
         tcg_out_sextract(s, TCG_TYPE_REG, a0, a0, 0, 16);
     }
