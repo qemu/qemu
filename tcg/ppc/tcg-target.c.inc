@@ -2206,8 +2206,8 @@ static void tcg_out_cntxz(TCGContext *s, TCGType type, uint32_t opc,
     }
 }
 
-static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
-                         const int *const_args)
+static void tcg_out_cmp2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
+                         TCGArg bl, bool blconst, TCGArg bh, bool bhconst)
 {
     static const struct { uint8_t bit1, bit2; } bits[] = {
         [TCG_COND_LT ] = { CR_LT, CR_LT },
@@ -2220,17 +2220,8 @@ static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
         [TCG_COND_GEU] = { CR_GT, CR_LT },
     };
 
-    TCGCond cond = args[4], cond2;
-    TCGArg al, ah, bl, bh;
-    int blconst, bhconst;
+    TCGCond cond2;
     int op, bit1, bit2;
-
-    al = args[0];
-    ah = args[1];
-    bl = args[2];
-    bh = args[3];
-    blconst = const_args[2];
-    bhconst = const_args[3];
 
     switch (cond) {
     case TCG_COND_EQ:
@@ -2286,7 +2277,8 @@ static void tcg_out_cmp2(TCGContext *s, const TCGArg *args,
 static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
                              const int *const_args)
 {
-    tcg_out_cmp2(s, args + 1, const_args + 1);
+    tcg_out_cmp2(s, args[5], args[1], args[2], args[3], const_args[3],
+                 args[4], const_args[4]);
     tcg_out32(s, MFOCRF | RT(TCG_REG_R0) | FXM(0));
     tcg_out_rlw(s, RLWINM, args[0], TCG_REG_R0, CR_EQ + 0*4 + 1, 31, 31);
 }
@@ -2294,7 +2286,8 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
 static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
                             const int *const_args)
 {
-    tcg_out_cmp2(s, args, const_args);
+    tcg_out_cmp2(s, args[4], args[0], args[1], args[2], const_args[2],
+                 args[3], const_args[3]);
     tcg_out_bc_lab(s, TCG_COND_EQ, arg_label(args[5]));
 }
 
