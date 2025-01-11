@@ -425,16 +425,15 @@ Misc
        |
        | If neither ``TCG_BSWAP_OZ`` nor ``TCG_BSWAP_OS`` are set, then the bits of *t0* above bit 15 may contain any value.
 
-   * - bswap32_i64 *t0*, *t1*, *flags*
+   * - bswap32 *t0*, *t1*, *flags*
 
-     - | 32 bit byte swap on a 64-bit value.  The flags are the same as for bswap16,
-         except they apply from bit 31 instead of bit 15.
+     - | 32 bit byte swap.  The flags are the same as for bswap16, except
+         they apply from bit 31 instead of bit 15.  On TCG_TYPE_I32, the
+         flags should be zero.
 
-   * - bswap32_i32 *t0*, *t1*, *flags*
+   * - bswap64_i64 *t0*, *t1*, *flags*
 
-       bswap64_i64 *t0*, *t1*, *flags*
-
-     - | 32/64 bit byte swap. The flags are ignored, but still present
+     - | 64 bit byte swap. The flags are ignored, but still present
          for consistency with the other bswap opcodes.
 
    * - discard_i32/i64 *t0*
