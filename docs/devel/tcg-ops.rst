@@ -456,7 +456,7 @@ Misc
        |
        |     *dest* = (*t1* & ~0x0f00) | ((*t2* << 8) & 0x0f00)
 
-   * - extract_i32/i64 *dest*, *t1*, *pos*, *len*
+   * - extract *dest*, *t1*, *pos*, *len*
 
        sextract_i32/i64 *dest*, *t1*, *pos*, *len*
 
@@ -467,12 +467,12 @@ Misc
          to the left with zeros; for sextract_*, the result will be extended
          to the left with copies of the bitfield sign bit at *pos* + *len* - 1.
        |
-       | For example, "sextract_i32 dest, t1, 8, 4" indicates a 4-bit field
+       | For example, "sextract dest, t1, 8, 4" indicates a 4-bit field
          at bit 8. This operation would be equivalent to
        |
        |    *dest* = (*t1* << 20) >> 28
        |
-       | (using an arithmetic right shift).
+       | (using an arithmetic right shift) on TCG_TYPE_I32.
 
    * - extract2_i32/i64 *dest*, *t1*, *t2*, *pos*
 
