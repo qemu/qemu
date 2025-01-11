@@ -2801,7 +2801,7 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Odd Fixes
 F: audio/
 X: audio/alsaaudio.c
-X: audio/coreaudio.c
+X: audio/coreaudio.m
 X: audio/dsound*
 X: audio/jackaudio.c
 X: audio/ossaudio.c
@@ -2823,7 +2823,7 @@ M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 R: Akihiko Odaki <akihiko.odaki@daynix.com>
 S: Odd Fixes
-F: audio/coreaudio.c
+F: audio/coreaudio.m
 
 DSound Audio backend
 M: Gerd Hoffmann <kraxel@redhat.com>
