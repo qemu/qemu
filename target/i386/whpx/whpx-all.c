@@ -2399,7 +2399,7 @@ static void whpx_log_sync(MemoryListener *listener,
 {
     MemoryRegion *mr = section->mr;
     
-     if (!memory_region_is_ram(mr)) {
+    if (!memory_region_is_ram(mr)) {
         return;
     }
 
