@@ -516,6 +516,7 @@ config FSL_IMX6
     select PL310  # cache controller
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
+    select OR_IRQ
 
 config ASPEED_SOC
     bool
@@ -573,6 +574,7 @@ config FSL_IMX7
     select WDT_IMX2
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
+    select OR_IRQ
     select UNIMP
 
 config ARM_SMMUV3
