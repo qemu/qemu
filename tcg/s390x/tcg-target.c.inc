@@ -2741,6 +2741,25 @@ static const TCGOutOpBinary outop_xor = {
     .out_rri = tgen_xori_3,
 };
 
+static void tgen_bswap16(TCGContext *s, TCGType type,
+                         TCGReg a0, TCGReg a1, unsigned flags)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RRE, LRVR, a0, a1);
+        tcg_out_sh32(s, (flags & TCG_BSWAP_OS ? RS_SRA : RS_SRL),
+                     a0, TCG_REG_NONE, 16);
+    } else {
+        tcg_out_insn(s, RRE, LRVGR, a0, a1);
+        tcg_out_sh64(s, (flags & TCG_BSWAP_OS ? RSY_SRAG : RSY_SRLG),
+                     a0, a0, TCG_REG_NONE, 48);
+    }
+}
+
+static const TCGOutOpBswap outop_bswap16 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_bswap16,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     if (type == TCG_TYPE_I32) {
@@ -2825,25 +2844,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_st_i32:
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
-        break;
-
-    case INDEX_op_bswap16_i32:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        tcg_out_insn(s, RRE, LRVR, a0, a1);
-        if (a2 & TCG_BSWAP_OS) {
-            tcg_out_sh32(s, RS_SRA, a0, TCG_REG_NONE, 16);
-        } else {
-            tcg_out_sh32(s, RS_SRL, a0, TCG_REG_NONE, 16);
-        }
-        break;
-    case INDEX_op_bswap16_i64:
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        tcg_out_insn(s, RRE, LRVGR, a0, a1);
-        if (a2 & TCG_BSWAP_OS) {
-            tcg_out_sh64(s, RSY_SRAG, a0, a0, TCG_REG_NONE, 48);
-        } else {
-            tcg_out_sh64(s, RSY_SRLG, a0, a0, TCG_REG_NONE, 48);
-        }
         break;
 
     case INDEX_op_bswap32_i32:
@@ -3459,8 +3459,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
 
-    case INDEX_op_bswap16_i32:
-    case INDEX_op_bswap16_i64:
     case INDEX_op_bswap32_i32:
     case INDEX_op_bswap32_i64:
     case INDEX_op_bswap64_i64:

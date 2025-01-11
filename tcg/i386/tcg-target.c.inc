@@ -3062,6 +3062,34 @@ static const TCGOutOpBinary outop_xor = {
     .out_rri = tgen_xori,
 };
 
+static void tgen_bswap16(TCGContext *s, TCGType type,
+                         TCGReg a0, TCGReg a1, unsigned flags)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+
+    if (flags & TCG_BSWAP_OS) {
+        /* Output must be sign-extended. */
+        if (rexw) {
+            tcg_out_bswap64(s, a0);
+            tcg_out_shifti(s, SHIFT_SAR + rexw, a0, 48);
+        } else {
+            tcg_out_bswap32(s, a0);
+            tcg_out_shifti(s, SHIFT_SAR, a0, 16);
+        }
+    } else if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+        /* Output must be zero-extended, but input isn't. */
+        tcg_out_bswap32(s, a0);
+        tcg_out_shifti(s, SHIFT_SHR, a0, 16);
+    } else {
+        tcg_out_rolw_8(s, a0);
+    }
+}
+
+static const TCGOutOpBswap outop_bswap16 = {
+    .base.static_constraint = C_O1_I1(r, 0),
+    .out_rr = tgen_bswap16,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
@@ -3165,24 +3193,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    OP_32_64(bswap16):
-        if (a2 & TCG_BSWAP_OS) {
-            /* Output must be sign-extended. */
-            if (rexw) {
-                tcg_out_bswap64(s, a0);
-                tcg_out_shifti(s, SHIFT_SAR + rexw, a0, 48);
-            } else {
-                tcg_out_bswap32(s, a0);
-                tcg_out_shifti(s, SHIFT_SAR, a0, 16);
-            }
-        } else if ((a2 & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
-            /* Output must be zero-extended, but input isn't. */
-            tcg_out_bswap32(s, a0);
-            tcg_out_shifti(s, SHIFT_SHR, a0, 16);
-        } else {
-            tcg_out_rolw_8(s, a0);
-        }
-        break;
     OP_32_64(bswap32):
         tcg_out_bswap32(s, a0);
         if (rexw && (a2 & TCG_BSWAP_OS)) {
@@ -3962,8 +3972,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(re, r);
 
-    case INDEX_op_bswap16_i32:
-    case INDEX_op_bswap16_i64:
     case INDEX_op_bswap32_i32:
     case INDEX_op_bswap32_i64:
     case INDEX_op_bswap64_i64:

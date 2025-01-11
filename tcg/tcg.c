@@ -1001,6 +1001,12 @@ typedef struct TCGOutOpBrcond2 {
                 TCGArg bh, bool const_bh, TCGLabel *l);
 } TCGOutOpBrcond2;
 
+typedef struct TCGOutOpBswap {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type,
+                   TCGReg a0, TCGReg a1, unsigned flags);
+} TCGOutOpBswap;
+
 typedef struct TCGOutOpDivRem {
     TCGOutOp base;
     void (*out_rr01r)(TCGContext *s, TCGType type,
@@ -1069,6 +1075,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
     OUTOP(INDEX_op_brcond, TCGOutOpBrcond, outop_brcond),
+    OUTOP(INDEX_op_bswap16_i32, TCGOutOpBswap, outop_bswap16),
+    OUTOP(INDEX_op_bswap16_i64, TCGOutOpBswap, outop_bswap16),
     OUTOP(INDEX_op_clz, TCGOutOpBinary, outop_clz),
     OUTOP(INDEX_op_ctpop, TCGOutOpUnary, outop_ctpop),
     OUTOP(INDEX_op_ctz, TCGOutOpBinary, outop_ctz),
@@ -2335,8 +2343,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return TCG_TARGET_HAS_add2_i32;
     case INDEX_op_sub2_i32:
         return TCG_TARGET_HAS_sub2_i32;
-    case INDEX_op_bswap16_i32:
-        return TCG_TARGET_HAS_bswap16_i32;
     case INDEX_op_bswap32_i32:
         return TCG_TARGET_HAS_bswap32_i32;
 
@@ -2367,8 +2373,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extrh_i64_i32:
         return TCG_TARGET_HAS_extr_i64_i32;
-    case INDEX_op_bswap16_i64:
-        return TCG_TARGET_HAS_bswap16_i64;
     case INDEX_op_bswap32_i64:
         return TCG_TARGET_HAS_bswap32_i64;
     case INDEX_op_bswap64_i64:
@@ -5482,6 +5486,17 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             /* Constants should have been folded. */
             tcg_debug_assert(!const_args[1]);
             out->out_rr(s, type, new_args[0], new_args[1]);
+        }
+        break;
+
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap16_i64:
+        {
+            const TCGOutOpBswap *out =
+                container_of(all_outop[op->opc], TCGOutOpBswap, base);
+
+            tcg_debug_assert(!const_args[1]);
+            out->out_rr(s, type, new_args[0], new_args[1], new_args[2]);
         }
         break;
 
