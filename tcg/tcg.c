@@ -1033,6 +1033,12 @@ typedef struct TCGOutOpSetcond {
                     TCGReg ret, TCGReg a1, tcg_target_long a2);
 } TCGOutOpSetcond;
 
+typedef struct TCGOutOpSetcond2 {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGCond cond, TCGReg ret, TCGReg al, TCGReg ah,
+                TCGArg bl, bool const_bl, TCGArg bh, bool const_bh);
+} TCGOutOpSetcond2;
+
 typedef struct TCGOutOpSubtract {
     TCGOutOp base;
     void (*out_rrr)(TCGContext *s, TCGType type,
@@ -1097,6 +1103,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
 
 #if TCG_TARGET_REG_BITS == 32
     OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
+    OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
 #endif
 };
 
@@ -5565,8 +5572,20 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                      new_args[3], const_args[3], label);
         }
         break;
+    case INDEX_op_setcond2_i32:
+        {
+            const TCGOutOpSetcond2 *out = &outop_setcond2;
+            TCGCond cond = new_args[5];
+
+            tcg_debug_assert(!const_args[1]);
+            tcg_debug_assert(!const_args[2]);
+            out->out(s, cond, new_args[0], new_args[1], new_args[2],
+                     new_args[3], const_args[3], new_args[4], const_args[4]);
+        }
+        break;
 #else
     case INDEX_op_brcond2_i32:
+    case INDEX_op_setcond2_i32:
         g_assert_not_reached();
 #endif
 

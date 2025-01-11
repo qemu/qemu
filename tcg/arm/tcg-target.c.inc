@@ -2266,13 +2266,25 @@ static const TCGOutOpBrcond2 outop_brcond2 = {
     .out = tgen_brcond2,
 };
 
+static void tgen_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
+                          TCGReg al, TCGReg ah,
+                          TCGArg bl, bool const_bl,
+                          TCGArg bh, bool const_bh)
+{
+    cond = tcg_out_cmp2(s, cond, al, ah, bl, const_bl, bh, const_bh);
+    finish_setcond(s, cond, ret, false);
+}
+
+static const TCGOutOpSetcond2 outop_setcond2 = {
+    .base.static_constraint = C_O1_I4(r, r, r, rI, rI),
+    .out = tgen_setcond2,
+};
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2, a3, a4, a5;
-    int c;
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -2346,14 +2358,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                             a1, a3, a5, const_args[5]);
         }
         tcg_out_mov_reg(s, COND_AL, args[0], a0);
-        break;
-
-    case INDEX_op_setcond2_i32:
-        c = tcg_out_cmp2(s, args[5], args[1], args[2], args[3], const_args[3],
-                         args[4], const_args[4]);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[c], ARITH_MOV, args[0], 0, 1);
-        tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(c)],
-                        ARITH_MOV, args[0], 0, 0);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -2452,9 +2456,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O2_I4(r, r, r, r, rIN, rIK);
     case INDEX_op_sub2_i32:
         return C_O2_I4(r, r, rI, rI, rIN, rIK);
-    case INDEX_op_setcond2_i32:
-        return C_O1_I4(r, r, r, rI, rI);
-
     case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, q);
     case INDEX_op_qemu_ld_i64:

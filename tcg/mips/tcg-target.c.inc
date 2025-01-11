@@ -1067,12 +1067,22 @@ static int tcg_out_setcond2_int(TCGContext *s, TCGCond cond, TCGReg ret,
     return ret | flags;
 }
 
-static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
-                             TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
+static void tgen_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
+                          TCGReg al, TCGReg ah,
+                          TCGArg bl, bool const_bl,
+                          TCGArg bh, bool const_bh)
 {
     int tmpflags = tcg_out_setcond2_int(s, cond, ret, al, ah, bl, bh);
     tcg_out_setcond_end(s, ret, tmpflags);
 }
+
+#if TCG_TARGET_REG_BITS != 32
+__attribute__((unused))
+#endif
+static const TCGOutOpSetcond2 outop_setcond2 = {
+    .base.static_constraint = C_O1_I4(r, r, r, rz, rz),
+    .out = tgen_setcond2,
+};
 
 static void tgen_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
                          TCGArg bl, bool const_bl,
@@ -2306,10 +2316,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    case INDEX_op_setcond2_i32:
-        tcg_out_setcond2(s, args[5], a0, a1, a2, args[3], args[4]);
-        break;
-
     case INDEX_op_qemu_ld_i32:
         tcg_out_qemu_ld(s, a0, 0, a1, a2, TCG_TYPE_I32);
         break;
@@ -2404,8 +2410,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
         return C_O2_I4(r, r, rz, rz, rN, rN);
-    case INDEX_op_setcond2_i32:
-        return C_O1_I4(r, rz, rz, rz, rz);
 
     case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, r);

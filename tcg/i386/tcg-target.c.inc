@@ -1860,47 +1860,53 @@ static const TCGOutOpSetcond outop_negsetcond = {
     .out_rri = tgen_negsetcondi,
 };
 
-#if TCG_TARGET_REG_BITS == 32
-static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
-                             const int *const_args)
+static void tgen_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
+                          TCGReg al, TCGReg ah,
+                          TCGArg bl, bool const_bl,
+                          TCGArg bh, bool const_bh)
 {
-    TCGLabel *label_true, *label_over;
+    TCGLabel *label_over = gen_new_label();
 
-    if (args[0] == args[1] || args[0] == args[2]
-        || (!const_args[3] && args[0] == args[3])
-        || (!const_args[4] && args[0] == args[4])) {
-        /* When the destination overlaps with one of the argument
-           registers, don't do anything tricky.  */
-        label_true = gen_new_label();
-        label_over = gen_new_label();
+    if (ret == al || ret == ah
+        || (!const_bl && ret == bl)
+        || (!const_bh && ret == bh)) {
+        /*
+         * When the destination overlaps with one of the argument
+         * registers, don't do anything tricky.
+         */
+        TCGLabel *label_true = gen_new_label();
 
-        tcg_out_brcond2(s, args[5], args[1], args[2], args[3], const_args[3],
-                        args[4], const_args[4], label_true, true);
+        tcg_out_brcond2(s, cond, al, ah, bl, const_bl,
+                        bh, const_bh, label_true, true);
 
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
+        tcg_out_movi(s, TCG_TYPE_I32, ret, 0);
         tcg_out_jxx(s, JCC_JMP, label_over, 1);
         tcg_out_label(s, label_true);
 
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], 1);
-        tcg_out_label(s, label_over);
+        tcg_out_movi(s, TCG_TYPE_I32, ret, 1);
     } else {
-        /* When the destination does not overlap one of the arguments,
-           clear the destination first, jump if cond false, and emit an
-           increment in the true case.  This results in smaller code.  */
+        /*
+         * When the destination does not overlap one of the arguments,
+         * clear the destination first, jump if cond false, and emit an
+         * increment in the true case.  This results in smaller code.
+         */
+        tcg_out_movi(s, TCG_TYPE_I32, ret, 0);
 
-        tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
+        tcg_out_brcond2(s, tcg_invert_cond(cond), al, ah, bl, const_bl,
+                        bh, const_bh, label_over, true);
 
-        label_over = gen_new_label();
-        tcg_out_brcond2(s, tcg_invert_cond(args[5]), args[1], args[2],
-                        args[3], const_args[3],
-                        args[4], const_args[4], label_over, true);
-
-
-        tgen_arithi(s, ARITH_ADD, args[0], 1, 0);
-        tcg_out_label(s, label_over);
+        tgen_arithi(s, ARITH_ADD, ret, 1, 0);
     }
+    tcg_out_label(s, label_over);
 }
+
+#if TCG_TARGET_REG_BITS != 32
+__attribute__((unused))
 #endif
+static const TCGOutOpSetcond2 outop_setcond2 = {
+    .base.static_constraint = C_O1_I4(r, r, r, ri, ri),
+    .out = tgen_setcond2,
+};
 
 static void tcg_out_cmov(TCGContext *s, int jcc, int rexw,
                          TCGReg dest, TCGReg v1)
@@ -3240,11 +3246,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-#if TCG_TARGET_REG_BITS == 32
-    case INDEX_op_setcond2_i32:
-        tcg_out_setcond2(s, args, const_args);
-        break;
-#else /* TCG_TARGET_REG_BITS == 64 */
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_ld32s_i64:
         tcg_out_modrm_offset(s, OPC_MOVSLQ, a0, a1, a2);
         break;
@@ -4011,9 +4013,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_st_i128:
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         return C_O0_I3(L, L, L);
-
-    case INDEX_op_setcond2_i32:
-        return C_O1_I4(r, r, r, ri, ri);
 
     case INDEX_op_ld_vec:
     case INDEX_op_dupm_vec:
