@@ -1012,44 +1012,6 @@ static void tcg_out_addpcis(TCGContext *s, TCGReg dst, intptr_t imm)
     tcg_out32(s, ADDPCIS | RT(dst) | (d1 << 16) | (d0 << 6) | d2);
 }
 
-static void tcg_out_bswap64(TCGContext *s, TCGReg dst, TCGReg src)
-{
-    TCGReg t0 = dst == src ? TCG_REG_R0 : dst;
-    TCGReg t1 = dst == src ? dst : TCG_REG_R0;
-
-    if (have_isa_3_10) {
-        tcg_out32(s, BRD | RA(dst) | RS(src));
-        return;
-    }
-
-    /*
-     * In the following,
-     *   dep(a, b, m) -> (a & ~m) | (b & m)
-     *
-     * Begin with:                              src = abcdefgh
-     */
-    /* t0 = rol32(src, 8) & 0xffffffff              = 0000fghe */
-    tcg_out_rlw(s, RLWINM, t0, src, 8, 0, 31);
-    /* t0 = dep(t0, rol32(src, 24), 0xff000000)     = 0000hghe */
-    tcg_out_rlw(s, RLWIMI, t0, src, 24, 0, 7);
-    /* t0 = dep(t0, rol32(src, 24), 0x0000ff00)     = 0000hgfe */
-    tcg_out_rlw(s, RLWIMI, t0, src, 24, 16, 23);
-
-    /* t0 = rol64(t0, 32)                           = hgfe0000 */
-    tcg_out_rld(s, RLDICL, t0, t0, 32, 0);
-    /* t1 = rol64(src, 32)                          = efghabcd */
-    tcg_out_rld(s, RLDICL, t1, src, 32, 0);
-
-    /* t0 = dep(t0, rol32(t1, 24), 0xffffffff)      = hgfebcda */
-    tcg_out_rlw(s, RLWIMI, t0, t1, 8, 0, 31);
-    /* t0 = dep(t0, rol32(t1, 24), 0xff000000)      = hgfedcda */
-    tcg_out_rlw(s, RLWIMI, t0, t1, 24, 0, 7);
-    /* t0 = dep(t0, rol32(t1, 24), 0x0000ff00)      = hgfedcba */
-    tcg_out_rlw(s, RLWIMI, t0, t1, 24, 16, 23);
-
-    tcg_out_mov(s, TCG_TYPE_REG, dst, t0);
-}
-
 /* Emit a move into ret of arg, if it can be done in one insn.  */
 static bool tcg_out_movi_one(TCGContext *s, TCGReg ret, tcg_target_long arg)
 {
@@ -3390,6 +3352,51 @@ static const TCGOutOpBswap outop_bswap32 = {
     .out_rr = tgen_bswap32,
 };
 
+#if TCG_TARGET_REG_BITS == 64
+static void tgen_bswap64(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
+{
+    TCGReg t0 = dst == src ? TCG_REG_R0 : dst;
+    TCGReg t1 = dst == src ? dst : TCG_REG_R0;
+
+    if (have_isa_3_10) {
+        tcg_out32(s, BRD | RA(dst) | RS(src));
+        return;
+    }
+
+    /*
+     * In the following,
+     *   dep(a, b, m) -> (a & ~m) | (b & m)
+     *
+     * Begin with:                              src = abcdefgh
+     */
+    /* t0 = rol32(src, 8) & 0xffffffff              = 0000fghe */
+    tcg_out_rlw(s, RLWINM, t0, src, 8, 0, 31);
+    /* t0 = dep(t0, rol32(src, 24), 0xff000000)     = 0000hghe */
+    tcg_out_rlw(s, RLWIMI, t0, src, 24, 0, 7);
+    /* t0 = dep(t0, rol32(src, 24), 0x0000ff00)     = 0000hgfe */
+    tcg_out_rlw(s, RLWIMI, t0, src, 24, 16, 23);
+
+    /* t0 = rol64(t0, 32)                           = hgfe0000 */
+    tcg_out_rld(s, RLDICL, t0, t0, 32, 0);
+    /* t1 = rol64(src, 32)                          = efghabcd */
+    tcg_out_rld(s, RLDICL, t1, src, 32, 0);
+
+    /* t0 = dep(t0, rol32(t1, 24), 0xffffffff)      = hgfebcda */
+    tcg_out_rlw(s, RLWIMI, t0, t1, 8, 0, 31);
+    /* t0 = dep(t0, rol32(t1, 24), 0xff000000)      = hgfedcda */
+    tcg_out_rlw(s, RLWIMI, t0, t1, 24, 0, 7);
+    /* t0 = dep(t0, rol32(t1, 24), 0x0000ff00)      = hgfedcba */
+    tcg_out_rlw(s, RLWIMI, t0, t1, 24, 16, 23);
+
+    tcg_out_mov(s, TCG_TYPE_REG, dst, t0);
+}
+
+static const TCGOutOpUnary outop_bswap64 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_bswap64,
+};
+#endif /* TCG_TARGET_REG_BITS == 64 */
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tcg_out32(s, NEG | RT(a0) | RA(a1));
@@ -3510,10 +3517,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_qemu_st_i128:
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         tcg_out_qemu_ldst_i128(s, args[0], args[1], args[2], args[3], false);
-        break;
-
-    case INDEX_op_bswap64_i64:
-        tcg_out_bswap64(s, args[0], args[1]);
         break;
 
     case INDEX_op_deposit_i32:
@@ -4263,7 +4266,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_bswap64_i64:
     case INDEX_op_extract_i64:
     case INDEX_op_sextract_i64:
         return C_O1_I1(r, r);

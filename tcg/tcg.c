@@ -1112,6 +1112,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
 #if TCG_TARGET_REG_BITS == 32
     OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
     OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
+#else
+    OUTOP(INDEX_op_bswap64_i64, TCGOutOpUnary, outop_bswap64),
 #endif
 };
 
@@ -2371,8 +2373,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extrh_i64_i32:
         return TCG_TARGET_HAS_extr_i64_i32;
-    case INDEX_op_bswap64_i64:
-        return TCG_TARGET_HAS_bswap64_i64;
     case INDEX_op_add2_i64:
         return TCG_TARGET_HAS_add2_i64;
     case INDEX_op_sub2_i64:
@@ -5470,6 +5470,9 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
+    case INDEX_op_bswap64_i64:
+        assert(TCG_TARGET_REG_BITS == 64);
+        /* fall through */
     case INDEX_op_ctpop:
     case INDEX_op_neg:
     case INDEX_op_not:
