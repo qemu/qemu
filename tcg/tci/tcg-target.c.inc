@@ -930,7 +930,7 @@ static const TCGOutOpBswap outop_bswap32 = {
 #if TCG_TARGET_REG_BITS == 64
 static void tgen_bswap64(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
-    tcg_out_op_rr(s, INDEX_op_bswap64_i64, a0, a1);
+    tcg_out_op_rr(s, INDEX_op_bswap64, a0, a1);
 }
 
 static const TCGOutOpUnary outop_bswap64 = {

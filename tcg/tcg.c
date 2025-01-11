@@ -1113,7 +1113,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
     OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
 #else
-    OUTOP(INDEX_op_bswap64_i64, TCGOutOpUnary, outop_bswap64),
+    OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
 #endif
 };
 
@@ -2939,7 +2939,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 break;
             case INDEX_op_bswap16:
             case INDEX_op_bswap32:
-            case INDEX_op_bswap64_i64:
+            case INDEX_op_bswap64:
                 {
                     TCGArg flags = op->args[k];
                     const char *name = NULL;
@@ -5470,7 +5470,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
-    case INDEX_op_bswap64_i64:
+    case INDEX_op_bswap64:
         assert(TCG_TARGET_REG_BITS == 64);
         /* fall through */
     case INDEX_op_ctpop:

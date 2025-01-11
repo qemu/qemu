@@ -431,10 +431,11 @@ Misc
          they apply from bit 31 instead of bit 15.  On TCG_TYPE_I32, the
          flags should be zero.
 
-   * - bswap64_i64 *t0*, *t1*, *flags*
+   * - bswap64 *t0*, *t1*, *flags*
 
      - | 64 bit byte swap. The flags are ignored, but still present
-         for consistency with the other bswap opcodes.
+         for consistency with the other bswap opcodes. For future
+         compatibility, the flags should be zero.
 
    * - discard_i32/i64 *t0*
 
