@@ -969,12 +969,6 @@ static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg rd, TCGReg rn)
     g_assert_not_reached();
 }
 
-static void tcg_out_bswap32(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
-{
-    /* rev */
-    tcg_out32(s, 0x06bf0f30 | (cond << 28) | (rd << 12) | rn);
-}
-
 static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
                             TCGArg a1, int ofs, int len, bool const_a1)
 {
@@ -2157,6 +2151,18 @@ static const TCGOutOpBswap outop_bswap16 = {
     .out_rr = tgen_bswap16,
 };
 
+static void tgen_bswap32(TCGContext *s, TCGType type,
+                         TCGReg rd, TCGReg rn, unsigned flags)
+{
+    /* rev */
+    tcg_out32(s, 0x06bf0f30 | (COND_AL << 28) | (rd << 12) | rn);
+}
+
+static const TCGOutOpBswap outop_bswap32 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_bswap32,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tgen_subfi(s, type, a0, 0, a1);
@@ -2378,10 +2384,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_qemu_st(s, args[0], args[1], args[2], args[3], TCG_TYPE_I64);
         break;
 
-    case INDEX_op_bswap32_i32:
-        tcg_out_bswap32(s, COND_AL, args[0], args[1]);
-        break;
-
     case INDEX_op_deposit_i32:
         tcg_out_deposit(s, COND_AL, args[0], args[2],
                         args[3], args[4], const_args[2]);
@@ -2438,7 +2440,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16s_i32:
     case INDEX_op_ld_i32:
-    case INDEX_op_bswap32_i32:
     case INDEX_op_extract_i32:
     case INDEX_op_sextract_i32:
         return C_O1_I1(r, r);

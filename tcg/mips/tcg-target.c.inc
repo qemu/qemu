@@ -710,26 +710,6 @@ static void tcg_out_bswap_subr(TCGContext *s, const tcg_insn_unit *sub)
     }
 }
 
-static void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg, int flags)
-{
-    if (use_mips32r2_instructions) {
-        tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
-        tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
-        if (flags & TCG_BSWAP_OZ) {
-            tcg_out_opc_bf(s, OPC_DEXT, ret, ret, 31, 0);
-        }
-    } else {
-        if (flags & TCG_BSWAP_OZ) {
-            tcg_out_bswap_subr(s, bswap32u_addr);
-        } else {
-            tcg_out_bswap_subr(s, bswap32_addr);
-        }
-        /* delay slot -- never omit the insn, like tcg_out_mov might.  */
-        tcg_out_opc_reg(s, OPC_OR, TCG_TMP0, arg, TCG_REG_ZERO);
-        tcg_out_mov(s, TCG_TYPE_I32, ret, TCG_TMP3);
-    }
-}
-
 static void tcg_out_bswap64(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     if (use_mips32r2_instructions) {
@@ -2170,6 +2150,32 @@ static const TCGOutOpBswap outop_bswap16 = {
     .out_rr = tgen_bswap16,
 };
 
+static void tgen_bswap32(TCGContext *s, TCGType type,
+                         TCGReg ret, TCGReg arg, unsigned flags)
+{
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+        tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
+        if (flags & TCG_BSWAP_OZ) {
+            tcg_out_opc_bf(s, OPC_DEXT, ret, ret, 31, 0);
+        }
+    } else {
+        if (flags & TCG_BSWAP_OZ) {
+            tcg_out_bswap_subr(s, bswap32u_addr);
+        } else {
+            tcg_out_bswap_subr(s, bswap32_addr);
+        }
+        /* delay slot -- never omit the insn, like tcg_out_mov might.  */
+        tcg_out_opc_reg(s, OPC_OR, TCG_TMP0, arg, TCG_REG_ZERO);
+        tcg_out_mov(s, TCG_TYPE_I32, ret, TCG_TMP3);
+    }
+}
+
+static const TCGOutOpBswap outop_bswap32 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_bswap32,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tgen_sub(s, type, a0, TCG_REG_ZERO, a1);
@@ -2261,12 +2267,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, i1, a0, a1, a2);
         break;
 
-    case INDEX_op_bswap32_i32:
-        tcg_out_bswap32(s, a0, a1, 0);
-        break;
-    case INDEX_op_bswap32_i64:
-        tcg_out_bswap32(s, a0, a1, a2);
-        break;
     case INDEX_op_bswap64_i64:
         tcg_out_bswap64(s, a0, a1);
         break;
@@ -2371,7 +2371,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16s_i32:
     case INDEX_op_ld_i32:
-    case INDEX_op_bswap32_i32:
     case INDEX_op_extract_i32:
     case INDEX_op_sextract_i32:
     case INDEX_op_ld8u_i64:
@@ -2381,7 +2380,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld32s_i64:
     case INDEX_op_ld32u_i64:
     case INDEX_op_ld_i64:
-    case INDEX_op_bswap32_i64:
     case INDEX_op_bswap64_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:

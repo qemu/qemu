@@ -3090,6 +3090,20 @@ static const TCGOutOpBswap outop_bswap16 = {
     .out_rr = tgen_bswap16,
 };
 
+static void tgen_bswap32(TCGContext *s, TCGType type,
+                         TCGReg a0, TCGReg a1, unsigned flags)
+{
+    tcg_out_bswap32(s, a0);
+    if (flags & TCG_BSWAP_OS) {
+        tcg_out_ext32s(s, a0, a0);
+    }
+}
+
+static const TCGOutOpBswap outop_bswap32 = {
+    .base.static_constraint = C_O1_I1(r, 0),
+    .out_rr = tgen_bswap32,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
@@ -3190,13 +3204,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out32(s, a0);
         } else {
             tcg_out_st(s, TCG_TYPE_I32, a0, a1, a2);
-        }
-        break;
-
-    OP_32_64(bswap32):
-        tcg_out_bswap32(s, a0);
-        if (rexw && (a2 & TCG_BSWAP_OS)) {
-            tcg_out_ext32s(s, a0, a0);
         }
         break;
 
@@ -3972,8 +3979,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
         return C_O0_I2(re, r);
 
-    case INDEX_op_bswap32_i32:
-    case INDEX_op_bswap32_i64:
     case INDEX_op_bswap64_i64:
     case INDEX_op_extrh_i64_i32:
         return C_O1_I1(r, 0);

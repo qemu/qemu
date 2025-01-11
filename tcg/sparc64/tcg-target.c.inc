@@ -1729,6 +1729,10 @@ static const TCGOutOpBswap outop_bswap16 = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static const TCGOutOpBswap outop_bswap32 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
      tgen_sub(s, type, a0, TCG_REG_G0, a1);
