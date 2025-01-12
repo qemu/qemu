@@ -1587,8 +1587,8 @@ static const TCGOutOpExtract outop_extract = {
     .out_rr = tgen_extract,
 };
 
-static void tgen_sextract(TCGContext *s, TCGReg dest, TCGReg src,
-                          int ofs, int len)
+static void tgen_sextract(TCGContext *s, TCGType type, TCGReg dest,
+                          TCGReg src, unsigned ofs, unsigned len)
 {
     if (ofs == 0) {
         switch (len) {
@@ -1605,6 +1605,11 @@ static void tgen_sextract(TCGContext *s, TCGReg dest, TCGReg src,
     }
     g_assert_not_reached();
 }
+
+static const TCGOutOpExtract outop_sextract = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_sextract,
+};
 
 static void tgen_gotoi(TCGContext *s, int cc, const tcg_insn_unit *dest)
 {
@@ -2980,10 +2985,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 
-    OP_32_64(sextract):
-        tgen_sextract(s, args[0], args[1], args[2], args[3]);
-        break;
-
     case INDEX_op_mb:
         /* The host memory model is quite strong, we simply need to
            serialize the instruction stream.  */
@@ -3472,8 +3473,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_sextract_i64:
         return C_O1_I1(r, r);
 
     case INDEX_op_qemu_ld_i32:

@@ -1816,6 +1816,33 @@ static const TCGOutOpExtract outop_extract = {
     .out_rr = tgen_extract,
 };
 
+static void tgen_sextract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                          unsigned ofs, unsigned len)
+{
+    if (ofs == 0) {
+        switch (len) {
+        case 8:
+            tcg_out_ext8s(s, type, a0, a1);
+            return;
+        case 16:
+            tcg_out_ext16s(s, type, a0, a1);
+            return;
+        case 32:
+            tcg_out_ext32s(s, a0, a1);
+            return;
+        }
+    } else if (ofs + len == 32) {
+        tcg_out_opc_srai_w(s, a0, a1, ofs);
+        return;
+    }
+    g_assert_not_reached();
+}
+
+static const TCGOutOpExtract outop_sextract = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_sextract,
+};
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1842,26 +1869,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     case INDEX_op_extrh_i64_i32:
         tcg_out_opc_srai_d(s, a0, a1, 32);
-        break;
-
-    case INDEX_op_sextract_i64:
-        if (a2 + args[3] == 32) {
-            if (a2 == 0) {
-                tcg_out_ext32s(s, a0, a1);
-            } else {
-                tcg_out_opc_srai_w(s, a0, a1, a2);
-            }
-            break;
-        }
-        /* FALLTHRU */
-    case INDEX_op_sextract_i32:
-        if (a2 == 0 && args[3] == 8) {
-            tcg_out_ext8s(s, TCG_TYPE_REG, a0, a1);
-        } else if (a2 == 0 && args[3] == 16) {
-            tcg_out_ext16s(s, TCG_TYPE_REG, a0, a1);
-        } else {
-            g_assert_not_reached();
-        }
         break;
 
     case INDEX_op_deposit_i32:
@@ -2462,8 +2469,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extrh_i64_i32:
     case INDEX_op_ext_i32_i64:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_sextract_i64:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld8s_i64:
     case INDEX_op_ld8u_i32:

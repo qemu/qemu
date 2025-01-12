@@ -57,8 +57,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_sextract_i64:
         return C_O1_I1(r, r);
 
     case INDEX_op_st8_i32:
@@ -452,6 +450,11 @@ static void tcg_out_sextract(TCGContext *s, TCGType type, TCGReg rd,
                     INDEX_op_sextract_i64;
     tcg_out_op_rrbb(s, opc, rd, rs, pos, len);
 }
+
+static const TCGOutOpExtract outop_sextract = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tcg_out_sextract,
+};
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
 {
@@ -1076,10 +1079,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 
     CASE_32_64(deposit)
         tcg_out_op_rrrbb(s, opc, args[0], args[1], args[2], args[3], args[4]);
-        break;
-
-    CASE_32_64(sextract) /* Optional (TCG_TARGET_HAS_sextract_*). */
-        tcg_out_op_rrbb(s, opc, args[0], args[1], args[2], args[3]);
         break;
 
     CASE_32_64(add2)

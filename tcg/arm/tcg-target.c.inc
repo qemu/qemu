@@ -1020,12 +1020,12 @@ static const TCGOutOpExtract outop_extract = {
     .out_rr = tgen_extract,
 };
 
-static void tcg_out_sextract(TCGContext *s, ARMCond cond, TCGReg rd,
-                             TCGReg rn, int ofs, int len)
+static void tgen_sextract(TCGContext *s, TCGType type, TCGReg rd, TCGReg rn,
+                          unsigned ofs, unsigned len)
 {
     if (use_armv7_instructions) {
         /* sbfx */
-        tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | rn
+        tcg_out32(s, 0x07a00050 | (COND_AL << 28) | (rd << 12) | rn
                   | (ofs << 7) | ((len - 1) << 16));
         return;
     }
@@ -1034,16 +1034,23 @@ static void tcg_out_sextract(TCGContext *s, ARMCond cond, TCGReg rd,
     switch (len) {
     case 8:
         /* sxtb */
-        tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        tcg_out32(s, 0x06af0070 | (COND_AL << 28) |
+                  (rd << 12) | (ofs << 7) | rn);
         break;
     case 16:
         /* sxth */
-        tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        tcg_out32(s, 0x06bf0070 | (COND_AL << 28) |
+                  (rd << 12) | (ofs << 7) | rn);
         break;
     default:
         g_assert_not_reached();
     }
 }
+
+static const TCGOutOpExtract outop_sextract = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_sextract,
+};
 
 
 static void tcg_out_ld32u(TCGContext *s, ARMCond cond,
@@ -2399,9 +2406,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_deposit(s, COND_AL, args[0], args[2],
                         args[3], args[4], const_args[2]);
         break;
-    case INDEX_op_sextract_i32:
-        tcg_out_sextract(s, COND_AL, args[0], args[1], args[2], args[3]);
-        break;
     case INDEX_op_extract2_i32:
         /* ??? These optimization vs zero should be generic.  */
         /* ??? But we can't substitute 2 for 1 in the opcode stream yet.  */
@@ -2448,7 +2452,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16s_i32:
     case INDEX_op_ld_i32:
-    case INDEX_op_sextract_i32:
         return C_O1_I1(r, r);
 
     case INDEX_op_st8_i32:
