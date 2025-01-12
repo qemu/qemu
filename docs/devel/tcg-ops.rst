@@ -458,7 +458,7 @@ Misc
 
    * - extract *dest*, *t1*, *pos*, *len*
 
-       sextract_i32/i64 *dest*, *t1*, *pos*, *len*
+       sextract *dest*, *t1*, *pos*, *len*
 
      - | Extract a bitfield from *t1*, placing the result in *dest*.
        |

@@ -2317,7 +2317,6 @@ static int fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
 
 static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
 {
-    TCGOpcode sext_opc = 0;
     TCGCond cond = op->args[3];
     TCGArg ret, src1, src2;
     TCGOp *op2;
@@ -2336,27 +2335,12 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
     }
     sh = ctz64(val);
 
-    switch (ctx->type) {
-    case TCG_TYPE_I32:
-        if (TCG_TARGET_sextract_valid(TCG_TYPE_I32, sh, 1)) {
-            sext_opc = INDEX_op_sextract_i32;
-        }
-        break;
-    case TCG_TYPE_I64:
-        if (TCG_TARGET_sextract_valid(TCG_TYPE_I64, sh, 1)) {
-            sext_opc = INDEX_op_sextract_i64;
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
     ret = op->args[0];
     src1 = op->args[1];
     inv = cond == TCG_COND_TSTEQ;
 
-    if (sh && sext_opc && neg && !inv) {
-        op->opc = sext_opc;
+    if (sh && neg && !inv && TCG_TARGET_sextract_valid(ctx->type, sh, 1)) {
+        op->opc = INDEX_op_sextract;
         op->args[1] = src1;
         op->args[2] = sh;
         op->args[3] = 1;
@@ -3019,7 +3003,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_bitsel_vec:
             done = fold_bitsel_vec(&ctx, op);
             break;
-        CASE_OP_32_64(sextract):
+        case INDEX_op_sextract:
             done = fold_sextract(&ctx, op);
             break;
         case INDEX_op_sub:

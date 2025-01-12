@@ -28,6 +28,7 @@
 
 #define ctpop_tr    glue(ctpop, TCG_TARGET_REG_BITS)
 #define extract_tr  glue(extract, TCG_TARGET_REG_BITS)
+#define sextract_tr glue(sextract, TCG_TARGET_REG_BITS)
 
 /*
  * Enable TCI assertions only when debugging TCG (and without NDEBUG defined).
@@ -661,9 +662,9 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
             regs[r0] = extract_tr(regs[r1], pos, len);
             break;
-        case INDEX_op_sextract_i32:
+        case INDEX_op_sextract:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = sextract32(regs[r1], pos, len);
+            regs[r0] = sextract_tr(regs[r1], pos, len);
             break;
         case INDEX_op_brcond:
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
@@ -772,10 +773,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
         case INDEX_op_deposit_i64:
             tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
             regs[r0] = deposit64(regs[r1], pos, len, regs[r2]);
-            break;
-        case INDEX_op_sextract_i64:
-            tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = sextract64(regs[r1], pos, len);
             break;
         case INDEX_op_ext_i32_i64:
             tci_args_rr(insn, &r0, &r1);
@@ -1055,8 +1052,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
         break;
 
     case INDEX_op_extract:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_sextract_i64:
+    case INDEX_op_sextract:
         tci_args_rrbb(insn, &r0, &r1, &pos, &len);
         info->fprintf_func(info->stream, "%-12s  %s,%s,%d,%d",
                            op_name, str_r(r0), str_r(r1), pos, len);
