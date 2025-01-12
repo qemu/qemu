@@ -2794,6 +2794,18 @@ static const TCGOutOpBinary outop_eqv = {
     .base.static_constraint = C_NotImplemented,
 };
 
+#if TCG_TARGET_REG_BITS == 64
+static void tgen_extrh_i64_i32(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_shifti(s, SHIFT_SHR + P_REXW, a0, 32);
+}
+
+static const TCGOutOpUnary outop_extrh_i64_i32 = {
+    .base.static_constraint = C_O1_I1(r, 0),
+    .out_rr = tgen_extrh_i64_i32,
+};
+#endif /* TCG_TARGET_REG_BITS == 64 */
+
 static void tgen_mul(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -3212,6 +3224,7 @@ static const TCGOutOpExtract outop_sextract = {
     .out_rr = tgen_sextract,
 };
 
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -3362,10 +3375,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         } else {
             tcg_out_st(s, TCG_TYPE_I64, a0, a1, a2);
         }
-        break;
-
-    case INDEX_op_extrh_i64_i32:
-        tcg_out_shifti(s, SHIFT_SHR + P_REXW, a0, 32);
         break;
 #endif
 
@@ -3994,9 +4003,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_st_i64:
         return C_O0_I2(re, r);
-
-    case INDEX_op_extrh_i64_i32:
-        return C_O1_I1(r, 0);
 
     case INDEX_op_extract2_i32:
     case INDEX_op_extract2_i64:
