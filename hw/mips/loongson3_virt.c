@@ -399,22 +399,30 @@ static uint64_t load_kernel(CPUMIPSState *env)
     return kernel_entry;
 }
 
-static void main_cpu_reset(void *opaque)
+static void generic_cpu_reset(void *opaque)
 {
     MIPSCPU *cpu = opaque;
     CPUMIPSState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
 
-    /* Loongson-3 reset stuff */
     if (loaderparams.kernel_filename) {
-        if (cpu == MIPS_CPU(first_cpu)) {
-            env->active_tc.gpr[4] = loaderparams.a0;
-            env->active_tc.gpr[5] = loaderparams.a1;
-            env->active_tc.gpr[6] = loaderparams.a2;
-            env->active_tc.PC = loaderparams.kernel_entry;
-        }
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
+    }
+}
+
+static void main_cpu_reset(void *opaque)
+{
+    generic_cpu_reset(opaque);
+
+    if (loaderparams.kernel_filename) {
+        MIPSCPU *cpu = opaque;
+        CPUMIPSState *env = &cpu->env;
+
+        env->active_tc.gpr[4] = loaderparams.a0;
+        env->active_tc.gpr[5] = loaderparams.a1;
+        env->active_tc.gpr[6] = loaderparams.a2;
+        env->active_tc.PC = loaderparams.kernel_entry;
     }
 }
 
@@ -572,7 +580,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
-        qemu_register_reset(main_cpu_reset, cpu);
+        qemu_register_reset(i ? generic_cpu_reset : main_cpu_reset, cpu);
 
         if (!kvm_enabled()) {
             hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
