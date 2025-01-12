@@ -1083,6 +1083,16 @@ static const TCGOutOpUnary outop_exts_i32_i64 = {
     .base.static_constraint = C_O1_I1(r, r),
     .out_rr = tgen_exts_i32_i64,
 };
+
+static void tgen_extu_i32_i64(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_extu_i32_i64(s, a0, a1);
+}
+
+static const TCGOutOpUnary outop_extu_i32_i64 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_extu_i32_i64,
+};
 #endif
 
 /*
@@ -1140,6 +1150,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
 #else
     OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
     OUTOP(INDEX_op_ext_i32_i64, TCGOutOpUnary, outop_exts_i32_i64),
+    OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
 #endif
 };
 
@@ -5430,9 +5441,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     /* emit instruction */
     TCGType type = TCGOP_TYPE(op);
     switch (op->opc) {
-    case INDEX_op_extu_i32_i64:
-        tcg_out_extu_i32_i64(s, new_args[0], new_args[1]);
-        break;
     case INDEX_op_extrl_i64_i32:
         tcg_out_extrl_i64_i32(s, new_args[0], new_args[1]);
         break;
@@ -5493,6 +5501,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
     case INDEX_op_bswap64:
     case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
         assert(TCG_TARGET_REG_BITS == 64);
         /* fall through */
     case INDEX_op_ctpop:
