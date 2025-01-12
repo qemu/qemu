@@ -280,7 +280,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static void fw_conf_init(unsigned long ram_size)
+static void fw_conf_init(void)
 {
     static const uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
     FWCfgState *fw_cfg;
@@ -289,9 +289,9 @@ static void fw_conf_init(unsigned long ram_size)
     fw_cfg = fw_cfg_init_mem_wide(cfg_addr, cfg_addr + 8, 8, 0, NULL);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)current_machine->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)current_machine->smp.max_cpus);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, loaderparams.ram_size);
     fw_cfg_add_i32(fw_cfg, FW_CFG_MACHINE_VERSION, 1);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_CPU_FREQ, get_cpu_freq_hz());
+    fw_cfg_add_i64(fw_cfg, FW_CFG_CPU_FREQ, loaderparams.cpu_freq);
 
     fw_cfg_add_file(fw_cfg, "etc/system-states",
                     g_memdup2(suspend, sizeof(suspend)), sizeof(suspend));
@@ -633,9 +633,9 @@ static void mips_loongson3_virt_init(MachineState *machine)
      * Please use -L to set the BIOS path and -bios to set bios name.
      */
 
+    loaderparams.cpu_freq = get_cpu_freq_hz();
+    loaderparams.ram_size = ram_size;
     if (kernel_filename) {
-        loaderparams.cpu_freq = get_cpu_freq_hz();
-        loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
@@ -661,7 +661,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
             exit(1);
         }
 
-        fw_conf_init(ram_size);
+        fw_conf_init();
     }
 
     loongson3_virt_devices_init(machine, liointc);
