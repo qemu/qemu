@@ -1093,6 +1093,16 @@ static const TCGOutOpUnary outop_extu_i32_i64 = {
     .base.static_constraint = C_O1_I1(r, r),
     .out_rr = tgen_extu_i32_i64,
 };
+
+static void tgen_extrl_i64_i32(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_extrl_i64_i32(s, a0, a1);
+}
+
+static const TCGOutOpUnary outop_extrl_i64_i32 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = TCG_TARGET_HAS_extr_i64_i32 ? tgen_extrl_i64_i32 : NULL,
+};
 #endif
 
 /*
@@ -1151,6 +1161,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
     OUTOP(INDEX_op_ext_i32_i64, TCGOutOpUnary, outop_exts_i32_i64),
     OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
+    OUTOP(INDEX_op_extrl_i64_i32, TCGOutOpUnary, outop_extrl_i64_i32),
 #endif
 };
 
@@ -2400,12 +2411,12 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
     case INDEX_op_deposit_i64:
         return TCG_TARGET_REG_BITS == 64;
 
     case INDEX_op_extract2_i64:
         return TCG_TARGET_HAS_extract2_i64;
-    case INDEX_op_extrl_i64_i32:
     case INDEX_op_extrh_i64_i32:
         return TCG_TARGET_HAS_extr_i64_i32;
     case INDEX_op_add2_i64:
@@ -5441,10 +5452,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     /* emit instruction */
     TCGType type = TCGOP_TYPE(op);
     switch (op->opc) {
-    case INDEX_op_extrl_i64_i32:
-        tcg_out_extrl_i64_i32(s, new_args[0], new_args[1]);
-        break;
-
     case INDEX_op_add:
     case INDEX_op_and:
     case INDEX_op_andc:
@@ -5502,6 +5509,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_bswap64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
         assert(TCG_TARGET_REG_BITS == 64);
         /* fall through */
     case INDEX_op_ctpop:
@@ -6660,6 +6668,22 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
         TCGOpcode opc = op->opc;
 
         switch (opc) {
+        case INDEX_op_extrl_i64_i32:
+            assert(TCG_TARGET_REG_BITS == 64);
+            /*
+             * If TCG_TYPE_I32 is represented in some canonical form,
+             * e.g. zero or sign-extended, then emit as a unary op.
+             * Otherwise we can treat this as a plain move.
+             * If the output dies, treat this as a plain move, because
+             * this will be implemented with a store.
+             */
+            if (TCG_TARGET_HAS_extr_i64_i32) {
+                TCGLifeData arg_life = op->life;
+                if (!IS_DEAD_ARG(0)) {
+                    goto do_default;
+                }
+            }
+            /* fall through */
         case INDEX_op_mov:
         case INDEX_op_mov_vec:
             tcg_reg_alloc_mov(s, op);
@@ -6702,6 +6726,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             }
             /* fall through */
         default:
+        do_default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
             tcg_debug_assert(tcg_op_supported(opc, TCGOP_TYPE(op),
                                               TCGOP_FLAGS(op)));
