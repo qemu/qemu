@@ -185,6 +185,7 @@ static void init_boot_param(unsigned cpu_count)
     init_reset_system(&(bp->reset_system));
     p += ROUND_UP(sizeof(struct boot_params), 64);
     init_loongson_params(&(bp->efi.smbios.lp), p, cpu_count,
+                         MIPS_CPU(first_cpu)->env.CP0_PRid,
                          loaderparams.cpu_freq, loaderparams.ram_size);
 
     rom_add_blob_fixed("params_rom", bp,
