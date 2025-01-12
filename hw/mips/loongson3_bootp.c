@@ -24,10 +24,10 @@
 #include "qemu/bswap.h"
 #include "exec/hwaddr.h"
 #include "cpu.h"
-#include "hw/boards.h"
 #include "hw/mips/loongson3_bootp.h"
 
-static void init_cpu_info(void *g_cpuinfo, uint64_t cpu_freq)
+static void init_cpu_info(void *g_cpuinfo, uint32_t cpu_count,
+                          uint64_t cpu_freq)
 {
     struct efi_cpuinfo_loongson *c = g_cpuinfo;
 
@@ -40,8 +40,8 @@ static void init_cpu_info(void *g_cpuinfo, uint64_t cpu_freq)
     }
 
     c->cpu_startup_core_id = cpu_to_le16(0);
-    c->nr_cpus = cpu_to_le32(current_machine->smp.cpus);
-    c->total_node = cpu_to_le32(DIV_ROUND_UP(current_machine->smp.cpus,
+    c->nr_cpus = cpu_to_le32(cpu_count);
+    c->total_node = cpu_to_le32(DIV_ROUND_UP(cpu_count,
                                              LOONGSON3_CORE_PER_NODE));
 }
 
@@ -112,9 +112,10 @@ static void init_special_info(void *g_special)
 }
 
 void init_loongson_params(struct loongson_params *lp, void *p,
+                          uint32_t cpu_count,
                           uint64_t cpu_freq, uint64_t ram_size)
 {
-    init_cpu_info(p, cpu_freq);
+    init_cpu_info(p, cpu_count, cpu_freq);
     lp->cpu_offset = cpu_to_le64((uintptr_t)p - (uintptr_t)lp);
     p += ROUND_UP(sizeof(struct efi_cpuinfo_loongson), 64);
 
