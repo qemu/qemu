@@ -21,6 +21,8 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
+#include "qemu/bswap.h"
+#include "exec/hwaddr.h"
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/mips/loongson3_bootp.h"
