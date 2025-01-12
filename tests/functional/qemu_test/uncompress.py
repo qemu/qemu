@@ -10,8 +10,10 @@
 import gzip
 import lzma
 import os
+import stat
 import shutil
 from urllib.parse import urlparse
+from subprocess import check_call, CalledProcessError
 
 from .asset import Asset
 
@@ -38,6 +40,24 @@ def lzma_uncompress(xz_path, output_path):
             os.remove(output_path)
             raise
 
+
+def zstd_uncompress(zstd_path, output_path):
+    if os.path.exists(output_path):
+        return
+
+    try:
+        check_call(['zstd', "-f", "-d", zstd_path,
+                    "-o", output_path])
+    except CalledProcessError as e:
+        os.remove(output_path)
+        raise Exception(
+            f"Unable to decompress zstd file {zstd_path} with {e}") from e
+
+    # zstd copies source archive permissions for the output
+    # file, so must make this writable for QEMU
+    os.chmod(output_path, stat.S_IRUSR | stat.S_IWUSR)
+
+
 '''
 @params compressed: filename, Asset, or file-like object to uncompress
 @params uncompressed: filename to uncompress into
@@ -59,6 +79,8 @@ def uncompress(compressed, uncompressed, format=None):
         lzma_uncompress(str(compressed), uncompressed)
     elif format == "gz":
         gzip_uncompress(str(compressed), uncompressed)
+    elif format == "zstd":
+        zstd_uncompress(str(compressed), uncompressed)
     else:
         raise Exception(f"Unknown compression format {format}")
 
@@ -79,5 +101,7 @@ def guess_uncompress_format(compressed):
         return "xz"
     elif ext == ".gz":
         return "gz"
+    elif ext in [".zstd", ".zst"]:
+        return 'zstd'
     else:
         raise Exception(f"Unknown compression format for {compressed}")
