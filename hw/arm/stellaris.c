@@ -1031,7 +1031,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      */
 
     Object *soc_container;
-    DeviceState *gpio_dev[7], *nvic;
+    DeviceState *gpio_dev[7], *armv7m, *nvic;
     qemu_irq gpio_in[7][8];
     qemu_irq gpio_out[7][8];
     qemu_irq adc;
@@ -1095,19 +1095,20 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
 
-    nvic = qdev_new(TYPE_ARMV7M);
-    object_property_add_child(soc_container, "v7m", OBJECT(nvic));
-    qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
-    qdev_prop_set_uint8(nvic, "num-prio-bits", NUM_PRIO_BITS);
-    qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
-    qdev_prop_set_bit(nvic, "enable-bitband", true);
-    qdev_connect_clock_in(nvic, "cpuclk",
+    armv7m = qdev_new(TYPE_ARMV7M);
+    object_property_add_child(soc_container, "v7m", OBJECT(armv7m));
+    qdev_prop_set_uint32(armv7m, "num-irq", NUM_IRQ_LINES);
+    qdev_prop_set_uint8(armv7m, "num-prio-bits", NUM_PRIO_BITS);
+    qdev_prop_set_string(armv7m, "cpu-type", ms->cpu_type);
+    qdev_prop_set_bit(armv7m, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m, "cpuclk",
                           qdev_get_clock_out(ssys_dev, "SYSCLK"));
     /* This SoC does not connect the systick reference clock */
-    object_property_set_link(OBJECT(nvic), "memory",
+    object_property_set_link(OBJECT(armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(armv7m), &error_fatal);
+    nvic = armv7m;
 
     /* Now we can wire up the IRQ and MMIO of the system registers */
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
