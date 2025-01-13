@@ -2858,7 +2858,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_ctpop:
             done = fold_ctpop(&ctx, op);
             break;
-        CASE_OP_32_64(deposit):
+        case INDEX_op_deposit:
             done = fold_deposit(&ctx, op);
             break;
         case INDEX_op_divs:

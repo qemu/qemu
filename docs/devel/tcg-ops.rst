@@ -442,7 +442,7 @@ Misc
      - | Indicate that the value of *t0* won't be used later. It is useful to
          force dead code elimination.
 
-   * - deposit_i32/i64 *dest*, *t1*, *t2*, *pos*, *len*
+   * - deposit *dest*, *t1*, *t2*, *pos*, *len*
 
      - | Deposit *t2* as a bitfield into *t1*, placing the result in *dest*.
        |
@@ -451,10 +451,12 @@ Misc
        |     *len* - the length of the bitfield
        |     *pos* - the position of the first bit, counting from the LSB
        |
-       | For example, "deposit_i32 dest, t1, t2, 8, 4" indicates a 4-bit field
+       | For example, "deposit dest, t1, t2, 8, 4" indicates a 4-bit field
          at bit 8. This operation would be equivalent to
        |
        |     *dest* = (*t1* & ~0x0f00) | ((*t2* << 8) & 0x0f00)
+       |
+       | on TCG_TYPE_I32.
 
    * - extract *dest*, *t1*, *pos*, *len*
 
