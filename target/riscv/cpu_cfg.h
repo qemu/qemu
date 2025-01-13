@@ -139,6 +139,8 @@ struct RISCVCPUConfig {
     bool ext_ssnpm;
     bool ext_smnpm;
     bool ext_smmpm;
+    bool ext_sspm;
+    bool ext_supm;
     bool rvv_ta_all_1s;
     bool rvv_ma_all_1s;
     bool rvv_vl_half_avl;
