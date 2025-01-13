@@ -44,6 +44,7 @@ test_timeouts = {
   'riscv64_tuxrun' : 120,
   's390x_ccw_virtio' : 420,
   'sh4_tuxrun' : 240,
+  'x86_64_kvm_xen' : 180,
 }
 
 tests_generic_system = [
@@ -244,6 +245,7 @@ tests_x86_64_system_thorough = [
   'netdev_ethtool',
   'virtio_gpu',
   'x86_64_hotplug_cpu',
+  'x86_64_kvm_xen',
   'x86_64_tuxrun',
 ]
 

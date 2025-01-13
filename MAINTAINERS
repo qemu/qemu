@@ -489,7 +489,7 @@ S: Supported
 F: include/system/kvm_xen.h
 F: target/i386/kvm/xen*
 F: hw/i386/kvm/xen*
-F: tests/avocado/kvm_xen_guest.py
+F: tests/functional/test_x86_64_kvm_xen.py
 
 Guest CPU Cores (other accelerators)
 ------------------------------------
