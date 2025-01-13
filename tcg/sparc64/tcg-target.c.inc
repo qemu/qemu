@@ -1767,6 +1767,10 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
                          unsigned ofs, unsigned len)
 {

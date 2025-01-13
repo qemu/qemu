@@ -3150,6 +3150,43 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         TCGReg a2, unsigned ofs, unsigned len)
+{
+    if (ofs == 0 && len == 8) {
+        tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM, a2, a0);
+    } else if (ofs == 0 && len == 16) {
+        tcg_out_modrm(s, OPC_MOVL_EvGv | P_DATA16, a2, a0);
+    } else if (TCG_TARGET_REG_BITS == 32 && ofs == 8 && len == 8) {
+        tcg_out_modrm(s, OPC_MOVB_EvGv, a2, a0 + 4);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void tgen_depositi(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                          tcg_target_long a2, unsigned ofs, unsigned len)
+{
+    if (ofs == 0 && len == 8) {
+        tcg_out_opc(s, OPC_MOVB_Ib | P_REXB_RM | LOWREGMASK(a0), 0, a0, 0);
+        tcg_out8(s, a2);
+    } else if (ofs == 0 && len == 16) {
+        tcg_out_opc(s, OPC_MOVL_Iv | P_DATA16 | LOWREGMASK(a0), 0, a0, 0);
+        tcg_out16(s, a2);
+    } else if (TCG_TARGET_REG_BITS == 32 && ofs == 8 && len == 8) {
+        tcg_out8(s, OPC_MOVB_Ib + a0 + 4);
+        tcg_out8(s, a2);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_O1_I2(q, 0, qi),
+    .out_rrr = tgen_deposit,
+    .out_rri = tgen_depositi,
+};
+
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
                          unsigned ofs, unsigned len)
 {
@@ -3230,7 +3267,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int const_a2, rexw;
+    int rexw;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
@@ -3245,7 +3282,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     a0 = args[0];
     a1 = args[1];
     a2 = args[2];
-    const_a2 = const_args[2];
     rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
 
     switch (opc) {
@@ -3377,38 +3413,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         }
         break;
 #endif
-
-    OP_32_64(deposit):
-        if (args[3] == 0 && args[4] == 8) {
-            /* load bits 0..7 */
-            if (const_a2) {
-                tcg_out_opc(s, OPC_MOVB_Ib | P_REXB_RM | LOWREGMASK(a0),
-                            0, a0, 0);
-                tcg_out8(s, a2);
-            } else {
-                tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM, a2, a0);
-            }
-        } else if (TCG_TARGET_REG_BITS == 32 && args[3] == 8 && args[4] == 8) {
-            /* load bits 8..15 */
-            if (const_a2) {
-                tcg_out8(s, OPC_MOVB_Ib + a0 + 4);
-                tcg_out8(s, a2);
-            } else {
-                tcg_out_modrm(s, OPC_MOVB_EvGv, a2, a0 + 4);
-            }
-        } else if (args[3] == 0 && args[4] == 16) {
-            /* load bits 0..15 */
-            if (const_a2) {
-                tcg_out_opc(s, OPC_MOVL_Iv | P_DATA16 | LOWREGMASK(a0),
-                            0, a0, 0);
-                tcg_out16(s, a2);
-            } else {
-                tcg_out_modrm(s, OPC_MOVL_EvGv | P_DATA16, a2, a0);
-            }
-        } else {
-            g_assert_not_reached();
-        }
-        break;
 
     OP_32_64(extract2):
         /* Note that SHRD outputs to the r/m operand.  */
@@ -4007,10 +4011,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_extract2_i32:
     case INDEX_op_extract2_i64:
         return C_O1_I2(r, 0, r);
-
-    case INDEX_op_deposit_i32:
-    case INDEX_op_deposit_i64:
-        return C_O1_I2(q, 0, qi);
 
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:

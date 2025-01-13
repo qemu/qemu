@@ -1347,15 +1347,6 @@ static inline void tcg_out_extr(TCGContext *s, TCGType ext, TCGReg rd,
     tcg_out_insn(s, 3403, EXTR, ext, rd, rn, rm, a);
 }
 
-static inline void tcg_out_dep(TCGContext *s, TCGType ext, TCGReg rd,
-                               TCGReg rn, unsigned lsb, unsigned width)
-{
-    unsigned size = ext ? 64 : 32;
-    unsigned a = (size - lsb) & (size - 1);
-    unsigned b = width - 1;
-    tcg_out_bfm(s, ext, rd, rn, a, b);
-}
-
 static void tgen_cmp(TCGContext *s, TCGType ext, TCGCond cond,
                      TCGReg a, TCGReg b)
 {
@@ -2577,6 +2568,18 @@ static const TCGOutOpMovcond outop_movcond = {
     .out = tgen_movcond,
 };
 
+static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         TCGReg a2, unsigned ofs, unsigned len)
+{
+    unsigned mask = type == TCG_TYPE_I32 ? 31 : 63;
+    tcg_out_bfm(s, type, a0, a2, -ofs & mask, len - 1);
+}
+
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_O1_I2(r, 0, rz),
+    .out_rrr = tgen_deposit,
+};
+
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
                          unsigned ofs, unsigned len)
 {
@@ -2682,11 +2685,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_qemu_st_i128:
         tcg_out_qemu_ldst_i128(s, a0, a1, a2, args[3], false);
-        break;
-
-    case INDEX_op_deposit_i64:
-    case INDEX_op_deposit_i32:
-        tcg_out_dep(s, ext, a0, a2, args[3], args[4]);
         break;
 
     case INDEX_op_extract2_i64:
@@ -3205,10 +3203,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O0_I2(rz, r);
     case INDEX_op_qemu_st_i128:
         return C_O0_I3(rz, rz, r);
-
-    case INDEX_op_deposit_i32:
-    case INDEX_op_deposit_i64:
-        return C_O1_I2(r, 0, rz);
 
     case INDEX_op_extract2_i32:
     case INDEX_op_extract2_i64:

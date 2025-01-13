@@ -1809,6 +1809,21 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         TCGReg a2, unsigned ofs, unsigned len)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_opc_bstrins_w(s, a0, a2, ofs, ofs + len - 1);
+    } else {
+        tcg_out_opc_bstrins_d(s, a0, a2, ofs, ofs + len - 1);
+    }
+}
+
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_O1_I2(r, 0, rz),
+    .out_rrr = tgen_deposit,
+};
+
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
                          unsigned ofs, unsigned len)
 {
@@ -1875,13 +1890,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_reloc(s, s->code_ptr, R_LOONGARCH_BR_SD10K16, arg_label(a0),
                       0);
         tcg_out_opc_b(s, 0);
-        break;
-
-    case INDEX_op_deposit_i32:
-        tcg_out_opc_bstrins_w(s, a0, a2, args[3], args[3] + args[4] - 1);
-        break;
-    case INDEX_op_deposit_i64:
-        tcg_out_opc_bstrins_d(s, a0, a2, args[3], args[3] + args[4] - 1);
         break;
 
     case INDEX_op_ld8s_i32:
@@ -2483,11 +2491,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
         return C_O1_I1(r, r);
-
-    case INDEX_op_deposit_i32:
-    case INDEX_op_deposit_i64:
-        /* Must deposit into the same register as input */
-        return C_O1_I2(r, 0, rz);
 
     case INDEX_op_ld_vec:
     case INDEX_op_dupm_vec:

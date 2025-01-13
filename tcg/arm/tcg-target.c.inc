@@ -969,17 +969,26 @@ static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg rd, TCGReg rn)
     g_assert_not_reached();
 }
 
-static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
-                            TCGArg a1, int ofs, int len, bool const_a1)
+static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         TCGReg a2, unsigned ofs, unsigned len)
 {
-    if (const_a1) {
-        /* bfi becomes bfc with rn == 15.  */
-        a1 = 15;
-    }
     /* bfi/bfc */
-    tcg_out32(s, 0x07c00010 | (cond << 28) | (rd << 12) | a1
+    tcg_out32(s, 0x07c00010 | (COND_AL << 28) | (a0 << 12) | a1
               | (ofs << 7) | ((ofs + len - 1) << 16));
 }
+
+static void tgen_depositi(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                          tcg_target_long a2, unsigned ofs, unsigned len)
+{
+    /* bfi becomes bfc with rn == 15.  */
+    tgen_deposit(s, type, a0, a1, 15, ofs, len);
+}
+
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_O1_I2(r, 0, rZ),
+    .out_rrr = tgen_deposit,
+    .out_rri = tgen_depositi,
+};
 
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg rd, TCGReg rn,
                          unsigned ofs, unsigned len)
@@ -2402,10 +2411,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_qemu_st(s, args[0], args[1], args[2], args[3], TCG_TYPE_I64);
         break;
 
-    case INDEX_op_deposit_i32:
-        tcg_out_deposit(s, COND_AL, args[0], args[2],
-                        args[3], args[4], const_args[2]);
-        break;
     case INDEX_op_extract2_i32:
         /* ??? These optimization vs zero should be generic.  */
         /* ??? But we can't substitute 2 for 1 in the opcode stream yet.  */
@@ -2459,8 +2464,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i32:
         return C_O0_I2(r, r);
 
-    case INDEX_op_deposit_i32:
-        return C_O1_I2(r, 0, rZ);
     case INDEX_op_extract2_i32:
         return C_O1_I2(r, rZ, rZ);
     case INDEX_op_add2_i32:

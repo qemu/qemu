@@ -1007,6 +1007,16 @@ typedef struct TCGOutOpBswap {
                    TCGReg a0, TCGReg a1, unsigned flags);
 } TCGOutOpBswap;
 
+typedef struct TCGOutOpDeposit {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                    TCGReg a2, unsigned ofs, unsigned len);
+    void (*out_rri)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                    tcg_target_long a2, unsigned ofs, unsigned len);
+    void (*out_rzr)(TCGContext *s, TCGType type, TCGReg a0,
+                    TCGReg a2, unsigned ofs, unsigned len);
+} TCGOutOpDeposit;
+
 typedef struct TCGOutOpDivRem {
     TCGOutOp base;
     void (*out_rr01r)(TCGContext *s, TCGType type,
@@ -1123,6 +1133,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_clz, TCGOutOpBinary, outop_clz),
     OUTOP(INDEX_op_ctpop, TCGOutOpUnary, outop_ctpop),
     OUTOP(INDEX_op_ctz, TCGOutOpBinary, outop_ctz),
+    OUTOP(INDEX_op_deposit_i32, TCGOutOpDeposit, outop_deposit),
+    OUTOP(INDEX_op_deposit_i64, TCGOutOpDeposit, outop_deposit),
     OUTOP(INDEX_op_divs, TCGOutOpBinary, outop_divs),
     OUTOP(INDEX_op_divu, TCGOutOpBinary, outop_divu),
     OUTOP(INDEX_op_divs2, TCGOutOpDivRem, outop_divs2),
@@ -5534,6 +5546,27 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
             tcg_debug_assert(!const_args[1]);
             out->out_rr(s, type, new_args[0], new_args[1], new_args[2]);
+        }
+        break;
+
+    case INDEX_op_deposit_i32:
+    case INDEX_op_deposit_i64:
+        {
+            const TCGOutOpDeposit *out = &outop_deposit;
+
+            if (const_args[2]) {
+                tcg_debug_assert(!const_args[1]);
+                out->out_rri(s, type, new_args[0], new_args[1],
+                             new_args[2], new_args[3], new_args[4]);
+            } else if (const_args[1]) {
+                tcg_debug_assert(new_args[1] == 0);
+                tcg_debug_assert(!const_args[2]);
+                out->out_rzr(s, type, new_args[0], new_args[2],
+                             new_args[3], new_args[4]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1],
+                             new_args[2], new_args[3], new_args[4]);
+            }
         }
         break;
 

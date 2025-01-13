@@ -1555,13 +1555,39 @@ static const TCGOutOpMovcond outop_movcond = {
     .out = tgen_movcond,
 };
 
-static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
-                         int ofs, int len, int z)
+static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         TCGReg a2, unsigned ofs, unsigned len)
 {
-    int lsb = (63 - ofs);
-    int msb = lsb - (len - 1);
-    tcg_out_risbg(s, dest, src, msb, lsb, ofs, z);
+    unsigned lsb = (63 - ofs);
+    unsigned msb = lsb - (len - 1);
+
+    /*
+     * Since we can't support "0Z" as a constraint, we allow a1 in
+     * any register.  Fix things up as if a matching constraint.
+     */
+    if (a0 != a1) {
+        if (a0 == a2) {
+            tcg_out_mov(s, type, TCG_TMP0, a2);
+            a2 = TCG_TMP0;
+        }
+        tcg_out_mov(s, type, a0, a1);
+    }
+    tcg_out_risbg(s, a0, a2, msb, lsb, ofs, false);
 }
+
+static void tgen_depositz(TCGContext *s, TCGType type, TCGReg a0, TCGReg a2,
+                          unsigned ofs, unsigned len)
+{
+    unsigned lsb = (63 - ofs);
+    unsigned msb = lsb - (len - 1);
+    tcg_out_risbg(s, a0, a2, msb, lsb, ofs, true);
+}
+
+static const TCGOutOpDeposit outop_deposit = {
+    .base.static_constraint = C_O1_I2(r, rZ, r),
+    .out_rrr = tgen_deposit,
+    .out_rzr = tgen_depositz,
+};
 
 static void tgen_extract(TCGContext *s, TCGType type, TCGReg dest,
                          TCGReg src, unsigned ofs, unsigned len)
@@ -2845,7 +2871,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    TCGArg a0, a1, a2;
+    TCGArg a0;
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -2975,24 +3001,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
         }
         tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
-        break;
-
-    OP_32_64(deposit):
-        a0 = args[0], a1 = args[1], a2 = args[2];
-        if (const_args[1]) {
-            tgen_deposit(s, a0, a2, args[3], args[4], 1);
-        } else {
-            /* Since we can't support "0Z" as a constraint, we allow a1 in
-               any register.  Fix things up as if a matching constraint.  */
-            if (a0 != a1) {
-                if (a0 == a2) {
-                    tcg_out_mov(s, type, TCG_TMP0, a2);
-                    a2 = TCG_TMP0;
-                }
-                tcg_out_mov(s, type, a0, a1);
-            }
-            tgen_deposit(s, a0, a2, args[3], args[4], 0);
-        }
         break;
 
     case INDEX_op_mb:
@@ -3488,10 +3496,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O2_I1(o, m, r);
     case INDEX_op_qemu_st_i128:
         return C_O0_I3(o, m, r);
-
-    case INDEX_op_deposit_i32:
-    case INDEX_op_deposit_i64:
-        return C_O1_I2(r, rZ, r);
 
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
