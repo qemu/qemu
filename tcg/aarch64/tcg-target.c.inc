@@ -2634,6 +2634,17 @@ static const TCGOutOpExtract outop_sextract = {
     .out_rr = tgen_sextract,
 };
 
+static void tgen_extract2(TCGContext *s, TCGType type, TCGReg a0,
+                          TCGReg a1, TCGReg a2, unsigned shr)
+{
+    tcg_out_extr(s, type, a0, a2, a1, shr);
+}
+
+static const TCGOutOpExtract2 outop_extract2 = {
+    .base.static_constraint = C_O1_I2(r, rz, rz),
+    .out_rrr = tgen_extract2,
+};
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -2712,11 +2723,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_qemu_st_i128:
         tcg_out_qemu_ldst_i128(s, a0, a1, a2, args[3], false);
-        break;
-
-    case INDEX_op_extract2_i64:
-    case INDEX_op_extract2_i32:
-        tcg_out_extr(s, ext, a0, a2, a1, args[3]);
         break;
 
     case INDEX_op_add2_i32:
@@ -3230,10 +3236,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O0_I2(rz, r);
     case INDEX_op_qemu_st_i128:
         return C_O0_I3(rz, rz, r);
-
-    case INDEX_op_extract2_i32:
-    case INDEX_op_extract2_i64:
-        return C_O1_I2(r, rz, rz);
 
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:

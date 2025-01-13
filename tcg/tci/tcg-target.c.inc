@@ -447,6 +447,10 @@ static const TCGOutOpExtract outop_sextract = {
     .out_rr = tcg_out_sextract,
 };
 
+static const TCGOutOpExtract2 outop_extract2 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
 {
     tcg_out_sextract(s, type, rd, rs, 0, 8);
