@@ -618,6 +618,197 @@ static void aspeed_2600_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
     }
 }
 
+static void aspeed_2700_timer_set_ctrl(AspeedTimerCtrlState *s, int index,
+                                    uint32_t reg)
+{
+    const uint8_t overflow_interrupt_mask = BIT(op_overflow_interrupt);
+    const uint8_t external_clock_mask = BIT(op_external_clock);
+    const uint8_t pulse_enable_mask = BIT(op_pulse_enable);
+    const uint8_t enable_mask = BIT(op_enable);
+    AspeedTimer *t;
+    uint8_t t_old;
+    uint8_t t_new;
+    int shift;
+
+    /*
+     * Only 1 will set the specific bits to 1
+     * Handle a dependency between the 'enable' and remaining three
+     * configuration bits - i.e. if more than one bit in the control set has
+     * set, including the 'enable' bit, perform configuration and then
+     * enable the timer.
+     * Interrupt Status bit should not be set.
+     */
+
+     t = &s->timers[index];
+     shift = index * TIMER_CTRL_BITS;
+
+     t_old = (s->ctrl >> shift) & TIMER_CTRL_MASK;
+     t_new = reg & TIMER_CTRL_MASK;
+
+    if (!(t_old & external_clock_mask) &&
+        (t_new & external_clock_mask)) {
+        aspeed_timer_ctrl_external_clock(t, true);
+        s->ctrl = deposit32(s->ctrl, shift + op_external_clock, 1, 1);
+    }
+
+    if (!(t_old & overflow_interrupt_mask) &&
+        (t_new & overflow_interrupt_mask)) {
+        aspeed_timer_ctrl_overflow_interrupt(t, true);
+        s->ctrl = deposit32(s->ctrl, shift + op_overflow_interrupt, 1, 1);
+    }
+
+
+    if (!(t_old & pulse_enable_mask) &&
+        (t_new & pulse_enable_mask)) {
+        aspeed_timer_ctrl_pulse_enable(t, true);
+        s->ctrl = deposit32(s->ctrl, shift + op_pulse_enable, 1, 1);
+    }
+
+    /* If we are enabling, do so last */
+    if (!(t_old & enable_mask) &&
+        (t_new & enable_mask)) {
+        aspeed_timer_ctrl_enable(t, true);
+        s->ctrl = deposit32(s->ctrl, shift + op_enable, 1, 1);
+    }
+}
+
+static void aspeed_2700_timer_clear_ctrl(AspeedTimerCtrlState *s, int index,
+                                    uint32_t reg)
+{
+    const uint8_t overflow_interrupt_mask = BIT(op_overflow_interrupt);
+    const uint8_t external_clock_mask = BIT(op_external_clock);
+    const uint8_t pulse_enable_mask = BIT(op_pulse_enable);
+    const uint8_t enable_mask = BIT(op_enable);
+    AspeedTimer *t;
+    uint8_t t_old;
+    uint8_t t_new;
+    int shift;
+
+    /*
+     * Only 1 will clear the specific bits to 0
+     * Handle a dependency between the 'enable' and remaining three
+     * configuration bits - i.e. if more than one bit in the control set has
+     * clear, including the 'enable' bit, then disable the timer and perform
+     * configuration
+     */
+
+     t = &s->timers[index];
+     shift = index * TIMER_CTRL_BITS;
+
+     t_old = (s->ctrl >> shift) & TIMER_CTRL_MASK;
+     t_new = reg & TIMER_CTRL_MASK;
+
+    /* If we are disabling, do so first */
+    if ((t_old & enable_mask) &&
+        (t_new & enable_mask)) {
+        aspeed_timer_ctrl_enable(t, false);
+        s->ctrl = deposit32(s->ctrl, shift + op_enable, 1, 0);
+    }
+
+    if ((t_old & external_clock_mask) &&
+        (t_new & external_clock_mask)) {
+        aspeed_timer_ctrl_external_clock(t, false);
+        s->ctrl = deposit32(s->ctrl, shift + op_external_clock, 1, 0);
+    }
+
+    if ((t_old & overflow_interrupt_mask) &&
+        (t_new & overflow_interrupt_mask)) {
+        aspeed_timer_ctrl_overflow_interrupt(t, false);
+        s->ctrl = deposit32(s->ctrl, shift + op_overflow_interrupt, 1, 0);
+    }
+
+    if ((t_old & pulse_enable_mask) &&
+        (t_new & pulse_enable_mask)) {
+        aspeed_timer_ctrl_pulse_enable(t, false);
+        s->ctrl = deposit32(s->ctrl, shift + op_pulse_enable, 1, 0);
+    }
+
+    /* Clear interrupt status */
+    if (reg & 0x10000) {
+        s->irq_sts = deposit32(s->irq_sts, index, 1, 0);
+    }
+}
+
+static uint64_t aspeed_2700_timer_read(AspeedTimerCtrlState *s, hwaddr offset)
+{
+    uint32_t timer_offset = offset & 0x3f;
+    int timer_index = offset >> 6;
+    uint64_t value = 0;
+
+    if (timer_index >= ASPEED_TIMER_NR_TIMERS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: offset 0x%" PRIx64 " out of bounds\n",
+                      __func__, offset);
+        return 0;
+    }
+
+    switch (timer_offset) {
+    /*
+     * Counter Status
+     * Counter Reload
+     * Counter First Matching
+     * Counter Second Matching
+     */
+    case 0x00 ... 0x0C:
+        value = aspeed_timer_get_value(&s->timers[timer_index],
+                                       timer_offset >> 2);
+        break;
+    /* Counter Control and Interrupt Status */
+    case 0x10:
+        value = deposit64(value, 0, 4,
+                          extract32(s->ctrl, timer_index * 4, 4));
+        value = deposit64(value, 16, 1,
+                          extract32(s->irq_sts, timer_index, 1));
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
+                     PRIx64"\n", __func__, offset);
+        value = 0;
+        break;
+    }
+    trace_aspeed_timer_read(offset, value);
+    return value;
+}
+
+static void aspeed_2700_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
+                                    uint64_t value)
+{
+    const uint32_t timer_value = (uint32_t)(value & 0xFFFFFFFF);
+    uint32_t timer_offset = offset & 0x3f;
+    int timer_index = offset >> 6;
+
+    if (timer_index >= ASPEED_TIMER_NR_TIMERS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: offset 0x%" PRIx64 " out of bounds\n",
+                      __func__, offset);
+    }
+
+    switch (timer_offset) {
+    /*
+     * Counter Status
+     * Counter Reload
+     * Counter First Matching
+     * Counter Second Matching
+     */
+    case 0x00 ... 0x0C:
+        aspeed_timer_set_value(s, timer_index, timer_offset >> 2,
+                               timer_value);
+        break;
+    /* Counter Control Set and Interrupt Status */
+    case 0x10:
+        aspeed_2700_timer_set_ctrl(s, timer_index, timer_value);
+        break;
+    /* Counter Control Clear and Interrupr Status */
+    case 0x14:
+        aspeed_2700_timer_clear_ctrl(s, timer_index, timer_value);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: no setter for offset 0x%"
+                      PRIx64"\n", __func__, offset);
+        break;
+    }
+}
+
 static void aspeed_init_one_timer(AspeedTimerCtrlState *s, uint8_t id)
 {
     AspeedTimer *t = &s->timers[id];
@@ -788,6 +979,22 @@ static const TypeInfo aspeed_1030_timer_info = {
     .class_init = aspeed_1030_timer_class_init,
 };
 
+static void aspeed_2700_timer_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedTimerClass *awc = ASPEED_TIMER_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 Timer";
+    awc->read = aspeed_2700_timer_read;
+    awc->write = aspeed_2700_timer_write;
+}
+
+static const TypeInfo aspeed_2700_timer_info = {
+    .name = TYPE_ASPEED_2700_TIMER,
+    .parent = TYPE_ASPEED_TIMER,
+    .class_init = aspeed_2700_timer_class_init,
+};
+
 static void aspeed_timer_register_types(void)
 {
     type_register_static(&aspeed_timer_info);
@@ -795,6 +1002,7 @@ static void aspeed_timer_register_types(void)
     type_register_static(&aspeed_2500_timer_info);
     type_register_static(&aspeed_2600_timer_info);
     type_register_static(&aspeed_1030_timer_info);
+    type_register_static(&aspeed_2700_timer_info);
 }
 
 type_init(aspeed_timer_register_types)
