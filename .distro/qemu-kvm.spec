@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 8%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 9%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -334,6 +334,14 @@ Patch96: kvm-qga-skip-bind-mounts-in-fs-list.patch
 Patch97: kvm-vhost-fail-device-start-if-iotlb-update-fails.patch
 # For RHEL-67107 - [aarch64] [rhel-9.6] Backport some important post 9.1 qemu fixes
 Patch98: kvm-hw-char-pl011-Use-correct-masks-for-IBRD-and-FBRD.patch
+# For RHEL-39948 - qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5]
+Patch99: kvm-qdev-Fix-set_pci_devfn-to-visit-option-only-once.patch
+# For RHEL-39948 - qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5]
+Patch100: kvm-tests-avocado-hotplug_blk-Fix-addr-in-device_add-com.patch
+# For RHEL-39948 - qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5]
+Patch101: kvm-qdev-monitor-avoid-QemuOpts-in-QMP-device_add.patch
+# For RHEL-39948 - qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5]
+Patch102: kvm-vl-use-qmp_device_add-in-qemu_create_cli_devices.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1400,6 +1408,14 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jan 13 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-9
+- kvm-qdev-Fix-set_pci_devfn-to-visit-option-only-once.patch [RHEL-39948]
+- kvm-tests-avocado-hotplug_blk-Fix-addr-in-device_add-com.patch [RHEL-39948]
+- kvm-qdev-monitor-avoid-QemuOpts-in-QMP-device_add.patch [RHEL-39948]
+- kvm-vl-use-qmp_device_add-in-qemu_create_cli_devices.patch [RHEL-39948]
+- Resolves: RHEL-39948
+  (qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5])
+
 * Mon Jan 06 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-8
 - kvm-linux-headers-Update-to-Linux-v6.12-rc5.patch [RHEL-50212]
 - kvm-s390x-cpumodel-add-msa10-subfunctions.patch [RHEL-50212]
