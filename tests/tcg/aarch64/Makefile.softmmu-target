@@ -91,6 +91,9 @@ EXTRA_RUNS+=run-memory-replay
 
 ifneq ($(CROSS_CC_HAS_ARMV8_3),)
 pauth-3: CFLAGS += $(CROSS_CC_HAS_ARMV8_3)
+# This test explicitly checks the output of the pauth operation so we
+# must force the use of the QARMA5 algorithm for it.
+run-pauth-3: QEMU_BASE_MACHINE=-M virt -cpu max,pauth-qarma5=on -display none
 else
 pauth-3:
 	$(call skip-test, "BUILD of $@", "missing compiler support")
