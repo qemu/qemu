@@ -7804,9 +7804,10 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         /*
          * The Linux kernel checks for the CMPLegacy bit and
          * discards multiple thread information if it is set.
-         * So don't set it here for Intel to make Linux guests happy.
+         * So don't set it here for Intel (and other processors
+         * following Intel's behavior) to make Linux guests happy.
          */
-        if (!IS_INTEL_CPU(env)) {
+        if (!IS_INTEL_CPU(env) && !IS_ZHAOXIN_CPU(env)) {
             env->features[FEAT_8000_0001_ECX] |= CPUID_EXT3_CMP_LEG;
         }
     }
