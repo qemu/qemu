@@ -16,6 +16,7 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 #include "fpu/softfloat.h"
+#include "tcg_loongarch.h"
 #include "translate.h"
 #include "internals.h"
 #include "vec.h"
@@ -358,4 +359,8 @@ void loongarch_translate_init(void)
                     offsetof(CPULoongArchState, lladdr), "lladdr");
     cpu_llval = tcg_global_mem_new(tcg_env,
                     offsetof(CPULoongArchState, llval), "llval");
+
+#ifndef CONFIG_USER_ONLY
+    loongarch_csr_translate_init();
+#endif
 }

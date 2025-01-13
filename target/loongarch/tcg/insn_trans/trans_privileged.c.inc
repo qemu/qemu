@@ -76,7 +76,7 @@ enum {
 #define CSR_OFF(NAME) \
     CSR_OFF_FLAGS(NAME, 0)
 
-static const CSRInfo csr_info[] = {
+static CSRInfo csr_info[] = {
     CSR_OFF_FLAGS(CRMD, CSRFL_EXITTB),
     CSR_OFF(PRMD),
     CSR_OFF_FLAGS(EUEN, CSRFL_EXITTB),
@@ -160,9 +160,9 @@ static bool check_plv(DisasContext *ctx)
     return false;
 }
 
-static const CSRInfo *get_csr(unsigned csr_num)
+static CSRInfo *get_csr(unsigned csr_num)
 {
-    const CSRInfo *csr;
+    CSRInfo *csr;
 
     if (csr_num >= ARRAY_SIZE(csr_info)) {
         return NULL;
@@ -173,6 +173,37 @@ static const CSRInfo *get_csr(unsigned csr_num)
     }
     return csr;
 }
+
+static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
+                               GenCSRWrite writefn)
+{
+    CSRInfo *csr;
+
+    csr = get_csr(csr_num);
+    if (!csr) {
+        return false;
+    }
+
+    csr->readfn = readfn;
+    csr->writefn = writefn;
+    return true;
+}
+
+#define SET_CSR_FUNC(NAME, read, write)                 \
+        set_csr_trans_func(LOONGARCH_CSR_##NAME, read, write)
+
+void loongarch_csr_translate_init(void)
+{
+    SET_CSR_FUNC(ESTAT, NULL, gen_helper_csrwr_estat);
+    SET_CSR_FUNC(ASID,  NULL, gen_helper_csrwr_asid);
+    SET_CSR_FUNC(PGD,   gen_helper_csrrd_pgd, NULL);
+    SET_CSR_FUNC(PWCL,  NULL, gen_helper_csrwr_pwcl);
+    SET_CSR_FUNC(CPUID, gen_helper_csrrd_cpuid, NULL);
+    SET_CSR_FUNC(TCFG,  NULL, gen_helper_csrwr_tcfg);
+    SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
+    SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
+}
+#undef SET_CSR_FUNC
 
 static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
 {
