@@ -1873,12 +1873,12 @@ static bool fold_extract2(OptContext *ctx, TCGOp *op)
         uint64_t v2 = arg_info(op->args[2])->val;
         int shr = op->args[3];
 
-        if (op->opc == INDEX_op_extract2_i64) {
-            v1 >>= shr;
-            v2 <<= 64 - shr;
-        } else {
+        if (ctx->type == TCG_TYPE_I32) {
             v1 = (uint32_t)v1 >> shr;
             v2 = (uint64_t)((int32_t)v2 << (32 - shr));
+        } else {
+            v1 >>= shr;
+            v2 <<= 64 - shr;
         }
         return tcg_opt_gen_movi(ctx, op, op->args[0], v1 | v2);
     }
@@ -2878,7 +2878,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_extract:
             done = fold_extract(&ctx, op);
             break;
-        CASE_OP_32_64(extract2):
+        case INDEX_op_extract2:
             done = fold_extract2(&ctx, op);
             break;
         case INDEX_op_ext_i32_i64:

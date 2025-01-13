@@ -476,9 +476,9 @@ Misc
        |
        | (using an arithmetic right shift) on TCG_TYPE_I32.
 
-   * - extract2_i32/i64 *dest*, *t1*, *t2*, *pos*
+   * - extract2 *dest*, *t1*, *t2*, *pos*
 
-     - | For N = {32,64}, extract an N-bit quantity from the concatenation
+     - | For TCG_TYPE_I{N}, extract an N-bit quantity from the concatenation
          of *t2*:*t1*, beginning at *pos*. The tcg_gen_extract2_{i32,i64} expander
          accepts 0 <= *pos* <= N as inputs. The backend code generator will
          not see either 0 or N as inputs for these opcodes.
