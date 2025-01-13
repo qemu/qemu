@@ -40,6 +40,7 @@ arm_ss.add(files(
   'tlb_helper.c',
   'vec_helper.c',
   'tlb-insns.c',
+  'arith_helper.c',
 ))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
