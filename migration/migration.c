@@ -129,9 +129,8 @@ static void migration_downtime_end(MigrationState *s)
      */
     if (!s->downtime) {
         s->downtime = now - s->downtime_start;
+        trace_vmstate_downtime_checkpoint("src-downtime-end");
     }
-
-    trace_vmstate_downtime_checkpoint("src-downtime-end");
 }
 
 static bool migration_needs_multiple_sockets(void)
