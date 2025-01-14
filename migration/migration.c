@@ -2629,7 +2629,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     int ret;
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
-    uint64_t bandwidth = migrate_max_postcopy_bandwidth();
     int cur_state = MIGRATION_STATUS_ACTIVE;
 
     /*
@@ -2678,6 +2677,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail;
     }
 
+    /* Switchover phase, switch to unlimited */
+    migration_rate_set(RATE_LIMIT_DISABLED);
+
     /*
      * Cause any non-postcopiable, but iterative devices to
      * send out their final data.
@@ -2694,12 +2696,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         ram_postcopy_send_discard_bitmap(ms);
     }
 
-    /*
-     * send rest of state - note things that are doing postcopy
-     * will notice we're in POSTCOPY_ACTIVE and not actually
-     * wrap their state up here
-     */
-    migration_rate_set(bandwidth);
     if (migrate_postcopy_ram()) {
         /* Ping just for debugging, helps line traces up */
         qemu_savevm_send_ping(ms->to_dst_file, 2);
@@ -2782,6 +2778,12 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail;
     }
     trace_postcopy_preempt_enabled(migrate_postcopy_preempt());
+
+    /*
+     * Now postcopy officially started, switch to postcopy bandwidth that
+     * user specified.
+     */
+    migration_rate_set(migrate_max_postcopy_bandwidth());
 
     return ret;
 
