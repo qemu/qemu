@@ -2682,7 +2682,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * Cause any non-postcopiable, but iterative devices to
      * send out their final data.
      */
-    qemu_savevm_state_complete_precopy(ms->to_dst_file, true, false);
+    qemu_savevm_state_complete_precopy(ms->to_dst_file, true);
 
     /*
      * in Finish migrate and with the io-lock held everything should
@@ -2727,7 +2727,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    qemu_savevm_state_complete_precopy(fb, false, false);
+    qemu_savevm_state_complete_precopy(fb, false);
     if (migrate_postcopy_ram()) {
         qemu_savevm_send_ping(fb, 3);
     }
@@ -2859,11 +2859,21 @@ static int migration_completion_precopy(MigrationState *s,
         goto out_unlock;
     }
 
+    /* Inactivate disks except in COLO */
+    if (!migrate_colo()) {
+        /*
+         * Inactivate before sending QEMU_VM_EOF so that the
+         * bdrv_activate_all() on the other end won't fail.
+         */
+        if (!migration_block_inactivate()) {
+            ret = -EFAULT;
+            goto out_unlock;
+        }
+    }
+
     migration_rate_set(RATE_LIMIT_DISABLED);
 
-    /* Inactivate disks except in COLO */
-    ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
-                                             !migrate_colo());
+    ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false);
 out_unlock:
     bql_unlock();
     return ret;
@@ -3744,7 +3754,7 @@ static void *bg_migration_thread(void *opaque)
      * save their state to channel-buffer along with devices.
      */
     cpu_synchronize_all_states();
-    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false, false)) {
+    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false)) {
         goto fail;
     }
     /*
