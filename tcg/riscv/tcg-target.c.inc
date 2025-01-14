@@ -401,7 +401,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
     }
     /*
      * Sign extended from 12 bits, +/- matching: [-0x7ff, 0x7ff].
-     * Used by addsub2 and movcond, which may need the negative value,
+     * Used by movcond, which may need the negative value,
      * and requires the modified constant to be representable.
      */
     if ((ct & TCG_CT_CONST_M12) && val >= -0x7ff && val <= 0x7ff) {
@@ -1071,67 +1071,6 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
         return true;
     }
     return false;
-}
-
-static void tcg_out_addsub2(TCGContext *s,
-                            TCGReg rl, TCGReg rh,
-                            TCGReg al, TCGReg ah,
-                            TCGArg bl, TCGArg bh,
-                            bool cbl, bool cbh, bool is_sub, bool is32bit)
-{
-    const RISCVInsn opc_add = is32bit ? OPC_ADDW : OPC_ADD;
-    const RISCVInsn opc_addi = is32bit ? OPC_ADDIW : OPC_ADDI;
-    const RISCVInsn opc_sub = is32bit ? OPC_SUBW : OPC_SUB;
-    TCGReg th = TCG_REG_TMP1;
-
-    /* If we have a negative constant such that negating it would
-       make the high part zero, we can (usually) eliminate one insn.  */
-    if (cbl && cbh && bh == -1 && bl != 0) {
-        bl = -bl;
-        bh = 0;
-        is_sub = !is_sub;
-    }
-
-    /* By operating on the high part first, we get to use the final
-       carry operation to move back from the temporary.  */
-    if (!cbh) {
-        tcg_out_opc_reg(s, (is_sub ? opc_sub : opc_add), th, ah, bh);
-    } else if (bh != 0 || ah == rl) {
-        tcg_out_opc_imm(s, opc_addi, th, ah, (is_sub ? -bh : bh));
-    } else {
-        th = ah;
-    }
-
-    /* Note that tcg optimization should eliminate the bl == 0 case.  */
-    if (is_sub) {
-        if (cbl) {
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, al, bl);
-            tcg_out_opc_imm(s, opc_addi, rl, al, -bl);
-        } else {
-            tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0, al, bl);
-            tcg_out_opc_reg(s, opc_sub, rl, al, bl);
-        }
-        tcg_out_opc_reg(s, opc_sub, rh, th, TCG_REG_TMP0);
-    } else {
-        if (cbl) {
-            tcg_out_opc_imm(s, opc_addi, rl, al, bl);
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_REG_TMP0, rl, bl);
-        } else if (al == bl) {
-            /*
-             * If the input regs overlap, this is a simple doubling
-             * and carry-out is the input msb.  This special case is
-             * required when the output reg overlaps the input,
-             * but we might as well use it always.
-             */
-            tcg_out_opc_imm(s, OPC_SLTI, TCG_REG_TMP0, al, 0);
-            tcg_out_opc_reg(s, opc_add, rl, al, al);
-        } else {
-            tcg_out_opc_reg(s, opc_add, rl, al, bl);
-            tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_TMP0,
-                            rl, (rl == bl ? al : bl));
-        }
-        tcg_out_opc_reg(s, opc_add, rh, th, TCG_REG_TMP0);
-    }
 }
 
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
@@ -2608,23 +2547,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_ldst(s, OPC_SD, a0, a1, a2);
         break;
 
-    case INDEX_op_add2_i32:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
-                        const_args[4], const_args[5], false, true);
-        break;
-    case INDEX_op_add2_i64:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
-                        const_args[4], const_args[5], false, false);
-        break;
-    case INDEX_op_sub2_i32:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
-                        const_args[4], const_args[5], true, true);
-        break;
-    case INDEX_op_sub2_i64:
-        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
-                        const_args[4], const_args[5], true, false);
-        break;
-
     case INDEX_op_qemu_ld_i32:
         tcg_out_qemu_ld(s, a0, a1, a2, TCG_TYPE_I32);
         break;
@@ -2896,12 +2818,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(rz, r);
-
-    case INDEX_op_add2_i32:
-    case INDEX_op_add2_i64:
-    case INDEX_op_sub2_i32:
-    case INDEX_op_sub2_i64:
-        return C_O2_I4(r, r, rz, rz, rM, rM);
 
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
