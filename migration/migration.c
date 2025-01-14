@@ -105,7 +105,7 @@ static MigrationIncomingState *current_incoming;
 static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
-static bool migration_switchover_start(MigrationState *s);
+static bool migration_switchover_start(MigrationState *s, Error **errp);
 static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
@@ -2667,20 +2667,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail;
     }
 
-    if (!migration_switchover_start(ms)) {
-        error_setg(errp, "migration_switchover_start() failed");
+    if (!migration_switchover_start(ms, errp)) {
         goto fail;
     }
-
-    if (!migration_block_inactivate()) {
-        error_setg(errp, "%s: Failed in bdrv_inactivate_all()", __func__);
-        goto fail;
-    }
-
-    /* Switchover phase, switch to unlimited */
-    migration_rate_set(RATE_LIMIT_DISABLED);
-
-    precopy_notify_complete();
 
     /*
      * Cause any non-postcopiable, but iterative devices to
@@ -2813,7 +2802,7 @@ fail:
 }
 
 /**
- * @migration_switchover_start: Start VM switchover procedure
+ * @migration_switchover_prepare: Start VM switchover procedure
  *
  * @s: The migration state object pointer
  *
@@ -2828,7 +2817,7 @@ fail:
  *
  * Returns: true on success, false on interruptions.
  */
-static bool migration_switchover_start(MigrationState *s)
+static bool migration_switchover_prepare(MigrationState *s)
 {
     /* Concurrent cancellation?  Quit */
     if (s->state == MIGRATION_STATUS_CANCELLING) {
@@ -2876,6 +2865,34 @@ static bool migration_switchover_start(MigrationState *s)
     return s->state == MIGRATION_STATUS_DEVICE;
 }
 
+static bool migration_switchover_start(MigrationState *s, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!migration_switchover_prepare(s)) {
+        error_setg(errp, "Switchover is interrupted");
+        return false;
+    }
+
+    /* Inactivate disks except in COLO */
+    if (!migrate_colo()) {
+        /*
+         * Inactivate before sending QEMU_VM_EOF so that the
+         * bdrv_activate_all() on the other end won't fail.
+         */
+        if (!migration_block_inactivate()) {
+            error_setg(errp, "Block inactivate failed during switchover");
+            return false;
+        }
+    }
+
+    migration_rate_set(RATE_LIMIT_DISABLED);
+
+    precopy_notify_complete();
+
+    return true;
+}
+
 static int migration_completion_precopy(MigrationState *s)
 {
     int ret;
@@ -2889,25 +2906,10 @@ static int migration_completion_precopy(MigrationState *s)
         }
     }
 
-    if (!migration_switchover_start(s)) {
+    if (!migration_switchover_start(s, NULL)) {
+        ret = -EFAULT;
         goto out_unlock;
     }
-
-    /* Inactivate disks except in COLO */
-    if (!migrate_colo()) {
-        /*
-         * Inactivate before sending QEMU_VM_EOF so that the
-         * bdrv_activate_all() on the other end won't fail.
-         */
-        if (!migration_block_inactivate()) {
-            ret = -EFAULT;
-            goto out_unlock;
-        }
-    }
-
-    migration_rate_set(RATE_LIMIT_DISABLED);
-
-    precopy_notify_complete();
 
     ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false);
 out_unlock:
