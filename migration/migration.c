@@ -1422,6 +1422,11 @@ void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
     }
 }
 
+static void migration_cleanup_json_writer(MigrationState *s)
+{
+    g_clear_pointer(&s->vmdesc, json_writer_free);
+}
+
 static void migrate_fd_cleanup(MigrationState *s)
 {
     MigrationEventType type;
@@ -1429,10 +1434,10 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     trace_migrate_fd_cleanup();
 
+    migration_cleanup_json_writer(s);
+
     g_free(s->hostname);
     s->hostname = NULL;
-
-    g_clear_pointer(&s->vmdesc, json_writer_free);
 
     qemu_savevm_state_cleanup();
     cpr_state_close();
@@ -2627,6 +2632,14 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     QEMUFile *fb;
     uint64_t bandwidth = migrate_max_postcopy_bandwidth();
     int cur_state = MIGRATION_STATUS_ACTIVE;
+
+    /*
+     * Now we're 100% sure to switch to postcopy, so JSON writer won't be
+     * useful anymore.  Free the resources early if it is there.  Clearing
+     * the vmdesc also means any follow up vmstate_save()s will start to
+     * skip all JSON operations, which can shrink postcopy downtime.
+     */
+    migration_cleanup_json_writer(ms);
 
     if (migrate_postcopy_preempt()) {
         migration_wait_main_channel(ms);
