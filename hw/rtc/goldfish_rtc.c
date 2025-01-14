@@ -178,38 +178,21 @@ static void goldfish_rtc_write(void *opaque, hwaddr offset,
     trace_goldfish_rtc_write(offset, value);
 }
 
-static int goldfish_rtc_pre_save(void *opaque)
-{
-    uint64_t delta;
-    GoldfishRTCState *s = opaque;
-
-    /*
-     * We want to migrate this offset, which sounds straightforward.
-     * Unfortunately, we cannot directly pass tick_offset because
-     * rtc_clock on destination Host might not be same source Host.
-     *
-     * To tackle, this we pass tick_offset relative to vm_clock from
-     * source Host and make it relative to rtc_clock at destination Host.
-     */
-    delta = qemu_clock_get_ns(rtc_clock) -
-            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->tick_offset_vmstate = s->tick_offset + delta;
-
-    return 0;
-}
-
 static int goldfish_rtc_post_load(void *opaque, int version_id)
 {
-    uint64_t delta;
     GoldfishRTCState *s = opaque;
 
-    /*
-     * We extract tick_offset from tick_offset_vmstate by doing
-     * reverse math compared to pre_save() function.
-     */
-    delta = qemu_clock_get_ns(rtc_clock) -
-            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->tick_offset = s->tick_offset_vmstate - delta;
+    if (version_id < 3) {
+        /*
+         * Previous versions didn't migrate tick_offset directly. Instead, they
+         * migrated tick_offset_vmstate, which is a recalculation based on
+         * QEMU_CLOCK_VIRTUAL. We use tick_offset_vmstate when migrating from
+         * older versions.
+         */
+        uint64_t delta = qemu_clock_get_ns(rtc_clock) -
+                 qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        s->tick_offset = s->tick_offset_vmstate - delta;
+    }
 
     goldfish_rtc_set_alarm(s);
 
@@ -239,8 +222,7 @@ static const MemoryRegionOps goldfish_rtc_ops[2] = {
 
 static const VMStateDescription goldfish_rtc_vmstate = {
     .name = TYPE_GOLDFISH_RTC,
-    .version_id = 2,
-    .pre_save = goldfish_rtc_pre_save,
+    .version_id = 3,
     .post_load = goldfish_rtc_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(tick_offset_vmstate, GoldfishRTCState),
@@ -249,6 +231,7 @@ static const VMStateDescription goldfish_rtc_vmstate = {
         VMSTATE_UINT32(irq_pending, GoldfishRTCState),
         VMSTATE_UINT32(irq_enabled, GoldfishRTCState),
         VMSTATE_UINT32(time_high, GoldfishRTCState),
+        VMSTATE_UINT64_V(tick_offset, GoldfishRTCState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
