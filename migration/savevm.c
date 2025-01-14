@@ -1557,7 +1557,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
             migrate_set_error(ms, local_err);
             error_report_err(local_err);
             qemu_file_set_error(f, -EFAULT);
-            return ret;
+            return -1;
         }
     }
     if (!in_postcopy) {
