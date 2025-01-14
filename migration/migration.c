@@ -105,9 +105,7 @@ static MigrationIncomingState *current_incoming;
 static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
-static int migration_maybe_pause(MigrationState *s,
-                                 int *current_active_state,
-                                 int new_state);
+static int migration_maybe_pause(MigrationState *s, int new_state);
 static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
@@ -2629,7 +2627,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     int ret;
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
-    int cur_state = MIGRATION_STATUS_ACTIVE;
 
     /*
      * Now we're 100% sure to switch to postcopy, so JSON writer won't be
@@ -2664,8 +2661,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail;
     }
 
-    ret = migration_maybe_pause(ms, &cur_state,
-                                MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    ret = migration_maybe_pause(ms, MIGRATION_STATUS_POSTCOPY_ACTIVE);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "%s: Failed in migration_maybe_pause()",
                          __func__);
@@ -2803,9 +2799,7 @@ fail:
  * migrate_pause_before_switchover called with the BQL locked
  * Returns: 0 on success
  */
-static int migration_maybe_pause(MigrationState *s,
-                                 int *current_active_state,
-                                 int new_state)
+static int migration_maybe_pause(MigrationState *s, int new_state)
 {
     if (!migrate_pause_before_switchover()) {
         return 0;
@@ -2828,21 +2822,19 @@ static int migration_maybe_pause(MigrationState *s,
      * wait for the 'pause_sem' semaphore.
      */
     if (s->state != MIGRATION_STATUS_CANCELLING) {
-        migrate_set_state(&s->state, *current_active_state,
+        migrate_set_state(&s->state, s->state,
                           MIGRATION_STATUS_PRE_SWITCHOVER);
         bql_unlock();
         qemu_sem_wait(&s->pause_sem);
         bql_lock();
         migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
                           new_state);
-        *current_active_state = new_state;
     }
 
     return s->state == new_state ? 0 : -EINVAL;
 }
 
-static int migration_completion_precopy(MigrationState *s,
-                                        int *current_active_state)
+static int migration_completion_precopy(MigrationState *s)
 {
     int ret;
 
@@ -2855,8 +2847,7 @@ static int migration_completion_precopy(MigrationState *s,
         }
     }
 
-    ret = migration_maybe_pause(s, current_active_state,
-                                MIGRATION_STATUS_DEVICE);
+    ret = migration_maybe_pause(s, MIGRATION_STATUS_DEVICE);
     if (ret < 0) {
         goto out_unlock;
     }
@@ -2909,11 +2900,10 @@ static void migration_completion_postcopy(MigrationState *s)
 static void migration_completion(MigrationState *s)
 {
     int ret = 0;
-    int current_active_state = s->state;
     Error *local_err = NULL;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
-        ret = migration_completion_precopy(s, &current_active_state);
+        ret = migration_completion_precopy(s);
     } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         migration_completion_postcopy(s);
     } else {
@@ -2953,8 +2943,7 @@ fail:
         error_free(local_err);
     }
 
-    migrate_set_state(&s->state, current_active_state,
-                      MIGRATION_STATUS_FAILED);
+    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
 }
 
 /**
