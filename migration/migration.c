@@ -2828,14 +2828,14 @@ static int migration_maybe_pause(MigrationState *s,
      * wait for the 'pause_sem' semaphore.
      */
     if (s->state != MIGRATION_STATUS_CANCELLING) {
-        bql_unlock();
         migrate_set_state(&s->state, *current_active_state,
                           MIGRATION_STATUS_PRE_SWITCHOVER);
+        bql_unlock();
         qemu_sem_wait(&s->pause_sem);
+        bql_lock();
         migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
                           new_state);
         *current_active_state = new_state;
-        bql_lock();
     }
 
     return s->state == new_state ? 0 : -EINVAL;
