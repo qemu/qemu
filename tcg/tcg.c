@@ -4071,8 +4071,6 @@ liveness_pass_1(TCGContext *s)
         case INDEX_op_sub2_i64:
             opc_new = INDEX_op_sub;
         do_addsub2:
-            nb_iargs = 4;
-            nb_oargs = 2;
             /* Test if the high part of the operation is dead, but not
                the low part.  The result can be optimized to a simple
                add or sub.  This happens often for x86_64 guest when the
@@ -4087,8 +4085,6 @@ liveness_pass_1(TCGContext *s)
                 op->args[1] = op->args[2];
                 op->args[2] = op->args[4];
                 /* Fall through and mark the single-word operation live.  */
-                nb_iargs = 2;
-                nb_oargs = 1;
             }
             goto do_not_remove;
 
@@ -4100,8 +4096,6 @@ liveness_pass_1(TCGContext *s)
             opc_new = INDEX_op_mul;
             opc_new2 = INDEX_op_muluh;
         do_mul2:
-            nb_iargs = 2;
-            nb_oargs = 2;
             if (arg_temp(op->args[1])->state == TS_DEAD) {
                 if (arg_temp(op->args[0])->state == TS_DEAD) {
                     /* Both parts of the operation are dead.  */
@@ -4122,19 +4116,15 @@ liveness_pass_1(TCGContext *s)
                 goto do_not_remove;
             }
             /* Mark the single-word operation live.  */
-            nb_oargs = 1;
             goto do_not_remove;
 
         default:
-            /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
-            nb_iargs = def->nb_iargs;
-            nb_oargs = def->nb_oargs;
-
             /* Test if the operation can be removed because all
                its outputs are dead. We assume that nb_oargs == 0
                implies side effects */
-            if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && nb_oargs != 0) {
-                for (int i = 0; i < nb_oargs; i++) {
+            def = &tcg_op_defs[opc];
+            if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && def->nb_oargs != 0) {
+                for (int i = def->nb_oargs - 1; i >= 0; i--) {
                     if (arg_temp(op->args[i])->state != TS_DEAD) {
                         goto do_not_remove;
                     }
@@ -4148,6 +4138,10 @@ liveness_pass_1(TCGContext *s)
             break;
 
         do_not_remove:
+            def = &tcg_op_defs[opc];
+            nb_iargs = def->nb_iargs;
+            nb_oargs = def->nb_oargs;
+
             for (int i = 0; i < nb_oargs; i++) {
                 ts = arg_temp(op->args[i]);
 
