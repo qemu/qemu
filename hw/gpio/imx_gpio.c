@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 #ifndef DEBUG_IMX_GPIO
 #define DEBUG_IMX_GPIO 0
@@ -33,14 +34,6 @@ typedef enum IMXGPIOLevel {
     IMX_GPIO_LEVEL_LOW = 0,
     IMX_GPIO_LEVEL_HIGH = 1,
 } IMXGPIOLevel;
-
-#define DPRINTF(fmt, args...) \
-    do { \
-        if (DEBUG_IMX_GPIO) { \
-            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_GPIO, \
-                                             __func__, ##args); \
-        } \
-    } while (0)
 
 static const char *imx_gpio_reg_name(uint32_t reg)
 {
@@ -110,6 +103,8 @@ static void imx_gpio_set(void *opaque, int line, int level)
 {
     IMXGPIOState *s = IMX_GPIO(opaque);
     IMXGPIOLevel imx_level = level ? IMX_GPIO_LEVEL_HIGH : IMX_GPIO_LEVEL_LOW;
+
+    trace_imx_gpio_set(DEVICE(s)->canonical_path, line, imx_level);
 
     imx_gpio_set_int_line(s, line, imx_level);
 
@@ -200,7 +195,8 @@ static uint64_t imx_gpio_read(void *opaque, hwaddr offset, unsigned size)
         break;
     }
 
-    DPRINTF("(%s) = 0x%" PRIx32 "\n", imx_gpio_reg_name(offset), reg_value);
+    trace_imx_gpio_read(DEVICE(s)->canonical_path, imx_gpio_reg_name(offset),
+                        reg_value);
 
     return reg_value;
 }
@@ -210,8 +206,8 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
 {
     IMXGPIOState *s = IMX_GPIO(opaque);
 
-    DPRINTF("(%s, value = 0x%" PRIx32 ")\n", imx_gpio_reg_name(offset),
-            (uint32_t)value);
+    trace_imx_gpio_write(DEVICE(s)->canonical_path, imx_gpio_reg_name(offset),
+                         value);
 
     switch (offset) {
     case DR_ADDR:

@@ -292,7 +292,7 @@ static void reset_load_elf(void *opaque)
 
     cpu_reset(CPU(cpu));
     if (env->load_elf) {
-	if (cpu == LOONGARCH_CPU(first_cpu)) {
+        if (cpu == LOONGARCH_CPU(first_cpu)) {
             env->gpr[4] = env->boot_info->a0;
             env->gpr[5] = env->boot_info->a1;
             env->gpr[6] = env->boot_info->a2;
@@ -354,7 +354,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
     if (info->kernel_filename) {
         kernel_addr = load_kernel_info(info);
     } else {
-        if(!qtest_enabled()) {
+        if (!qtest_enabled()) {
             warn_report("No kernel provided, booting from flash drive.");
         }
     }

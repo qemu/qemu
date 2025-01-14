@@ -31,11 +31,10 @@
 #include "hw/tricore/triboard.h"
 #include "hw/tricore/tc27x_soc.h"
 
-static void tricore_load_kernel(const char *kernel_filename)
+static void tricore_load_kernel(TriCoreCPU *cpu, const char *kernel_filename)
 {
     uint64_t entry;
     long kernel_size;
-    TriCoreCPU *cpu;
     CPUTriCoreState *env;
 
     kernel_size = load_elf(kernel_filename, NULL,
@@ -46,7 +45,6 @@ static void tricore_load_kernel(const char *kernel_filename)
         error_report("no kernel file '%s'", kernel_filename);
         exit(1);
     }
-    cpu = TRICORE_CPU(first_cpu);
     env = &cpu->env;
     env->PC = entry;
 }
@@ -62,7 +60,7 @@ static void triboard_machine_init(MachineState *machine)
     sysbus_realize(SYS_BUS_DEVICE(&ms->tc27x_soc), &error_fatal);
 
     if (machine->kernel_filename) {
-        tricore_load_kernel(machine->kernel_filename);
+        tricore_load_kernel(&ms->tc27x_soc.cpu, machine->kernel_filename);
     }
 }
 
