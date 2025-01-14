@@ -105,7 +105,7 @@ static MigrationIncomingState *current_incoming;
 static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
-static int migration_maybe_pause(MigrationState *s, int new_state);
+static bool migration_switchover_start(MigrationState *s);
 static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
@@ -2657,11 +2657,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         }
     }
 
-    if (!migrate_pause_before_switchover()) {
-        migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
-    }
-
     trace_postcopy_start();
     bql_lock();
     trace_postcopy_start_set_run();
@@ -2672,10 +2667,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         goto fail;
     }
 
-    ret = migration_maybe_pause(ms, MIGRATION_STATUS_POSTCOPY_ACTIVE);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "%s: Failed in migration_maybe_pause()",
-                         __func__);
+    if (!migration_switchover_start(ms)) {
+        error_setg(errp, "migration_switchover_start() failed");
         goto fail;
     }
 
@@ -2800,6 +2793,10 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     migration_rate_set(migrate_max_postcopy_bandwidth());
 
+    /* Now, switchover looks all fine, switching to postcopy-active */
+    migrate_set_state(&ms->state, MIGRATION_STATUS_DEVICE,
+                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+
     bql_unlock();
 
     return ret;
@@ -2816,14 +2813,39 @@ fail:
 }
 
 /**
- * migration_maybe_pause: Pause if required to by
- * migrate_pause_before_switchover called with the BQL locked
- * Returns: 0 on success
+ * @migration_switchover_start: Start VM switchover procedure
+ *
+ * @s: The migration state object pointer
+ *
+ * Prepares for the switchover, depending on "pause-before-switchover"
+ * capability.
+ *
+ * If cap set, state machine goes like:
+ *   [postcopy-]active -> pre-switchover -> device
+ *
+ * If cap not set:
+ *   [postcopy-]active -> device
+ *
+ * Returns: true on success, false on interruptions.
  */
-static int migration_maybe_pause(MigrationState *s, int new_state)
+static bool migration_switchover_start(MigrationState *s)
 {
+    /* Concurrent cancellation?  Quit */
+    if (s->state == MIGRATION_STATUS_CANCELLING) {
+        return false;
+    }
+
+    /*
+     * No matter precopy or postcopy, since we still hold BQL it must not
+     * change concurrently to CANCELLING, so it must be either ACTIVE or
+     * POSTCOPY_ACTIVE.
+     */
+    assert(migration_is_active());
+
+    /* If the pre stage not requested, directly switch to DEVICE */
     if (!migrate_pause_before_switchover()) {
-        return 0;
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_DEVICE);
+        return true;
     }
 
     /* Since leaving this state is not atomic with posting the semaphore
@@ -2836,23 +2858,22 @@ static int migration_maybe_pause(MigrationState *s, int new_state)
         /* This block intentionally left blank */
     }
 
-    /*
-     * If the migration is cancelled when it is in the completion phase,
-     * the migration state is set to MIGRATION_STATUS_CANCELLING.
-     * So we don't need to wait a semaphore, otherwise we would always
-     * wait for the 'pause_sem' semaphore.
-     */
-    if (s->state != MIGRATION_STATUS_CANCELLING) {
-        migrate_set_state(&s->state, s->state,
-                          MIGRATION_STATUS_PRE_SWITCHOVER);
-        bql_unlock();
-        qemu_sem_wait(&s->pause_sem);
-        bql_lock();
-        migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
-                          new_state);
-    }
+    /* Update [POSTCOPY_]ACTIVE to PRE_SWITCHOVER */
+    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_PRE_SWITCHOVER);
+    bql_unlock();
 
-    return s->state == new_state ? 0 : -EINVAL;
+    qemu_sem_wait(&s->pause_sem);
+
+    bql_lock();
+    /*
+     * After BQL released and retaken, the state can be CANCELLING if it
+     * happend during sem_wait().. Only change the state if it's still
+     * pre-switchover.
+     */
+    migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
+                      MIGRATION_STATUS_DEVICE);
+
+    return s->state == MIGRATION_STATUS_DEVICE;
 }
 
 static int migration_completion_precopy(MigrationState *s)
@@ -2868,8 +2889,7 @@ static int migration_completion_precopy(MigrationState *s)
         }
     }
 
-    ret = migration_maybe_pause(s, MIGRATION_STATUS_DEVICE);
-    if (ret < 0) {
+    if (!migration_switchover_start(s)) {
         goto out_unlock;
     }
 

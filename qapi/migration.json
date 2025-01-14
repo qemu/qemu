@@ -158,8 +158,11 @@
 #
 # @pre-switchover: Paused before device serialisation.  (since 2.11)
 #
-# @device: During device serialisation when pause-before-switchover is
-#     enabled (since 2.11)
+# @device: During device serialisation (also known as switchover phase).
+#     Before 9.2, this is only used when (1) in precopy, and (2) when
+#     pre-switchover capability is enabled.  After 10.0, this state will
+#     always be present for every migration procedure as the switchover
+#     phase.  (since 2.11)
 #
 # @wait-unplug: wait for device unplug request by guest OS to be
 #     completed.  (since 4.2)
