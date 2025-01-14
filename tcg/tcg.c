@@ -3924,10 +3924,9 @@ liveness_pass_1(TCGContext *s)
     int nb_temps = s->nb_temps;
     TCGOp *op, *op_prev;
     TCGRegSet *prefs;
-    int i;
 
     prefs = tcg_malloc(sizeof(TCGRegSet) * nb_temps);
-    for (i = 0; i < nb_temps; ++i) {
+    for (int i = 0; i < nb_temps; ++i) {
         s->temps[i].state_ptr = prefs + i;
     }
 
@@ -3954,7 +3953,7 @@ liveness_pass_1(TCGContext *s)
 
                 /* pure functions can be removed if their result is unused */
                 if (call_flags & TCG_CALL_NO_SIDE_EFFECTS) {
-                    for (i = 0; i < nb_oargs; i++) {
+                    for (int i = 0; i < nb_oargs; i++) {
                         ts = arg_temp(op->args[i]);
                         if (ts->state != TS_DEAD) {
                             goto do_not_remove_call;
@@ -3965,7 +3964,7 @@ liveness_pass_1(TCGContext *s)
             do_not_remove_call:
 
                 /* Output args are dead.  */
-                for (i = 0; i < nb_oargs; i++) {
+                for (int i = 0; i < nb_oargs; i++) {
                     ts = arg_temp(op->args[i]);
                     if (ts->state & TS_DEAD) {
                         arg_life |= DEAD_ARG << i;
@@ -3988,7 +3987,7 @@ liveness_pass_1(TCGContext *s)
                 }
 
                 /* Record arguments that die in this helper.  */
-                for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
+                for (int i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
                     ts = arg_temp(op->args[i]);
                     if (ts->state & TS_DEAD) {
                         arg_life |= DEAD_ARG << i;
@@ -4008,7 +4007,7 @@ liveness_pass_1(TCGContext *s)
                  * order so that if a temp is used more than once, the stack
                  * reset to max happens before the register reset to 0.
                  */
-                for (i = nb_iargs - 1; i >= 0; i--) {
+                for (int i = nb_iargs - 1; i >= 0; i--) {
                     const TCGCallArgumentLoc *loc = &info->in[i];
                     ts = arg_temp(op->args[nb_oargs + i]);
 
@@ -4036,7 +4035,7 @@ liveness_pass_1(TCGContext *s)
                  * If a temp is used once, this produces a single set bit;
                  * if a temp is used multiple times, this produces a set.
                  */
-                for (i = 0; i < nb_iargs; i++) {
+                for (int i = 0; i < nb_iargs; i++) {
                     const TCGCallArgumentLoc *loc = &info->in[i];
                     ts = arg_temp(op->args[nb_oargs + i]);
 
@@ -4135,7 +4134,7 @@ liveness_pass_1(TCGContext *s)
                its outputs are dead. We assume that nb_oargs == 0
                implies side effects */
             if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && nb_oargs != 0) {
-                for (i = 0; i < nb_oargs; i++) {
+                for (int i = 0; i < nb_oargs; i++) {
                     if (arg_temp(op->args[i])->state != TS_DEAD) {
                         goto do_not_remove;
                     }
@@ -4149,7 +4148,7 @@ liveness_pass_1(TCGContext *s)
             break;
 
         do_not_remove:
-            for (i = 0; i < nb_oargs; i++) {
+            for (int i = 0; i < nb_oargs; i++) {
                 ts = arg_temp(op->args[i]);
 
                 /* Remember the preference of the uses that followed.  */
@@ -4183,7 +4182,7 @@ liveness_pass_1(TCGContext *s)
             }
 
             /* Record arguments that die in this opcode.  */
-            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+            for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                 ts = arg_temp(op->args[i]);
                 if (ts->state & TS_DEAD) {
                     arg_life |= DEAD_ARG << i;
@@ -4191,7 +4190,7 @@ liveness_pass_1(TCGContext *s)
             }
 
             /* Input arguments are live for preceding opcodes.  */
-            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+            for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                 ts = arg_temp(op->args[i]);
                 if (ts->state & TS_DEAD) {
                     /* For operands that were dead, initially allow
@@ -4215,7 +4214,7 @@ liveness_pass_1(TCGContext *s)
 
             default:
                 args_ct = opcode_args_ct(op);
-                for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+                for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     const TCGArgConstraint *ct = &args_ct[i];
                     TCGRegSet set, *pset;
 
