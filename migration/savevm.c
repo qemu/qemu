@@ -1531,6 +1531,9 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     Error *local_err = NULL;
     int ret;
 
+    /* Making sure cpu states are synchronized before saving non-iterable */
+    cpu_synchronize_all_states();
+
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
             /* Already saved during qemu_savevm_state_setup(). */
@@ -1583,8 +1586,6 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
     }
 
     trace_savevm_state_complete_precopy();
-
-    cpu_synchronize_all_states();
 
     if (!in_postcopy || iterable_only) {
         ret = qemu_savevm_state_complete_precopy_iterable(f, in_postcopy);

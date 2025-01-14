@@ -3749,11 +3749,7 @@ static void *bg_migration_thread(void *opaque)
     if (migration_stop_vm(s, RUN_STATE_PAUSED)) {
         goto fail;
     }
-    /*
-     * Put vCPUs in sync with shadow context structures, then
-     * save their state to channel-buffer along with devices.
-     */
-    cpu_synchronize_all_states();
+
     if (qemu_savevm_state_complete_precopy_non_iterable(fb, false)) {
         goto fail;
     }
