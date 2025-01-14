@@ -1577,25 +1577,19 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
 {
     int ret;
-    bool in_postcopy = migration_in_postcopy();
 
-    if (!in_postcopy || iterable_only) {
-        ret = qemu_savevm_state_complete_precopy_iterable(f, in_postcopy);
+    ret = qemu_savevm_state_complete_precopy_iterable(f, false);
+    if (ret) {
+        return ret;
+    }
+
+    if (!iterable_only) {
+        ret = qemu_savevm_state_complete_precopy_non_iterable(f, false);
         if (ret) {
             return ret;
         }
     }
 
-    if (iterable_only) {
-        goto flush;
-    }
-
-    ret = qemu_savevm_state_complete_precopy_non_iterable(f, in_postcopy);
-    if (ret) {
-        return ret;
-    }
-
-flush:
     return qemu_fflush(f);
 }
 
