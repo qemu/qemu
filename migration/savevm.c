@@ -1231,8 +1231,7 @@ void qemu_savevm_non_migratable_list(strList **reasons)
 void qemu_savevm_state_header(QEMUFile *f)
 {
     MigrationState *s = migrate_get_current();
-
-    s->vmdesc = json_writer_new(false);
+    JSONWriter *vmdesc = s->vmdesc;
 
     trace_savevm_state_header();
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
@@ -1241,16 +1240,21 @@ void qemu_savevm_state_header(QEMUFile *f)
     if (s->send_configuration) {
         qemu_put_byte(f, QEMU_VM_CONFIGURATION);
 
-        /*
-         * This starts the main json object and is paired with the
-         * json_writer_end_object in
-         * qemu_savevm_state_complete_precopy_non_iterable
-         */
-        json_writer_start_object(s->vmdesc, NULL);
+        if (vmdesc) {
+            /*
+             * This starts the main json object and is paired with the
+             * json_writer_end_object in
+             * qemu_savevm_state_complete_precopy_non_iterable
+             */
+            json_writer_start_object(vmdesc, NULL);
+            json_writer_start_object(vmdesc, "configuration");
+        }
 
-        json_writer_start_object(s->vmdesc, "configuration");
-        vmstate_save_state(f, &vmstate_configuration, &savevm_state, s->vmdesc);
-        json_writer_end_object(s->vmdesc);
+        vmstate_save_state(f, &vmstate_configuration, &savevm_state, vmdesc);
+
+        if (vmdesc) {
+            json_writer_end_object(vmdesc);
+        }
     }
 }
 
@@ -1296,16 +1300,19 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
 {
     ERRP_GUARD();
     MigrationState *ms = migrate_get_current();
+    JSONWriter *vmdesc = ms->vmdesc;
     SaveStateEntry *se;
     int ret = 0;
 
-    json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
-    json_writer_start_array(ms->vmdesc, "devices");
+    if (vmdesc) {
+        json_writer_int64(vmdesc, "page_size", qemu_target_page_size());
+        json_writer_start_array(vmdesc, "devices");
+    }
 
     trace_savevm_state_setup();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (se->vmsd && se->vmsd->early_setup) {
-            ret = vmstate_save(f, se, ms->vmdesc, errp);
+            ret = vmstate_save(f, se, vmdesc, errp);
             if (ret) {
                 migrate_set_error(ms, *errp);
                 qemu_file_set_error(f, ret);
@@ -1424,7 +1431,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
     return all_finished;
 }
 
-static bool should_send_vmdesc(void)
+bool should_send_vmdesc(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
 
@@ -1564,20 +1571,16 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         /* Postcopy stream will still be going */
         qemu_put_byte(f, QEMU_VM_EOF);
 
-        json_writer_end_array(vmdesc);
-        json_writer_end_object(vmdesc);
-        vmdesc_len = strlen(json_writer_get(vmdesc));
+        if (vmdesc) {
+            json_writer_end_array(vmdesc);
+            json_writer_end_object(vmdesc);
+            vmdesc_len = strlen(json_writer_get(vmdesc));
 
-        if (should_send_vmdesc()) {
             qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
             qemu_put_be32(f, vmdesc_len);
             qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
         }
     }
-
-    /* Free it now to detect any inconsistencies. */
-    json_writer_free(vmdesc);
-    ms->vmdesc = NULL;
 
     trace_vmstate_downtime_checkpoint("src-non-iterable-saved");
 

@@ -1431,8 +1431,8 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     g_free(s->hostname);
     s->hostname = NULL;
-    json_writer_free(s->vmdesc);
-    s->vmdesc = NULL;
+
+    g_clear_pointer(&s->vmdesc, json_writer_free);
 
     qemu_savevm_state_cleanup();
     cpr_state_close();
@@ -1722,7 +1722,10 @@ int migrate_init(MigrationState *s, Error **errp)
     s->migration_thread_running = false;
     error_free(s->error);
     s->error = NULL;
-    s->vmdesc = NULL;
+
+    if (should_send_vmdesc()) {
+        s->vmdesc = json_writer_new(false);
+    }
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
