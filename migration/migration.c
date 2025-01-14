@@ -131,6 +131,17 @@ static void migration_downtime_end(MigrationState *s)
     }
 }
 
+static void precopy_notify_complete(void)
+{
+    Error *local_err = NULL;
+
+    if (precopy_notify(PRECOPY_NOTIFY_COMPLETE, &local_err)) {
+        error_report_err(local_err);
+    }
+
+    trace_migration_precopy_complete();
+}
+
 static bool migration_needs_multiple_sockets(void)
 {
     return migrate_multifd() || migrate_postcopy_preempt();
@@ -2676,6 +2687,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     /* Switchover phase, switch to unlimited */
     migration_rate_set(RATE_LIMIT_DISABLED);
 
+    precopy_notify_complete();
+
     /*
      * Cause any non-postcopiable, but iterative devices to
      * send out their final data.
@@ -2864,6 +2877,8 @@ static int migration_completion_precopy(MigrationState *s)
     }
 
     migration_rate_set(RATE_LIMIT_DISABLED);
+
+    precopy_notify_complete();
 
     ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false);
 out_unlock:
