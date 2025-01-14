@@ -2693,7 +2693,11 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * Cause any non-postcopiable, but iterative devices to
      * send out their final data.
      */
-    qemu_savevm_state_complete_precopy(ms->to_dst_file, true);
+    ret = qemu_savevm_state_complete_precopy_iterable(ms->to_dst_file, true);
+    if (ret) {
+        error_setg(errp, "Postcopy save non-postcopiable iterables failed");
+        goto fail;
+    }
 
     /*
      * in Finish migrate and with the io-lock held everything should
@@ -2732,7 +2736,12 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    qemu_savevm_state_complete_precopy(fb, false);
+    ret = qemu_savevm_state_complete_precopy_non_iterable(fb, true);
+    if (ret) {
+        error_setg(errp, "Postcopy save non-iterable device states failed");
+        goto fail_closefb;
+    }
+
     if (migrate_postcopy_ram()) {
         qemu_savevm_send_ping(fb, 3);
     }
