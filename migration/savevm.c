@@ -1427,8 +1427,8 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
 static bool should_send_vmdesc(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
-    bool in_postcopy = migration_in_postcopy();
-    return !machine->suppress_vmdesc && !in_postcopy;
+
+    return !machine->suppress_vmdesc;
 }
 
 /*
@@ -1563,16 +1563,16 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
         qemu_put_byte(f, QEMU_VM_EOF);
-    }
 
-    json_writer_end_array(vmdesc);
-    json_writer_end_object(vmdesc);
-    vmdesc_len = strlen(json_writer_get(vmdesc));
+        json_writer_end_array(vmdesc);
+        json_writer_end_object(vmdesc);
+        vmdesc_len = strlen(json_writer_get(vmdesc));
 
-    if (should_send_vmdesc()) {
-        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
-        qemu_put_be32(f, vmdesc_len);
-        qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
+        if (should_send_vmdesc()) {
+            qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+            qemu_put_be32(f, vmdesc_len);
+            qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
+        }
     }
 
     /* Free it now to detect any inconsistencies. */
@@ -2965,6 +2965,7 @@ int qemu_loadvm_state(QEMUFile *f)
         return ret;
     }
 
+    /* When reaching here, it must be precopy */
     if (ret == 0) {
         ret = qemu_file_get_error(f);
     }
