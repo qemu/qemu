@@ -2753,8 +2753,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
 
     migration_downtime_end(ms);
 
-    bql_unlock();
-
     if (migrate_postcopy_ram()) {
         /*
          * Although this ping is just for debug, it could potentially be
@@ -2770,7 +2768,6 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
         error_setg_errno(errp, -ret, "postcopy_start: Migration stream error");
-        bql_lock();
         goto fail;
     }
     trace_postcopy_preempt_enabled(migrate_postcopy_preempt());
@@ -2780,6 +2777,8 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * user specified.
      */
     migration_rate_set(migrate_max_postcopy_bandwidth());
+
+    bql_unlock();
 
     return ret;
 
