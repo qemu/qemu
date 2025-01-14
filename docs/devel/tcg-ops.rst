@@ -593,6 +593,67 @@ Multiword arithmetic support
 
 .. list-table::
 
+   * - addco *t0*, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* and in addition output to the
+         carry bit provided by the host architecture.
+
+   * - addci *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
+         input carry bit provided by the host architecture.
+         The output carry bit need not be computed.
+
+   * - addcio *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
+         input carry bit provided by the host architecture,
+         and also compute the output carry bit.
+
+   * - addc1o *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* + 1, and in addition output to the
+         carry bit provided by the host architecture.  This is akin to
+         *addcio* with a fixed carry-in value of 1.
+       | This is intended to be used by the optimization pass,
+         intermediate to complete folding of the addition chain.
+         In some cases complete folding is not possible and this
+         opcode will remain until output.  If this happens, the
+         code generator will use ``tcg_out_set_carry`` and then
+         the output routine for *addcio*.
+
+   * - subbo *t0*, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* and in addition output to the
+         borrow bit provided by the host architecture.
+       | Depending on the host architecture, the carry bit may or may not be
+         identical to the borrow bit.  Thus the addc\* and subb\*
+         opcodes must not be mixed.
+
+   * - subbi *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
+         input borrow bit provided by the host architecture.
+         The output borrow bit need not be computed.
+
+   * - subbio *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
+         input borrow bit provided by the host architecture,
+         and also compute the output borrow bit.
+
+   * - subb1o *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - 1, and in addition output to the
+         borrow bit provided by the host architecture.  This is akin to
+         *subbio* with a fixed borrow-in value of 1.
+       | This is intended to be used by the optimization pass,
+         intermediate to complete folding of the subtraction chain.
+         In some cases complete folding is not possible and this
+         opcode will remain until output.  If this happens, the
+         code generator will use ``tcg_out_set_borrow`` and then
+         the output routine for *subbio*.
+
    * - add2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*
 
        sub2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*

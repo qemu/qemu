@@ -418,6 +418,11 @@ struct TCGContext {
     MemOp riscv_cur_vsew;
     TCGType riscv_cur_type;
 #endif
+    /*
+     * During the tcg_reg_alloc_op loop, we are within a sequence of
+     * carry-using opcodes like addco+addci.
+     */
+    bool carry_live;
 
     GHashTable *const_table[TCG_TYPE_COUNT];
     TCGTempSet free_temps[TCG_TYPE_COUNT];
@@ -749,13 +754,17 @@ enum {
     /* Instruction operands are vectors.  */
     TCG_OPF_VECTOR       = 0x40,
     /* Instruction is a conditional branch. */
-    TCG_OPF_COND_BRANCH  = 0x80
+    TCG_OPF_COND_BRANCH  = 0x80,
+    /* Instruction produces carry out. */
+    TCG_OPF_CARRY_OUT    = 0x100,
+    /* Instruction consumes carry in. */
+    TCG_OPF_CARRY_IN     = 0x200,
 };
 
 typedef struct TCGOpDef {
     const char *name;
     uint8_t nb_oargs, nb_iargs, nb_cargs, nb_args;
-    uint8_t flags;
+    uint16_t flags;
 } TCGOpDef;
 
 extern const TCGOpDef tcg_op_defs[];

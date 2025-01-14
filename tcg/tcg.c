@@ -3914,6 +3914,17 @@ liveness_pass_0(TCGContext *s)
     }
 }
 
+static void assert_carry_dead(TCGContext *s)
+{
+    /*
+     * Carry operations can be separated by a few insns like mov,
+     * load or store, but they should always be "close", and
+     * carry-out operations should always be paired with carry-in.
+     * At various boundaries, carry must have been consumed.
+     */
+    tcg_debug_assert(!s->carry_live);
+}
+
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
@@ -3933,17 +3944,19 @@ liveness_pass_1(TCGContext *s)
     /* ??? Should be redundant with the exit_tb that ends the TB.  */
     la_func_end(s, nb_globals, nb_temps);
 
+    s->carry_live = false;
     QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, link, op_prev) {
         int nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
         TCGLifeData arg_life = 0;
         TCGTemp *ts;
         TCGOpcode opc = op->opc;
-        const TCGOpDef *def = &tcg_op_defs[opc];
+        const TCGOpDef *def;
         const TCGArgConstraint *args_ct;
 
         switch (opc) {
         case INDEX_op_call:
+            assert_carry_dead(s);
             {
                 const TCGHelperInfo *info = tcg_call_info(op);
                 int call_flags = tcg_call_flags(op);
@@ -4055,6 +4068,7 @@ liveness_pass_1(TCGContext *s)
             }
             break;
         case INDEX_op_insn_start:
+            assert_carry_dead(s);
             break;
         case INDEX_op_discard:
             /* mark the temporary as dead */
@@ -4071,6 +4085,7 @@ liveness_pass_1(TCGContext *s)
         case INDEX_op_sub2_i64:
             opc_new = INDEX_op_sub;
         do_addsub2:
+            assert_carry_dead(s);
             /* Test if the high part of the operation is dead, but not
                the low part.  The result can be optimized to a simple
                add or sub.  This happens often for x86_64 guest when the
@@ -4096,6 +4111,7 @@ liveness_pass_1(TCGContext *s)
             opc_new = INDEX_op_mul;
             opc_new2 = INDEX_op_muluh;
         do_mul2:
+            assert_carry_dead(s);
             if (arg_temp(op->args[1])->state == TS_DEAD) {
                 if (arg_temp(op->args[0])->state == TS_DEAD) {
                     /* Both parts of the operation are dead.  */
@@ -4118,10 +4134,89 @@ liveness_pass_1(TCGContext *s)
             /* Mark the single-word operation live.  */
             goto do_not_remove;
 
+        case INDEX_op_addco:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_add;
+            goto do_default;
+
+        case INDEX_op_addcio:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_addci;
+            goto do_default;
+
+        case INDEX_op_subbo:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to sub, but this may also require canonicalization. */
+            op->opc = opc = INDEX_op_sub;
+            ts = arg_temp(op->args[2]);
+            if (ts->kind == TEMP_CONST) {
+                ts = tcg_constant_internal(ts->type, -ts->val);
+                if (ts->state_ptr == NULL) {
+                    tcg_debug_assert(temp_idx(ts) == nb_temps);
+                    nb_temps++;
+                    ts->state_ptr = tcg_malloc(sizeof(TCGRegSet));
+                    ts->state = TS_DEAD;
+                    la_reset_pref(ts);
+                }
+                op->args[2] = temp_arg(ts);
+                op->opc = opc = INDEX_op_add;
+            }
+            goto do_default;
+
+        case INDEX_op_subbio:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_subbi;
+            goto do_default;
+
+        case INDEX_op_addc1o:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to add, add +1. */
+            op_prev = tcg_op_insert_before(s, op, INDEX_op_add,
+                                           TCGOP_TYPE(op), 3);
+            op_prev->args[0] = op->args[0];
+            op_prev->args[1] = op->args[1];
+            op_prev->args[2] = op->args[2];
+            op->opc = opc = INDEX_op_add;
+            op->args[1] = op->args[0];
+            ts = arg_temp(op->args[0]);
+            ts = tcg_constant_internal(ts->type, 1);
+            op->args[2] = temp_arg(ts);
+            goto do_default;
+
+        case INDEX_op_subb1o:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to sub, add -1. */
+            op_prev = tcg_op_insert_before(s, op, INDEX_op_sub,
+                                           TCGOP_TYPE(op), 3);
+            op_prev->args[0] = op->args[0];
+            op_prev->args[1] = op->args[1];
+            op_prev->args[2] = op->args[2];
+            op->opc = opc = INDEX_op_add;
+            op->args[1] = op->args[0];
+            ts = arg_temp(op->args[0]);
+            ts = tcg_constant_internal(ts->type, -1);
+            op->args[2] = temp_arg(ts);
+            goto do_default;
+
         default:
-            /* Test if the operation can be removed because all
-               its outputs are dead. We assume that nb_oargs == 0
-               implies side effects */
+        do_default:
+            /*
+             * Test if the operation can be removed because all
+             * its outputs are dead. We assume that nb_oargs == 0
+             * implies side effects.
+             */
             def = &tcg_op_defs[opc];
             if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && def->nb_oargs != 0) {
                 for (int i = def->nb_oargs - 1; i >= 0; i--) {
@@ -4163,12 +4258,16 @@ liveness_pass_1(TCGContext *s)
 
             /* If end of basic block, update.  */
             if (def->flags & TCG_OPF_BB_EXIT) {
+                assert_carry_dead(s);
                 la_func_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_COND_BRANCH) {
+                assert_carry_dead(s);
                 la_bb_sync(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_BB_END) {
+                assert_carry_dead(s);
                 la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+                assert_carry_dead(s);
                 la_global_sync(s, nb_globals);
                 if (def->flags & TCG_OPF_CALL_CLOBBER) {
                     la_cross_call(s, nb_temps);
@@ -4182,6 +4281,9 @@ liveness_pass_1(TCGContext *s)
                     arg_life |= DEAD_ARG << i;
                 }
             }
+            if (def->flags & TCG_OPF_CARRY_OUT) {
+                s->carry_live = false;
+            }
 
             /* Input arguments are live for preceding opcodes.  */
             for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
@@ -4192,6 +4294,9 @@ liveness_pass_1(TCGContext *s)
                     *la_temp_pref(ts) = tcg_target_available_regs[ts->type];
                     ts->state &= ~TS_DEAD;
                 }
+            }
+            if (def->flags & TCG_OPF_CARRY_IN) {
+                s->carry_live = true;
             }
 
             /* Incorporate constraints for this operand.  */
@@ -4232,6 +4337,7 @@ liveness_pass_1(TCGContext *s)
         }
         op->life = arg_life;
     }
+    assert_carry_dead(s);
 }
 
 /* Liveness analysis: Convert indirect regs to direct temporaries.  */
@@ -4820,9 +4926,8 @@ static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
    all globals are stored at their canonical location. */
 static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 {
-    int i;
-
-    for (i = s->nb_globals; i < s->nb_temps; i++) {
+    assert_carry_dead(s);
+    for (int i = s->nb_globals; i < s->nb_temps; i++) {
         TCGTemp *ts = &s->temps[i];
 
         switch (ts->kind) {
@@ -4853,6 +4958,7 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
  */
 static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
 {
+    assert_carry_dead(s);
     sync_globals(s, allocated_regs);
 
     for (int i = s->nb_globals; i < s->nb_temps; i++) {
@@ -5124,6 +5230,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     int const_args[TCG_MAX_OP_ARGS];
     TCGCond op_cond;
 
+    if (def->flags & TCG_OPF_CARRY_IN) {
+        tcg_debug_assert(s->carry_live);
+    }
+
     nb_oargs = def->nb_oargs;
     nb_iargs = def->nb_iargs;
 
@@ -5380,6 +5490,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         tcg_reg_alloc_bb_end(s, i_allocated_regs);
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
+            assert_carry_dead(s);
             /* XXX: permit generic clobber register list ? */
             for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
                 if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)) {
@@ -5497,7 +5608,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
     case INDEX_op_sub:
         {
-            const TCGOutOpSubtract *out = &outop_sub;
+            const TCGOutOpSubtract *out =
+                container_of(all_outop[op->opc], TCGOutOpSubtract, base);
 
             /*
              * Constants should never appear in the second source operand.
@@ -5511,6 +5623,16 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             }
         }
         break;
+
+    case INDEX_op_addco:
+    case INDEX_op_subbo:
+    case INDEX_op_addci:
+    case INDEX_op_subbi:
+    case INDEX_op_addcio:
+    case INDEX_op_subbio:
+    case INDEX_op_addc1o:
+    case INDEX_op_subb1o:
+        g_assert_not_reached();
 
     case INDEX_op_bswap64:
     case INDEX_op_ext_i32_i64:
@@ -5698,6 +5820,13 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             tcg_out_op(s, op->opc, type, new_args, const_args);
         }
         break;
+    }
+
+    if (def->flags & TCG_OPF_CARRY_IN) {
+        s->carry_live = false;
+    }
+    if (def->flags & TCG_OPF_CARRY_OUT) {
+        s->carry_live = true;
     }
 
     /* move the outputs in the correct register if needed */
@@ -6702,6 +6831,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     tcg_out_tb_start(s);
 
     num_insns = -1;
+    s->carry_live = false;
     QTAILQ_FOREACH(op, &s->ops, link) {
         TCGOpcode opc = op->opc;
 
@@ -6730,6 +6860,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             tcg_reg_alloc_dup(s, op);
             break;
         case INDEX_op_insn_start:
+            assert_carry_dead(s);
             if (num_insns >= 0) {
                 size_t off = tcg_current_code_size(s);
                 s->gen_insn_end_off[num_insns] = off;
@@ -6750,6 +6881,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             tcg_out_label(s, arg_label(op->args[0]));
             break;
         case INDEX_op_call:
+            assert_carry_dead(s);
             tcg_reg_alloc_call(s, op);
             break;
         case INDEX_op_exit_tb:
@@ -6786,6 +6918,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             return -2;
         }
     }
+    assert_carry_dead(s);
+
     tcg_debug_assert(num_insns + 1 == s->gen_tb->icount);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
