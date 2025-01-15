@@ -2343,7 +2343,8 @@ static const PropertyInfo prop_marchid = {
  * doesn't need to be manually enabled by the profile.
  */
 static RISCVCPUProfile RVA22U64 = {
-    .parent = NULL,
+    .u_parent = NULL,
+    .s_parent = NULL,
     .name = "rva22u64",
     .misa_ext = RVI | RVM | RVA | RVF | RVD | RVC | RVB | RVU,
     .priv_spec = RISCV_PROFILE_ATTR_UNUSED,
@@ -2375,7 +2376,8 @@ static RISCVCPUProfile RVA22U64 = {
  * The remaining features/extensions comes from RVA22U64.
  */
 static RISCVCPUProfile RVA22S64 = {
-    .parent = &RVA22U64,
+    .u_parent = &RVA22U64,
+    .s_parent = NULL,
     .name = "rva22s64",
     .misa_ext = RVS,
     .priv_spec = PRIV_VERSION_1_12_0,

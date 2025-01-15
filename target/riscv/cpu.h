@@ -81,7 +81,8 @@ const char *riscv_get_misa_ext_description(uint32_t bit);
 #define CPU_CFG_OFFSET(_prop) offsetof(struct RISCVCPUConfig, _prop)
 
 typedef struct riscv_cpu_profile {
-    struct riscv_cpu_profile *parent;
+    struct riscv_cpu_profile *u_parent;
+    struct riscv_cpu_profile *s_parent;
     const char *name;
     uint32_t misa_ext;
     bool enabled;

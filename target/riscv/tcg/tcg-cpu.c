@@ -713,13 +713,29 @@ static bool riscv_cpu_validate_profile_satp(RISCVCPU *cpu,
 }
 #endif
 
+static void riscv_cpu_check_parent_profile(RISCVCPU *cpu,
+                                           RISCVCPUProfile *profile,
+                                           RISCVCPUProfile *parent)
+{
+    const char *parent_name;
+    bool parent_enabled;
+
+    if (!profile->enabled || !parent) {
+        return;
+    }
+
+    parent_name = parent->name;
+    parent_enabled = object_property_get_bool(OBJECT(cpu), parent_name, NULL);
+    profile->enabled = parent_enabled;
+}
+
 static void riscv_cpu_validate_profile(RISCVCPU *cpu,
                                        RISCVCPUProfile *profile)
 {
     CPURISCVState *env = &cpu->env;
     const char *warn_msg = "Profile %s mandates disabled extension %s";
     bool send_warn = profile->user_set && profile->enabled;
-    bool parent_enabled, profile_impl = true;
+    bool profile_impl = true;
     int i;
 
 #ifndef CONFIG_USER_ONLY
@@ -773,12 +789,8 @@ static void riscv_cpu_validate_profile(RISCVCPU *cpu,
 
     profile->enabled = profile_impl;
 
-    if (profile->parent != NULL) {
-        parent_enabled = object_property_get_bool(OBJECT(cpu),
-                                                  profile->parent->name,
-                                                  NULL);
-        profile->enabled = profile->enabled && parent_enabled;
-    }
+    riscv_cpu_check_parent_profile(cpu, profile, profile->u_parent);
+    riscv_cpu_check_parent_profile(cpu, profile, profile->s_parent);
 }
 
 static void riscv_cpu_validate_profiles(RISCVCPU *cpu)
@@ -1190,8 +1202,13 @@ static void cpu_set_profile(Object *obj, Visitor *v, const char *name,
     profile->user_set = true;
     profile->enabled = value;
 
-    if (profile->parent != NULL) {
-        object_property_set_bool(obj, profile->parent->name,
+    if (profile->u_parent != NULL) {
+        object_property_set_bool(obj, profile->u_parent->name,
+                                 profile->enabled, NULL);
+    }
+
+    if (profile->s_parent != NULL) {
+        object_property_set_bool(obj, profile->s_parent->name,
                                  profile->enabled, NULL);
     }
 
