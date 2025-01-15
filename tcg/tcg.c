@@ -133,6 +133,8 @@ static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
 static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2);
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
 static void tcg_out_goto_tb(TCGContext *s, int which);
+static void tcg_out_set_carry(TCGContext *s);
+static void tcg_out_set_borrow(TCGContext *s);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS]);
@@ -978,6 +980,18 @@ typedef struct TCGOutOp {
     TCGConstraintSetIndex (*dynamic_constraint)(TCGType type, unsigned flags);
 } TCGOutOp;
 
+typedef struct TCGOutOpAddSubCarry {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, TCGReg a2);
+    void (*out_rri)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, tcg_target_long a2);
+    void (*out_rir)(TCGContext *s, TCGType type,
+                    TCGReg a0, tcg_target_long a1, TCGReg a2);
+    void (*out_rii)(TCGContext *s, TCGType type,
+                    TCGReg a0, tcg_target_long a1, tcg_target_long a2);
+} TCGOutOpAddSubCarry;
+
 typedef struct TCGOutOpBinary {
     TCGOutOp base;
     void (*out_rrr)(TCGContext *s, TCGType type,
@@ -1131,6 +1145,11 @@ static const TCGOutOpUnary outop_extrl_i64_i32 = {
 /* Register allocation descriptions for every TCGOpcode. */
 static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
+    OUTOP(INDEX_op_addci, TCGOutOpAddSubCarry, outop_addci),
+    OUTOP(INDEX_op_addcio, TCGOutOpBinary, outop_addcio),
+    OUTOP(INDEX_op_addco, TCGOutOpBinary, outop_addco),
+    /* addc1o is implemented with set_carry + addcio */
+    OUTOP(INDEX_op_addc1o, TCGOutOpBinary, outop_addcio),
     OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
     OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
     OUTOP(INDEX_op_brcond, TCGOutOpBrcond, outop_brcond),
@@ -1170,6 +1189,11 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
     OUTOP(INDEX_op_sub, TCGOutOpSubtract, outop_sub),
+    OUTOP(INDEX_op_subbi, TCGOutOpAddSubCarry, outop_subbi),
+    OUTOP(INDEX_op_subbio, TCGOutOpAddSubCarry, outop_subbio),
+    OUTOP(INDEX_op_subbo, TCGOutOpAddSubCarry, outop_subbo),
+    /* subb1o is implemented with set_borrow + subbio */
+    OUTOP(INDEX_op_subb1o, TCGOutOpAddSubCarry, outop_subbio),
     OUTOP(INDEX_op_xor, TCGOutOpBinary, outop_xor),
 
 #if TCG_TARGET_REG_BITS == 32
@@ -5569,7 +5593,12 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     /* emit instruction */
     TCGType type = TCGOP_TYPE(op);
     switch (op->opc) {
+    case INDEX_op_addc1o:
+        tcg_out_set_carry(s);
+        /* fall through */
     case INDEX_op_add:
+    case INDEX_op_addcio:
+    case INDEX_op_addco:
     case INDEX_op_and:
     case INDEX_op_andc:
     case INDEX_op_clz:
@@ -5608,8 +5637,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
     case INDEX_op_sub:
         {
-            const TCGOutOpSubtract *out =
-                container_of(all_outop[op->opc], TCGOutOpSubtract, base);
+            const TCGOutOpSubtract *out = &outop_sub;
 
             /*
              * Constants should never appear in the second source operand.
@@ -5624,15 +5652,32 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
-    case INDEX_op_addco:
-    case INDEX_op_subbo:
+    case INDEX_op_subb1o:
+        tcg_out_set_borrow(s);
+        /* fall through */
     case INDEX_op_addci:
     case INDEX_op_subbi:
-    case INDEX_op_addcio:
     case INDEX_op_subbio:
-    case INDEX_op_addc1o:
-    case INDEX_op_subb1o:
-        g_assert_not_reached();
+    case INDEX_op_subbo:
+        {
+            const TCGOutOpAddSubCarry *out =
+                container_of(all_outop[op->opc], TCGOutOpAddSubCarry, base);
+
+            if (const_args[2]) {
+                if (const_args[1]) {
+                    out->out_rii(s, type, new_args[0],
+                                 new_args[1], new_args[2]);
+                } else {
+                    out->out_rri(s, type, new_args[0],
+                                 new_args[1], new_args[2]);
+                }
+            } else if (const_args[1]) {
+                out->out_rir(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
 
     case INDEX_op_bswap64:
     case INDEX_op_ext_i32_i64:
