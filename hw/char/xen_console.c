@@ -569,7 +569,7 @@ static void xen_console_device_create(XenBackendInstance *backend,
 
     snprintf(label, sizeof(label), "xencons%ld", number);
 
-    output = xs_node_read(xsh, XBT_NULL, NULL, NULL, "%s/%s", fe, "output");
+    output = xs_node_read(xsh, XBT_NULL, NULL, errp, "%s/%s", fe, "output");
     if (output) {
         /*
          * FIXME: sure we want to support implicit
@@ -581,19 +581,27 @@ static void xen_console_device_create(XenBackendInstance *backend,
                        output);
             goto fail;
         }
-    } else if (number) {
-        cd = serial_hd(number);
-        if (!cd) {
-            error_prepend(errp, "console: No serial device #%ld found: ",
-                          number);
-            goto fail;
-        }
+    } else if (errno != ENOENT) {
+        error_prepend(errp, "console: No valid chardev found: ");
+        goto fail;
     } else {
-        /* No 'output' node on primary console: use null. */
-        cd = qemu_chr_new(label, "null", NULL);
-        if (!cd) {
-            error_setg(errp, "console: failed to create null device");
-            goto fail;
+        error_free(*errp);
+        *errp = NULL;
+
+        if (number) {
+            cd = serial_hd(number);
+            if (!cd) {
+                error_setg(errp, "console: No serial device #%ld found",
+                           number);
+                goto fail;
+            }
+        } else {
+            /* No 'output' node on primary console: use null. */
+            cd = qemu_chr_new(label, "null", NULL);
+            if (!cd) {
+                error_setg(errp, "console: failed to create null device");
+                goto fail;
+            }
         }
     }
 
