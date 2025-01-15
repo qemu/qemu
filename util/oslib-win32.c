@@ -877,3 +877,9 @@ void qemu_win32_map_free(void *ptr, HANDLE h, Error **errp)
     }
     CloseHandle(h);
 }
+
+int qemu_shm_alloc(size_t size, Error **errp)
+{
+    error_setg(errp, "Shared memory is not supported.");
+    return -1;
+}
