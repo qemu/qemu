@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -585,6 +586,16 @@ void migrate_add_address(SocketAddress *address)
 
     QAPI_LIST_PREPEND(mis->socket_address_list,
                       QAPI_CLONE(SocketAddress, address));
+}
+
+bool migrate_is_uri(const char *uri)
+{
+    while (*uri && *uri != ':') {
+        if (!qemu_isalpha(*uri++)) {
+            return false;
+        }
+    }
+    return *uri == ':';
 }
 
 bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
