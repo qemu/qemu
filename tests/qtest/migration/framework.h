@@ -154,6 +154,9 @@ typedef struct {
      */
     const char *connect_channels;
 
+    /* Optional: the cpr migration channel, in JSON or dotted keys format */
+    const char *cpr_channel;
+
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
     /* Optional: callback to run at finish to cleanup */
