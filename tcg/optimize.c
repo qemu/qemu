@@ -737,12 +737,18 @@ static int do_constant_folding_cond(TCGType type, TCGArg x,
 
 #define NO_DEST  temp_arg(NULL)
 
+static int pref_commutative(TempOptInfo *ti)
+{
+    /* Slight preference for non-zero constants second. */
+    return !ti_is_const(ti) ? 0 : ti_const_val(ti) ? 3 : 2;
+}
+
 static bool swap_commutative(TCGArg dest, TCGArg *p1, TCGArg *p2)
 {
     TCGArg a1 = *p1, a2 = *p2;
     int sum = 0;
-    sum += arg_is_const(a1);
-    sum -= arg_is_const(a2);
+    sum += pref_commutative(arg_info(a1));
+    sum -= pref_commutative(arg_info(a2));
 
     /* Prefer the constant in second argument, and then the form
        op a, a, b, which is better handled on non-RISC hosts. */
@@ -757,10 +763,10 @@ static bool swap_commutative(TCGArg dest, TCGArg *p1, TCGArg *p2)
 static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
 {
     int sum = 0;
-    sum += arg_is_const(p1[0]);
-    sum += arg_is_const(p1[1]);
-    sum -= arg_is_const(p2[0]);
-    sum -= arg_is_const(p2[1]);
+    sum += pref_commutative(arg_info(p1[0]));
+    sum += pref_commutative(arg_info(p1[1]));
+    sum -= pref_commutative(arg_info(p2[0]));
+    sum -= pref_commutative(arg_info(p2[1]));
     if (sum > 0) {
         TCGArg t;
         t = p1[0], p1[0] = p2[0], p2[0] = t;
