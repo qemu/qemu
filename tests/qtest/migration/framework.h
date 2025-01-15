@@ -111,6 +111,11 @@ typedef struct {
     bool suspend_me;
     /* enable OOB QMP capability */
     bool oob;
+    /*
+     * Format string for the main memory backend, containing one %s where the
+     * size is plugged in.  If omitted, "-m %s" is used.
+     */
+    const char *memory_backend;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {
