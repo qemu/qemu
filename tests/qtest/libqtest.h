@@ -61,13 +61,15 @@ QTestState *qtest_init(const char *extra_args);
  * @var: Environment variable from where to take the QEMU binary
  * @extra_args: Other arguments to pass to QEMU.  CAUTION: these
  * arguments are subject to word splitting and shell evaluation.
+ * @do_connect: connect to qemu monitor and qtest socket.
  *
  * Like qtest_init(), but use a different environment variable for the
  * QEMU binary.
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_init_with_env(const char *var, const char *extra_args);
+QTestState *qtest_init_with_env(const char *var, const char *extra_args,
+                                bool do_connect);
 
 /**
  * qtest_init_with_env_and_capabilities:
@@ -75,6 +77,7 @@ QTestState *qtest_init_with_env(const char *var, const char *extra_args);
  * @extra_args: Other arguments to pass to QEMU.  CAUTION: these
  * arguments are subject to word splitting and shell evaluation.
  * @capabilities: list of QMP capabilities (strings) to enable
+ * @do_connect: connect to qemu monitor and qtest socket.
  *
  * Like qtest_init_with_env(), but enable specified capabilities during
  * hadshake.
@@ -83,7 +86,8 @@ QTestState *qtest_init_with_env(const char *var, const char *extra_args);
  */
 QTestState *qtest_init_with_env_and_capabilities(const char *var,
                                                  const char *extra_args,
-                                                 QList *capabilities);
+                                                 QList *capabilities,
+                                                 bool do_connect);
 
 /**
  * qtest_init_without_qmp_handshake:
@@ -93,6 +97,22 @@ QTestState *qtest_init_with_env_and_capabilities(const char *var,
  * Returns: #QTestState instance.
  */
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
+
+/**
+ * qtest_connect
+ * @s: #QTestState instance to connect
+ * Connect to qemu monitor and qtest socket, after skipping them in
+ * qtest_init_with_env.  Does not handshake with the monitor.
+ */
+void qtest_connect(QTestState *s);
+
+/**
+ * qtest_qmp_handshake:
+ * @s: #QTestState instance to operate on.
+ * @capabilities: list of QMP capabilities (strings) to enable
+ * Perform handshake after connecting to qemu monitor.
+ */
+void qtest_qmp_handshake(QTestState *s, QList *capabilities);
 
 /**
  * qtest_init_with_serial:

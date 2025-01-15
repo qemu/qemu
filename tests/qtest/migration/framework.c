@@ -196,9 +196,10 @@ static void cleanup(const char *filename)
 
 static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
 {
-    QList *capabilities = qlist_new();
+    QList *capabilities = NULL;
 
     if (args->oob) {
+        capabilities = qlist_new();
         qlist_append_str(capabilities, "oob");
     }
     return capabilities;
@@ -333,7 +334,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  ignore_stderr);
     if (!args->only_target) {
         *from = qtest_init_with_env_and_capabilities(QEMU_ENV_SRC, cmd_source,
-                                                     capabilities);
+                                                     capabilities, true);
         qtest_qmp_set_event_callback(*from,
                                      migrate_watch_for_events,
                                      &src_state);
@@ -354,7 +355,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
     *to = qtest_init_with_env_and_capabilities(QEMU_ENV_DST, cmd_target,
-                                               capabilities);
+                                               capabilities, true);
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_events,
                                  &dst_state);
