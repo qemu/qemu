@@ -2114,6 +2114,9 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 
 #ifdef CONFIG_POSIX         /* ignore RAM_SHARED for Windows */
     if (!host) {
+        if (!share_flags && current_machine->aux_ram_share) {
+            ram_flags |= RAM_SHARED;
+        }
         if (ram_flags & RAM_SHARED) {
             const char *name = memory_region_name(mr);
             int fd = qemu_ram_get_shared_fd(name, errp);
