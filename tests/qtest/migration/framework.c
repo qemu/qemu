@@ -18,6 +18,8 @@
 #include "migration/migration-qmp.h"
 #include "migration/migration-util.h"
 #include "ppc-util.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -705,6 +707,7 @@ void test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
+    QObject *out_channels = NULL;
 
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
@@ -737,12 +740,16 @@ void test_precopy_common(MigrateCommon *args)
         }
     }
 
+    if (args->connect_channels) {
+        out_channels = qobject_from_json(args->connect_channels, &error_abort);
+    }
+
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, args->connect_channels, "{}");
+        migrate_qmp_fail(from, args->connect_uri, out_channels, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, args->connect_channels, "{}");
+    migrate_qmp(from, to, args->connect_uri, out_channels, "{}");
 
     if (args->start.defer_target_connect) {
         qtest_connect(to);
@@ -892,7 +899,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->connect_uri, "{}");
+    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
     wait_for_migration_complete(to);
 
     if (stop_src) {
@@ -928,7 +935,7 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
     migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", "{}");
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
 
     return NULL;
 }

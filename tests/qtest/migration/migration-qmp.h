@@ -4,17 +4,19 @@
 
 #include "migration-util.h"
 
+QObject *migrate_str_to_channel(const char *str);
+
 G_GNUC_PRINTF(4, 5)
 void migrate_qmp_fail(QTestState *who, const char *uri,
-                      const char *channels, const char *fmt, ...);
+                      QObject *channels, const char *fmt, ...);
 
 G_GNUC_PRINTF(5, 6)
 void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
-                 const char *channels, const char *fmt, ...);
+                 QObject *channels, const char *fmt, ...);
 
-G_GNUC_PRINTF(3, 4)
+G_GNUC_PRINTF(4, 5)
 void migrate_incoming_qmp(QTestState *who, const char *uri,
-                          const char *fmt, ...);
+                          QObject *channels, const char *fmt, ...);
 
 void migration_event_wait(QTestState *s, const char *target);
 void migrate_set_capability(QTestState *who, const char *capability,

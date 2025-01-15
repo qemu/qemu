@@ -15,9 +15,13 @@
 #include "migration-qmp.h"
 #include "migration-util.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-migration.h"
+#include "qapi/qapi-visit-migration.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 
 /*
  * Number of seconds we wait when looking for migration
@@ -47,8 +51,33 @@ void migration_event_wait(QTestState *s, const char *target)
     } while (!found);
 }
 
+/*
+ * Convert a string representing a single channel to an object.
+ * @str may be in JSON or dotted keys format.
+ */
+QObject *migrate_str_to_channel(const char *str)
+{
+    Visitor *v;
+    MigrationChannel *channel;
+    QObject *obj;
+
+    /* Create the channel */
+    v = qobject_input_visitor_new_str(str, "channel-type", &error_abort);
+    visit_type_MigrationChannel(v, NULL, &channel, &error_abort);
+    visit_free(v);
+
+    /* Create the object */
+    v = qobject_output_visitor_new(&obj);
+    visit_type_MigrationChannel(v, NULL, &channel, &error_abort);
+    visit_complete(v, &obj);
+    visit_free(v);
+
+    qapi_free_MigrationChannel(channel);
+    return obj;
+}
+
 void migrate_qmp_fail(QTestState *who, const char *uri,
-                      const char *channels, const char *fmt, ...)
+                      QObject *channels, const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *err;
@@ -64,8 +93,7 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
 
     g_assert(!qdict_haskey(args, "channels"));
     if (channels) {
-        QObject *channels_obj = qobject_from_json(channels, &error_abort);
-        qdict_put_obj(args, "channels", channels_obj);
+        qdict_put_obj(args, "channels", channels);
     }
 
     err = qtest_qmp_assert_failure_ref(
@@ -82,7 +110,7 @@ void migrate_qmp_fail(QTestState *who, const char *uri,
  * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.
  */
 void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
-                 const char *channels, const char *fmt, ...)
+                 QObject *channels, const char *fmt, ...)
 {
     va_list ap;
     QDict *args;
@@ -102,10 +130,9 @@ void migrate_qmp(QTestState *who, QTestState *to, const char *uri,
 
     g_assert(!qdict_haskey(args, "channels"));
     if (channels) {
-        QObject *channels_obj = qobject_from_json(channels, &error_abort);
-        QList *channel_list = qobject_to(QList, channels_obj);
+        QList *channel_list = qobject_to(QList, channels);
         migrate_set_ports(to, channel_list);
-        qdict_put_obj(args, "channels", channels_obj);
+        qdict_put_obj(args, "channels", channels);
     }
 
     qtest_qmp_assert_success(who,
@@ -123,7 +150,8 @@ void migrate_set_capability(QTestState *who, const char *capability,
                              capability, value);
 }
 
-void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
+void migrate_incoming_qmp(QTestState *to, const char *uri, QObject *channels,
+                          const char *fmt, ...)
 {
     va_list ap;
     QDict *args, *rsp;
@@ -133,7 +161,14 @@ void migrate_incoming_qmp(QTestState *to, const char *uri, const char *fmt, ...)
     va_end(ap);
 
     g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
+    if (uri) {
+        qdict_put_str(args, "uri", uri);
+    }
+
+    g_assert(!qdict_haskey(args, "channels"));
+    if (channels) {
+        qdict_put_obj(args, "channels", channels);
+    }
 
     /* This function relies on the event to work, make sure it's enabled */
     migrate_set_capability(to, "events", true);
