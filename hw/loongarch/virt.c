@@ -331,8 +331,9 @@ static void fdt_add_uart_node(LoongArchVirtMachineState *lvms,
     qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "ns16550a");
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0x0, base, 0x0, size);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "clock-frequency", 100000000);
-    if (chosen)
+    if (chosen) {
         qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
+    }
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0x4);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           *pch_pic_phandle);
@@ -815,7 +816,7 @@ static void virt_devices_init(DeviceState *pch_pic,
      * Create uart fdt node in reverse order so that they appear
      * in the finished device tree lowest address first
      */
-    for (i = VIRT_UART_COUNT; i --> 0;) {
+    for (i = VIRT_UART_COUNT; i-- > 0;) {
         hwaddr base = VIRT_UART_BASE + i * VIRT_UART_SIZE;
         int irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
         serial_mm_init(get_system_memory(), base, 0,
@@ -1175,8 +1176,9 @@ static void fw_cfg_add_memory(MachineState *ms)
         size = ram_size - numa_info[0].node_mem;
     }
 
-   if (size)
+    if (size) {
         memmap_add_entry(base, size, 1);
+    }
 }
 
 static void virt_init(MachineState *machine)

@@ -314,7 +314,6 @@ static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
     g_free((char *)info.name);
 
     new_iface = (InterfaceClass *)iface_impl->class;
-    new_iface->concrete_class = ti->class;
     new_iface->interface_type = interface_type;
 
     ti->class->interfaces = g_slist_append(ti->class->interfaces, new_iface);
@@ -1751,6 +1750,16 @@ static Object *object_root_initialize(void)
     return root;
 }
 
+Object *object_get_container(const char *name)
+{
+    Object *container;
+
+    container = object_resolve_path_component(object_get_root(), name);
+    assert(object_dynamic_cast(container, TYPE_CONTAINER));
+
+    return container;
+}
+
 Object *object_get_root(void)
 {
     static Object *root;
@@ -1764,7 +1773,7 @@ Object *object_get_root(void)
 
 Object *object_get_objects_root(void)
 {
-    return container_get(object_get_root(), "/objects");
+    return object_get_container("objects");
 }
 
 Object *object_get_internal_root(void)

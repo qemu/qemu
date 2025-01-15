@@ -140,7 +140,7 @@ qtests_alpha = ['boot-serial-test'] + \
 
 qtests_avr = [ 'boot-serial-test' ]
 
-qtests_hppa = ['boot-serial-test'] + \
+qtests_hppa = \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
@@ -383,7 +383,7 @@ qtests = {
 if vnc.found()
   gvnc = dependency('gvnc-1.0', method: 'pkg-config', required: false)
   if gvnc.found()
-    qtests += {'vnc-display-test': [gvnc]}
+    qtests += {'vnc-display-test': [gvnc, keymap_targets]}
     qtests_generic += [ 'vnc-display-test' ]
   endif
 endif

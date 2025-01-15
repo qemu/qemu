@@ -249,10 +249,6 @@ struct DeviceState {
      */
     int64_t pending_deleted_expires_ms;
     /**
-     * @opts: QDict of options for the device
-     */
-    QDict *opts;
-    /**
      * @hotplugged: was device added after PHASE_MACHINE_READY?
      */
     int hotplugged;
@@ -544,7 +540,8 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev);
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev);
-bool qdev_hotplug_allowed(DeviceState *dev, Error **errp);
+bool qdev_hotplug_allowed(DeviceState *dev, BusState *bus, Error **errp);
+bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp);
 
 /**
  * qdev_get_hotplug_handler() - Get handler responsible for device wiring
@@ -1026,6 +1023,26 @@ const char *qdev_fw_name(DeviceState *dev);
 
 void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
+
+/**
+ * qdev_create_fake_machine(): Create a fake machine container.
+ *
+ * .. note::
+ *    This function is a kludge for user emulation (USER_ONLY)
+ *    because when thread (TYPE_CPU) are realized, qdev_realize()
+ *    access a machine container.
+ */
+void qdev_create_fake_machine(void);
+
+/**
+ * machine_get_container:
+ * @name: The name of container to lookup
+ *
+ * Get a container of the machine (QOM path "/machine/NAME").
+ *
+ * Returns: the machine container object.
+ */
+Object *machine_get_container(const char *name);
 
 /**
  * qdev_get_human_name() - Return a human-readable name for a device

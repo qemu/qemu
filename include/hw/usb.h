@@ -579,16 +579,6 @@ void usb_pcap_init(FILE *fp);
 void usb_pcap_ctrl(USBPacket *p, bool setup);
 void usb_pcap_data(USBPacket *p, bool setup);
 
-static inline USBDevice *usb_new(const char *name)
-{
-    return USB_DEVICE(qdev_new(name));
-}
-
-static inline USBDevice *usb_try_new(const char *name)
-{
-    return USB_DEVICE(qdev_try_new(name));
-}
-
 static inline bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
@@ -596,7 +586,7 @@ static inline bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **er
 
 static inline USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
-    USBDevice *dev = usb_new(name);
+    USBDevice *dev = USB_DEVICE(qdev_new(name));
 
     usb_realize_and_unref(dev, bus, &error_abort);
     return dev;

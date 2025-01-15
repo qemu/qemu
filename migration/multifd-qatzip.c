@@ -373,6 +373,7 @@ static int qatzip_recv(MultiFDRecvParams *p, Error **errp)
     /* Copy each page to its appropriate location. */
     for (int i = 0; i < p->normal_num; i++) {
         memcpy(p->host + p->normal[i], q->out_buf + page_size * i, page_size);
+        ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
     }
     return 0;
 }

@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/fifo32.h"
+#include "trace.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
@@ -184,10 +185,10 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
+    Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
     uint32_t c, rx_used;
     uint8_t rxtl = s->ufcr & TL_MASK;
-
-    DPRINTF("read(offset=0x%" HWADDR_PRIx ")\n", offset);
+    uint64_t value;
 
     switch (offset >> 2) {
     case 0x0: /* URXD */
@@ -208,49 +209,67 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
             imx_serial_rx_fifo_ageing_timer_restart(s);
             qemu_chr_fe_accept_input(&s->chr);
         }
-        return c;
+        value = c;
+        break;
 
     case 0x20: /* UCR1 */
-        return s->ucr1;
+        value = s->ucr1;
+        break;
 
     case 0x21: /* UCR2 */
-        return s->ucr2;
+        value = s->ucr2;
+        break;
 
     case 0x25: /* USR1 */
-        return s->usr1;
+        value = s->usr1;
+        break;
 
     case 0x26: /* USR2 */
-        return s->usr2;
+        value = s->usr2;
+        break;
 
     case 0x2A: /* BRM Modulator */
-        return s->ubmr;
+        value = s->ubmr;
+        break;
 
     case 0x2B: /* Baud Rate Count */
-        return s->ubrc;
+        value = s->ubrc;
+        break;
 
     case 0x2d: /* Test register */
-        return s->uts1;
+        value = s->uts1;
+        break;
 
     case 0x24: /* UFCR */
-        return s->ufcr;
+        value = s->ufcr;
+        break;
 
     case 0x2c:
-        return s->onems;
+        value = s->onems;
+        break;
 
     case 0x22: /* UCR3 */
-        return s->ucr3;
+        value = s->ucr3;
+        break;
 
     case 0x23: /* UCR4 */
-        return s->ucr4;
+        value = s->ucr4;
+        break;
 
     case 0x29: /* BRM Incremental */
-        return 0x0; /* TODO */
+        value = 0x0; /* TODO */
+        break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
                       HWADDR_PRIx "\n", TYPE_IMX_SERIAL, __func__, offset);
-        return 0;
+        value = 0;
+        break;
     }
+
+    trace_imx_serial_read(chr ? chr->label : "NODEV", offset, value);
+
+    return value;
 }
 
 static void imx_serial_write(void *opaque, hwaddr offset,
@@ -260,8 +279,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
     Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
     unsigned char ch;
 
-    DPRINTF("write(offset=0x%" HWADDR_PRIx ", value = 0x%x) to %s\n",
-            offset, (unsigned int)value, chr ? chr->label : "NODEV");
+    trace_imx_serial_write(chr ? chr->label : "NODEV", offset, value);
 
     switch (offset >> 2) {
     case 0x10: /* UTXD */
@@ -373,9 +391,11 @@ static int imx_can_receive(void *opaque)
 static void imx_put_data(void *opaque, uint32_t value)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
+    Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
     uint8_t rxtl = s->ufcr & TL_MASK;
 
-    DPRINTF("received char\n");
+    trace_imx_serial_put_data(chr ? chr->label : "NODEV", value);
+
     imx_serial_rx_fifo_push(s, value);
     if (fifo32_num_used(&s->rx_fifo) >= rxtl) {
         s->usr1 |= USR1_RRDY;

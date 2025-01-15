@@ -281,8 +281,7 @@ static int cryptodev_vhost_user_create_session(
         break;
 
     default:
-        error_setg(&local_error, "Unsupported opcode :%" PRIu32 "",
-                   sess_info->op_code);
+        error_report("Unsupported opcode :%" PRIu32 "", sess_info->op_code);
         return -VIRTIO_CRYPTO_NOTSUPP;
     }
 

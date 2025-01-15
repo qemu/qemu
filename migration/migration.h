@@ -370,9 +370,6 @@ struct MigrationState {
     /* Flag set once the migration thread is running (and needs joining) */
     bool migration_thread_running;
 
-    /* Flag set once the migration thread called bdrv_inactivate_all */
-    bool block_inactive;
-
     /* Migration is waiting for guest to unplug device */
     QemuSemaphore wait_unplug_sem;
 
@@ -555,5 +552,8 @@ void migration_bitmap_sync_precopy(bool last_stage);
 
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
+
+/* migration/block-active.c */
+void migration_block_active_setup(bool active);
 
 #endif

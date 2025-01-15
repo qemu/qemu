@@ -573,12 +573,15 @@ struct InterfaceInfo {
  *
  * The class for all interfaces.  Subclasses of this class should only add
  * virtual methods.
+ *
+ * Note that most of the fields of ObjectClass are unused (all except
+ * "type", in fact).  They are only present in InterfaceClass to allow
+ * @object_class_dynamic_cast to work with both regular classes and interfaces.
  */
 struct InterfaceClass
 {
     ObjectClass parent_class;
     /* private: */
-    ObjectClass *concrete_class;
     Type interface_type;
 };
 
@@ -1510,6 +1513,16 @@ const char *object_property_get_type(Object *obj, const char *name,
  */
 Object *object_get_root(void);
 
+/**
+ * object_get_container:
+ * @name: the name of container to lookup
+ *
+ * Lookup a root level container.
+ *
+ * Returns: the container with @name.
+ */
+Object *object_get_container(const char *name);
+
 
 /**
  * object_get_objects_root:
@@ -2007,17 +2020,6 @@ int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
 int object_child_foreach_recursive(Object *obj,
                                    int (*fn)(Object *child, void *opaque),
                                    void *opaque);
-/**
- * container_get:
- * @root: root of the #path, e.g., object_get_root()
- * @path: path to the container
- *
- * Return a container object whose path is @path.  Create more containers
- * along the path if necessary.
- *
- * Returns: the container object.
- */
-Object *container_get(Object *root, const char *path);
 
 /**
  * object_property_add_new_container:

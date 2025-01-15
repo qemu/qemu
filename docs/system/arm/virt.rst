@@ -19,6 +19,10 @@ of the 5.0 release and ``virt-5.0`` of the 5.1 release. Migration
 is not guaranteed to work between different QEMU releases for
 the non-versioned ``virt`` machine type.
 
+VM migration is not guaranteed when using ``-cpu max``, as features
+supported may change between QEMU versions.  To ensure your VM can be
+migrated, it is recommended to use another cpu model instead.
+
 Supported devices
 """""""""""""""""
 
