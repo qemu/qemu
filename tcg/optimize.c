@@ -66,6 +66,7 @@ typedef struct OptContext {
 
     /* In flight values from optimization. */
     TCGType type;
+    int carry_state;  /* -1 = non-constant, {0,1} = constant carry-in */
 } OptContext;
 
 static inline TempOptInfo *ts_info(TCGTemp *ts)
@@ -1203,8 +1204,10 @@ static bool fold_xx_to_x(OptContext *ctx, TCGOp *op)
  *   3) those that produce information about the result value.
  */
 
+static bool fold_addco(OptContext *ctx, TCGOp *op);
 static bool fold_or(OptContext *ctx, TCGOp *op);
 static bool fold_orc(OptContext *ctx, TCGOp *op);
+static bool fold_subbo(OptContext *ctx, TCGOp *op);
 static bool fold_xor(OptContext *ctx, TCGOp *op);
 
 static bool fold_add(OptContext *ctx, TCGOp *op)
@@ -1226,9 +1229,167 @@ static bool fold_add_vec(OptContext *ctx, TCGOp *op)
     return finish_folding(ctx, op);
 }
 
-static bool fold_add_carry(OptContext *ctx, TCGOp *op)
+static void squash_prev_carryout(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t2;
+
+    op = QTAILQ_PREV(op, link);
+    switch (op->opc) {
+    case INDEX_op_addco:
+        op->opc = INDEX_op_add;
+        fold_add(ctx, op);
+        break;
+    case INDEX_op_addcio:
+        op->opc = INDEX_op_addci;
+        break;
+    case INDEX_op_addc1o:
+        op->opc = INDEX_op_add;
+        t2 = arg_info(op->args[2]);
+        if (ti_is_const(t2)) {
+            op->args[2] = arg_new_constant(ctx, ti_const_val(t2) + 1);
+            /* Perform other constant folding, if needed. */
+            fold_add(ctx, op);
+        } else {
+            TCGArg ret = op->args[0];
+            op = opt_insert_after(ctx, op, INDEX_op_add, 3);
+            op->args[0] = ret;
+            op->args[1] = ret;
+            op->args[2] = arg_new_constant(ctx, 1);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static bool fold_addci(OptContext *ctx, TCGOp *op)
 {
     fold_commutative(ctx, op);
+
+    if (ctx->carry_state < 0) {
+        return finish_folding(ctx, op);
+    }
+
+    squash_prev_carryout(ctx, op);
+    op->opc = INDEX_op_add;
+
+    if (ctx->carry_state > 0) {
+        TempOptInfo *t2 = arg_info(op->args[2]);
+
+        /*
+         * Propagate the known carry-in into a constant, if possible.
+         * Otherwise emit a second add +1.
+         */
+        if (ti_is_const(t2)) {
+            op->args[2] = arg_new_constant(ctx, ti_const_val(t2) + 1);
+        } else {
+            TCGOp *op2 = opt_insert_before(ctx, op, INDEX_op_add, 3);
+
+            op2->args[0] = op->args[0];
+            op2->args[1] = op->args[1];
+            op2->args[2] = op->args[2];
+            fold_add(ctx, op2);
+
+            op->args[1] = op->args[0];
+            op->args[2] = arg_new_constant(ctx, 1);
+        }
+    }
+
+    ctx->carry_state = -1;
+    return fold_add(ctx, op);
+}
+
+static bool fold_addcio(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t1, *t2;
+    int carry_out = -1;
+    uint64_t sum, max;
+
+    fold_commutative(ctx, op);
+    t1 = arg_info(op->args[1]);
+    t2 = arg_info(op->args[2]);
+
+    /*
+     * The z_mask value is >= the maximum value that can be represented
+     * with the known zero bits.  So adding the z_mask values will not
+     * overflow if and only if the true values cannot overflow.
+     */
+    if (!uadd64_overflow(t1->z_mask, t2->z_mask, &sum) &&
+        !uadd64_overflow(sum, ctx->carry_state != 0, &sum)) {
+        carry_out = 0;
+    }
+
+    if (ctx->carry_state < 0) {
+        ctx->carry_state = carry_out;
+        return finish_folding(ctx, op);
+    }
+
+    squash_prev_carryout(ctx, op);
+    if (ctx->carry_state == 0) {
+        goto do_addco;
+    }
+
+    /* Propagate the known carry-in into a constant, if possible. */
+    max = ctx->type == TCG_TYPE_I32 ? UINT32_MAX : UINT64_MAX;
+    if (ti_is_const(t2)) {
+        uint64_t v = ti_const_val(t2) & max;
+        if (v < max) {
+            op->args[2] = arg_new_constant(ctx, v + 1);
+            goto do_addco;
+        }
+        /* max + known carry in produces known carry out. */
+        carry_out = 1;
+    }
+    if (ti_is_const(t1)) {
+        uint64_t v = ti_const_val(t1) & max;
+        if (v < max) {
+            op->args[1] = arg_new_constant(ctx, v + 1);
+            goto do_addco;
+        }
+        carry_out = 1;
+    }
+
+    /* Adjust the opcode to remember the known carry-in. */
+    op->opc = INDEX_op_addc1o;
+    ctx->carry_state = carry_out;
+    return finish_folding(ctx, op);
+
+ do_addco:
+    op->opc = INDEX_op_addco;
+    return fold_addco(ctx, op);
+}
+
+static bool fold_addco(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t1, *t2;
+    int carry_out = -1;
+    uint64_t ign;
+
+    fold_commutative(ctx, op);
+    t1 = arg_info(op->args[1]);
+    t2 = arg_info(op->args[2]);
+
+    if (ti_is_const(t2)) {
+        uint64_t v2 = ti_const_val(t2);
+
+        if (ti_is_const(t1)) {
+            uint64_t v1 = ti_const_val(t1);
+            /* Given sign-extension of z_mask for I32, we need not truncate. */
+            carry_out = uadd64_overflow(v1, v2, &ign);
+        } else if (v2 == 0) {
+            carry_out = 0;
+        }
+    } else {
+        /*
+         * The z_mask value is >= the maximum value that can be represented
+         * with the known zero bits.  So adding the z_mask values will not
+         * overflow if and only if the true values cannot overflow.
+         */
+        if (!uadd64_overflow(t1->z_mask, t2->z_mask, &ign)) {
+            carry_out = 0;
+        }
+    }
+    ctx->carry_state = carry_out;
     return finish_folding(ctx, op);
 }
 
@@ -2649,6 +2810,145 @@ static bool fold_sub2(OptContext *ctx, TCGOp *op)
     return fold_addsub2(ctx, op, false);
 }
 
+static void squash_prev_borrowout(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t2;
+
+    op = QTAILQ_PREV(op, link);
+    switch (op->opc) {
+    case INDEX_op_subbo:
+        op->opc = INDEX_op_sub;
+        fold_sub(ctx, op);
+        break;
+    case INDEX_op_subbio:
+        op->opc = INDEX_op_subbi;
+        break;
+    case INDEX_op_subb1o:
+        t2 = arg_info(op->args[2]);
+        if (ti_is_const(t2)) {
+            op->opc = INDEX_op_add;
+            op->args[2] = arg_new_constant(ctx, -(ti_const_val(t2) + 1));
+            /* Perform other constant folding, if needed. */
+            fold_add(ctx, op);
+        } else {
+            TCGArg ret = op->args[0];
+            op->opc = INDEX_op_sub;
+            op = opt_insert_after(ctx, op, INDEX_op_add, 3);
+            op->args[0] = ret;
+            op->args[1] = ret;
+            op->args[2] = arg_new_constant(ctx, -1);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static bool fold_subbi(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t2;
+    int borrow_in = ctx->carry_state;
+
+    if (borrow_in < 0) {
+        return finish_folding(ctx, op);
+    }
+    ctx->carry_state = -1;
+
+    squash_prev_borrowout(ctx, op);
+    if (borrow_in == 0) {
+        op->opc = INDEX_op_sub;
+        return fold_sub(ctx, op);
+    }
+
+    /*
+     * Propagate the known carry-in into any constant, then negate to
+     * transform from sub to add.  If there is no constant, emit a
+     * separate add -1.
+     */
+    t2 = arg_info(op->args[2]);
+    if (ti_is_const(t2)) {
+        op->args[2] = arg_new_constant(ctx, -(ti_const_val(t2) + 1));
+    } else {
+        TCGOp *op2 = opt_insert_before(ctx, op, INDEX_op_sub, 3);
+
+        op2->args[0] = op->args[0];
+        op2->args[1] = op->args[1];
+        op2->args[2] = op->args[2];
+        fold_sub(ctx, op2);
+
+        op->args[1] = op->args[0];
+        op->args[2] = arg_new_constant(ctx, -1);
+    }
+    op->opc = INDEX_op_add;
+    return fold_add(ctx, op);
+}
+
+static bool fold_subbio(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t1, *t2;
+    int borrow_out = -1;
+
+    if (ctx->carry_state < 0) {
+        return finish_folding(ctx, op);
+    }
+
+    squash_prev_borrowout(ctx, op);
+    if (ctx->carry_state == 0) {
+        goto do_subbo;
+    }
+
+    t1 = arg_info(op->args[1]);
+    t2 = arg_info(op->args[2]);
+
+    /* Propagate the known borrow-in into a constant, if possible. */
+    if (ti_is_const(t2)) {
+        uint64_t max = ctx->type == TCG_TYPE_I32 ? UINT32_MAX : UINT64_MAX;
+        uint64_t v = ti_const_val(t2) & max;
+
+        if (v < max) {
+            op->args[2] = arg_new_constant(ctx, v + 1);
+            goto do_subbo;
+        }
+        /* subtracting max + 1 produces known borrow out. */
+        borrow_out = 1;
+    }
+    if (ti_is_const(t1)) {
+        uint64_t v = ti_const_val(t1);
+        if (v != 0) {
+            op->args[2] = arg_new_constant(ctx, v - 1);
+            goto do_subbo;
+        }
+    }
+
+    /* Adjust the opcode to remember the known carry-in. */
+    op->opc = INDEX_op_subb1o;
+    ctx->carry_state = borrow_out;
+    return finish_folding(ctx, op);
+
+ do_subbo:
+    op->opc = INDEX_op_subbo;
+    return fold_subbo(ctx, op);
+}
+
+static bool fold_subbo(OptContext *ctx, TCGOp *op)
+{
+    TempOptInfo *t1 = arg_info(op->args[1]);
+    TempOptInfo *t2 = arg_info(op->args[2]);
+    int borrow_out = -1;
+
+    if (ti_is_const(t2)) {
+        uint64_t v2 = ti_const_val(t2);
+        if (v2 == 0) {
+            borrow_out = 0;
+        } else if (ti_is_const(t1)) {
+            uint64_t v1 = ti_const_val(t1);
+            borrow_out = v1 < v2;
+        }
+    }
+    ctx->carry_state = borrow_out;
+    return finish_folding(ctx, op);
+}
+
 static bool fold_tcg_ld(OptContext *ctx, TCGOp *op)
 {
     uint64_t z_mask = -1, s_mask = 0;
@@ -2836,9 +3136,13 @@ void tcg_optimize(TCGContext *s)
             done = fold_add_vec(&ctx, op);
             break;
         case INDEX_op_addci:
-        case INDEX_op_addco:
+            done = fold_addci(&ctx, op);
+            break;
         case INDEX_op_addcio:
-            done = fold_add_carry(&ctx, op);
+            done = fold_addcio(&ctx, op);
+            break;
+        case INDEX_op_addco:
+            done = fold_addco(&ctx, op);
             break;
         CASE_OP_32_64(add2):
             done = fold_add2(&ctx, op);
@@ -3019,6 +3323,15 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_sub:
             done = fold_sub(&ctx, op);
+            break;
+        case INDEX_op_subbi:
+            done = fold_subbi(&ctx, op);
+            break;
+        case INDEX_op_subbio:
+            done = fold_subbio(&ctx, op);
+            break;
+        case INDEX_op_subbo:
+            done = fold_subbo(&ctx, op);
             break;
         case INDEX_op_sub_vec:
             done = fold_sub_vec(&ctx, op);
