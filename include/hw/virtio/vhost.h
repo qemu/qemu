@@ -365,7 +365,14 @@ static inline int vhost_reset_device(struct vhost_dev *hdev)
  * Returns true if the device supports these commands, and false if it
  * does not.
  */
+#ifdef CONFIG_VHOST
 bool vhost_supports_device_state(struct vhost_dev *dev);
+#else
+static inline bool vhost_supports_device_state(struct vhost_dev *dev)
+{
+    return false;
+}
+#endif
 
 /**
  * vhost_set_device_state_fd(): Begin transfer of internal state from/to
@@ -448,7 +455,15 @@ int vhost_check_device_state(struct vhost_dev *dev, Error **errp);
  *
  * Returns 0 on success, and -errno otherwise.
  */
+#ifdef CONFIG_VHOST
 int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
+#else
+static inline int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f,
+                                           Error **errp)
+{
+    return -ENOSYS;
+}
+#endif
 
 /**
  * vhost_load_backend_state(): High-level function to load a vhost
@@ -465,6 +480,14 @@ int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
  *
  * Returns 0 on success, and -errno otherwise.
  */
+#ifdef CONFIG_VHOST
 int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp);
+#else
+static inline int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f,
+                                           Error **errp)
+{
+    return -ENOSYS;
+}
+#endif
 
 #endif
