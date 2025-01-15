@@ -194,17 +194,27 @@ bool qemu_memfd_alloc_check(void)
 /**
  * qemu_memfd_check():
  *
- * Check if host supports memfd.
+ * Check if host supports memfd.  Cache the answer for the common case flags=0.
  */
 bool qemu_memfd_check(unsigned int flags)
 {
 #ifdef CONFIG_LINUX
-    int mfd = memfd_create("test", flags | MFD_CLOEXEC);
+    int mfd;
+    static int memfd_check = MEMFD_TODO;
 
+    if (!flags && memfd_check != MEMFD_TODO) {
+        return memfd_check;
+    }
+
+    mfd = memfd_create("test", flags | MFD_CLOEXEC);
     if (mfd >= 0) {
         close(mfd);
-        return true;
     }
+    if (!flags) {
+        memfd_check = (mfd >= 0) ? MEMFD_OK : MEMFD_KO;
+    }
+    return (mfd >= 0);
+
 #endif
 
     return false;
