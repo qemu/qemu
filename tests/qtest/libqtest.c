@@ -811,6 +811,7 @@ QDict *qtest_qmp_receive(QTestState *s)
 
 QDict *qtest_qmp_receive_dict(QTestState *s)
 {
+    g_assert(s->qmp_fd >= 0);
     return qmp_fd_receive(s->qmp_fd);
 }
 
@@ -838,12 +839,14 @@ int qtest_socket_server(const char *socket_path)
 void qtest_qmp_vsend_fds(QTestState *s, int *fds, size_t fds_num,
                          const char *fmt, va_list ap)
 {
+    g_assert(s->qmp_fd >= 0);
     qmp_fd_vsend_fds(s->qmp_fd, fds, fds_num, fmt, ap);
 }
 #endif
 
 void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
 {
+    g_assert(s->qmp_fd >= 0);
     qmp_fd_vsend(s->qmp_fd, fmt, ap);
 }
 
@@ -904,6 +907,7 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 
+    g_assert(s->qmp_fd >= 0);
     va_start(ap, fmt);
     qmp_fd_vsend_raw(s->qmp_fd, fmt, ap);
     va_end(ap);
