@@ -45,7 +45,7 @@ static const VMStateDescription vmstate_cpr_fd = {
         VMSTATE_UINT32(namelen, CprFd),
         VMSTATE_VBUFFER_ALLOC_UINT32(name, CprFd, 0, NULL, namelen),
         VMSTATE_INT32(id, CprFd),
-        VMSTATE_INT32(fd, CprFd),
+        VMSTATE_FD(fd, CprFd),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -116,6 +116,18 @@ QIOChannel *cpr_state_ioc(void)
     return qemu_file_get_ioc(cpr_state_file);
 }
 
+static MigMode incoming_mode = MIG_MODE_NONE;
+
+MigMode cpr_get_incoming_mode(void)
+{
+    return incoming_mode;
+}
+
+void cpr_set_incoming_mode(MigMode mode)
+{
+    incoming_mode = mode;
+}
+
 int cpr_state_save(MigrationChannel *channel, Error **errp)
 {
     int ret;
@@ -124,8 +136,14 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
 
     trace_cpr_state_save(MigMode_str(mode));
 
-    /* set f based on mode in a later patch in this series */
-    return 0;
+    if (mode == MIG_MODE_CPR_TRANSFER) {
+        f = cpr_transfer_output(channel, errp);
+    } else {
+        return 0;
+    }
+    if (!f) {
+        return -1;
+    }
 
     qemu_put_be32(f, QEMU_CPR_FILE_MAGIC);
     qemu_put_be32(f, QEMU_CPR_FILE_VERSION);
@@ -155,8 +173,16 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
     QEMUFile *f;
     MigMode mode = 0;
 
-    /* set f and mode based on other parameters later in this patch series */
-    return 0;
+    if (channel) {
+        mode = MIG_MODE_CPR_TRANSFER;
+        cpr_set_incoming_mode(mode);
+        f = cpr_transfer_input(channel, errp);
+    } else {
+        return 0;
+    }
+    if (!f) {
+        return -1;
+    }
 
     trace_cpr_state_load(MigMode_str(mode));
 

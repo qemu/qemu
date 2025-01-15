@@ -112,6 +112,8 @@ SRST
         specified on the command line, or implicitly created by the -m
         command line option.  The default is off.
 
+        To use the cpr-transfer migration mode, you must set aux-ram-share=on.
+
     ``memory-backend='id'``
         An alternative to legacy ``-mem-path`` and ``mem-prealloc`` options.
         Allows to use a memory backend as main RAM.
