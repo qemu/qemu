@@ -25,7 +25,6 @@ OBJECT_DECLARE_TYPE(S390StAttribState, S390StAttribClass, S390_STATTRIB)
 struct S390StAttribState {
     DeviceState parent_obj;
     uint64_t migration_cur_gfn;
-    bool migration_enabled;
 };
 
 

@@ -304,7 +304,7 @@ static int qemu_s390_set_migrationmode_stub(S390StAttribState *sa, bool value,
 
 static int qemu_s390_get_active(S390StAttribState *sa)
 {
-    return sa->migration_enabled;
+    return true;
 }
 
 static void qemu_s390_stattrib_class_init(ObjectClass *oc, void *data)
@@ -360,10 +360,6 @@ static void s390_stattrib_realize(DeviceState *dev, Error **errp)
                          &savevm_s390_stattrib_handlers, dev);
 }
 
-static const Property s390_stattrib_props[] = {
-    DEFINE_PROP_BOOL("migration-enabled", S390StAttribState, migration_enabled, true),
-};
-
 static void s390_stattrib_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -371,7 +367,6 @@ static void s390_stattrib_class_init(ObjectClass *oc, void *data)
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = s390_stattrib_realize;
-    device_class_set_props(dc, s390_stattrib_props);
 }
 
 static void s390_stattrib_instance_init(Object *obj)
