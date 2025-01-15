@@ -70,6 +70,7 @@
 
 #include "qemu/pmem.h"
 
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 
 #include "qemu/range.h"
@@ -1661,6 +1662,18 @@ void qemu_ram_unset_idstr(RAMBlock *block)
     }
 }
 
+static char *cpr_name(MemoryRegion *mr)
+{
+    const char *mr_name = memory_region_name(mr);
+    g_autofree char *id = mr->dev ? qdev_get_dev_path(mr->dev) : NULL;
+
+    if (id) {
+        return g_strdup_printf("%s/%s", id, mr_name);
+    } else {
+        return g_strdup(mr_name);
+    }
+}
+
 size_t qemu_ram_pagesize(RAMBlock *rb)
 {
     return rb->page_size;
@@ -2080,15 +2093,25 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
  * shared with another process if CPR is being used.  Use memfd if available
  * because it has no size limits, else use POSIX shm.
  */
-static int qemu_ram_get_shared_fd(const char *name, Error **errp)
+static int qemu_ram_get_shared_fd(const char *name, bool *reused, Error **errp)
 {
-    int fd;
+    int fd = cpr_find_fd(name, 0);
+
+    if (fd >= 0) {
+        *reused = true;
+        return fd;
+    }
 
     if (qemu_memfd_check(0)) {
         fd = qemu_memfd_create(name, 0, 0, 0, 0, errp);
     } else {
         fd = qemu_shm_alloc(0, errp);
     }
+
+    if (fd >= 0) {
+        cpr_save_fd(name, 0, fd);
+    }
+    *reused = false;
     return fd;
 }
 #endif
@@ -2118,8 +2141,9 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
             ram_flags |= RAM_SHARED;
         }
         if (ram_flags & RAM_SHARED) {
-            const char *name = memory_region_name(mr);
-            int fd = qemu_ram_get_shared_fd(name, errp);
+            bool reused;
+            g_autofree char *name = cpr_name(mr);
+            int fd = qemu_ram_get_shared_fd(name, &reused, errp);
 
             if (fd < 0) {
                 return NULL;
@@ -2133,9 +2157,14 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
              * fd is not supported, but previous QEMU versions that called
              * qemu_anon_ram_alloc for anonymous shared memory could have
              * succeeded.  Quietly fail and fall back.
+             *
+             * After cpr-transfer, new QEMU could create a memory region
+             * with a larger max size than old, so pass reused to grow the
+             * region if necessary.  The extra space will be usable after a
+             * guest reset.
              */
             new_block = qemu_ram_alloc_from_fd(size, max_size, resized, mr,
-                                               ram_flags, fd, 0, false, NULL);
+                                               ram_flags, fd, 0, reused, NULL);
             if (new_block) {
                 trace_qemu_ram_alloc_shared(name, new_block->used_length,
                                             new_block->max_length, fd,
@@ -2143,6 +2172,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                 return new_block;
             }
 
+            cpr_delete_fd(name, 0);
             close(fd);
             /* fall back to anon allocation */
         }
@@ -2221,6 +2251,8 @@ static void reclaim_ramblock(RAMBlock *block)
 
 void qemu_ram_free(RAMBlock *block)
 {
+    g_autofree char *name = NULL;
+
     if (!block) {
         return;
     }
@@ -2231,6 +2263,8 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     qemu_mutex_lock_ramlist();
+    name = cpr_name(block->mr);
+    cpr_delete_fd(name, 0);
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
     /* Write list before version */
