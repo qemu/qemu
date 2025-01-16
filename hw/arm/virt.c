@@ -3601,13 +3601,3 @@ static void virt_machine_2_12_options(MachineClass *mc)
     mc->max_cpus = 255;
 }
 DEFINE_VIRT_MACHINE(2, 12)
-
-static void virt_machine_2_11_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_2_12_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
-    vmc->smbios_old_sys_ver = true;
-}
-DEFINE_VIRT_MACHINE(2, 11)
