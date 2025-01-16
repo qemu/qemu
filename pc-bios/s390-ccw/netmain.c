@@ -153,18 +153,9 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
     return rc;
 }
 
-static int net_init(filename_ip_t *fn_ip)
+static int net_init_ip(filename_ip_t *fn_ip)
 {
     int rc;
-
-    memset(fn_ip, 0, sizeof(filename_ip_t));
-
-    rc = virtio_net_init(mac);
-    if (rc < 0) {
-        puts("Could not initialize network device");
-        return -101;
-    }
-    fn_ip->fd = rc;
 
     printf("  Using MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -221,11 +212,33 @@ static int net_init(filename_ip_t *fn_ip)
     return rc;
 }
 
+static int net_init(filename_ip_t *fn_ip)
+{
+    int rc;
+
+    memset(fn_ip, 0, sizeof(filename_ip_t));
+
+    rc = virtio_net_init(mac);
+    if (rc < 0) {
+        puts("Could not initialize network device");
+        return -101;
+    }
+    fn_ip->fd = rc;
+
+    rc = net_init_ip(fn_ip);
+    if (rc < 0) {
+        virtio_net_deinit();
+    }
+
+    return rc;
+}
+
 static void net_release(filename_ip_t *fn_ip)
 {
     if (fn_ip->ip_version == 4) {
         dhcp_send_release(fn_ip->fd);
     }
+    virtio_net_deinit();
 }
 
 /**

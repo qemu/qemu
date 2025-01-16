@@ -278,5 +278,6 @@ int virtio_reset(VDev *vdev);
 int virtio_setup_ccw(VDev *vdev);
 
 int virtio_net_init(void *mac_addr);
+void virtio_net_deinit(void);
 
 #endif /* VIRTIO_H */
