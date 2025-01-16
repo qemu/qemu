@@ -20,6 +20,7 @@ struct LoongarchIPIState {
 
 struct LoongarchIPIClass {
     LoongsonIPICommonClass parent_class;
+    DeviceRealize parent_realize;
 };
 
 #endif

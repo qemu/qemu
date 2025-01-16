@@ -141,9 +141,85 @@ bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
     return false;
 }
 
+static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
+                                 int *prot, target_ulong address)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong index, phys;
+    uint64_t dir_base, dir_width;
+    uint64_t base;
+    int level;
+
+    if ((address >> 63) & 0x1) {
+        base = env->CSR_PGDH;
+    } else {
+        base = env->CSR_PGDL;
+    }
+    base &= TARGET_PHYS_MASK;
+
+    for (level = 4; level > 0; level--) {
+        get_dir_base_width(env, &dir_base, &dir_width, level);
+
+        if (dir_width == 0) {
+            continue;
+        }
+
+        /* get next level page directory */
+        index = (address >> dir_base) & ((1 << dir_width) - 1);
+        phys = base | index << 3;
+        base = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
+        if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+            /* base is a huge pte */
+            break;
+        }
+    }
+
+    /* pte */
+    if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+        /* Huge Page. base is pte */
+        base = FIELD_DP64(base, TLBENTRY, LEVEL, 0);
+        base = FIELD_DP64(base, TLBENTRY, HUGE, 0);
+        if (FIELD_EX64(base, TLBENTRY, HGLOBAL)) {
+            base = FIELD_DP64(base, TLBENTRY, HGLOBAL, 0);
+            base = FIELD_DP64(base, TLBENTRY, G, 1);
+        }
+    } else {
+        /* Normal Page. base points to pte */
+        get_dir_base_width(env, &dir_base, &dir_width, 0);
+        index = (address >> dir_base) & ((1 << dir_width) - 1);
+        phys = base | index << 3;
+        base = ldq_phys(cs->as, phys);
+    }
+
+    /* TODO: check plv and other bits? */
+
+    /* base is pte, in normal pte format */
+    if (!FIELD_EX64(base, TLBENTRY, V)) {
+        return TLBRET_NOMATCH;
+    }
+
+    if (!FIELD_EX64(base, TLBENTRY, D)) {
+        *prot = PAGE_READ;
+    } else {
+        *prot = PAGE_READ | PAGE_WRITE;
+    }
+
+    /* get TARGET_PAGE_SIZE aligned physical address */
+    base += (address & TARGET_PHYS_MASK) & ((1 << dir_base) - 1);
+    /* mask RPLV, NX, NR bits */
+    base = FIELD_DP64(base, TLBENTRY_64, RPLV, 0);
+    base = FIELD_DP64(base, TLBENTRY_64, NX, 0);
+    base = FIELD_DP64(base, TLBENTRY_64, NR, 0);
+    /* mask other attribute bits */
+    *physical = base & TARGET_PAGE_MASK;
+
+    return 0;
+}
+
 static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
                                  int *prot, target_ulong address,
-                                 MMUAccessType access_type, int mmu_idx)
+                                 MMUAccessType access_type, int mmu_idx,
+                                 int is_debug)
 {
     int index, match;
 
@@ -151,6 +227,13 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
     if (match) {
         return loongarch_map_tlb_entry(env, physical, prot,
                                        address, access_type, index, mmu_idx);
+    } else if (is_debug) {
+        /*
+         * For debugger memory access, we want to do the map when there is a
+         * legal mapping, even if the mapping is not yet in TLB. return 0 if
+         * there is a valid map, else none zero.
+         */
+        return loongarch_page_table_walker(env, physical, prot, address);
     }
 
     return TLBRET_NOMATCH;
@@ -158,7 +241,8 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
 #else
 static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
                                  int *prot, target_ulong address,
-                                 MMUAccessType access_type, int mmu_idx)
+                                 MMUAccessType access_type, int mmu_idx,
+                                 int is_debug)
 {
     return TLBRET_NOMATCH;
 }
@@ -178,7 +262,7 @@ static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
 
 int get_physical_address(CPULoongArchState *env, hwaddr *physical,
                          int *prot, target_ulong address,
-                         MMUAccessType access_type, int mmu_idx)
+                         MMUAccessType access_type, int mmu_idx, int is_debug)
 {
     int user_mode = mmu_idx == MMU_USER_IDX;
     int kernel_mode = mmu_idx == MMU_KERNEL_IDX;
@@ -222,7 +306,7 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
 
     /* Mapped address */
     return loongarch_map_address(env, physical, prot, address,
-                                 access_type, mmu_idx);
+                                 access_type, mmu_idx, is_debug);
 }
 
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -232,7 +316,7 @@ hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int prot;
 
     if (get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
-                             cpu_mmu_index(cs, false)) != 0) {
+                             cpu_mmu_index(cs, false), 1) != 0) {
         return -1;
     }
     return phys_addr;
