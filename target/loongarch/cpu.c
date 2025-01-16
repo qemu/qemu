@@ -19,7 +19,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "fpu/softfloat-helpers.h"
-#include "cpu-csr.h"
+#include "csr.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/reset.h"
 #endif
@@ -375,6 +375,33 @@ static int loongarch_cpu_mmu_index(CPUState *cs, bool ifetch)
     return MMU_DA_IDX;
 }
 
+static void loongarch_la464_init_csr(Object *obj)
+{
+#ifndef CONFIG_USER_ONLY
+    static bool initialized;
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    CPULoongArchState *env = &cpu->env;
+    int i, num;
+
+    if (!initialized) {
+        initialized = true;
+        num = FIELD_EX64(env->CSR_PRCFG1, CSR_PRCFG1, SAVE_NUM);
+        for (i = num; i < 16; i++) {
+            set_csr_flag(LOONGARCH_CSR_SAVE(i), CSRFL_UNUSED);
+        }
+        set_csr_flag(LOONGARCH_CSR_IMPCTL1, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_IMPCTL2, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRCTL, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRINFO1, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRINFO2, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRENTRY, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRERA, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_MERRSAVE, CSRFL_UNUSED);
+        set_csr_flag(LOONGARCH_CSR_CTAG, CSRFL_UNUSED);
+    }
+#endif
+}
+
 static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
@@ -470,6 +497,7 @@ static void loongarch_la464_initfn(Object *obj)
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_WAYS, 7);
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
+    loongarch_la464_init_csr(obj);
     loongarch_cpu_post_init(obj);
 }
 

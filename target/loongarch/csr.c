@@ -112,3 +112,16 @@ CSRInfo *get_csr(unsigned int csr_num)
 
     return csr;
 }
+
+bool set_csr_flag(unsigned int csr_num, int flag)
+{
+    CSRInfo *csr;
+
+    csr = get_csr(csr_num);
+    if (!csr) {
+        return false;
+    }
+
+    csr->flags |= flag;
+    return true;
+}
