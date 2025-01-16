@@ -972,6 +972,11 @@ from Linux in 2021, and is not supported anymore by QEMU either.
 System emulator machines
 ------------------------
 
+Note: Versioned machine types that have been introduced in a QEMU version
+that has initially been released more than 6 years before are considered
+obsolete and will be removed without further notice in this document.
+Please use newer machine types instead.
+
 ``s390-virtio`` (removed in 2.6)
 ''''''''''''''''''''''''''''''''
 
@@ -1005,12 +1010,6 @@ mips ``fulong2e`` machine alias (removed in 6.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''
 
 This machine has been renamed ``fuloong2e``.
-
-``pc-0.10`` up to ``pc-i440fx-2.3`` (removed in 4.0 up to 9.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-These machine types were very old and likely could not be used for live
-migration from old QEMU versions anymore. Use a newer machine type instead.
 
 Raspberry Pi ``raspi2`` and ``raspi3`` machines (removed in 6.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
