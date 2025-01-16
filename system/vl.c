@@ -811,29 +811,15 @@ static void configure_msg(QemuOpts *opts)
 /***********************************************************/
 /* USB devices */
 
-static int usb_device_add(const char *devname)
-{
-    USBDevice *dev = NULL;
-
-    if (!machine_usb(current_machine)) {
-        return -1;
-    }
-
-    dev = usbdevice_create(devname);
-    if (!dev)
-        return -1;
-
-    return 0;
-}
-
 static int usb_parse(const char *cmdline)
 {
-    int r;
-    r = usb_device_add(cmdline);
-    if (r < 0) {
+    g_assert(machine_usb(current_machine));
+
+    if (!usbdevice_create(cmdline)) {
         error_report("could not add USB device '%s'", cmdline);
+        return -1;
     }
-    return r;
+    return 0;
 }
 
 /***********************************************************/
