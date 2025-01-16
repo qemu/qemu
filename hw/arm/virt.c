@@ -3347,17 +3347,13 @@ static void virt_instance_init(Object *obj)
     vms->highmem_mmio = true;
     vms->highmem_redists = true;
 
-    if (vmc->no_its) {
-        vms->its = false;
-    } else {
-        /* Default allows ITS instantiation */
-        vms->its = true;
+    /* Default allows ITS instantiation */
+    vms->its = true;
 
-        if (vmc->no_tcg_its) {
-            vms->tcg_its = false;
-        } else {
-            vms->tcg_its = true;
-        }
+    if (vmc->no_tcg_its) {
+        vms->tcg_its = false;
+    } else {
+        vms->tcg_its = true;
     }
 
     /* Default disallows iommu instantiation */
