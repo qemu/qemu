@@ -1770,24 +1770,23 @@ void virt_machine_done(Notifier *notifier, void *data)
 
 static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 {
-    uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    uint8_t clustersz;
 
-    if (!vmc->disallow_affinity_adjustment) {
-        /* Adjust MPIDR like 64-bit KVM hosts, which incorporate the
-         * GIC's target-list limitations. 32-bit KVM hosts currently
-         * always create clusters of 4 CPUs, but that is expected to
-         * change when they gain support for gicv3. When KVM is enabled
-         * it will override the changes we make here, therefore our
-         * purposes are to make TCG consistent (with 64-bit KVM hosts)
-         * and to improve SGI efficiency.
-         */
-        if (vms->gic_version == VIRT_GIC_VERSION_2) {
-            clustersz = GIC_TARGETLIST_BITS;
-        } else {
-            clustersz = GICV3_TARGETLIST_BITS;
-        }
+    /*
+     * Adjust MPIDR like 64-bit KVM hosts, which incorporate the
+     * GIC's target-list limitations. 32-bit KVM hosts currently
+     * always create clusters of 4 CPUs, but that is expected to
+     * change when they gain support for gicv3. When KVM is enabled
+     * it will override the changes we make here, therefore our
+     * purposes are to make TCG consistent (with 64-bit KVM hosts)
+     * and to improve SGI efficiency.
+     */
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        clustersz = GIC_TARGETLIST_BITS;
+    } else {
+        clustersz = GICV3_TARGETLIST_BITS;
     }
+
     return arm_build_mp_affinity(idx, clustersz);
 }
 
