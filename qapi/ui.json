@@ -1133,7 +1133,7 @@
 # @axis: Which axis is referenced by @value.
 #
 # @value: Pointer position.  For absolute coordinates the valid range
-#     is 0 -> 0x7ffff
+#     is 0 to 0x7fff.
 #
 # Since: 2.0
 ##
