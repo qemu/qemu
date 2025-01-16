@@ -638,10 +638,51 @@ void tcg_region_reset_all(void);
 size_t tcg_code_size(void);
 size_t tcg_code_capacity(void);
 
+/**
+ * tcg_tb_insert:
+ * @tb: translation block to insert
+ *
+ * Insert @tb into the region trees.
+ */
 void tcg_tb_insert(TranslationBlock *tb);
+
+/**
+ * tcg_tb_remove:
+ * @tb: translation block to remove
+ *
+ * Remove @tb from the region trees.
+ */
 void tcg_tb_remove(TranslationBlock *tb);
+
+/**
+ * tcg_tb_lookup:
+ * @tc_ptr: host PC to look up
+ *
+ * Look up a translation block inside the region trees by @tc_ptr. This is
+ * useful for exception handling, but must not be used for the purposes of
+ * executing the returned translation block. See struct tb_tc for more
+ * information.
+ *
+ * Returns: a translation block previously inserted into the region trees,
+ * such that @tc_ptr points anywhere inside the code generated for it, or
+ * NULL.
+ */
 TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr);
+
+/**
+ * tcg_tb_foreach:
+ * @func: callback
+ * @user_data: opaque value to pass to @callback
+ *
+ * Call @func for each translation block inserted into the region trees.
+ */
 void tcg_tb_foreach(GTraverseFunc func, gpointer user_data);
+
+/**
+ * tcg_nb_tbs:
+ *
+ * Returns: the number of translation blocks inserted into the region trees.
+ */
 size_t tcg_nb_tbs(void);
 
 /* user-mode: Called with mmap_lock held.  */
