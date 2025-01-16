@@ -3632,16 +3632,3 @@ static void virt_machine_2_9_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
 }
 DEFINE_VIRT_MACHINE(2, 9)
-
-static void virt_machine_2_8_options(MachineClass *mc)
-{
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-
-    virt_machine_2_9_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
-    /* For 2.8 and earlier we falsely claimed in the DT that
-     * our timers were edge-triggered, not level-triggered.
-     */
-    vmc->claim_edge_triggered_timers = true;
-}
-DEFINE_VIRT_MACHINE(2, 8)
