@@ -532,21 +532,30 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
     /*
-     * If the TB is not associated with a physical RAM page then it must be
-     * a temporary one-insn TB, and we have nothing left to do. Return early
-     * before attempting to link to other TBs or add to the lookup table.
-     */
-    if (tb_page_addr0(tb) == -1) {
-        assert_no_pages_locked();
-        return tb;
-    }
-
-    /*
      * Insert TB into the corresponding region tree before publishing it
      * through QHT. Otherwise rewinding happened in the TB might fail to
      * lookup itself using host PC.
      */
     tcg_tb_insert(tb);
+
+    /*
+     * If the TB is not associated with a physical RAM page then it must be
+     * a temporary one-insn TB.
+     *
+     * Such TBs must be added to region trees in order to make sure that
+     * restore_state_to_opc() - which on some architectures is not limited to
+     * rewinding, but also affects exception handling! - is called when such a
+     * TB causes an exception.
+     *
+     * At the same time, temporary one-insn TBs must be executed at most once,
+     * because subsequent reads from, e.g., I/O memory may return different
+     * values. So return early before attempting to link to other TBs or add
+     * to the QHT.
+     */
+    if (tb_page_addr0(tb) == -1) {
+        assert_no_pages_locked();
+        return tb;
+    }
 
     /*
      * No explicit memory barrier is required -- tb_link_page() makes the
