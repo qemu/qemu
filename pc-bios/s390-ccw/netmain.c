@@ -168,6 +168,14 @@ static int net_init_ip(filename_ip_t *fn_ip)
         if (fn_ip->ip_version == 4) {
             set_ipv4_address(fn_ip->own_ip);
         }
+    } else if (rc == -2) {
+        printf("ARP request to TFTP server (%d.%d.%d.%d) failed\n",
+               (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
+               (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
+        return -102;
+    } else if (rc == -4 || rc == -3) {
+        puts("Can't obtain TFTP server IP address");
+        return -107;
     } else {
         puts("Could not get IP address");
         return -101;
@@ -181,17 +189,6 @@ static int net_init_ip(filename_ip_t *fn_ip)
         char ip6_str[40];
         ipv6_to_str(fn_ip->own_ip6.addr, ip6_str);
         printf("  Using IPv6 address: %s\n", ip6_str);
-    }
-
-    if (rc == -2) {
-        printf("ARP request to TFTP server (%d.%d.%d.%d) failed\n",
-               (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
-               (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
-        return -102;
-    }
-    if (rc == -4 || rc == -3) {
-        puts("Can't obtain TFTP server IP address");
-        return -107;
     }
 
     printf("  Using TFTP server: ");
