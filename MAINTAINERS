@@ -74,6 +74,7 @@ W: https://www.qemu.org/docs/master/devel/index.html
 S: Odd Fixes
 F: docs/devel/build-environment.rst
 F: docs/devel/code-of-conduct.rst
+F: docs/devel/codebase.rst
 F: docs/devel/conflict-resolution.rst
 F: docs/devel/style.rst
 F: docs/devel/submitting-a-patch.rst
