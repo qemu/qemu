@@ -9,12 +9,14 @@
 
 #define CSR_OFF_FUNCS(NAME, FL, RD, WR)                    \
     [LOONGARCH_CSR_##NAME] = {                             \
+        .name   = (stringify(NAME)),                       \
         .offset = offsetof(CPULoongArchState, CSR_##NAME), \
         .flags = FL, .readfn = RD, .writefn = WR           \
     }
 
 #define CSR_OFF_ARRAY(NAME, N)                                \
     [LOONGARCH_CSR_##NAME(N)] = {                             \
+        .name   = (stringify(NAME##N)),                       \
         .offset = offsetof(CPULoongArchState, CSR_##NAME[N]), \
         .flags = 0, .readfn = NULL, .writefn = NULL           \
     }
