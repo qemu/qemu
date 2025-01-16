@@ -124,58 +124,61 @@ static inline void set_no_signaling_nans(bool val, float_status *status)
     status->no_signaling_nans = val;
 }
 
-static inline bool get_float_detect_tininess(float_status *status)
+static inline bool get_float_detect_tininess(const float_status *status)
 {
     return status->tininess_before_rounding;
 }
 
-static inline FloatRoundMode get_float_rounding_mode(float_status *status)
+static inline FloatRoundMode get_float_rounding_mode(const float_status *status)
 {
     return status->float_rounding_mode;
 }
 
-static inline int get_float_exception_flags(float_status *status)
+static inline int get_float_exception_flags(const float_status *status)
 {
     return status->float_exception_flags;
 }
 
 static inline FloatX80RoundPrec
-get_floatx80_rounding_precision(float_status *status)
+get_floatx80_rounding_precision(const float_status *status)
 {
     return status->floatx80_rounding_precision;
 }
 
-static inline Float2NaNPropRule get_float_2nan_prop_rule(float_status *status)
+static inline Float2NaNPropRule
+get_float_2nan_prop_rule(const float_status *status)
 {
     return status->float_2nan_prop_rule;
 }
 
-static inline Float3NaNPropRule get_float_3nan_prop_rule(float_status *status)
+static inline Float3NaNPropRule
+get_float_3nan_prop_rule(const float_status *status)
 {
     return status->float_3nan_prop_rule;
 }
 
-static inline FloatInfZeroNaNRule get_float_infzeronan_rule(float_status *status)
+static inline FloatInfZeroNaNRule
+get_float_infzeronan_rule(const float_status *status)
 {
     return status->float_infzeronan_rule;
 }
 
-static inline uint8_t get_float_default_nan_pattern(float_status *status)
+static inline uint8_t get_float_default_nan_pattern(const float_status *status)
 {
     return status->default_nan_pattern;
 }
 
-static inline bool get_flush_to_zero(float_status *status)
+static inline bool get_flush_to_zero(const float_status *status)
 {
     return status->flush_to_zero;
 }
 
-static inline bool get_flush_inputs_to_zero(float_status *status)
+static inline bool get_flush_inputs_to_zero(const float_status *status)
 {
     return status->flush_inputs_to_zero;
 }
 
-static inline bool get_default_nan_mode(float_status *status)
+static inline bool get_default_nan_mode(const float_status *status)
 {
     return status->default_nan_mode;
 }
