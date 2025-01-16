@@ -29,6 +29,9 @@ The `Repology`_ site is a useful resource to identify
 currently shipped versions of software in various operating systems,
 though it does not cover all distros listed below.
 
+You can find how to install build dependencies for different systems on the
+:ref:`setup-build-env` page.
+
 Supported host architectures
 ----------------------------
 
@@ -129,7 +132,6 @@ Optional build dependencies
   download them from repositories such as EPEL, to use container-based
   cross compilation using ``docker`` or ``podman``, or to use pre-built
   binaries distributed with QEMU.
-
 
 Windows
 -------
