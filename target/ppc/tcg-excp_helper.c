@@ -345,39 +345,42 @@ bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 {
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);
+    bool wt, wti, hv, sv, pr;
+    uint32_t dawrx;
 
-    if (env->insns_flags2 & PPC2_ISA207S) {
-        if (wp == env->dawr0_watchpoint) {
-            uint32_t dawrx = env->spr[SPR_DAWRX0];
-            bool wt = extract32(dawrx, PPC_BIT_NR(59), 1);
-            bool wti = extract32(dawrx, PPC_BIT_NR(60), 1);
-            bool hv = extract32(dawrx, PPC_BIT_NR(61), 1);
-            bool sv = extract32(dawrx, PPC_BIT_NR(62), 1);
-            bool pr = extract32(dawrx, PPC_BIT_NR(62), 1);
+    if ((env->insns_flags2 & PPC2_ISA207S) &&
+        (wp == env->dawr_watchpoint[0])) {
+        dawrx = env->spr[SPR_DAWRX0];
+    } else if ((env->insns_flags2 & PPC2_ISA310) &&
+               (wp == env->dawr_watchpoint[1])) {
+        dawrx = env->spr[SPR_DAWRX1];
+    } else {
+        return false;
+    }
 
-            if ((env->msr & ((target_ulong)1 << MSR_PR)) && !pr) {
-                return false;
-            } else if ((env->msr & ((target_ulong)1 << MSR_HV)) && !hv) {
-                return false;
-            } else if (!sv) {
-                return false;
-            }
+    wt = extract32(dawrx, PPC_BIT_NR(59), 1);
+    wti = extract32(dawrx, PPC_BIT_NR(60), 1);
+    hv = extract32(dawrx, PPC_BIT_NR(61), 1);
+    sv = extract32(dawrx, PPC_BIT_NR(62), 1);
+    pr = extract32(dawrx, PPC_BIT_NR(62), 1);
 
-            if (!wti) {
-                if (env->msr & ((target_ulong)1 << MSR_DR)) {
-                    if (!wt) {
-                        return false;
-                    }
-                } else {
-                    if (wt) {
-                        return false;
-                    }
-                }
-            }
+    if ((env->msr & ((target_ulong)1 << MSR_PR)) && !pr) {
+        return false;
+    } else if ((env->msr & ((target_ulong)1 << MSR_HV)) && !hv) {
+        return false;
+    } else if (!sv) {
+        return false;
+    }
 
-            return true;
+    if (!wti) {
+        if (env->msr & ((target_ulong)1 << MSR_DR)) {
+            return wt;
+        } else {
+            return !wt;
         }
     }
+
+    return true;
 #endif
 
     return false;
