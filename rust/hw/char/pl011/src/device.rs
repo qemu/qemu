@@ -123,6 +123,7 @@ pub struct PL011State {
 
 qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
 
+#[repr(C)]
 pub struct PL011Class {
     parent_class: <SysBusDevice as ObjectType>::Class,
     /// The byte string that identifies the device.
