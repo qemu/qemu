@@ -9,6 +9,7 @@ pub use crate::cell::BqlRefCell;
 
 pub use crate::qdev::DeviceMethods;
 
+pub use crate::qom::InterfaceType;
 pub use crate::qom::IsA;
 pub use crate::qom::Object;
 pub use crate::qom::ObjectCast;

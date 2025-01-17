@@ -66,8 +66,8 @@ pub use bindings::{Object, ObjectClass};
 
 use crate::{
     bindings::{
-        self, object_dynamic_cast, object_get_class, object_get_typename, object_new, object_ref,
-        object_unref, TypeInfo,
+        self, object_class_dynamic_cast, object_dynamic_cast, object_get_class,
+        object_get_typename, object_new, object_ref, object_unref, TypeInfo,
     },
     cell::bql_locked,
 };
@@ -260,6 +260,47 @@ pub unsafe trait ObjectType: Sized {
     /// for calls to C functions, and only if needed.
     unsafe fn as_object_mut_ptr(&self) -> *mut Object {
         self.as_object_ptr() as *mut _
+    }
+}
+
+/// Trait exposed by all structs corresponding to QOM interfaces.
+/// Unlike `ObjectType`, it is implemented on the class type (which provides
+/// the vtable for the interfaces).
+///
+/// # Safety
+///
+/// `TYPE` must match the contents of the `TypeInfo` as found in the C code;
+/// right now, interfaces can only be declared in C.
+pub unsafe trait InterfaceType: Sized {
+    /// The name of the type, which can be passed to
+    /// `object_class_dynamic_cast()` to obtain the pointer to the vtable
+    /// for this interface.
+    const TYPE_NAME: &'static CStr;
+
+    /// Initialize the vtable for the interface; the generic argument `T` is the
+    /// type being initialized, while the generic argument `U` is the type that
+    /// lists the interface in its `TypeInfo`.
+    ///
+    /// # Panics
+    ///
+    /// Panic if the incoming argument if `T` does not implement the interface.
+    fn interface_init<
+        T: ObjectType + ClassInitImpl<Self> + ClassInitImpl<U::Class>,
+        U: ObjectType,
+    >(
+        klass: &mut U::Class,
+    ) {
+        unsafe {
+            // SAFETY: upcasting to ObjectClass is always valid, and the
+            // return type is either NULL or the argument itself
+            let result: *mut Self = object_class_dynamic_cast(
+                (klass as *mut U::Class).cast(),
+                Self::TYPE_NAME.as_ptr(),
+            )
+            .cast();
+
+            <T as ClassInitImpl<Self>>::class_init(result.as_mut().unwrap())
+        }
     }
 }
 
