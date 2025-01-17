@@ -10,10 +10,10 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::{Clock, ClockEvent, DeviceClass, DeviceState, Property};
+pub use bindings::{Clock, ClockEvent, DeviceClass, DeviceState, Property, ResetType};
 
 use crate::{
-    bindings::{self, Error},
+    bindings::{self, Error, ResettableClass},
     callbacks::FnCall,
     cell::bql_locked,
     prelude::*,
@@ -21,8 +21,70 @@ use crate::{
     vmstate::VMStateDescription,
 };
 
+/// Trait providing the contents of the `ResettablePhases` struct,
+/// which is part of the QOM `Resettable` interface.
+pub trait ResettablePhasesImpl {
+    /// If not None, this is called when the object enters reset. It
+    /// can reset local state of the object, but it must not do anything that
+    /// has a side-effect on other objects, such as raising or lowering an
+    /// [`InterruptSource`](crate::irq::InterruptSource), or reading or
+    /// writing guest memory. It takes the reset's type as argument.
+    const ENTER: Option<fn(&Self, ResetType)> = None;
+
+    /// If not None, this is called when the object for entry into reset, once
+    /// every object in the system which is being reset has had its
+    /// `ResettablePhasesImpl::ENTER` method called. At this point devices
+    /// can do actions that affect other objects.
+    ///
+    /// If in doubt, implement this method.
+    const HOLD: Option<fn(&Self, ResetType)> = None;
+
+    /// If not None, this phase is called when the object leaves the reset
+    /// state. Actions affecting other objects are permitted.
+    const EXIT: Option<fn(&Self, ResetType)> = None;
+}
+
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_resettable_enter_fn<T: ResettablePhasesImpl>(
+    obj: *mut Object,
+    typ: ResetType,
+) {
+    let state = NonNull::new(obj).unwrap().cast::<T>();
+    T::ENTER.unwrap()(unsafe { state.as_ref() }, typ);
+}
+
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_resettable_hold_fn<T: ResettablePhasesImpl>(
+    obj: *mut Object,
+    typ: ResetType,
+) {
+    let state = NonNull::new(obj).unwrap().cast::<T>();
+    T::HOLD.unwrap()(unsafe { state.as_ref() }, typ);
+}
+
+/// # Safety
+///
+/// We expect the FFI user of this function to pass a valid pointer that
+/// can be downcasted to type `T`. We also expect the device is
+/// readable/writeable from one thread at any time.
+unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
+    obj: *mut Object,
+    typ: ResetType,
+) {
+    let state = NonNull::new(obj).unwrap().cast::<T>();
+    T::EXIT.unwrap()(unsafe { state.as_ref() }, typ);
+}
+
 /// Trait providing the contents of [`DeviceClass`].
-pub trait DeviceImpl: ObjectImpl {
+pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl {
     /// _Realization_ is the second stage of device creation. It contains
     /// all operations that depend on device properties and can fail (note:
     /// this is not yet supported for Rust devices).
@@ -30,13 +92,6 @@ pub trait DeviceImpl: ObjectImpl {
     /// If not `None`, the parent class's `realize` method is overridden
     /// with the function pointed to by `REALIZE`.
     const REALIZE: Option<fn(&Self)> = None;
-
-    /// If not `None`, the parent class's `reset` method is overridden
-    /// with the function pointed to by `RESET`.
-    ///
-    /// Rust does not yet support the three-phase reset protocol; this is
-    /// usually okay for leaf classes.
-    const RESET: Option<fn(&Self)> = None;
 
     /// An array providing the properties that the user can set on the
     /// device.  Not a `const` because referencing statics in constants
@@ -65,28 +120,35 @@ unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp
     T::REALIZE.unwrap()(unsafe { state.as_ref() });
 }
 
-/// # Safety
-///
-/// We expect the FFI user of this function to pass a valid pointer that
-/// can be downcasted to type `T`. We also expect the device is
-/// readable/writeable from one thread at any time.
-unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
-    let mut state = NonNull::new(dev).unwrap().cast::<T>();
-    T::RESET.unwrap()(unsafe { state.as_mut() });
+unsafe impl InterfaceType for ResettableClass {
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_RESETTABLE_INTERFACE) };
+}
+
+impl<T> ClassInitImpl<ResettableClass> for T
+where
+    T: ResettablePhasesImpl,
+{
+    fn class_init(rc: &mut ResettableClass) {
+        if <T as ResettablePhasesImpl>::ENTER.is_some() {
+            rc.phases.enter = Some(rust_resettable_enter_fn::<T>);
+        }
+        if <T as ResettablePhasesImpl>::HOLD.is_some() {
+            rc.phases.hold = Some(rust_resettable_hold_fn::<T>);
+        }
+        if <T as ResettablePhasesImpl>::EXIT.is_some() {
+            rc.phases.exit = Some(rust_resettable_exit_fn::<T>);
+        }
+    }
 }
 
 impl<T> ClassInitImpl<DeviceClass> for T
 where
-    T: ClassInitImpl<ObjectClass> + DeviceImpl,
+    T: ClassInitImpl<ObjectClass> + ClassInitImpl<ResettableClass> + DeviceImpl,
 {
     fn class_init(dc: &mut DeviceClass) {
         if <T as DeviceImpl>::REALIZE.is_some() {
             dc.realize = Some(rust_realize_fn::<T>);
-        }
-        if <T as DeviceImpl>::RESET.is_some() {
-            unsafe {
-                bindings::device_class_set_legacy_reset(dc, Some(rust_reset_fn::<T>));
-            }
         }
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
             dc.vmsd = vmsd;
@@ -98,6 +160,7 @@ where
             }
         }
 
+        ResettableClass::interface_init::<T, DeviceState>(dc);
         <T as ClassInitImpl<ObjectClass>>::class_init(&mut dc.parent_class);
     }
 }

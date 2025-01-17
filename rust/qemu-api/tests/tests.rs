@@ -13,7 +13,7 @@ use qemu_api::{
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceClass, DeviceImpl, DeviceState, Property},
+    qdev::{DeviceClass, DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
     qom::{ClassInitImpl, ObjectImpl, ParentField},
     vmstate::VMStateDescription,
     zeroable::Zeroable,
@@ -61,6 +61,8 @@ impl ObjectImpl for DummyState {
     const ABSTRACT: bool = false;
 }
 
+impl ResettablePhasesImpl for DummyState {}
+
 impl DeviceImpl for DummyState {
     fn properties() -> &'static [Property] {
         &DUMMY_PROPERTIES
@@ -101,6 +103,7 @@ impl ObjectImpl for DummyChildState {
     const ABSTRACT: bool = false;
 }
 
+impl ResettablePhasesImpl for DummyChildState {}
 impl DeviceImpl for DummyChildState {}
 
 impl ClassInitImpl<DummyClass> for DummyChildState {
