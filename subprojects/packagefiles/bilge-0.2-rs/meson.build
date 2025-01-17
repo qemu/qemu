@@ -17,6 +17,7 @@ lib = static_library(
   'src/lib.rs',
   override_options : ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi : 'rust',
+  rust_args: ['--cap-lints', 'allow'],
   dependencies: [
     arbitrary_int_dep,
     bilge_impl_dep,

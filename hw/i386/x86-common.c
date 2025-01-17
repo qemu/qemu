@@ -248,9 +248,7 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
     CPUX86State *env = &cpu->env;
     MachineState *ms = MACHINE(hotplug_dev);
     X86MachineState *x86ms = X86_MACHINE(hotplug_dev);
-    unsigned int smp_cores = ms->smp.cores;
-    unsigned int smp_threads = ms->smp.threads;
-    X86CPUTopoInfo topo_info;
+    X86CPUTopoInfo *topo_info = &env->topo_info;
 
     if (!object_dynamic_cast(OBJECT(cpu), ms->cpu_type)) {
         error_setg(errp, "Invalid CPU type, expected cpu type: '%s'",
@@ -269,15 +267,13 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
         }
     }
 
-    init_topo_info(&topo_info, x86ms);
+    init_topo_info(topo_info, x86ms);
 
     if (ms->smp.modules > 1) {
-        env->nr_modules = ms->smp.modules;
         set_bit(CPU_TOPOLOGY_LEVEL_MODULE, env->avail_cpu_topo);
     }
 
     if (ms->smp.dies > 1) {
-        env->nr_dies = ms->smp.dies;
         set_bit(CPU_TOPOLOGY_LEVEL_DIE, env->avail_cpu_topo);
     }
 
@@ -329,17 +325,17 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
         if (cpu->core_id < 0) {
             error_setg(errp, "CPU core-id is not set");
             return;
-        } else if (cpu->core_id > (smp_cores - 1)) {
+        } else if (cpu->core_id > (ms->smp.cores - 1)) {
             error_setg(errp, "Invalid CPU core-id: %u must be in range 0:%u",
-                       cpu->core_id, smp_cores - 1);
+                       cpu->core_id, ms->smp.cores - 1);
             return;
         }
         if (cpu->thread_id < 0) {
             error_setg(errp, "CPU thread-id is not set");
             return;
-        } else if (cpu->thread_id > (smp_threads - 1)) {
+        } else if (cpu->thread_id > (ms->smp.threads - 1)) {
             error_setg(errp, "Invalid CPU thread-id: %u must be in range 0:%u",
-                       cpu->thread_id, smp_threads - 1);
+                       cpu->thread_id, ms->smp.threads - 1);
             return;
         }
 
@@ -348,12 +344,12 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
         topo_ids.module_id = cpu->module_id;
         topo_ids.core_id = cpu->core_id;
         topo_ids.smt_id = cpu->thread_id;
-        cpu->apic_id = x86_apicid_from_topo_ids(&topo_info, &topo_ids);
+        cpu->apic_id = x86_apicid_from_topo_ids(topo_info, &topo_ids);
     }
 
     cpu_slot = x86_find_cpu_slot(MACHINE(x86ms), cpu->apic_id, &idx);
     if (!cpu_slot) {
-        x86_topo_ids_from_apicid(cpu->apic_id, &topo_info, &topo_ids);
+        x86_topo_ids_from_apicid(cpu->apic_id, topo_info, &topo_ids);
 
         error_setg(errp,
             "Invalid CPU [socket: %u, die: %u, module: %u, core: %u, thread: %u]"
@@ -376,7 +372,7 @@ void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
     /* TODO: move socket_id/core_id/thread_id checks into x86_cpu_realizefn()
      * once -smp refactoring is complete and there will be CPU private
      * CPUState::nr_cores and CPUState::nr_threads fields instead of globals */
-    x86_topo_ids_from_apicid(cpu->apic_id, &topo_info, &topo_ids);
+    x86_topo_ids_from_apicid(cpu->apic_id, topo_info, &topo_ids);
     if (cpu->socket_id != -1 && cpu->socket_id != topo_ids.pkg_id) {
         error_setg(errp, "property socket-id: %u doesn't match set apic-id:"
             " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id,

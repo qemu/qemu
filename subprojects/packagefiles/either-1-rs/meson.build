@@ -11,6 +11,7 @@ _either_rs = static_library(
   override_options: ['rust_std=2018', 'build.rust_std=2018'],
   rust_abi: 'rust',
   rust_args: [
+    '--cap-lints', 'allow',
     '--cfg', 'feature="use_std"',
     '--cfg', 'feature="use_alloc"',
   ],
