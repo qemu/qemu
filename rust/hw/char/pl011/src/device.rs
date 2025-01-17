@@ -5,7 +5,6 @@
 use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
-    ops::ControlFlow,
     os::raw::{c_int, c_void},
 };
 
@@ -177,10 +176,11 @@ impl DeviceImpl for PL011State {
 }
 
 impl PL011Registers {
-    pub(self) fn read(&mut self, offset: RegisterOffset) -> ControlFlow<u32, u32> {
+    pub(self) fn read(&mut self, offset: RegisterOffset) -> (bool, u32) {
         use RegisterOffset::*;
 
-        ControlFlow::Break(match offset {
+        let mut update = false;
+        let result = match offset {
             DR => {
                 self.flags.set_receive_fifo_full(false);
                 let c = self.read_fifo[self.read_pos];
@@ -196,8 +196,9 @@ impl PL011Registers {
                 }
                 // Update error bits.
                 self.receive_status_error_clear.set_from_data(c);
-                // Must call qemu_chr_fe_accept_input, so return Continue:
-                return ControlFlow::Continue(u32::from(c));
+                // Must call qemu_chr_fe_accept_input
+                update = true;
+                u32::from(c)
             }
             RSR => u32::from(self.receive_status_error_clear),
             FR => u32::from(self.flags),
@@ -216,7 +217,8 @@ impl PL011Registers {
                 0
             }
             DMACR => self.dmacr,
-        })
+        };
+        (update, result)
     }
 
     pub(self) fn write(
@@ -530,31 +532,26 @@ impl PL011State {
     }
 
     pub fn read(&mut self, offset: hwaddr, _size: u32) -> u64 {
-        let mut update_irq = false;
-        let result = match RegisterOffset::try_from(offset) {
+        match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
-                u32::from(device_id[(offset - 0xfe0) >> 2])
+                u64::from(device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
                 0
             }
-            Ok(field) => match self.regs.borrow_mut().read(field) {
-                ControlFlow::Break(value) => value,
-                ControlFlow::Continue(value) => {
-                    update_irq = true;
-                    value
+            Ok(field) => {
+                let (update_irq, result) = self.regs.borrow_mut().read(field);
+                if update_irq {
+                    self.update();
+                    unsafe {
+                        qemu_chr_fe_accept_input(&mut self.char_backend);
+                    }
                 }
-            },
-        };
-        if update_irq {
-            self.update();
-            unsafe {
-                qemu_chr_fe_accept_input(&mut self.char_backend);
+                result.into()
             }
         }
-        result.into()
     }
 
     pub fn write(&mut self, offset: hwaddr, value: u64) {
