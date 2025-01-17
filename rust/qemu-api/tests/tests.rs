@@ -15,7 +15,7 @@ use qemu_api::{
     declare_properties, define_property,
     prelude::*,
     qdev::{DeviceClass, DeviceImpl, DeviceState, Property},
-    qom::{ClassInitImpl, ObjectImpl, ParentField},
+    qom::{ClassInitImpl, ObjectImpl, Owned, ParentField},
     vmstate::VMStateDescription,
     zeroable::Zeroable,
 };
@@ -136,6 +136,17 @@ fn test_object_new() {
         object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
         object_unref(object_new(DummyChildState::TYPE_NAME.as_ptr()).cast());
     }
+}
+
+#[test]
+#[allow(clippy::redundant_clone)]
+/// Create, clone and then drop an instance.
+fn test_clone() {
+    init_qom();
+    let p: *mut DummyState = unsafe { object_new(DummyState::TYPE_NAME.as_ptr()).cast() };
+    let p = unsafe { Owned::from_raw(p) };
+    assert_eq!(p.clone().typename(), "dummy");
+    drop(p);
 }
 
 #[test]
