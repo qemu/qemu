@@ -336,8 +336,7 @@ static int run_eckd_boot_script(block_number_t bmt_block_nr,
 
     debug_print_int("loadparm", loadparm);
     if (loadparm >= MAX_BOOT_ENTRIES) {
-        puts("loadparm value greater than max number of boot entries allowed");
-        return -EINVAL;
+        panic("loadparm value greater than max number of boot entries allowed");
     }
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -348,8 +347,8 @@ static int run_eckd_boot_script(block_number_t bmt_block_nr,
 
     block_nr = gen_eckd_block_num(&bmt->entry[loadparm].xeckd, ldipl);
     if (block_nr == NULL_BLOCK_NR) {
-        puts("Cannot find Boot Map Table Entry");
-        return -EIO;
+        printf("The requested boot entry (%d) is invalid\n", loadparm);
+        panic("Invalid loadparm");
     }
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -792,8 +791,12 @@ static int ipl_scsi(void)
 
     debug_print_int("loadparm", loadparm);
     if (loadparm >= MAX_BOOT_ENTRIES) {
-        puts("loadparm value greater than max number of boot entries allowed");
-        return -EINVAL;
+        panic("loadparm value greater than max number of boot entries allowed");
+    }
+
+    if (!valid_entries[loadparm]) {
+        printf("The requested boot entry (%d) is invalid\n", loadparm);
+        panic("Invalid loadparm");
     }
 
     return zipl_run(&prog_table->entry[loadparm].scsi);
