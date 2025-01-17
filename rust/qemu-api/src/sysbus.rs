@@ -2,7 +2,7 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, ptr::addr_of};
+use std::ffi::CStr;
 
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
@@ -10,6 +10,7 @@ use crate::{
     bindings,
     cell::bql_locked,
     irq::InterruptSource,
+    memory::MemoryRegion,
     prelude::*,
     qdev::{DeviceClass, DeviceState},
     qom::ClassInitImpl,
@@ -42,10 +43,10 @@ where
     /// important, since whoever creates the sysbus device will refer to the
     /// region with a number that corresponds to the order of calls to
     /// `init_mmio`.
-    fn init_mmio(&self, iomem: &bindings::MemoryRegion) {
+    fn init_mmio(&self, iomem: &MemoryRegion) {
         assert!(bql_locked());
         unsafe {
-            bindings::sysbus_init_mmio(self.as_mut_ptr(), addr_of!(*iomem) as *mut _);
+            bindings::sysbus_init_mmio(self.as_mut_ptr(), iomem.as_mut_ptr());
         }
     }
 

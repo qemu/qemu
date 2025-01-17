@@ -180,6 +180,7 @@ module           status
 ``cell``         stable
 ``c_str``        complete
 ``irq``          complete
+``memory``       stable
 ``module``       complete
 ``offset_of``    stable
 ``qdev``         stable

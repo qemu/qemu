@@ -22,6 +22,7 @@ _qemu_api_rs = static_library(
       'src/cell.rs',
       'src/c_str.rs',
       'src/irq.rs',
+      'src/memory.rs',
       'src/module.rs',
       'src/offset_of.rs',
       'src/prelude.rs',

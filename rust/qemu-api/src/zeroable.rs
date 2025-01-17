@@ -100,3 +100,4 @@ impl_zeroable!(crate::bindings::VMStateField);
 impl_zeroable!(crate::bindings::VMStateDescription);
 impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_1);
 impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_2);
+impl_zeroable!(crate::bindings::MemoryRegionOps);

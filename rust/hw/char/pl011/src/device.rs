@@ -10,13 +10,14 @@ use std::{
 
 use qemu_api::{
     bindings::{
-        error_fatal, hwaddr, memory_region_init_io, qdev_prop_set_chr, qemu_chr_fe_accept_input,
-        qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers, qemu_chr_fe_write_all, qemu_irq,
-        sysbus_connect_irq, sysbus_mmio_map, sysbus_realize, CharBackend, Chardev, MemoryRegion,
-        QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+        error_fatal, qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl,
+        qemu_chr_fe_set_handlers, qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq,
+        sysbus_mmio_map, sysbus_realize, CharBackend, Chardev, QEMUChrEvent,
+        CHR_IOCTL_SERIAL_SET_BREAK,
     },
     c_str, impl_vmstate_forward,
     irq::InterruptSource,
+    memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ClassInitImpl, ObjectImpl, Owned, ParentField},
@@ -26,7 +27,6 @@ use qemu_api::{
 
 use crate::{
     device_class,
-    memory_ops::PL011_OPS,
     registers::{self, Interrupt},
     RegisterOffset,
 };
@@ -487,20 +487,24 @@ impl PL011State {
     /// location/instance. All its fields are expected to hold unitialized
     /// values with the sole exception of `parent_obj`.
     unsafe fn init(&mut self) {
+        static PL011_OPS: MemoryRegionOps<PL011State> = MemoryRegionOpsBuilder::<PL011State>::new()
+            .read(&PL011State::read)
+            .write(&PL011State::write)
+            .native_endian()
+            .impl_sizes(4, 4)
+            .build();
+
         // SAFETY:
         //
         // self and self.iomem are guaranteed to be valid at this point since callers
         // must make sure the `self` reference is valid.
-        unsafe {
-            memory_region_init_io(
-                addr_of_mut!(self.iomem),
-                addr_of_mut!(*self).cast::<Object>(),
-                &PL011_OPS,
-                addr_of_mut!(*self).cast::<c_void>(),
-                Self::TYPE_NAME.as_ptr(),
-                0x1000,
-            );
-        }
+        MemoryRegion::init_io(
+            unsafe { &mut *addr_of_mut!(self.iomem) },
+            addr_of_mut!(*self),
+            &PL011_OPS,
+            "pl011",
+            0x1000,
+        );
 
         self.regs = Default::default();
 
@@ -525,7 +529,7 @@ impl PL011State {
         }
     }
 
-    pub fn read(&mut self, offset: hwaddr, _size: u32) -> u64 {
+    pub fn read(&self, offset: hwaddr, _size: u32) -> u64 {
         match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
@@ -540,7 +544,7 @@ impl PL011State {
                 if update_irq {
                     self.update();
                     unsafe {
-                        qemu_chr_fe_accept_input(&mut self.char_backend);
+                        qemu_chr_fe_accept_input(addr_of!(self.char_backend) as *mut _);
                     }
                 }
                 result.into()
@@ -548,7 +552,7 @@ impl PL011State {
         }
     }
 
-    pub fn write(&mut self, offset: hwaddr, value: u64) {
+    pub fn write(&self, offset: hwaddr, value: u64, _size: u32) {
         let mut update_irq = false;
         if let Ok(field) = RegisterOffset::try_from(offset) {
             // qemu_chr_fe_write_all() calls into the can_receive
@@ -561,14 +565,15 @@ impl PL011State {
                 // XXX this blocks entire thread. Rewrite to use
                 // qemu_chr_fe_write and background I/O callbacks
                 unsafe {
-                    qemu_chr_fe_write_all(&mut self.char_backend, &ch, 1);
+                    qemu_chr_fe_write_all(addr_of!(self.char_backend) as *mut _, &ch, 1);
                 }
             }
 
-            update_irq = self
-                .regs
-                .borrow_mut()
-                .write(field, value as u32, &mut self.char_backend);
+            update_irq = self.regs.borrow_mut().write(
+                field,
+                value as u32,
+                addr_of!(self.char_backend) as *mut _,
+            );
         } else {
             eprintln!("write bad offset {offset} value {value}");
         }
