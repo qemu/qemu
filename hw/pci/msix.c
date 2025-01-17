@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
@@ -260,6 +261,14 @@ static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
 static void msix_pba_mmio_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
+    PCIDevice *dev = opaque;
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "PCI [%s:%02x:%02x.%x] attempt to write to MSI-X "
+                  "PBA at 0x%" FMT_PCIBUS ", ignoring.\n",
+                  pci_root_bus_path(dev), pci_dev_bus_num(dev),
+                  PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
+                  addr);
 }
 
 static const MemoryRegionOps msix_pba_mmio_ops = {
