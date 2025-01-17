@@ -1398,6 +1398,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     assert(hdr_type != PCI_HEADER_TYPE_BRIDGE || region_num < 2);
 
     r = &pci_dev->io_regions[region_num];
+    assert(!r->size);
     r->addr = PCI_BAR_UNMAPPED;
     r->size = size;
     r->type = type;
